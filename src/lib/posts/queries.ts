@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { SNS_KEYS, isSnsKey, type SnsKey } from "@/lib/sns";
 import { createClient } from "@/lib/supabase/server";
+import { overduePostIds } from "./overdue";
 
 export type TargetStatus = "pending" | "publishing" | "published" | "failed" | "deleted";
 export type PostTargetRow = {
@@ -25,6 +26,7 @@ export type PostRow = {
 const TARGET_FIELDS = "id, sns, status, body_override, external_url, error_message, published_at, next_attempt_at";
 const POST_SELECT = `id, body, planned_at, status, post_targets(${TARGET_FIELDS})` as const;
 const POST_SELECT_FAILED_ONLY = `id, body, planned_at, status, post_targets!inner(${TARGET_FIELDS})` as const;
+
 
 type RawPost = {
   id: string;
@@ -124,6 +126,16 @@ export async function listPostsNeedingAttention(projectId: string, limit = 5) {
     .limit(limit);
   if (error) throw error;
   return (data as unknown as RawPost[]).map(normalize);
+}
+
+// 予約時刻を過ぎても送られていない投稿（送信ジョブが止まっている印。概要の「要確認」）
+export async function listOverduePosts(projectId: string, now = new Date()) {
+  const supabase = await createClient();
+  const ids = await overduePostIds(supabase, projectId, now);
+  if (ids.length === 0) return [];
+  const { data, error } = await supabase.from("posts").select(POST_SELECT).in("id", ids).order("planned_at");
+  if (error) throw error;
+  return (data as RawPost[]).map(normalize);
 }
 
 // 一覧やカレンダーに出す見出し（本文の 1 行目）

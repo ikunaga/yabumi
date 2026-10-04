@@ -126,11 +126,17 @@ SNS との連携がなくても作れる部分を先に作った。
 - README・docs・設定ファイルを読み（秘密が入りがちなファイルは読まない、大きさに上限）、AI がアプリの説明を下書き。利用者が直して採用すると、プロジェクトの説明に保存される
 - GitHub App が登録されるまでは「準備中」
 
+### 本番公開の準備（2026-10-04、オーナーの案 A「先に本番公開して、使いながら足す」）
+
+- 手順書（docs/deploy.md）と、本番環境の判断（architecture.md の 4.11）を書いた
+- 本番でオーナーだけが登録できる仕組み（Supabase で新規登録を閉じる + ALLOWED_SIGNUP_EMAILS）
+- 予約ジョブが止まったら気づける仕組み（予約時刻を過ぎても送られていない投稿を「要確認」に出す）
+- pg_net を有効にするマイグレーション、関数の場所を東京に（vercel.json）
+
 ## 5. 次の作業
 
-1. オーナーが GitHub App を登録し、.env.local に設定する。つないで、説明の下書きを確かめる
-2. オーナーが AI とアカウント設計を進める
-3. オーナーが Threads への送信を手で確かめる
-4. Instagram・Facebook 用の Meta アプリを作り、接続する（オーナーの作業。META_APP_ID / META_APP_SECRET）
-5. X の接続（architecture.md の T1。料金の確認から）
-6. コミットから投稿のネタを作る（F04。architecture.md の 4.10 の「将来」）
+1. オーナーが GitHub・Supabase・Vercel のアカウントを用意し、docs/deploy.md の手順で本番に公開する
+2. 本番で、Threads への投稿と予約、GitHub の紹介文、AI とのアカウント設計を確かめる
+3. Instagram・Facebook 用の Meta アプリを作り、接続する（オーナーの作業。META_APP_ID / META_APP_SECRET）
+4. X の接続（architecture.md の T1。料金の確認から）
+5. コミットから投稿のネタを作る（F04。architecture.md の 4.10 の「将来」）

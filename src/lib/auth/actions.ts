@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { safeNextPath } from "./redirect";
+import { isSignupAllowed } from "./signup-policy";
 
 export type AuthFormState = {
   error?: string;
@@ -76,6 +77,10 @@ export async function signup(_prev: AuthFormState, formData: FormData): Promise<
   const parsed = readCredentials(formData);
   if (!parsed.success) {
     return invalidCredentials(parsed.error, email);
+  }
+  // 本番はオーナーだけが登録できる（docs/deploy.md）。Supabase 側でも新規登録を閉じる
+  if (!isSignupAllowed(parsed.data.email)) {
+    return { error: "いまは招待した方だけが登録できます。", invalidField: "email", email };
   }
 
   const origin = (await headers()).get("origin") ?? "";

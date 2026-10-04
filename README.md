@@ -6,6 +6,7 @@
 - [アーキテクチャ案](docs/architecture.md)
 - [開発の段取り](docs/roadmap.md)
 - [デザイン（Claude Design からの引き渡し資料）](docs/design/design_handoff_yabumi_1b/README.md)
+- [本番に公開する手順](docs/deploy.md)
 
 ## ローカル開発
 

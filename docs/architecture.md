@@ -308,6 +308,48 @@ README が薄い個人開発のリポジトリやモノレポでも中身がわ�
 - コミットの一覧（GET /repos/{owner}/{repo}/commits）と個々のコミットは、**Contents: Read で読める**（GitHub の「GitHub App に必要な権限」の資料で確認、2026-10-04）。いまの権限のままで作れる
 - Issue（GET /repos/{owner}/{repo}/issues）は **Issues: Read** が別に要る。足すときは、App の権限を変えると利用者ごとに承認が必要になる（承認されるまでは今の権限のまま）
 
+### 4.11 本番環境（2026-10-04、オーナーの「先に本番公開して、使いながら足す」案 A）
+
+手順は [deploy.md](deploy.md)。目的はオーナーが自分で毎日使うことで、他の人への提供（フェーズ 7）ではない。
+
+#### 構成
+
+| 部分 | サービス | 判断 |
+|---|---|---|
+| DB・ログイン | Supabase Free、東京（Northeast Asia） | 無料。DB 500MB で足りる |
+| 画面と API、予約ジョブの受け口 | Vercel Hobby、関数は東京（hnd1。vercel.json） | 無料。Supabase と同じ東京にして、DB への往復を短くする |
+| URL | `yabumi-xxxx.vercel.app` | 独自ドメインは年 1,500〜2,500 円ほどかかるので、オーナーの判断で後から。URL を変えたら、Threads・GitHub App・Supabase Auth・Vault の app_url を直す |
+
+#### Supabase Free の一時停止
+
+- 条件: 「直近 1 週間に、十分なデータベースの利用がない」と一時停止される（[Supabase の資料](https://supabase.com/docs/guides/platform/free-project-pausing)。ダッシュボードを開く・API を呼ぶ・アプリからのリクエストが利用に数えられ、1 日に数回あれば足りる）。止まる約 1 週間前と、止まったときにメールが来る。止まっても 1 年以内なら戻せる
+- 矢書では、pg_cron が毎分 Vercel の /api/jobs/publish を呼び、そこから毎回 Supabase の API（claim_due_targets）を呼ぶ。つまり**毎分、アプリから API が呼ばれる**ので、止まる条件には当たらないと考える。オーナーが毎日使うことでも利用になる
+- ただし、pg_cron は DB の中で動くので、一度止まると自分では起こせない（止まると予約が送られなくなる）。そこで次の 2 つで気づけるようにした
+  - Supabase からの事前のメール（約 1 週間前）
+  - 概要の「要確認」に、「予約時刻を 10 分以上過ぎても送られていない投稿」を出す（src/lib/posts/overdue.ts）。ジョブが止まった・Vercel が失敗した・Vault の設定が違う、のどれでも気づける
+- 外部から定期的に叩いて起こし続ける仕組み（GitHub Actions など）は、いまは入れない。上のとおり毎分の呼び出しがあるため。止まったことが一度でもあれば考える
+
+#### Vercel Hobby の制約
+
+- 関数の実行時間: Fluid compute で最大 300 秒。予約ジョブは 60 秒（maxDuration）、AI の呼び出しは長くて 90 秒ほどなので足りる
+- 利用量: 予約ジョブは月に約 4.3 万回（毎分）。関数の呼び出しの無料枠（月 100 万回）、Active CPU（月 4 時間。1 回 0.1 秒ほどとして約 1.2 時間）の範囲に収まる見込み。Vercel の Usage で月に 1 回確かめる
+- 実行ログは**直近 1 時間**しか残らない。送信の失敗の理由は DB（post_targets.error_message）に残し、画面の「送信の結果」で見られるので、ログに頼らない
+- 商用利用: Hobby は個人・非商用のみ。オーナーが自分のアプリを広めるために自分で使う範囲にとどめる。他の人に提供する（フェーズ 7）ときは Pro（$20/月）が要り、予算の見直しが必要
+- Vercel の Cron（Hobby は 1 日 1 回）は使わない（4.7 のとおり、Supabase の pg_cron から呼ぶ）
+- Deployment Protection は既定のまま（本番の URL には保護をかけない）。かけると、予約ジョブと Threads・GitHub からの戻り先が届かなくなる
+
+#### 登録できる人
+
+- 本番はオーナーだけが使う。オーナーのアカウントは Supabase の画面で「確認済み」として作り、Supabase の「新規登録を許可」をオフにする。矢書の画面からも、公開キーで Supabase の API を直接呼んでも、新しいアカウントは作れない
+- 念のため、矢書の側でも ALLOWED_SIGNUP_EMAILS（空なら登録を閉じる、アドレスを並べればそれだけ許す）で絞る（src/lib/auth/signup-policy.ts）。ローカルでは未設定で、誰でも登録できる
+- 確認メールを使わないのは、いまの確認メールの受け口（/auth/confirm）が Supabase の既定のメールの形と合っていないため。他の人に提供するときに、メールのテンプレートと合わせて直す
+
+#### 本番のための変更
+
+- pg_net を有効にするマイグレーションを足した（ローカルでは最初から入っていたが、本番では有効とは限らない。予約ジョブが使う）
+- 本番では、ローカルとは別の TOKEN_ENCRYPTION_KEY と CRON_SECRET を新しく作る。Claude API のキーと GitHub App も本番用を別に作る。Threads の Meta アプリは同じものを使い、コールバック URL を足す
+- マイグレーションは `supabase link` と `supabase db push` で当てる。`supabase db reset` は使わない。seed.sql は本番に入れない
+
 ## 5. データモデル（主要テーブル）
 
 | テーブル | 内容 |

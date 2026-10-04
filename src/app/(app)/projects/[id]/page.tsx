@@ -12,7 +12,7 @@ import { githubConfigured } from "@/lib/github/config";
 import { createClient } from "@/lib/supabase/server";
 import { SnsResultBanner } from "@/components/projects/sns-result-banner";
 import { StatusMark } from "@/components/ui/marks";
-import { listPostsNeedingAttention, listUpcomingPosts, postTitle } from "@/lib/posts/queries";
+import { listOverduePosts, listPostsNeedingAttention, listUpcomingPosts, postTitle } from "@/lib/posts/queries";
 import { formatShort } from "@/lib/time";
 import { Card, CardHeader, EmptyState } from "@/components/ui/card";
 import { Term } from "@/components/ui/term";
@@ -35,10 +35,11 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
   if (!project) notFound();
   const editHref = `/projects/${project.id}/edit`;
   const supabase = await createClient();
-  const [upcoming, snsAccounts, attention, plan, { data: repoLink }] = await Promise.all([
+  const [upcoming, snsAccounts, attention, overdue, plan, { data: repoLink }] = await Promise.all([
     listUpcomingPosts(project.id),
     listProjectSnsAccounts(project.id),
     listPostsNeedingAttention(project.id),
+    listOverduePosts(project.id),
     getAccountPlan(project.id),
     supabase.from("project_github_repos").select("full_name").eq("project_id", project.id).maybeSingle(),
   ]);
@@ -66,7 +67,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
 
       <NextAction stepIndex={currentStepIndex({ planDone, connectedSnsCount })} projectId={project.id} />
 
-      <AttentionCard projectId={project.id} posts={attention} />
+      <AttentionCard projectId={project.id} posts={attention} overdue={overdue} />
 
       <div className="grid grid-cols-2 gap-6 max-lg:grid-cols-1 max-sm:gap-4">
         <Card className="overflow-hidden">

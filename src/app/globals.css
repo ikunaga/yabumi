@@ -1,0 +1,247 @@
+@import "tailwindcss";
+
+/* ===== ここから: Claude Design の yabumi-tokens.css（docs/design/design_handoff_yabumi_1b）をそのまま貼り付け ===== */
+
+/* 矢書（やぶみ） デザイントークン — 1b 藍と朱
+   Tailwind CSS v4: globals.css に貼り付けて @import "tailwindcss"; の後に置く。
+   ダークは OS 設定（prefers-color-scheme）に従う。 */
+
+:root {
+  --bg: #f2f2ee;
+  --surface: #ffffff;
+  --surface2: #f7f7f4;
+  --fg: #1b2333;
+  --muted: #5d6577;
+  --border: #c9ccd2;
+  --line: #e6e8ec;
+  --input: #b3b8c2;
+  --primary: #23406e;          /* 藍: 主ボタン、リンク */
+  --on-primary: #ffffff;
+  --on-primary-muted: #d5ddeb;
+  --primary-soft: #e3e7ef;
+  --signal: #b6402a;           /* 朱: 予約・要確認の印（押すものには使わない） */
+  --signal-soft: #f8e7e2;
+  --danger: #a8302a;
+  --danger-soft: #fbecea;
+  --success: #2d6a45;
+  --success-soft: #e2efe6;
+  --rule: #eef0f3;             /* 帳面の罫線 */
+  --nav: #1b2333;
+  --nav-fg: #c9cfdb;
+  --nav-active: #2a3550;
+  --nav-strong: #ffffff;
+  --pop: #1b2333;              /* 用語解説ポップアップ */
+  --on-pop: #e6e9ef;
+  --pop-link: #9fb4d8;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12151b;
+    --surface: #1a1f28;
+    --surface2: #161a22;
+    --fg: #e6e9ef;
+    --muted: #9aa3b5;
+    --border: #2e3644;
+    --line: #242b37;
+    --input: #3a4352;
+    --primary: #8fb0e3;
+    --on-primary: #0f1a2e;
+    --on-primary-muted: #24365a;
+    --primary-soft: #22304a;
+    --signal: #ec8a72;
+    --signal-soft: #3a2420;
+    --danger: #f08a7e;
+    --danger-soft: #3a1f1d;
+    --success: #86c79c;
+    --success-soft: #1c3326;
+    --rule: #1f2530;
+    --nav: #0d1015;
+    --nav-fg: #9aa3b5;
+    --nav-active: #1f2838;
+    --nav-strong: #ffffff;
+    --pop: #e6e9ef;
+    --on-pop: #1b2333;
+    --pop-link: #23406e;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface2: var(--surface2);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-line: var(--line);
+  --color-input: var(--input);
+  --color-primary: var(--primary);
+  --color-on-primary: var(--on-primary);
+  --color-on-primary-muted: var(--on-primary-muted);
+  --color-primary-soft: var(--primary-soft);
+  --color-signal: var(--signal);
+  --color-signal-soft: var(--signal-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-rule: var(--rule);
+  --color-nav: var(--nav);
+  --color-nav-fg: var(--nav-fg);
+  --color-nav-active: var(--nav-active);
+  --color-nav-strong: var(--nav-strong);
+  --color-pop: var(--pop);
+  --color-on-pop: var(--on-pop);
+  --color-pop-link: var(--pop-link);
+
+  --font-sans: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+  --font-heading: "Zen Kaku Gothic New", var(--font-sans); /* next/font/google で 500/700 */
+
+  --text-xs: 12px;   --text-xs--line-height: 1.6;
+  --text-sm: 13px;   --text-sm--line-height: 1.7;
+  --text-base: 15px; --text-base--line-height: 1.8;
+  --text-lg: 17px;   --text-lg--line-height: 1.7;
+  --text-xl: 22px;   --text-xl--line-height: 1.5;
+  --text-2xl: 26px;  --text-2xl--line-height: 1.4;
+  --text-3xl: 32px;  --text-3xl--line-height: 1.4;
+  --text-display: 48px; --text-display--line-height: 1.35;
+
+  --spacing: 4px;    /* 4 / 8 / 12 / 16 / 24 / 32 / 48 */
+
+  --radius-sm: 4px;
+  --radius-md: 6px;  /* ボタン、入力欄 */
+  --radius-lg: 8px;  /* カード */
+  --radius-sheet: 16px; /* スマホの下から出るシート */
+
+  --shadow-pop: 0 8px 24px rgb(15 20 30 / 0.25); /* ポップアップ専用。カードは枠線のみ */
+}
+
+/* 帳面の罫線（下書き・空の状態） */
+@utility bg-ruled {
+  background-image: repeating-linear-gradient(transparent 0 31px, var(--rule) 31px 32px);
+}
+
+/* ===== ここまで: yabumi-tokens.css ===== */
+
+/* ===== アプリ側の追加 ===== */
+
+/* ホバー色。ライトは暗く、ダーク（primary が明るい）は明るく寄せる */
+:root {
+  --primary-hover: color-mix(in oklch, var(--primary), black 12%);
+  --danger-hover: color-mix(in oklch, var(--danger), black 12%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --primary-hover: color-mix(in oklch, var(--primary), white 14%);
+    --danger-hover: color-mix(in oklch, var(--danger), white 14%);
+  }
+}
+
+/* 画面の切り替えボタンで選んだテーマ（html の data-theme）。OS 設定より優先する。
+   値は yabumi-tokens.css の写し。トークンを変えるときはここも揃える */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f2f2ee;
+  --surface: #ffffff;
+  --surface2: #f7f7f4;
+  --fg: #1b2333;
+  --muted: #5d6577;
+  --border: #c9ccd2;
+  --line: #e6e8ec;
+  --input: #b3b8c2;
+  --primary: #23406e;
+  --on-primary: #ffffff;
+  --on-primary-muted: #d5ddeb;
+  --primary-soft: #e3e7ef;
+  --signal: #b6402a;
+  --signal-soft: #f8e7e2;
+  --danger: #a8302a;
+  --danger-soft: #fbecea;
+  --success: #2d6a45;
+  --success-soft: #e2efe6;
+  --rule: #eef0f3;
+  --nav: #1b2333;
+  --nav-fg: #c9cfdb;
+  --nav-active: #2a3550;
+  --nav-strong: #ffffff;
+  --pop: #1b2333;
+  --on-pop: #e6e9ef;
+  --pop-link: #9fb4d8;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #12151b;
+  --surface: #1a1f28;
+  --surface2: #161a22;
+  --fg: #e6e9ef;
+  --muted: #9aa3b5;
+  --border: #2e3644;
+  --line: #242b37;
+  --input: #3a4352;
+  --primary: #8fb0e3;
+  --on-primary: #0f1a2e;
+  --on-primary-muted: #24365a;
+  --primary-soft: #22304a;
+  --signal: #ec8a72;
+  --signal-soft: #3a2420;
+  --danger: #f08a7e;
+  --danger-soft: #3a1f1d;
+  --success: #86c79c;
+  --success-soft: #1c3326;
+  --rule: #1f2530;
+  --nav: #0d1015;
+  --nav-fg: #9aa3b5;
+  --nav-active: #1f2838;
+  --nav-strong: #ffffff;
+  --pop: #e6e9ef;
+  --on-pop: #1b2333;
+  --pop-link: #23406e;
+  --primary-hover: color-mix(in oklch, var(--primary), white 14%);
+  --danger-hover: color-mix(in oklch, var(--danger), white 14%);
+}
+
+/* dark: で始まるクラスを、選んだテーマと OS 設定の両方に効かせる */
+@custom-variant dark {
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]), :root:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
+}
+
+/* next/font は書体名をハッシュ付きの名前に置き換えるので、見出し書体は layout.tsx で読み込んだ変数を使う */
+@theme inline {
+  --font-heading: var(--font-zen-kaku), var(--font-sans);
+  --color-primary-hover: var(--primary-hover);
+  --color-danger-hover: var(--danger-hover);
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.4;
+}
+
+rt {
+  font-weight: 500;
+  letter-spacing: 0.2em;
+}
+
+/* フォーカス枠。入力欄は枠の色で示すので対象外 */
+:where(a, button, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}

@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700&display=swap">
+<style>
+body{margin:0;background:#dcdcd6;font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}a:hover{text-decoration:underline}
+rt{font-weight:500;letter-spacing:.2em}
+</style>
+</helmet>
+<div style="--bg:#f2f2ee;--surface:#ffffff;--surface2:#f7f7f4;--fg:#1b2333;--muted:#5d6577;--border:#c9ccd2;--line:#e6e8ec;--input:#b3b8c2;--primary:#23406e;--on-primary:#ffffff;--on-primary-muted:#d5ddeb;--primary-soft:#e3e7ef;--signal:#b6402a;--signal-soft:#f8e7e2;--danger:#a8302a;--danger-soft:#fbecea;--success:#2d6a45;--success-soft:#e2efe6;--rule:#eef0f3;--nav:#1b2333;--nav-fg:#c9cfdb;--nav-active:#2a3550;--nav-strong:#ffffff;--pop:#1b2333;--on-pop:#e6e9ef;--pop-link:#9fb4d8;color:#1b2333">
+<div style="{{ themeStyle }}">
+<div style="padding:64px;display:flex;flex-direction:column;gap:80px">
+
+<div style="display:flex;flex-direction:column;gap:10px;max-width:960px;color:#1b2333">
+<div style="font-size:13px;letter-spacing:.2em;color:#5d6577">1b 藍と朱 ・ 送り状の帳面</div>
+<div style="font-family:'Zen Kaku Gothic New',sans-serif;font-size:40px;font-weight:700"><ruby>矢書<rt style="font-size:12px;color:#5d6577">やぶみ</rt></ruby> デザイン一式</div>
+<div style="font-size:16px;line-height:1.8;color:#3d4556">色はすべて CSS 変数で指定しています。右下の Tweaks でライトとダークを切り替えられます。実装用のトークンは <a href="yabumi-tokens.css" style="color:#23406e;text-decoration:underline">yabumi-tokens.css</a>（Tailwind v4 の @theme 形式）にまとめました。</div>
+</div>
+
+<!-- ===== 01 TOKENS ===== -->
+<section data-screen-label="01 トークン" style="display:flex;flex-direction:column;gap:20px">
+<div style="font-family:'Zen Kaku Gothic New',sans-serif;font-size:26px;font-weight:700;color:#1b2333">01 デザイントークン</div>
+<div style="background:var(--bg);color:var(--fg);border:1px solid var(--border);padding:48px;display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:56px;width:1640px;box-sizing:border-box">
+<div style="display:flex;flex-direction:column;gap:14px">
+<div style="font-size:13px;font-weight:700;color:var(--muted)">色</div>
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;font-size:12px">
+<div style="display:flex;flex-direction:column;gap:6px"><div style="height:56px;background:var(--bg);border:1px solid var(--border);border-radius:6px"></div><b>bg</b><span style="color:var(--muted)">画面の地</span></div>
+<div style="display:flex;flex-direction:column;gap:6px"><div style="height:56px;background:var(--surface);border:1px solid var(--border);border-radius:6px"></div><b>surface</b><span style="color:var(--muted)">カード</span></div>
+<div style="display:flex;flex-direction:column;gap:6px"><div style="height:56px;background:var(--fg);border-radius:6px"></div><b>fg</b><span style="color:var(--muted)">文字</span></div>
+<div style="display:flex;flex-direction:column;gap:6px"><div style="height:56px;background:var(--muted);border-radius:6px"></div><b>muted</b><span style="color:var(--muted)">補足の文字</span></div>
+<div style="display:flex;flex-direction:column;gap:6px"><div style="height:56px;background:var(--border);border-radius:6px"></div><b>border</b><span style="color:var(--muted)">枠線</span></div>
+<div style="display:flex;flex-direction:column;gap:6px"><div style="height:56px;background:var(--line);border-radius:6px"></div><b>line</b><span style="color:var(--muted)">内側の罫</span></div>
+<div style="display:flex;flex-direction:column;gap:6px"><div style="height:56px;background:var(--primary);border-radius:6px"></div><b>primary 藍</b><span style="color:var(--muted)">主ボタン、リンク</span></div>
+<div style="display:flex;flex-direction:column;gap:6px"><div style="height:56px;background:var(--primary-soft);border-radius:6px"></div><b>primary-soft</b><span style="color:var(--muted)">選択中、SNS 札</span></div>
+<div style="display:flex;flex-direction:column;gap:6px"><div style="height:56px;background:var(--signal);border-radius:6px"></div><b>signal 朱</b><span style="color:var(--muted)">予約・注意の印</span></div>
+<div style="display:flex;flex-direction:column;gap:6px"><div style="height:56px;background:var(--danger);border-radius:6px"></div><b>danger</b><span style="color:var(--muted)">エラー、削除</span></div>
+<div style="display:flex;flex-direction:column;gap:6px"><div style="height:56px;background:var(--success);border-radius:6px"></div><b>success</b><span style="color:var(--muted)">完了</span></div>
+<div style="display:flex;flex-direction:column;gap:6px"><div style="height:56px;background:var(--nav);border-radius:6px"></div><b>nav</b><span style="color:var(--muted)">サイドバー</span></div>
+</div>
+<div style="font-size:13px;line-height:1.8;color:var(--muted)">朱は「押すもの」には使わず、予約済み・要確認などの印にだけ使う。押すものは藍。</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:14px">
+<div style="font-size:13px;font-weight:700;color:var(--muted)">文字</div>
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:baseline;gap:16px"><span style="font:12px monospace;color:var(--muted);width:80px">display 48</span><span style="font-family:'Zen Kaku Gothic New';font-size:48px;font-weight:700;line-height:1.3">文を届ける</span></div>
+<div style="display:flex;align-items:baseline;gap:16px"><span style="font:12px monospace;color:var(--muted);width:80px">h1 32</span><span style="font-family:'Zen Kaku Gothic New';font-size:32px;font-weight:700">かけいぼ日和</span></div>
+<div style="display:flex;align-items:baseline;gap:16px"><span style="font:12px monospace;color:var(--muted);width:80px">h2 22</span><span style="font-size:22px;font-weight:700">投稿先の SNS をつなぐ</span></div>
+<div style="display:flex;align-items:baseline;gap:16px"><span style="font:12px monospace;color:var(--muted);width:80px">h3 15 b</span><span style="font-size:15px;font-weight:700">予約中の投稿</span></div>
+<div style="display:flex;align-items:baseline;gap:16px"><span style="font:12px monospace;color:var(--muted);width:80px">body 15</span><span style="font-size:15px">まずは 1 つで大丈夫です。</span></div>
+<div style="display:flex;align-items:baseline;gap:16px"><span style="font:12px monospace;color:var(--muted);width:80px">small 13</span><span style="font-size:13px;color:var(--muted)">あとからいつでも編集できます。</span></div>
+</div>
+<div style="font-size:13px;line-height:1.8;color:var(--muted)">見出しは Zen Kaku Gothic New（無料・Google Fonts。日本語は字ごとに分割配信されるので使う字だけ読み込む）。本文はシステムフォント。行間は本文 1.8、見出し 1.4。</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:14px">
+<div style="font-size:13px;font-weight:700;color:var(--muted)">角丸 ・ 影 ・ 余白</div>
+<div style="display:flex;gap:16px;align-items:flex-end;font:12px monospace;color:var(--muted)">
+<div style="display:flex;flex-direction:column;gap:6px;align-items:center"><div style="width:56px;height:56px;border:1.5px solid var(--fg);border-radius:4px"></div>sm 4</div>
+<div style="display:flex;flex-direction:column;gap:6px;align-items:center"><div style="width:56px;height:56px;border:1.5px solid var(--fg);border-radius:6px"></div>md 6</div>
+<div style="display:flex;flex-direction:column;gap:6px;align-items:center"><div style="width:56px;height:56px;border:1.5px solid var(--fg);border-radius:8px"></div>lg 8</div>
+<div style="display:flex;flex-direction:column;gap:6px;align-items:center"><div style="width:56px;height:28px;border:1.5px solid var(--fg);border-radius:999px"></div>pill</div></div>
+<div style="display:flex;gap:16px;margin-top:8px">
+<div style="flex:1;height:64px;background:var(--surface);border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--muted)">カード: 枠線のみ</div>
+<div style="flex:1;height:64px;background:var(--pop);color:var(--on-pop);border-radius:8px;box-shadow:0 8px 24px rgba(15,20,30,.25);display:flex;align-items:center;justify-content:center;font-size:12px">ポップアップのみ影</div></div>
+<div style="display:flex;gap:6px;align-items:flex-end;margin-top:8px;font:11px monospace;color:var(--muted)">
+<div style="display:flex;flex-direction:column;align-items:center;gap:4px"><div style="width:4px;height:4px;background:var(--primary)"></div>4</div>
+<div style="display:flex;flex-direction:column;align-items:center;gap:4px"><div style="width:8px;height:8px;background:var(--primary)"></div>8</div>
+<div style="display:flex;flex-direction:column;align-items:center;gap:4px"><div style="width:12px;height:12px;background:var(--primary)"></div>12</div>
+<div style="display:flex;flex-direction:column;align-items:center;gap:4px"><div style="width:16px;height:16px;background:var(--primary)"></div>16</div>
+<div style="display:flex;flex-direction:column;align-items:center;gap:4px"><div style="width:24px;height:24px;background:var(--primary)"></div>24</div>
+<div style="display:flex;flex-direction:column;align-items:center;gap:4px"><div style="width:32px;height:32px;background:var(--primary)"></div>32</div>
+<div style="display:flex;flex-direction:column;align-items:center;gap:4px"><div style="width:48px;height:48px;background:var(--primary)"></div>48</div></div>
+<div style="font-size:13px;line-height:1.8;color:var(--muted)">地紋: 下書きや空の状態に 32px 間隔の罫線（--rule）を敷き、帳面らしさを出す。</div>
+</div>
+</div>
+</section>
+
+<!-- ===== 02 COMPONENTS ===== -->
+<section data-screen-label="02 部品" style="display:flex;flex-direction:column;gap:20px">
+<div style="font-family:'Zen Kaku Gothic New',sans-serif;font-size:26px;font-weight:700;color:#1b2333">02 部品</div>
+<div style="background:var(--bg);color:var(--fg);border:1px solid var(--border);padding:48px;display:grid;grid-template-columns:repeat(3,1fr);gap:48px 56px;width:1640px;box-sizing:border-box">
+<div style="display:flex;flex-direction:column;gap:16px">
+<div style="font-size:13px;font-weight:700;color:var(--muted)">ボタン</div>
+<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center"><div style="background:var(--primary);color:var(--on-primary);font-size:15px;font-weight:700;padding:12px 22px;border-radius:6px">予約する</div><div style="border:1px solid var(--primary);color:var(--primary);font-size:15px;font-weight:600;padding:11px 21px;border-radius:6px">下書き保存</div><div style="font-size:15px;color:var(--muted);padding:12px 8px">キャンセル</div></div>
+<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center"><div style="background:var(--danger);color:var(--surface);font-size:15px;font-weight:700;padding:12px 22px;border-radius:6px">削除する</div><div style="background:var(--primary);color:var(--on-primary);font-size:15px;font-weight:700;padding:12px 22px;border-radius:6px;opacity:.4">予約する</div><div style="background:var(--primary);color:var(--on-primary);font-size:13px;font-weight:700;padding:7px 14px;border-radius:6px">小さいボタン</div></div>
+<div style="font-size:12px;color:var(--muted);line-height:1.7">高さ 44 / 小 32 ・ スマホでは主ボタンを横幅いっぱい 52px にする</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:16px">
+<div style="font-size:13px;font-weight:700;color:var(--muted)">入力欄</div>
+<div style="display:flex;flex-direction:column;gap:6px"><div style="font-size:14px;font-weight:700">アプリ名</div><div style="border:1px solid var(--input);background:var(--surface);border-radius:6px;padding:12px 14px;font-size:15px">かけいぼ日和</div></div>
+<div style="display:flex;flex-direction:column;gap:6px"><div style="font-size:14px;font-weight:700">どんなアプリか <span style="font-weight:400;color:var(--muted);font-size:12px">任意</span></div><div style="border:2px solid var(--primary);background:var(--surface);border-radius:6px;padding:11px 13px;font-size:15px;height:44px;box-sizing:border-box;color:var(--muted)">例: レシートを撮るだけで家計簿がつく</div><div style="font-size:12px;color:var(--muted)">AI がネタを考えるときの材料になります。</div></div>
+<div style="display:flex;flex-direction:column;gap:6px"><div style="font-size:14px;font-weight:700">App Store の URL</div><div style="border:2px solid var(--danger);background:var(--surface);border-radius:6px;padding:11px 13px;font-size:15px">apps.apple.com/jp/app</div><div style="font-size:13px;color:var(--danger);font-weight:600">https:// から始まる URL を入れてください</div></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:16px">
+<div style="font-size:13px;font-weight:700;color:var(--muted)">SNS 札 ・ 状態の印</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;font-size:12px;font-weight:700"><span style="background:var(--primary-soft);color:var(--primary);padding:4px 10px;border-radius:999px">X</span><span style="background:var(--primary-soft);color:var(--primary);padding:4px 10px;border-radius:999px">Instagram</span><span style="background:var(--primary-soft);color:var(--primary);padding:4px 10px;border-radius:999px">Facebook</span><span style="background:var(--primary-soft);color:var(--primary);padding:4px 10px;border-radius:999px">Threads</span><span style="background:var(--primary-soft);color:var(--primary);padding:4px 10px;border-radius:999px">TikTok</span><span style="background:var(--primary-soft);color:var(--primary);padding:4px 10px;border-radius:999px">YouTube</span></div>
+<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px;font-weight:700"><span style="color:var(--signal)">● 予約</span><span style="color:var(--success)">✓ 投稿済み</span><span style="color:var(--muted);font-weight:400">○ 下書き</span><span style="color:var(--danger)">! 失敗</span></div>
+<div style="font-size:12px;color:var(--muted);line-height:1.7">SNS のロゴは各社の規約があるため、名前の札で表す。公式アイコンを使う場合は各社のブランドガイドに従う。</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:16px">
+<div style="font-size:13px;font-weight:700;color:var(--muted)">カード</div>
+<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px">
+<div style="padding:14px 20px;border-bottom:1px solid var(--line);font-size:15px;font-weight:700;display:flex;justify-content:space-between"><span>予約中の投稿</span><span style="font-size:13px;font-weight:400;color:var(--primary)">すべて見る</span></div>
+<div style="padding:12px 20px;display:grid;grid-template-columns:90px 1fr auto;gap:12px;font-size:14px;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">10/14 20:00</span><span>v1.2 で月ごとのグラフが…</span><span style="color:var(--signal);font-weight:700;font-size:13px">● 予約</span></div>
+<div style="padding:12px 20px;display:grid;grid-template-columns:90px 1fr auto;gap:12px;font-size:14px"><span style="color:var(--muted)">10/16 12:00</span><span>開発の裏話: レシート読取りの…</span><span style="color:var(--signal);font-weight:700;font-size:13px">● 予約</span></div>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:16px">
+<div style="font-size:13px;font-weight:700;color:var(--muted)">用語解説</div>
+<div style="font-size:15px;line-height:1.8">3 か月後の目標（<span style="border-bottom:1.5px dotted var(--primary);font-weight:600">KGI</span>）を決めましょう。</div>
+<div style="width:320px;background:var(--pop);color:var(--on-pop);border-radius:8px;padding:16px 18px;display:flex;flex-direction:column;gap:8px;box-shadow:0 8px 24px rgba(15,20,30,.25)"><div style="display:flex;justify-content:space-between"><span style="font-weight:700;font-size:15px">KGI（ケージーアイ）</span><span style="font-size:12px;opacity:.8">✕</span></div><div style="font-size:13px;line-height:1.8">最終的にたどり着きたいゴールの数字。例:「3 か月で 1,000 ダウンロード」。日々追う小さな数字は KPI と呼びます。</div><div style="font-size:12px;color:var(--pop-link)">用語集で見る →</div></div>
+<div style="font-size:12px;color:var(--muted);line-height:1.7">用語は点線の下線。PC はポップアップ、スマホは下から出るシートで開く。</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:16px">
+<div style="font-size:13px;font-weight:700;color:var(--muted)">空の状態 ・ エラー表示</div>
+<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:24px;display:flex;flex-direction:column;gap:10px;align-items:flex-start;background-image:repeating-linear-gradient(transparent 0 31px,var(--rule) 31px 32px)"><div style="font-size:17px;font-weight:700">まだプロジェクトがありません</div><div style="font-size:14px;color:var(--muted);line-height:1.7">広めたいアプリごとに 1 つ作ります。アプリ名だけで始められます。</div><div style="background:var(--primary);color:var(--on-primary);font-size:14px;font-weight:700;padding:10px 18px;border-radius:6px">プロジェクトを作る</div></div>
+<div style="background:var(--danger-soft);border:1px solid var(--danger);border-radius:6px;padding:12px 16px;font-size:14px;line-height:1.7;color:var(--danger);font-weight:600">メールアドレスかパスワードが違います。もう一度お試しください。</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:16px;grid-column:1 / span 2">
+<div style="font-size:13px;font-weight:700;color:var(--muted)">ナビゲーション（PC: サイドバー / スマホ: 下のタブ）</div>
+<div style="display:flex;gap:32px;align-items:flex-start">
+<div style="width:220px;background:var(--nav);color:var(--nav-fg);border-radius:8px;padding:20px 16px;display:flex;flex-direction:column;gap:2px;font-size:14px">
+<div style="background:var(--nav-active);color:var(--nav-strong);padding:10px 12px;border-radius:6px;font-weight:700">概要</div><div style="padding:10px 12px">投稿をつくる</div><div style="padding:10px 12px">カレンダー</div><div style="padding:10px 12px">指標</div><div style="padding:10px 12px">AI と相談</div><div style="padding:10px 12px">ロードマップ</div></div>
+<div style="width:375px;height:72px;background:var(--surface);border:1px solid var(--border);display:grid;grid-template-columns:repeat(5,1fr);font-size:11px;color:var(--muted)">
+<div style="display:flex;align-items:center;justify-content:center;color:var(--primary);font-weight:700;border-top:2px solid var(--primary)">概要</div><div style="display:flex;align-items:center;justify-content:center">投稿</div><div style="display:flex;align-items:center;justify-content:center">予定</div><div style="display:flex;align-items:center;justify-content:center">指標</div><div style="display:flex;align-items:center;justify-content:center">相談</div></div>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:16px">
+<div style="font-size:13px;font-weight:700;color:var(--muted)">いまやること（各画面の最上部）</div>
+<div style="background:var(--primary);color:var(--on-primary);border-radius:8px;padding:18px 20px;display:flex;flex-direction:column;gap:6px"><div style="font-size:12px;letter-spacing:.15em;color:var(--on-primary-muted)">いまやること ・ 2 / 3</div><div style="font-size:18px;font-weight:700">最初の投稿をつくる</div></div>
+</div>
+</div>
+</section>
+
+<!-- ===== 03 EXISTING ===== -->
+<section data-screen-label="03 今ある画面" style="display:flex;flex-direction:column;gap:20px">
+<div style="font-family:'Zen Kaku Gothic New',sans-serif;font-size:26px;font-weight:700;color:#1b2333">03 今ある画面（作り直し）</div>
+<div style="display:flex;flex-wrap:wrap;gap:56px 40px;width:1700px;color:#1b2333">
+
+<!-- 1 landing -->
+<div style="display:flex;flex-direction:column;gap:10px"><div style="font-size:14px;font-weight:700">1 トップ ・ PC</div>
+<div style="width:1280px;height:800px;background:var(--bg);color:var(--fg);border:1px solid var(--border);display:flex;flex-direction:column;padding:40px 80px;box-sizing:border-box">
+<div style="display:flex;align-items:center;gap:12px"><div style="width:28px;height:28px;border:2px solid var(--primary);display:flex;align-items:center;justify-content:center;font-family:'Zen Kaku Gothic New';font-weight:700;color:var(--primary);font-size:15px">矢</div><div style="font-family:'Zen Kaku Gothic New',sans-serif;font-weight:700;font-size:22px"><ruby>矢書<rt style="font-size:9px;color:var(--muted)">やぶみ</rt></ruby></div><div style="margin-left:auto;display:flex;gap:24px;font-size:14px;color:var(--muted);align-items:center"><span>しくみ</span><span>料金</span><span style="border:1px solid var(--primary);color:var(--primary);padding:8px 16px;border-radius:6px;font-weight:600">ログイン</span></div></div>
+<div style="flex:1;display:grid;grid-template-columns:1fr 500px;gap:72px;align-items:center">
+<div style="display:flex;flex-direction:column;gap:24px">
+<div style="font-family:'Zen Kaku Gothic New',sans-serif;font-size:54px;line-height:1.4;font-weight:700;text-wrap:pretty">アプリ開発に集中したい人のための、SNS 運用ツール</div>
+<div style="font-size:17px;line-height:1.8;color:var(--muted)">狙った相手へ、離れた場所から、一斉に文を届ける。矢文のように。</div>
+<div style="display:flex;gap:12px;align-items:center"><div style="background:var(--primary);color:var(--on-primary);font-size:16px;font-weight:700;padding:15px 28px;border-radius:6px">はじめる（無料）</div><div style="font-size:14px;color:var(--muted)">アプリ名を入れるだけで始められます</div></div>
+<div style="display:flex;flex-direction:column;margin-top:20px;border-top:1px solid var(--border)">
+<div style="display:grid;grid-template-columns:28px 220px 1fr;padding:14px 0;border-bottom:1px solid var(--line);font-size:14px;align-items:baseline"><span style="color:var(--primary);font-weight:700">1</span><b>SNS 運用に時間をかけたくない</b><span style="color:var(--muted)">6 つの SNS へ一度に投稿・予約。カレンダーでいつ何を出すか一目でわかる。</span></div>
+<div style="display:grid;grid-template-columns:28px 220px 1fr;padding:14px 0;border-bottom:1px solid var(--line);font-size:14px;align-items:baseline"><span style="color:var(--primary);font-weight:700">2</span><b>ネタがない</b><span style="color:var(--muted)">アプリの説明から AI が投稿案を出す。AI っぽい雑な文章にならないようチェックもする。</span></div>
+<div style="display:grid;grid-template-columns:28px 220px 1fr;padding:14px 0;font-size:14px;align-items:baseline"><span style="color:var(--primary);font-weight:700">3</span><b>マーケティングがわからない</b><span style="color:var(--muted)">目標の立て方から AI と相談できる。使ううちに用語や考え方が身につく。</span></div>
+</div>
+</div>
+<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden">
+<div style="padding:14px 20px;border-bottom:2px solid var(--primary);display:flex;justify-content:space-between;font-size:13px;color:var(--muted)"><span style="font-weight:700;color:var(--fg)">送り状</span><span>10/14（火）20:00 に送る</span></div>
+<div style="padding:16px 20px;font-size:15px;line-height:32px;background-image:repeating-linear-gradient(transparent 0 31px,var(--rule) 31px 32px)">レシートを撮るだけで家計簿がつく「かけいぼ日和」、v1.2 で月ごとのグラフが見られるようになりました。</div>
+<div style="padding:0 20px 14px;display:flex;flex-direction:column">
+<div style="display:grid;grid-template-columns:100px 1fr 70px;font-size:13px;padding:10px 0;border-top:1px solid var(--line)"><b>X</b><span style="color:var(--muted)">68 / 140 字</span><span style="color:var(--signal);font-weight:700">● 予約</span></div>
+<div style="display:grid;grid-template-columns:100px 1fr 70px;font-size:13px;padding:10px 0;border-top:1px solid var(--line)"><b>Threads</b><span style="color:var(--muted)">68 / 500 字</span><span style="color:var(--signal);font-weight:700">● 予約</span></div>
+<div style="display:grid;grid-template-columns:100px 1fr 70px;font-size:13px;padding:10px 0;border-top:1px solid var(--line)"><b>Instagram</b><span style="color:var(--muted)">画像が 1 枚必要です</span><span style="color:var(--muted)">○ 未完</span></div>
+<div style="display:grid;grid-template-columns:100px 1fr 70px;font-size:13px;padding:10px 0;border-top:1px solid var(--line)"><b>Facebook</b><span style="color:var(--muted)">68 字</span><span style="color:var(--signal);font-weight:700">● 予約</span></div>
+</div></div>
+</div>
+</div></div>
+
+<div style="display:flex;flex-direction:column;gap:10px"><div style="font-size:14px;font-weight:700">1 トップ ・ スマホ</div>
+<div style="width:375px;height:800px;background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:28px;overflow:hidden;display:flex;flex-direction:column;padding:24px 20px;box-sizing:border-box;gap:20px">
+<div style="display:flex;justify-content:space-between;align-items:center"><div style="font-family:'Zen Kaku Gothic New';font-weight:700;font-size:20px"><ruby>矢書<rt style="font-size:8px;color:var(--muted)">やぶみ</rt></ruby></div><span style="font-size:14px;color:var(--primary);font-weight:600">ログイン</span></div>
+<div style="font-family:'Zen Kaku Gothic New';font-size:30px;line-height:1.45;font-weight:700;margin-top:16px">アプリ開発に集中したい人のための、SNS 運用ツール</div>
+<div style="font-size:15px;line-height:1.8;color:var(--muted)">狙った相手へ、離れた場所から、一斉に文を届ける。矢文のように。</div>
+<div style="background:var(--primary);color:var(--on-primary);height:52px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px">はじめる（無料）</div>
+<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden">
+<div style="padding:10px 14px;border-bottom:2px solid var(--primary);font-size:12px;display:flex;justify-content:space-between;color:var(--muted)"><b style="color:var(--fg)">送り状</b><span>10/14 20:00</span></div>
+<div style="padding:4px 14px 10px;font-size:12px">
+<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><b>X</b><span style="color:var(--signal);font-weight:700">● 予約</span></div>
+<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><b>Threads</b><span style="color:var(--signal);font-weight:700">● 予約</span></div>
+<div style="display:flex;justify-content:space-between;padding:8px 0"><b>Instagram</b><span style="color:var(--muted)">○ 画像が必要</span></div></div></div>
+<div style="display:flex;flex-direction:column;font-size:14px;border-top:1px solid var(--border)">
+<div style="padding:12px 0;border-bottom:1px solid var(--line);display:flex;gap:10px"><span style="color:var(--primary);font-weight:700">1</span>6 つの SNS へ一度に投稿・予約</div>
+<div style="padding:12px 0;border-bottom:1px solid var(--line);display:flex;gap:10px"><span style="color:var(--primary);font-weight:700">2</span>AI が投稿案を出す</div>
+<div style="padding:12px 0;display:flex;gap:10px"><span style="color:var(--primary);font-weight:700">3</span>目標の立て方から相談できる</div></div>
+</div></div>
+
+<!-- 2 signup / login error -->
+<div style="display:flex;flex-direction:column;gap:10px"><div style="font-size:14px;font-weight:700">2 新規登録 ・ PC</div>
+<div style="width:1280px;height:800px;background:var(--bg);color:var(--fg);border:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr">
+<div style="background:var(--nav);color:var(--nav-fg);padding:48px 64px;display:flex;flex-direction:column;justify-content:space-between">
+<div style="font-family:'Zen Kaku Gothic New';font-weight:700;font-size:24px;color:var(--nav-strong)"><ruby>矢書<rt style="font-size:9px;color:var(--nav-fg)">やぶみ</rt></ruby></div>
+<div style="display:flex;flex-direction:column;gap:20px"><div style="font-family:'Zen Kaku Gothic New';font-size:34px;line-height:1.5;font-weight:700;color:var(--nav-strong)">登録したら、<br>最初にやることは 3 つだけ。</div>
+<div style="display:flex;flex-direction:column;font-size:15px;border-top:1px solid var(--nav-active)">
+<div style="padding:14px 0;border-bottom:1px solid var(--nav-active);display:flex;gap:14px"><span style="color:var(--nav-strong);font-weight:700">1</span>アプリを登録する（名前だけで OK）</div>
+<div style="padding:14px 0;border-bottom:1px solid var(--nav-active);display:flex;gap:14px"><span style="color:var(--nav-strong);font-weight:700">2</span>投稿先の SNS をつなぐ</div>
+<div style="padding:14px 0;display:flex;gap:14px"><span style="color:var(--nav-strong);font-weight:700">3</span>最初の投稿を予約する</div></div></div>
+<div style="font-size:13px">あとからいつでも変えられます。</div>
+</div>
+<div style="display:flex;align-items:center;justify-content:center">
+<div style="width:400px;display:flex;flex-direction:column;gap:20px">
+<div style="font-family:'Zen Kaku Gothic New';font-size:28px;font-weight:700">アカウントを作る</div>
+<div style="display:flex;flex-direction:column;gap:6px"><div style="font-size:14px;font-weight:700">メールアドレス</div><div style="border:1px solid var(--input);background:var(--surface);border-radius:6px;padding:12px 14px;font-size:15px">dev@yabumi.test</div></div>
+<div style="display:flex;flex-direction:column;gap:6px"><div style="font-size:14px;font-weight:700">パスワード</div><div style="border:2px solid var(--primary);background:var(--surface);border-radius:6px;padding:11px 13px;font-size:15px;letter-spacing:.2em">••••••</div><div style="font-size:12px;color:var(--muted)">8 文字以上。あと 2 文字です。</div></div>
+<div style="background:var(--primary);color:var(--on-primary);height:48px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;margin-top:4px">登録する</div>
+<div style="font-size:14px;color:var(--muted);text-align:center">アカウントをお持ちの方は <span style="color:var(--primary);font-weight:600">ログイン</span></div>
+</div></div>
+</div></div>
+
+<div style="display:flex;flex-direction:column;gap:10px"><div style="font-size:14px;font-weight:700">2 ログイン（エラー） ・ スマホ</div>
+<div style="width:375px;height:800px;background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:28px;overflow:hidden;display:flex;flex-direction:column;padding:24px 20px;box-sizing:border-box;gap:20px">
+<div style="font-family:'Zen Kaku Gothic New';font-weight:700;font-size:20px"><ruby>矢書<rt style="font-size:8px;color:var(--muted)">やぶみ</rt></ruby></div>
+<div style="font-family:'Zen Kaku Gothic New';font-size:26px;font-weight:700;margin-top:24px">ログイン</div>
+<div style="background:var(--danger-soft);border:1px solid var(--danger);border-radius:6px;padding:12px 14px;font-size:14px;line-height:1.7;color:var(--danger);font-weight:600">メールアドレスかパスワードが違います。もう一度お試しください。</div>
+<div style="display:flex;flex-direction:column;gap:6px"><div style="font-size:14px;font-weight:700">メールアドレス</div><div style="border:1px solid var(--input);background:var(--surface);border-radius:6px;padding:13px 14px;font-size:16px">dev@yabumi.test</div></div>
+<div style="display:flex;flex-direction:column;gap:6px"><div style="font-size:14px;font-weight:700">パスワード</div><div style="border:2px solid var(--danger);background:var(--surface);border-radius:6px;padding:12px 13px;font-size:16px;letter-spacing:.2em">••••••••</div><div style="font-size:13px;color:var(--primary);font-weight:600">パスワードを忘れた</div></div>
+<div style="background:var(--primary);color:var(--on-primary);height:52px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px">ログイン</div>
+<div style="font-size:14px;color:var(--muted);text-align:center">はじめての方は <span style="color:var(--primary);font-weight:600">アカウントを作る</span></div>
+</div></div>
+
+<!-- 3 projects -->
+<div style="display:flex;flex-direction:column;gap:10px"><div style="font-size:14px;font-weight:700">3 プロジェクト一覧 ・ PC</div>
+<div style="width:1280px;height:800px;background:var(--bg);color:var(--fg);border:1px solid var(--border);display:flex;flex-direction:column">
+<div style="height:64px;border-bottom:1px solid var(--border);background:var(--surface);display:flex;align-items:center;padding:0 48px;gap:36px"><div style="font-family:'Zen Kaku Gothic New';font-weight:700;font-size:22px"><ruby>矢書<rt style="font-size:9px;color:var(--muted)">やぶみ</rt></ruby></div><span style="font-size:14px;font-weight:700;color:var(--primary)">プロジェクト</span><div style="margin-left:auto;display:flex;gap:24px;font-size:13px;color:var(--muted)"><span>dev@yabumi.test</span><span>ログアウト</span></div></div>
+<div style="padding:48px;display:flex;flex-direction:column;gap:28px">
+<div style="display:flex;justify-content:space-between;align-items:flex-end"><div style="display:flex;flex-direction:column;gap:6px"><div style="font-family:'Zen Kaku Gothic New';font-size:32px;font-weight:700">プロジェクト</div><div style="font-size:15px;color:var(--muted)">広めたいアプリごとに 1 つ作ります。</div></div><div style="background:var(--primary);color:var(--on-primary);font-weight:700;font-size:15px;padding:12px 22px;border-radius:6px">＋ 新しいプロジェクト</div></div>
+<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px">
+<div style="display:grid;grid-template-columns:1.1fr 2fr 1fr 1fr 1fr;padding:12px 24px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--border)"><span>アプリ</span><span>どんなアプリか</span><span>ストアページ</span><span>つないだ SNS</span><span>次にやること</span></div>
+<div style="display:grid;grid-template-columns:1.1fr 2fr 1fr 1fr 1fr;padding:20px 24px;font-size:14px;border-bottom:1px solid var(--line);align-items:center"><b style="font-size:16px">かけいぼ日和</b><span style="color:var(--muted)">レシートを撮るだけで家計簿がつく。続かない人でも 1 日 10 秒で済む。</span><span>App Store</span><span style="color:var(--muted)">なし</span><span style="color:var(--primary);font-weight:700">SNS をつなぐ →</span></div>
+<div style="display:grid;grid-template-columns:1.1fr 2fr 1fr 1fr 1fr;padding:20px 24px;font-size:14px;align-items:center"><b style="font-size:16px">ねむログ</b><span style="color:var(--muted)">寝る前にスマホを置くと睡眠を記録する。</span><span style="color:var(--muted)">未登録</span><span style="display:flex;gap:6px"><span style="background:var(--primary-soft);color:var(--primary);padding:3px 9px;border-radius:999px;font-size:12px;font-weight:700">X</span><span style="background:var(--primary-soft);color:var(--primary);padding:3px 9px;border-radius:999px;font-size:12px;font-weight:700">Threads</span></span><span style="color:var(--primary);font-weight:700">投稿をつくる →</span></div>
+</div>
+</div>
+</div></div>
+
+<div style="display:flex;flex-direction:column;gap:10px"><div style="font-size:14px;font-weight:700">3 プロジェクト一覧（空） ・ スマホ</div>
+<div style="width:375px;height:800px;background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:28px;overflow:hidden;display:flex;flex-direction:column">
+<div style="padding:22px 20px 14px;border-bottom:1px solid var(--border);background:var(--surface);display:flex;justify-content:space-between;align-items:center"><div style="font-family:'Zen Kaku Gothic New';font-weight:700;font-size:20px"><ruby>矢書<rt style="font-size:8px;color:var(--muted)">やぶみ</rt></ruby></div><span style="font-size:13px;color:var(--muted)">ログアウト</span></div>
+<div style="padding:28px 20px;display:flex;flex-direction:column;gap:20px">
+<div style="font-family:'Zen Kaku Gothic New';font-size:26px;font-weight:700">プロジェクト</div>
+<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:24px 20px;display:flex;flex-direction:column;gap:12px;background-image:repeating-linear-gradient(transparent 0 31px,var(--rule) 31px 32px)"><div style="font-size:17px;font-weight:700">まだプロジェクトがありません</div><div style="font-size:14px;line-height:1.8;color:var(--muted)">広めたいアプリごとに 1 つ作ります。アプリ名だけで始められます。</div><div style="background:var(--primary);color:var(--on-primary);height:52px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:700;margin-top:6px">プロジェクトを作る</div></div>
+</div></div></div>
+
+<!-- 4 project form -->
+<div style="display:flex;flex-direction:column;gap:10px"><div style="font-size:14px;font-weight:700">4 プロジェクト作成（入力エラー） ・ PC</div>
+<div style="width:1280px;height:900px;background:var(--bg);color:var(--fg);border:1px solid var(--border);display:flex;flex-direction:column">
+<div style="height:64px;border-bottom:1px solid var(--border);background:var(--surface);display:flex;align-items:center;padding:0 48px;gap:36px"><div style="font-family:'Zen Kaku Gothic New';font-weight:700;font-size:22px"><ruby>矢書<rt style="font-size:9px;color:var(--muted)">やぶみ</rt></ruby></div><span style="font-size:14px;color:var(--muted)">プロジェクト ／ 新規</span></div>
+<div style="padding:40px 48px;display:grid;grid-template-columns:680px 1fr;gap:56px">
+<div style="display:flex;flex-direction:column;gap:24px">
+<div style="display:flex;flex-direction:column;gap:6px"><div style="font-family:'Zen Kaku Gothic New';font-size:30px;font-weight:700">新しいプロジェクト</div><div style="font-size:15px;color:var(--muted)">あとからいつでも編集できます。まずはアプリ名だけでも大丈夫です。</div></div>
+<div style="background:var(--danger-soft);border:1px solid var(--danger);border-radius:6px;padding:12px 16px;font-size:14px;color:var(--danger);font-weight:600">2 か所を直してください</div>
+<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:28px;display:flex;flex-direction:column;gap:22px">
+<div style="display:flex;flex-direction:column;gap:6px"><div style="font-size:14px;font-weight:700">アプリ名 <span style="color:var(--signal);font-size:12px">必須</span></div><div style="border:2px solid var(--danger);border-radius:6px;padding:11px 13px;font-size:15px;color:var(--muted);height:44px;box-sizing:border-box">例: かけいぼ日和</div><div style="font-size:13px;color:var(--danger);font-weight:600">アプリ名を入れてください</div></div>
+<div style="display:flex;flex-direction:column;gap:6px"><div style="font-size:14px;font-weight:700">どんなアプリか</div><div style="border:1px solid var(--input);border-radius:6px;padding:12px 14px;font-size:15px;height:80px;box-sizing:border-box">レシートを撮るだけで家計簿がつく。続かない人でも 1 日 10 秒で済む。</div><div style="font-size:12px;color:var(--muted)">何ができて、誰のどんな困りごとを解決するのか。AI がネタを考えるときの材料になります。</div></div>
+<div style="display:flex;flex-direction:column;gap:6px"><div style="font-size:14px;font-weight:700">届けたい相手（<span style="border-bottom:1.5px dotted var(--primary)">ペルソナ</span>）</div><div style="border:1px solid var(--input);border-radius:6px;padding:12px 14px;font-size:15px;color:var(--muted)">例: 家計簿を何度も挫折している 20〜30 代の会社員</div><div style="font-size:12px;color:var(--muted)">まだ決まっていなくても大丈夫です。後から AI と一緒に考えられます。</div></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+<div style="display:flex;flex-direction:column;gap:6px"><div style="font-size:14px;font-weight:700">App Store の URL</div><div style="border:2px solid var(--danger);border-radius:6px;padding:11px 13px;font-size:15px">apps.apple.com/jp/app/kakeibo</div><div style="font-size:13px;color:var(--danger);font-weight:600">https:// から始まる URL を入れてください</div></div>
+<div style="display:flex;flex-direction:column;gap:6px"><div style="font-size:14px;font-weight:700">Google Play の URL</div><div style="border:1px solid var(--input);border-radius:6px;padding:12px 14px;font-size:15px;color:var(--muted)">リリース前なら空欄で OK</div></div></div>
+<div style="display:flex;gap:12px;padding-top:8px;border-top:1px solid var(--line)"><div style="background:var(--primary);color:var(--on-primary);font-weight:700;font-size:15px;padding:12px 24px;border-radius:6px;margin-top:16px">作成する</div><div style="font-size:15px;color:var(--muted);padding:12px 8px;margin-top:16px">キャンセル</div></div>
+</div></div>
+<div style="display:flex;flex-direction:column;gap:12px;padding-top:120px">
+<div style="font-size:13px;font-weight:700;color:var(--muted)">この欄について</div>
+<div style="font-size:14px;line-height:1.8;color:var(--muted)"><b style="color:var(--fg)">ストアページの URL</b> は、投稿からストアへ何人来たかを測るのに使います（<span style="border-bottom:1.5px dotted var(--primary);color:var(--fg)">コンバージョン</span>の計測）。</div>
+</div>
+</div>
+</div></div>
+
+<div style="display:flex;flex-direction:column;gap:10px"><div style="font-size:14px;font-weight:700">4 プロジェクト作成 ・ スマホ</div>
+<div style="width:375px;height:900px;background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:28px;overflow:hidden;display:flex;flex-direction:column">
+<div style="padding:22px 20px 14px;border-bottom:1px solid var(--border);background:var(--surface);display:flex;gap:14px;align-items:center;font-size:15px"><span style="color:var(--primary)">← 戻る</span><b>新しいプロジェクト</b></div>
+<div style="padding:20px;display:flex;flex-direction:column;gap:20px">
+<div style="font-size:14px;color:var(--muted);line-height:1.7">あとからいつでも編集できます。まずはアプリ名だけでも大丈夫です。</div>
+<div style="display:flex;flex-direction:column;gap:6px"><div style="font-size:14px;font-weight:700">アプリ名 <span style="color:var(--signal);font-size:12px">必須</span></div><div style="border:2px solid var(--danger);background:var(--surface);border-radius:6px;padding:12px 13px;font-size:16px;color:var(--muted)">例: かけいぼ日和</div><div style="font-size:13px;color:var(--danger);font-weight:600">アプリ名を入れてください</div></div>
+<div style="display:flex;flex-direction:column;gap:6px"><div style="font-size:14px;font-weight:700">どんなアプリか</div><div style="border:1px solid var(--input);background:var(--surface);border-radius:6px;padding:13px 14px;font-size:16px;height:96px;box-sizing:border-box;color:var(--muted)">例: レシートを撮るだけで家計簿がつく</div></div>
+<div style="display:flex;flex-direction:column;gap:6px"><div style="font-size:14px;font-weight:700">届けたい相手（<span style="border-bottom:1.5px dotted var(--primary)">ペルソナ</span>）</div><div style="border:1px solid var(--input);background:var(--surface);border-radius:6px;padding:13px 14px;font-size:16px;color:var(--muted)">例: 20〜30 代の会社員</div></div>
+<div style="display:flex;flex-direction:column;gap:6px"><div style="font-size:14px;font-weight:700">App Store の URL</div><div style="border:1px solid var(--input);background:var(--surface);border-radius:6px;padding:13px 14px;font-size:16px;color:var(--muted)">https://apps.apple.com/…</div></div>
+<div style="display:flex;flex-direction:column;gap:6px"><div style="font-size:14px;font-weight:700">Google Play の URL</div><div style="border:1px solid var(--input);background:var(--surface);border-radius:6px;padding:13px 14px;font-size:16px;color:var(--muted)">https://play.google.com/…</div></div>
+<div style="background:var(--primary);color:var(--on-primary);height:52px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px">作成する</div>
+</div></div></div>
+
+<!-- 5 detail -->
+<div style="display:flex;flex-direction:column;gap:10px"><div style="font-size:14px;font-weight:700">5 プロジェクト詳細 ＋ 6 用語解説 ・ PC</div>
+<div style="width:1280px;height:800px;background:var(--bg);color:var(--fg);border:1px solid var(--border);display:grid;grid-template-columns:220px 1fr">
+<div style="background:var(--nav);color:var(--nav-fg);padding:28px 20px;display:flex;flex-direction:column;gap:28px">
+<div style="font-family:'Zen Kaku Gothic New',sans-serif;font-weight:700;font-size:22px;color:var(--nav-strong)"><ruby>矢書<rt style="font-size:9px;color:var(--nav-fg)">やぶみ</rt></ruby></div>
+<div style="border:1px solid var(--nav-active);border-radius:6px;padding:10px 12px;font-size:13px;color:var(--nav-strong);display:flex;justify-content:space-between"><span>かけいぼ日和</span><span>▾</span></div>
+<div style="display:flex;flex-direction:column;gap:2px;font-size:14px"><div style="background:var(--nav-active);color:var(--nav-strong);padding:10px 12px;border-radius:6px;font-weight:700">概要</div><div style="padding:10px 12px">投稿をつくる</div><div style="padding:10px 12px">カレンダー</div><div style="padding:10px 12px">指標</div><div style="padding:10px 12px">AI と相談</div><div style="padding:10px 12px">ロードマップ</div></div>
+<div style="margin-top:auto;font-size:12px">dev@yabumi.test</div></div>
+<div style="padding:40px 48px;display:flex;flex-direction:column;gap:28px">
+<div style="display:flex;justify-content:space-between;align-items:flex-end"><div style="display:flex;flex-direction:column;gap:6px"><div style="font-family:'Zen Kaku Gothic New',sans-serif;font-size:32px;font-weight:700">かけいぼ日和</div><div style="font-size:15px;color:var(--muted)">レシートを撮るだけで家計簿がつく。続かない人でも 1 日 10 秒で済む。</div></div><div style="font-size:14px;color:var(--primary);font-weight:600">編集</div></div>
+<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:visible">
+<div style="background:var(--primary);color:var(--on-primary);padding:22px 28px;display:flex;align-items:center;gap:24px;border-radius:7px 7px 0 0">
+<div style="display:flex;flex-direction:column;gap:6px;flex:1"><div style="font-size:12px;letter-spacing:.15em;color:var(--on-primary-muted)">いまやること ・ 1 / 3</div><div style="font-size:22px;font-weight:700">投稿先の SNS をつなぐ</div><div style="font-size:14px;color:var(--on-primary-muted)">まずは 1 つで大丈夫です。迷ったら X（旧 Twitter）がおすすめ。</div></div>
+<div style="background:var(--on-primary);color:var(--primary);font-weight:700;font-size:15px;padding:13px 24px;border-radius:6px">つなぐ</div></div>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;font-size:14px;position:relative">
+<div style="padding:16px 28px;display:flex;gap:10px;font-weight:700;border-right:1px solid var(--line)"><span style="color:var(--primary)">1</span>SNS をつなぐ</div>
+<div style="padding:16px 28px;display:flex;gap:10px;color:var(--muted);border-right:1px solid var(--line)"><span>2</span>最初の投稿をつくる</div>
+<div style="padding:16px 28px;display:flex;gap:10px;color:var(--muted)"><span>3</span><span>目標（<span style="color:var(--fg);border-bottom:1.5px dotted var(--primary)">KGI</span>）を決める</span></div>
+<div style="position:absolute;right:20px;top:52px;width:320px;background:var(--pop);color:var(--on-pop);border-radius:8px;padding:16px 18px;display:flex;flex-direction:column;gap:8px;box-shadow:0 8px 24px rgba(15,20,30,.25);z-index:2"><div style="display:flex;justify-content:space-between"><span style="font-weight:700;font-size:15px">KGI（ケージーアイ）</span><span style="font-size:12px;opacity:.8">✕</span></div><div style="font-size:13px;line-height:1.8">最終的にたどり着きたいゴールの数字。例:「3 か月で 1,000 ダウンロード」。日々追う小さな数字は KPI と呼びます。</div><div style="font-size:12px;color:var(--pop-link)">用語集で見る →</div></div>
+</div></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px"><div style="padding:14px 20px;border-bottom:1px solid var(--line);font-size:15px;font-weight:700">予約中の投稿</div><div style="padding:32px 20px;font-size:14px;color:var(--muted);line-height:1.8;background-image:repeating-linear-gradient(transparent 0 31px,var(--rule) 31px 32px)">まだ予約はありません。SNS をつなぐと、ここに日付順で並びます。</div></div>
+<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px"><div style="padding:14px 20px;border-bottom:1px solid var(--line);font-size:15px;font-weight:700">このアプリについて</div>
+<div style="display:grid;grid-template-columns:120px 1fr;font-size:14px">
+<div style="padding:12px 20px;color:var(--muted);border-bottom:1px solid var(--line)"><span style="border-bottom:1.5px dotted var(--primary)">ペルソナ</span></div><div style="padding:12px 20px 12px 0;border-bottom:1px solid var(--line);line-height:1.6">家計簿を何度も挫折している 20〜30 代の会社員</div>
+<div style="padding:12px 20px;color:var(--muted);border-bottom:1px solid var(--line)">App Store</div><div style="padding:12px 20px 12px 0;border-bottom:1px solid var(--line);color:var(--success);font-weight:600">✓ 登録済み</div>
+<div style="padding:12px 20px;color:var(--muted)">Google Play</div><div style="padding:12px 20px 12px 0;color:var(--primary);font-weight:600">＋ 追加</div></div></div>
+</div>
+</div>
+</div></div>
+
+<div style="display:flex;flex-direction:column;gap:10px"><div style="font-size:14px;font-weight:700">5 詳細 ＋ 6 用語解説シート ・ スマホ</div>
+<div style="width:375px;height:800px;background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:28px;overflow:hidden;display:flex;flex-direction:column;position:relative">
+<div style="background:var(--nav);color:var(--nav-strong);padding:22px 20px 16px;display:flex;justify-content:space-between;align-items:center"><div style="font-family:'Zen Kaku Gothic New',sans-serif;font-weight:700;font-size:19px"><ruby>矢書<rt style="font-size:8px;color:var(--nav-fg)">やぶみ</rt></ruby></div><div style="font-size:13px;color:var(--nav-fg)">かけいぼ日和 ▾</div></div>
+<div style="flex:1;padding:20px 16px;display:flex;flex-direction:column;gap:16px">
+<div style="background:var(--primary);color:var(--on-primary);border-radius:8px;padding:20px;display:flex;flex-direction:column;gap:10px"><div style="font-size:11px;letter-spacing:.15em;color:var(--on-primary-muted)">いまやること ・ 1 / 3</div><div style="font-size:19px;font-weight:700">投稿先の SNS をつなぐ</div><div style="font-size:13px;line-height:1.7;color:var(--on-primary-muted)">まずは 1 つで大丈夫です。迷ったら X がおすすめ。</div><div style="background:var(--on-primary);color:var(--primary);font-weight:700;height:48px;display:flex;align-items:center;justify-content:center;border-radius:6px;margin-top:4px">つなぐ</div></div>
+<div style="font-size:14px;color:var(--muted)">次: 最初の投稿 → 目標（<span style="color:var(--fg);border-bottom:1.5px dotted var(--primary)">KGI</span>）を決める</div>
+<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px"><div style="padding:12px 16px;border-bottom:1px solid var(--line);font-size:14px;font-weight:700">予約中の投稿</div><div style="padding:20px 16px;font-size:13px;color:var(--muted)">まだ予約はありません。</div></div>
+</div>
+<div style="position:absolute;inset:0;background:rgba(15,20,30,.45)"></div>
+<div style="position:absolute;left:0;right:0;bottom:0;background:var(--surface);border-radius:16px 16px 0 0;padding:12px 20px 32px;display:flex;flex-direction:column;gap:12px">
+<div style="width:40px;height:4px;border-radius:2px;background:var(--border);align-self:center"></div>
+<div style="font-size:18px;font-weight:700">KGI（ケージーアイ）</div>
+<div style="font-size:15px;line-height:1.8">最終的にたどり着きたいゴールの数字。例:「3 か月で 1,000 ダウンロード」。日々追う小さな数字は <span style="border-bottom:1.5px dotted var(--primary)">KPI</span> と呼びます。</div>
+<div style="border:1px solid var(--primary);color:var(--primary);height:48px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:600">用語集で見る</div>
+</div>
+</div></div>
+
+</div>
+</section>
+
+<section data-screen-label="04 これから作る画面" style="display:flex;flex-direction:column;gap:20px">
+<div style="font-family:'Zen Kaku Gothic New',sans-serif;font-size:26px;font-weight:700;color:#1b2333">04 これから作る画面（方向性）</div>
+<div style="display:flex;flex-wrap:wrap;gap:56px 40px;width:1700px;color:#1b2333">
+
+<!-- compose -->
+<div style="display:flex;flex-direction:column;gap:10px"><div style="font-size:14px;font-weight:700">投稿作成 ・ PC</div>
+<div style="width:1280px;height:800px;background:var(--bg);color:var(--fg);border:1px solid var(--border);display:grid;grid-template-columns:220px 1fr">
+<div style="background:var(--nav);color:var(--nav-fg);padding:28px 20px;display:flex;flex-direction:column;gap:28px"><div style="font-family:'Zen Kaku Gothic New';font-weight:700;font-size:22px;color:var(--nav-strong)"><ruby>矢書<rt style="font-size:9px;color:var(--nav-fg)">やぶみ</rt></ruby></div><div style="border:1px solid var(--nav-active);border-radius:6px;padding:10px 12px;font-size:13px;color:var(--nav-strong)">かけいぼ日和 ▾</div><div style="display:flex;flex-direction:column;gap:2px;font-size:14px"><div style="padding:10px 12px">概要</div><div style="background:var(--nav-active);color:var(--nav-strong);padding:10px 12px;border-radius:6px;font-weight:700">投稿をつくる</div><div style="padding:10px 12px">カレンダー</div><div style="padding:10px 12px">指標</div><div style="padding:10px 12px">AI と相談</div><div style="padding:10px 12px">ロードマップ</div></div></div>
+<div style="display:flex;flex-direction:column">
+<div style="flex:1;display:grid;grid-template-columns:1fr 440px;gap:28px;padding:32px 40px">
+<div style="display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-family:'Zen Kaku Gothic New';font-size:26px;font-weight:700">下書き</div><span style="font-size:13px;color:var(--primary);font-weight:600">AI に案を出してもらう</span></div>
+<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px 20px;font-size:16px;line-height:32px;height:260px;background-image:repeating-linear-gradient(transparent 0 31px,var(--rule) 31px 32px);background-position:0 16px">レシートを撮るだけで家計簿がつく「かけいぼ日和」、v1.2 で月ごとのグラフが見られるようになりました。先月より食費が減ったかどうか、ひと目でわかります。</div>
+<div style="display:flex;gap:12px;align-items:center;font-size:13px;color:var(--muted)"><span>78 字</span><span>・</span><span style="color:var(--signal);font-weight:700">AI っぽさ: 指摘 1 件</span></div>
+<div style="height:140px;border:1.5px dashed var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;font:13px monospace;color:var(--muted);background:repeating-linear-gradient(45deg,transparent 0 10px,var(--rule) 10px 11px)">画像・動画をここに置く</div>
+</div>
+<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;display:flex;flex-direction:column;overflow:hidden">
+<div style="padding:12px 20px;border-bottom:2px solid var(--primary);font-size:14px;font-weight:700">送り先と文面の調整</div>
+<div style="display:grid;grid-template-columns:1fr auto auto;font-size:13px">
+<div style="padding:11px 20px;border-bottom:1px solid var(--line);background:var(--primary-soft);font-weight:700;color:var(--primary)">✓ X</div><div style="padding:11px 12px;border-bottom:1px solid var(--line);background:var(--primary-soft);color:var(--muted)">78 / 140</div><div style="padding:11px 20px;border-bottom:1px solid var(--line);background:var(--primary-soft);color:var(--success);font-weight:700">OK</div>
+<div style="padding:11px 20px;border-bottom:1px solid var(--line);font-weight:700">✓ Threads</div><div style="padding:11px 12px;border-bottom:1px solid var(--line);color:var(--muted)">78 / 500</div><div style="padding:11px 20px;border-bottom:1px solid var(--line);color:var(--success);font-weight:700">OK</div>
+<div style="padding:11px 20px;border-bottom:1px solid var(--line);font-weight:700">✓ Instagram</div><div style="padding:11px 12px;border-bottom:1px solid var(--line);color:var(--muted)">78 / 2,200</div><div style="padding:11px 20px;border-bottom:1px solid var(--line);color:var(--signal);font-weight:700">画像が必要</div>
+<div style="padding:11px 20px;border-bottom:1px solid var(--line);font-weight:700">✓ Facebook</div><div style="padding:11px 12px;border-bottom:1px solid var(--line);color:var(--muted)">78</div><div style="padding:11px 20px;border-bottom:1px solid var(--line);color:var(--success);font-weight:700">OK</div>
+<div style="padding:11px 20px;border-bottom:1px solid var(--line);color:var(--muted)">○ TikTok</div><div style="padding:11px 12px;border-bottom:1px solid var(--line);color:var(--muted)">—</div><div style="padding:11px 20px;border-bottom:1px solid var(--line);color:var(--muted)">動画が必要</div>
+<div style="padding:11px 20px;border-bottom:1px solid var(--line);color:var(--muted)">○ YouTube</div><div style="padding:11px 12px;border-bottom:1px solid var(--line);color:var(--muted)">—</div><div style="padding:11px 20px;border-bottom:1px solid var(--line);color:var(--muted)">動画が必要</div></div>
+<div style="padding:16px 20px;display:flex;flex-direction:column;gap:10px;flex:1;background:var(--surface2)">
+<div style="font-size:12px;color:var(--muted)">X での見え方</div>
+<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;display:flex;gap:10px"><div style="width:36px;height:36px;border-radius:50%;background:var(--primary-soft);flex:none"></div><div style="display:flex;flex-direction:column;gap:4px;font-size:13px;line-height:1.6"><b>かけいぼ日和</b><span>レシートを撮るだけで家計簿がつく「かけいぼ日和」、v1.2 で月ごとのグラフが見られるようになりました。…</span></div></div>
+<div style="font-size:12px;color:var(--primary);font-weight:600">X 用に文面を変える</div></div>
+</div>
+</div>
+<div style="height:72px;border-top:1px solid var(--border);background:var(--surface);display:flex;align-items:center;padding:0 40px;gap:16px"><div style="font-size:14px;color:var(--muted)">送る日時</div><div style="border:1px solid var(--input);border-radius:6px;padding:9px 14px;font-size:14px">10/14（火） 20:00</div><span style="font-size:12px;color:var(--muted)">この時間帯は反応が多めです</span><div style="margin-left:auto;border:1px solid var(--primary);color:var(--primary);font-weight:600;font-size:14px;padding:10px 18px;border-radius:6px">下書き保存</div><div style="background:var(--primary);color:var(--on-primary);font-weight:700;font-size:14px;padding:11px 22px;border-radius:6px">4 つの SNS に予約する</div></div>
+</div>
+</div></div>
+
+<!-- calendar SP -->
+<div style="display:flex;flex-direction:column;gap:10px"><div style="font-size:14px;font-weight:700">カレンダー ・ スマホ（移動中の確認）</div>
+<div style="width:375px;height:800px;background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:28px;overflow:hidden;display:flex;flex-direction:column">
+<div style="background:var(--nav);color:var(--nav-strong);padding:22px 20px 14px;display:flex;justify-content:space-between;align-items:center"><b style="font-size:16px">今週の予定</b><span style="font-size:13px;color:var(--nav-fg)">10/13 – 10/19</span></div>
+<div style="flex:1;padding:16px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;flex-direction:column;gap:6px"><div style="font-size:12px;font-weight:700;color:var(--muted)">10/13（月）</div><div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:6px"><div style="display:flex;justify-content:space-between;font-size:12px"><span style="color:var(--muted)">12:00 ・ X / Threads</span><span style="color:var(--success);font-weight:700">✓ 投稿済み</span></div><div style="font-size:14px">開発の裏話: レシート読取りの精度を…</div><div style="font-size:12px;color:var(--muted)">表示 1,240 ・ ストア到達 18</div></div></div>
+<div style="display:flex;flex-direction:column;gap:6px"><div style="font-size:12px;font-weight:700;color:var(--primary)">10/14（火） 今日</div><div style="background:var(--surface);border:1.5px solid var(--primary);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:6px"><div style="display:flex;justify-content:space-between;font-size:12px"><span style="color:var(--muted)">20:00 ・ X / Threads / IG / FB</span><span style="color:var(--signal);font-weight:700">● 予約</span></div><div style="font-size:14px">v1.2 で月ごとのグラフが見られるように…</div><div style="font-size:12px;color:var(--signal);font-weight:600">Instagram は画像が未設定です</div></div></div>
+<div style="display:flex;flex-direction:column;gap:6px"><div style="font-size:12px;font-weight:700;color:var(--muted)">10/16（木）</div><div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:6px"><div style="display:flex;justify-content:space-between;font-size:12px"><span style="color:var(--muted)">12:00 ・ X</span><span style="color:var(--signal);font-weight:700">● 予約</span></div><div style="font-size:14px">使い方のコツ: 1 日 10 秒で済ませる…</div></div></div>
+<div style="display:flex;flex-direction:column;gap:6px"><div style="font-size:12px;font-weight:700;color:var(--muted)">10/18（土）</div><div style="border:1.5px dashed var(--border);border-radius:8px;padding:12px 14px;font-size:13px;color:var(--muted)">空いています ・ ＋ 投稿を足す</div></div>
+</div>
+<div style="height:72px;background:var(--surface);border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(5,1fr);font-size:11px;color:var(--muted)"><div style="display:flex;align-items:center;justify-content:center">概要</div><div style="display:flex;align-items:center;justify-content:center">投稿</div><div style="display:flex;align-items:center;justify-content:center;color:var(--primary);font-weight:700;border-top:2px solid var(--primary)">予定</div><div style="display:flex;align-items:center;justify-content:center">指標</div><div style="display:flex;align-items:center;justify-content:center">相談</div></div>
+</div></div>
+
+<!-- calendar PC -->
+<div style="display:flex;flex-direction:column;gap:10px"><div style="font-size:14px;font-weight:700">カレンダー ・ PC</div>
+<div style="width:1280px;height:720px;background:var(--bg);color:var(--fg);border:1px solid var(--border);display:flex;flex-direction:column;padding:32px 40px;box-sizing:border-box;gap:20px">
+<div style="display:flex;align-items:center;gap:16px"><div style="font-family:'Zen Kaku Gothic New';font-size:26px;font-weight:700">カレンダー</div><span style="font-size:15px;color:var(--muted)">10 月 13 日 – 19 日</span><div style="margin-left:auto;display:flex;gap:16px;font-size:13px"><span style="color:var(--signal);font-weight:700">● 予約</span><span style="color:var(--success);font-weight:700">✓ 投稿済み（実績つき）</span><span style="color:var(--muted)">○ 下書き</span></div></div>
+<div style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:8px;display:grid;grid-template-columns:repeat(7,1fr);overflow:hidden">
+<div style="border-right:1px solid var(--line);display:flex;flex-direction:column"><div style="padding:10px 12px;border-bottom:1px solid var(--line);font-size:13px;color:var(--muted)">13 月</div><div style="padding:10px;display:flex;flex-direction:column;gap:8px"><div style="border-left:3px solid var(--success);background:var(--success-soft);border-radius:4px;padding:8px 10px;font-size:12px;display:flex;flex-direction:column;gap:3px"><b>12:00 X ・ Threads</b><span>開発の裏話</span><span style="color:var(--muted)">表示 1,240</span></div></div></div>
+<div style="border-right:1px solid var(--line);display:flex;flex-direction:column;background:var(--surface2)"><div style="padding:10px 12px;border-bottom:2px solid var(--primary);font-size:13px;color:var(--primary);font-weight:700">14 火 今日</div><div style="padding:10px;display:flex;flex-direction:column;gap:8px"><div style="border-left:3px solid var(--signal);background:var(--signal-soft);border-radius:4px;padding:8px 10px;font-size:12px;display:flex;flex-direction:column;gap:3px"><b>20:00 4 つの SNS</b><span>v1.2 リリース告知</span></div></div></div>
+<div style="border-right:1px solid var(--line);display:flex;flex-direction:column"><div style="padding:10px 12px;border-bottom:1px solid var(--line);font-size:13px;color:var(--muted)">15 水</div></div>
+<div style="border-right:1px solid var(--line);display:flex;flex-direction:column"><div style="padding:10px 12px;border-bottom:1px solid var(--line);font-size:13px;color:var(--muted)">16 木</div><div style="padding:10px;display:flex;flex-direction:column;gap:8px"><div style="border-left:3px solid var(--signal);background:var(--signal-soft);border-radius:4px;padding:8px 10px;font-size:12px;display:flex;flex-direction:column;gap:3px"><b>12:00 X</b><span>使い方のコツ</span></div></div></div>
+<div style="border-right:1px solid var(--line);display:flex;flex-direction:column"><div style="padding:10px 12px;border-bottom:1px solid var(--line);font-size:13px;color:var(--muted)">17 金</div><div style="padding:10px;display:flex;flex-direction:column;gap:8px"><div style="border:1px dashed var(--border);border-radius:4px;padding:8px 10px;font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:3px"><b>下書き</b><span>ユーザーの声紹介</span></div></div></div>
+<div style="border-right:1px solid var(--line);display:flex;flex-direction:column"><div style="padding:10px 12px;border-bottom:1px solid var(--line);font-size:13px;color:var(--muted)">18 土</div></div>
+<div style="display:flex;flex-direction:column"><div style="padding:10px 12px;border-bottom:1px solid var(--line);font-size:13px;color:var(--muted)">19 日</div></div>
+</div>
+<div style="font-size:13px;color:var(--muted)">週 3 回のペースまであと 1 回。空いている日を押すと、その日に投稿を足せます。</div>
+</div></div>
+
+<!-- AI ideas -->
+<div style="display:flex;flex-direction:column;gap:10px"><div style="font-size:14px;font-weight:700">AI ネタ出し ・ AI っぽさチェック ・ PC</div>
+<div style="width:1280px;height:720px;background:var(--bg);color:var(--fg);border:1px solid var(--border);display:grid;grid-template-columns:420px 1fr;gap:28px;padding:32px 40px;box-sizing:border-box">
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="font-family:'Zen Kaku Gothic New';font-size:24px;font-weight:700">AI の案</div>
+<div style="font-size:13px;color:var(--muted);line-height:1.7">「どんなアプリか」と「ペルソナ」から作りました。1 つ選んで直してください。</div>
+<div style="background:var(--surface);border:2px solid var(--primary);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;color:var(--primary);font-weight:700">案 1 ・ 開発の裏話</span><span style="font-size:14px;line-height:1.7">レシートの文字がにじむと読み取れない問題を、3 週間かけて直した話</span></div>
+<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;color:var(--muted);font-weight:700">案 2 ・ 使い方のコツ</span><span style="font-size:14px;line-height:1.7">買い物帰りの信号待ちで記録を終わらせる方法</span></div>
+<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;color:var(--muted);font-weight:700">案 3 ・ 共感</span><span style="font-size:14px;line-height:1.7">家計簿が 3 日で止まる人の、よくある理由</span></div>
+<div style="font-size:13px;color:var(--primary);font-weight:600">ほかの案を出す</div>
+</div>
+<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;display:flex;flex-direction:column;overflow:hidden">
+<div style="padding:12px 20px;border-bottom:2px solid var(--primary);display:flex;justify-content:space-between;font-size:14px"><b>案 1 を直す</b><span style="color:var(--signal);font-weight:700">AI っぽさの指摘 2 件</span></div>
+<div style="padding:16px 24px;font-size:16px;line-height:32px;background-image:repeating-linear-gradient(transparent 0 31px,var(--rule) 31px 32px);background-position:0 16px;flex:1">レシートの文字がにじむと、読み取りに失敗していました。<span style="background:var(--signal-soft);border-bottom:2px solid var(--signal)">この課題に真摯に向き合い、</span>3 週間かけて直しました。にじんだレシートでも 9 割読めるようになっています。<span style="background:var(--signal-soft);border-bottom:2px solid var(--signal)">ぜひお試しください！</span></div>
+<div style="border-top:1px solid var(--line);display:flex;flex-direction:column">
+<div style="padding:14px 24px;display:grid;grid-template-columns:200px 1fr auto;gap:16px;font-size:13px;border-bottom:1px solid var(--line);align-items:center"><b style="color:var(--signal)">「真摯に向き合い」</b><span style="color:var(--muted);line-height:1.7">広告文によくある決まり文句で、AI が書いたように見えやすい。何をしたかを具体的に書くと伝わります。</span><span style="color:var(--primary);font-weight:700">消す</span></div>
+<div style="padding:14px 24px;display:grid;grid-template-columns:200px 1fr auto;gap:16px;font-size:13px;align-items:center"><b style="color:var(--signal)">「ぜひお試しください！」</b><span style="color:var(--muted);line-height:1.7">締めの定型句。代わりに「にじんだレシート、試しに撮ってみてください」のように具体的な行動を。</span><span style="color:var(--primary);font-weight:700">置きかえる</span></div></div>
+<div style="padding:14px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:12px"><div style="border:1px solid var(--primary);color:var(--primary);font-weight:600;font-size:14px;padding:10px 18px;border-radius:6px">下書きに保存</div><div style="background:var(--primary);color:var(--on-primary);font-weight:700;font-size:14px;padding:11px 20px;border-radius:6px">この文で投稿をつくる</div></div>
+</div>
+</div></div>
+
+<!-- dashboard -->
+<div style="display:flex;flex-direction:column;gap:10px"><div style="font-size:14px;font-weight:700">指標ダッシュボード ・ PC</div>
+<div style="width:1280px;height:720px;background:var(--bg);color:var(--fg);border:1px solid var(--border);display:flex;flex-direction:column;padding:32px 40px;box-sizing:border-box;gap:24px">
+<div style="display:flex;align-items:center;gap:16px"><div style="font-family:'Zen Kaku Gothic New';font-size:26px;font-weight:700">指標</div><div style="display:flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;font-size:13px;margin-left:auto"><span style="padding:8px 14px">7 日</span><span style="padding:8px 14px;background:var(--primary);color:var(--on-primary);font-weight:700">30 日</span><span style="padding:8px 14px">90 日</span></div></div>
+<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;display:grid;grid-template-columns:repeat(4,1fr)">
+<div style="padding:24px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:6px"><span style="font-size:13px;color:var(--muted)">表示回数</span><span style="font-family:'Zen Kaku Gothic New';font-size:36px;font-weight:700">12,480</span><span style="font-size:12px;color:var(--muted)">投稿が画面に出た回数</span></div>
+<div style="padding:24px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:6px"><span style="font-size:13px;color:var(--muted)">→ ストアページ到達</span><span style="font-family:'Zen Kaku Gothic New';font-size:36px;font-weight:700">312</span><span style="font-size:12px;color:var(--muted)">表示の 2.5%</span></div>
+<div style="padding:24px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:6px"><span style="font-size:13px;color:var(--muted)">→ ダウンロード</span><span style="font-family:'Zen Kaku Gothic New';font-size:36px;font-weight:700">86</span><span style="font-size:12px;color:var(--muted)">到達の 27.6%</span></div>
+<div style="padding:24px;display:flex;flex-direction:column;gap:6px"><span style="font-size:13px;color:var(--muted)">→ 課金</span><span style="font-family:'Zen Kaku Gothic New';font-size:36px;font-weight:700">4</span><span style="font-size:12px;color:var(--muted)">ダウンロードの 4.7%</span></div></div>
+<div style="background:var(--primary-soft);border-radius:8px;padding:16px 20px;font-size:14px;line-height:1.8;display:flex;gap:16px;align-items:center"><b style="color:var(--primary);white-space:nowrap">読み方</b><span>表示からストアへ進む割合（<span style="border-bottom:1.5px dotted var(--primary)">クリック率</span>）が 2.5% と低めです。投稿の最後にストアへのリンクを入れると上がりやすくなります。</span></div>
+<div style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:8px;display:flex;flex-direction:column">
+<div style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr 2fr;padding:12px 24px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--border)"><span>SNS</span><span>表示回数</span><span>ストア到達</span><span>到達率</span><span></span></div>
+<div style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr 2fr;padding:14px 24px;font-size:14px;border-bottom:1px solid var(--line);align-items:center"><b>X</b><span>7,820</span><span>204</span><span>2.6%</span><div style="height:8px;background:var(--primary);border-radius:4px;width:100%"></div></div>
+<div style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr 2fr;padding:14px 24px;font-size:14px;border-bottom:1px solid var(--line);align-items:center"><b>Threads</b><span>3,100</span><span>81</span><span>2.6%</span><div style="height:8px;background:var(--primary);border-radius:4px;width:40%"></div></div>
+<div style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr 2fr;padding:14px 24px;font-size:14px;align-items:center"><b>Facebook</b><span>1,560</span><span>27</span><span>1.7%</span><div style="height:8px;background:var(--primary);border-radius:4px;width:20%"></div></div>
+</div>
+</div></div>
+
+<!-- AI chat -->
+<div style="display:flex;flex-direction:column;gap:10px"><div style="font-size:14px;font-weight:700">AI と相談（壁打ち） ・ PC</div>
+<div style="width:1280px;height:720px;background:var(--bg);color:var(--fg);border:1px solid var(--border);display:grid;grid-template-columns:1fr 360px">
+<div style="display:flex;flex-direction:column;padding:32px 40px;gap:18px">
+<div style="font-family:'Zen Kaku Gothic New';font-size:26px;font-weight:700">AI と相談</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:16px">
+<div style="align-self:flex-start;max-width:620px;background:var(--surface);border:1px solid var(--border);border-radius:8px 8px 8px 2px;padding:14px 18px;font-size:15px;line-height:1.8">3 か月後にどうなっていたいですか？ 数字で決めておくと、毎週やることを逆算できます。これを <span style="border-bottom:1.5px dotted var(--primary);font-weight:600">KGI</span> と呼びます。</div>
+<div style="align-self:flex-end;max-width:520px;background:var(--primary);color:var(--on-primary);border-radius:8px 8px 2px 8px;padding:14px 18px;font-size:15px;line-height:1.8">1,000 ダウンロードくらいいけたら嬉しい</div>
+<div style="align-self:flex-start;max-width:620px;background:var(--surface);border:1px solid var(--border);border-radius:8px 8px 8px 2px;padding:14px 18px;font-size:15px;line-height:1.8;display:flex;flex-direction:column;gap:12px"><span>今のペース（30 日で 86）だと 3 か月で約 260 です。1,000 を目指すなら、ストアへ進む割合を 2.5% → 5% に上げ、投稿を週 3 回にするのが現実的です。</span><div style="display:flex;gap:8px"><span style="border:1px solid var(--primary);color:var(--primary);padding:6px 12px;border-radius:999px;font-size:13px;font-weight:600">この目標で決める</span><span style="border:1px solid var(--border);padding:6px 12px;border-radius:999px;font-size:13px">もう少し低くしたい</span></div></div>
+</div>
+<div style="background:var(--surface);border:1px solid var(--input);border-radius:8px;padding:12px 14px;display:flex;align-items:center;gap:12px;font-size:15px;color:var(--muted)"><span style="flex:1">相談したいことを書く</span><div style="background:var(--primary);color:var(--on-primary);font-weight:700;font-size:14px;padding:9px 18px;border-radius:6px">送る</div></div>
+</div>
+<div style="border-left:1px solid var(--border);background:var(--surface);padding:32px 28px;display:flex;flex-direction:column;gap:18px">
+<div style="font-size:14px;font-weight:700">決まったこと</div>
+<div style="display:flex;flex-direction:column;gap:4px;padding-bottom:14px;border-bottom:1px solid var(--line)"><span style="font-size:12px;color:var(--muted)">KGI ・ 3 か月後のゴール</span><span style="font-size:17px;font-weight:700">1,000 ダウンロード</span><span style="font-size:12px;color:var(--signal);font-weight:700">● 相談中</span></div>
+<div style="display:flex;flex-direction:column;gap:4px;padding-bottom:14px;border-bottom:1px solid var(--line)"><span style="font-size:12px;color:var(--muted)"><span style="border-bottom:1.5px dotted var(--primary)">KPI</span> ・ 毎週見る数字</span><span style="font-size:15px">投稿 週 3 回</span><span style="font-size:15px">ストア到達率 5%</span></div>
+<div style="font-size:13px;color:var(--muted);line-height:1.8">決めた内容はロードマップに反映されます。</div>
+</div>
+</div></div>
+
+<!-- roadmap -->
+<div style="display:flex;flex-direction:column;gap:10px"><div style="font-size:14px;font-weight:700">ロードマップ ・ PC</div>
+<div style="width:1280px;height:720px;background:var(--bg);color:var(--fg);border:1px solid var(--border);display:flex;flex-direction:column;padding:32px 40px;box-sizing:border-box;gap:24px">
+<div style="display:flex;align-items:flex-end;gap:24px"><div style="display:flex;flex-direction:column;gap:6px"><div style="font-family:'Zen Kaku Gothic New';font-size:26px;font-weight:700">ロードマップ</div><span style="font-size:14px;color:var(--muted)">目標: 1 月 14 日までに 1,000 ダウンロード</span></div>
+<div style="margin-left:auto;width:420px;display:flex;flex-direction:column;gap:6px"><div style="display:flex;justify-content:space-between;font-size:13px"><b>86 / 1,000</b><span style="color:var(--muted)">残り 92 日</span></div><div style="height:10px;background:var(--line);border-radius:5px;overflow:hidden"><div style="width:9%;height:100%;background:var(--primary)"></div></div></div></div>
+<div style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:8px;display:flex;flex-direction:column">
+<div style="display:grid;grid-template-columns:60px 1fr 160px 220px;padding:20px 28px;border-bottom:1px solid var(--line);align-items:center;gap:16px"><span style="color:var(--success);font-weight:700;font-size:18px">✓</span><div style="display:flex;flex-direction:column;gap:4px"><b style="font-size:16px">準備する</b><span style="font-size:13px;color:var(--muted)">アプリ登録、SNS をつなぐ、目標を決める</span></div><span style="font-size:13px;color:var(--muted)">10/1 – 10/12</span><span style="font-size:13px;color:var(--success);font-weight:700">完了</span></div>
+<div style="display:grid;grid-template-columns:60px 1fr 160px 220px;padding:20px 28px;border-bottom:1px solid var(--line);align-items:center;gap:16px;background:var(--primary-soft)"><span style="color:var(--primary);font-weight:700;font-size:18px">2</span><div style="display:flex;flex-direction:column;gap:4px"><b style="font-size:16px">週 3 回の投稿を 4 週つづける</b><span style="font-size:13px;color:var(--muted)">まずは続けることが目標。反応は気にしなくて大丈夫です。</span></div><span style="font-size:13px;color:var(--muted)">10/13 – 11/9</span><div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:13px;font-weight:700">2 / 12 投稿</span><div style="height:6px;background:var(--surface);border-radius:3px;overflow:hidden"><div style="width:17%;height:100%;background:var(--primary)"></div></div></div></div>
+<div style="display:grid;grid-template-columns:60px 1fr 160px 220px;padding:20px 28px;border-bottom:1px solid var(--line);align-items:center;gap:16px;color:var(--muted)"><span style="font-weight:700;font-size:18px">3</span><div style="display:flex;flex-direction:column;gap:4px"><b style="font-size:16px;color:var(--fg)">反応のよい「型」を見つける</b><span style="font-size:13px">裏話・使い方・共感のどれが伸びるか比べる</span></div><span style="font-size:13px">11/10 – 12/7</span><span style="font-size:13px">これから</span></div>
+<div style="display:grid;grid-template-columns:60px 1fr 160px 220px;padding:20px 28px;align-items:center;gap:16px;color:var(--muted)"><span style="font-weight:700;font-size:18px">4</span><div style="display:flex;flex-direction:column;gap:4px"><b style="font-size:16px;color:var(--fg)">ストア到達率を 5% に上げる</b><span style="font-size:13px">伸びた型に絞り、ストアへのリンクの入れ方を工夫する</span></div><span style="font-size:13px">12/8 – 1/14</span><span style="font-size:13px">これから</span></div>
+</div>
+</div></div>
+
+</div>
+</section>
+
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;light&quot;,&quot;tsType&quot;:&quot;'light' | 'dark'&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const dark = (this.props.theme ?? 'light') === 'dark';
+    const d = {'--bg':'#12151b','--surface':'#1a1f28','--surface2':'#161a22','--fg':'#e6e9ef','--muted':'#9aa3b5','--border':'#2e3644','--line':'#242b37','--input':'#3a4352','--primary':'#8fb0e3','--on-primary':'#0f1a2e','--on-primary-muted':'#24365a','--primary-soft':'#22304a','--signal':'#ec8a72','--signal-soft':'#3a2420','--danger':'#f08a7e','--danger-soft':'#3a1f1d','--success':'#86c79c','--success-soft':'#1c3326','--rule':'#1f2530','--nav':'#0d1015','--nav-fg':'#9aa3b5','--nav-active':'#1f2838','--nav-strong':'#ffffff','--pop':'#e6e9ef','--on-pop':'#1b2333','--pop-link':'#23406e'};
+    return { themeStyle: dark ? d : {} };
+  }
+}
+</script>
+</body>
+</html>

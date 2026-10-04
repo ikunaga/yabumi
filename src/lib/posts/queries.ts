@@ -2,7 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { SNS_KEYS, isSnsKey, type SnsKey } from "@/lib/sns";
 import { createClient } from "@/lib/supabase/server";
-import { overduePostIds } from "./overdue";
+import { dueManualPostIds, overduePostIds } from "./overdue";
 
 export type TargetStatus = "pending" | "publishing" | "published" | "failed" | "deleted";
 export type PostTargetRow = {
@@ -10,6 +10,7 @@ export type PostTargetRow = {
   sns: SnsKey;
   status: TargetStatus;
   body_override: string | null;
+  title: string | null;
   external_url: string | null;
   error_message: string | null;
   published_at: string | null;
@@ -23,7 +24,7 @@ export type PostRow = {
   targets: PostTargetRow[];
 };
 
-const TARGET_FIELDS = "id, sns, status, body_override, external_url, error_message, published_at, next_attempt_at";
+const TARGET_FIELDS = "id, sns, status, title, body_override, external_url, error_message, published_at, next_attempt_at";
 const POST_SELECT = `id, body, planned_at, status, post_targets(${TARGET_FIELDS})` as const;
 const POST_SELECT_FAILED_ONLY = `id, body, planned_at, status, post_targets!inner(${TARGET_FIELDS})` as const;
 
@@ -132,6 +133,16 @@ export async function listPostsNeedingAttention(projectId: string, limit = 5) {
 export async function listOverduePosts(projectId: string, now = new Date()) {
   const supabase = await createClient();
   const ids = await overduePostIds(supabase, projectId, now);
+  if (ids.length === 0) return [];
+  const { data, error } = await supabase.from("posts").select(POST_SELECT).in("id", ids).order("planned_at");
+  if (error) throw error;
+  return (data as RawPost[]).map(normalize);
+}
+
+// 手で投稿する予定の時刻が来た投稿（概要の「手で投稿する番です」）
+export async function listDueManualPosts(projectId: string, now = new Date()) {
+  const supabase = await createClient();
+  const ids = await dueManualPostIds(supabase, projectId, now);
   if (ids.length === 0) return [];
   const { data, error } = await supabase.from("posts").select(POST_SELECT).in("id", ids).order("planned_at");
   if (error) throw error;

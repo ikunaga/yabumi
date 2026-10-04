@@ -239,6 +239,7 @@ export type Database = {
           sns: string
           social_account_id: string | null
           status: string
+          title: string | null
           updated_at: string
         }
         Insert: {
@@ -257,6 +258,7 @@ export type Database = {
           sns: string
           social_account_id?: string | null
           status?: string
+          title?: string | null
           updated_at?: string
         }
         Update: {
@@ -275,6 +277,7 @@ export type Database = {
           sns?: string
           social_account_id?: string | null
           status?: string
+          title?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -384,6 +387,41 @@ export type Database = {
             foreignKeyName: "project_github_repos_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_manual_channels: {
+        Row: {
+          created_at: string
+          owner_id: string
+          profile_url: string | null
+          project_id: string
+          sns: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          owner_id?: string
+          profile_url?: string | null
+          project_id: string
+          sns: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          owner_id?: string
+          profile_url?: string | null
+          project_id?: string
+          sns?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_manual_channels_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
             referencedRelation: "projects"
             referencedColumns: ["id"]
           },
@@ -554,6 +592,11 @@ export type Database = {
         }[]
       }
       invoke_job: { Args: { p_path: string }; Returns: number }
+      is_manual_sns: { Args: { p_sns: string }; Returns: boolean }
+      mark_manual_target_posted: {
+        Args: { p_target_id: string; p_url?: string }
+        Returns: undefined
+      }
       requeue_failed_targets: {
         Args: { p_post_id: string; p_sns: string[] }
         Returns: number

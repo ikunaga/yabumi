@@ -1,7 +1,9 @@
 import { buttonClass } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { SnsTag } from "@/components/ui/marks";
-import { SNS_KEYS, type SnsKey } from "@/lib/sns";
+import { Term } from "@/components/ui/term";
+import { isManualSns, SNS_KEYS, type SnsKey } from "@/lib/sns";
+import { ManualChannelRow } from "./manual-channel-row";
 import type { ProjectSnsAccount } from "@/lib/sns/queries";
 
 // つなぐ処理がある SNS と、その入口
@@ -10,7 +12,25 @@ const CONNECT_PATH: Partial<Record<SnsKey, string>> = {
 };
 
 // 概要の「つないだ SNS」。SNS ごとに 1 行
-export function SnsAccountsCard({ projectId, accounts }: { projectId: string; accounts: ProjectSnsAccount[] }) {
+// 手で投稿する SNS の説明（プロフィールを登録していないとき）
+const MANUAL_NOTE: Partial<Record<SnsKey, React.ReactNode>> = {
+  note: "日本語の長文。個人開発の振り返りや技術の記事が読まれやすい",
+  substack: (
+    <>
+      メールで届く<Term k="newsletter" />。読者が<Term k="ownedAudience" />になる。英語圏に強い
+    </>
+  ),
+};
+
+export function SnsAccountsCard({
+  projectId,
+  accounts,
+  manualChannels = [],
+}: {
+  projectId: string;
+  accounts: ProjectSnsAccount[];
+  manualChannels?: { sns: string; profile_url: string | null }[];
+}) {
   return (
     <Card className="overflow-hidden">
       <div id="sns" className="scroll-mt-6">
@@ -18,6 +38,10 @@ export function SnsAccountsCard({ projectId, accounts }: { projectId: string; ac
       </div>
       <ul>
         {SNS_KEYS.map((sns) => {
+          if (isManualSns(sns)) {
+            const ch = manualChannels.find((c) => c.sns === sns);
+            return <ManualChannelRow key={sns} projectId={projectId} sns={sns} profileUrl={ch?.profile_url ?? null} note={MANUAL_NOTE[sns]} />;
+          }
           const account = accounts.find((a) => a.sns === sns && a.status === "active") ?? accounts.find((a) => a.sns === sns);
           const connectPath = CONNECT_PATH[sns];
           // 認可画面へのリダイレクトなので、Link（先読みあり）ではなく a で開く

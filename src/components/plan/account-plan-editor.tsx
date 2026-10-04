@@ -479,6 +479,8 @@ const ROLE_EXAMPLES: Record<string, string> = {
   facebook: "当面は使わない",
   tiktok: "30 秒で使い方を見せる動画",
   youtube: "当面は使わない",
+  note: "月に 1 本、開発の振り返りを長文で（手で投稿）",
+  substack: "海外の利用者に、更新のお知らせをメールで（手で投稿）",
 };
 
 function CadenceFields({ v }: { v: PlanData["cadence"] }) {
@@ -491,11 +493,14 @@ function CadenceFields({ v }: { v: PlanData["cadence"] }) {
         <legend className="mb-1.5 text-[14px] font-bold">SNS ごとの役割</legend>
         {SNS_KEYS.map((sns) => (
           <label key={sns} className="grid grid-cols-[96px_1fr] items-center gap-3 max-sm:grid-cols-1 max-sm:gap-1">
-            <span className="text-sm font-bold">{SNS[sns].label}</span>
+            <span className="flex flex-col text-sm font-bold">
+              {SNS[sns].label}
+              {SNS[sns].delivery === "manual" && <span className="text-xs font-normal text-muted">手で投稿</span>}
+            </span>
             <Input name={`role-${sns}`} defaultValue={v.roles[sns] ?? ""} maxLength={200} placeholder={`例: ${ROLE_EXAMPLES[sns]}`} />
           </label>
         ))}
-        <p className="text-xs text-muted">使わない SNS は空欄で構いません。</p>
+        <p className="text-xs text-muted">使わない SNS は空欄で構いません。note と Substack は自動では送れず、手で投稿します（そのぶん手間がかかります）。</p>
       </fieldset>
     </>
   );

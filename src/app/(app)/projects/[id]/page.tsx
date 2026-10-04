@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AttentionCard } from "@/components/posts/attention-card";
+import { ManualDueCard } from "@/components/posts/manual-due-card";
 import { displayStatus } from "@/components/posts/post-chip";
 import { NextAction } from "@/components/projects/next-action";
 import { SnsAccountsCard } from "@/components/projects/sns-accounts-card";
@@ -12,7 +13,7 @@ import { githubConfigured } from "@/lib/github/config";
 import { createClient } from "@/lib/supabase/server";
 import { SnsResultBanner } from "@/components/projects/sns-result-banner";
 import { StatusMark } from "@/components/ui/marks";
-import { listOverduePosts, listPostsNeedingAttention, listUpcomingPosts, postTitle } from "@/lib/posts/queries";
+import { listDueManualPosts, listOverduePosts, listPostsNeedingAttention, listUpcomingPosts, postTitle } from "@/lib/posts/queries";
 import { formatShort } from "@/lib/time";
 import { Card, CardHeader, EmptyState } from "@/components/ui/card";
 import { Term } from "@/components/ui/term";
@@ -35,13 +36,15 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
   if (!project) notFound();
   const editHref = `/projects/${project.id}/edit`;
   const supabase = await createClient();
-  const [upcoming, snsAccounts, attention, overdue, plan, { data: repoLink }] = await Promise.all([
+  const [upcoming, snsAccounts, attention, overdue, manualDue, plan, { data: repoLink }, { data: manualChannels }] = await Promise.all([
     listUpcomingPosts(project.id),
     listProjectSnsAccounts(project.id),
     listPostsNeedingAttention(project.id),
     listOverduePosts(project.id),
+    listDueManualPosts(project.id),
     getAccountPlan(project.id),
     supabase.from("project_github_repos").select("full_name").eq("project_id", project.id).maybeSingle(),
+    supabase.from("project_manual_channels").select("sns, profile_url").eq("project_id", project.id),
   ]);
   const showGithubPrompt = !repoLink && !project.github_prompt_dismissed_at;
   const planDone = Boolean(plan && (plan.done || plan.skipped));
@@ -66,6 +69,8 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
       {showGithubPrompt && <GithubPrompt projectId={project.id} configured={githubConfigured()} />}
 
       <NextAction stepIndex={currentStepIndex({ planDone, connectedSnsCount })} projectId={project.id} />
+
+      <ManualDueCard projectId={project.id} posts={manualDue} />
 
       <AttentionCard projectId={project.id} posts={attention} overdue={overdue} />
 
@@ -134,7 +139,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
           </dl>
         </Card>
 
-        <SnsAccountsCard projectId={project.id} accounts={snsAccounts} />
+        <SnsAccountsCard projectId={project.id} accounts={snsAccounts} manualChannels={manualChannels ?? []} />
 
         {plan && <PlanSummaryCard projectId={project.id} plan={plan.plan} />}
       </div>

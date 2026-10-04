@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { PostComposer } from "@/components/posts/post-composer";
 import { connectedAccounts, getPost, postTitle } from "@/lib/posts/queries";
 import { getProject } from "@/lib/projects/queries";
-import type { SnsKey } from "@/lib/sns";
+import { isManualSns, manualComposeUrl, type SnsKey } from "@/lib/sns";
+import { createClient } from "@/lib/supabase/server";
 import { canPublish } from "@/lib/sns/adapters";
 import { getPlanHints } from "@/lib/plan/queries";
 import type { TargetResult } from "@/components/posts/send-results";
@@ -22,6 +23,7 @@ const NOTICES: Record<string, { text: string; tone: "success" | "error" }> = {
   sending: { text: "送信を始めました。少しして読み込み直すと結果が出ます。", tone: "success" },
   send_failed: { text: "送れなかった SNS があります。右の「送信の結果」で理由を確かめてください。", tone: "error" },
   deleted_sns: { text: "SNS から取り消しました。矢書の下書きは残っています。", tone: "success" },
+  manual_posted: { text: "投稿したことを記録しました。", tone: "success" },
 };
 
 export default async function EditPostPage(props: PageProps<"/projects/[id]/posts/[postId]">) {
@@ -29,7 +31,13 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
   if (!isUuid(postId)) notFound();
   const [project, post] = await Promise.all([getProject(id), getPost(id, postId)]);
   if (!project || !post) notFound();
-  const [accounts, planHints] = await Promise.all([connectedAccounts(project.id), getPlanHints(project.id)]);
+  const supabase = await createClient();
+  const [accounts, planHints, { data: channels }] = await Promise.all([
+    connectedAccounts(project.id),
+    getPlanHints(project.id),
+    supabase.from("project_manual_channels").select("sns, profile_url").eq("project_id", project.id),
+  ]);
+  const profileUrl = (sns: SnsKey) => channels?.find((c) => c.sns === sns)?.profile_url ?? null;
   const results: Partial<Record<SnsKey, TargetResult>> = Object.fromEntries(
     post.targets.map((t) => [
       t.sns,
@@ -40,6 +48,9 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
         errorMessage: t.error_message,
         publishedAt: t.published_at,
         nextAttemptAt: t.next_attempt_at,
+        manual: isManualSns(t.sns)
+          ? { title: t.title, text: t.body_override ?? post.body, composeUrl: manualComposeUrl(t.sns, profileUrl(t.sns)) }
+          : undefined,
       },
     ]),
   );
@@ -58,7 +69,7 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
       noticeTone={notice?.tone}
       initial={{
         body: post.body,
-        targets: post.targets.map((t) => ({ sns: t.sns, bodyOverride: t.body_override })),
+        targets: post.targets.map((t) => ({ sns: t.sns, bodyOverride: t.body_override, title: t.title })),
         plannedAt: toInputValue(post.planned_at),
       }}
     />

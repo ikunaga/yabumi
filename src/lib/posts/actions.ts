@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { ISSUE_LABEL, SNS, checkTarget, type SnsKey } from "@/lib/sns";
+import { ISSUE_LABEL, SNS, checkTarget, isManualSns, type SnsKey } from "@/lib/sns";
 import { adapters, canPublish } from "@/lib/sns/adapters";
 import { publishDueTargets } from "@/lib/sns/publisher";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -50,14 +50,18 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
       fieldErrors.targets = "送り先の SNS を 1 つ以上選んでください";
     } else if (toSend.length === 0) {
       fieldErrors.targets = "選んだ SNS にはすべて送信済みです";
+    } else if (intent === "now" && toSend.every((t) => isManualSns(t.sns))) {
+      fieldErrors.targets = "note・Substack は手で投稿します。予約か下書き保存をすると、投稿の画面から手で投稿できます";
     } else {
       for (const t of toSend) {
         const label = SNS[t.sns].label;
-        const issue = checkTarget(t.sns, t.bodyOverride ?? body).issues[0];
+        const issue = checkTarget(t.sns, t.bodyOverride ?? body, undefined, t.title ?? null).issues[0];
         if (issue) {
           fieldErrors.targets = `${label}: ${ISSUE_LABEL[issue]}`;
           break;
         }
+        // 手で投稿する SNS は、つながず、送信の部品もいらない
+        if (isManualSns(t.sns)) continue;
         if (!accounts[t.sns]) {
           fieldErrors.targets = `${label} がつながっていないので送れません。下書きとして保存できます。`;
           break;
@@ -87,8 +91,9 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
     p_status: intent === "draft" ? "draft" : "scheduled",
     p_targets: targets.map((t) => ({
       sns: t.sns,
+      title: SNS[t.sns].needsTitle ? (t.title ?? null) : null,
       body_override: t.bodyOverride,
-      social_account_id: accounts[t.sns] ?? null,
+      social_account_id: isManualSns(t.sns) ? null : (accounts[t.sns] ?? null),
     })),
   });
   if (error || !savedId) {

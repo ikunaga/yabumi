@@ -27,7 +27,10 @@ export const PLAN_COACH_SYSTEM = `あなたは「矢書（やぶみ）」の中�
 - 相手が案を採用したら、短くねぎらい、次のまだ決まっていないセクションの最初の質問に進む
 - 相手が「〇〇を考えたい」と言ったら、そのセクションに移る
 - 名前とプロフィールは、投稿の柱が決まってから聞く。「どういう投稿をするかによる」となって答えられないため。柱がまだなら、先に柱を決めようと提案する
-- 頻度と SNS ごとの役割は、相手に書かせない。目的と柱から、あなたが案を作る（例:「最初は Threads だけ、週 2〜3 回。X には同じ投稿をそのまま流す」）。6 つの SNS すべてを使う前提にしない。少なく始めて、慣れたら増やす案を基本にする
+- 頻度と SNS ごとの役割は、相手に書かせない。目的と柱から、あなたが案を作る（例:「最初は Threads だけ、週 2〜3 回。X には同じ投稿をそのまま流す」）。すべての SNS を使う前提にしない。少なく始めて、慣れたら増やす案を基本にする
+- note と Substack は、公式の投稿のしくみがないので矢書から自動では送れず、利用者が手で投稿する。そのぶん手間がかかるので、目的に合うときだけ提案する
+  - note: 日本語の長文。個人開発の振り返りや技術の記事が読まれやすい。短い SNS の投稿をまとめて、月に 1 本ほど長文にする使い方が向く
+  - Substack: メールで届くニュースレター（登録してくれた読者に、メールで届ける定期的なお便り）。SNS のフォロワーと違い、読者のメールアドレスという「自分で持てる読者」になる（SNS の表示の仕組みが変わっても届く）。英語圏に強い。海外の利用者にも届けたいときに向く
 - 同じことを二度聞かない。プロジェクトの情報と、すでに決まった設計は、毎回あとに付く「いまの状況」に書いてある。届けたい相手がすでに書かれていれば、確かめるだけでよい
 - 全部が決まったら、まとめとして決まったことを短く振り返り、手で直したいときは設計の画面で直せると伝える
 
@@ -57,7 +60,7 @@ export const PLAN_COACH_SYSTEM = `あなたは「矢書（やぶみ）」の中�
 - pillars: {"items": [{"name": "柱の名前", "share": 割合の整数(0〜100) または null, "example": "投稿の例"}], "tone": "口調", "avoid": "やらないことと理由"}（items は 5 本まで）
 - ownership: {"mode": "personal" | "dedicated" | "undecided" | null, "reason": "理由"}
 - profile: {"displayName": "表示名", "handle": "第一候補（@ なし）", "handleBackups": "予備を改行区切りで", "bio": "自己紹介文", "link": "リンク先"}
-- cadence: {"frequency": "頻度", "roles": [{"sns": "x" | "threads" | "instagram" | "facebook" | "tiktok" | "youtube", "role": "その SNS の役割"}]}（使う SNS だけ）
+- cadence: {"frequency": "頻度", "roles": [{"sns": "x" | "threads" | "instagram" | "facebook" | "tiktok" | "youtube" | "note" | "substack", "role": "その SNS の役割"}]}（使う SNS だけ。note と Substack は手で投稿する）
 - first_month: {"goal": "1 か月後の目標", "metrics": "何を見て判断するか"}
 `;
 
@@ -97,9 +100,13 @@ export function coachContextMessage(ctx: CoachContext): string {
     `プロジェクト（宣伝したいアプリ）: ${p.name}`,
     `アプリの説明: ${p.description || "（未入力）"}`,
     `ストアページ: App Store ${p.appStoreUrl ? "あり" : "なし"} / Google Play ${p.playStoreUrl ? "あり" : "なし"}`,
-    `矢書でつなげる SNS: ${Object.values(SNS)
+    `矢書で扱う SNS: ${Object.values(SNS)
+      .filter((s) => s.delivery === "auto")
       .map((s) => s.label)
-      .join("、")}（いま送信できるのは Threads だけ）`,
+      .join("、")}（自動で送る。いま送信できるのは Threads だけ）、${Object.values(SNS)
+      .filter((s) => s.delivery === "manual")
+      .map((s) => s.label)
+      .join("、")}（手で投稿する）`,
     ctx.focus ? `利用者がいま考えたいセクション: ${ctx.focus}（${SECTION_LABEL[ctx.focus]}）` : "利用者がいま考えたいセクション: 指定なし（まだ決まっていない最初のセクションから）",
     "設計の現状（JSON）:",
     JSON.stringify(sections),

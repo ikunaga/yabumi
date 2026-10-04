@@ -350,6 +350,33 @@ README が薄い個人開発のリポジトリやモノレポでも中身がわ�
 - 本番では、ローカルとは別の TOKEN_ENCRYPTION_KEY と CRON_SECRET を新しく作る。Claude API のキーと GitHub App も本番用を別に作る。Threads の Meta アプリは同じものを使い、コールバック URL を足す
 - マイグレーションは `supabase link` と `supabase db push` で当てる。`supabase db reset` は使わない。seed.sql は本番に入れない
 
+### 4.12 手で投稿する SNS（note・Substack、決定 D15）
+
+#### 公式の API の有無（2026-10-04 に調査）
+
+| サービス | 公式の投稿 API | 根拠 |
+|---|---|---|
+| note | ない | note の公式ヘルプ「note が公式で公開している API はありますか？」で、公式の API は公開しておらず、公開の予定も未定とされている。自動投稿の例は、ブラウザが内部で使う非公式の API を使うもので、robots.txt でも /api/ は禁止されている |
+| Substack | ない（投稿には使えない） | 2026 年に公式の Developer API が出たが、公開プロフィールを探すためのもの（申請と承認が要る）。投稿・予約の機能はない。投稿できるとうたうものは第三者の非公式なもの |
+
+非公式の方法（ログイン情報を預かる、内部の API を叩く、画面を自動で操作する）は、規約違反やアカウント停止の危険があるので使わない。
+
+#### 扱い
+
+- SNS の定義に delivery（auto = 矢書が送る / manual = 利用者が手で投稿する）を持たせ、note と Substack を manual にした（src/lib/sns/index.ts、DB の is_manual_sns()）
+- 長文向けなので、配信先にタイトル（post_targets.title、200 字まで）を持つ。本文の上限は公表されていないので上限なし。タイトルがないと予約できない
+- 手で投稿する流れ: 投稿の画面の「送信の結果」で「タイトルをコピー」「本文をコピー」→「投稿の画面を開く」（note は https://note.com/notes/new、Substack は登録したプロフィールの URL から {origin}/publish/post）→ 利用者が手で投稿 →「投稿した」（投稿の URL は任意）で mark_manual_target_posted() が送信済みにする。送信の状態は利用者が直接書き換えられない（4.7）ので、この関数が本人の・手で投稿する SNS の配信先だけを書き換える
+- 予約の日時は「この日に投稿する予定」として扱う。予約ジョブ（claim_due_targets）は手で投稿する SNS を拾わない。時刻が来たら、概要の「手で投稿する番です」に出す。「止まった予約」の検知（4.11）からは外す
+- つなぐ（OAuth）は要らない。概要の「つないだ SNS」では「手で投稿」と出し、プロフィールの URL を登録できる（project_manual_channels。任意。Substack の投稿の画面を開くのと、後で反応を手で記録するときに使う）
+- 「今すぐ送る」は自動で送る SNS だけ。手で投稿する SNS だけを選んでいるときは押せない
+- アカウント設計: 「SNS ごとの役割」に note と Substack を入れた。AI の壁打ちには、それぞれの性格（note: 日本語の長文、個人開発の振り返りや技術の記事／Substack: ニュースレター、自分で持てる読者、英語圏）と、手で投稿する手間があることを伝え、目的に合うときだけ提案させる
+
+#### 将来の案（今回は作らない）
+
+- 他の SNS から書き換える: Threads の短い投稿をいくつかまとめて、note の長文の下書きに広げる、など。AI のネタ出し（F04）の範囲で作る
+- 反応を手で記録する: note のスキや Substack の開封率を、登録したプロフィールの URL とあわせて手で入れる（指標、F07）
+- note や Substack に公式の投稿 API が出たら、delivery を auto にしてアダプター（4.1）を足す
+
 ## 5. データモデル（主要テーブル）
 
 | テーブル | 内容 |
@@ -364,6 +391,7 @@ README が薄い個人開発のリポジトリやモノレポでも中身がわ�
 | post_metrics | 配信先ごとの指標の時系列 |
 | short_links / link_clicks | 短縮リンクとクリック記録 |
 | store_metrics | ストアの日次ダウンロード数・課金額 |
+| project_manual_channels | 手で投稿する SNS（note・Substack）のプロフィールの URL（4.12） |
 | github_installations / project_github_repos | GitHub App のインストールと、プロジェクトにつないだリポジトリ（4.10） |
 | account_plans | アカウント設計（F15）。プロジェクトごとに 1 行。中身はセクションごとの JSON（4.8） |
 | goals | KGI と KPI |

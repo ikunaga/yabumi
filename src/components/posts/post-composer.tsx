@@ -7,11 +7,11 @@ import { deletePost, savePost } from "@/lib/posts/actions";
 import type { SavePostResult } from "@/lib/posts/schema";
 import { PlanHints, type PlanHintsData } from "./plan-hints";
 import { SendResults, type TargetResult } from "./send-results";
-import { ISSUE_LABEL, SNS, SNS_KEYS, checkTarget, type SnsKey, type TargetIssue } from "@/lib/sns";
+import { ISSUE_LABEL, MAX_TITLE_LENGTH, SNS, SNS_KEYS, checkTarget, isManualSns, type SnsKey, type TargetIssue } from "@/lib/sns";
 
 export type ComposerInitial = {
   body: string;
-  targets: { sns: SnsKey; bodyOverride: string | null }[];
+  targets: { sns: SnsKey; bodyOverride: string | null; title?: string | null }[];
   plannedAt: string;
 };
 
@@ -38,6 +38,7 @@ const ISSUE_TONE: Record<TargetIssue, string> = {
   too_long: "text-danger",
   needs_image: "text-signal",
   needs_video: "text-signal",
+  needs_title: "text-signal",
 };
 
 function formatCount(n: number) {
@@ -67,6 +68,10 @@ export function PostComposer({
       SNS_KEYS.find((s) => initial.targets.some((t) => t.sns === s)) ??
       "x",
   );
+  // 長文の SNS（note・Substack）のタイトル
+  const [titles, setTitles] = useState<Partial<Record<SnsKey, string>>>(() =>
+    Object.fromEntries(initial.targets.filter((t) => t.title).map((t) => [t.sns, t.title!])),
+  );
   const [plannedAt, setPlannedAt] = useState(initial.plannedAt);
   const [result, setResult] = useState<SavePostResult>({});
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -75,8 +80,12 @@ export function PostComposer({
 
   const textFor = (sns: SnsKey) => overrides[sns] ?? body;
   const checks = useMemo(
-    () => Object.fromEntries(SNS_KEYS.map((sns) => [sns, checkTarget(sns, overrides[sns] ?? body)])) as Record<SnsKey, ReturnType<typeof checkTarget>>,
-    [body, overrides],
+    () =>
+      Object.fromEntries(SNS_KEYS.map((sns) => [sns, checkTarget(sns, overrides[sns] ?? body, undefined, titles[sns] ?? null)])) as Record<
+        SnsKey,
+        ReturnType<typeof checkTarget>
+      >,
+    [body, overrides, titles],
   );
 
   const isLocked = (s: SnsKey) => LOCKED.has(results[s]?.status ?? "");
@@ -91,11 +100,15 @@ export function PostComposer({
       const issue = checks[s].issues[0];
       if (issue) return `${SNS[s].label}: ${ISSUE_LABEL[issue]}`;
     }
-    const missing = toSend.filter((s) => !connected.includes(s));
+    // 手で投稿する SNS は、つながなくてよい
+    const missing = toSend.filter((s) => !isManualSns(s) && !connected.includes(s));
     if (missing.length) return `${missing.map((s) => SNS[s].label).join("・")} をつなぐと送れます`;
     return null;
   })();
   const blocker = sendBlocker ?? (plannedAt ? null : "送る日時を決めてください");
+  // 今すぐ送れるのは、自動で送る SNS だけ
+  const nowBlocker =
+    sendBlocker ?? (toSend.some((s) => !isManualSns(s)) ? null : "note・Substack は手で投稿します。予約か下書き保存をすると、投稿の画面から手で投稿できます");
 
   // 直し始めたら、その欄のエラーは消す
   function clearFieldError(key: keyof NonNullable<SavePostResult["fieldErrors"]>) {
@@ -124,7 +137,7 @@ export function PostComposer({
         body,
         plannedAt,
         intent,
-        targets: chosen.map((sns) => ({ sns, bodyOverride: overrides[sns] ?? null })),
+        targets: chosen.map((sns) => ({ sns, bodyOverride: overrides[sns] ?? null, title: SNS[sns].needsTitle ? (titles[sns] ?? null) : null })),
       });
       // 成功時はサーバーで画面を移るので、ここに来るのは失敗したときだけ
       if (res) setResult(res);
@@ -227,10 +240,14 @@ export function PostComposer({
                       <TargetStateMark status={sent.status} />
                     ) : on && sent?.status === "pending" && sent.errorMessage ? (
                       <span className="font-bold text-signal">送り直し待ち</span>
+                    ) : !on && isManualSns(sns) ? (
+                      <ManualMark />
                     ) : !on ? (
                       <span className="text-muted">{spec.media === "video" ? "動画が必要" : spec.media === "image_or_video" ? "画像が必要" : ""}</span>
                     ) : issue ? (
                       <span className={`font-bold ${ISSUE_TONE[issue]}`}>{ISSUE_LABEL[issue]}</span>
+                    ) : isManualSns(sns) ? (
+                      <ManualMark />
                     ) : connected.includes(sns) ? (
                       <span className="font-bold text-success">OK</span>
                     ) : (
@@ -245,11 +262,29 @@ export function PostComposer({
           {postId && <SendResults projectId={projectId} postId={postId} results={results} />}
 
           <div className="flex flex-1 flex-col gap-2.5 bg-surface2 px-5 py-4">
-            <p className="text-xs text-muted">{focusLabel} での見え方</p>
+            <p className="text-xs text-muted">
+              {focusLabel} での見え方
+              {isManualSns(focus) && <span className="ml-2">・この SNS には、投稿の画面から手で投稿します</span>}
+            </p>
+            {SNS[focus].needsTitle && (
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="target-title" className="text-xs font-bold">
+                  {focusLabel} のタイトル
+                </label>
+                <input
+                  id="target-title"
+                  value={titles[focus] ?? ""}
+                  maxLength={MAX_TITLE_LENGTH}
+                  onChange={(e) => setTitles((t) => ({ ...t, [focus]: e.target.value }))}
+                  placeholder="例: 個人開発で家計簿アプリを 3 か月作って気づいたこと"
+                  className="w-full rounded-md border border-input bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:shadow-[0_0_0_1px_var(--primary)] max-sm:text-[16px]"
+                />
+              </div>
+            )}
             <div className="flex gap-2.5 rounded-lg border border-border bg-surface p-3.5">
               <span aria-hidden className="size-9 flex-none rounded-full bg-primary-soft" />
               <div className="flex min-w-0 flex-col gap-1 text-sm leading-[1.6]">
-                <b>{projectName}</b>
+                <b>{SNS[focus].needsTitle && titles[focus] ? titles[focus] : projectName}</b>
                 <span className="line-clamp-6 break-words whitespace-pre-wrap">{textFor(focus) || <span className="text-muted">（本文なし）</span>}</span>
               </div>
             </div>
@@ -260,7 +295,7 @@ export function PostComposer({
                 </label>
                 <textarea
                   id="override"
-                  rows={4}
+                  rows={SNS[focus].needsTitle ? 12 : 4}
                   value={overrides[focus]}
                   onChange={(e) => setOverrides((o) => ({ ...o, [focus]: e.target.value }))}
                   className="w-full rounded-md border border-input bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:shadow-[0_0_0_1px_var(--primary)]"
@@ -340,7 +375,8 @@ export function PostComposer({
             <Button
               type="button"
               variant="secondary"
-              disabled={pending || sendBlocker !== null}
+              disabled={pending || nowBlocker !== null}
+              title={nowBlocker ?? undefined}
               onClick={() => setConfirmSend(true)}
               className="max-sm:flex-1"
             >
@@ -374,4 +410,9 @@ function TargetStateMark({ status }: { status: TargetResult["status"] }) {
     default:
       return null;
   }
+}
+
+// 手で投稿する SNS の印（自動の SNS と区別する。朱は使わない）
+function ManualMark() {
+  return <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">手で投稿</span>;
 }

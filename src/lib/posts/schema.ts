@@ -13,6 +13,8 @@ export const savePostInputSchema = z.object({
       z.object({
         sns: z.enum(SNS_KEYS as [SnsKey, ...SnsKey[]]),
         bodyOverride: z.string().max(10000).nullable(),
+        // 長文の SNS（note・Substack）のタイトル
+        title: z.string().max(200).nullable().optional(),
       }),
     )
     .max(SNS_KEYS.length),

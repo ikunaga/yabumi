@@ -41,7 +41,7 @@ export default async function Home() {
     <div className="mx-auto flex w-full max-w-[1280px] flex-1 flex-col px-20 py-10 max-lg:px-8 max-sm:gap-5 max-sm:px-5 max-sm:py-6">
       <header className="flex items-center gap-3">
         <span className="max-sm:hidden">
-          <Brand withMark />
+          <Brand />
         </span>
         <span className="sm:hidden">
           <Brand size="sm" />

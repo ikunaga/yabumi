@@ -6,6 +6,6 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // 静的ファイルと画像は除外する
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  // 静的ファイルと画像、アイコン・マニフェスト（ログイン前の画面でもブラウザが読む）は除外する
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
 };

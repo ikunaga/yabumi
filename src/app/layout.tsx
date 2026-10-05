@@ -15,6 +15,9 @@ const zenKaku = Zen_Kaku_Gothic_New({
 export const metadata: Metadata = {
   title: { default: "矢書（やぶみ）", template: "%s | 矢書" },
   description: "個人開発者のための、SNS 運用をまるごと任せられるツール",
+  // OGP 画像などを絶対 URL で出すため。本番は APP_URL（https://yabumi.vercel.app）
+  metadataBase: new URL(process.env.APP_URL ?? "https://localhost:3100"),
+  openGraph: { siteName: "矢書（やぶみ）", locale: "ja_JP", type: "website" },
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

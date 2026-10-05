@@ -96,6 +96,8 @@
 
   --font-sans: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
   --font-heading: "Zen Kaku Gothic New", var(--font-sans); /* next/font/google で 500/700 */
+  /* ロゴの角印「文」だけに使う明朝体（端末に入っているもの） */
+  --font-mincho: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", serif;
 
   --text-xs: 12px;   --text-xs--line-height: 1.6;
   --text-sm: 13px;   --text-sm--line-height: 1.7;

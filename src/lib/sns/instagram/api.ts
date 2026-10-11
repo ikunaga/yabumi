@@ -1,5 +1,6 @@
 // Instagram API with Instagram Login（Business Login for Instagram）の OAuth・トークン・投稿（docs/architecture.md の 4.21）。
 // Instagram・Facebook 用の Meta アプリの「Instagram app ID / secret」を使う（Meta の App ID とは別の値）
+import { withInsightsScope } from "@/lib/sns/insights/scopes";
 
 export const INSTAGRAM_AUTHORIZE_URL = "https://www.instagram.com/oauth/authorize";
 export const INSTAGRAM_TOKEN_URL = "https://api.instagram.com/oauth/access_token";
@@ -34,7 +35,8 @@ export function authorizeUrl(config: InstagramConfig, state: string): string {
   url.searchParams.set("client_id", config.appId);
   url.searchParams.set("redirect_uri", config.redirectUri);
   url.searchParams.set("response_type", "code");
-  url.searchParams.set("scope", INSTAGRAM_SCOPES.join(","));
+  // 数字の権限（instagram_business_manage_insights）は、SNS_INSIGHTS で有効にしたときだけ求める（4.22）
+  url.searchParams.set("scope", withInsightsScope("instagram", INSTAGRAM_SCOPES).join(","));
   url.searchParams.set("state", state);
   // 前にほかのアカウントで許可していても、つなぐアカウントを選び直せるようにする
   url.searchParams.set("force_reauth", "true");

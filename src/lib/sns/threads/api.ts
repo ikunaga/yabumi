@@ -1,5 +1,6 @@
 // Threads API の OAuth とトークン（https://developers.facebook.com/docs/threads/get-started）
 // Threads は Instagram・Facebook とは別の Meta アプリ（THREADS_APP_ID / THREADS_APP_SECRET）を使う。
+import { withInsightsScope } from "@/lib/sns/insights/scopes";
 
 export const THREADS_AUTHORIZE_URL = "https://threads.com/oauth/authorize";
 export const THREADS_GRAPH_URL = "https://graph.threads.com";
@@ -29,7 +30,8 @@ export function authorizeUrl(config: ThreadsConfig, state: string): string {
   const url = new URL(THREADS_AUTHORIZE_URL);
   url.searchParams.set("client_id", config.appId);
   url.searchParams.set("redirect_uri", config.redirectUri);
-  url.searchParams.set("scope", THREADS_SCOPES.join(","));
+  // 数字の権限（threads_manage_insights）は、SNS_INSIGHTS で有効にしたときだけ求める（docs/architecture.md の 4.22）
+  url.searchParams.set("scope", withInsightsScope("threads", THREADS_SCOPES).join(","));
   url.searchParams.set("response_type", "code");
   url.searchParams.set("state", state);
   return url.toString();

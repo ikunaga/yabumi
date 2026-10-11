@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { decryptToken, encryptToken } from "@/lib/crypto/token-cipher";
 import { saveConnectedAccount } from "@/lib/sns/accounts";
 import type { Database } from "@/lib/supabase/database.types";
+import { withInsightsScope } from "@/lib/sns/insights/scopes";
 import { FACEBOOK_PERMISSIONS, type ManagedPage } from "./api";
 
 // Facebook ページを選ぶまでの一時の置き場（pending_page_choices、15 分）。RLS を通らないクライアントで呼ぶ（docs/architecture.md の 4.21）
@@ -70,7 +71,8 @@ export async function choosePages(
           accessToken: token,
           // 長期のユーザートークンから取ったページのトークンは期限がない
           expiresAt: null,
-          scopes: FACEBOOK_PERMISSIONS,
+          // read_insights は Facebook Login for Business の設定（configuration）に足し、SNS_INSIGHTS で有効にしたときだけ記録する（4.22）
+          scopes: withInsightsScope("facebook", FACEBOOK_PERMISSIONS),
           parentExternalId: row.parent_external_id,
         },
         key,

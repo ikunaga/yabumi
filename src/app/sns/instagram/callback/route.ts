@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { saveConnectedAccount } from "@/lib/sns/accounts";
 import { exchangeCode, exchangeForLongLived, fetchProfile, INSTAGRAM_SCOPES, PROFESSIONAL_ACCOUNT_TYPES } from "@/lib/sns/instagram/api";
+import { withInsightsScope } from "@/lib/sns/insights/scopes";
 import { INSTAGRAM_PATHS, INSTAGRAM_STATE_COOKIE, instagramConfig } from "@/lib/sns/instagram/config";
 import { verifyOAuthState } from "@/lib/sns/oauth-state";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -54,7 +55,7 @@ export async function GET(request: NextRequest) {
       handle: profile.username,
       accessToken: long.accessToken,
       expiresAt: long.expiresAt,
-      scopes: INSTAGRAM_SCOPES,
+      scopes: withInsightsScope("instagram", INSTAGRAM_SCOPES),
     });
     // プロジェクトとの紐づけは利用者の権限で行う（RLS で自分のものどうしだけ）
     const { error } = await supabase

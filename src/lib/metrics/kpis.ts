@@ -18,6 +18,8 @@ export type KpiDef = {
   // 用語集のキー（あれば）
   term?: "impression" | "shortLink" | "storeListing" | "conversion";
   availability: KpiAvailability;
+  // connect のとき、つなぐ画面（stores: ストアと課金をつなぐ / sns: 概要の「つないだ SNS」）
+  connectTo?: "stores" | "sns";
   // later・partial のとき、何をすると出るか
   howToGet?: string;
 };
@@ -38,14 +40,16 @@ export const KPIS: Record<KpiKey, KpiDef> = {
     label: "投稿の閲覧数",
     meaning: "投稿が画面に表示された回数。どれだけの人の目に届いたかの数字です。",
     term: "impression",
-    availability: "partial",
-    howToGet: "いまは note・Substack で手で入れた数字だけ。Threads・X などの数字は、取り込みを作ったら出ます",
+    availability: "connect",
+    connectTo: "sns",
+    howToGet: "Threads・Instagram・Facebook を数字の権限つきでつなぐと出ます（note・Substack は手で記録。X は準備中）",
   },
   followers: {
     label: "フォロワーの増え方",
     meaning: "アカウントをフォローした人の増え方。続けて見てくれる人の数です。",
-    availability: "later",
-    howToGet: "SNS の数字の取り込みを作ったら出ます",
+    availability: "connect",
+    connectTo: "sns",
+    howToGet: "Threads・Instagram・Facebook を数字の権限つきでつなぐと出ます（X は準備中）",
   },
   store_page_views: {
     label: "ストアのページの閲覧",
@@ -59,6 +63,7 @@ export const KPIS: Record<KpiKey, KpiDef> = {
     meaning: "アプリを入れてくれた人の数（はじめてのダウンロード）。",
     term: "conversion",
     availability: "connect",
+    connectTo: "stores",
     howToGet: "App Store をつなぐと出ます（Google Play は準備中）",
   },
   revenue: {
@@ -66,6 +71,7 @@ export const KPIS: Record<KpiKey, KpiDef> = {
     meaning: "直近 28 日に払ってもらった金額（RevenueCat の数字）。",
     term: "conversion",
     availability: "connect",
+    connectTo: "stores",
     howToGet: "RevenueCat をつなぐと出ます",
   },
 };

@@ -16,21 +16,38 @@ export type MetricsOverview = {
   kpiValues: KpiValues;
   clicksBySns: ClicksBySns[];
   topPosts: { postId: string; title: string; clicks: number }[];
+  topViewed: { postId: string; title: string; views: number }[];
 };
 
 export async function loadMetricsOverview(projectId: string): Promise<MetricsOverview> {
   const supabase = await createClient();
   const today = toYmd(new Date());
-  const [{ data: posts, error: e1 }, { data: clicks, error: e2 }, { data: top, error: e3 }, { data: stores, error: e4 }, { count: appStoreDays }, { count: revenueCatDays }] = await Promise.all([
+  const [
+    { data: posts, error: e1 },
+    { data: clicks, error: e2 },
+    { data: top, error: e3 },
+    { data: stores, error: e4 },
+    { data: snsTotals, error: e5 },
+    { data: topViews, error: e6 },
+    { count: appStoreDays },
+    { count: revenueCatDays },
+  ] = await Promise.all([
     supabase.rpc("weekly_post_totals", { p_project_id: projectId, p_today: today }),
     supabase.rpc("link_clicks_by_sns", { p_project_id: projectId, p_today: today }),
     supabase.rpc("top_posts_by_clicks", { p_project_id: projectId, p_today: today, p_days: 30, p_limit: 5 }),
     supabase.rpc("store_weekly_totals", { p_project_id: projectId, p_today: today }),
+    supabase.rpc("sns_weekly_totals", { p_project_id: projectId, p_today: today }),
+    supabase.rpc("top_posts_by_views", { p_project_id: projectId, p_today: today, p_days: 30, p_limit: 5 }),
     // 取り込んだことがある取り込み元（つないでいなければ、ダウンロード・課金は「つなぐと出ます」）
     supabase.from("store_daily").select("day", { count: "exact", head: true }).eq("project_id", projectId).eq("source", "app_store"),
     supabase.from("store_daily").select("day", { count: "exact", head: true }).eq("project_id", projectId).eq("source", "revenuecat"),
   ]);
   if (e4) throw e4;
+  if (e5) throw e5;
+  if (e6) throw e6;
+  const sns = snsTotals?.[0];
+  // 閲覧数: SNS の数字（数字の権限つきでつないだもの）と、note・Substack で手で入れた数字の合計
+  const hasViews = Boolean(sns?.has_post_metrics) || Number(p0(posts)?.manual_views_this_week ?? 0) + Number(p0(posts)?.manual_views_last_week ?? 0) > 0;
   const sources = new Set([...(appStoreDays ? ["app_store"] : []), ...(revenueCatDays ? ["revenuecat"] : [])]);
   const st = stores?.[0];
   if (e1) throw e1;
@@ -46,18 +63,30 @@ export async function loadMetricsOverview(projectId: string): Promise<MetricsOve
     .sort((a, b) => b.last30d - a.last30d);
   const sum = (key: "thisWeek" | "lastWeek") => clicksBySns.reduce((n, c) => n + c[key], 0);
 
-  let topPosts: MetricsOverview["topPosts"] = [];
-  if (top?.length) {
-    const { data: bodies } = await supabase.from("posts").select("id, body").in("id", top.map((t) => t.post_id));
-    const byId = new Map((bodies ?? []).map((b) => [b.id, b.body]));
-    topPosts = top.map((t) => ({ postId: t.post_id, title: firstLine(byId.get(t.post_id) ?? ""), clicks: Number(t.clicks) }));
+  const ids = [...new Set([...(top ?? []).map((t) => t.post_id), ...(topViews ?? []).map((t) => t.post_id)])];
+  const byId = new Map<string, string>();
+  if (ids.length) {
+    const { data: bodies } = await supabase.from("posts").select("id, body").in("id", ids);
+    for (const b of bodies ?? []) byId.set(b.id, b.body);
   }
+  const topPosts = (top ?? []).map((t) => ({ postId: t.post_id, title: firstLine(byId.get(t.post_id) ?? ""), clicks: Number(t.clicks) }));
+  const topViewed = (topViews ?? []).map((t) => ({ postId: t.post_id, title: firstLine(byId.get(t.post_id) ?? ""), views: Number(t.views) }));
 
   return {
     kpiValues: {
       posts: { thisWeek: Number(p?.published_this_week ?? 0), lastWeek: Number(p?.published_last_week ?? 0) },
       link_clicks: { thisWeek: sum("thisWeek"), lastWeek: sum("lastWeek") },
-      views: { thisWeek: Number(p?.manual_views_this_week ?? 0), lastWeek: Number(p?.manual_views_last_week ?? 0) },
+      ...(hasViews
+        ? {
+            views: {
+              thisWeek: Number(sns?.views_this_week ?? 0) + Number(p?.manual_views_this_week ?? 0),
+              lastWeek: Number(sns?.views_last_week ?? 0) + Number(p?.manual_views_last_week ?? 0),
+            },
+          }
+        : {}),
+      ...(sns?.has_account_metrics && sns.followers_now != null
+        ? { followers: { thisWeek: Number(sns.followers_now), lastWeek: Number(sns.followers_week_ago ?? sns.followers_now) } }
+        : {}),
       ...(sources.has("app_store") ? { downloads: { thisWeek: Number(st?.downloads_this_week ?? 0), lastWeek: Number(st?.downloads_last_week ?? 0) } } : {}),
       ...(sources.has("revenuecat") && st?.revenue_latest != null
         ? { revenue: { thisWeek: Number(st.revenue_latest), lastWeek: Number(st.revenue_week_ago ?? st.revenue_latest), unit: st.revenue_currency ?? "JPY" } }
@@ -65,7 +94,12 @@ export async function loadMetricsOverview(projectId: string): Promise<MetricsOve
     },
     clicksBySns,
     topPosts,
+    topViewed,
   };
+}
+
+function p0<T>(rows: T[] | null | undefined): T | undefined {
+  return rows?.[0];
 }
 
 function firstLine(body: string) {

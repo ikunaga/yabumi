@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { saveConnectedAccount } from "@/lib/sns/accounts";
 import { verifyOAuthState } from "@/lib/sns/oauth-state";
 import { exchangeCode, exchangeForLongLived, fetchProfile, THREADS_SCOPES } from "@/lib/sns/threads/api";
+import { withInsightsScope } from "@/lib/sns/insights/scopes";
 import { THREADS_PATHS, threadsConfig } from "@/lib/sns/threads/config";
 import { THREADS_STATE_COOKIE } from "@/lib/sns/threads/cookie";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -51,7 +52,7 @@ export async function GET(request: NextRequest) {
       handle: profile.username,
       accessToken: long.accessToken,
       expiresAt: long.expiresAt,
-      scopes: THREADS_SCOPES,
+      scopes: withInsightsScope("threads", THREADS_SCOPES),
     });
 
     // プロジェクトとの紐づけは利用者の権限で行う（RLS で自分のものどうしだけ）。つなぎ直しのときは既にある

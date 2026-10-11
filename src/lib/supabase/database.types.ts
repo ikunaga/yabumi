@@ -34,6 +34,38 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_metrics: {
+        Row: {
+          captured_at: string
+          day: string
+          owner_id: string
+          social_account_id: string
+          values: Json
+        }
+        Insert: {
+          captured_at?: string
+          day: string
+          owner_id: string
+          social_account_id: string
+          values?: Json
+        }
+        Update: {
+          captured_at?: string
+          day?: string
+          owner_id?: string
+          social_account_id?: string
+          values?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_metrics_social_account_id_fkey"
+            columns: ["social_account_id"]
+            isOneToOne: false
+            referencedRelation: "social_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       account_plans: {
         Row: {
           created_at: string
@@ -453,6 +485,38 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      post_metrics: {
+        Row: {
+          captured_at: string
+          day_index: number
+          owner_id: string
+          post_target_id: string
+          values: Json
+        }
+        Insert: {
+          captured_at?: string
+          day_index: number
+          owner_id: string
+          post_target_id: string
+          values?: Json
+        }
+        Update: {
+          captured_at?: string
+          day_index?: number
+          owner_id?: string
+          post_target_id?: string
+          values?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_metrics_post_target_id_fkey"
+            columns: ["post_target_id"]
+            isOneToOne: false
+            referencedRelation: "post_targets"
             referencedColumns: ["id"]
           },
         ]
@@ -1158,6 +1222,27 @@ export type Database = {
           storage_path: string
         }[]
       }
+      due_account_metric_accounts: {
+        Args: { p_limit?: number; p_now?: string; p_owner_id?: string }
+        Returns: {
+          external_id: string
+          owner_id: string
+          sns: string
+          social_account_id: string
+        }[]
+      }
+      due_post_metric_targets: {
+        Args: { p_limit?: number; p_now?: string; p_owner_id?: string }
+        Returns: {
+          account_external_id: string
+          day_index: number
+          external_post_id: string
+          owner_id: string
+          post_target_id: string
+          sns: string
+          social_account_id: string
+        }[]
+      }
       invoke_job: { Args: { p_path: string }; Returns: number }
       is_manual_sns: { Args: { p_sns: string }; Returns: boolean }
       issue_media_upload_ticket: {
@@ -1275,6 +1360,17 @@ export type Database = {
         Args: { p_owner_id?: string; p_sns: unknown }
         Returns: number
       }
+      sns_weekly_totals: {
+        Args: { p_project_id: string; p_today: string }
+        Returns: {
+          followers_now: number
+          followers_week_ago: number
+          has_account_metrics: boolean
+          has_post_metrics: boolean
+          views_last_week: number
+          views_this_week: number
+        }[]
+      }
       store_weekly_totals: {
         Args: { p_project_id: string; p_today: string }
         Returns: {
@@ -1295,6 +1391,18 @@ export type Database = {
         Returns: {
           clicks: number
           post_id: string
+        }[]
+      }
+      top_posts_by_views: {
+        Args: {
+          p_days?: number
+          p_limit?: number
+          p_project_id: string
+          p_today: string
+        }
+        Returns: {
+          post_id: string
+          views: number
         }[]
       }
       weekly_post_totals: {

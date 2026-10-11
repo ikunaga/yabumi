@@ -66,6 +66,8 @@
 | X_CLIENT_SECRET | 同じく Client Secret | **はい** |
 | X_MONTHLY_BUDGET_USD | 入れなければ $3（決定 D16）。変えるときだけ入れる | いいえ |
 | NEXT_PUBLIC_TURNSTILE_SITE_KEY | 5-8 の Turnstile の Site Key（登録の受付を開く前に入れる） | いいえ（画面にも出る値） |
+| META_APP_ID / FACEBOOK_LOGIN_CONFIG_ID / INSTAGRAM_APP_ID | 12 の Instagram・Facebook 用の Meta アプリの値 | いいえ |
+| META_APP_SECRET / INSTAGRAM_APP_SECRET | 同上 | **はい** |
 | GITHUB_APP_ID / GITHUB_APP_SLUG / GITHUB_APP_CLIENT_ID | 6-2 で作る本番用の App の値 | いいえ |
 | GITHUB_APP_CLIENT_SECRET | 同上 | **はい** |
 | GITHUB_APP_PRIVATE_KEY | 同上の .pem の中身。Vercel の入力欄には複数行のまま貼ってよい | **はい** |
@@ -257,3 +259,27 @@ yabumi.app は Cloudflare Registrar で取る（オーナー）。DNS も Cloudf
 - 費用: 無料（受け取って転送するだけ）
 - 注意: 届いたメールに個人のメールから返事をすると、送信元は個人のアドレスになる。support@yabumi.app から返事をしたいときは、Gmail の「他のメールアドレスを追加」（Send mail as）で、SMTP に Resend（F-5 と同じ。ユーザー名 resend、パスワードは別に作った API キー）を使う
 - 規約・ポリシーの問い合わせ先（docs/legal.md の L2）に `support@yabumi.app` を使える。G-4 が済んでから入れる
+
+## 12. Instagram と Facebook ページをつなげるようにする（オーナーの作業）
+
+設計は architecture.md の 4.21。Instagram は Instagram Login（Facebook ページがなくてもつなげる。そのかわり、矢書から投稿を取り消せない）、Facebook はページだけ。Threads のアプリ（Yabumi Dev）とは**別のアプリ**を作る。URL は yabumi.app が前提（切り替える前なら yabumi.vercel.app で読みかえる。11 の B と同じく、両方並べて登録してよい）。
+
+| # | 誰が | やること |
+|---|---|---|
+| 12-1 | オーナー | **アプリを作る**: https://developers.facebook.com/apps → Create app。名前 `Yabumi`。ユースケースは「Manage messaging & content on Instagram」（Instagram API with Instagram Login）と「Manage everything on your Page」（Facebook ページ）の 2 つを選ぶ。Business portfolio は Threads のアプリと同じもの（ビジネス認証が 1 回で済む） |
+| 12-2 | オーナー | **Instagram の設定**: Use cases → Instagram → Customize（API setup with Instagram login）。① Permissions で instagram_business_basic と instagram_business_content_publish を足す（ほかは足さない）② 画面に出る「Instagram app ID」と「Instagram app secret」を控える ③ Set up Instagram business login → Business login settings に、OAuth redirect URIs `https://yabumi.app/sns/instagram/callback` と `https://localhost:3100/sns/instagram/callback`、Deauthorize callback URL `https://yabumi.app/sns/instagram/uninstall`、Data deletion request URL `https://yabumi.app/sns/instagram/delete` |
+| 12-3 | オーナー | **Instagram テスター**: App roles → Roles → Add People → 「Instagram Tester」にオーナーの Instagram のユーザー名を入れる。Instagram のアプリ → 設定とアクティビティ → ウェブサイトのアクセス許可 → アプリとウェブサイト →「テスターへの招待」で承認する。オーナーの Instagram は**プロアカウント**（クリエイターかビジネス）にしておく |
+| 12-4 | オーナー | **Facebook ページの設定**: Use cases → 「Manage everything on your Page」→ Customize で pages_show_list、pages_read_engagement、pages_manage_posts を足す。左のメニューの Facebook Login for Business → Configurations → Create configuration（名前 `yabumi-pages`、Login variation は General、Access token は **User access token**、Assets は Pages、Permissions は上の 3 つ）→ できた **Configuration ID** を控える。Facebook Login for Business → Settings の Valid OAuth Redirect URIs に `https://yabumi.app/sns/facebook/callback` と `https://localhost:3100/sns/facebook/callback`、Deauthorize callback URL に `https://yabumi.app/sns/facebook/uninstall` |
+| 12-5 | オーナー | **基本設定**: App settings → Basic。App domains `yabumi.app`、Privacy policy URL `https://yabumi.app/privacy`、Terms of service URL `https://yabumi.app/terms`、User data deletion は「Data deletion callback URL」で `https://yabumi.app/sns/facebook/delete`、App icon（角印「文」。public/icons/icon-512.png を 1024×1024 にしたもの）、Category は Business and pages、Contact email `support@yabumi.app`。App ID と App secret を控える。Advanced → **Require App Secret** はオンにしてよい（矢書は呼び出しに appsecret_proof を付けている） |
+| 12-6 | オーナー | **環境変数**: .env.local と Vercel（Production）に入れて、`pnpm dev` の起動し直し・Redeploy。`META_APP_ID`、`META_APP_SECRET`（Sensitive）、`FACEBOOK_LOGIN_CONFIG_ID`、`INSTAGRAM_APP_ID`、`INSTAGRAM_APP_SECRET`（Sensitive）。入れるまで、「つないだ SNS」の Instagram と Facebook は「準備中」 |
+| 12-7 | オーナー | **他の人に使ってもらうとき**: docs/review/meta.md の流れで、権限ごとの App Review（説明文と画面の録画）を出し、アプリを Live にする（ビジネス認証は Threads と同じポートフォリオで済む）。開発モードのままでは、アプリの役割を持つ人と Instagram テスターしかつなげない |
+
+### オーナーが確かめる手順（12-6 のあと。本物の投稿になるので、オーナーの操作で）
+
+1. 概要の「つないだ SNS」→ Instagram の「つなぐ」→ 確かめの画面 →「プロアカウントにした・つなぐ」→ Instagram で許可 →「Instagram をつなぎました」と ✓ @ユーザー名
+2. 投稿をつくる: 送り先に Instagram、画像を 1 枚（正方形など）添えて「今すぐ送る」→ 送信の結果の「Instagram で見る」で確かめる。取り消しのボタンは出ず、「Instagram のアプリで消す」の案内が出る
+3. 縦長すぎる画像（スマホのスクリーンショット）を添えると、作成画面に「画像の縦横比が合いません」と出て送れない
+4. Facebook の「つなぐ」→ 確かめの画面 → Facebook で許可（つなぐページにチェック）→ ページが 2 つ以上なら選ぶ画面 →「Facebook ページをつなぎました」
+5. Facebook ページに文章だけ・画像つきで送る →「Facebook ページ で見る」→「Facebook ページ から取り消す」で消える
+6. 概要の「外す」→ Instagram の側の連携は、Instagram のアプリの設定から外す（案内が出る）
+

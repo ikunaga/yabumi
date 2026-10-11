@@ -74,6 +74,9 @@ function ResultRow({ sns, r, projectId, postId }: { sns: SnsKey; r: TargetResult
             )}
             {r.postedByHand ? (
               <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">手で投稿</span>
+            ) : sns === "instagram" ? (
+              // Instagram Login では、API で投稿を消せない（docs/architecture.md の 4.21）
+              <span className="ml-auto text-xs text-muted">取り消すときは、Instagram のアプリで投稿の「…」→「削除」</span>
             ) : (
             <span className="ml-auto">
               {confirm ? (

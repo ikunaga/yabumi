@@ -22,6 +22,8 @@ import { getProject } from "@/lib/projects/queries";
 import { listProjectSnsAccounts } from "@/lib/sns/queries";
 import { threadsConfigured } from "@/lib/sns/threads/config";
 import { xConfigured } from "@/lib/sns/x/config";
+import { instagramConfigured } from "@/lib/sns/instagram/config";
+import { facebookConfigured } from "@/lib/sns/facebook/config";
 import { xSpendThisMonth } from "@/lib/sns/x/spend";
 import { getAccountPlan } from "@/lib/plan/queries";
 import { isUuid } from "@/lib/uuid";
@@ -158,7 +160,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
           projectId={project.id}
           accounts={snsAccounts}
           manualChannels={manualChannels ?? []}
-          connectable={{ threads: threadsConfigured(), x: xReady }}
+          connectable={{ threads: threadsConfigured(), x: xReady, instagram: instagramConfigured(), facebook: facebookConfigured() }}
           xSpend={xSpend}
         />
 

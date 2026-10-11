@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { deleteAccountsByExternalId } from "@/lib/sns/accounts";
-import { parseSignedRequest } from "@/lib/sns/threads/signed-request";
+import { parseSignedRequest } from "@/lib/sns/meta/signed-request";
 import { appUrl, THREADS_PATHS, threadsConfig } from "@/lib/sns/threads/config";
 import { createAdminClient } from "@/lib/supabase/admin";
 

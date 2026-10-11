@@ -7,6 +7,8 @@ import { disconnectSnsAccount, type DisconnectResult } from "@/lib/sns/disconnec
 // SNS 側でも外す方法の案内（アプリから解除できない SNS）
 const AFTER_NOTE: Record<string, string> = {
   threads: "Threads の側の連携も外すときは、Threads のアプリの「設定 → アカウント → ウェブサイトのアクセス許可」から矢書を削除してください。",
+  instagram: "Instagram の側の連携も外すときは、Instagram のアプリの「設定とアクティビティ → ウェブサイトのアクセス許可 → アプリとウェブサイト」から矢書を削除してください。",
+  facebook: "Facebook の側の連携も外すときは、Facebook の「設定とプライバシー → 設定 → ビジネス統合」から矢書を削除してください。",
 };
 
 // 「つないだ SNS」の「外す」。先に、予約が残っていないかとほかのプロジェクトでの使い道を確かめてから外す

@@ -81,7 +81,15 @@ export function displayLength(sns: SnsKey, text: string): number {
   return [...text].length;
 }
 
-export type TargetIssue = "empty" | "too_long" | "needs_image" | "needs_video" | "needs_title" | "too_many_images";
+export type TargetIssue =
+  | "empty"
+  | "too_long"
+  | "needs_image"
+  | "needs_video"
+  | "needs_title"
+  | "too_many_images"
+  | "bad_aspect_ratio"
+  | "too_many_hashtags";
 
 export type TargetCheck = {
   length: number;
@@ -90,10 +98,28 @@ export type TargetCheck = {
 };
 
 // 1 つの SNS 向けの文面が送れる状態かを調べる。動画の添付はまだないので、動画が必要な SNS は常に指摘する
+// Instagram の画像の縦横比（幅 ÷ 高さ）。4:5（縦長）〜 1.91:1（横長）。外れると Instagram が断る（docs/architecture.md の 4.21）
+export const INSTAGRAM_MIN_RATIO = 4 / 5;
+export const INSTAGRAM_MAX_RATIO = 1.91;
+// Instagram のハッシュタグの上限
+export const INSTAGRAM_MAX_HASHTAGS = 30;
+
+export function instagramRatioOk(width: number, height: number): boolean {
+  if (!width || !height) return false;
+  const r = width / height;
+  // 縮めたときの端数で外れないよう、少しだけゆとりを持たせる
+  return r >= INSTAGRAM_MIN_RATIO - 0.005 && r <= INSTAGRAM_MAX_RATIO + 0.005;
+}
+
+export function countHashtags(text: string): number {
+  return (text.match(/(^|[^\p{L}\p{N}_&])[#＃][\p{L}\p{N}_]+/gu) ?? []).length;
+}
+
 export function checkTarget(
   sns: SnsKey,
   text: string,
-  media: { images: number; videos: number } = { images: 0, videos: 0 },
+  // sizes: 画像の幅と高さ（Instagram の縦横比を確かめるときだけ使う）
+  media: { images: number; videos: number; sizes?: { width: number; height: number }[] } = { images: 0, videos: 0 },
   title: string | null = null,
 ): TargetCheck {
   const spec = SNS[sns];
@@ -105,6 +131,10 @@ export function checkTarget(
   if (spec.media === "video" && media.videos === 0) issues.push("needs_video");
   if (spec.needsTitle && !(title ?? "").trim()) issues.push("needs_title");
   if (spec.maxImages > 0 && media.images > spec.maxImages) issues.push("too_many_images");
+  if (sns === "instagram") {
+    if (media.sizes?.some((s) => !instagramRatioOk(s.width, s.height))) issues.push("bad_aspect_ratio");
+    if (countHashtags(text) > INSTAGRAM_MAX_HASHTAGS) issues.push("too_many_hashtags");
+  }
   return { length, maxLength: spec.maxLength, issues };
 }
 
@@ -115,6 +145,8 @@ export const ISSUE_LABEL: Record<TargetIssue, string> = {
   needs_video: "動画が必要",
   needs_title: "タイトルが必要",
   too_many_images: "画像が多すぎます",
+  bad_aspect_ratio: "画像の縦横比が合いません",
+  too_many_hashtags: "ハッシュタグが多すぎます",
 };
 
 // 画像を付けても、この SNS には送らない（動画だけの SNS、手で投稿する SNS）。作成画面で知らせる

@@ -293,6 +293,47 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_page_choices: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          owner_id: string
+          pages: Json
+          parent_external_id: string
+          project_id: string
+          tokens_encrypted: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          owner_id: string
+          pages: Json
+          parent_external_id: string
+          project_id: string
+          tokens_encrypted: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          owner_id?: string
+          pages?: Json
+          parent_external_id?: string
+          project_id?: string
+          tokens_encrypted?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_page_choices_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       post_targets: {
         Row: {
           attempts: number
@@ -663,6 +704,7 @@ export type Database = {
           handle: string
           id: string
           owner_id: string
+          parent_external_id: string | null
           sns: string
           status: string
           updated_at: string
@@ -674,6 +716,7 @@ export type Database = {
           handle?: string
           id?: string
           owner_id?: string
+          parent_external_id?: string | null
           sns: string
           status?: string
           updated_at?: string
@@ -685,6 +728,7 @@ export type Database = {
           handle?: string
           id?: string
           owner_id?: string
+          parent_external_id?: string | null
           sns?: string
           status?: string
           updated_at?: string

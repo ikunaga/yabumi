@@ -13,7 +13,7 @@ export default async function SettingsPage() {
   const user = await requireUser();
   const supabase = await createClient();
   const [{ count: snsCount }, { count: githubCount }] = await Promise.all([
-    supabase.from("social_accounts").select("id", { count: "exact", head: true }).eq("sns", "threads"),
+    supabase.from("social_accounts").select("id", { count: "exact", head: true }).in("sns", ["threads", "instagram", "facebook"]),
     supabase.from("github_installations").select("installation_id", { count: "exact", head: true }),
   ]);
 
@@ -64,7 +64,9 @@ export default async function SettingsPage() {
                 SNS に送った投稿は消しません。消したい投稿があれば、退会の前に、投稿の画面の「SNS から取り消す」を使ってください
               </li>
               {(snsCount ?? 0) > 0 && (
-                <li>Threads の側の連携は、矢書からは外せません。Threads のアプリの「設定 → アカウント → ウェブサイトのアクセス許可」から削除してください</li>
+                <li>
+                  Threads・Instagram・Facebook の側の連携は、矢書からは外せません。それぞれのアプリの設定の「ウェブサイトのアクセス許可」（Facebook は「ビジネス統合」）から矢書を削除してください
+                </li>
               )}
               {(githubCount ?? 0) > 0 && <li>GitHub App を外せなかったときは、GitHub の Settings → Applications から外せます</li>}
               <li>AI と SNS の API にかかった費用の記録（会話や投稿の中身は含みません）は、あなたとの紐づけを外して 13 か月残します</li>

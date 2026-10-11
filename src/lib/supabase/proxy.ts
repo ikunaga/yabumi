@@ -14,6 +14,11 @@ const PUBLIC_PATHS = [
   "/sns/threads/uninstall",
   "/sns/threads/delete",
   "/sns/threads/deletion",
+  "/sns/instagram/uninstall",
+  "/sns/instagram/delete",
+  "/sns/facebook/uninstall",
+  "/sns/facebook/delete",
+  "/sns/deletion",
   "/api/jobs",
   // 利用規約とプライバシーポリシー（登録の前に読めるように。SNS 各社の審査でも、ログインなしで開けることが求められる）
   "/terms",

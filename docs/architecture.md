@@ -795,9 +795,11 @@ X の開発者規約は、X 側で消された・見られなくなった投稿�
 
 - 見込み: 1 回 約 $0.02（約 3 円。画面には「1 回 5 円ほど」と多めに出す）。月 30 本をそれぞれ 1〜2 回確かめて約 $0.6〜1.2。4.9 の上限（利用者ごとの月 $3、全体の月 $10、1 日 60 回）に数える
 - 費用を下げる案（未決定）: Claude Haiku 5.5（入力 $0.10・出力 $0.50）にすると 1 回 約 $0.0005 で、40 分の 1 ほどになる。ただ「事実か確かめて」の見つけ方や、口調の判断の質は試していない。変えるときは、上の 3 つの文面で質を比べてから PM・オーナーに相談する
-### 4.21 Instagram と Facebook ページ（2026-10-11 に調査・設計。コードはまだ）
+### 4.21 Instagram と Facebook ページ（2026-10-11 に調査・設計・実装）
 
-画像の添付（4.18、実装担当3）ができたら作る。Instagram は画像が必須なので、画像の添付が先に要る。
+画像の添付（4.18）の上に作った（2026-10-11、オーナーが Instagram Login に決定）。オーナーの作業は docs/deploy.md の 12。
+
+実装の場所: src/lib/sns/instagram/、src/lib/sns/facebook/、src/lib/sns/adapters/{instagram,facebook}.ts、src/app/sns/{instagram,facebook}/、つなぐ前の確かめの画面 /projects/[id]/connect/{instagram,facebook}、ページを選ぶ画面 /projects/[id]/connect/facebook/select。マイグレーションは 20261011260000_instagram_facebook.sql（social_accounts.parent_external_id、pending_page_choices、purge_expired_data に期限切れの置き場の削除を足す）。Graph API の版は v24.0（src/lib/sns/{instagram,facebook}/api.ts の定数。およそ 2 年で上げる）。
 
 #### 結論（おすすめ）
 
@@ -896,9 +898,10 @@ Facebook ページ（graph.facebook.com）:
 | INSTAGRAM_APP_ID / INSTAGRAM_APP_SECRET | Instagram のユースケースの画面に出る「Instagram app ID / secret」（Meta の App ID とは別の値） |
 | FACEBOOK_LOGIN_CONFIG_ID | Facebook Login for Business の設定の ID |
 
-#### マイグレーションの案（作るときに 20261011230101〜）
+#### マイグレーション（20261011260000 で作った）
 
-- ページを選ぶまでの間、ページの一覧とトークンを一時的に置く表 `pending_page_choices`（id、owner_id、ページの ID・名前の一覧、暗号化したページのトークン、expires_at = 15 分）。RLS は本人が読むだけ（トークンの列は与えない。4.17 の列ごとの grant）。選んだら social_accounts と social_account_tokens に移して消す。期限を過ぎたものは purge_expired_data で消す
+- ページを選ぶまでの間、ページの一覧とトークンを一時的に置く表 `pending_page_choices`（id、owner_id、project_id、ページの ID・名前の一覧、暗号化したページのトークン、つないだ Facebook の利用者の ID、expires_at = 15 分）。RLS は本人が読むだけ（トークンの列は与えない。4.17 の列ごとの grant）。選んだら social_accounts と social_account_tokens に移して消す（先に消してから使うので、同時に 2 回押しても 1 回だけ）。期限を過ぎたものは purge_expired_data で消す
+- social_accounts.parent_external_id: Facebook ページをつないだ Facebook の利用者の ID。Facebook の側で外された・削除を求められたときの通知（signed_request の user_id）から、その人のページをまとめて解除・削除する
 - それ以外は、いまの表（social_accounts、social_account_tokens、post_targets）で足りる。Instagram の画像は 4.18 の表を使う
 
 #### オーナーの作業（アプリを作るとき）

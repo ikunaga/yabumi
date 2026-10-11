@@ -11,7 +11,7 @@ import { applyFix } from "@/lib/ai/ai-check";
 import { AiCheckPanel } from "./ai-check-panel";
 import { PlanHints, type PlanHintsData } from "./plan-hints";
 import { SendResults, type TargetResult } from "./send-results";
-import { ISSUE_LABEL, MAX_TITLE_LENGTH, SNS, SNS_KEYS, checkTarget, hasXUrl, ignoresImages, isManualSns, type SnsKey, type TargetIssue } from "@/lib/sns";
+import { ISSUE_LABEL, MAX_TITLE_LENGTH, SNS, SNS_KEYS, checkTarget, hasXUrl, instagramRatioOk, ignoresImages, isManualSns, type SnsKey, type TargetIssue } from "@/lib/sns";
 import { X_PRICE_USD, formatUsd } from "@/lib/sns/x/pricing";
 import { Term } from "@/components/ui/term";
 
@@ -45,6 +45,8 @@ type Props = {
 const LOCKED = new Set(["published", "publishing", "deleted"]);
 
 const ISSUE_TONE: Record<TargetIssue, string> = {
+  bad_aspect_ratio: "text-danger",
+  too_many_hashtags: "text-danger",
   empty: "text-signal",
   too_long: "text-danger",
   needs_image: "text-signal",
@@ -97,9 +99,9 @@ export function PostComposer({
   const checks = useMemo(
     () =>
       Object.fromEntries(
-        SNS_KEYS.map((sns) => [sns, checkTarget(sns, overrides[sns] ?? body, { images: images.length, videos: 0 }, titles[sns] ?? null)]),
+        SNS_KEYS.map((sns) => [sns, checkTarget(sns, overrides[sns] ?? body, { images: images.length, videos: 0, sizes: images }, titles[sns] ?? null)]),
       ) as Record<SnsKey, ReturnType<typeof checkTarget>>,
-    [body, overrides, titles, images.length],
+    [body, overrides, titles, images],
   );
 
   const isLocked = (s: SnsKey) => LOCKED.has(results[s]?.status ?? "");
@@ -368,6 +370,19 @@ export function PostComposer({
               <p className="text-xs font-semibold text-danger">
                 {focusLabel} に添えられる画像は {SNS[focus].maxImages} 枚までです。画像を減らすか、{focusLabel} を送り先から外してください。
               </p>
+            )}
+            {focus === "instagram" && images.some((i) => !instagramRatioOk(i.width, i.height)) && (
+              <p className="text-xs font-semibold text-danger">
+                Instagram に送れる画像の縦横比は、4:5（縦長）から 1.91:1（横長）までです。
+                {images
+                  .map((i, n) => (instagramRatioOk(i.width, i.height) ? null : `${n + 1} 枚目（${i.width}×${i.height}）`))
+                  .filter(Boolean)
+                  .join("、")}
+                が範囲の外です。スマホのスクリーンショット（縦長すぎる）は、上下を切って 4:5 に近づけてください。
+              </p>
+            )}
+            {focus === "instagram" && checks.instagram.issues.includes("too_many_hashtags") && (
+              <p className="text-xs font-semibold text-danger">Instagram のハッシュタグは 30 個までです。</p>
             )}
             {hasOverride ? (
               <div className="flex flex-col gap-1.5">

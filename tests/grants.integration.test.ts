@@ -20,6 +20,7 @@ const TABLES = [
   "sns_api_usage",
   "media_files",
   "media_upload_tickets",
+  "pending_page_choices",
 ] as const;
 
 let alice: TestClient;

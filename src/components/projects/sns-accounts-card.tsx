@@ -10,9 +10,12 @@ import { formatUsd } from "@/lib/sns/x/pricing";
 import type { XSpend } from "@/lib/sns/x/spend";
 
 // つなぐ処理がある SNS と、その入口
-const CONNECT_PATH: Partial<Record<SnsKey, string>> = {
-  threads: "/sns/threads/connect",
-  x: "/sns/x/connect",
+// Instagram と Facebook は、先に確かめの画面（プロアカウント・ページの準備）を出す（docs/architecture.md の 4.21）
+const CONNECT_HREF: Partial<Record<SnsKey, (projectId: string) => string>> = {
+  threads: (id) => `/sns/threads/connect?project=${id}`,
+  x: (id) => `/sns/x/connect?project=${id}`,
+  instagram: (id) => `/projects/${id}/connect/instagram`,
+  facebook: (id) => `/projects/${id}/connect/facebook`,
 };
 
 // 概要の「つないだ SNS」。SNS ごとに 1 行
@@ -52,9 +55,8 @@ export function SnsAccountsCard({
             return <ManualChannelRow key={sns} projectId={projectId} sns={sns} profileUrl={ch?.profile_url ?? null} note={MANUAL_NOTE[sns]} />;
           }
           const account = accounts.find((a) => a.sns === sns && a.status === "active") ?? accounts.find((a) => a.sns === sns);
-          const connectPath = connectable[sns] ? CONNECT_PATH[sns] : undefined;
           // 認可画面へのリダイレクトなので、Link（先読みあり）ではなく a で開く
-          const connectHref = connectPath ? `${connectPath}?project=${projectId}` : null;
+          const connectHref = connectable[sns] ? (CONNECT_HREF[sns]?.(projectId) ?? null) : null;
           return (
             <li
               key={sns}

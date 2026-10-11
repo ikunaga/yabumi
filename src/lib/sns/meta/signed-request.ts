@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-// Meta から届くアンインストール・データ削除の通知（signed_request）を検証して中身を返す。
+// Meta（Threads・Instagram・Facebook）から届くアンインストール・データ削除の通知（signed_request）を検証して中身を返す。
 // 形式: <署名>.<中身>（どちらも base64url）。署名は「中身の文字列」をアプリシークレットで HMAC-SHA256 したもの
 export type SignedRequestPayload = { user_id: string; algorithm: string; issued_at?: number };
 

@@ -4,6 +4,9 @@ import { revokeToken } from "@/lib/sns/x/api";
 import { xConfig, xConfigured, xMonthlyBudgetUsd } from "@/lib/sns/x/config";
 import type { RevokeDeps } from "@/lib/sns/revoke";
 import type { PublisherDeps } from "@/lib/sns/publisher";
+import { facebookAppSecret } from "@/lib/sns/facebook/config";
+import { createFacebookAdapter } from "./facebook";
+import { createInstagramAdapter } from "./instagram";
 import { createThreadsAdapter } from "./threads";
 import type { SnsAdapter } from "./types";
 import { createXAdapter } from "./x";
@@ -12,6 +15,8 @@ import { createXAdapter } from "./x";
 export const adapters: Partial<Record<SnsKey, SnsAdapter>> = {
   threads: createThreadsAdapter(),
   x: createXAdapter(xConfig),
+  instagram: createInstagramAdapter(),
+  facebook: createFacebookAdapter(facebookAppSecret),
 };
 
 export function canPublish(sns: SnsKey): boolean {

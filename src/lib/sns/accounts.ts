@@ -18,6 +18,8 @@ export type ConnectedAccount = {
   refreshToken?: string | null;
   expiresAt: Date | null;
   scopes: readonly string[];
+  // Facebook ページのとき、そのページをつないだ Facebook の利用者の ID（外す・削除の通知に使う）
+  parentExternalId?: string | null;
 };
 
 // リフレッシュトークンは行の ID に ":refresh" を足したものを追加認証データにして暗号化する（アクセストークンと入れ替えられないように）
@@ -35,6 +37,7 @@ export async function saveConnectedAccount(admin: Admin, a: ConnectedAccount, ke
         display_name: a.displayName,
         handle: a.handle,
         status: "active",
+        parent_external_id: a.parentExternalId ?? null,
       },
       { onConflict: "owner_id,sns,external_id" },
     )
@@ -75,6 +78,30 @@ export async function revokeAccountsByExternalId(admin: Admin, sns: SnsKey, exte
 // SNS 側でデータの削除を求められたとき。アカウントとトークンを消す（配信先からの参照は空になる）
 export async function deleteAccountsByExternalId(admin: Admin, sns: SnsKey, externalId: string): Promise<number> {
   const { data, error } = await admin.from("social_accounts").delete().eq("sns", sns).eq("external_id", externalId).select("id");
+  if (error) throw error;
+  return data.length;
+}
+
+// Facebook の側で矢書が外されたとき。その Facebook の利用者がつないだページを、すべて「解除済み」にしてトークンを消す
+export async function revokeAccountsByParentId(admin: Admin, sns: SnsKey, parentExternalId: string): Promise<number> {
+  const { data, error } = await admin
+    .from("social_accounts")
+    .update({ status: "revoked" })
+    .eq("sns", sns)
+    .eq("parent_external_id", parentExternalId)
+    .select("id");
+  if (error) throw error;
+  const ids = data.map((r) => r.id);
+  if (ids.length) {
+    const { error: delError } = await admin.from("social_account_tokens").delete().in("social_account_id", ids);
+    if (delError) throw delError;
+  }
+  return ids.length;
+}
+
+// Facebook の側でデータの削除を求められたとき。その人がつないだページのアカウントとトークンを消す
+export async function deleteAccountsByParentId(admin: Admin, sns: SnsKey, parentExternalId: string): Promise<number> {
+  const { data, error } = await admin.from("social_accounts").delete().eq("sns", sns).eq("parent_external_id", parentExternalId).select("id");
   if (error) throw error;
   return data.length;
 }

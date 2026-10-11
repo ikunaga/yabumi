@@ -223,6 +223,13 @@ SNS との連携がなくても作れる部分を先に作った。
 - 段取りの案: ① 短縮リンク ② 数字の画面と設計の KPI ③ App Store の売上と RevenueCat ④ Threads（と Instagram・Facebook）の数字 ⑤ Google Play と App Store のページの閲覧 ⑥ X の数字 ⑦ 振り返りの AI
 - オーナーが決めること: 4.22 の M1〜M7（X の数字を読むか、短縮リンクの置き場所、保存期間、追加の審査の時期など）
 
+### Instagram と Facebook ページ（2026-10-11、architecture.md の 4.21）
+
+- Instagram は Instagram Login（プロアカウントだけでつなげる。投稿の取り消しは Instagram のアプリで）、Facebook はページだけ。どちらも、つなぐ前に準備の仕方（プロアカウントへの切り替え、ページの作り方）を案内する
+- Instagram: 画像 1 枚・カルーセル（10 枚まで）。縦横比（4:5〜1.91:1）とハッシュタグ（30 個）を作成画面と保存で確かめる。トークンは日次のジョブで延長
+- Facebook: 管理しているページから選んでつなぐ。文章・画像 1 枚・複数枚、取り消し
+- オーナーの作業: Meta アプリの作成と設定（deploy.md の 12）。審査は docs/review/meta.md
+
 ## 5. 次の作業
 
 1. PM がオーナーの確認をとって、本番にマイグレーションを当てる（supabase db push）

@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { parseSignedRequest } from "@/lib/sns/threads/signed-request";
+import { parseSignedRequest } from "@/lib/sns/meta/signed-request";
 
 const secret = "app-secret";
 

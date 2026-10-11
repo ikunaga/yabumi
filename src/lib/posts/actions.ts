@@ -36,6 +36,12 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
   if (!userId) return { error: "ログインし直してください。" };
   const images = media.length;
   const needReconnect = images > 0 ? await snsNeedingImageReconnect(accounts) : [];
+  // Instagram は縦横比を確かめるので、画像の幅と高さを読む（RLS で本人の画像だけ）
+  let sizes: { width: number; height: number }[] | undefined;
+  if (images > 0 && targets.some((t) => t.sns === "instagram")) {
+    const { data: rows } = await supabase.from("media_files").select("id, width, height").in("id", media.map((m) => m.id));
+    sizes = (rows ?? []).map((r) => ({ width: r.width, height: r.height }));
+  }
 
   // 送信済み・送信中・取り消し済みの配信先は、もう送らない
   const locked = new Set<SnsKey>();
@@ -63,7 +69,7 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
     } else {
       for (const t of toSend) {
         const label = SNS[t.sns].label;
-        const issue = checkTarget(t.sns, t.bodyOverride ?? body, { images, videos: 0 }, t.title ?? null).issues[0];
+        const issue = checkTarget(t.sns, t.bodyOverride ?? body, { images, videos: 0, sizes }, t.title ?? null).issues[0];
         if (issue) {
           fieldErrors.targets = `${label}: ${ISSUE_LABEL[issue]}`;
           break;

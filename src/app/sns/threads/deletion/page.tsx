@@ -11,8 +11,8 @@ export default async function DeletionStatusPage(props: PageProps<"/sns/threads/
     <main className="flex flex-1 flex-col items-center justify-center gap-4 px-5 py-16 text-center">
       <h1 className="font-heading text-2xl font-bold">Threads のデータを削除しました</h1>
       <p className="max-w-[480px] text-[14px] leading-[1.7] text-muted">
-        矢書に保存していた Threads のアカウント情報とアクセストークンを削除しました。
-        矢書で作った下書きや投稿の記録は残っています。不要であれば矢書から削除してください。
+        矢書に保存していた Threads のアカウント情報とアクセストークン、Threads から読んだ投稿の数字とフォロワーの数、Threads 上の投稿の ID と URL を削除しました。
+        矢書で書いた下書きや投稿の本文は残っています。不要であれば矢書から削除してください。
       </p>
       {confirmation && (
         <p className="text-[14px]">

@@ -133,6 +133,24 @@ describe("退会", () => {
       },
       key,
     );
+    // X に送った投稿と、その数字・フォロワーの数（X から受け取ったもの）
+    const { data: xPost, error: xPostError } = await carol.rpc("save_post", {
+      p_post_id: null as unknown as string,
+      p_project_id: carolProject,
+      p_body: "X に送った投稿",
+      p_planned_at: null as unknown as string,
+      p_status: "draft",
+      p_targets: [{ sns: "x", social_account_id: xAccount }],
+    });
+    if (xPostError) throw xPostError;
+    const { data: xTarget } = await admin
+      .from("post_targets")
+      .update({ status: "published", published_at: new Date().toISOString(), external_post_id: "x-1", external_url: "https://x.com/i/web/status/1" })
+      .eq("post_id", xPost!)
+      .select("id")
+      .single();
+    await admin.from("post_metrics").insert({ post_target_id: xTarget!.id, owner_id: carolId, day_index: 1, values: { views: 3 } });
+    await admin.from("account_metrics").insert({ social_account_id: xAccount, owner_id: carolId, day: "2026-10-11", values: { followers: 2 } });
     // 自分だけのインストールと、bob も使っているインストール
     const onlyCarol = 900_000_000 + Math.floor(Math.random() * 1_000_000);
     const shared = onlyCarol + 1;
@@ -174,6 +192,10 @@ describe("退会", () => {
     expect((await admin.from("ai_threads").select("id").eq("owner_id", carolId)).data).toEqual([]);
     expect((await admin.from("social_accounts").select("id").eq("owner_id", carolId)).data).toEqual([]);
     expect((await admin.from("social_account_tokens").select("social_account_id").eq("social_account_id", xAccount)).data).toEqual([]);
+    // X から受け取ったもの（投稿の ID・URL、数字、フォロワーの数）も、投稿ごと消える
+    expect((await admin.from("post_targets").select("id").eq("id", xTarget!.id)).data).toEqual([]);
+    expect((await admin.from("post_metrics").select("day_index").eq("post_target_id", xTarget!.id)).data).toEqual([]);
+    expect((await admin.from("account_metrics").select("day").eq("social_account_id", xAccount)).data).toEqual([]);
     expect((await admin.from("github_installations").select("installation_id").eq("owner_id", carolId)).data).toEqual([]);
     // bob のインストールは残る
     expect((await admin.from("github_installations").select("installation_id").eq("owner_id", bobId)).data).toEqual([{ installation_id: shared }]);

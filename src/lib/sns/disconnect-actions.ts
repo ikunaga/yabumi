@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { purgeSnsDataOf } from "@/lib/sns/accounts";
 import { revokeDeps } from "@/lib/sns/adapters";
 import { revokeSnsAccess, type RevokeResult } from "@/lib/sns/revoke";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -16,7 +17,8 @@ export type DisconnectResult = {
 
 // 「つないだ SNS」の「外す」（docs/architecture.md の 4.14）。confirmed が false なら、消す前の確認に使う数だけを返す。
 // ほかのプロジェクトでも同じアカウントを使っていれば、このプロジェクトとの紐づけだけを外す（トークンは残す）。
-// どこでも使わなくなるなら、SNS 側の連携を解除できるもの（X）は解除し、アカウントとトークンを消す。送信の結果（URL など）は残る
+// どこでも使わなくなるなら、SNS 側の連携を解除できるもの（X）は解除し、アカウントとトークンを消す。その SNS から受け取ったもの
+// （投稿の数字・フォロワーの数・SNS 上の投稿の ID と URL）も消す（4.14）。投稿の本文と「送った」という記録は残る
 export async function disconnectSnsAccount(projectId: string, accountId: string, confirmed: boolean): Promise<DisconnectResult> {
   const ids = z.array(z.uuid()).safeParse([projectId, accountId]);
   if (!ids.success) return { error: "入力の形式が正しくありません。" };
@@ -45,8 +47,16 @@ export async function disconnectSnsAccount(projectId: string, accountId: string,
     return { done: { removedAccount: false, revoke: "not_supported" } };
   }
 
-  const revoke = await revokeSnsAccess(createAdminClient(), accountId, account.sns, revokeDeps());
-  // トークンはアカウントの行からカスケードで消える。配信先からの参照は空になる（送信の結果は残る）
+  const admin = createAdminClient();
+  const revoke = await revokeSnsAccess(admin, accountId, account.sns, revokeDeps());
+  // 本人のものであることは上で確かめた。その SNS から受け取ったものを先に消す
+  try {
+    await purgeSnsDataOf(admin, [accountId]);
+  } catch (e) {
+    console.error("[disconnect] SNS から受け取ったものを消せませんでした", e instanceof Error ? e.message : e);
+    return { error: "外せませんでした。時間をおいてもう一度お試しください。" };
+  }
+  // トークンはアカウントの行からカスケードで消える。配信先からの参照は空になる（本文と送った記録は残る）
   const { error } = await supabase.from("social_accounts").delete().eq("id", accountId);
   if (error) return { error: "外せませんでした。時間をおいてもう一度お試しください。" };
   revalidatePath(`/projects/${projectId}`, "layout");

@@ -1,13 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
 import { credentialsConfigured } from "@/lib/crypto/credential-cipher";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { checkAscFormat, StoreApiError } from "./app-store";
 import { checkRevenueCatFormat } from "./revenuecat";
-import { removeAppStoreViews, removePlay, startAppStoreViews, startPlayConnection, verifyPlay } from "./play-store";
+import { checkPlayCapacity, removeAppStoreViews, removePlay, startAppStoreViews, startPlayConnection, verifyPlay } from "./play-store";
 import { importForCredential, removeCredential, saveCredential, verifyCredential, type Provider } from "./store";
 
 // 「ストアと課金をつなぐ」の操作（docs/architecture.md の 4.22）。入れた鍵は、保存の前に 1 回呼んで使えるかを確かめる
@@ -85,6 +86,8 @@ export async function removeStoreCredential(projectId: string, provider: Provide
 export async function startGooglePlay(projectId: string): Promise<StoreFormState> {
   const userId = await ownProject(projectId);
   if (!userId) return { error: "ログインし直してください。" };
+  // 作ったあと（上限で断られたときも）、全員の作成数を数え、しきい値に達していれば運営者に知らせる（返事は待たせない）
+  after(() => checkPlayCapacity(createAdminClient()).catch((e) => console.error("[stores] 作成数を確かめられませんでした", e instanceof Error ? e.message : e)));
   try {
     await startPlayConnection(createAdminClient(), userId, projectId);
   } catch (e) {

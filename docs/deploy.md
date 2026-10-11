@@ -366,6 +366,14 @@ Threads・Instagram・Facebook の数字を読む権限は、Meta のアプリ�
 
 - 「鍵の作成が無効になっています」（iam.disableServiceAccountKeyCreation）と出たら、組織のあるアカウントで作っている。個人の Google アカウント（組織なし）で 15-1 から作り直す
 - 1 つのプロジェクトで作れるサービスアカウントは既定で 100 個（= Google Play をつなげる数）。80 を超えたら、Google Cloud の「IAM と管理」→「割り当て」で上限の引き上げを申請する。矢書は直近 30 日に作るのを全員で 80 までにしていて、達すると利用者には「混み合っています」と出る。そうなったら、Supabase の play_account_creations で同じ時期に作った数の多い利用者がいないか（登録し直しを繰り返す悪用）を見て、悪用なら止め、そうでなければ Google Cloud の上限を引き上げてから migration で 80 を上げる
+- **運営者へのメール（決定 D22）**: 直近 30 日の作成数が 60 と 80（上限）に達したとき、それぞれ 30 日に 1 回だけ、`OPERATOR_EMAIL` にメールが届く（件名は「【矢書の運営】Google Play のつなぎが…」）。本文は作成数・上限・確かめること（下の「運営者の見方」）だけで、利用者の情報は入らない。しきい値は `PLAY_CAPACITY_NOTIFY_AT`（カンマ区切り、既定 `60,80`）で変えられる。上限の 80 そのものは DB のトリガー（20261011340200）なので、変えるときは migration
+- **運営者の見方**（メールが届いたら）: Supabase の SQL Editor で `select owner_id, count(*) from play_account_creations where created_at > now() - interval '30 days' group by 1 order by 2 desc limit 10;` を流す。1 人が何度も作っている・登録し直しを繰り返している（同じ時期に新しい利用者がまとめて作っている）なら悪用として止める。普通に使う人が増えたのなら、Google Cloud の上限を引き上げてから migration で 80 を上げる
+
+| # | 誰が | やること |
+|---|---|---|
+| 15-11 | オーナー | 11 の F で Resend の API キー（Sending access、yabumi.app）を作ったら、Vercel → Settings → Environment Variables に `RESEND_API_KEY`（**Sensitive**。Supabase の SMTP に入れたものとは別のキーを作ると、片方を消してももう片方が止まらない）と `OPERATOR_EMAIL`（オーナーが受け取るアドレス。規約の問い合わせ先とは別でよい）を足して Redeploy。送信元は `矢書 <noreply@yabumi.app>`（変えるときは `OPERATOR_EMAIL_FROM`） |
+| 15-12 | 確かめ | キーがない環境（ローカルなど）では送らず、サーバーのログに `[operator] メールの設定がないので、ログにだけ残します` と出る。Vercel のログでこの文字が出ていたら、15-11 が済んでいない |
+
 - 管理用の鍵が漏れた疑いがあるときは、15-5 で新しい鍵を作って Vercel を入れ替え、古い鍵を「鍵」の画面で削除する（利用者ごとのアカウントは鍵を持たないので、そのまま使える）
 
 ### オーナーが確かめる（Android のアプリがあれば）

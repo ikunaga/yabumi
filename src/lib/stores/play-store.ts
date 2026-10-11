@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CredentialKeys } from "@/lib/crypto/credential-cipher";
+import { notifyOperatorOnce, type OperatorNotifyDeps } from "@/lib/notify/operator";
 import type { Database, Json } from "@/lib/supabase/database.types";
 import { appleIdFromUrl, StoreApiError, type AscCredential } from "./app-store";
 import { ensureOngoingRequest, listDailyInstances, readInstance } from "./app-store-analytics";
@@ -65,6 +66,64 @@ export async function startPlayConnection(admin: Admin, ownerId: string, project
     throw e;
   }
   return email;
+}
+
+// ===== 悪用への備え（決定 D22） =====
+// 全員を合わせた、直近 30 日の作成数。DB のトリガーの上限（80。20261011340200）に近づいたら、運営者にメールで知らせる。
+// しきい値は PLAY_CAPACITY_NOTIFY_AT（カンマ区切り。既定 "60,80"）で変えられる。それぞれ 30 日に 1 回だけ
+export const PLAY_CAPACITY_LIMIT = 80;
+
+export function playCapacityThresholds(raw: string | undefined = process.env.PLAY_CAPACITY_NOTIFY_AT): number[] {
+  const list = (raw ?? "60,80")
+    .split(",")
+    .map((s) => Number(s.trim()))
+    .filter((n) => Number.isInteger(n) && n > 0);
+  return [...new Set(list.length ? list : [60, 80])].sort((a, b) => a - b);
+}
+
+export async function checkPlayCapacity(
+  admin: Admin,
+  deps: { thresholds?: number[]; notify?: OperatorNotifyDeps; now?: () => Date } = {},
+): Promise<{ count: number; notified: number[] }> {
+  const now = deps.now?.() ?? new Date();
+  const { count, error } = await admin
+    .from("play_account_creations")
+    .select("id", { count: "exact", head: true })
+    .gt("created_at", new Date(now.getTime() - 30 * 86_400_000).toISOString());
+  if (error) throw error;
+  const n = count ?? 0;
+  const notified: number[] = [];
+  for (const t of deps.thresholds ?? playCapacityThresholds()) {
+    if (n < t) continue;
+    const result = await notifyOperatorOnce(admin, `play_capacity:${t}`, 30, playCapacityMail(n, t), deps.notify);
+    if (result === "sent" || result === "logged") notified.push(t);
+  }
+  return { count: n, notified };
+}
+
+// 本文に利用者の情報は入れない（数と、確かめる場所だけ）
+export function playCapacityMail(count: number, threshold: number) {
+  const full = count >= PLAY_CAPACITY_LIMIT;
+  return {
+    subject: full ? `Google Play のつなぎが上限（${PLAY_CAPACITY_LIMIT}）に達しました` : `Google Play のつなぎが ${threshold} に達しました（上限 ${PLAY_CAPACITY_LIMIT}）`,
+    text: [
+      "矢書の運営者へのお知らせです（自動で送っています）。",
+      "",
+      `Google Play の読み取り用アカウントを直近 30 日に作った数: ${count}`,
+      `全員を合わせた上限: ${PLAY_CAPACITY_LIMIT}（Google Cloud のサービスアカウントは既定 100 個）`,
+      full
+        ? "上限に達したので、いま利用者が新しく Google Play をつなぐと「混み合っています」と出ます（つないである人の取り込みは続きます）。"
+        : `このしきい値（${threshold}）を超えました。上限に達すると、新しくつなげなくなります。`,
+      "",
+      "確かめること（docs/deploy.md の 15 の「運営者の見方」）:",
+      "1. Supabase の SQL Editor で、作った数の多い利用者がいないかを見る:",
+      "   select owner_id, count(*) from play_account_creations where created_at > now() - interval '30 days' group by 1 order by 2 desc limit 10;",
+      "2. 1 人が何度も作っている・登録し直しを繰り返しているなら、悪用として止める",
+      "3. 普通に使う人が増えたのなら、Google Cloud の「IAM と管理」→「割り当て」でサービスアカウントの上限を引き上げてから、migration で上限（80）を上げる",
+      "",
+      "同じお知らせは 30 日に 1 回だけ送ります。",
+    ].join("\n"),
+  };
 }
 
 type PlayRow = Database["public"]["Tables"]["play_connections"]["Row"];

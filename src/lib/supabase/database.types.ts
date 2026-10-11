@@ -495,6 +495,21 @@ export type Database = {
         }
         Relationships: []
       }
+      operator_notifications: {
+        Row: {
+          key: string
+          sent_at: string
+        }
+        Insert: {
+          key: string
+          sent_at?: string
+        }
+        Update: {
+          key?: string
+          sent_at?: string
+        }
+        Relationships: []
+      }
       pending_page_choices: {
         Row: {
           created_at: string
@@ -1318,6 +1333,10 @@ export type Database = {
           social_account_id: string
           target_id: string
         }[]
+      }
+      claim_operator_notification: {
+        Args: { p_key: string; p_window: unknown }
+        Returns: boolean
       }
       claim_token_refresh: {
         Args: { p_lease_seconds?: number; p_social_account_id: string }

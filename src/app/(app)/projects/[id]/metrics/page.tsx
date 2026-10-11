@@ -173,7 +173,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
             ))}
           </ol>
         ) : (
-          <EmptyState description="Threads・Instagram・Facebook を数字の権限つきでつなぐと、送ってから 1・3・7・30 日目の閲覧数を取り込み、よく見られた投稿をここに並べます。" />
+          <EmptyState description="Threads・Instagram・Facebook・X を数字の権限つきでつなぐと、送ってから 1・3・7・30 日目（Instagram は 2・4・8・31 日目）の閲覧数を取り込み、よく見られた投稿をここに並べます。" />
         )}
       </Card>
 

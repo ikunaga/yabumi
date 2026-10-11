@@ -227,6 +227,53 @@ export type Database = {
           },
         ]
       }
+      app_store_report_requests: {
+        Row: {
+          app_apple_id: string
+          created_at: string
+          last_checked_at: string | null
+          last_error: string | null
+          last_imported_day: string | null
+          owner_id: string
+          project_id: string
+          request_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          app_apple_id: string
+          created_at?: string
+          last_checked_at?: string | null
+          last_error?: string | null
+          last_imported_day?: string | null
+          owner_id: string
+          project_id: string
+          request_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          app_apple_id?: string
+          created_at?: string
+          last_checked_at?: string | null
+          last_error?: string | null
+          last_imported_day?: string | null
+          owner_id?: string
+          project_id?: string
+          request_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "app_store_report_requests_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       github_installations: {
         Row: {
           account_login: string
@@ -484,6 +531,53 @@ export type Database = {
             foreignKeyName: "pending_page_choices_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      play_connections: {
+        Row: {
+          bucket: string | null
+          created_at: string
+          last_checked_at: string | null
+          last_error: string | null
+          owner_id: string
+          package_name: string | null
+          project_id: string
+          service_account_email: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          bucket?: string | null
+          created_at?: string
+          last_checked_at?: string | null
+          last_error?: string | null
+          owner_id: string
+          package_name?: string | null
+          project_id: string
+          service_account_email: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          bucket?: string | null
+          created_at?: string
+          last_checked_at?: string | null
+          last_error?: string | null
+          owner_id?: string
+          package_name?: string | null
+          project_id?: string
+          service_account_email?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "play_connections_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
             referencedRelation: "projects"
             referencedColumns: ["id"]
           },
@@ -1376,6 +1470,8 @@ export type Database = {
         Returns: {
           downloads_last_week: number
           downloads_this_week: number
+          page_views_last_week: number
+          page_views_this_week: number
           revenue_currency: string
           revenue_latest: number
           revenue_week_ago: number

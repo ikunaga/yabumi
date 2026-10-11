@@ -34,8 +34,9 @@ export async function loadMetricsOverview(projectId: string, db?: SupabaseClient
     { data: stores, error: e4 },
     { data: snsTotals, error: e5 },
     { data: topViews, error: e6 },
-    { count: appStoreDays },
+    { count: downloadDays },
     { count: revenueCatDays },
+    { count: pageViewDays },
   ] = await Promise.all([
     supabase.rpc("weekly_post_totals", { p_project_id: projectId, p_today: today }),
     supabase.rpc("link_clicks_by_sns", { p_project_id: projectId, p_today: today }),
@@ -44,8 +45,9 @@ export async function loadMetricsOverview(projectId: string, db?: SupabaseClient
     supabase.rpc("sns_weekly_totals", { p_project_id: projectId, p_today: today }),
     supabase.rpc("top_posts_by_views", { p_project_id: projectId, p_today: today, p_days: 30, p_limit: 5 }),
     // 取り込んだことがある取り込み元（つないでいなければ、ダウンロード・課金は「つなぐと出ます」）
-    supabase.from("store_daily").select("day", { count: "exact", head: true }).eq("project_id", projectId).eq("source", "app_store"),
+    supabase.from("store_daily").select("day", { count: "exact", head: true }).eq("project_id", projectId).in("source", ["app_store", "google_play"]),
     supabase.from("store_daily").select("day", { count: "exact", head: true }).eq("project_id", projectId).eq("source", "revenuecat"),
+    supabase.from("store_daily").select("day", { count: "exact", head: true }).eq("project_id", projectId).in("source", ["app_store_views", "google_play"]),
   ]);
   if (e4) throw e4;
   if (e5) throw e5;
@@ -53,7 +55,7 @@ export async function loadMetricsOverview(projectId: string, db?: SupabaseClient
   const sns = snsTotals?.[0];
   // 閲覧数: SNS の数字（数字の権限つきでつないだもの）と、note・Substack で手で入れた数字の合計
   const hasViews = Boolean(sns?.has_post_metrics) || Number(p0(posts)?.manual_views_this_week ?? 0) + Number(p0(posts)?.manual_views_last_week ?? 0) > 0;
-  const sources = new Set([...(appStoreDays ? ["app_store"] : []), ...(revenueCatDays ? ["revenuecat"] : [])]);
+  const sources = new Set([...(downloadDays ? ["downloads"] : []), ...(revenueCatDays ? ["revenuecat"] : []), ...(pageViewDays ? ["page_views"] : [])]);
   const st = stores?.[0];
   if (e1) throw e1;
   if (e2) throw e2;
@@ -92,7 +94,10 @@ export async function loadMetricsOverview(projectId: string, db?: SupabaseClient
       ...(sns?.has_account_metrics && sns.followers_now != null
         ? { followers: { thisWeek: Number(sns.followers_now), lastWeek: Number(sns.followers_week_ago ?? sns.followers_now) } }
         : {}),
-      ...(sources.has("app_store") ? { downloads: { thisWeek: Number(st?.downloads_this_week ?? 0), lastWeek: Number(st?.downloads_last_week ?? 0) } } : {}),
+      ...(sources.has("downloads") ? { downloads: { thisWeek: Number(st?.downloads_this_week ?? 0), lastWeek: Number(st?.downloads_last_week ?? 0) } } : {}),
+      ...(sources.has("page_views")
+        ? { store_page_views: { thisWeek: Number(st?.page_views_this_week ?? 0), lastWeek: Number(st?.page_views_last_week ?? 0) } }
+        : {}),
       ...(sources.has("revenuecat") && st?.revenue_latest != null
         ? { revenue: { thisWeek: Number(st.revenue_latest), lastWeek: Number(st.revenue_week_ago ?? st.revenue_latest), unit: st.revenue_currency ?? "JPY" } }
         : {}),

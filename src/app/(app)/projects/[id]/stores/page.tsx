@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AppStoreConnectForm, RevenueCatForm } from "@/components/stores/store-forms";
+import { CopyButton } from "@/components/links/link-forms";
+import { AppStoreConnectForm, AppStoreViewsForm, GooglePlayForm, RevenueCatForm, StartGooglePlayButton } from "@/components/stores/store-forms";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Term } from "@/components/ui/term";
 import { credentialsConfigured } from "@/lib/crypto/credential-cipher";
 import { getProject } from "@/lib/projects/queries";
-import { removeStoreCredential } from "@/lib/stores/actions";
+import { removeAppStorePageViews, removeGooglePlay, removeStoreCredential } from "@/lib/stores/actions";
+import { googlePlayConfigured, packageFromUrl } from "@/lib/stores/google";
 import { credentialStatuses, type CredentialStatus, type Provider } from "@/lib/stores/store";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -41,8 +43,15 @@ export default async function StoresPage(props: PageProps<"/projects/[id]/stores
   if (!project) notFound();
   const supabase = await createClient();
   const { data: claims } = await supabase.auth.getClaims();
-  const statuses = credentialsConfigured() ? await credentialStatuses(createAdminClient(), claims!.claims!.sub, project.id) : {};
+  const ownerId = claims!.claims!.sub;
+  const admin = createAdminClient();
+  const statuses = credentialsConfigured() ? await credentialStatuses(admin, ownerId, project.id) : {};
   const ready = credentialsConfigured();
+  const playReady = googlePlayConfigured();
+  const [{ data: play }, { data: views }] = await Promise.all([
+    admin.from("play_connections").select("service_account_email, bucket, package_name, status, last_error, last_checked_at").eq("project_id", project.id).eq("owner_id", ownerId).maybeSingle(),
+    admin.from("app_store_report_requests").select("status, last_error, last_imported_day").eq("project_id", project.id).eq("owner_id", ownerId).maybeSingle(),
+  ]);
 
   return (
     <div className="flex max-w-[860px] flex-col gap-6 max-sm:gap-4">
@@ -88,6 +97,92 @@ export default async function StoresPage(props: PageProps<"/projects/[id]/stores
           </p>
           {ready && <AppStoreConnectForm projectId={project.id} />}
         </div>
+        {statuses.app_store_connect && (
+          <div className="flex flex-col gap-3 border-t border-line px-5 py-4 max-sm:px-4">
+            <p className="font-bold">
+              <Term k="storeListing">ストアのページ</Term>の閲覧数（任意）
+            </p>
+            {views ? (
+              <div className="flex flex-col gap-1 text-sm">
+                <p>
+                  {views.status === "ok" ? <span className="font-bold text-success">✓ 依頼しています</span> : <span className="font-bold text-signal">● 要確認</span>}
+                  <span className="ml-2 text-xs text-muted">{views.last_imported_day ? `${views.last_imported_day} の回まで取り込みました。` : "Apple がレポートを作り始めるまで 1〜2 日かかります。"}</span>
+                </p>
+                {views.status === "error" && views.last_error && <p className="text-danger">{views.last_error}</p>}
+                <form action={removeAppStorePageViews.bind(null, project.id)}>
+                  <button type="submit" className="text-xs text-muted hover:text-fg hover:underline">
+                    やめる（取り込んだ数字は残ります）
+                  </button>
+                </form>
+              </div>
+            ) : (
+              <>
+                <p className="text-sm leading-[1.8] text-muted">
+                  ストアのページを見た人の数は、Apple に「レポートの依頼」を一度だけ出すと、毎日読めるようになります。依頼を出せるのは役割が<b>「Admin」</b>のキーだけなので、上とは別に Admin のキーを作り、下に入れてください。矢書は Admin のキーを依頼を出す 1 回だけ使い、<b>保存しません</b>（依頼のあとは、App Store Connect でそのキーを取り消してかまいません）。
+                </p>
+                <AppStoreViewsForm projectId={project.id} />
+              </>
+            )}
+          </div>
+        )}
+      </Card>
+
+      <Card>
+        <CardHeader title="Google Play（インストールとストアのページの閲覧）" />
+        {play && (
+          <div className="flex flex-col gap-1 border-b border-line px-5 py-3 text-sm max-sm:px-4">
+            <p>
+              {play.status === "ok" ? (
+                <span className="font-bold text-success">✓ つないでいます</span>
+              ) : play.status === "error" ? (
+                <span className="font-bold text-signal">● 要確認</span>
+              ) : (
+                <span className="font-bold text-muted">招待と入力を待っています</span>
+              )}
+              {play.package_name && <span className="ml-2 text-muted">{play.package_name}</span>}
+            </p>
+            {play.status === "error" && play.last_error && <p className="text-danger">{play.last_error}</p>}
+            <form action={removeGooglePlay.bind(null, project.id)} className="mt-1">
+              <button type="submit" className="text-xs text-muted hover:text-fg hover:underline">
+                外す（読み取り用のアカウントを消す。取り込んだ数字は残ります）
+              </button>
+            </form>
+          </div>
+        )}
+        <div className="flex flex-col gap-4 px-5 py-4 max-sm:px-4">
+          {!playReady ? (
+            <p className="text-sm text-muted">Google Play の取り込みは準備中です（運営者の設定がまだです）。</p>
+          ) : !play ? (
+            <>
+              <p className="text-sm leading-[1.8]">
+                矢書が、このプロジェクト専用の<b>読み取り用のアカウント</b>（メールアドレスの形）を用意します。それを Play Console に招待すると、毎日のインストールとストアのページの閲覧の数を読めるようになります。鍵を預ける必要はありません。
+              </p>
+              <StartGooglePlayButton projectId={project.id} />
+            </>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-border bg-surface2 px-3 py-2 text-sm">
+                <span className="font-mono break-all">{play.service_account_email}</span>
+                <CopyButton text={play.service_account_email} />
+              </div>
+              <ol className="flex list-decimal flex-col gap-1.5 pl-5 text-sm leading-[1.8]">
+                <li>
+                  <a href="https://play.google.com/console/developers/users-and-permissions" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                    Play Console
+                  </a>
+                  の「ユーザーと権限」→「新しいユーザーを招待」を開く
+                </li>
+                <li>上のメールアドレスを貼る</li>
+                <li>
+                  「アカウントの権限」で<b>「アプリ情報の表示と一括レポートのダウンロード（読み取り専用）」だけ</b>に印を付ける（ほかは付けない）→「ユーザーを招待」
+                </li>
+                <li>「レポートをダウンロード」→「統計情報」を開き、「Cloud Storage の URI をコピー」で出る値（gs://pubsite_prod_rev_…）を下に貼る</li>
+                <li>アプリのパッケージ名を確かめて「確かめて保存する」（招待が反映されるまで数分かかることがあります）</li>
+              </ol>
+              <GooglePlayForm projectId={project.id} defaultPackage={play.package_name ?? packageFromUrl(project.play_store_url) ?? ""} defaultBucket={play.bucket ?? ""} />
+            </>
+          )}
+        </div>
       </Card>
 
       <Card>
@@ -109,7 +204,6 @@ export default async function StoresPage(props: PageProps<"/projects/[id]/stores
         </div>
       </Card>
 
-      <p className="text-xs leading-[1.7] text-muted">Google Play の取り込みと、App Store のストアのページの閲覧数は、これから作ります（準備中）。</p>
     </div>
   );
 }

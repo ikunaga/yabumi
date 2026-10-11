@@ -519,6 +519,8 @@ README が薄い個人開発のリポジトリやモノレポでも中身がわ�
 | note・Substack の数字（利用者が手で入れた閲覧・反応） | manual_post_metrics | 投稿を消すか、退会まで | 投稿の削除、退会 |
 | 預かったストア・課金の鍵（App Store Connect の API キー、RevenueCat のキー。暗号化済み） | store_credentials | 外すか、プロジェクトを消すか、退会まで | 「ストアと課金をつなぐ」の「外す」、退会。すぐに消す |
 | ストアと課金の日ごとの数字（ダウンロード、受け取り、売上など） | store_daily | 利用者がプロジェクトを消すか、退会まで | プロジェクトの削除、退会 |
+| Google Play のつなぎ（矢書が作った読み取り用のアカウントのメールアドレス、バケット、パッケージ名） | play_connections | 外すか、プロジェクトを消すか、退会まで（外すと Google の側のアカウントも消す） | 「外す」、退会（退会やプロジェクトの削除では記録が先に消えるので、毎日の取り込みのときに、記録のない矢書のアカウントを Google の側で消す） |
+| App Store のレポートの依頼の ID | app_store_report_requests | やめるか、プロジェクトを消すか、退会まで | 「やめる」、退会 |
 | SNS の投稿の数字（閲覧、いいね、返信など） | post_metrics | 投稿を消すか、退会まで | 投稿の削除、退会 |
 | SNS のアカウントの数字（フォロワー数、日ごと） | account_metrics | SNS を外すか、退会まで | 「外す」、退会 |
 | 投稿に添えた画像（JPEG。撮影の場所などのメタデータは消してある）と代わりの文 | Storage の post-media、media_files | 下書き・予約中は残す。送り終えて **30 日**、投稿に添えないまま 1 日、投稿を消したら次の片付けで消す（4.18） | 投稿の画面で「外す」、投稿の削除、退会（ファイルは翌日の片付けで消える） |
@@ -1086,6 +1088,20 @@ Facebook ページ（graph.facebook.com）:
 | 指標 | 「投稿の閲覧数」（SNS の数字 + note・Substack で手で入れた数字。直近 7 日・その前の 7 日に送った投稿のいちばん新しい数字の合計）、「フォロワーの増え方」（つないだアカウントのいちばん新しい数と 7 日前の数）、「よく見られた投稿」（30 日）。DB の sns_weekly_totals・top_posts_by_views |
 | テスト | 本物の SNS は呼ばない（読み方は偽物の fetch、取り込みは偽物の読み方）。オーナーの Tester での確かめと、審査の流れは deploy.md の 14 と docs/review/meta.md |
 | 規約 | 本人の投稿の数字を本人に見せるだけ。SNS を外すと social_accounts の削除で account_metrics が消える。post_metrics は送った投稿の記録と一緒に残り、投稿を消すか退会で消える |
+
+#### Google Play と App Store のストアのページの閲覧数の実装（2026-10-11、段取り ⑤）
+
+| 部分 | 中身 |
+|---|---|
+| Google Play のつなぎ方 | オーナーの Google Cloud のプロジェクトに「管理用」のサービスアカウント（GOOGLE_PLAY_MANAGER_KEY。役割はサービス アカウント管理者とトークン作成者だけ）を置く。「Google Play をつなぐ」で、利用者・プロジェクトごとに `yabumi-<乱数>@<プロジェクト>.iam.gserviceaccount.com` を作り（`play_connections`、サーバーだけ）、利用者が Play Console に「アプリ情報の表示と一括レポートのダウンロード」だけで招待する。バケット（pubsite_prod_rev_…）とパッケージ名を入れると、なりかわりの 10 分のトークン（devstorage.read_only）で 1 回読んで確かめてから保存する |
+| 鍵を預からない | 利用者ごとのアカウントには鍵を作らない。読むたびに、管理用のアカウントが generateAccessToken で 10 分のトークンを作る。ほかの人のバケットの名前を入れても、そのアカウントは招待されていないので読めない（利用者ごとにアカウントを分ける理由） |
+| Google Play の取り込み | 今月と先月の `stats/installs/installs_<package>_<YYYYMM>_overview.csv`（Daily User Installs）と `stats/store_performance/store_performance_<package>_<YYYYMM>_country.csv`（Store listing visitors を国ごとに合計）。UTF-16 の CSV。3〜7 日遅れ、あとから直るので、毎日直近 60 日を上書きする。`store_daily` の source = google_play（downloads、page_views、uninstalls、store_acquisitions） |
+| 外す | 矢書の側のサービスアカウントを消す（Play Console の招待も効かなくなる）。取り込んだ数字は残る |
+| 片付け | 退会やプロジェクトの削除では記録（play_connections）が先に消えるので、毎日の取り込み（import-stores）のときに、Google の側の `yabumi-` で始まるアカウントのうち記録のないものを消す。つなぐときは先に記録してからアカウントを作る（メールアドレスは ID で決まる）ので、作ったばかりのものを消すことはない |
+| App Store のストアのページの閲覧 | Analytics Reports の依頼（ONGOING）は Admin のキーでしか作れないので、Admin のキーを 1 回だけ使って依頼を作り、**キーは保存しない**（依頼の ID だけを `app_store_report_requests` に）。読むのは預かっている Sales and Reports のキー。App Store Discovery and Engagement の **Standard**（Detailed は 5 未満を省くので使わない）の日ごとの回を、まだ読んでいない古い順に 1 回 5 つまで、Event が Page view の Counts を日ごとに合計（同じ日は後の回で上書き）。source = app_store_views |
+| ジョブ | 3 の import-stores に相乗り（Play と閲覧数も同じ 40 秒の中で） |
+| 指標 | 「ダウンロード」は App Store + Google Play、「ストアのページの閲覧」は App Store + Google Play。DB の store_weekly_totals に page_views を足した |
+| 【未確認】 | Play の CSV のファイル名と列名（公式のヘルプの説明から。列名は大文字・小文字の違いを許して読む）、Sales and Reports のキーで Analytics Reports を読めるか、Analytics Reports の列の名前（Date・Event・Counts）。オーナーの確かめは deploy.md の 15・16 |
 
 #### コンバージョン 2: ストアと課金（利用者ごとに鍵を預かる）
 

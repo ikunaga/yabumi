@@ -55,8 +55,9 @@ export const KPIS: Record<KpiKey, KpiDef> = {
     label: "ストアのページの閲覧",
     meaning: "App Store・Google Play のアプリのページを見た人の数。",
     term: "storeListing",
-    availability: "later",
-    howToGet: "App Store Connect・Google Play の取り込みを作ったら出ます",
+    availability: "connect",
+    connectTo: "stores",
+    howToGet: "App Store のページの閲覧数のレポートを依頼するか、Google Play をつなぐと出ます",
   },
   downloads: {
     label: "ダウンロード",
@@ -64,7 +65,7 @@ export const KPIS: Record<KpiKey, KpiDef> = {
     term: "conversion",
     availability: "connect",
     connectTo: "stores",
-    howToGet: "App Store をつなぐと出ます（Google Play は準備中）",
+    howToGet: "App Store か Google Play をつなぐと出ます",
   },
   revenue: {
     label: "課金（売上）",

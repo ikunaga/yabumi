@@ -48,7 +48,7 @@ export default function PrivacyPage() {
             ["手で投稿する SNS", "note・Substack のプロフィールの URL（任意）", "利用者が入力"],
             [
               "ストアと課金の鍵と数字",
-              "利用者が預けた App Store Connect の API キー（Issuer ID、Key ID、秘密鍵、ベンダー番号）と RevenueCat のキー（暗号化して保存）、そこから毎日読む数字（ダウンロード、受け取り、売上など）",
+              "利用者が預けた App Store Connect の API キー（Issuer ID、Key ID、秘密鍵、ベンダー番号）と RevenueCat のキー（暗号化して保存）、そこから毎日読む数字（ダウンロード、受け取り、売上、ストアのページの閲覧など）。Google Play は鍵を預からず、矢書が作った読み取り用のアカウントを利用者が Play Console に招待し、一括レポートの置き場所とパッケージ名を預かる。App Store のページの閲覧数のレポートを依頼するときの Admin のキーは、1 回だけ使って保存しない",
               "利用者が入力、App Store Connect・RevenueCat から",
             ],
             [
@@ -178,8 +178,8 @@ export default function PrivacyPage() {
               "米国",
             ],
             [
-              "Apple（App Store Connect）・RevenueCat",
-              "利用者が預けた鍵で、アプリのダウンロードと売上の数字を読む（読むだけで、書き換えない）",
+              "Apple（App Store Connect）・RevenueCat・Google（Google Play・Google Cloud）",
+              "利用者が預けた鍵や招待で、アプリのダウンロード・売上・ストアのページの閲覧の数字を読む（読むだけで、書き換えない）",
               "預かった鍵（読むときに使う）",
               "米国",
             ],

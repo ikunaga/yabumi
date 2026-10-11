@@ -264,6 +264,13 @@ SNS との連携がなくても作れる部分を先に作った。
 - threads_manage_insights の申請文と画面の録画の流れを docs/review/meta.md に書いた。オーナーの Tester で 30 日以内に呼んだ実績を作ってから、Instagram と一緒に申請する（D21）
 - マイグレーション 20261011310000
 
+### F07 段取り ⑤: Google Play と App Store のストアのページの閲覧数（2026-10-11）
+
+- Google Play: 矢書が利用者ごとに読み取り用のアカウントを作り、利用者が Play Console に招待する（鍵を預からない）。毎日、インストールとストアの掲載情報の訪問者を取り込む。オーナーの Google Cloud のプロジェクトの作り方は deploy.md の 15
+- App Store のストアのページの閲覧数: Admin のキーを 1 回だけ使ってレポートを依頼し（保存しない）、Sales and Reports のキーで毎日読む（deploy.md の 16）
+- 指標の「ダウンロード」に Google Play、「ストアのページの閲覧」が出るようになった
+- マイグレーション 20261011320000
+
 ## 5. 次の作業
 
 1. PM がオーナーの確認をとって、本番にマイグレーションを当てる（supabase db push）

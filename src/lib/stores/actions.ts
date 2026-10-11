@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { checkAscFormat, StoreApiError } from "./app-store";
 import { checkRevenueCatFormat } from "./revenuecat";
+import { removeAppStoreViews, removePlay, startAppStoreViews, startPlayConnection, verifyPlay } from "./play-store";
 import { importForCredential, removeCredential, saveCredential, verifyCredential, type Provider } from "./store";
 
 // 「ストアと課金をつなぐ」の操作（docs/architecture.md の 4.22）。入れた鍵は、保存の前に 1 回呼んで使えるかを確かめる
@@ -75,5 +76,81 @@ export async function removeStoreCredential(projectId: string, provider: Provide
   const userId = await ownProject(projectId);
   if (!userId) return;
   await removeCredential(createAdminClient(), userId, projectId, provider);
+  revalidatePath(`/projects/${projectId}/stores`);
+}
+
+// ===== Google Play（段取り ⑤） =====
+
+// 矢書の側に、この利用者・プロジェクト専用の読み取り用のアカウントを作る（利用者は表示されたメールアドレスを Play Console に招待する）
+export async function startGooglePlay(projectId: string): Promise<StoreFormState> {
+  const userId = await ownProject(projectId);
+  if (!userId) return { error: "ログインし直してください。" };
+  try {
+    await startPlayConnection(createAdminClient(), userId, projectId);
+  } catch (e) {
+    if (e instanceof StoreApiError) return { error: e.userMessage };
+    console.error("[stores] Google Play のアカウントを作れませんでした", e instanceof Error ? e.message : e);
+    return { error: "Google Play 用のアカウントを作れませんでした。時間をおいてもう一度お試しください。" };
+  }
+  revalidatePath(`/projects/${projectId}/stores`);
+  return {};
+}
+
+export async function saveGooglePlay(projectId: string, _prev: StoreFormState, formData: FormData): Promise<StoreFormState> {
+  const userId = await ownProject(projectId);
+  if (!userId) return { error: "ログインし直してください。" };
+  // 「gs://pubsite_prod_rev_…」で貼っても、バケットの名前だけにする
+  const bucket = String(formData.get("bucket") ?? "").trim().replace(/^gs:\/\//, "").replace(/\/.*$/, "");
+  const pkg = String(formData.get("package") ?? "").trim();
+  if (!/^pubsite_prod_[a-z0-9_]{3,60}$/.test(bucket)) return { error: "一括レポートの置き場所は pubsite_prod_ で始まる名前です（Play Console の「Cloud Storage の URI をコピー」）。" };
+  if (!/^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+$/.test(pkg)) return { error: "パッケージ名の形が違います（例: com.example.kakeibo）。" };
+  try {
+    const verified = await verifyPlay(createAdminClient(), userId, projectId, bucket, pkg);
+    revalidatePath(`/projects/${projectId}/stores`);
+    revalidatePath(`/projects/${projectId}/metrics`);
+    return { ok: `${verified}。これから毎日、自動で取り込みます。` };
+  } catch (e) {
+    if (e instanceof StoreApiError) return { error: e.userMessage };
+    console.error("[stores] Google Play を確かめられませんでした", e instanceof Error ? e.message : e);
+    return { error: "確かめられませんでした。時間をおいてもう一度お試しください。" };
+  }
+}
+
+export async function removeGooglePlay(projectId: string): Promise<void> {
+  const userId = await ownProject(projectId);
+  if (!userId) return;
+  await removePlay(createAdminClient(), userId, projectId);
+  revalidatePath(`/projects/${projectId}/stores`);
+}
+
+// ===== App Store のストアのページの閲覧数（段取り ⑤） =====
+
+// Admin のキーで、続けて作られるレポートの依頼を作る。キーは保存しない（この 1 回だけ使う）
+export async function startAppStorePageViews(projectId: string, _prev: StoreFormState, formData: FormData): Promise<StoreFormState> {
+  const userId = await ownProject(projectId);
+  if (!userId) return { error: "ログインし直してください。" };
+  const adminCred = {
+    issuerId: String(formData.get("issuerId") ?? "").trim(),
+    keyId: String(formData.get("keyId") ?? "").trim().toUpperCase(),
+    privateKey: String(formData.get("privateKey") ?? "").trim(),
+    vendorNumber: "000000",
+  };
+  const formatError = checkAscFormat(adminCred);
+  if (formatError) return { error: formatError };
+  try {
+    await startAppStoreViews(createAdminClient(), userId, projectId, adminCred);
+  } catch (e) {
+    if (e instanceof StoreApiError) return { error: e.userMessage };
+    console.error("[stores] レポートの依頼を作れませんでした", e instanceof Error ? e.message : e);
+    return { error: "レポートの依頼を作れませんでした。時間をおいてもう一度お試しください。" };
+  }
+  revalidatePath(`/projects/${projectId}/stores`);
+  return { ok: "レポートの依頼を作りました（Admin のキーは保存していません）。Apple がレポートを作り始めるまで 1〜2 日かかり、そのあと毎日取り込みます。" };
+}
+
+export async function removeAppStorePageViews(projectId: string): Promise<void> {
+  const userId = await ownProject(projectId);
+  if (!userId) return;
+  await removeAppStoreViews(createAdminClient(), userId, projectId);
   revalidatePath(`/projects/${projectId}/stores`);
 }

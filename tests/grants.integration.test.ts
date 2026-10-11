@@ -32,6 +32,8 @@ const TABLES = [
   "roadmap_items",
   "post_metrics",
   "account_metrics",
+  "play_connections",
+  "app_store_report_requests",
 ] as const;
 
 let alice: TestClient;

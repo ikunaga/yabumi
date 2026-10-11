@@ -122,11 +122,20 @@ select vault.create_secret('<.env.local の CRON_SECRET>', 'cron_secret');
 
 結合テストは、ローカルの Supabase の URL とキーを .env.local から読む（`NEXT_PUBLIC_SUPABASE_URL`、`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`、`SUPABASE_SECRET_KEY`）。値は `supabase status` の API URL、Publishable key、Secret key。テストだけ別の値にしたいときは、.env.test.local に `SUPABASE_TEST_URL`、`SUPABASE_TEST_PUBLISHABLE_KEY`、`SUPABASE_TEST_SECRET_KEY` を入れる（どちらも git には入らない）。
 
+### 並列の数と時間の上限（vitest.config.mts）
+
+- 並列の数（maxWorkers）は既定で 3。環境変数 `YABUMI_TEST_WORKERS` で変えられる。何人かが同時にテストを流しているときや、マシンが重いときは 2 にする（`YABUMI_TEST_WORKERS=2 pnpm test`）
+  - 2026-10-11 に測った: 既定の並列（CPU の数）だと、認証サーバーが詰まって、テスト用の利用者を作るところで 5〜10 秒の時間切れが毎回ちがう場所で起きた。3 なら、3 人が同時に全体を流しても 9 回中 8 回通った（残りの 1 回は API の入り口の一時的な 502）。1 人で流すと 6〜9 秒で終わる
+- 時間の上限: テスト 1 つは 15 秒、beforeAll などの準備は 30 秒（既定の 5 秒と 10 秒では、共有の DB が混んでいるときに落ちる）。それでも長いテストは、テストごとに上限を延ばす
+- テスト用の利用者は、パスワードなしで作り、マジックリンク（メールは送らない）でログインする（tests/helpers/supabase.ts の signUpNewUser）。パスワードの登録とログインは認証サーバーでハッシュを 2 回計算する重い処理で、並列で流すと詰まる原因だったため。テストでパスワードが要るときは、そのテストの中で作る
+- 利用者はテストのファイルごとに作り、ファイルの中で使い回す（beforeAll で作り、afterAll で deleteUser）。テストごとに作らない
+- 時間切れや「An invalid response was received from the upstream server」（502）で落ちたら、まず `YABUMI_TEST_WORKERS=2` で、落ちたファイルだけを流し直す（`pnpm vitest run tests/〜.test.ts`）。それで通るなら環境の混み具合のせいで、コードの問題ではない
+
 結合テストが使うローカルの Supabase は、同じマシンの他の作業（別のセッションのテスト、開発サーバー）と共有で、オーナーが登録した本物のデータ（SNS の接続など）も入っている。そのため:
 
-- テストの利用者は、テストごとに新しく作る（tests/helpers/supabase.ts の signUpNewUser）
+- テストの利用者は、テストのファイルごとに新しく作る（tests/helpers/supabase.ts の signUpNewUser）。他のファイルと使い回さない
 - DB 全体を対象にする処理（日次のトークン延長、予約の取り出し、費用の上限の合計など）は、必ずテストの利用者に絞って呼ぶ（refreshDueTokens の onlyOwner、publishDueTargets の postId、費用の上限の budgetScopeOwner）。偽のアダプターで全体を処理すると、他のテストのアカウントやオーナーの本物の接続を壊す
-- 他のテストが同時に流れても結果が変わらないように書く（全体の合計や件数に頼らない）
+- 他のテストが同時に流れても結果が変わらないように書く（全体の合計や件数に頼らない。purge_expired_data のように DB 全体を対象にする処理の「消した件数」も、別のテストが先に消すことがあるので確かめない）
 - テストで作った費用の記録（ai_usage、sns_api_usage）は後片付けで消す。利用者を消すと費用の記録は持ち主を空にして残る決まりなので、消さないと矢書全体の今月の合計が増え続け、ローカルで全体の上限に達して AI や X が使えなくなる（tests/helpers/supabase.ts の deleteUser は先に消す）
 
 それでも全体の上限に達してしまったとき（「矢書全体の上限に達しました」と出る）は、ローカルの DB だけで次を流す。**本番では絶対に流さない**（本番の持ち主のない記録は、退会した利用者の本物の費用の記録）。共有の DB なので、流す前に一緒に作業している人に知らせる。

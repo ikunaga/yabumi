@@ -83,9 +83,10 @@ describe("期限を過ぎたデータを消す", () => {
       ])
       .select("id");
 
-    const { data, error } = await admin.rpc("purge_expired_data");
+    const { error } = await admin.rpc("purge_expired_data");
     expect(error).toBeNull();
-    expect(data![0].ai_threads_deleted).toBeGreaterThanOrEqual(1);
+    // 消した件数は確かめない。purge_expired_data は DB 全体を対象にするので、同時に流れている別のテストが先に、この古い行を消すことがある。
+    // 自分の古い行が消え、新しい行が残っていることだけを確かめる
 
     const threads = (await admin.from("ai_threads").select("id").in("id", [oldThread, recentThread])).data!.map((t) => t.id);
     expect(threads).toEqual([recentThread]);

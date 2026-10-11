@@ -20,15 +20,18 @@ export function adminClient(): TestClient {
   return createClient<Database>(url, secretKey, { auth: { persistSession: false } });
 }
 
-// テスト用の利用者を作ってログインする。確認メールを有効にしている（本番と同じ）ので、
-// 画面からの登録ではなく、確認済みの利用者を secret キーで作る
+// テスト用の利用者を作ってログインする。確認メールを有効にしている（本番と同じ）ので、画面からの登録ではなく、確認済みの利用者を secret キーで作る。
+// パスワードは付けず、マジックリンク（メールは送らない）でログインする。パスワードの登録とログインは、認証サーバーでハッシュ（bcrypt）を 2 回計算するので、
+// テストを並列で流すと認証サーバーが詰まり、利用者を作るところで 5〜10 秒の時間切れが起きていた（2026-10-11、README の「テスト」）
 export async function signUpNewUser(): Promise<{ client: TestClient; userId: string }> {
   const email = `rls-${randomUUID()}@example.com`;
-  const password = "password-1234";
-  const { data: created, error: createError } = await adminClient().auth.admin.createUser({ email, password, email_confirm: true });
+  const admin = adminClient();
+  const { data: created, error: createError } = await admin.auth.admin.createUser({ email, email_confirm: true });
   if (createError) throw createError;
+  const { data: link, error: linkError } = await admin.auth.admin.generateLink({ type: "magiclink", email });
+  if (linkError) throw linkError;
   const client = anonClient();
-  const { error } = await client.auth.signInWithPassword({ email, password });
+  const { error } = await client.auth.verifyOtp({ token_hash: link.properties.hashed_token, type: "magiclink" });
   if (error) throw error;
   return { client, userId: created.user.id };
 }

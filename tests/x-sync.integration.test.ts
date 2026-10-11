@@ -43,7 +43,7 @@ async function publishedTarget(over: { externalPostId?: string | null; externalU
   });
   if (error) throw error;
   const id = over.externalPostId === undefined ? String(Date.now()) + String(Math.floor(Math.random() * 1000)) : over.externalPostId;
-  const { data: t } = await admin
+  const { data: t, error: updateError } = await admin
     .from("post_targets")
     .update({
       status: "published",
@@ -55,6 +55,7 @@ async function publishedTarget(over: { externalPostId?: string | null; externalU
     .eq("post_id", postId!)
     .select("id")
     .single();
+  if (updateError) throw updateError;
   return { postId: postId!, targetId: t!.id };
 }
 

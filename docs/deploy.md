@@ -298,3 +298,38 @@ yabumi.app は Cloudflare Registrar で取る（オーナー）。DNS も Cloudf
 5. Facebook ページに文章だけ・画像つきで送る →「Facebook ページ で見る」→「Facebook ページ から取り消す」で消える
 6. 概要の「外す」→ Instagram の側の連携は、Instagram のアプリの設定から外す（案内が出る）
 
+
+## 13. ストアと課金の取り込み（F07 の段取り ③。App Store Connect と RevenueCat）
+
+利用者が預ける鍵（App Store Connect の API キー、RevenueCat のシークレットキー）は、SNS のトークンとは別の鍵 CREDENTIAL_ENCRYPTION_KEY で暗号化して保存する（architecture.md の 4.22）。
+
+### 鍵を足す（オーナー。最初の 1 回）
+
+| # | 誰が | やること |
+|---|---|---|
+| 13-1 | オーナー | ターミナルで `openssl rand -base64 32` を実行し、出た値をパスワード管理アプリに控える。**TOKEN_ENCRYPTION_KEY とは別の、新しい値**にする |
+| 13-2 | オーナー | Vercel → Settings → Environment Variables に `CREDENTIAL_ENCRYPTION_KEY`（値は 13-1、Environment は Production と Preview、**Sensitive**）を足し、Redeploy |
+| 13-3 | 確認 | 矢書の「指標」→「ストアと課金をつなぐ」に、入力の欄が出る（鍵がないと「準備中」と出る） |
+
+- ローカルは .env.local に `CREDENTIAL_ENCRYPTION_KEY=`（本番とは別の値）
+- この鍵をなくすと、預かった鍵が読めなくなる。そのときは利用者に「ストアと課金をつなぐ」で入れ直してもらう（取り込んだ数字は残る）
+
+### 鍵を入れ替える（漏れた疑いがあるとき、または定期的に）
+
+| # | 誰が | やること |
+|---|---|---|
+| 13-4 | オーナー | `openssl rand -base64 32` で新しい鍵を作る |
+| 13-5 | オーナー | Vercel で、今の CREDENTIAL_ENCRYPTION_KEY の値を `CREDENTIAL_ENCRYPTION_KEYS_OLD` に移し（すでに値があれば、カンマで後ろに足す）、CREDENTIAL_ENCRYPTION_KEY を新しい鍵にして Redeploy |
+| 13-6 | Claude | 毎日の取り込み（3:00〜3:20）で、預かった鍵を使うたびに新しい鍵で暗号化し直す。2 日たったら、SQL Editor で `select count(*) from store_credentials where split_part(secret_sealed, '.', 2) <> '<新しい鍵の印>';` が 0 になったことを確かめる（鍵の印は、新しい鍵の sha256 の先頭 8 桁。`printf '%s' '<新しい鍵>' \| base64 -d \| shasum -a 256 \| cut -c1-8`） |
+| 13-7 | オーナー | 0 になったら、Vercel から CREDENTIAL_ENCRYPTION_KEYS_OLD を消して Redeploy |
+
+- 漏れた疑いがあるときは、あわせて利用者に App Store Connect と RevenueCat の側でキーを取り消し、作り直してもらうよう知らせる（矢書の側の入れ替えだけでは、漏れたキーそのものは使えてしまうため）
+
+### オーナーの ddy で確かめる（13-2 のあと）
+
+| # | 誰が | やること |
+|---|---|---|
+| 13-8 | オーナー | 矢書で ddy のプロジェクトを開き、「指標」→「ストアと課金をつなぐ」の App Store の案内のとおりに、App Store Connect で**役割が Sales and Reports の Team キー**を作って入れる → 「確かめて保存する」で「使えました」と出る |
+| 13-9 | オーナー | すぐに直近の数日分が取り込まれ、「指標」の「ダウンロード」に数字が出る（売上やダウンロードがない日は 0）。App Store Connect の「売上とトレンド」の同じ日の数と見比べる |
+| 13-10 | オーナー | RevenueCat を使っていれば、同じように Charts & metrics だけを読めるキーを作って入れる。「課金（売上）」に直近 28 日の売上が出る。RevenueCat の Overview の Revenue と見比べる |
+| 13-11 | Claude | 翌日、`select provider, status, last_error, last_imported_day from store_credentials;` で、毎日の取り込みが進んでいることを確かめる（鍵の中身は出さない） |

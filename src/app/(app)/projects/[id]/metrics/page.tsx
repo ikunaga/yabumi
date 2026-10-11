@@ -21,11 +21,12 @@ function compare(v: WeekValue): string {
   if (v.thisWeek === 0 && v.lastWeek === 0) return "まだ数字がありません";
   if (v.lastWeek === 0) return "先週は 0 でした";
   const diff = v.thisWeek - v.lastWeek;
-  if (diff === 0) return "先週と同じ";
-  return diff > 0 ? `先週より ${formatCount(diff)} 増えました` : `先週より ${formatCount(-diff)} 減りました`;
+  if (diff === 0) return v.unit ? "1 週間前と同じ" : "先週と同じ";
+  const amount = v.unit === "JPY" ? `¥${formatCount(Math.round(Math.abs(diff)))}` : formatCount(Math.abs(diff));
+  return `${v.unit ? "1 週間前" : "先週"}より ${amount} ${diff > 0 ? "増えました" : "減りました"}`;
 }
 
-function KpiCard({ k, value }: { k: KpiKey; value?: WeekValue }) {
+function KpiCard({ k, value, projectId }: { k: KpiKey; value?: WeekValue; projectId: string }) {
   const def = KPIS[k];
   const label = def.term ? <Term k={def.term}>{def.label}</Term> : def.label;
   return (
@@ -34,13 +35,21 @@ function KpiCard({ k, value }: { k: KpiKey; value?: WeekValue }) {
       {def.availability === "later" || !value ? (
         <>
           <p className="text-2xl font-bold text-muted">—</p>
-          <p className="text-xs leading-[1.7] text-muted">準備中: {def.howToGet}</p>
+          {def.availability === "connect" ? (
+            <p className="text-xs leading-[1.7]">
+              <Link href={`/projects/${projectId}/stores`} className="font-semibold text-primary hover:underline">
+                {def.howToGet}
+              </Link>
+            </p>
+          ) : (
+            <p className="text-xs leading-[1.7] text-muted">準備中: {def.howToGet}</p>
+          )}
         </>
       ) : (
         <>
           <p className="text-3xl font-bold">
-            {formatCount(value.thisWeek)}
-            <span className="ml-1 text-sm font-normal text-muted">直近 7 日</span>
+            {value.unit === "JPY" ? `¥${formatCount(Math.round(value.thisWeek))}` : formatCount(value.thisWeek)}
+            <span className="ml-1 text-sm font-normal text-muted">{value.unit ? "直近 28 日" : "直近 7 日"}</span>
           </p>
           <p className="text-sm">{compare(value)}</p>
           {def.availability === "partial" && <p className="text-xs leading-[1.7] text-muted">{def.howToGet}</p>}
@@ -71,6 +80,15 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
         <p className="text-base leading-[1.8] text-muted max-sm:text-[14px]">
           うまくいっているかを、数字で確かめます。全部を見る必要はありません。まずは上の {kpis.length} つだけ、週に 1 回見れば十分です。
         </p>
+        <p className="text-sm">
+          <Link href={`/projects/${project.id}/stores`} className="font-semibold text-primary hover:underline">
+            ストアと課金をつなぐ（ダウンロードと売上）
+          </Link>
+          <span className="mx-2 text-muted">・</span>
+          <Link href={`/projects/${project.id}/links`} className="font-semibold text-primary hover:underline">
+            短縮リンク
+          </Link>
+        </p>
       </div>
 
       <Card>
@@ -91,7 +109,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
           )}
           <div className="grid grid-cols-3 gap-3 max-lg:grid-cols-2 max-sm:grid-cols-1">
             {kpis.map((k) => (
-              <KpiCard key={k} k={k} value={overview.kpiValues[k]} />
+              <KpiCard key={k} k={k} value={overview.kpiValues[k]} projectId={project.id} />
             ))}
           </div>
         </div>

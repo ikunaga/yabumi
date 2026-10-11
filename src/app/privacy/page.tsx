@@ -47,6 +47,11 @@ export default function PrivacyPage() {
             ],
             ["手で投稿する SNS", "note・Substack のプロフィールの URL（任意）", "利用者が入力"],
             [
+              "ストアと課金の鍵と数字",
+              "利用者が預けた App Store Connect の API キー（Issuer ID、Key ID、秘密鍵、ベンダー番号）と RevenueCat のキー（暗号化して保存）、そこから毎日読む数字（ダウンロード、受け取り、売上など）",
+              "利用者が入力、App Store Connect・RevenueCat から",
+            ],
+            [
               "投稿の数字",
               "note・Substack の投稿で、利用者が手で入れた閲覧数と反応の数",
               "利用者が入力",
@@ -173,6 +178,12 @@ export default function PrivacyPage() {
               "米国",
             ],
             [
+              "Apple（App Store Connect）・RevenueCat",
+              "利用者が預けた鍵で、アプリのダウンロードと売上の数字を読む（読むだけで、書き換えない）",
+              "預かった鍵（読むときに使う）",
+              "米国",
+            ],
+            [
               <>
                 Cloudflare（Email Routing）
                 <br />
@@ -237,6 +248,7 @@ export default function PrivacyPage() {
             ["サーバーのログ", "Vercel と Supabase の保存期間（短いもので約 1 時間、長いもので数日）。トークンや投稿の本文はログに出さない"],
             ["送ったメールの記録", "Resend の保存期間"],
             ["短縮リンクを押した人の記録", "90 日で自動で消す（日ごと・端末ごとのクリックの数は残す）"],
+            ["預かったストア・課金の鍵", "外すか、プロジェクトを消すか、退会するとすぐに消す（取り込んだ数字は、プロジェクトを消すか退会するまで残す）"],
             ["投稿に添えた画像", "下書き・予約中は残す。送り終えてから 30 日、投稿に添えないまま 1 日、投稿を消したら翌日までに消す"],
           ]}
         />

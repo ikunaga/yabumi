@@ -6,7 +6,8 @@ import type { KpiKey } from "./kpis";
 
 // 数字の画面（docs/architecture.md の 4.22）の読み込み。合計はすべて DB の関数で出す（行を読んで足さない）
 
-export type WeekValue = { thisWeek: number; lastWeek: number };
+// unit: 金額のときの通貨（JPY など）。数のときはなし
+export type WeekValue = { thisWeek: number; lastWeek: number; unit?: string };
 export type KpiValues = Partial<Record<KpiKey, WeekValue>>;
 
 export type ClicksBySns = { sns: SnsKey | null; label: string; thisWeek: number; lastWeek: number; last30d: number };
@@ -20,11 +21,18 @@ export type MetricsOverview = {
 export async function loadMetricsOverview(projectId: string): Promise<MetricsOverview> {
   const supabase = await createClient();
   const today = toYmd(new Date());
-  const [{ data: posts, error: e1 }, { data: clicks, error: e2 }, { data: top, error: e3 }] = await Promise.all([
+  const [{ data: posts, error: e1 }, { data: clicks, error: e2 }, { data: top, error: e3 }, { data: stores, error: e4 }, { count: appStoreDays }, { count: revenueCatDays }] = await Promise.all([
     supabase.rpc("weekly_post_totals", { p_project_id: projectId, p_today: today }),
     supabase.rpc("link_clicks_by_sns", { p_project_id: projectId, p_today: today }),
     supabase.rpc("top_posts_by_clicks", { p_project_id: projectId, p_today: today, p_days: 30, p_limit: 5 }),
+    supabase.rpc("store_weekly_totals", { p_project_id: projectId, p_today: today }),
+    // 取り込んだことがある取り込み元（つないでいなければ、ダウンロード・課金は「つなぐと出ます」）
+    supabase.from("store_daily").select("day", { count: "exact", head: true }).eq("project_id", projectId).eq("source", "app_store"),
+    supabase.from("store_daily").select("day", { count: "exact", head: true }).eq("project_id", projectId).eq("source", "revenuecat"),
   ]);
+  if (e4) throw e4;
+  const sources = new Set([...(appStoreDays ? ["app_store"] : []), ...(revenueCatDays ? ["revenuecat"] : [])]);
+  const st = stores?.[0];
   if (e1) throw e1;
   if (e2) throw e2;
   if (e3) throw e3;
@@ -50,6 +58,10 @@ export async function loadMetricsOverview(projectId: string): Promise<MetricsOve
       posts: { thisWeek: Number(p?.published_this_week ?? 0), lastWeek: Number(p?.published_last_week ?? 0) },
       link_clicks: { thisWeek: sum("thisWeek"), lastWeek: sum("lastWeek") },
       views: { thisWeek: Number(p?.manual_views_this_week ?? 0), lastWeek: Number(p?.manual_views_last_week ?? 0) },
+      ...(sources.has("app_store") ? { downloads: { thisWeek: Number(st?.downloads_this_week ?? 0), lastWeek: Number(st?.downloads_last_week ?? 0) } } : {}),
+      ...(sources.has("revenuecat") && st?.revenue_latest != null
+        ? { revenue: { thisWeek: Number(st.revenue_latest), lastWeek: Number(st.revenue_week_ago ?? st.revenue_latest), unit: st.revenue_currency ?? "JPY" } }
+        : {}),
     },
     clicksBySns,
     topPosts,

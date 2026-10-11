@@ -927,6 +927,94 @@ export type Database = {
         }
         Relationships: []
       }
+      store_credentials: {
+        Row: {
+          created_at: string
+          hint: string
+          id: string
+          last_checked_at: string | null
+          last_error: string | null
+          last_imported_day: string | null
+          owner_id: string
+          project_id: string
+          provider: string
+          secret_sealed: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          hint?: string
+          id?: string
+          last_checked_at?: string | null
+          last_error?: string | null
+          last_imported_day?: string | null
+          owner_id: string
+          project_id: string
+          provider: string
+          secret_sealed: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          hint?: string
+          id?: string
+          last_checked_at?: string | null
+          last_error?: string | null
+          last_imported_day?: string | null
+          owner_id?: string
+          project_id?: string
+          provider?: string
+          secret_sealed?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_credentials_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      store_daily: {
+        Row: {
+          day: string
+          owner_id: string
+          project_id: string
+          source: string
+          updated_at: string
+          values: Json
+        }
+        Insert: {
+          day: string
+          owner_id: string
+          project_id: string
+          source: string
+          updated_at?: string
+          values?: Json
+        }
+        Update: {
+          day?: string
+          owner_id?: string
+          project_id?: string
+          source?: string
+          updated_at?: string
+          values?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_daily_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -1078,6 +1166,16 @@ export type Database = {
       sns_spend_this_month: {
         Args: { p_owner_id?: string; p_sns: unknown }
         Returns: number
+      }
+      store_weekly_totals: {
+        Args: { p_project_id: string; p_today: string }
+        Returns: {
+          downloads_last_week: number
+          downloads_this_week: number
+          revenue_currency: string
+          revenue_latest: number
+          revenue_week_ago: number
+        }[]
       }
       top_posts_by_clicks: {
         Args: {

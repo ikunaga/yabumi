@@ -26,6 +26,8 @@ const TABLES = [
   "link_click_daily",
   "link_hash_salts",
   "manual_post_metrics",
+  "store_credentials",
+  "store_daily",
 ] as const;
 
 let alice: TestClient;

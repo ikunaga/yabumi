@@ -7,8 +7,9 @@ export const KPI_KEYS = ["posts", "link_clicks", "views", "followers", "store_pa
 export type KpiKey = (typeof KPI_KEYS)[number];
 export const MAX_KPIS = 3;
 
-// いま矢書で数えられるか。ready: 数えられる / partial: 一部（手で入れた数字だけ）/ later: 取り込みを作ったら（それまでは「準備中」）
-export type KpiAvailability = "ready" | "partial" | "later";
+// いま矢書で数えられるか。ready: 数えられる / partial: 一部（手で入れた数字だけ）/ connect: ストアや課金をつなぐと出る /
+// later: 取り込みを作ったら（それまでは「準備中」）
+export type KpiAvailability = "ready" | "partial" | "connect" | "later";
 
 export type KpiDef = {
   label: string;
@@ -55,17 +56,17 @@ export const KPIS: Record<KpiKey, KpiDef> = {
   },
   downloads: {
     label: "ダウンロード",
-    meaning: "アプリを入れてくれた人の数。",
+    meaning: "アプリを入れてくれた人の数（はじめてのダウンロード）。",
     term: "conversion",
-    availability: "later",
-    howToGet: "App Store Connect・Google Play の取り込みを作ったら出ます",
+    availability: "connect",
+    howToGet: "App Store をつなぐと出ます（Google Play は準備中）",
   },
   revenue: {
     label: "課金（売上）",
-    meaning: "アプリの中で払ってもらった金額。",
+    meaning: "直近 28 日に払ってもらった金額（RevenueCat の数字）。",
     term: "conversion",
-    availability: "later",
-    howToGet: "RevenueCat・ストアの取り込みを作ったら出ます",
+    availability: "connect",
+    howToGet: "RevenueCat をつなぐと出ます",
   },
 };
 

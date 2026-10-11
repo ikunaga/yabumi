@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Brand } from "@/components/brand";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { logout } from "@/lib/auth/actions";
+import { ProjectMobileMenu } from "./project-mobile-menu";
 import { ProjectNavLinks } from "./project-nav-links";
 import { ProjectSwitcher } from "./project-switcher";
 
@@ -47,9 +48,10 @@ export function ProjectShell({
       {/* スマホ: 上のヘッダー */}
       <header className="flex items-center justify-between bg-nav px-5 pt-[22px] pb-4 text-nav-strong sm:hidden">
         <Brand href="/projects" tone="nav" size="sm" />
-        <div className="flex items-center gap-4">
+        <div className="flex min-w-0 items-center gap-4">
           <ThemeToggle tone="nav" />
           <ProjectSwitcher current={project} projects={projects} variant="header" />
+          <ProjectMobileMenu projectId={project.id} email={email} />
         </div>
       </header>
 

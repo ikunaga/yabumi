@@ -72,6 +72,9 @@ export function AuthForm({
 }) {
   const [state, formAction, pending] = useActionState(action, { error: initialError });
   const [passwordLength, setPasswordLength] = useState(0);
+  // メールを送れたら（登録・再設定）フォームを隠し、二度押しを防ぐ。「入れ直す」で、その結果に対してだけフォームを戻す
+  const [reopenedFor, setReopenedFor] = useState<AuthFormState | null>(null);
+  const sent = (mode === "signup" || mode === "forgot") && Boolean(state.message) && reopenedFor !== state;
   const c = copy[mode];
 
   // エラーが出たら、読み上げと目視のためにエラー帯へ移る
@@ -85,7 +88,16 @@ export function AuthForm({
       {c.lead && <p className="-mt-2 text-[14px] leading-7 text-muted">{c.lead}</p>}
       {state.error && <ErrorBanner id="auth-error">{state.error}</ErrorBanner>}
       {state.message && <SuccessBanner>{state.message}</SuccessBanner>}
-      <form action={formAction} noValidate className="flex flex-col gap-5">
+      {sent && (
+        <p className="text-[14px] leading-7 text-muted">
+          {state.email && <>送り先: {state.email}。</>}
+          メールアドレスを間違えたときは{" "}
+          <button type="button" onClick={() => setReopenedFor(state)} className="font-semibold text-primary hover:underline">
+            入れ直す
+          </button>
+        </p>
+      )}
+      <form action={formAction} noValidate hidden={sent} className="flex flex-col gap-5">
         {next && <input type="hidden" name="next" value={next} />}
         {mode !== "reset" && (
           <Field label="メールアドレス" htmlFor="email">

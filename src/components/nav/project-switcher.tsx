@@ -14,7 +14,7 @@ export function ProjectSwitcher({
   const summary =
     variant === "sidebar"
       ? "flex items-center justify-between gap-2 rounded-md border border-nav-active px-3 py-2.5 text-sm text-nav-strong hover:bg-nav-active"
-      : "flex items-center gap-1 text-sm text-nav-fg hover:text-nav-strong";
+      : "flex max-w-[9rem] items-center gap-1 text-sm text-nav-fg hover:text-nav-strong";
 
   return (
     <DismissableDetails className="group relative">

@@ -7,15 +7,15 @@ export function projectNavItems(projectId: string): ProjectNavItem[] {
   const base = `/projects/${projectId}`;
   return [
     { key: "overview", label: "概要", tabLabel: "概要", href: base, tab: true },
-    // スマホの下のタブは 5 つで埋まっているので、設計は概要の「いまやること」から開く
+    // スマホの下のタブは 5 つで埋まっているので、設計はヘッダーの「メニュー」と概要の「いまやること」から開く
     { key: "plan", label: "アカウント設計", tabLabel: "設計", href: `${base}/plan`, tab: false },
     { key: "compose", label: "投稿をつくる", tabLabel: "投稿", href: `${base}/compose`, tab: true },
-    { key: "calendar", label: "カレンダー", tabLabel: "予定", href: `${base}/calendar`, tab: true },
-    // 短縮リンク（4.22）。スマホの下のタブは埋まっているので、概要から開く
-    { key: "links", label: "リンク", tabLabel: "リンク", href: `${base}/links`, tab: false },
+    { key: "calendar", label: "カレンダー", tabLabel: "カレンダー", href: `${base}/calendar`, tab: true },
+    // 短縮リンク（4.22）。スマホの下のタブは埋まっているので、ヘッダーの「メニュー」から開く
+    { key: "links", label: "短縮リンク", tabLabel: "短縮リンク", href: `${base}/links`, tab: false },
     { key: "metrics", label: "指標", tabLabel: "指標", href: `${base}/metrics`, tab: true },
     { key: "consult", label: "AI と相談", tabLabel: "相談", href: `${base}/consult`, tab: true },
-    // ロードマップ（4.23）。スマホの下のタブは埋まっているので、概要の「今週のやること」から開く
+    // ロードマップ（4.23）。スマホの下のタブは埋まっているので、ヘッダーの「メニュー」と概要の「今週のやること」から開く
     { key: "roadmap", label: "ロードマップ", tabLabel: "ロードマップ", href: `${base}/roadmap`, tab: false },
   ];
 }

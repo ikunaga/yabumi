@@ -32,7 +32,9 @@ export function activeNavKey(segment: string | null): ProjectNavKey {
       return "plan";
     case "links":
       return "links";
+    // ストアと課金をつなぐ画面は、指標の画面から開く
     case "metrics":
+    case "stores":
       return "metrics";
     default:
       return "overview";

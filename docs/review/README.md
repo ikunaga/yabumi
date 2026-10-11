@@ -9,26 +9,25 @@
 | Threads（後で Instagram・Facebook） | [meta.md](meta.md) | ビジネス認証 → 権限ごとの App Review（説明文と画面の録画）→ Tech Provider 認証（Access Verification）→ アプリを Live に | 認証は数日、審査は 1 週間ほど（公式）。却下と出し直しを見込んで 1〜2 か月 |
 | X | [x.md](x.md) | 審査はない（従量課金でアプリを作れば、他の人も認可できる）。規約上の表示と同意の画面を整える | ― |
 | TikTok | [tiktok.md](tiktok.md) | 監査（audit）。通るまでは「自分だけ」に見える投稿しかできず、1 日 5 人まで | 未確認 |
-| YouTube | [youtube.md](youtube.md) | Google の OAuth の確認（独自ドメインが必須）と、YouTube API の監査 | 確認は 3〜5 営業日（公式） |
+| YouTube | [youtube.md](youtube.md) | Google の OAuth の確認（yabumi.app で行う）と、YouTube API の監査 | 確認は 3〜5 営業日（公式） |
 
-## 先にオーナーに決めてほしいこと（審査の前提になる）
+## 審査の前提（オーナーの決定と、残りの判断）
 
-| # | 決めること | 理由 | 案 |
+| # | 点 | 状態 | 中身 |
 |---|---|---|---|
-| R1 | **独自ドメインを取るか** | YouTube（Google）の確認は、自分が持っていると証明できるドメインが要る。`vercel.app` は「公開されたサフィックス」（Public Suffix List）に載っており、`yabumi.vercel.app` は自分のドメインとして証明できない。TikTok の URL の所有確認も、独自ドメインのほうが確実 | 審査の前に取る（年 1,500〜2,500 円ほど。月 200 円ほどで予算内）。取ったら URL を変える作業（architecture.md の 4.11）が要るので、Meta の申請の**前に**取るのがよい。Meta の審査は URL を変えると出し直しになることがある |
-| R2 | **Meta のビジネス認証をどの名義で受けるか** | Advanced Access（他の人のアカウントを扱う権限）にはビジネス認証が必須。個人の本人確認書類だけでは通らないとされる。日本では「個人事業の開業届」で通った例がある（第三者の情報）。法人がない場合、開業届を出すかが分かれ目 | 開業届を出していれば、その控えと、名前・住所が一致する公共料金の請求書などで申請する。出していなければ、出すかどうかを決める（税務上の影響もあるので、オーナーの判断） |
-| R3 | **運営者の表示**（利用規約・プライバシーポリシー・各社の申請画面） | 各社の申請と、規約の運営者の欄に同じ名前を書く。R2 の名義と揃える | [legal.md](../legal.md) の L1 |
-| R4 | **Vercel のプラン** | Vercel Hobby は個人の非商用だけ。他の人に提供する（とくに有料にする）なら Pro（$20/月 ≒ 3,000 円）が要り、予算をほぼ使い切る | [legal.md](../legal.md) の L6 |
+| R1 | **独自ドメイン** | 決定（2026-10-11）: **yabumi.app**（Cloudflare Registrar） | YouTube（Google）の確認は、自分が持っていると証明できるドメインが要る（`vercel.app` は Public Suffix List に載っていて証明できない）。TikTok の URL の所有確認も yabumi.app で行う。切り替えの手順は deploy.md の 11。**Meta の申請は、切り替え（11 の C）が済んでから出す**（申請に書いた URL を変えると出し直しになることがある） |
+| R2 | **Meta のビジネス認証の名義** | 決定（2026-10-11）: 個人事業主「**YuXport Labs**」（開業届は提出済み） | 書類と手順は [meta.md](meta.md) の「ビジネス認証」 |
+| R3 | **運営者の表示**（規約・ポリシー・各社の申請画面） | 屋号は決定（YuXport Labs）。代表者の氏名の表記は確認中 | 各社の申請と規約に同じ表記を書く（大文字・小文字もこのとおり）。src/lib/legal/info.ts、[legal.md](../legal.md) の L1 |
+| R4 | **Vercel のプラン** | 未決定 | Vercel Hobby は個人の非商用だけ。他の人に提供する（とくに有料にする）なら Pro（$20/月 ≒ 3,000 円）が要り、予算をほぼ使い切る。[legal.md](../legal.md) の L6 |
 
 ## どの順に進めるか（おすすめ）
 
-1. R1〜R4 を決める
+1. yabumi.app に切り替える（deploy.md の 11 の A〜D）。問い合わせ先 support@yabumi.app を受け取れるようにする（11 の G）
 2. 利用規約とプライバシーポリシーの「確認中」を埋め、下書きの印を外す（src/lib/legal/info.ts。[legal.md](../legal.md)）
-3. 独自ドメインを取ったら、URL を変える（Vercel、Supabase Auth、Threads・X・GitHub のコールバック、Vault の app_url）
-4. Meta: ビジネス認証 → Threads の App Review → Tech Provider 認証 → Live（[meta.md](meta.md)）
-5. GitHub App を Any account にする（[deploy.md](../deploy.md) の 10）
-6. 登録を開く（ALLOWED_SIGNUP_EMAILS と Supabase の「新規登録を許可」）
-7. TikTok・YouTube は、つなぐ機能を作るときに申請する（先に作っておくと録画が撮れない。申請には動く画面が要る）
+3. Meta: ビジネス認証（YuXport Labs）→ Threads の App Review → Tech Provider 認証 → Live（[meta.md](meta.md)）
+4. GitHub App を Any account にする（[deploy.md](../deploy.md) の 10）
+5. 登録を開く（ALLOWED_SIGNUP_EMAILS と Supabase の「新規登録を許可」）
+6. TikTok・YouTube は、つなぐ機能を作るときに申請する（先に作っておくと録画が撮れない。申請には動く画面が要る）
 
 ## 審査の担当者に渡すもの（共通）
 

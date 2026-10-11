@@ -23,13 +23,13 @@
 | 求められていない @メンションを自動でしない | 矢書は文面を勝手に足さない。AI のネタ出しにも @ を入れさせない | 済み |
 | AI が作った**返信**を送るには X の事前の承認が要る | 矢書は返信を作らない（投稿だけ。AI の下書きは利用者が直してから送る） | 対象外。返信の機能を作るなら先に申請する |
 | 利用者や X から求められたら、保存した X のデータを 24 時間以内に消す | 「外す」・退会ですぐ消す（architecture.md の 4.14） | 外すは実装担当が作成中 |
-| 元の投稿が消えたら、保存した X の投稿も消すか直す | 矢書が持つのは、矢書から送った投稿の ID と URL だけ。X で消された投稿は、いまは矢書の記録に残る | 残り（下） |
+| 元の投稿が消えたら、保存した X の投稿も消すか直す | 矢書が持つのは、矢書から送った投稿の ID と URL だけ。X で消された投稿の扱いは architecture.md の 4.19 | 済み（4.19） |
 | X のデータでモデルを学習しない | 学習しない。Anthropic にも X から取ったデータは送らない | 済み |
 | 自動化アカウントのラベル（Automated） | 利用者が自分のアカウントに予約して送る使い方は bot に当たらないと読める【未確認】 | 様子を見る |
 
 ## 残り
 
-1. **X で消された投稿の記録**: 矢書の「送信の結果」に、X で消された投稿の URL が残る。開くと「見つからない」になるだけで害は小さいが、規約の「最新に保つ」に合わせるなら、日次のジョブで送信済みの投稿の有無を確かめる（読む 1 件ごとに有料なので、上限の中で）か、画面に「X で消した場合は、ここから記録を消せます」を置く。オーナーと PM の判断
+1. ~~X で消された投稿の記録~~: 済み（architecture.md の 4.19）
 2. **Developer Console の欄**: Website URL に本番の URL を入れる。Terms・Privacy の欄があれば /terms と /privacy を入れる（欄があるかは【未確認】。画面で確かめる）
 
 ## オーナーの作業
@@ -37,6 +37,6 @@
 | # | どこで | やること |
 |---|---|---|
 | X-1 | console.x.com → アプリ → Settings | App name を「Yabumi」など、Dev を含まない名前にする。Description に「Social media scheduling tool for indie app developers. Users write posts, review them, and publish or schedule them to their own X account.」 |
-| X-2 | 同上 | Website URL を本番の URL に。Terms of service・Privacy policy の欄があれば `https://<本番のドメイン>/terms`・`/privacy` |
+| X-2 | 同上 | Website URL を本番の URL に。Terms of service・Privacy policy の欄があれば `https://yabumi.app/terms`・`/privacy` |
 | X-3 | 同上 → User authentication settings | Callback URI に本番の URL があること（deploy.md の 6-4） |
 | X-4 | Billing | Spending limit が矢書の月の上限（X_MONTHLY_BUDGET_USD）より少し上か確かめる。他の人が使い始めると、矢書全体の $3 はすぐ届くので、人数に合わせて上限を見直す（PM の「利用者数ごとの費用」） |

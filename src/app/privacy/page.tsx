@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Bullets, Clauses, ExternalLink, LegalPage, LegalSection, LegalTable } from "@/components/legal/legal-page";
-import { LEGAL, PENDING, orPending } from "@/lib/legal/info";
+import { LEGAL, PENDING, operatorLabel, orPending } from "@/lib/legal/info";
 
 export const metadata: Metadata = {
   title: "プライバシーポリシー",
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 // 正は docs/architecture.md の 4.14（データの扱い）。中身を変えたら、そちらと docs/legal.md も揃える
 export default function PrivacyPage() {
-  const operator = orPending(LEGAL.operator);
+  const operator = operatorLabel();
   let n = 0;
   const next = () => ++n;
 
@@ -46,6 +46,11 @@ export default function PrivacyPage() {
               "GitHub をつないだとき、GitHub から",
             ],
             ["手で投稿する SNS", "note・Substack のプロフィールの URL（任意）", "利用者が入力"],
+            [
+              "投稿に添えた画像",
+              "画像（JPEG に縮めたもの）、縦横の大きさ、代わりの文（alt）。撮影の場所・日時・機種などの情報（Exif など）は、受け取ったときに消し、保存しません",
+              "利用者が選んだ画像",
+            ],
             ["利用量と費用", "AI の利用量（トークン数と費用）、X の API に払った額。会話や投稿の中身は入りません", "本サービスが記録"],
             [
               "技術的な情報",
@@ -98,7 +103,7 @@ export default function PrivacyPage() {
                 <ExternalLink href="https://help.instagram.com/515230437301944">プライバシーポリシー</ExternalLink>
               </>,
               "Threads への投稿、取り消し、トークンの延長",
-              "投稿の本文、アクセストークン",
+              "投稿の本文、添えた画像と代わりの文（Threads が画像を取りに来るための、1 時間で切れる URL）、アクセストークン",
               "米国",
             ],
             [
@@ -108,7 +113,7 @@ export default function PrivacyPage() {
                 <ExternalLink href="https://x.com/ja/privacy">プライバシーポリシー</ExternalLink>
               </>,
               "X への投稿、取り消し、トークンの延長",
-              "投稿の本文、アクセストークン",
+              "投稿の本文、添えた画像と代わりの文、アクセストークン",
               "米国",
             ],
             [
@@ -127,7 +132,7 @@ export default function PrivacyPage() {
                 <br />
                 <ExternalLink href="https://supabase.com/privacy">プライバシーポリシー</ExternalLink>
               </>,
-              "データベース、ログイン",
+              "データベース、ログイン、画像の保存",
               "本サービスが預かる情報のすべて（第 1 条）",
               "米国の会社。データは東京のサーバーに保存",
             ],
@@ -149,6 +154,16 @@ export default function PrivacyPage() {
               </>,
               "登録の確認、パスワードの再設定、メールアドレスの変更のメールの送信",
               "メールアドレス、メールの本文",
+              "米国",
+            ],
+            [
+              <>
+                Cloudflare（Email Routing）
+                <br />
+                <ExternalLink href="https://www.cloudflare.com/ja-jp/privacypolicy/">プライバシーポリシー</ExternalLink>
+              </>,
+              "問い合わせ先（support@yabumi.app）に届いたメールを、運営者のメールに転送する",
+              "問い合わせのメール（送った人のメールアドレス、件名、本文）",
               "米国",
             ],
             [
@@ -205,6 +220,7 @@ export default function PrivacyPage() {
             ],
             ["サーバーのログ", "Vercel と Supabase の保存期間（短いもので約 1 時間、長いもので数日）。トークンや投稿の本文はログに出さない"],
             ["送ったメールの記録", "Resend の保存期間"],
+            ["投稿に添えた画像", "下書き・予約中は残す。送り終えてから 30 日、投稿に添えないまま 1 日、投稿を消したら翌日までに消す"],
           ]}
         />
         <p>本サービスのデータベースには、いまは自動のバックアップがありません。消したデータは、その時点でデータベースからなくなります。バックアップを取るようにしたときは、この条を書き換えて知らせます。</p>
@@ -215,6 +231,7 @@ export default function PrivacyPage() {
           items={[
             "プロジェクト、投稿、GitHub のリポジトリのつなぎは、それぞれの画面から消せます。プロジェクトを消すと、その中の投稿・アカウント設計・会話も消えます",
             "AI との会話は、会話の画面の「この会話を消す」で消せます。採用した設計の内容は残ります",
+            "投稿に添えた画像は、投稿の画面の「外す」で消せます（投稿を保存したときに消えます）",
             "SNS は、「つないだ SNS」の「外す」で、トークンとアカウントの情報を消せます。X は X の側でも連携を取り消します",
             "退会は「アカウント」の画面の「退会する」から、パスワードを入れ直して行います。前の条の「紐づけを外して残す」もの以外は、すべてすぐに消えます",
             "SNS に投稿したものは、退会しても消えません（SNS 上の投稿は利用者のものだからです）。消したいときは、退会の前に投稿の画面の「SNS から取り消す」を使うか、SNS で直接消してください",

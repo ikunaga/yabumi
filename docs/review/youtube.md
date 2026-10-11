@@ -10,7 +10,7 @@
 
 | 要るもの | 中身 | 矢書の状態 |
 |---|---|---|
-| **独自ドメイン** | ホームページ・プライバシーポリシーは、自分が持っていると Search Console で証明したドメインに置く。`vercel.app` は Public Suffix List に載っているので、`yabumi.vercel.app` は自分のドメインとして証明できない | 要る（README の R1） |
+| **独自ドメイン** | ホームページ・プライバシーポリシーは、自分が持っていると Search Console で証明したドメインに置く。`vercel.app` は Public Suffix List に載っているので、`yabumi.vercel.app` は自分のドメインとして証明できない | yabumi.app を使う（README の R1）。Search Console で「ドメイン」として足し、Cloudflare の DNS に TXT を入れて確かめる |
 | ホームページ | 外から開け、アプリの機能を説明している（ログインの画面だけは不可） | トップ（/）。済み |
 | プライバシーポリシー | ホームページと同じドメイン。ホームページと同意の画面からリンク。中身は下の「YouTube のための追記」 | /privacy に追記が要る |
 | スコープの理由 | スコープごとに、なぜ要るか、もっと狭いスコープでは足りない理由 | 作るときに書く。投稿だけなら youtube.upload |
@@ -51,6 +51,6 @@
 
 ## オーナーの作業（つなぐ機能を作るとき）
 
-1. 独自ドメインを Search Console で確認する
+1. yabumi.app を Search Console で確認する（Cloudflare の DNS に TXT）
 2. Google Cloud でプロジェクトを作り、YouTube Data API v3 を有効にし、同意の画面（アプリ名 Yabumi、ホームページ、プライバシーポリシー、承認済みドメイン）を設定する
 3. テストのユーザーで動かしたあと、OAuth の確認と、YouTube API の監査を申請する

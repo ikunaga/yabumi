@@ -479,11 +479,12 @@ README が薄い個人開発のリポジトリやモノレポでも中身がわ�
 | GitHub（インストールの ID、本人が読めるリポジトリの ID、つないだリポジトリの名前、最後に読んだ日時） | github_installations / project_github_repos | つないでいる間 | 「リポジトリを外す」、退会 |
 | GitHub のファイルの中身、コミット（メッセージと差分） | 保存しない | 紹介文やネタを作るときに読み、AI（Anthropic）に送るだけ（4.10、4.15） | ― |
 | 手で投稿する SNS のプロフィールの URL | project_manual_channels | 利用者が消すか、退会まで | 「つないだ SNS」の画面、退会 |
+| 投稿に添えた画像（JPEG。撮影の場所などのメタデータは消してある）と代わりの文 | Storage の post-media、media_files | 下書き・予約中は残す。送り終えて **30 日**、投稿に添えないまま 1 日、投稿を消したら次の片付けで消す（4.18） | 投稿の画面で「外す」、投稿の削除、退会（ファイルは翌日の片付けで消える） |
 | サーバーのログ | Vercel、Supabase | 各サービスの保存期間（Vercel Hobby は約 1 時間〜1 日、Supabase Free は 1 日）。トークンや本文はログに出さない | ― |
 
 - 外のサービスに送るもの:
   - Anthropic（Claude API）: AI との会話、アカウント設計とプロジェクトの内容、紹介文を作るときの GitHub のファイル、ネタを作るときの GitHub のコミット
-  - SNS 各社: 投稿の本文
+  - SNS 各社: 投稿の本文と、添えた画像（Threads・Instagram には 1 時間で切れる画像の URL、X には画像のファイル）と代わりの文
   - GitHub: リポジトリの読み取りの依頼
   - Anthropic 側の保存期間と学習への利用の有無は、Anthropic の商用規約による（規約の文面を書くときに最新を確かめる）
 - 自動で消す仕組み: DB の purge_expired_data() を pg_cron が毎日 3:30（日本時間）に直接呼ぶ（HTTP を通さない）。1 年たった会話と 13 か月たった利用量を消す
@@ -648,6 +649,82 @@ Supabase は既定で、public に作ったテーブル・関数のすべての�
 - 関数は `revoke execute ... from public, anon, authenticated;` のあと、呼ぶ人にだけ `grant execute` を書く（既定で与えないようにしてあるが、意図を残すため）
 - tests/grants.integration.test.ts の TABLES に足し、anon から読めないことを確かめる
 
+### 4.18 投稿に画像を添える（F03・F14 の一部、2026-10-11）
+
+Instagram（画像が必須）をつなぐ前提として、X と Threads にも画像を付けられるようにした。画像の生成（AI）と動画は、まだ作っていない（TikTok・YouTube 向けにあとで）。
+
+#### SNS ごとの決まり（各社の公式の資料、2026-10-11）
+
+| SNS | 枚数 | 形式・大きさ | 代わりの文（alt） | 画像の渡し方 |
+|---|---|---|---|---|
+| X | 写真 4 枚まで | JPG・PNG・GIF・WEBP、静止画 5MB まで | 1,000 字。POST /2/media/metadata（1 回 $0.005） | ファイルを送る（POST /2/media/upload、media_category=tweet_image）→ media_id を投稿に付ける。スコープ media.write |
+| Threads | 1 枚、またはカルーセルで 2〜20 枚 | JPEG・PNG、8MB まで、幅 320〜1440（範囲外は Threads が縮める） | alt_text、1,000 字 | image_url を Threads が取りに来る。カルーセルは 1 枚ずつのコンテナ（is_carousel_item）→ まとめたコンテナ（CAROUSEL、children）→ 公開 |
+| Instagram（後で） | 1 枚、またはカルーセルで 10 枚まで | **JPEG だけ**、8MB まで、縦横比 4:5〜1.91:1 | alt_text、1,000 字 | image_url を取りに来る（コンテナを作るとき） |
+| Facebook ページ（後で） | 複数枚の上限は未確認 | JPEG・PNG など、**4MB まで** | ― | url を取りに来る。複数枚は公開しない写真を上げてから attached_media で投稿 |
+
+- 矢書は、どの SNS でも通るよう **JPEG・1 枚 4MB まで・長い辺 2,048px まで** にそろえる（src/lib/media/rules.ts）。枚数は SNS ごとに src/lib/sns の maxImages で見て、超えたら作成画面で「画像が多すぎます」
+- 1 つの投稿の画像は、すべての送り先で共通（SNS ごとに選び分けはしない）。投稿全体の上限は 10 枚（Instagram のカルーセルに合わせる）。X には 5 枚以上なら送らない
+- Instagram の縦横比（4:5〜1.91:1）は、Instagram をつなぐときに作成画面で確かめる（いまは Instagram に送れないので、確かめていない）
+- 動画だけの SNS（TikTok・YouTube）と、手で投稿する SNS（note・Substack）には画像を送らない。作成画面で「この SNS には画像を送りません」「画像は投稿の画面で手で添えてください」と出す
+
+#### 置き場所と、上げ方
+
+```
+ブラウザ: 画像を選ぶ → JPEG に描き直して縮める（位置情報などのメタデータは落ちる）
+   → サーバー（requestImageUpload）: 上限を確かめ、引換券を記録し、その場所にだけ 2 時間上げられる署名つきの URL を発行
+   → ブラウザ: Storage に直接 PUT（Vercel の関数を通さない）
+   → サーバー（confirmImageUpload）: 引換券を確かめ、中身を読み（JPEG か・大きさ）、メタデータを消して置き直し、media_files に記録
+投稿を保存（savePost）: 並び順・代わりの文をそろえ、外した画像はファイルごと消す（attachMedia）
+```
+
+- **Supabase Storage** の非公開のバケット `post-media`（1 枚 4MB まで、Content-Type は image/jpeg だけ）。パスは `<利用者の ID>/<乱数>.jpg`
+- 利用者が Storage に直接上げる・読むためのポリシーは置かない。直接上げられると、上限を通さずに Storage（Free は全体で 1GB）を埋められるため。上げるのはサーバーが 1 枚ずつ発行する署名つきの URL だけ、プレビューもサーバーが作る署名 URL（1 時間）だけ
+- 発行のときの上限（DB の issue_media_upload_ticket が、利用者ごとのアドバイザリロックで順に確かめて記録する。数えるのも DB の中で行う）:
+  - 確かめ待ちの引換券: 10 枚まで
+  - 投稿に添えていない画像（と確かめ待ち）: 20 枚まで
+  - 置いている画像の合計 + 確かめ待ちを 1 枚 4MB と見込んだ分: **利用者ごとに 100MB まで**
+- 中身の確かめ（src/lib/media/jpeg.ts）: 拡張子や Content-Type ではなく、JPEG の区切りを読む。JPEG でなければ受け付けず、ファイルも消す。APP1（Exif・XMP。撮影の場所・日時・機種）・そのほかの APPn・コメントを消し、JFIF・色の情報（ICC_PROFILE・Adobe）と画像の本体だけを残す。縦横 8,192px まで。画面は描き直してから上げるので最初からメタデータはないが、画面を通さずに上げられても、ここで消える
+- 確かめたものだけを `media_files` に記録する（書き込みはサーバーだけ、利用者は自分のものを読めるだけ）。記録のない画像は投稿に使えない。引換券は `media_upload_tickets`（サーバーだけが扱う）
+- 画像を縮めるのはブラウザ（Supabase の画像変換は Pro だけ）。長い辺 2,048px、画質 0.85。4MB を超えたら画質を下げてやり直す。透明なところは白で埋める（JPEG は透明を持てない）。アニメーションの GIF は 1 枚目だけになる
+
+#### 送るとき（src/lib/sns/publisher.ts）
+
+- 送信ジョブ（予約・今すぐ送る）が、配信先の投稿の画像を並び順で読み、アダプターに渡す（publishText の 3 つ目の引数）
+- **SNS が取りに来る URL は、送る直前に作る 1 時間の署名 URL**（SNS_FETCH_URL_SECONDS）。予約の時刻とは関係しない（予約したときに URL を作るのではないので、何日先の予約でも切れない）。Threads・Instagram はコンテナを作るときに取りに来て、処理に数十秒〜数分かかることがあるので、余裕を見て 1 時間。URL が外に漏れても 1 時間で使えなくなり、その画像だけしか見えない
+- Threads は、画像のコンテナの準備ができるまで最大 40 秒待つ（2 秒 × 20 回。公式は平均 30 秒待つことをすすめる）。間に合わなければ公開せずにやり直す（公開していないコンテナは投稿されないので二重にならない）
+- X は、画像を 1 枚ずつ上げ（代わりの文があれば付け）、media_id を付けて投稿する。画像を上げる段階の失敗は、まだ投稿していないので「投稿されたかわからない」にはしない
+- 送る前に確かめること: 枚数が SNS の上限を超えていないか、X は media.write の権限があるか。だめなら送らず、費用も記録せずに失敗にし、理由を「送信の結果」に出す
+
+#### X の権限（media.write）とつなぎ直し
+
+- X のスコープに media.write を足した（src/lib/sns/x/api.ts の X_SCOPES）。それより前につないだアカウントは、つなぎ直すまで画像を送れない（文章だけの投稿はそのまま送れる）
+- 作成画面: 画像があり、X を選んでいて、X のアカウントに media.write がないとき、「● 要確認 X に画像を送るには…つなぎ直しが要ります」と「つないだ SNS へ」を出し、送る・予約を押せなくする。保存（savePost）でも同じことを確かめる
+- 権限はトークンの表（social_account_tokens.scopes。画面側からは読めない）にあるので、本人のアカウントであることを確かめてからサーバーの権限で読む
+
+#### X の費用
+
+- 料金表（2026-10-11）に、画像のアップロードの行はない。画像付きの投稿も $0.015（URL があれば $0.20）のまま。代わりの文（media metadata）は 1 回 $0.005
+- 送る前の費用の記録（reserve_sns_spend）に、代わりの文のある画像の枚数 × $0.005 を足す（src/lib/sns/x/pricing.ts の xPostCostUsd）。記録の種類（operation）は今までどおり post / post_with_url
+- 作成画面の画像の欄に「X では 1 枚につき $0.005 の API の料金がかかります」と出す
+- アップロードが本当に無料かは、オーナーの Developer Console の使用量で確かめる（違っていたら pricing.ts に足す）
+
+#### 容量と、いつ消すか
+
+| 画像 | いつ消すか |
+|---|---|
+| 投稿に添えないまま（上げたが保存しなかった） | 1 日たったら |
+| 投稿を消した | 次の片付けで（投稿を消すと media_files.post_id が空になる） |
+| 投稿から外した | 投稿を保存したときにすぐ |
+| 送り終えた（どの配信先も送信待ち・送信中でなく、1 つ以上が送信済み） | 最後の配信先の更新から **30 日**。送ったあとは SNS に残っているので、矢書の側は消す。投稿の本文と送信の結果は残る |
+| 下書き・予約中 | 消さない（利用者が消すか、退会まで） |
+| 記録のないファイル（確かめる前に止まった、など） | 1 日たったら |
+
+- 毎日 4:00（日本時間）に pg_cron が /api/jobs/cleanup-media を呼び、DB の cleanup_media_candidates が選んだものを Storage の API で消す（Storage のファイルは SQL では消せないため）。1 回 200 件、5 回まで
+- 結合テストは、cleanup_media_candidates の p_owner_id でテストの利用者だけに絞って呼ぶ（ローカル DB のほかの人の画像を消さない）
+- 退会: auth.users のカスケードで media_files は消えるが、Storage のファイルは残るので、翌日の片付け（記録のないファイル）で消える
+- 見積もり: 1 枚 200〜500KB（2,048px の JPEG）。週 3 回・2 枚ずつで月 25 枚ほど、送ってから 30 日で消えるので、1 人あたり常に 10MB 前後。Supabase Free の Storage 1GB で 100 人ほど。Egress（Free は月 5GB）は、SNS が取りに来る分とプレビューで 1 枚あたり数回
+- 費用: Supabase Free の範囲（0 円）。超えたら Supabase Pro（$25/月、Storage 100GB）。7 の表
+
 ### 4.19 X の規約への対応（2026-10-11）
 
 X の開発者規約（[Developer Agreement](https://docs.x.com/developer-terms/agreement)、[Developer Policy](https://docs.x.com/developer-terms/policy)）のうち、矢書が作りとして守るもの。審査と規約の確認の一覧は docs/review/x.md。
@@ -702,6 +779,7 @@ X の開発者規約は、X 側で消された・見られなくなった投稿�
 | ad_campaigns | 広告配信 |
 | ai_usage | AI の利用量と費用。上限の判定に使う（4.9） |
 | sns_api_usage | SNS の API に払う費用（いまは X だけ）。月の上限の判定に使う（4.13） |
+| media_files / media_upload_tickets | 投稿に添える画像（確かめてメタデータを消したもの）と、発行したアップロード URL の引換券。ファイルは Storage の post-media（4.18） |
 
 ## 6. 技術検証が必要な点
 

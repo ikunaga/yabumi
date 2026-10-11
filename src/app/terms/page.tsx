@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Bullets, Clauses, ExternalLink, LegalPage, LegalSection } from "@/components/legal/legal-page";
-import { LEGAL, PENDING, orPending } from "@/lib/legal/info";
+import { LEGAL, PENDING, operatorLabel, orPending } from "@/lib/legal/info";
 
 export const metadata: Metadata = {
   title: "利用規約",
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 // オーナーに確かめてほしい点は docs/legal.md。データの扱いはプライバシーポリシー（/privacy）と docs/architecture.md の 4.14
 export default function TermsPage() {
-  const operator = orPending(LEGAL.operator);
+  const operator = operatorLabel();
   let n = 0;
   const next = () => ++n;
 

@@ -9,7 +9,7 @@
 | # | 何を | どこで | 要るもの | 期間 |
 |---|---|---|---|---|
 | 1 | ビジネスポートフォリオを作り、アプリをそこに入れる | Meta Business Suite（business.facebook.com）→ 設定 → ビジネスポートフォリオ。アプリのダッシュボード → App settings → Basic → 「Business portfolio」で紐づけ | ― | すぐ |
-| 2 | **ビジネス認証**（Business Verification） | ビジネス設定 → セキュリティセンター →「認証を開始」。管理者だけができる | 事業者名・住所・電話・Web サイト（独自ドメインが望ましい）と、それが書かれた書類（下） | 数日（公式の目安は未確認） |
+| 2 | **ビジネス認証**（Business Verification） | ビジネス設定 → セキュリティセンター →「認証を開始」。管理者だけができる | YuXport Labs の名前・住所・電話、Web サイト `https://yabumi.app` と、それが書かれた書類（下の「ビジネス認証」） | 数日（公式の目安は未確認） |
 | 3 | アプリの基本設定を埋める | App settings → Basic（下の「基本設定」） | プライバシーポリシーの URL、アイコン、カテゴリ、連絡先メール、データ削除の URL | すぐ |
 | 4 | 各権限で API を 1 回以上呼んでおく | 本番の矢書で、テスターのアカウントでつないで投稿・削除する | 申請の **30 日以内**に、申請する権限ごとに成功した呼び出しが要る | ― |
 | 5 | **App Review** に出す | App Review → Requests → 権限を選んで「Request」 | 権限ごとの説明文と画面の録画（下）、審査の担当者用のアカウント | 1 週間ほど（公式）。却下されたら直して出し直す |
@@ -40,19 +40,26 @@
 | A（おすすめ） | いまは申請しない。矢書が求める権限からも外す（src/lib/sns/threads/api.ts の THREADS_SCOPES）。指標を作るときに足して、その権限だけ追加で審査に出す | 審査が通りやすく、早い。利用者に「使わない権限」を求めない | 指標を作ったとき、利用者に「つなぎ直す」をしてもらう必要がある |
 | B | 先に指標の一部（投稿ごとの閲覧数）を作ってから、4 つまとめて申請する | つなぎ直しが要らない | 審査が指標の完成まで遅れる |
 
-## ビジネス認証に出す書類（日本）
+## ビジネス認証（YuXport Labs の名義。2026-10-11 決定）
 
-公式のヘルプは画面が JavaScript で、内容を確かめられなかった（【未確認】）。第三者のまとめ（[Wati](https://support.wati.io/en/articles/11463208-meta-business-verification-required-documents-by-country)）では、日本で通る書類は次のとおり。
+個人事業主「YuXport Labs」（開業届は提出済み）として申請する。
 
-- 法人: 履歴事項全部証明書、法人番号指定通知書、定款
-- 個人事業主: **個人事業の開業・廃業等届出書（開業届）の控え**、営業許可、納税証明書
-- 住所の確認: 公共料金の請求書、事業用の銀行の明細
+| # | どこで | やること |
+|---|---|---|
+| BV-1 | Meta Business Suite（business.facebook.com）→ 設定 → ビジネス情報 | ビジネスポートフォリオの**名前**を `YuXport Labs`、**住所・電話番号**を開業届に書いたものと一字一句同じにする。Web サイトは `https://yabumi.app`（切り替えのあと） |
+| BV-2 | 同じく ビジネス情報 | ビジネスのメールアドレスを `support@yabumi.app` にする（ドメインのメールで確かめると通りやすい。deploy.md の 11 の G で受け取れるようにしてから） |
+| BV-3 | 設定 → セキュリティセンター →「認証を開始」 | 国は日本。事業者名 `YuXport Labs` で検索して出なければ、手で入れる。認証の方法は「書類をアップロード」 |
+| BV-4 | 同上 | 書類を上げる（下の表）。名前と住所が BV-1 と同じであること |
+| BV-5 | 同上 | 確認のコードを、メール（support@yabumi.app）か電話で受け取って入れる |
+| BV-6 | ― | 結果を待つ（数日。公式の目安は未確認）。通ったら、アプリのダッシュボードの App settings → Basic で、アプリがこのビジネスポートフォリオに入っているか確かめる |
 
-注意:
+| 書類 | 何を確かめる | 注意 |
+|---|---|---|
+| **個人事業の開業・廃業等届出書（開業届）の控え** | 事業者名（屋号）と住所 | 税務署の受付印か、e-Tax の受信通知があるもの。屋号の欄が `YuXport Labs` になっているか確かめる（違えば、届け出た屋号の表記に、ポートフォリオの名前を合わせる） |
+| 住所の確認（どれか 1 つ）: 公共料金の請求書、事業用の銀行の明細、納税証明書 | 住所 | 開業届と同じ住所で、名前（屋号または氏名）が載っているもの。3 か月以内のものが無難 |
 
-- 書類の名前・住所と、ビジネスポートフォリオに入れた名前・住所を一字一句そろえる
-- 本人確認書類（免許証やパスポート）だけでは通らないとされる
-- 開業届を出していない個人が通るかは【未確認】（通らない可能性が高い）。docs/review/README.md の R2
+- 出典: 第三者のまとめ（[Wati](https://support.wati.io/en/articles/11463208-meta-business-verification-required-documents-by-country)）。Meta の公式のヘルプは画面が JavaScript で、内容を確かめられなかった【未確認】
+- 本人確認書類（免許証やパスポート）だけでは通らないとされる。通らなかったときは、断られた理由の表示に従って書類を足す
 
 ## 基本設定（App settings → Basic）
 
@@ -60,14 +67,14 @@
 |---|---|
 | Display name | Yabumi（審査の前に、名前に「Dev」を含まないアプリ名にする。名前を変えると審査の出し直しになることがあるので、申請の前に決める） |
 | App icon | docs/design/logo/icons/ios/AppIcon-1024.png（1024×1024、PNG、5MB 未満。Meta のロゴを含めない） |
-| Privacy Policy URL | `https://<本番のドメイン>/privacy` |
-| Terms of Service URL | `https://<本番のドメイン>/terms`（必須かは【未確認】だが入れる） |
-| User data deletion | 「Data deletion callback URL」を選び、`https://<本番のドメイン>/sns/threads/delete`（作り済み。署名を確かめ、Threads のアカウントの情報とトークンを消し、確認ページ /sns/threads/deletion の URL と確認コードを返す） |
+| Privacy Policy URL | `https://yabumi.app/privacy` |
+| Terms of Service URL | `https://yabumi.app/terms`（必須かは【未確認】だが入れる） |
+| User data deletion | 「Data deletion callback URL」を選び、`https://yabumi.app/sns/threads/delete`（作り済み。署名を確かめ、Threads のアカウントの情報とトークンを消し、確認ページ /sns/threads/deletion の URL と確認コードを返す） |
 | Category | Productivity（または Business and Pages） |
 | Contact email | オーナーの連絡先（審査の結果が届く） |
 | App purpose | Clients（他の人が使うアプリ） |
 
-Threads の Use cases → Settings の Uninstall Callback URL は `https://<本番のドメイン>/sns/threads/uninstall`、Delete Callback URL は上と同じ（deploy.md の 6-1）。
+Threads の Use cases → Settings の Uninstall Callback URL は `https://yabumi.app/sns/threads/uninstall`、Delete Callback URL は上と同じ（deploy.md の 6-1）。
 
 ## 権限ごとの説明文（英語。申請の欄にそのまま貼る）
 

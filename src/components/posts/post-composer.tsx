@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { ErrorBanner, SuccessBanner } from "@/components/ui/feedback";
 import { deletePost, savePost } from "@/lib/posts/actions";
 import type { SavePostResult } from "@/lib/posts/schema";
+import { ImageAttachments, type AttachedImage } from "./image-attachments";
 import { PlanHints, type PlanHintsData } from "./plan-hints";
 import { SendResults, type TargetResult } from "./send-results";
-import { ISSUE_LABEL, MAX_TITLE_LENGTH, SNS, SNS_KEYS, checkTarget, hasXUrl, isManualSns, type SnsKey, type TargetIssue } from "@/lib/sns";
+import { ISSUE_LABEL, MAX_TITLE_LENGTH, SNS, SNS_KEYS, checkTarget, hasXUrl, ignoresImages, isManualSns, type SnsKey, type TargetIssue } from "@/lib/sns";
 import { X_PRICE_USD, formatUsd } from "@/lib/sns/x/pricing";
 import { Term } from "@/components/ui/term";
 
@@ -16,6 +17,7 @@ export type ComposerInitial = {
   body: string;
   targets: { sns: SnsKey; bodyOverride: string | null; title?: string | null }[];
   plannedAt: string;
+  images?: AttachedImage[];
 };
 
 type Props = {
@@ -31,6 +33,8 @@ type Props = {
   noticeTone?: "success" | "error";
   // アカウント設計の投稿の柱と口調（書くときの手がかり）
   planHints?: PlanHintsData | null;
+  // 画像を送るにはつなぎ直しが要る SNS（X は media.write を足す前につないだアカウント）
+  needImageReconnect?: SnsKey[];
 };
 
 // 送信済み・送信中・取り消し済みの配信先は、選び直しも送り直しもできない
@@ -42,6 +46,7 @@ const ISSUE_TONE: Record<TargetIssue, string> = {
   needs_image: "text-signal",
   needs_video: "text-signal",
   needs_title: "text-signal",
+  too_many_images: "text-danger",
 };
 
 function formatCount(n: number) {
@@ -58,7 +63,9 @@ export function PostComposer({
   notice,
   noticeTone = "success",
   planHints = null,
+  needImageReconnect = [],
 }: Props) {
+  const [images, setImages] = useState<AttachedImage[]>(initial.images ?? []);
   const [body, setBody] = useState(initial.body);
   const [selected, setSelected] = useState<Set<SnsKey>>(() => new Set(initial.targets.map((t) => t.sns)));
   const [overrides, setOverrides] = useState<Partial<Record<SnsKey, string>>>(() =>
@@ -84,11 +91,10 @@ export function PostComposer({
   const textFor = (sns: SnsKey) => overrides[sns] ?? body;
   const checks = useMemo(
     () =>
-      Object.fromEntries(SNS_KEYS.map((sns) => [sns, checkTarget(sns, overrides[sns] ?? body, undefined, titles[sns] ?? null)])) as Record<
-        SnsKey,
-        ReturnType<typeof checkTarget>
-      >,
-    [body, overrides, titles],
+      Object.fromEntries(
+        SNS_KEYS.map((sns) => [sns, checkTarget(sns, overrides[sns] ?? body, { images: images.length, videos: 0 }, titles[sns] ?? null)]),
+      ) as Record<SnsKey, ReturnType<typeof checkTarget>>,
+    [body, overrides, titles, images.length],
   );
 
   const isLocked = (s: SnsKey) => LOCKED.has(results[s]?.status ?? "");
@@ -106,6 +112,8 @@ export function PostComposer({
     // 手で投稿する SNS は、つながなくてよい
     const missing = toSend.filter((s) => !isManualSns(s) && !connected.includes(s));
     if (missing.length) return `${missing.map((s) => SNS[s].label).join("・")} をつなぐと送れます`;
+    const reconnect = images.length > 0 ? toSend.filter((s) => needImageReconnect.includes(s)) : [];
+    if (reconnect.length) return `${reconnect.map((s) => SNS[s].label).join("・")} に画像を送るには、つなぎ直しが要ります`;
     return null;
   })();
   const blocker = sendBlocker ?? (plannedAt ? null : "送る日時を決めてください");
@@ -140,6 +148,7 @@ export function PostComposer({
         body,
         plannedAt,
         intent,
+        media: images.map((i) => ({ id: i.id, altText: i.altText })),
         targets: chosen.map((sns) => ({ sns, bodyOverride: overrides[sns] ?? null, title: SNS[sns].needsTitle ? (titles[sns] ?? null) : null })),
       });
       // 成功時はサーバーで画面を移るので、ここに来るのは失敗したときだけ
@@ -189,12 +198,20 @@ export function PostComposer({
 
           <PlanHints projectId={projectId} hints={planHints} />
 
-          <div
-            className="flex h-[140px] items-center justify-center rounded-lg border-[1.5px] border-dashed border-border text-sm text-muted"
-            style={{ background: "repeating-linear-gradient(45deg, transparent 0 10px, var(--rule) 10px 11px)" }}
-          >
-            画像・動画をここに置く（準備中）
-          </div>
+          <section aria-labelledby="images-heading" className="flex flex-col gap-2">
+            <h2 id="images-heading" className="text-[14px] font-bold">
+              画像
+            </h2>
+            <ImageAttachments
+              images={images}
+              disabled={pending}
+              onChange={(next) => {
+                setImages(next);
+                clearFieldError("media");
+              }}
+            />
+            {fe.media && <p className="text-sm font-semibold text-danger">{fe.media}</p>}
+          </section>
         </section>
 
         {/* 右: 送り先と文面の調整 */}
@@ -271,6 +288,16 @@ export function PostComposer({
             />
           )}
 
+          {images.length > 0 && needImageReconnect.some((s) => selected.has(s) && !isLocked(s)) && (
+            <p className="border-b border-line px-5 py-3 text-sm leading-[1.7]">
+              <span className="mr-1.5 font-bold text-signal">● 要確認</span>
+              {needImageReconnect.filter((s) => selected.has(s)).map((s) => SNS[s].label).join("・")} に画像を送るには、画像を送る権限を足すためのつなぎ直しが要ります。
+              <Link href={`/projects/${projectId}#sns`} className="ml-1 font-semibold text-primary hover:underline">
+                つないだ SNS へ
+              </Link>
+            </p>
+          )}
+
           {postId && <SendResults projectId={projectId} postId={postId} results={results} />}
 
           <div className="flex flex-1 flex-col gap-2.5 bg-surface2 px-5 py-4">
@@ -298,8 +325,28 @@ export function PostComposer({
               <div className="flex min-w-0 flex-col gap-1 text-sm leading-[1.6]">
                 <b>{SNS[focus].needsTitle && titles[focus] ? titles[focus] : projectName}</b>
                 <span className="line-clamp-6 break-words whitespace-pre-wrap">{textFor(focus) || <span className="text-muted">（本文なし）</span>}</span>
+                {images.length > 0 && !ignoresImages(focus) && (
+                  <span className="mt-1 grid grid-cols-4 gap-1">
+                    {images.slice(0, SNS[focus].maxImages).map((image, i) =>
+                      image.previewUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- 署名つきの URL は期限があり、next/image の最適化を通さない
+                        <img key={image.id} src={image.previewUrl} alt={image.altText || `${i + 1} 枚目の画像`} className="aspect-square w-full rounded object-cover" />
+                      ) : null,
+                    )}
+                  </span>
+                )}
               </div>
             </div>
+            {images.length > 0 && ignoresImages(focus) && (
+              <p className="text-xs text-muted">
+                {isManualSns(focus) ? `${focusLabel} には、画像は投稿の画面で手で添えてください。` : `${focusLabel} には画像を送りません（動画だけの SNS です）。`}
+              </p>
+            )}
+            {images.length > SNS[focus].maxImages && !ignoresImages(focus) && (
+              <p className="text-xs font-semibold text-danger">
+                {focusLabel} に添えられる画像は {SNS[focus].maxImages} 枚までです。画像を減らすか、{focusLabel} を送り先から外してください。
+              </p>
+            )}
             {hasOverride ? (
               <div className="flex flex-col gap-1.5">
                 <label htmlFor="override" className="text-xs font-bold">

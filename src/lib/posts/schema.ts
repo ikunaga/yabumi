@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MAX_ALT_LENGTH, MAX_IMAGES_PER_POST } from "@/lib/media/rules";
 import { SNS_KEYS, type SnsKey } from "@/lib/sns";
 
 // now: 今すぐ送る
@@ -18,15 +19,20 @@ export const savePostInputSchema = z.object({
       }),
     )
     .max(SNS_KEYS.length),
+  // 添える画像（並び順）。画像はブラウザから Storage に上げて確かめ済みのもの（docs/architecture.md の 4.17）
+  media: z
+    .array(z.object({ id: z.uuid(), altText: z.string().max(MAX_ALT_LENGTH, `代わりの文は ${MAX_ALT_LENGTH} 字までです`) }))
+    .max(MAX_IMAGES_PER_POST)
+    .default([]),
   // 日本時間の "YYYY-MM-DDTHH:mm"。空なら日付なし
   plannedAt: z.string(),
   intent: saveIntent,
 });
 
-export type SavePostInput = z.infer<typeof savePostInputSchema>;
+export type SavePostInput = z.input<typeof savePostInputSchema>;
 
 export type SavePostResult = {
   error?: string;
   // 欄ごとのエラー
-  fieldErrors?: { body?: string; plannedAt?: string; targets?: string };
+  fieldErrors?: { body?: string; plannedAt?: string; targets?: string; media?: string };
 };

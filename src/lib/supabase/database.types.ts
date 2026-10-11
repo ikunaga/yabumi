@@ -225,6 +225,74 @@ export type Database = {
         }
         Relationships: []
       }
+      media_files: {
+        Row: {
+          alt_text: string
+          created_at: string
+          height: number
+          id: string
+          owner_id: string
+          position: number
+          post_id: string | null
+          size_bytes: number
+          storage_path: string
+          updated_at: string
+          width: number
+        }
+        Insert: {
+          alt_text?: string
+          created_at?: string
+          height: number
+          id?: string
+          owner_id: string
+          position?: number
+          post_id?: string | null
+          size_bytes: number
+          storage_path: string
+          updated_at?: string
+          width: number
+        }
+        Update: {
+          alt_text?: string
+          created_at?: string
+          height?: number
+          id?: string
+          owner_id?: string
+          position?: number
+          post_id?: string | null
+          size_bytes?: number
+          storage_path?: string
+          updated_at?: string
+          width?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "media_files_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      media_upload_tickets: {
+        Row: {
+          created_at: string
+          owner_id: string
+          storage_path: string
+        }
+        Insert: {
+          created_at?: string
+          owner_id: string
+          storage_path: string
+        }
+        Update: {
+          created_at?: string
+          owner_id?: string
+          storage_path?: string
+        }
+        Relationships: []
+      }
       post_targets: {
         Row: {
           attempts: number
@@ -657,12 +725,20 @@ export type Database = {
           refresh_token_encrypted: string
         }[]
       }
+      cleanup_media_candidates: {
+        Args: { p_limit?: number }
+        Returns: {
+          media_id: string
+          storage_path: string
+        }[]
+      }
       invoke_job: { Args: { p_path: string }; Returns: number }
       is_manual_sns: { Args: { p_sns: string }; Returns: boolean }
       mark_manual_target_posted: {
         Args: { p_target_id: string; p_url?: string }
         Returns: undefined
       }
+      media_usage_bytes: { Args: { p_owner_id: string }; Returns: number }
       purge_expired_data: {
         Args: never
         Returns: {

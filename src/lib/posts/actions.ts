@@ -10,6 +10,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { fromInputValue, toYmd } from "@/lib/time";
 import { needsFillIn } from "@/lib/ai/post-ideas";
+import { snsNeedingImageReconnect } from "@/lib/media/queries";
+import { MediaError, attachMedia } from "@/lib/media/store";
 import { connectedAccounts } from "./queries";
 import { savePostInputSchema, type SavePostInput, type SavePostResult } from "./schema";
 
@@ -19,7 +21,7 @@ const MIN_LEAD_MS = 5 * 60 * 1000;
 export async function savePost(input: SavePostInput): Promise<SavePostResult> {
   const parsed = savePostInputSchema.safeParse(input);
   if (!parsed.success) return { error: "入力の形式が正しくありません。画面を読み込み直してください。" };
-  const { projectId, postId, body, targets, plannedAt, intent } = parsed.data;
+  const { projectId, postId, body, targets, plannedAt, intent, media } = parsed.data;
 
   const fieldErrors: NonNullable<SavePostResult["fieldErrors"]> = {};
   if (body.trim() === "") fieldErrors.body = "本文を入れてください";
@@ -29,6 +31,11 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
 
   const accounts = await connectedAccounts(projectId);
   const supabase = await createClient();
+  const { data: claims } = await supabase.auth.getClaims();
+  const userId = claims?.claims?.sub;
+  if (!userId) return { error: "ログインし直してください。" };
+  const images = media.length;
+  const needReconnect = images > 0 ? await snsNeedingImageReconnect(accounts) : [];
 
   // 送信済み・送信中・取り消し済みの配信先は、もう送らない
   const locked = new Set<SnsKey>();
@@ -56,7 +63,7 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
     } else {
       for (const t of toSend) {
         const label = SNS[t.sns].label;
-        const issue = checkTarget(t.sns, t.bodyOverride ?? body, undefined, t.title ?? null).issues[0];
+        const issue = checkTarget(t.sns, t.bodyOverride ?? body, { images, videos: 0 }, t.title ?? null).issues[0];
         if (issue) {
           fieldErrors.targets = `${label}: ${ISSUE_LABEL[issue]}`;
           break;
@@ -74,6 +81,11 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
         }
         if (!canPublish(t.sns)) {
           fieldErrors.targets = `${label} への送信はまだ準備中です。下書きとして保存できます。`;
+          break;
+        }
+        // 画像を送るのに要る権限がない（X は media.write を足す前につないだアカウント）
+        if (needReconnect.includes(t.sns)) {
+          fieldErrors.targets = `${label} に画像を送るには、つなぎ直しが要ります。概要の「つないだ SNS」から ${label} をつなぎ直してください。`;
           break;
         }
       }
@@ -104,6 +116,15 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
   });
   if (error || !savedId) {
     return { error: "保存できませんでした。時間をおいてもう一度お試しください。" };
+  }
+
+  // 画像を、渡した順と代わりの文にそろえる（外した画像は消える）。送る前に済ませる
+  try {
+    await attachMedia(createAdminClient(), userId, savedId, media.map((m) => ({ id: m.id, altText: m.altText })));
+  } catch (e) {
+    if (e instanceof MediaError) return { fieldErrors: { media: e.userMessage } };
+    console.error("[savePost] 画像を保存できませんでした", e);
+    return { error: "画像を保存できませんでした。時間をおいてもう一度お試しください。" };
   }
 
   if (intent === "now") {

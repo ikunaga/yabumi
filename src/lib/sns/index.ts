@@ -16,18 +16,23 @@ type SnsSpec = {
   delivery: Delivery;
   // 長文の SNS は、タイトルを付けて投稿する
   needsTitle?: boolean;
+  // 1 つの投稿に付けられる画像の数（各社の公式の資料、2026-10-11。docs/architecture.md の 4.17）。
+  // 0 は、矢書からは画像を送らない（動画だけの SNS、手で投稿する SNS）
+  maxImages: number;
 };
 
 export const SNS: Record<SnsKey, SnsSpec> = {
-  x: { label: "X", maxLength: 140, media: "none", delivery: "auto" },
-  threads: { label: "Threads", maxLength: 500, media: "none", delivery: "auto" },
-  instagram: { label: "Instagram", maxLength: 2200, media: "image_or_video", delivery: "auto" },
-  facebook: { label: "Facebook", maxLength: null, media: "none", delivery: "auto" },
-  tiktok: { label: "TikTok", maxLength: 2200, media: "video", delivery: "auto" },
-  youtube: { label: "YouTube", maxLength: 5000, media: "video", delivery: "auto" },
-  // note・Substack は本文の上限が公表されていないので、上限なしとして扱う
-  note: { label: "note", maxLength: null, media: "none", delivery: "manual", needsTitle: true },
-  substack: { label: "Substack", maxLength: null, media: "none", delivery: "manual", needsTitle: true },
+  // X は写真 4 枚まで。Threads はカルーセルで 20 枚まで。Instagram はカルーセルで 10 枚まで
+  x: { label: "X", maxLength: 140, media: "none", delivery: "auto", maxImages: 4 },
+  threads: { label: "Threads", maxLength: 500, media: "none", delivery: "auto", maxImages: 20 },
+  instagram: { label: "Instagram", maxLength: 2200, media: "image_or_video", delivery: "auto", maxImages: 10 },
+  // Facebook ページの複数の写真の上限は公式の資料で確かめられなかった。つなぐときに確かめる
+  facebook: { label: "Facebook", maxLength: null, media: "none", delivery: "auto", maxImages: 10 },
+  tiktok: { label: "TikTok", maxLength: 2200, media: "video", delivery: "auto", maxImages: 0 },
+  youtube: { label: "YouTube", maxLength: 5000, media: "video", delivery: "auto", maxImages: 0 },
+  // note・Substack は本文の上限が公表されていないので、上限なしとして扱う。画像は利用者が投稿の画面で手で添える
+  note: { label: "note", maxLength: null, media: "none", delivery: "manual", needsTitle: true, maxImages: 0 },
+  substack: { label: "Substack", maxLength: null, media: "none", delivery: "manual", needsTitle: true, maxImages: 0 },
 };
 
 // 画面に並べる順（デザインの「送り先と文面の調整」の順。手で投稿する SNS は最後）
@@ -76,7 +81,7 @@ export function displayLength(sns: SnsKey, text: string): number {
   return [...text].length;
 }
 
-export type TargetIssue = "empty" | "too_long" | "needs_image" | "needs_video" | "needs_title";
+export type TargetIssue = "empty" | "too_long" | "needs_image" | "needs_video" | "needs_title" | "too_many_images";
 
 export type TargetCheck = {
   length: number;
@@ -84,7 +89,7 @@ export type TargetCheck = {
   issues: TargetIssue[];
 };
 
-// 1 つの SNS 向けの文面が送れる状態かを調べる。画像・動画の添付はまだないので、必要な SNS は常に指摘する
+// 1 つの SNS 向けの文面が送れる状態かを調べる。動画の添付はまだないので、動画が必要な SNS は常に指摘する
 export function checkTarget(
   sns: SnsKey,
   text: string,
@@ -99,6 +104,7 @@ export function checkTarget(
   if (spec.media === "image_or_video" && media.images + media.videos === 0) issues.push("needs_image");
   if (spec.media === "video" && media.videos === 0) issues.push("needs_video");
   if (spec.needsTitle && !(title ?? "").trim()) issues.push("needs_title");
+  if (spec.maxImages > 0 && media.images > spec.maxImages) issues.push("too_many_images");
   return { length, maxLength: spec.maxLength, issues };
 }
 
@@ -108,4 +114,10 @@ export const ISSUE_LABEL: Record<TargetIssue, string> = {
   needs_image: "画像が必要",
   needs_video: "動画が必要",
   needs_title: "タイトルが必要",
+  too_many_images: "画像が多すぎます",
 };
+
+// 画像を付けても、この SNS には送らない（動画だけの SNS、手で投稿する SNS）。作成画面で知らせる
+export function ignoresImages(sns: SnsKey): boolean {
+  return SNS[sns].maxImages === 0;
+}

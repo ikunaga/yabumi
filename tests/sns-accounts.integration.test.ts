@@ -2,7 +2,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { decryptToken } from "@/lib/crypto/token-cipher";
-import { deleteAccountsByExternalId, revokeAccountsByExternalId, saveConnectedAccount } from "@/lib/sns/accounts";
+import { deleteAccountsByExternalId, purgeSnsDataOf, revokeAccountsByExternalId, saveConnectedAccount } from "@/lib/sns/accounts";
 import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
 
 const key = randomBytes(32);
@@ -96,5 +96,74 @@ describe("SNS アカウントの保存", () => {
     const { data: after } = await admin.from("post_targets").select("status, external_post_id, external_url, social_account_id").eq("id", target!.id).single();
     expect(after).toEqual({ status: "published", external_post_id: null, external_url: null, social_account_id: null });
     expect((await admin.from("posts").select("body").eq("id", postId!).single()).data?.body).toBe("送った投稿");
+  });
+});
+
+// 送った投稿と、その SNS から受け取った数字を用意する
+async function publishedWithMetrics(sns: "x" | "threads", accountId: string) {
+  const { data: project } = await alice.from("projects").insert({ name: `${sns} の数字` }).select("id").single();
+  const { data: postId, error } = await alice.rpc("save_post", {
+    p_post_id: null as unknown as string,
+    p_project_id: project!.id,
+    p_body: `${sns} に送った投稿`,
+    p_planned_at: null as unknown as string,
+    p_status: "draft",
+    p_targets: [{ sns, social_account_id: accountId }],
+  });
+  if (error) throw error;
+  const { data: target } = await admin
+    .from("post_targets")
+    .update({ status: "published", published_at: new Date().toISOString(), external_post_id: `${sns}-${randomUUID()}`, external_url: "https://example.com/p/1" })
+    .eq("post_id", postId!)
+    .select("id")
+    .single();
+  await admin.from("post_metrics").insert({ post_target_id: target!.id, owner_id: aliceId, day_index: 1, values: { views: 10 } });
+  await admin.from("account_metrics").insert({ social_account_id: accountId, owner_id: aliceId, day: "2026-10-11", values: { followers: 5 } });
+  return { postId: postId!, targetId: target!.id };
+}
+
+const metricsOf = async (targetId: string, accountId: string) => ({
+  post: (await admin.from("post_metrics").select("day_index").eq("post_target_id", targetId)).data,
+  account: (await admin.from("account_metrics").select("day").eq("social_account_id", accountId)).data,
+  target: (await admin.from("post_targets").select("external_post_id, external_url").eq("id", targetId).single()).data,
+});
+
+describe("アクセスがなくなったら、その SNS から受け取ったものを消す（4.14）", () => {
+  const save = (sns: "x" | "threads") =>
+    saveConnectedAccount(
+      admin,
+      { ownerId: aliceId, sns, externalId: `${sns}-${randomUUID()}`, displayName: "A", handle: "a", accessToken: "t", expiresAt: new Date("2099-01-01"), scopes: [] },
+      key,
+    );
+
+  it("矢書の「外す」（purgeSnsDataOf）: 投稿の数字・フォロワーの数・投稿の ID と URL を消し、本文は残す", async () => {
+    const x = await save("x");
+    const { postId, targetId } = await publishedWithMetrics("x", x);
+    await purgeSnsDataOf(admin, [x]);
+    expect(await metricsOf(targetId, x)).toEqual({ post: [], account: [], target: { external_post_id: null, external_url: null } });
+    expect((await admin.from("posts").select("body").eq("id", postId).single()).data?.body).toBe("x に送った投稿");
+  });
+
+  it("SNS の側で外されたとき（Meta の Deauthorize）も同じように消す。アカウントは「解除済み」で残る", async () => {
+    const externalId = `threads-${randomUUID()}`;
+    const th = await saveConnectedAccount(
+      admin,
+      { ownerId: aliceId, sns: "threads", externalId, displayName: "A", handle: "a", accessToken: "t", expiresAt: new Date("2099-01-01"), scopes: [] },
+      key,
+    );
+    const { targetId } = await publishedWithMetrics("threads", th);
+    expect(await revokeAccountsByExternalId(admin, "threads", externalId)).toBe(1);
+    expect(await metricsOf(targetId, th)).toEqual({ post: [], account: [], target: { external_post_id: null, external_url: null } });
+  });
+
+  it("投稿が SNS で消された（配信先が deleted になった）ら、その投稿の数字も消す（ID と URL は 4.19 のトリガーが空にする）", async () => {
+    const x = await save("x");
+    const { targetId } = await publishedWithMetrics("x", x);
+    await admin.from("post_targets").update({ status: "deleted", sns_removed_at: new Date().toISOString() }).eq("id", targetId);
+    const m = await metricsOf(targetId, x);
+    expect(m.post).toEqual([]);
+    expect(m.target).toEqual({ external_post_id: null, external_url: null });
+    // アカウントのフォロワーの数は残る（アカウントはつないだまま）
+    expect(m.account).toHaveLength(1);
   });
 });

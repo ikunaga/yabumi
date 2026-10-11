@@ -37,7 +37,7 @@ export function DisconnectSnsButton({ projectId, accountId, sns, label }: { proj
         <span>
           {otherProjects > 0
             ? `このプロジェクトから ${label} を外します（ほかの ${otherProjects} 件のプロジェクトでは使い続けます）。`
-            : `${label} とのつながりを外し、保存しているトークンを消します。送った投稿の記録は残ります。`}
+            : `${label} とのつながりを外し、保存しているトークンと、${label} から読んだ数字（閲覧数・フォロワーなど）、${label} 上の投稿へのリンクを消します。矢書で書いた投稿の本文と送った記録は残ります。`}
           {count > 0 && <b className="text-signal">予約中の投稿が {count} 件あり、送られなくなります。</b>}
         </span>
         <span className="flex gap-2">

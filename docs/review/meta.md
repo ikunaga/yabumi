@@ -97,7 +97,7 @@ Threads の Use cases → Settings の Uninstall Callback URL は `https://yabum
 
 ### threads_manage_insights（指標を作ったので、追加で申請する。2026-10-11 に画面ができた）
 
-> Yabumi shows indie developers whether their posts are reaching people, on the project's "Metrics" (指標) page. After a user connects their Threads account with this permission, a daily job reads the insights of the posts the user published through Yabumi (views, likes, replies, reposts, quotes, shares) on day 1, 3, 7 and 30 after publishing, and the account's followers_count once a day. We show the total views of the last 7 days compared with the previous week, the follower growth, and a ranked list of the most viewed posts, so non-marketers can see which kind of post works. If the user asks Yabumi's AI assistant to review their numbers, these numbers are included in that request so the assistant can point out what worked (our AI provider, Anthropic, does not use API data for training and deletes it within 30 days). We only read insights of the user's own account and of posts published through Yabumi; we never read other users' data, we never sell or share these numbers, and we never post or change anything with this permission. If Meta sends a data deletion request, we delete these numbers together with the account.
+> Yabumi shows indie developers whether their posts are reaching people, on the project's "Metrics" (指標) page. After a user connects their Threads account with this permission, a daily job reads the insights of the posts the user published through Yabumi (views, likes, replies, reposts, quotes, shares) on day 1, 3, 7 and 30 after publishing, and the account's followers_count once a day. We show the total views of the last 7 days compared with the previous week, the follower growth, and a ranked list of the most viewed posts, so non-marketers can see which kind of post works. If the user asks Yabumi's AI assistant to review their numbers, these numbers are included in that request so the assistant can point out what worked (our AI provider, Anthropic, does not use API data for training and deletes it within 30 days). We only read insights of the user's own account and of posts published through Yabumi; we never read other users' data, we never sell or share these numbers, and we never post or change anything with this permission. When the user disconnects the account in Yabumi, removes Yabumi in Threads settings, or Meta sends a data deletion request, we delete these numbers immediately.
 
 #### 申請までの流れ（オーナー。DB と画面は 2026-10-11 に作り済み）
 
@@ -139,7 +139,7 @@ Threads の Use cases → Settings の Uninstall Callback URL は `https://yabum
 | Threads のデータを他社に売る・渡すか | しない |
 | 政府などからの開示の求めへの方針 | 法律に基づく正式な求めにだけ、必要な範囲で応じる。求めが不当なら争う。利用者に知らせることが法律で禁じられていなければ知らせる（運営者の方針として、オーナーが確かめる） |
 | 保存するデータ | ユーザー ID、ユーザー名、表示名、アクセストークン（AES-256-GCM で暗号化）、矢書から送った投稿の ID と URL。数字の権限つきでつないだときは、矢書から送った投稿の数字（1・3・7・30 日目）とフォロワー数（日ごと）。Facebook はページの ID・名前と、つないだ Facebook の利用者の ID（ページを選ぶまでの 15 分だけ、ページの一覧と暗号化したページのトークンも） |
-| 削除 | 利用者が「外す」とき: アカウントの情報・トークン・フォロワー数をすぐ消す（矢書から送った投稿の数字は、投稿を消すか退会まで残す）。退会したとき: すべてすぐ消す。Meta からデータの削除の依頼が来たとき: アカウントの情報・トークン・フォロワー数に加え、その SNS から読んだ投稿の数字と、SNS 上の投稿の ID・URL も消し、確認のページと確認コードを返す（Threads・Instagram・Facebook とも。矢書で書いた投稿の本文は利用者のものなので残す）。Meta の側で矢書が外されたときは、トークンを消して「解除済み」にする |
+| 削除 | 利用者が矢書で「外す」とき、Meta の側で矢書が外されたとき（Deauthorize の知らせ）、Meta からデータの削除の依頼が来たとき（確認のページと確認コードを返す）、退会したとき: どれも、アカウントの情報（Deauthorize のときは「解除済み」の印だけ残す）・トークン・フォロワー数・矢書から送った投稿の数字・SNS 上の投稿の ID と URL をすぐ消す（Threads・Instagram・Facebook とも）。SNS で投稿が消されたら、その投稿の数字と ID・URL を消す。矢書で書いた投稿の本文は利用者のものなので残す |
 
 ## Instagram と Facebook ページ
 
@@ -165,7 +165,7 @@ Threads の Use cases → Settings の Uninstall Callback URL は `https://yabum
 
 #### instagram_business_manage_insights
 
-> On the project's "Metrics" page, Yabumi shows indie developers whether their posts are reaching people. With this permission, a daily job reads the insights of the posts the user published through Yabumi (views, reach, likes, comments, saves, shares, total interactions) on day 2, 4, 8 and 31 after publishing, and the account's followers_count once a day. We show the total views of the last 7 days compared with the previous week, the follower growth, and the most viewed posts. If the user asks Yabumi's AI assistant to review their numbers, these numbers are included in that request (Anthropic does not use API data for training and deletes it within 30 days). We only read the user's own account and posts published through Yabumi, and we never sell or share these numbers.
+> On the project's "Metrics" page, Yabumi shows indie developers whether their posts are reaching people. With this permission, a daily job reads the insights of the posts the user published through Yabumi (views, reach, likes, comments, saves, shares, total interactions) on day 2, 4, 8 and 31 after publishing, and the account's followers_count once a day. We show the total views of the last 7 days compared with the previous week, the follower growth, and the most viewed posts. If the user asks Yabumi's AI assistant to review their numbers, these numbers are included in that request (Anthropic does not use API data for training and deletes it within 30 days). We only read the user's own account and posts published through Yabumi, and we never sell or share these numbers. When the user disconnects the account in Yabumi, removes Yabumi in Instagram settings, or Meta sends a data deletion request, we delete these numbers immediately.
 
 #### pages_show_list
 
@@ -181,7 +181,7 @@ Threads の Use cases → Settings の Uninstall Callback URL は `https://yabum
 
 #### read_insights
 
-> With read_insights, a daily job reads the insights of the Page posts published through Yabumi (media views, unique viewers, reactions, clicks) on day 1, 3, 7 and 30 after publishing, so the "Metrics" page can show which posts reached people. If the user asks Yabumi's AI assistant to review their numbers, these numbers are included in that request (Anthropic does not use API data for training and deletes it within 30 days). We only read the Page the user connected and posts published through Yabumi, and we never sell or share these numbers.
+> With read_insights, a daily job reads the insights of the Page posts published through Yabumi (media views, unique viewers, reactions, clicks) on day 1, 3, 7 and 30 after publishing, so the "Metrics" page can show which posts reached people. If the user asks Yabumi's AI assistant to review their numbers, these numbers are included in that request (Anthropic does not use API data for training and deletes it within 30 days). We only read the Page the user connected and posts published through Yabumi, and we never sell or share these numbers. When the user disconnects the Page in Yabumi, removes Yabumi in Facebook's Business Integrations, or Meta sends a data deletion request, we delete these numbers immediately.
 
 - 録画は Threads と同じ形（つなぐ → 認可画面 → 「✓」、投稿 → 「Instagram で見る」、指標の画面）。Instagram の録画では「Instagram からは取り消せないので、Instagram のアプリから消す」案内も見せる
 - Instagram の数字の読み方（2・4・8・31 日目）と Facebook の数字の名前は src/lib/sns/insights/index.ts と、SNS 上の投稿 ID の扱いは src/lib/sns/accounts.ts と揃える

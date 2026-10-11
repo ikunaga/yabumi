@@ -130,6 +130,19 @@ export function AuthForm({
           </Field>
         )}
         {mode !== "reset" && <Turnstile resetKey={state} />}
+        {mode === "signup" && (
+          <p className="text-[14px] leading-[1.7] text-muted">
+            登録すると、
+            <Link href="/terms" target="_blank" className="text-primary hover:underline">
+              利用規約
+            </Link>
+            と
+            <Link href="/privacy" target="_blank" className="text-primary hover:underline">
+              プライバシーポリシー
+            </Link>
+            に同意したものとします。
+          </p>
+        )}
         <Button type="submit" className="mt-1 h-12 w-full max-md:h-13" disabled={pending}>
           {pending ? c.pending : c.submit}
         </Button>

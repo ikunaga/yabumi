@@ -8,6 +8,7 @@ import { Field, Input, Textarea } from "@/components/ui/field";
 import { Term } from "@/components/ui/term";
 import { saveSection, type SectionFormState } from "@/lib/plan/actions";
 import { MAX_PILLARS, REQUIRED_FOR_DONE, SECTION_KEYS, isSectionDone, type PlanData, type SectionKey } from "@/lib/plan/schema";
+import { KPI_KEYS, KPIS, MAX_KPIS, recommendedKpis, type KpiKey } from "@/lib/metrics/kpis";
 import { SNS, SNS_KEYS } from "@/lib/sns";
 
 // 見出しはボタンの中に置くので、用語解説（これもボタン）は説明文のほうに付ける
@@ -213,7 +214,7 @@ function SectionFields({ sectionKey, plan }: { sectionKey: SectionKey; plan: Pla
     case "cadence":
       return <CadenceFields v={plan.cadence} />;
     case "first_month":
-      return <FirstMonthFields v={plan.first_month} />;
+      return <FirstMonthFields v={plan.first_month} goalType={plan.goal.goalType} />;
   }
 }
 
@@ -506,7 +507,10 @@ function CadenceFields({ v }: { v: PlanData["cadence"] }) {
   );
 }
 
-function FirstMonthFields({ v }: { v: PlanData["first_month"] }) {
+function FirstMonthFields({ v, goalType }: { v: PlanData["first_month"]; goalType: PlanData["goal"]["goalType"] }) {
+  const recommended = recommendedKpis(goalType);
+  // まだ選んでいなければ、目的からのおすすめを入れておく（保存するまでは決まらない）
+  const [kpis, setKpis] = useState<KpiKey[]>(() => ((v.kpis ?? []).length ? (v.kpis ?? []) : recommended.slice(0, MAX_KPIS)));
   return (
     <>
       <Field
@@ -530,9 +534,41 @@ function FirstMonthFields({ v }: { v: PlanData["first_month"] }) {
           placeholder="例: 投稿ごとの表示回数と、ストアページへのアクセス数を、週に 1 回（日曜の夜）見る"
         />
       </Field>
+      <fieldset className="flex flex-col gap-1.5">
+        <legend className="text-[14px] font-bold">
+          矢書の「指標」の画面で追う数字（<Term k="kpi" />。{MAX_KPIS} つまで）
+        </legend>
+        <p className="text-xs text-muted">目的に合わせたおすすめに印を付けています。迷ったらそのままで大丈夫です。</p>
+        <ul className="flex flex-col gap-1">
+          {KPI_KEYS.map((k) => {
+            const on = kpis.includes(k);
+            return (
+              <li key={k}>
+                <label className="flex items-start gap-2 text-sm leading-[1.7]">
+                  <input
+                    type="checkbox"
+                    name="kpis"
+                    value={k}
+                    checked={on}
+                    disabled={!on && kpis.length >= MAX_KPIS}
+                    onChange={() => setKpis((prev) => (on ? prev.filter((x) => x !== k) : [...prev, k]))}
+                    className="mt-1 size-4 accent-[var(--primary)]"
+                  />
+                  <span>
+                    <b>{KPIS[k].label}</b>
+                    {recommended.includes(k) && <span className="ml-1.5 text-xs text-primary">おすすめ</span>}
+                    {KPIS[k].availability !== "ready" && <span className="ml-1.5 text-xs text-muted">（いまは準備中）</span>}
+                    <span className="block text-xs text-muted">{KPIS[k].meaning}</span>
+                  </span>
+                </label>
+              </li>
+            );
+          })}
+        </ul>
+      </fieldset>
       <p className="text-xs text-muted">
         表示回数は <Term k="impression" />
-        とも呼ばれます。指標の画面ができたら、ここで決めた数字を矢書の中で追えるようにします。
+        とも呼ばれます。
       </p>
     </>
   );

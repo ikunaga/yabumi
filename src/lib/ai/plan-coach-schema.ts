@@ -1,3 +1,4 @@
+import { KPI_KEYS } from "@/lib/metrics/kpis";
 import { z } from "zod";
 import { SNS_KEYS, type SnsKey } from "@/lib/sns";
 import { GOAL_TYPES, OWNERSHIP_MODES, SECTION_KEYS, sectionSchemas, type SectionKey, type SectionValue } from "@/lib/plan/schema";
@@ -21,7 +22,7 @@ export const valueSchemas = {
   ownership: z.object({ mode: z.enum(OWNERSHIP_MODES).nullable(), reason: z.string() }),
   profile: z.object({ displayName: z.string(), handle: z.string(), handleBackups: z.string(), bio: z.string(), link: z.string() }),
   cadence: z.object({ frequency: z.string(), roles: z.array(z.object({ sns: snsEnum, role: z.string() })) }),
-  first_month: z.object({ goal: z.string(), metrics: z.string() }),
+  first_month: z.object({ goal: z.string(), metrics: z.string(), kpis: z.array(z.enum(KPI_KEYS)).max(3).default([]) }),
 } satisfies Record<SectionKey, z.ZodType>;
 
 const proposalSchema = z.object({

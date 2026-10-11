@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { KPI_KEYS, MAX_KPIS } from "@/lib/metrics/kpis";
 import { SNS_KEYS, type SnsKey } from "@/lib/sns";
 
 // アカウント設計（要求 F15）のデータの形。DB の account_plans.data にセクションごとに入る。
@@ -63,6 +64,8 @@ export const sectionSchemas = {
   first_month: z.object({
     goal: text(300),
     metrics: text(500),
+    // 数字の画面で先頭に出す数字（決まった名前から 1〜3 個。docs/architecture.md の 4.22）。前の版で保存したものは空
+    kpis: z.array(z.enum(KPI_KEYS)).max(MAX_KPIS, `数字は ${MAX_KPIS} つまでにしてください`).default([]),
   }),
 } as const;
 
@@ -167,6 +170,6 @@ function parseSectionFormAny(key: SectionKey, form: FormData) {
       return sectionSchemas.cadence.safeParse({ frequency: s("frequency"), roles });
     }
     case "first_month":
-      return sectionSchemas.first_month.safeParse({ goal: s("goal"), metrics: s("metrics") });
+      return sectionSchemas.first_month.safeParse({ goal: s("goal"), metrics: s("metrics"), kpis: form.getAll("kpis").map(String) });
   }
 }

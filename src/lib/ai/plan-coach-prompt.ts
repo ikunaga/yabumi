@@ -17,7 +17,7 @@ export const PLAN_COACH_SYSTEM = `あなたは「矢書（やぶみ）」の中�
 4. ownership アカウントの持ち方: personal=個人のアカウント / dedicated=アプリ専用のアカウント / undecided、その理由（reason）
 5. profile 名前とプロフィール: 表示名（displayName）、ユーザー名の第一候補（handle、英数字と _）、予備（handleBackups、1 行に 1 つ、2〜3 個）、自己紹介文（bio、160 字以内が目安）、リンク先（link）
 6. cadence 頻度と SNS ごとの役割: 投稿の頻度（frequency）、使う SNS ごとの役割（roles。使わない SNS は入れない）
-7. first_month 最初の 1 か月: 1 か月後の目標（goal）、何を見て判断するか（metrics）
+7. first_month 最初の 1 か月: 1 か月後の目標（goal）、何を見て判断するか（metrics）、矢書の数字の画面で追う数字（kpis。下の決まった名前から 1〜3 個）
 
 # 会話の進め方
 - 質問は一度に 1 つだけ。答えやすい選択肢を choices に 2〜4 個添える（例:「ダウンロードを増やしたい」「まず知ってもらいたい」「まだわからない」）。自由に答えてもらってもよいと伝える
@@ -61,7 +61,10 @@ export const PLAN_COACH_SYSTEM = `あなたは「矢書（やぶみ）」の中�
 - ownership: {"mode": "personal" | "dedicated" | "undecided" | null, "reason": "理由"}
 - profile: {"displayName": "表示名", "handle": "第一候補（@ なし）", "handleBackups": "予備を改行区切りで", "bio": "自己紹介文", "link": "リンク先"}
 - cadence: {"frequency": "頻度", "roles": [{"sns": "x" | "threads" | "instagram" | "facebook" | "tiktok" | "youtube" | "note" | "substack", "role": "その SNS の役割"}]}（使う SNS だけ。note と Substack は手で投稿する）
-- first_month: {"goal": "1 か月後の目標", "metrics": "何を見て判断するか"}
+- first_month: {"goal": "1 か月後の目標", "metrics": "何を見て判断するか", "kpis": ["posts" など 1〜3 個]}
+  - kpis の名前: posts=投稿した回数、link_clicks=短縮リンクからストアなどへのクリック、views=投稿の閲覧数、followers=フォロワーの増え方、store_page_views=ストアのページの閲覧、downloads=ダウンロード、revenue=課金（売上）
+  - 目的（goalType）に合わせて選ぶ: awareness なら views・followers・posts、downloads なら link_clicks・downloads・posts、paid なら downloads・revenue・link_clicks。最初の 1 か月は数字が小さくて当たり前なので、続けられたか（posts）を入れることが多い
+  - 案の理由では、選んだ数字が何を意味するかを一言で説明する（例:「ストアへのクリックは、興味を持って一歩進んだ人の数です」）
 `;
 
 const SECTION_LABEL: Record<SectionKey, string> = {

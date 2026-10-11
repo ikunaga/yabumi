@@ -313,6 +313,41 @@ export type Database = {
         }
         Relationships: []
       }
+      manual_post_metrics: {
+        Row: {
+          owner_id: string
+          post_target_id: string
+          reactions: number | null
+          recorded_at: string
+          updated_at: string
+          views: number | null
+        }
+        Insert: {
+          owner_id?: string
+          post_target_id: string
+          reactions?: number | null
+          recorded_at?: string
+          updated_at?: string
+          views?: number | null
+        }
+        Update: {
+          owner_id?: string
+          post_target_id?: string
+          reactions?: number | null
+          recorded_at?: string
+          updated_at?: string
+          views?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manual_post_metrics_post_target_id_fkey"
+            columns: ["post_target_id"]
+            isOneToOne: true
+            referencedRelation: "post_targets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       media_files: {
         Row: {
           alt_text: string
@@ -958,6 +993,15 @@ export type Database = {
           link_id: string
         }[]
       }
+      link_clicks_by_sns: {
+        Args: { p_project_id: string; p_today: string }
+        Returns: {
+          last_30d: number
+          last_week: number
+          sns: string
+          this_week: number
+        }[]
+      }
       mark_manual_target_posted: {
         Args: { p_target_id: string; p_url?: string }
         Returns: undefined
@@ -1034,6 +1078,27 @@ export type Database = {
       sns_spend_this_month: {
         Args: { p_owner_id?: string; p_sns: unknown }
         Returns: number
+      }
+      top_posts_by_clicks: {
+        Args: {
+          p_days?: number
+          p_limit?: number
+          p_project_id: string
+          p_today: string
+        }
+        Returns: {
+          clicks: number
+          post_id: string
+        }[]
+      }
+      weekly_post_totals: {
+        Args: { p_project_id: string; p_today: string }
+        Returns: {
+          manual_views_last_week: number
+          manual_views_this_week: number
+          published_last_week: number
+          published_this_week: number
+        }[]
       }
     }
     Enums: {

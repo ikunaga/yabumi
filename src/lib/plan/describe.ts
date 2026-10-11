@@ -1,3 +1,4 @@
+import { KPIS } from "@/lib/metrics/kpis";
 import { SNS, SNS_KEYS } from "@/lib/sns";
 import type { PlanData, SectionKey, SectionValue } from "./schema";
 
@@ -65,6 +66,7 @@ export function describeSection(key: SectionKey, value: SectionValue<SectionKey>
       const v = value as PlanData["first_month"];
       add("1 か月後の目標", v.goal);
       add("何を見て判断するか", v.metrics);
+      add("数字の画面で追う数字", (v.kpis ?? []).map((k) => KPIS[k].label).join("、"));
       break;
     }
   }

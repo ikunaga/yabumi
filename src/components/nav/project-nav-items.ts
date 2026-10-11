@@ -13,7 +13,7 @@ export function projectNavItems(projectId: string): ProjectNavItem[] {
     { key: "calendar", label: "カレンダー", tabLabel: "予定", href: `${base}/calendar`, tab: true },
     // 短縮リンク（4.22）。スマホの下のタブは埋まっているので、概要から開く
     { key: "links", label: "リンク", tabLabel: "リンク", href: `${base}/links`, tab: false },
-    { key: "metrics", label: "指標", tabLabel: "指標", href: null, tab: true },
+    { key: "metrics", label: "指標", tabLabel: "指標", href: `${base}/metrics`, tab: true },
     { key: "consult", label: "AI と相談", tabLabel: "相談", href: null, tab: true },
     { key: "roadmap", label: "ロードマップ", tabLabel: "ロードマップ", href: null, tab: false },
   ];
@@ -32,6 +32,8 @@ export function activeNavKey(segment: string | null): ProjectNavKey {
       return "plan";
     case "links":
       return "links";
+    case "metrics":
+      return "metrics";
     default:
       return "overview";
   }

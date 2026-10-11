@@ -63,6 +63,14 @@ async function targetRow(targetId: string) {
   return data!;
 }
 
+// alice が今日（日本時間）X の投稿を読んだ回数
+async function readsToday() {
+  const jst = new Date(Date.now() + 9 * HOUR);
+  const dayStart = new Date(Date.UTC(jst.getUTCFullYear(), jst.getUTCMonth(), jst.getUTCDate()) - 9 * HOUR).toISOString();
+  const { count } = await admin.from("sns_api_usage").select("id", { count: "exact", head: true }).eq("owner_id", aliceId).eq("operation", "post_read").gte("created_at", dayStart);
+  return count ?? 0;
+}
+
 async function reads(targetId: string) {
   const { data } = await admin.from("sns_api_usage").select("operation, cost_usd").eq("post_target_id", targetId);
   return data!;
@@ -109,15 +117,16 @@ describe("X で消された投稿の記録", () => {
   it("まだあれば確かめた日時だけを入れ、24 時間は確かめ直さない", async () => {
     const { postId, targetId } = await publishedTarget();
     const readPost = vi.fn(async (): Promise<PostState> => "exists");
-    expect((await syncXTargetsOfPost(admin, deps(readPost), postId))[0].result).toBe("exists");
+    // 失敗したときに中身が見えるよう、結果をそのまま比べる
+    expect(await syncXTargetsOfPost(admin, deps(readPost), postId)).toEqual([{ targetId, result: "exists" }]);
     expect((await targetRow(targetId)).status).toBe("published");
     expect((await targetRow(targetId)).sns_checked_at).not.toBeNull();
-    expect((await syncXTargetsOfPost(admin, deps(readPost), postId))[0].result).toBe("skipped");
+    expect(await syncXTargetsOfPost(admin, deps(readPost), postId)).toEqual([{ targetId, result: "skipped" }]);
     expect(readPost).toHaveBeenCalledTimes(1);
     // 25 時間たてば、また確かめる
-    expect((await syncXTargetsOfPost(admin, deps(readPost, 1000, new Date(Date.now() + 25 * HOUR)), postId))[0].result).toBe("exists");
+    expect(await syncXTargetsOfPost(admin, deps(readPost, 1000, new Date(Date.now() + 25 * HOUR)), postId)).toEqual([{ targetId, result: "exists" }]);
     expect(readPost).toHaveBeenCalledTimes(2);
-  });
+  }, 20_000);
 
   it("送ってすぐ（10 分以内）は確かめない", async () => {
     const { postId } = await publishedTarget({ publishedAt: new Date(Date.now() - 60_000) });
@@ -137,13 +146,29 @@ describe("X で消された投稿の記録", () => {
   it(`1 人が 1 日に確かめられるのは ${X_MAX_READS_PER_USER_PER_DAY} 回まで（共有の上限をほかの人の投稿のために残す）`, async () => {
     const { data: ins } = await admin
       .from("sns_api_usage")
-      .insert(Array.from({ length: X_MAX_READS_PER_USER_PER_DAY }, () => ({ owner_id: aliceId, sns: "x" as const, operation: "post_read", cost_usd: 0 })))
+      .insert(Array.from({ length: X_MAX_READS_PER_USER_PER_DAY - (await readsToday()) }, () => ({ owner_id: aliceId, sns: "x" as const, operation: "post_read", cost_usd: 0 })))
       .select("id");
     const { postId } = await publishedTarget();
     const readPost = vi.fn(async (): Promise<PostState> => "exists");
     expect((await syncXTargetsOfPost(admin, deps(readPost), postId))[0].result).toBe("skipped");
     expect(readPost).not.toHaveBeenCalled();
     await admin.from("sns_api_usage").delete().in("id", ins!.map((r) => r.id));
+  });
+
+  it("同時に開かれても、1 日の回数の上限を超えない", async () => {
+    // 残りがちょうど 1 回になるようにする（このファイルの前のテストで読んだ分も数える）
+    const left = X_MAX_READS_PER_USER_PER_DAY - (await readsToday());
+    const { data: ins } = await admin
+      .from("sns_api_usage")
+      .insert(Array.from({ length: left - 1 }, () => ({ owner_id: aliceId, sns: "x" as const, operation: "post_read", cost_usd: 0 })))
+      .select("id");
+    const posts = await Promise.all([1, 2, 3, 4].map(() => publishedTarget()));
+    const readPost = vi.fn(async (): Promise<PostState> => "exists");
+    const outcomes = (await Promise.all(posts.map((p) => syncXTargetsOfPost(admin, deps(readPost), p.postId)))).flat();
+    expect(outcomes.filter((o) => o.result === "exists")).toHaveLength(1);
+    expect(readPost).toHaveBeenCalledTimes(1);
+    await admin.from("sns_api_usage").delete().in("id", ins!.map((r) => r.id));
+    await admin.from("sns_api_usage").delete().in("post_target_id", posts.map((p) => p.targetId));
   });
 
   it("読めなかったときは、費用の記録を消して、次に開いたときにまた確かめる", async () => {

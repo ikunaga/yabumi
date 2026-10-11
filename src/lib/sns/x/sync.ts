@@ -77,23 +77,6 @@ async function loadActiveToken(admin: Admin, deps: SyncDeps, socialAccountId: st
 
 export type SyncOutcome = { targetId: string; result: "exists" | "removed" | "skipped" };
 
-function jstDayStart(now: Date): string {
-  const jst = new Date(now.getTime() + 9 * 3600_000);
-  return new Date(Date.UTC(jst.getUTCFullYear(), jst.getUTCMonth(), jst.getUTCDate()) - 9 * 3600_000).toISOString();
-}
-
-async function readsToday(admin: Admin, ownerId: string, now: Date): Promise<number> {
-  const { count, error } = await admin
-    .from("sns_api_usage")
-    .select("id", { count: "exact", head: true })
-    .eq("owner_id", ownerId)
-    .eq("sns", "x")
-    .eq("operation", "post_read")
-    .gte("created_at", jstDayStart(now));
-  if (error) throw error;
-  return count ?? 0;
-}
-
 // 1 つの投稿の X の配信先を確かめる。呼ぶ前に、postId が利用者本人の投稿であることを確かめておく（admin は RLS を通らない）
 export async function syncXTargetsOfPost(admin: Admin, deps: SyncDeps, postId: string): Promise<SyncOutcome[]> {
   const now = deps.publisher.now?.() ?? new Date();
@@ -128,19 +111,15 @@ export async function syncXTargetsOfPost(admin: Admin, deps: SyncDeps, postId: s
       continue;
     }
 
-    if ((await readsToday(admin, t.owner_id, now)) >= X_MAX_READS_PER_USER_PER_DAY) {
-      skip();
-      continue;
-    }
-
-    // 読む前に費用を記録する。月の上限に達していれば確かめない（投稿のほうを優先する）
-    const { data: usageId, error: reserveError } = await admin.rpc("reserve_sns_spend", {
+    // 読む前に費用を記録する。月の上限（矢書全体）か、1 人 1 日の回数の上限に達していれば確かめない（投稿のほうを優先する）。
+    // 2 つの上限の確かめと記録は、DB の中で 1 つのロックの中で行う（同時に呼ばれても回数を超えない）
+    const { data: usageId, error: reserveError } = await admin.rpc("reserve_sns_read", {
       p_owner_id: t.owner_id,
       p_sns: "x",
       p_post_target_id: t.id,
-      p_operation: "post_read",
       p_cost_usd: X_POST_READ_USD,
       p_budget_usd: deps.budgetUsd as number,
+      p_daily_limit: X_MAX_READS_PER_USER_PER_DAY,
       p_scope_owner: (deps.budgetScopeOwner ?? null) as string,
     });
     if (reserveError) throw reserveError;

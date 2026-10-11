@@ -88,3 +88,40 @@ $$;
 
 revoke execute on function public.reserve_sns_spend(uuid, public.sns_key, uuid, text, numeric, numeric, uuid) from public, anon, authenticated;
 grant execute on function public.reserve_sns_spend(uuid, public.sns_key, uuid, text, numeric, numeric, uuid) to service_role;
+
+-- ===== X の投稿がまだあるかを読む費用の記録 =====
+-- 月の上限（矢書全体）と、1 人 1 日の回数の上限を、reserve_sns_spend と同じロックの中で確かめてから記録する。
+-- 数えてから記録するまでの間に同じ人の別の呼び出しが割り込むと、回数の上限を超えられてしまうため（2026-10-11、セキュリティの確認の指摘）。
+-- 上限を超えるなら記録せず null を返す
+create function public.reserve_sns_read(
+  p_owner_id uuid,
+  p_sns public.sns_key,
+  p_post_target_id uuid,
+  p_cost_usd numeric,
+  p_budget_usd numeric,
+  p_daily_limit integer,
+  p_scope_owner uuid default null
+)
+returns uuid
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  v_day_start timestamptz := date_trunc('day', now() at time zone 'Asia/Tokyo') at time zone 'Asia/Tokyo';
+  v_reads integer;
+begin
+  perform pg_advisory_xact_lock(hashtext('sns_api_usage:' || p_sns::text));
+  select count(*) into v_reads
+    from public.sns_api_usage
+   where sns = p_sns and owner_id = p_owner_id and operation = 'post_read' and created_at >= v_day_start;
+  if v_reads >= p_daily_limit then
+    return null;
+  end if;
+  -- 同じトランザクションの中なので、reserve_sns_spend のロックは取り直しても待たない
+  return public.reserve_sns_spend(p_owner_id, p_sns, p_post_target_id, 'post_read', p_cost_usd, p_budget_usd, p_scope_owner);
+end;
+$$;
+
+revoke execute on function public.reserve_sns_read(uuid, public.sns_key, uuid, numeric, numeric, integer, uuid) from public, anon, authenticated;
+grant execute on function public.reserve_sns_read(uuid, public.sns_key, uuid, numeric, numeric, integer, uuid) to service_role;

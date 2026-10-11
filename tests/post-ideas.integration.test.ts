@@ -141,7 +141,8 @@ describe("投稿のネタ", () => {
     expect(threads).toHaveLength(KEEP_IDEA_THREADS);
     expect(threads!.map((t) => t.id)).not.toContain(threadId);
     expect((await alice.from("posts").select("id").eq("project_id", projectId)).data).toHaveLength(1);
-  });
+    // 10 回続けて出すので、ほかのテストと同時に流れて DB が混んでいると 5 秒を超えることがある
+  }, 30_000);
 
   it("GitHub をつないでいなくても、最近のできごとからネタを出せる。近況は会話に残し、出し直しにも渡す", async () => {
     const p2 = (await alice.from("projects").insert({ name: "ねむログ" }).select("id").single()).data!.id;

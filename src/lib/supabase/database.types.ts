@@ -667,6 +667,18 @@ export type Database = {
         Args: { p_post_id: string; p_sns: string[] }
         Returns: number
       }
+      reserve_sns_read: {
+        Args: {
+          p_budget_usd: number
+          p_cost_usd: number
+          p_daily_limit: number
+          p_owner_id: string
+          p_post_target_id: string
+          p_scope_owner?: string
+          p_sns: unknown
+        }
+        Returns: string
+      }
       reserve_sns_spend: {
         Args: {
           p_budget_usd: number

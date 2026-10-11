@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { Brand } from "@/components/brand";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -31,7 +32,9 @@ export function ProjectShell({
           <span className="mb-2">
             <ThemeToggle tone="nav" />
           </span>
-          <span className="max-w-full truncate">{email}</span>
+          <Link href="/settings" className="max-w-full truncate hover:text-nav-strong hover:underline" title="アカウント">
+            {email}
+          </Link>
           <form action={logout}>
             <button type="submit" className="hover:text-nav-strong hover:underline">
               ログアウト

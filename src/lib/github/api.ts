@@ -33,6 +33,17 @@ async function gh<T>(token: string, path: string, init: RequestInit & { accept?:
   return (await res.json()) as T;
 }
 
+// App のインストールを外す（退会のとき）。App の JWT で呼ぶ。成功すると 204 で本文がない
+export async function deleteInstallation(appJwt: string, installationId: number): Promise<void> {
+  const res = await fetch(`${GITHUB_API}/app/installations/${installationId}`, {
+    method: "DELETE",
+    cache: "no-store",
+    headers: { Accept: "application/vnd.github+json", Authorization: `Bearer ${appJwt}`, "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "yabumi" },
+  });
+  // 404 はすでに外されている
+  if (!res.ok && res.status !== 404) throw new GitHubApiError(`GitHub App のインストールを外せませんでした（${res.status}）`, res.status);
+}
+
 // インストールのトークン（1 時間）。読むリポジトリと権限を絞って発行する
 export async function createInstallationToken(appJwt: string, installationId: number, repositoryIds?: number[]): Promise<string> {
   const body: Record<string, unknown> = { permissions: { contents: "read", metadata: "read" } };

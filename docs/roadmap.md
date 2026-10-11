@@ -191,7 +191,6 @@ SNS との連携がなくても作れる部分を先に作った。
 
 - 規約とポリシーの「確認中」を埋める（docs/legal.md の L1〜L11）
 - 独自ドメインを取るか（YouTube の確認には必須。docs/review/README.md の R1）、Meta のビジネス認証の名義（R2）
-- threads_manage_insights を審査に出すか（使っていない権限なので、外すのがおすすめ。docs/review/meta.md）
 - X で消された投稿の記録を「最新に保つ」扱い（docs/review/x.md の「残り」）
 
 ## 5. 次の作業

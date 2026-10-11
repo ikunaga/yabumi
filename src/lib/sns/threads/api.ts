@@ -5,8 +5,10 @@ export const THREADS_AUTHORIZE_URL = "https://threads.com/oauth/authorize";
 export const THREADS_GRAPH_URL = "https://graph.threads.com";
 
 // 求める権限。Meta アプリ側で追加していない権限を入れると認可画面がエラーになる。
-// 権限を足したら、つないだ済みのアカウントは「つなぎ直す」で新しい権限が入る
-export const THREADS_SCOPES = ["threads_basic", "threads_content_publish", "threads_manage_insights", "threads_delete"] as const;
+// 権限を足したら、つないだ済みのアカウントは「つなぎ直す」で新しい権限が入る。
+// threads_manage_insights（閲覧数など）は、使うまで求めない（使わない権限は Meta の審査で却下の理由になる。docs/review/meta.md）。
+// 指標（F07）を作るときに足し、利用者につなぎ直してもらう
+export const THREADS_SCOPES = ["threads_basic", "threads_content_publish", "threads_delete"] as const;
 
 export type ThreadsConfig = { appId: string; appSecret: string; redirectUri: string };
 

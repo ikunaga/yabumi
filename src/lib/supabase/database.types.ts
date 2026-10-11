@@ -155,7 +155,7 @@ export type Database = {
           input_tokens: number
           model: string
           output_tokens: number
-          owner_id: string
+          owner_id: string | null
           purpose: string
           thread_id: string | null
         }
@@ -168,7 +168,7 @@ export type Database = {
           input_tokens?: number
           model: string
           output_tokens?: number
-          owner_id: string
+          owner_id?: string | null
           purpose: string
           thread_id?: string | null
         }
@@ -181,7 +181,7 @@ export type Database = {
           input_tokens?: number
           model?: string
           output_tokens?: number
-          owner_id?: string
+          owner_id?: string | null
           purpose?: string
           thread_id?: string | null
         }
@@ -511,7 +511,7 @@ export type Database = {
           created_at: string
           id: string
           operation: string
-          owner_id: string
+          owner_id: string | null
           post_target_id: string | null
           sns: string
         }
@@ -520,7 +520,7 @@ export type Database = {
           created_at?: string
           id?: string
           operation: string
-          owner_id: string
+          owner_id?: string | null
           post_target_id?: string | null
           sns: string
         }
@@ -529,7 +529,7 @@ export type Database = {
           created_at?: string
           id?: string
           operation?: string
-          owner_id?: string
+          owner_id?: string | null
           post_target_id?: string | null
           sns?: string
         }
@@ -648,6 +648,14 @@ export type Database = {
       mark_manual_target_posted: {
         Args: { p_target_id: string; p_url?: string }
         Returns: undefined
+      }
+      purge_expired_data: {
+        Args: never
+        Returns: {
+          ai_threads_deleted: number
+          ai_usage_deleted: number
+          sns_api_usage_deleted: number
+        }[]
       }
       requeue_failed_targets: {
         Args: { p_post_id: string; p_sns: string[] }

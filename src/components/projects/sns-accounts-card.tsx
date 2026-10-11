@@ -2,7 +2,8 @@ import { buttonClass } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { SnsTag } from "@/components/ui/marks";
 import { Term } from "@/components/ui/term";
-import { isManualSns, SNS_KEYS, type SnsKey } from "@/lib/sns";
+import { isManualSns, SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
+import { DisconnectSnsButton } from "./disconnect-sns-button";
 import { ManualChannelRow } from "./manual-channel-row";
 import type { ProjectSnsAccount } from "@/lib/sns/queries";
 import { formatUsd } from "@/lib/sns/x/pricing";
@@ -68,6 +69,7 @@ export function SnsAccountsCard({
                 </span>
                 {sns === "x" && xSpend && <XSpendLine spend={xSpend} />}
               </span>
+              {account && <DisconnectSnsButton projectId={projectId} accountId={account.id} sns={sns} label={SNS[sns].label} />}
               {connectHref ? (
                 // 使える状態でも、権限を足したときなどのために控えめな「つなぎ直す」を出す
                 <a

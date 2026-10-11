@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { Brand } from "@/components/brand";
 import { ButtonLink, buttonClass } from "@/components/ui/button";
+import { SuccessBanner } from "@/components/ui/feedback";
 import { StatusMark } from "@/components/ui/marks";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { createClient } from "@/lib/supabase/server";
@@ -32,7 +33,8 @@ const sample = [
   { sns: "Facebook", note: "68 字", ready: true },
 ];
 
-export default async function Home() {
+export default async function Home(props: PageProps<"/">) {
+  const { done } = await props.searchParams;
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   if (data?.claims) redirect("/projects");
@@ -59,6 +61,11 @@ export default async function Home() {
           </Link>
         </nav>
       </header>
+      {done === "withdrawn" && (
+        <div className="mt-6">
+          <SuccessBanner>退会しました。保存していたデータは消しました。ご利用ありがとうございました。</SuccessBanner>
+        </div>
+      )}
 
       <main className="grid flex-1 grid-cols-[1fr_500px] items-center gap-[72px] py-10 max-lg:grid-cols-1 max-lg:gap-10 max-sm:gap-5 max-sm:py-0">
         <div className="flex flex-col gap-6 max-sm:contents">

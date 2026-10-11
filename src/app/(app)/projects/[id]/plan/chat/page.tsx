@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { DeleteThreadButton } from "@/components/ai/delete-thread-button";
 import { PlanCoachChat } from "@/components/plan/plan-coach-chat";
+import { SuccessBanner } from "@/components/ui/feedback";
 import { ButtonLink } from "@/components/ui/button";
 import { aiConfigured } from "@/lib/ai/anthropic";
 import { getLatestPlanThread } from "@/lib/ai/plan-coach-queries";
@@ -43,7 +45,16 @@ export default async function PlanChatPage(props: PageProps<"/projects/[id]/plan
           決まった中身を見る・手で直す
         </Link>
       </div>
+      {sp.done === "thread_deleted" && <SuccessBanner>会話を消しました。設計に採用した内容は残っています。</SuccessBanner>}
       <PlanCoachChat key={thread?.id ?? "new"} projectId={id} threadId={thread?.id ?? null} messages={thread?.messages ?? []} initialFocus={focus} />
+      {thread && (
+        <DeleteThreadButton
+          projectId={id}
+          threadId={thread.id}
+          backPath={`/projects/${id}/plan/chat`}
+          keeps="設計に採用した内容は残ります。会話は、最後のやり取りから 1 年たつと自動で消えます。"
+        />
+      )}
     </div>
   );
 }

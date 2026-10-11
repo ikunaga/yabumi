@@ -108,6 +108,15 @@ export function refreshTokens(config: XConfig, refreshToken: string, now = new D
   return tokenRequest(config, { grant_type: "refresh_token", refresh_token: refreshToken }, now);
 }
 
+// トークンを X 側で取り消す（SNS を外す・退会のとき）。リフレッシュトークンを取り消すと、そこから出たアクセストークンも使えなくなる
+export async function revokeToken(config: XConfig, token: string, hint: "access_token" | "refresh_token"): Promise<void> {
+  await call<{ revoked?: boolean }>(`${X_API_URL}/2/oauth2/revoke`, {
+    method: "POST",
+    headers: { Authorization: basicAuth(config), "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ token, token_type_hint: hint }),
+  });
+}
+
 function bearer(token: string) {
   return { Authorization: `Bearer ${token}` };
 }

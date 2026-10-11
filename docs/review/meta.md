@@ -17,13 +17,23 @@
 | 7 | **Tech Provider 認証**（Access Verification） | App settings → Basic → Verifications → Access verification | 矢書がどんなサービスか、他の人のデータをどう使うかの説明（下） | 約 5 日 |
 | 8 | アプリを **Live** にする | 左のメニューの「Publish」（Threads の新しい画面） | 1〜7 が済んでいること。Data Use Checkup（年 1 回）も済ませる | すぐ |
 
-- 7 は、アプリの役割を持たない人が threads_basic・threads_content_publish・threads_manage_insights を使うときに要る（済んでいないと、エラーコード 100 で断られる）。threads_delete は一覧にない
+- 7 は、アプリの役割を持たない人が threads_basic・threads_content_publish（と、将来足す threads_manage_insights）を使うときに要る（済んでいないと、エラーコード 100 で断られる）。threads_delete は一覧にない
 - Live にすると、開発モードのときのテストの投稿も公開のものとして扱われる。テストの投稿は Live の前に消しておく
 - 出典: [Threads の始め方](https://developers.facebook.com/docs/threads/get-started)、[権限の一覧](https://developers.facebook.com/docs/permissions)、[App Review の出し方](https://developers.facebook.com/docs/resp-plat-initiatives/individual-processes/app-review/submission-guide)、[ビジネス認証](https://developers.facebook.com/docs/development/release/business-verification)、[Access Verification](https://developers.facebook.com/docs/development/release/access-verification/)、[アプリのモード](https://developers.facebook.com/docs/development/build-and-test/app-modes)、[Data Use Checkup](https://developers.facebook.com/docs/resp-plat-initiatives/individual-processes/data-use-checkup)
 
-## 先に決めること: threads_manage_insights を申請するか
+## 決めたこと: threads_manage_insights は申請しない（案 A、2026-10-11 オーナーの決定）
 
-矢書はいま、threads_manage_insights（投稿の閲覧数などを読む権限）を求めているが、**使っていない**（指標 F07 はフェーズ 3）。Meta は「要らない権限の申請」を却下の理由に挙げており、手順 4 の「30 日以内に呼んだ実績」も作れない。
+矢書は threads_manage_insights（投稿の閲覧数などを読む権限）を求めていたが、**使っていない**（指標 F07 はフェーズ 3）ので、案 A に決めて求める権限から外した（src/lib/sns/threads/api.ts の THREADS_SCOPES）。審査には threads_basic・threads_content_publish・threads_delete を出す。
+
+### オーナーの作業: Meta アプリから権限を外す
+
+1. https://developers.facebook.com/apps で Yabumi Dev を開く
+2. 左のメニューの Use cases → 「Access the Threads API」の Customize（または Permissions）
+3. threads_manage_insights の行の「Remove」（外す）を押す。threads_basic・threads_content_publish・threads_delete は残す
+4. すでにつないでいるアカウントは、次に「つなぎ直す」までは前の権限のまま。矢書は threads_manage_insights を使っていないので、困ることはない
+5. 指標を作るときは、ここで threads_manage_insights を足し直し、その権限だけを追加で審査に出す
+
+以下は、決める前の検討（記録として残す）。Meta は「要らない権限の申請」を却下の理由に挙げており、手順 4 の「30 日以内に呼んだ実績」も作れない。
 
 | 案 | 中身 | 長所 | 短所 |
 |---|---|---|---|
@@ -75,7 +85,7 @@ Threads の Use cases → Settings の Uninstall Callback URL は `https://<本�
 
 > On each published post's page, Yabumi shows a "Delete from Threads" button. When the user clicks it and confirms, we use threads_delete to delete that post from the user's Threads account, and we mark the post as deleted in Yabumi. This lets users quickly remove a test post or a post with a mistake without leaving Yabumi. We only delete posts that were published through Yabumi by that same user.
 
-### threads_manage_insights（案 B を選んだときだけ）
+### threads_manage_insights（指標を作って追加で申請するとき）
 
 > （指標の画面ができてから書く。どの画面で、どの数字を、何のために見せるかを書く）
 

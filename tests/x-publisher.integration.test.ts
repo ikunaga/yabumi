@@ -123,7 +123,7 @@ describe("トークンの取り直し", () => {
     const [outcome] = await publishDueTargets(admin, deps(adapter), { postId });
     expect(outcome.result).toBe("published");
     expect(adapter.refreshWithRefreshToken).toHaveBeenCalledTimes(1);
-    expect(adapter.publishText).toHaveBeenCalledWith(expect.objectContaining({ accessToken: "access-2" }), expect.any(String));
+    expect(adapter.publishText).toHaveBeenCalledWith(expect.objectContaining({ accessToken: "access-2" }), expect.any(String), []);
 
     const { data: row } = await admin.from("social_account_tokens").select("*").eq("social_account_id", accountId).single();
     expect(decryptToken(row!.refresh_token_encrypted!, refreshTokenAad(accountId), key)).toBe("refresh-2");

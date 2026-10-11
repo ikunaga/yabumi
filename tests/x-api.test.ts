@@ -20,7 +20,7 @@ describe("認可画面の URL", () => {
     expect(url.origin + url.pathname).toBe("https://x.com/i/oauth2/authorize");
     expect(url.searchParams.get("code_challenge_method")).toBe("S256");
     expect(url.searchParams.get("code_challenge")).toBe(createHash("sha256").update("verifier-1").digest("base64url"));
-    expect(url.searchParams.get("scope")).toBe("tweet.read tweet.write users.read offline.access");
+    expect(url.searchParams.get("scope")).toBe("tweet.read tweet.write users.read offline.access media.write");
     expect(url.searchParams.get("state")).toBe("state-1");
     expect(url.searchParams.get("redirect_uri")).toBe(config.redirectUri);
   });

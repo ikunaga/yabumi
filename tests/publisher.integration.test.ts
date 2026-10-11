@@ -82,7 +82,8 @@ describe("送信ジョブ", () => {
     const adapter = fakeAdapter();
     const outcomes = await publishDueTargets(admin, depsWith(adapter), { postId });
     expect(outcomes.map((o) => o.result)).toEqual(["published"]);
-    expect(adapter.publishText).toHaveBeenCalledWith({ externalId: expect.any(String), accessToken: "token-1" }, "本文です");
+    // 画像のない投稿は、画像を空で渡す
+    expect(adapter.publishText).toHaveBeenCalledWith({ externalId: expect.any(String), accessToken: "token-1" }, "本文です", []);
     const t = await target(targetId);
     expect(t.status).toBe("published");
     expect(t.external_post_id).toMatch(/^m-/);
@@ -96,7 +97,7 @@ describe("送信ジョブ", () => {
     await alice.from("post_targets").update({ body_override: "Threads 用" }).eq("id", targetId);
     const adapter = fakeAdapter();
     await publishDueTargets(admin, depsWith(adapter), { postId });
-    expect(adapter.publishText).toHaveBeenCalledWith(expect.anything(), "Threads 用");
+    expect(adapter.publishText).toHaveBeenCalledWith(expect.anything(), "Threads 用", []);
   });
 
   it("ジョブが同時に動いても 1 回しか送らない", async () => {

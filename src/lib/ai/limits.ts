@@ -31,20 +31,17 @@ export type LimitCheck = { ok: true } | { ok: false; message: string };
 
 export async function checkAiLimits(admin: SupabaseClient<Database>, userId: string, limits: AiLimits, now = new Date()): Promise<LimitCheck> {
   const { monthStart, dayStart } = jstPeriodStarts(now);
-  const { data: monthRows, error } = await admin.from("ai_usage").select("owner_id, cost_usd, created_at").gte("created_at", monthStart.toISOString());
+  // 合計は DB で出す（行を読んで足すと、API が 1 回に 1,000 行までしか返さないので数え漏れる）
+  const { data, error } = await admin.rpc("ai_usage_totals", {
+    p_owner_id: userId,
+    p_month_start: monthStart.toISOString(),
+    p_day_start: dayStart.toISOString(),
+  });
   if (error) throw error;
-
-  let userMonth = 0;
-  let globalMonth = 0;
-  let userToday = 0;
-  for (const r of monthRows) {
-    const cost = Number(r.cost_usd);
-    globalMonth += cost;
-    if (r.owner_id === userId) {
-      userMonth += cost;
-      if (new Date(r.created_at) >= dayStart) userToday += 1;
-    }
-  }
+  const row = data?.[0];
+  const globalMonth = Number(row?.global_month_usd ?? 0);
+  const userMonth = Number(row?.owner_month_usd ?? 0);
+  const userToday = Number(row?.owner_today_count ?? 0);
   if (globalMonth >= limits.globalMonthlyUsd) {
     return { ok: false, message: "今月の AI の利用が、矢書全体の上限に達しました。来月 1 日にまた使えます。設計の画面で手で入力することはできます。" };
   }

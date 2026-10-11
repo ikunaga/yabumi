@@ -628,6 +628,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      ai_usage_totals: {
+        Args: { p_day_start: string; p_month_start: string; p_owner_id: string }
+        Returns: {
+          global_month_usd: number
+          owner_month_usd: number
+          owner_today_count: number
+        }[]
+      }
       claim_due_targets: {
         Args: { p_limit?: number; p_post_id?: string }
         Returns: {

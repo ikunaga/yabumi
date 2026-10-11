@@ -33,6 +33,11 @@ export async function signUpNewUser(): Promise<{ client: TestClient; userId: str
   return { client, userId: created.user.id };
 }
 
+// テストの利用者を消す。費用の記録（ai_usage、sns_api_usage）は利用者を消しても持ち主を空にして残る決まり（4.14）なので、先に消す。
+// 残すと、共有のローカル DB で矢書全体の今月の合計が増え続け、全体の上限に達してオーナーが AI や X を使えなくなる
 export async function deleteUser(userId: string) {
-  await adminClient().auth.admin.deleteUser(userId);
+  const admin = adminClient();
+  await admin.from("ai_usage").delete().eq("owner_id", userId);
+  await admin.from("sns_api_usage").delete().eq("owner_id", userId);
+  await admin.auth.admin.deleteUser(userId);
 }

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { aiConfigured } from "@/lib/ai/anthropic";
 import { PostComposer } from "@/components/posts/post-composer";
 import { connectedAccounts } from "@/lib/posts/queries";
 import { getProject } from "@/lib/projects/queries";
@@ -28,6 +29,7 @@ export default async function ComposePage(props: PageProps<"/projects/[id]/compo
       connected={(Object.keys(accounts) as SnsKey[]).filter(canPublish)}
       planHints={planHints}
       needImageReconnect={needImageReconnect}
+      aiCheckEnabled={aiConfigured()}
       initial={{
         body: "",
         targets: [{ sns: "x", bodyOverride: null }, { sns: "threads", bodyOverride: null }],

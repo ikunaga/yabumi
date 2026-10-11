@@ -7,6 +7,8 @@ import { ErrorBanner, SuccessBanner } from "@/components/ui/feedback";
 import { deletePost, savePost } from "@/lib/posts/actions";
 import type { SavePostResult } from "@/lib/posts/schema";
 import { ImageAttachments, type AttachedImage } from "./image-attachments";
+import { applyFix } from "@/lib/ai/ai-check";
+import { AiCheckPanel } from "./ai-check-panel";
 import { PlanHints, type PlanHintsData } from "./plan-hints";
 import { SendResults, type TargetResult } from "./send-results";
 import { ISSUE_LABEL, MAX_TITLE_LENGTH, SNS, SNS_KEYS, checkTarget, hasXUrl, ignoresImages, isManualSns, type SnsKey, type TargetIssue } from "@/lib/sns";
@@ -35,6 +37,8 @@ type Props = {
   planHints?: PlanHintsData | null;
   // 画像を送るにはつなぎ直しが要る SNS（X は media.write を足す前につないだアカウント）
   needImageReconnect?: SnsKey[];
+  // AI っぽさチェック（F11）を使えるか（Claude API のキーがあるか）
+  aiCheckEnabled?: boolean;
 };
 
 // 送信済み・送信中・取り消し済みの配信先は、選び直しも送り直しもできない
@@ -64,6 +68,7 @@ export function PostComposer({
   noticeTone = "success",
   planHints = null,
   needImageReconnect = [],
+  aiCheckEnabled = false,
 }: Props) {
   const [images, setImages] = useState<AttachedImage[]>(initial.images ?? []);
   const [body, setBody] = useState(initial.body);
@@ -99,6 +104,16 @@ export function PostComposer({
 
   const isLocked = (s: SnsKey) => LOCKED.has(results[s]?.status ?? "");
   const chosen = SNS_KEYS.filter((s) => selected.has(s));
+
+  // AI っぽさチェックの直しを当てる。SNS ごとの文面があればそれを、なければ共通の本文を直す
+  function applyCheckFix(sns: SnsKey, quote: string, fix: string): boolean {
+    const current = overrides[sns] ?? body;
+    const next = applyFix(current, quote, fix);
+    if (next === null) return false;
+    if (overrides[sns] !== undefined) setOverrides((o) => ({ ...o, [sns]: next }));
+    else setBody(next);
+    return true;
+  }
   // これから送る SNS（送信済みなどを除く）
   const toSend = chosen.filter((s) => !isLocked(s));
   // 送れない理由（最初の 1 つ）。日時は予約のときだけ要る
@@ -197,6 +212,13 @@ export function PostComposer({
           </div>
 
           <PlanHints projectId={projectId} hints={planHints} />
+
+          <AiCheckPanel
+            projectId={projectId}
+            aiEnabled={aiCheckEnabled}
+            texts={(chosen.length ? chosen : (["x"] as SnsKey[])).map((sns) => ({ sns, text: overrides[sns] ?? body }))}
+            onApply={applyCheckFix}
+          />
 
           <section aria-labelledby="images-heading" className="flex flex-col gap-2">
             <h2 id="images-heading" className="text-[14px] font-bold">

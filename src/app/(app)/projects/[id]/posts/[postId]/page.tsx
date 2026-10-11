@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { XSyncOnView } from "@/components/posts/x-sync-on-view";
+import { aiConfigured } from "@/lib/ai/anthropic";
 import { PostComposer } from "@/components/posts/post-composer";
 import { connectedAccounts, getPost, postTitle } from "@/lib/posts/queries";
 import { getProject } from "@/lib/projects/queries";
@@ -83,6 +84,7 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
       postId={post.id}
       connected={(Object.keys(accounts) as SnsKey[]).filter(canPublish)}
       planHints={planHints}
+      aiCheckEnabled={aiConfigured()}
       results={results}
       needImageReconnect={needImageReconnect}
       notice={notice?.text}

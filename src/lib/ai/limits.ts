@@ -43,10 +43,10 @@ export async function checkAiLimits(admin: SupabaseClient<Database>, userId: str
   const userMonth = Number(row?.owner_month_usd ?? 0);
   const userToday = Number(row?.owner_today_count ?? 0);
   if (globalMonth >= limits.globalMonthlyUsd) {
-    return { ok: false, message: "今月の AI の利用が、矢書全体の上限に達しました。来月 1 日にまた使えます。設計の画面で手で入力することはできます。" };
+    return { ok: false, message: "今月の AI の利用が、矢書全体の上限に達しました。来月 1 日にまた使えます。AI を使わずに、手で書いたり入力したりはできます。" };
   }
   if (userMonth >= limits.userMonthlyUsd) {
-    return { ok: false, message: "今月の AI の利用が上限に達しました。来月 1 日にまた使えます。設計の画面で手で入力することはできます。" };
+    return { ok: false, message: "今月の AI の利用が上限に達しました。来月 1 日にまた使えます。AI を使わずに、手で書いたり入力したりはできます。" };
   }
   if (userToday >= limits.userDailyTurns) {
     return { ok: false, message: "今日の AI とのやりとりが上限に達しました。明日また続きができます。" };

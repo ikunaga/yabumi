@@ -127,6 +127,18 @@ select vault.create_secret('<.env.local の CRON_SECRET>', 'cron_secret');
 - テストの利用者は、テストごとに新しく作る（tests/helpers/supabase.ts の signUpNewUser）
 - DB 全体を対象にする処理（日次のトークン延長、予約の取り出し、費用の上限の合計など）は、必ずテストの利用者に絞って呼ぶ（refreshDueTokens の onlyOwner、publishDueTargets の postId、費用の上限の budgetScopeOwner）。偽のアダプターで全体を処理すると、他のテストのアカウントやオーナーの本物の接続を壊す
 - 他のテストが同時に流れても結果が変わらないように書く（全体の合計や件数に頼らない）
+- テストで作った費用の記録（ai_usage、sns_api_usage）は後片付けで消す。利用者を消すと費用の記録は持ち主を空にして残る決まりなので、消さないと矢書全体の今月の合計が増え続け、ローカルで全体の上限に達して AI や X が使えなくなる（tests/helpers/supabase.ts の deleteUser は先に消す）
+
+それでも全体の上限に達してしまったとき（「矢書全体の上限に達しました」と出る）は、ローカルの DB だけで次を流す。**本番では絶対に流さない**（本番の持ち主のない記録は、退会した利用者の本物の費用の記録）。共有の DB なので、流す前に一緒に作業している人に知らせる。
+
+```sql
+-- ローカル専用。Supabase Studio（http://127.0.0.1:55323）の SQL Editor で
+begin;
+delete from public.ai_usage where owner_id is null;
+delete from public.sns_api_usage where owner_id is null;
+commit;
+```
+
 
 キーなどの鍵はリポジトリに書かない。テストで鍵の形の文字列が要るときは、文字列をつなげて作る（GitHub の push protection で push が止められるため）。
 

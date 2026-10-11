@@ -179,6 +179,9 @@ describe("退会", () => {
     // 費用の記録は紐づけを外して残る
     expect((await admin.from("sns_api_usage").select("owner_id").eq("id", usage!.id).single()).data).toEqual({ owner_id: null });
     expect((await admin.from("ai_usage").select("owner_id").eq("id", aiUsage!.id).single()).data).toEqual({ owner_id: null });
+    // 匿名で残ることを確かめたら消す（残すと、共有のローカル DB で矢書全体の今月の合計が増え続ける）
+    await admin.from("sns_api_usage").delete().eq("id", usage!.id);
+    await admin.from("ai_usage").delete().eq("id", aiUsage!.id);
     await admin.from("sns_api_usage").delete().eq("id", usage!.id);
     await admin.from("ai_usage").delete().eq("id", aiUsage!.id);
   });

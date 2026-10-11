@@ -6,6 +6,7 @@ import { appDescriptionSchema, filePickSchema, type CallDescriber, type CallPick
 import { envReady } from "@/lib/env-check";
 import { coachTurnSchema } from "./plan-coach-schema";
 import { postIdeasSchema, type CallIdeas } from "./post-ideas";
+import { aiCheckSchema, type CallCheck } from "./ai-check";
 import { PLAN_COACH_MODEL, type CallModel } from "./plan-coach";
 
 // Claude API のキー（ANTHROPIC_API_KEY）があるときだけ AI を使える。ないときは画面で「準備中」と出す
@@ -80,3 +81,5 @@ export const callFilePicker: CallPicker = structuredCaller(filePickSchema, 2000)
 export const callAppDescriber: CallDescriber = structuredCaller(appDescriptionSchema, 4000);
 // 投稿のネタ（docs/architecture.md の 4.15）。口調に合わせて書き分け、苦労話を作らないなどの判断が要るので effort は medium
 export const callPostIdeas: CallIdeas = structuredCaller(postIdeasSchema, 16000, "medium");
+// AI っぽさチェック（docs/architecture.md の 4.20）。文面を読んで指摘するだけの軽い作業なので effort は low
+export const callAiCheck: CallCheck = structuredCaller(aiCheckSchema, 4000, "low");

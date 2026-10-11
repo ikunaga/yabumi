@@ -249,7 +249,7 @@ yabumi.app は Cloudflare Registrar で取る（オーナー）。DNS も Cloudf
 
 ### G. ~~問い合わせ先 contact@yuxport.com を受け取る（Cloudflare Email Routing）~~ 不要になった
 
-- 2026-10-12 オーナーの決定で、問い合わせ先は **contact@yuxport.com** にした。contact@yuxport.com は作らず、Cloudflare の Email Routing も使わない（docs/legal.md の L2）
+- 2026-10-11 オーナーの決定で、問い合わせ先は **contact@yuxport.com** にした。support@yabumi.app は作らず、Cloudflare の Email Routing も使わない（docs/legal.md の L2）
 - 規約・ポリシーの問い合わせ先、Meta・X・GitHub などの申請の連絡先、運営者への知らせ（OPERATOR_EMAIL）は contact@yuxport.com を使う
 - すでに Email Routing を有効にしていたら、Cloudflare → yabumi.app → Email → Email Routing で無効にし、足された受信用の MX と SPF のレコードを外す（F の `send` のレコードは残す）
 

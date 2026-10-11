@@ -217,6 +217,12 @@ SNS との連携がなくても作れる部分を先に作った。
 - Claude Opus 5.5（effort low）。1 回 約 $0.02（実績 $0.012〜0.025）。結果は保存しない
 - あわせて: AI の上限の文言を、どの画面でも合う形に直した。テストの後片付けで費用の記録も消すようにした（ローカルの全体の上限に達していたのを掃除した。README の「テスト」）
 
+### F07 指標と F08 の入口の設計（2026-10-11、コードはまだ）
+
+- SNS ごとに取れる数字・費用・権限、ストアと課金の取り込み元（App Store Connect、Google Play、RevenueCat）、短縮リンクの作り（go.yabumi.app、Vercel の中で転送）、鍵の預かり方、日次のジョブ、DB の大きさ、費用を調べて architecture.md の 4.22 に書いた
+- 段取りの案: ① 短縮リンク ② 数字の画面と設計の KPI ③ App Store の売上と RevenueCat ④ Threads（と Instagram・Facebook）の数字 ⑤ Google Play と App Store のページの閲覧 ⑥ X の数字 ⑦ 振り返りの AI
+- オーナーが決めること: 4.22 の M1〜M7（X の数字を読むか、短縮リンクの置き場所、保存期間、追加の審査の時期など）
+
 ## 5. 次の作業
 
 1. PM がオーナーの確認をとって、本番にマイグレーションを当てる（supabase db push）
@@ -224,5 +230,6 @@ SNS との連携がなくても作れる部分を先に作った。
 3. Instagram・Facebook 用の Meta アプリを作り、接続する（オーナーの作業。META_APP_ID / META_APP_SECRET）
 4. X: オーナーがアプリを作ってキーを入れ、ローカルと本番で、つなぐ・送る・予約・取り消す・月の上限を確かめる（README の「X」）
 5. AI のネタ出し（F04）の残り: 短い投稿を note の長文に広げる（4.12 の「将来」）
-6. 画像: 本番に 20261011240000〜240300 を当てたあと、オーナーが X をつなぎ直して（media.write）、本番で Threads と X に画像つきで送れるか確かめる。X の Developer Console で、画像のアップロードに費用がかかっていないか確かめる
-7. 他の人に提供する準備: オーナーが docs/legal.md と docs/review/README.md の「決めてほしいこと」を決める → 規約とポリシーを確定 → Meta の審査（docs/review/meta.md）→ GitHub App を Any account に（deploy.md の 10。マイグレーション 20261011210000 を本番に当ててから）
+6. F07: オーナーが 4.22 の M1〜M7 を決めたら、段取りの ① 短縮リンクから作る
+7. 画像: 本番に 20261011240000〜240300 を当てたあと、オーナーが X をつなぎ直して（media.write）、本番で Threads と X に画像つきで送れるか確かめる。X の Developer Console で、画像のアップロードに費用がかかっていないか確かめる
+8. 他の人に提供する準備: オーナーが docs/legal.md と docs/review/README.md の「決めてほしいこと」を決める → 規約とポリシーを確定 → Meta の審査（docs/review/meta.md）→ GitHub App を Any account に（deploy.md の 10。マイグレーション 20261011210000 を本番に当ててから）

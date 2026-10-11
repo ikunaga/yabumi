@@ -433,7 +433,7 @@ function XUrlCostNotice({ onEdit }: { onEdit: () => void }) {
   return (
     <div className="flex flex-col gap-2 border-b border-line px-5 py-3.5 text-sm">
       <p>
-        <span className="mr-1.5 font-bold text-signal">● 費用</span>X の本文に URL があるため、この投稿は X の
+        <span className="mr-1.5 font-bold text-signal">● 費用</span>X の本文に URL があるため、この投稿は X の{" "}
         <Term k="payPerUse">API の料金</Term>が 1 本 {formatUsd(X_PRICE_USD.post_with_url)}（約 30 円）かかります。URL がなければ{" "}
         {formatUsd(X_PRICE_USD.post)}（約 2 円）です。
       </p>

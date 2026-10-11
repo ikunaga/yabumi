@@ -63,6 +63,34 @@ printf '\nGITHUB_APP_PRIVATE_KEY=%s\n' "$(awk '{printf "%s\\n", $0}' ~/Downloads
 
 足したら `pnpm dev` を起動し直す。設定が足りないと画面に「準備中」と出て、開発サーバーのログに足りない変数の名前が出る（値は出ない）。.pem はリポジトリの外に置くか消す。
 
+## X（自動で投稿する）
+
+X の API は使った分だけ払う方式（投稿 1 本 $0.015、本文に URL があると $0.20）。矢書は月 $3 を上限にしていて、超えたら X は自動では送らず、手で投稿してもらう（決定 D16、docs/architecture.md の 4.13）。
+
+1. https://console.x.com に、投稿に使う X のアカウントでログインする（開発者の登録がまだなら、画面の案内に沿って登録する）
+2. **クレジットを買う**: Billing（支払い）でカードを登録し、クレジットを買う（最初にカードを登録すると $20 分がもらえる）。**Spending limit**（請求期間ごとの上限）を **$5** にする。矢書の上限 $3 を何かの理由ですり抜けても、X 側で止まる
+3. **アプリを作る**: Create App。名前は `yabumi` など（ほかの人と重なれば `yabumi-masa` など）
+4. アプリの **User authentication settings**（または Authentication settings）を開き、次のように設定する
+
+| 項目 | 値 |
+|---|---|
+| App permissions | **Read and write**（投稿に要る。Read だけだと投稿で断られる） |
+| Type of App | **Web App, Automated App or Bot** |
+| Callback URI / Redirect URL | `https://localhost:3100/sns/x/callback` と `https://yabumi.vercel.app/sns/x/callback` の 2 つ |
+| Website URL | `https://yabumi.vercel.app` |
+
+5. **Keys and tokens** の **OAuth 2.0 Client ID and Client Secret** を表示し（Client Secret は一度しか出ないので、出たらすぐに使う）、.env.local に足す。チャットなどには貼らない
+
+```bash
+X_CLIENT_ID=
+X_CLIENT_SECRET=
+```
+
+6. `pnpm dev` を起動し直し、プロジェクトの概要の「つないだ SNS」で X の「つなぐ」を押す。本番は Vercel に同じ 2 つを入れて Redeploy（docs/deploy.md の 6-4）
+
+- Callback URI に localhost を入れられないと言われたら、`https://127.0.0.1:3100/sns/x/callback` を登録し、.env.local に `X_REDIRECT_ORIGIN=https://127.0.0.1:3100` を足す。この場合、X をつなぐときは https://127.0.0.1:3100 でログインし直してから「つなぐ」を押す（ログインはホストごとに別のため）
+- 月の上限を変えるときは `X_MONTHLY_BUDGET_USD`（米ドル）を入れる。今月いくら使ったかは、概要の「つないだ SNS」の X の行に出る
+
 ## 予約投稿のジョブ
 
 予約時刻が来た投稿は、ローカルの Supabase の pg_cron が毎分ジョブ API（/api/jobs/publish）を呼んで送る。仕組みは docs/architecture.md の 4.7。

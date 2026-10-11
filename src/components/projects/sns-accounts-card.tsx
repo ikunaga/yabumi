@@ -111,13 +111,12 @@ function AccountLabel({ account }: { account: ProjectSnsAccount }) {
   );
 }
 
-// X は使った分だけ払うので、今月の費用と上限を出す（決定 D16）
+// X は使った分だけ払うので、今月の自分の費用と、矢書全体の上限に達したかを出す（決定 D16）
 function XSpendLine({ spend }: { spend: XSpend }) {
-  const reached = spend.spentUsd >= spend.budgetUsd;
   return (
     <span className="mt-0.5 block text-xs text-muted">
-      今月の X の<Term k="payPerUse">費用</Term> {formatUsd(spend.spentUsd)} / 上限 {formatUsd(spend.budgetUsd)}
-      {reached && <span className="ml-2 font-bold text-signal">上限に達しました</span>}
+      今月の X の<Term k="payPerUse">費用</Term> {formatUsd(spend.mineUsd)}（矢書全体の上限 {formatUsd(spend.budgetUsd)} / 月）
+      {spend.budgetReached && <span className="ml-2 font-bold text-signal">今月の上限に達しました</span>}
     </span>
   );
 }

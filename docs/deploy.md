@@ -62,12 +62,15 @@
 | THREADS_APP_ID | Meta の Yabumi Dev の App ID（ローカルと同じ） | いいえ |
 | THREADS_APP_SECRET | Meta の Yabumi Dev の App secret（ローカルと同じ） | **はい** |
 | ANTHROPIC_API_KEY | 6-3 で本番用に作るキー | **はい** |
+| X_CLIENT_ID | 6-4 の X のアプリの OAuth 2.0 Client ID（ローカルと同じ） | いいえ |
+| X_CLIENT_SECRET | 同じく Client Secret | **はい** |
+| X_MONTHLY_BUDGET_USD | 入れなければ $3（決定 D16）。変えるときだけ入れる | いいえ |
 | GITHUB_APP_ID / GITHUB_APP_SLUG / GITHUB_APP_CLIENT_ID | 6-2 で作る本番用の App の値 | いいえ |
 | GITHUB_APP_CLIENT_SECRET | 同上 | **はい** |
 | GITHUB_APP_PRIVATE_KEY | 同上の .pem の中身。Vercel の入力欄には複数行のまま貼ってよい | **はい** |
 
 - AI の上限（AI_USER_MONTHLY_BUDGET_USD など）は、入れなければ既定値（利用者ごとに月 $3、全体で月 $10）
-- 後から入れる値（ANTHROPIC_API_KEY、GITHUB_APP_*）は、入れるまでその機能が「準備中」になるだけで、他は動く。入れたら Redeploy する
+- 後から入れる値（ANTHROPIC_API_KEY、GITHUB_APP_*、X_CLIENT_*）は、入れるまでその機能が「準備中」になるだけで、他は動く。入れたら Redeploy する
 - **TOKEN_ENCRYPTION_KEY は、一度使い始めたら変えない**（変えると、保存した SNS のトークンが読めなくなり、つなぎ直しが要る）
 
 ### Supabase に入れるもの
@@ -94,7 +97,8 @@
 | 6-1 | オーナー | **Threads**: Meta の Yabumi Dev → Use cases → Access the Threads API → Settings に、本番の URL を**ローカルの URL と並べて**足す。Redirect Callback URLs: `https://yabumi-xxxx.vercel.app/sns/threads/callback`、Uninstall Callback URL と Delete Callback URL は 1 つしか入らないので本番のもの（`.../sns/threads/uninstall`、`.../sns/threads/delete`）にする（ローカルでは通知を受けられないため、本番を優先する） |
 | 6-2 | オーナー | **GitHub App（本番用）**: ローカル用（yabumi-dev）とは別に、もう 1 つ App を作る。手順は README の「GitHub App」と同じで、URL だけ変える: Homepage URL `https://yabumi-xxxx.vercel.app`、Callback URL `https://yabumi-xxxx.vercel.app/github/callback`。名前は例えば `Yabumi`（重複していれば `Yabumi masa` など）。権限は Contents: Read-only のみ、Webhook はオフ、「Request user authorization (OAuth) during installation」はオン、インストール先は **Only on this account**（いまはオーナー専用。他の人に使ってもらうときに Any account にする）。App ID・slug・Client ID・Client secret・秘密鍵を Vercel の環境変数に入れる |
 | 6-3 | オーナー | **Claude API**: Claude Console で本番用のキーを別に作る（名前 `yabumi-prod` など。Workspace を分けるなら `yabumi-prod`）。Limits で月の上限（例: $15）を確かめる。Vercel の ANTHROPIC_API_KEY に入れる |
-| 6-4 | オーナー | 入れ終わったら、Vercel で Redeploy |
+| 6-4 | オーナー | **X**: README の「X」の手順で作ったアプリの Callback URI に、本番の `https://yabumi-xxxx.vercel.app/sns/x/callback` を**ローカルの URL と並べて**足す。X_CLIENT_ID・X_CLIENT_SECRET を Vercel に入れる |
+| 6-5 | オーナー | 入れ終わったら、Vercel で Redeploy |
 
 ## 7. 動作の確認
 

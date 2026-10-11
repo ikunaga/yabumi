@@ -9,6 +9,12 @@ export const X_PATHS = {
   callback: "/sns/x/callback",
 } as const;
 
+// X から戻ってくるホスト。ふだんは APP_URL と同じ。X の Developer Console が localhost の Callback URI を受け付けないときだけ、
+// ローカルで X_REDIRECT_ORIGIN=https://127.0.0.1:3100 にする（ログインの cookie はホストごとなので、127.0.0.1 でログインし直す）
+export function xOrigin(): string {
+  return (process.env.X_REDIRECT_ORIGIN || appUrl()).replace(/\/$/, "");
+}
+
 // X の Developer Console の「Keys and tokens」にある OAuth 2.0 の Client ID と Client Secret
 export function xConfig(): XConfig {
   const clientId = process.env.X_CLIENT_ID;
@@ -16,7 +22,7 @@ export function xConfig(): XConfig {
   if (!clientId || !clientSecret) {
     throw new Error("環境変数 X_CLIENT_ID / X_CLIENT_SECRET が設定されていません。");
   }
-  return { clientId, clientSecret, redirectUri: `${appUrl()}${X_PATHS.callback}` };
+  return { clientId, clientSecret, redirectUri: `${xOrigin()}${X_PATHS.callback}` };
 }
 
 export function xConfigured(): boolean {

@@ -1,9 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getProject } from "@/lib/projects/queries";
 import { newOAuthState, OAUTH_STATE_MAX_AGE, serializeOAuthState } from "@/lib/sns/oauth-state";
-import { appUrl } from "@/lib/sns/threads/config";
 import { authorizeUrl, newCodeVerifier } from "@/lib/sns/x/api";
-import { X_PATHS, xConfig, xConfigured } from "@/lib/sns/x/config";
+import { X_PATHS, xConfig, xConfigured, xOrigin } from "@/lib/sns/x/config";
 import { X_STATE_COOKIE } from "@/lib/sns/x/cookie";
 import { createClient } from "@/lib/supabase/server";
 import { isUuid } from "@/lib/uuid";
@@ -20,8 +19,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(back);
   }
 
-  // cookie はホストごとに分かれるので、コールバック URL と同じホスト（APP_URL）で始める
-  const origin = new URL(appUrl()).origin;
+  // cookie はホストごとに分かれるので、コールバック URL と同じホスト（ふだんは APP_URL）で始める
+  const origin = new URL(xOrigin()).origin;
   if (request.nextUrl.origin !== origin) {
     return NextResponse.redirect(new URL(`${X_PATHS.connect}${request.nextUrl.search}`, origin));
   }

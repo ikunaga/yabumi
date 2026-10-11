@@ -15,6 +15,9 @@ const PUBLIC_PATHS = [
   "/sns/threads/delete",
   "/sns/threads/deletion",
   "/api/jobs",
+  // 利用規約とプライバシーポリシー（登録の前に読めるように。SNS 各社の審査でも、ログインなしで開けることが求められる）
+  "/terms",
+  "/privacy",
 ];
 
 function isPublicPath(pathname: string) {

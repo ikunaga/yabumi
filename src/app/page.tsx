@@ -120,6 +120,15 @@ export default async function Home() {
           </ul>
         </figure>
       </main>
+
+      <footer className="flex flex-wrap gap-x-6 gap-y-2 border-t border-line pt-5 text-[14px] text-muted max-sm:text-xs">
+        <Link href="/terms" className="hover:text-fg">
+          利用規約
+        </Link>
+        <Link href="/privacy" className="hover:text-fg">
+          プライバシーポリシー
+        </Link>
+      </footer>
     </div>
   );
 }

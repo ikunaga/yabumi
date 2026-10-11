@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Brand } from "@/components/brand";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 
@@ -34,6 +35,14 @@ export default function AuthLayout({ children }: LayoutProps<"/">) {
             <Brand size="sm" />
           </div>
           {children}
+          <p className="mt-2 flex justify-center gap-5 text-xs text-muted">
+            <Link href="/terms" className="hover:text-fg">
+              利用規約
+            </Link>
+            <Link href="/privacy" className="hover:text-fg">
+              プライバシーポリシー
+            </Link>
+          </p>
         </div>
       </main>
     </div>

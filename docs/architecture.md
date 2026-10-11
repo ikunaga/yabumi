@@ -968,7 +968,7 @@ Facebook ページ（graph.facebook.com）:
 2. Instagram のユースケース → API setup with Instagram login: 「Instagram app ID / secret」を控える。Business login settings に、上のコールバック URL（yabumi.app とローカル）を入れる。権限 instagram_business_basic と instagram_business_content_publish を足す
 3. App roles → Roles → Add People → **Instagram Tester** にオーナーの Instagram（プロアカウント）を入れ、Instagram のアプリ → 設定 → ウェブサイトのアクセス許可 → テスターへの招待 で承認する
 4. Facebook Login for Business → Configurations → Create configuration。トークンは「User access token」、権限は pages_show_list・pages_read_engagement・pages_manage_posts。できた Configuration ID を控える。Settings の Valid OAuth Redirect URIs に上の URL を入れる
-5. App settings → Basic: プライバシーポリシーの URL（https://yabumi.app/privacy）、利用規約の URL（https://yabumi.app/terms）、データ削除の URL、アイコン（角印「文」）、カテゴリ、連絡先（support@yabumi.app）
+5. App settings → Basic: プライバシーポリシーの URL（https://yabumi.app/privacy）、利用規約の URL（https://yabumi.app/terms）、データ削除の URL、アイコン（角印「文」）、カテゴリ、連絡先（contact@yuxport.com）
 6. 控えた値を .env.local と Vercel に入れる（上の環境変数）
 7. 他の人に使ってもらうときは、docs/review/meta.md の流れで、権限ごとの App Review を出す
 

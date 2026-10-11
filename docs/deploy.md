@@ -239,7 +239,7 @@ yabumi.app は Cloudflare Registrar で取る（オーナー）。DNS も Cloudf
 |---|---|---|
 | F-1 | オーナー | https://resend.com に登録 → Domains → Add Domain で `yabumi.app`（Region は Tokyo（ap-northeast-1）があればそれ） |
 | F-2 | オーナー | 「Sign in to Cloudflare」（Domain Connect）を押すと、DNS のレコードを自動で入れてくれる。手で入れるときは、Resend の画面に出る値で、`send` の MX（優先度 10）、`send` の TXT（SPF）、`resend._domainkey` の TXT（DKIM）の 3 つ。どれも **Proxy は DNS only** |
-| F-3 | オーナー | Cloudflare の DNS に **DMARC** を足す: 種類 TXT、名前 `_dmarc`、値 `v=DMARC1; p=none; rua=mailto:support@yabumi.app`（まずは p=none で様子を見る。届かない報告がなければ、数週間後に p=quarantine にしてよい） |
+| F-3 | オーナー | Cloudflare の DNS に **DMARC** を足す: 種類 TXT、名前 `_dmarc`、値 `v=DMARC1; p=none; rua=mailto:contact@yuxport.com`（まずは p=none で様子を見る。届かない報告がなければ、数週間後に p=quarantine にしてよい）。報告の宛先が別のドメイン（yuxport.com）なので、yuxport.com の DNS に、種類 TXT、名前 `yabumi.app._report._dmarc`、値 `v=DMARC1` も足す（足さないと報告が届かない。報告が要らなければ `rua=…` を外してもよい） |
 | F-4 | オーナー | Resend で Verified になるのを待つ（数分〜数時間）。API Keys → Create API Key（Permission は Sending access、Domain は yabumi.app） |
 | F-5 | オーナー | Supabase → Authentication → Emails → SMTP Settings: Enable custom SMTP をオン。Sender email `noreply@yabumi.app`、Sender name `矢書`、Host `smtp.resend.com`、Port `465`、Username `resend`、Password に F-4 のキー。保存 |
 | F-6 | オーナー | Authentication → Rate Limits の「Rate limit for sending emails」が 30（1 時間）になっていることを確かめる |
@@ -247,18 +247,11 @@ yabumi.app は Cloudflare Registrar で取る（オーナー）。DNS も Cloudf
 
 - 費用: Resend の無料の範囲（月 3,000 通、1 日 100 通）。ドメインの費用は年 1 回（Cloudflare Registrar は卸値で、.app は年 2,000 円前後）
 
-### G. 問い合わせ先 support@yabumi.app を受け取る（Cloudflare Email Routing。無料）
+### G. ~~問い合わせ先 contact@yuxport.com を受け取る（Cloudflare Email Routing）~~ 不要になった
 
-| # | 誰が | やること |
-|---|---|---|
-| G-1 | オーナー | Cloudflare → yabumi.app → Email → Email Routing → Get started。画面の案内で、受信用の MX と SPF のレコードを自動で足す（ルートのドメイン用。F の `send` のレコードとはぶつからない） |
-| G-2 | オーナー | Destination addresses に、オーナーの個人のメールアドレスを足し、届いた確認メールのリンクを押す |
-| G-3 | オーナー | Routing rules → Custom addresses → `support@yabumi.app` → 宛先は G-2 のアドレス。保存 |
-| G-4 | オーナー | 別のメールから support@yabumi.app に送り、個人のメールに届くことを確かめる |
-
-- 費用: 無料（受け取って転送するだけ）
-- 注意: 届いたメールに個人のメールから返事をすると、送信元は個人のアドレスになる。support@yabumi.app から返事をしたいときは、Gmail の「他のメールアドレスを追加」（Send mail as）で、SMTP に Resend（F-5 と同じ。ユーザー名 resend、パスワードは別に作った API キー）を使う
-- 規約・ポリシーの問い合わせ先（docs/legal.md の L2）に `support@yabumi.app` を使える。G-4 が済んでから入れる
+- 2026-10-12 オーナーの決定で、問い合わせ先は **contact@yuxport.com** にした。contact@yuxport.com は作らず、Cloudflare の Email Routing も使わない（docs/legal.md の L2）
+- 規約・ポリシーの問い合わせ先、Meta・X・GitHub などの申請の連絡先、運営者への知らせ（OPERATOR_EMAIL）は contact@yuxport.com を使う
+- すでに Email Routing を有効にしていたら、Cloudflare → yabumi.app → Email → Email Routing で無効にし、足された受信用の MX と SPF のレコードを外す（F の `send` のレコードは残す）
 
 ### H. 短縮リンクの go.yabumi.app（F07、決定 D20。C のあとならいつでも）
 
@@ -273,7 +266,7 @@ yabumi.app は Cloudflare Registrar で取る（オーナー）。DNS も Cloudf
 | H-5 | オーナー | 確かめる: 矢書の「リンク」の画面で X 用のリンクを作り、スマホで開くと App Store が開く。数字が 1 増える（同じ端末で 10 分以内にもう一度押しても増えない） |
 
 - go.yabumi.app/ だけを開くと、矢書のトップに移る
-- 悪用（矢書の名前を借りて怪しいサイトへ誘導する）の知らせが support@yabumi.app に来たら、Supabase の SQL Editor で `update public.short_links set disabled_at = now() where code = '<コード>';` でそのリンクを止める（押すと「使われていません」と出る）。続くようなら、その利用者のアカウントを止める（利用規約の「利用の停止」）
+- 悪用（矢書の名前を借りて怪しいサイトへ誘導する）の知らせが contact@yuxport.com に来たら、Supabase の SQL Editor で `update public.short_links set disabled_at = now() where code = '<コード>';` でそのリンクを止める（押すと「使われていません」と出る）。続くようなら、その利用者のアカウントを止める（利用規約の「利用の停止」）
 
 ## 12. Instagram と Facebook ページをつなげるようにする（オーナーの作業）
 
@@ -285,7 +278,7 @@ yabumi.app は Cloudflare Registrar で取る（オーナー）。DNS も Cloudf
 | 12-2 | オーナー | **Instagram の設定**: Use cases → Instagram → Customize（API setup with Instagram login）。① Permissions で instagram_business_basic と instagram_business_content_publish を足す（ほかは足さない）② 画面に出る「Instagram app ID」と「Instagram app secret」を控える ③ Set up Instagram business login → Business login settings に、OAuth redirect URIs `https://yabumi.app/sns/instagram/callback` と `https://localhost:3100/sns/instagram/callback`、Deauthorize callback URL `https://yabumi.app/sns/instagram/uninstall`、Data deletion request URL `https://yabumi.app/sns/instagram/delete` |
 | 12-3 | オーナー | **Instagram テスター**: App roles → Roles → Add People → 「Instagram Tester」にオーナーの Instagram のユーザー名を入れる。Instagram のアプリ → 設定とアクティビティ → ウェブサイトのアクセス許可 → アプリとウェブサイト →「テスターへの招待」で承認する。オーナーの Instagram は**プロアカウント**（クリエイターかビジネス）にしておく |
 | 12-4 | オーナー | **Facebook ページの設定**: Use cases → 「Manage everything on your Page」→ Customize で pages_show_list、pages_read_engagement、pages_manage_posts を足す。左のメニューの Facebook Login for Business → Configurations → Create configuration（名前 `yabumi-pages`、Login variation は General、Access token は **User access token**、Assets は Pages、Permissions は上の 3 つ）→ できた **Configuration ID** を控える。Facebook Login for Business → Settings の Valid OAuth Redirect URIs に `https://yabumi.app/sns/facebook/callback` と `https://localhost:3100/sns/facebook/callback`、Deauthorize callback URL に `https://yabumi.app/sns/facebook/uninstall` |
-| 12-5 | オーナー | **基本設定**: App settings → Basic。App domains `yabumi.app`、Privacy policy URL `https://yabumi.app/privacy`、Terms of service URL `https://yabumi.app/terms`、User data deletion は「Data deletion callback URL」で `https://yabumi.app/sns/facebook/delete`、App icon（角印「文」。public/icons/icon-512.png を 1024×1024 にしたもの）、Category は Business and pages、Contact email `support@yabumi.app`。App ID と App secret を控える。Advanced → **Require App Secret** はオンにしてよい（矢書は呼び出しに appsecret_proof を付けている） |
+| 12-5 | オーナー | **基本設定**: App settings → Basic。App domains `yabumi.app`、Privacy policy URL `https://yabumi.app/privacy`、Terms of service URL `https://yabumi.app/terms`、User data deletion は「Data deletion callback URL」で `https://yabumi.app/sns/facebook/delete`、App icon（角印「文」。public/icons/icon-512.png を 1024×1024 にしたもの）、Category は Business and pages、Contact email `contact@yuxport.com`。App ID と App secret を控える。Advanced → **Require App Secret** はオンにしてよい（矢書は呼び出しに appsecret_proof を付けている） |
 | 12-6 | オーナー | **環境変数**: .env.local と Vercel（Production）に入れて、`pnpm dev` の起動し直し・Redeploy。`META_APP_ID`、`META_APP_SECRET`（Sensitive）、`FACEBOOK_LOGIN_CONFIG_ID`、`INSTAGRAM_APP_ID`、`INSTAGRAM_APP_SECRET`（Sensitive）。入れるまで、「つないだ SNS」の Instagram と Facebook は「準備中」 |
 | 12-7 | オーナー | **他の人に使ってもらうとき**: docs/review/meta.md の流れで、権限ごとの App Review（説明文と画面の録画）を出し、アプリを Live にする（ビジネス認証は Threads と同じポートフォリオで済む）。開発モードのままでは、アプリの役割を持つ人と Instagram テスターしかつなげない |
 

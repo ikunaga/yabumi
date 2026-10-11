@@ -50,10 +50,10 @@
 | # | どこで | やること |
 |---|---|---|
 | BV-1 | Meta Business Suite（business.facebook.com）→ 設定 → ビジネス情報 | ビジネスポートフォリオの**名前**を `YuXport Labs`、**住所・電話番号**を開業届に書いたものと一字一句同じにする。Web サイトは `https://yabumi.app`（切り替えのあと） |
-| BV-2 | 同じく ビジネス情報 | ビジネスのメールアドレスを `support@yabumi.app` にする（ドメインのメールで確かめると通りやすい。deploy.md の 11 の G で受け取れるようにしてから） |
+| BV-2 | 同じく ビジネス情報 | ビジネスのメールアドレスを `contact@yuxport.com` にする（屋号 YuXport Labs のドメインのメールなので、事業者との結びつきを示しやすい。Web サイトの欄の yabumi.app とはドメインが違うので、BV-5 でメールの確認が選べなければ電話にする） |
 | BV-3 | 設定 → セキュリティセンター →「認証を開始」 | 国は日本。事業者名 `YuXport Labs` で検索して出なければ、手で入れる。認証の方法は「書類をアップロード」 |
 | BV-4 | 同上 | 書類を上げる（下の表）。名前と住所が BV-1 と同じであること |
-| BV-5 | 同上 | 確認のコードを、メール（support@yabumi.app）か電話で受け取って入れる |
+| BV-5 | 同上 | 確認のコードを、メール（contact@yuxport.com）か電話で受け取って入れる |
 | BV-6 | ― | 結果を待つ（数日。公式の目安は未確認）。通ったら、アプリのダッシュボードの App settings → Basic で、アプリがこのビジネスポートフォリオに入っているか確かめる |
 
 | 書類 | 何を確かめる | 注意 |
@@ -74,7 +74,7 @@
 | Terms of Service URL | `https://yabumi.app/terms`（必須かは【未確認】だが入れる） |
 | User data deletion | 「Data deletion callback URL」を選び、`https://yabumi.app/sns/threads/delete`（作り済み。署名を確かめ、Threads のアカウントの情報とトークンを消し、確認ページ /sns/threads/deletion の URL と確認コードを返す） |
 | Category | Productivity（または Business and Pages） |
-| Contact email | オーナーの連絡先（審査の結果が届く） |
+| Contact email | `contact@yuxport.com`（規約・ポリシーの問い合わせ先と同じ。審査の結果が届く） |
 | App purpose | Clients（他の人が使うアプリ） |
 
 Threads の Use cases → Settings の Uninstall Callback URL は `https://yabumi.app/sns/threads/uninstall`、Delete Callback URL は上と同じ（deploy.md の 6-1）。

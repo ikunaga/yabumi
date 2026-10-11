@@ -6,6 +6,7 @@ import type { AuthFormState } from "@/lib/auth/actions";
 import { Button } from "@/components/ui/button";
 import { ErrorBanner, SuccessBanner } from "@/components/ui/feedback";
 import { Field, Input } from "@/components/ui/field";
+import { LEGAL } from "@/lib/legal/info";
 import { Turnstile } from "./turnstile";
 
 // login: ログイン / signup: 登録 / forgot: パスワードを忘れた（メールを送る） / reset: 新しいパスワードを決める
@@ -27,6 +28,7 @@ const copy: Record<
   },
   signup: {
     title: "アカウントを作る",
+    lead: `${LEGAL.minAge} 歳以上の方が登録できます。`,
     submit: "登録する",
     pending: "登録中…",
     switchText: "アカウントをお持ちの方は",
@@ -144,7 +146,7 @@ export function AuthForm({
         {mode !== "reset" && <Turnstile resetKey={state} />}
         {mode === "signup" && (
           <p className="text-[14px] leading-[1.7] text-muted">
-            登録すると、
+            登録すると、{LEGAL.minAge} 歳以上であることと、
             <Link href="/terms" target="_blank" className="text-primary hover:underline">
               利用規約
             </Link>

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Bullets, Clauses, ExternalLink, LegalPage, LegalSection, LegalTable } from "@/components/legal/legal-page";
-import { LEGAL, PENDING, operatorLabel, orPending } from "@/lib/legal/info";
+import { LEGAL, operatorLabel, orPending } from "@/lib/legal/info";
 
 export const metadata: Metadata = {
   title: "プライバシーポリシー",
@@ -220,16 +220,6 @@ export default function PrivacyPage() {
             ],
             [
               <>
-                Cloudflare（Email Routing）
-                <br />
-                <ExternalLink href="https://www.cloudflare.com/ja-jp/privacypolicy/">プライバシーポリシー</ExternalLink>
-              </>,
-              "問い合わせ先（support@yabumi.app）に届いたメールを、運営者のメールに転送する",
-              "問い合わせのメール（送った人のメールアドレス、件名、本文）",
-              "米国",
-            ],
-            [
-              <>
                 Cloudflare（Turnstile）
                 <br />
                 <ExternalLink href="https://www.cloudflare.com/ja-jp/privacypolicy/">プライバシーポリシー</ExternalLink>
@@ -360,7 +350,7 @@ export default function PrivacyPage() {
       </LegalSection>
 
       <LegalSection id="age" n={next()} title="年齢">
-        <p>本サービスは {LEGAL.minAge} 歳以上の方を対象にしています{PENDING}。</p>
+        <p>本サービスは {LEGAL.minAge} 歳以上の方を対象にしています。</p>
       </LegalSection>
 
       <LegalSection id="changes" n={next()} title="このポリシーの変更">

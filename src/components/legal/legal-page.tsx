@@ -23,9 +23,9 @@ export function LegalPage({ title, lead, children }: { title: string; lead: Reac
           <h1 className="font-heading text-3xl font-bold max-sm:text-2xl">{title}</h1>
           <p className="text-[14px] text-muted">施行日: {orPending(LEGAL.effectiveDate)}</p>
         </div>
-        {LEGAL.draft && (
+        {!LEGAL.effectiveDate && (
           <p role="note" className="rounded-md border border-border bg-surface2 px-4 py-3 text-[14px] leading-[1.7]">
-            この文書は、運営者が内容を確かめている途中の下書きです。「（確認中）」の部分は、決まりしだい書き入れます。
+            施行日は、登録の受付を開く日に決めて書き入れます。それまでは、内容を書き直すことがあります。
           </p>
         )}
         <div className="text-base leading-[1.9]">{lead}</div>

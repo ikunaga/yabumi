@@ -17,13 +17,13 @@
 |---|---|---|---|
 | R1 | **独自ドメイン** | 決定（2026-10-11）: **yabumi.app**（Cloudflare Registrar） | YouTube（Google）の確認は、自分が持っていると証明できるドメインが要る（`vercel.app` は Public Suffix List に載っていて証明できない）。TikTok の URL の所有確認も yabumi.app で行う。切り替えの手順は deploy.md の 11。**Meta の申請は、切り替え（11 の C）が済んでから出す**（申請に書いた URL を変えると出し直しになることがある） |
 | R2 | **Meta のビジネス認証の名義** | 決定（2026-10-11）: 個人事業主「**YuXport Labs**」（開業届は提出済み） | 書類と手順は [meta.md](meta.md) の「ビジネス認証」 |
-| R3 | **運営者の表示**（規約・ポリシー・各社の申請画面） | 屋号は決定（YuXport Labs）。代表者の氏名の表記は確認中 | 各社の申請と規約に同じ表記を書く（大文字・小文字もこのとおり）。src/lib/legal/info.ts、[legal.md](../legal.md) の L1 |
+| R3 | **運営者の表示**（規約・ポリシー・各社の申請画面） | 決定（2026-10-12）: **YuXport Labs（代表 生長 真尚）**、問い合わせ先 contact@yuxport.com | 各社の申請と規約に同じ表記を書く（大文字・小文字もこのとおり）。src/lib/legal/info.ts、[legal.md](../legal.md) の L1 |
 | R4 | **Vercel のプラン** | 未決定 | Vercel Hobby は個人の非商用だけ。他の人に提供する（とくに有料にする）なら Pro（$20/月 ≒ 3,000 円）が要り、予算をほぼ使い切る。[legal.md](../legal.md) の L6 |
 
 ## どの順に進めるか（おすすめ）
 
-1. yabumi.app に切り替える（deploy.md の 11 の A〜D）。問い合わせ先 support@yabumi.app を受け取れるようにする（11 の G）
-2. 利用規約とプライバシーポリシーの「確認中」を埋め、下書きの印を外す（src/lib/legal/info.ts。[legal.md](../legal.md)）
+1. yabumi.app に切り替える（deploy.md の 11 の A〜D）。問い合わせ先は contact@yuxport.com（2026-10-12 決定。11 の G は不要になった）
+2. 利用規約とプライバシーポリシーの施行日を、登録の受付を開く日に決めて入れる（ほかの値は 2026-10-12 に入れた。src/lib/legal/info.ts の effectiveDate。[legal.md](../legal.md) の L8）
 3. Meta: ビジネス認証（YuXport Labs）→ Threads の App Review → Tech Provider 認証 → Live（[meta.md](meta.md)）
 4. GitHub App を Any account にする（[deploy.md](../deploy.md) の 10）
 5. 登録を開く（ALLOWED_SIGNUP_EMAILS と Supabase の「新規登録を許可」）

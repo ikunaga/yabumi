@@ -1,17 +1,17 @@
 // 利用規約とプライバシーポリシーに出す運営者の情報（docs/legal.md の「オーナーに確かめてほしい点」）。
-// オーナーが決めたら値を入れ、draft を false にする。draft の間は、両方のページの先頭に「確認中の下書き」と出す
+// 2026-10-12 にオーナーが代表者・問い合わせ先・管轄・年齢を決めた。施行日だけは、登録の受付を開く日に決めて入れる。
+// 施行日が決まるまでは、両方のページの先頭に「施行日は未定」の知らせを出す
 export const LEGAL = {
-  draft: true,
-  // 運営者の表示。屋号（2026-10-11 オーナーが決定。表記はこのとおり）と、代表者の氏名（確認中）
+  // 運営者の表示。屋号と代表者（表記はこのとおり）
   operator: "YuXport Labs" as string | null,
-  representative: null as string | null,
-  // 問い合わせ先。support@yabumi.app（Cloudflare Email Routing）に届くのを確かめてから入れる（deploy.md の 11 の G-4）
-  contact: null as string | null,
-  // 施行日（例: "2026年11月1日"）
+  representative: "生長 真尚" as string | null,
+  // 問い合わせ先（運営者が受け取るアドレス。2026-10-12 オーナーが決定）
+  contact: "contact@yuxport.com" as string | null,
+  // 施行日（例: "2026年11月1日"）。登録の受付を開く日に決める
   effectiveDate: null as string | null,
-  // 裁判の管轄（例: "東京地方裁判所"）
-  court: null as string | null,
-  // 登録できる年齢（例: 18 歳以上。未成年は保護者の同意つき、など）
+  // 第一審の専属的合意管轄裁判所
+  court: "東京地方裁判所" as string | null,
+  // 登録できる年齢（生年月日は聞かず、規約と登録の画面の同意で確かめる）
   minAge: 18,
 } as const;
 
@@ -21,7 +21,7 @@ export function orPending(value: string | null): string {
   return value ?? PENDING;
 }
 
-// 「YuXport Labs（代表 山田太郎）」の形。決まっていないところは「（確認中）」
+// 「YuXport Labs（代表 生長 真尚）」の形。決まっていないところは「（確認中）」
 export function operatorLabel(): string {
   return `${orPending(LEGAL.operator)}（代表 ${orPending(LEGAL.representative)}）`;
 }

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Bullets, Clauses, ExternalLink, LegalPage, LegalSection } from "@/components/legal/legal-page";
-import { LEGAL, PENDING, operatorLabel, orPending } from "@/lib/legal/info";
+import { LEGAL, operatorLabel, orPending } from "@/lib/legal/info";
 
 export const metadata: Metadata = {
   title: "利用規約",
@@ -36,7 +36,7 @@ export default function TermsPage() {
       <LegalSection id="account" n={next()} title="登録とアカウント">
         <Clauses
           items={[
-            `本サービスは ${LEGAL.minAge} 歳以上の方が使えます${PENDING}。`,
+            `本サービスは ${LEGAL.minAge} 歳以上の方が使えます。登録するときに、${LEGAL.minAge} 歳以上であることに同意していただきます。`,
             "登録には、本人のメールアドレスを使ってください。1 人で複数のアカウントを作ったり、アカウントを他の人に貸したり譲ったりしないでください。",
             "パスワードは自分で管理してください。他の人に使われたと気づいたときは、すぐにパスワードを変え、運営者に知らせてください。",
             "運営者は、登録できる人を限ることがあります（招待した人だけ、など）。",

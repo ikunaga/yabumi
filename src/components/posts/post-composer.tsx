@@ -215,13 +215,6 @@ export function PostComposer({
 
           <PlanHints projectId={projectId} hints={planHints} />
 
-          <AiCheckPanel
-            projectId={projectId}
-            aiEnabled={aiCheckEnabled}
-            texts={(chosen.length ? chosen : (["x"] as SnsKey[])).map((sns) => ({ sns, text: overrides[sns] ?? body }))}
-            onApply={applyCheckFix}
-          />
-
           <section aria-labelledby="images-heading" className="flex flex-col gap-2">
             <h2 id="images-heading" className="text-[14px] font-bold">
               画像
@@ -236,6 +229,13 @@ export function PostComposer({
             />
             {fe.media && <p className="text-sm font-semibold text-danger">{fe.media}</p>}
           </section>
+
+          <AiCheckPanel
+            projectId={projectId}
+            aiEnabled={aiCheckEnabled}
+            texts={(chosen.length ? chosen : (["x"] as SnsKey[])).map((sns) => ({ sns, text: overrides[sns] ?? body }))}
+            onApply={applyCheckFix}
+          />
         </section>
 
         {/* 右: 送り先と文面の調整 */}

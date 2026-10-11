@@ -31,6 +31,7 @@ const TOPIC_TITLE: Record<string, string> = {
   no_reaction: "反応がない",
   which_sns: "どの SNS に力を入れる？",
   roadmap: "目標とロードマップ",
+  review: "数字の振り返り",
 };
 
 export function topicTitle(topic: string | undefined): string {

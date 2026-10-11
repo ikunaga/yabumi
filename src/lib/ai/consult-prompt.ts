@@ -1,4 +1,4 @@
-import { KPIS, type KpiKey } from "@/lib/metrics/kpis";
+import { KPI_KEYS, KPIS, type KpiKey } from "@/lib/metrics/kpis";
 import { SECTION_KEYS, isSectionDone, type PlanData } from "@/lib/plan/schema";
 import { sectionLabel } from "./plan-coach-prompt";
 
@@ -37,6 +37,13 @@ export const CONSULT_SYSTEM = `あなたは「矢書（やぶみ）」の中で�
 - 週ごとのやることは、1 週に 1〜3 個。1 つは 30 分以内で済む大きさにする（例:「投稿の柱『詰まった・直した』で 1 本書く」）。数字と結びつけられるもの（投稿の回数など）は、kpi と target を付ける
 - 自動で数えられる数字は posts（投稿した回数）と link_clicks（ストアへのクリック）だけ。ほかは、まだ矢書が数えていないので、やることの数字には付けない
 
+# 振り返り（相手が「最近の数字を振り返って」と言ったとき）
+- 「いまの状況」の「振り返りの材料」と、ロードマップの進み具合だけを使う。この会話だけは message を 600 字くらいまで書いてよい
+- 次の順に書く: ① よかった点 1〜3 個（どの数字がどう動いたかを添える。数字がまだ少なければ、続けていることを認める）② 気になる点を 1 つ（責めずに）③ 次の一手 1〜3 個
+- 次の一手は、来週（week 1）のやることとして roadmap_items の提案にする。よく見られた・クリックされた投稿があれば、その型をまねた投稿の下書き（post_draft）を 1 つ出してもよい
+- 数字が少ない・始めたばかりのときは、上の「数字の扱い」のとおり、判断を急がず、続けることと試すことを 1 つだけ出す
+- 2 回目からは、相手の質問に答える（ふだんの相談と同じ）
+
 # 返事の形
 - message: 相手に話しかける文。普通の文章で書く。見出しや表などの Markdown は使わない（改行と「・」の箇条書きは使ってよい）
 - choices: 答えの選択肢（質問がないときは空）
@@ -71,6 +78,13 @@ export type ConsultContext = {
     startedOn: string | null;
     items: { week: string; title: string; status: string; progress: string | null }[];
     kgiProgress: string | null;
+  };
+  // 振り返りの会話だけ（4.22 の段取り ⑦）
+  review?: {
+    kpiValues: Partial<Record<KpiKey, { thisWeek: number; lastWeek: number }>>;
+    clicksBySns: { label: string; thisWeek: number; lastWeek: number; last30d: number }[];
+    topClicked: { title: string; clicks: number }[];
+    topViewed: { title: string; views: number }[];
   };
 };
 
@@ -110,5 +124,22 @@ export function consultContextMessage(ctx: ConsultContext): string {
       : "KGI: まだ決めていない",
     r.kpiTargets.length ? `KPI の週の目標: ${r.kpiTargets.map((t) => `${t.kpi} 週 ${t.perWeek}`).join("、")}` : "KPI の週の目標: まだ決めていない",
     r.items.length ? clip(`今週・来週のやること: ${JSON.stringify(r.items)}`, 2000) : "今週・来週のやること: まだない",
+    ...(ctx.review ? reviewLines(ctx.review, kpiLine) : []),
   ].join("\n");
+}
+
+// 振り返りの材料。選んだ KPI 以外も、数えている数字はすべて出す（数えていないものは「まだ数えていない」）
+function reviewLines(review: NonNullable<ConsultContext["review"]>, kpiLine: (k: { kpi: KpiKey; thisWeek: number | null; lastWeek: number | null }) => string): string[] {
+  const titled = <T extends { title: string }>(rows: T[]) => rows.map((r) => ({ ...r, title: clip(r.title || "（本文なし）", 60) }));
+  return [
+    "# 振り返りの材料（指標の画面と同じ数字）",
+    "すべての数字:",
+    KPI_KEYS.map((kpi) => kpiLine({ kpi, thisWeek: review.kpiValues[kpi]?.thisWeek ?? null, lastWeek: review.kpiValues[kpi]?.lastWeek ?? null })).join("\n"),
+    "SNS ごとのストアへのクリック（直近 7 日・その前の 7 日・30 日）:",
+    review.clicksBySns.length ? clip(JSON.stringify(review.clicksBySns.slice(0, 10)), 1500) : "まだない",
+    "よく見られた投稿（30 日、多い順）:",
+    review.topViewed.length ? clip(JSON.stringify(titled(review.topViewed)), 1500) : "まだない（閲覧数を数えていない、または投稿がない）",
+    "ストアへのクリックが多かった投稿（30 日、多い順）:",
+    review.topClicked.length ? clip(JSON.stringify(titled(review.topClicked)), 1500) : "まだない",
+  ];
 }

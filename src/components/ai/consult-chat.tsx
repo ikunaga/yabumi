@@ -20,6 +20,7 @@ const TOPIC_BUTTONS: { topic: ConsultTopic; label: string }[] = [
   { topic: "no_reaction", label: "投稿しても反応がない" },
   { topic: "which_sns", label: "どの SNS に力を入れる？" },
   { topic: "roadmap", label: "目標とロードマップを一緒に決めたい" },
+  { topic: "review", label: "最近の数字を振り返りたい" },
 ];
 
 const KIND_LABEL: Record<ConsultAction["kind"], string> = {

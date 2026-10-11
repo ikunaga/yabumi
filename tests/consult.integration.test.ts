@@ -146,6 +146,45 @@ describe("AI と相談", () => {
   });
 });
 
+describe("AI と振り返る（4.22 の段取り ⑦）", () => {
+  const review = {
+    kpiValues: { posts: { thisWeek: 3, lastWeek: 1 }, views: { thisWeek: 1200, lastWeek: 800 } },
+    clicksBySns: [{ label: "Threads", thisWeek: 4, lastWeek: 1, last30d: 9 }],
+    topClicked: [{ title: "家計簿を 3 日続けるコツ", clicks: 5 }],
+    topViewed: [{ title: "レシートを撮るだけで記録", views: 640 }],
+  };
+
+  it("振り返りの会話だけ、すべての数字・SNS ごとのクリック・よく見られた投稿を「いまの状況」に足す（相談と同じ purpose）", async () => {
+    const loadReview = vi.fn(async () => review);
+    const callModel = reply({ message: "閲覧数が増えました。", choices: [], actions: [] });
+    const r = await consultStep(alice, admin, { callModel, limits: roomy, loadKpiValues, loadReview }, { userId: aliceId, projectId, threadId: null, input: { kind: "start", topic: "review" } });
+    expect(r.ok).toBe(true);
+    const { data: t } = await admin.from("ai_threads").select("purpose").eq("id", r.ok ? r.threadId : "").single();
+    expect(t?.purpose).toBe("consult");
+    const req = vi.mocked(callModel).mock.calls[0][0];
+    const ctx = JSON.stringify(req.messages[req.messages.length - 1]);
+    expect(ctx).toContain("振り返りの材料");
+    expect(ctx).toContain("レシートを撮るだけで記録");
+    expect(ctx).toContain("直近 7 日 1200、その前の 7 日 800");
+    // 数えていない数字は作らせない
+    expect(ctx).toMatch(/ダウンロード（downloads）: まだ数えていない/);
+    expect(JSON.stringify(req.messages[0])).toContain("最近の数字を振り返って");
+
+    // 続けて話しても、振り返りの会話のあいだは材料を付ける
+    const again = reply({ message: "はい。", choices: [], actions: [] });
+    await consultStep(alice, admin, { callModel: again, limits: roomy, loadKpiValues, loadReview }, { userId: aliceId, projectId, threadId: r.ok ? r.threadId : null, input: { kind: "text", text: "次は？" } });
+    expect(loadReview).toHaveBeenCalledTimes(2);
+  });
+
+  it("ふだんの相談では材料を読まない（費用を抑える）", async () => {
+    const loadReview = vi.fn(async () => review);
+    const callModel = reply({ message: "はい。", choices: [], actions: [] });
+    await consultStep(alice, admin, { callModel, limits: roomy, loadKpiValues, loadReview }, { userId: aliceId, projectId, threadId: null, input: { kind: "start", topic: "what_to_post" } });
+    expect(loadReview).not.toHaveBeenCalled();
+    expect(JSON.stringify(vi.mocked(callModel).mock.calls[0][0].messages)).not.toContain("振り返りの材料");
+  });
+});
+
 describe("返事の検証", () => {
   it("種類ごとに中身を確かめる。下書きの SNS は決まった名前だけ", () => {
     const t = normalizeConsultTurn({

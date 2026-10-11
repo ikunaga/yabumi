@@ -40,10 +40,27 @@ export async function sendConsultMessage(projectId: string, threadId: string | n
   if (!userId) return { ok: false, threadId, message: "ログインし直してください。" };
 
   try {
+    // 数字は 1 往復で 1 回だけ読む（振り返りのときは KPI と材料の両方で使う）
+    let overview: ReturnType<typeof loadMetricsOverview> | null = null;
+    const loadOverview = (user: Parameters<typeof loadMetricsOverview>[1], id: string) => (overview ??= loadMetricsOverview(id, user));
     const result = await consultStep(
       supabase,
       createAdminClient(),
-      { callModel: callConsult, limits: aiLimitsFromEnv(), loadKpiValues: async (user, id) => (await loadMetricsOverview(id, user)).kpiValues },
+      {
+        callModel: callConsult,
+        limits: aiLimitsFromEnv(),
+        loadKpiValues: async (user, id) => (await loadOverview(user, id)).kpiValues,
+        // 振り返り（指標の画面の「AI と振り返る」）のときだけ読む
+        loadReview: async (user, id) => {
+          const o = await loadOverview(user, id);
+          return {
+            kpiValues: o.kpiValues,
+            clicksBySns: o.clicksBySns.map((c) => ({ label: c.label, thisWeek: c.thisWeek, lastWeek: c.lastWeek, last30d: c.last30d })),
+            topClicked: o.topPosts.map((p) => ({ title: p.title, clicks: p.clicks })),
+            topViewed: o.topViewed.map((p) => ({ title: p.title, views: p.views })),
+          };
+        },
+      },
       { userId, projectId, threadId, input },
     );
     revalidatePath(`/projects/${projectId}`, "layout");

@@ -24,6 +24,8 @@ export const CONSULT_TOPICS = {
   no_reaction: "投稿しても反応がありません。どうすればいいですか。",
   which_sns: "どの SNS に力を入れればいいか、相談したいです。",
   roadmap: "最終の目標（KGI）と、週ごとのやること（ロードマップ）を一緒に決めたいです。",
+  // 指標の画面の「AI と振り返る」から（4.22 の段取り ⑦）。この会話だけ、数字をくわしく「いまの状況」に足す
+  review: "最近の数字を振り返って、よかった点と次の一手を教えてください。",
 } as const;
 export type ConsultTopic = keyof typeof CONSULT_TOPICS;
 
@@ -80,7 +82,27 @@ export function buildConsultRequest(history: ConsultMessage[], ctx: ConsultConte
 // 選んだ KPI の今週・先週の数字（4.22 の数字の画面と同じもの。数えていないものは入れない）。サーバーでは loadMetricsOverview を渡す
 export type LoadKpiValues = (user: Db, projectId: string) => Promise<Partial<Record<KpiKey, { thisWeek: number; lastWeek: number }>>>;
 
-export async function gatherConsultContext(user: Db, projectId: string, now: Date, loadKpiValues: LoadKpiValues): Promise<ConsultContext | null> {
+// 振り返りの材料（4.22 の数字の画面と同じもの）。サーバーでは loadMetricsOverview から作って渡す
+export type ReviewNumbers = {
+  kpiValues: Partial<Record<KpiKey, { thisWeek: number; lastWeek: number }>>;
+  clicksBySns: { label: string; thisWeek: number; lastWeek: number; last30d: number }[];
+  topClicked: { title: string; clicks: number }[];
+  topViewed: { title: string; views: number }[];
+};
+export type LoadReviewNumbers = (user: Db, projectId: string) => Promise<ReviewNumbers>;
+
+export function isReviewThread(history: ConsultMessage[]): boolean {
+  const first = history[0];
+  return first?.role === "user" && first.content.kind === "start" && first.content.topic === "review";
+}
+
+export async function gatherConsultContext(
+  user: Db,
+  projectId: string,
+  now: Date,
+  loadKpiValues: LoadKpiValues,
+  loadReview?: LoadReviewNumbers,
+): Promise<ConsultContext | null> {
   const { data: project } = await user
     .from("projects")
     .select("id, name, description, target_audience, app_store_url, play_store_url")
@@ -136,7 +158,9 @@ export async function gatherConsultContext(user: Db, projectId: string, now: Dat
 
   const nextWeek = addDays(view.thisWeek, 7);
   const r = view.roadmap;
+  const review = loadReview ? await loadReview(user, projectId) : undefined;
   return {
+    ...(review ? { review } : {}),
     today,
     project: { name: project.name, description: project.description, appStoreUrl: project.app_store_url, playStoreUrl: project.play_store_url },
     plan,
@@ -215,7 +239,7 @@ export type ConsultInput =
   | { kind: "text"; text: string }
   | { kind: "adopt"; messageId: string; actionIndex: number };
 
-export type ConsultDeps = { callModel: CallModel; limits: AiLimits; loadKpiValues: LoadKpiValues; now?: () => Date };
+export type ConsultDeps = { callModel: CallModel; limits: AiLimits; loadKpiValues: LoadKpiValues; loadReview?: LoadReviewNumbers; now?: () => Date };
 export type ConsultResult = { ok: true; threadId: string; redirect?: string } | { ok: false; threadId: string | null; message: string };
 
 const GENERIC_ERROR = "AI とのやりとりがうまくいきませんでした。時間をおいてもう一度お試しください。";
@@ -304,7 +328,8 @@ export async function consultStep(
     return { ok: false, threadId, message };
   };
 
-  const ctx = await gatherConsultContext(user, projectId, now, deps.loadKpiValues);
+  // 振り返りの会話だけ、数字をくわしく足す（ふだんの相談は短く保ち、費用を抑える）
+  const ctx = await gatherConsultContext(user, projectId, now, deps.loadKpiValues, isReviewThread(history) ? deps.loadReview : undefined);
   if (!ctx) return fail("プロジェクトが見つかりません。");
 
   const recordUsage = (r: ModelResult) =>

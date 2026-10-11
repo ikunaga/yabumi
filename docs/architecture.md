@@ -969,7 +969,7 @@ Facebook ページ（graph.facebook.com）:
 - 出典: [Instagram Platform の概要](https://developers.facebook.com/docs/instagram-platform/overview)、[Business Login for Instagram](https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/business-login)、[コンテンツの公開](https://developers.facebook.com/docs/instagram-platform/content-publishing)、[IG Media（削除は Facebook Login だけ）](https://developers.facebook.com/docs/instagram-platform/reference/instagram-media)、[ページの投稿](https://developers.facebook.com/docs/pages-api/posts)、[長期のトークン](https://developers.facebook.com/docs/facebook-login/guides/access-tokens/get-long-lived)
 - 【未確認】個人アカウントで Instagram の認可画面を開いたとき、Instagram がその場でプロアカウントへの切り替えを促すか（促すなら 1 の確かめの画面は短くできる）。Facebook Login for Business の設定画面の項目名は、作るときに画面で確かめる
 
-### 4.22 指標とコンバージョン（F07）、改善分析の入口（F08）の設計（2026-10-11 に調査・設計。コードはまだ）
+### 4.22 指標とコンバージョン（F07）、改善分析の入口（F08）の設計（2026-10-11 に調査・設計し、段取り ①〜⑦ を実装）
 
 調べたのは各社の公式の資料（2026-10-11）。【未確認】は公式の資料で裏が取れなかったもの。決めることは末尾の「オーナーが決めること」。
 
@@ -1110,12 +1110,23 @@ Facebook ページ（graph.facebook.com）:
 | 部分 | 中身 |
 |---|---|
 | 読むもの | 投稿: `GET /2/tweets/:id?tweet.fields=public_metrics`（impression_count → views、like_count → likes、reply_count → replies、retweet_count → reposts、quote_count → quotes、bookmark_count → saves）。送ってから 1・3・7・30 日目（ほかの SNS と同じ 3 日の幅）。フォロワー: `GET /2/users/me?user.fields=public_metrics` を **7 日に 1 回**（ほかの SNS は毎日） |
+| 読まないもの | 投稿のクリック（non_public_metrics の url_link_clicks など）は読まない。X は本文に URL を入れないすすめ（4.13）で、ストアへのクリックは短縮リンク（プロフィールのリンク）で数えるため。D19 の「30 日以内ならクリックも」はこれで置き換える |
 | 権限 | 投稿のときから求めている tweet.read・users.read で足りる（つなぎ直しは要らない）。SNS_INSIGHTS に `x` を入れたときだけ読む |
 | 費用の記録 | 読む前に sns_api_usage に記録する（operation は metrics_read $0.005・followers_read $0.010）。`reserve_x_metrics_read` が、4.19 と同じ X のロックの中で ① 利用者の今月の X の数字の費用が X_METRICS_USER_MONTHLY_USD（既定 $1。見込みは 1 人 月 約 $0.64）を超えないか ② 矢書全体の X の月の上限（X_MONTHLY_BUDGET_USD、投稿と共有）を超えないか（reserve_sns_spend）を確かめる。どちらかを超えるなら記録せず読まない。読めなかった（X の障害・消された投稿など）ときは記録を消す |
 | 上限に達したとき | その月は読まない（3 日の幅を過ぎた分は読まないまま）。指標の画面に「● 要確認 今月は X の数字の上限に達しました」（本人の今月の費用は `my_x_metrics_spend_this_month`。security invoker で本人の分だけ） |
 | トークン | X のアクセストークンは 2 時間で切れるので、取り込みでも送信と同じアダプターで延長してから読む |
 | ジョブ | 4 の import-sns-metrics に相乗り |
 | 注意 | 全体の上限は投稿と共有なので、数字を読みすぎて投稿できなくならないよう、利用者ごとの上限を全体の上限より十分小さくする（既定 $1 と $3。利用者が増えたら X_MONTHLY_BUDGET_USD を上げる） |
+
+#### 振り返りの AI の実装（2026-10-11、段取り ⑦。オーナーの決定 M7: 押したときだけ）
+
+| 部分 | 中身 |
+|---|---|
+| 入口 | 指標の画面の「AI と振り返る」→ AI と相談（4.23）の `?start=review`。相談の「よくある相談」にも「最近の数字を振り返りたい」を足した。会話は相談と同じ（ai_threads の purpose は consult、最初の発言が「振り返り」）。採用できる提案（やること・下書きなど）も相談と同じ |
+| 材料 | 振り返りの会話のときだけ、「いまの状況」に「振り返りの材料」を足す: すべての数字（選んだ KPI 以外も。数えていないものは「まだ数えていない」）、SNS ごとのストアへのクリック、よく見られた投稿・クリックの多かった投稿（30 日）。中身は指標の画面と同じ loadMetricsOverview（利用者の権限で読むので本人のものだけ）。ロードマップの目標とやることは相談のまま入る |
+| 指示 | CONSULT_SYSTEM に「振り返り」の節: よかった点 1〜3 → 気になる点 1 → 次の一手 1〜3（来週のやることとして提案）。数字が少ないうちは判断を急がない（相談の「数字の扱い」と同じ） |
+| 費用 | 押したときだけ。1 回 約 $0.17 の見込み（材料の分、ふだんの相談の 1 往復より大きい）。AI の上限（4.9 の月の上限・1 日の回数）は相談と共有 |
+| ふだんの相談 | 材料は読まない・足さない（費用を抑える） |
 
 #### コンバージョン 2: ストアと課金（利用者ごとに鍵を預かる）
 
@@ -1170,8 +1181,8 @@ Facebook ページ（graph.facebook.com）:
 3. **App Store の Sales and Trends と RevenueCat**（鍵を入れる画面、暗号化、日次のジョブ）
 4. **Threads の数字**（threads_manage_insights を足して追加の審査。オーナーの作業）。同時に Instagram・Facebook の数字（4.21 の接続のあと）
 5. **Google Play**（利用者ごとのサービスアカウント）と **App Store の Analytics Reports**（ページの閲覧）
-6. **X の数字**（オーナーが費用を決めたら）
-7. **振り返りの AI（F08 の入口）**
+6. **X の数字**（オーナーが費用を決めたら。2026-10-11 に実装）
+7. **振り返りの AI（F08 の入口）**（2026-10-11 に実装。AI と相談の入口として）
 
 #### オーナーが決めること
 
@@ -1193,7 +1204,7 @@ Facebook ページ（graph.facebook.com）:
 
 | 画面 | 場所 | 中身 |
 |---|---|---|
-| AI と相談 | /projects/[id]/consult（サイドバーの「AI と相談」） | 運用の悩みを相談する会話。始めやすいよう、よくある相談を選べる（「何を投稿すればいい？」「反応がない」「どの SNS に力を入れる？」「目標とロードマップを一緒に決めたい」）。過去の会話の一覧（新しい順に 20 件）と「新しい相談」 |
+| AI と相談 | /projects/[id]/consult（サイドバーの「AI と相談」） | 運用の悩みを相談する会話。始めやすいよう、よくある相談を選べる（「何を投稿すればいい？」「反応がない」「どの SNS に力を入れる？」「目標とロードマップを一緒に決めたい」「最近の数字を振り返りたい」。最後のものは指標の画面の「AI と振り返る」からも始まる。4.22 の段取り ⑦）。過去の会話の一覧（新しい順に 20 件）と「新しい相談」 |
 | ロードマップ | /projects/[id]/roadmap（サイドバーの「ロードマップ」） | ① 最終の目標（KGI）と期限、進み具合 ② 追いかける数字（KPI）と週ごとの目標、今週と先週の数字 ③ 週ごとのやること（今週・来週・その先。チェックで済みにする）。「AI と作る・見直す」で相談の会話を開く。手で足す・直す・消すこともできる |
 | 概要の「いまやること」 | /projects/[id] | 設計 → SNS をつなぐ → 最初の投稿 のあと、4 段目「目標とロードマップを決める」。ロードマップができたら、「いまやること」の代わりに「今週のやること」（済んでいないもの 3 件まで）を出す |
 

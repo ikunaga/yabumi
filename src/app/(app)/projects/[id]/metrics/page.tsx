@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ManualMetricForm } from "@/components/metrics/manual-metric-form";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { Card, CardHeader, EmptyState } from "@/components/ui/card";
 import { Term } from "@/components/ui/term";
+import { aiConfigured } from "@/lib/ai/anthropic";
 import { KPIS, KPI_KEYS, recommendedKpis, type KpiKey } from "@/lib/metrics/kpis";
 import { listManualTargets, loadMetricsOverview, snsNeedingInsightsReconnect, xMetricsOverLimit, type WeekValue } from "@/lib/metrics/queries";
 import { connectedAccounts } from "@/lib/posts/queries";
@@ -120,6 +122,22 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
               <KpiCard key={k} k={k} value={overview.kpiValues[k]} projectId={project.id} />
             ))}
           </div>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 max-sm:px-4">
+          <div className="flex min-w-0 flex-col gap-1">
+            <p className="font-bold">AI と振り返る</p>
+            <p className="text-sm leading-[1.7] text-muted">
+              ここの数字とロードマップを AI が読み、よかった点と次の一手を出します。押したときだけ動きます（週に 1 回くらいがおすすめ）。
+            </p>
+          </div>
+          {aiConfigured() ? (
+            <ButtonLink href={`/projects/${project.id}/consult?start=review`}>AI と振り返る</ButtonLink>
+          ) : (
+            <Button disabled>準備中</Button>
+          )}
         </div>
       </Card>
 

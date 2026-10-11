@@ -33,7 +33,7 @@ export async function sendCoachMessage(projectId: string, threadId: string | nul
     input = { kind: "focus", focus: raw.focus };
   } else input = raw;
 
-  if (!aiConfigured()) return { ok: false, threadId, message: "AI はまだ準備中です（API キーが設定されていません）。設計の画面で手で入力できます。" };
+  if (!aiConfigured()) return { ok: false, threadId, message: "AI はまだ準備中です。設計の画面で手で入力できます。" };
 
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();

@@ -31,7 +31,7 @@ export type GoogleDeps = { managerKey?: ManagerKey | null; fetch?: typeof fetch;
 
 function requireKey(deps: GoogleDeps): ManagerKey {
   const key = deps.managerKey === undefined ? managerKeyFromEnv() : deps.managerKey;
-  if (!key) throw new StoreApiError("Google Play の取り込みは準備中です（運営者の設定がまだです）。", 503);
+  if (!key) throw new StoreApiError("Google Play の取り込みは準備中です。", 503);
   return key;
 }
 

@@ -36,7 +36,7 @@ export async function generateIdeas(projectId: string, input: unknown, sns: unkn
   const parsed = inputSchema.safeParse(input);
   if (!z.uuid().safeParse(projectId).success || !parsed.success || !snsList.success) return BAD_INPUT;
   if (parsed.data.source === "commits" && !githubConfigured()) return { error: "GitHub との連携は準備中です。" };
-  if (!aiConfigured()) return { error: "AI はまだ準備中です（API キーが設定されていません）。" };
+  if (!aiConfigured()) return { error: "AI はまだ準備中です。" };
   const { supabase, userId } = await currentUser();
   if (!userId) return { error: "ログインし直してください。" };
 
@@ -62,7 +62,7 @@ const answersSchema = z.array(z.object({ question: z.string().max(500), answer: 
 export async function refineIdeas(projectId: string, threadId: string, answers: unknown): Promise<IdeasActionResult> {
   const a = answersSchema.safeParse(answers);
   if (!z.uuid().safeParse(projectId).success || !z.uuid().safeParse(threadId).success || !a.success) return BAD_INPUT;
-  if (!aiConfigured()) return { error: "AI はまだ準備中です（API キーが設定されていません）。" };
+  if (!aiConfigured()) return { error: "AI はまだ準備中です。" };
   const { supabase, userId } = await currentUser();
   if (!userId) return { error: "ログインし直してください。" };
   try {

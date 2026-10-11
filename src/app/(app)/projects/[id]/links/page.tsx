@@ -152,7 +152,7 @@ export default async function LinksPage(props: PageProps<"/projects/[id]/links">
             ))}
           </ul>
         ) : (
-          <EmptyState description="まだありません。投稿の本文のストアの URL も、送るときに短縮リンクになり、ここに並びます（準備中）。" />
+          <EmptyState description="まだありません。投稿をつくるときに「本文の URL を短縮リンクにする」を選ぶと、送るときにここに並びます。" />
         )}
         <p className="border-t border-line px-5 py-3 text-xs leading-[1.7] text-muted max-sm:px-4">
           数えないもの: SNS がリンクのプレビューを作るための自動の読み込み、ブラウザの先読み、同じ人が 10 分以内にもう一度押したもの

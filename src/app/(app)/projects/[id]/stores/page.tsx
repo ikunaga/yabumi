@@ -70,7 +70,7 @@ export default async function StoresPage(props: PageProps<"/projects/[id]/stores
       </div>
 
       {!ready && (
-        <p className="rounded-md border border-border bg-surface2 px-4 py-3 text-sm">ストアと課金の取り込みは準備中です（運営者の設定がまだです）。</p>
+        <p className="rounded-md border border-border bg-surface2 px-4 py-3 text-sm">ストアと課金の取り込みは準備中です。</p>
       )}
 
       <Card>
@@ -151,7 +151,7 @@ export default async function StoresPage(props: PageProps<"/projects/[id]/stores
         )}
         <div className="flex flex-col gap-4 px-5 py-4 max-sm:px-4">
           {!playReady ? (
-            <p className="text-sm text-muted">Google Play の取り込みは準備中です（運営者の設定がまだです）。</p>
+            <p className="text-sm text-muted">Google Play の取り込みは準備中です。</p>
           ) : !play ? (
             <>
               <p className="text-sm leading-[1.8]">

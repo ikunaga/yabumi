@@ -259,8 +259,7 @@ function GoalFields({ v }: { v: PlanData["goal"] }) {
         name="goalType"
         legend={
           <>
-            いちばんの目標（<Term k="kgi" />
-            の方向）
+            いちばんの目標（<Term k="kgi" /> の方向）
           </>
         }
         hint="迷ったら「まず知ってもらう」。具体的な数字は「最初の 1 か月」で決めます。"
@@ -557,7 +556,10 @@ function FirstMonthFields({ v, goalType }: { v: PlanData["first_month"]; goalTyp
                   <span>
                     <b>{KPIS[k].label}</b>
                     {recommended.includes(k) && <span className="ml-1.5 text-xs text-primary">おすすめ</span>}
-                    {KPIS[k].availability !== "ready" && <span className="ml-1.5 text-xs text-muted">（いまは準備中）</span>}
+                    {KPIS[k].availability === "connect" && (
+                      <span className="ml-1.5 text-xs text-muted">（{KPIS[k].connectTo === "stores" ? "ストアや課金をつなぐと出ます" : "SNS をつなぐと出ます"}）</span>
+                    )}
+                    {(KPIS[k].availability === "later" || KPIS[k].availability === "partial") && <span className="ml-1.5 text-xs text-muted">（いまは準備中）</span>}
                     <span className="block text-xs text-muted">{KPIS[k].meaning}</span>
                   </span>
                 </label>
@@ -567,7 +569,7 @@ function FirstMonthFields({ v, goalType }: { v: PlanData["first_month"]; goalTyp
         </ul>
       </fieldset>
       <p className="text-xs text-muted">
-        表示回数は <Term k="impression" />
+        投稿の閲覧数（表示回数）は <Term k="impression" />
         とも呼ばれます。
       </p>
     </>

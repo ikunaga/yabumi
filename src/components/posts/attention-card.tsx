@@ -20,7 +20,7 @@ export function AttentionCard({ projectId, posts, overdue = [] }: { projectId: s
         <div className="border-b border-line bg-signal-soft px-5 py-3 text-sm leading-[1.7] max-sm:px-4">
           <p className="font-bold">予約時刻を過ぎても送られていない投稿があります（{overdue.length} 件）</p>
           <p className="text-muted">
-            送信のしくみ（毎分の予約ジョブ）が止まっている可能性があります。本番では Vercel と Supabase の状態を、ローカルでは「pnpm jobs:bridge」が動いているかを確かめてください（docs/deploy.md の「困ったとき」）。動き出せば、自動で送られます。
+            矢書の側で送信が遅れています。動き出せば、自動で送られます。
           </p>
           <ul className="mt-1">
             {overdue.map((p) => (

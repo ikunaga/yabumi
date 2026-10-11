@@ -25,7 +25,7 @@ async function ownProject(projectId: string) {
   return project ? userId : null;
 }
 
-const NOT_READY = "ストアと課金の取り込みは準備中です（運営者の設定がまだです）。";
+const NOT_READY = "ストアと課金の取り込みは準備中です。";
 
 async function verifySaveImport(projectId: string, userId: string, provider: Provider, secret: never, hint: string): Promise<StoreFormState> {
   let verified: string;

@@ -69,7 +69,7 @@ export type DraftActionResult = { error?: string; draft?: AppDescriptionDraft; d
 export async function draftDescription(projectId: string): Promise<DraftActionResult> {
   if (!z.uuid().safeParse(projectId).success) return { error: "入力の形式が正しくありません。" };
   if (!githubConfigured()) return { error: "GitHub との連携は準備中です。" };
-  if (!aiConfigured()) return { error: "AI はまだ準備中です（API キーが設定されていません）。" };
+  if (!aiConfigured()) return { error: "AI はまだ準備中です。" };
   const { supabase, userId } = await currentUser();
   if (!userId) return { error: "ログインし直してください。" };
 
@@ -98,7 +98,7 @@ export async function refineDescription(projectId: string, draft: unknown, answe
   const d = appDescriptionSchema.safeParse(draft);
   const a = answersSchema.safeParse(answers);
   if (!d.success || !a.success) return { error: "入力の形式が正しくありません。" };
-  if (!aiConfigured()) return { error: "AI はまだ準備中です（API キーが設定されていません）。" };
+  if (!aiConfigured()) return { error: "AI はまだ準備中です。" };
   const { supabase, userId } = await currentUser();
   if (!userId) return { error: "ログインし直してください。" };
   try {

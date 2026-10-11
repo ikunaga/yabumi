@@ -32,7 +32,7 @@ export async function sendConsultMessage(projectId: string, threadId: string | n
     input = { kind: "start", topic: parsed.data.topic };
   } else input = parsed.data;
 
-  if (!aiConfigured()) return { ok: false, threadId, message: "AI はまだ準備中です（API キーが設定されていません）。" };
+  if (!aiConfigured()) return { ok: false, threadId, message: "AI はまだ準備中です。" };
 
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();

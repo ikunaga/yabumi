@@ -10,8 +10,8 @@ import Link from "next/link";
 const pains = [
   {
     title: "SNS 運用に時間をかけたくない",
-    short: "6 つの SNS へ一度に投稿・予約",
-    body: "6 つの SNS へ一度に投稿・予約。カレンダーでいつ何を出すか一目でわかる。",
+    short: "複数の SNS へ一度に投稿・予約",
+    body: "X・Threads・Instagram・Facebook へ一度に投稿・予約（note・Substack は文面を用意して手で投稿）。カレンダーでいつ何を出すか一目でわかる。",
   },
   {
     title: "ネタがない",

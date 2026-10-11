@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isSnsKey, type SnsKey } from "@/lib/sns";
-import { hasInsightsScope, insightsEnabled, InsightsError, type InsightsFetcher } from "@/lib/sns/insights";
+import { INSIGHTS_SCOPE, insightsEnabled, InsightsError, type InsightsFetcher } from "@/lib/sns/insights";
 import type { SnsAdapter } from "@/lib/sns/adapters/types";
 import { loadAccount } from "@/lib/sns/publisher";
 import { X_PRICE_USD } from "@/lib/sns/x/pricing";
@@ -31,23 +31,25 @@ export type SnsMetricsDeps = {
 
 export type SnsMetricsOutcome = { kind: "post" | "account"; id: string; sns: string; result: "saved" | "skipped" | "failed"; message?: string };
 
-async function scopesOf(admin: Admin, socialAccountId: string): Promise<string[]> {
-  const { data } = await admin.from("social_account_tokens").select("scopes").eq("social_account_id", socialAccountId).maybeSingle();
-  return data?.scopes ?? [];
+// 読む SNS と、その数字の権限（SNS_INSIGHTS で有効にし、読み方があるものだけ）。時期の関数に渡し、読めないものを DB の中で先に除く
+// （読めないものが件数の上限を超えて溜まっても、後ろの読めるものに手が届くように）
+function insightsFilter(deps: SnsMetricsDeps): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [sns, scope] of Object.entries(INSIGHTS_SCOPE) as [SnsKey, string][]) {
+    if (deps.fetchers[sns] && insightsEnabled(sns, deps.insightsEnv)) out[sns] = scope;
+  }
+  return out;
 }
 
 export async function runSnsMetricsImport(admin: Admin, deps: SnsMetricsDeps): Promise<SnsMetricsOutcome[]> {
   const now = deps.now?.() ?? new Date();
   const outcomes: SnsMetricsOutcome[] = [];
   const late = () => Boolean(deps.deadlineMs && Date.now() > deps.deadlineMs);
-  // アカウントごとに、読めるか（権限）とトークンを 1 回だけ確かめる
+  // アカウントごとに、トークンを 1 回だけ読む（権限があるかは時期の関数が確かめてある）
   const accounts = new Map<string, { externalId: string; accessToken: string } | null>();
   async function accountFor(socialAccountId: string, externalId: string, sns: SnsKey) {
     if (accounts.has(socialAccountId)) return accounts.get(socialAccountId)!;
-    let ready: { externalId: string; accessToken: string } | null = null;
-    if (insightsEnabled(sns, deps.insightsEnv) && hasInsightsScope(sns, await scopesOf(admin, socialAccountId))) {
-      ready = await loadAccount(admin, socialAccountId, externalId, { key: deps.key, now: deps.now }, deps.adapters?.[sns]);
-    }
+    const ready = await loadAccount(admin, socialAccountId, externalId, { key: deps.key, now: deps.now }, deps.adapters?.[sns]);
     accounts.set(socialAccountId, ready);
     return ready;
   }
@@ -72,8 +74,15 @@ export async function runSnsMetricsImport(admin: Admin, deps: SnsMetricsDeps): P
   };
   const X_OVER = "X の数字の月の上限に達した";
 
+  const insights = insightsFilter(deps);
+  // X の上限（時期の関数で、上限に達した利用者の X を先に除く。読むときは reserveX がロックの中でもう一度確かめる）
+  const xLimits = (cost: number) =>
+    deps.x ? { cost_usd: cost, budget_usd: deps.x.budgetUsd, user_budget_usd: deps.x.userBudgetUsd, scope_owner: deps.x.scopeOwner ?? null } : null;
+
   // ① 投稿の数字（送ってから決まった日）
   const { data: due, error } = await admin.rpc("due_post_metric_targets", {
+    p_insights: insights,
+    ...(deps.x ? { p_x: xLimits(X_PRICE_USD.metrics_read) } : {}),
     p_limit: deps.limit ?? 100,
     ...(deps.ownerId ? { p_owner_id: deps.ownerId } : {}),
     p_now: now.toISOString(),
@@ -89,7 +98,7 @@ export async function runSnsMetricsImport(admin: Admin, deps: SnsMetricsDeps): P
     }
     const account = await accountFor(t.social_account_id, t.account_external_id, t.sns);
     if (!account) {
-      outcomes.push({ ...base, result: "skipped", message: "数字の権限がない" });
+      outcomes.push({ ...base, result: "skipped", message: "トークンが切れている（つなぎ直しが要る）" });
       continue;
     }
     let usageId: string | null = null;
@@ -124,6 +133,8 @@ export async function runSnsMetricsImport(admin: Admin, deps: SnsMetricsDeps): P
   // ② アカウントの数字（フォロワー数。日本時間で 1 日 1 回）
   const day = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Tokyo" }).format(now);
   const { data: dueAccounts, error: e2 } = await admin.rpc("due_account_metric_accounts", {
+    p_insights: insights,
+    ...(deps.x ? { p_x: xLimits(X_PRICE_USD.followers_read) } : {}),
     p_limit: deps.limit ?? 100,
     ...(deps.ownerId ? { p_owner_id: deps.ownerId } : {}),
     p_now: now.toISOString(),
@@ -139,7 +150,7 @@ export async function runSnsMetricsImport(admin: Admin, deps: SnsMetricsDeps): P
     }
     const account = await accountFor(a.social_account_id, a.external_id, a.sns);
     if (!account) {
-      outcomes.push({ ...base, result: "skipped", message: "数字の権限がない" });
+      outcomes.push({ ...base, result: "skipped", message: "トークンが切れている（つなぎ直しが要る）" });
       continue;
     }
     let usageId: string | null = null;

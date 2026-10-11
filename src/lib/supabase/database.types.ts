@@ -1335,7 +1335,13 @@ export type Database = {
         }[]
       }
       due_account_metric_accounts: {
-        Args: { p_limit?: number; p_now?: string; p_owner_id?: string }
+        Args: {
+          p_insights: Json
+          p_limit?: number
+          p_now?: string
+          p_owner_id?: string
+          p_x?: Json
+        }
         Returns: {
           external_id: string
           owner_id: string
@@ -1344,7 +1350,13 @@ export type Database = {
         }[]
       }
       due_post_metric_targets: {
-        Args: { p_limit?: number; p_now?: string; p_owner_id?: string }
+        Args: {
+          p_insights: Json
+          p_limit?: number
+          p_now?: string
+          p_owner_id?: string
+          p_x?: Json
+        }
         Returns: {
           account_external_id: string
           day_index: number
@@ -1540,6 +1552,16 @@ export type Database = {
           published_last_week: number
           published_this_week: number
         }[]
+      }
+      x_metrics_room: {
+        Args: {
+          p_budget_usd: number
+          p_cost_usd: number
+          p_owner_id: string
+          p_scope_owner: string
+          p_user_budget_usd: number
+        }
+        Returns: boolean
       }
     }
     Enums: {

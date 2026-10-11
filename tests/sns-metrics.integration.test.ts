@@ -109,7 +109,7 @@ describe("取り込み", () => {
     expect((await bob.from("account_metrics").select("*").limit(5)).data).toEqual([]);
     expect((await bob.rpc("sns_weekly_totals", { p_project_id: projectId, p_today: today() })).data![0]).toMatchObject({ has_post_metrics: false });
     expect((await anonClient().from("post_metrics").select("*").limit(1)).error?.code).toBe("42501");
-    expect((await alice.rpc("due_post_metric_targets", {})).error?.code).toBe("42501");
+    expect((await alice.rpc("due_post_metric_targets", { p_insights: {} })).error?.code).toBe("42501");
   });
 });
 
@@ -142,7 +142,9 @@ describe("X の数字（読むたびに費用がかかる）", () => {
     const outcomes = await runSnsMetricsImport(admin, xDeps(x, 0.012));
     const xs = outcomes.filter((o) => o.sns === "x");
     expect(xs.filter((o) => o.kind === "post" && o.result === "saved")).toHaveLength(2);
-    expect(xs.filter((o) => o.result === "skipped").map((o) => o.message)).toEqual(["X の数字の月の上限に達した", "X の数字の月の上限に達した"]);
+    // 3 件目は読む直前の確かめ（ロックの中）で止まる。フォロワー（$0.010）は上限に収まらないので、時期の関数が先に除く
+    expect(xs.filter((o) => o.result === "skipped").map((o) => o.message)).toEqual(["X の数字の月の上限に達した"]);
+    expect(xs.filter((o) => o.kind === "account")).toEqual([]);
     expect(x.post).toHaveBeenCalledTimes(2);
     expect(x.account).not.toHaveBeenCalled();
     expect(await usage()).toEqual([
@@ -171,6 +173,33 @@ describe("X の数字（読むたびに費用がかかる）", () => {
     await publishedTarget("x", xAccount, daysAgo(1.1));
     const x = fakeFetcher(1);
     await runSnsMetricsImport(admin, { fetchers: { x }, key, ownerId: aliceId, insightsEnv: "x", now: () => NOW });
+    expect(x.post).not.toHaveBeenCalled();
+  });
+});
+
+describe("読めないものが溜まっても、後ろの読めるものに手が届く", () => {
+  it("権限なし・X の上限に達した投稿が件数の上限より多くても、それより新しい読める投稿を読む", async () => {
+    // それまでのテストで時期が来ている読める投稿を、先に読んでおく
+    await runSnsMetricsImport(admin, { fetchers: { threads: fakeFetcher(1) }, key, ownerId: aliceId, insightsEnv: "threads", now: () => NOW });
+    const xAccount = (await admin.from("social_accounts").select("id").eq("owner_id", aliceId).eq("sns", "x").single()).data!.id;
+    // 古い順に並べると先に来る、読めない投稿（権限なしの Instagram 3 件、上限に達した X 3 件）
+    for (let i = 0; i < 3; i++) await publishedTarget("instagram", withoutScope, daysAgo(2.9 - i * 0.01));
+    for (let i = 0; i < 3; i++) await publishedTarget("x", xAccount, daysAgo(1.9 - i * 0.01));
+    const readable = await publishedTarget("threads", withScope, daysAgo(1.05));
+    const threads = fakeFetcher(7);
+    const instagram = fakeFetcher(7);
+    const x = fakeFetcher(7);
+    const outcomes = await runSnsMetricsImport(admin, {
+      fetchers: { threads, instagram, x },
+      key,
+      ownerId: aliceId,
+      insightsEnv: "threads,instagram,x",
+      now: () => NOW,
+      limit: 2,
+      x: { budgetUsd: 3, userBudgetUsd: 0, scopeOwner: aliceId },
+    });
+    expect(outcomes.filter((o) => o.kind === "post")).toEqual([{ kind: "post", id: readable.targetId, sns: "threads", result: "saved" }]);
+    expect(instagram.post).not.toHaveBeenCalled();
     expect(x.post).not.toHaveBeenCalled();
   });
 });

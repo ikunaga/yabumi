@@ -41,7 +41,7 @@ export async function managerAccessToken(key: ManagerKey, fetchImpl: typeof fetc
     signal: AbortSignal.timeout(20_000),
   });
   const json = (await res.json().catch(() => ({}))) as { access_token?: string };
-  if (!res.ok || !json.access_token) throw new StoreApiError("Google Play との連携は準備中です（運営者の設定を確かめています）。", res.status || 500);
+  if (!res.ok || !json.access_token) throw new StoreApiError("Google Play をつなぐ機能は準備中です（運営者の設定を確かめています）。", res.status || 500);
   return json.access_token;
 }
 
@@ -71,7 +71,7 @@ export async function createServiceAccount(key: ManagerKey, token: string, accou
     fetchImpl,
   );
   if (status === 429 || /quota/i.test(json.error?.message ?? "")) {
-    throw new StoreApiError("Google Play の連携の数が上限に達しました。運営者に知らせてください。", 429);
+    throw new StoreApiError("Google Play をつないでいる数が上限に達しました。運営者に知らせてください。", 429);
   }
   if (status >= 300 || !json.email) throw new StoreApiError("Google Play 用のアカウントを作れませんでした。時間をおいてもう一度お試しください。", status);
   return json.email;

@@ -21,7 +21,7 @@ export function toPublishError(e: unknown, stage: "prepare" | "publish"): SnsPub
   if (e instanceof SnsPublishError) return e;
   if (e instanceof ThreadsApiError) {
     if (e.code === 190 || e.status === 401) {
-      return new SnsPublishError("auth", "Threads の接続が切れています。概要の「つないだ SNS」からつなぎ直してください。", { cause: e });
+      return new SnsPublishError("auth", "Threads とのつながりが切れています。概要の「つないだ SNS」からつなぎ直してください。", { cause: e });
     }
     if (e.status === 429 || (e.code !== undefined && RATE_LIMIT_CODES.has(e.code))) {
       return new SnsPublishError("retryable", "Threads の回数制限にかかりました。時間をおいて送り直します。", { cause: e });

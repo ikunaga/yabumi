@@ -30,6 +30,7 @@ export default async function NewProjectPage() {
           title="新しいプロジェクト"
           lead="あとからいつでも編集できます。まずはアプリ名だけでも大丈夫です。"
           submitLabel="作成する"
+          pendingLabel="作成しています…"
           cancelHref="/projects"
         />
       </main>

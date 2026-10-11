@@ -31,7 +31,7 @@ const ERRORS: Record<BannerSns, Record<string, string>> = {
     failed: "X とつなげませんでした。もう一度お試しください。続くときは X の Developer Console で、アプリの権限（Read and write）と Callback URI を確認してください。",
   },
 };
-const STATE_ERROR = "接続の確認に失敗しました。時間をおいて、もう一度「つなぐ」から始めてください。";
+const STATE_ERROR = "つなぐときの確認に失敗しました。時間をおいて、もう一度「つなぐ」から始めてください。";
 
 const CONNECTED: Record<string, string> = { threads: "Threads", x: "X", instagram: "Instagram", facebook: "Facebook ページ" };
 

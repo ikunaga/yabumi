@@ -28,11 +28,11 @@ export function TopBar({
         </nav>
         <div className="ml-auto flex items-center gap-6 text-sm text-muted max-sm:gap-4">
           <ThemeToggle />
-          <Link href="/settings" className="hover:text-fg hover:underline max-sm:hidden" title="アカウント">
+          <Link href="/settings" className="hover:text-fg hover:underline max-sm:hidden" title="ログインと退会">
             {email}
           </Link>
           <Link href="/settings" className="hover:text-fg hover:underline sm:hidden">
-            アカウント
+            ログインと退会
           </Link>
           <form action={logout}>
             <button type="submit" className="hover:text-fg hover:underline">

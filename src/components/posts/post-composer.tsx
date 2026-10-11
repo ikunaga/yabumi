@@ -124,7 +124,7 @@ export function PostComposer({
     else setBody(next);
     return true;
   }
-  // これから送る SNS（送信済みなどを除く）
+  // これから送る SNS（投稿済みなどを除く）
   const toSend = chosen.filter((s) => !isLocked(s));
   // つないでいない SNS（手で投稿する SNS は、つながなくてよい）。送れない理由のときは、つなぐ画面へのリンクも出す
   const missingConnect = toSend.filter((s) => !isManualSns(s) && !connected.includes(s));
@@ -132,7 +132,7 @@ export function PostComposer({
   // 送れない理由（最初の 1 つ）。日時は予約のときだけ要る
   const sendBlocker = (() => {
     if (chosen.length === 0) return "送り先の SNS を選んでください";
-    if (toSend.length === 0) return "選んだ SNS にはすべて送信済みです";
+    if (toSend.length === 0) return "選んだ SNS にはすべて投稿済みです";
     for (const s of toSend) {
       const issue = checks[s].issues[0];
       if (issue) return `${SNS[s].label}: ${ISSUE_LABEL[issue]}`;
@@ -146,7 +146,7 @@ export function PostComposer({
   const blocker = sendBlocker ?? (plannedAt ? null : "送る日時を決めてください");
   // 今すぐ送れるのは、自動で送る SNS だけ
   const nowBlocker =
-    sendBlocker ?? (toSend.some((s) => !isManualSns(s)) ? null : "note・Substack は手で投稿します。予約か下書き保存をすると、投稿の画面から手で投稿できます");
+    sendBlocker ?? (toSend.some((s) => !isManualSns(s)) ? null : "note・Substack は手で投稿します。予約するか下書きに保存すると、投稿の画面から手で投稿できます");
 
   // 直し始めたら、その欄のエラーは消す
   function clearFieldError(key: keyof NonNullable<SavePostResult["fieldErrors"]>) {
@@ -316,7 +316,7 @@ export function PostComposer({
                     ) : connected.includes(sns) ? (
                       <span className="font-bold text-success">OK</span>
                     ) : (
-                      <span className="font-bold text-signal">未接続</span>
+                      <span className="font-bold text-signal">つないでいない</span>
                     )}
                   </span>
                 </li>
@@ -416,7 +416,7 @@ export function PostComposer({
                   rows={SNS[focus].needsTitle ? 12 : 4}
                   value={overrides[focus]}
                   onChange={(e) => setOverrides((o) => ({ ...o, [focus]: e.target.value }))}
-                  className="w-full rounded-md border border-input bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:shadow-[0_0_0_1px_var(--primary)]"
+                  className="w-full rounded-md border border-input bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:shadow-[0_0_0_1px_var(--primary)] max-sm:text-[16px]"
                 />
                 <button
                   type="button"
@@ -500,11 +500,11 @@ export function PostComposer({
               </>
             ) : (
               <Button type="button" variant="text" size="sm" onClick={() => setConfirmDelete(true)}>
-                削除
+                削除する
               </Button>
             ))}
           <Button type="button" variant="secondary" disabled={pending} onClick={() => submit("draft")} className="max-sm:flex-1">
-            下書き保存
+            下書きに保存する
           </Button>
           {confirmSend ? (
             <>
@@ -544,7 +544,7 @@ export function PostComposer({
 function TargetStateMark({ status }: { status: TargetResult["status"] }) {
   switch (status) {
     case "published":
-      return <span className="font-bold text-success">✓ 送信済み</span>;
+      return <span className="font-bold text-success">✓ 投稿済み</span>;
     case "preparing":
     case "publishing":
       return <span className="text-muted">送信中</span>;

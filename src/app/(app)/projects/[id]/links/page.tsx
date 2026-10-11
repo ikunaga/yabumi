@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
 import { CopyButton, CustomLinkForm, ProfileLinkForm, ProviderTokenForm } from "@/components/links/link-forms";
 import { Card, CardHeader, EmptyState } from "@/components/ui/card";
@@ -9,13 +10,17 @@ import { listLinks, type LinkRow } from "@/lib/links/queries";
 import { getProject } from "@/lib/projects/queries";
 import { SNS, type SnsKey } from "@/lib/sns";
 
-export const metadata: Metadata = { title: "リンク" };
+export const metadata: Metadata = { title: "短縮リンク" };
 
 // プロフィールに置くリンクを作る SNS の順（X と Instagram は本文のリンクで数えにくいので先に）
 const PROFILE_SNS: SnsKey[] = ["x", "instagram", "threads", "facebook", "tiktok", "youtube", "note", "substack"];
 
-const PROFILE_NOTE: Partial<Record<SnsKey, string>> = {
-  x: "X は本文に URL があると、投稿 1 本の API の料金が上がります（約 2 円 → 約 30 円）。URL はプロフィールに置き、このリンクで数えるのがおすすめです。",
+const PROFILE_NOTE: Partial<Record<SnsKey, ReactNode>> = {
+  x: (
+    <>
+      X は本文に URL があると、投稿 1 本の<Term k="payPerUse">API の料金</Term>が上がります（約 2 円 → 約 30 円）。URL はプロフィールに置き、このリンクで数えるのがおすすめです。
+    </>
+  ),
   instagram: "Instagram は投稿の本文の URL を押せません。プロフィールのリンク（とストーリーズのリンク）に置いて数えます。",
 };
 
@@ -79,7 +84,7 @@ export default async function LinksPage(props: PageProps<"/projects/[id]/links">
   return (
     <div className="flex max-w-[860px] flex-col gap-6 max-sm:gap-4">
       <div className="flex flex-col gap-1.5">
-        <h1 className="font-heading text-3xl font-bold max-sm:text-2xl">リンク</h1>
+        <h1 className="font-heading text-3xl font-bold max-sm:text-2xl">短縮リンク</h1>
         <p className="text-base leading-[1.8] text-muted max-sm:text-[14px]">
           SNS から<Term k="storeListing">ストアページ</Term>に来た人を数えるための<Term k="shortLink">短縮リンク</Term>です。SNS ごとに別のリンクを使うと、どの SNS から何人来たかがわかります。行き先には、ストアの側でも見分けられる<Term k="campaignLink">印</Term>を自動で付けます。
         </p>

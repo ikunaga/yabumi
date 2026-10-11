@@ -12,7 +12,10 @@ export function ShortLinkToggle({ checked, onChange, projectId }: { checked: boo
     <div className="flex flex-col gap-1">
       <label className="flex items-center gap-2 text-sm font-bold">
         <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="size-4 accent-[var(--primary)]" />
-        本文の URL を<Term k="shortLink">短縮リンク</Term>にして、押された回数を数える
+        {/* label は flex なので、文を 1 つにまとめる（用語の印だけが細い箱になって折れないように） */}
+        <span>
+          本文の URL を<Term k="shortLink">短縮リンク</Term>にして、押された回数を数える
+        </span>
       </label>
       <p className="pl-6 text-xs leading-[1.7] text-muted">
         SNS ごとに別のリンクになり、どの SNS から何人がストアなどに来たかがわかります（Instagram は本文の URL を押せないので置き換えません）。数字は

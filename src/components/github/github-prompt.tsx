@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Button, buttonClass } from "@/components/ui/button";
+import { buttonClass, NotReadyButton } from "@/components/ui/button";
 import { dismissGithubPrompt } from "@/lib/github/actions";
 
 // 概要の「いまやること」の前に出す、任意の最初の一歩。つないだか、飛ばしたら出さない
@@ -26,12 +26,9 @@ export function GithubPrompt({ projectId, configured }: { projectId: string; con
             GitHub をつなぐ
           </Link>
         ) : (
-          <span className="flex items-center gap-2">
-            <span className="text-xs text-muted">準備中</span>
-            <Button variant="secondary" size="sm" disabled>
-              GitHub をつなぐ
-            </Button>
-          </span>
+          <NotReadyButton variant="secondary" size="sm">
+            GitHub をつなぐ
+          </NotReadyButton>
         )}
       </div>
     </section>

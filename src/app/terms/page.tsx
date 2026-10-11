@@ -138,7 +138,7 @@ export default function TermsPage() {
 
       <LegalSection id="withdraw" n={next()} title="退会">
         <p>
-          利用者は、「アカウント」の画面からいつでも退会できます。退会すると、預かっている情報は
+          利用者は、「ログインと退会」の画面からいつでも退会できます。退会すると、預かっている情報は
           <Link href="/privacy#retention" className="text-primary hover:underline">
             プライバシーポリシー
           </Link>

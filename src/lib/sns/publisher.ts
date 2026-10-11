@@ -163,7 +163,7 @@ export async function refreshOnce(
     });
     return refreshed.accessToken;
   }
-  throw new SnsPublishError("retryable", "SNS の接続の更新に時間がかかっています。時間をおいて送り直します。");
+  throw new SnsPublishError("retryable", "SNS とつなぎ続けるための更新に時間がかかっています。時間をおいて送り直します。");
 }
 
 async function tokenScopes(admin: Admin, socialAccountId: string): Promise<string[]> {
@@ -225,7 +225,7 @@ async function publishOne(admin: Admin, t: ClaimedTarget, deps: PublisherDeps): 
   const label = isSnsKey(t.sns) ? SNS[t.sns].label : t.sns;
   if (!adapter) return fail(`${label} への送信はまだ準備中です。`);
   if (!t.social_account_id || !t.account_external_id) return fail(`${label} のアカウントがつながっていません。${RECONNECT}`);
-  if (t.account_status !== "active") return fail(`${label} の接続が切れています。${RECONNECT}`);
+  if (t.account_status !== "active") return fail(`${label} とのつながりが切れています。${RECONNECT}`);
 
   const published = async (result: PublishResult): Promise<TargetOutcome> => {
     const { error } = await admin
@@ -267,7 +267,7 @@ async function publishOne(admin: Admin, t: ClaimedTarget, deps: PublisherDeps): 
   let usageId: string | null = null;
   try {
     const account = await loadAccount(admin, t.social_account_id, t.account_external_id, deps, adapter);
-    if (!account) return fail(`${label} の接続が切れています。${RECONNECT}`);
+    if (!account) return fail(`${label} とのつながりが切れています。${RECONNECT}`);
 
     // 準備中の続き（前の回に startPublish 済み）。費用の記録や画像の読み込みはもう済んでいる
     if (t.sns_container && adapter.continuePublish) {
@@ -393,14 +393,14 @@ export async function deletePublishedTarget(admin: Admin, targetId: string, deps
   if (error) throw error;
   const label = isSnsKey(t.sns) ? SNS[t.sns].label : t.sns;
   const adapter = isSnsKey(t.sns) ? deps.adapters[t.sns] : undefined;
-  if (t.status !== "published" || !t.external_post_id) throw new SnsPublishError("permanent", "送信済みの投稿ではありません。");
+  if (t.status !== "published" || !t.external_post_id) throw new SnsPublishError("permanent", "まだ投稿していないので、取り消せません。");
   if (!adapter) throw new SnsPublishError("permanent", `${label} の取り消しはまだ準備中です。`);
   const acc = t.social_accounts as unknown as { external_id: string; status: string } | null;
   if (!t.social_account_id || !acc || acc.status !== "active") {
-    throw new SnsPublishError("auth", `${label} の接続が切れています。${RECONNECT}`);
+    throw new SnsPublishError("auth", `${label} とのつながりが切れています。${RECONNECT}`);
   }
   const account = await loadAccount(admin, t.social_account_id, acc.external_id, deps, adapter);
-  if (!account) throw new SnsPublishError("auth", `${label} の接続が切れています。${RECONNECT}`);
+  if (!account) throw new SnsPublishError("auth", `${label} とのつながりが切れています。${RECONNECT}`);
 
   try {
     await adapter.deletePost(account, t.external_post_id);

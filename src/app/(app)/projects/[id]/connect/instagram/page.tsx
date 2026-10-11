@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { buttonClass } from "@/components/ui/button";
+import { buttonClass, NotReadyButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Term } from "@/components/ui/term";
 import { getProject } from "@/lib/projects/queries";
@@ -40,12 +40,7 @@ export default async function ConnectInstagramPage(props: PageProps<"/projects/[
               プロアカウントにした・つなぐ
             </a>
           ) : (
-            <span className="flex items-center gap-2">
-              <span className="text-xs text-muted">準備中</span>
-              <button type="button" className={buttonClass({})} disabled>
-                つなぐ
-              </button>
-            </span>
+            <NotReadyButton>つなぐ</NotReadyButton>
           )}
           <Link href={`/projects/${id}#sns`} className="font-semibold text-primary hover:underline">
             あとにする

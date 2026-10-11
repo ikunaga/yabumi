@@ -15,7 +15,7 @@ export function toXPublishError(e: unknown, stage: "prepare" | "publish"): SnsPu
   if (e instanceof SnsPublishError) return e;
   if (e instanceof XApiError) {
     if (e.status === 401 || e.code === "invalid_grant" || e.code === "invalid_token") {
-      return new SnsPublishError("auth", `X の接続が切れています。${RECONNECT}`, { cause: e });
+      return new SnsPublishError("auth", `X とのつながりが切れています。${RECONNECT}`, { cause: e });
     }
     if (e.status === 402 || e.status === 429 || (e.code !== undefined && CAP_CODES.has(e.code))) {
       return new SnsPublishError(

@@ -90,9 +90,9 @@ export default async function CalendarPage(props: PageProps<"/projects/[id]/cale
                 href={`${base}/compose?date=${d}`}
                 className="group flex flex-1 items-start justify-center pt-2 text-xs text-muted hover:bg-primary-soft/50 hover:no-underline"
               >
-                <span className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">＋ 投稿を足す</span>
+                <span className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">＋ 投稿をつくる</span>
                 <span className="sr-only">
-                  {monthOf(d)} 月 {dayOfMonth(d)} 日に投稿を足す
+                  {monthOf(d)} 月 {dayOfMonth(d)} 日に投稿をつくる
                 </span>
               </Link>
             </div>
@@ -115,7 +115,7 @@ export default async function CalendarPage(props: PageProps<"/projects/[id]/cale
                   href={`${base}/compose?date=${d}`}
                   className="rounded-lg border-[1.5px] border-dashed border-border px-3.5 py-3 text-sm text-muted hover:no-underline"
                 >
-                  空いています ・ ＋ 投稿を足す
+                  空いています ・ ＋ 投稿をつくる
                 </Link>
               ) : (
                 list.map((p) => <MobilePostCard key={p.id} post={p} projectId={project.id} highlight={isToday} />)

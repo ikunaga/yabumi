@@ -120,7 +120,7 @@ export function ProviderTokenForm({ projectId, current }: { projectId: string; c
       </Field>
       <div>
         <Button type="submit" variant="secondary" size="sm" disabled={pending}>
-          保存
+          保存する
         </Button>
       </div>
     </form>

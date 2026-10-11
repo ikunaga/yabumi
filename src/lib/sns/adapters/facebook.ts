@@ -21,7 +21,7 @@ export function toFacebookError(e: unknown, stage: "prepare" | "publish"): SnsPu
   if (e instanceof SnsPublishError) return e;
   if (e instanceof FacebookApiError) {
     if (e.code === 190 || e.status === 401) {
-      return new SnsPublishError("auth", `Facebook ページの接続が切れています。${RECONNECT}`, { cause: e });
+      return new SnsPublishError("auth", `Facebook ページとのつながりが切れています。${RECONNECT}`, { cause: e });
     }
     if (e.code !== undefined && (PERMISSION_CODES.has(e.code) || (e.code >= 200 && e.code < 300))) {
       return new SnsPublishError(

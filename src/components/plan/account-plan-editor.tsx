@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useActionState, useEffect, useRef, useState, type ReactNode } from "react";
-import { Button, buttonClass } from "@/components/ui/button";
+import { Button, buttonClass, NotReadyButton } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { Field, Input, Textarea } from "@/components/ui/field";
 import { Term } from "@/components/ui/term";
@@ -169,12 +169,9 @@ function SectionCard({
               AI と考える
             </Link>
           ) : (
-            <span className="flex items-center gap-2">
-              <span className="text-xs text-muted">準備中</span>
-              <button type="button" disabled className={buttonClass({ variant: "secondary", size: "sm" })}>
-                AI と考える
-              </button>
-            </span>
+            <NotReadyButton variant="secondary" size="sm">
+              AI と考える
+            </NotReadyButton>
           )}
         </div>
         {children}
@@ -186,11 +183,11 @@ function SectionCard({
             </span>
           )}
           <Button type="submit" variant={isLast ? "primary" : "secondary"} disabled={pending} onClick={() => (goNext.current = false)}>
-            保存
+            保存する
           </Button>
           {!isLast && (
             <Button type="submit" disabled={pending} onClick={() => (goNext.current = true)}>
-              保存して次へ
+              保存して次へ進む
             </Button>
           )}
         </div>
@@ -535,7 +532,7 @@ function FirstMonthFields({ v, goalType }: { v: PlanData["first_month"]; goalTyp
       </Field>
       <fieldset className="flex flex-col gap-1.5">
         <legend className="text-[14px] font-bold">
-          矢書の「指標」の画面で追う数字（<Term k="kpi" />。{MAX_KPIS} つまで）
+          矢書の「指標」の画面で追いかける数字（<Term k="kpi" />。{MAX_KPIS} つまで）
         </legend>
         <p className="text-xs text-muted">目的に合わせたおすすめに印を付けています。迷ったらそのままで大丈夫です。</p>
         <ul className="flex flex-col gap-1">

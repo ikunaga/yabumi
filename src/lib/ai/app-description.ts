@@ -212,7 +212,7 @@ export async function draftAppDescription(
   if (!project) return { ok: false, message: "プロジェクトが見つかりません。" };
   // 読む直前に、本人がいまも読めるリポジトリかを確かめる
   const link: RepoLink | null = await readableRepoLink(user, args.userId, args.projectId);
-  if (!link) return { ok: false, message: "リポジトリがつながっていないか、読む権限が確かめられません。GitHub の画面で「連携を読み込み直す」を押してから、もう一度お試しください。" };
+  if (!link) return { ok: false, message: "リポジトリがつながっていないか、読む権限が確かめられません。GitHub の画面で「GitHub をつなぎ直す」を押してから、もう一度お試しください。" };
 
   const limit = await checkAiLimits(admin, args.userId, deps.limits, now);
   if (!limit.ok) return { ok: false, message: limit.message };

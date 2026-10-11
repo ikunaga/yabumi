@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { buttonClass } from "@/components/ui/button";
+import { buttonClass, NotReadyButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getProject } from "@/lib/projects/queries";
 import { insightsEnabled } from "@/lib/sns/insights/scopes";
@@ -49,12 +49,7 @@ export default async function ConnectThreadsPage(props: PageProps<"/projects/[id
               Threads をつなぐ
             </a>
           ) : (
-            <span className="flex items-center gap-2">
-              <span className="text-xs text-muted">準備中</span>
-              <button type="button" className={buttonClass({})} disabled>
-                Threads をつなぐ
-              </button>
-            </span>
+            <NotReadyButton>Threads をつなぐ</NotReadyButton>
           )}
           <Link href={`/projects/${id}#sns`} className="font-semibold text-primary hover:underline">
             あとにする

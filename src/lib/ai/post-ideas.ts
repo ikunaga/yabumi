@@ -345,7 +345,7 @@ export async function generatePostIdeas(
   if (input.source === "commits") {
     // 読む直前に、本人がいまも読めるリポジトリかを確かめる
     link = await readableRepoLink(user, args.userId, args.projectId);
-    if (!link) return { ok: false, message: "リポジトリがつながっていないか、読む権限が確かめられません。GitHub の画面で「連携を読み込み直す」を押してから、もう一度お試しください。" };
+    if (!link) return { ok: false, message: "リポジトリがつながっていないか、読む権限が確かめられません。GitHub の画面で「GitHub をつなぎ直す」を押してから、もう一度お試しください。" };
   } else if (input.source === "news") {
     news = cleanNews(input.news);
     if (news.length === 0) return { ok: false, message: "質問のどれか 1 つに答えてください。" };

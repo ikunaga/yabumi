@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { AddItemForm } from "@/components/roadmap/add-item-form";
 import { GoalForm } from "@/components/roadmap/goal-form";
 import { RoadmapItemRow } from "@/components/roadmap/item-row";
-import { ButtonLink } from "@/components/ui/button";
+import { ButtonLink, NotReadyButton } from "@/components/ui/button";
 import { Card, CardHeader, EmptyState } from "@/components/ui/card";
 import { DismissableDetails } from "@/components/ui/dismissable-details";
 import { Term } from "@/components/ui/term";
@@ -67,12 +67,7 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
         {ai ? (
           <ButtonLink href={consultHref}>{roadmap?.kgi ? "AI と見直す" : "AI と作る"}</ButtonLink>
         ) : (
-          <span className="flex items-center gap-2">
-            <span className="text-xs text-muted">準備中</span>
-            <button type="button" className="rounded-md bg-primary px-4 py-2 text-sm font-bold text-on-primary opacity-50" disabled>
-              AI と作る
-            </button>
-          </span>
+          <NotReadyButton>AI と作る</NotReadyButton>
         )}
       </div>
 

@@ -48,7 +48,7 @@ export function AddItemForm({ projectId, weeks }: { projectId: string; weeks: { 
           </span>
         </label>
         <Button type="submit" size="sm" variant="secondary" disabled={pending}>
-          足す
+          追加する
         </Button>
       </div>
       {state.error && (

@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { Brand } from "@/components/brand";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { STEPS } from "@/lib/projects/next-step";
 
-const firstSteps = ["アプリを登録して、アカウントを設計する", "投稿先の SNS をつなぐ", "最初の投稿を予約する"];
+// 概要の「いまやること」と同じ 4 段（src/lib/projects/next-step.ts）。最初の段の前に、アプリ（プロジェクト）を登録する
+const firstSteps = STEPS.map((s, i) => (i === 0 ? `アプリを登録して、${s.title}` : s.title));
 
 export default function AuthLayout({ children }: LayoutProps<"/">) {
   return (
@@ -13,7 +15,7 @@ export default function AuthLayout({ children }: LayoutProps<"/">) {
           <p className="font-heading text-[34px] leading-[1.5] font-bold text-nav-strong">
             登録したら、
             <br />
-            最初にやることは 3 つだけ。
+            最初にやることは {firstSteps.length} つだけ。
           </p>
           <ol className="border-t border-nav-active text-base">
             {firstSteps.map((s, i) => (

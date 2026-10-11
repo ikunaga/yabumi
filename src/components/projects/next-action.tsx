@@ -1,4 +1,4 @@
-import { Button, ButtonLink } from "@/components/ui/button";
+import { ButtonLink, NotReadyButton } from "@/components/ui/button";
 import { SkipPlanForm } from "./skip-plan-form";
 import { STEPS, stepHref } from "@/lib/projects/next-step";
 
@@ -27,12 +27,9 @@ export function NextAction({ stepIndex, projectId }: { stepIndex: number; projec
                 {step.cta}
               </ButtonLink>
             ) : (
-              <>
-                <Button variant="inverse" className="px-6 max-sm:h-12" disabled>
-                  {step.cta}
-                </Button>
-                <span className="text-xs text-on-primary-muted">準備中</span>
-              </>
+              <NotReadyButton variant="inverse" className="px-6 max-sm:h-12" stack>
+                {step.cta}
+              </NotReadyButton>
             )}
             {/* 設計は飛ばして先へ進める */}
             {step.key === "plan" && (

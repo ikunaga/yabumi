@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AccountPlanEditor } from "@/components/plan/account-plan-editor";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { ButtonLink, NotReadyButton } from "@/components/ui/button";
 import { aiConfigured } from "@/lib/ai/anthropic";
 import { getAccountPlan } from "@/lib/plan/queries";
 
@@ -38,12 +38,9 @@ export default async function PlanPage(props: PageProps<"/projects/[id]/plan">) 
               AI と考える
             </ButtonLink>
           ) : (
-            <>
-              <Button variant="inverse" className="px-6 max-sm:h-12" disabled>
-                AI と考える
-              </Button>
-              <span className="text-xs text-on-primary-muted">準備中</span>
-            </>
+            <NotReadyButton variant="inverse" className="px-6 max-sm:h-12" stack>
+              AI と考える
+            </NotReadyButton>
           )}
         </div>
       </section>

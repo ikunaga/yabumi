@@ -35,7 +35,7 @@ export async function generateIdeas(projectId: string, input: unknown, sns: unkn
   const snsList = z.array(z.string()).max(10).safeParse(sns);
   const parsed = inputSchema.safeParse(input);
   if (!z.uuid().safeParse(projectId).success || !parsed.success || !snsList.success) return BAD_INPUT;
-  if (parsed.data.source === "commits" && !githubConfigured()) return { error: "GitHub との連携は準備中です。" };
+  if (parsed.data.source === "commits" && !githubConfigured()) return { error: "GitHub をつなぐ機能は準備中です。" };
   if (!aiConfigured()) return { error: "AI はまだ準備中です。" };
   const { supabase, userId } = await currentUser();
   if (!userId) return { error: "ログインし直してください。" };

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button } from "@/components/ui/button";
+import { Button, NotReadyButton } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { Field, Input, Textarea } from "@/components/ui/field";
 import type { AppDescriptionDraft } from "@/lib/ai/app-description";
@@ -57,10 +57,7 @@ export function DescriptionDrafter({ projectId, aiEnabled, hasAudience }: { proj
               リポジトリを読んで、紹介文を下書きする
             </Button>
           ) : (
-            <span className="flex items-center gap-2">
-              <Button disabled>リポジトリを読んで、紹介文を下書きする</Button>
-              <span className="text-xs text-muted">準備中</span>
-            </span>
+            <NotReadyButton>リポジトリを読んで、紹介文を下書きする</NotReadyButton>
           )}
           {working === "draft" && <span role="status" className="text-sm text-muted">読むファイルを選んで、紹介文を書いています…（30〜90 秒ほど）</span>}
         </div>

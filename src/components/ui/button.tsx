@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
 
 type Variant = "primary" | "secondary" | "text" | "danger" | "inverse";
 type Size = "md" | "sm" | "lg";
@@ -39,4 +39,24 @@ export function Button({ variant, size, className, ...props }: ComponentProps<"b
 
 export function ButtonLink({ variant, size, className, ...props }: ComponentProps<typeof Link> & Common) {
   return <Link className={buttonClass({ variant, size, className })} {...props} />;
+}
+
+// まだ使えない機能のボタン。押せない状態で「準備中」を添える（CLAUDE.md の「デザイン」）。
+// stack: ボタンの下に添える（藍の帯の中の主ボタンなど）。ふだんは右に添える
+export function NotReadyButton({
+  variant = "primary",
+  size,
+  className,
+  stack = false,
+  children,
+}: Common & { className?: string; stack?: boolean; children: ReactNode }) {
+  const note = variant === "inverse" ? "text-on-primary-muted" : "text-muted";
+  return (
+    <span className={stack ? "flex flex-col items-center gap-1 max-sm:items-stretch" : "inline-flex flex-wrap items-center gap-2"}>
+      <button type="button" disabled className={buttonClass({ variant, size, className })}>
+        {children}
+      </button>
+      <span className={`text-xs ${note} ${stack ? "text-center" : ""}`}>準備中</span>
+    </span>
+  );
 }

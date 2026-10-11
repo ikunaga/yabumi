@@ -163,7 +163,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
               </Link>
             }
           />
-          <dl className="grid grid-cols-[120px_1fr] text-[14px]">
+          <dl className="grid grid-cols-[minmax(120px,max-content)_1fr] text-[14px]">
             <AboutRow label={<Term k="persona" />}>
               {project.target_audience || <span className="text-muted">まだ決まっていません</span>}
             </AboutRow>
@@ -194,7 +194,7 @@ function AboutRow({ label, children, last }: { label: React.ReactNode; children:
   const border = last ? "" : "border-b border-line";
   return (
     <>
-      <dt className={`px-5 py-3 text-muted max-sm:px-4 ${border}`}>{label}</dt>
+      <dt className={`px-5 py-3 whitespace-nowrap text-muted max-sm:px-4 ${border}`}>{label}</dt>
       <dd className={`min-w-0 py-3 pr-5 leading-[1.6] ${border}`}>{children}</dd>
     </>
   );

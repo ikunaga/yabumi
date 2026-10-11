@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/feedback";
+import { Term } from "@/components/ui/term";
 import { sendConsultMessage } from "@/lib/ai/consult-actions";
 import type { ConsultAssistantContent, ConsultMessage, ConsultTopic } from "@/lib/ai/consult";
 import type { ConsultAction } from "@/lib/ai/consult-schema";
@@ -23,9 +24,13 @@ const TOPIC_BUTTONS: { topic: ConsultTopic; label: string }[] = [
   { topic: "review", label: "最近の数字を振り返りたい" },
 ];
 
-const KIND_LABEL: Record<ConsultAction["kind"], string> = {
+const KIND_LABEL: Record<ConsultAction["kind"], ReactNode> = {
   plan_section: "アカウント設計の直し",
-  goal: "目標（KGI）と週の目標",
+  goal: (
+    <>
+      目標（<Term k="kgi" />）と週の目標
+    </>
+  ),
   roadmap_items: "ロードマップのやること",
   post_draft: "投稿の下書き",
 };

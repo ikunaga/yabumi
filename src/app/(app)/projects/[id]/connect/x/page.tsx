@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { buttonClass } from "@/components/ui/button";
+import { buttonClass, NotReadyButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Term } from "@/components/ui/term";
 import { getProject } from "@/lib/projects/queries";
@@ -63,12 +63,7 @@ export default async function ConnectXPage(props: PageProps<"/projects/[id]/conn
               X をつなぐ
             </a>
           ) : (
-            <span className="flex items-center gap-2">
-              <span className="text-xs text-muted">準備中</span>
-              <button type="button" className={buttonClass({})} disabled>
-                X をつなぐ
-              </button>
-            </span>
+            <NotReadyButton>X をつなぐ</NotReadyButton>
           )}
           <Link href={`/projects/${id}#sns`} className="font-semibold text-primary hover:underline">
             あとにする

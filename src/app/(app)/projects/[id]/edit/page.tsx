@@ -20,6 +20,7 @@ export default async function EditProjectPage(props: PageProps<"/projects/[id]/e
         initial={project}
         title="プロジェクトを編集"
         submitLabel="保存する"
+        pendingLabel="保存しています…"
         cancelHref={`/projects/${project.id}`}
       />
       <Card className="max-w-[680px] border-danger/50">

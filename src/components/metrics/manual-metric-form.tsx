@@ -34,7 +34,7 @@ export function ManualMetricForm({
         <input name="reactions" inputMode="numeric" defaultValue={reactions ?? ""} className={input} />
       </label>
       <Button type="submit" variant="secondary" size="sm" disabled={pending}>
-        記録
+        記録する
       </Button>
       {state.ok && <span className="text-xs font-semibold text-success">記録しました</span>}
       {state.error && <span className="text-xs font-semibold text-danger">{state.error}</span>}

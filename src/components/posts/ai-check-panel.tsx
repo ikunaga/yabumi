@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button } from "@/components/ui/button";
+import { Button, NotReadyButton } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { checkPostTexts } from "@/lib/ai/ai-check-actions";
 import { FINDING_LABEL, type AiCheckFinding, type AiCheckResult, type CheckText } from "@/lib/ai/ai-check";
@@ -49,12 +49,9 @@ export function AiCheckPanel({ projectId, aiEnabled, texts, onApply }: Props) {
             {pending ? "確かめています…" : result ? "もう一度確かめる" : "AI っぽくないか確かめる"}
           </Button>
         ) : (
-          <span className="flex items-center gap-2">
-            <Button type="button" variant="secondary" size="sm" disabled>
-              AI っぽくないか確かめる
-            </Button>
-            <span className="text-xs text-muted">準備中</span>
-          </span>
+          <NotReadyButton variant="secondary" size="sm">
+            AI っぽくないか確かめる
+          </NotReadyButton>
         )}
       </div>
       <p className="text-xs leading-[1.7] text-muted">

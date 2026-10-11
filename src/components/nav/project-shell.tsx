@@ -33,7 +33,7 @@ export function ProjectShell({
           <span className="mb-2">
             <ThemeToggle tone="nav" />
           </span>
-          <Link href="/settings" className="max-w-full truncate hover:text-nav-strong hover:underline" title="アカウント">
+          <Link href="/settings" className="max-w-full truncate hover:text-nav-strong hover:underline" title="ログインと退会">
             {email}
           </Link>
           <form action={logout}>

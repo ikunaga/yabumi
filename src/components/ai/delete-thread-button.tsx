@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { deleteAiThread } from "@/lib/ai/thread-actions";
 
-// 「この会話を消す」。押すと確かめてから消す（取り消せない）
+// 「この会話を削除する」。押すと確かめてから削除する（元に戻せない）
 export function DeleteThreadButton({ projectId, threadId, backPath, keeps }: { projectId: string; threadId: string; backPath: string; keeps: string }) {
   const [confirm, setConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -13,14 +13,14 @@ export function DeleteThreadButton({ projectId, threadId, backPath, keeps }: { p
   if (!confirm) {
     return (
       <Button type="button" variant="text" size="sm" className="self-start" onClick={() => setConfirm(true)}>
-        この会話を消す
+        この会話を削除する
       </Button>
     );
   }
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-4 text-sm">
       <p>
-        この会話をすべて消します。元に戻せません。<span className="text-muted">{keeps}</span>
+        この会話をすべて削除します。元に戻せません。<span className="text-muted">{keeps}</span>
       </p>
       <div className="flex flex-wrap gap-2">
         <Button
@@ -35,7 +35,7 @@ export function DeleteThreadButton({ projectId, threadId, backPath, keeps }: { p
             })
           }
         >
-          消す
+          削除する
         </Button>
         <Button type="button" variant="secondary" size="sm" onClick={() => setConfirm(false)}>
           やめる

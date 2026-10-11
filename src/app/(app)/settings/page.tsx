@@ -6,7 +6,7 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { requireUser } from "@/lib/auth/user";
 import { createClient } from "@/lib/supabase/server";
 
-export const metadata: Metadata = { title: "アカウント" };
+export const metadata: Metadata = { title: "ログインと退会" };
 
 // アカウント: メールアドレス、パスワードの変更、退会（docs/architecture.md の 4.14・4.16）
 export default async function SettingsPage() {
@@ -27,13 +27,13 @@ export default async function SettingsPage() {
               プロジェクト
             </Link>
             <span className="text-muted">/</span>
-            <b>アカウント</b>
+            <b>ログインと退会</b>
           </span>
         }
-        mobileBack={{ href: "/projects", title: "アカウント" }}
+        mobileBack={{ href: "/projects", title: "ログインと退会" }}
       />
       <main className="flex max-w-[720px] flex-col gap-6 px-12 py-12 max-lg:px-6 max-sm:gap-4 max-sm:px-4 max-sm:py-5">
-        <h1 className="font-heading text-3xl font-bold max-sm:text-2xl">アカウント</h1>
+        <h1 className="font-heading text-3xl font-bold max-sm:text-2xl">ログインと退会</h1>
 
         <Card className="overflow-hidden">
           <CardHeader title="ログイン" />
@@ -59,13 +59,13 @@ export default async function SettingsPage() {
             <p>退会すると、矢書に保存しているあなたのデータをすべて消します。元に戻せません。</p>
             <ul className="list-disc pl-5">
               <li>消えるもの: アカウント、プロジェクト、アカウント設計、投稿（下書き・予約・送信の記録）、AI との会話、つないだ SNS とそのトークン、GitHub のつながり</li>
-              <li>X は、X の側の連携も取り消します。GitHub は、矢書の GitHub App を外します</li>
+              <li>X は、X の側でも矢書を外します。GitHub は、矢書の GitHub App を外します</li>
               <li>
                 SNS に送った投稿は消しません。消したい投稿があれば、退会の前に、投稿の画面の「SNS から取り消す」を使ってください
               </li>
               {(snsCount ?? 0) > 0 && (
                 <li>
-                  Threads・Instagram・Facebook の側の連携は、矢書からは外せません。それぞれのアプリの設定の「ウェブサイトのアクセス許可」（Facebook は「ビジネス統合」）から矢書を削除してください
+                  Threads・Instagram・Facebook の側から矢書を外すことは、矢書からはできません。それぞれのアプリの設定の「ウェブサイトのアクセス許可」（Facebook は「ビジネス統合」）から矢書を削除してください
                 </li>
               )}
               {(githubCount ?? 0) > 0 && <li>GitHub App を外せなかったときは、GitHub の Settings → Applications から外せます</li>}

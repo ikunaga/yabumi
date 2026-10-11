@@ -89,7 +89,7 @@ export function Term({ k, children }: { k: GlossaryKey; children?: ReactNode }) 
           "sm:fixed sm:w-80 sm:rounded-lg sm:bg-pop sm:px-[18px] sm:py-4 sm:text-on-pop sm:shadow-pop sm:backdrop:bg-transparent",
           // スマホ: 下から出るシート
           "max-sm:fixed max-sm:inset-x-0 max-sm:top-auto max-sm:bottom-0 max-sm:w-full max-sm:max-w-none max-sm:rounded-t-sheet max-sm:bg-surface max-sm:px-5 max-sm:pt-3 max-sm:pb-8 max-sm:text-fg",
-          "max-sm:backdrop:bg-[rgb(15_20_30/0.45)] max-sm:transition-[translate,display,overlay] max-sm:transition-discrete max-sm:duration-200 max-sm:ease-out max-sm:starting:open:translate-y-full",
+          "max-sm:backdrop:bg-scrim max-sm:transition-[translate,display,overlay] max-sm:transition-discrete max-sm:duration-200 max-sm:ease-out max-sm:starting:open:translate-y-full",
         ].join(" ")}
       >
         <TermBody k={k} term={term} popoverId={id} />

@@ -59,7 +59,7 @@ export async function syncInstallations(admin: Db, ownerId: string, installation
 }
 
 // 組織や共同作業者のインストールで、本人が読めるリポジトリの記録を信じる期間。利用者のトークンは保存しないので、
-// 組織を抜けた・チームから外れたことは、認可し直すまでわからない。古くなったら読まずに「連携を読み込み直す」へ案内する。
+// 組織を抜けた・チームから外れたことは、認可し直すまでわからない。古くなったら読まずに「GitHub をつなぎ直す」へ案内する。
 // 本人の個人アカウントのインストール（repo_ids が null）は、本人が持ち主なので期限を設けない
 export const SHARED_ACCESS_MAX_AGE_MS = 7 * 86_400_000;
 

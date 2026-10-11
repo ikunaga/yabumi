@@ -24,13 +24,13 @@ export async function connectRepo(projectId: string, installationId: number, rep
   if (!z.uuid().safeParse(projectId).success || !Number.isSafeInteger(installationId) || !Number.isSafeInteger(repoId)) {
     return { error: "入力の形式が正しくありません。" };
   }
-  if (!githubConfigured()) return { error: "GitHub との連携は準備中です。" };
+  if (!githubConfigured()) return { error: "GitHub をつなぐ機能は準備中です。" };
   const { supabase, userId } = await currentUser();
   if (!userId) return { error: "ログインし直してください。" };
 
   const { data: project } = await supabase.from("projects").select("id").eq("id", projectId).maybeSingle();
   const { data: inst } = await supabase.from("github_installations").select("installation_id").eq("installation_id", installationId).maybeSingle();
-  if (!project || !inst) return { error: "プロジェクトか GitHub の連携が見つかりません。画面を読み込み直してください。" };
+  if (!project || !inst) return { error: "プロジェクトか、つないだ GitHub が見つかりません。画面を読み込み直してください。" };
   const notReadable = "そのリポジトリは読めません。GitHub の設定で、矢書に読ませるリポジトリに入っているか確かめてください。";
   if (!(await userCanReadRepo(supabase, userId, installationId, repoId))) return { error: notReadable };
 
@@ -68,7 +68,7 @@ export type DraftActionResult = { error?: string; draft?: AppDescriptionDraft; d
 // リポジトリを読んで、AI がアプリの紹介文を下書きする（保存はしない。採用したときだけ保存する）
 export async function draftDescription(projectId: string): Promise<DraftActionResult> {
   if (!z.uuid().safeParse(projectId).success) return { error: "入力の形式が正しくありません。" };
-  if (!githubConfigured()) return { error: "GitHub との連携は準備中です。" };
+  if (!githubConfigured()) return { error: "GitHub をつなぐ機能は準備中です。" };
   if (!aiConfigured()) return { error: "AI はまだ準備中です。" };
   const { supabase, userId } = await currentUser();
   if (!userId) return { error: "ログインし直してください。" };

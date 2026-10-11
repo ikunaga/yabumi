@@ -54,6 +54,7 @@ export function ProjectForm({
   title,
   lead,
   submitLabel,
+  pendingLabel,
   cancelHref,
 }: {
   action: (prev: ProjectFormState, formData: FormData) => Promise<ProjectFormState>;
@@ -61,6 +62,8 @@ export function ProjectForm({
   title: string;
   lead?: string;
   submitLabel: string;
+  // 押したあと、終わるまでの表示（「作成しています…」など）
+  pendingLabel: string;
   cancelHref: string;
 }) {
   const [state, formAction, pending] = useActionState(action, {});
@@ -147,10 +150,10 @@ export function ProjectForm({
 
           <div className="flex gap-3 border-t border-line pt-6 max-sm:border-0 max-sm:pt-0">
             <Button type="submit" disabled={pending} className="px-6 max-sm:h-13 max-sm:w-full">
-              {pending ? "保存中…" : submitLabel}
+              {pending ? pendingLabel : submitLabel}
             </Button>
             <ButtonLink href={cancelHref} variant="text" className="max-sm:hidden">
-              キャンセル
+              やめる
             </ButtonLink>
           </div>
         </form>

@@ -16,14 +16,15 @@ export function ManualChannelRow({ projectId, sns, profileUrl, note }: { project
 
   return (
     <li className="flex flex-col gap-2 border-b border-line px-5 py-3 text-[14px] last:border-b-0 max-sm:px-4">
-      <div className="flex items-center gap-3">
-        <span className="w-24 shrink-0">
+      {/* スマホでは、説明を 2 行目に回して切らずに出す */}
+      <div className="flex items-center gap-3 max-sm:flex-wrap max-sm:gap-y-1.5">
+        <span className="w-24 shrink-0 max-sm:mr-auto max-sm:w-auto">
           <SnsTag sns={sns} />
         </span>
-        <span className="min-w-0 flex-1 truncate">
+        <span className="min-w-0 flex-1 leading-[1.7] max-sm:order-last max-sm:basis-full">
           <span className="mr-2 rounded-full border border-border px-2 py-0.5 text-xs text-muted">手で投稿</span>
           {profileUrl ? (
-            <a href={profileUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+            <a href={profileUrl} target="_blank" rel="noopener noreferrer" className="break-all text-primary hover:underline">
               {profileUrl.replace(/^https:\/\//, "")}
             </a>
           ) : (
@@ -31,7 +32,7 @@ export function ManualChannelRow({ projectId, sns, profileUrl, note }: { project
           )}
         </span>
         <Button type="button" variant="text" size="sm" onClick={() => setEditing((v) => !v)}>
-          {profileUrl ? "URL を変える" : "URL を登録"}
+          {profileUrl ? "URL を変える" : "URL を登録する"}
         </Button>
       </div>
       {editing && (
@@ -57,7 +58,7 @@ export function ManualChannelRow({ projectId, sns, profileUrl, note }: { project
               })
             }
           >
-            保存
+            保存する
           </Button>
           <p className="w-full text-xs text-muted">
             任意です。{sns === "substack" ? "登録すると、投稿の画面にすぐ移れます。" : ""}あとで反応を手で記録するときにも使います。空にして保存すると消えます。

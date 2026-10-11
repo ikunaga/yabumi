@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ManualMetricForm } from "@/components/metrics/manual-metric-form";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { ButtonLink, NotReadyButton } from "@/components/ui/button";
 import { Card, CardHeader, EmptyState } from "@/components/ui/card";
 import { Term } from "@/components/ui/term";
 import { aiConfigured } from "@/lib/ai/anthropic";
@@ -81,6 +81,8 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
   const chosen = plan?.first_month.kpis ?? [];
   const kpis = chosen.length ? chosen : recommendedKpis(plan?.goal.goalType ?? null);
   const goal = plan?.first_month.goal.trim() ?? "";
+  // 閲覧数を自動で読める SNS を 1 つでもつないでいるか（よく見られた投稿の空のときの案内を変える）
+  const hasAutoSns = (["threads", "instagram", "facebook", "x"] as const).some((s) => accounts[s]);
   const later = KPI_KEYS.filter((k) => KPIS[k].availability === "later" && !kpis.includes(k));
 
   return (
@@ -96,8 +98,11 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
           </Link>
           <span className="mx-2 text-muted">・</span>
           <Link href={`/projects/${project.id}/links`} className="font-semibold text-primary hover:underline">
-            短縮リンク
+            短縮リンクを作る
           </Link>
+          <span className="ml-1 text-xs text-muted">
+            （<Term k="shortLink" />で、SNS からストアへのクリックを数えます）
+          </span>
         </p>
       </div>
 
@@ -114,7 +119,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
           <p className="leading-[1.8]">{goal || <span className="text-muted">まだ決めていません。アカウント設計の「最初の 1 か月」で、AI と一緒に決められます。</span>}</p>
           {!chosen.length && (
             <p className="text-xs leading-[1.7] text-muted">
-              追う数字（<Term k="kpi" />）をまだ選んでいないので、目的に合わせたおすすめを出しています。
+              追いかける数字（<Term k="kpi" />）をまだ選んでいないので、目的に合わせたおすすめを出しています。
             </p>
           )}
           <div className="grid grid-cols-3 gap-3 max-lg:grid-cols-2 max-sm:grid-cols-1">
@@ -136,7 +141,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
           {aiConfigured() ? (
             <ButtonLink href={`/projects/${project.id}/consult?start=review`}>AI と振り返る</ButtonLink>
           ) : (
-            <Button disabled>準備中</Button>
+            <NotReadyButton>AI と振り返る</NotReadyButton>
           )}
         </div>
       </Card>
@@ -173,7 +178,16 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
             ))}
           </ol>
         ) : (
-          <EmptyState description="Threads・Instagram・Facebook・X を数字の権限つきでつなぐと、送ってから 1・3・7・30 日目（Instagram は 2・4・8・31 日目）の閲覧数を取り込み、よく見られた投稿をここに並べます。" />
+          <EmptyState
+            description="Threads・Instagram・Facebook・X を数字の権限つきでつなぐと、送ってから 1・3・7・30 日目（Instagram は 2・4・8・31 日目）の閲覧数を取り込み、よく見られた投稿をここに並べます。"
+            action={
+              !hasAutoSns && (
+                <ButtonLink href={`/projects/${project.id}#sns`} variant="secondary" size="sm">
+                  SNS をつなぐ
+                </ButtonLink>
+              )
+            }
+          />
         )}
       </Card>
 
@@ -208,7 +222,18 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
             </tbody>
           </table>
         ) : (
-          <EmptyState description="まだクリックがありません。「リンク」で SNS ごとの短縮リンクを作り、プロフィールや投稿に置くと、ここに数字が出ます。" />
+          <EmptyState
+            description={
+              <>
+                まだクリックがありません。SNS ごとの<Term k="shortLink" />を作り、プロフィールや投稿に置くと、ここに数字が出ます。
+              </>
+            }
+            action={
+              <ButtonLink href={`/projects/${project.id}/links`} variant="secondary" size="sm">
+                短縮リンクを作る
+              </ButtonLink>
+            }
+          />
         )}
       </Card>
 
@@ -227,14 +252,21 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
             ))}
           </ol>
         ) : (
-          <EmptyState description="投稿の本文のストアの URL を短縮リンクにして送ると、どの投稿からクリックされたかがここに並びます。" />
+          <EmptyState
+            description={
+              <>
+                投稿の本文のストアの URL を<Term k="shortLink" />にして送ると、どの投稿からクリックされたかがここに並びます。
+              </>
+            }
+          />
         )}
       </Card>
 
       <Card>
         <CardHeader title="note・Substack の数字（手で記録）" />
         <p className="border-b border-line px-5 py-3 text-xs leading-[1.7] text-muted max-sm:px-4">
-          note と Substack は数字を自動で読めないので、それぞれの画面で見た数字を入れてください（投稿して数日たってからが目安）。入れた閲覧数は、上の「投稿の閲覧数」に足されます。
+          note と Substack は数字を自動で読めないので、それぞれの画面で見た数字を入れてください（投稿して数日たってからが目安）。
+          {kpis.includes("views") && "入れた閲覧数は、上の「投稿の閲覧数」に足されます。"}
         </p>
         {manual.length ? (
           <ul>
@@ -258,7 +290,14 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
             ))}
           </ul>
         ) : (
-          <EmptyState description="直近 60 日に、note・Substack に投稿した記録がありません。" />
+          <EmptyState
+            description="直近 60 日に、note・Substack に投稿した記録がありません。投稿をつくるときに note・Substack を選ぶと、ここで数字を記録できます。"
+            action={
+              <ButtonLink href={`/projects/${project.id}/compose`} variant="secondary" size="sm">
+                投稿をつくる
+              </ButtonLink>
+            }
+          />
         )}
       </Card>
 

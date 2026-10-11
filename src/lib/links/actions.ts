@@ -7,7 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { LinkError, createShortLink, isValidDestination } from "./store";
 
-// 「リンク」の画面の操作（docs/architecture.md の 4.22、決定 D20）。リンクの書き込みはサーバーだけが行う
+// 「短縮リンク」の画面の操作（docs/architecture.md の 4.22、決定 D20）。リンクの書き込みはサーバーだけが行う
 // （行き先の形を確かめ、本人のプロジェクトにだけ作る）
 
 export type LinkActionState = { error?: string; ok?: string };

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { DeleteThreadButton } from "@/components/ai/delete-thread-button";
-import { Button } from "@/components/ui/button";
+import { Button, NotReadyButton } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { Input, Textarea } from "@/components/ui/field";
 import { adoptIdea, generateIdeas, refineIdeas } from "@/lib/ai/post-ideas-actions";
@@ -156,7 +156,9 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
                   GitHub をつなぐ
                 </Link>
               ) : (
-                <span className="text-xs text-muted">GitHub をつなぐ（準備中）</span>
+                <NotReadyButton variant="secondary" size="sm">
+                  GitHub をつなぐ
+                </NotReadyButton>
               )}
             </div>
           ))}
@@ -216,10 +218,7 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
               {info.button}
             </Button>
           ) : (
-            <span className="flex items-center gap-2">
-              <Button disabled>{info.button}</Button>
-              <span className="text-xs text-muted">準備中</span>
-            </span>
+            <NotReadyButton>{info.button}</NotReadyButton>
           )}
           {working === "generate" ? (
             <span role="status" className="text-sm text-muted">

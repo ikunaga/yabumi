@@ -34,7 +34,7 @@ function fakeX(overrides: Partial<SnsAdapter> = {}): SnsAdapter {
     deletePost: vi.fn(async () => {}),
     refreshWithRefreshToken: vi.fn(async (refreshToken: string, now: Date) => {
       await new Promise((r) => setTimeout(r, 50));
-      if (refreshToken !== current) throw new SnsPublishError("auth", "X の接続が切れています。");
+      if (refreshToken !== current) throw new SnsPublishError("auth", "X とのつながりが切れています。");
       refreshCount += 1;
       current = `refresh-${refreshCount + 1}`;
       return { accessToken: `access-${refreshCount + 1}`, refreshToken: current, expiresAt: new Date(now.getTime() + 2 * 3600_000) };
@@ -152,7 +152,7 @@ describe("トークンの取り直し", () => {
     await connect(new Date(Date.now() - 60_000));
     const adapter = fakeX({
       refreshWithRefreshToken: vi.fn(async () => {
-        throw new SnsPublishError("auth", "X の接続が切れています。");
+        throw new SnsPublishError("auth", "X とのつながりが切れています。");
       }),
     });
     expect(await loadAccount(admin, accountId, `x-${aliceId}`, deps(adapter), adapter)).toBeNull();

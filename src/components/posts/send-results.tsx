@@ -66,7 +66,7 @@ function ResultRow({ sns, r, projectId, postId }: { sns: SnsKey; r: TargetResult
         <b>{label}</b>
         {r.status === "published" && (
           <>
-            <span className="text-muted">{r.publishedAt ? `${formatShort(r.publishedAt)} に送信` : "送信済み"}</span>
+            <span className="text-muted">{r.publishedAt ? `${formatShort(r.publishedAt)} に投稿` : "投稿済み"}</span>
             {r.externalUrl && (
               <a href={r.externalUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary hover:underline">
                 {label} で見る
@@ -80,23 +80,28 @@ function ResultRow({ sns, r, projectId, postId }: { sns: SnsKey; r: TargetResult
             ) : (
             <span className="ml-auto">
               {confirm ? (
-                <Button
-                  type="button"
-                  variant="danger"
-                  size="sm"
-                  disabled={pending}
-                  onClick={() =>
-                    startTransition(async () => {
-                      setError(null);
-                      const res = await deleteFromSns(projectId, postId, r.id);
-                      // 成功したらサーバーで画面を読み直すので、ここに来るのは失敗したときだけ
-                      if (res?.error) setError(res.error);
-                      setConfirm(false);
-                    })
-                  }
-                >
-                  {label} から消す
-                </Button>
+                <span className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="danger"
+                    size="sm"
+                    disabled={pending}
+                    onClick={() =>
+                      startTransition(async () => {
+                        setError(null);
+                        const res = await deleteFromSns(projectId, postId, r.id);
+                        // 成功したらサーバーで画面を読み直すので、ここに来るのは失敗したときだけ
+                        if (res?.error) setError(res.error);
+                        setConfirm(false);
+                      })
+                    }
+                  >
+                    本当に {label} から取り消す
+                  </Button>
+                  <Button type="button" variant="text" size="sm" disabled={pending} onClick={() => setConfirm(false)}>
+                    やめる
+                  </Button>
+                </span>
               ) : (
                 <Button type="button" variant="text" size="sm" onClick={() => setConfirm(true)}>
                   {label} から取り消す

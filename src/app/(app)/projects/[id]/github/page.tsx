@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { DescriptionDrafter } from "@/components/github/description-drafter";
 import { RepoPicker, type PickableRepo } from "@/components/github/repo-picker";
-import { Button, buttonClass } from "@/components/ui/button";
+import { buttonClass, NotReadyButton } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { ErrorBanner, SuccessBanner } from "@/components/ui/feedback";
 import { aiConfigured } from "@/lib/ai/anthropic";
@@ -16,10 +16,10 @@ import { createClient } from "@/lib/supabase/server";
 export const metadata: Metadata = { title: "GitHub をつなぐ" };
 
 const ERRORS: Record<string, string> = {
-  not_configured: "GitHub との連携は準備中です。",
-  state: "接続の確認に失敗しました。もう一度「GitHub をつなぐ」から始めてください。",
+  not_configured: "GitHub をつなぐ機能は準備中です。",
+  state: "つなぐときの確認に失敗しました。もう一度「GitHub をつなぐ」から始めてください。",
   denied: "GitHub の画面でキャンセルされたため、つなぎませんでした。",
-  pending_approval: "組織（Organization）の管理者の承認待ちです。承認されたら「連携を読み込み直す」を押してください。",
+  pending_approval: "組織（Organization）の管理者の承認待ちです。承認されたら「GitHub をつなぎ直す」を押してください。",
   no_installation: "矢書の GitHub App がインストールされていませんでした。「GitHub をつなぐ」からインストールしてください。",
   failed: "GitHub とつなげませんでした。時間をおいてもう一度お試しください。",
 };
@@ -44,9 +44,8 @@ export default async function GithubPage(props: PageProps<"/projects/[id]/github
     return (
       <div className="flex max-w-[760px] flex-col gap-5">
         {intro}
-        <p className="flex items-center gap-3">
-          <Button disabled>GitHub をつなぐ</Button>
-          <span className="text-xs text-muted">準備中</span>
+        <p>
+          <NotReadyButton>GitHub をつなぐ</NotReadyButton>
         </p>
       </div>
     );
@@ -116,7 +115,7 @@ export default async function GithubPage(props: PageProps<"/projects/[id]/github
               </p>
               {stale.length > 0 && (
                 <p className="leading-[1.8] text-muted">
-                  {stale.map((i) => i.account_login).join("、")} のリポジトリは、あなたが今も読めるかを確かめ直す必要があります（組織や共同作業のリポジトリは 7 日ごとに確かめます）。「連携を読み込み直す」を押してください。
+                  {stale.map((i) => i.account_login).join("、")} のリポジトリは、あなたが今も読めるかを確かめ直す必要があります（組織や共同作業のリポジトリは 7 日ごとに確かめます）。「GitHub をつなぎ直す」を押してください。
                 </p>
               )}
               <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
@@ -124,7 +123,7 @@ export default async function GithubPage(props: PageProps<"/projects/[id]/github
                   読ませるリポジトリを追加・変更する
                 </a>
                 <a href={`${installHref}&mode=sync`} className="font-semibold text-primary hover:underline">
-                  連携を読み込み直す
+                  GitHub をつなぎ直す
                 </a>
               </p>
             </>
@@ -164,7 +163,7 @@ export default async function GithubPage(props: PageProps<"/projects/[id]/github
               <RepoPicker projectId={id} repos={repos} />
             ) : (
               <p className="text-sm leading-[1.8] text-muted">
-                {repoError ? "リポジトリの一覧を読めませんでした。「連携を読み込み直す」を試してください。" : "読ませているリポジトリがありません。「読ませるリポジトリを追加・変更する」から選んでください。"}
+                {repoError ? "リポジトリの一覧を読めませんでした。「GitHub をつなぎ直す」を試してください。" : "読ませているリポジトリがありません。「読ませるリポジトリを追加・変更する」から選んでください。"}
               </p>
             )}
           </div>

@@ -41,7 +41,8 @@ export default async function ConsultPage(props: PageProps<"/projects/[id]/consu
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-col gap-1.5">
           <h1 className="font-heading text-3xl font-bold max-sm:text-2xl">AI と相談</h1>
-          <p className="text-[14px] leading-[1.8] text-muted">運用の悩みを、アカウント設計・最近の投稿・数字・ロードマップをふまえて相談できます。</p>
+          {/* 会話がないときは、下の入口のカードに同じ説明がある */}
+          {thread && <p className="text-[14px] leading-[1.8] text-muted">運用の悩みを、アカウント設計・最近の投稿・数字・ロードマップをふまえて相談できます。</p>}
         </div>
         {thread && (
           <Link href={`/projects/${id}/consult`} className="text-[14px] font-semibold text-primary hover:underline">

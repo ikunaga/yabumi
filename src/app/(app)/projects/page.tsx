@@ -31,7 +31,8 @@ export default async function ProjectsPage(props: PageProps<"/projects">) {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="flex flex-col gap-1.5">
             <h1 className="font-heading text-3xl font-bold max-sm:text-2xl">プロジェクト</h1>
-            <p className="text-base text-muted max-sm:hidden">広めたいアプリごとに 1 つ作ります。</p>
+            {/* 空のときは、下のカードに同じ説明がある */}
+            {projects.length > 0 && <p className="text-base text-muted max-sm:hidden">広めたいアプリごとに 1 つ作ります。</p>}
           </div>
           {projects.length > 0 && <ButtonLink href="/projects/new">＋ 新しいプロジェクト</ButtonLink>}
         </div>

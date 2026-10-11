@@ -1,4 +1,4 @@
-import { buttonClass } from "@/components/ui/button";
+import { buttonClass, NotReadyButton } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { SnsTag } from "@/components/ui/marks";
 import { Term } from "@/components/ui/term";
@@ -60,12 +60,13 @@ export function SnsAccountsCard({
           return (
             <li
               key={sns}
-              className="flex items-center gap-3 border-b border-line px-5 py-3 text-[14px] last:border-b-0 max-sm:px-4"
+              // スマホでは、状態の文を 2 行目に回して切らずに出す
+              className="flex items-center gap-3 border-b border-line px-5 py-3 text-[14px] last:border-b-0 max-sm:flex-wrap max-sm:gap-y-1.5 max-sm:px-4"
             >
-              <span className="w-24 shrink-0">
+              <span className="w-24 shrink-0 max-sm:mr-auto max-sm:w-auto">
                 <SnsTag sns={sns} />
               </span>
-              <span className="min-w-0 flex-1">
+              <span className="min-w-0 flex-1 max-sm:order-last max-sm:basis-full">
                 <span className="block truncate">
                   {account ? <AccountLabel account={account} /> : <span className="text-muted">まだつないでいません</span>}
                 </span>
@@ -81,12 +82,9 @@ export function SnsAccountsCard({
                   {account ? "つなぎ直す" : "つなぐ"}
                 </a>
               ) : (
-                <span className="flex items-center gap-2">
-                  <span className="text-xs text-muted">準備中</span>
-                  <button type="button" className={buttonClass({ variant: "secondary", size: "sm" })} disabled>
-                    つなぐ
-                  </button>
-                </span>
+                <NotReadyButton variant="secondary" size="sm">
+                  つなぐ
+                </NotReadyButton>
               )}
             </li>
           );

@@ -64,9 +64,9 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
     if (targets.length === 0) {
       fieldErrors.targets = "送り先の SNS を 1 つ以上選んでください";
     } else if (toSend.length === 0) {
-      fieldErrors.targets = "選んだ SNS にはすべて送信済みです";
+      fieldErrors.targets = "選んだ SNS にはすべて投稿済みです";
     } else if (intent === "now" && toSend.every((t) => isManualSns(t.sns))) {
-      fieldErrors.targets = "note・Substack は手で投稿します。予約か下書き保存をすると、投稿の画面から手で投稿できます";
+      fieldErrors.targets = "note・Substack は手で投稿します。予約するか下書きに保存すると、投稿の画面から手で投稿できます";
     } else {
       for (const t of toSend) {
         const label = SNS[t.sns].label;

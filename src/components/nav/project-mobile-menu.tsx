@@ -54,7 +54,7 @@ export function ProjectMobileMenu({ projectId, email }: { projectId: string; ema
         </nav>
         <div className="mt-1 border-t border-line pt-1">
           <Link href="/settings" className="block px-4 py-3 hover:bg-primary-soft hover:no-underline">
-            アカウント
+            ログインと退会
             <span className="block truncate text-xs text-muted">{email}</span>
           </Link>
           <form action={logout}>

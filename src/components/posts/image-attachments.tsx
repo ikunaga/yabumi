@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Term } from "@/components/ui/term";
 import { confirmImageUpload, discardImage, requestImageUpload } from "@/lib/media/actions";
 import { JPEG_QUALITY, MAX_ALT_LENGTH, MAX_IMAGE_BYTES, MAX_IMAGES_PER_POST, MAX_LONG_EDGE, formatBytes } from "@/lib/media/rules";
 
@@ -193,7 +194,7 @@ export function ImageAttachments({
       )}
       {images.length > 0 && (
         <p className="text-xs leading-[1.7] text-muted">
-          代わりの文は、目の見えにくい人の読み上げや、画像が表示されないときに出る説明です。何が写っているかを一文で書きます。X では 1 枚につき $0.005 の API の料金がかかります。
+          代わりの文は、目の見えにくい人の読み上げや、画像が表示されないときに出る説明です。何が写っているかを一文で書きます。X では 1 枚につき $0.005（1 円ほど）の<Term k="payPerUse">API の料金</Term>がかかります。
         </p>
       )}
     </div>

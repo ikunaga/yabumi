@@ -1,5 +1,5 @@
-import { createPost, deletePost, postUrl, refreshTokens, XApiError, type XConfig } from "@/lib/sns/x/api";
-import { X_PRICE_USD, xPostOperation } from "@/lib/sns/x/pricing";
+import { createPost, createPostWithMedia, deletePost, postUrl, refreshTokens, setImageAltText, uploadImage, XApiError, type XConfig } from "@/lib/sns/x/api";
+import { xPostCostUsd, xPostOperation } from "@/lib/sns/x/pricing";
 import { SnsPublishError, type SnsAdapter } from "./types";
 
 const RECONNECT = "概要の「つないだ SNS」からつなぎ直してください。";
@@ -34,6 +34,10 @@ export function toXPublishError(e: unknown, stage: "prepare" | "publish"): SnsPu
       }
       return new SnsPublishError("retryable", "X 側で一時的なエラーが起きました。時間をおいて送り直します。", { cause: e });
     }
+    if (e.status === 403 && /media\.write|scope|not permitted to perform/i.test(e.message)) {
+      // 接続そのものは使えるので期限切れにはしない（文章だけの投稿は送れる）
+      return new SnsPublishError("permanent", `X に画像を送る権限がありません。${RECONNECT}`, { cause: e });
+    }
     if (e.status === 403 && /duplicate/i.test(e.message)) {
       return new SnsPublishError("permanent", "X は同じ文面の投稿を続けて受け付けません。文面を変えてください。", { cause: e });
     }
@@ -56,10 +60,22 @@ export function createXAdapter(config: () => XConfig): SnsAdapter {
   return {
     sns: "x",
 
-    async publishText(account, text) {
+    async publishText(account, text, images = []) {
+      // 画像を先に上げる（上げただけでは投稿されないので、ここでの失敗はやり直しても二重にならない）
+      const mediaIds: string[] = [];
+      try {
+        for (const image of images) {
+          const mediaId = await uploadImage(account.accessToken, await image.load());
+          if (image.altText) await setImageAltText(account.accessToken, mediaId, image.altText);
+          mediaIds.push(mediaId);
+        }
+      } catch (e) {
+        throw toXPublishError(e, "prepare");
+      }
+
       let id: string;
       try {
-        ({ id } = await createPost(account.accessToken, text));
+        ({ id } = mediaIds.length ? await createPostWithMedia(account.accessToken, text, mediaIds) : await createPost(account.accessToken, text));
       } catch (e) {
         throw toXPublishError(e, "publish");
       }
@@ -86,9 +102,8 @@ export function createXAdapter(config: () => XConfig): SnsAdapter {
       return now.getTime() - lastRefreshedAt.getTime() >= X_ROTATE_AFTER_DAYS * 24 * 60 * 60 * 1000;
     },
 
-    publishCost(text) {
-      const operation = xPostOperation(text);
-      return { operation, costUsd: X_PRICE_USD[operation] };
+    publishCost(text, images = []) {
+      return { operation: xPostOperation(text), costUsd: xPostCostUsd(text, images.filter((i) => i.altText).length) };
     },
   };
 }

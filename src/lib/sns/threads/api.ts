@@ -156,3 +156,30 @@ export async function deleteMedia(token: string, mediaId: string): Promise<void>
   url.searchParams.set("access_token", token);
   await call<{ success: boolean }>(url.toString(), { method: "DELETE" });
 }
+
+// ===== 画像（docs/architecture.md の 4.18） =====
+// Threads は image_url の画像を取りに来る（https://developers.facebook.com/docs/threads/posts）。URL は送る直前に作る期限つきの署名 URL。
+// 形式は JPEG・PNG、1 枚 8MB まで。代わりの文は alt_text（1,000 字まで）
+
+// 画像 1 枚の投稿、またはカルーセルの中の 1 枚（carouselItem）。カルーセルの中の 1 枚には本文を付けない
+export async function createImageContainer(
+  token: string,
+  imageUrl: string,
+  options: { text?: string; altText?: string; carouselItem?: boolean } = {},
+): Promise<string> {
+  const params: Record<string, string> = { media_type: "IMAGE", image_url: imageUrl, access_token: token };
+  if (options.carouselItem) params.is_carousel_item = "true";
+  else if (options.text) params.text = options.text;
+  if (options.altText) params.alt_text = options.altText;
+  const json = await call<{ id: string }>(`${THREADS_GRAPH_URL}/v1.0/me/threads`, form(params));
+  return String(json.id);
+}
+
+// カルーセル（2〜20 枚）。children はカルーセルの中の 1 枚のコンテナ
+export async function createCarouselContainer(token: string, children: string[], text: string): Promise<string> {
+  const json = await call<{ id: string }>(
+    `${THREADS_GRAPH_URL}/v1.0/me/threads`,
+    form({ media_type: "CAROUSEL", children: children.join(","), text, access_token: token }),
+  );
+  return String(json.id);
+}

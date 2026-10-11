@@ -7,6 +7,10 @@ export type AdapterAccount = { externalId: string; accessToken: string };
 
 export type PublishResult = { externalPostId: string; url: string | null };
 
+// 投稿に添える画像（docs/architecture.md の 4.18）。JPEG。URL を取りに来る SNS（Threads）には url を、
+// ファイルを送る SNS（X）には load() の中身を渡す。url は送る直前に作る期限つきの署名 URL
+export type PublishImage = { url: string; altText: string; load: () => Promise<Uint8Array> };
+
 // 失敗の種類。送信ジョブはこれを見て、やり直すか・アカウントを「期限切れ」にするかを決める
 // - retryable: 一時的な失敗（回数制限、SNS 側の障害、通信エラー）。間をあけてやり直す
 // - auth: トークンが無効。アカウントを期限切れにし、つなぎ直してもらう
@@ -29,12 +33,13 @@ export class SnsPublishError extends Error {
 // リフレッシュトークンで取り直した結果。リフレッシュトークンが使い捨ての SNS（X）は新しいものが返る
 export type RefreshedTokens = { accessToken: string; refreshToken: string | null; expiresAt: Date };
 
-// 使った分だけ払う SNS（X）の、1 回の投稿の費用
+// 使った分だけ払う SNS（X）の、1 回の投稿の費用（画像の代わりの文の分も含めた合計）
 export type PublishCost = { operation: "post" | "post_with_url"; costUsd: number };
 
 export interface SnsAdapter {
   sns: SnsKey;
-  publishText(account: AdapterAccount, text: string): Promise<PublishResult>;
+  // images は並び順。0 枚なら文章だけの投稿
+  publishText(account: AdapterAccount, text: string, images?: PublishImage[]): Promise<PublishResult>;
   deletePost(account: AdapterAccount, externalPostId: string): Promise<void>;
 
   // --- 長期トークンを延長する SNS（Threads） ---
@@ -48,5 +53,5 @@ export interface SnsAdapter {
   shouldRotate?(lastRefreshedAt: Date, now: Date): boolean;
 
   // --- 使った分だけ払う SNS（X）。送る前に費用を記録し、月の上限を守る ---
-  publishCost?(text: string): PublishCost;
+  publishCost?(text: string, images?: PublishImage[]): PublishCost;
 }

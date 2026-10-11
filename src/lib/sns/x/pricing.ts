@@ -6,6 +6,8 @@ export const X_PRICE_USD = {
   post: 0.015,
   post_with_url: 0.2,
   user_read: 0.01,
+  // 画像の代わりの文（media metadata）。1 枚につき 1 回。画像のアップロードそのものは料金表にない（2026-10-11）
+  media_metadata: 0.005,
 } as const;
 
 export type XOperation = keyof typeof X_PRICE_USD;
@@ -15,6 +17,11 @@ export const X_DEFAULT_MONTHLY_BUDGET_USD = 3;
 
 export function xPostOperation(text: string): "post" | "post_with_url" {
   return hasXUrl(text) ? "post_with_url" : "post";
+}
+
+// 1 回の投稿の費用（代わりの文を付けた画像の分を足す）。altCount は代わりの文がある画像の枚数
+export function xPostCostUsd(text: string, altCount = 0): number {
+  return X_PRICE_USD[xPostOperation(text)] + altCount * X_PRICE_USD.media_metadata;
 }
 
 export function formatUsd(usd: number): string {

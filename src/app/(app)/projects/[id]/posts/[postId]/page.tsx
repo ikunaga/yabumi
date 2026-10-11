@@ -8,6 +8,7 @@ import { isManualSns, manualComposeUrl, xComposeUrl, type SnsKey } from "@/lib/s
 import { createClient } from "@/lib/supabase/server";
 import { canPublish } from "@/lib/sns/adapters";
 import { getPlanHints } from "@/lib/plan/queries";
+import { loadPostImages, snsNeedingImageReconnect } from "@/lib/media/queries";
 import type { TargetResult } from "@/components/posts/send-results";
 import { toInputValue } from "@/lib/time";
 import { isUuid } from "@/lib/uuid";
@@ -35,11 +36,14 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
   const [project, post] = await Promise.all([getProject(id), getPost(id, postId)]);
   if (!project || !post) notFound();
   const supabase = await createClient();
-  const [accounts, planHints, { data: channels }] = await Promise.all([
+  const [accounts, planHints, { data: channels }, images] = await Promise.all([
     connectedAccounts(project.id),
     getPlanHints(project.id),
     supabase.from("project_manual_channels").select("sns, profile_url").eq("project_id", project.id),
+    loadPostImages(post.id),
   ]);
+  // 画像はあとから足すこともあるので、画像がなくても調べる
+  const needImageReconnect = await snsNeedingImageReconnect(accounts);
   const profileUrl = (sns: SnsKey) => channels?.find((c) => c.sns === sns)?.profile_url ?? null;
   const results: Partial<Record<SnsKey, TargetResult>> = Object.fromEntries(
     post.targets.map((t) => [
@@ -80,12 +84,14 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
       connected={(Object.keys(accounts) as SnsKey[]).filter(canPublish)}
       planHints={planHints}
       results={results}
+      needImageReconnect={needImageReconnect}
       notice={notice?.text}
       noticeTone={notice?.tone}
       initial={{
         body: post.body,
         targets: post.targets.map((t) => ({ sns: t.sns, bodyOverride: t.body_override, title: t.title })),
         plannedAt: toInputValue(post.planned_at),
+        images,
       }}
     />
     </>

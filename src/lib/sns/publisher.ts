@@ -1,9 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { decryptToken, encryptToken } from "@/lib/crypto/token-cipher";
+import { lacksImageScope } from "@/lib/media/rules";
+import { publishImagesFor } from "@/lib/media/store";
 import { refreshTokenAad } from "./accounts";
 import { isSnsKey, SNS, type SnsKey } from "@/lib/sns";
 import type { Database } from "@/lib/supabase/database.types";
-import { SnsPublishError, type AdapterAccount, type RefreshedTokens, type SnsAdapter } from "./adapters/types";
+import { SnsPublishError, type AdapterAccount, type PublishImage, type RefreshedTokens, type SnsAdapter } from "./adapters/types";
 
 // 送信ジョブの本体。RLS を通らないクライアント（createAdminClient）で呼ぶ。方針は docs/architecture.md の 4.7
 type Admin = SupabaseClient<Database>;
@@ -22,6 +24,8 @@ export type PublisherDeps = {
   refreshWait?: { intervalMs: number; tries: number };
   // 日次のジョブで一度に読む件数（テストで小さくして、少しずつ読んでも漏れないことを確かめる）。本番は REFRESH_PAGE_SIZE
   refreshPageSize?: number;
+  // 投稿の画像を読む（テストで差し替える）。既定は Storage から読み、署名 URL を作る
+  loadImages?: (admin: Admin, postId: string) => Promise<PublishImage[]>;
 };
 
 // 1 つの配信先につき最大 3 回まで試す。2 回目は 1 分後、3 回目は 5 分後
@@ -147,6 +151,12 @@ export async function refreshOnce(
   throw new SnsPublishError("retryable", "SNS の接続の更新に時間がかかっています。時間をおいて送り直します。");
 }
 
+async function tokenScopes(admin: Admin, socialAccountId: string): Promise<string[]> {
+  const { data, error } = await admin.from("social_account_tokens").select("scopes").eq("social_account_id", socialAccountId).maybeSingle();
+  if (error) throw error;
+  return data?.scopes ?? [];
+}
+
 async function markAccountExpired(admin: Admin, socialAccountId: string) {
   await admin.from("social_accounts").update({ status: "expired" }).eq("id", socialAccountId);
 }
@@ -208,8 +218,20 @@ async function publishOne(admin: Admin, t: ClaimedTarget, deps: PublisherDeps): 
     const account = await loadAccount(admin, t.social_account_id, t.account_external_id, deps, adapter);
     if (!account) return fail(`${label} の接続が切れています。${RECONNECT}`);
 
+    // 投稿の画像（docs/architecture.md の 4.18）。画像を送らない SNS（動画だけ・手で投稿）には渡さない
+    let images: PublishImage[] = [];
+    if (isSnsKey(t.sns) && SNS[t.sns].maxImages > 0) {
+      images = await (deps.loadImages ?? publishImagesFor)(admin, t.post_id);
+      if (images.length > SNS[t.sns].maxImages) {
+        return fail(`${label} に添えられる画像は ${SNS[t.sns].maxImages} 枚までです。投稿の画面で画像を減らしてから送り直してください。`);
+      }
+      if (images.length && lacksImageScope(t.sns, await tokenScopes(admin, t.social_account_id))) {
+        return fail(`${label} に画像を送るには、画像を送る権限を足すためのつなぎ直しが要ります。${RECONNECT}`);
+      }
+    }
+
     if (adapter.publishCost && isSnsKey(t.sns)) {
-      const cost = adapter.publishCost(t.body);
+      const cost = adapter.publishCost(t.body, images);
       const budget = deps.budgetsUsd?.[t.sns];
       usageId = await reserveSpend(admin, t.target_id, t.sns, cost.operation, cost.costUsd, budget ?? null, deps.budgetScopeOwner ?? null);
       if (!usageId) {
@@ -219,7 +241,7 @@ async function publishOne(admin: Admin, t: ClaimedTarget, deps: PublisherDeps): 
       }
     }
 
-    const result = await adapter.publishText(account, t.body);
+    const result = await adapter.publishText(account, t.body, images);
     const { error } = await admin
       .from("post_targets")
       .update({

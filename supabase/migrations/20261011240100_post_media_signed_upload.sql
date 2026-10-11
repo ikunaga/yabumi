@@ -1,4 +1,4 @@
--- 画像のアップロードを、サーバーが 1 枚ずつ発行する署名つきのアップロード URL だけにする（docs/architecture.md の 4.17）。
+-- 画像のアップロードを、サーバーが 1 枚ずつ発行する署名つきのアップロード URL だけにする（docs/architecture.md の 4.18）。
 -- 20261011240000 では、利用者が自分のフォルダに直接上げられるポリシーを置いていたが、それだと上限の確認を通さずに
 -- 何枚でも上げられ、翌日の片付けまでの間に Storage（Free は全体で 1GB）を埋められてしまう。
 -- サーバーは、確かめ待ちの引換券（media_upload_tickets）の数を見てから URL を発行し、確かめるときに引換券があることを確かめる。
@@ -16,8 +16,9 @@ create table public.media_upload_tickets (
 
 create index media_upload_tickets_owner_idx on public.media_upload_tickets (owner_id, created_at);
 
--- ポリシーを置かないので、画面側（anon・authenticated）からは読めず、書けない
+-- ポリシーも権限も置かないので、画面側（anon・authenticated）からは読めず、書けない
 alter table public.media_upload_tickets enable row level security;
+revoke all on public.media_upload_tickets from anon, authenticated;
 
 -- 片付け: 1 日たった引換券を消す（その画像は、記録がないので cleanup_media_candidates の ④ で消える）
 create or replace function public.cleanup_media_candidates(p_limit integer default 200)

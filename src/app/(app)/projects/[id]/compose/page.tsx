@@ -6,6 +6,7 @@ import { getProject } from "@/lib/projects/queries";
 import type { SnsKey } from "@/lib/sns";
 import { canPublish } from "@/lib/sns/adapters";
 import { getPlanHints } from "@/lib/plan/queries";
+import { snsNeedingImageReconnect } from "@/lib/media/queries";
 import { isYmd } from "@/lib/time";
 
 export const metadata: Metadata = { title: "投稿をつくる" };
@@ -17,6 +18,7 @@ export default async function ComposePage(props: PageProps<"/projects/[id]/compo
   if (!project) notFound();
   const [accounts, planHints] = await Promise.all([connectedAccounts(project.id), getPlanHints(project.id)]);
   const date = isYmd(searchParams.date) ? searchParams.date : null;
+  const needImageReconnect = await snsNeedingImageReconnect(accounts);
 
   return (
     <PostComposer
@@ -25,6 +27,7 @@ export default async function ComposePage(props: PageProps<"/projects/[id]/compo
       postId={null}
       connected={(Object.keys(accounts) as SnsKey[]).filter(canPublish)}
       planHints={planHints}
+      needImageReconnect={needImageReconnect}
       initial={{
         body: "",
         targets: [{ sns: "x", bodyOverride: null }, { sns: "threads", bodyOverride: null }],

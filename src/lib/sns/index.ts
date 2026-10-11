@@ -16,7 +16,7 @@ type SnsSpec = {
   delivery: Delivery;
   // 長文の SNS は、タイトルを付けて投稿する
   needsTitle?: boolean;
-  // 1 つの投稿に付けられる画像の数（各社の公式の資料、2026-10-11。docs/architecture.md の 4.17）。
+  // 1 つの投稿に付けられる画像の数（各社の公式の資料、2026-10-11。docs/architecture.md の 4.18）。
   // 0 は、矢書からは画像を送らない（動画だけの SNS、手で投稿する SNS）
   maxImages: number;
 };

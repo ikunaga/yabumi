@@ -1,4 +1,6 @@
 import {
+  createCarouselContainer,
+  createImageContainer,
   createTextContainer,
   deleteMedia,
   getContainerStatus,
@@ -39,28 +41,53 @@ export function toPublishError(e: unknown, stage: "prepare" | "publish"): SnsPub
   return new SnsPublishError("retryable", "Threads につながりませんでした。時間をおいて送り直します。", { cause: e });
 }
 
-type Options = { sleep?: (ms: number) => Promise<void>; pollIntervalMs?: number; maxPolls?: number };
+type Options = { sleep?: (ms: number) => Promise<void>; pollIntervalMs?: number; maxPolls?: number; maxImagePolls?: number };
 
-export function createThreadsAdapter({ sleep = (ms) => new Promise((r) => setTimeout(r, ms)), pollIntervalMs = 2000, maxPolls = 5 }: Options = {}): SnsAdapter {
+export function createThreadsAdapter({
+  sleep = (ms) => new Promise((r) => setTimeout(r, ms)),
+  pollIntervalMs = 2000,
+  maxPolls = 5,
+  // 画像は Threads が取りに来て処理するので時間がかかる（公式は平均 30 秒待つことをすすめている）。2 秒 × 20 回 = 最大 40 秒
+  maxImagePolls = 20,
+}: Options = {}): SnsAdapter {
+  // コンテナの準備ができるまで待つ。だめなら SnsPublishError
+  async function waitFinished(token: string, containerId: string, polls: number) {
+    for (let i = 0; ; i++) {
+      const { status, errorMessage } = await getContainerStatus(token, containerId);
+      if (status === "FINISHED") return;
+      if (status === "ERROR" || status === "EXPIRED") {
+        throw new SnsPublishError("permanent", `Threads が投稿を受け付けませんでした（${errorMessage ?? status}）`);
+      }
+      if (i + 1 >= polls) {
+        // 公開していないコンテナは投稿されないので、やり直しても二重にはならない
+        throw new SnsPublishError("retryable", "Threads 側の準備に時間がかかっています。時間をおいて送り直します。");
+      }
+      await sleep(pollIntervalMs);
+    }
+  }
+
   return {
     sns: "threads",
 
-    async publishText(account, text) {
+    async publishText(account, text, images = []) {
       let containerId: string;
       try {
-        containerId = await createTextContainer(account.accessToken, text);
-        // 文章だけならすぐ FINISHED になることが多い。処理中なら少し待つ（最大 maxPolls 回）
-        for (let i = 0; ; i++) {
-          const { status, errorMessage } = await getContainerStatus(account.accessToken, containerId);
-          if (status === "FINISHED") break;
-          if (status === "ERROR" || status === "EXPIRED") {
-            throw new SnsPublishError("permanent", `Threads が投稿を受け付けませんでした（${errorMessage ?? status}）`);
+        if (images.length === 0) {
+          containerId = await createTextContainer(account.accessToken, text);
+          // 文章だけならすぐ FINISHED になることが多い。処理中なら少し待つ（最大 maxPolls 回）
+          await waitFinished(account.accessToken, containerId, maxPolls);
+        } else if (images.length === 1) {
+          const [image] = images;
+          containerId = await createImageContainer(account.accessToken, image.url, { text, altText: image.altText || undefined });
+          await waitFinished(account.accessToken, containerId, maxImagePolls);
+        } else {
+          // カルーセル: 1 枚ずつのコンテナを作り、まとめたコンテナの準備を待つ
+          const children: string[] = [];
+          for (const image of images) {
+            children.push(await createImageContainer(account.accessToken, image.url, { carouselItem: true, altText: image.altText || undefined }));
           }
-          if (i + 1 >= maxPolls) {
-            // 公開していないコンテナは投稿されないので、やり直しても二重にはならない
-            throw new SnsPublishError("retryable", "Threads 側の準備に時間がかかっています。時間をおいて送り直します。");
-          }
-          await sleep(pollIntervalMs);
+          containerId = await createCarouselContainer(account.accessToken, children, text);
+          await waitFinished(account.accessToken, containerId, maxImagePolls);
         }
       } catch (e) {
         throw toPublishError(e, "prepare");

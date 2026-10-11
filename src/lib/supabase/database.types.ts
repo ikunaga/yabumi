@@ -726,7 +726,7 @@ export type Database = {
         }[]
       }
       cleanup_media_candidates: {
-        Args: { p_limit?: number }
+        Args: { p_limit?: number; p_owner_id?: string }
         Returns: {
           media_id: string
           storage_path: string
@@ -734,6 +734,17 @@ export type Database = {
       }
       invoke_job: { Args: { p_path: string }; Returns: number }
       is_manual_sns: { Args: { p_sns: string }; Returns: boolean }
+      issue_media_upload_ticket: {
+        Args: {
+          p_max_file_bytes: number
+          p_max_pending: number
+          p_max_unattached: number
+          p_owner_id: string
+          p_quota_bytes: number
+          p_storage_path: string
+        }
+        Returns: string
+      }
       mark_manual_target_posted: {
         Args: { p_target_id: string; p_url?: string }
         Returns: undefined

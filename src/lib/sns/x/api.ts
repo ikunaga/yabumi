@@ -7,8 +7,8 @@ export const X_AUTHORIZE_URL = "https://x.com/i/oauth2/authorize";
 export const X_API_URL = "https://api.x.com";
 
 // offline.access がないとリフレッシュトークンが出ず、2 時間でつなぎ直しになる。
-// 画像を付けるとき（フェーズ 5）は media.write を足し、つないだ済みの人には「つなぎ直す」をしてもらう
-export const X_SCOPES = ["tweet.read", "tweet.write", "users.read", "offline.access"] as const;
+// media.write は画像を送るため（2026-10-11 に追加。それより前につないだアカウントは、つなぎ直すまで画像を送れない。docs/architecture.md の 4.18）
+export const X_SCOPES = ["tweet.read", "tweet.write", "users.read", "offline.access", "media.write"] as const;
 
 export type XConfig = { clientId: string; clientSecret: string; redirectUri: string };
 
@@ -152,4 +152,33 @@ export async function deletePost(token: string, postId: string): Promise<void> {
 // ユーザー名がなくても開ける投稿の URL
 export function postUrl(postId: string): string {
   return `https://x.com/i/web/status/${postId}`;
+}
+
+// ===== 画像（docs/architecture.md の 4.18。スコープ media.write が要る） =====
+// 1 回で送る方式（https://docs.x.com/x-api/media/upload-media）。静止画は 5MB まで、1 つの投稿に 4 枚まで。
+// アップロードの料金は料金表にない（2026-10-11）。代わりの文（media metadata）は 1 回 $0.005
+export async function uploadImage(token: string, bytes: Uint8Array): Promise<string> {
+  const body = new FormData();
+  body.append("media", new Blob([bytes as BlobPart], { type: "image/jpeg" }), "image.jpg");
+  body.append("media_category", "tweet_image");
+  body.append("media_type", "image/jpeg");
+  const json = await call<{ data: { id: string } }>(`${X_API_URL}/2/media/upload`, { method: "POST", headers: bearer(token), body });
+  return String(json.data.id);
+}
+
+export async function setImageAltText(token: string, mediaId: string, altText: string): Promise<void> {
+  await call<unknown>(`${X_API_URL}/2/media/metadata`, {
+    method: "POST",
+    headers: { ...bearer(token), "Content-Type": "application/json" },
+    body: JSON.stringify({ id: mediaId, metadata: { alt_text: { text: altText } } }),
+  });
+}
+
+export async function createPostWithMedia(token: string, text: string, mediaIds: string[]): Promise<{ id: string }> {
+  const json = await call<{ data: { id: string } }>(`${X_API_URL}/2/tweets`, {
+    method: "POST",
+    headers: { ...bearer(token), "Content-Type": "application/json" },
+    body: JSON.stringify({ text, media: { media_ids: mediaIds } }),
+  });
+  return { id: String(json.data.id) };
 }

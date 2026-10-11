@@ -1,4 +1,6 @@
-// 投稿に添える画像の決まり（docs/architecture.md の 4.17）。画面とサーバーの両方から読む
+import type { SnsKey } from "@/lib/sns";
+
+// 投稿に添える画像の決まり（docs/architecture.md の 4.18）。画面とサーバーの両方から読む
 
 export const MEDIA_BUCKET = "post-media";
 
@@ -46,4 +48,13 @@ export function isOwnMediaPath(ownerId: string, path: string): boolean {
 export function formatBytes(bytes: number): string {
   if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
   return `${Math.max(1, Math.round(bytes / 1024))}KB`;
+}
+
+// 画像を送るのに、つないだときにはなかった権限が要る SNS。X は 2026-10-11 に media.write を足したので、
+// それより前につないだアカウントは、つなぎ直すまで画像を送れない
+export const IMAGE_SCOPES: Partial<Record<SnsKey, string>> = { x: "media.write" };
+
+export function lacksImageScope(sns: SnsKey, scopes: readonly string[]): boolean {
+  const needed = IMAGE_SCOPES[sns];
+  return Boolean(needed && !scopes.includes(needed));
 }

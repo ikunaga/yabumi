@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PREVIEW_URL_SECONDS } from "./rules";
 import { MediaError, discardUnattached, issueUpload, signedUrls, verifyUpload, type MediaFile, type UploadTicket } from "./store";
 
-// 画面から呼ぶ、画像の添付の操作（docs/architecture.md の 4.17）。画像そのものは Vercel の関数を通さず、
+// 画面から呼ぶ、画像の添付の操作（docs/architecture.md の 4.18）。画像そのものは Vercel の関数を通さず、
 // ブラウザが署名つきの URL で Storage に直接上げる。ここでは URL の発行と、上げたあとの確かめだけを行う
 
 async function currentUserId(): Promise<string | null> {

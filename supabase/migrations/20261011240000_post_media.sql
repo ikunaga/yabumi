@@ -1,4 +1,4 @@
--- 投稿に画像を添付する（F03・F14 の一部）。方針は docs/architecture.md の 4.17
+-- 投稿に画像を添付する（F03・F14 の一部）。方針は docs/architecture.md の 4.18
 -- 画像は Supabase Storage の非公開のバケット post-media の「<利用者の ID>/<乱数>.jpg」に、ブラウザから直接上げる（Vercel の関数を通さない）。
 -- 上げた画像は、サーバーが中身を確かめ（JPEG か、大きさ）、位置情報などのメタデータを消して置き直してから、media_files に記録する。
 -- media_files の書き込みはサーバー（secret キー）だけ。利用者は自分のものを読めるだけ。記録のない画像は投稿に使えない。
@@ -49,6 +49,9 @@ create trigger media_files_set_updated_at
 alter table public.media_files enable row level security;
 create policy "media_files_select_own" on public.media_files
   for select to authenticated using ((select auth.uid()) = owner_id);
+-- 権限はポリシーと同じ操作だけ（20261011220100_explicit_grants の決まり）。書き込みはサーバー（service_role）だけ
+revoke all on public.media_files from anon, authenticated;
+grant select on public.media_files to authenticated;
 
 -- ===== 毎日の片付け =====
 -- 消してよい画像の一覧（サーバーが Storage の API で消し、行も消す）。

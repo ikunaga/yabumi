@@ -19,7 +19,7 @@ export const savePostInputSchema = z.object({
       }),
     )
     .max(SNS_KEYS.length),
-  // 添える画像（並び順）。画像はブラウザから Storage に上げて確かめ済みのもの（docs/architecture.md の 4.17）
+  // 添える画像（並び順）。画像はブラウザから Storage に上げて確かめ済みのもの（docs/architecture.md の 4.18）
   media: z
     .array(z.object({ id: z.uuid(), altText: z.string().max(MAX_ALT_LENGTH, `代わりの文は ${MAX_ALT_LENGTH} 字までです`) }))
     .max(MAX_IMAGES_PER_POST)

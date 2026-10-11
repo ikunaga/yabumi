@@ -8,6 +8,7 @@ import {
   MAX_IMAGES_PER_POST,
   MAX_UNATTACHED,
   MEDIA_BUCKET,
+  SNS_FETCH_URL_SECONDS,
   USER_QUOTA_BYTES,
   KEEP_AFTER_SENT_DAYS,
   formatBytes,
@@ -15,7 +16,7 @@ import {
   mediaPath,
 } from "./rules";
 
-// 画像の確認・添付・片付け（docs/architecture.md の 4.17）。admin は RLS を通らないクライアント。
+// 画像の確認・添付・片付け（docs/architecture.md の 4.18）。admin は RLS を通らないクライアント。
 // 呼ぶ側で、ownerId がログイン中の利用者であることを確かめておく
 
 type Admin = SupabaseClient<Database>;
@@ -47,24 +48,26 @@ export type UploadTicket = { path: string; token: string; signedUrl: string };
 // 画像を 1 枚上げるための、署名つきのアップロード URL を発行する（その場所にだけ、2 時間上げられる）。
 // 上げる前に、確かめ待ちの数・添えていない画像の数・容量を確かめる
 export async function issueUpload(admin: Admin, ownerId: string, id: string = crypto.randomUUID()): Promise<UploadTicket> {
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const [{ count: pending }, { count: unattached }, { data: used, error: usedError }] = await Promise.all([
-    admin.from("media_upload_tickets").select("storage_path", { count: "exact", head: true }).eq("owner_id", ownerId).gte("created_at", since),
-    admin.from("media_files").select("id", { count: "exact", head: true }).eq("owner_id", ownerId).is("post_id", null),
-    admin.rpc("media_usage_bytes", { p_owner_id: ownerId }),
-  ]);
-  if (usedError) throw usedError;
-  if ((pending ?? 0) >= MAX_PENDING_TICKETS) throw new MediaError("画像の追加が続いています。少し待ってからもう一度お試しください。");
-  if ((unattached ?? 0) >= MAX_UNATTACHED) {
+  const path = mediaPath(ownerId, id);
+  // 上限の確認と引換券の記録は、DB の中で利用者ごとに順に行う（同時に頼まれても上限を超えない）
+  const { data: status, error: ticketError } = await admin.rpc("issue_media_upload_ticket", {
+    p_owner_id: ownerId,
+    p_storage_path: path,
+    p_max_pending: MAX_PENDING_TICKETS,
+    p_max_unattached: MAX_UNATTACHED,
+    p_quota_bytes: USER_QUOTA_BYTES,
+    p_max_file_bytes: MAX_IMAGE_BYTES,
+  });
+  if (ticketError) throw ticketError;
+  if (status === "too_many_pending") throw new MediaError("画像の追加が続いています。少し待ってからもう一度お試しください。");
+  if (status === "too_many_unattached") {
     throw new MediaError(`保存していない画像が ${MAX_UNATTACHED} 枚あります。投稿を保存するか、要らない画像を外してから追加してください。`);
   }
-  if (Number(used ?? 0) + MAX_IMAGE_BYTES > USER_QUOTA_BYTES) {
+  if (status === "quota") {
     throw new MediaError(`置ける画像の合計（${formatBytes(USER_QUOTA_BYTES)}）に近づいています。送り終えた画像は ${KEEP_AFTER_SENT_DAYS} 日で消えます。要らない下書きの画像を外してください。`);
   }
+  if (status !== "ok") throw new Error(`引換券を発行できませんでした（${status}）`);
 
-  const path = mediaPath(ownerId, id);
-  const { error: ticketError } = await admin.from("media_upload_tickets").insert({ storage_path: path, owner_id: ownerId });
-  if (ticketError) throw ticketError;
   const { data, error } = await admin.storage.from(MEDIA_BUCKET).createSignedUploadUrl(path);
   if (error || !data) {
     await admin.from("media_upload_tickets").delete().eq("storage_path", path);
@@ -201,8 +204,9 @@ export async function downloadMedia(admin: Admin, path: string): Promise<Uint8Ar
 }
 
 // 毎日の片付け: 添えないまま 1 日たった画像、投稿が消えた画像、送り終えて 30 日たった画像、記録のないファイルを消す
-export async function cleanupMedia(admin: Admin, limit = 200): Promise<{ removed: number }> {
-  const { data, error } = await admin.rpc("cleanup_media_candidates", { p_limit: limit });
+// ownerId を渡すとその利用者の分だけ（結合テスト用。毎日のジョブは全体）
+export async function cleanupMedia(admin: Admin, { limit = 200, ownerId }: { limit?: number; ownerId?: string } = {}): Promise<{ removed: number }> {
+  const { data, error } = await admin.rpc("cleanup_media_candidates", { p_limit: limit, ...(ownerId ? { p_owner_id: ownerId } : {}) });
   if (error) throw error;
   if (!data.length) return { removed: 0 };
   const { error: rmError } = await admin.storage.from(MEDIA_BUCKET).remove(data.map((d) => d.storage_path));
@@ -213,4 +217,16 @@ export async function cleanupMedia(admin: Admin, limit = 200): Promise<{ removed
     if (delError) throw delError;
   }
   return { removed: data.length };
+}
+
+// 送るときの画像（並び順）。URL は送る直前に作る期限つきの署名 URL（SNS_FETCH_URL_SECONDS）。予約の時刻とは関係しない
+export async function publishImagesFor(admin: Admin, postId: string): Promise<{ url: string; altText: string; load: () => Promise<Uint8Array> }[]> {
+  const files = await postMedia(admin, postId);
+  if (!files.length) return [];
+  const urls = await signedUrls(admin, files.map((f) => f.storagePath), SNS_FETCH_URL_SECONDS);
+  return files.map((f) => {
+    const url = urls.get(f.storagePath);
+    if (!url) throw new Error(`画像の URL を作れませんでした（${f.storagePath}）`);
+    return { url, altText: f.altText, load: () => downloadMedia(admin, f.storagePath) };
+  });
 }

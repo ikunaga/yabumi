@@ -92,7 +92,7 @@
 | 5-4 | オーナー | Authentication → Sign In / Providers（または Settings）→ **Allow new users to sign up** をオフにする。矢書の画面からも、Supabase の API を直接呼んでも、新しいアカウントは作れなくなる |
 | 5-5 | オーナー | Authentication → Sign In / Providers → Email: **Confirm email** をオン（確認メールが済むまでログインできない）。**Minimum password length** を 8 にする（矢書の画面と同じ） |
 | 5-6 | オーナー | Authentication → Emails → Templates: Confirm signup・Reset password・Change email address・Magic link・Invite user の 5 つに、リポジトリの supabase/templates/ の本文（confirmation.html・recovery.html・email_change.html・magic_link.html・invite.html）を貼り、件名を supabase/config.toml の subject と同じにする（「【矢書】メールアドレスの確認」など） |
-| 5-7 | オーナー | **独自の SMTP（登録の受付を開く前に必須）**: Supabase の既定のメールは、プロジェクトのメンバーにしか届かず 1 時間に 2 通まで。① 独自ドメインを取る（年 1,500〜2,500 円。お名前.com、Cloudflare Registrar など）② https://resend.com に登録し、Domains でドメインを足して、表示された DNS のレコード（SPF・DKIM）をドメインの管理画面に入れ、Verified になるのを待つ ③ Resend の API Keys で「Sending access」のキーを作る ④ Supabase の Authentication → Emails → SMTP Settings: Enable custom SMTP をオン、Host `smtp.resend.com`、Port `465`、Username `resend`、Password に ③ のキー、Sender email `noreply@<ドメイン>`、Sender name `矢書` ⑤ Authentication → Rate Limits の「emails sent per hour」が 30 になっていることを確かめる |
+| 5-7 | オーナー | **独自の SMTP（登録の受付を開く前に必須）**: Supabase の既定のメールは、プロジェクトのメンバーにしか届かず 1 時間に 2 通まで。ドメインは yabumi.app に決まったので、**11 の F の手順で進める**（以下は一般の流れ）。① 独自ドメインを取る（年 1,500〜2,500 円。お名前.com、Cloudflare Registrar など）② https://resend.com に登録し、Domains でドメインを足して、表示された DNS のレコード（SPF・DKIM）をドメインの管理画面に入れ、Verified になるのを待つ ③ Resend の API Keys で「Sending access」のキーを作る ④ Supabase の Authentication → Emails → SMTP Settings: Enable custom SMTP をオン、Host `smtp.resend.com`、Port `465`、Username `resend`、Password に ③ のキー、Sender email `noreply@<ドメイン>`、Sender name `矢書` ⑤ Authentication → Rate Limits の「emails sent per hour」が 30 になっていることを確かめる |
 | 5-8 | オーナー | **ロボットの確認（登録の受付を開く前に必須）**: ① https://dash.cloudflare.com に登録し、Turnstile → Add widget。Widget name `yabumi`、Hostname に `yabumi.vercel.app`（ローカルで試すなら `localhost` も）、Widget Mode は **Managed** ② 表示された Site Key を Vercel の NEXT_PUBLIC_TURNSTILE_SITE_KEY に入れて Redeploy ③ Secret Key を Supabase の Authentication → Attack Protection（Bot and Abuse Protection）→ Enable Captcha protection をオン、Provider は Turnstile、Secret に貼る。**②の Redeploy が済んでから③をする**（逆だと、確認の欄がないままログインが断られる） |
 
 ## 6. 外部サービスに本番の URL を登録する
@@ -135,7 +135,7 @@
 | Vercel | Hobby | 0 円（個人・非商用のみ。他の人に提供するときは Pro $20/月が要る） |
 | Claude API | 従量 | 使った分。矢書の上限で月 $10 まで、Console の上限が最後の歯止め |
 | Threads API / GitHub API | - | 0 円 |
-| 独自ドメイン（任意） | - | .com などで年 1,500〜2,500 円ほど。いまは使わず vercel.app で始める（オーナーの判断） |
+| 独自ドメイン（yabumi.app） | - | 年 2,000 円前後（Cloudflare Registrar）。2026-10-11 に取ると決めた（11） |
 
 ## 10. GitHub App を他の人も入れられるようにする（Any account）
 
@@ -176,3 +176,84 @@
 - 組織や、他の人の個人リポジトリ（共同作業者として）のインストールでは、矢書は**その人が GitHub で読めるリポジトリだけ**を並べ、読む。読める範囲は 7 日ごとに確かめ直す（GitHub の画面の「連携を読み込み直す」）
 
 出典: [GitHub App を公開・非公開にする](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/making-a-github-app-public-or-private)、[GitHub App の登録を変える](https://docs.github.com/en/apps/maintaining-github-apps/modifying-a-github-app-registration)、[バッジ（ロゴ）](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/creating-a-custom-badge-for-your-github-app)、[サードパーティの App のインストール](https://docs.github.com/en/apps/using-github-apps/installing-a-github-app-from-a-third-party)（2026-10-11 に確認）
+
+## 11. 独自ドメイン yabumi.app に切り替える（2026-10-11 決定）
+
+yabumi.app は Cloudflare Registrar で取る（オーナー）。DNS も Cloudflare で管理する。切り替えのあいだも、予約の送信と SNS の接続が止まらない順に並べている。**A → B → C → D の順に進め、各段の確認が済んでから次へ**。
+
+### 方針: 入口は yabumi.app の 1 つにし、yabumi.vercel.app からは転送する
+
+- ログインの cookie はホストごとに別なので、入口が 2 つあると「片方でログインしたのに、もう片方ではログインしていない」や、OAuth の戻り先の食い違い（つなぐの途中で state が合わない）が起きる。SNS 各社や GitHub に登録する URL も 1 つに揃えられる
+- 転送はアプリ（src/proxy.ts、src/lib/canonical-host.ts）で行う。本番（VERCEL_ENV=production）の `*.vercel.app` で開かれたら、APP_URL へ 308 で転送する。プレビューのデプロイは転送しない
+- 外から POST で届くもの（予約ジョブ /api/jobs、Threads のアンインストール・削除の通知）は転送しない。転送に従わない相手があるため、呼び先を新しい URL に変え終わるまで古い URL でも動くようにしている
+- 切り替えのあと、利用者は yabumi.app で一度ログインし直す（cookie がホストごとのため）。SNS のつなぎ直しは要らない（トークンは DB にあり、URL に関係しない）
+
+### A. ドメインを Vercel につなぐ（APP_URL はまだ変えない）
+
+| # | 誰が | やること |
+|---|---|---|
+| A-1 | オーナー | Vercel → Project → Settings → Domains → Add で `yabumi.app` を足す（Environment は Production）。続けて `www.yabumi.app` も足し、「Redirect to yabumi.app」（308）にする |
+| A-2 | オーナー | Vercel の画面のカードに出た値を、Cloudflare → yabumi.app → DNS → Records に入れる。`yabumi.app` は **A レコード**（名前 `@`、値はカードの IP。よく見るのは `76.76.21.21` だが、**必ずカードの値**を使う）、`www` は **CNAME**（値はカードのもの）。どちらも **Proxy status を「DNS only」（灰色の雲）** にする（オレンジの雲だと Vercel の証明書の発行を邪魔する） |
+| A-3 | オーナー | Vercel の Domains で、2 つとも「Valid Configuration」になり、証明書が出る（数分〜1 時間）。`https://yabumi.app` を開くと矢書のトップが出る（この時点ではまだ APP_URL が古いので、ログインやつなぐは yabumi.vercel.app のまま使う） |
+
+### B. 新しい URL を、古い URL と**並べて**登録する（止まらないように、先に足す）
+
+| # | 誰が | やること |
+|---|---|---|
+| B-1 | オーナー | **Supabase**: Authentication → URL Configuration → Redirect URLs に `https://yabumi.app/**` を足す（古いものは残す） |
+| B-2 | オーナー | **Threads**: Meta の Yabumi Dev → Use cases → Access the Threads API → Settings → Redirect Callback URLs に `https://yabumi.app/sns/threads/callback` を足す（古いもの・localhost は残す） |
+| B-3 | オーナー | **X**: Developer Console → アプリ → User authentication settings → Callback URI に `https://yabumi.app/sns/x/callback` を足す（古いもの・localhost は残す） |
+| B-4 | オーナー | **GitHub App（本番用）**: GitHub → Settings → Developer settings → GitHub Apps → 本番の App → General → Callback URL の「Add Callback URL」で `https://yabumi.app/github/callback` を足す（1 つの App に 10 個まで並べられる） |
+| B-5 | オーナー | **Turnstile**（入れていれば）: Cloudflare → Turnstile → yabumi → Hostname Management に `yabumi.app` を足す |
+
+### C. 切り替える（この順番で、続けて行う）
+
+| # | 誰が | やること | 止まらない理由 |
+|---|---|---|---|
+| C-1 | オーナー | Vercel → Settings → Environment Variables の **APP_URL** を `https://yabumi.app` にし、Deployments → 最新の … → **Redeploy** | 新しいデプロイから、OAuth の戻り先・メールのリンク・OGP の URL が yabumi.app になる。B で両方登録してあるので、つなぐは止まらない。古い URL は yabumi.app へ転送される |
+| C-2 | オーナー | **Supabase**: Authentication → URL Configuration → **Site URL** を `https://yabumi.app` に | 確認メールと再設定のメールのリンクが yabumi.app になる（テンプレートは {{ .SiteURL }} を使う） |
+| C-3 | オーナー | **Supabase**: SQL Editor で、予約ジョブの呼び先を変える<br>`select vault.update_secret((select id from vault.secrets where name = 'app_url'), 'https://yabumi.app');` | 次の 1 分から、予約ジョブが yabumi.app を呼ぶ。古い URL の /api/jobs は転送しないので、変える前の呼び出しもそのまま動く |
+| C-4 | オーナー | **Threads**: 同じ Settings の **Uninstall Callback URL** を `https://yabumi.app/sns/threads/uninstall`、**Delete Callback URL** を `https://yabumi.app/sns/threads/delete` に（1 つずつしか入らない） | 古い URL の通知の受け口も転送せずに動くので、切り替えの前後で取りこぼさない |
+| C-5 | オーナー | **X**: Website URL を `https://yabumi.app` に。**GitHub App**: Homepage URL を `https://yabumi.app` に | 表示用。動きには関係しない |
+
+### D. 確かめる
+
+| # | 誰が | やること |
+|---|---|---|
+| D-1 | オーナー | `https://yabumi.vercel.app/projects` を開くと `https://yabumi.app/projects` に移る。yabumi.app でログインできる |
+| D-2 | オーナー | 概要の「つないだ SNS」で Threads（と X）の「つなぎ直す」を押し、許可して戻ってくる（戻り先が yabumi.app になっている） |
+| D-3 | オーナー | 予約ジョブ: Supabase の SQL Editor で `select status_code, created from net._http_response order by id desc limit 3;` が 200 で、数分おきに増えている |
+| D-4 | オーナー | X や Slack に `https://yabumi.app` を貼ると、矢書のカード（OGP）が出る |
+| D-5 | オーナー | ログアウトして「パスワードを忘れた」→ 届いたメールのリンクが `https://yabumi.app/auth/confirm?…` になっている |
+
+### E. 1 週間ほどたったら（任意）
+
+- Threads・X・GitHub App の Callback と、Supabase の Redirect URLs から、古い `yabumi.vercel.app` のものを外す（localhost のものは残す）
+- 転送のコードはそのまま残す（古いリンクやブックマークのため）
+
+### F. メールを yabumi.app から送る（Resend。登録の受付を開く前に必須。5-7 の具体的な手順）
+
+| # | 誰が | やること |
+|---|---|---|
+| F-1 | オーナー | https://resend.com に登録 → Domains → Add Domain で `yabumi.app`（Region は Tokyo（ap-northeast-1）があればそれ） |
+| F-2 | オーナー | 「Sign in to Cloudflare」（Domain Connect）を押すと、DNS のレコードを自動で入れてくれる。手で入れるときは、Resend の画面に出る値で、`send` の MX（優先度 10）、`send` の TXT（SPF）、`resend._domainkey` の TXT（DKIM）の 3 つ。どれも **Proxy は DNS only** |
+| F-3 | オーナー | Cloudflare の DNS に **DMARC** を足す: 種類 TXT、名前 `_dmarc`、値 `v=DMARC1; p=none; rua=mailto:support@yabumi.app`（まずは p=none で様子を見る。届かない報告がなければ、数週間後に p=quarantine にしてよい） |
+| F-4 | オーナー | Resend で Verified になるのを待つ（数分〜数時間）。API Keys → Create API Key（Permission は Sending access、Domain は yabumi.app） |
+| F-5 | オーナー | Supabase → Authentication → Emails → SMTP Settings: Enable custom SMTP をオン。Sender email `noreply@yabumi.app`、Sender name `矢書`、Host `smtp.resend.com`、Port `465`、Username `resend`、Password に F-4 のキー。保存 |
+| F-6 | オーナー | Authentication → Rate Limits の「Rate limit for sending emails」が 30（1 時間）になっていることを確かめる |
+| F-7 | オーナー | テスト: ログアウトして「パスワードを忘れた」に自分のアドレスを入れる。送信元が「矢書 <noreply@yabumi.app>」で、迷惑メールに入らずに届く |
+
+- 費用: Resend の無料の範囲（月 3,000 通、1 日 100 通）。ドメインの費用は年 1 回（Cloudflare Registrar は卸値で、.app は年 2,000 円前後）
+
+### G. 問い合わせ先 support@yabumi.app を受け取る（Cloudflare Email Routing。無料）
+
+| # | 誰が | やること |
+|---|---|---|
+| G-1 | オーナー | Cloudflare → yabumi.app → Email → Email Routing → Get started。画面の案内で、受信用の MX と SPF のレコードを自動で足す（ルートのドメイン用。F の `send` のレコードとはぶつからない） |
+| G-2 | オーナー | Destination addresses に、オーナーの個人のメールアドレスを足し、届いた確認メールのリンクを押す |
+| G-3 | オーナー | Routing rules → Custom addresses → `support@yabumi.app` → 宛先は G-2 のアドレス。保存 |
+| G-4 | オーナー | 別のメールから support@yabumi.app に送り、個人のメールに届くことを確かめる |
+
+- 費用: 無料（受け取って転送するだけ）
+- 注意: 届いたメールに個人のメールから返事をすると、送信元は個人のアドレスになる。support@yabumi.app から返事をしたいときは、Gmail の「他のメールアドレスを追加」（Send mail as）で、SMTP に Resend（F-5 と同じ。ユーザー名 resend、パスワードは別に作った API キー）を使う
+- 規約・ポリシーの問い合わせ先（docs/legal.md の L2）に `support@yabumi.app` を使える。G-4 が済んでから入れる

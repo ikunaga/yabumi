@@ -79,8 +79,8 @@ X の API は使った分だけ払う方式（投稿 1 本 $0.015、本文に UR
 |---|---|
 | App permissions | **Read and write**（投稿に要る。Read だけだと投稿で断られる） |
 | Type of App | **Web App, Automated App or Bot** |
-| Callback URI / Redirect URL | `https://localhost:3100/sns/x/callback` と `https://yabumi.vercel.app/sns/x/callback` の 2 つ |
-| Website URL | `https://yabumi.vercel.app` |
+| Callback URI / Redirect URL | `https://localhost:3100/sns/x/callback` と `https://yabumi.app/sns/x/callback` の 2 つ（yabumi.app に切り替える前なら `https://yabumi.vercel.app/sns/x/callback` も） |
+| Website URL | `https://yabumi.app` |
 
 5. **Keys and tokens** の **OAuth 2.0 Client ID and Client Secret** を表示し（Client Secret は一度しか出ないので、出たらすぐに使う）、.env.local に足す。チャットなどには貼らない
 

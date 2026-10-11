@@ -329,7 +329,7 @@ README が薄い個人開発のリポジトリやモノレポでも中身がわ�
 |---|---|---|
 | DB・ログイン | Supabase Free、東京（Northeast Asia） | 無料。DB 500MB で足りる |
 | 画面と API、予約ジョブの受け口 | Vercel Hobby、関数は東京（hnd1。vercel.json） | 無料。Supabase と同じ東京にして、DB への往復を短くする |
-| URL | `yabumi-xxxx.vercel.app` | 独自ドメインは年 1,500〜2,500 円ほどかかるので、オーナーの判断で後から。URL を変えたら、Threads・GitHub App・Supabase Auth・Vault の app_url を直す |
+| URL | `yabumi.app`（2026-10-11 に独自ドメインに決定。yabumi.vercel.app からは転送する） | 切り替えの手順と、URL を変えたときに直す場所の一覧は docs/deploy.md の 11 |
 
 #### Supabase Free の一時停止
 
@@ -446,8 +446,8 @@ README が薄い個人開発のリポジトリやモノレポでも中身がわ�
 | 場所 | X の Developer Console（https://console.x.com） |
 | App permissions | Read and write |
 | Type of App | Web App, Automated App or Bot（confidential client。Client Secret が出る） |
-| Callback URI / Redirect URL | `https://localhost:3100/sns/x/callback` と、本番の `https://yabumi.vercel.app/sns/x/callback`（1 つのアプリに並べて登録する） |
-| Website URL | `https://yabumi.vercel.app` |
+| Callback URI / Redirect URL | `https://localhost:3100/sns/x/callback` と、本番の `https://yabumi.app/sns/x/callback`（1 つのアプリに並べて登録する） |
+| Website URL | `https://yabumi.app` |
 | 環境変数 | X_CLIENT_ID、X_CLIENT_SECRET（OAuth 2.0 の Client ID と Client Secret）。X_MONTHLY_BUDGET_USD は空なら $3 |
 | 支払い | Developer Console でクレジットを買い、Spending limit を矢書の上限より少し上（$5 など）にする。矢書の上限を何かの理由ですり抜けても、X 側で止まる |
 

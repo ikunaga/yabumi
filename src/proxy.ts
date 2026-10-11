@@ -1,7 +1,11 @@
-import type { NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { canonicalRedirect } from "@/lib/canonical-host";
 import { updateSession } from "@/lib/supabase/proxy";
 
 export async function proxy(request: NextRequest) {
+  // 本番の vercel.app のアドレスで開かれたら、APP_URL（独自ドメイン）へ転送する
+  const to = canonicalRedirect(request.nextUrl, { appUrl: process.env.APP_URL, vercelEnv: process.env.VERCEL_ENV });
+  if (to) return NextResponse.redirect(to, 308);
   return updateSession(request);
 }
 

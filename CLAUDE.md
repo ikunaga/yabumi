@@ -13,6 +13,7 @@
 - 新しいテーブル・関数には権限が自動で付かない（20261011220100_explicit_grants）。create table のあとに、RLS のポリシーと同じ操作だけを authenticated に grant する。関数は public・anon・authenticated から revoke execute してから、必要なロールにだけ grant する（docs/architecture.md 4.17）
 - マイグレーションの適用は `supabase migration up`（データを残す）。`supabase db reset` はローカルの全データを消す（利用者が登録したアカウントも消える）ので、オーナーの了承なしに使わない。消えても supabase/seed.sql のテスト用アカウントとサンプルは戻る
 - マイグレーション後は `pnpm db:types` で src/lib/supabase/database.types.ts を再生成する
+- マイグレーションのファイル名の時刻は、main に取り込む時点で main の最新のマイグレーションより後にする。本番は時刻の順にしか当てられず、古い時刻のファイルが後から来ると `supabase db push` が止まる。ブランチを main に rebase したときに、自分のマイグレーションが main の最新より前に並んでいたら付け直し、ローカルの記録は `supabase migration repair --local` で合わせる
 - Next.js 16 なので middleware ではなく src/proxy.ts。cookies() や params は await する
 - ローカルのポートは Next.js が 3100、Supabase が 553xx（同じマシンで別プロジェクトが 3000 と 543xx を使っているため）
 - 月額 3,000 円の予算内に収める。有料の API を足すときは docs/architecture.md に費用を書く

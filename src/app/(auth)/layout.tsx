@@ -30,7 +30,7 @@ export default function AuthLayout({ children }: LayoutProps<"/">) {
           <ThemeToggle />
         </div>
         <div className="flex w-full max-w-[400px] flex-col gap-5">
-          <div className="md:hidden">
+          <div className="flex md:hidden">
             <Brand size="sm" />
           </div>
           {children}

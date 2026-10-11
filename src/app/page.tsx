@@ -40,10 +40,10 @@ export default async function Home() {
   return (
     <div className="mx-auto flex w-full max-w-[1280px] flex-1 flex-col px-20 py-10 max-lg:px-8 max-sm:gap-5 max-sm:px-5 max-sm:py-6">
       <header className="flex items-center gap-3">
-        <span className="max-sm:hidden">
+        <span className="flex max-sm:hidden">
           <Brand />
         </span>
-        <span className="sm:hidden">
+        <span className="flex sm:hidden">
           <Brand size="sm" />
         </span>
         <nav className="ml-auto flex items-center gap-6 text-[14px] text-muted">

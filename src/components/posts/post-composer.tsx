@@ -126,6 +126,9 @@ export function PostComposer({
   }
   // これから送る SNS（送信済みなどを除く）
   const toSend = chosen.filter((s) => !isLocked(s));
+  // つないでいない SNS（手で投稿する SNS は、つながなくてよい）。送れない理由のときは、つなぐ画面へのリンクも出す
+  const missingConnect = toSend.filter((s) => !isManualSns(s) && !connected.includes(s));
+  const missingConnectMessage = `${missingConnect.map((s) => SNS[s].label).join("・")} をつなぐと送れます`;
   // 送れない理由（最初の 1 つ）。日時は予約のときだけ要る
   const sendBlocker = (() => {
     if (chosen.length === 0) return "送り先の SNS を選んでください";
@@ -135,8 +138,7 @@ export function PostComposer({
       if (issue) return `${SNS[s].label}: ${ISSUE_LABEL[issue]}`;
     }
     // 手で投稿する SNS は、つながなくてよい
-    const missing = toSend.filter((s) => !isManualSns(s) && !connected.includes(s));
-    if (missing.length) return `${missing.map((s) => SNS[s].label).join("・")} をつなぐと送れます`;
+    if (missingConnect.length) return missingConnectMessage;
     const reconnect = images.length > 0 ? toSend.filter((s) => needImageReconnect.includes(s)) : [];
     if (reconnect.length) return `${reconnect.map((s) => SNS[s].label).join("・")} に画像を送るには、つなぎ直しが要ります`;
     return null;
@@ -257,6 +259,14 @@ export function PostComposer({
           {fe.targets && (
             <p role="alert" className="border-b border-line bg-danger-soft px-5 py-2.5 text-sm font-semibold text-danger">
               {fe.targets}
+            </p>
+          )}
+          {connected.length === 0 && (
+            <p className="border-b border-line bg-surface2 px-5 py-3 text-sm leading-[1.7]">
+              まだ SNS をつないでいません。下書きは保存できます。送るには{" "}
+              <Link href={`/projects/${projectId}#sns`} className="font-semibold text-primary hover:underline">
+                先に SNS をつなぐ →
+              </Link>
             </p>
           )}
           <ul className="text-sm">
@@ -453,20 +463,41 @@ export function PostComposer({
         />
         <span className={`text-xs ${fe.plannedAt ? "font-semibold text-danger" : "text-muted"}`}>
           {fe.plannedAt ?? blocker ?? "予約すると、この日時に自動で送ります"}
+          {!fe.plannedAt && blocker === missingConnectMessage && (
+            <>
+              {" "}
+              <Link href={`/projects/${projectId}#sns`} className="font-semibold text-primary hover:underline">
+                つなぐ →
+              </Link>
+            </>
+          )}
         </span>
         {/* 今すぐ送るは取り消しにくいので、押したら確かめる */}
         <div className="ml-auto flex flex-wrap items-center gap-3 max-sm:ml-0 max-sm:w-full">
           {postId &&
             (confirmDelete ? (
-              <Button
-                type="button"
-                variant="danger"
-                size="sm"
-                disabled={pending}
-                onClick={() => startTransition(() => deletePost(projectId, postId))}
-              >
-                本当に削除する
-              </Button>
+              <>
+                <Button
+                  type="button"
+                  variant="danger"
+                  size="sm"
+                  disabled={pending}
+                  onClick={() =>
+                    startTransition(async () => {
+                      const res = await deletePost(projectId, postId);
+                      if (res?.error) {
+                        setResult({ error: res.error });
+                        setConfirmDelete(false);
+                      }
+                    })
+                  }
+                >
+                  本当に削除する
+                </Button>
+                <Button type="button" variant="text" size="sm" disabled={pending} onClick={() => setConfirmDelete(false)}>
+                  やめる
+                </Button>
+              </>
             ) : (
               <Button type="button" variant="text" size="sm" onClick={() => setConfirmDelete(true)}>
                 削除
@@ -476,9 +507,14 @@ export function PostComposer({
             下書き保存
           </Button>
           {confirmSend ? (
-            <Button type="button" variant="secondary" disabled={pending} onClick={() => submit("now")} className="max-sm:flex-1">
-              本当に今すぐ送る
-            </Button>
+            <>
+              <Button type="button" variant="text" disabled={pending} onClick={() => setConfirmSend(false)}>
+                やめる
+              </Button>
+              <Button type="button" variant="secondary" disabled={pending} onClick={() => submit("now")} className="max-sm:flex-1">
+                本当に今すぐ送る
+              </Button>
+            </>
           ) : (
             <Button
               type="button"

@@ -31,13 +31,14 @@ export async function saveSection(projectId: string, section: string, _prev: Sec
 }
 
 // 「あとで設計する」: 設計を飛ばして次の段階（SNS をつなぐ）へ進む
-export async function skipPlan(projectId: string) {
+// useActionState から呼ぶ。失敗したときは { error } を返し、「いまやること」に出す
+export async function skipPlan(projectId: string): Promise<{ error?: string }> {
   if (!z.uuid().safeParse(projectId).success) redirect("/projects");
   const supabase = await createClient();
   const { error } = await supabase
     .from("account_plans")
     .upsert({ project_id: projectId, skipped_at: new Date().toISOString() }, { onConflict: "project_id" });
-  if (error) throw new Error("保存できませんでした");
+  if (error) return { error: "保存できませんでした。時間をおいて、もう一度お試しください。" };
   revalidatePath(`/projects/${projectId}`, "layout");
   revalidatePath("/projects");
   redirect(`/projects/${projectId}`);

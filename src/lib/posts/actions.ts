@@ -166,11 +166,12 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
   redirect(`/projects/${projectId}/posts/${savedId}?done=saved`);
 }
 
-export async function deletePost(projectId: string, postId: string) {
+// 失敗したときは { error } を返し、作成画面に出す（成功したときはカレンダーへ移る）
+export async function deletePost(projectId: string, postId: string): Promise<{ error?: string }> {
   if (!z.uuid().safeParse(projectId).success || !z.uuid().safeParse(postId).success) redirect("/projects");
   const supabase = await createClient();
   const { error } = await supabase.from("posts").delete().eq("project_id", projectId).eq("id", postId);
-  if (error) throw new Error("投稿を削除できませんでした");
+  if (error) return { error: "投稿を削除できませんでした。時間をおいて、もう一度お試しください。" };
   revalidatePath(`/projects/${projectId}`, "layout");
   redirect(`/projects/${projectId}/calendar?done=deleted`);
 }

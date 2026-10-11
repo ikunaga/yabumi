@@ -66,9 +66,14 @@ export function RoadmapItemRow({
             </Button>
           )}
           {confirmDelete ? (
-            <Button type="button" variant="danger" size="sm" disabled={pending} onClick={() => run(() => deleteItem(projectId, item.id))}>
-              消す
-            </Button>
+            <>
+              <Button type="button" variant="danger" size="sm" disabled={pending} onClick={() => run(() => deleteItem(projectId, item.id))}>
+                消す
+              </Button>
+              <Button type="button" variant="text" size="sm" disabled={pending} onClick={() => setConfirmDelete(false)}>
+                やめる
+              </Button>
+            </>
           ) : (
             <Button type="button" variant="text" size="sm" onClick={() => setConfirmDelete(true)} aria-label={`「${item.title}」を消す`}>
               ×

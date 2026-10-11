@@ -61,12 +61,13 @@ export async function updateProject(
   redirect(`/projects/${id}`);
 }
 
-export async function deleteProject(id: string) {
+// 失敗したときは { error } を返し、編集の画面に出す
+export async function deleteProject(id: string): Promise<{ error?: string }> {
   if (!idSchema.safeParse(id).success) redirect("/projects");
 
   const supabase = await createClient();
   const { error } = await supabase.from("projects").delete().eq("id", id);
-  if (error) throw new Error("プロジェクトを削除できませんでした");
+  if (error) return { error: "プロジェクトを削除できませんでした。時間をおいて、もう一度お試しください。" };
 
   revalidatePath("/projects");
   redirect("/projects");

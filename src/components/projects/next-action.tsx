@@ -1,5 +1,5 @@
 import { Button, ButtonLink } from "@/components/ui/button";
-import { skipPlan } from "@/lib/plan/actions";
+import { SkipPlanForm } from "./skip-plan-form";
 import { STEPS, stepHref } from "@/lib/projects/next-step";
 
 // 「いまやること」: 各プロジェクト画面の最上部に 1 つだけ出す
@@ -36,11 +36,7 @@ export function NextAction({ stepIndex, projectId }: { stepIndex: number; projec
             )}
             {/* 設計は飛ばして先へ進める */}
             {step.key === "plan" && (
-              <form action={skipPlan.bind(null, projectId)}>
-                <button type="submit" className="mt-1 text-xs text-on-primary-muted underline hover:text-on-primary max-sm:w-full max-sm:py-1">
-                  あとで設計する（先に SNS をつなぐ）
-                </button>
-              </form>
+              <SkipPlanForm projectId={projectId} />
             )}
           </div>
         </div>

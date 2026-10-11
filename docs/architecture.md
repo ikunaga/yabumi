@@ -615,6 +615,33 @@ Supabase の既定のメール送信は、**プロジェクトのメンバーの
 - hCaptcha ではなく Turnstile にした理由: 無料で通数の上限がなく、利用者に画像のパズルを解かせることがほとんどない。Supabase が両方に対応している
 - 画面: Turnstile の確認はフォームの送信ボタンの上に出る。トークンは 1 回しか使えないので、送信の結果が返るたびに確認をやり直す
 
+### 4.17 テーブルと関数の権限（2026-10-11、決定 D17）
+
+Supabase は既定で、public に作ったテーブル・関数のすべての権限を anon（ログインしていない人）と authenticated（ログインした人）に与える（Data API の「新しいテーブルを自動で公開する」）。それに頼ると、RLS を付け忘れたテーブルや、利用者に呼ばせるつもりのない関数が、画面側のキー（Publishable key）から使えてしまう。そこで 20261011220100_explicit_grants.sql で既定をやめ、必要な権限だけを明示的に与えるようにした。本番の「Automatically expose new tables」の設定がどちらでも、同じ権限になる。
+
+| 対象 | anon | authenticated | service_role（サーバー） |
+|---|---|---|---|
+| テーブル | 何も与えない | RLS のポリシーと同じ操作だけ（下の表） | すべて（RLS を通らない。サーバーの処理だけが使う） |
+| 利用者が呼ぶ関数（save_post、requeue_failed_targets、mark_manual_target_posted、save_account_plan_section） | 与えない | execute | execute |
+| サーバーだけが呼ぶ関数（claim_due_targets、reserve_sns_spend、purge_expired_data など） | 与えない | 与えない | execute |
+
+| テーブル | authenticated に与える操作 |
+|---|---|
+| projects、posts、account_plans、project_manual_channels | select、insert、update、delete |
+| social_accounts | select、update、delete（追加は OAuth の受け口だけ） |
+| project_social_accounts | select、insert、delete |
+| post_targets | select、delete。insert と update は列ごと（送信の状態などは書き換えられない） |
+| ai_threads | select、delete（本人が会話を消す） |
+| project_github_repos | select、delete |
+| ai_messages、ai_usage、sns_api_usage、github_installations | select だけ（書き込みはサーバー） |
+| social_account_tokens | 何も与えない |
+
+#### テーブル・関数を足すときの決まり
+
+- `create table` のあとに、RLS を有効にし、ポリシーと**同じ操作の grant** を書く（例: `grant select, insert on public.xxx to authenticated;`）。書かないと、画面からは permission denied（42501）になる
+- 関数は `revoke execute ... from public, anon, authenticated;` のあと、呼ぶ人にだけ `grant execute` を書く（既定で与えないようにしてあるが、意図を残すため）
+- tests/grants.integration.test.ts の TABLES に足し、anon から読めないことを確かめる
+
 ## 5. データモデル（主要テーブル）
 
 | テーブル | 内容 |

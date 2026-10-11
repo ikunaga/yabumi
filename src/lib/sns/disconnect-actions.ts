@@ -32,7 +32,7 @@ export async function disconnectSnsAccount(projectId: string, accountId: string,
     .from("post_targets")
     .select("id, posts!inner(project_id)", { count: "exact", head: true })
     .eq("social_account_id", accountId)
-    .in("status", ["pending", "publishing"]);
+    .in("status", ["pending", "preparing", "publishing"]);
   if (otherProjects > 0) pendingQuery = pendingQuery.eq("posts.project_id", projectId);
   const { count } = await pendingQuery;
 

@@ -4,8 +4,8 @@ import { lacksImageScope } from "@/lib/media/rules";
 import { publishImagesFor } from "@/lib/media/store";
 import { refreshTokenAad } from "./accounts";
 import { isSnsKey, SNS, type SnsKey } from "@/lib/sns";
-import type { Database } from "@/lib/supabase/database.types";
-import { SnsPublishError, type AdapterAccount, type PublishImage, type RefreshedTokens, type SnsAdapter } from "./adapters/types";
+import type { Database, Json } from "@/lib/supabase/database.types";
+import { SnsPublishError, type AdapterAccount, type PrepareState, type PublishImage, type PublishResult, type RefreshedTokens, type SnsAdapter } from "./adapters/types";
 
 // 送信ジョブの本体。RLS を通らないクライアント（createAdminClient）で呼ぶ。方針は docs/architecture.md の 4.7
 type Admin = SupabaseClient<Database>;
@@ -38,7 +38,21 @@ export function retryDelayMs(attempts: number): number | null {
 }
 
 export type ClaimedTarget = Database["public"]["Functions"]["claim_due_targets"]["Returns"][number];
-export type TargetOutcome = { targetId: string; postId: string; sns: string; result: "published" | "retry" | "failed"; message?: string };
+// preparing: SNS 側で画像を準備中（次の回に続きを確かめる） / deferred: この回の時間が足りず、次の回に回した
+export type TargetOutcome = {
+  targetId: string;
+  postId: string;
+  sns: string;
+  result: "published" | "retry" | "failed" | "preparing" | "deferred";
+  message?: string;
+};
+
+// 1 回の送信ジョブで使ってよい時間。ジョブの上限（60 秒、src/app/api/jobs/publish/route.ts）より短くし、残りで後片付けをする
+export const JOB_DEADLINE_MS = 40_000;
+// 準備中の続きを確かめる間隔。予約ジョブは毎分動くので、実際には次の回になる
+export const PREPARE_CHECK_DELAY_MS = 15_000;
+// 準備を始めてからこれだけたっても公開できなければ、最初からやり直す（コンテナは作り直す）
+export const PREPARE_TIMEOUT_MS = 15 * 60_000;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -200,7 +214,7 @@ async function publishOne(admin: Admin, t: ClaimedTarget, deps: PublisherDeps): 
   const fail = async (message: string): Promise<TargetOutcome> => {
     const { error } = await admin
       .from("post_targets")
-      .update({ status: "failed", error_message: message, locked_at: null, next_attempt_at: null })
+      .update({ status: "failed", error_message: message, locked_at: null, next_attempt_at: null, sns_container: null, preparing_since: null })
       .eq("id", t.target_id);
     if (error) throw error;
     return { ...base, result: "failed", message };
@@ -212,11 +226,57 @@ async function publishOne(admin: Admin, t: ClaimedTarget, deps: PublisherDeps): 
   if (!t.social_account_id || !t.account_external_id) return fail(`${label} のアカウントがつながっていません。${RECONNECT}`);
   if (t.account_status !== "active") return fail(`${label} の接続が切れています。${RECONNECT}`);
 
+  const published = async (result: PublishResult): Promise<TargetOutcome> => {
+    const { error } = await admin
+      .from("post_targets")
+      .update({
+        status: "published",
+        external_post_id: result.externalPostId,
+        external_url: result.url,
+        published_at: now.toISOString(),
+        error_message: null,
+        locked_at: null,
+        next_attempt_at: null,
+        sns_container: null,
+        preparing_since: null,
+      })
+      .eq("id", t.target_id);
+    if (error) throw error;
+    return { ...base, result: "published" };
+  };
+
+  // SNS 側で画像を準備中。状態を記録し、次の回（1 分後）に続きを確かめる
+  const preparing = async (state: PrepareState, since: string): Promise<TargetOutcome> => {
+    const { error } = await admin
+      .from("post_targets")
+      .update({
+        status: "preparing",
+        sns_container: state as Json,
+        preparing_since: since,
+        error_message: null,
+        locked_at: null,
+        next_attempt_at: new Date(now.getTime() + PREPARE_CHECK_DELAY_MS).toISOString(),
+      })
+      .eq("id", t.target_id);
+    if (error) throw error;
+    return { ...base, result: "preparing" };
+  };
+
   // 使った分だけ払う SNS は、送る前に費用を記録する（月の上限を超えるなら送らない）。送れなかったと確かなときは記録を消す
   let usageId: string | null = null;
   try {
     const account = await loadAccount(admin, t.social_account_id, t.account_external_id, deps, adapter);
     if (!account) return fail(`${label} の接続が切れています。${RECONNECT}`);
+
+    // 準備中の続き（前の回に startPublish 済み）。費用の記録や画像の読み込みはもう済んでいる
+    if (t.sns_container && adapter.continuePublish) {
+      const since = t.preparing_since ?? now.toISOString();
+      if (now.getTime() - new Date(since).getTime() > PREPARE_TIMEOUT_MS) {
+        throw new SnsPublishError("retryable", `${label} 側の画像の準備に時間がかかっています。最初から送り直します。`);
+      }
+      const next = await adapter.continuePublish(account, t.sns_container as PrepareState);
+      return "done" in next ? published(next.done) : preparing(next.state, since);
+    }
 
     // 投稿の画像（docs/architecture.md の 4.18）。画像を送らない SNS（動画だけ・手で投稿）には渡さない
     let images: PublishImage[] = [];
@@ -241,21 +301,14 @@ async function publishOne(admin: Admin, t: ClaimedTarget, deps: PublisherDeps): 
       }
     }
 
-    const result = await adapter.publishText(account, t.body, images);
-    const { error } = await admin
-      .from("post_targets")
-      .update({
-        status: "published",
-        external_post_id: result.externalPostId,
-        external_url: result.url,
-        published_at: now.toISOString(),
-        error_message: null,
-        locked_at: null,
-        next_attempt_at: null,
-      })
-      .eq("id", t.target_id);
-    if (error) throw error;
-    return { ...base, result: "published" };
+    // 画像の準備に時間がかかる SNS は、コンテナを作るだけで待たない。すぐ準備できていれば、この回で公開まで進める
+    if (images.length > 0 && adapter.startPublish && adapter.continuePublish) {
+      const state = await adapter.startPublish(account, t.body, images);
+      const next = await adapter.continuePublish(account, state);
+      return "done" in next ? published(next.done) : preparing(next.state, now.toISOString());
+    }
+
+    return published(await adapter.publishText(account, t.body, images));
   } catch (e) {
     const err =
       e instanceof SnsPublishError
@@ -276,6 +329,9 @@ async function publishOne(admin: Admin, t: ClaimedTarget, deps: PublisherDeps): 
           error_message: err.userMessage,
           locked_at: null,
           next_attempt_at: new Date(now.getTime() + delay).toISOString(),
+          // 準備の途中だったものは、やり直すときにコンテナから作り直す
+          sns_container: null,
+          preparing_since: null,
         })
         .eq("id", t.target_id);
       if (error) throw error;
@@ -286,11 +342,14 @@ async function publishOne(admin: Admin, t: ClaimedTarget, deps: PublisherDeps): 
 }
 
 // 送る時刻が来た配信先を取り出して送る。postId を渡すとその投稿だけ（「今すぐ送る」）
+// deadlineMs: この回で使ってよい時間。過ぎたら、取り出したまま送っていない配信先を元に戻し、次の回に回す
 export async function publishDueTargets(
   admin: Admin,
   deps: PublisherDeps,
-  options: { limit?: number; postId?: string } = {},
+  options: { limit?: number; postId?: string; deadlineMs?: number } = {},
 ): Promise<TargetOutcome[]> {
+  const startedAt = Date.now();
+  const deadline = options.deadlineMs ?? JOB_DEADLINE_MS;
   const { data, error } = await admin.rpc("claim_due_targets", {
     p_limit: options.limit ?? 10,
     p_post_id: options.postId as string,
@@ -298,8 +357,25 @@ export async function publishDueTargets(
   if (error) throw error;
   const outcomes: TargetOutcome[] = [];
   // 同じアカウントへの連続投稿で回数制限にかかりにくいよう、順に送る
-  for (const t of data) outcomes.push(await publishOne(admin, t, deps));
+  for (const t of data) {
+    if (Date.now() - startedAt > deadline) {
+      outcomes.push(await deferTarget(admin, t));
+      continue;
+    }
+    outcomes.push(await publishOne(admin, t, deps));
+  }
   return outcomes;
+}
+
+// 取り出したが、この回では送らない配信先を元の状態に戻す（試した回数も戻す）。次の回の取り出しで先に拾われる
+async function deferTarget(admin: Admin, t: ClaimedTarget): Promise<TargetOutcome> {
+  const resumed = Boolean(t.sns_container);
+  const { error } = await admin
+    .from("post_targets")
+    .update({ status: resumed ? "preparing" : "pending", locked_at: null, attempts: resumed ? t.attempts : Math.max(0, t.attempts - 1) })
+    .eq("id", t.target_id);
+  if (error) throw error;
+  return { targetId: t.target_id, postId: t.post_id, sns: t.sns, result: "deferred" };
 }
 
 // 送信済みの投稿を SNS 上で取り消す。呼ぶ前に、利用者本人の配信先であることを確かめておく

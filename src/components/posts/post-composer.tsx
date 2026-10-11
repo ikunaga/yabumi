@@ -42,7 +42,7 @@ type Props = {
 };
 
 // 送信済み・送信中・取り消し済みの配信先は、選び直しも送り直しもできない
-const LOCKED = new Set(["published", "publishing", "deleted"]);
+const LOCKED = new Set(["published", "preparing", "publishing", "deleted"]);
 
 const ISSUE_TONE: Record<TargetIssue, string> = {
   bad_aspect_ratio: "text-danger",
@@ -497,6 +497,7 @@ function TargetStateMark({ status }: { status: TargetResult["status"] }) {
   switch (status) {
     case "published":
       return <span className="font-bold text-success">✓ 送信済み</span>;
+    case "preparing":
     case "publishing":
       return <span className="text-muted">送信中</span>;
     case "deleted":

@@ -347,9 +347,11 @@ export type Database = {
           next_attempt_at: string | null
           owner_id: string
           post_id: string
+          preparing_since: string | null
           published_at: string | null
           sns: string
           sns_checked_at: string | null
+          sns_container: Json | null
           sns_removed_at: string | null
           social_account_id: string | null
           status: string
@@ -368,9 +370,11 @@ export type Database = {
           next_attempt_at?: string | null
           owner_id?: string
           post_id: string
+          preparing_since?: string | null
           published_at?: string | null
           sns: string
           sns_checked_at?: string | null
+          sns_container?: Json | null
           sns_removed_at?: string | null
           social_account_id?: string | null
           status?: string
@@ -389,9 +393,11 @@ export type Database = {
           next_attempt_at?: string | null
           owner_id?: string
           post_id?: string
+          preparing_since?: string | null
           published_at?: string | null
           sns?: string
           sns_checked_at?: string | null
+          sns_container?: Json | null
           sns_removed_at?: string | null
           social_account_id?: string | null
           status?: string
@@ -756,7 +762,9 @@ export type Database = {
           attempts: number
           body: string
           post_id: string
+          preparing_since: string
           sns: string
+          sns_container: Json
           social_account_id: string
           target_id: string
         }[]

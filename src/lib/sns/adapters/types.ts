@@ -36,6 +36,13 @@ export type RefreshedTokens = { accessToken: string; refreshToken: string | null
 // 使った分だけ払う SNS（X）の、1 回の投稿の費用（画像の代わりの文の分も含めた合計）
 export type PublishCost = { operation: "post" | "post_with_url"; costUsd: number };
 
+// SNS 側で画像の準備に時間がかかる投稿（Threads・Instagram）の、準備の途中の状態。DB の post_targets.sns_container に入る。
+// 形はアダプターが決める（コンテナの ID など。トークンは入れない）
+export type PrepareState = { [key: string]: unknown };
+
+// 準備の続きを確かめた結果: 公開まで済んだ（done）か、まだ準備中（state。次の回にまた確かめる）
+export type ContinueResult = { done: PublishResult } | { state: PrepareState };
+
 export interface SnsAdapter {
   sns: SnsKey;
   // images は並び順。0 枚なら文章だけの投稿
@@ -51,6 +58,12 @@ export interface SnsAdapter {
   refreshWithRefreshToken?(refreshToken: string, now: Date): Promise<RefreshedTokens>;
   // 日次のジョブで、リフレッシュトークンが使われないまま古くならないよう取り直す時期か（lastRefreshedAt は最後に取り直した日時）
   shouldRotate?(lastRefreshedAt: Date, now: Date): boolean;
+
+  // --- 画像の準備に時間がかかる SNS（Threads・Instagram）。1 回のジョブの中で待ち続けないための 2 段階の送り方 ---
+  // 画像つきの投稿は publishText ではなくこちらを使う（docs/architecture.md の 4.7「1 回のジョブの時間」）。
+  // startPublish: コンテナを作り、準備の途中の状態を返す（待たない）。continuePublish: 準備ができていれば公開し、まだなら状態を返す
+  startPublish?(account: AdapterAccount, text: string, images: PublishImage[]): Promise<PrepareState>;
+  continuePublish?(account: AdapterAccount, state: PrepareState): Promise<ContinueResult>;
 
   // --- 使った分だけ払う SNS（X）。送る前に費用を記録し、月の上限を守る ---
   publishCost?(text: string, images?: PublishImage[]): PublishCost;

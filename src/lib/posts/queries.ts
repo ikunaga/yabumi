@@ -4,7 +4,7 @@ import { SNS_KEYS, isSnsKey, type SnsKey } from "@/lib/sns";
 import { createClient } from "@/lib/supabase/server";
 import { dueManualPostIds, overduePostIds } from "./overdue";
 
-export type TargetStatus = "pending" | "publishing" | "published" | "failed" | "deleted";
+export type TargetStatus = "pending" | "preparing" | "publishing" | "published" | "failed" | "deleted";
 export type PostTargetRow = {
   id: string;
   sns: SnsKey;

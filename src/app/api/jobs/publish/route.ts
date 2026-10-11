@@ -4,8 +4,10 @@ import { publisherDeps } from "@/lib/sns/adapters";
 import { publishDueTargets } from "@/lib/sns/publisher";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-// 1 回の実行で送る上限。Vercel Hobby の関数の実行時間（60 秒）に収める
-const LIMIT = 10;
+// 1 回の実行で取り出す上限。画像の準備は待たない（準備中として次の回に続きを確かめる）ので、1 件は数秒で終わる。
+// それでも時間が足りなければ、publishDueTargets が JOB_DEADLINE_MS（40 秒）で残りを次の回に回す。
+// Vercel Hobby の関数の実行時間（60 秒）に収まる。見積もりは docs/architecture.md の 4.7「1 回のジョブの時間」
+const LIMIT = 25;
 export const maxDuration = 60;
 
 // 予約時刻が来た投稿を送る。pg_cron から毎分呼ばれる

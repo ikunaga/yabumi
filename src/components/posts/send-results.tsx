@@ -8,7 +8,7 @@ import { formatShort } from "@/lib/time";
 
 export type TargetResult = {
   id: string;
-  status: "pending" | "publishing" | "published" | "failed" | "deleted";
+  status: "pending" | "preparing" | "publishing" | "published" | "failed" | "deleted";
   externalUrl: string | null;
   errorMessage: string | null;
   publishedAt: string | null;
@@ -107,6 +107,9 @@ function ResultRow({ sns, r, projectId, postId }: { sns: SnsKey; r: TargetResult
           </>
         )}
         {r.status === "publishing" && <span className="text-muted">送信中です。しばらくしてから読み込み直してください。</span>}
+        {r.status === "preparing" && (
+          <span className="text-muted">{label} が画像を処理しています。準備ができしだい送ります（1〜2 分ほど。読み込み直すと結果が出ます）</span>
+        )}
         {r.status === "deleted" &&
           (r.removedOnSns ? (
             <span className="text-muted">{label} で消されていました。消えた投稿へのリンクは、矢書からも消しました（矢書の下書きは残っています）</span>

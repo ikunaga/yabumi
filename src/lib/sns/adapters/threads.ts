@@ -10,6 +10,7 @@ import {
   shouldRefresh,
   ThreadsApiError,
 } from "@/lib/sns/threads/api";
+import { continueStaged, type StagedOps } from "./staged";
 import { SnsPublishError, type SnsAdapter } from "./types";
 
 const RATE_LIMIT_CODES = new Set([4, 17, 32, 613]);
@@ -66,8 +67,42 @@ export function createThreadsAdapter({
     }
   }
 
+  // 画像つきの投稿を段階で進めるときの、Threads の呼び出し（staged.ts）
+  const staged = (token: string): StagedOps => ({
+    label: "Threads",
+    status: async (id) => {
+      const { status, errorMessage } = await getContainerStatus(token, id);
+      return { status, detail: errorMessage };
+    },
+    createCarousel: (children, text) => createCarouselContainer(token, children, text),
+    publish: (id) => publishContainer(token, id),
+    permalink: (mediaId) => getPermalink(token, mediaId),
+    toError: toPublishError,
+  });
+
   return {
     sns: "threads",
+
+    // 画像つき: コンテナを作るだけで待たない。準備の続きは continuePublish（次の回の送信ジョブ）で確かめる
+    async startPublish(account, text, images) {
+      try {
+        if (images.length === 1) {
+          const [image] = images;
+          return { kind: "single", id: await createImageContainer(account.accessToken, image.url, { text, altText: image.altText || undefined }) };
+        }
+        const children: string[] = [];
+        for (const image of images) {
+          children.push(await createImageContainer(account.accessToken, image.url, { carouselItem: true, altText: image.altText || undefined }));
+        }
+        return { kind: "carousel", children, text };
+      } catch (e) {
+        throw toPublishError(e, "prepare");
+      }
+    },
+
+    continuePublish(account, state) {
+      return continueStaged(staged(account.accessToken), state);
+    },
 
     async publishText(account, text, images = []) {
       let containerId: string;

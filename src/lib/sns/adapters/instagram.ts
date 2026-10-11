@@ -8,6 +8,7 @@ import {
   refreshLongLived,
   shouldRefresh,
 } from "@/lib/sns/instagram/api";
+import { continueStaged, type StagedOps } from "./staged";
 import { SnsPublishError, type SnsAdapter } from "./types";
 
 const RATE_LIMIT_CODES = new Set([4, 17, 32, 613]);
@@ -79,8 +80,43 @@ export function createInstagramAdapter({
     }
   }
 
+  // 画像つきの投稿を段階で進めるときの、Instagram の呼び出し（staged.ts）
+  const staged = (token: string, igUserId: string): StagedOps => ({
+    label: "Instagram",
+    status: (id) => getContainerStatus(token, id),
+    createCarousel: (children, text) => createCarouselContainer(token, igUserId, children, text),
+    publish: (id) => publishContainer(token, igUserId, id),
+    permalink: (mediaId) => getPermalink(token, mediaId),
+    toError: toInstagramError,
+  });
+
   return {
     sns: "instagram",
+
+    // コンテナを作るだけで待たない。準備の続きは continuePublish（次の回の送信ジョブ）で確かめる
+    async startPublish(account, text, images) {
+      if (images.length === 0) {
+        throw new SnsPublishError("permanent", "Instagram には画像が必要です。画像を 1 枚以上添えてください。");
+      }
+      const { accessToken: token, externalId: igUserId } = account;
+      try {
+        if (images.length === 1) {
+          const [image] = images;
+          return { kind: "single", id: await createImageContainer(token, igUserId, image.url, { caption: text, altText: image.altText || undefined }) };
+        }
+        const children: string[] = [];
+        for (const image of images) {
+          children.push(await createImageContainer(token, igUserId, image.url, { carouselItem: true, altText: image.altText || undefined }));
+        }
+        return { kind: "carousel", children, text };
+      } catch (e) {
+        throw toInstagramError(e, "prepare");
+      }
+    },
+
+    continuePublish(account, state) {
+      return continueStaged(staged(account.accessToken, account.externalId), state);
+    },
 
     async publishText(account, text, images = []) {
       if (images.length === 0) {

@@ -48,7 +48,7 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
   if (postId) {
     const { data: existing } = await supabase.from("post_targets").select("sns, status").eq("post_id", postId);
     for (const t of existing ?? []) {
-      if (["published", "publishing", "deleted"].includes(t.status)) locked.add(t.sns as SnsKey);
+      if (["published", "preparing", "publishing", "deleted"].includes(t.status)) locked.add(t.sns as SnsKey);
     }
   }
   const toSend = targets.filter((t) => !locked.has(t.sns));
@@ -139,7 +139,9 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
     try {
       const outcomes = await publishDueTargets(createAdminClient(), publisherDeps(), { postId: savedId });
       if (outcomes.length === 0) done = "sending";
-      else if (outcomes.some((o) => o.result !== "published")) done = "send_failed";
+      else if (outcomes.some((o) => o.result === "failed" || o.result === "retry")) done = "send_failed";
+      // 画像の準備中（Threads・Instagram）や、時間が足りず次の回に回したものは、次の送信ジョブ（1 分ごと）で続きを送る
+      else if (outcomes.some((o) => o.result === "preparing" || o.result === "deferred")) done = "preparing";
     } catch (e) {
       console.error("[savePost] 送信に失敗しました", e);
       done = "send_failed";

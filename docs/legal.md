@@ -54,7 +54,7 @@
 
 ### SNS 各社がポリシーに求めること
 
-- Meta: プライバシーポリシーの URL（認可画面に出る）、データの削除の方法（矢書はコールバック /sns/threads/delete）
+- Meta: プライバシーポリシーの URL（認可画面に出る）、データの削除の方法（矢書はコールバック /sns/threads/delete・/sns/instagram/delete・/sns/facebook/delete）
 - X: 登録の前に見せる。集めるもの・使い道・X を含む渡す先・連絡先（docs/review/x.md）
 - YouTube（つなぐときに追記）: YouTube API サービスを使うこと、Google のプライバシーポリシー、取り消しの方法など（docs/review/youtube.md）
 - TikTok（つなぐときに追記）: 規約とポリシーをサイトの見える場所にリンク（済み）
@@ -64,11 +64,13 @@
 - 投稿に添えた画像を「預かる情報」と「保存する期間」（送り終えて 30 日など）に足した。撮影の場所・日時・機種などの情報（Exif）は、受け取ったときに消して保存しないことを書いた
 - SNS に送るものに画像と代わりの文を足した（Threads は 1 時間で切れる URL を渡し、Threads が取りに来る）
 
-### これから足すもの（F07 の設計、architecture.md の 4.22）
+### 今の機能に追いつかせた（2026-10-11、全体の点検のあと）
 
-- ~~短縮リンク~~: 2026-10-11 に /privacy に足した（押した人の記録、目的、90 日）
-- ~~ストアと課金の鍵~~: 2026-10-11 に /privacy に足した（App Store Connect・RevenueCat。暗号化、使い道、消し方）。Google Play（サービスアカウントの招待）は作るときに足す
-- SNS の数字（閲覧数など）を取り込んで保存すること
+- Instagram・Facebook ページ（4.21）: /privacy の送り先に Meta（Instagram）・Meta（Facebook ページ）、外し方、ページを選ぶまでの一時的な置き場（15 分）。Instagram の投稿は API で取り消せないこと。/terms の SNS の規約の一覧に Instagram 利用規約・Meta 利用規約・Facebook ページのポリシー。第 11 条の「Instagram・Facebook をつなげるようにするときは書き足す」を外した
+- AI と相談・振り返り・ロードマップ（4.23、4.22 の ⑦）: /privacy の預かる情報（会話の種類、ロードマップ）、Anthropic に送るもの（最近の投稿、数字、ロードマップ）、保存期間と消し方。/terms の第 1 条と第 5 条（数字の読み方は目安）
+- F07（4.22）: X の数字の読み取りと費用の上限、SNS・ストア・課金の数字の保存期間、Google Play（利用者ごとの読み取り用アカウント、作った記録は退会しても 30 日）、App Store の Admin のキーは保存しない、Google Play の全体の上限、運営者への知らせ（Resend。利用者の情報は入れない）、取り込んだ数字が各社の画面と違うことがある（/terms の第 11 条）
+- 短縮リンク: 短縮リンクそのものの保存期間（止めるか退会まで）と止め方
+- 確かめた URL（2026-10-11、開けることを確認）: Instagram 利用規約 https://help.instagram.com/581066165581870、Instagram のプライバシーポリシー https://privacycenter.instagram.com/policy、Meta 利用規約 https://www.facebook.com/terms、Meta のプライバシーポリシー https://www.facebook.com/privacy/policy、Facebook ページのポリシー https://www.facebook.com/policies_center/pages_groups_events
 
 ## 中身を変えるとき
 

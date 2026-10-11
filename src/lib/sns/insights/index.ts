@@ -1,6 +1,7 @@
 import { appSecretProof, FACEBOOK_API_VERSION, FACEBOOK_GRAPH_URL } from "@/lib/sns/facebook/api";
 import { INSTAGRAM_API_VERSION, INSTAGRAM_GRAPH_URL } from "@/lib/sns/instagram/api";
 import { THREADS_GRAPH_URL } from "@/lib/sns/threads/api";
+import { X_API_URL } from "@/lib/sns/x/api";
 
 // SNS の数字の読み方（docs/architecture.md の 4.22、F07 の段取り ④）。名前は SNS をまたいでそろえる:
 // views（表示・閲覧）、reach（届いた人）、likes、replies、reposts、quotes、shares、saves、clicks、followers
@@ -125,3 +126,44 @@ export function facebookInsights(appSecret: () => string): InsightsFetcher {
     },
   };
 }
+
+// X（https://docs.x.com/x-api/posts/lookup）。読むたびに費用がかかる（投稿 1 件 $0.005、ユーザー 1 件 $0.010）ので、
+// 呼ぶ側（sns-import.ts）が読む前に費用を記録し、上限を確かめる。public_metrics には表示回数（impression_count）も入る。
+// 権限は投稿のときから求めている tweet.read と users.read で足りる（つなぎ直しは要らない）
+const X_POST = { impression_count: "views", like_count: "likes", reply_count: "replies", retweet_count: "reposts", quote_count: "quotes", bookmark_count: "saves" };
+
+async function getX<T>(url: URL, token: string, fetchImpl: typeof fetch): Promise<T> {
+  const res = await fetchImpl(url, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store", signal: AbortSignal.timeout(20_000) });
+  const json = (await res.json().catch(() => ({}))) as T & { data?: unknown; detail?: string; title?: string; errors?: { detail?: string; message?: string }[] };
+  if (!res.ok) {
+    const message = json.detail ?? json.errors?.[0]?.detail ?? json.errors?.[0]?.message ?? json.title ?? `数字を読めませんでした（${res.status}）`;
+    throw new InsightsError(message, res.status, res.status === 401 || res.status === 403);
+  }
+  // 消された投稿などは 200 で data がなく、errors だけが返る
+  if (!json.data) throw new InsightsError(json.errors?.[0]?.detail ?? "見つかりませんでした", 404, false);
+  return json;
+}
+
+function pick(metrics: Record<string, unknown> | undefined, rename: Record<string, string>): MetricValues {
+  const out: MetricValues = {};
+  for (const [from, to] of Object.entries(rename)) {
+    const v = metrics?.[from];
+    if (typeof v === "number" && Number.isFinite(v)) out[to] = v;
+  }
+  return out;
+}
+
+export const xInsights: InsightsFetcher = {
+  async post(account, id, fetchImpl = fetch) {
+    const url = new URL(`${X_API_URL}/2/tweets/${encodeURIComponent(id)}`);
+    url.searchParams.set("tweet.fields", "public_metrics");
+    const json = await getX<{ data?: { public_metrics?: Record<string, unknown> } }>(url, account.accessToken, fetchImpl);
+    return pick(json.data?.public_metrics, X_POST);
+  },
+  async account(account, fetchImpl = fetch) {
+    const url = new URL(`${X_API_URL}/2/users/me`);
+    url.searchParams.set("user.fields", "public_metrics");
+    const json = await getX<{ data?: { public_metrics?: Record<string, unknown> } }>(url, account.accessToken, fetchImpl);
+    return pick(json.data?.public_metrics, { followers_count: "followers" });
+  },
+};

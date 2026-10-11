@@ -42,14 +42,14 @@ export const KPIS: Record<KpiKey, KpiDef> = {
     term: "impression",
     availability: "connect",
     connectTo: "sns",
-    howToGet: "Threads・Instagram・Facebook を数字の権限つきでつなぐと出ます（note・Substack は手で記録。X は準備中）",
+    howToGet: "Threads・Instagram・Facebook・X を数字の権限つきでつなぐと出ます（note・Substack は手で記録。X は読むたびに費用がかかるので、月の上限まで）",
   },
   followers: {
     label: "フォロワーの増え方",
     meaning: "アカウントをフォローした人の増え方。続けて見てくれる人の数です。",
     availability: "connect",
     connectTo: "sns",
-    howToGet: "Threads・Instagram・Facebook を数字の権限つきでつなぐと出ます（X は準備中）",
+    howToGet: "Threads・Instagram・Facebook・X を数字の権限つきでつなぐと出ます（X は週に 1 回）",
   },
   store_page_views: {
     label: "ストアのページの閲覧",

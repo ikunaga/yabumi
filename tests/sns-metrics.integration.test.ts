@@ -25,7 +25,7 @@ function fakeFetcher(views: number): InsightsFetcher {
   return { post: vi.fn(async () => ({ views, likes: 3 })), account: vi.fn(async () => ({ followers: 50 })) };
 }
 
-async function publishedTarget(sns: "threads" | "instagram", accountId: string, publishedAt: string) {
+async function publishedTarget(sns: "threads" | "instagram" | "x", accountId: string, publishedAt: string) {
   const { data: postId, error } = await alice.rpc("save_post", {
     p_post_id: null as unknown as string,
     p_project_id: projectId,
@@ -63,6 +63,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  await admin.from("sns_api_usage").delete().eq("owner_id", aliceId);
   await deleteUser(aliceId);
   await deleteUser(bobId);
 });
@@ -109,5 +110,67 @@ describe("取り込み", () => {
     expect((await bob.rpc("sns_weekly_totals", { p_project_id: projectId, p_today: today() })).data![0]).toMatchObject({ has_post_metrics: false });
     expect((await anonClient().from("post_metrics").select("*").limit(1)).error?.code).toBe("42501");
     expect((await alice.rpc("due_post_metric_targets", {})).error?.code).toBe("42501");
+  });
+});
+
+describe("X の数字（読むたびに費用がかかる）", () => {
+  let xAccount: string;
+  beforeAll(async () => {
+    xAccount = await saveConnectedAccount(
+      admin,
+      { ownerId: aliceId, sns: "x", externalId: `x-${randomUUID()}`, displayName: "A", handle: "a", accessToken: "t", expiresAt: new Date("2099-01-01"), scopes: ["tweet.read", "users.read"] },
+      key,
+    );
+    await alice.from("project_social_accounts").insert({ project_id: projectId, social_account_id: xAccount });
+  });
+
+  // 上限を数える範囲はこの利用者だけにする（ほかのテストや本当の利用者の費用と混ざらないように）
+  const xDeps = (x: InsightsFetcher, userBudgetUsd: number) => ({
+    fetchers: { x },
+    key,
+    ownerId: aliceId,
+    insightsEnv: "x",
+    now: () => NOW,
+    x: { budgetUsd: 3, userBudgetUsd, scopeOwner: aliceId },
+  });
+  const usage = async () => (await admin.from("sns_api_usage").select("operation, cost_usd").eq("owner_id", aliceId).eq("sns", "x").order("created_at")).data ?? [];
+
+  it("読む前に費用を記録し、利用者ごとの月の上限を超える分は読まない（フォロワーも）", async () => {
+    for (let i = 0; i < 3; i++) await publishedTarget("x", xAccount, daysAgo(1.2 + i * 0.1));
+    const x = fakeFetcher(40);
+    // 投稿 2 件分（$0.010）だけ読める上限
+    const outcomes = await runSnsMetricsImport(admin, xDeps(x, 0.012));
+    const xs = outcomes.filter((o) => o.sns === "x");
+    expect(xs.filter((o) => o.kind === "post" && o.result === "saved")).toHaveLength(2);
+    expect(xs.filter((o) => o.result === "skipped").map((o) => o.message)).toEqual(["X の数字の月の上限に達した", "X の数字の月の上限に達した"]);
+    expect(x.post).toHaveBeenCalledTimes(2);
+    expect(x.account).not.toHaveBeenCalled();
+    expect(await usage()).toEqual([
+      { operation: "metrics_read", cost_usd: 0.005 },
+      { operation: "metrics_read", cost_usd: 0.005 },
+    ]);
+    // 本人だけが、今月の X の数字の費用を読める（指標の画面の「上限に達しました」のため）
+    expect(Number((await alice.rpc("my_x_metrics_spend_this_month")).data)).toBeCloseTo(0.01);
+    expect(Number((await bob.rpc("my_x_metrics_spend_this_month")).data)).toBe(0);
+    expect((await alice.rpc("reserve_x_metrics_read", { p_owner_id: aliceId, p_post_target_id: null as unknown as string, p_operation: "metrics_read", p_cost_usd: 0, p_budget_usd: 100, p_user_budget_usd: 100 })).error?.code).toBe("42501");
+  });
+
+  it("上限に余裕があれば残りとフォロワー（$0.010）を読む。読めなかった分は費用の記録を消す", async () => {
+    const x: InsightsFetcher = { post: vi.fn(async () => Promise.reject(new Error("X の障害"))), account: vi.fn(async () => ({ followers: 12 })) };
+    const outcomes = await runSnsMetricsImport(admin, xDeps(x, 1));
+    const xs = outcomes.filter((o) => o.sns === "x");
+    expect(xs.find((o) => o.kind === "post")).toMatchObject({ result: "failed" });
+    expect(xs.find((o) => o.kind === "account")).toMatchObject({ result: "saved" });
+    expect((await usage()).map((u) => u.operation)).toEqual(["metrics_read", "metrics_read", "followers_read"]);
+    // フォロワーは 7 日に 1 回なので、次の日は読まない
+    const next = await runSnsMetricsImport(admin, { ...xDeps(x, 1), now: () => new Date(NOW.getTime() + 86_400_000) });
+    expect(next.filter((o) => o.sns === "x" && o.kind === "account")).toEqual([]);
+  });
+
+  it("X の上限を渡さない（設定がない）ときは、X に費用をかけない", async () => {
+    await publishedTarget("x", xAccount, daysAgo(1.1));
+    const x = fakeFetcher(1);
+    await runSnsMetricsImport(admin, { fetchers: { x }, key, ownerId: aliceId, insightsEnv: "x", now: () => NOW });
+    expect(x.post).not.toHaveBeenCalled();
   });
 });

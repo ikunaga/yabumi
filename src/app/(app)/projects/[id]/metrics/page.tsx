@@ -5,11 +5,12 @@ import { ManualMetricForm } from "@/components/metrics/manual-metric-form";
 import { Card, CardHeader, EmptyState } from "@/components/ui/card";
 import { Term } from "@/components/ui/term";
 import { KPIS, KPI_KEYS, recommendedKpis, type KpiKey } from "@/lib/metrics/kpis";
-import { listManualTargets, loadMetricsOverview, snsNeedingInsightsReconnect, type WeekValue } from "@/lib/metrics/queries";
+import { listManualTargets, loadMetricsOverview, snsNeedingInsightsReconnect, xMetricsOverLimit, type WeekValue } from "@/lib/metrics/queries";
 import { connectedAccounts } from "@/lib/posts/queries";
 import { getAccountPlan } from "@/lib/plan/queries";
 import { getProject } from "@/lib/projects/queries";
 import { SNS } from "@/lib/sns";
+import { xMetricsUserMonthlyUsd } from "@/lib/sns/x/config";
 
 export const metadata: Metadata = { title: "指標" };
 
@@ -72,7 +73,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
     listManualTargets(project.id),
     connectedAccounts(project.id),
   ]);
-  const needReconnect = await snsNeedingInsightsReconnect(accounts);
+  const [needReconnect, xOver] = await Promise.all([snsNeedingInsightsReconnect(accounts), xMetricsOverLimit(accounts, xMetricsUserMonthlyUsd())]);
   const plan = account?.plan ?? null;
 
   const chosen = plan?.first_month.kpis ?? [];
@@ -129,6 +130,13 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
           <Link href={`/projects/${project.id}#sns`} className="ml-1 font-semibold text-primary hover:underline">
             つないだ SNS へ
           </Link>
+        </p>
+      )}
+
+      {xOver && (
+        <p className="rounded-md border border-border bg-surface px-4 py-3 text-sm leading-[1.7]">
+          <span className="mr-1.5 font-bold text-signal">● 要確認</span>
+          今月は X の数字の上限に達しました。X は数字を読むたびに費用がかかるため、1 人あたりの上限を決めています。来月 1 日からまた読みます（それまでの X の数字は増えません）。
         </p>
       )}
 

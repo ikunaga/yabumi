@@ -347,6 +347,7 @@ Threads・Instagram・Facebook の数字を読む権限は、Meta のアプリ�
 | 14-5 | 確認 | 送った投稿があれば、翌日 5:00〜5:50 の取り込みのあと、指標の画面に「投稿の閲覧数」「フォロワーの増え方」「よく見られた投稿」が出る。Claude は `select status_code from net._http_response order by id desc limit 3;` と、`select count(*) from post_metrics;` で取り込みを確かめる |
 
 - 権限を外すときは、先に SNS_INSIGHTS から外して Redeploy し、そのあと Meta のアプリから外す（逆にすると、つなぐ画面がエラーになる）
+- **X の数字**（段取り ⑥）: 権限の追加もつなぎ直しも要らない。SNS_INSIGHTS に `x` を足して Redeploy すると、翌日から読む。読むたびに費用がかかる（投稿 1 件 $0.005、フォロワー $0.010）ので、利用者 1 人の月の上限 `X_METRICS_USER_MONTHLY_USD`（既定 1 = $1）と、投稿と共有の X_MONTHLY_BUDGET_USD（既定 $3）の中で読む。Claude は `select operation, count(*), sum(cost_usd) from sns_api_usage where sns = 'x' and created_at >= date_trunc('month', now()) group by 1;` で今月の費用を確かめる
 - 他の人に使ってもらうには、その権限の App Review が要る（docs/review/meta.md）
 
 ## 15. Google Play の取り込み（F07 の段取り ⑤。オーナーの Google Cloud のプロジェクト）

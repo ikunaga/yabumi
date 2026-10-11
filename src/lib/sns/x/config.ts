@@ -2,7 +2,7 @@ import "server-only";
 import { envReady } from "@/lib/env-check";
 import { appUrl } from "@/lib/sns/threads/config";
 import type { XConfig } from "./api";
-import { X_DEFAULT_MONTHLY_BUDGET_USD } from "./pricing";
+import { X_DEFAULT_MONTHLY_BUDGET_USD, X_METRICS_DEFAULT_USER_MONTHLY_USD } from "./pricing";
 
 export const X_PATHS = {
   connect: "/sns/x/connect",
@@ -34,4 +34,11 @@ export function xMonthlyBudgetUsd(): number {
   const raw = process.env.X_MONTHLY_BUDGET_USD;
   const n = raw ? Number(raw) : NaN;
   return Number.isFinite(n) && n >= 0 ? n : X_DEFAULT_MONTHLY_BUDGET_USD;
+}
+
+// 利用者 1 人の、X の数字（投稿の数字とフォロワー数）の月の上限（米ドル）。超えたらその月は読まない
+export function xMetricsUserMonthlyUsd(): number {
+  const raw = process.env.X_METRICS_USER_MONTHLY_USD;
+  const n = raw ? Number(raw) : NaN;
+  return Number.isFinite(n) && n >= 0 ? n : X_METRICS_DEFAULT_USER_MONTHLY_USD;
 }

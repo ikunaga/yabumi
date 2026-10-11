@@ -5,6 +5,7 @@ import { hasInsightsScope, insightsEnabled } from "@/lib/sns/insights/scopes";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { SNS, isSnsKey, type SnsKey } from "@/lib/sns";
+import { X_PRICE_USD } from "@/lib/sns/x/pricing";
 import { toYmd } from "@/lib/time";
 import type { KpiKey } from "./kpis";
 
@@ -168,4 +169,13 @@ export async function snsNeedingInsightsReconnect(accounts: Partial<Record<SnsKe
   if (error) throw error;
   const scopes = new Map((data ?? []).map((r) => [r.social_account_id, r.scopes]));
   return entries.filter(([sns, id]) => !hasInsightsScope(sns, scopes.get(id) ?? [])).map(([sns]) => sns);
+}
+
+// 本人の今月の X の数字の費用が上限に達しているか（次の 1 件を読めない）。X をつないでいて、X の数字が有効なときだけ確かめる
+export async function xMetricsOverLimit(accounts: Partial<Record<SnsKey, string>>, userBudgetUsd: number): Promise<boolean> {
+  if (!accounts.x || !insightsEnabled("x")) return false;
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("my_x_metrics_spend_this_month");
+  if (error) throw error;
+  return Number(data ?? 0) + X_PRICE_USD.metrics_read > userBudgetUsd;
 }

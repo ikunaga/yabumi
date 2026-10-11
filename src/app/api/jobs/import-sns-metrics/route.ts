@@ -2,7 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { isAuthorizedJob } from "@/lib/jobs/auth";
 import { runSnsMetricsImport } from "@/lib/metrics/sns-import";
 import { facebookAppSecret } from "@/lib/sns/facebook/config";
-import { facebookInsights, instagramInsights, threadsInsights } from "@/lib/sns/insights";
+import { adapters } from "@/lib/sns/adapters";
+import { facebookInsights, instagramInsights, threadsInsights, xInsights } from "@/lib/sns/insights";
+import { xMetricsUserMonthlyUsd, xMonthlyBudgetUsd } from "@/lib/sns/x/config";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const maxDuration = 60;
@@ -14,7 +16,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const outcomes = await runSnsMetricsImport(createAdminClient(), {
-    fetchers: { threads: threadsInsights, instagram: instagramInsights, facebook: facebookInsights(facebookAppSecret) },
+    fetchers: { threads: threadsInsights, instagram: instagramInsights, facebook: facebookInsights(facebookAppSecret), x: xInsights },
+    adapters,
+    x: { budgetUsd: xMonthlyBudgetUsd(), userBudgetUsd: xMetricsUserMonthlyUsd() },
     deadlineMs: Date.now() + 40_000,
   });
   const failed = outcomes.filter((o) => o.result === "failed");

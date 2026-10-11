@@ -8,12 +8,18 @@ export const X_PRICE_USD = {
   user_read: 0.01,
   // 画像の代わりの文（media metadata）。1 枚につき 1 回。画像のアップロードそのものは料金表にない（2026-10-11）
   media_metadata: 0.005,
+  // 数字を読む（docs/architecture.md の 4.22）。投稿の数字は投稿 1 件、フォロワー数はユーザー 1 件の読み取り
+  metrics_read: 0.005,
+  followers_read: 0.01,
 } as const;
 
 export type XOperation = keyof typeof X_PRICE_USD;
 
 // 決定 D16 の月の上限の既定値。X_MONTHLY_BUDGET_USD で変えられる
 export const X_DEFAULT_MONTHLY_BUDGET_USD = 3;
+
+// 利用者ごとの、X の数字の月の上限の既定値（米ドル。4.22 の見込みは 1 人 月 約 $0.64）。X_METRICS_USER_MONTHLY_USD で変えられる
+export const X_METRICS_DEFAULT_USER_MONTHLY_USD = 1;
 
 export function xPostOperation(text: string): "post" | "post_with_url" {
   return hasXUrl(text) ? "post_with_url" : "post";

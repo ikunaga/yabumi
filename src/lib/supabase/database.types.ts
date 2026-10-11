@@ -1392,6 +1392,7 @@ export type Database = {
         Returns: undefined
       }
       media_usage_bytes: { Args: { p_owner_id: string }; Returns: number }
+      my_x_metrics_spend_this_month: { Args: never; Returns: number }
       purge_expired_data: {
         Args: never
         Returns: {
@@ -1437,6 +1438,18 @@ export type Database = {
           p_post_target_id: string
           p_scope_owner?: string
           p_sns: unknown
+        }
+        Returns: string
+      }
+      reserve_x_metrics_read: {
+        Args: {
+          p_budget_usd: number
+          p_cost_usd: number
+          p_operation: string
+          p_owner_id: string
+          p_post_target_id: string
+          p_scope_owner?: string
+          p_user_budget_usd: number
         }
         Returns: string
       }

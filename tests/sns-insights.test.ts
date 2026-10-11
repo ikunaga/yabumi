@@ -1,6 +1,6 @@
 // SNS の数字の読み方と、数字の権限の求め方（docs/architecture.md の 4.22）。本物の SNS は呼ばない
 import { describe, expect, it, vi } from "vitest";
-import { facebookInsights, InsightsError, instagramInsights, parseInsights, threadsInsights } from "@/lib/sns/insights";
+import { facebookInsights, InsightsError, instagramInsights, parseInsights, threadsInsights, xInsights } from "@/lib/sns/insights";
 import { hasInsightsScope, insightsEnabled, withInsightsScope } from "@/lib/sns/insights/scopes";
 
 const account = { externalId: "123", accessToken: "tok" };
@@ -62,6 +62,28 @@ describe("SNS ごと", () => {
     expect(await fb.post(account, "p_1", f as typeof fetch)).toEqual({ views: 400, clicks: 7 });
     expect(calledUrl(f).searchParams.get("appsecret_proof")).toMatch(/^[0-9a-f]{64}$/);
     expect(await fb.account(account, reply({ followers_count: 33 }) as typeof fetch)).toEqual({ followers: 33 });
+  });
+
+  it("X: public_metrics の impression_count などを views などにし、トークンはヘッダーで送る。フォロワーは users/me", async () => {
+    const f = reply({ data: { id: "1", public_metrics: { impression_count: 500, like_count: 9, reply_count: 1, retweet_count: 2, quote_count: 0, bookmark_count: 3 } } });
+    expect(await xInsights.post(account, "1", f as typeof fetch)).toEqual({ views: 500, likes: 9, replies: 1, reposts: 2, quotes: 0, saves: 3 });
+    const u = calledUrl(f);
+    expect(u.pathname).toBe("/2/tweets/1");
+    expect(u.searchParams.get("tweet.fields")).toBe("public_metrics");
+    expect(u.toString()).not.toContain("tok");
+    expect((f.mock.calls[0] as unknown as [URL, RequestInit])[1].headers).toEqual({ Authorization: "Bearer tok" });
+    const g = reply({ data: { id: "123", public_metrics: { followers_count: 77, following_count: 5 } } });
+    expect(await xInsights.account(account, g as typeof fetch)).toEqual({ followers: 77 });
+    expect(calledUrl(g).pathname).toBe("/2/users/me");
+  });
+
+  it("X: 消された投稿（200 で data なし）は見つからないエラー、401・403 は permission の印つき", async () => {
+    const e = await xInsights.post(account, "1", reply({ errors: [{ detail: "Could not find tweet" }] }) as typeof fetch).catch((x) => x);
+    expect(e).toMatchObject({ status: 404, permission: false });
+    const e2 = await xInsights.post(account, "1", reply({ title: "Unauthorized" }, 401) as typeof fetch).catch((x) => x);
+    expect(e2).toMatchObject({ status: 401, permission: true });
+    const e3 = await xInsights.post(account, "1", reply({ title: "Too Many Requests" }, 429) as typeof fetch).catch((x) => x);
+    expect(e3).toMatchObject({ status: 429, permission: false });
   });
 
   it("権限がないと言われたら permission の印つきのエラー", async () => {

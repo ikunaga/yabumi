@@ -53,7 +53,7 @@ export default function PrivacyPage() {
             ],
             [
               "投稿の数字",
-              "note・Substack の投稿で、利用者が手で入れた閲覧数と反応の数。Threads・Instagram・Facebook で、矢書から送った投稿の閲覧数・いいね・返信などの数と、アカウントのフォロワー数（数字を読む権限つきでつないだとき）",
+              "note・Substack の投稿で、利用者が手で入れた閲覧数と反応の数。Threads・Instagram・Facebook・X で、矢書から送った投稿の閲覧数・いいね・返信などの数と、アカウントのフォロワー数（数字を読む権限つきでつないだとき。X は読むたびに費用がかかるので、1 人あたりの月の上限まで）",
               "利用者が入力、SNS から",
             ],
             [
@@ -133,7 +133,7 @@ export default function PrivacyPage() {
                 <br />
                 <ExternalLink href="https://x.com/ja/privacy">プライバシーポリシー</ExternalLink>
               </>,
-              "X への投稿、取り消し、トークンの延長",
+              "X への投稿、取り消し、トークンの延長、投稿の数字とフォロワー数の読み取り",
               "投稿の本文、添えた画像と代わりの文、アクセストークン",
               "米国",
             ],

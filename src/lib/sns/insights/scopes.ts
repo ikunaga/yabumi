@@ -6,6 +6,8 @@ export const INSIGHTS_SCOPE: Partial<Record<SnsKey, string>> = {
   threads: "threads_manage_insights",
   instagram: "instagram_business_manage_insights",
   facebook: "read_insights",
+  // X は投稿のときから求めている権限で読める（読むたびに費用がかかるので、SNS_INSIGHTS に x を入れたときだけ読む）
+  x: "tweet.read",
 };
 
 export function insightsEnabled(sns: SnsKey, env: string | undefined = process.env.SNS_INSIGHTS): boolean {

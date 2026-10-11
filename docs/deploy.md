@@ -65,6 +65,7 @@
 | X_CLIENT_ID | 6-4 の X のアプリの OAuth 2.0 Client ID（ローカルと同じ） | いいえ |
 | X_CLIENT_SECRET | 同じく Client Secret | **はい** |
 | X_MONTHLY_BUDGET_USD | 入れなければ $3（決定 D16）。変えるときだけ入れる | いいえ |
+| NEXT_PUBLIC_TURNSTILE_SITE_KEY | 5-8 の Turnstile の Site Key（登録の受付を開く前に入れる） | いいえ（画面にも出る値） |
 | GITHUB_APP_ID / GITHUB_APP_SLUG / GITHUB_APP_CLIENT_ID | 6-2 で作る本番用の App の値 | いいえ |
 | GITHUB_APP_CLIENT_SECRET | 同上 | **はい** |
 | GITHUB_APP_PRIVATE_KEY | 同上の .pem の中身。Vercel の入力欄には複数行のまま貼ってよい | **はい** |
@@ -89,6 +90,10 @@
 | 5-2 | オーナー | SQL Editor で次を実行する（予約ジョブの呼び先と合言葉。値は置き換える）<br>`select vault.create_secret('https://yabumi-xxxx.vercel.app', 'app_url');`<br>`select vault.create_secret('<CRON_SECRET の値>', 'cron_secret');` |
 | 5-3 | オーナー | Authentication → Users → Add user → Create new user。オーナーのメールアドレスとパスワードを入れ、**Auto Confirm User** にチェックして作る（確認メールなしで使える） |
 | 5-4 | オーナー | Authentication → Sign In / Providers（または Settings）→ **Allow new users to sign up** をオフにする。矢書の画面からも、Supabase の API を直接呼んでも、新しいアカウントは作れなくなる |
+| 5-5 | オーナー | Authentication → Sign In / Providers → Email: **Confirm email** をオン（確認メールが済むまでログインできない）。**Minimum password length** を 8 にする（矢書の画面と同じ） |
+| 5-6 | オーナー | Authentication → Emails → Templates: Confirm signup・Reset password・Change email address・Magic link・Invite user の 5 つに、リポジトリの supabase/templates/ の本文（confirmation.html・recovery.html・email_change.html・magic_link.html・invite.html）を貼り、件名を supabase/config.toml の subject と同じにする（「【矢書】メールアドレスの確認」など） |
+| 5-7 | オーナー | **独自の SMTP（登録の受付を開く前に必須）**: Supabase の既定のメールは、プロジェクトのメンバーにしか届かず 1 時間に 2 通まで。① 独自ドメインを取る（年 1,500〜2,500 円。お名前.com、Cloudflare Registrar など）② https://resend.com に登録し、Domains でドメインを足して、表示された DNS のレコード（SPF・DKIM）をドメインの管理画面に入れ、Verified になるのを待つ ③ Resend の API Keys で「Sending access」のキーを作る ④ Supabase の Authentication → Emails → SMTP Settings: Enable custom SMTP をオン、Host `smtp.resend.com`、Port `465`、Username `resend`、Password に ③ のキー、Sender email `noreply@<ドメイン>`、Sender name `矢書` ⑤ Authentication → Rate Limits の「emails sent per hour」が 30 になっていることを確かめる |
+| 5-8 | オーナー | **ロボットの確認（登録の受付を開く前に必須）**: ① https://dash.cloudflare.com に登録し、Turnstile → Add widget。Widget name `yabumi`、Hostname に `yabumi.vercel.app`（ローカルで試すなら `localhost` も）、Widget Mode は **Managed** ② 表示された Site Key を Vercel の NEXT_PUBLIC_TURNSTILE_SITE_KEY に入れて Redeploy ③ Secret Key を Supabase の Authentication → Attack Protection（Bot and Abuse Protection）→ Enable Captcha protection をオン、Provider は Turnstile、Secret に貼る。**②の Redeploy が済んでから③をする**（逆だと、確認の欄がないままログインが断られる） |
 
 ## 6. 外部サービスに本番の URL を登録する
 

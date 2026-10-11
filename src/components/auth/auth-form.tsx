@@ -6,12 +6,17 @@ import type { AuthFormState } from "@/lib/auth/actions";
 import { Button } from "@/components/ui/button";
 import { ErrorBanner, SuccessBanner } from "@/components/ui/feedback";
 import { Field, Input } from "@/components/ui/field";
+import { Turnstile } from "./turnstile";
 
-type Mode = "login" | "signup";
+// login: ログイン / signup: 登録 / forgot: パスワードを忘れた（メールを送る） / reset: 新しいパスワードを決める
+type Mode = "login" | "signup" | "forgot" | "reset";
 
 const MIN_PASSWORD = 8;
 
-const copy: Record<Mode, { title: string; submit: string; pending: string; switchText: string; switchLink: string; switchHref: string }> = {
+const copy: Record<
+  Mode,
+  { title: string; lead?: string; submit: string; pending: string; switchText: string; switchLink: string; switchHref: string }
+> = {
   login: {
     title: "ログイン",
     submit: "ログイン",
@@ -27,6 +32,24 @@ const copy: Record<Mode, { title: string; submit: string; pending: string; switc
     switchText: "アカウントをお持ちの方は",
     switchLink: "ログイン",
     switchHref: "/login",
+  },
+  forgot: {
+    title: "パスワードの再設定",
+    lead: "登録したメールアドレスに、新しいパスワードを決めるためのリンクを送ります。",
+    submit: "再設定のメールを送る",
+    pending: "送信中…",
+    switchText: "パスワードを思い出した方は",
+    switchLink: "ログイン",
+    switchHref: "/login",
+  },
+  reset: {
+    title: "新しいパスワード",
+    lead: "これから使うパスワードを決めてください。決めると、そのままログインした状態で使い始められます。",
+    submit: "パスワードを変える",
+    pending: "変更中…",
+    switchText: "やめるときは",
+    switchLink: "プロジェクトへ",
+    switchHref: "/projects",
   },
 };
 
@@ -59,38 +82,54 @@ export function AuthForm({
   return (
     <div className="flex flex-col gap-5">
       <h1 className="font-heading text-[28px] font-bold max-md:mt-6 max-md:text-[26px]">{c.title}</h1>
+      {c.lead && <p className="-mt-2 text-[14px] leading-7 text-muted">{c.lead}</p>}
       {state.error && <ErrorBanner id="auth-error">{state.error}</ErrorBanner>}
       {state.message && <SuccessBanner>{state.message}</SuccessBanner>}
       <form action={formAction} noValidate className="flex flex-col gap-5">
         {next && <input type="hidden" name="next" value={next} />}
-        <Field label="メールアドレス" htmlFor="email">
-          <Input
-            id="email"
-            name="email"
-            type="email"
-            inputMode="email"
-            autoComplete="email"
-            required
-            defaultValue={state.email}
-            invalid={state.invalidField === "email"}
-          />
-        </Field>
-        <Field
-          label="パスワード"
-          htmlFor="password"
-          hint={mode === "signup" ? passwordHint(passwordLength) : undefined}
-        >
-          <Input
-            id="password"
-            name="password"
-            type="password"
-            autoComplete={mode === "signup" ? "new-password" : "current-password"}
-            minLength={MIN_PASSWORD}
-            required
-            invalid={state.invalidField === "password"}
-            onChange={(e) => setPasswordLength(e.target.value.length)}
-          />
-        </Field>
+        {mode !== "reset" && (
+          <Field label="メールアドレス" htmlFor="email">
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              required
+              defaultValue={state.email}
+              invalid={state.invalidField === "email"}
+            />
+          </Field>
+        )}
+        {mode !== "forgot" && (
+          <Field
+            label={mode === "reset" ? "新しいパスワード" : "パスワード"}
+            htmlFor="password"
+            hint={mode === "signup" || mode === "reset" ? passwordHint(passwordLength) : undefined}
+          >
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              autoComplete={mode === "login" ? "current-password" : "new-password"}
+              minLength={MIN_PASSWORD}
+              required
+              invalid={state.invalidField === "password"}
+              onChange={(e) => setPasswordLength(e.target.value.length)}
+            />
+          </Field>
+        )}
+        {mode === "login" && (
+          <Link href="/forgot-password" className="-mt-3 self-end text-[14px] font-semibold text-primary hover:underline">
+            パスワードを忘れた
+          </Link>
+        )}
+        {mode === "reset" && (
+          <Field label="新しいパスワード（確認）" htmlFor="confirm">
+            <Input id="confirm" name="confirm" type="password" autoComplete="new-password" required invalid={state.invalidField === "password"} />
+          </Field>
+        )}
+        {mode !== "reset" && <Turnstile resetKey={state} />}
         <Button type="submit" className="mt-1 h-12 w-full max-md:h-13" disabled={pending}>
           {pending ? c.pending : c.submit}
         </Button>

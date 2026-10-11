@@ -42,6 +42,9 @@ Threads のコールバック URL は https でないと登録できないため
 - メール: `dev@yabumi.test`
 - パスワード: `yabumi-dev-1234`
 
+- 登録すると確認メールが届く（本番と同じ）。ローカルのメールは Mailpit（http://127.0.0.1:55324）で開く。パスワードの再設定のメールも同じ
+- `supabase start` で DB が立ち上がらず「configuration file "/etc/postgresql/postgresql.conf" contains errors」と出るときは、本番に `supabase link` したときに書かれる supabase/.temp/postgres-version（本番の Postgres の版）が原因。ローカルのデータは別の版で作ってあるので、このファイルを消してから `supabase start` し直す（データは消えない。db reset はしない）
+
 このアカウントとサンプルのプロジェクトは supabase/seed.sql から入る。`supabase db reset` で DB を作り直しても自動で戻る（自分で登録したアカウントは消える）。
 
 ## GitHub App（リポジトリからアプリの説明を下書きする）

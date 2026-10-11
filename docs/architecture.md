@@ -541,6 +541,53 @@ README が薄い個人開発のリポジトリやモノレポでも中身がわ�
 - 見込み: 出すのは上限いっぱいで 1 回 **$0.25 前後**（SNS を 3 つにすると出力が増えて $0.3 ほど）、出し直しは $0.12 前後。週に 1 回出して 1 回出し直すと月 $1.5 ほどで、利用者ごとの月 $3 の中に収まる
 - 利用量は ai_usage（purpose = post_ideas）に記録し、4.9 の上限（利用者ごとの月 $3、全体の月 $10、1 日 60 回）に数える。使えなかった返事の分も数える。GitHub の API は無料
 
+### 4.16 登録とログイン（F01 の残り。誰でも登録できる前提、決定 D17。2026-10-11）
+
+登録の受付は、オーナーが開くと決めるまで閉じたまま（ALLOWED_SIGNUP_EMAILS と Supabase の「Allow new users to sign up」。roadmap.md の 2.5）。作りは誰でも登録できる前提にしている。
+
+#### 流れ
+
+| 場面 | 流れ |
+|---|---|
+| 登録 | /signup → Supabase の signUp → 確認メール → リンク（/auth/confirm?token_hash=…&type=email）→ 確認が済んでログインした状態で /projects。すでに登録済みのアドレスでも同じ文面を返す（登録の有無を他人に知られないため） |
+| ログイン | /login。確認が済んでいなければ「確認メールのリンクを開いてください」 |
+| パスワードを忘れた | /login の「パスワードを忘れた」→ /forgot-password でメールアドレスを入れる → 再設定のメール → リンク（/auth/confirm?…&type=recovery&next=/reset-password）でログインした状態になる → /reset-password で新しいパスワードを 2 回入れる → /projects に「パスワードを変えました」。登録のないアドレスでも同じ文面を返す |
+| メールアドレスの変更・招待 | テンプレートだけ用意した（email_change → /settings、invite → /reset-password でパスワードを決める）。変更の画面は退会と同じ /settings に作る（4.14） |
+
+- メールのリンクの受け口 /auth/confirm は、token_hash と type を確かめる（verifyOtp）。Supabase の既定のテンプレートのまま（?code= 付きで戻る）でも受ける（exchangeCodeForSession）。token_hash の形にしているのは、メールを別の端末やブラウザで開いても確認できるようにするため（?code= の形は、登録したブラウザでしか確認できない）
+- パスワードは 8〜72 文字（Supabase の設定も 8 文字以上にする）
+
+#### メールのテンプレート
+
+- supabase/templates/ に日本語の本文、件名は supabase/config.toml（confirmation、recovery、email_change、magic_link、invite）。リンクは `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=…&next=…`
+- ローカルは config.toml から読まれる（Mailpit http://127.0.0.1:55324 で見られる）。本番は Supabase の画面（Authentication → Emails）に、同じ件名と本文を貼る（docs/deploy.md の 5-6）。Site URL が本番の URL になっていること（5-1）
+
+#### メールの送り方（独自の SMTP）
+
+Supabase の既定のメール送信は、**プロジェクトのメンバーのアドレスにしか届かず、1 時間に 2 通まで**。誰でも登録できるようにするには、独自の SMTP が要る（設定すると上限が 1 時間 30 通になり、画面で変えられる）。
+
+| 候補 | 無料の範囲 | 有料 | 要るもの | 評価 |
+|---|---|---|---|---|
+| **Resend（おすすめ）** | 月 3,000 通、1 日 100 通、ドメイン 1 つ | Pro $20 / 月（月 5 万通） | 独自ドメイン（DNS に SPF・DKIM を足す） | Supabase との連携の案内があり、設定が少ない。無料の範囲で当面足りる（7 の見積もり） |
+| Amazon SES | なし（1,000 通 $0.10） | 同左 | 独自ドメイン、AWS のアカウント、本番利用の申請（サンドボックスの解除） | 一番安いが、申請と AWS の設定が手間 |
+| Brevo | 1 日 300 通 | 月 $9 から | 独自ドメイン（推奨） | 無料の通数は多いが、送信元に「Brevo」の表示が入ることがある |
+
+- どれも、届きやすくする（迷惑メールにされない）ために**独自ドメイン**が要る。gmail.com などのアドレスを送信元にすると、受け取る側で拒否される（DMARC）。ドメインは年 1,500〜2,500 円（7 の費用の表）。ドメインを取れば、矢書の URL も yabumi.vercel.app から独自ドメインに変えられる（そのときは Threads・GitHub App・X・Supabase Auth・Vault の URL を直す。4.11）
+- 送信元は `noreply@<ドメイン>`、送信者名は「矢書」
+
+#### 大量の登録・ログインへの備え
+
+| 対策 | 内容 | いつ |
+|---|---|---|
+| 回数の制限 | Supabase Auth の Rate Limits（同じ IP からの登録・ログインは 5 分で 30 回、メールの送信は 1 時間 30 通など）。既定のままで使う | いま（既定で有効） |
+| ロボットの確認（CAPTCHA） | **Cloudflare Turnstile**（無料、ほとんどの人はクリックなしで通る）。登録・ログイン・パスワードを忘れた、の 3 つのフォームに出し、トークンを Supabase に渡す。確かめるのは Supabase（Bot and Abuse Protection に Turnstile の Secret Key を入れる）。NEXT_PUBLIC_TURNSTILE_SITE_KEY がないとき（ローカル）は出さない | **登録の受付を開く前に必ず有効にする**（作りは済み。オーナーが Turnstile に登録して鍵を入れる。deploy.md の 5-8） |
+| 登録の有無を知られない | 登録・パスワードを忘れた、の応答を、登録の有無にかかわらず同じ文面にする | いま |
+| 確認メール | 確認が済むまでログインできない。存在しないアドレスでの登録は使えないまま残る | いま |
+| 漏れたパスワードの拒否 | Supabase の Leaked password protection（Pro のみ） | Supabase を Pro にしたら有効にする |
+
+- hCaptcha ではなく Turnstile にした理由: 無料で通数の上限がなく、利用者に画像のパズルを解かせることがほとんどない。Supabase が両方に対応している
+- 画面: Turnstile の確認はフォームの送信ボタンの上に出る。トークンは 1 回しか使えないので、送信の結果が返るたびに確認をやり直す
+
 ## 5. データモデル（主要テーブル）
 
 | テーブル | 内容 |

@@ -9,6 +9,7 @@ const PUBLIC_PATHS = [
   "/",
   "/login",
   "/signup",
+  "/forgot-password",
   "/auth",
   "/sns/threads/uninstall",
   "/sns/threads/delete",

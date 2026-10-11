@@ -4,6 +4,7 @@ import { TopBar } from "@/components/nav/top-bar";
 import { SnsResultBanner } from "@/components/projects/sns-result-banner";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, EmptyState } from "@/components/ui/card";
+import { SuccessBanner } from "@/components/ui/feedback";
 import { requireUser } from "@/lib/auth/user";
 import { STEPS, currentStepIndex } from "@/lib/projects/next-step";
 import { listProjects } from "@/lib/projects/queries";
@@ -19,7 +20,7 @@ function storeLabel(p: { app_store_url: string | null; play_store_url: string | 
 }
 
 export default async function ProjectsPage(props: PageProps<"/projects">) {
-  const { sns_error } = await props.searchParams;
+  const { sns_error, done } = await props.searchParams;
   const [user, projects, snsByProject] = await Promise.all([requireUser(), listProjects(), activeSnsByProject()]);
   const planByProject = await planProgressByProject(projects);
 
@@ -36,6 +37,7 @@ export default async function ProjectsPage(props: PageProps<"/projects">) {
         </div>
 
         <SnsResultBanner error={sns_error} />
+        {done === "password_updated" && <SuccessBanner>パスワードを変えました。</SuccessBanner>}
 
         {projects.length === 0 ? (
           <Card className="max-w-xl overflow-hidden">

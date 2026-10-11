@@ -100,6 +100,18 @@ export const glossary = {
     label: "ストアページ",
     summary: "App Store や Google Play の、アプリの紹介ページ。ここからダウンロードされます。",
   },
+  shortLink: {
+    label: "短縮リンク",
+    summary:
+      "長い URL の代わりに使う、短いリンク。矢書の短縮リンクは、押されると回数を数えてから本当の行き先（ストアページなど）へ移ります。SNS ごとに別のリンクを使うと、どの SNS から何人来たかがわかります。",
+    example: "例: go.yabumi.app/Ab3dE5fG を押すと、App Store のアプリのページが開く。",
+  },
+  campaignLink: {
+    label: "キャンペーンリンク",
+    summary:
+      "どこから来た人かを、ストアや解析の側でも見分けられるよう、URL に印を付けたもの。App Store では pt と ct、Google Play やふつうのサイトでは utm_source などを付けます。矢書の短縮リンクは、行き先に自動で付けます。",
+    example: "例: App Store Connect の「キャンペーン」で、SNS ごとのダウンロード数が見られる（数が少ないうちは出ません）。",
+  },
 } satisfies Record<string, GlossaryTerm>;
 
 export type GlossaryKey = keyof typeof glossary;

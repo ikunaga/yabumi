@@ -20,6 +20,8 @@ const PUBLIC_PATHS = [
   "/sns/facebook/delete",
   "/sns/deletion",
   "/api/jobs",
+  // 短縮リンクの転送（4.22）。ふつうは src/proxy.ts がログインの確認より先に通すが、念のため
+  "/go",
   // 利用規約とプライバシーポリシー（登録の前に読めるように。SNS 各社の審査でも、ログインなしで開けることが求められる）
   "/terms",
   "/privacy",

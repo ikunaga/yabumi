@@ -1,0 +1,137 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SnsKey } from "@/lib/sns";
+import type { Database } from "@/lib/supabase/database.types";
+import { CODE_PATTERN, findLinkableUrls, generateCode, shortLinkUrl, substituteLinks, substitutesBodyLinks, withTrackingParams, type Device, type Excluded } from "./rules";
+
+// 短縮リンクの作成・転送・記録（docs/architecture.md の 4.22、決定 D20）。admin は RLS を通らないクライアント。
+// 呼ぶ側で、ownerId がログイン中の利用者で、projectId がその人のものであることを確かめておく
+
+type Admin = SupabaseClient<Database>;
+
+export class LinkError extends Error {
+  constructor(readonly userMessage: string) {
+    super(userMessage);
+    this.name = "LinkError";
+  }
+}
+
+export type LinkKind = "post" | "profile" | "custom";
+
+export function isValidDestination(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.protocol === "https:" && url.length <= 2000 && !u.username && !u.password;
+  } catch {
+    return false;
+  }
+}
+
+// 短縮リンクを作る。コードがほかのものと重なったら作り直す
+export async function createShortLink(
+  admin: Admin,
+  input: { ownerId: string; projectId: string; destinationUrl: string; sns: SnsKey | null; kind: LinkKind; postTargetId?: string | null; label?: string },
+): Promise<{ id: string; code: string }> {
+  if (!isValidDestination(input.destinationUrl)) throw new LinkError("リンクの行き先は https:// で始まる URL にしてください。");
+  for (let i = 0; i < 5; i++) {
+    const code = generateCode();
+    const { data, error } = await admin
+      .from("short_links")
+      .insert({
+        owner_id: input.ownerId,
+        project_id: input.projectId,
+        code,
+        destination_url: input.destinationUrl,
+        sns: input.sns,
+        kind: input.kind,
+        post_target_id: input.postTargetId ?? null,
+        label: (input.label ?? "").slice(0, 100),
+      })
+      .select("id, code")
+      .single();
+    if (!error) return data;
+    // 23505 = 重なり。コードが重なったときだけやり直す（同じ配信先・同じ行き先のものは呼ぶ側で探してから作る）
+    if (error.code !== "23505" || !/code/.test(error.message)) throw error;
+  }
+  throw new Error("短縮リンクのコードを作れませんでした");
+}
+
+export type ResolvedLink = { id: string; target: string; disabled: boolean };
+
+// コードから転送先を引く（行き先に、SNS・リンクの印と App Store の pt を付ける）
+export async function resolveLink(admin: Admin, code: string): Promise<ResolvedLink | null> {
+  if (!CODE_PATTERN.test(code)) return null;
+  const { data, error } = await admin
+    .from("short_links")
+    .select("id, code, destination_url, sns, disabled_at, projects(app_store_provider_token)")
+    .eq("code", code)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  const project = data.projects as unknown as { app_store_provider_token: string | null } | null;
+  return {
+    id: data.id,
+    disabled: Boolean(data.disabled_at),
+    target: withTrackingParams(data.destination_url, {
+      sns: (data.sns as SnsKey | null) ?? null,
+      code: data.code,
+      appStoreProviderToken: project?.app_store_provider_token ?? null,
+    }),
+  };
+}
+
+// クリックを記録する。IP と User-Agent はハッシュを作るためだけに DB へ渡し、保存しない（DB の record_link_click）
+export async function recordClick(
+  admin: Admin,
+  input: { linkId: string; ip: string | null; userAgent: string | null; device: Device; country: string | null; excluded: Excluded },
+): Promise<string> {
+  const { data, error } = await admin.rpc("record_link_click", {
+    p_link_id: input.linkId,
+    p_ip: input.ip ?? "",
+    p_user_agent: (input.userAgent ?? "").slice(0, 500),
+    p_device: input.device,
+    p_country: input.country && /^[A-Za-z]{2}$/.test(input.country) ? input.country.toUpperCase() : "",
+    p_excluded: input.excluded as string,
+  });
+  if (error) throw error;
+  return data;
+}
+
+// 投稿の配信先の本文にある URL ごとに、短縮リンクを用意する（すでにあれば使い回す）。返り値は 行き先 → 短縮リンクの URL
+export async function ensurePostLinks(
+  admin: Admin,
+  input: { ownerId: string; projectId: string; postTargetId: string; sns: SnsKey; text: string },
+): Promise<Map<string, string>> {
+  const result = new Map<string, string>();
+  if (!substitutesBodyLinks(input.sns)) return result;
+  const urls = findLinkableUrls(input.text).filter(isValidDestination);
+  if (!urls.length) return result;
+  const { data: existing, error } = await admin
+    .from("short_links")
+    .select("code, destination_url")
+    .eq("owner_id", input.ownerId)
+    .eq("post_target_id", input.postTargetId)
+    .in("destination_url", urls);
+  if (error) throw error;
+  for (const row of existing ?? []) result.set(row.destination_url, shortLinkUrl(row.code));
+  for (const url of urls) {
+    if (result.has(url)) continue;
+    const link = await createShortLink(admin, { ownerId: input.ownerId, projectId: input.projectId, destinationUrl: url, sns: input.sns, kind: "post", postTargetId: input.postTargetId });
+    result.set(url, shortLinkUrl(link.code));
+  }
+  return result;
+}
+
+// 送る直前に、配信先の本文の URL を、その配信先の短縮リンクに置き換える（保存のときに作ったものだけ。新しくは作らない）
+export async function substituteForTarget(admin: Admin, postTargetId: string, sns: string, text: string): Promise<string> {
+  if (!substitutesBodyLinks(sns as SnsKey)) return text;
+  const urls = findLinkableUrls(text);
+  if (!urls.length) return text;
+  const { data, error } = await admin
+    .from("short_links")
+    .select("code, destination_url")
+    .eq("post_target_id", postTargetId)
+    .is("disabled_at", null)
+    .in("destination_url", urls);
+  if (error) throw error;
+  return substituteLinks(text, new Map((data ?? []).map((r) => [r.destination_url, shortLinkUrl(r.code)])));
+}

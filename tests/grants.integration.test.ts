@@ -21,6 +21,10 @@ const TABLES = [
   "media_files",
   "media_upload_tickets",
   "pending_page_choices",
+  "short_links",
+  "link_clicks",
+  "link_click_daily",
+  "link_hash_salts",
 ] as const;
 
 let alice: TestClient;

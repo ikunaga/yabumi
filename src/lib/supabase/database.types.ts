@@ -225,6 +225,94 @@ export type Database = {
         }
         Relationships: []
       }
+      link_click_daily: {
+        Row: {
+          clicks: number
+          day: string
+          device: string
+          excluded: number
+          link_id: string
+          owner_id: string
+        }
+        Insert: {
+          clicks?: number
+          day: string
+          device: string
+          excluded?: number
+          link_id: string
+          owner_id: string
+        }
+        Update: {
+          clicks?: number
+          day?: string
+          device?: string
+          excluded?: number
+          link_id?: string
+          owner_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "link_click_daily_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "short_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      link_clicks: {
+        Row: {
+          clicked_at: string
+          country: string | null
+          device: string
+          excluded: string | null
+          id: number
+          link_id: string
+          visitor_hash: string
+        }
+        Insert: {
+          clicked_at?: string
+          country?: string | null
+          device: string
+          excluded?: string | null
+          id?: never
+          link_id: string
+          visitor_hash: string
+        }
+        Update: {
+          clicked_at?: string
+          country?: string | null
+          device?: string
+          excluded?: string | null
+          id?: never
+          link_id?: string
+          visitor_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "link_clicks_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "short_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      link_hash_salts: {
+        Row: {
+          day: string
+          salt: string
+        }
+        Insert: {
+          day: string
+          salt: string
+        }
+        Update: {
+          day?: string
+          salt?: string
+        }
+        Relationships: []
+      }
       media_files: {
         Row: {
           alt_text: string
@@ -589,6 +677,7 @@ export type Database = {
       }
       projects: {
         Row: {
+          app_store_provider_token: string | null
           app_store_url: string | null
           created_at: string
           description: string
@@ -601,6 +690,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          app_store_provider_token?: string | null
           app_store_url?: string | null
           created_at?: string
           description?: string
@@ -613,6 +703,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          app_store_provider_token?: string | null
           app_store_url?: string | null
           created_at?: string
           description?: string
@@ -625,6 +716,66 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      short_links: {
+        Row: {
+          code: string
+          created_at: string
+          destination_url: string
+          disabled_at: string | null
+          id: string
+          kind: string
+          label: string
+          owner_id: string
+          post_target_id: string | null
+          project_id: string
+          sns: string | null
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          destination_url: string
+          disabled_at?: string | null
+          id?: string
+          kind: string
+          label?: string
+          owner_id: string
+          post_target_id?: string | null
+          project_id: string
+          sns?: string | null
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          destination_url?: string
+          disabled_at?: string | null
+          id?: string
+          kind?: string
+          label?: string
+          owner_id?: string
+          post_target_id?: string | null
+          project_id?: string
+          sns?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "short_links_post_target_id_fkey"
+            columns: ["post_target_id"]
+            isOneToOne: false
+            referencedRelation: "post_targets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "short_links_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sns_api_usage: {
         Row: {
@@ -797,6 +948,16 @@ export type Database = {
         }
         Returns: string
       }
+      link_click_totals: {
+        Args: { p_project_id: string; p_today: string }
+        Returns: {
+          clicks_30d: number
+          clicks_7d: number
+          clicks_total: number
+          excluded_total: number
+          link_id: string
+        }[]
+      }
       mark_manual_target_posted: {
         Args: { p_target_id: string; p_url?: string }
         Returns: undefined
@@ -809,6 +970,18 @@ export type Database = {
           ai_usage_deleted: number
           sns_api_usage_deleted: number
         }[]
+      }
+      record_link_click: {
+        Args: {
+          p_country: string
+          p_dedupe_minutes?: number
+          p_device: string
+          p_excluded: string
+          p_ip: string
+          p_link_id: string
+          p_user_agent: string
+        }
+        Returns: string
       }
       requeue_failed_targets: {
         Args: { p_post_id: string; p_sns: string[] }

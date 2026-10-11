@@ -24,6 +24,8 @@ export const savePostInputSchema = z.object({
     .array(z.object({ id: z.uuid(), altText: z.string().max(MAX_ALT_LENGTH, `代わりの文は ${MAX_ALT_LENGTH} 字までです`) }))
     .max(MAX_IMAGES_PER_POST)
     .default([]),
+  // 本文のストアなどの URL を、配信先ごとの短縮リンクにする（docs/architecture.md の 4.22、決定 D20。初期値はオン）
+  shortLinks: z.boolean().default(true),
   // 日本時間の "YYYY-MM-DDTHH:mm"。空なら日付なし
   plannedAt: z.string(),
   intent: saveIntent,

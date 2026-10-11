@@ -260,6 +260,21 @@ yabumi.app は Cloudflare Registrar で取る（オーナー）。DNS も Cloudf
 - 注意: 届いたメールに個人のメールから返事をすると、送信元は個人のアドレスになる。support@yabumi.app から返事をしたいときは、Gmail の「他のメールアドレスを追加」（Send mail as）で、SMTP に Resend（F-5 と同じ。ユーザー名 resend、パスワードは別に作った API キー）を使う
 - 規約・ポリシーの問い合わせ先（docs/legal.md の L2）に `support@yabumi.app` を使える。G-4 が済んでから入れる
 
+### H. 短縮リンクの go.yabumi.app（F07、決定 D20。C のあとならいつでも）
+
+短縮リンクは、go.yabumi.app を足すまでは `https://yabumi.app/go/<コード>` の形で動く（作ったリンクは、あとで go.yabumi.app に変えても、古い形のまま押せる）。
+
+| # | 誰が | やること |
+|---|---|---|
+| H-1 | オーナー | Vercel → Project → Settings → Domains → Add で `go.yabumi.app`（Environment は Production。転送はしない） |
+| H-2 | オーナー | Cloudflare → yabumi.app → DNS → Records に、Vercel のカードに出た値で **CNAME**（名前 `go`、値はカードのもの）。**Proxy status は DNS only**（灰色の雲） |
+| H-3 | オーナー | Vercel の Domains で go.yabumi.app が「Valid Configuration」になり、証明書が出るのを待つ |
+| H-4 | オーナー | Vercel → Settings → Environment Variables に `SHORT_LINK_BASE_URL=https://go.yabumi.app` を足し、Redeploy。これから作る短縮リンクが go.yabumi.app になる |
+| H-5 | オーナー | 確かめる: 矢書の「リンク」の画面で X 用のリンクを作り、スマホで開くと App Store が開く。数字が 1 増える（同じ端末で 10 分以内にもう一度押しても増えない） |
+
+- go.yabumi.app/ だけを開くと、矢書のトップに移る
+- 悪用（矢書の名前を借りて怪しいサイトへ誘導する）の知らせが support@yabumi.app に来たら、Supabase の SQL Editor で `update public.short_links set disabled_at = now() where code = '<コード>';` でそのリンクを止める（押すと「使われていません」と出る）。続くようなら、その利用者のアカウントを止める（利用規約の「利用の停止」）
+
 ## 12. Instagram と Facebook ページをつなげるようにする（オーナーの作業）
 
 設計は architecture.md の 4.21。Instagram は Instagram Login（Facebook ページがなくてもつなげる。そのかわり、矢書から投稿を取り消せない）、Facebook はページだけ。Threads のアプリ（Yabumi Dev）とは**別のアプリ**を作る。URL は yabumi.app が前提（切り替える前なら yabumi.vercel.app で読みかえる。11 の B と同じく、両方並べて登録してよい）。

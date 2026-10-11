@@ -10,6 +10,8 @@ import { createClient } from "@/lib/supabase/server";
 import { canPublish } from "@/lib/sns/adapters";
 import { getPlanHints } from "@/lib/plan/queries";
 import { loadPostImages, snsNeedingImageReconnect } from "@/lib/media/queries";
+import { postLinkPreview } from "@/lib/links/store";
+import { findLinkableUrls } from "@/lib/links/rules";
 import type { TargetResult } from "@/components/posts/send-results";
 import { toInputValue } from "@/lib/time";
 import { isUuid } from "@/lib/uuid";
@@ -38,14 +40,18 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
   const [project, post] = await Promise.all([getProject(id), getPost(id, postId)]);
   if (!project || !post) notFound();
   const supabase = await createClient();
-  const [accounts, planHints, { data: channels }, images] = await Promise.all([
+  const [accounts, planHints, { data: channels }, images, linkPreview] = await Promise.all([
     connectedAccounts(project.id),
     getPlanHints(project.id),
     supabase.from("project_manual_channels").select("sns, profile_url").eq("project_id", project.id),
     loadPostImages(post.id),
+    postLinkPreview(supabase, post.id),
   ]);
   // 画像はあとから足すこともあるので、画像がなくても調べる
   const needImageReconnect = await snsNeedingImageReconnect(accounts);
+  // 短縮リンクのチェックの状態: 本文に URL があるのに、送る前の配信先に短縮リンクがなければ、オフで保存したもの
+  const hasUrl = [post.body, ...post.targets.map((t) => t.body_override ?? "")].some((t) => findLinkableUrls(t).length > 0);
+  const shortLinks = !hasUrl || Object.keys(linkPreview).length > 0 || !post.targets.some((t) => t.status === "pending");
   const profileUrl = (sns: SnsKey) => channels?.find((c) => c.sns === sns)?.profile_url ?? null;
   const results: Partial<Record<SnsKey, TargetResult>> = Object.fromEntries(
     post.targets.map((t) => [
@@ -88,6 +94,7 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
       aiCheckEnabled={aiConfigured()}
       results={results}
       needImageReconnect={needImageReconnect}
+      linkPreview={linkPreview}
       notice={notice?.text}
       noticeTone={notice?.tone}
       initial={{
@@ -95,6 +102,7 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
         targets: post.targets.map((t) => ({ sns: t.sns, bodyOverride: t.body_override, title: t.title })),
         plannedAt: toInputValue(post.planned_at),
         images,
+        shortLinks,
       }}
     />
     </>

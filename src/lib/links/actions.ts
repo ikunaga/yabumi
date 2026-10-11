@@ -25,6 +25,8 @@ async function ownProject(projectId: string) {
 
 const snsSchema = z.enum(SNS_KEYS as [SnsKey, ...SnsKey[]]);
 
+const MAX_MANUAL_LINKS = 100;
+
 export async function createLink(projectId: string, _prev: LinkActionState, formData: FormData): Promise<LinkActionState> {
   const owner = await ownProject(projectId);
   if (!owner) return { error: "ログインし直してください。" };
@@ -34,10 +36,18 @@ export async function createLink(projectId: string, _prev: LinkActionState, form
   if (kind === "profile" && !sns?.success) return { error: "SNS を選んでください。" };
   if (sns && !sns.success) return { error: "SNS の選び方が正しくありません。" };
   const destination = String(formData.get("destination") ?? "").trim();
-  if (!isValidDestination(destination)) return { error: "行き先は https:// で始まる URL にしてください。" };
+  if (!isValidDestination(destination)) return { error: "行き先は https:// で始まる URL にしてください（IP アドレスそのものや、矢書の URL は使えません）。" };
   const label = String(formData.get("label") ?? "").trim().slice(0, 100);
 
   const admin = createAdminClient();
+  // 手で作るリンクの数の上限（悪用への備え。投稿のリンクは投稿の数で決まるので数えない）
+  const { count } = await admin
+    .from("short_links")
+    .select("id", { count: "exact", head: true })
+    .eq("project_id", projectId)
+    .in("kind", ["profile", "custom"])
+    .is("disabled_at", null);
+  if ((count ?? 0) >= MAX_MANUAL_LINKS) return { error: `手で作れるリンクは 1 つのプロジェクトに ${MAX_MANUAL_LINKS} 個までです。使っていないリンクを止めてください。` };
   if (kind === "profile") {
     // プロフィールのリンクは、SNS ごとに 1 つ（使っているものを止めてから作り直す）
     const { data: existing } = await admin

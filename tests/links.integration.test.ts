@@ -1,7 +1,7 @@
 // 短縮リンクとクリックの記録（docs/architecture.md の 4.22、決定 D20）。ローカルの Supabase を使う。
 // 消す処理（purge_expired_data）は DB の全体に効くので、ここでは呼ばない
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createShortLink, ensurePostLinks, recordClick, resolveLink, substituteForTarget } from "@/lib/links/store";
+import { createShortLink, ensurePostLinks, postLinkPreview, preparePostLinks, recordClick, resolveLink, substituteForTarget } from "@/lib/links/store";
 import { anonClient, adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
 
 const admin = adminClient();
@@ -122,5 +122,38 @@ describe("投稿の本文の置き換え", () => {
     // 止めたリンクには置き換えない
     await admin.from("short_links").update({ disabled_at: new Date().toISOString() }).eq("post_target_id", threads.id);
     expect(await substituteForTarget(admin, threads.id, "threads", text)).toBe(text);
+  });
+});
+
+describe("投稿を保存したときの用意", () => {
+  it("送る前の自動の配信先にだけ用意し、オフにすると消す。手で投稿する SNS・送った配信先には触らない", async () => {
+    const body = `新しくしました ${STORE}`;
+    const { data: postId } = await alice.rpc("save_post", {
+      p_post_id: null as unknown as string,
+      p_project_id: projectId,
+      p_body: body,
+      p_planned_at: null as unknown as string,
+      p_status: "draft",
+      p_targets: [{ sns: "x" }, { sns: "threads" }, { sns: "note", title: "題" }],
+    });
+    const { data: targets } = await admin.from("post_targets").select("id, sns").eq("post_id", postId!);
+    const id = (sns: string) => targets!.find((t) => t.sns === sns)!.id;
+
+    await preparePostLinks(admin, { ownerId: aliceId, projectId, postId: postId!, enabled: true });
+    const preview = await postLinkPreview(alice, postId!);
+    expect(Object.keys(preview).sort()).toEqual(["threads", "x"]);
+    expect(preview.x![0].destination).toBe(STORE);
+    expect(preview.x![0].url).not.toBe(preview.threads![0].url);
+    // 他人には見えない
+    expect(await postLinkPreview(bob, postId!)).toEqual({});
+
+    // X を送り済みにしてからオフにすると、送る前の Threads のリンクだけが消える
+    await admin.from("post_targets").update({ status: "published" }).eq("id", id("x"));
+    await preparePostLinks(admin, { ownerId: aliceId, projectId, postId: postId!, enabled: false });
+    expect(Object.keys(await postLinkPreview(alice, postId!))).toEqual(["x"]);
+    expect((await admin.from("short_links").select("id").eq("post_target_id", id("note"))).data).toEqual([]);
+
+    // 他人の投稿には用意しない
+    await expect(preparePostLinks(admin, { ownerId: bobId, projectId, postId: postId!, enabled: true })).rejects.toBeTruthy();
   });
 });

@@ -1,6 +1,7 @@
 // 短縮リンクの決まり（docs/architecture.md の 4.22、決定 D20）
 import { describe, expect, it } from "vitest";
 import { shortLinkRoute } from "@/lib/links/host";
+import { isValidDestination } from "@/lib/links/store";
 import { CODE_LENGTH, CODE_PATTERN, classifyRequest, findLinkableUrls, generateCode, shortLinkBase, substituteLinks, substitutesBodyLinks, withTrackingParams } from "@/lib/links/rules";
 
 const IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148";
@@ -106,5 +107,28 @@ describe("短縮リンクのホストとパス", () => {
   it("短縮リンクの URL の土台: SHORT_LINK_BASE_URL がなければ <APP_URL>/go", () => {
     expect(shortLinkBase({ shortLinkBaseUrl: "https://go.yabumi.app/", appUrl: "https://yabumi.app" })).toBe("https://go.yabumi.app");
     expect(shortLinkBase({ shortLinkBaseUrl: "", appUrl: "https://yabumi.app/" })).toBe("https://yabumi.app/go");
+  });
+});
+
+describe("行き先に使えるもの（悪用への備え）", () => {
+  it("https のふつうのサイトとストアだけ。IP アドレス・内部のホスト・矢書自身・ポート・認証情報つきは使えない", () => {
+    expect(isValidDestination("https://apps.apple.com/jp/app/id1")).toBe(true);
+    expect(isValidDestination("https://example.com/a?b=1")).toBe(true);
+    for (const bad of [
+      "http://example.com",
+      "javascript:alert(1)",
+      "https://203.0.113.5/login",
+      "https://[::1]/",
+      "https://localhost/",
+      "https://intranet/",
+      "https://printer.local/",
+      "https://go.yabumi.app/Ab3dE5fG",
+      "https://yabumi.app/login",
+      "https://yabumi-xxxx.vercel.app/",
+      "https://example.com:8443/",
+      "https://user:pass@example.com/",
+    ]) {
+      expect(isValidDestination(bad), bad).toBe(false);
+    }
   });
 });

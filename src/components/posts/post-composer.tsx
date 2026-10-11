@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { ErrorBanner, SuccessBanner } from "@/components/ui/feedback";
 import { deletePost, savePost } from "@/lib/posts/actions";
 import type { SavePostResult } from "@/lib/posts/schema";
+import { ShortLinkPreviewNote, ShortLinkToggle } from "@/components/links/short-link-toggle";
+import type { PostLinkPreview } from "@/lib/links/store";
 import { ImageAttachments, type AttachedImage } from "./image-attachments";
 import { applyFix } from "@/lib/ai/ai-check";
 import { AiCheckPanel } from "./ai-check-panel";
@@ -20,6 +22,8 @@ export type ComposerInitial = {
   targets: { sns: SnsKey; bodyOverride: string | null; title?: string | null }[];
   plannedAt: string;
   images?: AttachedImage[];
+  // 本文の URL を短縮リンクにするか（新しい投稿はオン。4.22、D20）
+  shortLinks?: boolean;
 };
 
 type Props = {
@@ -37,6 +41,8 @@ type Props = {
   planHints?: PlanHintsData | null;
   // 画像を送るにはつなぎ直しが要る SNS（X は media.write を足す前につないだアカウント）
   needImageReconnect?: SnsKey[];
+  // 保存した投稿の、配信先ごとの短縮リンク（送るときにこの URL に置き換わる）
+  linkPreview?: PostLinkPreview;
   // AI っぽさチェック（F11）を使えるか（Claude API のキーがあるか）
   aiCheckEnabled?: boolean;
 };
@@ -70,9 +76,11 @@ export function PostComposer({
   noticeTone = "success",
   planHints = null,
   needImageReconnect = [],
+  linkPreview = {},
   aiCheckEnabled = false,
 }: Props) {
   const [images, setImages] = useState<AttachedImage[]>(initial.images ?? []);
+  const [shortLinks, setShortLinks] = useState(initial.shortLinks ?? true);
   const [body, setBody] = useState(initial.body);
   const [selected, setSelected] = useState<Set<SnsKey>>(() => new Set(initial.targets.map((t) => t.sns)));
   const [overrides, setOverrides] = useState<Partial<Record<SnsKey, string>>>(() =>
@@ -166,6 +174,7 @@ export function PostComposer({
         plannedAt,
         intent,
         media: images.map((i) => ({ id: i.id, altText: i.altText })),
+        shortLinks,
         targets: chosen.map((sns) => ({ sns, bodyOverride: overrides[sns] ?? null, title: SNS[sns].needsTitle ? (titles[sns] ?? null) : null })),
       });
       // 成功時はサーバーで画面を移るので、ここに来るのは失敗したときだけ
@@ -229,6 +238,8 @@ export function PostComposer({
             />
             {fe.media && <p className="text-sm font-semibold text-danger">{fe.media}</p>}
           </section>
+
+          <ShortLinkToggle checked={shortLinks} onChange={setShortLinks} projectId={projectId} />
 
           <AiCheckPanel
             projectId={projectId}
@@ -361,6 +372,7 @@ export function PostComposer({
                 )}
               </div>
             </div>
+            <ShortLinkPreviewNote sns={focus} text={textFor(focus)} enabled={shortLinks} preview={linkPreview} />
             {images.length > 0 && ignoresImages(focus) && (
               <p className="text-xs text-muted">
                 {isManualSns(focus) ? `${focusLabel} には、画像は投稿の画面で手で添えてください。` : `${focusLabel} には画像を送りません（動画だけの SNS です）。`}
@@ -527,6 +539,7 @@ function XUrlCostNotice({ onEdit }: { onEdit: () => void }) {
         <li>URL は X のプロフィールに置き、本文は「プロフィールのリンクから」とする</li>
         <li>X 用に文面を変えて URL を外す（Threads など、ほかの SNS には URL を残せる）</li>
         <li>「example.com」のように https:// を付けなくても、X は URL として数えます</li>
+        <li>短縮リンクも URL なので、料金は同じです。X で押された回数は、プロフィールのリンクを短縮リンクにして数えるのがおすすめです</li>
       </ul>
       <button type="button" onClick={onEdit} className="self-start text-xs font-semibold text-primary hover:underline">
         X 用に文面を変える

@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { SnsKey } from "@/lib/sns";
+import { isManualSns, type SnsKey } from "@/lib/sns";
 import type { Database } from "@/lib/supabase/database.types";
 import { CODE_PATTERN, findLinkableUrls, generateCode, shortLinkUrl, substituteLinks, substitutesBodyLinks, withTrackingParams, type Device, type Excluded } from "./rules";
 
@@ -17,10 +17,20 @@ export class LinkError extends Error {
 
 export type LinkKind = "post" | "profile" | "custom";
 
+// 行き先に使えない場所。短縮リンクは利用者が決めた行き先へ転送するので、矢書のドメインを借りた悪用を減らすため、
+// IP アドレスそのもの・内部のホスト・矢書自身（リンクの入れ子）は使えなくする（4.22 の「悪用への備え」）
+const BLOCKED_HOSTS = /^(localhost|.*\.localhost|.*\.local|.*\.internal|.*\.test)$/i;
+const OWN_HOSTS = /(^|\.)yabumi\.app$|(^|\.)vercel\.app$/i;
+
 export function isValidDestination(url: string): boolean {
   try {
     const u = new URL(url);
-    return u.protocol === "https:" && url.length <= 2000 && !u.username && !u.password;
+    if (u.protocol !== "https:" || url.length > 2000 || u.username || u.password || u.port) return false;
+    const host = u.hostname;
+    // IPv4・IPv6 のアドレスそのもの
+    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.startsWith("[")) return false;
+    if (!host.includes(".") || BLOCKED_HOSTS.test(host) || OWN_HOSTS.test(host)) return false;
+    return true;
   } catch {
     return false;
   }
@@ -31,7 +41,7 @@ export async function createShortLink(
   admin: Admin,
   input: { ownerId: string; projectId: string; destinationUrl: string; sns: SnsKey | null; kind: LinkKind; postTargetId?: string | null; label?: string },
 ): Promise<{ id: string; code: string }> {
-  if (!isValidDestination(input.destinationUrl)) throw new LinkError("リンクの行き先は https:// で始まる URL にしてください。");
+  if (!isValidDestination(input.destinationUrl)) throw new LinkError("リンクの行き先は https:// で始まる URL にしてください（IP アドレスそのものや、矢書の URL は使えません）。");
   for (let i = 0; i < 5; i++) {
     const code = generateCode();
     const { data, error } = await admin
@@ -134,4 +144,44 @@ export async function substituteForTarget(admin: Admin, postTargetId: string, sn
     .in("destination_url", urls);
   if (error) throw error;
   return substituteLinks(text, new Map((data ?? []).map((r) => [r.destination_url, shortLinkUrl(r.code)])));
+}
+
+// 投稿を保存したときに、送る前の配信先（送信待ち）の本文の URL に短縮リンクを用意する。
+// enabled が false なら、送る前の配信先の短縮リンクを消す（送った投稿の中のリンクは残す）。
+// 置き換えるのは自動で送る SNS だけ（手で投稿する SNS は、利用者が貼る文にそのまま入る）。Instagram は本文の URL を押せないので置き換えない
+export async function preparePostLinks(admin: Admin, input: { ownerId: string; projectId: string; postId: string; enabled: boolean }): Promise<void> {
+  const [{ data: post, error: postError }, { data: targets, error }] = await Promise.all([
+    admin.from("posts").select("body").eq("id", input.postId).eq("owner_id", input.ownerId).single(),
+    admin.from("post_targets").select("id, sns, status, body_override").eq("post_id", input.postId).eq("owner_id", input.ownerId),
+  ]);
+  if (postError) throw postError;
+  if (error) throw error;
+  for (const t of targets ?? []) {
+    if (t.status !== "pending" || isManualSns(t.sns as SnsKey)) continue;
+    if (!input.enabled || !substitutesBodyLinks(t.sns as SnsKey)) {
+      const { error: delError } = await admin.from("short_links").delete().eq("post_target_id", t.id).eq("owner_id", input.ownerId);
+      if (delError) throw delError;
+      continue;
+    }
+    await ensurePostLinks(admin, { ownerId: input.ownerId, projectId: input.projectId, postTargetId: t.id, sns: t.sns as SnsKey, text: t.body_override ?? post.body });
+  }
+}
+
+export type PostLinkPreview = Partial<Record<SnsKey, { destination: string; url: string }[]>>;
+
+// 作成画面に出す、配信先ごとの短縮リンク（送るときにこの URL に置き換わる）
+export async function postLinkPreview(db: SupabaseClient<Database>, postId: string): Promise<PostLinkPreview> {
+  const { data, error } = await db
+    .from("short_links")
+    .select("code, destination_url, disabled_at, post_targets!inner(post_id, sns)")
+    .eq("post_targets.post_id", postId)
+    .limit(100);
+  if (error) throw error;
+  const result: PostLinkPreview = {};
+  for (const row of data ?? []) {
+    if (row.disabled_at) continue;
+    const sns = (row.post_targets as unknown as { sns: SnsKey }).sns;
+    (result[sns] ??= []).push({ destination: row.destination_url, url: shortLinkUrl(row.code) });
+  }
+  return result;
 }

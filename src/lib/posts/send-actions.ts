@@ -51,3 +51,29 @@ export async function deleteFromSns(projectId: string, postId: string, targetId:
   revalidatePath(`/projects/${projectId}`, "layout");
   redirect(`/projects/${projectId}/posts/${postId}?done=deleted_sns`);
 }
+
+// SNS の画面で投稿を消したことを記録する（SNS からは消さない。消えた投稿の ID と URL を矢書に残さないため。X の規約、docs/architecture.md の 4.13）
+export async function markRemovedOnSns(projectId: string, postId: string, targetId: string): Promise<{ error?: string }> {
+  const ids = z.array(z.uuid()).safeParse([projectId, postId, targetId]);
+  if (!ids.success) return { error: "入力の形式が正しくありません。" };
+  // 本人の配信先であることを、利用者の権限（RLS）で確かめてから、サーバーの権限で書き換える（送信の状態は利用者が直接書き換えられない）
+  const supabase = await createClient();
+  const { data: target } = await supabase
+    .from("post_targets")
+    .select("id, posts!inner(project_id)")
+    .eq("id", targetId)
+    .eq("post_id", postId)
+    .eq("posts.project_id", projectId)
+    .eq("status", "published")
+    .maybeSingle();
+  if (!target) return { error: "投稿が見つかりません。画面を読み込み直してください。" };
+  const now = new Date().toISOString();
+  const { error } = await createAdminClient()
+    .from("post_targets")
+    .update({ status: "deleted", sns_removed_at: now, sns_checked_at: now })
+    .eq("id", targetId)
+    .eq("status", "published");
+  if (error) return { error: "記録できませんでした。時間をおいてもう一度お試しください。" };
+  revalidatePath(`/projects/${projectId}`, "layout");
+  redirect(`/projects/${projectId}/posts/${postId}?done=removed_on_sns`);
+}

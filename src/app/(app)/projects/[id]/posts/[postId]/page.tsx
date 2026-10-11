@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { XSyncOnView } from "@/components/posts/x-sync-on-view";
 import { PostComposer } from "@/components/posts/post-composer";
 import { connectedAccounts, getPost, postTitle } from "@/lib/posts/queries";
 import { getProject } from "@/lib/projects/queries";
@@ -25,6 +26,7 @@ const NOTICES: Record<string, { text: string; tone: "success" | "error" }> = {
   send_failed: { text: "送れなかった SNS があります。右の「送信の結果」で理由を確かめてください。", tone: "error" },
   deleted_sns: { text: "SNS から取り消しました。矢書の下書きは残っています。", tone: "success" },
   manual_posted: { text: "投稿したことを記録しました。", tone: "success" },
+  removed_on_sns: { text: "SNS で消したことを記録しました。消えた投稿へのリンクは、矢書からも消しました。", tone: "success" },
 };
 
 export default async function EditPostPage(props: PageProps<"/projects/[id]/posts/[postId]">) {
@@ -58,13 +60,19 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
             ? { title: null, text: t.body_override ?? post.body, composeUrl: xComposeUrl(t.body_override ?? post.body) }
             : undefined,
         postedByHand: t.status === "published" && !t.external_post_id,
+        removedOnSns: t.status === "deleted" && Boolean(t.sns_removed_at),
       },
     ]),
   );
   const notice = NOTICES[String(searchParams.done)];
 
+  // X に送った（または手で投稿して記録した）ものがあれば、画面を開いたあとに X にまだあるかを確かめる
+  const hasPublishedX = post.targets.some((t) => t.sns === "x" && t.status === "published");
+
   return (
-    <PostComposer
+    <>
+      {hasPublishedX && <XSyncOnView projectId={project.id} postId={post.id} />}
+      <PostComposer
       key={post.id}
       projectId={project.id}
       projectName={project.name}
@@ -80,5 +88,6 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
         plannedAt: toInputValue(post.planned_at),
       }}
     />
+    </>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { deleteFromSns, markManualPosted } from "@/lib/posts/send-actions";
+import { deleteFromSns, markManualPosted, markRemovedOnSns } from "@/lib/posts/send-actions";
 import { SNS, SNS_KEYS, isManualSns, type SnsKey } from "@/lib/sns";
 import { formatShort } from "@/lib/time";
 
@@ -19,6 +19,8 @@ export type TargetResult = {
   fallback?: ManualInfo;
   // 手で投稿して記録したもの（SNS 上の投稿の ID がないので、矢書からは取り消せない）
   postedByHand?: boolean;
+  // 矢書の外（SNS の画面など）で消されていた。矢書から取り消したときは false
+  removedOnSns?: boolean;
 };
 
 type ManualInfo = { title: string | null; text: string; composeUrl: string | null };
@@ -102,7 +104,12 @@ function ResultRow({ sns, r, projectId, postId }: { sns: SnsKey; r: TargetResult
           </>
         )}
         {r.status === "publishing" && <span className="text-muted">送信中です。しばらくしてから読み込み直してください。</span>}
-        {r.status === "deleted" && <span className="text-muted">{label} から取り消しました（矢書の下書きは残っています）</span>}
+        {r.status === "deleted" &&
+          (r.removedOnSns ? (
+            <span className="text-muted">{label} で消されていました。消えた投稿へのリンクは、矢書からも消しました（矢書の下書きは残っています）</span>
+          ) : (
+            <span className="text-muted">{label} から取り消しました（矢書の下書きは残っています）</span>
+          ))}
         {r.status === "failed" && (
           <>
             <span className="font-bold text-danger">! 失敗</span>
@@ -117,6 +124,9 @@ function ResultRow({ sns, r, projectId, postId }: { sns: SnsKey; r: TargetResult
       </div>
       {(r.status === "failed" || r.status === "pending") && r.errorMessage && <p className="text-muted">{r.errorMessage}</p>}
       {r.status === "failed" && <p className="text-xs text-muted">直してから「今すぐ送る」か「予約」で送り直せます。</p>}
+      {r.status === "published" && (
+        <RemovedOnSns label={label} onConfirm={() => markRemovedOnSns(projectId, postId, r.id)} />
+      )}
       {r.status === "failed" && r.fallback && !showManual && (
         <Button type="button" variant="secondary" size="sm" className="self-start" onClick={() => setShowManual(true)}>
           {label} に手で投稿する
@@ -131,6 +141,50 @@ function ResultRow({ sns, r, projectId, postId }: { sns: SnsKey; r: TargetResult
         </p>
       )}
     </li>
+  );
+}
+
+// SNS の画面で投稿を消したときに、矢書の記録からも消す（消えた投稿の ID と URL を残さない）
+function RemovedOnSns({ label, onConfirm }: { label: string; onConfirm: () => Promise<{ error?: string } | undefined> }) {
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)} className="self-start text-xs text-muted hover:text-fg hover:underline">
+        {label} の画面でこの投稿を消した場合
+      </button>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-1.5 text-xs text-muted">
+      <p>{label} で消した投稿は、矢書の記録からもリンクを消します（{label} には何もしません）。</p>
+      <span className="flex gap-2">
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          disabled={pending}
+          onClick={() =>
+            startTransition(async () => {
+              setError(null);
+              const res = await onConfirm();
+              if (res?.error) setError(res.error);
+            })
+          }
+        >
+          {label} で消したと記録する
+        </Button>
+        <Button type="button" variant="text" size="sm" onClick={() => setOpen(false)}>
+          やめる
+        </Button>
+      </span>
+      {error && (
+        <p role="alert" className="font-semibold text-danger">
+          {error}
+        </p>
+      )}
+    </div>
   );
 }
 

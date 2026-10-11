@@ -240,6 +240,8 @@ export type Database = {
           post_id: string
           published_at: string | null
           sns: string
+          sns_checked_at: string | null
+          sns_removed_at: string | null
           social_account_id: string | null
           status: string
           title: string | null
@@ -259,6 +261,8 @@ export type Database = {
           post_id: string
           published_at?: string | null
           sns: string
+          sns_checked_at?: string | null
+          sns_removed_at?: string | null
           social_account_id?: string | null
           status?: string
           title?: string | null
@@ -278,6 +282,8 @@ export type Database = {
           post_id?: string
           published_at?: string | null
           sns?: string
+          sns_checked_at?: string | null
+          sns_removed_at?: string | null
           social_account_id?: string | null
           status?: string
           title?: string | null
@@ -668,6 +674,7 @@ export type Database = {
           p_operation: string
           p_owner_id: string
           p_post_target_id: string
+          p_scope_owner?: string
           p_sns: unknown
         }
         Returns: string

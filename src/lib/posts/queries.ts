@@ -13,6 +13,7 @@ export type PostTargetRow = {
   title: string | null;
   external_post_id: string | null;
   external_url: string | null;
+  sns_removed_at: string | null;
   error_message: string | null;
   published_at: string | null;
   next_attempt_at: string | null;
@@ -25,7 +26,7 @@ export type PostRow = {
   targets: PostTargetRow[];
 };
 
-const TARGET_FIELDS = "id, sns, status, title, body_override, external_post_id, external_url, error_message, published_at, next_attempt_at";
+const TARGET_FIELDS = "id, sns, status, title, body_override, external_post_id, external_url, sns_removed_at, error_message, published_at, next_attempt_at";
 const POST_SELECT = `id, body, planned_at, status, post_targets(${TARGET_FIELDS})` as const;
 const POST_SELECT_FAILED_ONLY = `id, body, planned_at, status, post_targets!inner(${TARGET_FIELDS})` as const;
 

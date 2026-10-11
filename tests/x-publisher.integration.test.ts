@@ -1,6 +1,7 @@
 // X の送信（トークンの取り直しを 1 回だけにする・月の上限・費用の記録）と、その権限。
 // X には偽のアダプターを使い、本物の X には送らない。取り出しは必ず postId を指定し、日時は未来にして pg_cron に拾われないようにする。
-// 月の上限は矢書全体の合計で決まるので、今の合計を読んでから、それに足した額を上限にして確かめる
+// 月の上限は本番では矢書全体の合計で決まる。同じ DB で他のテストが同時に流れても左右されないよう、
+// 上限を確かめるテストは数える範囲を alice の記録だけにする（budgetScopeOwner）。全体で数えることは別のテストで確かめる
 import { randomBytes, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { decryptToken } from "@/lib/crypto/token-cipher";
@@ -48,6 +49,7 @@ const deps = (adapter: SnsAdapter, budget?: number): PublisherDeps => ({
   adapters: { x: adapter },
   key,
   budgetsUsd: budget === undefined ? undefined : { x: budget },
+  budgetScopeOwner: budget === undefined ? undefined : aliceId,
   refreshWait: { intervalMs: 50, tries: 40 },
 });
 
@@ -85,10 +87,16 @@ async function scheduledPost(body: string): Promise<{ postId: string; targetId: 
   return { postId: postId!, targetId: data!.id };
 }
 
+// alice が今月 X に使った額（上限を数える範囲と同じ）
 async function spentNow(): Promise<number> {
-  const { data, error } = await admin.rpc("sns_spend_this_month", { p_sns: "x" });
+  const { data, error } = await admin.from("sns_api_usage").select("cost_usd").eq("sns", "x").eq("owner_id", aliceId).gte("created_at", monthStartJst());
   if (error) throw error;
-  return Number(data);
+  return data.reduce((sum, r) => sum + Number(r.cost_usd), 0);
+}
+
+function monthStartJst(now = new Date()): string {
+  const jst = new Date(now.getTime() + 9 * 3600_000);
+  return new Date(Date.UTC(jst.getUTCFullYear(), jst.getUTCMonth(), 1) - 9 * 3600_000).toISOString();
 }
 
 async function usageOf(targetId: string) {
@@ -240,6 +248,30 @@ describe("権限", () => {
     await alice.from("sns_api_usage").delete().eq("owner_id", aliceId);
     const { data: still } = await admin.from("sns_api_usage").select("id").eq("owner_id", aliceId);
     expect(still!.length).toBe(mine!.length);
+  });
+
+  it("範囲を指定しなければ（本番）、ほかの利用者の記録も合わせて矢書全体で数える", async () => {
+    // bob の記録（$1）を足す。全体の合計は少なくとも alice の分 + $1 になる
+    const { data: bobUsage } = await admin.from("sns_api_usage").insert({ owner_id: bobId, sns: "x", operation: "post", cost_usd: 1 }).select("id").single();
+    const budget = (await spentNow()) + 0.5;
+    const reserve = (scope: string | null) =>
+      admin.rpc("reserve_sns_spend", {
+        p_owner_id: aliceId,
+        p_sns: "x",
+        p_post_target_id: null as unknown as string,
+        p_operation: "post",
+        p_cost_usd: 0.015,
+        p_budget_usd: budget,
+        p_scope_owner: scope as string,
+      });
+    // 全体で数えると bob の $1 で上限を超える
+    const global = await reserve(null);
+    expect(global.error).toBeNull();
+    expect(global.data).toBeNull();
+    // alice の記録だけなら上限の中
+    const scoped = await reserve(aliceId);
+    expect(scoped.data).not.toBeNull();
+    await admin.from("sns_api_usage").delete().in("id", [bobUsage!.id, scoped.data!]);
   });
 
   it("費用の記録・合計・トークンの延長の関数は、ログインした利用者から呼べない", async () => {

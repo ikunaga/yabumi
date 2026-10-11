@@ -14,6 +14,8 @@ export type PublisherDeps = {
   now?: () => Date;
   // 使った分だけ払う SNS の、月の上限（米ドル、矢書全体）。ない SNS は上限なし
   budgetsUsd?: Partial<Record<SnsKey, number>>;
+  // 上限を数える範囲。ないときは矢書全体（本番）。利用者の ID を入れると、その人の記録だけを数える（テストで他のテストに左右されないため）
+  budgetScopeOwner?: string;
   // 延長をほかの処理が行っているとき、待つ間隔と回数（テストで短くする）
   refreshWait?: { intervalMs: number; tries: number };
 };
@@ -155,6 +157,7 @@ async function reserveSpend(
   operation: string,
   costUsd: number,
   budgetUsd: number | null,
+  scopeOwner: string | null,
 ): Promise<string | null> {
   const { data: target, error: targetError } = await admin.from("post_targets").select("owner_id").eq("id", targetId).single();
   if (targetError) throw targetError;
@@ -165,6 +168,7 @@ async function reserveSpend(
     p_operation: operation,
     p_cost_usd: costUsd,
     p_budget_usd: budgetUsd as number,
+    p_scope_owner: scopeOwner as string,
   });
   if (error) throw error;
   return data;
@@ -203,7 +207,7 @@ async function publishOne(admin: Admin, t: ClaimedTarget, deps: PublisherDeps): 
     if (adapter.publishCost && isSnsKey(t.sns)) {
       const cost = adapter.publishCost(t.body);
       const budget = deps.budgetsUsd?.[t.sns];
-      usageId = await reserveSpend(admin, t.target_id, t.sns, cost.operation, cost.costUsd, budget ?? null);
+      usageId = await reserveSpend(admin, t.target_id, t.sns, cost.operation, cost.costUsd, budget ?? null, deps.budgetScopeOwner ?? null);
       if (!usageId) {
         return fail(
           `今月の ${label} の上限（$${budget}）に達しました。来月まで自動では送りません。送信の結果から、手で投稿して記録できます。`,

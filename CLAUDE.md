@@ -10,6 +10,7 @@
 - 利用者はマーケティングの完全な素人だと思って設計する。空欄に自分で書かせるのではなく、AI が質問しながら一緒に整理し、案と理由を出して利用者が選べるようにする。用語は使う前にかみ砕き、決めにくいことは選択肢と長所・短所で示す
 - UI の文言とドキュメントは日本語。マーケティング用語には `<Term k="..." />` で解説を添え、用語は src/lib/glossary/terms.ts に足す
 - テーブルを追加したら必ず RLS を有効にし、tests/ に他人から読めないことを確かめる結合テストを足す
+- 新しいテーブル・関数には権限が自動で付かない（20261011220100_explicit_grants）。create table のあとに、RLS のポリシーと同じ操作だけを authenticated に grant する。関数は public・anon・authenticated から revoke execute してから、必要なロールにだけ grant する（docs/architecture.md 4.17）
 - マイグレーションの適用は `supabase migration up`（データを残す）。`supabase db reset` はローカルの全データを消す（利用者が登録したアカウントも消える）ので、オーナーの了承なしに使わない。消えても supabase/seed.sql のテスト用アカウントとサンプルは戻る
 - マイグレーション後は `pnpm db:types` で src/lib/supabase/database.types.ts を再生成する
 - Next.js 16 なので middleware ではなく src/proxy.ts。cookies() や params は await する

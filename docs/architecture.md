@@ -267,11 +267,22 @@ pg_cron（毎日 3:00）→ 同上 → /api/jobs/refresh-tokens
 
 1. 概要の「いまやること」の上に「最初に（任意）GitHub をつなぐ」を出す（プロジェクトを作った直後にも出る）。「今はしない」で消せる（projects.github_prompt_dismissed_at）
 2. 「GitHub をつなぐ」→ /github/install が state を cookie に入れて、GitHub App のインストール画面へ送る。利用者は読ませるリポジトリを選ぶ
-3. GitHub から /github/callback に戻る（App の設定で「インストール時に利用者の認可を求める」をオンにしておく）。URL の installation_id は偽造できるので信用しない。認可コードで利用者のトークンを取り、/user/installations に出てくる、この App のインストールだけを記録する。利用者のトークンは使ったら捨てる
+3. GitHub から /github/callback に戻る（App の設定で「インストール時に利用者の認可を求める」をオンにしておく）。URL の installation_id は偽造できるので信用しない。認可コードで利用者のトークンを取り、/user/installations に出てくる、この App のインストールだけを記録する。あわせて、その中で本人が読めるリポジトリを記録する（下の「他の人が入れるとき」）。利用者のトークンは使ったら捨てる
 4. プロジェクトの GitHub の画面で、読ませたリポジトリから 1 つ選ぶ（そのインストールで本当に読めるかを GitHub に確かめてから記録）
 5. 「リポジトリを読んで、紹介文を下書きする」→ 2 段階で下書きする（下の「読み方」）。紹介文は「何ができるか・誰向けか・対応 OS・今の段階」。わからないところは、利用者への質問（答えの例つき、3 つまで）にする
 6. 利用者が質問に答えると、その答えで紹介文を書き直す（リポジトリは読み直さない）。手で直してもよい
 7. 「この紹介文をプロジェクトに使う」でプロジェクトの「どんなアプリか」（選べば「届けたい相手」も）に保存する。アカウント設計の AI には、この紹介文が毎回の「いまの状況」として渡る（4.9）
+
+#### 他の人が入れるとき（Any account、2026-10-11）
+
+App を「Any account」（公開）にすると、他の人の個人アカウントや組織にも入れられる。そのとき、**インストールのトークンで読める範囲が、矢書の利用者本人の権限より広い**ことがある。
+
+- /user/installations は、本人がインストールのリポジトリの**どれか 1 つにでも**権限（所有・共同作業者・組織のメンバー）があれば、そのインストールを返す（[GitHub の資料](https://docs.github.com/en/rest/apps/installations#list-app-installations-accessible-to-the-user-access-token)）。たとえば ① 組織のインストールで、本人がチームの都合で見られない非公開リポジトリ ② 他の人の個人リポジトリに共同作業者として入っているときの、その人の他のリポジトリ。どちらもインストールのトークンなら読めてしまう
+- そこで、認可のときに利用者のトークンで /user/installations/{id}/repositories（本人が権限を持つリポジトリだけを返す）を読み、その ID を github_installations.repo_ids に記録する。インストール先が本人の個人アカウント（アカウントの ID が、認可した本人の GitHub の ID と同じ。名前は変えられるので ID で比べる）なら null（インストールの範囲すべて。範囲は本人が「Only select repositories」で選んだもの）
+- リポジトリの一覧・つなぐ（connectRepo）・読む直前（紹介文の下書き、コミットからのネタ）のすべてで、この記録を確かめる（src/lib/github/installations.ts の canReadRepo・userCanReadRepo・readableRepoLink）。リポジトリを読む機能を足すときは、readableRepoLink を通してからトークンを発行する
+- 利用者のトークンは保存しないので、組織を抜けた・チームから外れたことは、認可し直すまでわからない。そのため、本人の個人アカウント以外のインストールは、確かめてから **7 日**（SHARED_ACCESS_MAX_AGE_MS。updated_at は認可のたびにトリガーが書き換える）を過ぎたら読まず、画面で「連携を読み込み直す」へ案内する。読み込み直しで読めなくなったリポジトリのつなぎは外す
+- 組織に入れるには、組織のオーナーの承認が要る（メンバーが入れると setup_action=request で戻る。画面は「承認待ち」）
+- 公開の手順、名前とロゴの変え方は [deploy.md の 10](deploy.md)
 
 #### トークン
 
@@ -459,7 +470,7 @@ README が薄い個人開発のリポジトリやモノレポでも中身がわ�
 | SNS の API の費用（X に払った額。投稿の中身は入らない） | sns_api_usage | 同上（13 か月、退会したら紐づけを外す） | 同上 |
 | SNS のトークン（暗号化済み） | social_account_tokens | SNS をつないでいる間 | 「つないだ SNS」の「外す」、退会。すぐに消す |
 | SNS のアカウントの情報（SNS の ID、ユーザー名、表示名） | social_accounts | つないでいる間 | 「外す」、退会。外しても、過去の投稿の送信の結果（URL など）は残る |
-| GitHub（インストールの ID、つないだリポジトリの名前、最後に読んだ日時） | github_installations / project_github_repos | つないでいる間 | 「リポジトリを外す」、退会 |
+| GitHub（インストールの ID、本人が読めるリポジトリの ID、つないだリポジトリの名前、最後に読んだ日時） | github_installations / project_github_repos | つないでいる間 | 「リポジトリを外す」、退会 |
 | GitHub のファイルの中身、コミット（メッセージと差分） | 保存しない | 紹介文やネタを作るときに読み、AI（Anthropic）に送るだけ（4.10、4.15） | ― |
 | 手で投稿する SNS のプロフィールの URL | project_manual_channels | 利用者が消すか、退会まで | 「つないだ SNS」の画面、退会 |
 | サーバーのログ | Vercel、Supabase | 各サービスの保存期間（Vercel Hobby は約 1 時間〜1 日、Supabase Free は 1 日）。トークンや本文はログに出さない | ― |

@@ -136,3 +136,43 @@
 | Claude API | 従量 | 使った分。矢書の上限で月 $10 まで、Console の上限が最後の歯止め |
 | Threads API / GitHub API | - | 0 円 |
 | 独自ドメイン（任意） | - | .com などで年 1,500〜2,500 円ほど。いまは使わず vercel.app で始める（オーナーの判断） |
+
+## 10. GitHub App を他の人も入れられるようにする（Any account）
+
+6-2 で作った本番用の App（いまの名前は Yabumi-masa、Only on this account）を、他の人も入れられる App にする手順。調べた内容と矢書の側の対応は [architecture.md の 4.10](architecture.md) の「他の人が入れるとき」。
+
+### 先に済ませること
+
+| # | 誰が | やること |
+|---|---|---|
+| 10-1 | Claude | マイグレーション 20261011210000_github_repo_access.sql（本人が読めるリポジトリの記録）を本番に当てる（2-5 と同じく `supabase db push`）。**これを当てる前に Any account にしない**（当てる前のコードは、組織や共同作業者のインストールで、本人が読めないリポジトリまで読めてしまう） |
+| 10-2 | オーナー | 利用規約とプライバシーポリシーの「確認中」を埋める（[legal.md](legal.md)）。App の紹介ページから矢書に来た人が読めるように |
+
+### 名前を変える（任意）
+
+| # | 誰が | やること |
+|---|---|---|
+| 10-3 | オーナー | GitHub → Settings → Developer settings → GitHub Apps → Yabumi-masa → General → **GitHub App name** を変える（例: `Yabumi`。34 文字まで、ほかの App と重ならない名前）。説明（Description）は「矢書（やぶみ）: アプリのリポジトリを読んで、紹介文と SNS の投稿のネタを作ります。読み取りだけで、書き込みはしません。」など。インストールのときに相手に見える |
+| 10-4 | オーナー | 名前を変えると、App の URL の名前（slug。名前を小文字にし、空白を `-` にしたもの）も変わる。変えたあと、App の画面の **Public link**（`https://github.com/apps/<slug>`）を開いて、新しい slug を確かめる |
+| 10-5 | オーナー | Vercel → Settings → Environment Variables の **GITHUB_APP_SLUG** を新しい slug に変えて、Redeploy する。矢書の「GitHub をつなぐ」は slug から URL を作るので、変えないとインストールの画面が開かない（古い URL が新しい URL に転送されるかは、GitHub の資料に書かれていない） |
+| 10-6 | オーナー | 確かめる: 矢書の GitHub の画面の「読ませるリポジトリを追加・変更する」で、新しい名前の App の画面が開く。App ID と Client ID は変わらない（変わっていたら Vercel の値も直す）。すでに入れているインストールはそのまま使える |
+
+### ロゴ
+
+| # | 誰が | やること |
+|---|---|---|
+| 10-7 | オーナー | 同じ App の General → **Display information** → 「Upload a logo」で、`docs/design/logo/icons/favicon/icon-256.png`（角印「文」。src/app/icon.png と同じ絵）を選ぶ。形式は PNG・JPG・GIF で 1MB 未満、200×200 以上がおすすめ。切り抜きはそのまま（正方形）で「Set new avatar」 |
+| 10-8 | オーナー | 出てくる **Badge background color** に `f2f2ee`（ロゴの地の生成り。矢書の bg と同じ）を入れて保存 |
+
+### 公開する
+
+| # | 誰が | やること |
+|---|---|---|
+| 10-9 | オーナー | 同じ App の **Advanced** → Danger zone → **Make public** を押す。インストール先の設定が「Any account」になり、`https://github.com/apps/<slug>` にインストールのボタンが出る |
+| 10-10 | オーナー | 確かめる: 「Permissions & events」が Contents: Read-only と Metadata: Read-only だけ、Webhook がオフ、「Request user authorization (OAuth) during installation」がオン（矢書が本人の権限を確かめるのに要る） |
+
+- 戻すとき: 他の人がインストールしている間は「Make private」に戻せない（GitHub の決まり）。戻したいときは、先に他の人のインストールが外れている必要がある
+- 他の人の組織に入れるには、その組織のオーナーの承認が要る。メンバーが入れようとすると「承認待ち」になり、矢書の画面には「オーガニゼーションの管理者の承認待ちです」と出る
+- 組織や、他の人の個人リポジトリ（共同作業者として）のインストールでは、矢書は**その人が GitHub で読めるリポジトリだけ**を並べ、読む。読める範囲は 7 日ごとに確かめ直す（GitHub の画面の「連携を読み込み直す」）
+
+出典: [GitHub App を公開・非公開にする](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/making-a-github-app-public-or-private)、[GitHub App の登録を変える](https://docs.github.com/en/apps/maintaining-github-apps/modifying-a-github-app-registration)、[バッジ（ロゴ）](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/creating-a-custom-badge-for-your-github-app)、[サードパーティの App のインストール](https://docs.github.com/en/apps/using-github-apps/installing-a-github-app-from-a-third-party)（2026-10-11 に確認）

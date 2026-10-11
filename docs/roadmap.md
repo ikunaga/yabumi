@@ -180,6 +180,20 @@ SNS との連携がなくても作れる部分を先に作った。
 - 入口の文言を「AI とネタを出す」にした（「投稿をつくる」の見出しの横、概要の「これからの投稿」）
 - 費用は news・plan が 1 回 $0.07（実績）
 
+### 他の人に提供するための準備: 規約・審査・GitHub App（2026-10-11、D17）
+
+- 利用規約（/terms）とプライバシーポリシー（/privacy）の下書き。ログインなしで開け、トップ・ログイン・登録の画面からリンクし、登録の画面に同意の一文を出す。預かるもの・送り先（Anthropic、Meta、X、GitHub、Supabase、Vercel、Resend、Cloudflare）・保存期間・消し方は architecture.md の 4.14 に合わせた。Anthropic の扱い（既定で学習に使わない、30 日以内に消す、保存は米国）は公式の資料で確かめた（docs/legal.md）
+- 運営者・問い合わせ先・施行日・管轄・年齢、保存期間（1 年・13 か月）は「確認中」。決まるまで、ページの先頭に「確認中の下書き」と出す（src/lib/legal/info.ts）
+- SNS 各社の審査の準備（docs/review/）: Meta（ビジネス認証、権限ごとの説明文と録画の流れ、Tech Provider 認証、データ削除の URL）、X（審査は不要。規約上の表示と同意）、TikTok・YouTube（監査、独自ドメインが要ること、投稿の画面の決まり）
+- GitHub App を Any account にする準備: 組織や共同作業者のインストールで、本人が読めない非公開リポジトリまで読めてしまう穴を見つけて直した（本人が読めるリポジトリを記録し、一覧・つなぐ・読む直前で確かめる。7 日ごとに確かめ直す。architecture.md の 4.10）。公開・名前・ロゴの手順を deploy.md の 10 に書いた
+
+まだできないこと（オーナーの判断・作業待ち）:
+
+- 規約とポリシーの「確認中」を埋める（docs/legal.md の L1〜L11）
+- 独自ドメインを取るか（YouTube の確認には必須。docs/review/README.md の R1）、Meta のビジネス認証の名義（R2）
+- threads_manage_insights を審査に出すか（使っていない権限なので、外すのがおすすめ。docs/review/meta.md）
+- X で消された投稿の記録を「最新に保つ」扱い（docs/review/x.md の「残り」）
+
 ## 5. 次の作業
 
 1. PM がオーナーの確認をとって、本番にマイグレーションを当てる（supabase db push）
@@ -187,3 +201,4 @@ SNS との連携がなくても作れる部分を先に作った。
 3. Instagram・Facebook 用の Meta アプリを作り、接続する（オーナーの作業。META_APP_ID / META_APP_SECRET）
 4. X: オーナーがアプリを作ってキーを入れ、ローカルと本番で、つなぐ・送る・予約・取り消す・月の上限を確かめる（README の「X」）
 5. AI のネタ出し（F04）の残り: 短い投稿を note の長文に広げる（4.12 の「将来」）
+6. 他の人に提供する準備: オーナーが docs/legal.md と docs/review/README.md の「決めてほしいこと」を決める → 規約とポリシーを確定 → Meta の審査（docs/review/meta.md）→ GitHub App を Any account に（deploy.md の 10。マイグレーション 20261011210000 を本番に当ててから）

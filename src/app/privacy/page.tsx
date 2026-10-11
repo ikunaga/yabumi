@@ -142,10 +142,24 @@ export default function PrivacyPage() {
               "米国の会社。処理は主に東京のサーバー",
             ],
             [
-              "メールの送信（確認・パスワードの再設定）",
-              `確認メールなどの送信${PENDING}`,
+              <>
+                Resend
+                <br />
+                <ExternalLink href="https://resend.com/legal/privacy-policy">プライバシーポリシー</ExternalLink>
+              </>,
+              "確認メールとパスワードの再設定のメールの送信",
               "メールアドレス、メールの本文",
-              PENDING,
+              "米国",
+            ],
+            [
+              <>
+                Cloudflare（Turnstile）
+                <br />
+                <ExternalLink href="https://www.cloudflare.com/ja-jp/privacypolicy/">プライバシーポリシー</ExternalLink>
+              </>,
+              "登録・ログインの画面で、ロボットによる大量の登録や不正なログインを防ぐ",
+              "ブラウザと端末の情報（IP アドレス、ブラウザの種類など）",
+              "米国",
             ],
           ]}
         />

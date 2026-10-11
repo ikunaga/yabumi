@@ -719,7 +719,10 @@ export type Database = {
         }
         Returns: string
       }
-      sns_spend_this_month: { Args: { p_sns: unknown }; Returns: number }
+      sns_spend_this_month: {
+        Args: { p_owner_id?: string; p_sns: unknown }
+        Returns: number
+      }
     }
     Enums: {
       [_ in never]: never

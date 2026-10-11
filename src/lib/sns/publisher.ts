@@ -20,6 +20,8 @@ export type PublisherDeps = {
   onlyOwner?: string;
   // 延長をほかの処理が行っているとき、待つ間隔と回数（テストで短くする）
   refreshWait?: { intervalMs: number; tries: number };
+  // 日次のジョブで一度に読む件数（テストで小さくして、少しずつ読んでも漏れないことを確かめる）。本番は REFRESH_PAGE_SIZE
+  refreshPageSize?: number;
 };
 
 // 1 つの配信先につき最大 3 回まで試す。2 回目は 1 分後、3 回目は 5 分後
@@ -307,22 +309,37 @@ export async function deletePublishedTarget(admin: Admin, targetId: string, deps
   if (updateError) throw updateError;
 }
 
+// 日次のジョブで、トークンを一度に読む件数
+export const REFRESH_PAGE_SIZE = 500;
+
 export type RefreshOutcome = { socialAccountId: string; result: "refreshed" | "expired" | "failed" | "skipped"; message?: string };
 
 // 期限が近いトークンを延長する（日次のジョブ）。延長は発行から 24 時間たったものだけができる
 export async function refreshDueTokens(admin: Admin, deps: PublisherDeps): Promise<RefreshOutcome[]> {
   const now = deps.now?.() ?? new Date();
-  let query = admin
-    .from("social_account_tokens")
-    .select("social_account_id, access_token_encrypted, expires_at, updated_at, social_accounts!inner(sns, status, owner_id)")
-    .eq("social_accounts.status", "active")
-    .not("expires_at", "is", null);
-  if (deps.onlyOwner) query = query.eq("social_accounts.owner_id", deps.onlyOwner);
-  const { data, error } = await query;
-  if (error) throw error;
+  // Supabase の API は 1 回に 1,000 行までしか返さないので、ID の順に少しずつ読む。
+  // 途中で「期限切れ」にした行は条件から外れるので、件数で飛ばす（offset）のではなく、最後に読んだ ID の続きから読む
+  const pageSize = deps.refreshPageSize ?? REFRESH_PAGE_SIZE;
+  const rows = [];
+  for (let after: string | null = null; ; ) {
+    let query = admin
+      .from("social_account_tokens")
+      .select("social_account_id, access_token_encrypted, expires_at, updated_at, social_accounts!inner(sns, status, owner_id)")
+      .eq("social_accounts.status", "active")
+      .not("expires_at", "is", null)
+      .order("social_account_id")
+      .limit(pageSize);
+    if (deps.onlyOwner) query = query.eq("social_accounts.owner_id", deps.onlyOwner);
+    if (after) query = query.gt("social_account_id", after);
+    const { data, error } = await query;
+    if (error) throw error;
+    rows.push(...data);
+    if (data.length < pageSize) break;
+    after = data[data.length - 1].social_account_id;
+  }
 
   const outcomes: RefreshOutcome[] = [];
-  for (const row of data) {
+  for (const row of rows) {
     const id = row.social_account_id;
     const acc = row.social_accounts as unknown as { sns: string; status: string };
     const adapter = isSnsKey(acc.sns) ? deps.adapters[acc.sns] : undefined;

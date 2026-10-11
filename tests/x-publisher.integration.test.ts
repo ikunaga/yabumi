@@ -275,6 +275,21 @@ describe("権限", () => {
     await admin.from("sns_api_usage").delete().in("id", [bobUsage!.id, scoped.data!]);
   });
 
+  it("今月の費用の合計は DB で出し、利用者を指定するとその人の分だけになる", async () => {
+    const { data: rows } = await admin
+      .from("sns_api_usage")
+      .insert([
+        { owner_id: aliceId, sns: "x", operation: "post", cost_usd: 0.015 },
+        { owner_id: bobId, sns: "x", operation: "post_with_url", cost_usd: 0.2 },
+      ])
+      .select("id");
+    const mine = Number((await admin.rpc("sns_spend_this_month", { p_sns: "x", p_owner_id: aliceId })).data);
+    const { data: aliceRows } = await admin.from("sns_api_usage").select("cost_usd").eq("owner_id", aliceId).eq("sns", "x");
+    expect(mine).toBeCloseTo(aliceRows!.reduce((s, r) => s + Number(r.cost_usd), 0), 6);
+    expect(Number((await admin.rpc("sns_spend_this_month", { p_sns: "x", p_owner_id: bobId })).data)).toBeCloseTo(0.2, 6);
+    await admin.from("sns_api_usage").delete().in("id", rows!.map((r) => r.id));
+  });
+
   it("費用の記録・合計・トークンの延長の関数は、ログインした利用者から呼べない", async () => {
     const reserve = await alice.rpc("reserve_sns_spend", {
       p_owner_id: aliceId,

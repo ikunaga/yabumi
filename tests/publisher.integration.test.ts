@@ -282,3 +282,45 @@ describe("トークンの延長", () => {
     expect(new Date(data!.expires_at!).getTime()).toBe(newExpiry.getTime());
   });
 });
+
+describe("トークンの延長（少しずつ読む）", () => {
+  it("一度に読む件数より多くても、期限切れにした行があっても、漏れなく延長する", async () => {
+    const now = new Date();
+    const ids: string[] = [];
+    for (let i = 0; i < 5; i++) {
+      ids.push(
+        await saveConnectedAccount(
+          admin,
+          {
+            ownerId: aliceId,
+            sns: "threads",
+            externalId: `threads-page-${i}-${randomUUID()}`,
+            displayName: "Alice",
+            handle: `alice${i}`,
+            accessToken: `page-${i}`,
+            // 1 つ目は期限切れ（ジョブの中で「期限切れ」にされ、条件から外れる）。ほかは期限まで 10 日
+            expiresAt: new Date(now.getTime() + (i === 0 ? -86400_000 : 10 * 86400_000)),
+            scopes: [],
+          },
+          key,
+        ),
+      );
+    }
+    // 発行から 24 時間たったことにする（updated_at はトリガーで今になるので、入れ直す）
+    for (const id of ids) {
+      const { data: row } = await admin.from("social_account_tokens").select("*").eq("social_account_id", id).single();
+      await admin.from("social_account_tokens").delete().eq("social_account_id", id);
+      await admin.from("social_account_tokens").insert({ ...row!, updated_at: new Date(now.getTime() - 2 * 86400_000).toISOString() });
+    }
+    const adapter = fakeAdapter({
+      refreshToken: vi.fn(async () => ({ accessToken: "paged", expiresAt: new Date(now.getTime() + 60 * 86400_000) })),
+      shouldRefresh: (expiresAt: Date, at: Date) => expiresAt.getTime() - at.getTime() < 30 * 86400_000,
+    });
+    const outcomes = await refreshDueTokens(admin, { ...depsWith(adapter), now: () => now, onlyOwner: aliceId, refreshPageSize: 2 });
+    const byId = new Map(outcomes.map((o) => [o.socialAccountId, o.result]));
+    expect(byId.get(ids[0])).toBe("expired");
+    for (const id of ids.slice(1)) expect(byId.get(id)).toBe("refreshed");
+    await admin.from("social_accounts").delete().in("id", ids);
+  });
+});
+

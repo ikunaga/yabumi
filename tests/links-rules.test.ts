@@ -127,6 +127,14 @@ describe("行き先に使えるもの（悪用への備え）", () => {
       "https://yabumi-xxxx.vercel.app/",
       "https://example.com:8443/",
       "https://user:pass@example.com/",
+      // 末尾の点、数字だけの IPv4（URL の解釈で 127.0.0.1 などに直る）、大文字
+      "https://yabumi.app./login",
+      "https://go.yabumi.app../Ab3dE5fG",
+      "https://localhost./",
+      "https://2130706433/",
+      "https://0x7f.0.0.1/",
+      "https://YABUMI.APP/",
+      "https://printer.local./",
     ]) {
       expect(isValidDestination(bad), bad).toBe(false);
     }

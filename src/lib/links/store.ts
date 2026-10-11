@@ -26,7 +26,8 @@ export function isValidDestination(url: string): boolean {
   try {
     const u = new URL(url);
     if (u.protocol !== "https:" || url.length > 2000 || u.username || u.password || u.port) return false;
-    const host = u.hostname;
+    // 末尾の点（yabumi.app. や localhost.）は同じホストを指すので、外してから判定する。URL の解釈で、10 進・16 進の IPv4 はふつうの形に直っている
+    const host = u.hostname.replace(/\.+$/, "");
     // IPv4・IPv6 のアドレスそのもの
     if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.startsWith("[")) return false;
     if (!host.includes(".") || BLOCKED_HOSTS.test(host) || OWN_HOSTS.test(host)) return false;

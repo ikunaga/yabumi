@@ -536,6 +536,24 @@ export type Database = {
           },
         ]
       }
+      play_account_creations: {
+        Row: {
+          created_at: string
+          id: number
+          owner_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: never
+          owner_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: never
+          owner_id?: string
+        }
+        Relationships: []
+      }
       play_connections: {
         Row: {
           bucket: string | null

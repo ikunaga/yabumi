@@ -113,7 +113,10 @@ export async function listObjects(token: string, bucket: string, prefix: string,
   return (json.items ?? []).map((i) => i.name ?? "").filter(Boolean);
 }
 
-// ファイルを読む。ないとき（その月のレポートがまだない）は null
+// 1 つのレポートのファイルの大きさの上限。月ごとの統計の CSV は、国ごとの行でも数百 KB ほど
+export const MAX_REPORT_BYTES = 20 * 1024 * 1024;
+
+// ファイルを読む。ないとき（その月のレポートがまだない）は null。大きすぎるものは読まない（メモリを使い切らないように）
 export async function downloadObject(token: string, bucket: string, name: string, fetchImpl: typeof fetch = fetch): Promise<Buffer | null> {
   const res = await fetchImpl(`${GCS}/b/${encodeURIComponent(bucket)}/o/${encodeURIComponent(name)}?alt=media`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -122,7 +125,24 @@ export async function downloadObject(token: string, bucket: string, name: string
   });
   if (res.status === 404) return null;
   if (!res.ok) throw storageError(res.status);
-  return Buffer.from(await res.arrayBuffer());
+  const declared = Number(res.headers.get("content-length") ?? "0");
+  if (declared > MAX_REPORT_BYTES) throw new StoreApiError("Google Play のレポートのファイルが大きすぎるため、読みませんでした。", 413);
+  // content-length がない・偽りのときも、読みながら上限で止める
+  const reader = res.body?.getReader();
+  if (!reader) return Buffer.alloc(0);
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.length;
+    if (total > MAX_REPORT_BYTES) {
+      await reader.cancel();
+      throw new StoreApiError("Google Play のレポートのファイルが大きすぎるため、読みませんでした。", 413);
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks);
 }
 
 // Play Console の CSV は UTF-16（BOM つき）。UTF-8 でも読めるようにしておく

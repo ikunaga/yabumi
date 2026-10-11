@@ -47,6 +47,9 @@ export async function startPlayConnection(admin: Admin, ownerId: string, project
   const email = `${accountId}@${key.project_id}.iam.gserviceaccount.com`;
   const { error } = await admin.from("play_connections").insert({ project_id: projectId, owner_id: ownerId, service_account_email: email });
   if (error) {
+    // 1 人がつなげる数・1 日に作れる数の上限（DB のトリガー。Google Cloud のアカウントの数をほかの人の分まで使わないように）
+    if (error.message.includes("play_connection_limit")) throw new StoreApiError("Google Play をつなげるのは 3 つのプロジェクトまでです。使っていないプロジェクトの Google Play を外してください。", 429);
+    if (error.message.includes("play_connection_rate")) throw new StoreApiError("Google Play のつなぎ直しが続いています。明日もう一度お試しください。", 429);
     // 同時に 2 回押されたなど。先に入った方を使う
     const { data: again } = await admin.from("play_connections").select("service_account_email").eq("project_id", projectId).eq("owner_id", ownerId).maybeSingle();
     if (again) return again.service_account_email;

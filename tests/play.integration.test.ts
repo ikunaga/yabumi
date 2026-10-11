@@ -136,6 +136,30 @@ describe("App Store のストアのページの閲覧数", () => {
   });
 });
 
+describe("つなげる数の上限", () => {
+  it("1 人 3 つのプロジェクトまで。外して作り直すのも 1 日 5 回まで", async () => {
+    const { userId } = await signUpNewUser();
+    // 偽物の HTTP が覚えている「最後に作ったアカウント」を、後のテストのために戻す
+    const keep = saEmail;
+    try {
+      const projects: string[] = [];
+      for (let i = 0; i < 4; i++) projects.push((await admin.from("projects").insert({ name: `上限${i}`, owner_id: userId }).select("id").single()).data!.id);
+      for (const p of projects.slice(0, 3)) await startPlayConnection(admin, userId, p, deps);
+      await expect(startPlayConnection(admin, userId, projects[3], deps)).rejects.toMatchObject({ userMessage: expect.stringMatching(/3 つ/) });
+      // 外して作り直す: 作った回数が 1 日 5 回で止まる（ここまでで 3 回）
+      await removePlay(admin, userId, projects[0], deps);
+      await startPlayConnection(admin, userId, projects[0], deps);
+      await removePlay(admin, userId, projects[0], deps);
+      await startPlayConnection(admin, userId, projects[0], deps);
+      await removePlay(admin, userId, projects[0], deps);
+      await expect(startPlayConnection(admin, userId, projects[0], deps)).rejects.toMatchObject({ userMessage: expect.stringMatching(/明日/) });
+    } finally {
+      saEmail = keep;
+      await deleteUser(userId);
+    }
+  });
+});
+
 describe("片付け", () => {
   it("記録のない矢書のアカウントだけを消す（記録のあるもの・管理用・ほかの名前は消さない）", async () => {
     vi.mocked(fakeFetch).mockClear();

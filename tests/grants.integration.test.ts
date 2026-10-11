@@ -34,6 +34,7 @@ const TABLES = [
   "account_metrics",
   "play_connections",
   "app_store_report_requests",
+  "play_account_creations",
 ] as const;
 
 let alice: TestClient;

@@ -58,11 +58,21 @@ export async function syncInstallations(admin: Db, ownerId: string, installation
   return installations.length;
 }
 
-type InstallationAccess = { installation_id: number; repo_ids: number[] | null };
+// 組織や共同作業者のインストールで、本人が読めるリポジトリの記録を信じる期間。利用者のトークンは保存しないので、
+// 組織を抜けた・チームから外れたことは、認可し直すまでわからない。古くなったら読まずに「連携を読み込み直す」へ案内する。
+// 本人の個人アカウントのインストール（repo_ids が null）は、本人が持ち主なので期限を設けない
+export const SHARED_ACCESS_MAX_AGE_MS = 7 * 86_400_000;
+
+// updated_at は、認可のたびの upsert でトリガーが書き換える（= 最後に GitHub で確かめた日時）
+type InstallationAccess = { installation_id: number; repo_ids: number[] | null; updated_at: string };
+
+export function accessIsStale(installation: InstallationAccess, now = new Date()): boolean {
+  return installation.repo_ids !== null && now.getTime() - new Date(installation.updated_at).getTime() > SHARED_ACCESS_MAX_AGE_MS;
+}
 
 // 記録したインストールで、本人がそのリポジトリを読めるか
-export function canReadRepo(installation: InstallationAccess | null | undefined, repoId: number): boolean {
-  if (!installation) return false;
+export function canReadRepo(installation: InstallationAccess | null | undefined, repoId: number, now = new Date()): boolean {
+  if (!installation || accessIsStale(installation, now)) return false;
   return installation.repo_ids === null || installation.repo_ids.includes(repoId);
 }
 
@@ -70,7 +80,7 @@ export function canReadRepo(installation: InstallationAccess | null | undefined,
 export async function userCanReadRepo(db: Db, ownerId: string, installationId: number, repoId: number): Promise<boolean> {
   const { data, error } = await db
     .from("github_installations")
-    .select("installation_id, repo_ids")
+    .select("installation_id, repo_ids, updated_at")
     .eq("owner_id", ownerId)
     .eq("installation_id", installationId)
     .maybeSingle();

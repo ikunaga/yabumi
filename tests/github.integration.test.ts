@@ -3,7 +3,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { draftAppDescription, refineAppDescription, type CallDescriber, type RepoAccess } from "@/lib/ai/app-description";
 import type { AiLimits } from "@/lib/ai/limits";
-import { readableRepoLink, syncInstallations, userCanReadRepo, verifyInstallations, type VerifiedInstallation } from "@/lib/github/installations";
+import { canReadRepo, readableRepoLink, syncInstallations, userCanReadRepo, verifyInstallations, type VerifiedInstallation } from "@/lib/github/installations";
 import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
 
 const admin = adminClient();
@@ -136,6 +136,15 @@ describe("本人が読めるリポジトリだけを読む（Any account で他�
     expect((await alice.from("project_github_repos").select("project_id").eq("project_id", p)).data).toEqual([]);
     expect(await userCanReadRepo(alice, aliceId, org, 63)).toBe(true);
     expect(await userCanReadRepo(alice, aliceId, org, 61)).toBe(false);
+  });
+
+  it("組織・共同作業者の記録は 7 日で古くなり、確かめ直すまで読まない。本人の個人アカウントは古くならない", async () => {
+    const old = new Date(Date.now() + 8 * 86_400_000);
+    const { data } = await alice.from("github_installations").select("installation_id, repo_ids, updated_at").in("installation_id", [base + 1, org]);
+    const byId = new Map(data!.map((r) => [r.installation_id, r]));
+    expect(canReadRepo(byId.get(org), 63)).toBe(true);
+    expect(canReadRepo(byId.get(org), 63, old)).toBe(false);
+    expect(canReadRepo(byId.get(base + 1), 12345, old)).toBe(true);
   });
 
   it("本人でも、読めるリポジトリの記録を画面側から書き換えられない", async () => {

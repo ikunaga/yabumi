@@ -8,7 +8,7 @@ import { ErrorBanner, SuccessBanner } from "@/components/ui/feedback";
 import { aiConfigured } from "@/lib/ai/anthropic";
 import { disconnectRepo } from "@/lib/github/actions";
 import { githubConfig, githubConfigured } from "@/lib/github/config";
-import { canReadRepo } from "@/lib/github/installations";
+import { accessIsStale, canReadRepo } from "@/lib/github/installations";
 import { reposForInstallation } from "@/lib/github/service";
 import { getProject } from "@/lib/projects/queries";
 import { createClient } from "@/lib/supabase/server";
@@ -54,7 +54,7 @@ export default async function GithubPage(props: PageProps<"/projects/[id]/github
 
   const supabase = await createClient();
   const [{ data: installations }, { data: link }] = await Promise.all([
-    supabase.from("github_installations").select("installation_id, account_login, account_type, repo_ids").order("account_login"),
+    supabase.from("github_installations").select("installation_id, account_login, account_type, repo_ids, updated_at").order("account_login"),
     supabase.from("project_github_repos").select("full_name, is_private, last_read_at").eq("project_id", id).maybeSingle(),
   ]);
 
@@ -75,6 +75,8 @@ export default async function GithubPage(props: PageProps<"/projects/[id]/github
   }
 
   const error = typeof sp.error === "string" ? ERRORS[sp.error] : undefined;
+  // 組織や共同作業者のインストールは、7 日ごとに本人の権限を確かめ直す
+  const stale = installations?.filter((i) => accessIsStale(i)) ?? [];
 
   return (
     <div className="flex max-w-[760px] flex-col gap-6 max-sm:gap-4">
@@ -112,6 +114,11 @@ export default async function GithubPage(props: PageProps<"/projects/[id]/github
                 <span className="font-bold text-success">✓ </span>
                 つないでいる GitHub: {installations.map((i) => i.account_login).join("、")}
               </p>
+              {stale.length > 0 && (
+                <p className="leading-[1.8] text-muted">
+                  {stale.map((i) => i.account_login).join("、")} のリポジトリは、あなたが今も読めるかを確かめ直す必要があります（組織や共同作業のリポジトリは 7 日ごとに確かめます）。「連携を読み込み直す」を押してください。
+                </p>
+              )}
               <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
                 <a href={installHref} className="font-semibold text-primary hover:underline">
                   読ませるリポジトリを追加・変更する

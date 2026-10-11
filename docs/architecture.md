@@ -520,6 +520,7 @@ README が薄い個人開発のリポジトリやモノレポでも中身がわ�
 | 預かったストア・課金の鍵（App Store Connect の API キー、RevenueCat のキー。暗号化済み） | store_credentials | 外すか、プロジェクトを消すか、退会まで | 「ストアと課金をつなぐ」の「外す」、退会。すぐに消す |
 | ストアと課金の日ごとの数字（ダウンロード、受け取り、売上など） | store_daily | 利用者がプロジェクトを消すか、退会まで | プロジェクトの削除、退会 |
 | Google Play のつなぎ（矢書が作った読み取り用のアカウントのメールアドレス、バケット、パッケージ名） | play_connections | 外すか、プロジェクトを消すか、退会まで（外すと Google の側のアカウントも消す） | 「外す」、退会（退会やプロジェクトの削除では記録が先に消えるので、毎日の取り込みのときに、記録のない矢書のアカウントを Google の側で消す） |
+| Google Play の読み取り用のアカウントを作った記録（利用者の ID と日時だけ） | play_account_creations | **30 日**で自動で消す。退会しても 30 日は残す（作る回数の上限を、退会と登録のし直しで数え直しにしないため） | 消せない（中身を含まないため） |
 | App Store のレポートの依頼の ID | app_store_report_requests | やめるか、プロジェクトを消すか、退会まで | 「やめる」、退会 |
 | SNS の投稿の数字（閲覧、いいね、返信など） | post_metrics | 投稿を消すか、退会まで | 投稿の削除、退会 |
 | SNS のアカウントの数字（フォロワー数、日ごと） | account_metrics | SNS を外すか、退会まで | 「外す」、退会 |
@@ -1097,7 +1098,7 @@ Facebook ページ（graph.facebook.com）:
 | 鍵を預からない | 利用者ごとのアカウントには鍵を作らない。読むたびに、管理用のアカウントが generateAccessToken で 10 分のトークンを作る。ほかの人のバケットの名前を入れても、そのアカウントは招待されていないので読めない（利用者ごとにアカウントを分ける理由） |
 | Google Play の取り込み | 今月と先月の `stats/installs/installs_<package>_<YYYYMM>_overview.csv`（Daily User Installs）と `stats/store_performance/store_performance_<package>_<YYYYMM>_country.csv`（Store listing visitors を国ごとに合計）。UTF-16 の CSV。3〜7 日遅れ、あとから直るので、毎日直近 60 日を上書きする。`store_daily` の source = google_play（downloads、page_views、uninstalls、store_acquisitions） |
 | 外す | 矢書の側のサービスアカウントを消す（Play Console の招待も効かなくなる）。取り込んだ数字は残る |
-| 上限 | オーナーの Google Cloud のプロジェクトのサービスアカウントは既定 100 個までで、全員で分け合う。1 人がプロジェクトを作っては「つなぐ」を繰り返して使い切らないよう、1 人 3 つのプロジェクトまで、作るのは直近 24 時間で 5 回まで（外して作り直す分も数える）。play_connections に入れるときの DB のトリガーが、利用者ごとのロックの中で数える（20261011330000。2026-10-11、セキュリティの確認の指摘を受けて）。レポートのファイルは 1 つ 20MB まで読む（それより大きいものは、読みながら止める） |
+| 上限 | オーナーの Google Cloud のプロジェクトのサービスアカウントは既定 100 個までで、全員で分け合う。1 人がプロジェクトを作っては「つなぐ」を繰り返して使い切らないよう、1 人 3 つのプロジェクトまで、作るのは直近 30 日で 5 回まで（外して作り直す分も数える。消したサービスアカウントも Google Cloud に 30 日は残り、上限に数えられることがあるため）。作った記録（利用者の ID と日時だけ）は退会しても 30 日残し、退会と登録のし直しで数え直しにならないようにする。play_connections に入れるときの DB のトリガーが、利用者ごとのロックの中で数える（20261011330000・340100。2026-10-11、セキュリティの確認の 2 回の指摘を受けて）。レポートのファイルは 1 つ 20MB まで読む（それより大きいものは、読みながら止める） |
 | 片付け | 退会やプロジェクトの削除では記録（play_connections）が先に消えるので、毎日の取り込み（import-stores）のときに、Google の側の `yabumi-` で始まるアカウントのうち記録のないものを消す。つなぐときは先に記録してからアカウントを作る（メールアドレスは ID で決まる）ので、作ったばかりのものを消すことはない |
 | App Store のストアのページの閲覧 | Analytics Reports の依頼（ONGOING）は Admin のキーでしか作れないので、Admin のキーを 1 回だけ使って依頼を作り、**キーは保存しない**（依頼の ID だけを `app_store_report_requests` に）。読むのは預かっている Sales and Reports のキー。App Store Discovery and Engagement の **Standard**（Detailed は 5 未満を省くので使わない）の日ごとの回を、まだ読んでいない古い順に 1 回 5 つまで、Event が Page view の Counts を日ごとに合計（同じ日は後の回で上書き）。source = app_store_views |
 | ジョブ | 3 の import-stores に相乗り（Play と閲覧数も同じ 40 秒の中で） |

@@ -152,10 +152,15 @@ describe("つなげる数の上限", () => {
       await removePlay(admin, userId, projects[0], deps);
       await startPlayConnection(admin, userId, projects[0], deps);
       await removePlay(admin, userId, projects[0], deps);
-      await expect(startPlayConnection(admin, userId, projects[0], deps)).rejects.toMatchObject({ userMessage: expect.stringMatching(/明日/) });
+      await expect(startPlayConnection(admin, userId, projects[0], deps)).rejects.toMatchObject({ userMessage: expect.stringMatching(/30 日に 5 回/) });
+      // 退会して作り直しても、作った回数は 30 日残る（数え直しにならない）
+      const { count } = await admin.from("play_account_creations").select("id", { count: "exact", head: true }).eq("owner_id", userId);
+      await deleteUser(userId);
+      expect((await admin.from("play_account_creations").select("id", { count: "exact", head: true }).eq("owner_id", userId)).count).toBe(count);
+      await admin.from("play_account_creations").delete().eq("owner_id", userId);
     } finally {
       saEmail = keep;
-      await deleteUser(userId);
+      await deleteUser(userId).catch(() => undefined);
     }
   });
 });

@@ -755,6 +755,125 @@ X の開発者規約は、X 側で消された・見られなくなった投稿�
 - 結合テストを洗った結果（2026-10-11）: 送信（publishDueTargets）はすべて投稿を指定して呼んでいる。GitHub の再同期は利用者を指定している。purge_expired_data は全体を対象にするが、偽物ではなく本番と同じ決まり（1 年・13 か月を過ぎたものを消す）で、ローカルの pg_cron も毎日同じことをするので、そのままにした
 
 
+### 4.21 Instagram と Facebook ページ（2026-10-11 に調査・設計。コードはまだ）
+
+画像の添付（4.18、実装担当3）ができたら作る。Instagram は画像が必須なので、画像の添付が先に要る。
+
+#### 結論（おすすめ）
+
+| 項目 | おすすめ | 理由 |
+|---|---|---|
+| Meta のアプリ | Threads とは別に、Instagram・Facebook 用のアプリを 1 つ作る（名前の例 `Yabumi`）。ユースケースを 2 つ足す | Threads は専用のアプリが要る（4.6）。Instagram と Facebook ページは 1 つのアプリに入れられ、ビジネス認証も同じポートフォリオで済む |
+| Instagram のログイン | **Instagram API with Instagram Login**（Business Login for Instagram） | Facebook ページがなくても、Instagram のプロアカウントだけでつなげる。個人開発者には Facebook ページを持っていない人が多く、つなぐ前の準備が 1 段減る |
+| Facebook ページ | **Facebook Login for Business** でページのトークンを取る | 個人のプロフィール（タイムライン）への投稿は API でできない（2018 年に廃止）。投稿できるのはページだけ |
+
+- Instagram Login の短所: **Instagram の投稿を API で消せない**（IG Media の DELETE は「Facebook Login の構成だけ」と公式の資料にある）。矢書では「Instagram から取り消す」を出さず、Instagram のアプリから消すよう案内する
+- 別の案: Instagram も Facebook Login にすると、取り消しができ、Facebook ページと 1 回のログインで済む。そのかわり、利用者は Instagram のプロアカウントを Facebook ページにつないでおく必要がある（素人には手間が大きい）。利用者の声を見て、後から足すこともできる
+
+#### 利用者の前提条件（つなぐ前に案内する）
+
+| SNS | 要るもの | 使えないもの |
+|---|---|---|
+| Instagram | **プロアカウント**（ビジネスかクリエイター）。無料で、Instagram のアプリの設定から数分で切り替えられる | 個人アカウント（プロアカウントでないもの）。API がない |
+| Facebook | **Facebook ページ**と、そのページで投稿を作れる役割（CREATE_CONTENT、MANAGE、MODERATE のタスク） | 個人のプロフィールへの投稿 |
+
+#### 権限（2026-10-11 に公式の資料で確認）
+
+| SNS | 求める権限 | 使い道 |
+|---|---|---|
+| Instagram（Instagram Login） | instagram_business_basic、instagram_business_content_publish | プロフィールを読む、投稿する。指標（F07）を作るときに instagram_business_manage_insights を足す（Threads と同じく、使わない権限は求めない） |
+| Facebook ページ（Facebook Login for Business） | pages_show_list、pages_read_engagement、pages_manage_posts | 管理しているページの一覧、ページの情報、投稿と削除 |
+
+- 古い Instagram の権限の名前（instagram_basic など、Instagram Login での古い値）は 2025-01-27 に廃止された。Instagram Login では instagram_business_* を使う
+- Facebook Login for Business は、権限を scope ではなく「設定（configuration）」で決め、認可の URL に config_id を付ける
+
+#### 使える範囲と審査（docs/review/meta.md と揃える）
+
+| 段階 | 誰が使えるか | 要るもの |
+|---|---|---|
+| 開発モード（Standard Access） | アプリの役割（管理者・開発者・テスター）を持つ人の、自分のアカウントとページ | Instagram は「Instagram テスター」に招待し、Instagram のアプリの設定 →「ウェブサイトのアクセス許可」→「テスターへの招待」で承認する |
+| 他の人に使ってもらう（Advanced Access） | だれでも | 権限ごとの **App Review**（説明文と画面の録画）と **ビジネス認証**（名義は個人事業主「YuXport Labs」）、アプリを Live に。Threads と同じポートフォリオで、ビジネス認証は 1 回で済む |
+
+- 申請の前 30 日以内に、申請する権限ごとに API を成功させておく（Threads と同じ）
+
+#### 投稿の流れ
+
+Instagram（graph.instagram.com、Graph API の版はその時点の最新）:
+
+1. 画像は、投稿の時点で Meta のサーバーが読める URL で渡す。矢書の画像は非公開のバケットにあるので、Threads と同じく、送る直前にサーバーが作る署名つきの URL（4.18）を渡す
+2. コンテナを作る: `POST /{ig-user-id}/media`（image_url、caption）。カルーセルは画像ごとに is_carousel_item=true でコンテナを作り、`media_type=CAROUSEL` と children で親を作る（最大 10 枚。1 本として数える）
+3. 状態を見る: `GET /{container-id}?fields=status_code`。FINISHED になるまで待つ（公式の目安は 1 分に 1 回、5 分まで。画像は数秒で終わることが多いので、Threads と同じく短い間隔で数回だけ見て、まだなら送り直しにする）
+4. 公開: `POST /{ig-user-id}/media_publish`（creation_id）→ 投稿の ID。URL は `GET /{media-id}?fields=permalink`
+- 画像の決まり: **JPEG だけ**、最大 8MB、縦横比は 4:5〜1.91:1、幅 320〜1440px（広いものは Instagram が縮める）。4.18 で矢書の画像はすべて JPEG・4MB・長い辺 2,048px にそろえてあるので、そのまま送れる。**縦横比だけ**は、Instagram を選んだときに作成画面で確かめる（4.18 の「Instagram の縦横比」）。カルーセルは 1 枚目の比率で切り取られる
+- 本文（キャプション）: 2,200 字、ハッシュタグ 30 個まで（SNS の定義の maxLength 2,200 と同じ）
+- 回数の上限: **24 時間で 100 件**（API で公開した数。カルーセルは 1 件）。`GET /{ig-user-id}/content_publishing_limit` で使った数が読める。個人開発者の使い方（週 2〜3 本）なら届かない
+- Reels（動画）は動画の添付ができてから（フェーズ 5）
+- 取り消し: Instagram Login ではできない（上）
+
+Facebook ページ（graph.facebook.com）:
+
+- 文章・リンク: `POST /{page-id}/feed`（message、link）
+- 画像: 1 枚は `POST /{page-id}/photos`（url、message）。複数は、各画像を published=false で上げてから `/{page-id}/feed` の attached_media に並べる
+- 取り消し: `DELETE /{post-id}`（矢書が投稿したものだけ消せる）。「Facebook から取り消す」を出せる
+- Facebook 側にも予約の仕組み（scheduled_publish_time）があるが、ほかの SNS と揃えて、矢書の予約ジョブで送る
+
+#### トークン
+
+| 種類 | 期限 | 延長 |
+|---|---|---|
+| Instagram（Instagram Login） | 短期 1 時間 → 長期 60 日（`grant_type=ig_exchange_token`） | 発行から 24 時間以上たった長期トークンを `GET /refresh_access_token?grant_type=ig_refresh_token` で延長し、また 60 日。Threads と同じ形なので、日次のジョブ（4.6）にそのまま乗る |
+| Facebook のユーザー | 短期 → 長期 60 日 | 使うのはページのトークンを取るときだけ。保存しない |
+| Facebook のページ | 長期のユーザートークンから `GET /me/accounts` で取ったものは**期限なし**（パスワードの変更、役割を外された、アプリの許可を外されたときなどに無効になる） | 延長は要らない。無効になったら「期限切れ → つなぎ直す」（Threads と同じ扱い） |
+
+- 保存は social_account_tokens に暗号化して（4.6 と同じ）。Instagram は 1 アカウント = social_accounts の 1 行、Facebook はページ 1 つ = 1 行（external_id はページの ID）
+
+#### 矢書の画面の流れ（素人が前提）
+
+1. 概要の「つないだ SNS」で Instagram の「つなぐ」を押すと、先に**確かめの画面**を出す: 「Instagram のプロアカウント（無料）が要ります」「切り替え方（Instagram のアプリ → 設定 → アカウントの種類とツール → プロアカウントに切り替える）」「クリエイターとビジネスのどちらでもよい（迷ったらクリエイター）」。「切り替え済み → つなぐ」で Instagram の認可画面へ
+2. Instagram から戻ったら、アカウントの種類（`/me?fields=user_id,username,account_type`）を見て、プロアカウントでなければつながずに、切り替え方を出す
+3. Facebook の「つなぐ」も先に確かめの画面: 「Facebook ページが要ります（個人のプロフィールには投稿できません）」「ページの作り方（Facebook → メニュー → ページ → 新しいページを作成。アプリの名前で作るのがおすすめ）」
+4. Facebook から戻ったら、管理しているページの一覧（`/me/accounts`。投稿を作れる役割のものだけ）を出し、**つなぐページを選ぶ画面**にする。1 つだけならそのまま選んだことにする。0 なら「ページがありません」と作り方を出す
+5. 用語（プロアカウント、Facebook ページ）は `<Term>` で解説を添える
+- アカウント設計の「SNS ごとの役割」と AI の壁打ちでは、Instagram（画像が主役。アプリの画面の画像や、作っている様子）と Facebook ページ（日本の個人開発者には読者が少なめ。目的に合うときだけ）の性格を伝える
+
+#### コールバック URL（yabumi.app が前提）
+
+| 設定する場所 | パス | 内容 |
+|---|---|---|
+| Instagram のユースケースの「Business login settings」の OAuth redirect URIs | /sns/instagram/callback | 認可画面からの戻り先 |
+| 同じく Deauthorize callback URL | /sns/instagram/uninstall | 利用者が Instagram 側で矢書を外したとき（トークンを消し「解除済み」に。Threads と同じ） |
+| 同じく Data deletion request URL | /sns/instagram/delete | データの削除の求め（Threads と同じ。確認のページの URL を返す） |
+| Facebook Login for Business の Valid OAuth Redirect URIs | /sns/facebook/callback | 認可画面からの戻り先 |
+| App settings → Basic の Data deletion callback URL | /sns/facebook/delete | Facebook 側のデータの削除の求め |
+
+ローカルは `https://localhost:3100` に同じパス（Threads と同じく https が要る）。署名つきの通知（signed_request）は Threads の仕組み（src/lib/sns/threads/signed-request.ts）を共通にして使う。
+
+#### 環境変数
+
+| 変数 | 中身 |
+|---|---|
+| META_APP_ID / META_APP_SECRET | Instagram・Facebook 用のアプリの App ID と App secret（Facebook Login に使う） |
+| INSTAGRAM_APP_ID / INSTAGRAM_APP_SECRET | Instagram のユースケースの画面に出る「Instagram app ID / secret」（Meta の App ID とは別の値） |
+| FACEBOOK_LOGIN_CONFIG_ID | Facebook Login for Business の設定の ID |
+
+#### マイグレーションの案（作るときに 20261011230101〜）
+
+- ページを選ぶまでの間、ページの一覧とトークンを一時的に置く表 `pending_page_choices`（id、owner_id、ページの ID・名前の一覧、暗号化したページのトークン、expires_at = 15 分）。RLS は本人が読むだけ（トークンの列は与えない。4.17 の列ごとの grant）。選んだら social_accounts と social_account_tokens に移して消す。期限を過ぎたものは purge_expired_data で消す
+- それ以外は、いまの表（social_accounts、social_account_tokens、post_targets）で足りる。Instagram の画像は 4.18 の表を使う
+
+#### オーナーの作業（アプリを作るとき）
+
+1. https://developers.facebook.com/apps → Create app。名前 `Yabumi`、ユースケースは「Manage messaging & content on Instagram」（Instagram API with Instagram Login）と「Manage everything on your Page」（Facebook ページ）を選ぶ。ビジネスポートフォリオは Threads のアプリと同じもの
+2. Instagram のユースケース → API setup with Instagram login: 「Instagram app ID / secret」を控える。Business login settings に、上のコールバック URL（yabumi.app とローカル）を入れる。権限 instagram_business_basic と instagram_business_content_publish を足す
+3. App roles → Roles → Add People → **Instagram Tester** にオーナーの Instagram（プロアカウント）を入れ、Instagram のアプリ → 設定 → ウェブサイトのアクセス許可 → テスターへの招待 で承認する
+4. Facebook Login for Business → Configurations → Create configuration。トークンは「User access token」、権限は pages_show_list・pages_read_engagement・pages_manage_posts。できた Configuration ID を控える。Settings の Valid OAuth Redirect URIs に上の URL を入れる
+5. App settings → Basic: プライバシーポリシーの URL（https://yabumi.app/privacy）、利用規約の URL（https://yabumi.app/terms）、データ削除の URL、アイコン（角印「文」）、カテゴリ、連絡先（support@yabumi.app）
+6. 控えた値を .env.local と Vercel に入れる（上の環境変数）
+7. 他の人に使ってもらうときは、docs/review/meta.md の流れで、権限ごとの App Review を出す
+
+- 出典: [Instagram Platform の概要](https://developers.facebook.com/docs/instagram-platform/overview)、[Business Login for Instagram](https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/business-login)、[コンテンツの公開](https://developers.facebook.com/docs/instagram-platform/content-publishing)、[IG Media（削除は Facebook Login だけ）](https://developers.facebook.com/docs/instagram-platform/reference/instagram-media)、[ページの投稿](https://developers.facebook.com/docs/pages-api/posts)、[長期のトークン](https://developers.facebook.com/docs/facebook-login/guides/access-tokens/get-long-lived)
+- 【未確認】個人アカウントで Instagram の認可画面を開いたとき、Instagram がその場でプロアカウントへの切り替えを促すか（促すなら 1 の確かめの画面は短くできる）。Facebook Login for Business の設定画面の項目名は、作るときに画面で確かめる
+
 ## 5. データモデル（主要テーブル）
 
 | テーブル | 内容 |

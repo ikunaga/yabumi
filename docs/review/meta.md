@@ -131,7 +131,7 @@ Threads の Use cases → Settings の Uninstall Callback URL は `https://yabum
 
 ## 後で: Instagram と Facebook ページ
 
-別の Meta アプリ（Instagram・Facebook 用。architecture.md の 4.6）を作り、同じ流れ（ビジネス認証は同じポートフォリオで済む）で申請する。
+別の Meta アプリ（Instagram・Facebook 用。architecture.md の 4.6）を作り、同じ流れ（ビジネス認証は同じポートフォリオで済む）で申請する。設計と、アプリの作り方・権限・コールバック URL は architecture.md の 4.21（Instagram は Instagram Login、Facebook はページだけ。Instagram Login では投稿を API で消せないので、threads_delete に当たる権限は申請しない）。
 
 | SNS | 権限 | 条件 |
 |---|---|---|

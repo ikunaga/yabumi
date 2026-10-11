@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
+import { DeleteThreadButton } from "@/components/ai/delete-thread-button";
 import { Button } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { Input, Textarea } from "@/components/ui/field";
@@ -309,6 +310,13 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
               />
             ))}
           </ol>
+
+          <DeleteThreadButton
+            projectId={projectId}
+            threadId={thread.threadId}
+            backPath={`/projects/${projectId}/ideas`}
+            keeps="このネタから下書きにした投稿は残ります。前に出したネタがあれば、それが出ます。"
+          />
         </section>
       )}
     </div>

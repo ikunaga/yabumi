@@ -52,7 +52,7 @@ export async function deleteFromSns(projectId: string, postId: string, targetId:
   redirect(`/projects/${projectId}/posts/${postId}?done=deleted_sns`);
 }
 
-// SNS の画面で投稿を消したことを記録する（SNS からは消さない。消えた投稿の ID と URL を矢書に残さないため。X の規約、docs/architecture.md の 4.13）
+// SNS の画面で投稿を消したことを記録する（SNS からは消さない。消えた投稿の ID と URL を矢書に残さないため。X の規約、docs/architecture.md の 4.19）
 export async function markRemovedOnSns(projectId: string, postId: string, targetId: string): Promise<{ error?: string }> {
   const ids = z.array(z.uuid()).safeParse([projectId, postId, targetId]);
   if (!ids.success) return { error: "入力の形式が正しくありません。" };

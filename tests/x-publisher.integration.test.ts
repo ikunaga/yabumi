@@ -165,11 +165,14 @@ describe("トークンの取り直し", () => {
   it("日次のジョブは、アクセストークンが切れていても期限切れにせず、30 日取り直していなければ新しくする", async () => {
     await connect(new Date(Date.now() - 60_000));
     const adapter = fakeX();
-    const today = await refreshDueTokens(admin, deps(adapter));
+    // 共有のローカル DB で他の人のアカウントを偽物で延長しないよう、alice のアカウントだけを対象にする
+    const today = await refreshDueTokens(admin, { ...deps(adapter), onlyOwner: aliceId });
     expect(today.find((o) => o.socialAccountId === accountId)).toBeUndefined();
 
     const later = new Date(Date.now() + 31 * 86400_000);
-    const outcomes = await refreshDueTokens(admin, { ...deps(adapter), now: () => later });
+    const outcomes = await refreshDueTokens(admin, { ...deps(adapter), now: () => later, onlyOwner: aliceId });
+    // alice 以外のアカウントは対象にしない
+    expect(outcomes.every((o) => o.socialAccountId === accountId)).toBe(true);
     expect(outcomes.find((o) => o.socialAccountId === accountId)?.result).toBe("refreshed");
     expect(adapter.refreshWithRefreshToken).toHaveBeenCalledTimes(1);
   });
@@ -203,13 +206,11 @@ describe("費用と月の上限", () => {
     const budget = (await spentNow()) + 0.015 * 2;
     const adapter = fakeX();
     const results = (await Promise.all(posts.map((p) => publishDueTargets(admin, deps(adapter, budget), { postId: p.postId })))).flat();
-    // 上限の合計は矢書全体なので、ローカルの DB をほかのテストやセッションと共有していると、その記録も足される。
-    // そのため「2 本ちょうど」ではなく「2 本を超えて送らない」ことを確かめる
-    const published = results.filter((r) => r.result === "published");
-    expect(results).toHaveLength(3);
-    expect(published.length).toBeLessThanOrEqual(2);
-    expect(results.filter((r) => r.result === "failed").length).toBe(3 - published.length);
-    expect(adapter.publishText).toHaveBeenCalledTimes(published.length);
+    // 上限は alice の記録だけで数える（budgetScopeOwner）ので、同じ DB でほかのテストやセッションが流れていても、ちょうど 2 本になる
+    expect(results.filter((r) => r.result === "published")).toHaveLength(2);
+    expect(results.filter((r) => r.result === "failed")).toHaveLength(1);
+    expect(adapter.publishText).toHaveBeenCalledTimes(2);
+    expect(await spentNow()).toBeCloseTo(budget, 6);
   });
 
   it("送れなかったと確かなとき（クレジット切れなど）は、費用の記録を消す", async () => {

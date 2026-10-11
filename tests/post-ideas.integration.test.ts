@@ -185,6 +185,18 @@ describe("投稿のネタ", () => {
     expect(all[0].content).toMatchObject({ kind: "ideas_request", source: "plan" });
   });
 
+  it("ネタの会話は本人だけが消せる。消しても、下書きにした投稿は残る", async () => {
+    const before = (await alice.from("posts").select("id").eq("project_id", projectId)).data!.length;
+    const { data: threads } = await alice.from("ai_threads").select("id").eq("purpose", "post_ideas").eq("project_id", projectId);
+    const target = threads![0].id;
+    await bob.from("ai_threads").delete().eq("id", target);
+    expect((await alice.from("ai_threads").select("id").eq("id", target)).data).toHaveLength(1);
+    const { data: deleted } = await alice.from("ai_threads").delete().eq("id", target).select("id");
+    expect(deleted).toHaveLength(1);
+    expect((await alice.from("ai_messages").select("id").eq("thread_id", target)).data).toEqual([]);
+    expect((await alice.from("posts").select("id").eq("project_id", projectId)).data).toHaveLength(before);
+  });
+
   it("他人のプロジェクトでは出せない（リポジトリも読まない）", async () => {
     vi.mocked(commits).mockClear();
     const r = await generatePostIdeas(bob, admin, deps(), { userId: bobId, projectId, sns: ["x"], input: { source: "commits", days: 7 } });

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { IdeaBoard } from "@/components/ideas/idea-board";
+import { SuccessBanner } from "@/components/ui/feedback";
 import { Term } from "@/components/ui/term";
 import { aiConfigured } from "@/lib/ai/anthropic";
 import { IDEA_SNS, MAX_IDEA_SNS, NEWS_QUESTIONS, pickIdeaSns, type IdeaSource } from "@/lib/ai/post-ideas";
@@ -18,7 +19,7 @@ export const metadata: Metadata = { title: "投稿のネタを出す" };
 
 // 投稿のネタを AI が出す。材料は最近のコミット・最近のできごと・アカウント設計から選ぶ（要求 F04 の一部。docs/architecture.md の 4.15）
 export default async function IdeasPage(props: PageProps<"/projects/[id]/ideas">) {
-  const { id } = await props.params;
+  const [{ id }, { done }] = await Promise.all([props.params, props.searchParams]);
   const project = await getProject(id);
   if (!project) notFound();
   const supabase = await createClient();
@@ -51,6 +52,7 @@ export default async function IdeasPage(props: PageProps<"/projects/[id]/ideas">
           と口調に沿います。
         </p>
       </div>
+      {done === "thread_deleted" && <SuccessBanner>ネタの会話を消しました。下書きにした投稿は残っています。</SuccessBanner>}
       {noPillars && (
         <p className="text-sm leading-[1.8] text-muted">
           投稿の柱がまだ決まっていません。

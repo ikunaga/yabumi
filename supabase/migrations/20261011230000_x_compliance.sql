@@ -1,8 +1,9 @@
--- X の規約への対応（docs/architecture.md の 4.13「規約で求められること」）と、費用の上限を数える範囲。
+-- X の規約への対応（docs/architecture.md の 4.19）と、費用の上限を数える範囲。
 -- X の開発者規約は、X 側で消された投稿の情報を、アプリ側でも最新に保つ（消す）ことを求めている。
 -- 矢書が持つ X の情報は、矢書から送った投稿の ID と URL だけ（本文は利用者が書いたもの）なので、それを最新に保つ。
 
 -- ===== SNS 上の投稿の状態 =====
+-- 新しい列は利用者に書かせない（post_targets の update は列ごとに許していて、ここで足す列は許さない。20261011220100_explicit_grants）。読むのはテーブルの select で読める
 -- sns_checked_at: SNS に投稿がまだあることを最後に確かめた日時（同じ投稿を 24 時間に 2 回は確かめない。読むのが有料のため）
 -- sns_removed_at: 矢書の外（SNS の画面など）で消されていたとわかった日時。矢書から取り消したときは入らない
 alter table public.post_targets add column sns_checked_at timestamptz;
@@ -25,6 +26,9 @@ begin
   return new;
 end;
 $$;
+
+-- トリガーからだけ呼ぶ。利用者からは呼べなくする（CLAUDE.md の「新しい関数は revoke してから必要なロールにだけ grant」）
+revoke execute on function public.clear_removed_target_refs() from public, anon, authenticated;
 
 create trigger post_targets_clear_removed_refs
   before insert or update of status, external_post_id, external_url on public.post_targets

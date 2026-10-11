@@ -4,7 +4,7 @@ import { loadAccount, type PublisherDeps } from "@/lib/sns/publisher";
 import type { Database } from "@/lib/supabase/database.types";
 import { X_API_URL } from "./api";
 
-// X の開発者規約への対応: X 側で消された投稿の情報を、矢書でも最新に保つ（docs/architecture.md の 4.13「規約で求められること」）。
+// X の開発者規約への対応: X 側で消された投稿の情報を、矢書でも最新に保つ（docs/architecture.md の 4.19）。
 // 矢書が持つ X の情報は、矢書から送った（または手で投稿して記録した）投稿の ID と URL だけ。
 // 投稿を読むのは 1 件 $0.005 かかるので、利用者が投稿の画面を開いたときに、その投稿の X の配信先だけを、24 時間に 1 回まで確かめる。
 // 消えていたら、配信先を「取り消し済み」にして ID と URL を消す（DB のトリガー）。費用は sns_api_usage に記録し、X の月の上限に数える。
@@ -15,6 +15,9 @@ type Admin = SupabaseClient<Database>;
 export const X_POST_READ_USD = 0.005;
 // 同じ投稿を確かめ直すまでの間（X は同じものを 1 日（UTC）に何度読んでも 1 回分なので、それより短くしても費用は変わらないが、回数を抑える）
 export const X_RECHECK_MS = 24 * 3600_000;
+// 1 人が 1 日（日本時間）に確かめられる回数。X の上限は矢書全体で共有なので、1 人が投稿の画面を開き続けたり、
+// 手で投稿した記録（URL は利用者が入れられる）をたくさん作ったりして、ほかの人の投稿の分を使い切らないようにする（最大 $0.15 / 日）
+export const X_MAX_READS_PER_USER_PER_DAY = 30;
 // 送ってすぐは確かめない（確かめる意味がない）
 export const X_CHECK_AFTER_PUBLISH_MS = 10 * 60_000;
 
@@ -74,6 +77,23 @@ async function loadActiveToken(admin: Admin, deps: SyncDeps, socialAccountId: st
 
 export type SyncOutcome = { targetId: string; result: "exists" | "removed" | "skipped" };
 
+function jstDayStart(now: Date): string {
+  const jst = new Date(now.getTime() + 9 * 3600_000);
+  return new Date(Date.UTC(jst.getUTCFullYear(), jst.getUTCMonth(), jst.getUTCDate()) - 9 * 3600_000).toISOString();
+}
+
+async function readsToday(admin: Admin, ownerId: string, now: Date): Promise<number> {
+  const { count, error } = await admin
+    .from("sns_api_usage")
+    .select("id", { count: "exact", head: true })
+    .eq("owner_id", ownerId)
+    .eq("sns", "x")
+    .eq("operation", "post_read")
+    .gte("created_at", jstDayStart(now));
+  if (error) throw error;
+  return count ?? 0;
+}
+
 // 1 つの投稿の X の配信先を確かめる。呼ぶ前に、postId が利用者本人の投稿であることを確かめておく（admin は RLS を通らない）
 export async function syncXTargetsOfPost(admin: Admin, deps: SyncDeps, postId: string): Promise<SyncOutcome[]> {
   const now = deps.publisher.now?.() ?? new Date();
@@ -104,6 +124,11 @@ export async function syncXTargetsOfPost(admin: Admin, deps: SyncDeps, postId: s
 
     const token = await (deps.loadToken ?? ((id: string) => loadActiveToken(admin, deps, id)))(t.social_account_id);
     if (!token) {
+      skip();
+      continue;
+    }
+
+    if ((await readsToday(admin, t.owner_id, now)) >= X_MAX_READS_PER_USER_PER_DAY) {
       skip();
       continue;
     }

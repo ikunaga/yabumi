@@ -1,10 +1,10 @@
-// X の規約への対応: X で消された投稿の記録を最新に保つ（docs/architecture.md の 4.13）。
+// X の規約への対応: X で消された投稿の記録を最新に保つ（docs/architecture.md の 4.19）。
 // 本物の X は呼ばない（読み取りは偽物を渡す）。上限は alice の記録だけで数え、同じ DB の他のテストに左右されないようにする
 import { randomBytes, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { saveConnectedAccount } from "@/lib/sns/accounts";
 import type { SnsAdapter } from "@/lib/sns/adapters/types";
-import { syncXTargetsOfPost, X_POST_READ_USD, type PostState, type SyncDeps } from "@/lib/sns/x/sync";
+import { syncXTargetsOfPost, X_MAX_READS_PER_USER_PER_DAY, X_POST_READ_USD, type PostState, type SyncDeps } from "@/lib/sns/x/sync";
 import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
 
 const key = randomBytes(32);
@@ -132,6 +132,18 @@ describe("X で消された投稿の記録", () => {
     expect((await syncXTargetsOfPost(admin, deps(readPost, 0), postId))[0].result).toBe("skipped");
     expect(readPost).not.toHaveBeenCalled();
     expect(await reads(targetId)).toEqual([]);
+  });
+
+  it(`1 人が 1 日に確かめられるのは ${X_MAX_READS_PER_USER_PER_DAY} 回まで（共有の上限をほかの人の投稿のために残す）`, async () => {
+    const { data: ins } = await admin
+      .from("sns_api_usage")
+      .insert(Array.from({ length: X_MAX_READS_PER_USER_PER_DAY }, () => ({ owner_id: aliceId, sns: "x" as const, operation: "post_read", cost_usd: 0 })))
+      .select("id");
+    const { postId } = await publishedTarget();
+    const readPost = vi.fn(async (): Promise<PostState> => "exists");
+    expect((await syncXTargetsOfPost(admin, deps(readPost), postId))[0].result).toBe("skipped");
+    expect(readPost).not.toHaveBeenCalled();
+    await admin.from("sns_api_usage").delete().in("id", ins!.map((r) => r.id));
   });
 
   it("読めなかったときは、費用の記録を消して、次に開いたときにまた確かめる", async () => {

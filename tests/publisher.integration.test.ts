@@ -272,7 +272,9 @@ describe("トークンの延長", () => {
       refreshToken: vi.fn(async () => ({ accessToken: "token-2", expiresAt: newExpiry })),
       shouldRefresh: (expiresAt: Date, at: Date) => expiresAt.getTime() - at.getTime() < 30 * 86400_000,
     });
-    const outcomes = await refreshDueTokens(admin, { ...depsWith(adapter), now: () => now });
+    // 共有のローカル DB で他の人のアカウント（オーナーの本物の接続を含む）を偽物で延長しないよう、alice のアカウントだけを対象にする
+    const outcomes = await refreshDueTokens(admin, { ...depsWith(adapter), now: () => now, onlyOwner: aliceId });
+    expect(outcomes.every((o) => o.socialAccountId === accountId)).toBe(true);
     expect(outcomes.find((o) => o.socialAccountId === accountId)?.result).toBe("refreshed");
 
     const { data } = await admin.from("social_account_tokens").select("*").eq("social_account_id", accountId).single();

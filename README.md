@@ -122,6 +122,12 @@ select vault.create_secret('<.env.local の CRON_SECRET>', 'cron_secret');
 
 結合テストは、ローカルの Supabase の URL とキーを .env.local から読む（`NEXT_PUBLIC_SUPABASE_URL`、`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`、`SUPABASE_SECRET_KEY`）。値は `supabase status` の API URL、Publishable key、Secret key。テストだけ別の値にしたいときは、.env.test.local に `SUPABASE_TEST_URL`、`SUPABASE_TEST_PUBLISHABLE_KEY`、`SUPABASE_TEST_SECRET_KEY` を入れる（どちらも git には入らない）。
 
+結合テストが使うローカルの Supabase は、同じマシンの他の作業（別のセッションのテスト、開発サーバー）と共有で、オーナーが登録した本物のデータ（SNS の接続など）も入っている。そのため:
+
+- テストの利用者は、テストごとに新しく作る（tests/helpers/supabase.ts の signUpNewUser）
+- DB 全体を対象にする処理（日次のトークン延長、予約の取り出し、費用の上限の合計など）は、必ずテストの利用者に絞って呼ぶ（refreshDueTokens の onlyOwner、publishDueTargets の postId、費用の上限の budgetScopeOwner）。偽のアダプターで全体を処理すると、他のテストのアカウントやオーナーの本物の接続を壊す
+- 他のテストが同時に流れても結果が変わらないように書く（全体の合計や件数に頼らない）
+
 キーなどの鍵はリポジトリに書かない。テストで鍵の形の文字列が要るときは、文字列をつなげて作る（GitHub の push protection で push が止められるため）。
 
 ## よく使うコマンド

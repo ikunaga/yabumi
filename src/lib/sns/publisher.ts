@@ -16,6 +16,8 @@ export type PublisherDeps = {
   budgetsUsd?: Partial<Record<SnsKey, number>>;
   // 上限を数える範囲。ないときは矢書全体（本番）。利用者の ID を入れると、その人の記録だけを数える（テストで他のテストに左右されないため）
   budgetScopeOwner?: string;
+  // 日次のトークン延長の対象を、この利用者のアカウントだけにする（テスト用。共有のローカル DB で、他の人のアカウントを偽物で延長しないため）。本番は渡さない
+  onlyOwner?: string;
   // 延長をほかの処理が行っているとき、待つ間隔と回数（テストで短くする）
   refreshWait?: { intervalMs: number; tries: number };
 };
@@ -310,11 +312,13 @@ export type RefreshOutcome = { socialAccountId: string; result: "refreshed" | "e
 // 期限が近いトークンを延長する（日次のジョブ）。延長は発行から 24 時間たったものだけができる
 export async function refreshDueTokens(admin: Admin, deps: PublisherDeps): Promise<RefreshOutcome[]> {
   const now = deps.now?.() ?? new Date();
-  const { data, error } = await admin
+  let query = admin
     .from("social_account_tokens")
-    .select("social_account_id, access_token_encrypted, expires_at, updated_at, social_accounts!inner(sns, status)")
+    .select("social_account_id, access_token_encrypted, expires_at, updated_at, social_accounts!inner(sns, status, owner_id)")
     .eq("social_accounts.status", "active")
     .not("expires_at", "is", null);
+  if (deps.onlyOwner) query = query.eq("social_accounts.owner_id", deps.onlyOwner);
+  const { data, error } = await query;
   if (error) throw error;
 
   const outcomes: RefreshOutcome[] = [];

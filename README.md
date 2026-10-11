@@ -47,6 +47,22 @@ Threads のコールバック URL は https でないと登録できないため
 
 このアカウントとサンプルのプロジェクトは supabase/seed.sql から入る。`supabase db reset` で DB を作り直しても自動で戻る（自分で登録したアカウントは消える）。
 
+### ローカルの Supabase を軽くする（2026-10-11、オーナーの了承済み）
+
+Mac のメモリが足りなくなっていたので、supabase/config.toml で、ローカルの開発とテストに要らない部品を止めている。
+
+| 止めた部品 | 理由 | 止めると困ること |
+|---|---|---|
+| analytics（とログを集める vector） | ログの集計。analytics だけで約 700MB、CPU も多く使っていた | Studio の「Logs」が見られない（各部品のログは `docker logs supabase_auth_yabumi` などで見られる） |
+| realtime | 矢書は Realtime を使っていない（約 260MB） | なし |
+| edge_runtime | 矢書は Edge Functions を使っていない | なし |
+
+止めていないもの: API、DB（pg_cron・pg_net を含む）、Auth、Storage（画像の添付）、Studio（と Studio が使う pg_meta）、Mailpit（確認メール）。本番（Supabase の本番の環境）には関係しない。
+
+- 反映・戻すとき: config.toml の `enabled` を変えてから、`supabase stop` → `supabase start`（データは残る。`supabase db reset` はしない）。共有の DB なので、止める前に一緒に作業している人に知らせる
+- 戻すとき（Realtime や Edge Functions を使う機能を作るとき、Studio でログを見たいとき）は、その部品の `enabled = true` に戻す
+- 上の「`supabase start` で DB が立ち上がらない」ときは、supabase/.temp/postgres-version を消してから start し直す
+
 ## GitHub App（リポジトリからアプリの説明を下書きする）
 
 登録のしかたと、設定の意味は docs/architecture.md の 4.10。登録したら、.env.local に次を足す。

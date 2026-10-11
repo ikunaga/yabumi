@@ -1,7 +1,9 @@
 # X の審査と規約上の準備
 
 - **作成日**: 2026-10-11
-- **前提**: 従量課金（pay-per-use）、OAuth 2.0 + PKCE、スコープは tweet.read・tweet.write・users.read・offline.access（architecture.md の 4.13）
+- **前提**: 従量課金（pay-per-use）、OAuth 2.0 + PKCE、スコープは tweet.read・tweet.write・users.read・offline.access・media.write（画像。architecture.md の 4.13・4.18）
+- **使う API**: 投稿・削除・画像のアップロードと代わりの文、つないだ人のプロフィール（つなぐとき）、矢書から送った投稿がまだあるかの確かめ（4.19）、投稿の数字とフォロワー数の読み取り（SNS_INSIGHTS に x を入れたとき。4.22 の段取り ⑥）
+- **ポリシーとの一致**: 下の表の中身は /privacy の第 1〜6 条と揃えてある（2026-10-11 に突き合わせ）
 
 ## 審査は要るか
 
@@ -22,9 +24,9 @@
 | 同じ・ほとんど同じ内容を、複数の X アカウントに投稿しない | 1 つの投稿の X の送り先は 1 つ（プロジェクトにつないだアカウント）。別のプロジェクトに同じ文を手で送ることは止めていないので、利用規約で禁じた | 済み（規約） |
 | 求められていない @メンションを自動でしない | 矢書は文面を勝手に足さない。AI のネタ出しにも @ を入れさせない | 済み |
 | AI が作った**返信**を送るには X の事前の承認が要る | 矢書は返信を作らない（投稿だけ。AI の下書きは利用者が直してから送る） | 対象外。返信の機能を作るなら先に申請する |
-| 利用者や X から求められたら、保存した X のデータを 24 時間以内に消す | 「外す」・退会ですぐ消す（architecture.md の 4.14） | 外すは実装担当が作成中 |
-| 元の投稿が消えたら、保存した X の投稿も消すか直す | 矢書が持つのは、矢書から送った投稿の ID と URL だけ。X で消された投稿の扱いは architecture.md の 4.19 | 済み（4.19） |
-| X のデータでモデルを学習しない | 学習しない。Anthropic にも X から取ったデータは送らない | 済み |
+| 利用者や X から求められたら、保存した X のデータを 24 時間以内に消す | 退会ですべてすぐ消す。「外す」ではアカウントの情報・トークン・フォロワー数をすぐ消し、X 側でもトークンを取り消す。矢書から送った投稿の数字・ID・URL は、投稿を消すまで残る（/privacy の第 5 条）【要判断: X の「アクセスの取り消し」に「外す」が当たるなら、X の数字も消す必要があるか。PM に報告済み】 | 外す・退会は済み |
+| 元の投稿が消えたら、保存した X の投稿も消すか直す | 矢書が持つのは、矢書から送った投稿の ID と URL と、その投稿の数字だけ。X で消された投稿の扱いは architecture.md の 4.19（「X で消された」の印を付ける）【要判断: 消された投稿の数字（post_metrics）も消すか。PM に報告済み】 | 4.19 は済み |
+| X のデータでモデルを学習しない | 学習しない。Anthropic は API の内容を学習に使わない（商用規約）。ただし、利用者が「AI と相談」「AI と振り返る」を使うときは、その利用者自身の X の投稿の数字（閲覧数・いいねなど）とフォロワー数を、助言のために Anthropic に送る（/privacy の第 3 条）。Developer Agreement が禁じているのはモデルの学習・微調整で、利用者本人への助言のための送信は当たらないと読める【未確認: オーナーが規約の該当の条を確かめる】 | 済み（読み方は未確認） |
 | 自動化アカウントのラベル（Automated） | 利用者が自分のアカウントに予約して送る使い方は bot に当たらないと読める【未確認】 | 様子を見る |
 
 ## 残り
@@ -39,4 +41,4 @@
 | X-1 | console.x.com → アプリ → Settings | App name を「Yabumi」など、Dev を含まない名前にする。Description に「Social media scheduling tool for indie app developers. Users write posts, review them, and publish or schedule them to their own X account.」 |
 | X-2 | 同上 | Website URL を本番の URL に。Terms of service・Privacy policy の欄があれば `https://yabumi.app/terms`・`/privacy` |
 | X-3 | 同上 → User authentication settings | Callback URI に本番の URL があること（deploy.md の 6-4） |
-| X-4 | Billing | Spending limit が矢書の月の上限（X_MONTHLY_BUDGET_USD）より少し上か確かめる。他の人が使い始めると、矢書全体の $3 はすぐ届くので、人数に合わせて上限を見直す（PM の「利用者数ごとの費用」） |
+| X-4 | Billing | Spending limit が矢書の月の上限（X_MONTHLY_BUDGET_USD。投稿と数字の読み取りで共有）より少し上か確かめる。他の人が使い始めると、矢書全体の $3 はすぐ届くので、人数に合わせて上限を見直す（PM の「利用者数ごとの費用」） |

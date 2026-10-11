@@ -77,9 +77,27 @@ export async function revokeAccountsByExternalId(admin: Admin, sns: SnsKey, exte
 
 // SNS 側でデータの削除を求められたとき。アカウントとトークンを消す（配信先からの参照は空になる）
 export async function deleteAccountsByExternalId(admin: Admin, sns: SnsKey, externalId: string): Promise<number> {
+  const { data: found, error: e1 } = await admin.from("social_accounts").select("id").eq("sns", sns).eq("external_id", externalId);
+  if (e1) throw e1;
+  await purgeSnsDataOf(admin, found.map((r) => r.id));
   const { data, error } = await admin.from("social_accounts").delete().eq("sns", sns).eq("external_id", externalId).select("id");
   if (error) throw error;
   return data.length;
+}
+
+// SNS の側からデータの削除を求められたとき（Meta の Data deletion callback）、アカウントとトークンのほかに、その SNS から受け取ったものも消す:
+// 送った投稿の数字（post_metrics）と、SNS 上の投稿の ID・URL・送信の途中の情報。投稿の本文と「送った」という記録は利用者が書いたものなので残す。
+// フォロワーの数（account_metrics）はアカウントを消すとカスケードで消える。「外す」では消さない（プライバシーポリシーの第 5 条）
+async function purgeSnsDataOf(admin: Admin, socialAccountIds: string[]): Promise<void> {
+  if (!socialAccountIds.length) return;
+  const { data: targets, error } = await admin.from("post_targets").select("id").in("social_account_id", socialAccountIds);
+  if (error) throw error;
+  const ids = targets.map((t) => t.id);
+  if (!ids.length) return;
+  const { error: e1 } = await admin.from("post_metrics").delete().in("post_target_id", ids);
+  if (e1) throw e1;
+  const { error: e2 } = await admin.from("post_targets").update({ external_post_id: null, external_url: null, sns_container: null }).in("id", ids);
+  if (e2) throw e2;
 }
 
 // Facebook の側で矢書が外されたとき。その Facebook の利用者がつないだページを、すべて「解除済み」にしてトークンを消す
@@ -101,6 +119,9 @@ export async function revokeAccountsByParentId(admin: Admin, sns: SnsKey, parent
 
 // Facebook の側でデータの削除を求められたとき。その人がつないだページのアカウントとトークンを消す
 export async function deleteAccountsByParentId(admin: Admin, sns: SnsKey, parentExternalId: string): Promise<number> {
+  const { data: found, error: e1 } = await admin.from("social_accounts").select("id").eq("sns", sns).eq("parent_external_id", parentExternalId);
+  if (e1) throw e1;
+  await purgeSnsDataOf(admin, found.map((r) => r.id));
   const { data, error } = await admin.from("social_accounts").delete().eq("sns", sns).eq("parent_external_id", parentExternalId).select("id");
   if (error) throw error;
   return data.length;

@@ -1,7 +1,8 @@
 # Meta（Threads、後で Instagram・Facebook）の審査の準備
 
 - **作成日**: 2026-10-11
-- **対象のアプリ**: Yabumi Dev（Threads 専用。architecture.md の 4.6）。Instagram・Facebook 用のアプリは未作成
+- **対象のアプリ**: Yabumi Dev（Threads 専用。architecture.md の 4.6）と、Instagram・Facebook 用のアプリ（Yabumi。矢書の側は architecture.md の 4.21 で作り済み。Meta の側のアプリを作るのはオーナーの作業で、deploy.md の 12）
+- **ポリシーとの一致**: 下の説明文とデータの扱いの答えは、/privacy の第 1〜6 条と同じ中身にしてある（2026-10-11 に突き合わせ）。どちらかを変えたら、もう片方も直す
 - **いまの状態**: 開発モード。Threads Tester に登録したアカウント（オーナーの @masa_i82）だけがつなげる
 
 ## 他の人がつなげるようになるまで
@@ -88,7 +89,7 @@ Threads の Use cases → Settings の Uninstall Callback URL は `https://yabum
 
 ### threads_content_publish
 
-> Users write a post in Yabumi, review the Threads preview (character count and the exact text), and then either click "Send now" or schedule it for a date and time. Only when the user clicks one of these buttons do we use threads_content_publish to create a text post on the user's own Threads account (create a media container, then publish it). After publishing, we show a "View on Threads" link with the permalink so the user can see the result. We never post anything the user did not write or approve, and we never post to accounts other than the one the user connected.
+> Users write a post in Yabumi, review the Threads preview (character count and the exact text), and then either click "Send now" or schedule it for a date and time. Only when the user clicks one of these buttons do we use threads_content_publish to create a post on the user's own Threads account: a text post, or a post with the images the user attached (with the alt text the user wrote). We create a media container, then publish it; for images we pass a signed URL that expires in one hour. After publishing, we show a "View on Threads" link with the permalink so the user can see the result. We never post anything the user did not write or approve, and we never post to accounts other than the one the user connected.
 
 ### threads_delete
 
@@ -96,7 +97,7 @@ Threads の Use cases → Settings の Uninstall Callback URL は `https://yabum
 
 ### threads_manage_insights（指標を作ったので、追加で申請する。2026-10-11 に画面ができた）
 
-> Yabumi shows indie developers whether their posts are reaching people, on the project's "Metrics" (指標) page. After a user connects their Threads account with this permission, a daily job reads the insights of the posts the user published through Yabumi (views, likes, replies, reposts, quotes, shares) on day 1, 3, 7 and 30 after publishing, and the account's followers_count once a day. We show the total views of the last 7 days compared with the previous week, the follower growth, and a ranked list of the most viewed posts, so non-marketers can see which kind of post works. We only read insights of the user's own account and of posts published through Yabumi; we never read other users' data, and we never post or change anything with this permission.
+> Yabumi shows indie developers whether their posts are reaching people, on the project's "Metrics" (指標) page. After a user connects their Threads account with this permission, a daily job reads the insights of the posts the user published through Yabumi (views, likes, replies, reposts, quotes, shares) on day 1, 3, 7 and 30 after publishing, and the account's followers_count once a day. We show the total views of the last 7 days compared with the previous week, the follower growth, and a ranked list of the most viewed posts, so non-marketers can see which kind of post works. If the user asks Yabumi's AI assistant to review their numbers, these numbers are included in that request so the assistant can point out what worked (our AI provider, Anthropic, does not use API data for training and deletes it within 30 days). We only read insights of the user's own account and of posts published through Yabumi; we never read other users' data, we never sell or share these numbers, and we never post or change anything with this permission. If Meta sends a data deletion request, we delete these numbers together with the account.
 
 #### 申請までの流れ（オーナー。DB と画面は 2026-10-11 に作り済み）
 
@@ -134,15 +135,15 @@ Threads の Use cases → Settings の Uninstall Callback URL は `https://yabum
 
 | 質問の趣旨 | 答え |
 |---|---|
-| データを処理する他社（委託先）はあるか | ある: Supabase（DB、東京）、Vercel（サーバー、東京）、Anthropic（AI。投稿の下書きを作るときに、利用者が入れたプロジェクトの情報を送る。Threads から取ったデータは送らない） |
+| データを処理する他社（委託先）はあるか | ある: Supabase（DB、東京）、Vercel（サーバー、東京）、Anthropic（AI）。Anthropic には、利用者が AI の機能を使うときに、利用者が入れたプロジェクトの情報と矢書で書いた投稿の本文を送る。利用者が「AI と相談」「AI と振り返る」を使うときは、その利用者自身の投稿の数字（Threads・Instagram・Facebook から読んだ閲覧数・フォロワー数など）も送る（/privacy の第 3 条）。Anthropic は API の内容を学習に使わず、30 日以内に消す |
 | Threads のデータを他社に売る・渡すか | しない |
 | 政府などからの開示の求めへの方針 | 法律に基づく正式な求めにだけ、必要な範囲で応じる。求めが不当なら争う。利用者に知らせることが法律で禁じられていなければ知らせる（運営者の方針として、オーナーが確かめる） |
-| 保存するデータ | Threads のユーザー ID、ユーザー名、アクセストークン（AES-256-GCM で暗号化）、矢書から送った投稿の ID と URL |
-| 削除 | 利用者が「外す」・退会したとき、Meta から削除の通知が来たときにすぐ消す |
+| 保存するデータ | ユーザー ID、ユーザー名、表示名、アクセストークン（AES-256-GCM で暗号化）、矢書から送った投稿の ID と URL。数字の権限つきでつないだときは、矢書から送った投稿の数字（1・3・7・30 日目）とフォロワー数（日ごと）。Facebook はページの ID・名前と、つないだ Facebook の利用者の ID（ページを選ぶまでの 15 分だけ、ページの一覧と暗号化したページのトークンも） |
+| 削除 | 利用者が「外す」とき: アカウントの情報・トークン・フォロワー数をすぐ消す（矢書から送った投稿の数字は、投稿を消すか退会まで残す）。退会したとき: すべてすぐ消す。Meta からデータの削除の依頼が来たとき: アカウントの情報・トークン・フォロワー数に加え、その SNS から読んだ投稿の数字と、SNS 上の投稿の ID・URL も消し、確認のページと確認コードを返す（Threads・Instagram・Facebook とも。矢書で書いた投稿の本文は利用者のものなので残す）。Meta の側で矢書が外されたときは、トークンを消して「解除済み」にする |
 
-## 後で: Instagram と Facebook ページ
+## Instagram と Facebook ページ
 
-別の Meta アプリ（Instagram・Facebook 用。architecture.md の 4.6）を作り、同じ流れ（ビジネス認証は同じポートフォリオで済む）で申請する。設計と、アプリの作り方・権限・コールバック URL は architecture.md の 4.21（Instagram は Instagram Login、Facebook はページだけ。Instagram Login では投稿を API で消せないので、threads_delete に当たる権限は申請しない）。
+矢書の側は作り済み（architecture.md の 4.21）。別の Meta アプリ（Instagram・Facebook 用）を作り、同じ流れ（ビジネス認証は同じポートフォリオで済む）で申請する。設計と、アプリの作り方・権限・コールバック URL は architecture.md の 4.21（Instagram は Instagram Login、Facebook はページだけ。Instagram Login では投稿を API で消せないので、threads_delete に当たる権限は申請しない）。
 
 | SNS | 権限 | 条件 |
 |---|---|---|
@@ -151,3 +152,37 @@ Threads の Use cases → Settings の Uninstall Callback URL は `https://yabum
 
 - どちらも Tech Provider 認証の対象（一度済めば同じビジネスで使える）
 - 出典: [Instagram のコンテンツの公開](https://developers.facebook.com/docs/instagram-platform/content-publishing)、[Instagram API with Instagram Login](https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login)、[ページの投稿](https://developers.facebook.com/docs/pages-api/posts)
+
+### 権限ごとの説明文（英語。申請の欄にそのまま貼る。2026-10-11 に実装と /privacy に合わせて書いた）
+
+#### instagram_business_basic
+
+> Yabumi is a social media scheduling tool for indie app developers. After a user connects their Instagram professional account via Instagram Login, we use instagram_business_basic to read the account's user ID, username and account type. We show "✓ @username" on the user's project overview so they can confirm which Instagram account their posts will be published to, and if the account is not a professional account we explain how to switch instead of connecting. We store the user ID to link scheduled posts to the right account. We do not read any other profile data.
+
+#### instagram_business_content_publish
+
+> Users write a caption in Yabumi, attach one image or up to 10 images (a carousel), optionally write alt text for each image, review the Instagram preview (caption length and image aspect ratio), and then click "Send now" or schedule it. Only when the user clicks one of these buttons do we use instagram_business_content_publish to create media containers with a signed image URL that expires in one hour, wait until the container is ready, and publish it to the user's own Instagram account. After publishing, we show a "View on Instagram" link with the permalink. We never post anything the user did not write or approve. Because Instagram Login cannot delete media, Yabumi tells users to delete Instagram posts from the Instagram app.
+
+#### instagram_business_manage_insights
+
+> On the project's "Metrics" page, Yabumi shows indie developers whether their posts are reaching people. With this permission, a daily job reads the insights of the posts the user published through Yabumi (views, reach, likes, comments, saves, shares, total interactions) on day 2, 4, 8 and 31 after publishing, and the account's followers_count once a day. We show the total views of the last 7 days compared with the previous week, the follower growth, and the most viewed posts. If the user asks Yabumi's AI assistant to review their numbers, these numbers are included in that request (Anthropic does not use API data for training and deletes it within 30 days). We only read the user's own account and posts published through Yabumi, and we never sell or share these numbers.
+
+#### pages_show_list
+
+> Personal Facebook profiles cannot be posted to via the API, so Yabumi connects Facebook Pages. After the user logs in with Facebook Login for Business, we use pages_show_list to list the Pages the user manages (only those where the user can create content) and show them on a "Choose a Page" screen. The user picks one Page; we keep the list for at most 15 minutes until the user chooses, then delete it. We store only the chosen Page's ID, name and Page access token (encrypted).
+
+#### pages_read_engagement
+
+> We use pages_read_engagement together with pages_manage_posts, as required to read the chosen Page's basic information (name) and to get the permalink of the posts Yabumi published, which we show as a "View on Facebook" link. If the user enabled metrics, we also read the Page's followers_count once a day to show follower growth on the "Metrics" page. We do not read posts or comments written by other people.
+
+#### pages_manage_posts
+
+> Users write a post in Yabumi, optionally attach images, review the Facebook preview, and click "Send now" or schedule it. Only then do we use pages_manage_posts to publish a text, link or photo post to the Page the user chose (images are passed as signed URLs that expire in one hour). On each published post's page, Yabumi shows a "Delete from Facebook" button; when the user clicks it and confirms, we delete that post. We only publish to and delete from the Page the user connected, and only posts the user wrote or approved.
+
+#### read_insights
+
+> With read_insights, a daily job reads the insights of the Page posts published through Yabumi (media views, unique viewers, reactions, clicks) on day 1, 3, 7 and 30 after publishing, so the "Metrics" page can show which posts reached people. If the user asks Yabumi's AI assistant to review their numbers, these numbers are included in that request (Anthropic does not use API data for training and deletes it within 30 days). We only read the Page the user connected and posts published through Yabumi, and we never sell or share these numbers.
+
+- 録画は Threads と同じ形（つなぐ → 認可画面 → 「✓」、投稿 → 「Instagram で見る」、指標の画面）。Instagram の録画では「Instagram からは取り消せないので、Instagram のアプリから消す」案内も見せる
+- Instagram の数字の読み方（2・4・8・31 日目）と Facebook の数字の名前は src/lib/sns/insights/index.ts と、SNS 上の投稿 ID の扱いは src/lib/sns/accounts.ts と揃える
+

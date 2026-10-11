@@ -69,8 +69,32 @@ describe("SNS アカウントの保存", () => {
     expect((await admin.from("social_account_tokens").select("*").eq("social_account_id", accountId)).data).toEqual([]);
   });
 
-  it("データの削除を求められたら、アカウントごと消す", async () => {
+  it("データの削除を求められたら、アカウントごと消し、その SNS から受け取った数字と投稿の ID・URL も消す（本文は残す）", async () => {
+    const { data: project } = await alice.from("projects").insert({ name: "削除の依頼" }).select("id").single();
+    const { data: postId, error } = await alice.rpc("save_post", {
+      p_post_id: null as unknown as string,
+      p_project_id: project!.id,
+      p_body: "送った投稿",
+      p_planned_at: null as unknown as string,
+      p_status: "draft",
+      p_targets: [{ sns: "threads", social_account_id: accountId }],
+    });
+    if (error) throw error;
+    const { data: target } = await admin
+      .from("post_targets")
+      .update({ status: "published", published_at: new Date().toISOString(), external_post_id: "th-1", external_url: "https://www.threads.net/@alice/post/1" })
+      .eq("post_id", postId!)
+      .select("id")
+      .single();
+    await admin.from("post_metrics").insert({ post_target_id: target!.id, owner_id: aliceId, day_index: 1, values: { views: 10 } });
+    await admin.from("account_metrics").insert({ social_account_id: accountId, owner_id: aliceId, day: "2026-10-11", values: { followers: 5 } });
+
     expect(await deleteAccountsByExternalId(admin, "threads", externalId)).toBe(1);
     expect((await admin.from("social_accounts").select("id").eq("id", accountId)).data).toEqual([]);
+    expect((await admin.from("post_metrics").select("day_index").eq("post_target_id", target!.id)).data).toEqual([]);
+    expect((await admin.from("account_metrics").select("day").eq("social_account_id", accountId)).data).toEqual([]);
+    const { data: after } = await admin.from("post_targets").select("status, external_post_id, external_url, social_account_id").eq("id", target!.id).single();
+    expect(after).toEqual({ status: "published", external_post_id: null, external_url: null, social_account_id: null });
+    expect((await admin.from("posts").select("body").eq("id", postId!).single()).data?.body).toBe("送った投稿");
   });
 });

@@ -546,6 +546,7 @@ README が薄い個人開発のリポジトリやモノレポでも中身がわ�
 #### SNS を外す
 
 - 「つないだ SNS」の各行に「外す」を置く。social_accounts の行を消し、トークンも一緒に消える（配信先からの参照は空になり、送信の結果は残る）
+- SNS の側からデータの削除を求められたとき（Meta の Data deletion callback。Threads・Instagram・Facebook）は、「外す」と違い、その SNS から受け取ったものも消す: 送った投稿の数字（post_metrics）、SNS 上の投稿の ID・URL・送信の途中の情報（post_targets の external_post_id・external_url・sns_container）。フォロワーの数（account_metrics）はアカウントと一緒に消える。投稿の本文と「送った」という記録は利用者が書いたものなので残す（src/lib/sns/accounts.ts の purgeSnsDataOf。2026-10-11）
 - X は、X 側でもトークンを取り消す（POST /2/oauth2/revoke）。Threads はアプリ側から連携を解除する API がないので、画面で「Threads の設定 → アカウント → ウェブサイトのアクセス許可から矢書を削除」と案内する
 - まだ送っていない配信先（予約）は、送る時点で「アカウントがつながっていません」の要確認になる。外す前に、予約が残っていれば件数を出して確かめる
 

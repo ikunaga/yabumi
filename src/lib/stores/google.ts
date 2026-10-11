@@ -41,7 +41,10 @@ export async function managerAccessToken(key: ManagerKey, fetchImpl: typeof fetc
     signal: AbortSignal.timeout(20_000),
   });
   const json = (await res.json().catch(() => ({}))) as { access_token?: string };
-  if (!res.ok || !json.access_token) throw new StoreApiError("Google Play をつなぐ機能は準備中です（運営者の設定を確かめています）。", res.status || 500);
+  if (!res.ok || !json.access_token) {
+    console.error("[stores/google] 管理用のサービスアカウント（GOOGLE_PLAY_MANAGER_KEY）でトークンを取れませんでした", res.status);
+    throw new StoreApiError("Google Play をつなぐ機能は準備中です。", res.status || 500);
+  }
   return json.access_token;
 }
 

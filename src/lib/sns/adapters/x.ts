@@ -18,9 +18,11 @@ export function toXPublishError(e: unknown, stage: "prepare" | "publish"): SnsPu
       return new SnsPublishError("auth", `X とのつながりが切れています。${RECONNECT}`, { cause: e });
     }
     if (e.status === 402 || e.status === 429 || (e.code !== undefined && CAP_CODES.has(e.code))) {
+      // 矢書の X のアプリの残高・上限の話なので、運営者向けにはログに出す
+      console.warn("[x] API の上限、またはクレジット切れで断られました", e.status, e.code ?? "");
       return new SnsPublishError(
         "permanent",
-        `X の API の上限、またはクレジット切れで断られました。X の Developer Console で残高と上限を確かめてください。${MANUAL}`,
+        `X の API の利用の上限に達したため、送れませんでした。時間をおいて、もう一度送ってください。${MANUAL}`,
         { cause: e },
       );
     }

@@ -5,30 +5,30 @@ type BannerSns = "threads" | "x" | "instagram" | "facebook";
 
 const ERRORS: Record<BannerSns, Record<string, string>> = {
   threads: {
-    not_configured: "Threads の設定（環境変数 THREADS_APP_ID・THREADS_APP_SECRET・APP_URL）が足りないため、つなげません。",
+    not_configured: "Threads をつなぐ機能は準備中です。",
     denied: "Threads の画面でキャンセルされたため、つなぎませんでした。",
-    failed: "Threads とつなげませんでした。もう一度お試しください。続くときは Meta のアプリの設定を確認してください。",
+    failed: "Threads とつなげませんでした。時間をおいて、もう一度お試しください。",
   },
   instagram: {
-    not_configured: "Instagram の設定（環境変数 INSTAGRAM_APP_ID・INSTAGRAM_APP_SECRET・APP_URL）が足りないため、つなげません。",
+    not_configured: "Instagram をつなぐ機能は準備中です。",
     denied: "Instagram の画面でキャンセルされたため、つなぎませんでした。",
     not_professional:
       "このアカウントはプロアカウントではないため、つなげませんでした。Instagram のアプリの「設定とアクティビティ」→「アカウントの種類とツール」→「プロアカウントに切り替える」で切り替えてから、もう一度つないでください（無料です）。",
-    failed: "Instagram とつなげませんでした。もう一度お試しください。続くときは、Meta のアプリの設定（リダイレクト URI、Instagram テスター）を確認してください。",
+    failed: "Instagram とつなげませんでした。時間をおいて、もう一度お試しください。",
   },
   facebook: {
-    not_configured: "Facebook の設定（環境変数 META_APP_ID・META_APP_SECRET・FACEBOOK_LOGIN_CONFIG_ID・APP_URL）が足りないため、つなげません。",
+    not_configured: "Facebook ページをつなぐ機能は準備中です。",
     denied: "Facebook の画面でキャンセルされたため、つなぎませんでした。",
     no_pages:
       "管理している Facebook ページがありませんでした。矢書から投稿できるのはページだけです。Facebook でページを作ってから、もう一度つないでください。",
     no_postable_page:
       "投稿を作れる役割のある Facebook ページがありませんでした。ページの管理者に、投稿を作れる役割（管理者・編集者など）をもらってから、もう一度つないでください。Facebook の画面で、つなぐページにチェックが入っているかも確かめてください。",
-    failed: "Facebook とつなげませんでした。もう一度お試しください。続くときは、Meta のアプリの設定（リダイレクト URI、権限）を確認してください。",
+    failed: "Facebook とつなげませんでした。時間をおいて、もう一度お試しください。",
   },
   x: {
-    not_configured: "X の設定（環境変数 X_CLIENT_ID・X_CLIENT_SECRET・APP_URL）が足りないため、つなげません。",
+    not_configured: "X をつなぐ機能は準備中です。",
     denied: "X の画面でキャンセルされたため、つなぎませんでした。",
-    failed: "X とつなげませんでした。もう一度お試しください。続くときは X の Developer Console で、アプリの権限（Read and write）と Callback URI を確認してください。",
+    failed: "X とつなげませんでした。時間をおいて、もう一度お試しください。",
   },
 };
 const STATE_ERROR = "つなぐときの確認に失敗しました。時間をおいて、もう一度「つなぐ」から始めてください。";

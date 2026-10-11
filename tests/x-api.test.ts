@@ -97,6 +97,14 @@ describe("エラーの分け方", () => {
     expect(toXPublishError(new XApiError("x", 429), "publish").userMessage).toContain("手で投稿");
   });
 
+  it("上限・クレジット切れの文に、矢書の X のアプリの事情（Developer Console など）を出さない", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const message = toXPublishError(new XApiError("x", 402, "CreditsDepleted"), "publish").userMessage;
+    expect(message).not.toMatch(/Developer Console|残高|クレジット/);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("[x]"), 402, "CreditsDepleted");
+    warn.mockRestore();
+  });
+
   it("投稿の途中の X 側の障害・通信エラーは、投稿されたかわからない（unknown）", () => {
     expect(toXPublishError(new XApiError("Service Unavailable", 503), "publish").kind).toBe("unknown");
     expect(toXPublishError(new TypeError("fetch failed"), "publish").kind).toBe("unknown");

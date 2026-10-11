@@ -11,7 +11,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { aiConfigured, callPostIdeas } from "./anthropic";
 import { aiLimitsFromEnv } from "./limits";
-import { adoptPostIdea, generatePostIdeas, MAX_ANSWER_CHARS, MAX_IDEA_QUESTIONS, MAX_IDEAS, refinePostIdeas } from "./post-ideas";
+import { adoptPostIdea, generatePostIdeas, MAX_ANSWER_CHARS, MAX_IDEA_QUESTIONS, MAX_IDEAS, MAX_NEWS_CHARS, NEWS_QUESTIONS, refinePostIdeas } from "./post-ideas";
 
 async function currentUser() {
   const supabase = await createClient();
@@ -24,22 +24,28 @@ export type IdeasActionResult = { error?: string };
 const BAD_INPUT = { error: "入力の形式が正しくありません。" };
 const FAILED = { error: "うまくいきませんでした。時間をおいてもう一度お試しください。" };
 
-// 最近のコミットを読んで、AI が投稿のネタを出す（30〜90 秒ほどかかる）
-export async function generateIdeas(projectId: string, days: unknown, sns: unknown): Promise<IdeasActionResult> {
+const inputSchema = z.discriminatedUnion("source", [
+  z.object({ source: z.literal("commits"), days: z.number().refine(isValidPeriod) }),
+  z.object({ source: z.literal("news"), news: z.array(z.object({ question: z.string().max(500), answer: z.string().max(MAX_NEWS_CHARS) })).max(NEWS_QUESTIONS.length) }),
+  z.object({ source: z.literal("plan") }),
+]);
+
+// 材料（最近のコミット・最近のできごと・アカウント設計）から、AI が投稿のネタを出す（30〜90 秒ほどかかる）
+export async function generateIdeas(projectId: string, input: unknown, sns: unknown): Promise<IdeasActionResult> {
   const snsList = z.array(z.string()).max(10).safeParse(sns);
-  if (!z.uuid().safeParse(projectId).success || !isValidPeriod(days) || !snsList.success) return BAD_INPUT;
-  if (!githubConfigured()) return { error: "GitHub との連携は準備中です。" };
+  const parsed = inputSchema.safeParse(input);
+  if (!z.uuid().safeParse(projectId).success || !parsed.success || !snsList.success) return BAD_INPUT;
+  if (parsed.data.source === "commits" && !githubConfigured()) return { error: "GitHub との連携は準備中です。" };
   if (!aiConfigured()) return { error: "AI はまだ準備中です（API キーが設定されていません）。" };
   const { supabase, userId } = await currentUser();
   if (!userId) return { error: "ログインし直してください。" };
 
   try {
-    const cfg = githubConfig();
     const r = await generatePostIdeas(
       supabase,
       createAdminClient(),
-      { callIdeas: callPostIdeas, readCommits: (link, since) => readCommitsForIdeas(cfg, link, since), limits: aiLimitsFromEnv() },
-      { userId, projectId, days, sns: snsList.data },
+      { callIdeas: callPostIdeas, readCommits: (link, since) => readCommitsForIdeas(githubConfig(), link, since), limits: aiLimitsFromEnv() },
+      { userId, projectId, sns: snsList.data, input: parsed.data },
     );
     if (!r.ok) return { error: r.message };
   } catch (e) {

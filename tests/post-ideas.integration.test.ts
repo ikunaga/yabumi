@@ -56,7 +56,7 @@ describe("投稿のネタ", () => {
 
   it("コミットを読んでネタを出し、会話に残す。コミットの原文は保存しない。利用量を数える", async () => {
     const d = deps();
-    const r = await generatePostIdeas(alice, admin, d, { userId: aliceId, projectId, days: 7, sns: ["x", "threads", "note"] });
+    const r = await generatePostIdeas(alice, admin, d, { userId: aliceId, projectId, sns: ["x", "threads", "note"], input: { source: "commits", days: 7 } });
     expect(r.ok).toBe(true);
     threadId = (r as { threadId: string }).threadId;
     // AI にはコミットを渡している
@@ -119,13 +119,13 @@ describe("投稿のネタ", () => {
 
   it("コミットがない、上限に達した、AI の返事が使えないときは、会話を残さない", async () => {
     const before = (await alice.from("ai_threads").select("id")).data!.length;
-    const none = await generatePostIdeas(alice, admin, deps({ readCommits: async () => ({ commits: [], truncated: false }) }), { userId: aliceId, projectId, days: 3, sns: ["x"] });
+    const none = await generatePostIdeas(alice, admin, deps({ readCommits: async () => ({ commits: [], truncated: false }) }), { userId: aliceId, projectId, sns: ["x"], input: { source: "commits", days: 3 } });
     expect(none).toMatchObject({ ok: false });
     vi.mocked(commits).mockClear();
-    const over = await generatePostIdeas(alice, admin, deps({ limits: { ...roomy, userMonthlyUsd: 0.000001 } }), { userId: aliceId, projectId, days: 7, sns: ["x"] });
+    const over = await generatePostIdeas(alice, admin, deps({ limits: { ...roomy, userMonthlyUsd: 0.000001 } }), { userId: aliceId, projectId, sns: ["x"], input: { source: "commits", days: 7 } });
     expect(over).toMatchObject({ ok: false });
     expect(commits).not.toHaveBeenCalled();
-    const bad = await generatePostIdeas(alice, admin, deps({ callIdeas: caller({ ideas: [] }) }), { userId: aliceId, projectId, days: 7, sns: ["x"] });
+    const bad = await generatePostIdeas(alice, admin, deps({ callIdeas: caller({ ideas: [] }) }), { userId: aliceId, projectId, sns: ["x"], input: { source: "commits", days: 7 } });
     expect(bad).toMatchObject({ ok: false });
     expect((await alice.from("ai_threads").select("id")).data).toHaveLength(before);
     // 使えなかった返事の分も数える
@@ -135,7 +135,7 @@ describe("投稿のネタ", () => {
 
   it(`ネタの会話は新しい ${KEEP_IDEA_THREADS} 回分だけ残す。下書きにした投稿は残る`, async () => {
     for (let i = 0; i < KEEP_IDEA_THREADS; i++) {
-      expect((await generatePostIdeas(alice, admin, deps(), { userId: aliceId, projectId, days: 7, sns: ["x"] })).ok).toBe(true);
+      expect((await generatePostIdeas(alice, admin, deps(), { userId: aliceId, projectId, sns: ["x"], input: { source: "commits", days: 7 } })).ok).toBe(true);
     }
     const { data: threads } = await alice.from("ai_threads").select("id").eq("purpose", "post_ideas");
     expect(threads).toHaveLength(KEEP_IDEA_THREADS);
@@ -143,9 +143,51 @@ describe("投稿のネタ", () => {
     expect((await alice.from("posts").select("id").eq("project_id", projectId)).data).toHaveLength(1);
   });
 
+  it("GitHub をつないでいなくても、最近のできごとからネタを出せる。近況は会話に残し、出し直しにも渡す", async () => {
+    const p2 = (await alice.from("projects").insert({ name: "ねむログ" }).select("id").single()).data!.id;
+    vi.mocked(commits).mockClear();
+    const call = caller({ ...ideasOutput, ideas: [{ ...ideasOutput.ideas[0], commits: [{ sha: SHA.slice(0, 7), note: "x" }] }] });
+    const r = await generatePostIdeas(alice, admin, deps({ callIdeas: call }), {
+      userId: aliceId,
+      projectId: p2,
+      sns: ["x"],
+      input: { source: "news", news: [{ question: "やったこと", answer: "通知を直した" }, { question: "迷ったこと", answer: " " }] },
+    });
+    expect(r.ok).toBe(true);
+    expect(commits).not.toHaveBeenCalled();
+    expect(JSON.stringify(vi.mocked(call).mock.calls[0][0].messages)).toContain("通知を直した");
+    const t = (r as { threadId: string }).threadId;
+    const { content, all } = await latestIdeas(t);
+    expect(all[0].content).toMatchObject({ kind: "ideas_request", source: "news", news: [{ question: "やったこと", answer: "通知を直した" }] });
+    // コミットから出していないので、sha は付かない
+    expect(content.ideas[0].commits).toEqual([]);
+
+    const re = caller();
+    expect((await refinePostIdeas(alice, admin, { callIdeas: re, limits: roomy }, { userId: aliceId, projectId: p2, threadId: t, answers: [{ question: "q", answer: "時差" }] })).ok).toBe(true);
+    expect(JSON.stringify(vi.mocked(re).mock.calls[0][0].messages)).toContain("通知を直した");
+
+    // 答えがなければ出さない。GitHub をつないでいないのにコミットからは出せない
+    expect(await generatePostIdeas(alice, admin, deps(), { userId: aliceId, projectId: p2, sns: ["x"], input: { source: "news", news: [{ question: "q", answer: "" }] } })).toMatchObject({ ok: false });
+    expect(await generatePostIdeas(alice, admin, deps(), { userId: aliceId, projectId: p2, sns: ["x"], input: { source: "commits", days: 7 } })).toMatchObject({ ok: false });
+  });
+
+  it("アカウント設計からネタを出す。設計も紹介文もなければ、AI を呼ばずに知らせる", async () => {
+    const p3 = (await alice.from("projects").insert({ name: "空のプロジェクト" }).select("id").single()).data!.id;
+    const call = caller();
+    expect(await generatePostIdeas(alice, admin, deps({ callIdeas: call }), { userId: aliceId, projectId: p3, sns: ["x"], input: { source: "plan" } })).toMatchObject({ ok: false });
+    expect(call).not.toHaveBeenCalled();
+
+    await alice.from("projects").update({ description: "寝る前にスマホを置くと睡眠を記録する" }).eq("id", p3);
+    const r = await generatePostIdeas(alice, admin, deps({ callIdeas: call }), { userId: aliceId, projectId: p3, sns: ["x"], input: { source: "plan" } });
+    expect(r.ok).toBe(true);
+    expect(JSON.stringify(vi.mocked(call).mock.calls[0][0].messages)).toContain("寝る前にスマホを置くと");
+    const { all } = await latestIdeas((r as { threadId: string }).threadId);
+    expect(all[0].content).toMatchObject({ kind: "ideas_request", source: "plan" });
+  });
+
   it("他人のプロジェクトでは出せない（リポジトリも読まない）", async () => {
     vi.mocked(commits).mockClear();
-    const r = await generatePostIdeas(bob, admin, deps(), { userId: bobId, projectId, days: 7, sns: ["x"] });
+    const r = await generatePostIdeas(bob, admin, deps(), { userId: bobId, projectId, sns: ["x"], input: { source: "commits", days: 7 } });
     expect(r).toMatchObject({ ok: false });
     expect(commits).not.toHaveBeenCalled();
   });

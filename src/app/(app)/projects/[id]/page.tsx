@@ -86,7 +86,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
             action={
               <span className="flex gap-4">
                 <Link href={`/projects/${project.id}/ideas`} className="hover:underline">
-                  開発からネタを出す
+                  AI とネタを出す
                 </Link>
                 <Link href={`/projects/${project.id}/calendar`} className="hover:underline">
                   すべて見る
@@ -104,7 +104,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
                   </Link>
                   か、
                   <Link href={`/projects/${project.id}/ideas`} className="font-semibold text-primary hover:underline">
-                    最近の開発からネタを出す
+                    AI とネタを出す
                   </Link>
                   ところから始めましょう。
                 </>

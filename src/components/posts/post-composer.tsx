@@ -161,7 +161,7 @@ export function PostComposer({
               下書き
             </h1>
             <Link href={`/projects/${projectId}/ideas`} className="text-sm font-semibold text-primary hover:underline">
-              最近の開発からネタを出す
+              AI とネタを出す
             </Link>
           </div>
 

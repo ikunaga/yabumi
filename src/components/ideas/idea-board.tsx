@@ -4,28 +4,65 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/feedback";
-import { Input } from "@/components/ui/field";
+import { Input, Textarea } from "@/components/ui/field";
 import { adoptIdea, generateIdeas, refineIdeas } from "@/lib/ai/post-ideas-actions";
-import type { IdeasThread, PostIdea } from "@/lib/ai/post-ideas";
+import { IDEA_SOURCES, MAX_NEWS_CHARS, needsFillIn, type IdeaQuestion, type IdeaSource, type IdeasThread, type PostIdea } from "@/lib/ai/post-ideas";
 import { IDEA_PERIODS, type IdeaPeriod } from "@/lib/github/commit-reader";
 import { ISSUE_LABEL, SNS, checkTarget, type SnsKey } from "@/lib/sns";
 
 const PERIOD_LABEL: Record<IdeaPeriod, string> = { 3: "3 日", 7: "1 週間", 14: "2 週間", 30: "1 か月" };
 
+// 材料の選び方。素人が選びやすいよう、向いている人と気をつけることを添える
+const SOURCE_INFO: Record<IdeaSource, { title: string; summary: string; good: string; note: string; button: string; working: string; cost: string }> = {
+  commits: {
+    title: "最近の開発から（GitHub）",
+    summary: "GitHub に記録した変更（コミット）を AI が読みます。",
+    good: "入力がいらない。作った・直したことが、そのまま話の種になる",
+    note: "コミットの文だけでは苦労や理由がわからず、あとで質問が出ることがある",
+    button: "コミットを読んで、ネタを出す",
+    working: "コミットを読んで、ネタを考えています…（30〜90 秒ほど）",
+    cost: "1 回あたり 20〜40 円ほど",
+  },
+  news: {
+    title: "最近のできごとから",
+    summary: "3 つの質問に答えると、それを投稿の形に広げます。",
+    good: "GitHub がなくても使える。自分の言葉なので、いちばん実感のこもった投稿になる",
+    note: "どれか 1 つは答える必要がある（短くて大丈夫）",
+    button: "このできごとからネタを出す",
+    working: "ネタを考えています…（20〜60 秒ほど）",
+    cost: "1 回あたり 10〜20 円ほど",
+  },
+  plan: {
+    title: "アカウント設計から（入力なし）",
+    summary: "投稿の柱と「どんなアプリか」から、柱ごとに 1 つずつ出します。",
+    good: "何も書かなくてよい。いつ出しても古くならないネタがそろう",
+    note: "最近の話は入らないので、ほかの材料と交互に使うのがおすすめ",
+    button: "アカウント設計からネタを出す",
+    working: "ネタを考えています…（20〜60 秒ほど）",
+    cost: "1 回あたり 10〜20 円ほど",
+  },
+};
+
 type Props = {
   projectId: string;
-  repoFullName: string;
+  // つないだリポジトリ（なければ null）。GitHub との連携が準備中なら githubReady が false
+  repoFullName: string | null;
+  githubReady: boolean;
   aiEnabled: boolean;
   snsOptions: SnsKey[];
   maxSns: number;
   defaultSns: SnsKey[];
   defaultDays: IdeaPeriod;
+  defaultSource: IdeaSource;
+  newsQuestions: IdeaQuestion[];
   thread: IdeasThread | null;
 };
 
-// 最近のコミットから AI がネタを出し、利用者が質問に答えたり、ネタを選んで下書きにしたりする
-export function IdeaBoard({ projectId, repoFullName, aiEnabled, snsOptions, maxSns, defaultSns, defaultDays, thread }: Props) {
+// 材料（最近のコミット・最近のできごと・アカウント設計）から AI がネタを出し、利用者が質問に答えたり、ネタを選んで下書きにしたりする
+export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, snsOptions, maxSns, defaultSns, defaultDays, defaultSource, newsQuestions, thread }: Props) {
+  const [source, setSource] = useState<IdeaSource>(defaultSource);
   const [days, setDays] = useState<IdeaPeriod>(defaultDays);
+  const [news, setNews] = useState<string[]>(() => newsQuestions.map(() => ""));
   const [sns, setSns] = useState<SnsKey[]>(defaultSns);
   const [answers, setAnswers] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -47,64 +84,148 @@ export function IdeaBoard({ projectId, repoFullName, aiEnabled, snsOptions, maxS
     setSns((cur) => (cur.includes(k) ? cur.filter((x) => x !== k) : cur.length >= maxSns ? cur : [...cur, k]));
   }
 
+  const info = SOURCE_INFO[source];
+  const newsAnswered = newsQuestions.map((q, i) => ({ question: q.question, answer: news[i] ?? "" })).filter((a) => a.answer.trim());
+  const commitsBlocked = source === "commits" && !repoFullName;
+  const canGenerate = sns.length > 0 && !commitsBlocked && (source !== "news" || newsAnswered.length > 0);
+  const input = source === "commits" ? { source, days } : source === "news" ? { source, news: newsAnswered } : { source };
+
   const latest = thread?.latest.content;
   const questions = latest?.questions ?? [];
   const answered = questions.map((q, i) => ({ question: q.question, answer: answers[i] ?? "" })).filter((a) => a.answer.trim());
 
+  const pill = (on: boolean) => `rounded-full border px-3.5 py-1.5 text-sm font-semibold ${on ? "border-primary bg-primary-soft text-primary" : "border-border text-fg hover:border-primary"}`;
+
   return (
     <div className="flex flex-col gap-6 max-sm:gap-4">
-      <section className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-5 max-sm:p-4" aria-labelledby="ideas-form">
+      <section className="flex flex-col gap-5 rounded-lg border border-border bg-surface p-5 max-sm:p-4" aria-labelledby="ideas-form">
         <h2 id="ideas-form" className="text-base font-bold">
-          {thread ? "新しくネタを出す" : "コミットを読んで、ネタを出す"}
+          {thread ? "新しくネタを出す" : "何からネタを出すか選ぶ"}
         </h2>
+
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-2 text-[14px] font-bold">
-            どのくらい前までのコミットを読むか
-          </legend>
-          <div className="flex flex-wrap gap-2">
-            {IDEA_PERIODS.map((p) => (
-              <button
-                key={p}
-                type="button"
-                aria-pressed={days === p}
-                onClick={() => setDays(p)}
-                className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold ${days === p ? "border-primary bg-primary-soft text-primary" : "border-border text-fg hover:border-primary"}`}
-              >
-                {PERIOD_LABEL[p]}
-              </button>
-            ))}
+          <legend className="sr-only">ネタの材料</legend>
+          <div className="grid grid-cols-3 gap-3 max-lg:grid-cols-1">
+            {IDEA_SOURCES.map((k) => {
+              const s = SOURCE_INFO[k];
+              const on = source === k;
+              return (
+                <label key={k} className={`flex cursor-pointer flex-col gap-1.5 rounded-md border p-3.5 text-sm leading-[1.7] ${on ? "border-primary bg-primary-soft" : "border-border hover:border-primary"}`}>
+                  <span className="flex items-center gap-2 font-bold">
+                    <input type="radio" name="idea-source" value={k} checked={on} onChange={() => setSource(k)} className="size-4 accent-[var(--primary)]" />
+                    {s.title}
+                  </span>
+                  <span>{s.summary}</span>
+                  <span className="text-xs text-muted">よいところ: {s.good}</span>
+                  <span className="text-xs text-muted">気をつけること: {s.note}</span>
+                  {k === "commits" && !repoFullName && <span className="text-xs font-semibold text-muted">GitHub をつなぐと使えます</span>}
+                </label>
+              );
+            })}
           </div>
         </fieldset>
+
+        {source === "commits" &&
+          (repoFullName ? (
+            <fieldset className="flex flex-col gap-2">
+              <legend className="mb-2 text-[14px] font-bold">
+                どのくらい前までのコミットを読むか
+                <span className="ml-2 text-xs font-normal text-muted">
+                  読むリポジトリ: <span className="break-all">{repoFullName}</span>（
+                  <Link href={`/projects/${projectId}/github`} className="text-primary hover:underline">
+                    変える
+                  </Link>
+                  ）
+                </span>
+              </legend>
+              <div className="flex flex-wrap gap-2">
+                {IDEA_PERIODS.map((p) => (
+                  <button key={p} type="button" aria-pressed={days === p} onClick={() => setDays(p)} className={pill(days === p)}>
+                    {PERIOD_LABEL[p]}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted">.env や鍵などのファイルは読まず、コミットの中身は矢書に残しません。</p>
+            </fieldset>
+          ) : (
+            <div className="flex flex-col gap-2 rounded-md border border-line bg-surface2 px-4 py-3 text-sm leading-[1.8]">
+              <p>GitHub のリポジトリをつなぐと、最近のコミットからネタを出せます。読むだけで、書き込みはしません。非公開のリポジトリも読めます。</p>
+              {githubReady ? (
+                <Link href={`/projects/${projectId}/github`} className="w-fit font-semibold text-primary hover:underline">
+                  GitHub をつなぐ
+                </Link>
+              ) : (
+                <span className="text-xs text-muted">GitHub をつなぐ（準備中）</span>
+              )}
+            </div>
+          ))}
+
+        {source === "news" && (
+          <fieldset className="flex flex-col gap-4">
+            <legend className="mb-2 text-[14px] font-bold">
+              最近のできごと<span className="ml-2 text-xs font-normal text-muted">どれか 1 つに答えれば出せます。例を押してから書き足しても大丈夫です</span>
+            </legend>
+            {newsQuestions.map((q, i) => (
+              <div key={q.question} className="flex flex-col gap-2">
+                <label htmlFor={`idea-news-${i}`} className="text-[14px] leading-[1.7]">
+                  {q.question}
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {q.choices.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setNews((cur) => cur.map((x, j) => (j === i ? (x.trim() ? `${x}${x.endsWith("。") ? "" : "。"}${c}` : c) : x)))}
+                      className="rounded-full border border-border px-3 py-1 text-sm font-semibold text-fg hover:border-primary"
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+                <Textarea
+                  id={`idea-news-${i}`}
+                  rows={2}
+                  maxLength={MAX_NEWS_CHARS}
+                  value={news[i] ?? ""}
+                  onChange={(e) => setNews((cur) => cur.map((x, j) => (j === i ? e.target.value : x)))}
+                  placeholder="例: 通知が 2 回届く不具合を直した。原因は時差の計算だった"
+                />
+              </div>
+            ))}
+          </fieldset>
+        )}
+
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-2 text-[14px] font-bold">
             下書きを書く SNS<span className="ml-2 text-xs font-normal text-muted">{maxSns} つまで。SNS ごとに長さと書き方を変えます</span>
           </legend>
           <div className="flex flex-wrap gap-2">
             {snsOptions.map((k) => (
-              <label key={k} className={`flex cursor-pointer items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-semibold ${sns.includes(k) ? "border-primary bg-primary-soft text-primary" : "border-border text-fg hover:border-primary"}`}>
+              <label key={k} className={`flex cursor-pointer items-center gap-2 ${pill(sns.includes(k))}`}>
                 <input type="checkbox" className="sr-only" checked={sns.includes(k)} onChange={() => toggleSns(k)} />
                 {SNS[k].label}
               </label>
             ))}
           </div>
         </fieldset>
+
         <div className="flex flex-wrap items-center gap-3">
           {aiEnabled ? (
-            <Button disabled={pending || sns.length === 0} onClick={() => run("generate", () => generateIdeas(projectId, days, sns))}>
-              コミットを読んで、ネタを出す
+            <Button disabled={pending || !canGenerate} onClick={() => run("generate", () => generateIdeas(projectId, input, sns))}>
+              {info.button}
             </Button>
           ) : (
             <span className="flex items-center gap-2">
-              <Button disabled>コミットを読んで、ネタを出す</Button>
+              <Button disabled>{info.button}</Button>
               <span className="text-xs text-muted">準備中</span>
             </span>
           )}
           {working === "generate" ? (
             <span role="status" className="text-sm text-muted">
-              コミットを読んで、ネタを考えています…（30〜90 秒ほど）
+              {info.working}
             </span>
           ) : (
-            <span className="text-xs text-muted">1 回あたり 20〜40 円ほどの AI の費用がかかります（月の上限の中で数えます）</span>
+            <span className="text-xs text-muted">{info.cost}の AI の費用がかかります（月の上限の中で数えます）</span>
           )}
         </div>
       </section>
@@ -118,7 +239,7 @@ export function IdeaBoard({ projectId, repoFullName, aiEnabled, snsOptions, maxS
               ネタの案
             </h2>
             <span className="text-sm text-muted">
-              直近 {PERIOD_LABEL[thread.request.days as IdeaPeriod] ?? `${thread.request.days} 日`}のコミット {thread.request.commitCount} 件から
+              {sourceLabel(thread)}
               {thread.answered && "・あなたの答えを反映"}
             </span>
           </div>
@@ -131,7 +252,7 @@ export function IdeaBoard({ projectId, repoFullName, aiEnabled, snsOptions, maxS
             <section className="flex flex-col gap-3 rounded-lg border border-border bg-surface2 p-5 max-sm:p-4" aria-labelledby="idea-questions">
               <h3 id="idea-questions" className="text-[14px] font-bold">
                 ネタをよくするための質問
-                <span className="ml-2 text-xs font-normal text-muted">コミットだけではわからないことです。答えると、AI がネタを出し直します（答えなくても使えます）</span>
+                <span className="ml-2 text-xs font-normal text-muted">いまわかっていることだけでは書けないところです。答えると、AI がネタを出し直します（答えなくても使えます）</span>
               </h3>
               {questions.map((q, i) => (
                 <div key={q.question} className="flex flex-col gap-2">
@@ -179,7 +300,7 @@ export function IdeaBoard({ projectId, repoFullName, aiEnabled, snsOptions, maxS
               <IdeaCard
                 key={`${thread.latest.messageId}-${i}`}
                 idea={idea}
-                repoFullName={thread.request.repo || repoFullName}
+                repoFullName={thread.request.repo || repoFullName || ""}
                 adoptedPostId={latest.adopted?.[String(i)] ?? null}
                 projectId={projectId}
                 disabled={pending}
@@ -192,6 +313,15 @@ export function IdeaBoard({ projectId, repoFullName, aiEnabled, snsOptions, maxS
       )}
     </div>
   );
+}
+
+// 結果の見出しに添える、何から出したか
+function sourceLabel(thread: IdeasThread): string {
+  const r = thread.request;
+  if (r.source === "news") return "最近のできごとから";
+  if (r.source === "plan") return "アカウント設計から";
+  const days = r.days ?? 0;
+  return `直近 ${PERIOD_LABEL[days as IdeaPeriod] ?? `${days} 日`}のコミット ${r.commitCount ?? 0} 件から`;
 }
 
 function IdeaCard({
@@ -220,6 +350,13 @@ function IdeaCard({
         <h3 className="text-base font-bold">{idea.title}</h3>
         {idea.angle && <p className="text-sm leading-[1.8] text-muted">{idea.angle}</p>}
       </div>
+
+      {idea.drafts.some((d) => needsFillIn(d.text)) && (
+        <p className="text-sm leading-[1.7]">
+          <span className="font-bold text-signal">● 書き換えが必要</span>
+          <span className="text-muted"> 【】で囲んだところは、あなたにしか書けない部分です。下書きにしたあと、自分の言葉に書き換えてから送ってください。</span>
+        </p>
+      )}
 
       <div className="flex flex-col gap-3">
         {idea.drafts.map((d) => {

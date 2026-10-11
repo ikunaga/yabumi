@@ -9,6 +9,7 @@ import { publishDueTargets } from "@/lib/sns/publisher";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { fromInputValue, toYmd } from "@/lib/time";
+import { needsFillIn } from "@/lib/ai/post-ideas";
 import { connectedAccounts } from "./queries";
 import { savePostInputSchema, type SavePostInput, type SavePostResult } from "./schema";
 
@@ -58,6 +59,11 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
         const issue = checkTarget(t.sns, t.bodyOverride ?? body, undefined, t.title ?? null).issues[0];
         if (issue) {
           fieldErrors.targets = `${label}: ${ISSUE_LABEL[issue]}`;
+          break;
+        }
+        // AI のネタの【作品名】のような、利用者が書き換える印が残っていたら送らない
+        if (needsFillIn(t.bodyOverride ?? body) || needsFillIn(t.title ?? "")) {
+          fieldErrors.targets = `${label}: 【】で囲んだところを、自分の言葉に書き換えてください`;
           break;
         }
         // 手で投稿する SNS は、つながず、送信の部品もいらない

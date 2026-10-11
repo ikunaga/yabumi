@@ -3,7 +3,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { draftAppDescription, refineAppDescription, type CallDescriber, type RepoAccess } from "@/lib/ai/app-description";
 import type { AiLimits } from "@/lib/ai/limits";
-import { syncInstallations } from "@/lib/github/installations";
+import { readableRepoLink, syncInstallations, userCanReadRepo, verifyInstallations, type VerifiedInstallation } from "@/lib/github/installations";
 import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
 
 const admin = adminClient();
@@ -11,7 +11,10 @@ const roomy: AiLimits = { userMonthlyUsd: 1000, globalMonthlyUsd: 100000, userDa
 const APP_ID = "999";
 // テストごとにずらした、本物と重ならないインストール ID
 const base = 9_000_000_000 + Math.floor(Math.random() * 1_000_000) * 10;
-const inst = (id: number, login = "alice") => ({ id, app_id: Number(APP_ID), account: { login, type: "User" } });
+// GitHub の利用者 alice（id 1）。インストール先は alice 本人の個人アカウント、組織、他人の個人アカウント
+const ALICE_GH = { id: 1, login: "alice" };
+const inst = (id: number, login = "alice", type = "User", accountId = login === "alice" ? 1 : 2) => ({ id, app_id: Number(APP_ID), account: { id: accountId, login, type } });
+const verified = (id: number, repoIds: number[] | null, login = "alice", type = "User"): VerifiedInstallation => ({ ...inst(id, login, type), repoIds });
 
 let alice: TestClient;
 let bob: TestClient;
@@ -47,8 +50,20 @@ afterAll(async () => {
 });
 
 describe("GitHub のインストール", () => {
-  it("確かめたインストールだけを記録し、他の App のものは入れない", async () => {
-    const n = await syncInstallations(admin, aliceId, APP_ID, [inst(base + 1), inst(base + 2, "alice-org"), { ...inst(base + 3), app_id: 1 }]);
+  it("本人の個人アカウントは全部、組織・他人のアカウントは本人が読めるリポジトリだけ。他の App のものは入れない", async () => {
+    const listUserRepoIds = vi.fn(async (id: number) => (id === base + 2 ? [21, 22] : [99]));
+    const v = await verifyInstallations(APP_ID, ALICE_GH, [inst(base + 1), inst(base + 2, "alice-org", "Organization"), { ...inst(base + 3), app_id: 1 }], listUserRepoIds);
+    expect(v.map((i) => [i.id, i.repoIds])).toEqual([
+      [base + 1, null],
+      [base + 2, [21, 22]],
+    ]);
+    // 本人の個人アカウントのインストールでは、本人が読めるリポジトリを調べない
+    expect(listUserRepoIds.mock.calls).toEqual([[base + 2]]);
+    // 名前が同じでも、アカウントの ID が違えば本人のものではない（名前は変えられる）
+    const renamed = await verifyInstallations(APP_ID, ALICE_GH, [inst(base + 4, "alice", "User", 3)], async () => [7]);
+    expect(renamed[0].repoIds).toEqual([7]);
+
+    const n = await syncInstallations(admin, aliceId, v);
     expect(n).toBe(2);
     const { data } = await alice.from("github_installations").select("installation_id, account_login").order("installation_id");
     expect(data).toEqual([
@@ -59,7 +74,7 @@ describe("GitHub のインストール", () => {
 
   it("GitHub 側で外したインストールは、読み込み直すと消える（つないだリポジトリも外れる）", async () => {
     await admin.from("project_github_repos").insert({ project_id: projectId, owner_id: aliceId, installation_id: base + 2, repo_id: 1, full_name: "alice-org/x" });
-    await syncInstallations(admin, aliceId, APP_ID, [inst(base + 1)]);
+    await syncInstallations(admin, aliceId, [verified(base + 1, null)]);
     expect((await alice.from("github_installations").select("installation_id")).data).toEqual([{ installation_id: base + 1 }]);
     expect((await alice.from("project_github_repos").select("project_id")).data).toEqual([]);
   });
@@ -68,6 +83,72 @@ describe("GitHub のインストール", () => {
     expect((await bob.from("github_installations").select("*")).data).toEqual([]);
     const { error } = await alice.from("github_installations").insert({ owner_id: aliceId, installation_id: base + 9, account_login: "x" });
     expect(error).not.toBeNull();
+  });
+});
+
+describe("本人が読めるリポジトリだけを読む（Any account で他の人が入れたとき）", () => {
+  // bob が持つ個人アカウントのインストールに alice が共同作業者として 1 つのリポジトリだけ入っている、と、
+  // alice が組織のメンバーで、組織のインストールのうち 1 つだけ読める、の 2 つ
+  const collab = base + 5;
+  const org = base + 6;
+  let p: string;
+
+  beforeAll(async () => {
+    p = (await alice.from("projects").insert({ name: "共同作業" }).select("id").single()).data!.id;
+    await syncInstallations(admin, aliceId, [verified(base + 1, null), verified(collab, [51], "bob", "User"), verified(org, [61], "acme", "Organization")]);
+  });
+
+  afterAll(async () => {
+    // 後の「リポジトリのつなぎ」のテストに残さない
+    await admin.from("projects").delete().eq("id", p);
+    await syncInstallations(admin, aliceId, [verified(base + 1, null)]);
+  });
+
+  it("本人の個人アカウントのインストールは、どのリポジトリも読める", async () => {
+    expect(await userCanReadRepo(alice, aliceId, base + 1, 12345)).toBe(true);
+  });
+
+  it("共同作業者・組織のメンバーは、本人が読めるリポジトリだけ。読めないものは false", async () => {
+    expect(await userCanReadRepo(alice, aliceId, collab, 51)).toBe(true);
+    expect(await userCanReadRepo(alice, aliceId, collab, 52)).toBe(false);
+    expect(await userCanReadRepo(alice, aliceId, org, 61)).toBe(true);
+    expect(await userCanReadRepo(alice, aliceId, org, 62)).toBe(false);
+  });
+
+  it("他人のインストールの記録は使えない（bob から alice のインストールを指しても false）", async () => {
+    expect(await userCanReadRepo(bob, bobId, org, 61)).toBe(false);
+    expect(await userCanReadRepo(admin, bobId, org, 61)).toBe(false);
+  });
+
+  it("読む直前の確認: 読めるつなぎだけを返し、他人のプロジェクトは返さない", async () => {
+    await admin.from("project_github_repos").upsert({ project_id: p, owner_id: aliceId, installation_id: org, repo_id: 61, full_name: "acme/app" });
+    expect(await readableRepoLink(alice, aliceId, p)).toEqual({ installationId: org, repoId: 61, fullName: "acme/app", defaultBranch: "main" });
+    expect(await readableRepoLink(bob, bobId, p)).toBeNull();
+    expect(await readableRepoLink(admin, bobId, p)).toBeNull();
+    // 何かの理由で、本人が読めないリポジトリのつなぎが DB に残っていても、読まない
+    await admin.from("project_github_repos").update({ repo_id: 62, full_name: "acme/secret" }).eq("project_id", p);
+    expect(await readableRepoLink(alice, aliceId, p)).toBeNull();
+  });
+
+  it("読み込み直しで本人が読めなくなったリポジトリは、つなぎが外れる", async () => {
+    await admin.from("project_github_repos").update({ repo_id: 61, full_name: "acme/app" }).eq("project_id", p);
+    await syncInstallations(admin, aliceId, [verified(base + 1, null), verified(collab, [51], "bob", "User"), verified(org, [63], "acme", "Organization")]);
+    expect((await alice.from("project_github_repos").select("project_id").eq("project_id", p)).data).toEqual([]);
+    expect(await userCanReadRepo(alice, aliceId, org, 63)).toBe(true);
+    expect(await userCanReadRepo(alice, aliceId, org, 61)).toBe(false);
+  });
+
+  it("本人でも、読めるリポジトリの記録を画面側から書き換えられない", async () => {
+    await alice.from("github_installations").update({ repo_ids: [61, 62] }).eq("installation_id", org);
+    expect(await userCanReadRepo(admin, aliceId, org, 62)).toBe(false);
+  });
+
+  it("下書きは、本人が読めないリポジトリを読まない（GitHub に問い合わせる前に止める）", async () => {
+    await admin.from("project_github_repos").upsert({ project_id: p, owner_id: aliceId, installation_id: org, repo_id: 64, full_name: "acme/secret" });
+    vi.mocked(repo.listFiles).mockClear();
+    const r = await draftAppDescription(alice, admin, deps(), { userId: aliceId, projectId: p });
+    expect(r.ok).toBe(false);
+    expect(repo.listFiles).not.toHaveBeenCalled();
   });
 });
 

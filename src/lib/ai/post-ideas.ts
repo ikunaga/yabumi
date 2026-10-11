@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { CommitDigest, ReadCommitsResult } from "@/lib/github/commit-reader";
+import { readableRepoLink } from "@/lib/github/installations";
 import { normalizePlan, type PlanData } from "@/lib/plan/schema";
 import { SNS, SNS_KEYS, isManualSns, type SnsKey } from "@/lib/sns";
 import type { Database } from "@/lib/supabase/database.types";
@@ -292,13 +293,9 @@ export async function generatePostIdeas(
   if (sns.length === 0) return { ok: false, message: "下書きを書く SNS を 1 つ以上選んでください。" };
   const ctx = await loadContext(user, args.projectId, sns);
   if (!ctx) return { ok: false, message: "プロジェクトが見つかりません。" };
-  const { data: row } = await user
-    .from("project_github_repos")
-    .select("installation_id, repo_id, full_name, default_branch")
-    .eq("project_id", args.projectId)
-    .maybeSingle();
-  if (!row) return { ok: false, message: "リポジトリがつながっていません。" };
-  const link: RepoLink = { installationId: row.installation_id, repoId: row.repo_id, fullName: row.full_name, defaultBranch: row.default_branch };
+  // 読む直前に、本人がいまも読めるリポジトリかを確かめる
+  const link: RepoLink | null = await readableRepoLink(user, args.userId, args.projectId);
+  if (!link) return { ok: false, message: "リポジトリがつながっていないか、読む権限が確かめられません。GitHub の画面で「連携を読み込み直す」を押してから、もう一度お試しください。" };
 
   const limit = await checkAiLimits(admin, args.userId, deps.limits, now);
   if (!limit.ok) return { ok: false, message: limit.message };

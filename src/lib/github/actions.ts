@@ -9,6 +9,7 @@ import { aiLimitsFromEnv } from "@/lib/ai/limits";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { githubConfig, githubConfigured } from "./config";
+import { userCanReadRepo } from "./installations";
 import { repoAccess, reposForInstallation } from "./service";
 
 async function currentUser() {
@@ -17,7 +18,8 @@ async function currentUser() {
   return { supabase, userId: data?.claims?.sub ?? null };
 }
 
-// プロジェクトにリポジトリをつなぐ。そのインストールで本当に読めるリポジトリかを GitHub に確かめてから記録する
+// プロジェクトにリポジトリをつなぐ。本人が読めるリポジトリか（利用者の認可で記録した範囲）と、
+// そのインストールで本当に読めるリポジトリかを GitHub に確かめてから記録する
 export async function connectRepo(projectId: string, installationId: number, repoId: number): Promise<{ error?: string }> {
   if (!z.uuid().safeParse(projectId).success || !Number.isSafeInteger(installationId) || !Number.isSafeInteger(repoId)) {
     return { error: "入力の形式が正しくありません。" };
@@ -29,10 +31,12 @@ export async function connectRepo(projectId: string, installationId: number, rep
   const { data: project } = await supabase.from("projects").select("id").eq("id", projectId).maybeSingle();
   const { data: inst } = await supabase.from("github_installations").select("installation_id").eq("installation_id", installationId).maybeSingle();
   if (!project || !inst) return { error: "プロジェクトか GitHub の連携が見つかりません。画面を読み込み直してください。" };
+  const notReadable = "そのリポジトリは読めません。GitHub の設定で、矢書に読ませるリポジトリに入っているか確かめてください。";
+  if (!(await userCanReadRepo(supabase, userId, installationId, repoId))) return { error: notReadable };
 
   try {
     const repo = (await reposForInstallation(githubConfig(), installationId)).find((r) => r.id === repoId);
-    if (!repo) return { error: "そのリポジトリは読めません。GitHub の設定で、矢書に読ませるリポジトリに入っているか確かめてください。" };
+    if (!repo) return { error: notReadable };
     const { error } = await createAdminClient().from("project_github_repos").upsert({
       project_id: projectId,
       owner_id: userId,

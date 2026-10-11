@@ -57,12 +57,34 @@ export async function exchangeUserCode(clientId: string, clientSecret: string, c
   return json.access_token;
 }
 
-export type Installation = { id: number; account: { login: string; type: string }; app_id: number };
+export type Installation = { id: number; account: { id: number; login: string; type: string }; app_id: number };
 
 // 利用者が使える、この App のインストール
 export async function listUserInstallations(userToken: string): Promise<Installation[]> {
   const json = await gh<{ installations: Installation[] }>(userToken, "/user/installations?per_page=100");
   return json.installations;
+}
+
+export type GitHubUser = { id: number; login: string };
+
+// 認可した利用者本人（インストール先が本人の個人アカウントかを見分けるため）
+export async function getAuthenticatedUser(userToken: string): Promise<GitHubUser> {
+  const json = await gh<GitHubUser>(userToken, "/user");
+  return { id: json.id, login: json.login };
+}
+
+// インストールのリポジトリのうち、利用者本人が読めるもの（所有・共同作業者・組織のメンバーとしての権限があるもの）の ID
+export async function listUserInstallationRepoIds(userToken: string, installationId: number): Promise<number[]> {
+  const ids: number[] = [];
+  for (let page = 1; page <= 10; page++) {
+    const json = await gh<{ repositories: { id: number }[]; total_count: number }>(
+      userToken,
+      `/user/installations/${installationId}/repositories?per_page=100&page=${page}`,
+    );
+    ids.push(...json.repositories.map((r) => r.id));
+    if (ids.length >= json.total_count || json.repositories.length === 0) break;
+  }
+  return ids;
 }
 
 export type Repo = { id: number; full_name: string; private: boolean; default_branch: string; description: string | null };

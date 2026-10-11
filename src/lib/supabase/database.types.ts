@@ -202,6 +202,7 @@ export type Database = {
           created_at: string
           installation_id: number
           owner_id: string
+          repo_ids: number[] | null
           updated_at: string
         }
         Insert: {
@@ -210,6 +211,7 @@ export type Database = {
           created_at?: string
           installation_id: number
           owner_id: string
+          repo_ids?: number[] | null
           updated_at?: string
         }
         Update: {
@@ -218,6 +220,7 @@ export type Database = {
           created_at?: string
           installation_id?: number
           owner_id?: string
+          repo_ids?: number[] | null
           updated_at?: string
         }
         Relationships: []

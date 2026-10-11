@@ -1,14 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { exchangeUserCode, listUserInstallations } from "@/lib/github/api";
+import { exchangeUserCode, getAuthenticatedUser, listUserInstallationRepoIds, listUserInstallations } from "@/lib/github/api";
 import { authorizeUrl, GITHUB_PATHS, GITHUB_STATE_COOKIE, githubConfig } from "@/lib/github/config";
-import { syncInstallations } from "@/lib/github/installations";
+import { syncInstallations, verifyInstallations } from "@/lib/github/installations";
 import { verifyOAuthState } from "@/lib/sns/oauth-state";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 // GitHub からの戻り先（Callback URL）。インストールのあと、または利用者の認可のあとに来る。
 // URL の installation_id は偽造できるので信用しない。利用者の認可コードでトークンを取り、
-// その利用者が使えるインストール（/user/installations）だけを記録する。利用者のトークンは保存しない
+// その利用者が使えるインストール（/user/installations）と、その中で本人が読めるリポジトリだけを記録する。利用者のトークンは保存しない
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const supabase = await createClient();
@@ -48,8 +48,9 @@ export async function GET(request: NextRequest) {
 
   try {
     const userToken = await exchangeUserCode(cfg.clientId, cfg.clientSecret, code);
-    const installations = await listUserInstallations(userToken);
-    const count = await syncInstallations(createAdminClient(), userId, cfg.appId, installations);
+    const [user, installations] = await Promise.all([getAuthenticatedUser(userToken), listUserInstallations(userToken)]);
+    const verified = await verifyInstallations(cfg.appId, user, installations, (id) => listUserInstallationRepoIds(userToken, id));
+    const count = await syncInstallations(createAdminClient(), userId, verified);
     back.searchParams.set(count > 0 ? "connected" : "error", count > 0 ? "1" : "no_installation");
   } catch (e) {
     console.error("[github] 接続に失敗しました", e instanceof Error ? e.message : e);

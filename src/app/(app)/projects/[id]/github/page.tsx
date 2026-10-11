@@ -8,6 +8,7 @@ import { ErrorBanner, SuccessBanner } from "@/components/ui/feedback";
 import { aiConfigured } from "@/lib/ai/anthropic";
 import { disconnectRepo } from "@/lib/github/actions";
 import { githubConfig, githubConfigured } from "@/lib/github/config";
+import { canReadRepo } from "@/lib/github/installations";
 import { reposForInstallation } from "@/lib/github/service";
 import { getProject } from "@/lib/projects/queries";
 import { createClient } from "@/lib/supabase/server";
@@ -53,11 +54,11 @@ export default async function GithubPage(props: PageProps<"/projects/[id]/github
 
   const supabase = await createClient();
   const [{ data: installations }, { data: link }] = await Promise.all([
-    supabase.from("github_installations").select("installation_id, account_login, account_type").order("account_login"),
+    supabase.from("github_installations").select("installation_id, account_login, account_type, repo_ids").order("account_login"),
     supabase.from("project_github_repos").select("full_name, is_private, last_read_at").eq("project_id", id).maybeSingle(),
   ]);
 
-  // まだリポジトリを選んでいなければ、インストールで読めるリポジトリを並べる
+  // まだリポジトリを選んでいなければ、インストールで読めるリポジトリのうち、本人が読めるものを並べる
   let repos: PickableRepo[] = [];
   let repoError = false;
   if (!link && installations?.length) {
@@ -65,7 +66,7 @@ export default async function GithubPage(props: PageProps<"/projects/[id]/github
     const lists = await Promise.allSettled(installations.map((i) => reposForInstallation(cfg, i.installation_id)));
     lists.forEach((r, idx) => {
       if (r.status === "fulfilled") {
-        repos.push(...r.value.map((repo) => ({ installationId: installations[idx].installation_id, id: repo.id, fullName: repo.full_name, isPrivate: repo.private, description: repo.description })));
+        repos.push(...r.value.filter((repo) => canReadRepo(installations[idx], repo.id)).map((repo) => ({ installationId: installations[idx].installation_id, id: repo.id, fullName: repo.full_name, isPrivate: repo.private, description: repo.description })));
       } else {
         repoError = true;
       }

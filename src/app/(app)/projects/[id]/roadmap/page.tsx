@@ -35,9 +35,7 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
   const { roadmap, items, thisWeek, daily, kgi } = view;
   const suggested = plan?.plan.first_month.kpis.length ? plan.plan.first_month.kpis : recommendedKpis(plan?.plan.goal.goalType ?? null);
   const consultHref = `/projects/${id}/consult?start=roadmap`;
-  // AI と相談（4.23 の段取り ③）ができるまでは「準備中」
-  const CONSULT_READY = false;
-  const ai = CONSULT_READY && aiConfigured();
+  const ai = aiConfigured();
 
   const groups: { key: string; label: string; items: RoadmapItem[] }[] = [];
   for (const item of items) {
@@ -59,7 +57,9 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
     <div className="flex max-w-[880px] flex-col gap-6 max-sm:gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-col gap-1.5">
-          <h1 className="font-heading text-3xl font-bold max-sm:text-2xl">ロードマップ</h1>
+          <h1 className="font-heading text-3xl font-bold max-sm:text-2xl">
+            <Term k="roadmap">ロードマップ</Term>
+          </h1>
           <p className="text-[14px] leading-[1.8] text-muted">
             <Term k="kgi">最終の目標</Term>と、そこへ向かう週ごとのやること。追いかける数字（<Term k="kpi" />）は、数えられるものから自動で進み具合を出します。
           </p>

@@ -1,4 +1,6 @@
 import "server-only";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/supabase/database.types";
 import { hasInsightsScope, insightsEnabled } from "@/lib/sns/insights/scopes";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -21,8 +23,9 @@ export type MetricsOverview = {
   topViewed: { postId: string; title: string; views: number }[];
 };
 
-export async function loadMetricsOverview(projectId: string): Promise<MetricsOverview> {
-  const supabase = await createClient();
+// db を渡すと、そのクライアントで読む（AI と相談の「いまの状況」は、利用者の権限のクライアントを渡す。4.23）
+export async function loadMetricsOverview(projectId: string, db?: SupabaseClient<Database>): Promise<MetricsOverview> {
+  const supabase = db ?? (await createClient());
   const today = toYmd(new Date());
   const [
     { data: posts, error: e1 },

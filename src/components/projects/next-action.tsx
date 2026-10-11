@@ -44,7 +44,7 @@ export function NextAction({ stepIndex, projectId }: { stepIndex: number; projec
             )}
           </div>
         </div>
-        <ol className="grid grid-cols-3 text-[14px] max-sm:hidden">
+        <ol className="grid grid-cols-4 text-[14px] max-sm:hidden">
           {STEPS.map((s, i) => (
             <li
               key={s.key}

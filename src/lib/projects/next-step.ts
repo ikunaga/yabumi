@@ -1,5 +1,6 @@
-// プロジェクトごとの「いまやること」。最初の 3 段階を順に案内する（設計 → つなぐ → 最初の投稿。要求 F15、決定 D12）
-export type StepKey = "plan" | "connect" | "firstPost";
+// プロジェクトごとの「いまやること」。最初の 4 段階を順に案内する（設計 → つなぐ → 最初の投稿 → 目標とロードマップ。要求 F15・F10、決定 D12）。
+// 4 段階が済んだら、概要は「いまやること」の代わりに「今週のやること」（ロードマップ）を出す（docs/architecture.md の 4.23）
+export type StepKey = "plan" | "connect" | "firstPost" | "roadmap";
 
 export type Step = {
   key: StepKey;
@@ -36,13 +37,25 @@ export const STEPS: Step[] = [
     cta: "投稿をつくる",
     available: true,
   },
+  {
+    key: "roadmap",
+    title: "目標とロードマップを決める",
+    shortTitle: "目標とロードマップ",
+    description: "最終の目標と、そこへ向かう週ごとのやることを決めます。AI と相談しながら決められます。",
+    cta: "決める",
+    available: true,
+  },
 ];
 
-// 設計が済んでいない（飛ばしてもいない）なら 1 段目、SNS をつないでいなければ 2 段目、つないでいれば 3 段目。
+// 設計が済んでいない（飛ばしてもいない）なら 1 段目、SNS をつないでいなければ 2 段目、まだ 1 本も送っていなければ 3 段目、
+// ロードマップ（目標かやること）がなければ 4 段目。すべて済んだら STEPS.length（概要は「今週のやること」を出す）。
 // 設計は「あとで設計する」で飛ばせる。済みの基準は docs/requirements.md の F15
-export function currentStepIndex(state: { planDone: boolean; connectedSnsCount: number }): number {
+export function currentStepIndex(state: { planDone: boolean; connectedSnsCount: number; hasPublished?: boolean; hasRoadmap?: boolean }): number {
   if (!state.planDone) return 0;
-  return state.connectedSnsCount > 0 ? 2 : 1;
+  if (state.connectedSnsCount === 0) return 1;
+  if (!state.hasPublished) return 2;
+  if (!state.hasRoadmap) return 3;
+  return STEPS.length;
 }
 
 // 各段階のボタンの行き先
@@ -54,5 +67,7 @@ export function stepHref(key: StepKey, projectId: string): string {
       return `/projects/${projectId}#sns`;
     case "firstPost":
       return `/projects/${projectId}/compose`;
+    case "roadmap":
+      return `/projects/${projectId}/roadmap`;
   }
 }

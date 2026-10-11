@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { KPIS } from "@/lib/metrics/kpis";
 import { deleteItem, setItemStatus } from "@/lib/roadmap/actions";
-import type { RoadmapItem } from "@/lib/roadmap/queries";
+import type { RoadmapItem } from "@/lib/roadmap/load";
 import { formatValue } from "@/lib/roadmap/schema";
 
 // やること 1 つ。チェックで済みにする。数字と結びついていれば、数字から進み具合を出す（済みにするのは利用者）

@@ -5,6 +5,7 @@ import type { z } from "zod";
 import { appDescriptionSchema, filePickSchema, type CallDescriber, type CallPicker } from "./app-description";
 import { envReady } from "@/lib/env-check";
 import { coachTurnSchema } from "./plan-coach-schema";
+import { consultTurnSchema } from "./consult-schema";
 import { postIdeasSchema, type CallIdeas } from "./post-ideas";
 import { aiCheckSchema, type CallCheck } from "./ai-check";
 import { PLAN_COACH_MODEL, type CallModel } from "./plan-coach";
@@ -31,6 +32,32 @@ export const callPlanCoach: CallModel = async ({ system, messages }) => {
     fallbacks: "default",
     thinking: { type: "adaptive" },
     output_config: { effort: "medium", format: betaZodOutputFormat(coachTurnSchema) },
+    system,
+    messages,
+  });
+  const u = res.usage;
+  return {
+    turn: res.stop_reason === "refusal" ? null : res.parsed_output,
+    stopReason: res.stop_reason,
+    model: res.model,
+    usage: {
+      inputTokens: u.input_tokens ?? 0,
+      cacheWriteTokens: u.cache_creation_input_tokens ?? 0,
+      cacheReadTokens: u.cache_read_input_tokens ?? 0,
+      outputTokens: u.output_tokens ?? 0,
+    },
+  };
+};
+
+// AI と相談（docs/architecture.md の 4.23）。設計の相棒と同じく、相手の状況をくみ取って次の一手を出すので effort は medium
+export const callConsult: CallModel = async ({ system, messages }) => {
+  const res = await anthropic().beta.messages.parse({
+    model: PLAN_COACH_MODEL,
+    max_tokens: 8000,
+    betas: ["server-side-fallback-2026-07-01"],
+    fallbacks: "default",
+    thinking: { type: "adaptive" },
+    output_config: { effort: "medium", format: betaZodOutputFormat(consultTurnSchema) },
     system,
     messages,
   });

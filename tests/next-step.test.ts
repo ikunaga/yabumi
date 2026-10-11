@@ -14,7 +14,14 @@ describe("いまやること", () => {
     expect(step(false, 1)).toBe("plan");
   });
 
+  it("最初の投稿を送ったら、目標とロードマップ。ロードマップができたら、すべて済み（今週のやることを出す）", () => {
+    expect(STEPS[currentStepIndex({ planDone: true, connectedSnsCount: 1, hasPublished: false })].key).toBe("firstPost");
+    expect(STEPS[currentStepIndex({ planDone: true, connectedSnsCount: 1, hasPublished: true, hasRoadmap: false })].key).toBe("roadmap");
+    expect(currentStepIndex({ planDone: true, connectedSnsCount: 1, hasPublished: true, hasRoadmap: true })).toBe(STEPS.length);
+  });
+
   it("ボタンの行き先", () => {
+    expect(stepHref("roadmap", "p")).toBe("/projects/p/roadmap");
     expect(stepHref("plan", "p")).toBe("/projects/p/plan");
     expect(stepHref("connect", "p")).toBe("/projects/p#sns");
     expect(stepHref("firstPost", "p")).toBe("/projects/p/compose");

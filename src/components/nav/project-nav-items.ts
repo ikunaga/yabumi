@@ -14,7 +14,7 @@ export function projectNavItems(projectId: string): ProjectNavItem[] {
     // 短縮リンク（4.22）。スマホの下のタブは埋まっているので、概要から開く
     { key: "links", label: "リンク", tabLabel: "リンク", href: `${base}/links`, tab: false },
     { key: "metrics", label: "指標", tabLabel: "指標", href: `${base}/metrics`, tab: true },
-    { key: "consult", label: "AI と相談", tabLabel: "相談", href: null, tab: true },
+    { key: "consult", label: "AI と相談", tabLabel: "相談", href: `${base}/consult`, tab: true },
     // ロードマップ（4.23）。スマホの下のタブは埋まっているので、概要の「今週のやること」から開く
     { key: "roadmap", label: "ロードマップ", tabLabel: "ロードマップ", href: `${base}/roadmap`, tab: false },
   ];
@@ -35,6 +35,8 @@ export function activeNavKey(segment: string | null): ProjectNavKey {
       return "links";
     case "roadmap":
       return "roadmap";
+    case "consult":
+      return "consult";
     // ストアと課金をつなぐ画面は、指標の画面から開く
     case "metrics":
     case "stores":

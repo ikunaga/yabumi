@@ -17,7 +17,10 @@ import { listDueManualPosts, listOverduePosts, listPostsNeedingAttention, listUp
 import { formatShort } from "@/lib/time";
 import { Card, CardHeader, EmptyState } from "@/components/ui/card";
 import { Term } from "@/components/ui/term";
-import { currentStepIndex } from "@/lib/projects/next-step";
+import { currentStepIndex, STEPS } from "@/lib/projects/next-step";
+import { loadRoadmap, thisWeekTodos } from "@/lib/roadmap/queries";
+import { itemProgress } from "@/lib/roadmap/schema";
+import { ThisWeekCard } from "@/components/roadmap/this-week-card";
 import { getProject } from "@/lib/projects/queries";
 import { listProjectSnsAccounts } from "@/lib/sns/queries";
 import { threadsConfigured } from "@/lib/sns/threads/config";
@@ -42,7 +45,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
   const editHref = `/projects/${project.id}/edit`;
   const supabase = await createClient();
   const xReady = xConfigured();
-  const [upcoming, snsAccounts, attention, overdue, manualDue, plan, { data: repoLink }, { data: manualChannels }, xSpend] = await Promise.all([
+  const [upcoming, snsAccounts, attention, overdue, manualDue, plan, { data: repoLink }, { data: manualChannels }, xSpend, roadmap, { count: publishedCount }] = await Promise.all([
     listUpcomingPosts(project.id),
     listProjectSnsAccounts(project.id),
     listPostsNeedingAttention(project.id),
@@ -52,10 +55,18 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
     supabase.from("project_github_repos").select("full_name").eq("project_id", project.id).maybeSingle(),
     supabase.from("project_manual_channels").select("sns, profile_url").eq("project_id", project.id),
     xReady ? xSpendThisMonth() : null,
+    loadRoadmap(project.id),
+    supabase
+      .from("post_targets")
+      .select("id, posts!inner(project_id)", { count: "exact", head: true })
+      .eq("posts.project_id", project.id)
+      .eq("status", "published"),
   ]);
   const showGithubPrompt = !repoLink && !project.github_prompt_dismissed_at;
   const planDone = Boolean(plan && (plan.done || plan.skipped));
   const connectedSnsCount = new Set(snsAccounts.filter((a) => a.status === "active").map((a) => a.sns)).size;
+  const hasRoadmap = Boolean(roadmap.roadmap?.kgi) || roadmap.items.length > 0;
+  const stepIndex = currentStepIndex({ planDone, connectedSnsCount, hasPublished: (publishedCount ?? 0) > 0, hasRoadmap });
 
   return (
     <div className="flex flex-col gap-7 max-sm:gap-4">
@@ -75,7 +86,16 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
 
       {showGithubPrompt && <GithubPrompt projectId={project.id} configured={githubConfigured()} />}
 
-      <NextAction stepIndex={currentStepIndex({ planDone, connectedSnsCount })} projectId={project.id} />
+      {stepIndex < STEPS.length ? (
+        <NextAction stepIndex={stepIndex} projectId={project.id} />
+      ) : (
+        <ThisWeekCard
+          projectId={project.id}
+          todos={thisWeekTodos(roadmap)}
+          progress={Object.fromEntries(thisWeekTodos(roadmap).map((t) => [t.id, itemProgress(t, roadmap.daily)]))}
+          doneCount={roadmap.items.filter((i) => i.weekStart === roadmap.thisWeek && i.status === "done").length}
+        />
+      )}
 
       <ManualDueCard projectId={project.id} posts={manualDue} />
 

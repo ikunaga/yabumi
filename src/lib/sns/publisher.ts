@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { decryptToken, encryptToken } from "@/lib/crypto/token-cipher";
 import { lacksImageScope } from "@/lib/media/rules";
+import { substituteForTarget } from "@/lib/links/store";
 import { publishImagesFor } from "@/lib/media/store";
 import { refreshTokenAad } from "./accounts";
 import { isSnsKey, SNS, type SnsKey } from "@/lib/sns";
@@ -290,8 +291,12 @@ async function publishOne(admin: Admin, t: ClaimedTarget, deps: PublisherDeps): 
       }
     }
 
+    // 本文の URL を、保存のときに作った短縮リンクに置き換える（4.22、D20。作っていなければそのまま）。
+    // 準備中の続き（上）は、置き換えた本文で作ったコンテナを使うので、ここは最初の 1 回だけ通る
+    const body = await substituteForTarget(admin, t.target_id, t.sns, t.body);
+
     if (adapter.publishCost && isSnsKey(t.sns)) {
-      const cost = adapter.publishCost(t.body, images);
+      const cost = adapter.publishCost(body, images);
       const budget = deps.budgetsUsd?.[t.sns];
       usageId = await reserveSpend(admin, t.target_id, t.sns, cost.operation, cost.costUsd, budget ?? null, deps.budgetScopeOwner ?? null);
       if (!usageId) {
@@ -303,12 +308,12 @@ async function publishOne(admin: Admin, t: ClaimedTarget, deps: PublisherDeps): 
 
     // 画像の準備に時間がかかる SNS は、コンテナを作るだけで待たない。すぐ準備できていれば、この回で公開まで進める
     if (images.length > 0 && adapter.startPublish && adapter.continuePublish) {
-      const state = await adapter.startPublish(account, t.body, images);
+      const state = await adapter.startPublish(account, body, images);
       const next = await adapter.continuePublish(account, state);
       return "done" in next ? published(next.done) : preparing(next.state, now.toISOString());
     }
 
-    return published(await adapter.publishText(account, t.body, images));
+    return published(await adapter.publishText(account, body, images));
   } catch (e) {
     const err =
       e instanceof SnsPublishError

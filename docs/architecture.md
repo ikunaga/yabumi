@@ -377,6 +377,46 @@ README が薄い個人開発のリポジトリやモノレポでも中身がわ�
 - 反応を手で記録する: note のスキや Substack の開封率を、登録したプロフィールの URL とあわせて手で入れる（指標、F07）
 - note や Substack に公式の投稿 API が出たら、delivery を auto にしてアダプター（4.1）を足す
 
+### 4.13 X（2026-10-11 に調査。T1 の答え）
+
+#### 料金（T1）
+
+- 2026 年 2 月に、月額のプラン（Free・Basic・Pro）は新規に申し込めなくなり、使った分だけ払う方式（pay-per-use）だけになった。**無料で投稿できる枠はない**。Developer Console（console.x.com）で先にクレジットを買い、呼ぶたびに差し引かれる（[X の料金のページ](https://docs.x.com/x-api/getting-started/pricing)）
+- 矢書が使う操作の単価:
+
+| 操作 | 単価 | 矢書で使う場面 |
+|---|---|---|
+| 投稿する（URL なし） | $0.015 | 送信 |
+| 投稿する（本文に URL がある） | $0.200 | 送信。2026-04-20 に $0.01 から上がった（スパム対策とされる） |
+| 投稿を消す | 無料 | SNS から取り消す |
+| ユーザーを読む | $0.010 | つなぐときに 1 回（自分の ID とユーザー名） |
+| トークンの延長 | 無料（API の呼び出しに当たらない） | 日次のジョブ |
+
+- 月 30 本（週 2〜3 回の多めの見積もり）の費用: URL なしだけなら $0.45（約 70 円）、全部に URL を付けると $6（約 900 円）。アプリの紹介では URL を付けたくなるので、URL の有無で 13 倍違うことが一番効く
+- 初めて支払いカードを登録すると $20 分のクレジットがもらえる（URL なしなら 1,300 本分、URL ありなら 100 本分）
+- Developer Console で、請求の期間ごとの使える上限（Spending limit）を決められる。上限に達すると呼び出しが断られる（402 など）
+- 決定 D11 の「X への投稿は無料枠で行う」は、前提の無料枠がなくなったので見直しが要る
+
+#### 認証（OAuth 2.0、Authorization Code + PKCE）
+
+| 項目 | 値 |
+|---|---|
+| 認可画面 | https://x.com/i/oauth2/authorize（response_type=code、client_id、redirect_uri、state、code_challenge、code_challenge_method=S256） |
+| トークン | POST https://api.x.com/2/oauth2/token。Web App（confidential client）は Client ID と Client Secret の Basic 認証 |
+| 取り消し | POST https://api.x.com/2/oauth2/revoke |
+| スコープ | tweet.read、tweet.write、users.read、offline.access（画像を付けるときは media.write を足す） |
+| アクセストークン | 2 時間で切れる |
+| リフレッシュトークン | offline.access のときだけ出る。**使い捨て**で、延長するたびに新しいものが返り、送ったものは使えなくなる。同時に 2 回延長すると片方が失効させ、つなぎ直しが要る |
+
+#### 文字数
+
+- 上限は重み付きで 280。日本語（CJK）と絵文字は 2、半角英数などは 1、URL は長さに関係なく 23（t.co に置き換わる）。正規化は NFC（[X の文字数の数え方](https://docs.x.com/fundamentals/counting-characters)）
+- 今の「全角換算 140 字」（src/lib/sns/index.ts の xWeightedLength、重みの半分を切り上げ）はこれと同じ。違いは 2 点で、どちらも直す: ①X は http のない「example.com」も URL として数える（料金も URL ありになる）が、今は http(s) から始まるものだけを数えている ②絵文字を ZWJ でつないだもの（👨‍👩‍👧 など）を X は 2 と数えるが、今は部品ごとに数えて多めになる
+
+#### 画像（フェーズ 5、今回は作らない）
+
+- v2 のメディアのアップロード（POST /2/media/upload/initialize → /2/media/upload/{id}/append → /2/media/upload/{id}/finalize、必要なら GET /2/media/upload で処理の状態）で media_id を得て、POST /2/tweets の media.media_ids に入れる。スコープに media.write を足す（足したら利用者につなぎ直してもらう）
+
 ## 5. データモデル（主要テーブル）
 
 | テーブル | 内容 |
@@ -405,7 +445,7 @@ README が薄い個人開発のリポジトリやモノレポでも中身がわ�
 
 | # | 確認すること | 影響 |
 |---|---|---|
-| T1 | X API の現行料金と、無料で使える範囲 | 2026 年時点で料金体系が変わっている可能性がある。X の投稿方式が変わる |
+| T1 | X API の現行料金と、無料で使える範囲 | **解決（2026-10-11）**: 無料枠はなく、使った分だけ払う方式だけ。投稿 1 本 $0.015、URL があると $0.20（4.13） |
 | T2 | TikTok は審査前だと非公開投稿しかできない | 自分専用で使う段階でも公開投稿ができない。審査の申請を早めに行う |
 | T3 | YouTube は未審査のプロジェクトから投稿した動画が非公開に制限される | 同上。審査の申請を早めに行う |
 | T4 | Meta（Instagram、Facebook、Threads）は自分のアカウントなら審査前でも使えるか | 開発モードの範囲で自分専用の運用が成り立つか。Threads は Tester に登録すれば開発モードで使える（2026-10-03、権限を Ready for testing にして確認中） |

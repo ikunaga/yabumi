@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { decryptToken } from "@/lib/crypto/token-cipher";
 import { refreshTokenAad, saveConnectedAccount } from "@/lib/sns/accounts";
 import { SnsPublishError, type SnsAdapter } from "@/lib/sns/adapters/types";
+import { budgetAlertKey } from "@/lib/notify/budget";
 import { loadAccount, publishDueTargets, refreshDueTokens, type PublisherDeps } from "@/lib/sns/publisher";
 import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
 
@@ -45,10 +46,11 @@ function fakeX(overrides: Partial<SnsAdapter> = {}): SnsAdapter {
   };
 }
 
-const deps = (adapter: SnsAdapter, budget?: number): PublisherDeps => ({
+const deps = (adapter: SnsAdapter, budget?: number, userBudget?: number): PublisherDeps => ({
   adapters: { x: adapter },
   key,
   budgetsUsd: budget === undefined ? undefined : { x: budget },
+  userBudgetsUsd: userBudget === undefined ? undefined : { x: userBudget },
   budgetScopeOwner: budget === undefined ? undefined : aliceId,
   refreshWait: { intervalMs: 50, tries: 40 },
 });
@@ -92,6 +94,13 @@ async function spentNow(): Promise<number> {
   const { data, error } = await admin.from("sns_api_usage").select("cost_usd").eq("sns", "x").eq("owner_id", aliceId).gte("created_at", monthStartJst());
   if (error) throw error;
   return data.reduce((sum, r) => sum + Number(r.cost_usd), 0);
+}
+
+// 利用者ごとの上限に数える、今月の X の投稿まわりの額（DB の関数）
+async function postSpent(ownerId: string): Promise<number> {
+  const { data, error } = await admin.rpc("x_post_spend_this_month", { p_owner_id: ownerId });
+  if (error) throw error;
+  return Number(data ?? 0);
 }
 
 function monthStartJst(now = new Date()): string {
@@ -213,6 +222,82 @@ describe("費用と月の上限", () => {
     expect(await spentNow()).toBeCloseTo(budget, 6);
   });
 
+  it("全体の上限で止まったときは、矢書全体の上限だと出す", async () => {
+    const { postId } = await scheduledPost(`全体の上限 ${randomUUID()}`);
+    const [outcome] = await publishDueTargets(admin, deps(fakeX(), await spentNow(), 1000), { postId });
+    expect(outcome.result).toBe("failed");
+    expect(outcome.message).toContain("矢書全体");
+  });
+
+  it("利用者ごとの上限に達したら、その人の X だけ送らず、手で投稿の案内を出す", async () => {
+    const adapter = fakeX();
+    const { postId, targetId } = await scheduledPost(`本人の上限 ${randomUUID()}`);
+    const [outcome] = await publishDueTargets(admin, deps(adapter, 1000, await postSpent(aliceId)), { postId });
+    expect(outcome.result).toBe("failed");
+    expect(outcome.message).toContain("自動投稿の上限");
+    expect(outcome.message).toContain("手で投稿");
+    expect(adapter.publishText).not.toHaveBeenCalled();
+    expect(await usageOf(targetId)).toEqual([]);
+
+    // 同じ上限の額でも、使っていない bob は記録できる（ほかの人は送れる）
+    const reserve = (owner: string) =>
+      admin.rpc("reserve_sns_spend", {
+        p_owner_id: owner,
+        p_sns: "x",
+        p_post_target_id: null as unknown as string,
+        p_operation: "post",
+        p_cost_usd: 0.015,
+        p_budget_usd: 1000,
+        p_user_budget_usd: 0.1,
+      });
+    const { data: bobUsage } = await reserve(bobId);
+    expect(bobUsage).not.toBeNull();
+    await admin.from("sns_api_usage").delete().eq("id", bobUsage!);
+  });
+
+  it("利用者ごとの上限も、同時に送って超えない", async () => {
+    const posts = await Promise.all([1, 2, 3].map(() => scheduledPost(`本人の上限・同時 ${randomUUID()}`)));
+    const userBudget = (await postSpent(aliceId)) + 0.015 * 2;
+    const adapter = fakeX();
+    const results = (await Promise.all(posts.map((p) => publishDueTargets(admin, deps(adapter, 1000, userBudget), { postId: p.postId })))).flat();
+    expect(results.filter((r) => r.result === "published")).toHaveLength(2);
+    expect(results.filter((r) => r.result === "failed")).toHaveLength(1);
+    expect(adapter.publishText).toHaveBeenCalledTimes(2);
+    expect(await postSpent(aliceId)).toBeCloseTo(userBudget, 6);
+  });
+
+  it("利用者ごとの上限に、X の数字の読み取りは数えない（別の上限）", async () => {
+    const before = await postSpent(aliceId);
+    const { data: row } = await admin.from("sns_api_usage").insert({ owner_id: aliceId, sns: "x", operation: "metrics_read", cost_usd: 5 }).select("id").single();
+    expect(await postSpent(aliceId)).toBeCloseTo(before, 6);
+    await admin.from("sns_api_usage").delete().eq("id", row!.id);
+  });
+
+  it("全体の上限の 80% に達したら、運営者に月に 1 回だけ知らせる", async () => {
+    const mail = vi.fn(async () => new Response(JSON.stringify({ id: "mail-1" }), { status: 200 }));
+    const notify = { fetch: mail as unknown as typeof fetch, apiKey: "re_test", to: "operator@yabumi.test" };
+    const key = budgetAlertKey("x", new Date(), aliceId);
+    await admin.from("operator_notifications").delete().eq("key", key);
+    try {
+      // 送ったあとの額が上限の 81% になるようにする（数える範囲は alice の記録だけ。ちょうど 80% は小数の誤差で届かないことがある）
+      const budget = ((await spentNow()) + 0.015) / 0.81;
+      const first = await scheduledPost(`80% ${randomUUID()}`);
+      const [outcome] = await publishDueTargets(admin, { ...deps(fakeX(), budget), notify }, { postId: first.postId });
+      expect(outcome.result).toBe("published");
+      expect(mail).toHaveBeenCalledTimes(1);
+      const body = JSON.parse(String((mail.mock.calls[0] as unknown as [string, RequestInit])[1].body));
+      expect(body.subject).toContain("80%");
+      // 本文に利用者の情報を入れない
+      expect(body.text).not.toContain(aliceId);
+
+      const second = await scheduledPost(`80% 2 ${randomUUID()}`);
+      await publishDueTargets(admin, { ...deps(fakeX(), budget + 1), notify }, { postId: second.postId });
+      expect(mail).toHaveBeenCalledTimes(1);
+    } finally {
+      await admin.from("operator_notifications").delete().eq("key", key);
+    }
+  });
+
   it("送れなかったと確かなとき（クレジット切れなど）は、費用の記録を消す", async () => {
     const adapter = fakeX({
       publishText: vi.fn(async () => {
@@ -301,6 +386,7 @@ describe("権限", () => {
     });
     expect(reserve.error).not.toBeNull();
     expect((await alice.rpc("sns_spend_this_month", { p_sns: "x" })).error).not.toBeNull();
+    expect((await alice.rpc("x_post_spend_this_month", { p_owner_id: aliceId })).error).not.toBeNull();
     expect((await alice.rpc("claim_token_refresh", { p_social_account_id: accountId })).error).not.toBeNull();
   });
 

@@ -144,6 +144,18 @@ describe("X で消された投稿の記録", () => {
     expect(await reads(targetId)).toEqual([]);
   });
 
+  it("利用者ごとの X の投稿まわりの上限に達していたら、読まない（確かめる読み取りも数える）", async () => {
+    const { postId, targetId } = await publishedTarget();
+    const readPost = vi.fn(async (): Promise<PostState> => "exists");
+    const spent = Number((await admin.rpc("x_post_spend_this_month", { p_owner_id: aliceId })).data ?? 0);
+    expect((await syncXTargetsOfPost(admin, { ...deps(readPost), userBudgetUsd: spent }, postId))[0].result).toBe("skipped");
+    expect(readPost).not.toHaveBeenCalled();
+    expect(await reads(targetId)).toEqual([]);
+    // 上限の中なら読み、その費用は利用者ごとの上限に数える
+    expect((await syncXTargetsOfPost(admin, { ...deps(readPost), userBudgetUsd: spent + 1 }, postId))[0].result).toBe("exists");
+    expect(Number((await admin.rpc("x_post_spend_this_month", { p_owner_id: aliceId })).data)).toBeCloseTo(spent + 0.005, 6);
+  });
+
   it(`1 人が 1 日に確かめられるのは ${X_MAX_READS_PER_USER_PER_DAY} 回まで（共有の上限をほかの人の投稿のために残す）`, async () => {
     const { data: ins } = await admin
       .from("sns_api_usage")

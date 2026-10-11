@@ -3,6 +3,7 @@ import { isSnsKey, type SnsKey } from "@/lib/sns";
 import { INSIGHTS_SCOPE, insightsEnabled, InsightsError, type InsightsFetcher } from "@/lib/sns/insights";
 import type { SnsAdapter } from "@/lib/sns/adapters/types";
 import { loadAccount } from "@/lib/sns/publisher";
+import { alertIfNearXBudget } from "@/lib/sns/x/budget-alert";
 import { X_PRICE_USD } from "@/lib/sns/x/pricing";
 import type { Database, Json } from "@/lib/supabase/database.types";
 
@@ -55,6 +56,7 @@ export async function runSnsMetricsImport(admin: Admin, deps: SnsMetricsDeps): P
   }
 
   // X は読むたびに費用がかかる。読む前に費用を記録し（上限を超えるなら読まない）、読めなかったら記録を消す
+  let xReserved = false;
   async function reserveX(ownerId: string, postTargetId: string | null, operation: "metrics_read" | "followers_read"): Promise<string | null> {
     if (!deps.x) return null;
     const { data, error } = await admin.rpc("reserve_x_metrics_read", {
@@ -67,6 +69,7 @@ export async function runSnsMetricsImport(admin: Admin, deps: SnsMetricsDeps): P
       p_scope_owner: (deps.x.scopeOwner ?? null) as string,
     });
     if (error) throw error;
+    if (data) xReserved = true;
     return data;
   }
   const releaseX = async (usageId: string | null) => {
@@ -179,5 +182,7 @@ export async function runSnsMetricsImport(admin: Admin, deps: SnsMetricsDeps): P
       outcomes.push({ ...base, result: "failed", message: e instanceof Error ? e.message : String(e) });
     }
   }
+  // 矢書全体の X の上限の 80% に達したら、運営者に知らせる（月に 1 回）
+  if (xReserved && deps.x) await alertIfNearXBudget(admin, deps.x.budgetUsd, { scopeOwner: deps.x.scopeOwner, now });
   return outcomes;
 }

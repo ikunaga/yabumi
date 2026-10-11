@@ -1457,6 +1457,7 @@ export type Database = {
           p_post_target_id: string
           p_scope_owner?: string
           p_sns: unknown
+          p_user_budget_usd?: number
         }
         Returns: string
       }
@@ -1469,6 +1470,7 @@ export type Database = {
           p_post_target_id: string
           p_scope_owner?: string
           p_sns: unknown
+          p_user_budget_usd?: number
         }
         Returns: string
       }
@@ -1582,6 +1584,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      x_post_spend_this_month: { Args: { p_owner_id: string }; Returns: number }
     }
     Enums: {
       [_ in never]: never

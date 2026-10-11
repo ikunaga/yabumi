@@ -21,6 +21,10 @@ export const X_DEFAULT_MONTHLY_BUDGET_USD = 3;
 // 利用者ごとの、X の数字の月の上限の既定値（米ドル。4.22 の見込みは 1 人 月 約 $0.64）。X_METRICS_USER_MONTHLY_USD で変えられる
 export const X_METRICS_DEFAULT_USER_MONTHLY_USD = 1;
 
+// 利用者ごとの、X の投稿まわり（投稿・投稿がまだあるかの確認・つなぐときの読み取り）の月の上限の既定値（米ドル）。
+// X_POST_USER_MONTHLY_USD で変えられる。1 人が矢書全体の上限を使い切らないため（docs/cost-review.md の C4〜C6 で料金プランごとに変わる前提）
+export const X_POST_DEFAULT_USER_MONTHLY_USD = 1;
+
 export function xPostOperation(text: string): "post" | "post_with_url" {
   return hasXUrl(text) ? "post_with_url" : "post";
 }

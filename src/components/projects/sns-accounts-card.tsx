@@ -113,12 +113,17 @@ function AccountLabel({ account }: { account: ProjectSnsAccount }) {
   );
 }
 
-// X は使った分だけ払うので、今月の自分の費用と、矢書全体の上限に達したかを出す（決定 D16）
+// X は使った分だけ払うので、今月の自分の費用と、自分の自動投稿の上限・矢書全体の上限に達したかを出す（決定 D16）
 function XSpendLine({ spend }: { spend: XSpend }) {
   return (
     <span className="mt-0.5 block text-xs text-muted">
-      今月の X の<Term k="payPerUse">費用</Term> {formatUsd(spend.mineUsd)}（矢書全体の上限 {formatUsd(spend.budgetUsd)} / 月）
-      {spend.budgetReached && <span className="ml-2 font-bold text-signal">今月の上限に達しました</span>}
+      今月の X の<Term k="payPerUse">費用</Term> {formatUsd(spend.mineUsd)}（うち投稿 {formatUsd(spend.minePostUsd)}。自動投稿はあなたの上限{" "}
+      {formatUsd(spend.userBudgetUsd)} / 月、矢書全体の上限 {formatUsd(spend.budgetUsd)} / 月）
+      {spend.userReached ? (
+        <span className="ml-2 font-bold text-signal">今月のあなたの上限に達しました</span>
+      ) : (
+        spend.budgetReached && <span className="ml-2 font-bold text-signal">今月の上限に達しました</span>
+      )}
     </span>
   );
 }

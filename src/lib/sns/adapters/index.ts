@@ -1,7 +1,7 @@
 import "server-only";
 import type { SnsKey } from "@/lib/sns";
 import { revokeToken } from "@/lib/sns/x/api";
-import { xConfig, xConfigured, xMonthlyBudgetUsd } from "@/lib/sns/x/config";
+import { xConfig, xConfigured, xMonthlyBudgetUsd, xPostUserMonthlyUsd } from "@/lib/sns/x/config";
 import type { RevokeDeps } from "@/lib/sns/revoke";
 import type { PublisherDeps } from "@/lib/sns/publisher";
 import { facebookAppSecret } from "@/lib/sns/facebook/config";
@@ -23,9 +23,9 @@ export function canPublish(sns: SnsKey): boolean {
   return adapters[sns] !== undefined;
 }
 
-// 送信ジョブ・「今すぐ送る」・取り消しに渡すもの。月の上限は呼ぶたびに環境変数から読む
+// 送信ジョブ・「今すぐ送る」・取り消しに渡すもの。月の上限（矢書全体と利用者ごと）は呼ぶたびに環境変数から読む
 export function publisherDeps(): PublisherDeps {
-  return { adapters, budgetsUsd: { x: xMonthlyBudgetUsd() } };
+  return { adapters, budgetsUsd: { x: xMonthlyBudgetUsd() }, userBudgetsUsd: { x: xPostUserMonthlyUsd() } };
 }
 
 // SNS を外す・退会のときに、SNS 側の連携を解除するためのもの

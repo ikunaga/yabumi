@@ -3,6 +3,7 @@ import type { SnsAdapter } from "@/lib/sns/adapters/types";
 import { loadAccount, type PublisherDeps } from "@/lib/sns/publisher";
 import type { Database } from "@/lib/supabase/database.types";
 import { X_API_URL } from "./api";
+import { alertIfNearXBudget } from "./budget-alert";
 
 // X の開発者規約への対応: X 側で消された投稿の情報を、矢書でも最新に保つ（docs/architecture.md の 4.19）。
 // 矢書が持つ X の情報は、矢書から送った（または手で投稿して記録した）投稿の ID と URL だけ。
@@ -60,6 +61,8 @@ export type SyncDeps = {
   adapter: SnsAdapter;
   // X の月の上限（米ドル、矢書全体）。null なら上限なし
   budgetUsd: number | null;
+  // 利用者 1 人の、X の投稿まわりの月の上限（米ドル。確かめる読み取りも数える）。ないときは確かめない
+  userBudgetUsd?: number | null;
   // 上限を数える範囲（テスト用。publisher.ts の budgetScopeOwner と同じ）
   budgetScopeOwner?: string;
   readPost?: (token: string, postId: string) => Promise<PostState>;
@@ -111,8 +114,8 @@ export async function syncXTargetsOfPost(admin: Admin, deps: SyncDeps, postId: s
       continue;
     }
 
-    // 読む前に費用を記録する。月の上限（矢書全体）か、1 人 1 日の回数の上限に達していれば確かめない（投稿のほうを優先する）。
-    // 2 つの上限の確かめと記録は、DB の中で 1 つのロックの中で行う（同時に呼ばれても回数を超えない）
+    // 読む前に費用を記録する。月の上限（矢書全体・利用者ごと）か、1 人 1 日の回数の上限に達していれば確かめない（投稿のほうを優先する）。
+    // 上限の確かめと記録は、DB の中で 1 つのロックの中で行う（同時に呼ばれても回数を超えない）
     const { data: usageId, error: reserveError } = await admin.rpc("reserve_sns_read", {
       p_owner_id: t.owner_id,
       p_sns: "x",
@@ -121,12 +124,14 @@ export async function syncXTargetsOfPost(admin: Admin, deps: SyncDeps, postId: s
       p_budget_usd: deps.budgetUsd as number,
       p_daily_limit: X_MAX_READS_PER_USER_PER_DAY,
       p_scope_owner: (deps.budgetScopeOwner ?? null) as string,
+      p_user_budget_usd: (deps.userBudgetUsd ?? null) as number,
     });
     if (reserveError) throw reserveError;
     if (!usageId) {
       skip();
       continue;
     }
+    await alertIfNearXBudget(admin, deps.budgetUsd, { scopeOwner: deps.budgetScopeOwner, now });
 
     let state: PostState;
     try {

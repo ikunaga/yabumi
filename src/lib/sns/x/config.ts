@@ -2,7 +2,7 @@ import "server-only";
 import { envReady } from "@/lib/env-check";
 import { appUrl } from "@/lib/sns/threads/config";
 import type { XConfig } from "./api";
-import { X_DEFAULT_MONTHLY_BUDGET_USD, X_METRICS_DEFAULT_USER_MONTHLY_USD } from "./pricing";
+import { X_DEFAULT_MONTHLY_BUDGET_USD, X_METRICS_DEFAULT_USER_MONTHLY_USD, X_POST_DEFAULT_USER_MONTHLY_USD } from "./pricing";
 
 export const X_PATHS = {
   connect: "/sns/x/connect",
@@ -41,4 +41,11 @@ export function xMetricsUserMonthlyUsd(): number {
   const raw = process.env.X_METRICS_USER_MONTHLY_USD;
   const n = raw ? Number(raw) : NaN;
   return Number.isFinite(n) && n >= 0 ? n : X_METRICS_DEFAULT_USER_MONTHLY_USD;
+}
+
+// 利用者 1 人の、X の投稿まわり（投稿・確認の読み取り・つなぐときの読み取り）の月の上限（米ドル）。超えたらその人の X だけ自動では送らない
+export function xPostUserMonthlyUsd(): number {
+  const raw = process.env.X_POST_USER_MONTHLY_USD;
+  const n = raw ? Number(raw) : NaN;
+  return Number.isFinite(n) && n >= 0 ? n : X_POST_DEFAULT_USER_MONTHLY_USD;
 }

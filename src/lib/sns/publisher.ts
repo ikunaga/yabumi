@@ -2,6 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { decryptToken, encryptToken } from "@/lib/crypto/token-cipher";
 import { lacksImageScope } from "@/lib/media/rules";
 import { substituteForTarget } from "@/lib/links/store";
+import type { OperatorNotifyDeps } from "@/lib/notify/operator";
+import { alertIfNearXBudget } from "@/lib/sns/x/budget-alert";
 import { publishImagesFor } from "@/lib/media/store";
 import { refreshTokenAad } from "./accounts";
 import { isSnsKey, SNS, type SnsKey } from "@/lib/sns";
@@ -17,6 +19,10 @@ export type PublisherDeps = {
   now?: () => Date;
   // 使った分だけ払う SNS の、月の上限（米ドル、矢書全体）。ない SNS は上限なし
   budgetsUsd?: Partial<Record<SnsKey, number>>;
+  // 使った分だけ払う SNS の、利用者 1 人の月の上限（米ドル。X は投稿まわり）。ない SNS は利用者ごとの上限なし
+  userBudgetsUsd?: Partial<Record<SnsKey, number>>;
+  // 全体の上限の 80% で運営者に知らせるときの、メールの送り方（テストで差し替える）
+  notify?: OperatorNotifyDeps;
   // 上限を数える範囲。ないときは矢書全体（本番）。利用者の ID を入れると、その人の記録だけを数える（テストで他のテストに左右されないため）
   budgetScopeOwner?: string;
   // 日次のトークン延長の対象を、この利用者のアカウントだけにする（テスト用。共有のローカル DB で、他の人のアカウントを偽物で延長しないため）。本番は渡さない
@@ -178,7 +184,8 @@ async function markAccountExpired(admin: Admin, socialAccountId: string) {
 
 const RECONNECT = "概要の「つないだ SNS」からつなぎ直してください。";
 
-// 費用を先に記録する。上限を超えるなら null（DB の reserve_sns_spend が、同じ SNS の記録を順に行う）
+// 費用を先に記録する。上限を超えるなら記録せず、どちらの上限か（user: その人の上限 / global: 矢書全体の上限）を返す。
+// DB の reserve_sns_spend が、同じ SNS の記録を順に行い、利用者ごとと全体の両方を同じロックの中で確かめる（同時に送っても超えない）
 async function reserveSpend(
   admin: Admin,
   targetId: string,
@@ -186,8 +193,9 @@ async function reserveSpend(
   operation: string,
   costUsd: number,
   budgetUsd: number | null,
+  userBudgetUsd: number | null,
   scopeOwner: string | null,
-): Promise<string | null> {
+): Promise<{ usageId: string } | { over: "user" | "global" }> {
   const { data: target, error: targetError } = await admin.from("post_targets").select("owner_id").eq("id", targetId).single();
   if (targetError) throw targetError;
   const { data, error } = await admin.rpc("reserve_sns_spend", {
@@ -198,9 +206,17 @@ async function reserveSpend(
     p_cost_usd: costUsd,
     p_budget_usd: budgetUsd as number,
     p_scope_owner: scopeOwner as string,
+    p_user_budget_usd: userBudgetUsd as number,
   });
   if (error) throw error;
-  return data;
+  if (data) return { usageId: data };
+  // どちらの上限かは、文を分けるためだけに読み直す（記録はしていないので、少しずれても費用は超えない）
+  if (userBudgetUsd != null && sns === "x") {
+    const { data: mine, error: mineError } = await admin.rpc("x_post_spend_this_month", { p_owner_id: target.owner_id });
+    if (mineError) throw mineError;
+    if (Number(mine ?? 0) + costUsd > userBudgetUsd) return { over: "user" };
+  }
+  return { over: "global" };
 }
 
 async function releaseSpend(admin: Admin, usageId: string) {
@@ -298,12 +314,17 @@ async function publishOne(admin: Admin, t: ClaimedTarget, deps: PublisherDeps): 
     if (adapter.publishCost && isSnsKey(t.sns)) {
       const cost = adapter.publishCost(body, images);
       const budget = deps.budgetsUsd?.[t.sns];
-      usageId = await reserveSpend(admin, t.target_id, t.sns, cost.operation, cost.costUsd, budget ?? null, deps.budgetScopeOwner ?? null);
-      if (!usageId) {
+      const userBudget = deps.userBudgetsUsd?.[t.sns];
+      const reserved = await reserveSpend(admin, t.target_id, t.sns, cost.operation, cost.costUsd, budget ?? null, userBudget ?? null, deps.budgetScopeOwner ?? null);
+      if ("over" in reserved) {
         return fail(
-          `今月の ${label} の上限（$${budget}）に達しました。来月まで自動では送りません。送信の結果から、手で投稿して記録できます。`,
+          reserved.over === "user"
+            ? `今月の ${label} の自動投稿の上限（1 人 $${userBudget}）に達しました。来月まで自動では送りません。送信の結果から、手で投稿して記録できます。`
+            : `今月の ${label} の上限（矢書全体で $${budget}）に達しました。来月まで自動では送りません。送信の結果から、手で投稿して記録できます。`,
         );
       }
+      usageId = reserved.usageId;
+      if (t.sns === "x") await alertIfNearXBudget(admin, budget, { scopeOwner: deps.budgetScopeOwner, now, notify: deps.notify });
     }
 
     // 画像の準備に時間がかかる SNS は、コンテナを作るだけで待たない。すぐ準備できていれば、この回で公開まで進める

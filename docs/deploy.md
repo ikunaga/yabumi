@@ -64,7 +64,8 @@
 | ANTHROPIC_API_KEY | 6-3 で本番用に作るキー | **はい** |
 | X_CLIENT_ID | 6-4 の X のアプリの OAuth 2.0 Client ID（ローカルと同じ） | いいえ |
 | X_CLIENT_SECRET | 同じく Client Secret | **はい** |
-| X_MONTHLY_BUDGET_USD | 入れなければ $3（決定 D16）。変えるときだけ入れる | いいえ |
+| X_MONTHLY_BUDGET_USD | 入れなければ $3（決定 D16）。変えるときだけ入れる。80% に達すると運営者にメールで知らせる（15-11 の RESEND_API_KEY・OPERATOR_EMAIL） | いいえ |
+| X_POST_USER_MONTHLY_USD | 入れなければ $1（利用者 1 人の、X の投稿まわりの月の上限。docs/architecture.md の 4.13）。料金プランが決まったら変える | いいえ |
 | NEXT_PUBLIC_TURNSTILE_SITE_KEY | 5-8 の Turnstile の Site Key（登録の受付を開く前に入れる） | いいえ（画面にも出る値） |
 | META_APP_ID / FACEBOOK_LOGIN_CONFIG_ID / INSTAGRAM_APP_ID | 12 の Instagram・Facebook 用の Meta アプリの値 | いいえ |
 | META_APP_SECRET / INSTAGRAM_APP_SECRET | 同上 | **はい** |
@@ -366,6 +367,8 @@ Threads・Instagram・Facebook の数字を読む権限は、Meta のアプリ�
 |---|---|---|
 | 15-11 | オーナー | 11 の F で Resend の API キー（Sending access、yabumi.app）を作ったら、Vercel → Settings → Environment Variables に `RESEND_API_KEY`（**Sensitive**。Supabase の SMTP に入れたものとは別のキーを作ると、片方を消してももう片方が止まらない）と `OPERATOR_EMAIL`（オーナーが受け取るアドレス。規約の問い合わせ先とは別でよい）を足して Redeploy。送信元は `矢書 <noreply@yabumi.app>`（変えるときは `OPERATOR_EMAIL_FROM`） |
 | 15-12 | 確かめ | キーがない環境（ローカルなど）では送らず、サーバーのログに `[operator] メールの設定がないので、ログにだけ残します` と出る。Vercel のログでこの文字が出ていたら、15-11 が済んでいない |
+
+- **費用の上限の 80% の知らせ**（2026-10-11）: X（`X_MONTHLY_BUDGET_USD`）と AI（`AI_GLOBAL_MONTHLY_BUDGET_USD`）の、矢書全体の今月の費用が上限の 80% に達したとき、それぞれ月に 1 回、同じ `OPERATOR_EMAIL` にメールが届く（件名は「【矢書の運営】X の API の今月の費用が…」「【矢書の運営】AI（Claude API）の今月の費用が…」）。本文は額・上限・確かめ方（費用の多い利用者を見る SQL）だけ。1 人に偏っていれば利用者ごとの上限（`X_POST_USER_MONTHLY_USD`・`X_METRICS_USER_MONTHLY_USD`・`AI_USER_MONTHLY_BUDGET_USD`）を下げるか悪用として止め、普通に人が増えたのなら全体の上限を上げる（docs/cost-review.md を確かめてから）
 
 - 管理用の鍵が漏れた疑いがあるときは、15-5 で新しい鍵を作って Vercel を入れ替え、古い鍵を「鍵」の画面で削除する（利用者ごとのアカウントは鍵を持たないので、そのまま使える）
 

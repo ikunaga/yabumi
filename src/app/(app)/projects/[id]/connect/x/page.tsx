@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Term } from "@/components/ui/term";
 import { getProject } from "@/lib/projects/queries";
 import { insightsEnabled } from "@/lib/sns/insights/scopes";
-import { xConfigured, xMetricsUserMonthlyUsd, xMonthlyBudgetUsd } from "@/lib/sns/x/config";
+import { xConfigured, xMetricsUserMonthlyUsd, xMonthlyBudgetUsd, xPostUserMonthlyUsd } from "@/lib/sns/x/config";
 import { X_PRICE_USD, formatUsd } from "@/lib/sns/x/pricing";
 
 export const metadata: Metadata = { title: "X をつなぐ" };
@@ -45,7 +45,7 @@ export default async function ConnectXPage(props: PageProps<"/projects/[id]/conn
               1 本 {formatUsd(X_PRICE_USD.post)}（約 2 円）。本文に URL があると {formatUsd(X_PRICE_USD.post_with_url)}（約 30 円）になるので、URL は X のプロフィールに置くのがおすすめです
             </li>
             <li>
-              矢書全体で、X に払うのは月 {formatUsd(xMonthlyBudgetUsd())} までです。上限に達すると、その月の残りは X に自動では送りません。投稿の画面の「送信の結果」から、X のアプリで手で投稿して記録できます
+              X の投稿（URL つきは 1 本 {formatUsd(X_PRICE_USD.post_with_url)}）は、1 人あたり月 {formatUsd(xPostUserMonthlyUsd())}、矢書全体で月 {formatUsd(xMonthlyBudgetUsd())} までです。どちらかの上限に達すると、その月の残りは X に自動では送りません。投稿の画面の「送信の結果」から、X のアプリで手で投稿して記録できます
             </li>
             {metrics && <li>数字を読むのにも費用がかかるので、1 人あたり月 {formatUsd(xMetricsUserMonthlyUsd())} までにしています（フォロワー数は週に 1 回）</li>}
           </ul>

@@ -10,10 +10,10 @@ import { formatUsd } from "@/lib/sns/x/pricing";
 import type { XSpend } from "@/lib/sns/x/spend";
 
 // つなぐ処理がある SNS と、その入口
-// Instagram と Facebook は、先に確かめの画面（プロアカウント・ページの準備）を出す（docs/architecture.md の 4.21）
+// どの SNS も、先に確かめの画面（できること・費用・準備）を出してから認可の画面へ進む（docs/architecture.md の 4.21）
 const CONNECT_HREF: Partial<Record<SnsKey, (projectId: string) => string>> = {
-  threads: (id) => `/sns/threads/connect?project=${id}`,
-  x: (id) => `/sns/x/connect?project=${id}`,
+  threads: (id) => `/projects/${id}/connect/threads`,
+  x: (id) => `/projects/${id}/connect/x`,
   instagram: (id) => `/projects/${id}/connect/instagram`,
   facebook: (id) => `/projects/${id}/connect/facebook`,
 };

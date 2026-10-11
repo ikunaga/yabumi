@@ -106,7 +106,7 @@ export function coachContextMessage(ctx: CoachContext): string {
     `矢書で扱う SNS: ${Object.values(SNS)
       .filter((s) => s.delivery === "auto")
       .map((s) => s.label)
-      .join("、")}（自動で送る。いま送信できるのは Threads だけ）、${Object.values(SNS)
+      .join("、")}（自動で送る。いま送信できるのは Threads・X・Instagram・Facebook ページ。TikTok・YouTube は準備中）、${Object.values(SNS)
       .filter((s) => s.delivery === "manual")
       .map((s) => s.label)
       .join("、")}（手で投稿する）`,

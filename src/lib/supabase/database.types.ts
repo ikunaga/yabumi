@@ -752,6 +752,106 @@ export type Database = {
         }
         Relationships: []
       }
+      roadmap_items: {
+        Row: {
+          created_at: string
+          detail: string
+          done_at: string | null
+          id: string
+          kpi: string | null
+          owner_id: string
+          position: number
+          project_id: string
+          source: string
+          status: string
+          target: number | null
+          title: string
+          updated_at: string
+          week_start: string
+        }
+        Insert: {
+          created_at?: string
+          detail?: string
+          done_at?: string | null
+          id?: string
+          kpi?: string | null
+          owner_id?: string
+          position?: number
+          project_id: string
+          source?: string
+          status?: string
+          target?: number | null
+          title: string
+          updated_at?: string
+          week_start: string
+        }
+        Update: {
+          created_at?: string
+          detail?: string
+          done_at?: string | null
+          id?: string
+          kpi?: string | null
+          owner_id?: string
+          position?: number
+          project_id?: string
+          source?: string
+          status?: string
+          target?: number | null
+          title?: string
+          updated_at?: string
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roadmap_items_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roadmaps: {
+        Row: {
+          created_at: string
+          kgi: Json | null
+          kpi_targets: Json
+          owner_id: string
+          project_id: string
+          source: string
+          started_on: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          kgi?: Json | null
+          kpi_targets?: Json
+          owner_id?: string
+          project_id: string
+          source?: string
+          started_on?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          kgi?: Json | null
+          kpi_targets?: Json
+          owner_id?: string
+          project_id?: string
+          source?: string
+          started_on?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roadmaps_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       short_links: {
         Row: {
           code: string
@@ -1142,6 +1242,14 @@ export type Database = {
           p_sns: unknown
         }
         Returns: string
+      }
+      roadmap_daily_totals: {
+        Args: { p_from: string; p_project_id: string; p_to: string }
+        Returns: {
+          day: string
+          link_clicks: number
+          posts: number
+        }[]
       }
       save_account_plan_section: {
         Args: {

@@ -113,16 +113,33 @@ function AccountLabel({ account }: { account: ProjectSnsAccount }) {
   );
 }
 
-// X は使った分だけ払うので、今月の自分の費用と、自分の自動投稿の上限・矢書全体の上限に達したかを出す（決定 D16）
+// X は使った分だけ払うので、今月の自分の費用と、自分の自動投稿の上限・矢書全体の上限に達したかを出す（決定 D16・D23）。
+// 列が狭い（PC は 2 段組みの左）ので、費用と上限を 2 行に分け、言葉のまとまり（inline-block）の間でだけ折る。上限に達した印は 3 行目に出す
 function XSpendLine({ spend }: { spend: XSpend }) {
   return (
-    <span className="mt-0.5 block text-xs text-muted">
-      今月の X の<Term k="payPerUse">費用</Term> {formatUsd(spend.mineUsd)}（うち投稿 {formatUsd(spend.minePostUsd)}。自動投稿はあなたの上限{" "}
-      {formatUsd(spend.userBudgetUsd)} / 月、矢書全体の上限 {formatUsd(spend.budgetUsd)} / 月）
+    <span className="mt-0.5 block text-xs leading-[1.6] text-muted">
+      <span className="block">
+        <span className="inline-block">
+          今月の<Term k="payPerUse">費用</Term> {formatUsd(spend.mineUsd)}
+        </span>
+        <span className="inline-block">（うち投稿 {formatUsd(spend.minePostUsd)}）</span>
+      </span>
+      <span className="block">
+        <span className="inline-block">月の上限</span> <span className="inline-block">あなた {formatUsd(spend.userBudgetUsd)}・</span>
+        <span className="inline-block">全体 {formatUsd(spend.budgetUsd)}</span>
+      </span>
       {spend.userReached ? (
-        <span className="ml-2 font-bold text-signal">今月のあなたの上限に達しました</span>
+        <span className="block font-bold text-signal">
+          <span className="inline-block">今月のあなたの</span>
+          <span className="inline-block">上限に達しました</span>
+        </span>
       ) : (
-        spend.budgetReached && <span className="ml-2 font-bold text-signal">今月の上限に達しました</span>
+        spend.budgetReached && (
+          <span className="block font-bold text-signal">
+            <span className="inline-block">今月の上限に達しました</span>
+            <span className="inline-block">（矢書全体）</span>
+          </span>
+        )
       )}
     </span>
   );

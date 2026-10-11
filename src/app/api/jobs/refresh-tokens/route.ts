@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { isAuthorizedJob } from "@/lib/jobs/auth";
-import { adapters } from "@/lib/sns/adapters";
+import { publisherDeps } from "@/lib/sns/adapters";
 import { refreshDueTokens } from "@/lib/sns/publisher";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
   if (!isAuthorizedJob(request.headers.get("authorization"))) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  const outcomes = await refreshDueTokens(createAdminClient(), { adapters });
+  const outcomes = await refreshDueTokens(createAdminClient(), publisherDeps());
   if (outcomes.length) console.info("[jobs/refresh-tokens]", JSON.stringify(outcomes));
   return NextResponse.json({ processed: outcomes.length, outcomes });
 }

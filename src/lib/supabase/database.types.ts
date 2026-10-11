@@ -502,10 +502,49 @@ export type Database = {
         }
         Relationships: []
       }
+      sns_api_usage: {
+        Row: {
+          cost_usd: number
+          created_at: string
+          id: string
+          operation: string
+          owner_id: string
+          post_target_id: string | null
+          sns: string
+        }
+        Insert: {
+          cost_usd: number
+          created_at?: string
+          id?: string
+          operation: string
+          owner_id: string
+          post_target_id?: string | null
+          sns: string
+        }
+        Update: {
+          cost_usd?: number
+          created_at?: string
+          id?: string
+          operation?: string
+          owner_id?: string
+          post_target_id?: string | null
+          sns?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sns_api_usage_post_target_id_fkey"
+            columns: ["post_target_id"]
+            isOneToOne: false
+            referencedRelation: "post_targets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       social_account_tokens: {
         Row: {
           access_token_encrypted: string
           expires_at: string | null
+          refresh_locked_until: string | null
           refresh_token_encrypted: string | null
           scopes: string[]
           social_account_id: string
@@ -514,6 +553,7 @@ export type Database = {
         Insert: {
           access_token_encrypted: string
           expires_at?: string | null
+          refresh_locked_until?: string | null
           refresh_token_encrypted?: string | null
           scopes?: string[]
           social_account_id: string
@@ -522,6 +562,7 @@ export type Database = {
         Update: {
           access_token_encrypted?: string
           expires_at?: string | null
+          refresh_locked_until?: string | null
           refresh_token_encrypted?: string | null
           scopes?: string[]
           social_account_id?: string
@@ -591,6 +632,14 @@ export type Database = {
           target_id: string
         }[]
       }
+      claim_token_refresh: {
+        Args: { p_lease_seconds?: number; p_social_account_id: string }
+        Returns: {
+          access_token_encrypted: string
+          expires_at: string
+          refresh_token_encrypted: string
+        }[]
+      }
       invoke_job: { Args: { p_path: string }; Returns: number }
       is_manual_sns: { Args: { p_sns: string }; Returns: boolean }
       mark_manual_target_posted: {
@@ -600,6 +649,17 @@ export type Database = {
       requeue_failed_targets: {
         Args: { p_post_id: string; p_sns: string[] }
         Returns: number
+      }
+      reserve_sns_spend: {
+        Args: {
+          p_budget_usd: number
+          p_cost_usd: number
+          p_operation: string
+          p_owner_id: string
+          p_post_target_id: string
+          p_sns: unknown
+        }
+        Returns: string
       }
       save_account_plan_section: {
         Args: {
@@ -621,6 +681,7 @@ export type Database = {
         }
         Returns: string
       }
+      sns_spend_this_month: { Args: { p_sns: unknown }; Returns: number }
     }
     Enums: {
       [_ in never]: never

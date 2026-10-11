@@ -14,9 +14,14 @@ export type ConnectedAccount = {
   displayName: string;
   handle: string;
   accessToken: string;
+  // リフレッシュトークンで取り直す SNS（X）だけ
+  refreshToken?: string | null;
   expiresAt: Date | null;
   scopes: readonly string[];
 };
+
+// リフレッシュトークンは行の ID に ":refresh" を足したものを追加認証データにして暗号化する（アクセストークンと入れ替えられないように）
+export const refreshTokenAad = (socialAccountId: string) => `${socialAccountId}:refresh`;
 
 // つなぐ・つなぎ直す。同じ利用者が同じアカウントをつなぎ直したときは行を作り直さず更新する
 export async function saveConnectedAccount(admin: Admin, a: ConnectedAccount, key?: Buffer): Promise<string> {
@@ -41,7 +46,8 @@ export async function saveConnectedAccount(admin: Admin, a: ConnectedAccount, ke
   const { error: tokenError } = await admin.from("social_account_tokens").upsert({
     social_account_id: data.id,
     access_token_encrypted: encryptToken(a.accessToken, data.id, key),
-    refresh_token_encrypted: null,
+    refresh_token_encrypted: a.refreshToken ? encryptToken(a.refreshToken, refreshTokenAad(data.id), key) : null,
+    refresh_locked_until: null,
     expires_at: a.expiresAt?.toISOString() ?? null,
     scopes: [...a.scopes],
   });

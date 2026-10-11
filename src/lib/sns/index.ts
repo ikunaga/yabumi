@@ -1,3 +1,5 @@
+import { xWeightedLength } from "./x-text";
+
 // 対象の SNS（要求 D1、D15）と、投稿のルール
 export type SnsKey = "x" | "instagram" | "facebook" | "threads" | "tiktok" | "youtube" | "note" | "substack";
 
@@ -56,29 +58,17 @@ export function manualComposeUrl(sns: SnsKey, profileUrl?: string | null): strin
   return null;
 }
 
+// X の投稿の画面（本文を入れた状態で開く）。自動で送れなかったときに手で投稿するために使う
+export function xComposeUrl(text: string): string {
+  return `https://x.com/intent/post?text=${encodeURIComponent(text)}`;
+}
+
 export function isSnsKey(value: unknown): value is SnsKey {
   return typeof value === "string" && (SNS_KEYS as string[]).includes(value);
 }
 
-const URL_RE = /https?:\/\/[^\s]+/g;
-const X_URL_WEIGHT = 23;
-
-// X の文字数。半角英数などは 1、日本語などは 2、URL は長さに関係なく 23 として数え、上限は 280。
-// 利用者には全角換算（重みの半分、切り上げ）で見せる
-export function xWeightedLength(text: string): number {
-  let weight = 0;
-  const withoutUrls = text.replace(URL_RE, () => {
-    weight += X_URL_WEIGHT;
-    return "";
-  });
-  for (const ch of withoutUrls) {
-    const cp = ch.codePointAt(0)!;
-    const light =
-      (cp >= 0 && cp <= 4351) || (cp >= 8192 && cp <= 8205) || (cp >= 8208 && cp <= 8223) || (cp >= 8242 && cp <= 8247);
-    weight += light ? 1 : 2;
-  }
-  return weight;
-}
+// X の文字数の数え方は x-text.ts。利用者には全角換算（重みの半分、切り上げ）で見せる
+export { hasXUrl, xWeightedLength } from "./x-text";
 
 // 画面に出す文字数
 export function displayLength(sns: SnsKey, text: string): number {

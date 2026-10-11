@@ -20,6 +20,9 @@ import { Term } from "@/components/ui/term";
 import { currentStepIndex } from "@/lib/projects/next-step";
 import { getProject } from "@/lib/projects/queries";
 import { listProjectSnsAccounts } from "@/lib/sns/queries";
+import { threadsConfigured } from "@/lib/sns/threads/config";
+import { xConfigured } from "@/lib/sns/x/config";
+import { xSpendThisMonth } from "@/lib/sns/x/spend";
 import { getAccountPlan } from "@/lib/plan/queries";
 import { isUuid } from "@/lib/uuid";
 
@@ -31,12 +34,13 @@ export async function generateMetadata(props: PageProps<"/projects/[id]">): Prom
 
 export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
   const { id } = await props.params;
-  const { connected, sns_error, done } = await props.searchParams;
+  const { connected, sns_error, sns, done } = await props.searchParams;
   const project = await getProject(id);
   if (!project) notFound();
   const editHref = `/projects/${project.id}/edit`;
   const supabase = await createClient();
-  const [upcoming, snsAccounts, attention, overdue, manualDue, plan, { data: repoLink }, { data: manualChannels }] = await Promise.all([
+  const xReady = xConfigured();
+  const [upcoming, snsAccounts, attention, overdue, manualDue, plan, { data: repoLink }, { data: manualChannels }, xSpend] = await Promise.all([
     listUpcomingPosts(project.id),
     listProjectSnsAccounts(project.id),
     listPostsNeedingAttention(project.id),
@@ -45,6 +49,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
     getAccountPlan(project.id),
     supabase.from("project_github_repos").select("full_name").eq("project_id", project.id).maybeSingle(),
     supabase.from("project_manual_channels").select("sns, profile_url").eq("project_id", project.id),
+    xReady ? xSpendThisMonth() : null,
   ]);
   const showGithubPrompt = !repoLink && !project.github_prompt_dismissed_at;
   const planDone = Boolean(plan && (plan.done || plan.skipped));
@@ -63,7 +68,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
       </div>
       <h1 className="sr-only sm:hidden">{project.name}</h1>
 
-      <SnsResultBanner connected={connected} error={sns_error} />
+      <SnsResultBanner connected={connected} error={sns_error} sns={sns} />
       {done === "description" && <SuccessBanner>アプリの紹介文（どんなアプリか）を保存しました。アカウント設計の AI にも伝わります。</SuccessBanner>}
 
       {showGithubPrompt && <GithubPrompt projectId={project.id} configured={githubConfigured()} />}
@@ -139,7 +144,13 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
           </dl>
         </Card>
 
-        <SnsAccountsCard projectId={project.id} accounts={snsAccounts} manualChannels={manualChannels ?? []} />
+        <SnsAccountsCard
+          projectId={project.id}
+          accounts={snsAccounts}
+          manualChannels={manualChannels ?? []}
+          connectable={{ threads: threadsConfigured(), x: xReady }}
+          xSpend={xSpend}
+        />
 
         {plan && <PlanSummaryCard projectId={project.id} plan={plan.plan} />}
       </div>

@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { isAuthorizedJob } from "@/lib/jobs/auth";
-import { adapters } from "@/lib/sns/adapters";
+import { publisherDeps } from "@/lib/sns/adapters";
 import { publishDueTargets } from "@/lib/sns/publisher";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
   if (!isAuthorizedJob(request.headers.get("authorization"))) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  const outcomes = await publishDueTargets(createAdminClient(), { adapters }, { limit: LIMIT });
+  const outcomes = await publishDueTargets(createAdminClient(), publisherDeps(), { limit: LIMIT });
   if (outcomes.length) console.info("[jobs/publish]", JSON.stringify(outcomes.map(({ targetId, sns, result }) => ({ targetId, sns, result }))));
   return NextResponse.json({ processed: outcomes.length, outcomes });
 }

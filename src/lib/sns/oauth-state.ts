@@ -7,10 +7,11 @@ import { isUuid } from "@/lib/uuid";
 
 export const OAUTH_STATE_MAX_AGE = 10 * 60; // 秒
 
-export type OAuthState = { state: string; userId: string; projectId: string; createdAt: number };
+// codeVerifier: PKCE を使う SNS（X）の verifier。認可コードをトークンに換えるときに要るので、HttpOnly の cookie に置いておく
+export type OAuthState = { state: string; userId: string; projectId: string; createdAt: number; codeVerifier?: string };
 
-export function newOAuthState(userId: string, projectId: string, now = Date.now()): OAuthState {
-  return { state: randomBytes(32).toString("base64url"), userId, projectId, createdAt: now };
+export function newOAuthState(userId: string, projectId: string, now = Date.now(), codeVerifier?: string): OAuthState {
+  return { state: randomBytes(32).toString("base64url"), userId, projectId, createdAt: now, ...(codeVerifier ? { codeVerifier } : {}) };
 }
 
 export function serializeOAuthState(s: OAuthState): string {
@@ -23,6 +24,7 @@ function parse(cookieValue: string | undefined): OAuthState | null {
     const s = JSON.parse(Buffer.from(cookieValue, "base64url").toString("utf8")) as Partial<OAuthState>;
     if (typeof s.state !== "string" || typeof s.userId !== "string" || typeof s.createdAt !== "number") return null;
     if (typeof s.projectId !== "string" || !isUuid(s.projectId)) return null;
+    if (s.codeVerifier !== undefined && typeof s.codeVerifier !== "string") return null;
     return s as OAuthState;
   } catch {
     return null;

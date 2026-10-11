@@ -5,10 +5,13 @@ import { Term } from "@/components/ui/term";
 import { isManualSns, SNS_KEYS, type SnsKey } from "@/lib/sns";
 import { ManualChannelRow } from "./manual-channel-row";
 import type { ProjectSnsAccount } from "@/lib/sns/queries";
+import { formatUsd } from "@/lib/sns/x/pricing";
+import type { XSpend } from "@/lib/sns/x/spend";
 
 // つなぐ処理がある SNS と、その入口
 const CONNECT_PATH: Partial<Record<SnsKey, string>> = {
   threads: "/sns/threads/connect",
+  x: "/sns/x/connect",
 };
 
 // 概要の「つないだ SNS」。SNS ごとに 1 行
@@ -26,10 +29,15 @@ export function SnsAccountsCard({
   projectId,
   accounts,
   manualChannels = [],
+  connectable = {},
+  xSpend = null,
 }: {
   projectId: string;
   accounts: ProjectSnsAccount[];
   manualChannels?: { sns: string; profile_url: string | null }[];
+  // 環境変数がそろい、つなげる SNS。そろっていなければ「準備中」
+  connectable?: Partial<Record<SnsKey, boolean>>;
+  xSpend?: XSpend | null;
 }) {
   return (
     <Card className="overflow-hidden">
@@ -43,7 +51,7 @@ export function SnsAccountsCard({
             return <ManualChannelRow key={sns} projectId={projectId} sns={sns} profileUrl={ch?.profile_url ?? null} note={MANUAL_NOTE[sns]} />;
           }
           const account = accounts.find((a) => a.sns === sns && a.status === "active") ?? accounts.find((a) => a.sns === sns);
-          const connectPath = CONNECT_PATH[sns];
+          const connectPath = connectable[sns] ? CONNECT_PATH[sns] : undefined;
           // 認可画面へのリダイレクトなので、Link（先読みあり）ではなく a で開く
           const connectHref = connectPath ? `${connectPath}?project=${projectId}` : null;
           return (
@@ -54,12 +62,11 @@ export function SnsAccountsCard({
               <span className="w-24 shrink-0">
                 <SnsTag sns={sns} />
               </span>
-              <span className="min-w-0 flex-1 truncate">
-                {account ? (
-                  <AccountLabel account={account} />
-                ) : (
-                  <span className="text-muted">まだつないでいません</span>
-                )}
+              <span className="min-w-0 flex-1">
+                <span className="block truncate">
+                  {account ? <AccountLabel account={account} /> : <span className="text-muted">まだつないでいません</span>}
+                </span>
+                {sns === "x" && xSpend && <XSpendLine spend={xSpend} />}
               </span>
               {connectHref ? (
                 // 使える状態でも、権限を足したときなどのために控えめな「つなぎ直す」を出す
@@ -101,5 +108,16 @@ function AccountLabel({ account }: { account: ProjectSnsAccount }) {
       <span className="ml-2 font-bold text-signal">要確認</span>
       <span className="ml-1 text-xs text-muted">{account.status === "expired" ? "期限切れ" : "解除済み"}</span>
     </>
+  );
+}
+
+// X は使った分だけ払うので、今月の費用と上限を出す（決定 D16）
+function XSpendLine({ spend }: { spend: XSpend }) {
+  const reached = spend.spentUsd >= spend.budgetUsd;
+  return (
+    <span className="mt-0.5 block text-xs text-muted">
+      今月の X の<Term k="payPerUse">費用</Term> {formatUsd(spend.spentUsd)} / 上限 {formatUsd(spend.budgetUsd)}
+      {reached && <span className="ml-2 font-bold text-signal">上限に達しました</span>}
+    </span>
   );
 }

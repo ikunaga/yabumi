@@ -7,7 +7,9 @@ import { deletePost, savePost } from "@/lib/posts/actions";
 import type { SavePostResult } from "@/lib/posts/schema";
 import { PlanHints, type PlanHintsData } from "./plan-hints";
 import { SendResults, type TargetResult } from "./send-results";
-import { ISSUE_LABEL, MAX_TITLE_LENGTH, SNS, SNS_KEYS, checkTarget, isManualSns, type SnsKey, type TargetIssue } from "@/lib/sns";
+import { ISSUE_LABEL, MAX_TITLE_LENGTH, SNS, SNS_KEYS, checkTarget, hasXUrl, isManualSns, type SnsKey, type TargetIssue } from "@/lib/sns";
+import { X_PRICE_USD, formatUsd } from "@/lib/sns/x/pricing";
+import { Term } from "@/components/ui/term";
 
 export type ComposerInitial = {
   body: string;
@@ -259,6 +261,15 @@ export function PostComposer({
             })}
           </ul>
 
+          {selected.has("x") && !isLocked("x") && hasXUrl(textFor("x")) && (
+            <XUrlCostNotice
+              onEdit={() => {
+                setFocus("x");
+                setOverrides((o) => (o.x !== undefined ? o : { ...o, x: body }));
+              }}
+            />
+          )}
+
           {postId && <SendResults projectId={projectId} postId={postId} results={results} />}
 
           <div className="flex flex-1 flex-col gap-2.5 bg-surface2 px-5 py-4">
@@ -415,4 +426,25 @@ function TargetStateMark({ status }: { status: TargetResult["status"] }) {
 // 手で投稿する SNS の印（自動の SNS と区別する。朱は使わない）
 function ManualMark() {
   return <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">手で投稿</span>;
+}
+
+// X は本文に URL があると、API の料金が 13 倍になる（決定 D16）。費用の差と、URL を外す代わりの案を出す
+function XUrlCostNotice({ onEdit }: { onEdit: () => void }) {
+  return (
+    <div className="flex flex-col gap-2 border-b border-line px-5 py-3.5 text-sm">
+      <p>
+        <span className="mr-1.5 font-bold text-signal">● 費用</span>X の本文に URL があるため、この投稿は X の
+        <Term k="payPerUse">API の料金</Term>が 1 本 {formatUsd(X_PRICE_USD.post_with_url)}（約 30 円）かかります。URL がなければ{" "}
+        {formatUsd(X_PRICE_USD.post)}（約 2 円）です。
+      </p>
+      <ul className="list-disc pl-5 text-xs leading-6 text-muted">
+        <li>URL は X のプロフィールに置き、本文は「プロフィールのリンクから」とする</li>
+        <li>X 用に文面を変えて URL を外す（Threads など、ほかの SNS には URL を残せる）</li>
+        <li>「example.com」のように https:// を付けなくても、X は URL として数えます</li>
+      </ul>
+      <button type="button" onClick={onEdit} className="self-start text-xs font-semibold text-primary hover:underline">
+        X 用に文面を変える
+      </button>
+    </div>
+  );
 }

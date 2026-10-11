@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { PostComposer } from "@/components/posts/post-composer";
 import { connectedAccounts, getPost, postTitle } from "@/lib/posts/queries";
 import { getProject } from "@/lib/projects/queries";
-import { isManualSns, manualComposeUrl, type SnsKey } from "@/lib/sns";
+import { isManualSns, manualComposeUrl, xComposeUrl, type SnsKey } from "@/lib/sns";
 import { createClient } from "@/lib/supabase/server";
 import { canPublish } from "@/lib/sns/adapters";
 import { getPlanHints } from "@/lib/plan/queries";
@@ -51,6 +51,12 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
         manual: isManualSns(t.sns)
           ? { title: t.title, text: t.body_override ?? post.body, composeUrl: manualComposeUrl(t.sns, profileUrl(t.sns)) }
           : undefined,
+        // 送れなかった X は、手で投稿して記録できる（月の上限・クレジット切れのとき。決定 D16）
+        fallback:
+          t.sns === "x" && t.status === "failed"
+            ? { title: null, text: t.body_override ?? post.body, composeUrl: xComposeUrl(t.body_override ?? post.body) }
+            : undefined,
+        postedByHand: t.status === "published" && !t.external_post_id,
       },
     ]),
   );

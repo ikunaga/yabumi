@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { adapters } from "@/lib/sns/adapters";
+import { publisherDeps } from "@/lib/sns/adapters";
 import { SnsPublishError } from "@/lib/sns/adapters/types";
 import { deletePublishedTarget } from "@/lib/sns/publisher";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -41,7 +41,7 @@ export async function deleteFromSns(projectId: string, postId: string, targetId:
   if (!target) return { error: "投稿が見つかりません。画面を読み込み直してください。" };
 
   try {
-    await deletePublishedTarget(createAdminClient(), targetId, { adapters });
+    await deletePublishedTarget(createAdminClient(), targetId, publisherDeps());
   } catch (e) {
     if (e instanceof SnsPublishError) return { error: e.userMessage };
     console.error("[deleteFromSns]", e);

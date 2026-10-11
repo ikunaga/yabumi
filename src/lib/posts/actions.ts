@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { ISSUE_LABEL, SNS, checkTarget, isManualSns, type SnsKey } from "@/lib/sns";
-import { adapters, canPublish } from "@/lib/sns/adapters";
+import { canPublish, publisherDeps } from "@/lib/sns/adapters";
 import { publishDueTargets } from "@/lib/sns/publisher";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -104,7 +104,7 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
     // 予約ジョブと重なっても、claim_due_targets が同じ配信先を 2 回取り出さない
     let done = "sent";
     try {
-      const outcomes = await publishDueTargets(createAdminClient(), { adapters }, { postId: savedId });
+      const outcomes = await publishDueTargets(createAdminClient(), publisherDeps(), { postId: savedId });
       if (outcomes.length === 0) done = "sending";
       else if (outcomes.some((o) => o.result !== "published")) done = "send_failed";
     } catch (e) {

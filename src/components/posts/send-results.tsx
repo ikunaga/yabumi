@@ -14,8 +14,14 @@ export type TargetResult = {
   publishedAt: string | null;
   nextAttemptAt: string | null;
   // 手で投稿する SNS 用: 保存してあるタイトルと本文、投稿の画面の URL
-  manual?: { title: string | null; text: string; composeUrl: string | null };
+  manual?: ManualInfo;
+  // 自動で送れなかった X を、手で投稿して記録するための情報
+  fallback?: ManualInfo;
+  // 手で投稿して記録したもの（SNS 上の投稿の ID がないので、矢書からは取り消せない）
+  postedByHand?: boolean;
 };
+
+type ManualInfo = { title: string | null; text: string; composeUrl: string | null };
 
 // 送信の結果: 送れたものは SNS 上の投稿へのリンクと取り消し、送れなかったものは理由と「要確認」
 export function SendResults({ projectId, postId, results }: { projectId: string; postId: string; results: Partial<Record<SnsKey, TargetResult>> }) {
@@ -47,6 +53,7 @@ export function SendResults({ projectId, postId, results }: { projectId: string;
 
 function ResultRow({ sns, r, projectId, postId }: { sns: SnsKey; r: TargetResult; projectId: string; postId: string }) {
   const [confirm, setConfirm] = useState(false);
+  const [showManual, setShowManual] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const label = SNS[sns].label;
@@ -63,6 +70,9 @@ function ResultRow({ sns, r, projectId, postId }: { sns: SnsKey; r: TargetResult
                 {label} で見る
               </a>
             )}
+            {r.postedByHand ? (
+              <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">手で投稿</span>
+            ) : (
             <span className="ml-auto">
               {confirm ? (
                 <Button
@@ -88,6 +98,7 @@ function ResultRow({ sns, r, projectId, postId }: { sns: SnsKey; r: TargetResult
                 </Button>
               )}
             </span>
+            )}
           </>
         )}
         {r.status === "publishing" && <span className="text-muted">送信中です。しばらくしてから読み込み直してください。</span>}
@@ -106,6 +117,14 @@ function ResultRow({ sns, r, projectId, postId }: { sns: SnsKey; r: TargetResult
       </div>
       {(r.status === "failed" || r.status === "pending") && r.errorMessage && <p className="text-muted">{r.errorMessage}</p>}
       {r.status === "failed" && <p className="text-xs text-muted">直してから「今すぐ送る」か「予約」で送り直せます。</p>}
+      {r.status === "failed" && r.fallback && !showManual && (
+        <Button type="button" variant="secondary" size="sm" className="self-start" onClick={() => setShowManual(true)}>
+          {label} に手で投稿する
+        </Button>
+      )}
+      {r.status === "failed" && r.fallback && showManual && (
+        <ManualSteps sns={sns} info={r.fallback} targetId={r.id} projectId={projectId} postId={postId} />
+      )}
       {error && (
         <p role="alert" className="font-semibold text-danger">
           {error}
@@ -117,22 +136,7 @@ function ResultRow({ sns, r, projectId, postId }: { sns: SnsKey; r: TargetResult
 
 // 手で投稿する SNS（note・Substack）: 本文をコピー → 投稿の画面を開く → 投稿したら「投稿した」で記録
 function ManualRow({ sns, r, projectId, postId }: { sns: SnsKey; r: TargetResult; projectId: string; postId: string }) {
-  const [url, setUrl] = useState("");
-  const [copied, setCopied] = useState<"title" | "body" | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
   const label = SNS[sns].label;
-  const m = r.manual!;
-
-  async function copy(kind: "title" | "body", text: string) {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(kind);
-      setTimeout(() => setCopied(null), 2000);
-    } catch {
-      setError("コピーできませんでした。本文を選んでコピーしてください。");
-    }
-  }
 
   if (r.status === "published") {
     return (
@@ -157,6 +161,45 @@ function ManualRow({ sns, r, projectId, postId }: { sns: SnsKey; r: TargetResult
         <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">手で投稿</span>
         <span className="text-muted">{label} には公式の投稿のしくみがないので、ここから手で投稿します</span>
       </div>
+      <ManualSteps sns={sns} info={r.manual!} targetId={r.id} projectId={projectId} postId={postId} />
+    </li>
+  );
+}
+
+// 手で投稿する手順。note・Substack のほか、自動で送れなかった X でも使う
+function ManualSteps({
+  sns,
+  info: m,
+  targetId,
+  projectId,
+  postId,
+}: {
+  sns: SnsKey;
+  info: ManualInfo;
+  targetId: string;
+  projectId: string;
+  postId: string;
+}) {
+  const [url, setUrl] = useState("");
+  const [copied, setCopied] = useState<"title" | "body" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  const label = SNS[sns].label;
+  // X は投稿の画面に本文を入れた状態で開けるので、コピーは控えめにする
+  const unit = sns === "x" ? "投稿" : "記事";
+
+  async function copy(kind: "title" | "body", text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(kind);
+      setTimeout(() => setCopied(null), 2000);
+    } catch {
+      setError("コピーできませんでした。本文を選んでコピーしてください。");
+    }
+  }
+
+  return (
+    <>
       <ol className="flex flex-col gap-2 text-sm">
         <li className="flex flex-wrap items-center gap-2">
           <span className="text-muted">1.</span>
@@ -178,7 +221,7 @@ function ManualRow({ sns, r, projectId, postId }: { sns: SnsKey; r: TargetResult
           ) : (
             <span className="text-muted">{label} を開いて、新しい記事を作る</span>
           )}
-          <span className="text-xs text-muted">（貼り付けて投稿します）</span>
+          <span className="text-xs text-muted">{sns === "x" ? "（本文が入った状態で開きます）" : "（貼り付けて投稿します）"}</span>
         </li>
         <li className="flex flex-col gap-1.5">
           <span>
@@ -189,8 +232,8 @@ function ManualRow({ sns, r, projectId, postId }: { sns: SnsKey; r: TargetResult
               type="url"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder={`${label} の記事の URL（https://…）`}
-              aria-label={`${label} の記事の URL`}
+              placeholder={`${label} の${unit}の URL（https://…）`}
+              aria-label={`${label} の${unit}の URL`}
               className="min-w-0 flex-1 rounded-md border border-input bg-surface px-3 py-1.5 text-sm outline-none focus:border-primary focus:shadow-[0_0_0_1px_var(--primary)] max-sm:text-[16px]"
             />
             <Button
@@ -200,7 +243,7 @@ function ManualRow({ sns, r, projectId, postId }: { sns: SnsKey; r: TargetResult
               onClick={() =>
                 startTransition(async () => {
                   setError(null);
-                  const res = await markManualPosted(projectId, postId, r.id, url);
+                  const res = await markManualPosted(projectId, postId, targetId, url);
                   if (res?.error) setError(res.error);
                 })
               }
@@ -215,6 +258,6 @@ function ManualRow({ sns, r, projectId, postId }: { sns: SnsKey; r: TargetResult
           {error}
         </p>
       )}
-    </li>
+    </>
   );
 }

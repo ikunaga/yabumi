@@ -1,4 +1,6 @@
 import "server-only";
+import { hasInsightsScope, insightsEnabled } from "@/lib/sns/insights/scopes";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { SNS, isSnsKey, type SnsKey } from "@/lib/sns";
 import { toYmd } from "@/lib/time";
@@ -144,4 +146,18 @@ export async function listManualTargets(projectId: string): Promise<ManualTarget
       reactions: m?.reactions ?? null,
     };
   });
+}
+
+// 数字の権限（SNS_INSIGHTS で有効にしたもの）なしでつないだ SNS。つなぎ直すと数字が出る。
+// accounts は利用者の権限（RLS）で読んだ本人のアカウント。権限はトークンの表にあり画面側からは読めないので、サーバーの権限で読む
+export async function snsNeedingInsightsReconnect(accounts: Partial<Record<SnsKey, string>>): Promise<SnsKey[]> {
+  const entries = (Object.entries(accounts) as [SnsKey, string][]).filter(([sns]) => insightsEnabled(sns));
+  if (!entries.length) return [];
+  const { data, error } = await createAdminClient()
+    .from("social_account_tokens")
+    .select("social_account_id, scopes")
+    .in("social_account_id", entries.map(([, id]) => id));
+  if (error) throw error;
+  const scopes = new Map((data ?? []).map((r) => [r.social_account_id, r.scopes]));
+  return entries.filter(([sns, id]) => !hasInsightsScope(sns, scopes.get(id) ?? [])).map(([sns]) => sns);
 }

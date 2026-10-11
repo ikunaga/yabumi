@@ -53,8 +53,8 @@ export default function PrivacyPage() {
             ],
             [
               "投稿の数字",
-              "note・Substack の投稿で、利用者が手で入れた閲覧数と反応の数",
-              "利用者が入力",
+              "note・Substack の投稿で、利用者が手で入れた閲覧数と反応の数。Threads・Instagram・Facebook で、矢書から送った投稿の閲覧数・いいね・返信などの数と、アカウントのフォロワー数（数字を読む権限つきでつないだとき）",
+              "利用者が入力、SNS から",
             ],
             [
               "短縮リンク",

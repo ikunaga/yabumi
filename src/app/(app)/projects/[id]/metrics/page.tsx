@@ -5,7 +5,8 @@ import { ManualMetricForm } from "@/components/metrics/manual-metric-form";
 import { Card, CardHeader, EmptyState } from "@/components/ui/card";
 import { Term } from "@/components/ui/term";
 import { KPIS, KPI_KEYS, recommendedKpis, type KpiKey } from "@/lib/metrics/kpis";
-import { listManualTargets, loadMetricsOverview, type WeekValue } from "@/lib/metrics/queries";
+import { listManualTargets, loadMetricsOverview, snsNeedingInsightsReconnect, type WeekValue } from "@/lib/metrics/queries";
+import { connectedAccounts } from "@/lib/posts/queries";
 import { getAccountPlan } from "@/lib/plan/queries";
 import { getProject } from "@/lib/projects/queries";
 import { SNS } from "@/lib/sns";
@@ -37,7 +38,7 @@ function KpiCard({ k, value, projectId }: { k: KpiKey; value?: WeekValue; projec
           <p className="text-2xl font-bold text-muted">—</p>
           {def.availability === "connect" ? (
             <p className="text-xs leading-[1.7]">
-              <Link href={`/projects/${projectId}/stores`} className="font-semibold text-primary hover:underline">
+              <Link href={def.connectTo === "sns" ? `/projects/${projectId}#sns` : `/projects/${projectId}/stores`} className="font-semibold text-primary hover:underline">
                 {def.howToGet}
               </Link>
             </p>
@@ -65,7 +66,13 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
   const { id } = await props.params;
   const project = await getProject(id);
   if (!project) notFound();
-  const [account, overview, manual] = await Promise.all([getAccountPlan(project.id), loadMetricsOverview(project.id), listManualTargets(project.id)]);
+  const [account, overview, manual, accounts] = await Promise.all([
+    getAccountPlan(project.id),
+    loadMetricsOverview(project.id),
+    listManualTargets(project.id),
+    connectedAccounts(project.id),
+  ]);
+  const needReconnect = await snsNeedingInsightsReconnect(accounts);
   const plan = account?.plan ?? null;
 
   const chosen = plan?.first_month.kpis ?? [];
@@ -113,6 +120,35 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
             ))}
           </div>
         </div>
+      </Card>
+
+      {needReconnect.length > 0 && (
+        <p className="rounded-md border border-border bg-surface px-4 py-3 text-sm leading-[1.7]">
+          <span className="mr-1.5 font-bold text-signal">● 要確認</span>
+          {needReconnect.map((s) => SNS[s].label).join("・")} の閲覧数やフォロワーを見るには、数字を読む権限を足すためのつなぎ直しが要ります。
+          <Link href={`/projects/${project.id}#sns`} className="ml-1 font-semibold text-primary hover:underline">
+            つないだ SNS へ
+          </Link>
+        </p>
+      )}
+
+      <Card>
+        <CardHeader title="よく見られた投稿（30 日）" />
+        {overview.topViewed.length ? (
+          <ol>
+            {overview.topViewed.map((p, i) => (
+              <li key={p.postId} className="flex items-center gap-3 border-b border-line px-5 py-2.5 text-sm last:border-b-0 max-sm:px-4">
+                <span className="font-bold text-primary">{i + 1}</span>
+                <Link href={`/projects/${project.id}/posts/${p.postId}`} className="min-w-0 flex-1 truncate hover:underline">
+                  {p.title}
+                </Link>
+                <span>{formatCount(p.views)} 回表示</span>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <EmptyState description="Threads・Instagram・Facebook を数字の権限つきでつなぐと、送ってから 1・3・7・30 日目の閲覧数を取り込み、よく見られた投稿をここに並べます。" />
+        )}
       </Card>
 
       <Card>

@@ -30,6 +30,8 @@ const TABLES = [
   "store_daily",
   "roadmaps",
   "roadmap_items",
+  "post_metrics",
+  "account_metrics",
 ] as const;
 
 let alice: TestClient;

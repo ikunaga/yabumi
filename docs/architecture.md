@@ -518,6 +518,8 @@ README が薄い個人開発のリポジトリやモノレポでも中身がわ�
 | note・Substack の数字（利用者が手で入れた閲覧・反応） | manual_post_metrics | 投稿を消すか、退会まで | 投稿の削除、退会 |
 | 預かったストア・課金の鍵（App Store Connect の API キー、RevenueCat のキー。暗号化済み） | store_credentials | 外すか、プロジェクトを消すか、退会まで | 「ストアと課金をつなぐ」の「外す」、退会。すぐに消す |
 | ストアと課金の日ごとの数字（ダウンロード、受け取り、売上など） | store_daily | 利用者がプロジェクトを消すか、退会まで | プロジェクトの削除、退会 |
+| SNS の投稿の数字（閲覧、いいね、返信など） | post_metrics | 投稿を消すか、退会まで | 投稿の削除、退会 |
+| SNS のアカウントの数字（フォロワー数、日ごと） | account_metrics | SNS を外すか、退会まで | 「外す」、退会 |
 | 投稿に添えた画像（JPEG。撮影の場所などのメタデータは消してある）と代わりの文 | Storage の post-media、media_files | 下書き・予約中は残す。送り終えて **30 日**、投稿に添えないまま 1 日、投稿を消したら次の片付けで消す（4.18） | 投稿の画面で「外す」、投稿の削除、退会（ファイルは翌日の片付けで消える） |
 | サーバーのログ | Vercel、Supabase | 各サービスの保存期間（Vercel Hobby は約 1 時間〜1 日、Supabase Free は 1 日）。トークンや本文はログに出さない | ― |
 
@@ -1070,6 +1072,19 @@ Facebook ページ（graph.facebook.com）:
 | ジョブ | /api/jobs/import-stores（pg_cron が毎日 3:00・3:10・3:20）。取り込みの済んでいない古い順に、40 秒まで。失敗したら鍵を「要確認」にし、理由を画面に出す（毎日やり直す） |
 | 指標 | ダウンロード（直近 7 日と先週）と課金（直近 28 日の売上と 1 週間前）を、DB の `store_weekly_totals` で出す。つないでいなければ「App Store をつなぐと出ます」 |
 | テスト | 本物の App Store Connect・RevenueCat は呼ばない（HTTP を偽物にする）。オーナーの ddy の鍵での確かめは deploy.md の 13 |
+
+#### SNS の数字の取り込みの実装（2026-10-11、段取り ④）
+
+| 部分 | 中身 |
+|---|---|
+| 権限 | 数字を読む権限（threads_manage_insights、instagram_business_manage_insights、read_insights）は、Meta のアプリで先に足してから、環境変数 `SNS_INSIGHTS`（例 `threads,instagram,facebook`）で有効にする。有効なら、つなぐときに求め、social_account_tokens.scopes に記録する（src/lib/sns/insights/scopes.ts）。権限なしでつないだアカウントは読まず、指標の画面に「つなぎ直しが要ります」 |
+| 読み方 | src/lib/sns/insights/index.ts（送信の部品とは別）。名前を SNS をまたいでそろえる: views、reach、likes、replies、reposts、quotes、shares、saves、clicks、followers。Threads は /{media}/insights と /{user}/threads_insights の followers_count、Instagram は /{media}/insights（impressions は使わない）と /me の followers_count、Facebook は post_media_view・post_total_media_view_unique・post_reactions_by_type_total（合計）・post_clicks とページの followers_count（appsecret_proof つき） |
+| 時期 | 投稿は送ってから 1・3・7・30 日目（Instagram は数字が最大 48 時間遅れるので 2・4・8・31 日目）。3 日を過ぎたその日の分はあきらめる。アカウントのフォロワー数は日本時間で 1 日 1 回（直近 90 日に送ったアカウントだけ）。DB の due_post_metric_targets・due_account_metric_accounts（service_role だけ）が選ぶ |
+| 保存 | `post_metrics`（配信先 × 何日目。数字の JSON）、`account_metrics`（アカウント × 日）。利用者は自分のものを読めるだけ |
+| ジョブ | /api/jobs/import-sns-metrics（pg_cron が毎日 5:00〜5:50 に 6 回）。1 回 40 秒まで。権限がないと言われたら、そのアカウントの残りはその回は読まない |
+| 指標 | 「投稿の閲覧数」（SNS の数字 + note・Substack で手で入れた数字。直近 7 日・その前の 7 日に送った投稿のいちばん新しい数字の合計）、「フォロワーの増え方」（つないだアカウントのいちばん新しい数と 7 日前の数）、「よく見られた投稿」（30 日）。DB の sns_weekly_totals・top_posts_by_views |
+| テスト | 本物の SNS は呼ばない（読み方は偽物の fetch、取り込みは偽物の読み方）。オーナーの Tester での確かめと、審査の流れは deploy.md の 14 と docs/review/meta.md |
+| 規約 | 本人の投稿の数字を本人に見せるだけ。SNS を外すと social_accounts の削除で account_metrics が消える。post_metrics は送った投稿の記録と一緒に残り、投稿を消すか退会で消える |
 
 #### コンバージョン 2: ストアと課金（利用者ごとに鍵を預かる）
 

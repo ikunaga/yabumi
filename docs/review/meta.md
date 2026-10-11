@@ -25,6 +25,8 @@
 
 矢書は threads_manage_insights（投稿の閲覧数などを読む権限）を求めていたが、**使っていない**（指標 F07 はフェーズ 3）ので、案 A に決めて求める権限から外した（src/lib/sns/threads/api.ts の THREADS_SCOPES）。審査には threads_basic・threads_content_publish・threads_delete を出す。
 
+**2026-10-11 追記**: 指標の画面（F07）を作ったので、threads_manage_insights は「使う権限」になった。最初の審査（threads_basic・threads_content_publish・threads_delete）はそのまま出し、threads_manage_insights は Instagram の申請と一緒に追加で出す（決定 D21）。手順は下の「権限ごとの説明文」の threads_manage_insights。矢書がこの権限を求めるのは、環境変数 SNS_INSIGHTS に threads を入れたときだけ（deploy.md の 14）
+
 ### オーナーの作業: Meta アプリから権限を外す
 
 1. https://developers.facebook.com/apps で Yabumi Dev を開く
@@ -92,9 +94,17 @@ Threads の Use cases → Settings の Uninstall Callback URL は `https://yabum
 
 > On each published post's page, Yabumi shows a "Delete from Threads" button. When the user clicks it and confirms, we use threads_delete to delete that post from the user's Threads account, and we mark the post as deleted in Yabumi. This lets users quickly remove a test post or a post with a mistake without leaving Yabumi. We only delete posts that were published through Yabumi by that same user.
 
-### threads_manage_insights（指標を作って追加で申請するとき）
+### threads_manage_insights（指標を作ったので、追加で申請する。2026-10-11 に画面ができた）
 
-> （指標の画面ができてから書く。どの画面で、どの数字を、何のために見せるかを書く）
+> Yabumi shows indie developers whether their posts are reaching people, on the project's "Metrics" (指標) page. After a user connects their Threads account with this permission, a daily job reads the insights of the posts the user published through Yabumi (views, likes, replies, reposts, quotes, shares) on day 1, 3, 7 and 30 after publishing, and the account's followers_count once a day. We show the total views of the last 7 days compared with the previous week, the follower growth, and a ranked list of the most viewed posts, so non-marketers can see which kind of post works. We only read insights of the user's own account and of posts published through Yabumi; we never read other users' data, and we never post or change anything with this permission.
+
+#### 申請までの流れ（オーナー。DB と画面は 2026-10-11 に作り済み）
+
+1. Meta の Yabumi Dev → Use cases → Access the Threads API → Permissions で threads_manage_insights を足す（Add）。開発モードなので、Tester のアカウントにはすぐ使える
+2. Vercel の環境変数 `SNS_INSIGHTS` に `threads` を入れて Redeploy（deploy.md の 14）。これで矢書がつなぐときに threads_manage_insights も求める
+3. 矢書の概要の「つないだ SNS」で Threads を**つなぎ直す**（認可画面に、投稿の数字を読む権限が増えて出る）。つなぎ直すまでは、指標の画面に「● 要確認 … つなぎ直しが要ります」と出る
+4. 何か投稿を送り、翌日 5 時以降に指標の画面の「よく見られた投稿」と「投稿の閲覧数」に数字が出ることを確かめる（**これが申請の 30 日以内の呼び出しの実績になる**）
+5. 画面の録画（下の表の threads_manage_insights）を撮り、App Review でこの権限だけを追加で申請する（Instagram の申請と一緒に出す。決定 D21）
 
 ## 画面の録画（権限ごとに 1 本）
 
@@ -105,6 +115,7 @@ Threads の Use cases → Settings の Uninstall Callback URL は `https://yabum
 | threads_basic | ① 審査用のアカウントで矢書にログイン ② プロジェクトの概要の「つないだ SNS」→ Threads の「つなぐ」③ Threads の認可画面（求める権限が並ぶ）で許可 ④ 矢書に戻り「✓ @ユーザー名」が出る |
 | threads_content_publish | ① ログイン済み、Threads はつないだ状態から ②「投稿をつくる」で本文を入れ、送り先に Threads を選ぶ ③ Threads のプレビュー（文字数）を見せる ④「今すぐ送る」⑤ 送信の結果の「Threads で見る」を押し、Threads で投稿が出ていることを見せる ⑥ 予約も見せる: 数分後に予約 → カレンダーに出る → 時刻が来て「✓ 送信済み」 |
 | threads_delete | ① 送信済みの投稿の画面 ②「Threads から取り消す」→ 確認 ③ 送信の結果が取り消しに変わる ④ Threads で投稿が消えたことを見せる |
+| threads_manage_insights | ① ログイン済みで、概要の「つないだ SNS」から Threads を「つなぎ直す」→ 認可画面に投稿の数字を読む権限（insights）が出ているところを見せて許可 ② 数日前に送った投稿がある状態で、サイドバーの「指標」（Metrics）を開く ③「投稿の閲覧数」（views）と先週との差、「フォロワーの増え方」を見せる ④「よく見られた投稿」（Most viewed posts）の 1 位を押して、その投稿の画面を開く ⑤ 同じ投稿を Threads のアプリで開き、表示回数が同じくらいであることを見せる（数字は 1 日 1 回の取り込みなので、少しずれてよい） |
 
 ## 審査の担当者向けの説明（Reviewer instructions に貼る）
 
@@ -135,8 +146,8 @@ Threads の Use cases → Settings の Uninstall Callback URL は `https://yabum
 
 | SNS | 権限 | 条件 |
 |---|---|---|
-| Instagram（Instagram Login） | instagram_business_basic、instagram_business_content_publish（指標は instagram_business_manage_insights） | プロアカウント（ビジネスかクリエイター）だけ。画像は JPEG、公開 URL に置く。API での投稿は 24 時間に 100 件まで |
-| Facebook ページ | pages_manage_posts、pages_read_engagement、pages_show_list（動画は publish_video） | 利用者がそのページで投稿を作れる役割を持っていること |
+| Instagram（Instagram Login） | instagram_business_basic、instagram_business_content_publish、instagram_business_manage_insights（指標。2026-10-11 に読み方を作った。threads_manage_insights と同じ流れで、Meta のアプリに足す → SNS_INSIGHTS に instagram → つなぎ直す → 30 日以内に読んだ実績 → 録画 → 申請） | プロアカウント（ビジネスかクリエイター）だけ。画像は JPEG、公開 URL に置く。API での投稿は 24 時間に 100 件まで |
+| Facebook ページ | pages_manage_posts、pages_read_engagement、pages_show_list（動画は publish_video）、read_insights（指標。Facebook Login for Business の設定（configuration）に足す → SNS_INSIGHTS に facebook → ページをつなぎ直す） | 利用者がそのページで投稿を作れる役割を持っていること |
 
 - どちらも Tech Provider 認証の対象（一度済めば同じビジネスで使える）
 - 出典: [Instagram のコンテンツの公開](https://developers.facebook.com/docs/instagram-platform/content-publishing)、[Instagram API with Instagram Login](https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login)、[ページの投稿](https://developers.facebook.com/docs/pages-api/posts)

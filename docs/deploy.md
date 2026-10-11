@@ -333,3 +333,18 @@ yabumi.app は Cloudflare Registrar で取る（オーナー）。DNS も Cloudf
 | 13-9 | オーナー | すぐに直近の数日分が取り込まれ、「指標」の「ダウンロード」に数字が出る（売上やダウンロードがない日は 0）。App Store Connect の「売上とトレンド」の同じ日の数と見比べる |
 | 13-10 | オーナー | RevenueCat を使っていれば、同じように Charts & metrics だけを読めるキーを作って入れる。「課金（売上）」に直近 28 日の売上が出る。RevenueCat の Overview の Revenue と見比べる |
 | 13-11 | Claude | 翌日、`select provider, status, last_error, last_imported_day from store_credentials;` で、毎日の取り込みが進んでいることを確かめる（鍵の中身は出さない） |
+
+## 14. SNS の数字（閲覧数・フォロワー）を読めるようにする（F07 の段取り ④）
+
+Threads・Instagram・Facebook の数字を読む権限は、Meta のアプリの側で先に足してから、矢書で有効にする（矢書が先に求めると、つなぐ画面がエラーになる）。審査の前は、開発モードの Tester（オーナー）だけで動く。
+
+| # | 誰が | やること |
+|---|---|---|
+| 14-1 | オーナー | Threads: Meta の Yabumi Dev → Use cases → Access the Threads API → Permissions で **threads_manage_insights** を足す |
+| 14-2 | オーナー | Instagram（つないでいれば）: Instagram・Facebook 用のアプリ → Instagram のユースケース → Permissions で **instagram_business_manage_insights** を足す。Facebook ページ: Facebook Login for Business → Configurations → 矢書の設定 → 権限に **read_insights** を足す |
+| 14-3 | オーナー | Vercel → Settings → Environment Variables に `SNS_INSIGHTS`（値は 14-1・14-2 で足したものをカンマ区切りで。例 `threads,instagram,facebook`）を足して Redeploy |
+| 14-4 | オーナー | 矢書の概要の「つないだ SNS」で、それぞれ**つなぎ直す**（数字の権限が増えた認可画面が出る）。指標の画面の「● 要確認 … つなぎ直しが要ります」が消える |
+| 14-5 | 確認 | 送った投稿があれば、翌日 5:00〜5:50 の取り込みのあと、指標の画面に「投稿の閲覧数」「フォロワーの増え方」「よく見られた投稿」が出る。Claude は `select status_code from net._http_response order by id desc limit 3;` と、`select count(*) from post_metrics;` で取り込みを確かめる |
+
+- 権限を外すときは、先に SNS_INSIGHTS から外して Redeploy し、そのあと Meta のアプリから外す（逆にすると、つなぐ画面がエラーになる）
+- 他の人に使ってもらうには、その権限の App Review が要る（docs/review/meta.md）

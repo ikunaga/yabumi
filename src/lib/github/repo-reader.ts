@@ -38,16 +38,14 @@ export function isSecretPath(path: string): boolean {
 const NON_TEXT = /\.(png|jpe?g|gif|webp|avif|ico|icns|bmp|tiff?|psd|ai|sketch|fig|ttf|otf|woff2?|eot|mp3|mp4|mov|wav|m4a|aac|ogg|webm|zip|gz|tgz|bz2|xz|7z|rar|jar|aar|apk|aab|ipa|dmg|exe|dll|so|dylib|a|o|class|pdf|car|xcassets|db|sqlite|realm)$/i;
 const LOCKFILES = /(^|\/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock|bun\.lockb|Podfile\.lock|Gemfile\.lock|Cargo\.lock|pubspec\.lock|composer\.lock|poetry\.lock)$/i;
 
-// 読んでよいファイル（秘密・依存物・文字でないもの・大きすぎるものを除く）。AI に見せる一覧も、AI が選んだものも、必ずこれを通す
+// パスだけで決まる「読んでよいか」（秘密・依存物・文字でないもの・ロックファイルを除く）。コミットの差分を読むときもこれを通す
+export function isReadableFilePath(path: string): boolean {
+  return !IGNORED_DIRS.test(path) && !isSecretPath(path) && !NON_TEXT.test(path) && !LOCKFILES.test(path);
+}
+
+// 読んでよいファイル（上に加えて、大きすぎるものを除く）。AI に見せる一覧も、AI が選んだものも、必ずこれを通す
 export function isReadablePath(e: TreeEntry): boolean {
-  return (
-    e.type === "blob" &&
-    !IGNORED_DIRS.test(e.path) &&
-    !isSecretPath(e.path) &&
-    !NON_TEXT.test(e.path) &&
-    !LOCKFILES.test(e.path) &&
-    (e.size ?? 0) <= MAX_FILE_BYTES
-  );
+  return e.type === "blob" && isReadableFilePath(e.path) && (e.size ?? 0) <= MAX_FILE_BYTES;
 }
 
 // ①で AI に見せるファイル一覧。浅いものから並べ、上限で切る

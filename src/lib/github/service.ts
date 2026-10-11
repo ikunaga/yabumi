@@ -1,6 +1,7 @@
 import "server-only";
 import { createAppJwt } from "./app-auth";
-import { createInstallationToken, getFileText, getTree, listInstallationRepos, type Repo } from "./api";
+import { createInstallationToken, getCommit, getFileText, getTree, listCommits, listInstallationRepos, type Repo } from "./api";
+import { readRecentCommits } from "./commit-reader";
 import type { GitHubAppConfig } from "./config";
 import { readSelectedFiles } from "./repo-reader";
 
@@ -27,4 +28,16 @@ export function repoAccess(cfg: GitHubAppConfig) {
       return readSelectedFiles(paths, (path) => getFileText(token, link.fullName, path, link.defaultBranch));
     },
   };
+}
+
+// 投稿のネタ用に、最近のコミットを読む。トークンはこのリポジトリだけに絞り、読むたびに発行する
+export async function readCommitsForIdeas(cfg: GitHubAppConfig, link: Link, since: Date) {
+  const token = await installationToken(cfg, link.installationId, [link.repoId]);
+  return readRecentCommits(
+    {
+      list: (s) => listCommits(token, link.fullName, link.defaultBranch, s),
+      get: (sha) => getCommit(token, link.fullName, sha),
+    },
+    since,
+  );
 }

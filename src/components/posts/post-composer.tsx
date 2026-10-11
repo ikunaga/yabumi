@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { ErrorBanner, SuccessBanner } from "@/components/ui/feedback";
@@ -159,9 +160,9 @@ export function PostComposer({
             <h1 id="draft-heading" className="font-heading text-2xl font-bold">
               下書き
             </h1>
-            <span className="text-sm font-semibold text-primary opacity-55" title="フェーズ 2 で使えるようになります">
-              AI に案を出してもらう（準備中）
-            </span>
+            <Link href={`/projects/${projectId}/ideas`} className="text-sm font-semibold text-primary hover:underline">
+              最近の開発からネタを出す
+            </Link>
           </div>
 
           {notice && (noticeTone === "error" ? <ErrorBanner>{notice}</ErrorBanner> : <SuccessBanner>{notice}</SuccessBanner>)}

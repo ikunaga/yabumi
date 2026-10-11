@@ -19,6 +19,7 @@ export async function generateMetadata(props: PageProps<"/projects/[id]/posts/[p
 
 const NOTICES: Record<string, { text: string; tone: "success" | "error" }> = {
   saved: { text: "下書きを保存しました。", tone: "success" },
+  idea: { text: "ネタから下書きをつくりました。文面を確かめて直してから、予約か送信をしてください。", tone: "success" },
   sent: { text: "送信しました。", tone: "success" },
   sending: { text: "送信を始めました。少しして読み込み直すと結果が出ます。", tone: "success" },
   send_failed: { text: "送れなかった SNS があります。右の「送信の結果」で理由を確かめてください。", tone: "error" },

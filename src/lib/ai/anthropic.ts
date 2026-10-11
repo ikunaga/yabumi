@@ -5,6 +5,7 @@ import type { z } from "zod";
 import { appDescriptionSchema, filePickSchema, type CallDescriber, type CallPicker } from "./app-description";
 import { envReady } from "@/lib/env-check";
 import { coachTurnSchema } from "./plan-coach-schema";
+import { postIdeasSchema, type CallIdeas } from "./post-ideas";
 import { PLAN_COACH_MODEL, type CallModel } from "./plan-coach";
 
 // Claude API のキー（ANTHROPIC_API_KEY）があるときだけ AI を使える。ないときは画面で「準備中」と出す
@@ -46,8 +47,8 @@ export const callPlanCoach: CallModel = async ({ system, messages }) => {
   };
 };
 
-// アプリの紹介文の下書き（① 読むファイルを選ぶ、② ③ 紹介文を書く）。要約に近い作業なので effort は low にして費用を抑える
-function structuredCaller<T extends z.ZodType>(schema: T, maxTokens: number): CallDescriber {
+// 構造化出力で 1 回呼ぶ。effort は用途ごとに決める
+function structuredCaller<T extends z.ZodType>(schema: T, maxTokens: number, effort: "low" | "medium" = "low"): CallDescriber {
   return async ({ system, messages }) => {
     const res = await anthropic().beta.messages.parse({
       model: PLAN_COACH_MODEL,
@@ -55,7 +56,7 @@ function structuredCaller<T extends z.ZodType>(schema: T, maxTokens: number): Ca
       betas: ["server-side-fallback-2026-07-01"],
       fallbacks: "default",
       thinking: { type: "adaptive" },
-      output_config: { effort: "low", format: betaZodOutputFormat(schema) },
+      output_config: { effort, format: betaZodOutputFormat(schema) },
       system,
       messages,
     });
@@ -74,5 +75,8 @@ function structuredCaller<T extends z.ZodType>(schema: T, maxTokens: number): Ca
   };
 }
 
+// アプリの紹介文の下書き（① 読むファイルを選ぶ、② ③ 紹介文を書く）。要約に近い作業なので effort は low にして費用を抑える
 export const callFilePicker: CallPicker = structuredCaller(filePickSchema, 2000);
 export const callAppDescriber: CallDescriber = structuredCaller(appDescriptionSchema, 4000);
+// 投稿のネタ（docs/architecture.md の 4.15）。口調に合わせて書き分け、苦労話を作らないなどの判断が要るので effort は medium
+export const callPostIdeas: CallIdeas = structuredCaller(postIdeasSchema, 16000, "medium");

@@ -22,6 +22,7 @@ export function activeNavKey(segment: string | null): ProjectNavKey {
   switch (segment) {
     case "compose":
     case "posts":
+    case "ideas":
       return "compose";
     case "calendar":
       return "calendar";

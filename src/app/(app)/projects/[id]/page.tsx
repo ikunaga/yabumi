@@ -84,9 +84,14 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
           <CardHeader
             title="これからの投稿"
             action={
-              <Link href={`/projects/${project.id}/calendar`} className="hover:underline">
-                すべて見る
-              </Link>
+              <span className="flex gap-4">
+                <Link href={`/projects/${project.id}/ideas`} className="hover:underline">
+                  開発からネタを出す
+                </Link>
+                <Link href={`/projects/${project.id}/calendar`} className="hover:underline">
+                  すべて見る
+                </Link>
+              </span>
             }
           />
           {upcoming.length === 0 ? (
@@ -97,6 +102,11 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
                   <Link href={`/projects/${project.id}/compose`} className="font-semibold text-primary hover:underline">
                     投稿をつくる
                   </Link>
+                  か、
+                  <Link href={`/projects/${project.id}/ideas`} className="font-semibold text-primary hover:underline">
+                    最近の開発からネタを出す
+                  </Link>
+                  ところから始めましょう。
                 </>
               }
               className="px-5 py-8 max-sm:px-4 max-sm:py-5"

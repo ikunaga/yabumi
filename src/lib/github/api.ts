@@ -93,3 +93,24 @@ export async function getFileText(token: string, fullName: string, path: string,
   const p = path.split("/").map(encodeURIComponent).join("/");
   return gh<string>(token, `/repos/${fullName}/contents/${p}?ref=${encodeURIComponent(ref)}`, { accept: "application/vnd.github.raw" });
 }
+
+export type CommitSummary = {
+  sha: string;
+  commit: { message: string; author: { date: string } | null; committer: { date: string } | null };
+  author: { login: string; type?: string } | null;
+  parents: { sha: string }[];
+};
+
+// 既定のブランチの、since 以降のコミット（新しい順）。Contents: Read で読める（docs/architecture.md の 4.10）
+export async function listCommits(token: string, fullName: string, branch: string, since: Date, perPage = 100): Promise<CommitSummary[]> {
+  const q = new URLSearchParams({ sha: branch, since: since.toISOString(), per_page: String(perPage) });
+  return gh<CommitSummary[]>(token, `/repos/${fullName}/commits?${q}`);
+}
+
+export type CommitFile = { filename: string; status: string; additions: number; deletions: number; patch?: string };
+export type CommitDetail = CommitSummary & { files?: CommitFile[] };
+
+// 1 つのコミットの、変わったファイルと差分（patch）
+export async function getCommit(token: string, fullName: string, sha: string): Promise<CommitDetail> {
+  return gh<CommitDetail>(token, `/repos/${fullName}/commits/${encodeURIComponent(sha)}`);
+}

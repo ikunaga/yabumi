@@ -72,6 +72,11 @@
 - 短縮リンク: 短縮リンクそのものの保存期間（止めるか退会まで）と止め方
 - 確かめた URL（2026-10-11、開けることを確認）: Instagram 利用規約 https://help.instagram.com/581066165581870、Instagram のプライバシーポリシー https://privacycenter.instagram.com/policy、Meta 利用規約 https://www.facebook.com/terms、Meta のプライバシーポリシー https://www.facebook.com/privacy/policy、Facebook ページのポリシー https://www.facebook.com/policies_center/pages_groups_events
 
+### 画像をつくる（2026-10-12、architecture.md の 4.25、D25）
+
+- /privacy の Anthropic の行に、使い道「画像の文字の案」と、送るもの「画像の文字の案を作るときの投稿の本文とアカウント設計」を足した。スクリーンショットは AI に送らないこと、案は保存しないことも書いた。新しい送り先はない（画像は利用者のブラウザで描き、投稿に添えた画像として 4.18 の扱いになる）
+- AI の利用量は ai_usage に purpose `image_brief` で記録する。中身を含まない記録なので、4.14 の「AI の利用量」の行（13 か月）のまま
+
 ## 中身を変えるとき
 
 - 新しい外部サービスや SNS を使い始める前に、/privacy の第 3 条（送り先）と第 5 条（保存期間）を書き足す

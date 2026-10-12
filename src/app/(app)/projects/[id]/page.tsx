@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { AttentionCard } from "@/components/posts/attention-card";
 import { ManualDueCard } from "@/components/posts/manual-due-card";
@@ -23,6 +24,7 @@ import { itemProgress } from "@/lib/roadmap/schema";
 import { ThisWeekCard } from "@/components/roadmap/this-week-card";
 import { getProject } from "@/lib/projects/queries";
 import { listProjectSnsAccounts } from "@/lib/sns/queries";
+import { readReplacedCookie, SNS_REPLACED_COOKIE } from "@/lib/sns/link";
 import { threadsConfigured } from "@/lib/sns/threads/config";
 import { xConfigured } from "@/lib/sns/x/config";
 import { instagramConfigured } from "@/lib/sns/instagram/config";
@@ -66,6 +68,10 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
   const planDone = Boolean(plan && (plan.done || plan.skipped));
   const connectedSnsCount = new Set(snsAccounts.filter((a) => a.status === "active").map((a) => a.sns)).size;
   const hasRoadmap = Boolean(roadmap.roadmap?.kgi) || roadmap.items.length > 0;
+  // 同じ SNS の別のアカウントから付け替えたとき（つないだ直後だけ）。新しいアカウントの名前は今つながっているものから
+  const replacedNames = typeof connected === "string" ? readReplacedCookie((await cookies()).get(SNS_REPLACED_COOKIE)?.value) : [];
+  const connectedAccount = snsAccounts.find((a) => a.sns === connected && a.status === "active");
+  const connectedName = connectedAccount ? (connectedAccount.handle ? `@${connectedAccount.handle}` : connectedAccount.displayName) : null;
   const stepIndex = currentStepIndex({ planDone, connectedSnsCount, hasPublished: (publishedCount ?? 0) > 0, hasRoadmap });
 
   return (
@@ -81,7 +87,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
       </div>
       <h1 className="sr-only sm:hidden">{project.name}</h1>
 
-      <SnsResultBanner connected={connected} error={sns_error} sns={sns} />
+      <SnsResultBanner connected={connected} error={sns_error} sns={sns} replaced={replacedNames} connectedName={connectedName} />
       {done === "description" && <SuccessBanner>アプリの紹介文（どんなアプリか）を保存しました。アカウント設計の AI にも伝わります。</SuccessBanner>}
 
       {showGithubPrompt && <GithubPrompt projectId={project.id} configured={githubConfigured()} />}

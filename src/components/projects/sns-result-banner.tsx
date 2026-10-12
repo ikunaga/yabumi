@@ -36,8 +36,31 @@ const STATE_ERROR = "つなぐときの確認に失敗しました。時間を�
 const CONNECTED: Record<string, string> = { threads: "Threads", x: "X", instagram: "Instagram", facebook: "Facebook ページ" };
 
 // SNS をつないだ結果（OAuth の受け口から ?connected= / ?sns_error= 付きで戻る）
-export function SnsResultBanner({ connected, error, sns }: { connected?: string | string[]; error?: string | string[]; sns?: string | string[] }) {
-  if (typeof connected === "string" && CONNECTED[connected]) return <SuccessBanner>{CONNECTED[connected]} をつなぎました。</SuccessBanner>;
+// replaced: 同じ SNS の別のアカウントから付け替えたときの、外した古いアカウント（1 つのプロジェクトに SNS ごとに 1 つ。docs/architecture.md の 4.6）
+export function SnsResultBanner({
+  connected,
+  error,
+  sns,
+  replaced = [],
+  connectedName = null,
+}: {
+  connected?: string | string[];
+  error?: string | string[];
+  sns?: string | string[];
+  replaced?: string[];
+  connectedName?: string | null;
+}) {
+  if (typeof connected === "string" && CONNECTED[connected]) {
+    const label = CONNECTED[connected];
+    if (replaced.length) {
+      return (
+        <SuccessBanner>
+          {label} の {replaced.join("・")} をこのプロジェクトから外し、{connectedName ?? "新しいアカウント"} をつなぎました。予約中の投稿は {connectedName ?? "新しいアカウント"} から送ります。
+        </SuccessBanner>
+      );
+    }
+    return <SuccessBanner>{label} をつなぎました。</SuccessBanner>;
+  }
   if (typeof error !== "string") return null;
   if (error === "state") return <ErrorBanner>{STATE_ERROR}</ErrorBanner>;
   const key: BannerSns = sns === "x" || sns === "instagram" || sns === "facebook" ? sns : "threads";

@@ -37,6 +37,8 @@ export default async function ConnectThreadsPage(props: PageProps<"/projects/[id
 
         <ul className="list-disc pl-5 text-muted">
           <li>Threads のプロフィールがまだないときは、先に Threads のアプリでプロフィールを作ってください</li>
+          <li>ブラウザで今 Threads（Instagram）にログインしているアカウントでつながります。別のアカウントにするときは、先に threads.com で切り替えてください</li>
+          <li>このプロジェクトでつなげる Threads のアカウントは 1 つです。別のアカウントでつなぎ直すと、前のアカウントは外れ、予約中の投稿は新しいアカウントから送ります</li>
           <li>
             矢書から外したあと、Threads の側の許可も消すときは、Threads のアプリの「設定 → アカウント → ウェブサイトのアクセス許可」から矢書を削除します
           </li>

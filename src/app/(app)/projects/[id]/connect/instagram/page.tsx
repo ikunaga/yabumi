@@ -30,6 +30,8 @@ export default async function ConnectInstagramPage(props: PageProps<"/projects/[
         </ol>
         <ul className="list-disc pl-5 text-muted">
           <li>Facebook ページは要りません</li>
+          <li>ブラウザで今 Instagram にログインしているアカウントでつながります。別のアカウントにするときは、先に instagram.com で切り替えてください</li>
+          <li>このプロジェクトでつなげる Instagram のアカウントは 1 つです。別のアカウントでつなぎ直すと、前のアカウントは外れ、予約中の投稿は新しいアカウントから送ります</li>
           <li>Instagram には画像が必要です。矢書で投稿をつくるときに、画像を 1 枚以上添えてください（縦横比は 4:5〜1.91:1）</li>
           <li>矢書から送った投稿は、矢書からは取り消せません。消すときは Instagram のアプリから消します</li>
         </ul>

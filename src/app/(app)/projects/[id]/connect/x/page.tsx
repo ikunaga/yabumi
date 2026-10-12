@@ -53,6 +53,8 @@ export default async function ConnectXPage(props: PageProps<"/projects/[id]/conn
 
         <ul className="list-disc pl-5 text-muted">
           <li>同じ文面や、ほとんど同じ文面を、複数の X のアカウントに投稿しないでください（X の自動化のルールで禁じられています）</li>
+          <li>ブラウザで今 X にログインしているアカウントでつながります。別のアカウントにするときは、先に x.com で切り替えてください</li>
+          <li>このプロジェクトでつなげる X のアカウントは 1 つです。別のアカウントでつなぎ直すと、前のアカウントは外れ、予約中の投稿は新しいアカウントから送ります</li>
           <li>矢書から X を外すと、X の側の許可も取り消します</li>
         </ul>
 

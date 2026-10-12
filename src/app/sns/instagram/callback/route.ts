@@ -1,4 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { revokeDeps } from "@/lib/sns/adapters";
+import { linkAccountToProject, replacedCookie, type ReplacedAccount } from "@/lib/sns/link";
 import { saveConnectedAccount } from "@/lib/sns/accounts";
 import { exchangeCode, exchangeForLongLived, fetchProfile, INSTAGRAM_SCOPES, PROFESSIONAL_ACCOUNT_TYPES } from "@/lib/sns/instagram/api";
 import { withInsightsScope } from "@/lib/sns/insights/scopes";
@@ -36,6 +38,7 @@ export async function GET(request: NextRequest) {
     return finish(back);
   }
 
+  let replaced: ReplacedAccount[] = [];
   try {
     const config = instagramConfig();
     const short = await exchangeCode(config, code);
@@ -47,7 +50,8 @@ export async function GET(request: NextRequest) {
       return finish(back);
     }
 
-    const accountId = await saveConnectedAccount(createAdminClient(), {
+    const admin = createAdminClient();
+    const accountId = await saveConnectedAccount(admin, {
       ownerId: userId,
       sns: "instagram",
       externalId: profile.id || short.userId,
@@ -57,11 +61,8 @@ export async function GET(request: NextRequest) {
       expiresAt: long.expiresAt,
       scopes: withInsightsScope("instagram", INSTAGRAM_SCOPES),
     });
-    // プロジェクトとの紐づけは利用者の権限で行う（RLS で自分のものどうしだけ）
-    const { error } = await supabase
-      .from("project_social_accounts")
-      .upsert({ project_id: saved.projectId, social_account_id: accountId }, { ignoreDuplicates: true });
-    if (error) throw error;
+    // プロジェクトに付ける。別の Instagram アカウントがつながっていたら付け替える（1 つのプロジェクトに SNS ごとに 1 つ）
+    replaced = await linkAccountToProject(admin, { ownerId: userId, projectId: saved.projectId, accountId }, revokeDeps());
   } catch (e) {
     console.error("[instagram] 接続に失敗しました", e instanceof Error ? e.message : e);
     back.searchParams.set("sns_error", "failed");
@@ -70,5 +71,8 @@ export async function GET(request: NextRequest) {
 
   back.searchParams.delete("sns");
   back.searchParams.set("connected", "instagram");
-  return finish(back);
+  const response = finish(back);
+  // 同じ SNS の別のアカウントから付け替えたときは、戻った先で「@古い を外し、@新しい をつなぎました」と出す
+  if (replaced.length) response.cookies.set(replacedCookie(saved.projectId, replaced));
+  return response;
 }

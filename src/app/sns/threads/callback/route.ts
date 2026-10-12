@@ -1,4 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { revokeDeps } from "@/lib/sns/adapters";
+import { linkAccountToProject, replacedCookie, type ReplacedAccount } from "@/lib/sns/link";
 import { saveConnectedAccount } from "@/lib/sns/accounts";
 import { verifyOAuthState } from "@/lib/sns/oauth-state";
 import { exchangeCode, exchangeForLongLived, fetchProfile, THREADS_SCOPES } from "@/lib/sns/threads/api";
@@ -38,13 +40,15 @@ export async function GET(request: NextRequest) {
     return finish(back);
   }
 
+  let replaced: ReplacedAccount[] = [];
   try {
     const config = threadsConfig();
     const short = await exchangeCode(config, code);
     const long = await exchangeForLongLived(config, short.accessToken);
     const profile = await fetchProfile(long.accessToken);
 
-    const accountId = await saveConnectedAccount(createAdminClient(), {
+    const admin = createAdminClient();
+    const accountId = await saveConnectedAccount(admin, {
       ownerId: userId,
       sns: "threads",
       externalId: profile.id || short.userId,
@@ -55,11 +59,8 @@ export async function GET(request: NextRequest) {
       scopes: withInsightsScope("threads", THREADS_SCOPES),
     });
 
-    // プロジェクトとの紐づけは利用者の権限で行う（RLS で自分のものどうしだけ）。つなぎ直しのときは既にある
-    const { error } = await supabase
-      .from("project_social_accounts")
-      .upsert({ project_id: saved.projectId, social_account_id: accountId }, { ignoreDuplicates: true });
-    if (error) throw error;
+    // プロジェクトに付ける。別の Threads アカウントがつながっていたら付け替える（1 つのプロジェクトに SNS ごとに 1 つ）
+    replaced = await linkAccountToProject(admin, { ownerId: userId, projectId: saved.projectId, accountId }, revokeDeps());
   } catch (e) {
     console.error("[threads] 接続に失敗しました", e instanceof Error ? e.message : e);
     back.searchParams.set("sns_error", "failed");
@@ -67,5 +68,8 @@ export async function GET(request: NextRequest) {
   }
 
   back.searchParams.set("connected", "threads");
-  return finish(back);
+  const response = finish(back);
+  // 同じ SNS の別のアカウントから付け替えたときは、戻った先で「@古い を外し、@新しい をつなぎました」と出す
+  if (replaced.length) response.cookies.set(replacedCookie(saved.projectId, replaced));
+  return response;
 }

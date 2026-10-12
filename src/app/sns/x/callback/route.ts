@@ -1,4 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { revokeDeps } from "@/lib/sns/adapters";
+import { linkAccountToProject, replacedCookie, type ReplacedAccount } from "@/lib/sns/link";
 import { saveConnectedAccount } from "@/lib/sns/accounts";
 import { verifyOAuthState } from "@/lib/sns/oauth-state";
 import { exchangeCode, fetchMe } from "@/lib/sns/x/api";
@@ -38,6 +40,7 @@ export async function GET(request: NextRequest) {
     return finish(back);
   }
 
+  let replaced: ReplacedAccount[] = [];
   try {
     const tokens = await exchangeCode(xConfig(), code, saved.codeVerifier);
     if (!tokens.scopes.includes("tweet.write")) throw new Error("tweet.write の権限がありません");
@@ -67,10 +70,8 @@ export async function GET(request: NextRequest) {
     });
     if (usageError) console.error("[x] 費用の記録に失敗しました", usageError.message);
 
-    const { error } = await supabase
-      .from("project_social_accounts")
-      .upsert({ project_id: saved.projectId, social_account_id: accountId }, { ignoreDuplicates: true });
-    if (error) throw error;
+    // プロジェクトに付ける。別の X アカウントがつながっていたら付け替える（1 つのプロジェクトに SNS ごとに 1 つ）
+    replaced = await linkAccountToProject(admin, { ownerId: userId, projectId: saved.projectId, accountId }, revokeDeps());
   } catch (e) {
     console.error("[x] 接続に失敗しました", e instanceof Error ? e.message : e);
     back.searchParams.set("sns", "x");
@@ -79,5 +80,8 @@ export async function GET(request: NextRequest) {
   }
 
   back.searchParams.set("connected", "x");
-  return finish(back);
+  const response = finish(back);
+  // 同じ SNS の別のアカウントから付け替えたときは、戻った先で「@古い を外し、@新しい をつなぎました」と出す
+  if (replaced.length) response.cookies.set(replacedCookie(saved.projectId, replaced));
+  return response;
 }

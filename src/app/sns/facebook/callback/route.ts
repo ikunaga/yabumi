@@ -1,4 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { revokeDeps } from "@/lib/sns/adapters";
+import { linkAccountToProject, replacedCookie, type ReplacedAccount } from "@/lib/sns/link";
 import { exchangeCode, exchangeForLongLived, fetchUserId, listPages } from "@/lib/sns/facebook/api";
 import { FACEBOOK_PATHS, FACEBOOK_STATE_COOKIE, facebookConfig } from "@/lib/sns/facebook/config";
 import { choosePages, savePageChoice } from "@/lib/sns/facebook/pages";
@@ -36,6 +38,7 @@ export async function GET(request: NextRequest) {
     return finish(back);
   }
 
+  let replaced: ReplacedAccount[] = [];
   try {
     const config = facebookConfig();
     const userToken = await exchangeForLongLived(config, await exchangeCode(config, code));
@@ -54,14 +57,9 @@ export async function GET(request: NextRequest) {
     }
 
     const result = await choosePages(admin, { choiceId, ownerId: userId, pageIds: [postable[0].id] });
-    if (!result) throw new Error("ページを選べませんでした");
-    const { error } = await supabase
-      .from("project_social_accounts")
-      .upsert(
-        result.accountIds.map((id) => ({ project_id: saved.projectId, social_account_id: id })),
-        { ignoreDuplicates: true },
-      );
-    if (error) throw error;
+    if (!result?.accountIds[0]) throw new Error("ページを選べませんでした");
+    // プロジェクトに付ける。別のページがつながっていたら付け替える（1 つのプロジェクトに SNS ごとに 1 つ）
+    replaced = await linkAccountToProject(admin, { ownerId: userId, projectId: saved.projectId, accountId: result.accountIds[0] }, revokeDeps());
   } catch (e) {
     console.error("[facebook] 接続に失敗しました", e instanceof Error ? e.message : e);
     back.searchParams.set("sns_error", "failed");
@@ -70,5 +68,8 @@ export async function GET(request: NextRequest) {
 
   back.searchParams.delete("sns");
   back.searchParams.set("connected", "facebook");
-  return finish(back);
+  const response = finish(back);
+  // 同じ SNS の別のアカウントから付け替えたときは、戻った先で「@古い を外し、@新しい をつなぎました」と出す
+  if (replaced.length) response.cookies.set(replacedCookie(saved.projectId, replaced));
+  return response;
 }

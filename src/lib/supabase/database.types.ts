@@ -1541,6 +1541,16 @@ export type Database = {
           revenue_week_ago: number
         }[]
       }
+      switch_project_sns_account: {
+        Args: { p_account_id: string; p_owner_id: string; p_project_id: string }
+        Returns: {
+          moved_targets: number
+          old_account_id: string
+          old_display_name: string
+          old_handle: string
+          still_used: boolean
+        }[]
+      }
       top_posts_by_clicks: {
         Args: {
           p_days?: number

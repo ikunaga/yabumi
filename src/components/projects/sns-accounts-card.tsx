@@ -60,8 +60,8 @@ export function SnsAccountsCard({
           return (
             <li
               key={sns}
-              // スマホでは、状態の文を 2 行目に回して切らずに出す
-              className="flex items-center gap-3 border-b border-line px-5 py-3 text-[14px] last:border-b-0 max-sm:flex-wrap max-sm:gap-y-1.5 max-sm:px-4"
+              // スマホでは、状態の文を 2 行目に回して切らずに出す。「外す」の確かめの文は、どの幅でも行の下に回す（flex-wrap）
+              className="flex flex-wrap items-center gap-3 gap-y-1.5 border-b border-line px-5 py-3 text-[14px] last:border-b-0 max-sm:px-4"
             >
               <span className="w-24 shrink-0 max-sm:mr-auto max-sm:w-auto">
                 <SnsTag sns={sns} />

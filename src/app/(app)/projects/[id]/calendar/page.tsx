@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { MonthGrid } from "@/components/calendar/month-grid";
 import { MonthMobile } from "@/components/calendar/month-mobile";
@@ -11,6 +12,7 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { SuccessBanner } from "@/components/ui/feedback";
 import { StatusMark } from "@/components/ui/marks";
 import { countPostsByDay, listPostsBetween, listUndatedDrafts, postTitle, type PostRow } from "@/lib/posts/queries";
+import { CALENDAR_VIEW_COOKIE, resolveCalendarView } from "@/lib/calendar-view";
 import { getProject } from "@/lib/projects/queries";
 import { addDays, addMonths, dayOfMonth, formatTime, isYm, isYmd, monthGrid, monthOf, startOfYmd, toYmd, weekOf, weekdayLabel, ymOf } from "@/lib/time";
 
@@ -35,11 +37,11 @@ export default async function CalendarPage(props: PageProps<"/projects/[id]/cale
   const today = toYmd(new Date());
   const base = `/projects/${project.id}`;
   const done = typeof searchParams.done === "string" ? DONE[searchParams.done] : undefined;
-  // 表示は URL に持つ（?view=week&week=YYYY-MM-DD / ?view=month&month=YYYY-MM）。どれもなければ週（最後に選んだ表示は、切り替えの部品が合わせる）
-  const explicit = ["view", "week", "month"].some((k) => searchParams[k] !== undefined);
-  if (searchParams.view === "month") {
+  // 表示は URL に持つ（?view=week&week=YYYY-MM-DD / ?view=month&month=YYYY-MM）。指定がなければ、最後に選んだ表示（cookie）、それもなければ週
+  const view = resolveCalendarView(searchParams, (await cookies()).get(CALENDAR_VIEW_COOKIE)?.value);
+  if (view === "month") {
     const ym = isYm(searchParams.month) ? searchParams.month : ymOf(today);
-    return <MonthView projectId={project.id} base={base} ym={ym} today={today} done={done} explicit={explicit} />;
+    return <MonthView projectId={project.id} base={base} ym={ym} today={today} done={done} />;
   }
 
   const days = weekOf(isYmd(searchParams.week) ? searchParams.week : today);
@@ -58,7 +60,7 @@ export default async function CalendarPage(props: PageProps<"/projects/[id]/cale
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <h1 className="font-heading text-2xl font-bold">カレンダー</h1>
-        <CalendarViewSwitch current="week" weekHref={`${base}/calendar?view=week&week=${days[0]}`} monthHref={monthHref} explicit={explicit} />
+        <CalendarViewSwitch current="week" weekHref={`${base}/calendar?view=week&week=${days[0]}`} monthHref={monthHref} />
         <span className="text-base text-muted">{rangeLabel(days)}</span>
         <nav aria-label="週の切り替え" className="flex items-center gap-1 text-sm">
           <Link href={`${base}/calendar?view=week&week=${addDays(days[0], -7)}`} className="rounded-md px-2 py-1 text-primary hover:bg-primary-soft">
@@ -192,7 +194,7 @@ function MobileComposeButton({ base }: { base: string }) {
 // 月の表示（F06）。6 週分の投稿を一度に読み、日ごとの数は DB で数える（読む行には上限があるので、行を数えない）
 const MONTH_POST_LIMIT = 500;
 
-async function MonthView({ projectId, base, ym, today, done, explicit }: { projectId: string; base: string; ym: string; today: string; done?: string; explicit: boolean }) {
+async function MonthView({ projectId, base, ym, today, done }: { projectId: string; base: string; ym: string; today: string; done?: string }) {
   const grid = monthGrid(ym);
   const [from, to] = [startOfYmd(grid[0]).toISOString(), startOfYmd(addDays(grid[41], 1)).toISOString()];
   const [posts, counts, undated] = await Promise.all([listPostsBetween(projectId, from, to, MONTH_POST_LIMIT), countPostsByDay(projectId, from, to), listUndatedDrafts(projectId)]);
@@ -223,7 +225,7 @@ async function MonthView({ projectId, base, ym, today, done, explicit }: { proje
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <h1 className="font-heading text-2xl font-bold">カレンダー</h1>
-        <CalendarViewSwitch current="month" weekHref={weekHref} monthHref={monthLink(ym)} explicit={explicit} />
+        <CalendarViewSwitch current="month" weekHref={weekHref} monthHref={monthLink(ym)} />
         <span className="text-base text-muted">
           {ym.slice(0, 4)} 年 {Number(ym.slice(5, 7))} 月
         </span>

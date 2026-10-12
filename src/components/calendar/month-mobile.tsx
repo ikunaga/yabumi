@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { StatusMark } from "@/components/ui/marks";
+import type { PostDisplayStatus } from "@/components/posts/post-chip";
 import { MARK, type MonthDay } from "./month-types";
 
 const WEEKDAYS = ["月", "火", "水", "木", "金", "土", "日"];
@@ -49,7 +50,7 @@ export function MonthMobile({ days, base, initial }: { days: MonthDay[]; base: s
                 </span>
                 <span className="flex h-2 items-center gap-0.5" aria-hidden>
                   {c.items.slice(0, MAX_DOTS).map((it) => (
-                    <span key={it.id} className={`size-1.5 rounded-full ${MARK[it.status].dot}`} />
+                    <Dot key={it.id} status={it.status} />
                   ))}
                   {c.count > MAX_DOTS && <span className="text-[10px] leading-none text-muted">+</span>}
                 </span>
@@ -62,7 +63,7 @@ export function MonthMobile({ days, base, initial }: { days: MonthDay[]; base: s
       <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted" aria-hidden>
         {(["scheduled", "posted", "draft", ...(days.some((c) => c.items.some((it) => it.status === "failed")) ? (["failed"] as const) : [])] as const).map((s) => (
           <span key={s} className="inline-flex items-center gap-1">
-            <span className={`size-1.5 rounded-full ${MARK[s].dot}`} />
+            <Dot status={s} />
             {MARK[s].label}
           </span>
         ))}
@@ -98,4 +99,10 @@ export function MonthMobile({ days, base, initial }: { days: MonthDay[]; base: s
       </section>
     </div>
   );
+}
+
+// 印の点。失敗は、ダークで予約の点と色が近いので、点ではなく「!」で出す
+function Dot({ status }: { status: PostDisplayStatus }) {
+  if (status === "failed") return <span className="text-[10px] leading-none font-bold text-danger">!</span>;
+  return <span className={`size-1.5 rounded-full ${MARK[status].dot}`} />;
 }

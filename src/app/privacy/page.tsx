@@ -88,7 +88,7 @@ export default function PrivacyPage() {
             ],
             [
               "技術的な情報",
-              "ログインの状態を保つ cookie、画面の配色の設定の cookie、SNS や GitHub と連携するときの一時的な cookie（10 分）、サーバーのログ（IP アドレス、日時、開いたページなど）",
+              "ログインの状態を保つ cookie、画面の配色とカレンダーの表示（週・月）の設定の cookie、SNS や GitHub と連携するときの一時的な cookie（10 分。SNS のアカウントを付け替えたときの知らせは 2 分）、サーバーのログ（IP アドレス、日時、開いたページなど）",
               "ブラウザとサーバー",
             ],
           ]}
@@ -339,7 +339,7 @@ export default function PrivacyPage() {
 
       <LegalSection id="cookie" n={next()} title="cookie">
         <p>
-          ログインの状態を保つため、画面の配色（ライト・ダーク）を覚えるため、SNS や GitHub との連携でなりすましを防ぐため（10 分で消える）に cookie を使います。広告や、利用者の行動を追う解析のための cookie は使いません。
+          ログインの状態を保つため、画面の配色（ライト・ダーク）とカレンダーの表示（週・月）を覚えるため、SNS や GitHub との連携でなりすましを防ぐため（10 分で消える）、SNS のアカウントを付け替えたことを戻った画面で知らせるため（2 分で消える）に cookie を使います。広告や、利用者の行動を追う解析のための cookie は使いません。
         </p>
       </LegalSection>
 

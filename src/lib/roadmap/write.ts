@@ -42,6 +42,7 @@ export async function addItems(db: Db, projectId: string, items: ItemInput[], so
       week_start: i.week_start,
       kpi: i.kpi,
       target: i.target,
+      sns: i.kpi === "posts" ? i.sns : null,
       position: base + n,
       source,
     })),

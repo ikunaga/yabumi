@@ -12,8 +12,8 @@ import { CONSULT_TOPIC_META } from "@/lib/ai/consult-topics";
 import { sectionLabel } from "@/lib/ai/plan-coach-prompt";
 import { KPIS } from "@/lib/metrics/kpis";
 import { describeSection } from "@/lib/plan/describe";
-import { formatValue } from "@/lib/roadmap/schema";
-import { SNS } from "@/lib/sns";
+import { formatValue, kpiLabel } from "@/lib/roadmap/schema";
+import { SNS, type SnsKey } from "@/lib/sns";
 
 type Input = { kind: "start"; topic: ConsultTopic } | { kind: "text"; text: string } | { kind: "adopt"; messageId: string; actionIndex: number };
 
@@ -386,7 +386,7 @@ function ActionBodyView({ body: a }: { body: ActionBody }) {
         <div className="flex flex-col gap-1">
           <p className="font-bold">{a.kgi.statement}</p>
           <p className="text-xs text-muted">
-            {KPIS[a.kgi.kpi].label}を {formatValue(a.kgi.kpi, a.kgi.target)}、期限 {a.kgi.deadline}
+            {kpiLabel(a.kgi.kpi, a.kgi.sns)}を {formatValue(a.kgi.kpi, a.kgi.target)}、期限 {a.kgi.deadline}
           </p>
           {a.kind === "goal" && a.kpiTargets.length > 0 && <KpiTargetList targets={a.kpiTargets} />}
         </div>
@@ -400,7 +400,7 @@ function ActionBodyView({ body: a }: { body: ActionBody }) {
             <li key={i}>
               <span className="mr-2 text-xs text-muted">{weekText(item.week)}</span>
               {item.title}
-              {item.kpi && item.target !== null && <span className="ml-2 text-xs text-muted">（{KPIS[item.kpi].label} {formatValue(item.kpi, item.target)}）</span>}
+              {item.kpi && item.target !== null && <span className="ml-2 text-xs text-muted">（{kpiLabel(item.kpi, item.sns)} {formatValue(item.kpi, item.target)}）</span>}
             </li>
           ))}
         </ul>
@@ -415,12 +415,12 @@ function ActionBodyView({ body: a }: { body: ActionBody }) {
   }
 }
 
-function KpiTargetList({ targets }: { targets: { kpi: keyof typeof KPIS; per_week: number }[] }) {
+function KpiTargetList({ targets }: { targets: { kpi: keyof typeof KPIS; per_week: number; sns?: SnsKey | null }[] }) {
   return (
     <ul className="text-xs">
       {targets.map((t) => (
-        <li key={t.kpi}>
-          ・{KPIS[t.kpi].label}: 1 週に {formatValue(t.kpi, t.per_week)}
+        <li key={`${t.kpi}:${t.sns ?? ""}`}>
+          ・{kpiLabel(t.kpi, t.sns)}: 1 週に {formatValue(t.kpi, t.per_week)}
         </li>
       ))}
     </ul>

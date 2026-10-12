@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { Card, CardHeader } from "@/components/ui/card";
-import { KPIS } from "@/lib/metrics/kpis";
 import type { RoadmapItem } from "@/lib/roadmap/load";
-import { formatValue } from "@/lib/roadmap/schema";
+import { formatValue, kpiLabel } from "@/lib/roadmap/schema";
 
 // 概要の「今週のやること」（「いまやること」の 4 段階が済んだあと。docs/architecture.md の 4.23）
 export function ThisWeekCard({
@@ -43,7 +42,7 @@ export function ThisWeekCard({
                 <b>{t.title}</b>
                 {t.kpi && p && (
                   <span className="text-xs text-muted">
-                    {KPIS[t.kpi].label} {formatValue(t.kpi, p.actual)} / {formatValue(t.kpi, p.target)}
+                    {kpiLabel(t.kpi, t.sns)} {formatValue(t.kpi, p.actual)} / {formatValue(t.kpi, p.target)}
                   </span>
                 )}
               </li>

@@ -2,9 +2,8 @@
 
 import { useActionState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { KPIS } from "@/lib/metrics/kpis";
 import { addItemForm, type RoadmapFormState } from "@/lib/roadmap/actions";
-import { AUTO_KPIS, MAX_ITEM_TITLE } from "@/lib/roadmap/schema";
+import { AUTO_KPIS, kpiChoices, MAX_ITEM_TITLE } from "@/lib/roadmap/schema";
 
 const input =
   "rounded-md border border-input bg-surface px-2.5 py-1.5 text-sm text-fg outline-none focus:border-primary focus:shadow-[0_0_0_1px_var(--primary)] max-sm:text-[16px]";
@@ -33,18 +32,18 @@ export function AddItemForm({ projectId, weeks }: { projectId: string; weeks: { 
             ))}
           </select>
         </label>
-        <label className="flex flex-col gap-1 text-xs text-muted">
+        <label className="flex min-w-0 flex-col gap-1 text-xs text-muted max-sm:w-full">
           数字と結びつける（任意）
-          <span className="flex items-center gap-1">
-            <select name="kpi" defaultValue="" className={input}>
+          <span className="flex min-w-0 items-center gap-1">
+            <select name="kpi" defaultValue="" className={`${input} min-w-0 max-sm:flex-1`}>
               <option value="">なし</option>
-              {AUTO_KPIS.map((k) => (
-                <option key={k} value={k}>
-                  {KPIS[k].label}
+              {kpiChoices(AUTO_KPIS).map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
                 </option>
               ))}
             </select>
-            <input name="target" inputMode="decimal" placeholder="目標" aria-label="目標の値" className={`${input} w-[72px]`} />
+            <input name="target" inputMode="decimal" placeholder="目標" aria-label="目標の値" className={`${input} w-[72px] shrink-0`} />
           </span>
         </label>
         <Button type="submit" size="sm" variant="secondary" disabled={pending}>

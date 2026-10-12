@@ -1157,6 +1157,7 @@ export type Database = {
           owner_id: string
           position: number
           project_id: string
+          sns: string | null
           source: string
           status: string
           target: number | null
@@ -1173,6 +1174,7 @@ export type Database = {
           owner_id?: string
           position?: number
           project_id: string
+          sns?: string | null
           source?: string
           status?: string
           target?: number | null
@@ -1189,6 +1191,7 @@ export type Database = {
           owner_id?: string
           position?: number
           project_id?: string
+          sns?: string | null
           source?: string
           status?: string
           target?: number | null
@@ -1586,6 +1589,16 @@ export type Database = {
           storage_path: string
         }[]
       }
+      counted_post_targets: {
+        Args: { p_from: string; p_project_id: string; p_to: string }
+        Returns: {
+          day: string
+          project_id: string
+          sns: string
+          state: string
+          target_id: string
+        }[]
+      }
       due_account_metric_accounts: {
         Args: {
           p_insights: Json
@@ -1658,6 +1671,16 @@ export type Database = {
       }
       media_usage_bytes: { Args: { p_owner_id: string }; Returns: number }
       my_x_metrics_spend_this_month: { Args: never; Returns: number }
+      post_counts_by_day: {
+        Args: { p_from: string; p_project_id: string; p_to: string }
+        Returns: {
+          day: string
+          project_id: string
+          published: number
+          scheduled: number
+          sns: string
+        }[]
+      }
       purge_expired_data: {
         Args: never
         Returns: {

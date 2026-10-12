@@ -2,10 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { KPIS } from "@/lib/metrics/kpis";
 import { deleteItem, setItemStatus } from "@/lib/roadmap/actions";
 import type { RoadmapItem } from "@/lib/roadmap/load";
-import { formatValue } from "@/lib/roadmap/schema";
+import { formatValue, kpiLabel } from "@/lib/roadmap/schema";
 
 // やること 1 つ。チェックで済みにする。数字と結びついていれば、数字から進み具合を出す（済みにするのは利用者）
 export function RoadmapItemRow({
@@ -49,7 +48,7 @@ export function RoadmapItemRow({
           {item.detail && <span className="text-xs leading-6 text-muted">{item.detail}</span>}
           {item.kpi && item.target !== null && (
             <span className="text-xs text-muted">
-              {KPIS[item.kpi].label}: {progress ? `${formatValue(item.kpi, progress.actual)} / ${formatValue(item.kpi, progress.target)}` : `目標 ${formatValue(item.kpi, item.target)}（${notCounted}）`}
+              {kpiLabel(item.kpi, item.sns)}: {progress ? `${formatValue(item.kpi, progress.actual)} / ${formatValue(item.kpi, progress.target)}` : `目標 ${formatValue(item.kpi, item.target)}（${notCounted}）`}
               {reached && item.status === "todo" && <span className="ml-2 font-bold text-success">目標に届きました。済みにしますか？</span>}
             </span>
           )}

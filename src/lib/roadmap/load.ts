@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isKpiKey, type KpiKey } from "@/lib/metrics/kpis";
+import { isSnsKey, type SnsKey } from "@/lib/sns";
 import type { Database } from "@/lib/supabase/database.types";
 import { addDays, toYmd } from "@/lib/time";
 import { kgiProgress, kgiSchema, kpiTargetsSchema, weekStartOf, type DailyTotal, type Kgi, type KgiProgress, type KpiTarget } from "./schema";
@@ -16,6 +17,8 @@ export type RoadmapItem = {
   weekStart: string;
   kpi: KpiKey | null;
   target: number | null;
+  // 数える SNS（投稿した回数のときだけ。null はすべての SNS）
+  sns: SnsKey | null;
   status: "todo" | "done" | "skipped";
   source: "ai" | "manual";
 };
@@ -47,7 +50,7 @@ function toRoadmap(row: { kgi: unknown; kpi_targets: unknown; started_on: string
   };
 }
 
-function toItem(r: { id: string; title: string; detail: string; week_start: string; kpi: string | null; target: number | null; status: string; source: string }): RoadmapItem {
+function toItem(r: { id: string; title: string; detail: string; week_start: string; kpi: string | null; target: number | null; sns: string | null; status: string; source: string }): RoadmapItem {
   return {
     id: r.id,
     title: r.title,
@@ -55,6 +58,7 @@ function toItem(r: { id: string; title: string; detail: string; week_start: stri
     weekStart: r.week_start,
     kpi: isKpiKey(r.kpi) ? r.kpi : null,
     target: r.target === null ? null : Number(r.target),
+    sns: isSnsKey(r.sns) ? r.sns : null,
     status: r.status === "done" || r.status === "skipped" ? r.status : "todo",
     source: r.source === "ai" ? "ai" : "manual",
   };
@@ -67,7 +71,7 @@ export async function loadRoadmapWith(supabase: Db, projectId: string, now = new
     supabase.from("roadmaps").select("kgi, kpi_targets, started_on, source").eq("project_id", projectId).maybeSingle(),
     supabase
       .from("roadmap_items")
-      .select("id, title, detail, week_start, kpi, target, status, source")
+      .select("id, title, detail, week_start, kpi, target, sns, status, source")
       .eq("project_id", projectId)
       .order("week_start")
       .order("position")
@@ -82,9 +86,20 @@ export async function loadRoadmapWith(supabase: Db, projectId: string, now = new
   // 数字は、数え始めの日（なければ 8 週前）から来週の終わりまで（やることの週の数字と、KGI の合計に使う）
   const from = [roadmap?.startedOn, items[0]?.weekStart, addDays(thisWeek, -56)].filter(Boolean).sort()[0] as string;
   const to = addDays(thisWeek, 13);
-  const { data: totals, error: e3 } = await supabase.rpc("roadmap_daily_totals", { p_project_id: projectId, p_from: from, p_to: to });
+  const [{ data: totals, error: e3 }, { data: bySns, error: e4 }] = await Promise.all([
+    supabase.rpc("roadmap_daily_totals", { p_project_id: projectId, p_from: from, p_to: to }),
+    supabase.rpc("post_counts_by_day", { p_project_id: projectId, p_from: from, p_to: to }),
+  ]);
   if (e3) throw e3;
-  const daily: DailyTotal[] = (totals ?? []).map((d) => ({ day: d.day, posts: Number(d.posts), link_clicks: Number(d.link_clicks) }));
+  if (e4) throw e4;
+  const snsByDay = new Map<string, Partial<Record<SnsKey, number>>>();
+  for (const r of bySns ?? []) {
+    if (!isSnsKey(r.sns) || !Number(r.published)) continue;
+    const m = snsByDay.get(r.day) ?? {};
+    m[r.sns] = (m[r.sns] ?? 0) + Number(r.published);
+    snsByDay.set(r.day, m);
+  }
+  const daily: DailyTotal[] = (totals ?? []).map((d) => ({ day: d.day, posts: Number(d.posts), link_clicks: Number(d.link_clicks), postsBySns: snsByDay.get(d.day) ?? {} }));
 
   return {
     today,

@@ -47,7 +47,8 @@ export type ActionBody =
   | { kind: "goal"; kgi: Kgi; kpiTargets: KpiTarget[] }
   | {
       kind: "roadmap_items";
-      items: { title: string; detail: string; week: number; kpi: KpiTarget["kpi"] | null; target: number | null }[];
+      // sns: 前の形で保存した提案にはない（すべての SNS として読む）
+      items: { title: string; detail: string; week: number; kpi: KpiTarget["kpi"] | null; target: number | null; sns?: SnsKey | null }[];
     }
   | { kind: "post_draft"; sns: SnsKey | null; text: string };
 export type ActionKind = ActionBody["kind"];

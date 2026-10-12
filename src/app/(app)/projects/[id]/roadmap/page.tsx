@@ -8,11 +8,11 @@ import { Card, CardHeader, EmptyState } from "@/components/ui/card";
 import { DismissableDetails } from "@/components/ui/dismissable-details";
 import { Term } from "@/components/ui/term";
 import { aiConfigured } from "@/lib/ai/anthropic";
-import { KPIS, recommendedKpis } from "@/lib/metrics/kpis";
+import { recommendedKpis } from "@/lib/metrics/kpis";
 import { getAccountPlan } from "@/lib/plan/queries";
 import { getProject } from "@/lib/projects/queries";
 import { loadRoadmap, type RoadmapItem } from "@/lib/roadmap/queries";
-import { formatValue, isAutoKpi, itemProgress, notCountedYet, weekValue } from "@/lib/roadmap/schema";
+import { formatValue, isAutoKpi, itemProgress, kpiLabel, notCountedYet, weekValue } from "@/lib/roadmap/schema";
 import { addDays, dayOfMonth, monthOf } from "@/lib/time";
 
 export const metadata: Metadata = { title: "ロードマップ" };
@@ -78,7 +78,7 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
             <>
               <p className="text-lg font-bold">{roadmap.kgi.statement}</p>
               <p className="text-muted">
-                {KPIS[roadmap.kgi.kpi].label}を {formatValue(roadmap.kgi.kpi, roadmap.kgi.target)}、期限 {roadmap.kgi.deadline}（数え始め {roadmap.startedOn}）
+                {kpiLabel(roadmap.kgi.kpi, roadmap.kgi.sns)}を {formatValue(roadmap.kgi.kpi, roadmap.kgi.target)}、期限 {roadmap.kgi.deadline}（数え始め {roadmap.startedOn}）
               </p>
               {kgi ? (
                 <div className="flex flex-col gap-1.5">
@@ -109,11 +109,11 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
         {roadmap?.kpiTargets.length ? (
           <ul>
             {roadmap.kpiTargets.map((t) => {
-              const now = weekValue(t.kpi, thisWeek, daily);
-              const last = weekValue(t.kpi, addDays(thisWeek, -7), daily);
+              const now = weekValue(t.kpi, thisWeek, daily, t.sns);
+              const last = weekValue(t.kpi, addDays(thisWeek, -7), daily, t.sns);
               return (
-                <li key={t.kpi} className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-line px-5 py-3 text-[14px] last:border-b-0 max-sm:px-4">
-                  <b className="w-40">{KPIS[t.kpi].label}</b>
+                <li key={`${t.kpi}:${t.sns ?? ""}`} className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-line px-5 py-3 text-[14px] last:border-b-0 max-sm:px-4">
+                  <b className="w-56 max-sm:w-auto">{kpiLabel(t.kpi, t.sns)}</b>
                   <span>1 週に {formatValue(t.kpi, t.per_week)}</span>
                   {isAutoKpi(t.kpi) && now !== null ? (
                     <span className="text-muted">

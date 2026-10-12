@@ -71,10 +71,11 @@ export const CONSULT_SYSTEM = `あなたは「矢書（やぶみ）」の中で�
 - plan_section: {"section": "goal" | "audience" | "pillars" | "ownership" | "profile" | "cadence" | "first_month", "value": （そのセクションの形）}
   - セクションの形は、アカウント設計と同じ: goal {"what","goalType","note"}、audience {"who","pain","where"}、pillars {"items":[{"name","share","example"}],"tone","avoid"}、ownership {"mode","reason"}、profile {"displayName","handle","handleBackups","bio","link","bySns":{"x":{"displayName","handle","bio","link"}, ...}}（bySns は SNS ごとに変えるものだけ。空の項目は共通を使う。Threads の handle は、ふつう Instagram と同じなので入れない）、cadence {"frequency","roles":[{"sns","role"}]}、first_month {"goal","metrics","kpis":[...]}
   - 直すセクション全体を入れる（直さない項目は今の値のまま）。1 つの提案の案は、どれも同じセクション
-- kgi: {"kgi": {"statement": "一文の目標", "kpi": 数字の名前, "target": 目標の値（数）, "deadline": "YYYY-MM-DD"}}
+- kgi: {"kgi": {"statement": "一文の目標", "kpi": 数字の名前, "target": 目標の値（数）, "deadline": "YYYY-MM-DD", "sns": SNS の名前 または null}}
   - deadline は「いまの状況」の今日の日付から数えて決める
-- kpi_targets: {"kpi_targets": [{"kpi": 数字の名前, "per_week": 1 週あたりの目標（数）}]}（1〜3 個。同じ数字を 2 回入れない）
-- roadmap_items: {"items": [{"title": "やること（100 字以内）", "detail": "やり方の説明（任意）", "week": 今週を 0 とした何週目か（0〜52）, "kpi": 数字の名前 または null, "target": 目標の値 または null}]}（1〜8 個。kpi と target は両方入れるか、両方 null）
+- kpi_targets: {"kpi_targets": [{"kpi": 数字の名前, "per_week": 1 週あたりの目標（数）, "sns": SNS の名前 または null}]}（1〜6 個。同じ数字と SNS の組を 2 回入れない。SNS ごとに投稿の回数を決めるなら、posts を SNS ごとに並べる（例: x 週 2、instagram 週 1））
+- roadmap_items: {"items": [{"title": "やること（100 字以内）", "detail": "やり方の説明（任意）", "week": 今週を 0 とした何週目か（0〜52）, "kpi": 数字の名前 または null, "target": 目標の値 または null, "sns": SNS の名前 または null}]}（1〜8 個。kpi と target は両方入れるか、両方 null）
+- sns（kgi・kpi_targets・roadmap_items）: 数える SNS。kpi が posts のときだけ入れられる（ほかの数字は null）。「Instagram に 1 本」のように SNS を決めた投稿は、その SNS（例: "instagram"）。null は、すべての SNS の合計で数える。SNS の名前: x、threads、instagram、facebook、tiktok、youtube、note、substack
 - post_draft: {"sns": "x" | "threads" | "instagram" | "facebook" | "note" | "substack" | null, "text": "投稿の本文"}
   - 本文は相手の口調と投稿の柱に合わせる。相手しか知らない事実（数字、できごと、アプリの機能の名前など）は作らず、【何を作ったか】のように【】で囲んで、相手が書き換える印にする
 - 数字の名前: posts=投稿した回数、link_clicks=ストアへのクリック、views=投稿の閲覧数、followers=フォロワーの増え方、store_page_views=ストアのページの閲覧、downloads=ダウンロード、revenue=課金（売上。円）
@@ -89,8 +90,8 @@ export type ConsultContext = {
   recentPosts: { date: string; sns: string[]; text: string; clicks: number }[];
   kpiNumbers: { kpi: KpiKey; thisWeek: number | null; lastWeek: number | null }[];
   roadmap: {
-    kgi: { statement: string; kpi: KpiKey; target: number; deadline: string } | null;
-    kpiTargets: { kpi: KpiKey; perWeek: number }[];
+    kgi: { statement: string; kpi: KpiKey; target: number; deadline: string; sns?: string | null } | null;
+    kpiTargets: { kpi: KpiKey; perWeek: number; sns?: string | null }[];
     startedOn: string | null;
     items: { week: string; title: string; status: string; progress: string | null }[];
     kgiProgress: string | null;
@@ -138,9 +139,9 @@ export function consultContextMessage(ctx: ConsultContext): string {
     ctx.kpiNumbers.length ? ctx.kpiNumbers.map(kpiLine).join("\n") : "まだ選んでいない",
     "ロードマップ:",
     r.kgi
-      ? `KGI: ${r.kgi.statement}（${r.kgi.kpi} を ${r.kgi.target}、期限 ${r.kgi.deadline}、数え始め ${r.startedOn}）${r.kgiProgress ? ` / 進み具合: ${r.kgiProgress}` : ""}`
+      ? `KGI: ${r.kgi.statement}（${r.kgi.kpi}${r.kgi.sns ? `（${r.kgi.sns}）` : ""} を ${r.kgi.target}、期限 ${r.kgi.deadline}、数え始め ${r.startedOn}）${r.kgiProgress ? ` / 進み具合: ${r.kgiProgress}` : ""}`
       : "KGI: まだ決めていない",
-    r.kpiTargets.length ? `KPI の週の目標: ${r.kpiTargets.map((t) => `${t.kpi} 週 ${t.perWeek}`).join("、")}` : "KPI の週の目標: まだ決めていない",
+    r.kpiTargets.length ? `KPI の週の目標: ${r.kpiTargets.map((t) => `${t.kpi}${t.sns ? `（${t.sns}）` : ""} 週 ${t.perWeek}`).join("、")}` : "KPI の週の目標: まだ決めていない",
     r.items.length ? clip(`今週・来週のやること: ${JSON.stringify(r.items)}`, 2000) : "今週・来週のやること: まだない",
     ...(ctx.roadmapSteps ? ["ロードマップづくりの段取り（この順に 1 つずつ決める。済みの段は飛ばす）:", ctx.roadmapSteps] : []),
     ...(ctx.review ? reviewLines(ctx.review, kpiLine) : []),

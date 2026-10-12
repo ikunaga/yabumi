@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { isKpiKey, recommendedKpis, type KpiKey } from "@/lib/metrics/kpis";
 import { normalizePlan } from "@/lib/plan/schema";
 import { loadRoadmapWith } from "@/lib/roadmap/load";
-import { formatValue, itemProgress, weekStartOf } from "@/lib/roadmap/schema";
+import { formatValue, itemProgress, weekStartOf, kpiLabel } from "@/lib/roadmap/schema";
 import { addItems, saveGoal, RoadmapError } from "@/lib/roadmap/write";
 import { isManualSns, isSnsKey, SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
 import type { Database } from "@/lib/supabase/database.types";
@@ -188,13 +188,13 @@ export async function gatherConsultContext(
     kpiNumbers,
     roadmap: {
       kgi: r?.kgi ?? null,
-      kpiTargets: (r?.kpiTargets ?? []).map((t) => ({ kpi: t.kpi, perWeek: t.per_week })),
+      kpiTargets: (r?.kpiTargets ?? []).map((t) => ({ kpi: t.kpi, perWeek: t.per_week, sns: t.sns })),
       startedOn: r?.startedOn ?? null,
       items: view.items
         .filter((i) => i.weekStart === view.thisWeek || i.weekStart === nextWeek)
         .map((i) => {
           const p = itemProgress(i, view.daily);
-          return { week: i.weekStart === view.thisWeek ? "今週" : "来週", title: i.title, status: i.status, progress: p && i.kpi ? `${formatValue(i.kpi, p.actual)} / ${formatValue(i.kpi, p.target)}` : null };
+          return { week: i.weekStart === view.thisWeek ? "今週" : "来週", title: i.title, status: i.status, progress: p && i.kpi ? `${kpiLabel(i.kpi, i.sns)} ${formatValue(i.kpi, p.actual)} / ${formatValue(i.kpi, p.target)}` : null };
         }),
       kgiProgress: view.kgi && r?.kgi ? `${formatValue(r.kgi.kpi, view.kgi.actual)} / ${formatValue(r.kgi.kpi, view.kgi.target)}、残り ${view.kgi.daysLeft} 日` : null,
     },
@@ -236,7 +236,7 @@ export async function applyConsultAction(user: Db, projectId: string, action: Ac
         await addItems(
           user,
           projectId,
-          action.items.map((i) => ({ title: i.title, detail: i.detail, week_start: addDays(weekStart, i.week * 7), kpi: i.kpi, target: i.target })),
+          action.items.map((i) => ({ title: i.title, detail: i.detail, week_start: addDays(weekStart, i.week * 7), kpi: i.kpi, target: i.target, sns: i.sns ?? null })),
           "ai",
         );
         return { ok: true };

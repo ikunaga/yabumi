@@ -1316,6 +1316,9 @@ Facebook ページ（graph.facebook.com）:
 
 - **目標の決め方**（素人向け）: KGI は「いつまでに・何を・どれだけ」の一文と、数字の種類（KPI_KEYS から 1 つ。4.22）・目標の値・期限。KPI は 1〜3 個で、それぞれ「1 週あたりの目標」。最初はアカウント設計の「最初の 1 か月」の目標と KPI（first_month.kpis）から、AI がおすすめを出す
 - **やること**は週ごと（週は日本時間の月曜から）。1 つのやることに KPI と目標の値を結びつけられる（例:「今週 3 回投稿する」→ posts を 3）。結びつけたものは、数字（4.22 の weekly_post_totals など）から「2 / 3 回」と自動で進み具合を出す。済みにするのは利用者のチェック（数字が届いたら「済みにしますか」と出す）
+- **SNS ごとに数える**（2026-10-12、オーナーが本番で見つけた不具合: やること「Instagram に『作品の感想』を 1 本」が、Instagram に送っていないのに、X と Threads の 2 本で「2 / 1 目標に届きました」になった）: KGI・KPI の週の目標・やることは、「投稿した回数」のときだけ数える SNS を持てる（null はすべての SNS）。画面は「投稿した回数（Instagram）: 0 / 1」「投稿した回数（すべての SNS）」と出し、手で決めるときは数字の選択肢に「投稿した回数（X）」などを並べる（値は posts:x）。AI の案（kgi・kpi_targets・roadmap_items）も sns を入れる（本文に「Instagram に」とあれば instagram）。KPI の週の目標は、SNS ごとの投稿した回数を並べられるように 6 つまで
+- **投稿の数え方は 1 か所**（DB の counted_post_targets、マイグレーション 20261012120000）: 送信済み（published）は送った日、予約済み（予約の投稿の、送る前・送っている途中の配信先）は予約の日（どちらも日本時間）。失敗と下書きは数えない。post_counts_by_day（日ごと・SNS ごとの送信済みと予約済み）、roadmap_daily_totals（すべての SNS の合計）、指標の weekly_post_totals は、どれもこれから数える。伴走（4.27）の SNS ごとの週の回数も同じ
+- 前に作ったやることは、題が SNS の名前で始まる「投稿した回数」のもの（「Instagram に」「X で」など）だけ、マイグレーションでその SNS にした。ほかは null（すべての SNS）のまま、画面に「すべての SNS」と出す
 - **自動で出せる数字**: 投稿した回数（posts）、ストアへのクリック（link_clicks）。閲覧数・フォロワー・ダウンロード・課金は、取り込み（4.22 の段取り ③〜⑥）ができたら自動で出る。それまでは「準備中: ○○を作ったら出ます」（4.22 の KPIS の howToGet を使う）
 - KGI の進み具合: ロードマップを作った日から今日までの合計 ÷ 目標の値（自動で出せる数字のときだけ）。期限までの残りの日数と、このままの調子で届きそうか（直近 2 週の平均から）を一文で
 - 用語: KGI・KPI はすでにある。足すもの: ロードマップ、マイルストーン（区切りの目標）
@@ -1324,8 +1327,8 @@ Facebook ページ（graph.facebook.com）:
 
 | 表 | 中身 | 権限（4.17） |
 |---|---|---|
-| roadmaps | プロジェクトごとに 1 行。kgi（jsonb: 一文、KPI の名前、目標の値、期限）、kpi_targets（jsonb: [{ kpi, per_week }]、3 つまで）、started_on（数字を数え始める日）、source（ai / manual） | 本人が読む・作る・直す・消す（RLS: 本人の、本人のプロジェクトのものだけ） |
-| roadmap_items | id、project_id、owner_id、title（100 字）、detail（1,000 字）、week_start（日本時間の月曜の日付）、kpi（任意）、target（任意）、status（todo / done / skipped）、done_at、position、source | 同上 |
+| roadmaps | プロジェクトごとに 1 行。kgi（jsonb: 一文、KPI の名前、目標の値、期限、sns）、kpi_targets（jsonb: [{ kpi, per_week, sns }]、6 つまで。sns は投稿した回数のときだけ、null はすべての SNS）、started_on（数字を数え始める日）、source（ai / manual） | 本人が読む・作る・直す・消す（RLS: 本人の、本人のプロジェクトのものだけ） |
+| roadmap_items | id、project_id、owner_id、title（100 字）、detail（1,000 字）、week_start（日本時間の月曜の日付）、kpi（任意）、target（任意）、sns（任意。kpi が posts のときだけ、null はすべての SNS）、status（todo / done / skipped）、done_at、position、source | 同上 |
 | ai_threads | purpose に consult を足す | 変わらない |
 
 - 保存期間: ロードマップは、利用者が消すか、プロジェクトを消すか、退会まで（4.14 の表に足す）。プロジェクトを消すとカスケードで消える

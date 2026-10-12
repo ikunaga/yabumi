@@ -143,6 +143,7 @@
 | Threads API / GitHub API | - | 0 円 |
 | 独自ドメイン（yabumi.app） | - | 年 2,000 円前後（Cloudflare Registrar）。2026-10-11 に取ると決めた（11） |
 | スマホの通知（Web Push） | - | 0 円（Apple・Google・Mozilla・Microsoft の push サービスは無料。18） |
+| 招待の申し込み（LP） | - | 0 円（確認のメールは Resend の無料枠、Turnstile は無料。19） |
 
 ## 10. GitHub App を他の人も入れられるようにする（Any account）
 
@@ -441,4 +442,30 @@ Threads・Instagram・Facebook の数字を読む権限は、Meta のアプリ�
 | 18-11 | iPhone | 伴走の声かけ（遅れそう・毎週の振り返り）の日に、通知が届くか | 題と本文が切れずに読め、押すとそのプロジェクトの画面（または投稿をつくる画面）が開く |
 
 - 届かないときは: ① Vercel の Logs で `[push]` を探す（「送れませんでした」とホストと番号が出る。403 なら鍵の組が違う、413 は中身が大きすぎる）② `[env] スマホの通知（Web Push） は「準備中」` が出ていれば、18-2 の環境変数が足りない ③ 端末の集中モード・通知の設定
+
+## 19. 招待の申し込みを受けて、招待する（LP。F19・D30。docs/architecture.md の 4.29）
+
+トップ（/）の「招待を申し込む」で届いた申し込みを、運営者が見て招待する。新規登録は閉じたまま（D24 の ①・②）で、招待した人だけが始められる。
+
+### 用意（最初の 1 回）
+
+| # | 誰が | やること |
+|---|---|---|
+| 19-1 | オーナー | Vercel → Settings → Environment Variables に `OPERATOR_ADMIN_EMAILS`（オーナーが矢書にログインするメールアドレス。複数ならカンマ区切り）を足して Redeploy。入れるまでは、運営者の画面（/admin/waitlist）はだれにも開けない |
+| 19-2 | オーナー | （任意・おすすめ）5-8 の Turnstile の Secret Key を、Vercel の `TURNSTILE_SECRET_KEY`（**Sensitive**）にも入れて Redeploy。申し込みをサーバーでも確かめ、ロボットの申し込みを断る。入れないときは、人に見えない欄と 1 時間あたりの上限だけで守る |
+| 19-3 | 確かめ | 15-11 の RESEND_API_KEY が入っていれば、申し込むと確認のメール（件名「矢書の招待の申し込みを受け付けました」）が届く。入っていなければ、画面に「受け付けました」とだけ出る（申し込みは保存される） |
+| 19-4 | オーナー | 招待のメールは Supabase の認証のメール（11 の F で Resend の SMTP にしたもの）で送る。Supabase → Authentication → Email Templates の **Invite user** を開き、Subject に「【矢書】矢書への招待」、本文に supabase/templates/invite.html の中身を貼って保存する（既定の英語のままだと、パスワードを決める画面に進まない。ローカルは supabase/config.toml で同じものを使っている） |
+
+### 招待する（申し込みが届いたら）
+
+1. 矢書に `OPERATOR_ADMIN_EMAILS` のアドレスでログインし、https://yabumi.app/admin/waitlist を開く（メニューにはない。ブックマークしておく）
+2. 古い順に、メールアドレスと一言が並ぶ。招待する人は「招待する」→ 確かめの文が出たらもう一度「招待する」。Supabase が招待のメール（「パスワードを決めて始める」）を送り、申し込みは消える
+3. 招待しない人は「お断りする」→ もう一度「お断りする」。メールは送らずに、申し込みを消す（断ったことを伝えたいときは、運営者のメールで別に送る）
+4. 招待された人は、メールのボタンからパスワードを決めると始められる。**ALLOWED_SIGNUP_EMAILS に足す必要はない**（招待は登録の画面を通らない）
+
+- 試用は 10 人ほど（D24 の ②）。② に進む前（Vercel・Supabase を Pro にする前）は、オーナーの判断で数人にとどめる
+- 一覧は Supabase → Table Editor → `waitlist` でも見られる（書き換えない。消すときは画面から）
+- Supabase の画面から招待するとき（Authentication → Users → Invite user）は、送ったあとで /admin/waitlist の「お断りする」で申し込みを消す（そうしないと 1 年残る）
+- 申し込みは、招待・お断り・本人の取り消しのどれでもなければ 1 年で自動で消える（毎日 3:50）
+- 申し込みが続けて断られる（「申し込みが混み合っています」）と問い合わせがあったら: 全員で 1 時間に 30 件の上限に達している。Supabase の SQL Editor で `select count(*) from waitlist where created_at > now() - interval '1 hour';` を見て、ロボットなら 19-2 の Turnstile を入れる
 

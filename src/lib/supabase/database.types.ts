@@ -1632,6 +1632,36 @@ export type Database = {
           },
         ]
       }
+      waitlist: {
+        Row: {
+          app_note: string
+          cancel_token_hash: string
+          created_at: string
+          email: string
+          id: string
+          ip_hash: string | null
+          sns_note: string
+        }
+        Insert: {
+          app_note?: string
+          cancel_token_hash: string
+          created_at?: string
+          email: string
+          id?: string
+          ip_hash?: string | null
+          sns_note?: string
+        }
+        Update: {
+          app_note?: string
+          cancel_token_hash?: string
+          created_at?: string
+          email?: string
+          id?: string
+          ip_hash?: string | null
+          sns_note?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

@@ -194,6 +194,18 @@ commit;
 
 キーなどの鍵はリポジトリに書かない。テストで鍵の形の文字列が要るときは、文字列をつなげて作る（GitHub の push protection で push が止められるため）。
 
+## LP の画面の見本
+
+トップ（/）の「できること」などに出す画面の見本（public/lp/<名前>-light.jpg・-dark.jpg）は、見本用のアカウントとデータで撮る。オーナーの実データは使わない（docs/architecture.md の 4.29）。
+
+1. `node scripts/lp-demo.mjs seed http://127.0.0.1:3102` で、見本用の利用者 lp-demo@yabumi.test と、架空のアプリ「かけいぼ日和」のデータを作る（ローカルの Supabase だけで動く。何度でも作り直せる）。ログイン用のリンクが出る
+2. `npx next dev -p 3102 -H 127.0.0.1` で開発サーバーを開き、ブラウザで 1 のリンクを開く（127.0.0.1 で開くと、localhost でログインしている自分のアカウントと混ざらない）
+3. 画面の幅 1492 ほどで、概要（coach）・投稿をつくる（compose。下書きに文を入れる）・カレンダー（calendar）・ネタ帳（notes）・指標（metrics）・アカウント設計（plan）を撮る。左下の Next.js の印は消してから撮る。ライトを撮ったら、左下の「ダーク」で切り替えて同じものを撮る
+4. public/lp/ に `<名前>-light.jpg`・`<名前>-dark.jpg` で置く（1 枚 100KB ほどまで）
+5. `node scripts/lp-demo.mjs remove` で見本用の利用者とデータを消す
+
+機能が増えて見本を足すときは、src/app/page.tsx の features に名前を足す。
+
 ## よく使うコマンド
 
 | コマンド | 内容 |

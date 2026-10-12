@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useState } from "react";
+import { type ReactNode, useActionState, useEffect, useState } from "react";
 import type { AuthFormState } from "@/lib/auth/actions";
 import { Button } from "@/components/ui/button";
 import { ErrorBanner, SuccessBanner } from "@/components/ui/feedback";
@@ -66,11 +66,14 @@ export function AuthForm({
   action,
   next,
   initialError,
+  notice,
 }: {
   mode: Mode;
   action: (prev: AuthFormState, formData: FormData) => Promise<AuthFormState>;
   next?: string;
   initialError?: string;
+  // 見出しの下に出す案内（登録を閉じているときの、招待の申し込みへの案内など）
+  notice?: ReactNode;
 }) {
   const [state, formAction, pending] = useActionState(action, { error: initialError });
   const [passwordLength, setPasswordLength] = useState(0);
@@ -88,6 +91,7 @@ export function AuthForm({
     <div className="flex flex-col gap-5">
       <h1 className="font-heading text-[28px] font-bold max-md:mt-6 max-md:text-[26px]">{c.title}</h1>
       {c.lead && <p className="-mt-2 text-[14px] leading-7 text-muted">{c.lead}</p>}
+      {notice}
       {state.error && <ErrorBanner id="auth-error">{state.error}</ErrorBanner>}
       {state.message && <SuccessBanner>{state.message}</SuccessBanner>}
       {sent && (

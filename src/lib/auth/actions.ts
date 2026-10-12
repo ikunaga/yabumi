@@ -99,7 +99,7 @@ export async function signup(_prev: AuthFormState, formData: FormData): Promise<
   }
   // 本番はオーナーだけが登録できる（docs/deploy.md）。Supabase 側でも新規登録を閉じる
   if (!isSignupAllowed(parsed.data.email)) {
-    return { error: "いまは招待した方だけが登録できます。", invalidField: "email", email };
+    return { error: "いまは招待した方だけが登録できます。トップの「招待を申し込む」からお申し込みください。", invalidField: "email", email };
   }
 
   const origin = await requestOrigin();

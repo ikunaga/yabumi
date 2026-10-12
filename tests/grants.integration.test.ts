@@ -38,6 +38,7 @@ const TABLES = [
   "operator_notifications",
   "idea_notes",
   "push_subscriptions",
+  "waitlist",
 ] as const;
 
 let alice: TestClient;

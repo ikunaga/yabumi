@@ -3,7 +3,10 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { z } from "zod";
+import { consentVia, hasConsented, recordConsent } from "@/lib/legal/consent";
+import { currentLegalVersion } from "@/lib/legal/version";
 import { forgetPushDevice } from "@/lib/push/cookie";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { safeNextPath } from "./redirect";
 import { isSignupAllowed } from "./signup-policy";
@@ -11,7 +14,7 @@ import { isSignupAllowed } from "./signup-policy";
 export type AuthFormState = {
   error?: string;
   // エラーを示す欄（枠を赤くする）
-  invalidField?: "email" | "password";
+  invalidField?: "email" | "password" | "consent";
   message?: string;
   email?: string;
 };
@@ -116,6 +119,13 @@ export async function signup(_prev: AuthFormState, formData: FormData): Promise<
     };
   }
 
+  // 登録の画面の「登録すると…同意したものとします」への同意を記録する（決定 D31）。メールの確認の前でまだログインしていないので、サーバーが書く。
+  // すでに登録済みのアドレスのときは、Supabase が中身のない利用者（identities が空）を返すので記録しない
+  if (data.user && (data.user.identities?.length ?? 0) > 0) {
+    const { error: consentError } = await createAdminClient().from("legal_consents").insert({ user_id: data.user.id, version: currentLegalVersion(), via: "signup" });
+    if (consentError && consentError.code !== "23505") console.error("[auth] 登録の同意を記録できませんでした", consentError.code ?? consentError.message);
+  }
+
   // メール確認が有効な環境ではセッションがまだ無い。
   // すでに登録済みのアドレスでも Supabase は同じ応答を返す（登録の有無を他人に知られないため）ので、文面もどちらにも合うようにする
   if (!data.session) {
@@ -179,12 +189,33 @@ export async function updatePassword(_prev: AuthFormState, formData: FormData): 
   const { data } = await supabase.auth.getClaims();
   if (!data?.claims) return { error: "リンクの期限が切れたか、ログインが外れています。もう一度、再設定のメールを送ってください。" };
 
+  // いまの版の規約・ポリシーに同意していなければ（招待のメールから始める方など）、印を付けてもらって記録する（決定 D31）
+  const version = currentLegalVersion();
+  let needsConsent = false;
+  try {
+    needsConsent = !(await hasConsented(supabase, version));
+  } catch (e) {
+    console.error("[auth] 同意の記録を読めませんでした", e instanceof Error ? e.message : e);
+  }
+  if (needsConsent && formData.get("consent") !== "on") {
+    return { error: "利用規約とプライバシーポリシーへの同意の欄に印を付けてください。", invalidField: "consent" };
+  }
+
   const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
   if (error) {
     return {
       error: toJapaneseAuthError(error.code, "パスワードを変えられませんでした。時間をおいてもう一度お試しください。"),
       invalidField: "password",
     };
+  }
+  if (needsConsent) {
+    try {
+      const { data: user } = await supabase.auth.getUser();
+      await recordConsent(supabase, version, await consentVia(supabase, Boolean(user.user?.invited_at)));
+    } catch (e) {
+      // パスワードは変わっている。同意はログインしたあとの帯でもう一度求める
+      console.error("[auth] 同意を記録できませんでした", e instanceof Error ? e.message : e);
+    }
   }
   redirect("/projects?done=password_updated");
 }

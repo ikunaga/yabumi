@@ -39,6 +39,7 @@ const TABLES = [
   "idea_notes",
   "push_subscriptions",
   "waitlist",
+  "legal_consents",
 ] as const;
 
 let alice: TestClient;

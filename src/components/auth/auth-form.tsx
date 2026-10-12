@@ -6,6 +6,7 @@ import type { AuthFormState } from "@/lib/auth/actions";
 import { Button } from "@/components/ui/button";
 import { ErrorBanner, SuccessBanner } from "@/components/ui/feedback";
 import { Field, Input } from "@/components/ui/field";
+import { ConsentCheck } from "@/components/legal/consent-check";
 import { LEGAL } from "@/lib/legal/info";
 import { Turnstile } from "./turnstile";
 
@@ -67,6 +68,7 @@ export function AuthForm({
   next,
   initialError,
   notice,
+  consent,
 }: {
   mode: Mode;
   action: (prev: AuthFormState, formData: FormData) => Promise<AuthFormState>;
@@ -74,13 +76,16 @@ export function AuthForm({
   initialError?: string;
   // 見出しの下に出す案内（登録を閉じているときの、招待の申し込みへの案内など）
   notice?: ReactNode;
+  // 新しいパスワードを決める画面で、いまの版の規約・ポリシーに同意していない方（招待から始める方など）。施行日を渡すと、同意のチェックを出す
+  consent?: { effectiveDate: string; invited: boolean } | null;
 }) {
   const [state, formAction, pending] = useActionState(action, { error: initialError });
   const [passwordLength, setPasswordLength] = useState(0);
   // メールを送れたら（登録・再設定）フォームを隠し、二度押しを防ぐ。「入れ直す」で、その結果に対してだけフォームを戻す
   const [reopenedFor, setReopenedFor] = useState<AuthFormState | null>(null);
   const sent = (mode === "signup" || mode === "forgot") && Boolean(state.message) && reopenedFor !== state;
-  const c = copy[mode];
+  // 招待のメールから来た方には、始めるための言い方にする
+  const c = mode === "reset" && consent?.invited ? { ...copy.reset, title: "矢書をはじめる", lead: "招待ありがとうございます。これから使うパスワードを決めてください。決めると、そのまま使い始められます。", submit: "パスワードを決めて始める", pending: "準備しています…" } : copy[mode];
 
   // エラーが出たら、読み上げと目視のためにエラー帯へ移る
   useEffect(() => {
@@ -148,6 +153,7 @@ export function AuthForm({
           </Field>
         )}
         {mode !== "reset" && <Turnstile resetKey={state} />}
+        {mode === "reset" && consent && <ConsentCheck effectiveDate={consent.effectiveDate} invalid={state.invalidField === "consent"} />}
         {mode === "signup" && (
           <p className="text-[14px] leading-[1.7] text-muted">
             登録すると、{LEGAL.minAge} 歳以上であることと、

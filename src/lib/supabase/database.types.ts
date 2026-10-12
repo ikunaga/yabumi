@@ -352,6 +352,30 @@ export type Database = {
           },
         ]
       }
+      legal_consents: {
+        Row: {
+          accepted_at: string
+          id: string
+          user_id: string
+          version: string
+          via: string
+        }
+        Insert: {
+          accepted_at?: string
+          id?: string
+          user_id?: string
+          version: string
+          via: string
+        }
+        Update: {
+          accepted_at?: string
+          id?: string
+          user_id?: string
+          version?: string
+          via?: string
+        }
+        Relationships: []
+      }
       link_click_daily: {
         Row: {
           clicks: number

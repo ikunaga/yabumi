@@ -1,14 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { MonthGrid } from "@/components/calendar/month-grid";
+import { MonthMobile } from "@/components/calendar/month-mobile";
+import type { MonthDay } from "@/components/calendar/month-types";
+import { CalendarViewSwitch } from "@/components/calendar/view-switch";
 import { PostChip, displayStatus, postWarning, snsSummary } from "@/components/posts/post-chip";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { SuccessBanner } from "@/components/ui/feedback";
 import { StatusMark } from "@/components/ui/marks";
-import { listPostsBetween, listUndatedDrafts, postTitle, type PostRow } from "@/lib/posts/queries";
+import { countPostsByDay, listPostsBetween, listUndatedDrafts, postTitle, type PostRow } from "@/lib/posts/queries";
 import { getProject } from "@/lib/projects/queries";
-import { addDays, dayOfMonth, formatTime, isYmd, monthOf, startOfYmd, toYmd, weekOf, weekdayLabel } from "@/lib/time";
+import { addDays, addMonths, dayOfMonth, formatTime, isYm, isYmd, monthGrid, monthOf, startOfYmd, toYmd, weekOf, weekdayLabel, ymOf } from "@/lib/time";
 
 export const metadata: Metadata = { title: "カレンダー" };
 
@@ -29,6 +33,15 @@ export default async function CalendarPage(props: PageProps<"/projects/[id]/cale
   if (!project) notFound();
 
   const today = toYmd(new Date());
+  const base = `/projects/${project.id}`;
+  const done = typeof searchParams.done === "string" ? DONE[searchParams.done] : undefined;
+  // 表示は URL に持つ（?view=week&week=YYYY-MM-DD / ?view=month&month=YYYY-MM）。どれもなければ週（最後に選んだ表示は、切り替えの部品が合わせる）
+  const explicit = ["view", "week", "month"].some((k) => searchParams[k] !== undefined);
+  if (searchParams.view === "month") {
+    const ym = isYm(searchParams.month) ? searchParams.month : ymOf(today);
+    return <MonthView projectId={project.id} base={base} ym={ym} today={today} done={done} explicit={explicit} />;
+  }
+
   const days = weekOf(isYmd(searchParams.week) ? searchParams.week : today);
   const [posts, undated] = await Promise.all([
     listPostsBetween(project.id, startOfYmd(days[0]).toISOString(), startOfYmd(addDays(days[6], 1)).toISOString()),
@@ -37,33 +50,30 @@ export default async function CalendarPage(props: PageProps<"/projects/[id]/cale
   const byDay = new Map<string, PostRow[]>(days.map((d) => [d, []]));
   for (const p of posts) byDay.get(toYmd(new Date(p.planned_at!)))?.push(p);
 
-  const base = `/projects/${project.id}`;
-  const done = typeof searchParams.done === "string" ? DONE[searchParams.done] : undefined;
   const isThisWeek = days.includes(today);
+  // 月に切り替えるときは、今週なら今月、ほかの週はその週の木曜の月（週の多くの日がある月）
+  const monthHref = `${base}/calendar?view=month&month=${ymOf(isThisWeek ? today : days[3])}`;
 
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <h1 className="font-heading text-2xl font-bold">カレンダー</h1>
+        <CalendarViewSwitch current="week" weekHref={`${base}/calendar?view=week&week=${days[0]}`} monthHref={monthHref} explicit={explicit} />
         <span className="text-base text-muted">{rangeLabel(days)}</span>
         <nav aria-label="週の切り替え" className="flex items-center gap-1 text-sm">
-          <Link href={`${base}/calendar?week=${addDays(days[0], -7)}`} className="rounded-md px-2 py-1 text-primary hover:bg-primary-soft">
+          <Link href={`${base}/calendar?view=week&week=${addDays(days[0], -7)}`} className="rounded-md px-2 py-1 text-primary hover:bg-primary-soft">
             ← 前の週
           </Link>
           {!isThisWeek && (
-            <Link href={`${base}/calendar`} className="rounded-md px-2 py-1 text-primary hover:bg-primary-soft">
+            <Link href={`${base}/calendar?view=week`} className="rounded-md px-2 py-1 text-primary hover:bg-primary-soft">
               今週
             </Link>
           )}
-          <Link href={`${base}/calendar?week=${addDays(days[0], 7)}`} className="rounded-md px-2 py-1 text-primary hover:bg-primary-soft">
+          <Link href={`${base}/calendar?view=week&week=${addDays(days[0], 7)}`} className="rounded-md px-2 py-1 text-primary hover:bg-primary-soft">
             次の週 →
           </Link>
         </nav>
-        <div className="ml-auto flex gap-4 text-sm max-md:hidden">
-          <span className="font-bold text-signal">● 予約</span>
-          <span className="font-bold text-success">✓ 投稿済み</span>
-          <span className="text-muted">○ 下書き</span>
-        </div>
+        <Legend />
       </div>
 
       {done && <SuccessBanner>{done}</SuccessBanner>}
@@ -125,8 +135,28 @@ export default async function CalendarPage(props: PageProps<"/projects/[id]/cale
         })}
       </ol>
 
-      <p className="text-sm text-muted">空いている日を押すと、その日に投稿を足せます。</p>
+      <p className="text-sm text-muted">空いている日を押すと、その日の投稿をつくれます。</p>
 
+      <UndatedDrafts posts={undated} base={base} />
+
+      <MobileComposeButton base={base} />
+    </div>
+  );
+}
+
+function Legend() {
+  return (
+    <div className="ml-auto flex gap-4 text-sm max-md:hidden">
+      <span className="font-bold text-signal">● 予約</span>
+      <span className="font-bold text-success">✓ 投稿済み</span>
+      <span className="text-muted">○ 下書き</span>
+    </div>
+  );
+}
+
+function UndatedDrafts({ posts: undated, base }: { posts: PostRow[]; base: string }) {
+  return (
+    <>
       {undated.length > 0 && (
         <Card>
           <CardHeader title="日付のない下書き" />
@@ -145,12 +175,89 @@ export default async function CalendarPage(props: PageProps<"/projects/[id]/cale
           </ul>
         </Card>
       )}
+    </>
+  );
+}
 
-      <div className="md:hidden">
-        <ButtonLink href={`${base}/compose`} className="w-full" size="lg">
-          ＋ 投稿をつくる
-        </ButtonLink>
+function MobileComposeButton({ base }: { base: string }) {
+  return (
+    <div className="md:hidden">
+      <ButtonLink href={`${base}/compose`} className="w-full" size="lg">
+        ＋ 投稿をつくる
+      </ButtonLink>
+    </div>
+  );
+}
+
+// 月の表示（F06）。6 週分の投稿を一度に読み、日ごとの数は DB で数える（読む行には上限があるので、行を数えない）
+const MONTH_POST_LIMIT = 500;
+
+async function MonthView({ projectId, base, ym, today, done, explicit }: { projectId: string; base: string; ym: string; today: string; done?: string; explicit: boolean }) {
+  const grid = monthGrid(ym);
+  const [from, to] = [startOfYmd(grid[0]).toISOString(), startOfYmd(addDays(grid[41], 1)).toISOString()];
+  const [posts, counts, undated] = await Promise.all([listPostsBetween(projectId, from, to, MONTH_POST_LIMIT), countPostsByDay(projectId, from, to), listUndatedDrafts(projectId)]);
+
+  const items = new Map<string, MonthDay["items"]>(grid.map((d) => [d, []]));
+  for (const p of posts) {
+    const status = displayStatus(p);
+    items.get(toYmd(new Date(p.planned_at!)))?.push({
+      id: p.id,
+      href: `${base}/posts/${p.id}`,
+      time: formatTime(p.planned_at!),
+      sns: snsSummary(p, true),
+      title: postTitle(p.body, 28),
+      status,
+      warning: status === "draft" ? null : postWarning(p),
+    });
+  }
+  const days: MonthDay[] = grid.map((d) => {
+    const list = items.get(d) ?? [];
+    return { ymd: d, day: dayOfMonth(d), inMonth: ymOf(d) === ym, isToday: d === today, count: Math.max(counts.get(d) ?? 0, list.length), items: list };
+  });
+  const isThisMonth = ym === ymOf(today);
+  // 週に切り替えるときは、今月なら今週、ほかの月はその月の 1 日の週
+  const weekHref = isThisMonth ? `${base}/calendar?view=week` : `${base}/calendar?view=week&week=${ym}-01`;
+  const monthLink = (m: string) => `${base}/calendar?view=month&month=${m}`;
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <h1 className="font-heading text-2xl font-bold">カレンダー</h1>
+        <CalendarViewSwitch current="month" weekHref={weekHref} monthHref={monthLink(ym)} explicit={explicit} />
+        <span className="text-base text-muted">
+          {ym.slice(0, 4)} 年 {Number(ym.slice(5, 7))} 月
+        </span>
+        <nav aria-label="月の切り替え" className="flex items-center gap-1 text-sm">
+          <Link href={monthLink(addMonths(ym, -1))} className="rounded-md px-2 py-1 text-primary hover:bg-primary-soft">
+            ← 前の月
+          </Link>
+          {!isThisMonth && (
+            <Link href={monthLink(ymOf(today))} className="rounded-md px-2 py-1 text-primary hover:bg-primary-soft">
+              今日
+            </Link>
+          )}
+          <Link href={monthLink(addMonths(ym, 1))} className="rounded-md px-2 py-1 text-primary hover:bg-primary-soft">
+            次の月 →
+          </Link>
+        </nav>
+        <Legend />
       </div>
+
+      {done && <SuccessBanner>{done}</SuccessBanner>}
+
+      <div className="max-md:hidden">
+        <MonthGrid days={days} base={base} />
+      </div>
+      <div className="md:hidden">
+        <MonthMobile key={ym} days={days} base={base} initial={isThisMonth ? today : `${ym}-01`} />
+      </div>
+
+      <p className="text-sm text-muted max-md:hidden">空いている日を押すと、その日の投稿をつくれます。日付を押すと、その日の週を見られます。</p>
+      <p className="text-sm text-muted md:hidden">日付を押すと、その日の投稿が下に出ます。</p>
+
+      <UndatedDrafts posts={undated} base={base} />
+
+      <MobileComposeButton base={base} />
     </div>
   );
 }

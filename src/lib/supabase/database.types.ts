@@ -1319,6 +1319,13 @@ export type Database = {
           owner_today_count: number
         }[]
       }
+      calendar_day_counts: {
+        Args: { p_from: string; p_project_id: string; p_to: string }
+        Returns: {
+          day: string
+          posts: number
+        }[]
+      }
       claim_due_targets: {
         Args: { p_limit?: number; p_post_id?: string }
         Returns: {

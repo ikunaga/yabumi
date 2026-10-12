@@ -87,3 +87,24 @@ export function formatTime(iso: string): string {
   const p = parts(new Date(iso));
   return `${p.hh}:${p.mm}`;
 }
+
+// 日本時間の年月 "YYYY-MM"
+export function isYm(value: unknown): value is string {
+  return typeof value === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(value);
+}
+
+export function ymOf(ymd: string): string {
+  return ymd.slice(0, 7);
+}
+
+export function addMonths(ym: string, months: number): string {
+  const total = Number(ym.slice(0, 4)) * 12 + Number(ym.slice(5, 7)) - 1 + months;
+  return `${String(Math.floor(total / 12)).padStart(4, "0")}-${String((total % 12) + 1).padStart(2, "0")}`;
+}
+
+// 月の表示のマス: その月の 1 日を含む週の月曜から 6 週（42 日）。週の表示と同じ月曜はじまり。
+// 6 週あれば、どの月も（31 日で 1 日が日曜でも）収まる。前後の月の日も入る
+export function monthGrid(ym: string): string[] {
+  const start = weekOf(`${ym}-01`)[0];
+  return Array.from({ length: 42 }, (_, i) => addDays(start, i));
+}

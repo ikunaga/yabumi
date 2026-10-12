@@ -61,17 +61,28 @@ export const getPost = cache(async (projectId: string, postId: string) => {
   return data ? normalize(data as RawPost) : null;
 });
 
-export async function listPostsBetween(projectId: string, fromIso: string, toIso: string) {
+// limit: 月の表示（6 週分）では読む行に上限を付ける。数は countPostsByDay で DB で数えるので、読みきれなくても数え漏れない
+export async function listPostsBetween(projectId: string, fromIso: string, toIso: string, limit?: number) {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("posts")
     .select(POST_SELECT)
     .eq("project_id", projectId)
     .gte("planned_at", fromIso)
     .lt("planned_at", toIso)
     .order("planned_at");
+  if (limit) query = query.limit(limit);
+  const { data, error } = await query;
   if (error) throw error;
   return (data as RawPost[]).map(normalize);
+}
+
+// 日ごとの投稿の数（日本時間の "YYYY-MM-DD" → 数）。行を読んで数えずに DB で数える（calendar_day_counts）
+export async function countPostsByDay(projectId: string, fromIso: string, toIso: string): Promise<Map<string, number>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("calendar_day_counts", { p_project_id: projectId, p_from: fromIso, p_to: toIso });
+  if (error) throw error;
+  return new Map((data ?? []).map((r) => [r.day, r.posts]));
 }
 
 export async function listUndatedDrafts(projectId: string) {

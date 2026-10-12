@@ -1,7 +1,7 @@
 import { KPI_KEYS } from "@/lib/metrics/kpis";
 import { z } from "zod";
 import { SNS_KEYS, type SnsKey } from "@/lib/sns";
-import { GOAL_TYPES, OWNERSHIP_MODES, PROFILE_OVERRIDE_FIELDS, SECTION_KEYS, sectionSchemas, type ProfileOverrideField, type SectionKey, type SectionValue } from "@/lib/plan/schema";
+import { GOAL_TYPES, MAX_WEEKLY_PER_SNS, OWNERSHIP_MODES, PROFILE_OVERRIDE_FIELDS, SECTION_KEYS, sectionSchemas, type ProfileOverrideField, type SectionKey, type SectionValue } from "@/lib/plan/schema";
 
 // AI（アカウント設計の相棒）の 1 回の返事の形。構造化出力（output_config.format）でこの形に固定する。
 // 構造化出力のスキーマは文法にコンパイルされ、大きすぎると 400（compiled grammar is too large）になる。
@@ -35,7 +35,13 @@ export const valueSchemas = {
       .default({}),
   }),
   cadence: z.object({ frequency: z.string(), roles: z.array(z.object({ sns: snsEnum, role: z.string() })) }),
-  first_month: z.object({ goal: z.string(), metrics: z.string(), kpis: z.array(z.enum(KPI_KEYS)).max(3).default([]) }),
+  // weekly（SNS ごとの週の回数、伴走 D29）。前の版の案（weekly なし）も読めるように既定は空。数え始めの日は保存するときにサーバーが決める
+  first_month: z.object({
+    goal: z.string(),
+    metrics: z.string(),
+    kpis: z.array(z.enum(KPI_KEYS)).max(3).default([]),
+    weekly: z.record(z.string(), z.number()).default({}),
+  }),
 } satisfies Record<SectionKey, z.ZodType>;
 
 const proposalSchema = z.object({
@@ -134,6 +140,17 @@ export function toSectionValue(key: SectionKey, value: unknown): SectionValue<Se
   if (key === "pillars" && value && typeof value === "object") {
     const p = value as { items?: unknown };
     if (Array.isArray(p.items)) v = { ...p, items: (p.items as { name?: unknown }[]).filter((i) => typeof i.name === "string" && i.name.trim()).slice(0, 5) };
+  }
+  if (key === "first_month" && value && typeof value === "object") {
+    // 知らない SNS と、範囲外の回数を外す（数え始めの日は保存するときにサーバーが決める）
+    const raw = (value as { weekly?: unknown }).weekly;
+    const weekly: Partial<Record<SnsKey, number>> = {};
+    if (raw && typeof raw === "object") {
+      for (const [sns, n] of Object.entries(raw as Record<string, unknown>)) {
+        if ((SNS_KEYS as string[]).includes(sns) && typeof n === "number" && Math.round(n) >= 1) weekly[sns as SnsKey] = Math.min(MAX_WEEKLY_PER_SNS, Math.round(n));
+      }
+    }
+    v = { ...value, weekly, startedOn: null };
   }
   if (key === "profile" && value && typeof value === "object") {
     v = { ...value, bySns: cleanProfileOverrides((value as { bySns?: unknown }).bySns) };

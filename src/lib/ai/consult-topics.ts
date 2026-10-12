@@ -7,6 +7,8 @@ export type ConsultTopicMeta = {
   button: string;
   // これまでの相談の一覧での名前
   listTitle: string;
+  // その画面からだけ始める入口（相談の一覧の「新しい相談」には出さない）
+  entryOnly?: boolean;
   // ほかの画面から始めたときの見出し・説明・戻り先（ないものは「AI と相談」の画面の中の入口）
   entry?: { title: string; lead: string; back: { path: string; label: string } };
 };
@@ -33,9 +35,24 @@ export const CONSULT_TOPIC_META = {
       back: { path: "metrics", label: "指標に戻る" },
     },
   },
+  month_review: {
+    button: "1 か月を振り返って、次の目標を決めたい",
+    listTitle: "1 か月の振り返り",
+    entryOnly: true,
+    entry: {
+      title: "1 か月を AI と振り返る",
+      lead: "AI が最初の 1 か月の結果（週ごとの投稿の回数）を読み、よかった点と、次の 1 か月の週の回数の案を出します。選んだ案だけが、アカウント設計に入ります。",
+      back: { path: "", label: "概要に戻る" },
+    },
+  },
 } as const satisfies Record<string, ConsultTopicMeta>;
 
 export type ConsultTopicKey = keyof typeof CONSULT_TOPIC_META;
+
+// 相談の一覧と会話の画面に並べる入口（その画面からだけ始めるものを除く）
+export function listedConsultTopics(): ConsultTopicKey[] {
+  return (Object.keys(CONSULT_TOPIC_META) as ConsultTopicKey[]).filter((k) => !(CONSULT_TOPIC_META[k] as ConsultTopicMeta).entryOnly);
+}
 
 export function consultTopicMeta(topic: string | null | undefined): ConsultTopicMeta | null {
   return topic && Object.hasOwn(CONSULT_TOPIC_META, topic) ? CONSULT_TOPIC_META[topic as ConsultTopicKey] : null;

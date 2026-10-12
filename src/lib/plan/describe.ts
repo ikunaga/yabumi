@@ -78,6 +78,12 @@ export function describeSection(key: SectionKey, value: SectionValue<SectionKey>
       add("1 か月後の目標", v.goal);
       add("何を見て判断するか", v.metrics);
       add("数字の画面で追う数字", (v.kpis ?? []).map((k) => KPIS[k].label).join("、"));
+      add(
+        "SNS ごとの週の回数",
+        SNS_KEYS.filter((s) => (v.weekly?.[s] ?? 0) > 0)
+          .map((s) => `${SNS[s].label} 週 ${v.weekly[s]}`)
+          .join("・"),
+      );
       break;
     }
   }

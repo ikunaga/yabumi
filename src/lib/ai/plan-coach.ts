@@ -1,4 +1,5 @@
 import type Anthropic from "@anthropic-ai/sdk";
+import { saveSectionValue } from "@/lib/plan/save";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isSectionKey, normalizePlan, type SectionKey } from "@/lib/plan/schema";
 import { isSnsKey, type SnsKey } from "@/lib/sns";
@@ -154,13 +155,8 @@ export async function coachStep(
       if (!target || target.role !== "assistant" || !proposal || !option) {
         return { ok: false, threadId, message: "案が見つかりません。画面を読み込み直してください。" };
       }
-      const { error } = await user.rpc("save_account_plan_section", {
-        p_project_id: projectId,
-        p_section: proposal.section,
-        p_value: option.value as never,
-        p_source: "ai",
-      });
-      if (error) return { ok: false, threadId, message: "案を保存できませんでした。時間をおいてもう一度お試しください。" };
+      const saved = await saveSectionValue(user, projectId, proposal.section, option.value, "ai", { now });
+      if (!saved.ok) return { ok: false, threadId, message: "案を保存できませんでした。時間をおいてもう一度お試しください。" };
       await admin
         .from("ai_messages")
         .update({ content: { ...target.content, adopted: input.optionIndex } as never })

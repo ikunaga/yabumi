@@ -130,6 +130,9 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
         ) : (
           <p className="px-5 py-4 text-[14px] text-muted max-sm:px-4">まだ決めていません。</p>
         )}
+        <p className="border-t border-line px-5 py-2.5 text-xs leading-[1.7] text-muted max-sm:px-4">
+          SNS ごとの「投稿した回数」は、アカウント設計の「最初の 1 か月」の週の回数と同じ数字です（どちらで変えても揃います）。伴走が、この回数でペースを見守ります（概要の一番上）。
+        </p>
         <DismissableDetails className="border-t border-line px-5 py-3 max-sm:px-4">
           <summary className="cursor-pointer text-[14px] font-semibold text-primary">目標と数字を手で決める・直す</summary>
           <div className="pt-3" />

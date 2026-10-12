@@ -54,6 +54,16 @@ export default async function SettingsPage() {
         </Card>
 
         <Card className="overflow-hidden">
+          <CardHeader title="お知らせ" />
+          <p className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-4 text-[14px] leading-7">
+            <span>伴走（週の投稿のペース）のメールとスマホの通知</span>
+            <Link href="/settings/notifications" className="font-semibold text-primary hover:underline">
+              お知らせの設定
+            </Link>
+          </p>
+        </Card>
+
+        <Card className="overflow-hidden">
           <CardHeader title="退会する" />
           <div className="flex flex-col gap-4 px-5 py-4 text-[14px] leading-7">
             <p>退会すると、矢書に保存しているあなたのデータをすべて消します。元に戻せません。</p>

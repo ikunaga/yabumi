@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
+import { syncWeeklyFromRoadmap } from "@/lib/plan/save";
 import { toYmd } from "@/lib/time";
 import { MAX_ITEMS_PER_PROJECT, type ItemInput, type Kgi, type KpiTarget } from "./schema";
 
@@ -21,6 +22,8 @@ export async function saveGoal(db: Db, projectId: string, goal: { kgi: Kgi | nul
     ? await db.from("roadmaps").update(row).eq("project_id", projectId)
     : await db.from("roadmaps").insert({ project_id: projectId, ...row, started_on: toYmd(now) });
   if (error) throw new RoadmapError("目標を保存できませんでした。時間をおいてもう一度お試しください。");
+  // SNS ごとの投稿した回数の目標は、最初の 1 か月の週の回数（伴走が見張る数字）にも写す（4.27）
+  await syncWeeklyFromRoadmap(db, projectId, goal.kpiTargets, source, now);
 }
 
 // やることを足す（すでにあるものは残す）。その週の最後に並べる

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { KPI_KEYS, MAX_KPIS } from "@/lib/metrics/kpis";
 import { SNS_KEYS, type SnsKey } from "@/lib/sns";
+import { isYmd } from "@/lib/time";
 
 // アカウント設計（要求 F15）のデータの形。DB の account_plans.data にセクションごとに入る。
 // セクションはここに書いた順に画面に並ぶ。名前は投稿の柱が決まらないと決めにくいので、柱 → 持ち方 → 名前の順にしている
@@ -14,6 +15,9 @@ const text = (max: number) => z.string().trim().max(max, `${max.toLocaleString("
 export const GOAL_TYPES = ["downloads", "paid", "awareness", "other"] as const;
 export const OWNERSHIP_MODES = ["personal", "dedicated", "undecided"] as const;
 export const MAX_PILLARS = 5;
+// 最初の 1 か月の SNS ごとの週の回数の上限（1 日 2 本まで）
+export const MAX_WEEKLY_PER_SNS = 14;
+const WEEKLY = `週の回数は 1〜${MAX_WEEKLY_PER_SNS} の整数にしてください`;
 
 const snsKeyEnum = z.enum(SNS_KEYS as [SnsKey, ...SnsKey[]]);
 
@@ -76,6 +80,10 @@ export const sectionSchemas = {
     metrics: text(500),
     // 数字の画面で先頭に出す数字（決まった名前から 1〜3 個。docs/architecture.md の 4.22）。前の版で保存したものは空
     kpis: z.array(z.enum(KPI_KEYS)).max(MAX_KPIS, `数字は ${MAX_KPIS} つまでにしてください`).default([]),
+    // SNS ごとの週の回数（伴走 F18・D29。例 { x: 2, instagram: 1 }）。伴走がこの数字とペースを比べて声をかける。前の版は空
+    weekly: z.partialRecord(snsKeyEnum, z.number(WEEKLY).int(WEEKLY).min(1, WEEKLY).max(MAX_WEEKLY_PER_SNS, WEEKLY)).default({}),
+    // 1 か月（4 週）を数え始めた週の月曜。週の回数を初めて決めたとき・次の 1 か月を始めたときにサーバーが入れる（withFirstMonthCycle）
+    startedOn: z.string().refine(isYmd).nullable().default(null),
   }),
 } as const;
 
@@ -121,8 +129,10 @@ export function isSectionDone<K extends SectionKey>(key: K, v: SectionValue<K>):
       return (v as PlanData["pillars"]).items.some((i) => filled(i.name));
     case "cadence":
       return filled((v as PlanData["cadence"]).frequency);
-    case "first_month":
-      return filled((v as PlanData["first_month"]).goal);
+    case "first_month": {
+      const f = v as PlanData["first_month"];
+      return filled(f.goal) || Object.keys(f.weekly).length > 0;
+    }
     default:
       return false;
   }
@@ -187,7 +197,15 @@ function parseSectionFormAny(key: SectionKey, form: FormData) {
       }
       return sectionSchemas.cadence.safeParse({ frequency: s("frequency"), roles });
     }
-    case "first_month":
-      return sectionSchemas.first_month.safeParse({ goal: s("goal"), metrics: s("metrics"), kpis: form.getAll("kpis").map(String) });
+    case "first_month": {
+      // 週の回数は weekly-<SNS>。空欄・0 は「決めない」。数え始めの日はサーバーが決める（withFirstMonthCycle）
+      const weekly: Partial<Record<SnsKey, number>> = {};
+      for (const sns of SNS_KEYS) {
+        const raw = s(`weekly-${sns}`).trim();
+        if (!raw || raw === "0") continue;
+        weekly[sns] = Number.isFinite(Number(raw)) ? Number(raw) : -1;
+      }
+      return sectionSchemas.first_month.safeParse({ goal: s("goal"), metrics: s("metrics"), kpis: form.getAll("kpis").map(String), weekly, startedOn: null });
+    }
   }
 }

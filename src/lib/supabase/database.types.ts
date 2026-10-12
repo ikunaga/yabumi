@@ -663,6 +663,71 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_log: {
+        Row: {
+          channel: string
+          created_at: string
+          id: number
+          kind: string
+          period_key: string
+          project_id: string
+          user_id: string
+        }
+        Insert: {
+          channel: string
+          created_at?: string
+          id?: never
+          kind: string
+          period_key: string
+          project_id: string
+          user_id: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          id?: never
+          kind?: string
+          period_key?: string
+          project_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_log_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notification_prefs: {
+        Row: {
+          behind_weekday: number
+          email_mode: string
+          push_mode: string
+          unsubscribe_token: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          behind_weekday?: number
+          email_mode?: string
+          push_mode?: string
+          unsubscribe_token?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          behind_weekday?: number
+          email_mode?: string
+          push_mode?: string
+          unsubscribe_token?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       operator_notifications: {
         Row: {
           key: string
@@ -677,6 +742,47 @@ export type Database = {
           sent_at?: string
         }
         Relationships: []
+      }
+      pace_weeks: {
+        Row: {
+          achieved: boolean
+          owner_id: string
+          project_id: string
+          published: Json
+          scheduled: Json
+          targets: Json
+          updated_at: string
+          week_start: string
+        }
+        Insert: {
+          achieved?: boolean
+          owner_id: string
+          project_id: string
+          published?: Json
+          scheduled?: Json
+          targets: Json
+          updated_at?: string
+          week_start: string
+        }
+        Update: {
+          achieved?: boolean
+          owner_id?: string
+          project_id?: string
+          published?: Json
+          scheduled?: Json
+          targets?: Json
+          updated_at?: string
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pace_weeks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pending_page_choices: {
         Row: {

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { saveSectionValue } from "./save";
 import { isSectionKey, parseSectionForm } from "./schema";
 
 export type SectionFormState = { error?: string; savedAt?: number };
@@ -18,12 +19,9 @@ export async function saveSection(projectId: string, section: string, _prev: Sec
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.rpc("save_account_plan_section", {
-    p_project_id: projectId,
-    p_section: section,
-    p_value: parsed.data,
-  });
-  if (error) return { error: "保存できませんでした。時間をおいてもう一度お試しください。" };
+  // 最初の 1 か月の「次の 1 か月を始める」（restart）は、数え始めを今週にする
+  const saved = await saveSectionValue(supabase, projectId, section, parsed.data, "manual", { restart: formData.get("restart") === "1" });
+  if (!saved.ok) return { error: "保存できませんでした。時間をおいてもう一度お試しください。" };
 
   revalidatePath(`/projects/${projectId}`, "layout");
   revalidatePath("/projects");

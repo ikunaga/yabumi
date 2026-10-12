@@ -1,4 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { loadCoachView, type CoachView } from "@/lib/coach/load";
+import { saveSectionValue } from "@/lib/plan/save";
 import { isKpiKey, recommendedKpis, type KpiKey } from "@/lib/metrics/kpis";
 import { normalizePlan } from "@/lib/plan/schema";
 import { loadRoadmapWith } from "@/lib/roadmap/load";
@@ -27,6 +29,8 @@ export const CONSULT_TOPICS = {
   roadmap: "最終の目標（KGI）と、週ごとのやること（ロードマップ）を一緒に決めたいです。",
   // 指標の画面の「AI と振り返る」から（4.22 の段取り ⑦）。この会話だけ、数字をくわしく「いまの状況」に足す
   review: "最近の数字を振り返って、よかった点と次の一手を教えてください。",
+  // 伴走（4.27）の 1 か月が終わったとき（概要の「AI と振り返る」）。この会話だけ、4 週の結果を「いまの状況」に足す
+  month_review: "最初の 1 か月が終わりました。結果を一緒に振り返って、次の 1 か月の週の回数を決めたいです。",
   // 入口ごとの名前と見出しは consult-topics.ts（同じ入口が両方にあることを型で確かめる）
 } as const satisfies Record<ConsultTopicKey, string>;
 export type ConsultTopic = keyof typeof CONSULT_TOPICS;
@@ -112,6 +116,8 @@ export async function gatherConsultContext(
   loadReview?: LoadReviewNumbers,
   // 入口が「ロードマップ」の会話: 決める順番と、済んだ段を「いまの状況」に足す
   roadmapSteps = false,
+  // 入口が「1 か月の振り返り」の会話: 伴走の 4 週の結果を足す
+  monthReview = false,
 ): Promise<ConsultContext | null> {
   const { data: project } = await user
     .from("projects")
@@ -176,8 +182,10 @@ export async function gatherConsultContext(
         itemWeeks: view.items.filter((i) => i.weekStart >= view.thisWeek).map((i) => weeksBetween(view.thisWeek, i.weekStart)),
       })
     : null;
+  const coach = monthReview ? await loadCoachView(user, projectId, { now, firstMonth: plan.first_month }) : null;
   return {
     ...(review ? { review } : {}),
+    ...(coach ? { monthReview: coachSummaryLines(coach) } : {}),
     ...(steps ? { roadmapSteps: ROADMAP_STEPS.map((s, i) => `${i + 1}. ${s.label}（${s.key}）: ${steps.done[s.key] ? "済み" : s.key === steps.next ? "次に決める" : "まだ"}`).join("\n") } : {}),
     today,
     project: { name: project.name, description: project.description, appStoreUrl: project.app_store_url, playStoreUrl: project.play_store_url },
@@ -201,6 +209,20 @@ export async function gatherConsultContext(
   };
 }
 
+// 伴走の 1 か月の結果（週ごとの SNS ごとの送信済み / 目標、続けた週）を「いまの状況」の文にする
+export function coachSummaryLines(c: CoachView): string {
+  const md = (ymd: string) => `${Number(ymd.slice(5, 7))}/${Number(ymd.slice(8, 10))}`;
+  const lines: string[] = [];
+  if (c.cycle) lines.push(`期間: ${c.cycle.startedOn}〜${c.cycle.endsOn}（${c.cycle.ended ? "終わった" : `${c.cycle.weekIndex} 週目`}）`);
+  for (const w of c.cycle?.weeks ?? []) {
+    const parts = SNS_KEYS.filter((s) => (w.targets[s] ?? 0) > 0).map((s) => `${SNS[s].label} ${w.published[s] ?? 0}/${w.targets[s]}`);
+    lines.push(`${md(w.weekStart)}〜: ${parts.join("、")}（${w.achieved ? "達成" : w.current ? "今週・途中" : "届かなかった"}）`);
+  }
+  lines.push(`続けた週（続けて目標に届いた週）: ${c.streak}`);
+  lines.push(`今の週の回数: ${SNS_KEYS.filter((s) => (c.targets[s] ?? 0) > 0).map((s) => `${s} 週 ${c.targets[s]}`).join("、")}`);
+  return lines.join("\n");
+}
+
 function weeksBetween(fromMonday: string, toMonday: string): number {
   return Math.round((new Date(`${toMonday}T00:00:00Z`).getTime() - new Date(`${fromMonday}T00:00:00Z`).getTime()) / (7 * 86_400_000));
 }
@@ -213,8 +235,8 @@ export async function applyConsultAction(user: Db, projectId: string, action: Ac
   try {
     switch (action.kind) {
       case "plan_section": {
-        const { error } = await user.rpc("save_account_plan_section", { p_project_id: projectId, p_section: action.section, p_value: action.value as never, p_source: "ai" });
-        if (error) return { ok: false, message: "アカウント設計を保存できませんでした。時間をおいてもう一度お試しください。" };
+        const saved = await saveSectionValue(user, projectId, action.section, action.value, "ai");
+        if (!saved.ok) return { ok: false, message: "アカウント設計を保存できませんでした。時間をおいてもう一度お試しください。" };
         return { ok: true };
       }
       case "goal":
@@ -365,7 +387,8 @@ export async function consultStep(
   };
 
   // 振り返りの会話だけ、数字をくわしく足す（ふだんの相談は短く保ち、費用を抑える）
-  const ctx = await gatherConsultContext(user, projectId, now, deps.loadKpiValues, isReviewThread(history) ? deps.loadReview : undefined, threadTopic(history) === "roadmap");
+  const topic = threadTopic(history);
+  const ctx = await gatherConsultContext(user, projectId, now, deps.loadKpiValues, isReviewThread(history) ? deps.loadReview : undefined, topic === "roadmap", topic === "month_review");
   if (!ctx) return fail("プロジェクトが見つかりません。");
 
   const recordUsage = (r: ModelResult) =>

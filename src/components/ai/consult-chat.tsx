@@ -8,7 +8,7 @@ import { Term } from "@/components/ui/term";
 import { sendConsultMessage } from "@/lib/ai/consult-actions";
 import type { ConsultAssistantContent, ConsultMessage, ConsultTopic } from "@/lib/ai/consult";
 import { ROADMAP_STEPS, roadmapStepOf, type ActionBody, type ActionKind, type ConsultOption, type LegacyConsultAction } from "@/lib/ai/consult-schema";
-import { CONSULT_TOPIC_META } from "@/lib/ai/consult-topics";
+import { CONSULT_TOPIC_META, listedConsultTopics } from "@/lib/ai/consult-topics";
 import { sectionLabel } from "@/lib/ai/plan-coach-prompt";
 import { KPIS } from "@/lib/metrics/kpis";
 import { describeSection } from "@/lib/plan/describe";
@@ -17,7 +17,7 @@ import { SNS, type SnsKey } from "@/lib/sns";
 
 type Input = { kind: "start"; topic: ConsultTopic } | { kind: "text"; text: string } | { kind: "adopt"; messageId: string; actionIndex: number };
 
-const TOPIC_BUTTONS = (Object.keys(CONSULT_TOPIC_META) as ConsultTopic[]).map((topic) => ({ topic, label: CONSULT_TOPIC_META[topic].button }));
+const TOPIC_BUTTONS = listedConsultTopics().map((topic) => ({ topic, label: CONSULT_TOPIC_META[topic].button }));
 
 const KIND_LABEL: Record<ActionKind, ReactNode> = {
   plan_section: "アカウント設計の直し",

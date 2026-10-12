@@ -32,6 +32,10 @@ import { facebookConfigured } from "@/lib/sns/facebook/config";
 import { xSpendThisMonth } from "@/lib/sns/x/spend";
 import { getAccountPlan } from "@/lib/plan/queries";
 import { isUuid } from "@/lib/uuid";
+import { aiConfigured } from "@/lib/ai/anthropic";
+import { CoachCard, CoachSetupCard, CycleSummaryCard } from "@/components/coach/coach-card";
+import { loadCoachView } from "@/lib/coach/load";
+import { DEFAULT_BEHIND_WEEKDAY } from "@/lib/coach/pace";
 
 export async function generateMetadata(props: PageProps<"/projects/[id]">): Promise<Metadata> {
   const { id } = await props.params;
@@ -64,6 +68,9 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
       .eq("posts.project_id", project.id)
       .eq("status", "published"),
   ]);
+  // 伴走（4.27）: 最初の 1 か月の SNS ごとの週の回数とペース
+  const { data: prefs } = await supabase.from("notification_prefs").select("behind_weekday").maybeSingle();
+  const coach = plan ? await loadCoachView(supabase, project.id, { firstMonth: plan.plan.first_month, behindWeekday: prefs?.behind_weekday ?? DEFAULT_BEHIND_WEEKDAY }) : null;
   const showGithubPrompt = !repoLink && !project.github_prompt_dismissed_at;
   const planDone = Boolean(plan && (plan.done || plan.skipped));
   const connectedSnsCount = new Set(snsAccounts.filter((a) => a.status === "active").map((a) => a.sns)).size;
@@ -89,6 +96,16 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
 
       <SnsResultBanner connected={connected} error={sns_error} sns={sns} replaced={replacedNames} connectedName={connectedName} />
       {done === "description" && <SuccessBanner>アプリの紹介文（どんなアプリか）を保存しました。アカウント設計の AI にも伝わります。</SuccessBanner>}
+
+      {/* 伴走の声かけは一番上に（1 か月が終わったら、まとめと次の 1 か月へ） */}
+      {coach ? (
+        <>
+          {coach.cycle?.ended && <CycleSummaryCard projectId={project.id} view={coach} aiEnabled={aiConfigured()} />}
+          <CoachCard projectId={project.id} view={coach} aiEnabled={aiConfigured()} />
+        </>
+      ) : (
+        planDone && stepIndex >= STEPS.length && <CoachSetupCard projectId={project.id} />
+      )}
 
       {showGithubPrompt && <GithubPrompt projectId={project.id} configured={githubConfigured()} />}
 

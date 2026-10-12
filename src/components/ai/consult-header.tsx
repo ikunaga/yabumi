@@ -22,7 +22,7 @@ export function ConsultHeader({
   const meta = consultTopicMeta(topic);
   const entry = meta?.entry ?? null;
   const base = `/projects/${projectId}`;
-  const back = entry ? { href: `${base}/${entry.back.path}`, label: entry.back.label } : { href: `${base}/consult`, label: "相談の一覧へ" };
+  const back = entry ? { href: entry.back.path ? `${base}/${entry.back.path}` : base, label: entry.back.label } : { href: `${base}/consult`, label: "相談の一覧へ" };
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">

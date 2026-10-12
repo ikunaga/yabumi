@@ -27,6 +27,9 @@ const PUBLIC_PATHS = [
   "/privacy",
   // ほかのアプリからの「共有」（4.26）。受け取ったものをブラウザに控えてから、画面がログインへ送る（ログインのあとで続ける）
   "/share",
+  // 伴走のお知らせのメールを止める（4.27）。メールのリンクから、ログインしなくても止められるように（合言葉で本人のものだけ）
+  "/unsubscribe",
+  "/api/unsubscribe",
 ];
 
 function isPublicPath(pathname: string) {

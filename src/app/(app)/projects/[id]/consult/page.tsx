@@ -6,7 +6,7 @@ import { SuccessBanner } from "@/components/ui/feedback";
 import { aiConfigured } from "@/lib/ai/anthropic";
 import { isConsultTopic } from "@/lib/ai/consult";
 import { listConsultThreads } from "@/lib/ai/consult-queries";
-import { CONSULT_TOPIC_META, type ConsultTopicKey } from "@/lib/ai/consult-topics";
+import { CONSULT_TOPIC_META, listedConsultTopics } from "@/lib/ai/consult-topics";
 import { getProject } from "@/lib/projects/queries";
 import { formatShort } from "@/lib/time";
 import { isUuid } from "@/lib/uuid";
@@ -53,7 +53,7 @@ export default async function ConsultListPage(props: PageProps<"/projects/[id]/c
           新しい相談
         </h2>
         <div className="flex flex-wrap gap-2">
-          {(Object.keys(CONSULT_TOPIC_META) as ConsultTopicKey[]).map((t) => (
+          {listedConsultTopics().map((t) => (
             <Link
               key={t}
               href={`${base}/new?start=${t}`}

@@ -59,6 +59,11 @@ export const CONSULT_SYSTEM = `あなたは「矢書（やぶみ）」の中で�
 - 数字が少ない・始めたばかりのときは、上の「数字の扱い」のとおり、判断を急がず、続けることと試すことを 1 つだけ出す
 - 2 回目からは、相手の質問に答える（ふだんの相談と同じ）
 
+# 1 か月の振り返り（「いまの状況」に「伴走の 1 か月の結果」があるとき）
+- その結果の数字だけを使う。次の順に: ① 続けられた週と、よかった点（数が少なくても、続けたことを認める）② 届かなかった週があれば、責めずに理由の見当を 1 つ聞く ③ 次の 1 か月の週の回数を決める
+- ③ は plan_section（section: first_month）の案を 2〜3 個（例: 同じ回数で続ける／届かなかった SNS を減らす／届いた SNS を 1 増やす）。weekly のほかの項目（goal・metrics・kpis）は今の値を基にし、goal には新しい回数を書く。選ばれると、その週から次の 1 か月を数え始める
+- 4 週とも届いたからといって、急に大きく増やさない（増やすのは 1 SNS につき週 1 まで）
+
 # 返事の形
 - message: 相手に話しかける文。普通の文章で書く。見出しや表などの Markdown は使わない（改行と「・」の箇条書きは使ってよい）
 - choices: 答えの選択肢（質問がないときは空）
@@ -69,7 +74,7 @@ export const CONSULT_SYSTEM = `あなたは「矢書（やぶみ）」の中で�
 
 # 提案の中身の形（value_json）
 - plan_section: {"section": "goal" | "audience" | "pillars" | "ownership" | "profile" | "cadence" | "first_month", "value": （そのセクションの形）}
-  - セクションの形は、アカウント設計と同じ: goal {"what","goalType","note"}、audience {"who","pain","where"}、pillars {"items":[{"name","share","example"}],"tone","avoid"}、ownership {"mode","reason"}、profile {"displayName","handle","handleBackups","bio","link","bySns":{"x":{"displayName","handle","bio","link"}, ...}}（bySns は SNS ごとに変えるものだけ。空の項目は共通を使う。Threads の handle は、ふつう Instagram と同じなので入れない）、cadence {"frequency","roles":[{"sns","role"}]}、first_month {"goal","metrics","kpis":[...]}
+  - セクションの形は、アカウント設計と同じ: goal {"what","goalType","note"}、audience {"who","pain","where"}、pillars {"items":[{"name","share","example"}],"tone","avoid"}、ownership {"mode","reason"}、profile {"displayName","handle","handleBackups","bio","link","bySns":{"x":{"displayName","handle","bio","link"}, ...}}（bySns は SNS ごとに変えるものだけ。空の項目は共通を使う。Threads の handle は、ふつう Instagram と同じなので入れない）、cadence {"frequency","roles":[{"sns","role"}]}、first_month {"goal","metrics","kpis":[...],"weekly":{"x":2,"instagram":1}}（weekly は SNS ごとの週の投稿の回数。伴走が見張る数字。直すときは今の値を基に）
   - 直すセクション全体を入れる（直さない項目は今の値のまま）。1 つの提案の案は、どれも同じセクション
 - kgi: {"kgi": {"statement": "一文の目標", "kpi": 数字の名前, "target": 目標の値（数）, "deadline": "YYYY-MM-DD", "sns": SNS の名前 または null}}
   - deadline は「いまの状況」の今日の日付から数えて決める
@@ -98,6 +103,8 @@ export type ConsultContext = {
   };
   // 入口が「ロードマップ」の会話だけ: 決める順番と、済んだ段（「1. 最終の目標（kgi）: 済み」など）
   roadmapSteps?: string;
+  // 入口が「1 か月の振り返り」の会話だけ: 伴走の 4 週の結果（週ごとの SNS ごとの送信済み / 目標）
+  monthReview?: string;
   // 振り返りの会話だけ（4.22 の段取り ⑦）
   review?: {
     kpiValues: Partial<Record<KpiKey, { thisWeek: number; lastWeek: number }>>;
@@ -143,6 +150,7 @@ export function consultContextMessage(ctx: ConsultContext): string {
       : "KGI: まだ決めていない",
     r.kpiTargets.length ? `KPI の週の目標: ${r.kpiTargets.map((t) => `${t.kpi}${t.sns ? `（${t.sns}）` : ""} 週 ${t.perWeek}`).join("、")}` : "KPI の週の目標: まだ決めていない",
     r.items.length ? clip(`今週・来週のやること: ${JSON.stringify(r.items)}`, 2000) : "今週・来週のやること: まだない",
+    ...(ctx.monthReview ? ["# 伴走の 1 か月の結果（送信済みの数 / その週の目標。予約はまだ数えない）", ctx.monthReview] : []),
     ...(ctx.roadmapSteps ? ["ロードマップづくりの段取り（この順に 1 つずつ決める。済みの段は飛ばす）:", ctx.roadmapSteps] : []),
     ...(ctx.review ? reviewLines(ctx.review, kpiLine) : []),
   ].join("\n");

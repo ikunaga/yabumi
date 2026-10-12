@@ -7,9 +7,11 @@ import { ErrorBanner } from "@/components/ui/feedback";
 import { Field, Input, Textarea } from "@/components/ui/field";
 import { Term } from "@/components/ui/term";
 import { saveSection, type SectionFormState } from "@/lib/plan/actions";
-import { MAX_PILLARS, REQUIRED_FOR_DONE, SECTION_KEYS, isSectionDone, type PlanData, type SectionKey } from "@/lib/plan/schema";
+import { MAX_PILLARS, MAX_WEEKLY_PER_SNS, REQUIRED_FOR_DONE, SECTION_KEYS, isSectionDone, type PlanData, type SectionKey } from "@/lib/plan/schema";
+import { cycleInfo } from "@/lib/coach/pace";
+import { toYmd } from "@/lib/time";
 import { KPI_KEYS, KPIS, MAX_KPIS, recommendedKpis, type KpiKey } from "@/lib/metrics/kpis";
-import { SNS, SNS_KEYS } from "@/lib/sns";
+import { SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
 import { ProfileFields, type ProfileContext } from "./profile-fields";
 
 // 見出しはボタンの中に置くので、用語解説（これもボタン）は説明文のほうに付ける
@@ -218,7 +220,14 @@ function SectionFields({ sectionKey, plan, profileCtx }: { sectionKey: SectionKe
     case "cadence":
       return <CadenceFields v={plan.cadence} />;
     case "first_month":
-      return <FirstMonthFields v={plan.first_month} goalType={plan.goal.goalType} />;
+      return (
+        <FirstMonthFields
+          v={plan.first_month}
+          goalType={plan.goal.goalType}
+          // 週の回数の欄を出す SNS: 役割を書いた SNS・つないだ SNS・もう回数を決めた SNS（ほかは折りたたむ）
+          mainSns={SNS_KEYS.filter((k) => plan.cadence.roles[k]?.trim() || profileCtx.accounts.some((a) => a.sns === k) || (plan.first_month.weekly[k] ?? 0) > 0)}
+        />
+      );
   }
 }
 
@@ -431,8 +440,10 @@ function CadenceFields({ v }: { v: PlanData["cadence"] }) {
   );
 }
 
-function FirstMonthFields({ v, goalType }: { v: PlanData["first_month"]; goalType: PlanData["goal"]["goalType"] }) {
+function FirstMonthFields({ v, goalType, mainSns }: { v: PlanData["first_month"]; goalType: PlanData["goal"]["goalType"]; mainSns: SnsKey[] }) {
   const recommended = recommendedKpis(goalType);
+  const cycle = v.startedOn ? cycleInfo(v.startedOn, toYmd(new Date())) : null;
+  const otherSns = SNS_KEYS.filter((k) => !mainSns.includes(k));
   // まだ選んでいなければ、目的からのおすすめを入れておく（保存するまでは決まらない）
   const [kpis, setKpis] = useState<KpiKey[]>(() => ((v.kpis ?? []).length ? (v.kpis ?? []) : recommended.slice(0, MAX_KPIS)));
   return (
@@ -458,6 +469,42 @@ function FirstMonthFields({ v, goalType }: { v: PlanData["first_month"]; goalTyp
           placeholder="例: 投稿ごとの表示回数と、ストアページへのアクセス数を、週に 1 回（日曜の夜）見る"
         />
       </Field>
+      <fieldset className="flex flex-col gap-2">
+        <legend className="text-[14px] font-bold">SNS ごとの週の投稿の回数（伴走）</legend>
+        <p className="text-xs leading-[1.7] text-muted">
+          決めると、矢書が週ごとのペース（送った投稿と予約した投稿）を見守り、概要の一番上と、遅れそうなとき・毎週月曜のメールで声をかけます。続けられる回数にしましょう（迷ったら、メインの SNS に週 2、ほかは週 1）。使わない SNS は空欄で構いません。
+        </p>
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2">
+          {mainSns.map((sns) => (
+            <WeeklyInput key={sns} sns={sns} value={v.weekly[sns]} />
+          ))}
+        </div>
+        {otherSns.length > 0 && (
+          <details className="text-sm">
+            <summary className="cursor-pointer text-primary">{mainSns.length ? `ほかの SNS（${otherSns.length}）` : "SNS を選んで回数を決める"}</summary>
+            <div className="mt-2 grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2">
+              {otherSns.map((sns) => (
+                <WeeklyInput key={sns} sns={sns} value={v.weekly[sns]} />
+              ))}
+            </div>
+          </details>
+        )}
+        {cycle && (
+          <div className="flex flex-col gap-1 rounded-md border border-line bg-surface2 px-3 py-2 text-xs leading-[1.7]">
+            <p>
+              {cycle.ended
+                ? `前の 1 か月（${cycle.startedOn.slice(5).replace("-", "/")}〜${cycle.endsOn.slice(5).replace("-", "/")}）は終わりました。保存すると、今週から次の 1 か月を数え始めます。`
+                : `いまの 1 か月: ${cycle.startedOn.slice(5).replace("-", "/")}〜${cycle.endsOn.slice(5).replace("-", "/")}（${cycle.weekIndex} 週目）。回数を変えても、数え始めの日は変わりません。`}
+            </p>
+            {!cycle.ended && (
+              <label className="flex items-center gap-2">
+                <input type="checkbox" name="restart" value="1" className="size-4 accent-[var(--primary)]" />
+                次の 1 か月を始める（今週から数え直す）
+              </label>
+            )}
+          </div>
+        )}
+      </fieldset>
       <fieldset className="flex flex-col gap-1.5">
         <legend className="text-[14px] font-bold">
           矢書の「指標」の画面で追いかける数字（<Term k="kpi" />。{MAX_KPIS} つまで）
@@ -498,5 +545,16 @@ function FirstMonthFields({ v, goalType }: { v: PlanData["first_month"]; goalTyp
         とも呼ばれます。
       </p>
     </>
+  );
+}
+
+function WeeklyInput({ sns, value }: { sns: SnsKey; value: number | undefined }) {
+  return (
+    <label className="flex items-center gap-2 text-sm">
+      <span className="w-20 shrink-0 font-bold">{SNS[sns].label}</span>
+      <span className="text-muted">週</span>
+      <Input name={`weekly-${sns}`} type="number" inputMode="numeric" min={0} max={MAX_WEEKLY_PER_SNS} defaultValue={value ?? ""} className="w-16" aria-label={`${SNS[sns].label} の週の回数`} />
+      <span className="text-muted">回</span>
+    </label>
   );
 }

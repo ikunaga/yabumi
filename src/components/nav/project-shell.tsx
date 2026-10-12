@@ -24,8 +24,8 @@ export function ProjectShell({
     <div className="flex flex-1 max-sm:flex-col">
       {/* PC: サイドバー */}
       <aside className="w-[220px] shrink-0 bg-nav text-nav-fg max-sm:hidden">
-        {/* 画面の上に帯（同意・規約の変更のお知らせ）があるときは、その高さぶん縮めて、下端（ダーク・ログアウト）が画面に収まるようにする */}
-        <div className="sticky top-0 flex h-[calc(100dvh-var(--app-top-bars,0px))] flex-col gap-7 px-5 py-7">
+        {/* 画面の上に帯（同意・規約の変更のお知らせ）があるときは、その高さぶん縮めて、下端（ダーク・ログアウト）が画面に収まるようにする（入りきらないときは、サイドバーの中でスクロールする） */}
+        <div className="sticky top-0 flex h-[calc(100dvh-var(--app-top-bars,0px))] flex-col gap-7 overflow-y-auto px-5 py-7">
         <Brand href="/projects" tone="nav" />
         <div className="flex flex-col gap-2.5">
           <ProjectSwitcher current={project} projects={projects} variant="sidebar" />

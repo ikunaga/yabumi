@@ -37,6 +37,7 @@ const TABLES = [
   "play_account_creations",
   "operator_notifications",
   "idea_notes",
+  "push_subscriptions",
 ] as const;
 
 let alice: TestClient;

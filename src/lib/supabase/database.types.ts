@@ -1108,6 +1108,42 @@ export type Database = {
         }
         Relationships: []
       }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          device_label: string
+          endpoint: string
+          id: string
+          last_success_at: string | null
+          p256dh: string
+          test_sent_at: string | null
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          device_label?: string
+          endpoint: string
+          id?: string
+          last_success_at?: string | null
+          p256dh: string
+          test_sent_at?: string | null
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          device_label?: string
+          endpoint?: string
+          id?: string
+          last_success_at?: string | null
+          p256dh?: string
+          test_sent_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       roadmap_items: {
         Row: {
           created_at: string

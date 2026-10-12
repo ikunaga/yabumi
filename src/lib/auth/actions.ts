@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { z } from "zod";
+import { forgetPushDevice } from "@/lib/push/cookie";
 import { createClient } from "@/lib/supabase/server";
 import { safeNextPath } from "./redirect";
 import { isSignupAllowed } from "./signup-policy";
@@ -129,6 +130,9 @@ export async function signup(_prev: AuthFormState, formData: FormData): Promise<
 
 export async function logout() {
   const supabase = await createClient();
+  // この端末への通知を止める（同じ端末をほかの人が使っても、前の人への通知が出ないように。4.28）
+  const { data } = await supabase.auth.getClaims();
+  await forgetPushDevice(data?.claims?.sub ?? null);
   await supabase.auth.signOut();
   redirect("/login");
 }

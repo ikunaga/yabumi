@@ -5,6 +5,7 @@ import { createAppJwt } from "@/lib/github/app-auth";
 import { deleteInstallation } from "@/lib/github/api";
 import { githubConfig, githubConfigured } from "@/lib/github/config";
 import { defaultLinkDomainDeps } from "@/lib/links/domains";
+import { forgetPushDevice } from "@/lib/push/cookie";
 import { revokeDeps } from "@/lib/sns/adapters";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -58,7 +59,8 @@ export async function withdraw(_prev: WithdrawState, formData: FormData): Promis
     return { error: "退会の手続きに失敗しました。時間をおいてもう一度お試しください。" };
   }
 
-  // 利用者はもう消えているので、手元のログインの cookie だけを消す
+  // 利用者はもう消えているので、手元のログインの cookie だけを消す（通知の宛先は退会で消えている）
+  await forgetPushDevice(null);
   await supabase.auth.signOut({ scope: "local" });
   redirect("/?done=withdrawn");
 }

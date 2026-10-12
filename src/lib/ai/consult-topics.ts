@@ -20,7 +20,7 @@ export const CONSULT_TOPIC_META = {
     listTitle: "ロードマップづくり",
     entry: {
       title: "ロードマップを AI と作る",
-      lead: "AI がアカウント設計と数字を見て、最終の目標と週ごとのやることの案を出します。「これにする」を押した案だけが、ロードマップに入ります。",
+      lead: "AI がアカウント設計と数字を見て、最終の目標と週ごとのやることの案を出します。選んだ案だけが、ロードマップに入ります。",
       back: { path: "roadmap", label: "ロードマップに戻る" },
     },
   },
@@ -39,4 +39,24 @@ export type ConsultTopicKey = keyof typeof CONSULT_TOPIC_META;
 
 export function consultTopicMeta(topic: string | null | undefined): ConsultTopicMeta | null {
   return topic && Object.hasOwn(CONSULT_TOPIC_META, topic) ? CONSULT_TOPIC_META[topic as ConsultTopicKey] : null;
+}
+
+// 一覧に要るところだけを JSON から読んだもの（AI の返事の本文は大きいので読まない）
+export type ThreadMessageDigest = { role: string; kind?: string | null; text?: string | null; topic?: string | null; title?: string | null; option?: string | null; legacy?: string | null };
+
+const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)}…` : s);
+
+// 一覧の 1 行の名前。同じ入口の相談が並んでも見分けられるように、入口の名前に中身を添える（オーナーの指摘、2026-10-12）。
+// 中身は、最後に採用した案 → 最初に書いた発言 → まだ選んでいない最後の案、の順
+export function summarizeConsultThread(messages: ThreadMessageDigest[]): { topicTitle: string | null; title: string; adopted: number } {
+  const user = messages.filter((m) => m.role === "user");
+  const first = user[0];
+  const topic = first?.kind === "start" ? (consultTopicMeta(first.topic)?.listTitle ?? "相談") : null;
+  const adopts = user.filter((m) => m.kind === "adopt" && m.title);
+  const firstText = user.find((m) => m.kind === "text" && m.text?.trim())?.text?.trim() ?? "";
+  const lastAdopt = adopts[adopts.length - 1]?.title ?? "";
+  const lastOption = [...messages].reverse().find((m) => m.role === "assistant" && (m.option || m.legacy));
+  const pending = lastOption ? `${lastOption.option ?? lastOption.legacy} など（まだ選んでいない）` : "";
+  const title = lastAdopt || firstText || pending || (topic ? "" : "相談");
+  return { topicTitle: topic, title: clip(title.replace(/\s+/g, " "), 40), adopted: adopts.length };
 }

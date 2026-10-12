@@ -1,38 +1,36 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { loadConsultHistory, type ConsultMessage } from "./consult";
-import { consultTopicMeta } from "./consult-topics";
+import { loadRoadmap } from "@/lib/roadmap/queries";
+import { roadmapStepState, type RoadmapStepState } from "./consult-schema";
+import { summarizeConsultThread, type ThreadMessageDigest } from "./consult-topics";
 
 // AI と相談の会話の読み込み（RLS で本人のものだけ）
 
-export type ConsultThreadSummary = { id: string; updatedAt: string; title: string };
+// topicTitle: 入口の名前（入口から始めたとき）。title: 中身がわかる題。adopted: 採用した案の数（summarizeConsultThread）
+export type ConsultThreadSummary = { id: string; updatedAt: string; topicTitle: string | null; title: string; adopted: number };
 
-// 過去の会話の一覧（新しい順に 20 件）。名前は最初の発言の先頭
+// 過去の会話の一覧（新しい順に 20 件）
 export async function listConsultThreads(projectId: string): Promise<ConsultThreadSummary[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("ai_threads")
-    .select("id, updated_at, ai_messages(content, created_at)")
+    .select(
+      "id, updated_at, ai_messages(role, created_at, kind:content->>kind, text:content->>text, topic:content->>topic, title:content->>title, option:content->proposal->options->0->>title, legacy:content->actions->0->>title)",
+    )
     .eq("project_id", projectId)
     .eq("purpose", "consult")
     .order("updated_at", { ascending: false })
     .order("created_at", { referencedTable: "ai_messages", ascending: true })
-    .limit(1, { referencedTable: "ai_messages" })
     .limit(20);
   if (error) throw error;
-  return (data ?? []).map((t) => {
-    const first = (t.ai_messages as unknown as { content: { kind?: string; text?: string; topic?: string } }[])[0]?.content;
-    const text = first?.kind === "text" ? first.text ?? "" : first?.kind === "start" ? topicTitle(first.topic) : "相談";
-    return { id: t.id, updatedAt: t.updated_at, title: text.length > 30 ? `${text.slice(0, 30)}…` : text || "相談" };
-  });
+  return (data ?? []).map((t) => ({
+    id: t.id,
+    updatedAt: t.updated_at,
+    ...summarizeConsultThread(t.ai_messages as unknown as ThreadMessageDigest[]),
+  }));
 }
 
-// 入口から始めた相談は、入口ごとの名前（「ロードマップづくり」「振り返り」など）で見分ける
-export function topicTitle(topic: string | undefined): string {
-  return consultTopicMeta(topic)?.listTitle ?? "相談";
-}
-
-// topic: 入口から始めた相談なら、その入口（見出しと戻り先に使う）
 export async function getConsultThread(projectId: string, threadId: string): Promise<{ id: string; messages: ConsultMessage[]; topic: string | null } | null> {
   const supabase = await createClient();
   const { data } = await supabase.from("ai_threads").select("id").eq("id", threadId).eq("project_id", projectId).eq("purpose", "consult").maybeSingle();
@@ -40,4 +38,15 @@ export async function getConsultThread(projectId: string, threadId: string): Pro
   const messages = await loadConsultHistory(supabase, data.id);
   const first = messages[0];
   return { id: data.id, messages, topic: first?.role === "user" && first.content.kind === "start" ? first.content.topic : null };
+}
+
+// ロードマップづくりの会話の見出しの段取り（今のロードマップから、どこまで決まったか）
+export async function roadmapStepsFor(projectId: string): Promise<RoadmapStepState> {
+  const view = await loadRoadmap(projectId);
+  const r = view.roadmap;
+  return roadmapStepState({
+    hasKgi: Boolean(r?.kgi),
+    hasKpiTargets: (r?.kpiTargets.length ?? 0) > 0,
+    itemWeeks: view.items.filter((i) => i.weekStart >= view.thisWeek).map((i) => Math.round((Date.parse(i.weekStart) - Date.parse(view.thisWeek)) / (7 * 86_400_000))),
+  });
 }

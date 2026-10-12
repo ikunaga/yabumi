@@ -9,7 +9,7 @@ import type { Database } from "@/lib/supabase/database.types";
 import { addDays, toYmd } from "@/lib/time";
 import { checkAiLimits, type AiLimits } from "./limits";
 import type { ConsultTopicKey } from "./consult-topics";
-import { normalizeConsultTurn, toWireConsultTurn, type ConsultAction, type ConsultTurn } from "./consult-schema";
+import { adoptableOptions, normalizeConsultTurn, roadmapStepState, ROADMAP_STEPS, toWireConsultTurn, type ActionBody, type ActionKind, type ConsultTurn } from "./consult-schema";
 import { CONSULT_SYSTEM, consultContextMessage, type ConsultContext } from "./consult-prompt";
 import { MAX_TURNS_PER_THREAD, MAX_USER_TEXT, type BetaMessageParam, type BetaTextBlockParam, type CallModel, type ModelRequest, type ModelResult } from "./plan-coach";
 import { estimateCostUsd } from "./pricing";
@@ -38,7 +38,7 @@ export function isConsultTopic(v: unknown): v is ConsultTopic {
 export type ConsultUserContent =
   | { kind: "start"; topic: ConsultTopic }
   | { kind: "text"; text: string }
-  | { kind: "adopt"; messageId: string; actionIndex: number; actionKind: ConsultAction["kind"]; title: string };
+  | { kind: "adopt"; messageId: string; actionIndex: number; actionKind: ActionKind; title: string };
 
 // AI の返事。採用した提案の番号を、あとから書き足す
 export type ConsultAssistantContent = ConsultTurn & { adopted?: number[] };
@@ -47,8 +47,10 @@ export type ConsultMessage =
   | { id: string; role: "user"; content: ConsultUserContent; created_at: string }
   | { id: string; role: "assistant"; content: ConsultAssistantContent; created_at: string };
 
-const ADOPTED_TEXT: Record<ConsultAction["kind"], string> = {
+const ADOPTED_TEXT: Record<ActionKind, string> = {
   plan_section: "アカウント設計を直しました",
+  kgi: "最終の目標をロードマップに入れました",
+  kpi_targets: "毎週の目標をロードマップに入れました",
   goal: "目標をロードマップに入れました",
   roadmap_items: "やることをロードマップに足しました",
   post_draft: "下書きを作りました",
@@ -61,7 +63,7 @@ export function consultUserText(c: ConsultUserContent): string {
     case "text":
       return c.text;
     case "adopt":
-      return `提案「${c.title}」を採用しました（${ADOPTED_TEXT[c.actionKind]}）。続けてください。`;
+      return `案「${c.title}」を採用しました（${ADOPTED_TEXT[c.actionKind]}）。決めることが残っていれば、次の項目に進んでください。`;
   }
 }
 
@@ -93,9 +95,13 @@ export type ReviewNumbers = {
 };
 export type LoadReviewNumbers = (user: Db, projectId: string) => Promise<ReviewNumbers>;
 
-export function isReviewThread(history: ConsultMessage[]): boolean {
+export function threadTopic(history: ConsultMessage[]): ConsultTopic | null {
   const first = history[0];
-  return first?.role === "user" && first.content.kind === "start" && first.content.topic === "review";
+  return first?.role === "user" && first.content.kind === "start" ? first.content.topic : null;
+}
+
+export function isReviewThread(history: ConsultMessage[]): boolean {
+  return threadTopic(history) === "review";
 }
 
 export async function gatherConsultContext(
@@ -104,6 +110,8 @@ export async function gatherConsultContext(
   now: Date,
   loadKpiValues: LoadKpiValues,
   loadReview?: LoadReviewNumbers,
+  // 入口が「ロードマップ」の会話: 決める順番と、済んだ段を「いまの状況」に足す
+  roadmapSteps = false,
 ): Promise<ConsultContext | null> {
   const { data: project } = await user
     .from("projects")
@@ -161,8 +169,16 @@ export async function gatherConsultContext(
   const nextWeek = addDays(view.thisWeek, 7);
   const r = view.roadmap;
   const review = loadReview ? await loadReview(user, projectId) : undefined;
+  const steps = roadmapSteps
+    ? roadmapStepState({
+        hasKgi: Boolean(r?.kgi),
+        hasKpiTargets: (r?.kpiTargets.length ?? 0) > 0,
+        itemWeeks: view.items.filter((i) => i.weekStart >= view.thisWeek).map((i) => weeksBetween(view.thisWeek, i.weekStart)),
+      })
+    : null;
   return {
     ...(review ? { review } : {}),
+    ...(steps ? { roadmapSteps: ROADMAP_STEPS.map((s, i) => `${i + 1}. ${s.label}（${s.key}）: ${steps.done[s.key] ? "済み" : s.key === steps.next ? "次に決める" : "まだ"}`).join("\n") } : {}),
     today,
     project: { name: project.name, description: project.description, appStoreUrl: project.app_store_url, playStoreUrl: project.play_store_url },
     plan,
@@ -185,11 +201,15 @@ export async function gatherConsultContext(
   };
 }
 
+function weeksBetween(fromMonday: string, toMonday: string): number {
+  return Math.round((new Date(`${toMonday}T00:00:00Z`).getTime() - new Date(`${fromMonday}T00:00:00Z`).getTime()) / (7 * 86_400_000));
+}
+
 // ===== 提案を採用する（利用者の権限で書く。中身はサーバーに保存した AI の返事から読む） =====
 export type ApplyResult = { ok: true; redirect?: string } | { ok: false; message: string };
 
 // weekStart: 今週の月曜（AI は「何週目か」で出すので、ここで日付にする）
-export async function applyConsultAction(user: Db, projectId: string, action: ConsultAction, weekStart: string): Promise<ApplyResult> {
+export async function applyConsultAction(user: Db, projectId: string, action: ActionBody, weekStart: string): Promise<ApplyResult> {
   try {
     switch (action.kind) {
       case "plan_section": {
@@ -200,6 +220,18 @@ export async function applyConsultAction(user: Db, projectId: string, action: Co
       case "goal":
         await saveGoal(user, projectId, { kgi: action.kgi, kpiTargets: action.kpiTargets }, "ai");
         return { ok: true };
+      // KGI と週の目標は別々に決める（1 回 1 項目）。もう片方は今の値を残す
+      case "kgi":
+      case "kpi_targets": {
+        const current = (await loadRoadmapWith(user, projectId)).roadmap;
+        await saveGoal(
+          user,
+          projectId,
+          action.kind === "kgi" ? { kgi: action.kgi, kpiTargets: current?.kpiTargets ?? [] } : { kgi: current?.kgi ?? null, kpiTargets: action.kpiTargets },
+          "ai",
+        );
+        return { ok: true };
+      }
       case "roadmap_items":
         await addItems(
           user,
@@ -293,9 +325,11 @@ export async function consultStep(
   else if (input.kind === "text") userContent = { kind: "text", text: input.text.trim() };
   else {
     const target = history.find((m) => m.id === input.messageId);
-    const action = target?.role === "assistant" ? target.content.actions[input.actionIndex] : undefined;
+    const action = target?.role === "assistant" ? adoptableOptions(target.content)[input.actionIndex] : undefined;
     if (!target || target.role !== "assistant" || !action) return { ok: false, threadId, message: "提案が見つかりません。画面を読み込み直してください。" };
-    if (target.content.adopted?.includes(input.actionIndex)) return { ok: false, threadId, message: "この提案は採用済みです。" };
+    // 新しい形は 1 つの提案から案を 1 つだけ選ぶ。前の形は提案ごとに採用できる
+    const adoptedBefore = target.content.adopted ?? [];
+    if (target.content.proposal ? adoptedBefore.length > 0 : adoptedBefore.includes(input.actionIndex)) return { ok: false, threadId, message: "この提案は採用済みです。" };
     const applied = await applyConsultAction(user, projectId, action, weekStartOf(toYmd(now)));
     if (!applied.ok) return { ok: false, threadId, message: applied.message };
     redirect = applied.redirect;
@@ -331,7 +365,7 @@ export async function consultStep(
   };
 
   // 振り返りの会話だけ、数字をくわしく足す（ふだんの相談は短く保ち、費用を抑える）
-  const ctx = await gatherConsultContext(user, projectId, now, deps.loadKpiValues, isReviewThread(history) ? deps.loadReview : undefined);
+  const ctx = await gatherConsultContext(user, projectId, now, deps.loadKpiValues, isReviewThread(history) ? deps.loadReview : undefined, threadTopic(history) === "roadmap");
   if (!ctx) return fail("プロジェクトが見つかりません。");
 
   const recordUsage = (r: ModelResult) =>
@@ -362,7 +396,7 @@ export async function consultStep(
   if (!turn || !turn.message) return fail(GENERIC_ERROR);
 
   // 提案の中身が形に合わなかったときは、理由を伝えて 1 回だけ言い直させる
-  if (turn.actionProblem) {
+  if (turn.proposalProblem) {
     try {
       const retry = await deps.callModel({
         system: request.system,
@@ -371,19 +405,20 @@ export async function consultStep(
           { role: "assistant", content: [{ type: "text", text: JSON.stringify(result.turn) }] },
           {
             role: "user",
-            content: [{ type: "text", text: `（矢書からの自動の連絡）提案の value_json が決められた形に合いませんでした: ${turn.actionProblem}。「提案の中身の形」に合わせて直し、同じ返事の形でもう一度返してください。` }],
+            content: [{ type: "text", text: `（矢書からの自動の連絡）提案の案が決められた形に合いませんでした: ${turn.proposalProblem}。「提案の中身の形」に合わせて直し（1 回の提案は 1 つの項目だけ、案は 2〜3 個）、同じ返事の形でもう一度返してください。` }],
           },
         ],
       });
       await recordUsage(retry);
       const fixed = retry.stopReason === "end_turn" ? normalizeConsultTurn(retry.turn) : null;
-      if (fixed?.message && !fixed.actionProblem) turn = fixed;
+      // 言い直しで案が揃えば使う。揃わなくても、最初の返事より合った案が多ければそちらを使う
+      if (fixed?.message && (!fixed.proposalProblem || (fixed.proposal?.options.length ?? 0) > (turn.proposal?.options.length ?? 0))) turn = fixed;
     } catch (e) {
       console.error("[consult] 言い直しの呼び出しに失敗しました", e instanceof Error ? e.message : e);
     }
   }
 
-  const { actionProblem: _ignored, ...toSave } = turn;
+  const { proposalProblem: _ignored, ...toSave } = turn;
   void _ignored;
   const { error } = await admin.from("ai_messages").insert({ thread_id: threadId, owner_id: userId, role: "assistant", content: { ...toSave, adopted: [] } as never });
   if (error) throw error;

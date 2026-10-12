@@ -139,7 +139,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
             </p>
           </div>
           {aiConfigured() ? (
-            <ButtonLink href={`/projects/${project.id}/consult?start=review`}>AI と振り返る</ButtonLink>
+            <ButtonLink href={`/projects/${project.id}/consult/new?start=review`}>AI と振り返る</ButtonLink>
           ) : (
             <NotReadyButton>AI と振り返る</NotReadyButton>
           )}

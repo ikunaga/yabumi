@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { DeleteThreadButton } from "@/components/ai/delete-thread-button";
+import { ThreadMenu } from "@/components/ai/thread-menu";
 import { PlanCoachChat } from "@/components/plan/plan-coach-chat";
 import { SuccessBanner } from "@/components/ui/feedback";
 import { ButtonLink } from "@/components/ui/button";
@@ -41,20 +41,23 @@ export default async function PlanChatPage(props: PageProps<"/projects/[id]/plan
           <h1 className="font-heading text-3xl font-bold max-sm:text-2xl">AI と考える</h1>
           <p className="text-[14px] leading-[1.8] text-muted">アカウント設計を、AI と話しながら 1 つずつ決めます。</p>
         </div>
-        <Link href={planHref} className="text-[14px] font-semibold text-primary hover:underline">
-          決まった中身を見る・手で直す
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href={planHref} className="text-[14px] font-semibold text-primary hover:underline">
+            決まった中身を見る・手で直す
+          </Link>
+          {/* 削除は会話の下に混ざらないように、見出しの横の「…」に（AI と相談と同じ） */}
+          {thread && (
+            <ThreadMenu
+              projectId={id}
+              threadId={thread.id}
+              backPath={`/projects/${id}/plan/chat`}
+              keeps="設計に採用した内容は残ります。会話は、最後のやり取りから 1 年たつと自動で消えます。"
+            />
+          )}
+        </div>
       </div>
       {sp.done === "thread_deleted" && <SuccessBanner>会話を消しました。設計に採用した内容は残っています。</SuccessBanner>}
       <PlanCoachChat key={thread?.id ?? "new"} projectId={id} threadId={thread?.id ?? null} messages={thread?.messages ?? []} initialFocus={focus} />
-      {thread && (
-        <DeleteThreadButton
-          projectId={id}
-          threadId={thread.id}
-          backPath={`/projects/${id}/plan/chat`}
-          keeps="設計に採用した内容は残ります。会話は、最後のやり取りから 1 年たつと自動で消えます。"
-        />
-      )}
     </div>
   );
 }

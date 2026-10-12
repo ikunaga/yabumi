@@ -7,7 +7,7 @@ import { ErrorBanner } from "@/components/ui/feedback";
 import { Term } from "@/components/ui/term";
 import { sendConsultMessage } from "@/lib/ai/consult-actions";
 import type { ConsultAssistantContent, ConsultMessage, ConsultTopic } from "@/lib/ai/consult";
-import type { ConsultAction } from "@/lib/ai/consult-schema";
+import { ROADMAP_STEPS, roadmapStepOf, type ActionBody, type ActionKind, type ConsultOption, type LegacyConsultAction } from "@/lib/ai/consult-schema";
 import { CONSULT_TOPIC_META } from "@/lib/ai/consult-topics";
 import { sectionLabel } from "@/lib/ai/plan-coach-prompt";
 import { KPIS } from "@/lib/metrics/kpis";
@@ -19,8 +19,18 @@ type Input = { kind: "start"; topic: ConsultTopic } | { kind: "text"; text: stri
 
 const TOPIC_BUTTONS = (Object.keys(CONSULT_TOPIC_META) as ConsultTopic[]).map((topic) => ({ topic, label: CONSULT_TOPIC_META[topic].button }));
 
-const KIND_LABEL: Record<ConsultAction["kind"], ReactNode> = {
+const KIND_LABEL: Record<ActionKind, ReactNode> = {
   plan_section: "アカウント設計の直し",
+  kgi: (
+    <>
+      最終の目標（<Term k="kgi" />）
+    </>
+  ),
+  kpi_targets: (
+    <>
+      毎週の目標（<Term k="kpi" />）
+    </>
+  ),
   goal: (
     <>
       目標（<Term k="kgi" />）と週の目標
@@ -51,6 +61,7 @@ export function ConsultChat({
   const [pending, startTransition] = useTransition();
   const started = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   function send(input: Input) {
     setError(null);
@@ -64,7 +75,7 @@ export function ConsultChat({
       }
       if (res.threadId && res.threadId !== threadId) {
         setThreadId(res.threadId);
-        router.replace(`/projects/${projectId}/consult?thread=${res.threadId}`, { scroll: false });
+        router.replace(`/projects/${projectId}/consult/${res.threadId}`, { scroll: false });
       }
       if (res.ok) {
         if (input.kind === "text") setText("");
@@ -130,6 +141,10 @@ export function ConsultChat({
               disabled={pending}
               onChoice={(c) => send({ kind: "text", text: c })}
               onAdopt={(i) => send({ kind: "adopt", messageId: m.id, actionIndex: i })}
+              onRevise={(title) => {
+                setText(`案「${title}」の、ここを直したい: `);
+                inputRef.current?.focus();
+              }}
             />
           ) : (
             <UserBubble key={m.id} message={m} />
@@ -156,6 +171,7 @@ export function ConsultChat({
         </label>
         <textarea
           id="consult-input"
+          ref={inputRef}
           rows={2}
           value={text}
           maxLength={2000}
@@ -183,7 +199,7 @@ export function ConsultChat({
 function UserBubble({ message }: { message: Extract<ConsultMessage, { role: "user" }> }) {
   const c = message.content;
   if (c.kind === "adopt") {
-    return <li className="text-center text-sm text-success">✓ 提案「{c.title}」を採用しました（{KIND_LABEL[c.actionKind]}）</li>;
+    return <li className="text-center text-sm text-success">✓ 案「{c.title}」を採用しました（{KIND_LABEL[c.actionKind]}）</li>;
   }
   const text = c.kind === "text" ? c.text : (CONSULT_TOPIC_META[c.topic]?.button ?? "");
   return (
@@ -199,12 +215,14 @@ function AssistantBubble({
   disabled,
   onChoice,
   onAdopt,
+  onRevise,
 }: {
   message: Extract<ConsultMessage, { role: "assistant" }>;
   isLatest: boolean;
   disabled: boolean;
   onChoice: (choice: string) => void;
   onAdopt: (index: number) => void;
+  onRevise: (title: string) => void;
 }) {
   const c: ConsultAssistantContent = message.content;
   const adopted = c.adopted ?? [];
@@ -214,9 +232,10 @@ function AssistantBubble({
         <p className="mb-1 text-xs font-bold text-primary">AI</p>
         <p className="text-[14px] leading-[1.8] whitespace-pre-wrap">{c.message}</p>
       </div>
-      {c.actions.map((a, i) => (
-        <ActionCard key={i} action={a} adopted={adopted.includes(i)} disabled={disabled} onAdopt={() => onAdopt(i)} />
-      ))}
+      {c.proposal && <ProposalCard content={c} isLatest={isLatest} disabled={disabled} onAdopt={onAdopt} onRevise={onRevise} />}
+      {/* 前の形（2026-10-12 まで）の会話: 種類の違う提案が並び、それぞれ案は 1 つ */}
+      {!c.proposal &&
+        (c.actions ?? []).map((a, i) => <LegacyActionCard key={i} action={a} adopted={adopted.includes(i)} disabled={disabled} onAdopt={() => onAdopt(i)} />)}
       {isLatest && c.choices.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {c.choices.map((choice) => (
@@ -242,7 +261,173 @@ function weekText(week: number): string {
   return `${week} 週後`;
 }
 
-function ActionCard({ action: a, adopted, disabled, onAdopt }: { action: ConsultAction; adopted: boolean; disabled: boolean; onAdopt: () => void }) {
+// 1 つの項目についての 2〜3 個の案（アカウント設計の相棒と同じ見せ方）。選べるのは 1 つ
+function ProposalCard({
+  content,
+  isLatest,
+  disabled,
+  onAdopt,
+  onRevise,
+}: {
+  content: ConsultAssistantContent;
+  isLatest: boolean;
+  disabled: boolean;
+  onAdopt: (index: number) => void;
+  onRevise: (title: string) => void;
+}) {
+  const p = content.proposal!;
+  const adopted = content.adopted?.[0] ?? null;
+  const step = roadmapStepOf(p);
+  const stepIndex = step ? ROADMAP_STEPS.findIndex((s) => s.key === step) : -1;
+  const isDraft = p.kind === "post_draft";
+  return (
+    <section className="flex flex-col gap-3 rounded-lg border border-border bg-surface2 p-4 max-sm:p-3" aria-label="AI の案">
+      <p className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="rounded-full bg-primary-soft px-2.5 py-1 text-xs font-bold text-primary">AI の案</span>
+        {stepIndex >= 0 ? (
+          <b>
+            ロードマップづくり {stepIndex + 1} / {ROADMAP_STEPS.length} {ROADMAP_STEPS[stepIndex].label}
+          </b>
+        ) : (
+          <b>{p.kind === "plan_section" && p.options[0]?.kind === "plan_section" ? `アカウント設計: ${sectionLabel(p.options[0].section)}` : KIND_LABEL[p.kind]}</b>
+        )}
+        <span className="text-xs text-muted">{isDraft ? "選んだ案を下書きにします" : "選んだ案だけが保存されます"}</span>
+      </p>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-3">
+        {p.options.map((o, i) => {
+          const isRec = i === p.recommended;
+          const isAdopted = adopted === i;
+          return (
+            <article key={i} className={`flex flex-col gap-2.5 rounded-lg border bg-surface p-4 text-sm ${isAdopted || (adopted === null && isRec) ? "border-primary" : "border-border"}`}>
+              <header className="flex flex-wrap items-center gap-2">
+                <h3 className="text-[15px] font-bold">{o.title}</h3>
+                {isRec && <span className="text-xs font-bold text-primary">おすすめ</span>}
+              </header>
+              {o.summary && <p className="leading-[1.7]">{o.summary}</p>}
+              <div className="border-t border-line pt-2.5 leading-[1.7]">
+                <ActionBodyView body={o} />
+              </div>
+              <ProsCons option={o} />
+              <div className="mt-auto pt-1">
+                {isAdopted ? (
+                  <p className="font-bold text-success">✓ 採用しました</p>
+                ) : adopted === null ? (
+                  <Button size="sm" variant={isRec ? "primary" : "secondary"} disabled={disabled} onClick={() => onAdopt(i)} className="w-full">
+                    {isDraft ? "この案を下書きにする" : "この案にする"}
+                  </Button>
+                ) : null}
+              </div>
+            </article>
+          );
+        })}
+      </div>
+      {p.reason && (
+        <p className="text-sm leading-[1.7]">
+          <span className="font-bold text-primary">おすすめの理由: </span>
+          {p.reason}
+        </p>
+      )}
+      {adopted === null && isLatest && (
+        <>
+          <div className="flex flex-wrap gap-x-4 gap-y-1">
+            {p.options.map((o) => (
+              <button key={o.title} type="button" disabled={disabled} onClick={() => onRevise(o.title)} className="text-sm font-semibold text-primary hover:underline disabled:opacity-40">
+                「{o.title}」を直したい
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-muted">どれも合わなければ、下の欄に思っていることをそのまま書いてください。</p>
+        </>
+      )}
+    </section>
+  );
+}
+
+function ProsCons({ option: o }: { option: ConsultOption }) {
+  if (o.pros.length === 0 && o.cons.length === 0) return null;
+  return (
+    <div className="grid grid-cols-2 gap-2 border-t border-line pt-2.5 text-xs leading-[1.7] max-sm:grid-cols-1">
+      <div>
+        <p className="font-bold text-success">長所</p>
+        <ul>
+          {o.pros.map((x) => (
+            <li key={x}>・{x}</li>
+          ))}
+        </ul>
+      </div>
+      <div>
+        <p className="font-bold text-muted">短所</p>
+        <ul>
+          {o.cons.map((x) => (
+            <li key={x}>・{x}</li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+function ActionBodyView({ body: a }: { body: ActionBody }) {
+  switch (a.kind) {
+    case "plan_section":
+      return (
+        <dl className="flex flex-col gap-1.5">
+          {describeSection(a.section, a.value).map((row) => (
+            <div key={row.label}>
+              <dt className="text-xs text-muted">{row.label}</dt>
+              <dd className="whitespace-pre-wrap">{row.text}</dd>
+            </div>
+          ))}
+        </dl>
+      );
+    case "kgi":
+    case "goal":
+      return (
+        <div className="flex flex-col gap-1">
+          <p className="font-bold">{a.kgi.statement}</p>
+          <p className="text-xs text-muted">
+            {KPIS[a.kgi.kpi].label}を {formatValue(a.kgi.kpi, a.kgi.target)}、期限 {a.kgi.deadline}
+          </p>
+          {a.kind === "goal" && a.kpiTargets.length > 0 && <KpiTargetList targets={a.kpiTargets} />}
+        </div>
+      );
+    case "kpi_targets":
+      return <KpiTargetList targets={a.kpiTargets} />;
+    case "roadmap_items":
+      return (
+        <ul className="flex flex-col gap-1">
+          {a.items.map((item, i) => (
+            <li key={i}>
+              <span className="mr-2 text-xs text-muted">{weekText(item.week)}</span>
+              {item.title}
+              {item.kpi && item.target !== null && <span className="ml-2 text-xs text-muted">（{KPIS[item.kpi].label} {formatValue(item.kpi, item.target)}）</span>}
+            </li>
+          ))}
+        </ul>
+      );
+    case "post_draft":
+      return (
+        <div className="flex flex-col gap-1">
+          {a.sns && <p className="text-xs text-muted">{SNS[a.sns].label} 向け</p>}
+          <p className="line-clamp-8 whitespace-pre-wrap">{a.text}</p>
+        </div>
+      );
+  }
+}
+
+function KpiTargetList({ targets }: { targets: { kpi: keyof typeof KPIS; per_week: number }[] }) {
+  return (
+    <ul className="text-xs">
+      {targets.map((t) => (
+        <li key={t.kpi}>
+          ・{KPIS[t.kpi].label}: 1 週に {formatValue(t.kpi, t.per_week)}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function LegacyActionCard({ action: a, adopted, disabled, onAdopt }: { action: LegacyConsultAction; adopted: boolean; disabled: boolean; onAdopt: () => void }) {
   return (
     <section className="flex max-w-[88%] flex-col gap-2.5 rounded-lg border border-border bg-surface2 p-4 text-sm max-sm:max-w-full max-sm:p-3" aria-label={`AI の提案: ${a.title}`}>
       <p className="flex flex-wrap items-center gap-2">
@@ -252,51 +437,8 @@ function ActionCard({ action: a, adopted, disabled, onAdopt }: { action: Consult
       <h3 className="text-[15px] font-bold">{a.title}</h3>
       {a.reason && <p className="leading-[1.7] text-muted">{a.reason}</p>}
       <div className="rounded-md border border-line bg-surface p-3 leading-[1.7]">
-        {a.kind === "plan_section" && (
-          <dl className="flex flex-col gap-1.5">
-            <dt className="text-xs font-bold">{sectionLabel(a.section)}</dt>
-            {describeSection(a.section, a.value).map((row) => (
-              <div key={row.label}>
-                <dt className="text-xs text-muted">{row.label}</dt>
-                <dd className="whitespace-pre-wrap">{row.text}</dd>
-              </div>
-            ))}
-          </dl>
-        )}
-        {a.kind === "goal" && (
-          <div className="flex flex-col gap-1">
-            <p className="font-bold">{a.kgi.statement}</p>
-            <p className="text-xs text-muted">
-              {KPIS[a.kgi.kpi].label}を {formatValue(a.kgi.kpi, a.kgi.target)}、期限 {a.kgi.deadline}
-            </p>
-            {a.kpiTargets.length > 0 && (
-              <ul className="text-xs">
-                {a.kpiTargets.map((t) => (
-                  <li key={t.kpi}>
-                    ・{KPIS[t.kpi].label}: 1 週に {formatValue(t.kpi, t.per_week)}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-        {a.kind === "roadmap_items" && (
-          <ul className="flex flex-col gap-1">
-            {a.items.map((item, i) => (
-              <li key={i}>
-                <span className="mr-2 text-xs text-muted">{weekText(item.week)}</span>
-                {item.title}
-                {item.kpi && item.target !== null && <span className="ml-2 text-xs text-muted">（{KPIS[item.kpi].label} {formatValue(item.kpi, item.target)}）</span>}
-              </li>
-            ))}
-          </ul>
-        )}
-        {a.kind === "post_draft" && (
-          <div className="flex flex-col gap-1">
-            {a.sns && <p className="text-xs text-muted">{SNS[a.sns].label} 向け</p>}
-            <p className="line-clamp-6 whitespace-pre-wrap">{a.text}</p>
-          </div>
-        )}
+        {a.kind === "plan_section" && <p className="mb-1 text-xs font-bold">{sectionLabel(a.section)}</p>}
+        <ActionBodyView body={a} />
       </div>
       <div>
         {adopted ? (

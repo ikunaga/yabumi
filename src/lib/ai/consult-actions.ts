@@ -6,7 +6,7 @@ import { loadMetricsOverview } from "@/lib/metrics/queries";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { aiConfigured, callConsult } from "./anthropic";
-import { MAX_ACTIONS } from "./consult-schema";
+import { MAX_OPTIONS } from "./consult-schema";
 import { consultStep, isConsultTopic, type ConsultInput } from "./consult";
 import { aiLimitsFromEnv } from "./limits";
 import { MAX_USER_TEXT } from "./plan-coach";
@@ -14,7 +14,7 @@ import { MAX_USER_TEXT } from "./plan-coach";
 const inputSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("start"), topic: z.string() }),
   z.object({ kind: z.literal("text"), text: z.string().max(MAX_USER_TEXT * 2) }),
-  z.object({ kind: z.literal("adopt"), messageId: z.uuid(), actionIndex: z.number().int().min(0).max(MAX_ACTIONS - 1) }),
+  z.object({ kind: z.literal("adopt"), messageId: z.uuid(), actionIndex: z.number().int().min(0).max(MAX_OPTIONS - 1) }),
 ]);
 
 export type ConsultActionResult = { ok: boolean; threadId: string | null; message?: string; redirect?: string };

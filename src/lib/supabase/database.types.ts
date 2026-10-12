@@ -425,6 +425,104 @@ export type Database = {
           },
         ]
       }
+      link_domain_attempts: {
+        Row: {
+          created_at: string
+          domain: string
+          id: number
+          owner_id: string
+        }
+        Insert: {
+          created_at?: string
+          domain: string
+          id?: never
+          owner_id: string
+        }
+        Update: {
+          created_at?: string
+          domain?: string
+          id?: never
+          owner_id?: string
+        }
+        Relationships: []
+      }
+      link_domain_removals: {
+        Row: {
+          attempts: number
+          created_at: string
+          domain: string
+          last_error: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          domain: string
+          last_error?: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          domain?: string
+          last_error?: string
+        }
+        Relationships: []
+      }
+      link_domains: {
+        Row: {
+          cname_target: string
+          created_at: string
+          domain: string
+          id: string
+          last_check: string
+          last_checked_at: string | null
+          owner_id: string
+          project_id: string
+          status: string
+          txt_name: string
+          txt_value: string
+          updated_at: string
+          verified_at: string | null
+        }
+        Insert: {
+          cname_target?: string
+          created_at?: string
+          domain: string
+          id?: string
+          last_check?: string
+          last_checked_at?: string | null
+          owner_id: string
+          project_id: string
+          status?: string
+          txt_name?: string
+          txt_value?: string
+          updated_at?: string
+          verified_at?: string | null
+        }
+        Update: {
+          cname_target?: string
+          created_at?: string
+          domain?: string
+          id?: string
+          last_check?: string
+          last_checked_at?: string | null
+          owner_id?: string
+          project_id?: string
+          status?: string
+          txt_name?: string
+          txt_value?: string
+          updated_at?: string
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "link_domains_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       link_hash_salts: {
         Row: {
           day: string
@@ -1398,6 +1496,16 @@ export type Database = {
           social_account_id: string
           target_id: string
         }[]
+      }
+      claim_link_domain: {
+        Args: {
+          p_daily: number
+          p_domain: string
+          p_owner: string
+          p_project: string
+          p_total: number
+        }
+        Returns: string
       }
       claim_operator_notification: {
         Args: { p_key: string; p_window: unknown }

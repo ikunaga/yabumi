@@ -113,6 +113,24 @@ export const glossary = {
       "どこから来た人かを、ストアや解析の側でも見分けられるよう、URL に印を付けたもの。App Store では pt と ct、Google Play やふつうのサイトでは utm_source などを付けます。矢書の短縮リンクは、行き先に自動で付けます。",
     example: "例: App Store Connect の「キャンペーン」で、SNS ごとのダウンロード数が見られる（数が少ないうちは出ません）。",
   },
+  dns: {
+    label: "DNS",
+    reading: "ディーエヌエス",
+    summary:
+      "ドメイン（例: example.com）を、実際につながる先に結びつける「住所録」。ドメインを買ったサービス（お名前.com や Cloudflare など）の管理画面で、1 行ずつ書き足して設定します。書き足してから世界中に届くまで、数分〜数時間かかることがあります。",
+  },
+  cname: {
+    label: "CNAME",
+    reading: "シーネーム",
+    summary: "DNS の行の種類の 1 つ。「このサブドメインは、あちらの名前と同じ場所につなぐ」という意味です。矢書の短縮リンクを自分のドメインで使うときは、この行を 1 つ足します。",
+    example: "例: 名前 go、値 cname.vercel-dns.com",
+  },
+  subdomain: {
+    label: "サブドメイン",
+    summary:
+      "持っているドメインの前に、好きな言葉を付けて作る別の住所。追加の料金はかかりません。今のホームページやメールに影響しないので、短縮リンクには go.example.com のようなサブドメインを使います。",
+    example: "例: example.com を持っていれば、go.example.com や link.example.com が作れる。",
+  },
 } satisfies Record<string, GlossaryTerm>;
 
 export type GlossaryKey = keyof typeof glossary;

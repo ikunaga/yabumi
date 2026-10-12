@@ -5,6 +5,7 @@ import { z } from "zod";
 import { SNS_KEYS, type SnsKey } from "@/lib/sns";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { addLinkDomain, checkLinkDomain, defaultLinkDomainDeps, removeLinkDomain } from "./domains";
 import { LinkError, createShortLink, isValidDestination } from "./store";
 
 // 「短縮リンク」の画面の操作（docs/architecture.md の 4.22、決定 D20）。リンクの書き込みはサーバーだけが行う
@@ -94,5 +95,50 @@ export async function saveProviderToken(projectId: string, _prev: LinkActionStat
   const { error } = await owner.supabase.from("projects").update({ app_store_provider_token: raw || null }).eq("id", projectId);
   if (error) return { error: "保存できませんでした。時間をおいてもう一度お試しください。" };
   revalidatePath(`/projects/${projectId}/links`);
-  return { ok: raw ? "保存しました。これから App Store へのリンクに pt を付けます。" : "pt を外しました。" };
+  return { ok: raw ? "保存しました。今から、短縮リンクで App Store に移る人に印（pt）を付けます。作ってあるリンクにも付くので、貼り直しは要りません。" : "pt を外しました。今から、短縮リンクで App Store に移る人に印（pt）を付けません。" };
+}
+
+// ===== 短縮リンクを自分のドメインで作る（F07、決定 D28。4.22） =====
+
+export type LinkDomainActionState = { error?: string; suggestion?: string; ok?: string };
+
+export async function addLinkDomainAction(projectId: string, _prev: LinkDomainActionState, formData: FormData): Promise<LinkDomainActionState> {
+  const owner = await ownProject(projectId);
+  if (!owner) return { error: "ログインし直してください。" };
+  try {
+    const r = await addLinkDomain(createAdminClient(), { ownerId: owner.userId, projectId, domain: String(formData.get("domain") ?? "") }, defaultLinkDomainDeps());
+    if (!r.ok) return { error: r.error, suggestion: r.suggestion };
+  } catch (e) {
+    console.error("[addLinkDomain]", e instanceof Error ? e.message : e);
+    return { error: "いまドメインを足せませんでした。時間をおいてもう一度お試しください。" };
+  }
+  revalidatePath(`/projects/${projectId}/links`);
+  return { ok: "ドメインを受け付けました。次に、DNS に 1 行足してください。" };
+}
+
+export async function checkLinkDomainAction(projectId: string): Promise<LinkDomainActionState> {
+  const owner = await ownProject(projectId);
+  if (!owner) return { error: "ログインし直してください。" };
+  try {
+    const r = await checkLinkDomain(createAdminClient(), { ownerId: owner.userId, projectId }, defaultLinkDomainDeps());
+    if (!r.ok) return { error: r.error };
+  } catch (e) {
+    console.error("[checkLinkDomain]", e instanceof Error ? e.message : e);
+    return { error: "いま確かめられませんでした。時間をおいてもう一度お試しください。" };
+  }
+  revalidatePath(`/projects/${projectId}/links`);
+  return {};
+}
+
+export async function removeLinkDomainAction(projectId: string): Promise<LinkDomainActionState> {
+  const owner = await ownProject(projectId);
+  if (!owner) return { error: "ログインし直してください。" };
+  try {
+    await removeLinkDomain(createAdminClient(), { ownerId: owner.userId, projectId }, defaultLinkDomainDeps());
+  } catch (e) {
+    console.error("[removeLinkDomain]", e instanceof Error ? e.message : e);
+    return { error: "いま外せませんでした。時間をおいてもう一度お試しください。" };
+  }
+  revalidatePath(`/projects/${projectId}/links`);
+  return { ok: "外しました。これからの短縮リンクは、矢書のドメインで作ります。" };
 }

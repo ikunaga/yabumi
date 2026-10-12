@@ -2,13 +2,18 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
+import { LinkDomainCard } from "@/components/links/link-domain-card";
 import { CopyButton, CustomLinkForm, ProfileLinkForm, ProviderTokenForm } from "@/components/links/link-forms";
 import { Card, CardHeader, EmptyState } from "@/components/ui/card";
 import { Term } from "@/components/ui/term";
 import { setLinkDisabled } from "@/lib/links/actions";
+import { getLinkDomain } from "@/lib/links/domains";
 import { listLinks, type LinkRow } from "@/lib/links/queries";
+import { shortLinkBase } from "@/lib/links/rules";
+import { vercelConfig } from "@/lib/links/vercel";
 import { PROFILE_RULES } from "@/lib/plan/profile";
 import { getProject } from "@/lib/projects/queries";
+import { createClient } from "@/lib/supabase/server";
 import { SNS, type SnsKey } from "@/lib/sns";
 
 export const metadata: Metadata = { title: "短縮リンク" };
@@ -72,7 +77,7 @@ export default async function LinksPage(props: PageProps<"/projects/[id]/links">
   const { id } = await props.params;
   const project = await getProject(id);
   if (!project) notFound();
-  const links = await listLinks(project.id);
+  const [links, linkDomain] = await Promise.all([listLinks(project.id), getLinkDomain(await createClient(), project.id)]);
 
   const destinations = [
     ...(project.app_store_url ? [{ label: `App Store（${project.app_store_url}）`, url: project.app_store_url }] : []),
@@ -102,6 +107,27 @@ export default async function LinksPage(props: PageProps<"/projects/[id]/links">
           。この画面のリンクを本文に貼る必要はありません。自動で作ったリンクは、下の「投稿の本文から作ったリンク」に並びます。
         </li>
       </ul>
+
+      <LinkDomainCard
+        projectId={project.id}
+        ready={vercelConfig() !== null}
+        defaultHost={shortLinkBase().replace(/^https?:\/\//, "")}
+        domain={
+          linkDomain && {
+            domain: linkDomain.domain,
+            status: linkDomain.status as "pending" | "active",
+            cnameTarget: linkDomain.cname_target,
+            txtName: linkDomain.txt_name,
+            txtValue: linkDomain.txt_value,
+            lastCheck: linkDomain.last_check,
+            lastCheckedAt: linkDomain.last_checked_at,
+          }
+        }
+        profileLinks={PROFILE_SNS.flatMap((sns) => {
+          const l = profile.get(sns);
+          return l ? [{ sns: SNS[sns].label, url: l.url }] : [];
+        })}
+      />
 
       <Card>
         <CardHeader title="プロフィールに置くリンク" />

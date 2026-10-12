@@ -545,6 +545,8 @@ README が薄い個人開発のリポジトリやモノレポでも中身がわ�
 | 手で投稿する SNS のプロフィールの URL | project_manual_channels | 利用者が消すか、退会まで | 「つないだ SNS」の画面、退会 |
 | ロードマップ（目標・KPI の週の目標・週ごとのやること） | roadmaps / roadmap_items | 利用者が消すか、プロジェクトを消すか、退会まで | ロードマップの画面で消す、プロジェクトの削除、退会（4.23） |
 | 短縮リンク（行き先、SNS、種類）と、日ごとのクリックの集計 | short_links、link_click_daily | 利用者が止めるか、退会まで | 「短縮リンク」の画面で止める、退会 |
+| 短縮リンクに使う利用者のドメイン（ドメイン、DNS の設定の値、確かめた結果と日時）。Vercel のプロジェクトにも登録する | link_domains | 利用者が外すか、プロジェクトを消すか、退会まで。Vercel からも外す（外せなければ link_domain_removals に残してやり直す） | 「短縮リンク」の画面の「外す」、プロジェクトの削除、退会（4.22、D28） |
+| ドメインを足した記録（悪用への備え。1 日の回数を数える） | link_domain_attempts | **7 日**で消す（次に足すときに消す） | 退会で消える |
 | 短縮リンクを押した人の記録（日時、端末の種類、国、その日だけのハッシュ。IP アドレスは残さない） | link_clicks | **90 日**で自動で消す（4.22、D20） | 消せない（押した人を特定できる中身を含まないため） |
 | note・Substack の数字（利用者が手で入れた閲覧・反応） | manual_post_metrics | 投稿を消すか、退会まで | 投稿の削除、退会 |
 | 預かったストア・課金の鍵（App Store Connect の API キー、RevenueCat のキー。暗号化済み） | store_credentials | 外すか、プロジェクトを消すか、退会まで | 「ストアと課金をつなぐ」の「外す」、退会。すぐに消す |
@@ -1081,10 +1083,27 @@ Facebook ページ（graph.facebook.com）:
 | 表 | `short_links`（コード、行き先、SNS、種類 post / profile / custom、配信先、止めた日時。利用者は読むだけ）、`link_clicks`（1 クリック。サーバーだけ。90 日）、`link_click_daily`（日本時間の日 × 端末の集計。利用者は読むだけ）、`link_hash_salts`（その日だけの秘密。サーバーだけ。昨日より前は purge_expired_data が消す）。projects に App Store の `app_store_provider_token`（pt） |
 | 記録 | DB の `record_link_click`（service_role だけ）が、その日の秘密で `sha256(秘密 + IP + User-Agent)` を作り、10 分以内の同じ人を「重複」にし、1 クリックの行と日ごとの集計を 1 回で書く。IP と User-Agent は DB に渡すだけで保存しない |
 | 合計 | `link_click_totals`（security invoker。本人のものだけ）。行を読んで足さない |
-| 転送 | `/go/[code]`（src/app/go/[code]/route.ts）。go.yabumi.app は src/proxy.ts が /go/<code> に回す。/go は、独自ドメインへの転送とログインの確認より先に通す。302・no-store、記録は after()。HEAD は数えない |
+| 転送 | `/go/[code]/[host]`（src/app/go/[code]/[host]/route.ts）。<APP_URL>/go/<code>・go.yabumi.app/<code>・利用者のドメインの /<code> を、src/proxy.ts が /go/<code>/<開いたホスト>（矢書のホストは `_`）に書き換える。最後の部分は proxy が毎回付け直すので、外から入れた値は使われない（ヘッダーで渡すと、書き換えのあとに届かないことがあった。2026-10-12）。/go は、独自ドメインへの転送とログインの確認より先に通す。302・no-store、記録は after()。HEAD は数えない |
 | 本文の置き換え | 投稿を保存するとき（savePost）、送る前の自動の配信先ごとに、本文の https の URL それぞれの短縮リンクを用意する（preparePostLinks。チェックを外すと消す）。送る直前に送信ジョブが置き換える（substituteForTarget）。作成画面の見え方の欄に「この短縮リンクに置き換えて送ります」と実際の URL を出す（X の規約の「送る文をそのまま見せる」）。Instagram は本文の URL を押せないので置き換えない。手で投稿する SNS も置き換えない。作成画面のチェックは、送る文面に URL があり、置き換える SNS があるときだけ出し、どの URL をどの SNS で置き換えるか・置き換えない SNS と理由を添える（planShortLinks。preparePostLinks と同じ決まり）。URL がないとき・置き換える SNS がないときはチェックを出さず、URL の入れ方と、X はプロフィールのリンクで数えるのがよいことを案内し、アカウント設計の「名前とプロフィール」（/plan?open=profile）へつなぐ（チェックだけ出ていて、URL がないのに短縮リンクが付くと思われたため。2026-10-12） |
 | 画面 | プロジェクトの「短縮リンク」（/projects/[id]/links）: SNS ごとのプロフィールのリンク、自由に作るリンク、作ったリンクの一覧と 7 日・30 日・これまでのクリック、止める・使い直す、App Store の pt |
-| 土台の URL | SHORT_LINK_BASE_URL（go.yabumi.app ができたら）。なければ `<APP_URL>/go`。DNS の手順は deploy.md の 11 の H |
+| 土台の URL | SHORT_LINK_BASE_URL（go.yabumi.app ができたら）。なければ `<APP_URL>/go`。DNS の手順は deploy.md の 11 の H。利用者のドメインがつながったプロジェクトは、そのドメイン（下の「利用者のドメイン」） |
+
+#### 利用者のドメインで作る（2026-10-12、決定 D28）
+
+オーナーの言葉「行き先が ddy なのに、ドメインが yabumi になっているのは…」から。押す人に「どこへ行くリンクか」が伝わるよう、プロジェクトごとに利用者のドメインを短縮リンクに使えるようにする。
+
+| 部分 | 中身 |
+|---|---|
+| 表 | `link_domains`（1 利用者 1 行・1 プロジェクト 1 行・ドメインは全体で 1 つ。pending / active、入れてほしい CNAME と TXT、最後に確かめた結果と日時、つながった日時。利用者は読むだけ、書くのはサーバー）、`link_domain_attempts`（足した回数。サーバーだけ。7 日）、`link_domain_removals`（Vercel から外すまでのドメイン。行が消えるとトリガーが積む。サーバーだけ） |
+| 足す | 「短縮リンク」の画面の「自分のドメインで作る（任意）」。① ドメインを入れる（normalizeLinkDomain: 小文字・xn--・ドメインそのもの（apex）は断って go. の案を出す・矢書と Vercel と内部の名前は使えない）→ `claim_link_domain`（service_role だけ。ロックの中で、本人のプロジェクトか・1 人 1 つ・ほかの人が使っていないか（外す途中も）・1 日 5 回・矢書全体の上限を確かめて行を入れる）→ Vercel の `POST /v10/projects/{id}/domains`。Vercel が断ったら行を消す（409 はほかの Vercel のプロジェクトで使われている）。返った TXT（verified が false のとき）と、`GET /v6/domains/{domain}/config` の recommendedCNAME（なければ cname.vercel-dns.com）を残す |
+| 手順の画面 | ② DNS に 1 行足す: 種類・名前・値をコピーのボタンつきで出し（名前は go のようにドメインを除いた形）、DNS のサービスごとの手順を切り替えて出す（Cloudflare（Proxy は灰色の雲）、お名前.com、ムームードメイン、Squarespace（旧 Google Domains）、Xserver、そのほか）。用語（DNS、CNAME、サブドメイン）は Term。③ 確かめる |
+| 確かめる | `checkLinkDomain`（10 秒に 1 回まで）: Vercel で所有の確認（TXT が要るときは verify）→ config の misconfigured が false なら、`https://<domain>/__yabumi/link-check` を開いて矢書の答えが返るか（DNS と証明書がそろったか）。結果は txt_missing / dns_missing（向きが届いていない。Node の DNS で CNAME・A がない、または Vercel に向いている）/ wrong_value（別のところに向いている）/ proxied（configuredBy が http。Cloudflare の Proxy）/ cert_pending / ok / error。ok で active、DNS が外れたら pending に戻す（開けないリンクを作らない） |
+| 使う | active の間、そのプロジェクトの短縮リンクの URL の土台を `https://<domain>` にする（projectLinkBase。一覧・プロフィールのリンク・投稿の本文の置き換え・作成画面の見え方）。コードは全体で 1 つなので、前に作ったリンクも矢書のドメインと利用者のドメインの両方で開ける。つながったら、プロフィールのリンクを貼り直す案内を出す |
+| 転送 | src/proxy.ts（src/lib/links/host.ts）: 矢書のホスト（APP_URL とそのサブドメイン、SHORT_LINK_BASE_URL、*.vercel.app、ローカル）でなければ利用者のドメインとして扱い、/<code> と /go/<code> を /go/<code>/<そのドメイン> に回し、`/__yabumi/link-check` には決まった文を返し、ほかのパスは 404（ログインなど矢書の画面を出さない）。転送の処理は、ホストが `_` でなければ、そのドメインが active で、リンクがそのドメインのプロジェクトのものであることを確かめる（linkAllowedOnDomain。ほかの人のコード・登録のないドメイン・つながる前のドメインでは開かない）。開いたホストは Host のヘッダーで見る |
+| 外す | 行を消す → トリガーが link_domain_removals に積む → Vercel の DELETE（404 は外れたもの）。プロジェクトの削除・退会のカスケードでも積み、その場で外す。外せなければ残し、次に誰かが足す・外すときにやり直す。5 回続けて外せなければ運営者に知らせる。外すと、そのドメインの短縮リンクは開けなくなるので、画面で貼り直しと DNS の行を消してよいことを案内する |
+| 上限と費用 | Vercel Hobby は 1 プロジェクトにドメイン 50 まで（https://vercel.com/docs/limits、2026-10-12 確認。Pro は実質なし）。矢書の分（yabumi.app・www・go・vercel.app）を除き、利用者の分は 40（`LINK_DOMAIN_LIMIT`）。外す途中も数える。80%（32）に達したら運営者に知らせ（notifyOperatorOnce、7 日に 1 回）、上限に達したら受け付けを止めて画面で「今のままで数えられます」と出す。Vercel の API とドメインは無料（費用は増えない）。証明書は Vercel が自動で出す |
+| 悪用への備え | 1 利用者 1 ドメイン、1 日 5 回（足した回数を数える）、「確かめる」は 10 秒に 1 回。利用者のドメインへのリンクは短縮リンクの行き先にできない（入れ子）。利用者のドメインの下には短縮リンクしか出さないので、矢書の画面を使ったなりすましはできない |
+| 準備 | 運営者の環境変数 `VERCEL_API_TOKEN`・`VERCEL_PROJECT_ID`・`VERCEL_TEAM_ID`（deploy.md の 17）。ないときは画面に「準備中」 |
 
 #### 悪用への備え
 
@@ -1738,6 +1757,7 @@ Facebook ページ（graph.facebook.com）:
 | media | 画像・動画。生成元（アップロード / AI / テンプレート）を記録 |
 | post_metrics | 配信先ごとの指標の時系列 |
 | short_links / link_clicks | 短縮リンクとクリック記録 |
+| link_domains / link_domain_attempts / link_domain_removals | 短縮リンクに使う利用者のドメインと、足した回数、Vercel から外すまでの列（4.22、D28） |
 | store_metrics | ストアの日次ダウンロード数・課金額 |
 | project_manual_channels | 手で投稿する SNS（note・Substack）のプロフィールの URL（4.12） |
 | github_installations / project_github_repos | GitHub App のインストールと、プロジェクトにつないだリポジトリ（4.10） |

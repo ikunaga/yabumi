@@ -2,6 +2,7 @@ import "server-only";
 import type { SnsKey } from "@/lib/sns";
 import { createClient } from "@/lib/supabase/server";
 import { toYmd } from "@/lib/time";
+import { projectLinkBase } from "./domains";
 import { shortLinkUrl } from "./rules";
 
 export type LinkRow = {
@@ -35,6 +36,8 @@ export async function listLinks(projectId: string, limit = 200): Promise<LinkRow
   ]);
   if (error) throw error;
   if (totalsError) throw totalsError;
+  // つながった利用者のドメインがあれば、作ってあるリンクもそのドメインで出す（コードは同じなので、古いドメインでも開ける。D28）
+  const base = await projectLinkBase(supabase, projectId);
   const byId = new Map((totals ?? []).map((t) => [t.link_id, t]));
   return (links ?? []).map((l) => {
     const t = byId.get(l.id);
@@ -42,7 +45,7 @@ export async function listLinks(projectId: string, limit = 200): Promise<LinkRow
     return {
       id: l.id,
       code: l.code,
-      url: shortLinkUrl(l.code),
+      url: shortLinkUrl(l.code, base),
       destination: l.destination_url,
       sns: (l.sns as SnsKey | null) ?? null,
       kind: l.kind as LinkRow["kind"],

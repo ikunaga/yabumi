@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { Brand } from "@/components/brand";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { LEGAL, orPending } from "@/lib/legal/info";
+import { effectiveDateLabel } from "@/lib/legal/version";
 
 // 利用規約とプライバシーポリシーの共通の枠。ログインなしで開ける（src/lib/supabase/proxy.ts の PUBLIC_PATHS）
 export function LegalPage({ title, lead, children }: { title: string; lead: ReactNode; children: ReactNode }) {
@@ -21,13 +21,8 @@ export function LegalPage({ title, lead, children }: { title: string; lead: Reac
       <main className="flex flex-col gap-6 py-10 max-sm:gap-5 max-sm:py-6">
         <div className="flex flex-col gap-2">
           <h1 className="font-heading text-3xl font-bold max-sm:text-2xl">{title}</h1>
-          <p className="text-[14px] text-muted">施行日: {orPending(LEGAL.effectiveDate)}</p>
+          <p className="text-[14px] text-muted">施行日: {effectiveDateLabel()}</p>
         </div>
-        {!LEGAL.effectiveDate && (
-          <p role="note" className="rounded-md border border-border bg-surface2 px-4 py-3 text-[14px] leading-[1.7]">
-            施行日は、登録の受付を開く日に決めて書き入れます。それまでは、内容を書き直すことがあります。
-          </p>
-        )}
         <div className="text-base leading-[1.9]">{lead}</div>
         <div className="flex flex-col gap-8 max-sm:gap-6">{children}</div>
       </main>

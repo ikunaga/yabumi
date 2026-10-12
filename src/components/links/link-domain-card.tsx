@@ -306,8 +306,16 @@ function DnsStep({ projectId, domain, defaultHost }: { projectId: string; domain
     <div className="flex flex-col gap-5">
       {domain.verifiedAt && (
         <ErrorBanner>
-          {domain.domain} の DNS の行（{domain.lastCheck === "owner_txt_missing" ? "あなたのドメインだと確かめる TXT" : "矢書につなぐ CNAME"}
-          ）が見えなくなったので、短縮リンクを矢書のドメインに戻しました。下の行を足し直して「確かめる」を押すと、また使えます。
+          {domain.lastCheck === "error" ? (
+            <>
+              {domain.domain} の DNS の行を、何日か確かめられなかったので、念のため短縮リンクを矢書のドメインに戻しました。下の行が入っていることを確かめて「確かめる」を押すと、また使えます。
+            </>
+          ) : (
+            <>
+              {domain.domain} の DNS の行（{domain.lastCheck === "owner_txt_missing" ? "あなたのドメインだと確かめる TXT" : "矢書につなぐ CNAME"}
+              ）が見えなくなったので、短縮リンクを矢書のドメインに戻しました。下の行を足し直して「確かめる」を押すと、また使えます。
+            </>
+          )}
         </ErrorBanner>
       )}
       <div className="flex flex-col gap-2">

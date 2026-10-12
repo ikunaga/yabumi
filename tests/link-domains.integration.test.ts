@@ -393,6 +393,69 @@ describe("利用者のドメイン", () => {
     await admin.from("link_domain_attempts").delete().eq("owner_id", bobId);
   });
 
+  it("持ち主の確認が済んでいないドメインは、DB でも active にできない", async () => {
+    const { vercel } = fakeVercel();
+    const deps: LinkDomainDeps = { vercel, notify: quiet, limit: 100000, lookup: fakeDns().lookup };
+    await admin.from("link_domain_attempts").delete().eq("owner_id", bobId);
+    await addLinkDomain(admin, { ownerId: bobId, projectId: bobProject, domain: `go.fc${rand()}.com` }, deps);
+    const r = await admin.from("link_domains").update({ status: "active" }).eq("project_id", bobProject);
+    expect(r.error?.code).toBe("23514");
+    expect(await getLinkDomain(admin, bobProject)).toMatchObject({ status: "pending" });
+    await cleanup(bobProject, deps, bobId);
+    await admin.from("link_domain_attempts").delete().eq("owner_id", bobId);
+  });
+
+  it("DNS を確かめられない日が 3 日を超えたら戻し、まとめて戻ったら運営者に知らせる", async () => {
+    const { vercel, state } = fakeVercel();
+    state.misconfigured = false;
+    const { zone, lookup } = fakeDns();
+    const sent: string[] = [];
+    const notify = { apiKey: "test", to: "ops@example.com", fetch: (async (_u: unknown, init?: RequestInit) => {
+      sent.push(String(init?.body));
+      return new Response("{}", { status: 200 });
+    }) as typeof fetch };
+    let now = Date.parse("2026-10-12T00:00:00Z");
+    const deps: LinkDomainDeps = { vercel, notify, limit: 100000, probe: async () => true, lookup, now: () => new Date((now += 60_000)) };
+    const carol = await signUpNewUser();
+    const carolProject = (await carol.client.from("projects").insert({ name: "ドメイン C" }).select("id").single()).data!.id;
+    const users = [
+      { id: aliceId, project: aliceProject },
+      { id: bobId, project: bobProject },
+      { id: carol.userId, project: carolProject },
+    ];
+    await admin.from("link_domain_attempts").delete().in("owner_id", users.map((u) => u.id));
+    for (const u of users) {
+      const domain = `go.uc${rand()}.com`;
+      await addLinkDomain(admin, { ownerId: u.id, projectId: u.project, domain }, deps);
+      await putOwnerTxt(zone, u.project);
+      zone.cname.set(domain, ["abc.vercel-dns-017.com"]);
+      expect((await checkLinkDomain(admin, { ownerId: u.id, projectId: u.project }, deps)) as { row: { status: string; dns_confirmed_at: string } }).toMatchObject({ row: { status: "active" } });
+    }
+    // 2 日答えがなくても、まだ戻さない
+    zone.down = true;
+    now += 2 * 86_400_000;
+    await recheckLinkDomains(admin, deps);
+    for (const u of users) expect((await getLinkDomain(admin, u.project))!.status).toBe("active");
+    expect(sent).toEqual([]);
+    // 3 日を超えたら戻す（閉じる側に倒す）。3 件まとめて戻ったので、運営者に 1 回知らせる
+    now += 2 * 86_400_000;
+    const report = await recheckLinkDomains(admin, deps);
+    expect(report.unconfirmed).toBeGreaterThanOrEqual(3);
+    for (const u of users) {
+      expect(await getLinkDomain(admin, u.project)).toMatchObject({ status: "pending", last_check: "error" });
+      expect(await projectLinkBase(admin, u.project)).toBe(shortLinkBase());
+    }
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toContain("DNS を確かめられません");
+    // 同じ日にもう一度戻っても、知らせは 1 回
+    await recheckLinkDomains(admin, deps);
+    expect(sent).toHaveLength(1);
+    for (const u of users) await cleanup(u.project, deps, u.id);
+    await admin.from("operator_notifications").delete().like("key", "link_domains_unconfirmed:%");
+    await admin.from("link_domain_attempts").delete().in("owner_id", users.map((u) => u.id));
+    await deleteUser(carol.userId);
+  });
+
   it("Vercel の設定がなければ足さない（画面は準備中）", async () => {
     expect(await addLinkDomain(admin, { ownerId: bobId, projectId: bobProject, domain: `go.n${rand()}.com` }, { vercel: null })).toMatchObject({ ok: false, error: "この機能は準備中です。" });
   });

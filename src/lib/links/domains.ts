@@ -76,7 +76,8 @@ export async function getLinkDomain(db: Db, projectId: string): Promise<LinkDoma
 
 // そのプロジェクトの短縮リンクの URL の土台。つながった利用者のドメインがあればそれ、なければ矢書の短縮リンクのドメイン
 export async function projectLinkBase(db: Db, projectId: string): Promise<string> {
-  const { data, error } = await db.from("link_domains").select("domain").eq("project_id", projectId).eq("status", "active").maybeSingle();
+  // active で、矢書の持ち主の確認が済んだものだけ（確かめていないものは使わない。DB の check でも守る）
+  const { data, error } = await db.from("link_domains").select("domain").eq("project_id", projectId).eq("status", "active").not("owner_verified_at", "is", null).maybeSingle();
   if (error) throw error;
   return data ? `https://${data.domain}` : shortLinkBase();
 }
@@ -84,7 +85,7 @@ export async function projectLinkBase(db: Db, projectId: string): Promise<string
 // 利用者のドメインで開かれたリンクが、そのドメインのプロジェクトのものか（ほかの人のコードを開けないように）
 export async function linkAllowedOnDomain(admin: Admin, projectId: string, host: string): Promise<boolean> {
   const domain = host.toLowerCase().replace(/:\d+$/, "").replace(/\.+$/, "");
-  const { data, error } = await admin.from("link_domains").select("project_id").eq("domain", domain).eq("status", "active").maybeSingle();
+  const { data, error } = await admin.from("link_domains").select("project_id").eq("domain", domain).eq("status", "active").not("owner_verified_at", "is", null).maybeSingle();
   if (error) throw error;
   return data?.project_id === projectId;
 }
@@ -258,6 +259,7 @@ export async function checkLinkDomain(admin: Admin, input: { ownerId: string; pr
       txt_name: txt.name,
       txt_value: txt.value,
       ...(status === "active" && row.status !== "active" ? { verified_at: now.toISOString(), owner_verified_at: now.toISOString() } : {}),
+      ...(status === "active" ? { dns_confirmed_at: now.toISOString() } : {}),
       // つながっていたものが外れたら、そこから 7 日で取り消す
       ...(status === "pending" && row.status === "active" ? { pending_since: now.toISOString() } : {}),
     })
@@ -311,22 +313,37 @@ export async function expireLinkDomains(admin: Admin, deps: LinkDomainDeps): Pro
   return data ?? 0;
 }
 
-export type RecheckReport = { checked: number; lost: number; unknown: number; expired: number };
+export type RecheckReport = { checked: number; lost: number; unknown: number; unconfirmed: number; expired: number };
+
+// DNS で確かめられない（リゾルバが答えない）まま、つながりを残しておける日数。超えたら閉じる側に倒す
+export const UNCONFIRMED_DAYS = 3;
+// 1 回の見回りで、確かめられずに戻したものがこの数以上なら、矢書の側の異常（DNS over HTTPS に届かない）として運営者に知らせる
+export const UNCONFIRMED_NOTIFY_AT = 3;
 
 // 毎日のジョブ: つながったドメインの、矢書の持ち主の確認の TXT と CNAME がまだ残っているかを確かめ、外れていたら矢書のドメインに戻す
 // （持ち主がドメインを手放したり DNS の行を消したりしたあとに、別の人のリンクがそのドメインで開かないように）。
-// リゾルバがどれも答えなかったものは、外さずに翌日にまわす。最後に、つながらないまま 7 日たったものを取り消す
+// リゾルバがどれも答えなかったものは、その日は外さないが、最後に確かめられてから 3 日を超えたら戻す（確かめられないときは閉じる側に倒す）。
+// 戻したものが多ければ、矢書の側の異常として運営者に知らせる。最後に、つながらないまま 7 日たったものを取り消す
 export async function recheckLinkDomains(admin: Admin, deps: LinkDomainDeps, max = 500): Promise<RecheckReport> {
   const lookup = deps.lookup ?? dohLookup();
   const now = (deps.now ?? (() => new Date()))();
-  const report: RecheckReport = { checked: 0, lost: 0, unknown: 0, expired: 0 };
-  const { data, error } = await admin.from("link_domains").select("id, domain, ownership_token, cname_target").eq("status", "active").order("last_checked_at", { ascending: true, nullsFirst: true }).limit(max);
+  const report: RecheckReport = { checked: 0, lost: 0, unknown: 0, unconfirmed: 0, expired: 0 };
+  const { data, error } = await admin.from("link_domains").select("id, domain, ownership_token, cname_target, dns_confirmed_at, verified_at").eq("status", "active").order("last_checked_at", { ascending: true, nullsFirst: true }).limit(max);
   if (error) throw error;
   for (const row of data ?? []) {
     report.checked++;
     const [txt, cname] = await Promise.all([lookup(ownershipRecordName(row.domain), "TXT"), lookup(row.domain, "CNAME")]);
     if (txt.answered === 0 || cname.answered === 0) {
       report.unknown++;
+      const confirmed = Date.parse(row.dns_confirmed_at ?? row.verified_at ?? "") || 0;
+      if (now.getTime() - confirmed > UNCONFIRMED_DAYS * 86_400_000) {
+        const { error: updateError } = await admin
+          .from("link_domains")
+          .update({ status: "pending", last_check: "error", last_checked_at: now.toISOString(), pending_since: now.toISOString() })
+          .eq("id", row.id);
+        if (updateError) throw updateError;
+        report.unconfirmed++;
+      }
       continue;
     }
     let lost: LinkCheck | null = null;
@@ -335,10 +352,30 @@ export async function recheckLinkDomains(admin: Admin, deps: LinkDomainDeps, max
     else if (!cname.records.some((c) => c === row.cname_target.toLowerCase() || VERCEL_TARGET.test(c))) lost = "wrong_value";
     const { error: updateError } = await admin
       .from("link_domains")
-      .update(lost ? { status: "pending", last_check: lost, last_checked_at: now.toISOString(), pending_since: now.toISOString() } : { last_checked_at: now.toISOString() })
+      .update(
+        lost
+          ? { status: "pending", last_check: lost, last_checked_at: now.toISOString(), pending_since: now.toISOString() }
+          : { last_checked_at: now.toISOString(), dns_confirmed_at: now.toISOString() },
+      )
       .eq("id", row.id);
     if (updateError) throw updateError;
     if (lost) report.lost++;
+  }
+  if (report.unconfirmed >= UNCONFIRMED_NOTIFY_AT) {
+    await notifyOperatorOnce(
+      admin,
+      `link_domains_unconfirmed:${now.toISOString().slice(0, 10)}`,
+      1,
+      {
+        subject: "利用者のドメインの DNS を確かめられません",
+        text: [
+          `毎日の見回りで、DNS over HTTPS（Cloudflare・Google）が答えないまま ${UNCONFIRMED_DAYS} 日を超えたドメインを ${report.unconfirmed} 件、矢書のドメインに戻しました（確かめた ${report.checked} 件、答えがなかった ${report.unknown} 件）。`,
+          "矢書の側（Vercel から cloudflare-dns.com・dns.google に届かない）の異常の可能性があります。Vercel のログの [jobs/check-link-domains] を見てください（docs/architecture.md の 4.22）。",
+          "直ったら、利用者が「確かめる」を押せば、またつながります。",
+        ].join("\n"),
+      },
+      deps.notify,
+    ).catch((e) => console.error("[link-domain] 運営者に知らせられませんでした", e instanceof Error ? e.message : e));
   }
   report.expired = await expireLinkDomains(admin, deps);
   return report;

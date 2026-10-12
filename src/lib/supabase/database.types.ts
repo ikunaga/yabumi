@@ -471,6 +471,7 @@ export type Database = {
         Row: {
           cname_target: string
           created_at: string
+          dns_confirmed_at: string | null
           domain: string
           id: string
           last_check: string
@@ -489,6 +490,7 @@ export type Database = {
         Insert: {
           cname_target?: string
           created_at?: string
+          dns_confirmed_at?: string | null
           domain: string
           id?: string
           last_check?: string
@@ -507,6 +509,7 @@ export type Database = {
         Update: {
           cname_target?: string
           created_at?: string
+          dns_confirmed_at?: string | null
           domain?: string
           id?: string
           last_check?: string

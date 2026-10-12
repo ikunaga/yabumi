@@ -1,5 +1,7 @@
 import Link from "next/link";
+import type { WeekBand } from "@/lib/calendar/roadmap-view";
 import { monthOf } from "@/lib/time";
+import { TodoButton, WeekBandView } from "./roadmap-band";
 import { MARK, type MonthDay } from "./month-types";
 
 const WEEKDAYS = ["月", "火", "水", "木", "金", "土", "日"];
@@ -7,8 +9,9 @@ const WEEKDAYS = ["月", "火", "水", "木", "金", "土", "日"];
 const MAX_ITEMS = 3;
 
 // PC の月の表示: 月曜はじまりの 6 週のマス。前後の月の日は薄く。
-// 日付を押すとその日の週の表示へ、投稿を押すとその投稿へ、空いているところを押すとその日の投稿をつくる
-export function MonthGrid({ days, base }: { days: MonthDay[]; base: string }) {
+// 日付を押すとその日の週の表示へ、投稿を押すとその投稿へ、空いているところを押すとその日の投稿をつくる。
+// 各週の行の上に、ロードマップのやることと週の目標の帯を出す（bands は週の行の順）
+export function MonthGrid({ days, base, bands, today }: { days: MonthDay[]; base: string; bands: (WeekBand | undefined)[]; today: string }) {
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-surface">
       <div className="grid grid-cols-7 border-b border-line">
@@ -18,14 +21,18 @@ export function MonthGrid({ days, base }: { days: MonthDay[]; base: string }) {
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-7">
-        {days.map((d, i) => {
+      {Array.from({ length: days.length / 7 }, (_, row) => (
+        <div key={row} className={row < days.length / 7 - 1 ? "border-b border-line" : ""}>
+          <WeekBandView band={bands[row]} base={base} today={today} compact />
+          <div className="grid grid-cols-7 border-t border-line first:border-t-0">
+        {days.slice(row * 7, row * 7 + 7).map((d, col) => {
+          const i = row * 7 + col;
           const shown = d.count > MAX_ITEMS ? d.items.slice(0, MAX_ITEMS - 1) : d.items.slice(0, MAX_ITEMS);
           const more = d.count - shown.length;
           return (
             <div
               key={d.ymd}
-              className={`group relative flex min-h-[116px] min-w-0 flex-col gap-0.5 p-1.5 ${i % 7 < 6 ? "border-r" : ""} ${i < 35 ? "border-b" : ""} border-line ${d.isToday ? "bg-surface2" : ""}`}
+              className={`group relative flex min-h-[116px] min-w-0 flex-col gap-0.5 p-1.5 ${i % 7 < 6 ? "border-r" : ""} border-line ${d.isToday ? "bg-surface2" : ""}`}
             >
               {/* 空いているところを押すと、その日の投稿をつくる（日付と投稿のリンクは、この上に重ねる） */}
               <Link
@@ -47,6 +54,9 @@ export function MonthGrid({ days, base }: { days: MonthDay[]; base: string }) {
                 {d.day}
                 {d.isToday && <span className="sr-only">今日</span>}
               </Link>
+              {d.todos.map((t) => (
+                <TodoButton key={t.id} todo={t} base={base} variant="day" />
+              ))}
               {shown.map((it) => (
                 <Link
                   key={it.id}
@@ -69,7 +79,9 @@ export function MonthGrid({ days, base }: { days: MonthDay[]; base: string }) {
             </div>
           );
         })}
-      </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

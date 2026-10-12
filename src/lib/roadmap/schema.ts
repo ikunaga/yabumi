@@ -101,12 +101,18 @@ export function kpiLabel(kpi: KpiKey, sns: SnsKey | null | undefined): string {
   return kpi === "posts" ? `${KPIS.posts.label}（${sns ? SNS[sns].label : "すべての SNS"}）` : KPIS[kpi].label;
 }
 
-// やることの進み具合（その週の数字）。自動で数えられない数字は null
+// やることに数える投稿（DB の roadmap_item_progress）。published・scheduled は、その週の投稿と結びついた投稿を重ならないように数えたもの。
+// linked* はそのうち、やることから作った（結びついた）投稿のもの
+export type ItemPostCounts = { published: number; scheduled: number; linkedPublished: number; linkedScheduled: number };
+
+// やることの進み具合（その週の数字）。自動で数えられない数字は null。
+// 投稿した回数は、DB で数えたもの（posts）があればそれを使う（結びついた投稿が週のあとに送られても数える）
 export function itemProgress(
-  item: { weekStart: string; kpi: KpiKey | null; target: number | null; sns?: SnsKey | null },
+  item: { weekStart: string; kpi: KpiKey | null; target: number | null; sns?: SnsKey | null; posts?: ItemPostCounts | null },
   daily: DailyTotal[],
 ): { actual: number; target: number } | null {
   if (!isAutoKpi(item.kpi) || item.target === null) return null;
+  if (item.kpi === "posts" && item.posts) return { actual: item.posts.published, target: item.target };
   return { actual: sumBetween(daily, item.kpi, item.weekStart, addDays(item.weekStart, 6), item.sns ?? null), target: item.target };
 }
 

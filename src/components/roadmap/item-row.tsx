@@ -2,11 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { deleteItem, setItemStatus } from "@/lib/roadmap/actions";
+import Link from "next/link";
+import { deleteItem, setItemPlannedOn, setItemStatus } from "@/lib/roadmap/actions";
 import type { RoadmapItem } from "@/lib/roadmap/load";
 import { formatValue, kpiLabel } from "@/lib/roadmap/schema";
+import { addDays, dayOfMonth, monthOf, weekdayLabel } from "@/lib/time";
 
-// やること 1 つ。チェックで済みにする。数字と結びついていれば、数字から進み具合を出す（済みにするのは利用者）
+// やること 1 つ。チェックで済みにする。数字と結びついていれば、数字から進み具合を出す（済みにするのは利用者）。
+// 予定日（任意。その週の中の日）を選べ、カレンダーのその日に出る。「この内容で投稿をつくる」で、作った投稿をこのやることに結びつける
 export function RoadmapItemRow({
   projectId,
   item,
@@ -52,6 +55,34 @@ export function RoadmapItemRow({
               {reached && item.status === "todo" && <span className="ml-2 font-bold text-success">目標に届きました。済みにしますか？</span>}
             </span>
           )}
+          {item.posts && item.posts.linkedPublished + item.posts.linkedScheduled > 0 && (
+            <span className="text-xs text-muted">
+              ここから作った投稿: {[item.posts.linkedPublished ? `送信済み ${item.posts.linkedPublished}` : "", item.posts.linkedScheduled ? `予約 ${item.posts.linkedScheduled}` : ""].filter(Boolean).join("・")}
+            </span>
+          )}
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-0.5 text-xs">
+            <label className="inline-flex items-center gap-1.5 text-muted">
+              <span className="whitespace-nowrap">予定日</span>
+              <select
+                value={item.plannedOn ?? ""}
+                disabled={pending}
+                onChange={(e) => run(() => setItemPlannedOn(projectId, item.id, e.target.value || null))}
+                className="rounded border border-input bg-surface px-1.5 py-0.5 text-xs text-fg max-sm:text-[16px]"
+              >
+                <option value="">決めない</option>
+                {Array.from({ length: 7 }, (_, i) => addDays(item.weekStart, i)).map((d) => (
+                  <option key={d} value={d}>
+                    {monthOf(d)}/{dayOfMonth(d)}（{weekdayLabel(d)}）
+                  </option>
+                ))}
+              </select>
+            </label>
+            {item.status === "todo" && (
+              <Link href={`/projects/${projectId}/compose?item=${item.id}`} className="font-semibold text-primary hover:underline">
+                この内容で投稿をつくる
+              </Link>
+            )}
+          </span>
         </div>
         <span className="flex shrink-0 items-center gap-1">
           {item.status === "todo" && (

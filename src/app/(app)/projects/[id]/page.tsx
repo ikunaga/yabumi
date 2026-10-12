@@ -21,6 +21,8 @@ import { Term } from "@/components/ui/term";
 import { currentStepIndex, STEPS } from "@/lib/projects/next-step";
 import { loadRoadmap, thisWeekTodos } from "@/lib/roadmap/queries";
 import { itemProgress } from "@/lib/roadmap/schema";
+import { overdueItems } from "@/lib/roadmap/load";
+import { OverdueTodosCard } from "@/components/roadmap/overdue-card";
 import { ThisWeekCard } from "@/components/roadmap/this-week-card";
 import { getProject } from "@/lib/projects/queries";
 import { listProjectSnsAccounts } from "@/lib/sns/queries";
@@ -106,6 +108,9 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
       ) : (
         planDone && stepIndex >= STEPS.length && <CoachSetupCard projectId={project.id} />
       )}
+
+      {/* ロードマップのやることで、予定日を過ぎたのに投稿を予約・送信していないもの（4.23） */}
+      <OverdueTodosCard projectId={project.id} items={overdueItems(roadmap.items, roadmap.today)} />
 
       {showGithubPrompt && <GithubPrompt projectId={project.id} configured={githubConfigured()} />}
 

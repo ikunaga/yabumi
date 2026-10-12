@@ -5,7 +5,9 @@ import { notFound } from "next/navigation";
 import { MonthGrid } from "@/components/calendar/month-grid";
 import { MonthMobile } from "@/components/calendar/month-mobile";
 import type { MonthDay } from "@/components/calendar/month-types";
+import { TodoButton, WeekBandView } from "@/components/calendar/roadmap-band";
 import { CalendarViewSwitch } from "@/components/calendar/view-switch";
+import { loadCalendarRoadmap, type CalendarTodo } from "@/lib/calendar/roadmap";
 import { PostChip, displayStatus, postWarning, snsSummary } from "@/components/posts/post-chip";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
@@ -45,10 +47,13 @@ export default async function CalendarPage(props: PageProps<"/projects/[id]/cale
   }
 
   const days = weekOf(isYmd(searchParams.week) ? searchParams.week : today);
-  const [posts, undated] = await Promise.all([
+  const [posts, undated, bands] = await Promise.all([
     listPostsBetween(project.id, startOfYmd(days[0]).toISOString(), startOfYmd(addDays(days[6], 1)).toISOString()),
     listUndatedDrafts(project.id),
+    loadCalendarRoadmap(project.id, [days[0]], today),
   ]);
+  const band = bands.get(days[0]);
+  const todosByDay = plannedTodos(band ? [band] : []);
   const byDay = new Map<string, PostRow[]>(days.map((d) => [d, []]));
   for (const p of posts) byDay.get(toYmd(new Date(p.planned_at!)))?.push(p);
 
@@ -80,8 +85,14 @@ export default async function CalendarPage(props: PageProps<"/projects/[id]/cale
 
       {done && <SuccessBanner>{done}</SuccessBanner>}
 
-      {/* PC: 週の 7 列 */}
-      <div className="grid min-h-[480px] grid-cols-7 overflow-hidden rounded-lg border border-border bg-surface max-md:hidden">
+      {/* PC: 週の 7 列（上にロードマップのやることと週の目標の帯） */}
+      <div className="overflow-hidden rounded-lg border border-border bg-surface max-md:hidden">
+      {band && (band.todos.length > 0 || band.goals.length > 0) && (
+        <div className="border-b border-line">
+          <WeekBandView band={band} base={base} today={today} />
+        </div>
+      )}
+      <div className="grid min-h-[480px] grid-cols-7">
         {days.map((d, i) => {
           const isToday = d === today;
           const list = byDay.get(d) ?? [];
@@ -94,6 +105,9 @@ export default async function CalendarPage(props: PageProps<"/projects/[id]/cale
                 {isToday && " 今日"}
               </div>
               <div className="flex flex-col gap-2 p-2.5">
+                {(todosByDay.get(d) ?? []).map((t) => (
+                  <TodoButton key={t.id} todo={t} base={base} variant="day" />
+                ))}
                 {list.map((p) => (
                   <PostChip key={p.id} post={p} projectId={project.id} />
                 ))}
@@ -111,8 +125,14 @@ export default async function CalendarPage(props: PageProps<"/projects/[id]/cale
           );
         })}
       </div>
+      </div>
 
-      {/* スマホ: 日付ごとの縦リスト */}
+      {/* スマホ: 週の帯と、日付ごとの縦リスト */}
+      {band && (band.todos.length > 0 || band.goals.length > 0) && (
+        <div className="overflow-hidden rounded-lg border border-border md:hidden">
+          <WeekBandView band={band} base={base} today={today} />
+        </div>
+      )}
       <ol className="flex flex-col gap-3.5 md:hidden">
         {days.map((d) => {
           const isToday = d === today;
@@ -122,6 +142,9 @@ export default async function CalendarPage(props: PageProps<"/projects/[id]/cale
               <p className={`text-xs font-bold ${isToday ? "text-primary" : "text-muted"}`}>
                 {monthOf(d)}/{dayOfMonth(d)}（{weekdayLabel(d)}）{isToday && " 今日"}
               </p>
+              {(todosByDay.get(d) ?? []).map((t) => (
+                <TodoButton key={t.id} todo={t} base={base} variant="day" />
+              ))}
               {list.length === 0 ? (
                 <Link
                   href={`${base}/compose?date=${d}`}
@@ -152,6 +175,7 @@ function Legend() {
       <span className="font-bold text-signal">● 予約</span>
       <span className="font-bold text-success">✓ 投稿済み</span>
       <span className="text-muted">○ 下書き</span>
+      <span className="text-primary">□ やること</span>
     </div>
   );
 }
@@ -197,7 +221,15 @@ const MONTH_POST_LIMIT = 500;
 async function MonthView({ projectId, base, ym, today, done }: { projectId: string; base: string; ym: string; today: string; done?: string }) {
   const grid = monthGrid(ym);
   const [from, to] = [startOfYmd(grid[0]).toISOString(), startOfYmd(addDays(grid[41], 1)).toISOString()];
-  const [posts, counts, undated] = await Promise.all([listPostsBetween(projectId, from, to, MONTH_POST_LIMIT), countPostsByDay(projectId, from, to), listUndatedDrafts(projectId)]);
+  const weekStarts = Array.from({ length: grid.length / 7 }, (_, i) => grid[i * 7]);
+  const [posts, counts, undated, bandMap] = await Promise.all([
+    listPostsBetween(projectId, from, to, MONTH_POST_LIMIT),
+    countPostsByDay(projectId, from, to),
+    listUndatedDrafts(projectId),
+    loadCalendarRoadmap(projectId, weekStarts, today),
+  ]);
+  const bands = weekStarts.map((w) => bandMap.get(w));
+  const todosByDay = plannedTodos([...bandMap.values()]);
 
   const items = new Map<string, MonthDay["items"]>(grid.map((d) => [d, []]));
   for (const p of posts) {
@@ -214,7 +246,7 @@ async function MonthView({ projectId, base, ym, today, done }: { projectId: stri
   }
   const days: MonthDay[] = grid.map((d) => {
     const list = items.get(d) ?? [];
-    return { ymd: d, day: dayOfMonth(d), inMonth: ymOf(d) === ym, isToday: d === today, count: Math.max(counts.get(d) ?? 0, list.length), items: list };
+    return { ymd: d, day: dayOfMonth(d), inMonth: ymOf(d) === ym, isToday: d === today, count: Math.max(counts.get(d) ?? 0, list.length), items: list, todos: todosByDay.get(d) ?? [] };
   });
   const isThisMonth = ym === ymOf(today);
   // 週に切り替えるときは、今月なら今週、ほかの月はその月の 1 日の週
@@ -248,10 +280,10 @@ async function MonthView({ projectId, base, ym, today, done }: { projectId: stri
       {done && <SuccessBanner>{done}</SuccessBanner>}
 
       <div className="max-md:hidden">
-        <MonthGrid days={days} base={base} />
+        <MonthGrid days={days} base={base} bands={bands} today={today} />
       </div>
       <div className="md:hidden">
-        <MonthMobile key={ym} days={days} base={base} initial={isThisMonth ? today : `${ym}-01`} />
+        <MonthMobile key={ym} days={days} base={base} initial={isThisMonth ? today : `${ym}-01`} bands={bands} today={today} />
       </div>
 
       <p className="text-sm text-muted max-md:hidden">空いている日を押すと、その日の投稿をつくれます。日付を押すと、その日の週を見られます。</p>
@@ -282,4 +314,11 @@ function MobilePostCard({ post, projectId, highlight }: { post: PostRow; project
       {warning && <span className="text-xs font-semibold text-signal">{warning}</span>}
     </Link>
   );
+}
+
+// 予定日のあるやることを、日ごとに
+function plannedTodos(bands: { todos: CalendarTodo[] }[]): Map<string, CalendarTodo[]> {
+  const out = new Map<string, CalendarTodo[]>();
+  for (const b of bands) for (const t of b.todos) if (t.plannedOn) out.set(t.plannedOn, [...(out.get(t.plannedOn) ?? []), t]);
+  return out;
 }

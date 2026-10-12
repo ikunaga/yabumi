@@ -24,6 +24,8 @@ export type ComposerInitial = {
   images?: AttachedImage[];
   // 本文の URL を短縮リンクにするか（新しい投稿はオン。4.22、D20）
   shortLinks?: boolean;
+  // ロードマップのやることから作るとき（4.23）。題と説明を、本文の下書きの手がかりとして出す
+  roadmapItem?: { id: string; title: string; detail: string } | null;
 };
 
 type Props = {
@@ -177,6 +179,7 @@ export function PostComposer({
         intent,
         media: images.map((i) => ({ id: i.id, altText: i.altText })),
         shortLinks,
+        roadmapItemId: initial.roadmapItem?.id ?? null,
         targets: chosen.map((sns) => ({ sns, bodyOverride: overrides[sns] ?? null, title: SNS[sns].needsTitle ? (titles[sns] ?? null) : null })),
       });
       // 成功時はサーバーで画面を移るので、ここに来るのは失敗したときだけ
@@ -204,6 +207,16 @@ export function PostComposer({
 
           {notice && (noticeTone === "error" ? <ErrorBanner>{notice}</ErrorBanner> : <SuccessBanner>{notice}</SuccessBanner>)}
           {result.error && <ErrorBanner>{result.error}</ErrorBanner>}
+
+          {initial.roadmapItem && (
+            <RoadmapItemHint
+              item={initial.roadmapItem}
+              onInsert={() => {
+                const text = [initial.roadmapItem!.title, initial.roadmapItem!.detail].filter(Boolean).join("\n");
+                setBody((b) => (b.trim() ? `${b}\n\n${text}` : text));
+              }}
+            />
+          )}
 
           <label htmlFor="post-body" className="sr-only">
             本文
@@ -588,6 +601,20 @@ function XUrlCostNotice({ onEdit }: { onEdit: () => void }) {
       </ul>
       <button type="button" onClick={onEdit} className="self-start text-xs font-semibold text-primary hover:underline">
         X 用に文面を変える
+      </button>
+    </div>
+  );
+}
+
+// ロードマップのやることから作るときの手がかり（4.23）。題と説明は本文に入れず、「本文に入れる」で手がかりとして入れられる
+function RoadmapItemHint({ item, onInsert }: { item: { title: string; detail: string }; onInsert: () => void }) {
+  return (
+    <div className="flex flex-col gap-1 rounded-lg border border-primary/30 bg-primary-soft px-4 py-3 text-sm leading-6">
+      <p className="text-xs font-bold text-primary">ロードマップのやることから作っています（送ると、このやることの進み具合に数えます）</p>
+      <p className="font-bold">{item.title}</p>
+      {item.detail && <p className="text-muted">{item.detail}</p>}
+      <button type="button" onClick={onInsert} className="self-start text-sm font-semibold text-primary hover:underline">
+        題と説明を本文に入れる（下書きの手がかりに）
       </button>
     </div>
   );

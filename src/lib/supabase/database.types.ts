@@ -1017,6 +1017,7 @@ export type Database = {
           owner_id: string
           planned_at: string | null
           project_id: string
+          roadmap_item_id: string | null
           status: string
           updated_at: string
         }
@@ -1027,6 +1028,7 @@ export type Database = {
           owner_id?: string
           planned_at?: string | null
           project_id: string
+          roadmap_item_id?: string | null
           status?: string
           updated_at?: string
         }
@@ -1037,6 +1039,7 @@ export type Database = {
           owner_id?: string
           planned_at?: string | null
           project_id?: string
+          roadmap_item_id?: string | null
           status?: string
           updated_at?: string
         }
@@ -1046,6 +1049,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posts_roadmap_item_id_fkey"
+            columns: ["roadmap_item_id"]
+            isOneToOne: false
+            referencedRelation: "roadmap_items"
             referencedColumns: ["id"]
           },
         ]
@@ -1261,6 +1271,7 @@ export type Database = {
           id: string
           kpi: string | null
           owner_id: string
+          planned_on: string | null
           position: number
           project_id: string
           sns: string | null
@@ -1278,6 +1289,7 @@ export type Database = {
           id?: string
           kpi?: string | null
           owner_id?: string
+          planned_on?: string | null
           position?: number
           project_id: string
           sns?: string | null
@@ -1295,6 +1307,7 @@ export type Database = {
           id?: string
           kpi?: string | null
           owner_id?: string
+          planned_on?: string | null
           position?: number
           project_id?: string
           sns?: string | null
@@ -1855,6 +1868,16 @@ export type Database = {
           day: string
           link_clicks: number
           posts: number
+        }[]
+      }
+      roadmap_item_progress: {
+        Args: { p_from: string; p_project_id: string; p_to: string }
+        Returns: {
+          item_id: string
+          linked_published: number
+          linked_scheduled: number
+          published: number
+          scheduled: number
         }[]
       }
       save_account_plan_section: {

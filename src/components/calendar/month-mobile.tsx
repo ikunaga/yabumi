@@ -4,18 +4,22 @@ import Link from "next/link";
 import { useState } from "react";
 import { StatusMark } from "@/components/ui/marks";
 import type { PostDisplayStatus } from "@/components/posts/post-chip";
+import type { WeekBand } from "@/lib/calendar/roadmap-view";
 import { MARK, type MonthDay } from "./month-types";
+import { TodoButton, WeekBandView } from "./roadmap-band";
 
 const WEEKDAYS = ["月", "火", "水", "木", "金", "土", "日"];
 const MAX_DOTS = 3;
 
-// スマホの月の表示: マスには日付と印（点）だけを出し、押した日の投稿を下に並べる（マスが小さく、文字を入れると読めないため）
-export function MonthMobile({ days, base, initial }: { days: MonthDay[]; base: string; initial: string }) {
+// スマホの月の表示: マスには日付と印（点）だけを出し、押した日の投稿を下に並べる（マスが小さく、文字を入れると読めないため）。
+// ロードマップのやることと週の目標は、押した日の週の帯として下に出す。予定日のあるやることは、マスに四角の印、下の一覧の先頭に出す
+export function MonthMobile({ days, base, initial, bands, today }: { days: MonthDay[]; base: string; initial: string; bands: (WeekBand | undefined)[]; today: string }) {
   const [selected, setSelected] = useState(initial);
   const day = days.find((d) => d.ymd === selected) ?? days[0];
   const rest = day.count - day.items.length;
   const [m, d] = [Number(day.ymd.slice(5, 7)), day.day];
   const weekday = WEEKDAYS[days.indexOf(day) % 7];
+  const band = bands[Math.floor(days.indexOf(day) / 7)];
 
   return (
     <div className="flex flex-col gap-4">
@@ -53,6 +57,7 @@ export function MonthMobile({ days, base, initial }: { days: MonthDay[]; base: s
                     <Dot key={it.id} status={it.status} />
                   ))}
                   {c.count > MAX_DOTS && <span className="text-[10px] leading-none text-muted">+</span>}
+                  {c.todos.length > 0 && <span className="size-1.5 rounded-[1px] border border-primary bg-primary-soft" />}
                 </span>
               </button>
             );
@@ -61,6 +66,12 @@ export function MonthMobile({ days, base, initial }: { days: MonthDay[]; base: s
       </div>
 
       <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted" aria-hidden>
+        {days.some((c) => c.todos.length > 0) && (
+          <span className="inline-flex items-center gap-1">
+            <span className="size-1.5 rounded-[1px] border border-primary bg-primary-soft" />
+            やること
+          </span>
+        )}
         {(["scheduled", "posted", "draft", ...(days.some((c) => c.items.some((it) => it.status === "failed")) ? (["failed"] as const) : [])] as const).map((s) => (
           <span key={s} className="inline-flex items-center gap-1">
             <Dot status={s} />
@@ -69,10 +80,19 @@ export function MonthMobile({ days, base, initial }: { days: MonthDay[]; base: s
         ))}
       </div>
 
+      {band && (band.todos.length > 0 || band.goals.length > 0) && (
+        <div className="overflow-hidden rounded-lg border border-border">
+          <WeekBandView band={band} base={base} today={today} />
+        </div>
+      )}
+
       <section className="flex flex-col gap-1.5" aria-live="polite">
         <h2 className={`text-xs font-bold ${day.isToday ? "text-primary" : "text-muted"}`}>
           {m}/{d}（{weekday}）{day.isToday && " 今日"}
         </h2>
+        {day.todos.map((t) => (
+          <TodoButton key={t.id} todo={t} base={base} variant="day" />
+        ))}
         {day.items.map((it) => (
           <Link key={it.id} href={it.href} className="flex flex-col gap-1.5 rounded-lg border border-border bg-surface px-3.5 py-3 hover:no-underline">
             <span className="flex justify-between gap-2 text-xs">

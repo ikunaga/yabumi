@@ -22,7 +22,7 @@ const MIN_LEAD_MS = 5 * 60 * 1000;
 export async function savePost(input: SavePostInput): Promise<SavePostResult> {
   const parsed = savePostInputSchema.safeParse(input);
   if (!parsed.success) return { error: "入力の形式が正しくありません。画面を読み込み直してください。" };
-  const { projectId, postId, body, targets, plannedAt, intent, media, shortLinks } = parsed.data;
+  const { projectId, postId, body, targets, plannedAt, intent, media, shortLinks, roadmapItemId } = parsed.data;
 
   const fieldErrors: NonNullable<SavePostResult["fieldErrors"]> = {};
   if (body.trim() === "") fieldErrors.body = "本文を入れてください";
@@ -123,6 +123,12 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
   });
   if (error || !savedId) {
     return { error: "保存できませんでした。時間をおいてもう一度お試しください。" };
+  }
+
+  // ロードマップのやることから作った投稿なら、結びつける（その投稿が送られたら、やることの進み具合に数える。4.23）
+  if (roadmapItemId) {
+    const { error: linkError } = await supabase.from("posts").update({ roadmap_item_id: roadmapItemId }).eq("id", savedId).eq("project_id", projectId);
+    if (linkError) console.error("[savePost] やることに結びつけられませんでした", linkError.message);
   }
 
   // 画像を、渡した順と代わりの文にそろえる（外した画像は消える）。送る前に済ませる

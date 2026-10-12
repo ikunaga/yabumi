@@ -1,4 +1,5 @@
 import type { PostDisplayStatus } from "@/components/posts/post-chip";
+import type { CalendarTodo } from "@/lib/calendar/roadmap-view";
 
 // 月の表示に渡す、1 件の投稿の短い表示（サーバーで作り、スマホの月の表示（クライアント）にもそのまま渡す）
 export type MonthItem = {
@@ -20,6 +21,8 @@ export type MonthDay = {
   // その日の投稿の数（DB で数えたもの。読んだ行の数ではない）
   count: number;
   items: MonthItem[];
+  // 予定日がこの日のロードマップのやること
+  todos: CalendarTodo[];
 };
 
 // 凡例（● 予約・✓ 投稿済み・○ 下書き）と同じ印と色

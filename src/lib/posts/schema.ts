@@ -29,6 +29,8 @@ export const savePostInputSchema = z.object({
   // 日本時間の "YYYY-MM-DDTHH:mm"。空なら日付なし
   plannedAt: z.string(),
   intent: saveIntent,
+  // ロードマップのやることから作った投稿（docs/architecture.md の 4.23）。同じプロジェクトのやることだけ（DB のトリガーで守る）
+  roadmapItemId: z.uuid().nullable().optional(),
 });
 
 export type SavePostInput = z.input<typeof savePostInputSchema>;

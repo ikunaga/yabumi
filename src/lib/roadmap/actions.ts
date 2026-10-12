@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { addDays, isYmd } from "@/lib/time";
 import { itemSchema, kgiSchema, kpiTargetsSchema, parseKpiChoice } from "./schema";
 import { addItems, RoadmapError, saveGoal } from "./write";
 
@@ -95,6 +96,19 @@ export async function deleteItem(projectId: string, itemId: string): Promise<{ e
   const supabase = await createClient();
   const { data, error } = await supabase.from("roadmap_items").delete().eq("id", itemId).eq("project_id", projectId).select("id");
   if (error || !data?.length) return { error: "消せませんでした。画面を読み込み直してください。" };
+  done(projectId);
+  return {};
+}
+
+// 予定日を決める・外す（その週の中の日だけ。DB の check でも守る）
+export async function setItemPlannedOn(projectId: string, itemId: string, plannedOn: string | null): Promise<{ error?: string }> {
+  if (!z.array(z.uuid()).safeParse([projectId, itemId]).success || (plannedOn !== null && !isYmd(plannedOn))) return { error: "入力の形式が正しくありません。" };
+  const supabase = await createClient();
+  const { data: item } = await supabase.from("roadmap_items").select("week_start").eq("id", itemId).eq("project_id", projectId).maybeSingle();
+  if (!item) return { error: "やることが見つかりません。画面を読み込み直してください。" };
+  if (plannedOn !== null && (plannedOn < item.week_start || plannedOn > addDays(item.week_start, 6))) return { error: "予定日は、そのやることの週の中の日にしてください。" };
+  const { data, error } = await supabase.from("roadmap_items").update({ planned_on: plannedOn }).eq("id", itemId).eq("project_id", projectId).select("id");
+  if (error || !data?.length) return { error: "更新できませんでした。画面を読み込み直してください。" };
   done(projectId);
   return {};
 }

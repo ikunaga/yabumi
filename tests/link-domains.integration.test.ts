@@ -2,9 +2,11 @@
 // 矢書全体の上限は DB の全体の数で決まるので、上限のテストは「今の数」を上限として渡して確かめる（ほかのテストの行は触らない）
 import { randomBytes } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { ownershipRecordName, ownershipRecordValue, type Lookup } from "@/lib/links/doh";
 import {
   addLinkDomain,
   checkLinkDomain,
+  recheckLinkDomains,
   drainLinkDomainRemovals,
   getLinkDomain,
   linkAllowedOnDomain,
@@ -64,6 +66,24 @@ function fakeVercel(opts: { needsTxt?: boolean; addError?: VercelApiError } = {}
 }
 
 const quiet = { apiKey: null, to: null };
+
+// DNS のまね（DNS over HTTPS の代わり）。down にすると、どのリゾルバも答えない
+function fakeDns() {
+  const zone = { cname: new Map<string, string[]>(), a: new Map<string, string[]>(), txt: new Map<string, string[]>(), down: false };
+  const lookup: Lookup = async (name, type) => {
+    if (zone.down) return { records: [], answered: 0, missingEverywhere: false };
+    const records = (type === "CNAME" ? zone.cname : type === "A" ? zone.a : zone.txt).get(name) ?? [];
+    return { records, answered: 2, missingEverywhere: records.length === 0 };
+  };
+  return { zone, lookup };
+}
+
+// そのドメインの持ち主の確認の TXT を、DNS のまねに入れる（本当の持ち主が足したことにする）
+async function putOwnerTxt(zone: ReturnType<typeof fakeDns>["zone"], projectId: string) {
+  const row = (await getLinkDomain(admin, projectId))!;
+  zone.txt.set(ownershipRecordName(row.domain), [ownershipRecordValue(row.ownership_token)]);
+  return row;
+}
 
 let alice: TestClient;
 let bob: TestClient;
@@ -156,21 +176,9 @@ describe("利用者のドメイン", () => {
   it("確かめる: TXT がない → DNS が届いていない → 値が違う → Proxy → 証明書を待つ → つながる", async () => {
     const { vercel, state } = fakeVercel({ needsTxt: true });
     let now = Date.parse("2026-10-12T00:00:00Z");
-    const dns = { cname: [] as string[], a: [] as string[] };
-    const notFound = Object.assign(new Error("not found"), { code: "ENOTFOUND" });
+    const { zone, lookup } = fakeDns();
     let probe = false;
-    const deps: LinkDomainDeps = {
-      vercel,
-      notify: quiet,
-      limit: 100000,
-      now: () => new Date((now += 60_000)),
-      resolveCname: async () => {
-        if (!dns.cname.length) throw notFound;
-        return dns.cname;
-      },
-      resolve4: async () => dns.a,
-      probe: async () => probe,
-    };
+    const deps: LinkDomainDeps = { vercel, notify: quiet, limit: 100000, now: () => new Date((now += 60_000)), lookup, probe: async () => probe };
     const domain = `go.i${rand()}.com`;
     await addLinkDomain(admin, { ownerId: aliceId, projectId: aliceProject, domain }, deps);
     const check = async () => {
@@ -181,11 +189,16 @@ describe("利用者のドメイン", () => {
 
     expect(await check()).toMatchObject({ last_check: "txt_missing", status: "pending" });
     state.verified = true;
-    expect(await check()).toMatchObject({ last_check: "dns_missing", status: "pending", txt_value: "" });
-    dns.cname = ["other.example.net"];
+    expect(await check()).toMatchObject({ last_check: "owner_txt_missing", status: "pending", txt_value: "" });
+    // 合言葉が違う TXT（ほかの人の・前の合言葉）では通らない
+    zone.txt.set(ownershipRecordName(domain), ["yabumi-verify=wrong-token-0000000000000000000000"]);
+    expect((await check()).last_check).toBe("owner_txt_missing");
+    await putOwnerTxt(zone, aliceProject);
+    expect(await check()).toMatchObject({ last_check: "dns_missing", status: "pending" });
+    zone.cname.set(domain, ["other.example.net"]);
     expect((await check()).last_check).toBe("wrong_value");
-    dns.cname = [];
-    dns.a = ["203.0.113.1"];
+    zone.cname.delete(domain);
+    zone.a.set(domain, ["203.0.113.1"]);
     expect((await check()).last_check).toBe("wrong_value");
     state.configuredBy = "http";
     expect((await check()).last_check).toBe("proxied");
@@ -197,6 +210,7 @@ describe("利用者のドメイン", () => {
     const ok = await check();
     expect(ok).toMatchObject({ last_check: "ok", status: "active" });
     expect(ok.verified_at).not.toBeNull();
+    expect(ok.owner_verified_at).not.toBeNull();
     expect(await projectLinkBase(alice, aliceProject)).toBe(`https://${domain}`);
 
     // 続けて押すと、間をおくよう知らせる
@@ -209,10 +223,12 @@ describe("利用者のドメイン", () => {
     const { vercel, state } = fakeVercel();
     state.misconfigured = false;
     let now = Date.parse("2026-10-12T00:00:00Z");
-    const deps: LinkDomainDeps = { vercel, notify: quiet, limit: 100000, probe: async () => true, now: () => new Date((now += 60_000)) };
+    const { zone, lookup } = fakeDns();
+    const deps: LinkDomainDeps = { vercel, notify: quiet, limit: 100000, probe: async () => true, now: () => new Date((now += 60_000)), lookup };
     const domain = `go.j${rand()}.com`;
     const old = await createShortLink(admin, { ownerId: aliceId, projectId: aliceProject, destinationUrl: STORE, sns: "x", kind: "custom" });
     await addLinkDomain(admin, { ownerId: aliceId, projectId: aliceProject, domain }, deps);
+    await putOwnerTxt(zone, aliceProject);
     await checkLinkDomain(admin, { ownerId: aliceId, projectId: aliceProject }, deps);
 
     // 投稿の本文のリンクは、つながったドメインで作る
@@ -264,6 +280,117 @@ describe("利用者のドメイン", () => {
     expect(state.removed).toContain(d2);
     expect((await admin.from("link_domain_removals").select("domain").eq("domain", d2)).data).toEqual([]);
     await admin.from("link_domain_attempts").delete().in("owner_id", [aliceId, bobId]);
+  });
+
+  it("他人のドメインは、Vercel が通しても、矢書の持ち主の確認の TXT がなければつながらない", async () => {
+    // Vercel は TXT を求めず、DNS も Vercel を向いていて、確認用のパスも答える（使われなくなった CNAME が残っている他人のドメイン）
+    const { vercel, state } = fakeVercel();
+    state.misconfigured = false;
+    const { zone, lookup } = fakeDns();
+    const domain = `go.v${rand()}.com`;
+    zone.cname.set(domain, ["cname.vercel-dns.com"]);
+    let now = Date.parse("2026-10-12T00:00:00Z");
+    const deps: LinkDomainDeps = { vercel, notify: quiet, limit: 100000, probe: async () => true, lookup, now: () => new Date((now += 60_000)) };
+    await admin.from("link_domain_attempts").delete().eq("owner_id", bobId);
+    expect(await addLinkDomain(admin, { ownerId: bobId, projectId: bobProject, domain }, deps)).toEqual({ ok: true });
+    const r = await checkLinkDomain(admin, { ownerId: bobId, projectId: bobProject }, deps);
+    expect(r).toMatchObject({ ok: true, row: { status: "pending", last_check: "owner_txt_missing", owner_verified_at: null } });
+    expect(await linkAllowedOnDomain(admin, bobProject, domain)).toBe(false);
+    // 合言葉は推測できない長さで、足すたびに作り直す
+    const first = (await getLinkDomain(admin, bobProject))!.ownership_token;
+    expect(first.length).toBeGreaterThanOrEqual(32);
+    await cleanup(bobProject, deps, bobId);
+    await addLinkDomain(admin, { ownerId: bobId, projectId: bobProject, domain: `go.w${rand()}.com` }, deps);
+    expect((await getLinkDomain(admin, bobProject))!.ownership_token).not.toBe(first);
+    await cleanup(bobProject, deps, bobId);
+    await admin.from("link_domain_attempts").delete().eq("owner_id", bobId);
+  });
+
+  it("つながらないまま 7 日たったら取り消し、Vercel からも外す", async () => {
+    const { vercel, state } = fakeVercel();
+    const { lookup } = fakeDns();
+    const deps: LinkDomainDeps = { vercel, notify: quiet, limit: 100000, lookup };
+    const domain = `go.x${rand()}.com`;
+    await admin.from("link_domain_attempts").delete().eq("owner_id", bobId);
+    await addLinkDomain(admin, { ownerId: bobId, projectId: bobProject, domain }, deps);
+    await admin.from("link_domains").update({ pending_since: new Date(Date.now() - 6 * 86_400_000).toISOString() }).eq("project_id", bobProject);
+    await recheckLinkDomains(admin, deps);
+    expect(await getLinkDomain(admin, bobProject)).not.toBeNull();
+    await admin.from("link_domains").update({ pending_since: new Date(Date.now() - 8 * 86_400_000).toISOString() }).eq("project_id", bobProject);
+    // 「確かめる」を押したときにも取り消す
+    expect(await checkLinkDomain(admin, { ownerId: bobId, projectId: bobProject }, deps)).toMatchObject({ ok: false, error: expect.stringContaining("7 日") });
+    expect(await getLinkDomain(admin, bobProject)).toBeNull();
+    expect(state.removed).toContain(domain);
+    // 取り消したドメインは、ほかの人（本当の持ち主）が使える
+    await admin.from("link_domain_attempts").delete().eq("owner_id", aliceId);
+    expect(await addLinkDomain(admin, { ownerId: aliceId, projectId: aliceProject, domain }, deps)).toEqual({ ok: true });
+    await cleanup(aliceProject, deps, aliceId);
+    await admin.from("link_domain_attempts").delete().in("owner_id", [aliceId, bobId]);
+  });
+
+  it("毎日の見回り: TXT か CNAME が外れたら矢書のドメインに戻す。リゾルバが答えなければ外さない", async () => {
+    const { vercel, state } = fakeVercel();
+    state.misconfigured = false;
+    const { zone, lookup } = fakeDns();
+    let now = Date.parse("2026-10-12T00:00:00Z");
+    const deps: LinkDomainDeps = { vercel, notify: quiet, limit: 100000, probe: async () => true, lookup, now: () => new Date((now += 60_000)) };
+    const domain = `go.y${rand()}.com`;
+    await admin.from("link_domain_attempts").delete().eq("owner_id", aliceId);
+    await addLinkDomain(admin, { ownerId: aliceId, projectId: aliceProject, domain }, deps);
+    await putOwnerTxt(zone, aliceProject);
+    zone.cname.set(domain, ["abc.vercel-dns-017.com"]);
+    expect((await checkLinkDomain(admin, { ownerId: aliceId, projectId: aliceProject }, deps)) as { row: { status: string } }).toMatchObject({ row: { status: "active" } });
+
+    const recheck = async () => {
+      await recheckLinkDomains(admin, deps);
+      return (await getLinkDomain(admin, aliceProject))!;
+    };
+    // 残っていれば、そのまま
+    expect((await recheck()).status).toBe("active");
+    // リゾルバがどれも答えなければ、外さない
+    zone.down = true;
+    zone.txt.clear();
+    expect((await recheck()).status).toBe("active");
+    zone.down = false;
+    // 持ち主の確認の TXT が消えたら（ドメインを手放した・別の人に渡った）、戻す
+    const lost = await recheck();
+    expect(lost).toMatchObject({ status: "pending", last_check: "owner_txt_missing" });
+    expect(await projectLinkBase(alice, aliceProject)).toBe(shortLinkBase());
+    expect(await linkAllowedOnDomain(admin, aliceProject, domain)).toBe(false);
+    // 戻したところから 7 日の猶予（足した日からではない）
+    expect(Date.now() - Date.parse(lost.pending_since)).toBeLessThan(86_400_000 * 365);
+    expect(await getLinkDomain(admin, aliceProject)).not.toBeNull();
+    // 足し直して確かめれば、また使える
+    await putOwnerTxt(zone, aliceProject);
+    expect((await checkLinkDomain(admin, { ownerId: aliceId, projectId: aliceProject }, deps)) as { row: { status: string } }).toMatchObject({ row: { status: "active" } });
+    // CNAME が別のところを向いたら、戻す
+    zone.cname.set(domain, ["parking.example.net"]);
+    expect(await recheck()).toMatchObject({ status: "pending", last_check: "wrong_value" });
+    await cleanup(aliceProject, deps, aliceId);
+    await admin.from("link_domain_attempts").delete().eq("owner_id", aliceId);
+  });
+
+  it("前の形（合言葉なし）の claim_link_domain も、pending を作るだけで持ち主の確認は飛ばさない。呼べるのはサーバーだけ", async () => {
+    const domain = `go.z${rand()}.com`;
+    await admin.from("link_domain_attempts").delete().eq("owner_id", bobId);
+    const args = { p_owner: bobId, p_project: bobProject, p_domain: domain, p_daily: 5, p_total: 100000 };
+    // 利用者からは、どちらの形も呼べない
+    expect((await bob.rpc("claim_link_domain", args)).error?.code).toBe("42501");
+    expect((await bob.rpc("claim_link_domain", { ...args, p_token: "x".repeat(40) })).error?.code).toBe("42501");
+    expect((await admin.rpc("claim_link_domain", args)).data).toBe("ok");
+    const row = (await getLinkDomain(admin, bobProject))!;
+    expect(row).toMatchObject({ status: "pending", owner_verified_at: null });
+    expect(row.ownership_token).toMatch(/^[0-9a-f]{48}$/);
+    // TXT がなければ、Vercel が通してもつながらない
+    const { vercel, state } = fakeVercel();
+    state.misconfigured = false;
+    const { lookup } = fakeDns();
+    const deps: LinkDomainDeps = { vercel, notify: quiet, limit: 100000, probe: async () => true, lookup };
+    expect(await checkLinkDomain(admin, { ownerId: bobId, projectId: bobProject }, deps)).toMatchObject({ ok: true, row: { status: "pending", last_check: "owner_txt_missing" } });
+    // 新しい形でも、短い合言葉は受け付けない
+    await cleanup(bobProject, deps, bobId);
+    expect((await admin.rpc("claim_link_domain", { ...args, p_domain: `go.za${rand()}.com`, p_token: "short" })).error).not.toBeNull();
+    await admin.from("link_domain_attempts").delete().eq("owner_id", bobId);
   });
 
   it("Vercel の設定がなければ足さない（画面は準備中）", async () => {

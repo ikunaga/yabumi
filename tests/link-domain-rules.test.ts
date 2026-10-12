@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { apexOf, dnsRecordName, isApexDomain, linkDomainLimit, LINK_CHECK_BODY, LINK_CHECK_PATH, normalizeLinkDomain } from "@/lib/links/domain-rules";
 import { isYabumiHost, shortLinkRoute } from "@/lib/links/host";
+import { dohLookup, ownershipRecordName, ownershipRecordValue } from "@/lib/links/doh";
 import { VercelApiError, vercelConfig, vercelDomains } from "@/lib/links/vercel";
 
 describe("ドメインの形", () => {
@@ -118,5 +119,39 @@ describe("Vercel の API の呼び方", () => {
     const err = await vercelDomains({ token: "t", projectId: "p" }, fetcher).add("go.example.com").catch((e) => e);
     expect(err).toBeInstanceOf(VercelApiError);
     expect(err).toMatchObject({ status: 409, code: "domain_already_in_use" });
+  });
+});
+
+describe("DNS over HTTPS で引く", () => {
+  // リゾルバごとの答えを決められる fetch のまね
+  function doh(answers: Record<string, { status: number; body?: unknown } | "fail">) {
+    return (async (url: URL | string) => {
+      const host = new URL(String(url)).host;
+      const a = answers[host];
+      if (!a || a === "fail") throw new Error("network");
+      return new Response(JSON.stringify(a.body ?? {}), { status: a.status });
+    }) as typeof fetch;
+  }
+  const txt = (data: string) => ({ status: 200, body: { Status: 0, Answer: [{ type: 16, data }] } });
+
+  it("2 つのリゾルバに聞き、どちらかに見えればある。長い TXT の分かれた文字列はつなぐ", async () => {
+    const lookup = dohLookup(doh({ "cloudflare-dns.com": txt('"yabumi-verify=" "abc"'), "dns.google": { status: 200, body: { Status: 0 } } }));
+    expect(await lookup("_yabumi.go.example.com", "TXT")).toEqual({ records: ["yabumi-verify=abc"], answered: 2, missingEverywhere: false });
+  });
+
+  it("「ない」は、答えたリゾルバのすべてで見えないとき。どちらも答えなければ、わからない", async () => {
+    expect(await dohLookup(doh({ "cloudflare-dns.com": { status: 200, body: { Status: 3 } }, "dns.google": "fail" }))("x.example.com", "TXT")).toEqual({ records: [], answered: 1, missingEverywhere: true });
+    expect(await dohLookup(doh({ "cloudflare-dns.com": "fail", "dns.google": { status: 200, body: { Status: 2 } } }))("x.example.com", "TXT")).toEqual({ records: [], answered: 0, missingEverywhere: false });
+  });
+
+  it("CNAME は小文字にして末尾の点を外す。ほかの種類の答えは混ぜない", async () => {
+    const body = { Status: 0, Answer: [{ type: 5, data: "ABC.Vercel-DNS-017.com." }, { type: 1, data: "76.76.21.21" }] };
+    const lookup = dohLookup(doh({ "cloudflare-dns.com": { status: 200, body }, "dns.google": { status: 200, body } }));
+    expect((await lookup("go.example.com", "CNAME")).records).toEqual(["abc.vercel-dns-017.com"]);
+  });
+
+  it("持ち主の確認の TXT の名前と値", () => {
+    expect(ownershipRecordName("go.example.com")).toBe("_yabumi.go.example.com");
+    expect(ownershipRecordValue("tok")).toBe("yabumi-verify=tok");
   });
 });

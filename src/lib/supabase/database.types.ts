@@ -476,6 +476,9 @@ export type Database = {
           last_check: string
           last_checked_at: string | null
           owner_id: string
+          owner_verified_at: string | null
+          ownership_token: string
+          pending_since: string
           project_id: string
           status: string
           txt_name: string
@@ -491,6 +494,9 @@ export type Database = {
           last_check?: string
           last_checked_at?: string | null
           owner_id: string
+          owner_verified_at?: string | null
+          ownership_token?: string
+          pending_since?: string
           project_id: string
           status?: string
           txt_name?: string
@@ -506,6 +512,9 @@ export type Database = {
           last_check?: string
           last_checked_at?: string | null
           owner_id?: string
+          owner_verified_at?: string | null
+          ownership_token?: string
+          pending_since?: string
           project_id?: string
           status?: string
           txt_name?: string
@@ -1497,16 +1506,28 @@ export type Database = {
           target_id: string
         }[]
       }
-      claim_link_domain: {
-        Args: {
-          p_daily: number
-          p_domain: string
-          p_owner: string
-          p_project: string
-          p_total: number
-        }
-        Returns: string
-      }
+      claim_link_domain:
+        | {
+            Args: {
+              p_daily: number
+              p_domain: string
+              p_owner: string
+              p_project: string
+              p_token: string
+              p_total: number
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_daily: number
+              p_domain: string
+              p_owner: string
+              p_project: string
+              p_total: number
+            }
+            Returns: string
+          }
       claim_operator_notification: {
         Args: { p_key: string; p_window: unknown }
         Returns: boolean
@@ -1559,6 +1580,7 @@ export type Database = {
           social_account_id: string
         }[]
       }
+      expire_link_domains: { Args: never; Returns: number }
       invoke_job: { Args: { p_path: string }; Returns: number }
       is_manual_sns: { Args: { p_sns: string }; Returns: boolean }
       issue_media_upload_ticket: {

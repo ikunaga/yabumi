@@ -119,6 +119,9 @@ export default async function LinksPage(props: PageProps<"/projects/[id]/links">
             cnameTarget: linkDomain.cname_target,
             txtName: linkDomain.txt_name,
             txtValue: linkDomain.txt_value,
+            ownershipToken: linkDomain.ownership_token,
+            pendingSince: linkDomain.pending_since,
+            verifiedAt: linkDomain.verified_at,
             lastCheck: linkDomain.last_check,
             lastCheckedAt: linkDomain.last_checked_at,
           }

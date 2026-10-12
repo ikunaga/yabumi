@@ -7,10 +7,11 @@ import { Field, Input } from "@/components/ui/field";
 import { Term } from "@/components/ui/term";
 import { addLinkDomainAction, checkLinkDomainAction, removeLinkDomainAction, type LinkDomainActionState } from "@/lib/links/actions";
 import { apexOf, dnsRecordName } from "@/lib/links/domain-rules";
+import { ownershipRecordName, ownershipRecordValue } from "@/lib/links/doh";
 import { CopyButton } from "./link-forms";
 
 // 短縮リンクを自分のドメインで作る（F07、決定 D28。docs/architecture.md の 4.22）。
-// ① ドメインを入れる ② DNS に 1 行足す ③ 確かめる、の 3 段を見せ、今どこかを示す。ドメインを持っていない人には無理に勧めない
+// ① ドメインを入れる ② DNS に行を足す（つなぐ CNAME と、持ち主の確認の TXT） ③ 確かめる、の 3 段を見せ、今どこかを示す。ドメインを持っていない人には無理に勧めない
 
 export type LinkDomainView = {
   domain: string;
@@ -18,6 +19,11 @@ export type LinkDomainView = {
   cnameTarget: string;
   txtName: string;
   txtValue: string;
+  // 矢書の持ち主の確認の合言葉（_yabumi.<ドメイン> の TXT）
+  ownershipToken: string;
+  // pending になった日時（ここから 7 日で取り消す）と、前につながっていた日時（外れて戻したときに知らせる）
+  pendingSince: string;
+  verifiedAt: string | null;
   lastCheck: string;
   lastCheckedAt: string | null;
 };
@@ -40,7 +46,8 @@ const CHECK_MESSAGE: Record<string, { tone: "wait" | "fix" | "ok"; text: string 
     text: "DNS の値が違います。下の表の「種類」「名前」「値」と同じになっているか確かめてください。同じ名前の古い行（A や CNAME）があれば消してください。",
   },
   proxied: { tone: "fix", text: "Cloudflare の Proxy がオン（オレンジの雲）になっています。その行の雲を押して、灰色（DNS only）にしてから保存してください。" },
-  txt_missing: { tone: "fix", text: "持ち主の確認の行（TXT）がまだ見えません。下の表の 2 行目（TXT）も足してください。" },
+  owner_txt_missing: { tone: "fix", text: "あなたのドメインだと確かめる行（2 行目の TXT）がまだ見えません。足したばかりなら、数分おいてからもう一度「確かめる」を押してください。" },
+  txt_missing: { tone: "fix", text: "Vercel の持ち主の確認の行（3 行目の TXT）がまだ見えません。3 行目も足してください。" },
   cert_pending: {
     tone: "wait",
     text: "DNS は届きました。いま、安全につなぐための証明書（https）を用意しています（数分〜1 時間ほど）。少しおいてから、もう一度「確かめる」を押してください。",
@@ -98,7 +105,7 @@ export function LinkDomainCard({ projectId, ready, domain, defaultHost, profileL
 }
 
 function Steps({ step }: { step: number }) {
-  const items = ["ドメインを入れる", "DNS に 1 行足す", "確かめる"];
+  const items = ["ドメインを入れる", "DNS に行を足す", "確かめる"];
   return (
     <ol className="grid grid-cols-3 gap-2" aria-label="手順">
       {items.map((label, i) => {
@@ -166,12 +173,16 @@ function DomainForm({ projectId }: { projectId: string }) {
   );
 }
 
-type DnsRecord = { type: string; name: string; value: string };
+type DnsRecord = { type: string; name: string; value: string; why: string };
 
+// 1 行目はつなぐため、2 行目はあなたのドメインだと矢書が確かめるため、3 行目（要るときだけ）は Vercel が確かめるため
 function records(domain: LinkDomainView): DnsRecord[] {
   const apex = apexOf(domain.domain);
-  const list = [{ type: "CNAME", name: dnsRecordName(domain.domain, apex), value: domain.cnameTarget }];
-  if (domain.txtValue) list.push({ type: "TXT", name: dnsRecordName(domain.txtName || `_vercel.${apex}`, apex), value: domain.txtValue });
+  const list: DnsRecord[] = [
+    { type: "CNAME", name: dnsRecordName(domain.domain, apex), value: domain.cnameTarget, why: "矢書につなぐため" },
+    { type: "TXT", name: dnsRecordName(ownershipRecordName(domain.domain), apex), value: ownershipRecordValue(domain.ownershipToken), why: "あなたのドメインだと確かめるため" },
+  ];
+  if (domain.txtValue) list.push({ type: "TXT", name: dnsRecordName(domain.txtName || `_vercel.${apex}`, apex), value: domain.txtValue, why: "Vercel（矢書の置き場所）が確かめるため" });
   return list;
 }
 
@@ -180,8 +191,10 @@ function RecordTable({ domain }: { domain: LinkDomainView }) {
   return (
     <div className="flex flex-col gap-2">
       {rows.map((r, i) => (
-        <dl key={r.type} className="grid grid-cols-[72px_1fr] gap-x-3 gap-y-1.5 rounded-md border border-border bg-surface2 px-4 py-3 text-sm">
-          {rows.length > 1 && <p className="col-span-2 text-xs font-bold text-muted">{i + 1} 行目</p>}
+        <dl key={r.name} className="grid grid-cols-[72px_1fr] gap-x-3 gap-y-1.5 rounded-md border border-border bg-surface2 px-4 py-3 text-sm">
+          <p className="col-span-2 text-xs font-bold text-muted">
+            {i + 1} 行目（{r.why}）
+          </p>
           <dt className="text-muted">種類</dt>
           <dd className="font-bold">{r.type}</dd>
           <dt className="text-muted">名前</dt>
@@ -197,7 +210,8 @@ function RecordTable({ domain }: { domain: LinkDomainView }) {
         </dl>
       ))}
       <p className="text-xs leading-[1.7] text-muted">
-        「名前」の欄に <code>{domain.domain}</code> まですべて入れる形のサービスもあります。そのときは <code>{domain.domain}</code> と入れてください。TTL（反映の間隔）は、選べるなら「自動」か短いものにします。
+        「名前」の欄にドメインまですべて入れる形のサービスもあります。そのときは 1 行目は <code>{domain.domain}</code>、2 行目は{" "}
+        <code>{ownershipRecordName(domain.domain)}</code> と入れてください。TTL（反映の間隔）は、選べるなら「自動」か短いものにします。
       </p>
     </div>
   );
@@ -290,16 +304,25 @@ function DnsStep({ projectId, domain, defaultHost }: { projectId: string; domain
 
   return (
     <div className="flex flex-col gap-5">
+      {domain.verifiedAt && (
+        <ErrorBanner>
+          {domain.domain} の DNS の行（{domain.lastCheck === "owner_txt_missing" ? "あなたのドメインだと確かめる TXT" : "矢書につなぐ CNAME"}
+          ）が見えなくなったので、短縮リンクを矢書のドメインに戻しました。下の行を足し直して「確かめる」を押すと、また使えます。
+        </ErrorBanner>
+      )}
       <div className="flex flex-col gap-2">
         <h3 className="text-[15px] font-bold">
           ② <Term k="dns">DNS</Term> に次の行を足す
         </h3>
         <p className="text-sm leading-[1.8] text-muted">
-          <b className="text-fg">{domain.domain}</b> を矢書につなぐための<Term k="cname">CNAME</Term>
-          の行です。ドメインを買ったサービス（お名前.com や Cloudflare など）の管理画面で足します。
-          {domain.txtValue && "このドメインでは、持ち主の確認のための TXT の行も要ります（2 行とも足してください）。"}
+          ドメインを買ったサービス（お名前.com や Cloudflare など）の管理画面で、{domain.txtValue ? "3" : "2"} 行とも足します。1 行目（<Term k="cname">CNAME</Term>
+          ）は <b className="text-fg">{domain.domain}</b> を矢書につなぐため、2 行目（TXT）はあなたのドメインだと確かめるためです（ほかの人が勝手に使えないように）。
+          {domain.txtValue && "このドメインでは、矢書の置き場所（Vercel）の確かめの 3 行目も要ります。"}
         </p>
         <RecordTable domain={domain} />
+        <p className="text-xs leading-[1.7] text-muted">
+          {deadline(domain.pendingSince)} までにつないでください。過ぎると取り消します（もう一度入れ直せます）。
+        </p>
       </div>
 
       <div className="flex flex-col gap-2">
@@ -323,7 +346,7 @@ function DnsStep({ projectId, domain, defaultHost }: { projectId: string; domain
             <li key={i}>{s}</li>
           ))}
         </ol>
-        {domain.txtValue && <p className="text-xs leading-[1.7] text-muted">TXT の行も、同じ画面で種類を TXT にして足します（名前と値は上の表の 2 行目）。</p>}
+        <p className="text-xs leading-[1.7] text-muted">TXT の行も、同じ画面で種類を TXT にして足します（名前と値は上の表の {domain.txtValue ? "2・3" : "2"} 行目）。</p>
         <p className="text-xs leading-[1.7] text-muted">画面の名前は、サービスの側で変わることがあります。</p>
       </div>
 
@@ -348,6 +371,11 @@ function DnsStep({ projectId, domain, defaultHost }: { projectId: string; domain
       </form>
     </div>
   );
+}
+
+// 取り消す日（pending になってから 7 日）
+function deadline(pendingSince: string): string {
+  return new Date(new Date(pendingSince).getTime() + 7 * 86_400_000).toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo", month: "numeric", day: "numeric" });
 }
 
 function Connected({ domain, profileLinks }: { domain: LinkDomainView; profileLinks: { sns: string; url: string }[] }) {

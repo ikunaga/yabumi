@@ -403,7 +403,7 @@ Threads・Instagram・Facebook の数字を読む権限は、Meta のアプリ�
 | 17-1 | オーナー | Vercel → 右上のアイコン → Account Settings → **Tokens** → Create Token。名前 `yabumi-link-domains`、Scope は矢書のプロジェクトがあるチーム（Hobby なら自分のチーム）、Expiration は 1 年（切れる前に作り直す。カレンダーに入れておく）。出た値を控える（あとから見られない） |
 | 17-2 | オーナー | 矢書の Vercel のプロジェクト → Settings → General の **Project ID**（`prj_` で始まる）と、チームの Settings → General の **Team ID**（`team_` で始まる）を控える |
 | 17-3 | オーナー | Vercel → 矢書のプロジェクト → Settings → Environment Variables に `VERCEL_API_TOKEN`（**Sensitive**）、`VERCEL_PROJECT_ID`、`VERCEL_TEAM_ID` を足し（Environment は Production だけ。プレビューから本番のドメインを触らないように）、Redeploy |
-| 17-4 | 確かめ | 「短縮リンク」の画面の「自分のドメインで作る（任意）」の「設定する」が押せる。オーナーの持っているドメインで go.<ドメイン> を足し、DNS に出た CNAME を入れて「確かめる」→「つながりました」。そのドメインの短縮リンクを押すとストアが開き、`https://go.<ドメイン>/login` は「このアドレスは短縮リンク用です。」になる。Vercel の Domains にそのドメインが並んでいる |
+| 17-4 | 確かめ | 「短縮リンク」の画面の「自分のドメインで作る（任意）」の「設定する」が押せる。オーナーの持っているドメインで go.<ドメイン> を足し、DNS に出た CNAME と TXT（_yabumi.go）を入れて「確かめる」→「つながりました」。そのドメインの短縮リンクを押すとストアが開き、`https://go.<ドメイン>/login` は「このアドレスは短縮リンク用です。」になる。Vercel の Domains にそのドメインが並んでいる |
 | 17-5 | 確かめ | 「このドメインを外す」で、Vercel の Domains からそのドメインが消える |
 
 - **上限**: Vercel Hobby は 1 プロジェクトにドメイン 50 まで（矢書の yabumi.app・www・go・vercel.app を含む）。利用者の分は `LINK_DOMAIN_LIMIT`（既定 40）まで。32 に達すると `OPERATOR_EMAIL` に「短縮リンクの利用者のドメインが上限に近づいています」が届く（7 日に 1 回）。そのときは Pro にして `LINK_DOMAIN_LIMIT` を上げるかを決める。なお Hobby は個人・非商用のみ（9 の費用の表）なので、他の人に提供する時点で Pro になる見込み

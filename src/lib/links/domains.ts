@@ -1,4 +1,4 @@
-import { resolve4, resolveCname } from "node:dns/promises";
+import { randomBytes } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { notifyOperatorOnce, type OperatorNotifyDeps } from "@/lib/notify/operator";
 import type { Database } from "@/lib/supabase/database.types";
@@ -11,12 +11,16 @@ import {
   linkDomainLimit,
   normalizeLinkDomain,
 } from "./domain-rules";
+import { dohLookup, ownershipRecordName, ownershipRecordValue, type Lookup } from "./doh";
 import { shortLinkBase } from "./rules";
 import { VercelApiError, vercelConfig, vercelDomains, type VercelDomains } from "./vercel";
 
 // 短縮リンクに使う利用者のドメイン（F07、決定 D28。docs/architecture.md の 4.22）。
 // 足す: 枠を取る（claim_link_domain）→ Vercel のプロジェクトに足す → 入れてほしい DNS の行（CNAME と、要るなら TXT）を残す。
-// 確かめる: Vercel に所有の確認と DNS の向きを問い合わせ、つながっていれば https でそのドメインの確認用のパスを開く（証明書まで出ているか）。
+// 確かめる: Vercel に所有の確認と DNS の向きを問い合わせ、矢書の持ち主の確認（_yabumi.<ドメイン> の TXT に利用者ごとの合言葉）を DNS over HTTPS で確かめ、
+// つながっていれば https でそのドメインの確認用のパスを開く（証明書まで出ているか）。矢書の持ち主の確認が通るまでは active にしない
+// （Vercel は TXT を求めずに verified を返すことがあり、他人の使われなくなった CNAME を乗っ取れてしまうため。2026-10-12）。
+// つながらないまま 7 日たったものは取り消す（expire_link_domains）。毎日のジョブで、つながったものの TXT と CNAME が残っているか確かめる。
 // 外す: 行を消す（DB のトリガーが link_domain_removals に積む）→ Vercel から外す。外せなかったものは、次に誰かが足す・外すときにやり直す。
 // admin は RLS を通らないクライアント。ownerId は呼ぶ側でログイン中の利用者であることを確かめておく
 
@@ -32,14 +36,22 @@ export const DEFAULT_CNAME_TARGET = "cname.vercel-dns.com";
 export type LinkDomainDeps = {
   // Vercel の API。トークンがない環境では null（画面は「準備中」）
   vercel: VercelDomains | null;
-  resolveCname?: (domain: string) => Promise<string[]>;
-  resolve4?: (domain: string) => Promise<string[]>;
+  // DNS を引く（既定は DNS over HTTPS で 2 つのリゾルバに聞く。doh.ts）
+  lookup?: Lookup;
   // https://<domain>/__yabumi/link-check が矢書の答えを返すか（DNS と証明書がそろったか）
   probe?: (domain: string) => Promise<boolean>;
   limit?: number;
   now?: () => Date;
   notify?: OperatorNotifyDeps;
 };
+
+// 持ち主の確認の合言葉（24 バイトの乱数 = 32 文字。ドメインを足すたびに作り直す）
+export function newOwnershipToken(): string {
+  return randomBytes(24).toString("base64url");
+}
+
+// つながらないまま置いておける日数（画面にも出す）
+export const PENDING_DAYS = 7;
 
 export function defaultLinkDomainDeps(): LinkDomainDeps {
   const cfg = vercelConfig();
@@ -101,6 +113,7 @@ export async function addLinkDomain(admin: Admin, input: { ownerId: string; proj
     p_owner: input.ownerId,
     p_project: input.projectId,
     p_domain: domain,
+    p_token: newOwnershipToken(),
     p_daily: LINK_DOMAIN_DAILY_ATTEMPTS,
     p_total: limit,
   });
@@ -168,32 +181,35 @@ async function notifyNearLimit(admin: Admin, limit: number, deps: LinkDomainDeps
   }
 }
 
-function dnsCode(e: unknown): string {
-  return (e as { code?: string })?.code ?? "";
-}
+const VERCEL_TARGET = /(^|\.)vercel-dns(-\d+)?\.com$/;
 
 // DNS の向きが Vercel に届いていないときに、「まだ届いていない」と「値が違う」を見分ける
-async function classifyDns(domain: string, expected: string, deps: LinkDomainDeps): Promise<LinkCheck> {
-  const cname = await (deps.resolveCname ?? resolveCname)(domain).catch((e) => {
-    if (["ENODATA", "ENOTFOUND", "ESERVFAIL", "ETIMEOUT", "ECONNREFUSED"].includes(dnsCode(e))) return [] as string[];
-    throw e;
-  });
-  if (cname.length) {
-    const got = cname.map((c) => c.toLowerCase().replace(/\.$/, ""));
+async function classifyDns(domain: string, expected: string, lookup: Lookup): Promise<LinkCheck> {
+  const cname = await lookup(domain, "CNAME");
+  if (cname.records.length) {
     // Vercel の向け先（xxx.vercel-dns-0xx.com も含む）なら、届きはじめているが Vercel の側がまだ見えていない
-    return got.some((c) => c === expected.toLowerCase() || /(^|\.)vercel-dns(-\d+)?\.com$/.test(c)) ? "dns_missing" : "wrong_value";
+    return cname.records.some((c) => c === expected.toLowerCase() || VERCEL_TARGET.test(c)) ? "dns_missing" : "wrong_value";
   }
-  const a = await (deps.resolve4 ?? resolve4)(domain).catch(() => [] as string[]);
-  return a.length ? "wrong_value" : "dns_missing";
+  const a = await lookup(domain, "A");
+  return a.records.length ? "wrong_value" : "dns_missing";
+}
+
+// 矢書の持ち主の確認の TXT が見えるか（どちらかのリゾルバに見えればよい）
+async function ownerTxtFound(domain: string, token: string, lookup: Lookup): Promise<boolean> {
+  if (!token) return false;
+  const txt = await lookup(ownershipRecordName(domain), "TXT");
+  return txt.records.includes(ownershipRecordValue(token));
 }
 
 export type CheckResult = { ok: true; row: LinkDomainRow } | { ok: false; error: string };
 
 export async function checkLinkDomain(admin: Admin, input: { ownerId: string; projectId: string }, deps: LinkDomainDeps): Promise<CheckResult> {
   if (!deps.vercel) return { ok: false, error: "この機能は準備中です。" };
+  const lookup = deps.lookup ?? dohLookup();
+  await expireLinkDomains(admin, deps);
   const { data: row, error } = await admin.from("link_domains").select("*").eq("project_id", input.projectId).eq("owner_id", input.ownerId).maybeSingle();
   if (error) throw error;
-  if (!row) return { ok: false, error: "ドメインが見つかりません。もう一度入れてください。" };
+  if (!row) return { ok: false, error: `ドメインが見つかりません（${PENDING_DAYS} 日のうちにつながらなかったものは取り消します）。もう一度入れてください。` };
   const now = (deps.now ?? (() => new Date()))();
   if (row.last_checked_at && now.getTime() - new Date(row.last_checked_at).getTime() < LINK_DOMAIN_CHECK_INTERVAL_MS) {
     return { ok: false, error: "いま確かめたところです。10 秒ほどおいてから押してください。" };
@@ -214,13 +230,16 @@ export async function checkLinkDomain(admin: Admin, input: { ownerId: string; pr
         throw e;
       });
     }
-    // 2. DNS の向き
+    // 2. 矢書の持ち主の確認（利用者ごとの合言葉）
+    const owner = await ownerTxtFound(row.domain, row.ownership_token, lookup);
+    // 3. DNS の向き
     const config = await deps.vercel.config(row.domain);
     if (config.recommendedCNAME) cnameTarget = config.recommendedCNAME;
     if (!verified) check = "txt_missing";
+    else if (!owner) check = "owner_txt_missing";
     else if (!config.misconfigured) check = (await (deps.probe ?? defaultProbe)(row.domain)) ? "ok" : "cert_pending";
     else if (config.configuredBy === "http") check = "proxied";
-    else check = await classifyDns(row.domain, cnameTarget, deps);
+    else check = await classifyDns(row.domain, cnameTarget, lookup);
     if (verified && txt.value && check !== "txt_missing") txt = { name: "", value: "" };
   } catch (e) {
     console.error("[link-domain] つながりを確かめられませんでした", e instanceof Error ? e.message : e);
@@ -228,7 +247,7 @@ export async function checkLinkDomain(admin: Admin, input: { ownerId: string; pr
   }
 
   // つながったら使い始める。DNS が外れた・違うものになったら、yabumi.app に戻す（開けないリンクを作らないため）
-  const status = check === "ok" ? "active" : ["dns_missing", "wrong_value", "proxied", "txt_missing"].includes(check) ? "pending" : row.status;
+  const status = check === "ok" ? "active" : ["dns_missing", "wrong_value", "proxied", "txt_missing", "owner_txt_missing"].includes(check) ? "pending" : row.status;
   const { data: updated, error: updateError } = await admin
     .from("link_domains")
     .update({
@@ -238,7 +257,9 @@ export async function checkLinkDomain(admin: Admin, input: { ownerId: string; pr
       cname_target: cnameTarget,
       txt_name: txt.name,
       txt_value: txt.value,
-      ...(status === "active" && row.status !== "active" ? { verified_at: now.toISOString() } : {}),
+      ...(status === "active" && row.status !== "active" ? { verified_at: now.toISOString(), owner_verified_at: now.toISOString() } : {}),
+      // つながっていたものが外れたら、そこから 7 日で取り消す
+      ...(status === "pending" && row.status === "active" ? { pending_since: now.toISOString() } : {}),
     })
     .eq("id", row.id)
     .select("*")
@@ -280,4 +301,45 @@ export async function drainLinkDomainRemovals(admin: Admin, deps: LinkDomainDeps
     }
   }
   return removed;
+}
+
+// つながらないまま 7 日たったドメインを取り消し（DB の expire_link_domains）、Vercel からも外す。取り消した数を返す
+export async function expireLinkDomains(admin: Admin, deps: LinkDomainDeps): Promise<number> {
+  const { data, error } = await admin.rpc("expire_link_domains");
+  if (error) throw error;
+  if (data) await drainLinkDomainRemovals(admin, deps).catch((e) => console.error("[link-domain] 取り消したドメインを Vercel から外せませんでした", e instanceof Error ? e.message : e));
+  return data ?? 0;
+}
+
+export type RecheckReport = { checked: number; lost: number; unknown: number; expired: number };
+
+// 毎日のジョブ: つながったドメインの、矢書の持ち主の確認の TXT と CNAME がまだ残っているかを確かめ、外れていたら矢書のドメインに戻す
+// （持ち主がドメインを手放したり DNS の行を消したりしたあとに、別の人のリンクがそのドメインで開かないように）。
+// リゾルバがどれも答えなかったものは、外さずに翌日にまわす。最後に、つながらないまま 7 日たったものを取り消す
+export async function recheckLinkDomains(admin: Admin, deps: LinkDomainDeps, max = 500): Promise<RecheckReport> {
+  const lookup = deps.lookup ?? dohLookup();
+  const now = (deps.now ?? (() => new Date()))();
+  const report: RecheckReport = { checked: 0, lost: 0, unknown: 0, expired: 0 };
+  const { data, error } = await admin.from("link_domains").select("id, domain, ownership_token, cname_target").eq("status", "active").order("last_checked_at", { ascending: true, nullsFirst: true }).limit(max);
+  if (error) throw error;
+  for (const row of data ?? []) {
+    report.checked++;
+    const [txt, cname] = await Promise.all([lookup(ownershipRecordName(row.domain), "TXT"), lookup(row.domain, "CNAME")]);
+    if (txt.answered === 0 || cname.answered === 0) {
+      report.unknown++;
+      continue;
+    }
+    let lost: LinkCheck | null = null;
+    if (!row.ownership_token || !txt.records.includes(ownershipRecordValue(row.ownership_token))) lost = "owner_txt_missing";
+    else if (!cname.records.length) lost = "dns_missing";
+    else if (!cname.records.some((c) => c === row.cname_target.toLowerCase() || VERCEL_TARGET.test(c))) lost = "wrong_value";
+    const { error: updateError } = await admin
+      .from("link_domains")
+      .update(lost ? { status: "pending", last_check: lost, last_checked_at: now.toISOString(), pending_since: now.toISOString() } : { last_checked_at: now.toISOString() })
+      .eq("id", row.id);
+    if (updateError) throw updateError;
+    if (lost) report.lost++;
+  }
+  report.expired = await expireLinkDomains(admin, deps);
+  return report;
 }

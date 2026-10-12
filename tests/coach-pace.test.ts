@@ -1,6 +1,6 @@
 // 伴走（F18、決定 D29。docs/architecture.md の 4.27）のペースの計算と、知らせの中身
 import { describe, expect, it } from "vitest";
-import { behindMessage, mailFooter, unsubscribeHeaders, weeklyMessage } from "@/lib/coach/messages";
+import { behindMessage, mailFooter, overdueMessage, unsubscribeHeaders, weeklyMessage } from "@/lib/coach/messages";
 import { computeWeekPace, cycleInfo, isoWeekday, mondayOf, remainingText, shouldNudgeBehind, snsStatus, streakWeeks, withFirstMonthCycle } from "@/lib/coach/pace";
 import { toSectionValue } from "@/lib/ai/plan-coach-schema";
 import { parseSectionForm, sectionSchemas } from "@/lib/plan/schema";
@@ -125,6 +125,21 @@ describe("知らせの中身", () => {
     expect(m.email.text).toContain("4 週のうち 3 週で目標に届きました");
     expect(m.email.text).toContain("/consult/new?start=month_review");
     expect(m.push.tag).toBe("weekly:p1");
+  });
+
+  it("予定日を過ぎたやること: 件数・やること（5 件まで）・ロードマップへ。遅れそうな日は同じ知らせに入れる。月曜は先週の件数", () => {
+    const items = Array.from({ length: 6 }, (_, i) => ({ id: `i${i}`, title: `やること ${i}`, plannedOn: "2026-10-13" }));
+    const m = overdueMessage(items, ctx);
+    expect(m.email.subject).toBe("予定日を過ぎたやることが 6 件あります（かけいぼ日和）");
+    expect(m.email.text).toContain("・10/13 やること 0");
+    expect(m.email.text).toContain("・ほか 1 件");
+    expect(m.email.text).toContain("https://yabumi.app/projects/p1/roadmap");
+    expect(m.push).toMatchObject({ url: "/projects/p1/roadmap", tag: "pace:p1" });
+    const p = computeWeekPace({ targets: { x: 1 }, counts: {}, today: "2026-10-14", weekStart: MON });
+    expect(behindMessage(p, ctx, items.slice(0, 1)).email.text).toContain("予定日を過ぎたやることが 1 件あります");
+    expect(behindMessage(p, ctx).email.text).not.toContain("予定日を過ぎた");
+    const w = weeklyMessage({ lastWeek: null, thisWeekTargets: { x: 1 }, streak: 0, cycle: null, justEnded: false, lastWeekOverdue: 2 }, ctx);
+    expect(w.email.text).toContain("■ 先週、予定日を過ぎたやること: 2 件");
   });
 
   it("メールの最後: 何のメールか、設定、ワンクリックの停止、送信者と問い合わせ先。List-Unsubscribe の見出し", () => {

@@ -154,3 +154,58 @@ describe("配信の停止と RLS", () => {
     expect((await anonClient().from("pace_weeks").select("week_start").limit(1)).error?.code).toBe("42501");
   });
 });
+
+describe("予定日を過ぎたやること（ロードマップ）", () => {
+  let carol: TestClient;
+  let carolId: string;
+  let p3: string;
+  let itemId: string;
+  // 木曜の朝 7 時（遅れの声かけの曜日ではない日）
+  const THU = new Date("2026-10-14T22:00:00Z");
+
+  beforeAll(async () => {
+    ({ client: carol, userId: carolId } = await signUpNewUser());
+    p3 = (await carol.from("projects").insert({ name: "予定日のテスト" }).select("id").single()).data!.id;
+    const { data, error: insertError } = await carol
+      .from("roadmap_items")
+      .insert([
+        { project_id: p3, title: "Instagram に作品の感想を 1 本", week_start: "2026-10-12", planned_on: "2026-10-13", kpi: "posts", target: 1, sns: "instagram", status: "todo" },
+        // 予約した投稿を結びつけたもの（過ぎたことにしない）
+        { project_id: p3, title: "X に開発の話", week_start: "2026-10-12", planned_on: "2026-10-13", kpi: null, target: null, sns: null, status: "todo" },
+        // 済んだもの・予定日がまだのもの・7 日より前のものも知らせない
+        { project_id: p3, title: "済んだ", week_start: "2026-10-12", planned_on: "2026-10-12", kpi: null, target: null, sns: null, status: "done" },
+        { project_id: p3, title: "まだ先", week_start: "2026-10-12", planned_on: "2026-10-16", kpi: null, target: null, sns: null, status: "todo" },
+        { project_id: p3, title: "ずっと前", week_start: "2026-09-28", planned_on: "2026-09-30", kpi: null, target: null, sns: null, status: "todo" },
+      ])
+      .select("id, title");
+    if (!data) throw new Error(JSON.stringify(insertError));
+    itemId = data!.find((r) => r.title.startsWith("Instagram"))!.id;
+    const linked = data!.find((r) => r.title.startsWith("X に"))!.id;
+    const { data: post } = await admin.from("posts").insert({ project_id: p3, owner_id: carolId, body: "予約", status: "scheduled", planned_at: "2026-10-16T03:00:00Z", roadmap_item_id: linked }).select("id").single();
+    await admin.from("post_targets").insert({ post_id: post!.id, owner_id: carolId, sns: "x", status: "pending" });
+  });
+
+  afterAll(async () => {
+    await deleteUser(carolId);
+  });
+
+  it("週の回数を決めていなくても、予定日を過ぎたのに投稿のないやることを、1 通にまとめて 1 回だけ知らせる", async () => {
+    const out = await runCoachJob(admin, { now: THU, appUrl: "https://yabumi.test", deps, ownerId: carolId });
+    expect(out).toEqual([{ projectId: p3, overdue: { email: "sent", push: "sent" } }]);
+    expect(mails.at(-1)!.subject).toBe("予定日を過ぎたやることが 1 件あります（予定日のテスト）");
+    const { data: log } = await admin.from("notification_log").select("kind, period_key, channel").eq("user_id", carolId).order("channel");
+    expect(log).toEqual([
+      { kind: "overdue", period_key: itemId, channel: "email" },
+      { kind: "overdue", period_key: itemId, channel: "push" },
+    ]);
+    const again = await runCoachJob(admin, { now: new Date("2026-10-15T22:00:00Z"), deps, ownerId: carolId });
+    expect(again).toEqual([{ projectId: p3 }]);
+  });
+
+  it("「毎週の振り返りだけ」の人には送らない", async () => {
+    await admin.from("notification_log").delete().eq("user_id", carolId);
+    await carol.from("notification_prefs").update({ email_mode: "weekly", push_mode: "off" }).eq("user_id", carolId);
+    const out = await runCoachJob(admin, { now: THU, deps, ownerId: carolId });
+    expect(out).toEqual([{ projectId: p3 }]);
+  });
+});

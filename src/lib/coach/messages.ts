@@ -38,8 +38,37 @@ export function unsubscribeHeaders(c: MessageContext): Record<string, string> {
   };
 }
 
-// 遅れそうなとき（決めた曜日の朝に、今週まだ 1 本もない SNS があるとき）
-export function behindMessage(p: WeekPace, c: MessageContext): CoachMessage {
+// 予定日を過ぎたやること（ロードマップ。予定日を過ぎたのに、結びついた投稿を予約も送信もしていない、済んでいないもの）
+export type OverdueItem = { id: string; title: string; plannedOn: string };
+
+function overdueLines(items: OverdueItem[], base: string): string[] {
+  return [
+    `予定日を過ぎたやることが ${items.length} 件あります（まだ投稿を予約も送信もしていません）。`,
+    ...items.slice(0, 5).map((i) => `・${md(i.plannedOn)} ${i.title}`),
+    ...(items.length > 5 ? [`・ほか ${items.length - 5} 件`] : []),
+    `投稿をつくるか、予定を見直すか、やらないことにできます: ${base}/roadmap`,
+  ];
+}
+
+// 予定日を過ぎたやることだけの知らせ（遅れそうなときの声かけの曜日でない日。同じやることは 1 回だけ）
+export function overdueMessage(items: OverdueItem[], c: MessageContext): CoachMessage {
+  const base = `${c.appUrl}/projects/${c.projectId}`;
+  return {
+    email: {
+      subject: `予定日を過ぎたやることが ${items.length} 件あります（${c.projectName}）`,
+      text: [`${c.projectName} のロードマップのお知らせです。`, "", ...overdueLines(items, base), "", mailFooter(c)].join("\n"),
+    },
+    push: {
+      title: `予定日を過ぎたやることが ${items.length} 件`,
+      body: `${c.projectName}: 投稿をつくるか、予定を見直しましょう`,
+      url: `/projects/${c.projectId}/roadmap`,
+      tag: `pace:${c.projectId}`,
+    },
+  };
+}
+
+// 遅れそうなとき（決めた曜日の朝に、今週まだ 1 本もない SNS があるとき）。予定日を過ぎたやることがあれば、同じ知らせに入れる（1 日に 2 通送らない）
+export function behindMessage(p: WeekPace, c: MessageContext, overdue: OverdueItem[] = []): CoachMessage {
   const base = `${c.appUrl}/projects/${c.projectId}`;
   const left = remainingText(p) || "少し";
   const total = p.rows.reduce((n, r) => n + r.remaining, 0);
@@ -57,6 +86,7 @@ export function behindMessage(p: WeekPace, c: MessageContext): CoachMessage {
         `・AI とネタを出す: ${base}/ideas`,
         `・投稿をつくる: ${base}/compose`,
         "",
+        ...(overdue.length ? [...overdueLines(overdue, base), ""] : []),
         mailFooter(c),
       ].join("\n"),
     },
@@ -71,7 +101,15 @@ export function behindMessage(p: WeekPace, c: MessageContext): CoachMessage {
 
 // 毎週月曜の振り返り（先週の結果・続けた週・今週の目標）。1 か月が先週で終わったら、そのまとめと次の 1 か月へのさそい
 export function weeklyMessage(
-  args: { lastWeek: { weekStart: string; targets: WeeklyTargets; published: Partial<Record<SnsKey, number>>; achieved: boolean } | null; thisWeekTargets: WeeklyTargets; streak: number; cycle: (CycleInfo & { achievedWeeks: number }) | null; justEnded: boolean },
+  args: {
+    lastWeek: { weekStart: string; targets: WeeklyTargets; published: Partial<Record<SnsKey, number>>; achieved: boolean } | null;
+    thisWeekTargets: WeeklyTargets;
+    streak: number;
+    cycle: (CycleInfo & { achievedWeeks: number }) | null;
+    justEnded: boolean;
+    // 先週が予定日で、まだ投稿を予約も送信もしていない、済んでいないやることの数
+    lastWeekOverdue?: number;
+  },
   c: MessageContext,
 ): CoachMessage {
   const base = `${c.appUrl}/projects/${c.projectId}`;
@@ -83,6 +121,7 @@ export function weeklyMessage(
     lines.push("");
   }
   if (args.streak > 0) lines.push(`■ 続けた週: ${args.streak} 週`, "");
+  if (args.lastWeekOverdue) lines.push(`■ 先週、予定日を過ぎたやること: ${args.lastWeekOverdue} 件（投稿をつくるか、予定を見直す: ${base}/roadmap）`, "");
   if (args.justEnded && args.cycle) {
     lines.push(
       `■ 最初の 1 か月が終わりました（${md(args.cycle.startedOn)}〜${md(args.cycle.endsOn)}）: ${CYCLE_WEEKS} 週のうち ${args.cycle.achievedWeeks} 週で目標に届きました。`,
@@ -90,7 +129,8 @@ export function weeklyMessage(
       "",
     );
   }
-  lines.push(`■ 今週の目標: ${targetsText(args.thisWeekTargets)}`, `今週の予定を立てる: ${base}`, "", mailFooter(c));
+  if (Object.keys(args.thisWeekTargets).length) lines.push(`■ 今週の目標: ${targetsText(args.thisWeekTargets)}`);
+  lines.push(`今週の予定を立てる: ${base}`, "", mailFooter(c));
   return {
     email: { subject: args.justEnded ? `最初の 1 か月の振り返りと、次の 1 か月（${c.projectName}）` : `先週の振り返りと今週の目標（${c.projectName}）`, text: lines.join("\n") },
     push: {

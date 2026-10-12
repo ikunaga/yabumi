@@ -1802,7 +1802,7 @@ Facebook ページ（graph.facebook.com）:
 
 - push: 中身（JSON の title・body・url・tag）で通知を出す。読めなければ「矢書からのお知らせ」で出す（Safari は、受けても通知を出さないことが続くと購読を止めるため、必ず出す）。アイコンは /icons/icon-192.png。同じ tag で置き換えたときも知らせ直す（renotify）
 - notificationclick: 矢書の画面がすでに開いていればそこに移ってその URL を開き、なければ新しく開く
-- pushsubscriptionchange（Firefox などで購読が新しくなったとき）: 新しい購読を /api/push/renew に送る。サーバーはログインの cookie で本人を確かめ、前の宛先がその人の登録だったときだけ付け替える（ほかの人の端末を勝手にこの人の宛先にしない）
+- pushsubscriptionchange（Firefox などで購読が新しくなったとき）: 新しい購読を /api/push/renew に送る。サーバーはログインの cookie で本人を確かめ、前の宛先がその人の登録で、新しい宛先がほかの人の登録でないときだけ付け替える（renewDevice。利用者が押した登録ではないので、ほかの人の宛先を移さない。ボタンからの登録だけが、同じ端末の宛先をその人に移す）
 - 共有の受け取り（4.26）と同じ 1 つの service worker。ほかの通信には手を出さない
 
 #### データ

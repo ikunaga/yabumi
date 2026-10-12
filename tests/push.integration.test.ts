@@ -5,7 +5,7 @@ import { WebPushError } from "web-push";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { MAX_DEVICES_PER_USER } from "@/lib/push/rules";
 import { type PushSender, hasPushDevice, sendPush } from "@/lib/push/send";
-import { listDevices, registerDevice, removeDevice, removeDeviceOnLogout, sendTestPush } from "@/lib/push/store";
+import { listDevices, registerDevice, removeDevice, removeDeviceOnLogout, renewDevice, sendTestPush } from "@/lib/push/store";
 import { adminClient, anonClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
 
 const admin = adminClient();
@@ -119,6 +119,38 @@ describe("登録", () => {
     expect(await hasPushDevice(admin, aliceId)).toBe(true);
     await removeDeviceOnLogout(admin, aliceId, id);
     expect(await hasPushDevice(admin, aliceId)).toBe(false);
+  });
+});
+
+describe("購読が新しくなったとき（pushsubscriptionchange）", () => {
+  it("前の宛先が本人のものなら、新しい宛先に付け替える", async () => {
+    const { id, sub } = await register(aliceId);
+    const next = newSub();
+    const r = await renewDevice(admin, aliceId, sub.endpoint, next, "x");
+    expect(r.ok).toBe(true);
+    const endpoints = (await admin.from("push_subscriptions").select("id, endpoint").eq("user_id", aliceId)).data!.map((d) => d.endpoint);
+    expect(endpoints).toContain(next.endpoint);
+    expect(endpoints).not.toContain(sub.endpoint);
+    expect((await admin.from("push_subscriptions").select("id").eq("id", id)).data).toEqual([]);
+    await clear(aliceId);
+  });
+
+  it("前の宛先が本人のものでなければ、何もしない", async () => {
+    const bobDevice = await register(bobId);
+    expect(await renewDevice(admin, aliceId, bobDevice.sub.endpoint, newSub(), "x")).toMatchObject({ ok: false, skipped: true });
+    expect(await hasPushDevice(admin, aliceId)).toBe(false);
+    expect((await admin.from("push_subscriptions").select("user_id").eq("id", bobDevice.id).single()).data?.user_id).toBe(bobId);
+    await clear(bobId);
+  });
+
+  it("新しい宛先がほかの人の登録なら、その人から奪わない（前の宛先も残す）", async () => {
+    const mine = await register(aliceId);
+    const bobDevice = await register(bobId);
+    expect(await renewDevice(admin, aliceId, mine.sub.endpoint, bobDevice.sub, "x")).toMatchObject({ ok: false, skipped: true });
+    expect((await admin.from("push_subscriptions").select("user_id, p256dh").eq("id", bobDevice.id).single()).data).toEqual({ user_id: bobId, p256dh: bobDevice.sub.keys.p256dh });
+    expect((await listDevices(alice)).map((d) => d.id)).toEqual([mine.id]);
+    await clear(aliceId);
+    await clear(bobId);
   });
 });
 

@@ -66,6 +66,18 @@ export async function removeDeviceByEndpoint(admin: Db, userId: string, endpoint
   await admin.from("push_subscriptions").delete().eq("user_id", userId).eq("endpoint", endpoint);
 }
 
+// ブラウザが購読を新しくしたとき（service worker の pushsubscriptionchange。/api/push/renew）に、宛先を付け替える。
+// 利用者がボタンを押した登録ではないので、次のときだけ付け替える（ほかの人の宛先を、この人のものにしない）:
+// 前の宛先がこの人の登録で、新しい宛先がまだ誰の登録でもないか、この人の登録であること
+export async function renewDevice(admin: Db, userId: string, oldEndpoint: string, sub: SubscriptionInput, label: string): Promise<PushOutcome<{ id: string }> | { ok: false; skipped: true }> {
+  const { data: owned } = await admin.from("push_subscriptions").select("id").eq("user_id", userId).eq("endpoint", oldEndpoint).maybeSingle();
+  if (!owned) return { ok: false, skipped: true };
+  const { data: taken } = await admin.from("push_subscriptions").select("user_id").eq("endpoint", sub.endpoint).maybeSingle();
+  if (taken && taken.user_id !== userId) return { ok: false, skipped: true };
+  if (oldEndpoint !== sub.endpoint) await removeDeviceByEndpoint(admin, userId, oldEndpoint);
+  return registerDevice(admin, userId, sub, label);
+}
+
 // ログアウトしたら、この端末に送らない（ほかの人が同じ端末を使っても、前の人への通知が出ないように）
 export async function removeDeviceOnLogout(admin: Db, userId: string, id: string) {
   await admin.from("push_subscriptions").delete().eq("user_id", userId).eq("id", id);

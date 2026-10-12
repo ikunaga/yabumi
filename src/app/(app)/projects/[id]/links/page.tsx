@@ -7,6 +7,7 @@ import { Card, CardHeader, EmptyState } from "@/components/ui/card";
 import { Term } from "@/components/ui/term";
 import { setLinkDisabled } from "@/lib/links/actions";
 import { listLinks, type LinkRow } from "@/lib/links/queries";
+import { PROFILE_RULES } from "@/lib/plan/profile";
 import { getProject } from "@/lib/projects/queries";
 import { SNS, type SnsKey } from "@/lib/sns";
 
@@ -78,7 +79,8 @@ export default async function LinksPage(props: PageProps<"/projects/[id]/links">
     ...(project.play_store_url ? [{ label: `Google Play（${project.play_store_url}）`, url: project.play_store_url }] : []),
   ];
   const profile = new Map(links.filter((l) => l.kind === "profile" && !l.disabled && l.sns).map((l) => [l.sns!, l]));
-  const others = links.filter((l) => !(l.kind === "profile" && !l.disabled));
+  const postLinks = links.filter((l) => l.kind === "post");
+  const others = links.filter((l) => l.kind !== "post" && !(l.kind === "profile" && !l.disabled));
   const totalExcluded = links.reduce((n, l) => n + l.excludedTotal, 0);
 
   return (
@@ -89,6 +91,17 @@ export default async function LinksPage(props: PageProps<"/projects/[id]/links">
           SNS から<Term k="storeListing">ストアページ</Term>に来た人を数えるための<Term k="shortLink">短縮リンク</Term>です。SNS ごとに別のリンクを使うと、どの SNS から何人来たかがわかります。行き先には、ストアの側でも見分けられる<Term k="campaignLink">印</Term>を自動で付けます。
         </p>
       </div>
+
+      {/* 「この画面のリンクは投稿と連動するのか、手で貼るのか」で迷わないよう、2 種類あることを先に出す */}
+      <ul className="flex flex-col gap-2 rounded-lg border border-border bg-surface px-5 py-4 text-sm leading-[1.8] max-sm:px-4">
+        <li>
+          <b>プロフィールに置くリンク</b>: この画面で作り、コピーして SNS のプロフィールに<b>自分で貼ります</b>。矢書がプロフィールを書き換えることはありません。
+        </li>
+        <li>
+          <b>投稿の本文の URL</b>: 投稿をつくるときに本文に URL を入れると、送るときに投稿ごと・SNS ごとの短縮リンクに<b>自動で置き換わります</b>
+          。この画面のリンクを本文に貼る必要はありません。自動で作ったリンクは、下の「投稿の本文から作ったリンク」に並びます。
+        </li>
+      </ul>
 
       <Card>
         <CardHeader title="プロフィールに置くリンク" />
@@ -121,6 +134,10 @@ export default async function LinksPage(props: PageProps<"/projects/[id]/links">
                       </>
                     ) : null}
                   </div>
+                  <p className="text-xs leading-[1.7] text-muted">
+                    {link ? "コピーして" : "作ったら、コピーして"}、{SNS[sns].label} のプロフィールに自分で貼ってください（矢書からプロフィールは書き換えません）。貼る場所:{" "}
+                    {PROFILE_RULES[sns].linkNote}
+                  </p>
                   {PROFILE_NOTE[sns] && <p className="text-xs leading-[1.7] text-muted">{PROFILE_NOTE[sns]}</p>}
                   {link ? (
                     <div className="flex flex-wrap items-center gap-x-3 text-xs text-muted">
@@ -149,7 +166,27 @@ export default async function LinksPage(props: PageProps<"/projects/[id]/links">
       </Card>
 
       <Card>
-        <CardHeader title="作ったリンク" />
+        <CardHeader title="投稿の本文から作ったリンク" />
+        <p className="border-b border-line px-5 py-3 text-sm leading-[1.8] text-muted max-sm:px-4">
+          投稿の本文の URL から自動で作ったリンクです（投稿ごと・SNS ごと）。投稿どうしで比べるなら、
+          <Link href={`/projects/${project.id}/metrics`} className="text-primary hover:underline">
+            指標
+          </Link>
+          の「クリックの多い投稿」が見やすいです。
+        </p>
+        {postLinks.length ? (
+          <ul>
+            {postLinks.map((l) => (
+              <LinkLine key={l.id} projectId={project.id} link={l} />
+            ))}
+          </ul>
+        ) : (
+          <EmptyState description="まだありません。投稿の本文に URL を入れて保存すると、ここに並びます（Instagram と手で投稿する SNS は置き換えません）。" />
+        )}
+      </Card>
+
+      <Card>
+        <CardHeader title="自由に作ったリンク・止めたリンク" />
         {others.length ? (
           <ul>
             {others.map((l) => (
@@ -157,13 +194,14 @@ export default async function LinksPage(props: PageProps<"/projects/[id]/links">
             ))}
           </ul>
         ) : (
-          <EmptyState description="まだありません。投稿をつくるときに「本文の URL を短縮リンクにする」を選ぶと、送るときにここに並びます。" />
+          <EmptyState description="まだありません。上の「自由に作るリンク」で作ると、ここに並びます。" />
         )}
-        <p className="border-t border-line px-5 py-3 text-xs leading-[1.7] text-muted max-sm:px-4">
-          数えないもの: SNS がリンクのプレビューを作るための自動の読み込み、ブラウザの先読み、同じ人が 10 分以内にもう一度押したもの
-          {totalExcluded > 0 && `（これまで ${formatCount(totalExcluded)} 回）`}。押した人の IP アドレスは保存しません。
-        </p>
       </Card>
+
+      <p className="text-xs leading-[1.7] text-muted">
+        数えないもの: SNS がリンクのプレビューを作るための自動の読み込み、ブラウザの先読み、同じ人が 10 分以内にもう一度押したもの
+        {totalExcluded > 0 && `（これまで ${formatCount(totalExcluded)} 回）`}。押した人の IP アドレスは保存しません。
+      </p>
 
       {project.app_store_url && (
         <Card>

@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { shortLinkRoute } from "@/lib/links/host";
 import { isValidDestination } from "@/lib/links/store";
-import { CODE_LENGTH, CODE_PATTERN, classifyRequest, findLinkableUrls, generateCode, shortLinkBase, substituteLinks, substitutesBodyLinks, withTrackingParams } from "@/lib/links/rules";
+import { CODE_LENGTH, CODE_PATTERN, classifyRequest, findLinkableUrls, generateCode, shortLinkBase, substituteLinks, substitutesBodyLinks, planShortLinks, withTrackingParams } from "@/lib/links/rules";
 
 const IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148";
 const ANDROID = "Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36";
@@ -138,5 +138,32 @@ describe("行き先に使えるもの（悪用への備え）", () => {
     ]) {
       expect(isValidDestination(bad), bad).toBe(false);
     }
+  });
+});
+
+describe("作成画面に出す、置き換える URL と SNS", () => {
+  const app = "https://apps.apple.com/jp/app/id123";
+  it("URL がなければ、置き換えるものも置き換えない SNS もない", () => {
+    expect(planShortLinks([{ sns: "x", text: "こんにちは" }, { sns: "instagram", text: "こんにちは" }])).toEqual({ replaced: [], skipped: [] });
+  });
+  it("URL ごとに置き換える SNS をまとめ、Instagram と手で投稿する SNS は理由を付けて分ける", () => {
+    const plan = planShortLinks([
+      { sns: "x", text: `新しい版です ${app}` },
+      { sns: "threads", text: `新しい版です ${app} と https://example.com/blog。` },
+      { sns: "instagram", text: `新しい版です ${app}` },
+      { sns: "note", text: `新しい版です ${app}` },
+      { sns: "facebook", text: "URL なしの文面" },
+    ]);
+    expect(plan.replaced).toEqual([
+      { url: app, sns: ["x", "threads"] },
+      { url: "https://example.com/blog", sns: ["threads"] },
+    ]);
+    expect(plan.skipped).toEqual([
+      { sns: "instagram", reason: "instagram" },
+      { sns: "note", reason: "manual" },
+    ]);
+  });
+  it("https:// のない URL は置き換えない（数えない）", () => {
+    expect(planShortLinks([{ sns: "x", text: "example.com を見てね" }]).replaced).toEqual([]);
   });
 });

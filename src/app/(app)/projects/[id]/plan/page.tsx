@@ -5,6 +5,7 @@ import { ButtonLink, NotReadyButton } from "@/components/ui/button";
 import { aiConfigured } from "@/lib/ai/anthropic";
 import { listLinks } from "@/lib/links/queries";
 import { getAccountPlan } from "@/lib/plan/queries";
+import { isSectionKey } from "@/lib/plan/schema";
 import { getProject } from "@/lib/projects/queries";
 import type { SnsKey } from "@/lib/sns";
 import { listProjectSnsAccounts } from "@/lib/sns/queries";
@@ -14,6 +15,8 @@ export const metadata: Metadata = { title: "アカウント設計" };
 // アカウント設計（要求 F15）。セクションごとに保存でき、どれも任意
 export default async function PlanPage(props: PageProps<"/projects/[id]/plan">) {
   const { id } = await props.params;
+  // ?open=profile のように、開いておくセクションを指定できる（作成画面の短縮リンクの案内から「名前とプロフィール」へ）
+  const { open } = await props.searchParams;
   const [plan, project] = await Promise.all([getAccountPlan(id), getProject(id)]);
   if (!plan || !project) notFound();
   const [accounts, links] = await Promise.all([listProjectSnsAccounts(id), listLinks(id)]);
@@ -61,6 +64,7 @@ export default async function PlanPage(props: PageProps<"/projects/[id]/plan">) 
         plan={plan.plan}
         sources={plan.sources}
         aiEnabled={aiEnabled}
+        initialOpen={isSectionKey(open) ? open : null}
         profileCtx={{
           projectId: id,
           accounts: accounts.map((a) => ({ sns: a.sns, handle: a.handle })),

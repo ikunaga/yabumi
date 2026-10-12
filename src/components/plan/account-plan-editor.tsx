@@ -63,6 +63,7 @@ export function AccountPlanEditor({
   sources,
   aiEnabled,
   profileCtx,
+  initialOpen = null,
 }: {
   projectId: string;
   plan: PlanData;
@@ -71,9 +72,11 @@ export function AccountPlanEditor({
   sources: Partial<Record<SectionKey, "ai" | "manual">>;
   // AI と考える（Claude API のキーがあるときだけ）
   aiEnabled: boolean;
+  // 開いておくセクション（URL の ?open=）
+  initialOpen?: SectionKey | null;
 }) {
-  // 最初に開くのは、まだ書いていない最初のセクション
-  const [open, setOpen] = useState<SectionKey | null>(() => SECTION_KEYS.find((k) => !isSectionDone(k, plan[k])) ?? null);
+  // 最初に開くのは、指定があればそのセクション、なければまだ書いていない最初のセクション
+  const [open, setOpen] = useState<SectionKey | null>(() => initialOpen ?? SECTION_KEYS.find((k) => !isSectionDone(k, plan[k])) ?? null);
   const doneCount = SECTION_KEYS.filter((k) => isSectionDone(k, plan[k])).length;
 
   return (

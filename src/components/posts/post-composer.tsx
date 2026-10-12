@@ -242,7 +242,15 @@ export function PostComposer({
             {fe.media && <p className="text-sm font-semibold text-danger">{fe.media}</p>}
           </section>
 
-          <ShortLinkToggle checked={shortLinks} onChange={setShortLinks} projectId={projectId} />
+          {(chosen.length === 0 || toSend.length > 0) && (
+            <ShortLinkToggle
+              checked={shortLinks}
+              onChange={setShortLinks}
+              projectId={projectId}
+              body={body}
+              targets={toSend.map((sns) => ({ sns, text: textFor(sns) }))}
+            />
+          )}
 
           <AiCheckPanel
             projectId={projectId}

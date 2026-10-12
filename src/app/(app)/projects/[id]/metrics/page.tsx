@@ -196,7 +196,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
           title="SNS ごとのストアへのクリック"
           action={
             <Link href={`/projects/${project.id}/links`} className="hover:underline">
-              リンクを作る
+              短縮リンクを作る
             </Link>
           }
         />

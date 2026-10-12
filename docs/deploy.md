@@ -264,7 +264,7 @@ yabumi.app は Cloudflare Registrar で取る（オーナー）。DNS も Cloudf
 | H-2 | オーナー | Cloudflare → yabumi.app → DNS → Records に、Vercel のカードに出た値で **CNAME**（名前 `go`、値はカードのもの）。**Proxy status は DNS only**（灰色の雲） |
 | H-3 | オーナー | Vercel の Domains で go.yabumi.app が「Valid Configuration」になり、証明書が出るのを待つ |
 | H-4 | オーナー | Vercel → Settings → Environment Variables に `SHORT_LINK_BASE_URL=https://go.yabumi.app` を足し、Redeploy。これから作る短縮リンクが go.yabumi.app になる |
-| H-5 | オーナー | 確かめる: 矢書の「リンク」の画面で X 用のリンクを作り、スマホで開くと App Store が開く。数字が 1 増える（同じ端末で 10 分以内にもう一度押しても増えない） |
+| H-5 | オーナー | 確かめる: 矢書の「短縮リンク」の画面で X 用のリンクを作り、スマホで開くと App Store が開く。数字が 1 増える（同じ端末で 10 分以内にもう一度押しても増えない） |
 
 - go.yabumi.app/ だけを開くと、矢書のトップに移る
 - 悪用（矢書の名前を借りて怪しいサイトへ誘導する）の知らせが contact@yuxport.com に来たら、Supabase の SQL Editor で `update public.short_links set disabled_at = now() where code = '<コード>';` でそのリンクを止める（押すと「使われていません」と出る）。続くようなら、その利用者のアカウントを止める（利用規約の「利用の停止」）

@@ -1,4 +1,4 @@
-import type { SnsKey } from "@/lib/sns";
+import { isManualSns, type SnsKey } from "@/lib/sns";
 
 // 短縮リンクの決まり（docs/architecture.md の 4.22、決定 D20）。画面とサーバーの両方から読む
 
@@ -114,4 +114,25 @@ export function substituteLinks(text: string, links: Map<string, string>): strin
 // 本文の URL を押せない SNS は置き換えない（プロフィールのリンクで数える）。手で投稿する SNS は、利用者が貼る文に入る
 export function substitutesBodyLinks(sns: SnsKey): boolean {
   return sns !== "instagram";
+}
+
+export type ShortLinkPlan = {
+  // 置き換える URL と、置き換える SNS（本文に出てくる順）
+  replaced: { url: string; sns: SnsKey[] }[];
+  // 本文に URL があっても置き換えない SNS と、その理由
+  skipped: { sns: SnsKey; reason: "instagram" | "manual" }[];
+};
+
+// 作成画面に出す、どの URL をどの SNS で短縮リンクに置き換えるか（preparePostLinks と同じ決まり。送る前の配信先だけを渡す）
+export function planShortLinks(targets: { sns: SnsKey; text: string }[]): ShortLinkPlan {
+  const replaced = new Map<string, SnsKey[]>();
+  const skipped: ShortLinkPlan["skipped"] = [];
+  for (const t of targets) {
+    const urls = findLinkableUrls(t.text);
+    if (!urls.length) continue;
+    if (isManualSns(t.sns)) skipped.push({ sns: t.sns, reason: "manual" });
+    else if (!substitutesBodyLinks(t.sns)) skipped.push({ sns: t.sns, reason: "instagram" });
+    else for (const u of urls) replaced.set(u, [...(replaced.get(u) ?? []), t.sns]);
+  }
+  return { replaced: [...replaced].map(([url, sns]) => ({ url, sns })), skipped };
 }

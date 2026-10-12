@@ -544,7 +544,7 @@ README が薄い個人開発のリポジトリやモノレポでも中身がわ�
 | GitHub のファイルの中身、コミット（メッセージと差分） | 保存しない | 紹介文やネタを作るときに読み、AI（Anthropic）に送るだけ（4.10、4.15） | ― |
 | 手で投稿する SNS のプロフィールの URL | project_manual_channels | 利用者が消すか、退会まで | 「つないだ SNS」の画面、退会 |
 | ロードマップ（目標・KPI の週の目標・週ごとのやること） | roadmaps / roadmap_items | 利用者が消すか、プロジェクトを消すか、退会まで | ロードマップの画面で消す、プロジェクトの削除、退会（4.23） |
-| 短縮リンク（行き先、SNS、種類）と、日ごとのクリックの集計 | short_links、link_click_daily | 利用者が止めるか、退会まで | 「リンク」の画面で止める、退会 |
+| 短縮リンク（行き先、SNS、種類）と、日ごとのクリックの集計 | short_links、link_click_daily | 利用者が止めるか、退会まで | 「短縮リンク」の画面で止める、退会 |
 | 短縮リンクを押した人の記録（日時、端末の種類、国、その日だけのハッシュ。IP アドレスは残さない） | link_clicks | **90 日**で自動で消す（4.22、D20） | 消せない（押した人を特定できる中身を含まないため） |
 | note・Substack の数字（利用者が手で入れた閲覧・反応） | manual_post_metrics | 投稿を消すか、退会まで | 投稿の削除、退会 |
 | 預かったストア・課金の鍵（App Store Connect の API キー、RevenueCat のキー。暗号化済み） | store_credentials | 外すか、プロジェクトを消すか、退会まで | 「ストアと課金をつなぐ」の「外す」、退会。すぐに消す |
@@ -1082,8 +1082,8 @@ Facebook ページ（graph.facebook.com）:
 | 記録 | DB の `record_link_click`（service_role だけ）が、その日の秘密で `sha256(秘密 + IP + User-Agent)` を作り、10 分以内の同じ人を「重複」にし、1 クリックの行と日ごとの集計を 1 回で書く。IP と User-Agent は DB に渡すだけで保存しない |
 | 合計 | `link_click_totals`（security invoker。本人のものだけ）。行を読んで足さない |
 | 転送 | `/go/[code]`（src/app/go/[code]/route.ts）。go.yabumi.app は src/proxy.ts が /go/<code> に回す。/go は、独自ドメインへの転送とログインの確認より先に通す。302・no-store、記録は after()。HEAD は数えない |
-| 本文の置き換え | 投稿を保存するとき（savePost）、送る前の自動の配信先ごとに、本文の https の URL それぞれの短縮リンクを用意する（preparePostLinks。チェックを外すと消す）。送る直前に送信ジョブが置き換える（substituteForTarget）。作成画面の見え方の欄に「この短縮リンクに置き換えて送ります」と実際の URL を出す（X の規約の「送る文をそのまま見せる」）。Instagram は本文の URL を押せないので置き換えない。手で投稿する SNS も置き換えない |
-| 画面 | プロジェクトの「リンク」（/projects/[id]/links）: SNS ごとのプロフィールのリンク、自由に作るリンク、作ったリンクの一覧と 7 日・30 日・これまでのクリック、止める・使い直す、App Store の pt |
+| 本文の置き換え | 投稿を保存するとき（savePost）、送る前の自動の配信先ごとに、本文の https の URL それぞれの短縮リンクを用意する（preparePostLinks。チェックを外すと消す）。送る直前に送信ジョブが置き換える（substituteForTarget）。作成画面の見え方の欄に「この短縮リンクに置き換えて送ります」と実際の URL を出す（X の規約の「送る文をそのまま見せる」）。Instagram は本文の URL を押せないので置き換えない。手で投稿する SNS も置き換えない。作成画面のチェックは、送る文面に URL があり、置き換える SNS があるときだけ出し、どの URL をどの SNS で置き換えるか・置き換えない SNS と理由を添える（planShortLinks。preparePostLinks と同じ決まり）。URL がないとき・置き換える SNS がないときはチェックを出さず、URL の入れ方と、X はプロフィールのリンクで数えるのがよいことを案内し、アカウント設計の「名前とプロフィール」（/plan?open=profile）へつなぐ（チェックだけ出ていて、URL がないのに短縮リンクが付くと思われたため。2026-10-12） |
+| 画面 | プロジェクトの「短縮リンク」（/projects/[id]/links）: SNS ごとのプロフィールのリンク、自由に作るリンク、作ったリンクの一覧と 7 日・30 日・これまでのクリック、止める・使い直す、App Store の pt |
 | 土台の URL | SHORT_LINK_BASE_URL（go.yabumi.app ができたら）。なければ `<APP_URL>/go`。DNS の手順は deploy.md の 11 の H |
 
 #### 悪用への備え

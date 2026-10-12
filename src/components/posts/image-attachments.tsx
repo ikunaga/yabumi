@@ -1,10 +1,21 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Term } from "@/components/ui/term";
 import { confirmImageUpload, discardImage, requestImageUpload } from "@/lib/media/actions";
 import { JPEG_QUALITY, MAX_ALT_LENGTH, MAX_IMAGE_BYTES, MAX_IMAGES_PER_POST, MAX_LONG_EDGE, formatBytes } from "@/lib/media/rules";
+
+import type { ImageMakerProps } from "./image-maker";
+
+// 画像をつくる画面は、開いたときに読み込む（書体とテンプレートの処理を、作成画面の最初の読み込みに入れない）
+const ImageMaker = dynamic(() => import("./image-maker").then((m) => m.ImageMaker), {
+  ssr: false,
+  loading: () => <p className="text-sm text-muted">画像をつくる画面を開いています…</p>,
+});
+
+export type ImageMakerContext = Omit<ImageMakerProps, "onAdd" | "onClose">;
 
 export type AttachedImage = { id: string; previewUrl: string | null; altText: string; width: number; height: number; sizeBytes: number };
 
@@ -41,10 +52,16 @@ async function uploadOne(file: File): Promise<AttachedImage> {
         : `「${file.name}」は画像として読めませんでした。JPEG・PNG・WebP などの画像を選んでください。`,
     );
   }
+  return uploadJpeg(blob, `「${file.name}」`);
+}
+
+// JPEG を上げて確かめる（選んだ画像も、テンプレートで作った画像も同じ流れ。4.18）
+async function uploadJpeg(blob: Blob, name: string): Promise<AttachedImage> {
+  if (blob.size > MAX_IMAGE_BYTES) throw new Error(`${name}は ${formatBytes(MAX_IMAGE_BYTES)} を超えます。`);
   const { ticket, error } = await requestImageUpload();
   if (!ticket) throw new Error(error ?? "画像を追加できませんでした。");
   const res = await fetch(ticket.signedUrl, { method: "PUT", body: blob, headers: { "Content-Type": "image/jpeg", "x-upsert": "false" } });
-  if (!res.ok) throw new Error(`「${file.name}」を上げられませんでした。時間をおいてもう一度お試しください。`);
+  if (!res.ok) throw new Error(`${name}を上げられませんでした。時間をおいてもう一度お試しください。`);
   const confirmed = await confirmImageUpload(ticket.path);
   if (!confirmed.image) throw new Error(confirmed.error ?? "画像を確かめられませんでした。");
   const { id, previewUrl, altText, width, height, sizeBytes } = confirmed.image;
@@ -56,12 +73,16 @@ export function ImageAttachments({
   images,
   onChange,
   disabled = false,
+  maker,
 }: {
   images: AttachedImage[];
   onChange: (next: AttachedImage[] | ((prev: AttachedImage[]) => AttachedImage[])) => void;
   disabled?: boolean;
+  // テンプレートで画像をつくる（F14 の段取り ①）。渡さなければ出さない
+  maker?: ImageMakerContext;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [making, setMaking] = useState(false);
   const [busy, setBusy] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -82,6 +103,26 @@ export function ImageAttachments({
       } finally {
         setBusy((n) => n - 1);
       }
+    }
+  }
+
+  // テンプレートで作った画像を添える。添えられたら true（画面を閉じる）
+  async function addMade(jpeg: Blob, altText: string): Promise<boolean> {
+    setError(null);
+    if (room <= 0) {
+      setError(`画像は 1 つの投稿に ${MAX_IMAGES_PER_POST} 枚までです。`);
+      return false;
+    }
+    setBusy((n) => n + 1);
+    try {
+      const image = await uploadJpeg(jpeg, "作った画像");
+      onChange((prev) => [...prev, { ...image, altText }]);
+      return true;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "画像を追加できませんでした。");
+      return false;
+    } finally {
+      setBusy((n) => n - 1);
     }
   }
 
@@ -128,11 +169,20 @@ export function ImageAttachments({
             e.target.value = "";
           }}
         />
-        <Button type="button" variant="secondary" size="sm" disabled={disabled || room <= 0} onClick={() => inputRef.current?.click()}>
-          画像を選ぶ
-        </Button>
+        <div className="flex flex-wrap justify-center gap-2">
+          <Button type="button" variant="secondary" size="sm" disabled={disabled || room <= 0} onClick={() => inputRef.current?.click()}>
+            画像を選ぶ
+          </Button>
+          {maker && (
+            <Button type="button" variant="secondary" size="sm" disabled={disabled || room <= 0 || making} onClick={() => setMaking(true)}>
+              画像をつくる
+            </Button>
+          )}
+        </div>
         <p className="text-xs text-muted">送る前に JPEG に縮め、撮った場所などの情報は消します。動画は準備中です。</p>
       </div>
+
+      {maker && making && <ImageMaker {...maker} onAdd={addMade} onClose={() => setMaking(false)} />}
 
       {error && (
         <p role="alert" className="text-sm font-semibold text-danger">

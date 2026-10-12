@@ -233,6 +233,7 @@ export function PostComposer({
             <ImageAttachments
               images={images}
               disabled={pending}
+              maker={{ projectId, projectName, aiEnabled: aiCheckEnabled, text: textFor(focus), targets: chosen }}
               onChange={(next) => {
                 setImages(next);
                 clearFieldError("media");

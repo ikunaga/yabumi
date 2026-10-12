@@ -451,7 +451,7 @@ Threads・Instagram・Facebook の数字を読む権限は、Meta のアプリ�
 
 | # | 誰が | やること |
 |---|---|---|
-| 19-1 | オーナー | Vercel → Settings → Environment Variables に `OPERATOR_ADMIN_EMAILS`（オーナーが矢書にログインするメールアドレス。複数ならカンマ区切り）を足して Redeploy。入れるまでは、運営者の画面（/admin/waitlist）はだれにも開けない |
+| 19-1 | オーナー | Vercel → Settings → Environment Variables に `OPERATOR_ADMIN_EMAILS`（オーナーが矢書にログインするメールアドレス。複数ならカンマ区切り）を足して Redeploy。入れるまでは、運営者の画面（/admin。招待の申し込み /admin/waitlist と、規約の変更の知らせ /admin/legal-notice）はだれにも開けない |
 | 19-2 | オーナー | （任意・おすすめ）5-8 の Turnstile の Secret Key を、Vercel の `TURNSTILE_SECRET_KEY`（**Sensitive**）にも入れて Redeploy。申し込みをサーバーでも確かめ、ロボットの申し込みを断る。入れないときは、人に見えない欄と 1 時間あたりの上限だけで守る |
 | 19-3 | 確かめ | 15-11 の RESEND_API_KEY が入っていれば、申し込むと確認のメール（件名「矢書の招待の申し込みを受け付けました」）が届く。入っていなければ、画面に「受け付けました」とだけ出る（申し込みは保存される） |
 | 19-4 | オーナー | 招待のメールは Supabase の認証のメール（11 の F で Resend の SMTP にしたもの）で送る。Supabase → Authentication → Email Templates の **Invite user** を開き、Subject に「【矢書】矢書への招待」、本文に supabase/templates/invite.html の中身を貼って保存する（既定の英語のままだと、パスワードを決める画面に進まない。ローカルは supabase/config.toml で同じものを使っている） |

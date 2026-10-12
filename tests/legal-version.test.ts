@@ -7,6 +7,7 @@ import {
   effectiveDateLabel,
   formatLegalDate,
   historyProblems,
+  legalBannerChange,
   noticeStarted,
   publishedHistory,
   todayJst,
@@ -53,5 +54,20 @@ describe("今の版と予定の変更", () => {
     expect(formatLegalDate("2026-10-12")).toBe("2026年10月12日");
     expect(effectiveDateLabel(at("2026-10-12T00:00:00Z"))).toBe("2026年10月12日");
     expect(todayJst(at("2026-10-12T15:30:00Z"))).toBe("2026-10-13");
+  });
+});
+
+describe("ログイン後の帯", () => {
+  it("知らせ始める日から施行日の前日まで出し、閉じたら（その版の cookie）出さない。施行日を過ぎたら出さない", () => {
+    expect(legalBannerChange(at("2026-10-31T14:59:00Z"), undefined, history)).toBeNull();
+    expect(legalBannerChange(at("2026-11-05T00:00:00Z"), undefined, history)?.version).toBe("2026-11-20");
+    expect(legalBannerChange(at("2026-11-05T00:00:00Z"), "2026-11-20", history)).toBeNull();
+    // 前の変更で閉じた cookie では消えない（別の版）
+    expect(legalBannerChange(at("2026-11-05T00:00:00Z"), "2026-10-12", history)?.version).toBe("2026-11-20");
+    expect(legalBannerChange(at("2026-11-19T15:00:00Z"), undefined, history)).toBeNull();
+  });
+
+  it("いまの一覧では、帯は出ない（予定の変更がない）", () => {
+    expect(legalBannerChange(new Date(), undefined)).toBeNull();
   });
 });

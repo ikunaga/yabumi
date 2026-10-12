@@ -93,3 +93,11 @@ export function historyProblems(history: readonly LegalRevision[] = LEGAL_VERSIO
   });
   return problems;
 }
+
+// ログイン後の帯に出す変更。予定の変更があり、知らせ始める日を過ぎていて、その版の帯をまだ閉じていない（seenVersion と違う）ときだけ。
+// 施行日を過ぎると予定の変更でなくなるので、出さない
+export function legalBannerChange(now: Date, seenVersion: string | undefined, history: readonly LegalRevision[] = LEGAL_VERSIONS): LegalRevision | null {
+  const change = upcomingLegalChange(now, history);
+  if (!change || !noticeStarted(change, now) || seenVersion === change.version) return null;
+  return change;
+}

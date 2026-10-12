@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { Brand } from "@/components/brand";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { LegalChangeNotice, LegalHistory } from "./legal-notice";
 import { effectiveDateLabel } from "@/lib/legal/version";
 
 // 利用規約とプライバシーポリシーの共通の枠。ログインなしで開ける（src/lib/supabase/proxy.ts の PUBLIC_PATHS）
@@ -23,8 +24,10 @@ export function LegalPage({ title, lead, children }: { title: string; lead: Reac
           <h1 className="font-heading text-3xl font-bold max-sm:text-2xl">{title}</h1>
           <p className="text-[14px] text-muted">施行日: {effectiveDateLabel()}</p>
         </div>
+        <LegalChangeNotice />
         <div className="text-base leading-[1.9]">{lead}</div>
         <div className="flex flex-col gap-8 max-sm:gap-6">{children}</div>
+        <LegalHistory />
       </main>
 
       <footer className="flex flex-wrap gap-x-6 gap-y-2 border-t border-line pt-5 text-[14px] text-muted">

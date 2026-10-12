@@ -40,6 +40,8 @@ const TABLES = [
   "push_subscriptions",
   "waitlist",
   "legal_consents",
+  "legal_notice_campaigns",
+  "legal_notice_sends",
 ] as const;
 
 let alice: TestClient;

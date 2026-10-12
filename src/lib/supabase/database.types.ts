@@ -376,6 +376,59 @@ export type Database = {
         }
         Relationships: []
       }
+      legal_notice_campaigns: {
+        Row: {
+          finished_at: string | null
+          started_at: string
+          version: string
+        }
+        Insert: {
+          finished_at?: string | null
+          started_at?: string
+          version: string
+        }
+        Update: {
+          finished_at?: string | null
+          started_at?: string
+          version?: string
+        }
+        Relationships: []
+      }
+      legal_notice_sends: {
+        Row: {
+          attempts: number
+          created_at: string
+          status: string
+          updated_at: string
+          user_id: string
+          version: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          version: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          version?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legal_notice_sends_version_fkey"
+            columns: ["version"]
+            isOneToOne: false
+            referencedRelation: "legal_notice_campaigns"
+            referencedColumns: ["version"]
+          },
+        ]
+      }
       link_click_daily: {
         Row: {
           clicks: number

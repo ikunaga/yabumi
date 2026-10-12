@@ -63,6 +63,8 @@ describe("決まり", () => {
     const m = confirmationMail("a@example.com", "https://yabumi.test/waitlist/cancel?t=abc");
     expect(m.text).toContain("https://yabumi.test/waitlist/cancel?t=abc");
     expect(m.text).toContain("招待制");
+    // 規約と同じく、必ず招待するとは限らないことを書く
+    expect(m.text).toContain("お断りすることもあります");
   });
 });
 

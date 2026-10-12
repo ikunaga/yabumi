@@ -3,15 +3,22 @@ import { notFound } from "next/navigation";
 import { AccountPlanEditor } from "@/components/plan/account-plan-editor";
 import { ButtonLink, NotReadyButton } from "@/components/ui/button";
 import { aiConfigured } from "@/lib/ai/anthropic";
+import { listLinks } from "@/lib/links/queries";
 import { getAccountPlan } from "@/lib/plan/queries";
+import { getProject } from "@/lib/projects/queries";
+import type { SnsKey } from "@/lib/sns";
+import { listProjectSnsAccounts } from "@/lib/sns/queries";
 
 export const metadata: Metadata = { title: "アカウント設計" };
 
 // アカウント設計（要求 F15）。セクションごとに保存でき、どれも任意
 export default async function PlanPage(props: PageProps<"/projects/[id]/plan">) {
   const { id } = await props.params;
-  const plan = await getAccountPlan(id);
-  if (!plan) notFound();
+  const [plan, project] = await Promise.all([getAccountPlan(id), getProject(id)]);
+  if (!plan || !project) notFound();
+  const [accounts, links] = await Promise.all([listProjectSnsAccounts(id), listLinks(id)]);
+  const profileLinks: Partial<Record<SnsKey, string>> = {};
+  for (const l of links) if (l.kind === "profile" && !l.disabled && l.sns && !profileLinks[l.sns]) profileLinks[l.sns] = l.url;
 
   const aiEnabled = aiConfigured();
 
@@ -49,7 +56,18 @@ export default async function PlanPage(props: PageProps<"/projects/[id]/plan">) 
         <h2 className="text-lg font-bold">中身を確かめて、手で直す</h2>
         <p className="text-sm text-muted">AI と決めた内容もここに入ります。記入例を見ながら自分で書くこともできます。</p>
       </div>
-      <AccountPlanEditor projectId={id} plan={plan.plan} sources={plan.sources} aiEnabled={aiEnabled} />
+      <AccountPlanEditor
+        projectId={id}
+        plan={plan.plan}
+        sources={plan.sources}
+        aiEnabled={aiEnabled}
+        profileCtx={{
+          projectId: id,
+          accounts: accounts.map((a) => ({ sns: a.sns, handle: a.handle })),
+          profileLinks,
+          destination: project.app_store_url ?? project.play_store_url ?? null,
+        }}
+      />
     </div>
   );
 }

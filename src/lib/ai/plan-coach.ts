@@ -1,6 +1,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isSectionKey, normalizePlan, type SectionKey } from "@/lib/plan/schema";
+import { isSnsKey, type SnsKey } from "@/lib/sns";
 import type { Database } from "@/lib/supabase/database.types";
 import { checkAiLimits, type AiLimits } from "./limits";
 import { normalizeCoachTurn, toWireTurn, type CoachTurn } from "./plan-coach-schema";
@@ -185,6 +186,7 @@ export async function coachStep(
     plan: normalizePlan(planRow?.data, project.target_audience),
     sources: sourcesOf(planRow?.section_sources),
     focus,
+    accounts: await connectedAccounts(user, projectId),
   };
 
   // 失敗したときは、いま保存した利用者の発言（と、いま作った会話）を消す。送り直しで同じ発言が重ならないように。
@@ -282,3 +284,10 @@ export async function loadHistory(db: Db, threadId: string): Promise<StoredMessa
   return data as unknown as StoredMessage[];
 }
 
+// プロジェクトにつないだアカウントの SNS と実際のユーザー名（RLS で本人のものだけ）。名前とプロフィールの案に使う
+async function connectedAccounts(user: SupabaseClient<Database>, projectId: string): Promise<{ sns: SnsKey; handle: string }[]> {
+  const { data } = await user.from("project_social_accounts").select("social_accounts(sns, handle)").eq("project_id", projectId);
+  return ((data ?? []) as unknown as { social_accounts: { sns: string; handle: string } | null }[]).flatMap((r) =>
+    r.social_accounts && isSnsKey(r.social_accounts.sns) && r.social_accounts.handle ? [{ sns: r.social_accounts.sns, handle: r.social_accounts.handle }] : [],
+  );
+}

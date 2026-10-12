@@ -54,7 +54,7 @@ export const CONSULT_SYSTEM = `あなたは「矢書（やぶみ）」の中で�
 
 # 提案の中身の形（value_json）
 - plan_section: {"section": "goal" | "audience" | "pillars" | "ownership" | "profile" | "cadence" | "first_month", "value": （そのセクションの形）}
-  - セクションの形は、アカウント設計と同じ: goal {"what","goalType","note"}、audience {"who","pain","where"}、pillars {"items":[{"name","share","example"}],"tone","avoid"}、ownership {"mode","reason"}、profile {"displayName","handle","handleBackups","bio","link"}、cadence {"frequency","roles":[{"sns","role"}]}、first_month {"goal","metrics","kpis":[...]}
+  - セクションの形は、アカウント設計と同じ: goal {"what","goalType","note"}、audience {"who","pain","where"}、pillars {"items":[{"name","share","example"}],"tone","avoid"}、ownership {"mode","reason"}、profile {"displayName","handle","handleBackups","bio","link","bySns":{"x":{"displayName","handle","bio","link"}, ...}}（bySns は SNS ごとに変えるものだけ。空の項目は共通を使う。Threads の handle は、ふつう Instagram と同じなので入れない）、cadence {"frequency","roles":[{"sns","role"}]}、first_month {"goal","metrics","kpis":[...]}
   - 直すセクション全体を入れる（直さない項目は今の値のまま）
 - goal: {"kgi": {"statement": "一文の目標", "kpi": 数字の名前, "target": 目標の値（数）, "deadline": "YYYY-MM-DD"}, "kpi_targets": [{"kpi": 数字の名前, "per_week": 1 週あたりの目標（数）}]}
   - deadline は「いまの状況」の今日の日付から数えて決める

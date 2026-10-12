@@ -1,7 +1,7 @@
 import { KPI_KEYS } from "@/lib/metrics/kpis";
 import { z } from "zod";
 import { SNS_KEYS, type SnsKey } from "@/lib/sns";
-import { GOAL_TYPES, OWNERSHIP_MODES, SECTION_KEYS, sectionSchemas, type SectionKey, type SectionValue } from "@/lib/plan/schema";
+import { GOAL_TYPES, OWNERSHIP_MODES, PROFILE_OVERRIDE_FIELDS, SECTION_KEYS, sectionSchemas, type ProfileOverrideField, type SectionKey, type SectionValue } from "@/lib/plan/schema";
 
 // AI（アカウント設計の相棒）の 1 回の返事の形。構造化出力（output_config.format）でこの形に固定する。
 // 構造化出力のスキーマは文法にコンパイルされ、大きすぎると 400（compiled grammar is too large）になる。
@@ -20,7 +20,20 @@ export const valueSchemas = {
     avoid: z.string(),
   }),
   ownership: z.object({ mode: z.enum(OWNERSHIP_MODES).nullable(), reason: z.string() }),
-  profile: z.object({ displayName: z.string(), handle: z.string(), handleBackups: z.string(), bio: z.string(), link: z.string() }),
+  profile: z.object({
+    displayName: z.string(),
+    handle: z.string(),
+    handleBackups: z.string(),
+    bio: z.string(),
+    link: z.string(),
+    // SNS ごとの上書き（D26）。変えない SNS は入れない。前の版の案（bySns なし）も読めるように既定は空
+    bySns: z
+      .record(
+        z.string(),
+        z.object({ displayName: z.string().default(""), handle: z.string().default(""), bio: z.string().default(""), link: z.string().default("") }),
+      )
+      .default({}),
+  }),
   cadence: z.object({ frequency: z.string(), roles: z.array(z.object({ sns: snsEnum, role: z.string() })) }),
   first_month: z.object({ goal: z.string(), metrics: z.string(), kpis: z.array(z.enum(KPI_KEYS)).max(3).default([]) }),
 } satisfies Record<SectionKey, z.ZodType>;
@@ -122,6 +135,9 @@ export function toSectionValue(key: SectionKey, value: unknown): SectionValue<Se
     const p = value as { items?: unknown };
     if (Array.isArray(p.items)) v = { ...p, items: (p.items as { name?: unknown }[]).filter((i) => typeof i.name === "string" && i.name.trim()).slice(0, 5) };
   }
+  if (key === "profile" && value && typeof value === "object") {
+    v = { ...value, bySns: cleanProfileOverrides((value as { bySns?: unknown }).bySns) };
+  }
   const parsed = sectionSchemas[key].safeParse(v);
   return parsed.success ? (parsed.data as SectionValue<SectionKey>) : null;
 }
@@ -146,8 +162,21 @@ export function toWireTurn(t: CoachTurn): unknown {
   };
 }
 
-function toWireValue(key: SectionKey, value: SectionValue<SectionKey>): unknown {
+export function toWireValue(key: SectionKey, value: SectionValue<SectionKey>): unknown {
   if (key !== "cadence") return value;
   const c = value as SectionValue<"cadence">;
   return { frequency: c.frequency, roles: Object.entries(c.roles).map(([sns, role]) => ({ sns, role })) };
+}
+
+// SNS ごとの上書きのうち、知らない SNS と、全部が空のものを外す
+function cleanProfileOverrides(raw: unknown): Partial<Record<SnsKey, Record<ProfileOverrideField, string>>> {
+  const out: Partial<Record<SnsKey, Record<ProfileOverrideField, string>>> = {};
+  if (!raw || typeof raw !== "object") return out;
+  for (const [sns, o] of Object.entries(raw as Record<string, unknown>)) {
+    if (!(SNS_KEYS as string[]).includes(sns) || !o || typeof o !== "object") continue;
+    const src = o as Record<string, unknown>;
+    const entry = Object.fromEntries(PROFILE_OVERRIDE_FIELDS.map((f) => [f, typeof src[f] === "string" ? src[f] : ""])) as Record<ProfileOverrideField, string>;
+    if (PROFILE_OVERRIDE_FIELDS.some((f) => entry[f].trim())) out[sns as SnsKey] = entry;
+  }
+  return out;
 }

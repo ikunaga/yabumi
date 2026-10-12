@@ -15,6 +15,14 @@ export const GOAL_TYPES = ["downloads", "paid", "awareness", "other"] as const;
 export const OWNERSHIP_MODES = ["personal", "dedicated", "undecided"] as const;
 export const MAX_PILLARS = 5;
 
+const snsKeyEnum = z.enum(SNS_KEYS as [SnsKey, ...SnsKey[]]);
+
+// 名前とプロフィールの、SNS ごとに上書きできる項目（予備のユーザー名は共通だけ）
+export const PROFILE_OVERRIDE_FIELDS = ["displayName", "handle", "bio", "link"] as const;
+export type ProfileOverrideField = (typeof PROFILE_OVERRIDE_FIELDS)[number];
+const profileOverrideSchema = z.object({ displayName: text(50), handle: text(30), bio: text(300), link: text(300) });
+export type ProfileOverride = z.infer<typeof profileOverrideSchema>;
+
 export const sectionSchemas = {
   goal: z.object({
     what: text(500),
@@ -55,6 +63,8 @@ export const sectionSchemas = {
       handleBackups: text(200),
       bio: text(300),
       link: text(300),
+      // SNS ごとの上書き（2026-10-12、決定 D26）。空の項目は共通（上の値）を使う。前の版で保存したものは空
+      bySns: z.partialRecord(snsKeyEnum, profileOverrideSchema).default({}),
     }),
   ),
   cadence: z.object({
@@ -105,7 +115,7 @@ export function isSectionDone<K extends SectionKey>(key: K, v: SectionValue<K>):
       return (v as PlanData["ownership"]).mode !== null;
     case "profile": {
       const p = v as PlanData["profile"];
-      return filled(p.displayName) || filled(p.handle) || filled(p.bio);
+      return filled(p.displayName) || filled(p.handle) || filled(p.bio) || Object.values(p.bySns).some((o) => o && (filled(o.displayName) || filled(o.handle) || filled(o.bio)));
     }
     case "pillars":
       return (v as PlanData["pillars"]).items.some((i) => filled(i.name));
@@ -140,14 +150,22 @@ function parseSectionFormAny(key: SectionKey, form: FormData) {
       return sectionSchemas.audience.safeParse({ who: s("who"), pain: s("pain"), where: s("where") });
     case "ownership":
       return sectionSchemas.ownership.safeParse({ mode: nullable("mode"), reason: s("reason") });
-    case "profile":
+    case "profile": {
+      // SNS ごとの欄は sns-<SNS>-<項目>。どれかが入っている SNS だけ残す
+      const bySns: Partial<Record<SnsKey, Record<ProfileOverrideField, string>>> = {};
+      for (const sns of SNS_KEYS) {
+        const o = Object.fromEntries(PROFILE_OVERRIDE_FIELDS.map((f) => [f, s(`sns-${sns}-${f}`)])) as Record<ProfileOverrideField, string>;
+        if (PROFILE_OVERRIDE_FIELDS.some((f) => o[f].trim())) bySns[sns] = o;
+      }
       return sectionSchemas.profile.safeParse({
         displayName: s("displayName"),
         handle: s("handle"),
         handleBackups: s("handleBackups"),
         bio: s("bio"),
         link: s("link"),
+        bySns,
       });
+    }
     case "pillars": {
       const items = [];
       for (let i = 0; i < MAX_PILLARS; i++) {

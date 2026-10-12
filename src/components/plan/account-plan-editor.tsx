@@ -10,6 +10,7 @@ import { saveSection, type SectionFormState } from "@/lib/plan/actions";
 import { MAX_PILLARS, REQUIRED_FOR_DONE, SECTION_KEYS, isSectionDone, type PlanData, type SectionKey } from "@/lib/plan/schema";
 import { KPI_KEYS, KPIS, MAX_KPIS, recommendedKpis, type KpiKey } from "@/lib/metrics/kpis";
 import { SNS, SNS_KEYS } from "@/lib/sns";
+import { ProfileFields, type ProfileContext } from "./profile-fields";
 
 // 見出しはボタンの中に置くので、用語解説（これもボタン）は説明文のほうに付ける
 type Meta = { title: string; lead: ReactNode };
@@ -61,9 +62,12 @@ export function AccountPlanEditor({
   plan,
   sources,
   aiEnabled,
+  profileCtx,
 }: {
   projectId: string;
   plan: PlanData;
+  // 名前とプロフィールの SNS ごとの欄に使う（つないだアカウント、短縮リンク）
+  profileCtx: ProfileContext;
   sources: Partial<Record<SectionKey, "ai" | "manual">>;
   // AI と考える（Claude API のキーがあるときだけ）
   aiEnabled: boolean;
@@ -91,7 +95,7 @@ export function AccountPlanEditor({
           onToggle={() => setOpen(open === key ? null : key)}
           onSavedNext={() => setOpen(SECTION_KEYS[i + 1] ?? null)}
         >
-          <SectionFields sectionKey={key} plan={plan} />
+          <SectionFields sectionKey={key} plan={plan} profileCtx={profileCtx} />
         </SectionCard>
       ))}
     </div>
@@ -196,7 +200,7 @@ function SectionCard({
   );
 }
 
-function SectionFields({ sectionKey, plan }: { sectionKey: SectionKey; plan: PlanData }) {
+function SectionFields({ sectionKey, plan, profileCtx }: { sectionKey: SectionKey; plan: PlanData; profileCtx: ProfileContext }) {
   switch (sectionKey) {
     case "goal":
       return <GoalFields v={plan.goal} />;
@@ -205,7 +209,7 @@ function SectionFields({ sectionKey, plan }: { sectionKey: SectionKey; plan: Pla
     case "ownership":
       return <OwnershipFields v={plan.ownership} />;
     case "profile":
-      return <ProfileFields v={plan.profile} />;
+      return <ProfileFields v={plan.profile} roles={plan.cadence.roles} ctx={profileCtx} />;
     case "pillars":
       return <PillarsFields v={plan.pillars} />;
     case "cadence":
@@ -313,85 +317,6 @@ function OwnershipFields({ v }: { v: PlanData["ownership"] }) {
       />
       <Field label="そう決めた理由" htmlFor="ownership-reason">
         <Textarea id="ownership-reason" name="reason" defaultValue={v.reason} maxLength={500} rows={2} placeholder="例: 開発日記と一緒に出したいので、個人のアカウントにする" />
-      </Field>
-    </>
-  );
-}
-
-// 各 SNS でユーザー名が取れるかを確かめる場所（おおまかな案内。各社の画面は変わることがある）
-const HANDLE_CHECK_STEPS: { sns: string; how: string }[] = [
-  { sns: "X", how: "設定 → アカウント情報 → ユーザー名 に入力すると、使えるかどうかがその場で出ます" },
-  { sns: "Instagram", how: "プロフィールを編集 → ユーザーネーム に入力すると、使えるかどうかが出ます" },
-  { sns: "Threads", how: "Instagram のユーザーネームがそのまま使われます。Instagram で確かめれば十分です" },
-  { sns: "TikTok", how: "プロフィールを編集 → ユーザー名 に入力すると、使えるかどうかが出ます" },
-  { sns: "YouTube", how: "チャンネルのカスタマイズ（YouTube Studio）→ ハンドル に入力すると、使えるかどうかが出ます" },
-  { sns: "Facebook", how: "Facebook ページを作る場合だけ。ページの設定 → ユーザーネーム に入力すると出ます。使わないなら飛ばして構いません" },
-];
-
-function ProfileFields({ v }: { v: PlanData["profile"] }) {
-  return (
-    <>
-      <div className="rounded-md bg-primary-soft px-4 py-3 text-sm leading-[1.8]">
-        <p>
-          <b>ユーザー名は慎重に、表示名は気軽に。</b>
-          ユーザー名（@ のあとの英数字）は、変えるとこれまでのリンクや検索で見つけてもらえなくなるため、後から変えにくいものです。表示名はいつでも変えられます。
-        </p>
-      </div>
-      <Field label="表示名" htmlFor="profile-name" hint="あとからいつでも変えられます。名前のあとに「何をしている人か」を添えると伝わりやすくなります">
-        <Input id="profile-name" name="displayName" defaultValue={v.displayName} maxLength={50} placeholder="例: まさ｜家計簿アプリを作っています" />
-      </Field>
-      <Field label="ユーザー名（第一候補）" htmlFor="profile-handle" hint="6 つの SNS で同じ綴りにそろえると、見つけてもらいやすくなります">
-        <Input id="profile-handle" name="handle" defaultValue={v.handle} maxLength={30} placeholder="例: kakeibo_biyori" autoComplete="off" spellCheck={false} />
-      </Field>
-      <Field label="予備のユーザー名" htmlFor="profile-handle-backups" hint="第一候補が取れない SNS があったときのために、2〜3 個。1 行に 1 つ">
-        <Textarea
-          id="profile-handle-backups"
-          name="handleBackups"
-          defaultValue={v.handleBackups}
-          maxLength={200}
-          rows={3}
-          spellCheck={false}
-          placeholder={"例: kakeibo_biyori_app\nkakeibobiyori\nmasa_kakeibo"}
-        />
-      </Field>
-      <details className="group rounded-md border border-line text-sm">
-        <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-2.5 font-bold">
-          <span aria-hidden className="text-muted transition-transform group-open:rotate-90">
-            ▸
-          </span>
-          6 つの SNS で同じユーザー名が取れるか確かめる
-        </summary>
-        <div className="flex flex-col gap-3 border-t border-line px-4 py-3 leading-[1.8]">
-          <p>
-            それぞれの SNS に<b>ログインした状態</b>で、ユーザー名を変える画面に候補を入力してみます。使えるかどうかがその場で出ます。保存しなければ、今のユーザー名は変わりません。新しくアカウントを作る場合は、新規登録の画面で入力しても確かめられます。
-          </p>
-          <ul className="flex flex-col gap-1.5">
-            {HANDLE_CHECK_STEPS.map((s) => (
-              <li key={s.sns} className="grid grid-cols-[84px_1fr] gap-2 max-sm:grid-cols-1 max-sm:gap-0">
-                <b>{s.sns}</b>
-                <span>{s.how}</span>
-              </li>
-            ))}
-          </ul>
-          <p className="text-xs text-muted">
-            画面の場所は各 SNS の変更で変わることがあります。ログインしていないと空いているかどうかを正しく判定できないため、矢書では空きを自動で調べません。
-          </p>
-        </div>
-      </details>
-      <p className="text-sm">
-        <span className="font-bold text-signal">注意</span>　Instagram のアカウントで Threads を使う場合、Threads のユーザー名は Instagram のユーザーネームと同じになります（Threads だけ別の名前にはできません）。
-      </p>
-      <Field label="自己紹介文" htmlFor="profile-bio" hint="160 文字くらいまでが目安です（X の上限）">
-        <Textarea
-          id="profile-bio"
-          name="bio"
-          defaultValue={v.bio}
-          maxLength={300}
-          placeholder="例: 家計簿が続かない人のためのアプリ「かけいぼ日和」を個人で開発中。お金が貯まる小さなコツと、開発の裏側を発信します。"
-        />
-      </Field>
-      <Field label="リンク先" htmlFor="profile-link" hint="プロフィールに 1 つだけ置くリンク。迷ったらストアページ">
-        <Input id="profile-link" name="link" defaultValue={v.link} maxLength={300} placeholder="例: App Store のページの URL" />
       </Field>
     </>
   );

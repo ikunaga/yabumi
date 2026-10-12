@@ -49,6 +49,17 @@ export function describeSection(key: SectionKey, value: SectionValue<SectionKey>
       add("予備のユーザー名", v.handleBackups);
       add("自己紹介文", v.bio);
       add("リンク先", v.link);
+      for (const sns of SNS_KEYS) {
+        const o = v.bySns?.[sns];
+        if (!o) continue;
+        const parts = [
+          o.displayName.trim() && `表示名 ${o.displayName.trim()}`,
+          o.handle.trim() && `@${o.handle.trim().replace(/^@/, "")}`,
+          o.bio.trim() && `自己紹介文 ${o.bio.trim()}`,
+          o.link.trim() && `リンク先 ${o.link.trim()}`,
+        ].filter(Boolean);
+        add(`${SNS[sns].label} 用`, parts.join("\n"));
+      }
       break;
     }
     case "cadence": {

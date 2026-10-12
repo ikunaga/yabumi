@@ -238,6 +238,23 @@ pg_cron（毎日 3:00）→ 同上 → /api/jobs/refresh-tokens
 
 - account_plans にプロジェクトごとに 1 行。data（jsonb）にセクションごとの値を持つ: goal / audience / pillars / ownership / profile / cadence / first_month（画面に並ぶ順）
 - profile のユーザー名は handle（第一候補）と handleBackups（予備、1 行に 1 つ）。初版の handles（1 行に 1 つの候補）は読むときに読み替える
+- profile の SNS ごとの上書きは bySns（D26、2026-10-12）: `{"instagram": {"displayName": "", "handle": "", "bio": "…", "link": ""}}`。空の項目は共通（profile の displayName・handle・bio・link）を使う。どれかの項目が入っている SNS だけ持つ。前の版（bySns なし）は空として読むだけで足りるので、schema_version は上げていない（項目を足しただけで、古いデータの読み替えが要らないため）。その SNS で使う値は src/lib/plan/profile.ts の effectiveProfile。Threads のユーザー名は、上書きがなければ Instagram で使う値（Instagram とつないだ Threads は同じ名前になるため）
+- SNS ごとのプロフィールの決まり（src/lib/plan/profile.ts の PROFILE_RULES。2026-10-12 に各社の公式のヘルプで確認。[C] は公式で確かめた、[I] は公式の数字が見つからず二次情報の値）。合わないときは画面で知らせるだけで、保存は止めない
+
+| SNS | ユーザー名 | 表示名 | 自己紹介文 | リンク | 変えるときの注意 |
+|---|---|---|---|---|---|
+| X | 4〜15 字、英数字と _（Admin・Twitter を含む名前は不可）[C]（4 字以上は [I]） | 50 字 [C] | 160 字 [C] | ウェブサイト 1 つ | いつでも。認証済みのマークは確認し直し |
+| Instagram | 30 字まで [I]、英数字と . _ [C] | 確かめない | 150 字 [C] | 5 つ [I] | 表示名は 14 日に 2 回。ユーザーネームは 14 日以内なら前に戻せる |
+| Threads | Instagram とつないだものは Instagram と同じ。2026 年から、切り離したものと Instagram なしで作ったものは別にできる [I]。文字の決まりは Instagram と同じとみなす | 確かめない | 150 字 [I]。自己紹介文とリンクは Instagram と別 [C] | 5 つ [I] | |
+| Facebook ページ | 5 字以上 [C]・50 字まで [I]、英数字と .（ピリオドと大文字・小文字は区別されない）[C] | 確かめない | 確かめない | ページのウェブサイト | |
+| TikTok | 2〜24 字 [I]、英数字と . _、最後にピリオド不可 [C] | 30 字 [C] | 80 字 [I] | 1 つ（ビジネスアカウントか、フォロワー 1,000 人以上）[C] | ユーザー名は 30 日に 1 回、表示名は 7 日に 1 回 [C] |
+| YouTube | ハンドル 3〜30 字、英数字（日本語の文字も可）と _ - . ·、記号は最初と最後に不可 [C] | 確かめない（API は 30 字、画面は 100 字とされ食い違う） | 1,000 字 [C] | 14 個 [C] | ハンドルとチャンネル名はそれぞれ 14 日に 2 回 [C] |
+| note | note ID 3〜16 字、小文字の英字・数字・_ [C] | 50 字 [C] | 140 字 [C] | SNS の欄と自分のサイト [C] | note ID を変えると記事の URL もすべて変わる [C] |
+| Substack | 4〜32 字、英数字 [C]（二次情報に 3〜30 字・ハイフン可とあり食い違う） | 確かめない | 確かめない | ウェブサイトと SNS | |
+
+- 出典: help.x.com（x-username-rules、how-to-customize-your-profile）、help.instagram.com（125781657592081、583107688369069、728994388226960、759628745637994）、facebook.com/help/105399436216001、support.tiktok.com（changing-your-username、changing-your-nickname、setting-up-your-profile）、support.google.com/youtube（11585688、2657964）、developers.google.com/youtube/v3/docs/channels、help-note.com（360011269954、360011269714、29243678822681）、support.substack.com（360037460112、15574565677204）。Threads を Instagram から切り離せることは、2026-05 からの段階的な提供で、公式のヘルプにはまだない（報道と Threads の公式アカウントの投稿）
+- 画面（src/components/plan/profile-fields.tsx）: SNS ごとの行は「頻度と SNS ごとの役割」に書いた SNS・つないだ SNS・上書きがある SNS（profileTargetSns）。つないだアカウント（project_social_accounts → social_accounts.handle。1 プロジェクトに SNS ごとに 1 つ）の実際のユーザー名と違えば handleMismatches が拾い、「設計を @… に合わせる」でその SNS の上書きに入れて保存する（共通と同じなら上書きを消す）。短縮リンクは createLink（kind = profile）をそのまま呼ぶ
+- AI: 案の value_json の profile に bySns を足した（保存の形と同じ。plan-coach-schema の toSectionValue が、知らない SNS と空の上書きを外す）。案を採用するとセクション全体が置き換わるので、AI には「変えたいと言われていない bySns はそのまま案に含める」と指示する。アカウント設計の会話の「いまの状況」に、つないだアカウントの実際のユーザー名を足した。AI と相談の plan_section の案も同じ形（履歴に戻すときは、SNS ごとの役割を案の形の配列に戻す toWireValue を共通で使う）。ネタ出し・AI っぽさチェック・画像の文字の案はプロフィールを読んでいない
 - 形は src/lib/plan/schema.ts（zod）で決め、保存のたびに検証する。schema_version で形の版を持ち、形を変えるときは版を上げて古い版を読み替える
 - セクションの保存は save_account_plan_section()。そのセクションだけを置き換え、他のセクションは残す（別のタブで別のセクションを保存しても上書きし合わない）
 - 「届けたい相手」の本文は projects.target_audience を正とし、data には持たない（プロジェクトの編集画面と二重管理にしない）

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { SECTION_KEYS, type SectionKey, type SectionValue } from "@/lib/plan/schema";
 import { goalProposalSchema, itemsProposalSchema, type Kgi, type KpiTarget } from "@/lib/roadmap/schema";
 import { SNS_KEYS, type SnsKey } from "@/lib/sns";
-import { toSectionValue, valueSchemas } from "./plan-coach-schema";
+import { toSectionValue, toWireValue, valueSchemas } from "./plan-coach-schema";
 
 // AI と相談（F09、docs/architecture.md の 4.23）の 1 回の返事の形。構造化出力でこの形に固定する。
 // 提案の中身は種類ごとに形が違うので、スキーマに並べず JSON 文字列（value_json）で受け取り、サーバーで検証する（4.9 と同じ理由）
@@ -117,7 +117,7 @@ export function toWireConsultTurn(t: ConsultTurn): unknown {
 function wireValue(a: ConsultAction): unknown {
   switch (a.kind) {
     case "plan_section":
-      return { section: a.section, value: a.value };
+      return { section: a.section, value: toWireValue(a.section, a.value) };
     case "goal":
       return { kgi: a.kgi, kpi_targets: a.kpiTargets };
     case "roadmap_items":

@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { loadConsultHistory, type ConsultMessage } from "./consult";
+import { consultTopicMeta } from "./consult-topics";
 
 // AI と相談の会話の読み込み（RLS で本人のものだけ）
 
@@ -26,21 +27,17 @@ export async function listConsultThreads(projectId: string): Promise<ConsultThre
   });
 }
 
-const TOPIC_TITLE: Record<string, string> = {
-  what_to_post: "何を投稿すればいい？",
-  no_reaction: "反応がない",
-  which_sns: "どの SNS に力を入れる？",
-  roadmap: "目標とロードマップ",
-  review: "数字の振り返り",
-};
-
+// 入口から始めた相談は、入口ごとの名前（「ロードマップづくり」「振り返り」など）で見分ける
 export function topicTitle(topic: string | undefined): string {
-  return (topic && TOPIC_TITLE[topic]) || "相談";
+  return consultTopicMeta(topic)?.listTitle ?? "相談";
 }
 
-export async function getConsultThread(projectId: string, threadId: string): Promise<{ id: string; messages: ConsultMessage[] } | null> {
+// topic: 入口から始めた相談なら、その入口（見出しと戻り先に使う）
+export async function getConsultThread(projectId: string, threadId: string): Promise<{ id: string; messages: ConsultMessage[]; topic: string | null } | null> {
   const supabase = await createClient();
   const { data } = await supabase.from("ai_threads").select("id").eq("id", threadId).eq("project_id", projectId).eq("purpose", "consult").maybeSingle();
   if (!data) return null;
-  return { id: data.id, messages: await loadConsultHistory(supabase, data.id) };
+  const messages = await loadConsultHistory(supabase, data.id);
+  const first = messages[0];
+  return { id: data.id, messages, topic: first?.role === "user" && first.content.kind === "start" ? first.content.topic : null };
 }

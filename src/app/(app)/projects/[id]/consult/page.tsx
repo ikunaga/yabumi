@@ -8,11 +8,15 @@ import { SuccessBanner } from "@/components/ui/feedback";
 import { aiConfigured } from "@/lib/ai/anthropic";
 import { isConsultTopic } from "@/lib/ai/consult";
 import { getConsultThread, listConsultThreads } from "@/lib/ai/consult-queries";
+import { consultTopicMeta } from "@/lib/ai/consult-topics";
 import { getProject } from "@/lib/projects/queries";
 import { formatShort } from "@/lib/time";
 import { isUuid } from "@/lib/uuid";
 
-export const metadata: Metadata = { title: "AI と相談" };
+export async function generateMetadata(props: PageProps<"/projects/[id]/consult">): Promise<Metadata> {
+  const sp = await props.searchParams;
+  return { title: consultTopicMeta(typeof sp.start === "string" ? sp.start : null)?.entry?.title ?? "AI と相談" };
+}
 
 // AI と相談（F09、docs/architecture.md の 4.23）。?thread= で過去の会話、?start= でよくある相談から始める
 export default async function ConsultPage(props: PageProps<"/projects/[id]/consult">) {
@@ -35,14 +39,30 @@ export default async function ConsultPage(props: PageProps<"/projects/[id]/consu
   const threadParam = typeof sp.thread === "string" && isUuid(sp.thread) ? sp.thread : null;
   const [threads, thread] = await Promise.all([listConsultThreads(id), threadParam ? getConsultThread(id, threadParam) : Promise.resolve(null)]);
   const topic = !thread && isConsultTopic(sp.start) ? sp.start : null;
+  // ロードマップ・指標から始めた相談は、その入口の見出しと戻り先を出す（会話が続いて ?thread= になっても同じ）。
+  // サイドバーは「AI と相談」のまま（URL が ?thread= に変わっても選択が動かないように。スマホの下のタブにはロードマップがない）
+  const entry = consultTopicMeta(thread ? thread.topic : topic)?.entry ?? null;
 
   return (
     <div className="flex max-w-[880px] flex-col gap-5 max-sm:gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-col gap-1.5">
-          <h1 className="font-heading text-3xl font-bold max-sm:text-2xl">AI と相談</h1>
-          {/* 会話がないときは、下の入口のカードに同じ説明がある */}
-          {thread && <p className="text-[14px] leading-[1.8] text-muted">運用の悩みを、アカウント設計・最近の投稿・数字・ロードマップをふまえて相談できます。</p>}
+          {entry ? (
+            <>
+              <Link href={`/projects/${id}/${entry.back.path}`} className="self-start text-[14px] font-semibold text-primary hover:underline">
+                ← {entry.back.label}
+              </Link>
+              <p className="text-xs font-semibold text-muted">AI と相談</p>
+              <h1 className="font-heading text-3xl font-bold max-sm:text-2xl">{entry.title}</h1>
+              <p className="text-[14px] leading-[1.8] text-muted">{entry.lead}</p>
+            </>
+          ) : (
+            <>
+              <h1 className="font-heading text-3xl font-bold max-sm:text-2xl">AI と相談</h1>
+              {/* 会話がないときは、下の入口のカードに同じ説明がある */}
+              {thread && <p className="text-[14px] leading-[1.8] text-muted">運用の悩みを、アカウント設計・最近の投稿・数字・ロードマップをふまえて相談できます。</p>}
+            </>
+          )}
         </div>
         {thread && (
           <Link href={`/projects/${id}/consult`} className="text-[14px] font-semibold text-primary hover:underline">

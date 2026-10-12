@@ -8,6 +8,7 @@ import { Term } from "@/components/ui/term";
 import { sendConsultMessage } from "@/lib/ai/consult-actions";
 import type { ConsultAssistantContent, ConsultMessage, ConsultTopic } from "@/lib/ai/consult";
 import type { ConsultAction } from "@/lib/ai/consult-schema";
+import { CONSULT_TOPIC_META } from "@/lib/ai/consult-topics";
 import { sectionLabel } from "@/lib/ai/plan-coach-prompt";
 import { KPIS } from "@/lib/metrics/kpis";
 import { describeSection } from "@/lib/plan/describe";
@@ -16,13 +17,7 @@ import { SNS } from "@/lib/sns";
 
 type Input = { kind: "start"; topic: ConsultTopic } | { kind: "text"; text: string } | { kind: "adopt"; messageId: string; actionIndex: number };
 
-const TOPIC_BUTTONS: { topic: ConsultTopic; label: string }[] = [
-  { topic: "what_to_post", label: "何を投稿すればいい？" },
-  { topic: "no_reaction", label: "投稿しても反応がない" },
-  { topic: "which_sns", label: "どの SNS に力を入れる？" },
-  { topic: "roadmap", label: "目標とロードマップを一緒に決めたい" },
-  { topic: "review", label: "最近の数字を振り返りたい" },
-];
+const TOPIC_BUTTONS = (Object.keys(CONSULT_TOPIC_META) as ConsultTopic[]).map((topic) => ({ topic, label: CONSULT_TOPIC_META[topic].button }));
 
 const KIND_LABEL: Record<ConsultAction["kind"], ReactNode> = {
   plan_section: "アカウント設計の直し",
@@ -59,7 +54,8 @@ export function ConsultChat({
 
   function send(input: Input) {
     setError(null);
-    setSentText(input.kind === "text" ? input.text : null);
+    // 返事を待つ間も、何を頼んだかが見えるように、利用者の発言を先に吹き出しで出す（入口のボタンから始めたときも）
+    setSentText(input.kind === "text" ? input.text : input.kind === "start" ? CONSULT_TOPIC_META[input.topic].button : null);
     startTransition(async () => {
       const res = await sendConsultMessage(projectId, input.kind === "start" ? null : threadId, input);
       if (res.redirect) {
@@ -189,7 +185,7 @@ function UserBubble({ message }: { message: Extract<ConsultMessage, { role: "use
   if (c.kind === "adopt") {
     return <li className="text-center text-sm text-success">✓ 提案「{c.title}」を採用しました（{KIND_LABEL[c.actionKind]}）</li>;
   }
-  const text = c.kind === "text" ? c.text : TOPIC_BUTTONS.find((t) => t.topic === c.topic)?.label ?? "";
+  const text = c.kind === "text" ? c.text : (CONSULT_TOPIC_META[c.topic]?.button ?? "");
   return (
     <li className="flex justify-end">
       <p className="max-w-[80%] rounded-lg bg-primary-soft px-4 py-2.5 text-[14px] leading-[1.7] whitespace-pre-wrap">{text}</p>

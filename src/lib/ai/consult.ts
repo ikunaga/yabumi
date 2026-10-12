@@ -8,6 +8,7 @@ import { isManualSns, isSnsKey, SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
 import type { Database } from "@/lib/supabase/database.types";
 import { addDays, toYmd } from "@/lib/time";
 import { checkAiLimits, type AiLimits } from "./limits";
+import type { ConsultTopicKey } from "./consult-topics";
 import { normalizeConsultTurn, toWireConsultTurn, type ConsultAction, type ConsultTurn } from "./consult-schema";
 import { CONSULT_SYSTEM, consultContextMessage, type ConsultContext } from "./consult-prompt";
 import { MAX_TURNS_PER_THREAD, MAX_USER_TEXT, type BetaMessageParam, type BetaTextBlockParam, type CallModel, type ModelRequest, type ModelResult } from "./plan-coach";
@@ -26,11 +27,12 @@ export const CONSULT_TOPICS = {
   roadmap: "最終の目標（KGI）と、週ごとのやること（ロードマップ）を一緒に決めたいです。",
   // 指標の画面の「AI と振り返る」から（4.22 の段取り ⑦）。この会話だけ、数字をくわしく「いまの状況」に足す
   review: "最近の数字を振り返って、よかった点と次の一手を教えてください。",
-} as const;
+  // 入口ごとの名前と見出しは consult-topics.ts（同じ入口が両方にあることを型で確かめる）
+} as const satisfies Record<ConsultTopicKey, string>;
 export type ConsultTopic = keyof typeof CONSULT_TOPICS;
 
 export function isConsultTopic(v: unknown): v is ConsultTopic {
-  return typeof v === "string" && v in CONSULT_TOPICS;
+  return typeof v === "string" && Object.hasOwn(CONSULT_TOPICS, v);
 }
 
 export type ConsultUserContent =

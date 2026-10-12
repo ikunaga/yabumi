@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { defaultLinkDomainDeps, drainLinkDomainRemovals } from "@/lib/links/domains";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { parseProjectForm, toFieldErrors, type ProjectFieldErrors } from "./schema";
 
@@ -68,6 +70,10 @@ export async function deleteProject(id: string): Promise<{ error?: string }> {
   const supabase = await createClient();
   const { error } = await supabase.from("projects").delete().eq("id", id);
   if (error) return { error: "プロジェクトを削除できませんでした。時間をおいて、もう一度お試しください。" };
+  // 短縮リンクの利用者のドメインがあれば、Vercel から外す（DB のトリガーが外す列に積んでいる。外せなければ次の機会にやり直す。D28）
+  await drainLinkDomainRemovals(createAdminClient(), defaultLinkDomainDeps()).catch((e) =>
+    console.error("[deleteProject] 利用者のドメインを Vercel から外せませんでした", e instanceof Error ? e.message : e),
+  );
 
   revalidatePath("/projects");
   redirect("/projects");

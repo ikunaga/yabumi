@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isManualSns, type SnsKey } from "@/lib/sns";
 import type { Database } from "@/lib/supabase/database.types";
+import { projectLinkBase } from "./domains";
 import { CODE_PATTERN, findLinkableUrls, generateCode, shortLinkUrl, substituteLinks, substitutesBodyLinks, withTrackingParams, type Device, type Excluded } from "./rules";
 
 // 短縮リンクの作成・転送・記録（docs/architecture.md の 4.22、決定 D20）。admin は RLS を通らないクライアント。
@@ -43,6 +44,9 @@ export async function createShortLink(
   input: { ownerId: string; projectId: string; destinationUrl: string; sns: SnsKey | null; kind: LinkKind; postTargetId?: string | null; label?: string },
 ): Promise<{ id: string; code: string }> {
   if (!isValidDestination(input.destinationUrl)) throw new LinkError("リンクの行き先は https:// で始まる URL にしてください（IP アドレスそのものや、矢書の URL は使えません）。");
+  // 利用者の短縮リンクのドメイン（D28）へのリンクも、矢書の URL と同じく入れ子になるので作らない
+  const { data: own } = await admin.from("link_domains").select("id").eq("domain", new URL(input.destinationUrl).hostname.replace(/\.+$/, "")).limit(1);
+  if (own?.length) throw new LinkError("短縮リンクのドメインへのリンクは作れません。行き先には、ストアなどのページの URL を入れてください。");
   for (let i = 0; i < 5; i++) {
     const code = generateCode();
     const { data, error } = await admin
@@ -66,14 +70,14 @@ export async function createShortLink(
   throw new Error("短縮リンクのコードを作れませんでした");
 }
 
-export type ResolvedLink = { id: string; target: string; disabled: boolean };
+export type ResolvedLink = { id: string; projectId: string; target: string; disabled: boolean };
 
 // コードから転送先を引く（行き先に、SNS・リンクの印と App Store の pt を付ける）
 export async function resolveLink(admin: Admin, code: string): Promise<ResolvedLink | null> {
   if (!CODE_PATTERN.test(code)) return null;
   const { data, error } = await admin
     .from("short_links")
-    .select("id, code, destination_url, sns, disabled_at, projects(app_store_provider_token)")
+    .select("id, code, project_id, destination_url, sns, disabled_at, projects(app_store_provider_token)")
     .eq("code", code)
     .maybeSingle();
   if (error) throw error;
@@ -81,6 +85,7 @@ export async function resolveLink(admin: Admin, code: string): Promise<ResolvedL
   const project = data.projects as unknown as { app_store_provider_token: string | null } | null;
   return {
     id: data.id,
+    projectId: data.project_id,
     disabled: Boolean(data.disabled_at),
     target: withTrackingParams(data.destination_url, {
       sns: (data.sns as SnsKey | null) ?? null,
@@ -123,11 +128,12 @@ export async function ensurePostLinks(
     .eq("post_target_id", input.postTargetId)
     .in("destination_url", urls);
   if (error) throw error;
-  for (const row of existing ?? []) result.set(row.destination_url, shortLinkUrl(row.code));
+  const base = await projectLinkBase(admin, input.projectId);
+  for (const row of existing ?? []) result.set(row.destination_url, shortLinkUrl(row.code, base));
   for (const url of urls) {
     if (result.has(url)) continue;
     const link = await createShortLink(admin, { ownerId: input.ownerId, projectId: input.projectId, destinationUrl: url, sns: input.sns, kind: "post", postTargetId: input.postTargetId });
-    result.set(url, shortLinkUrl(link.code));
+    result.set(url, shortLinkUrl(link.code, base));
   }
   return result;
 }
@@ -139,12 +145,15 @@ export async function substituteForTarget(admin: Admin, postTargetId: string, sn
   if (!urls.length) return text;
   const { data, error } = await admin
     .from("short_links")
-    .select("code, destination_url")
+    .select("code, destination_url, project_id")
     .eq("post_target_id", postTargetId)
     .is("disabled_at", null)
     .in("destination_url", urls);
   if (error) throw error;
-  return substituteLinks(text, new Map((data ?? []).map((r) => [r.destination_url, shortLinkUrl(r.code)])));
+  if (!data?.length) return text;
+  // 送る時点でつながっている利用者のドメイン（D28）で置き換える
+  const base = await projectLinkBase(admin, data[0].project_id);
+  return substituteLinks(text, new Map(data.map((r) => [r.destination_url, shortLinkUrl(r.code, base)])));
 }
 
 // 投稿を保存したときに、送る前の配信先（送信待ち）の本文の URL に短縮リンクを用意する。
@@ -174,15 +183,17 @@ export type PostLinkPreview = Partial<Record<SnsKey, { destination: string; url:
 export async function postLinkPreview(db: SupabaseClient<Database>, postId: string): Promise<PostLinkPreview> {
   const { data, error } = await db
     .from("short_links")
-    .select("code, destination_url, disabled_at, post_targets!inner(post_id, sns)")
+    .select("code, destination_url, disabled_at, project_id, post_targets!inner(post_id, sns)")
     .eq("post_targets.post_id", postId)
     .limit(100);
   if (error) throw error;
   const result: PostLinkPreview = {};
-  for (const row of data ?? []) {
+  if (!data?.length) return result;
+  const base = await projectLinkBase(db, data[0].project_id);
+  for (const row of data) {
     if (row.disabled_at) continue;
     const sns = (row.post_targets as unknown as { sns: SnsKey }).sns;
-    (result[sns] ??= []).push({ destination: row.destination_url, url: shortLinkUrl(row.code) });
+    (result[sns] ??= []).push({ destination: row.destination_url, url: shortLinkUrl(row.code, base) });
   }
   return result;
 }

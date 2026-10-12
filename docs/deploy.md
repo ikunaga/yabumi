@@ -68,6 +68,9 @@
 | X_POST_USER_MONTHLY_USD | 入れなければ $1（利用者 1 人の、X の投稿まわりの月の上限。docs/architecture.md の 4.13）。料金プランが決まったら変える | いいえ |
 | NEXT_PUBLIC_TURNSTILE_SITE_KEY | 5-8 の Turnstile の Site Key（登録の受付を開く前に入れる） | いいえ（画面にも出る値） |
 | META_APP_ID / FACEBOOK_LOGIN_CONFIG_ID / INSTAGRAM_APP_ID | 12 の Instagram・Facebook 用の Meta アプリの値 | いいえ |
+| VERCEL_API_TOKEN | 17 の Vercel のトークン（利用者のドメインで短縮リンクを作るとき。なければ画面は「準備中」） | **はい** |
+| VERCEL_PROJECT_ID / VERCEL_TEAM_ID | 17 の矢書の Vercel のプロジェクトとチームの ID | いいえ |
+| LINK_DOMAIN_LIMIT | 入れなければ 40（利用者のドメインの、矢書全体の上限。Vercel Hobby の 50 から矢書の分を除いた数）。Pro にしたら上げる | いいえ |
 | META_APP_SECRET / INSTAGRAM_APP_SECRET | 同上 | **はい** |
 | GITHUB_APP_ID / GITHUB_APP_SLUG / GITHUB_APP_CLIENT_ID | 6-2 で作る本番用の App の値 | いいえ |
 | GITHUB_APP_CLIENT_SECRET | 同上 | **はい** |
@@ -390,3 +393,19 @@ Threads・Instagram・Facebook の数字を読む権限は、Meta のアプリ�
 | 16-2 | オーナー | 矢書の「閲覧数のレポートを依頼する」に、Issuer ID・この Admin のキーの Key ID・.p8 を入れて押す →「レポートの依頼を作りました」。**矢書はこのキーを保存しない** |
 | 16-3 | オーナー | 16-1 の Admin のキーを App Store Connect で「取り消す」（もう要らない） |
 | 16-4 | 確認 | 1〜2 日後から、毎日 3 時台の取り込みで「指標」の「ストアのページの閲覧」に App Store の分が出る。出ないとき（「要確認」と理由）は、Sales and Reports のキーでレポートを読めない可能性がある【未確認】。そのときは PM に知らせる |
+
+## 17. 短縮リンクを利用者のドメインで作る（Vercel の API のトークン。D28）
+
+利用者が「短縮リンク」の画面で自分のドメイン（例 go.example.com）を入れると、矢書が Vercel の API でそのドメインを矢書の Vercel のプロジェクトに足す（docs/architecture.md の 4.22）。そのためのトークンを運営者が用意する。入れるまでは、画面のボタンは「準備中」のまま。
+
+| # | 誰が | やること |
+|---|---|---|
+| 17-1 | オーナー | Vercel → 右上のアイコン → Account Settings → **Tokens** → Create Token。名前 `yabumi-link-domains`、Scope は矢書のプロジェクトがあるチーム（Hobby なら自分のチーム）、Expiration は 1 年（切れる前に作り直す。カレンダーに入れておく）。出た値を控える（あとから見られない） |
+| 17-2 | オーナー | 矢書の Vercel のプロジェクト → Settings → General の **Project ID**（`prj_` で始まる）と、チームの Settings → General の **Team ID**（`team_` で始まる）を控える |
+| 17-3 | オーナー | Vercel → 矢書のプロジェクト → Settings → Environment Variables に `VERCEL_API_TOKEN`（**Sensitive**）、`VERCEL_PROJECT_ID`、`VERCEL_TEAM_ID` を足し（Environment は Production だけ。プレビューから本番のドメインを触らないように）、Redeploy |
+| 17-4 | 確かめ | 「短縮リンク」の画面の「自分のドメインで作る（任意）」の「設定する」が押せる。オーナーの持っているドメインで go.<ドメイン> を足し、DNS に出た CNAME を入れて「確かめる」→「つながりました」。そのドメインの短縮リンクを押すとストアが開き、`https://go.<ドメイン>/login` は「このアドレスは短縮リンク用です。」になる。Vercel の Domains にそのドメインが並んでいる |
+| 17-5 | 確かめ | 「このドメインを外す」で、Vercel の Domains からそのドメインが消える |
+
+- **上限**: Vercel Hobby は 1 プロジェクトにドメイン 50 まで（矢書の yabumi.app・www・go・vercel.app を含む）。利用者の分は `LINK_DOMAIN_LIMIT`（既定 40）まで。32 に達すると `OPERATOR_EMAIL` に「短縮リンクの利用者のドメインが上限に近づいています」が届く（7 日に 1 回）。そのときは Pro にして `LINK_DOMAIN_LIMIT` を上げるかを決める。なお Hobby は個人・非商用のみ（9 の費用の表）なので、他の人に提供する時点で Pro になる見込み
+- **外せなかったドメイン**: 「利用者のドメインを Vercel から外せません」のメールが届いたら、Supabase の SQL Editor で `select * from link_domain_removals order by created_at;` を見て、Vercel → Project → Settings → Domains から手で外し、その行を消す
+- **トークンが漏れた疑い**: 17-1 で作り直して入れ替え、古いトークンを Tokens の画面で消す

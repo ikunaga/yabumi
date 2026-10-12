@@ -91,15 +91,15 @@ describe("本文の URL の置き換え", () => {
 
 describe("短縮リンクのホストとパス", () => {
   const base = "https://go.yabumi.app";
-  it("go.yabumi.app/<code> は /go/<code> に回す。/ だけなら矢書のトップへ", () => {
-    const r = shortLinkRoute(new URL("https://go.yabumi.app/Ab3dE5fG?x=1"), base, "https://yabumi.app");
-    expect(r).toMatchObject({ type: "rewrite" });
-    expect((r as { url: URL }).url.pathname).toBe("/go/Ab3dE5fG");
+  it("go.yabumi.app/<code> は転送の処理（/go/<code>/_）に回す。/ だけなら矢書のトップへ", () => {
+    expect(shortLinkRoute(new URL("https://go.yabumi.app/Ab3dE5fG?x=1"), base, "https://yabumi.app")).toEqual({ type: "rewrite", pathname: "/go/Ab3dE5fG/_" });
     expect(shortLinkRoute(new URL("https://go.yabumi.app/"), base, "https://yabumi.app")).toEqual({ type: "redirect", url: new URL("https://yabumi.app") });
   });
 
-  it("どのホストでも /go/ はそのまま通す（独自ドメインへの転送やログインの確認を飛ばす）。ほかは関わらない", () => {
-    expect(shortLinkRoute(new URL("https://yabumi-xxxx.vercel.app/go/Ab3dE5fG"), base, "https://yabumi.app")).toEqual({ type: "pass" });
+  it("どのホストでも /go/<code> は転送の処理に回す（独自ドメインへの転送やログインの確認を飛ばす）。ほかは関わらない", () => {
+    expect(shortLinkRoute(new URL("https://yabumi-xxxx.vercel.app/go/Ab3dE5fG"), base, "https://yabumi.app")).toEqual({ type: "rewrite", pathname: "/go/Ab3dE5fG/_" });
+    // 開いたホストは外から入れられない（最後の部分は proxy が付け直す）
+    expect(shortLinkRoute(new URL("https://yabumi.app/go/Ab3dE5fG/go.example.com"), base, "https://yabumi.app")).toEqual({ type: "rewrite", pathname: "/go/Ab3dE5fG/_" });
     expect(shortLinkRoute(new URL("https://yabumi.app/projects"), base, "https://yabumi.app")).toBeNull();
     expect(shortLinkRoute(new URL("https://yabumi.app/projects"), undefined, "https://yabumi.app")).toBeNull();
   });

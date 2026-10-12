@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createAppJwt } from "@/lib/github/app-auth";
 import { deleteInstallation } from "@/lib/github/api";
 import { githubConfig, githubConfigured } from "@/lib/github/config";
+import { defaultLinkDomainDeps } from "@/lib/links/domains";
 import { revokeDeps } from "@/lib/sns/adapters";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -49,6 +50,7 @@ export async function withdraw(_prev: WithdrawState, formData: FormData): Promis
             await deleteInstallation(createAppJwt(cfg.appId, cfg.privateKey), id);
           }
         : undefined,
+      linkDomains: defaultLinkDomainDeps(),
     });
     console.info("[withdraw] 退会しました", JSON.stringify({ sns: report.sns, github: report.github.map((g) => g.result) }));
   } catch (e) {

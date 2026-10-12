@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { alertIfNearBudget, budgetAlertKey, budgetAlertMail } from "@/lib/notify/budget";
 import { notifyOperator, notifyOperatorOnce, RESEND_API_URL } from "@/lib/notify/operator";
 import { checkPlayCapacity, playCapacityMail, playCapacityThresholds } from "@/lib/stores/play-store";
+import { holdLockDuringFile } from "./helpers/lock";
 import { adminClient, anonClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
 
 const admin = adminClient();
@@ -17,6 +18,9 @@ let alice: TestClient;
 let aliceId: string;
 // 作成数を 1 以上にするための記録（数えるだけなので、存在しない利用者の ID でよい）
 const filler = randomUUID();
+
+// Google Play の全員の作成の数（checkPlayCapacity）と、全員で 1 つの知らせの記録（play_capacity:*）を見るので、play のテストと 1 つずつ流す
+holdLockDuringFile("play-global");
 
 beforeAll(async () => {
   ({ client: alice, userId: aliceId } = await signUpNewUser());

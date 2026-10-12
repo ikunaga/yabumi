@@ -35,12 +35,13 @@ async function publishedTarget(sns: "threads" | "instagram" | "x", accountId: st
     p_targets: [{ sns, social_account_id: accountId }],
   });
   if (error) throw error;
-  const { data } = await admin
+  const { data, error: updateError } = await admin
     .from("post_targets")
     .update({ status: "published", published_at: publishedAt, external_post_id: `ext-${randomUUID()}` })
     .eq("post_id", postId!)
     .select("id")
     .single();
+  if (updateError) throw updateError;
   return { postId: postId!, targetId: data!.id };
 }
 

@@ -147,6 +147,22 @@ select vault.create_secret('<.env.local の CRON_SECRET>', 'cron_secret');
 - 利用者はテストのファイルごとに作り、ファイルの中で使い回す（beforeAll で作り、afterAll で deleteUser）。テストごとに作らない
 - 時間切れや「An invalid response was received from the upstream server」（502）で落ちたら、まず `YABUMI_TEST_WORKERS=2` で、落ちたファイルだけを流し直す（`pnpm vitest run tests/〜.test.ts`）。それで通るなら環境の混み具合のせいで、コードの問題ではない
 
+### 3 人が同時に流しても揺れないようにした仕組み（2026-10-12）
+
+3 人（3 つのセッション）が同時に全体を流すと、毎回ちがう場所で落ちていた。全体を何回も流して落ちたテストとエラーの文を集めたところ、原因は次の 3 つだった。
+
+| 原因 | 落ちていた例 | 対策 |
+|---|---|---|
+| 片付けの漏れで、矢書全体の上限に届いていた | play の 7 件が「Google Play のつなぎが混み合っていて」。play_account_creations が、消したテストの利用者の分だけで全員の上限（直近 30 日に 80）に届いていた（退会しても 30 日残る決まりのため、流すたびに積もった） | deleteUser で作成の記録も消す。溜まっていた 80 行はローカルだけで消した（下の掃除の SQL） |
+| 矢書全体の状態を一時的に変える・全体をまとめて処理するテストが、ほかのセッションの同じテストとぶつかる | link-domains（全体のドメインの上限、外す途中のドメインの処理、見回り）、play と operator-notify（全員の上限を 80 まで埋める、全員で 1 つの知らせの記録） | 同じマシンの中で、同じ名前のロックを持つファイルは 1 つずつ流す（tests/helpers/lock.ts の holdLockDuringFile。play-global と link-domains-global）。外す途中のドメインの処理は、テストではそのテストのドメインに絞る（drainLinkDomainRemovals の onlyDomains） |
+| ローカルの Supabase の入り口（Kong）の 502 | 「An invalid response was received from the upstream server」が毎回ちがうテストで。Kong のログは `upstream prematurely closed connection`。PostgREST は落ちておらず、CPU も余っていた。PostgREST（warp）が空いた接続を 30 秒ほどで閉じ、Kong が 60 秒まで使い回すため、閉じたばかりの接続に送ってしまう（負荷とは関係なく、まれに起きる） | テストのクライアント（tests/helpers/supabase.ts）は、502 のときだけ少し待って 2 回まで送り直す。届く前に切れているので、送り直しても二重にならない（送り直せない本文のときは送り直さない） |
+
+- あわせて、同じマシン全体で同時に DB に問い合わせる結合テストのファイルを 4 つまでにした（tests/helpers/supabase.ts を読み込んだファイルは、最初に席を取る。`YABUMI_TEST_DB_SLOTS` で変えられる）。3 人で 9 ファイルが並ぶと、認証サーバーと DB が詰まって時間切れが起きやすいため
+- ロックと席は、OS の一時フォルダの `yabumi-test-locks/` にディレクトリで作り、中に持ち主のプロセスの番号を書く。持ち主のプロセスがもういない、または 5 分を過ぎたものは、残ったものとみなして取り直す（テストが途中で落ちても残らない）。どうしても止まったら、そのフォルダを消してよい
+- テストの作りの直し: 並び順を決めずに比べていた（plan-coach の利用量。`order("id")` を付けた）、決まった宛先の URL を使っていて一意の制約にぶつかった（push）、更新のエラーを捨てていた（sns-metrics。原因がわかるように投げる）
+- 結果（2026-10-12）: 直す前は、3 つを同時に 4 回流して 12 回中 11 回落ちた。直したあとは、3 つを同時に 10 回流して 30 回すべて通った（その間に Kong の 502 が 9 回あったが、送り直しで通った）。1 人で流すと 9〜10 秒、3 人で同時だと 1 回 30 秒ほど
+- 新しいテストを書くとき: 矢書全体の数や上限を一時的に変えるテストは holdLockDuringFile でロックを取る。全体をまとめて処理する関数は、テストの利用者やデータに絞る引数を足して呼ぶ。後片付けで、退会しても残る決まりの記録も消す
+
 結合テストが使うローカルの Supabase は、同じマシンの他の作業（別のセッションのテスト、開発サーバー）と共有で、オーナーが登録した本物のデータ（SNS の接続など）も入っている。そのため:
 
 - テストの利用者は、テストのファイルごとに新しく作る（tests/helpers/supabase.ts の signUpNewUser）。他のファイルと使い回さない
@@ -161,6 +177,17 @@ select vault.create_secret('<.env.local の CRON_SECRET>', 'cron_secret');
 begin;
 delete from public.ai_usage where owner_id is null;
 delete from public.sns_api_usage where owner_id is null;
+commit;
+```
+
+Google Play の「混み合っていて」がテストで出るとき（全員の上限 80 に、消したテストの利用者の作成の記録が溜まったとき）も、ローカルの DB だけで次を流す。**本番では絶対に流さない**（本番の記録は、退会と登録のし直しで上限を何人分も使われないためのもの）。流す前に、一緒に作業している人（PM）に知らせ、前後の行数を控える（2026-10-12 に 80 行を消した。いまいる利用者の行は 0 のまま変わらなかった）。
+
+```sql
+-- ローカル専用。いまいる利用者の行には触らない
+begin;
+select count(*) as total, count(*) filter (where exists (select 1 from auth.users u where u.id = pac.owner_id)) as live from public.play_account_creations pac;
+delete from public.play_account_creations pac where not exists (select 1 from auth.users u where u.id = pac.owner_id);
+select count(*) as total, count(*) filter (where exists (select 1 from auth.users u where u.id = pac.owner_id)) as live from public.play_account_creations pac;
 commit;
 ```
 

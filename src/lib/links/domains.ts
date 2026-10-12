@@ -278,9 +278,12 @@ export async function removeLinkDomain(admin: Admin, input: { ownerId: string; p
 
 // 外す途中のドメインを Vercel から外す（外す・プロジェクトの削除・退会で DB のトリガーが積んだもの）。
 // 外せなかったものは残し、次の機会にやり直す。5 回続けて外せなければ運営者に知らせる
-export async function drainLinkDomainRemovals(admin: Admin, deps: LinkDomainDeps, max = 20): Promise<number> {
+// onlyDomains: テスト用。外すドメインを絞る（共有のローカル DB で、ほかのテストが積んだものに触らない）
+export async function drainLinkDomainRemovals(admin: Admin, deps: LinkDomainDeps, max = 20, onlyDomains?: string[]): Promise<number> {
   if (!deps.vercel) return 0;
-  const { data, error } = await admin.from("link_domain_removals").select("domain, attempts").order("created_at").limit(max);
+  let query = admin.from("link_domain_removals").select("domain, attempts").order("created_at").limit(max);
+  if (onlyDomains) query = query.in("domain", onlyDomains);
+  const { data, error } = await query;
   if (error) throw error;
   let removed = 0;
   for (const r of data ?? []) {

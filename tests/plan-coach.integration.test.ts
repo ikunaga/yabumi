@@ -203,10 +203,10 @@ describe("AI まわりのテーブルの RLS", () => {
   });
 
   it("本人でも、利用量を消したり書き換えたりできない（上限をすり抜けられない）", async () => {
-    const before = (await alice.from("ai_usage").select("id, cost_usd")).data!;
+    const before = (await alice.from("ai_usage").select("id, cost_usd").order("id")).data!;
     await alice.from("ai_usage").delete().eq("owner_id", aliceId);
     await alice.from("ai_usage").update({ cost_usd: 0 }).eq("owner_id", aliceId);
-    const after = (await alice.from("ai_usage").select("id, cost_usd")).data!;
+    const after = (await alice.from("ai_usage").select("id, cost_usd").order("id")).data!;
     expect(after).toEqual(before);
   });
 

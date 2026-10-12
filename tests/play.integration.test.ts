@@ -5,6 +5,7 @@ import { gzipSync } from "node:zlib";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { cleanupOrphanServiceAccounts, importAppStoreViews, removePlay, runPlayAndViewsImports, startAppStoreViews, startPlayConnection, verifyPlay } from "@/lib/stores/play-store";
 import { saveCredential } from "@/lib/stores/store";
+import { holdLockDuringFile } from "./helpers/lock";
 import { anonClient, adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
 
 const admin = adminClient();
@@ -64,6 +65,9 @@ let bob: TestClient;
 let aliceId: string;
 let bobId: string;
 let projectId: string;
+
+// 全員の上限（直近 30 日に 80）を一時的に埋めるテストがあるので、同じマシンで全員の数を見るテスト（ほかのセッションの分も）は 1 つずつ流す
+holdLockDuringFile("play-global");
 
 beforeAll(async () => {
   ({ client: alice, userId: aliceId } = await signUpNewUser());
@@ -155,7 +159,8 @@ describe("つなげる数の上限", () => {
       await expect(startPlayConnection(admin, userId, projects[0], deps)).rejects.toMatchObject({ userMessage: expect.stringMatching(/30 日に 5 回/) });
       // 退会して作り直しても、作った回数は 30 日残る（数え直しにならない）
       const { count } = await admin.from("play_account_creations").select("id", { count: "exact", head: true }).eq("owner_id", userId);
-      await deleteUser(userId);
+      // deleteUser は作成の記録も消すので、ここでは利用者だけを消す
+      await admin.auth.admin.deleteUser(userId);
       expect((await admin.from("play_account_creations").select("id", { count: "exact", head: true }).eq("owner_id", userId)).count).toBe(count);
       await admin.from("play_account_creations").delete().eq("owner_id", userId);
     } finally {

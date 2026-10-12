@@ -32,7 +32,10 @@ export async function registerDevice(admin: Db, userId: string, sub: Subscriptio
     )
     .select("id")
     .single();
-  if (error || !data) return { ok: false, message: "登録できませんでした。時間をおいてもう一度お試しください。" };
+  if (error || !data) {
+    console.error("[push] 端末を登録できませんでした", error?.code, error?.message);
+    return { ok: false, message: "登録できませんでした。時間をおいてもう一度お試しください。" };
+  }
 
   const { data: all } = await admin.from("push_subscriptions").select("id").eq("user_id", userId).order("created_at", { ascending: false });
   const extra = (all ?? []).slice(MAX_DEVICES_PER_USER).map((r) => r.id);

@@ -18,6 +18,7 @@ import { shortLinkBase } from "@/lib/links/rules";
 import { createShortLink, ensurePostLinks, resolveLink } from "@/lib/links/store";
 import type { ProjectDomain, VercelDomains } from "@/lib/links/vercel";
 import { VercelApiError } from "@/lib/links/vercel";
+import { holdLockDuringFile } from "./helpers/lock";
 import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
 
 const admin = adminClient();
@@ -91,6 +92,10 @@ let aliceId: string;
 let bobId: string;
 let aliceProject: string;
 let bobProject: string;
+
+// 矢書全体の上限（利用者のドメインの数）と、全員の分をまとめて見る見回り（期限切れ・DNS の確かめ直し）を流すので、
+// 同じマシンの link-domains のテスト（ほかのセッションの分も）は 1 つずつ流す
+holdLockDuringFile("link-domains-global");
 
 beforeAll(async () => {
   ({ client: alice, userId: aliceId } = await signUpNewUser());
@@ -272,11 +277,11 @@ describe("利用者のドメイン", () => {
     // 外す途中のドメインは、ほかの人も使えない
     expect(await addLinkDomain(admin, { ownerId: bobId, projectId: bobProject, domain: d2 }, { ...deps, vercel: { ...vercel, remove: async () => Promise.reject(new Error("x")) } })).toMatchObject({ ok: false });
     state.failRemove = true;
-    await drainLinkDomainRemovals(admin, deps);
+    await drainLinkDomainRemovals(admin, deps, 20, [d2]);
     const left = (await admin.from("link_domain_removals").select("attempts").eq("domain", d2).single()).data!;
     expect(left.attempts).toBeGreaterThanOrEqual(1);
     state.failRemove = false;
-    await drainLinkDomainRemovals(admin, deps);
+    await drainLinkDomainRemovals(admin, deps, 20, [d2]);
     expect(state.removed).toContain(d2);
     expect((await admin.from("link_domain_removals").select("domain").eq("domain", d2)).data).toEqual([]);
     await admin.from("link_domain_attempts").delete().in("owner_id", [aliceId, bobId]);

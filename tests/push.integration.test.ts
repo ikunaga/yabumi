@@ -201,7 +201,7 @@ describe("送る", () => {
   it("DB に許可していないホストが入っていたら、送らずに消す", async () => {
     const { data } = await admin
       .from("push_subscriptions")
-      .insert({ user_id: aliceId, endpoint: "https://evil.example/x", p256dh: "k".repeat(87), auth: "a".repeat(22) })
+      .insert({ user_id: aliceId, endpoint: `https://evil.example/${randomBytes(8).toString("hex")}`, p256dh: "k".repeat(87), auth: "a".repeat(22) })
       .select("id")
       .single();
     const { sender, calls } = mockSender();

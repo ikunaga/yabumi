@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { usePathname, useSelectedLayoutSegment } from "next/navigation";
 import { useEffect, useRef } from "react";
+import { QuickNote } from "@/components/notes/quick-note";
 import { DismissableDetails } from "@/components/ui/dismissable-details";
 import { logout } from "@/lib/auth/actions";
 import { activeNavKey, projectNavItems } from "./project-nav-items";
 
 // スマホのヘッダーの「メニュー」。下のタブに入らない画面（アカウント設計・リンク・ロードマップ）と、アカウント・ログアウトへの入口。
 // プロジェクトの切り替えとは役目が違うので分ける（切り替えはプロジェクト名、ここは画面の一覧）
-export function ProjectMobileMenu({ projectId, email }: { projectId: string; email: string }) {
+export function ProjectMobileMenu({ projectId, email, projects }: { projectId: string; email: string; projects: { id: string; name: string }[] }) {
   const active = activeNavKey(useSelectedLayoutSegment());
   const pathname = usePathname();
   const ref = useRef<HTMLDivElement>(null);
@@ -28,6 +29,9 @@ export function ProjectMobileMenu({ projectId, email }: { projectId: string; ema
         メニュー
       </summary>
       <div ref={ref} className="absolute right-0 z-20 mt-2 w-64 overflow-hidden rounded-lg border border-border bg-surface py-1 text-sm text-fg shadow-pop">
+        <div className="border-b border-line pb-1">
+          <QuickNote projects={projects} projectId={projectId} variant="menu" />
+        </div>
         <nav aria-label="プロジェクトのすべての画面">
           <ul>
             {items.map((item) =>

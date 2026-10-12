@@ -304,6 +304,54 @@ export type Database = {
         }
         Relationships: []
       }
+      idea_notes: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          owner_id: string
+          post_id: string | null
+          project_id: string
+          updated_at: string
+          used_at: string | null
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          id?: string
+          owner_id?: string
+          post_id?: string | null
+          project_id: string
+          updated_at?: string
+          used_at?: string | null
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          owner_id?: string
+          post_id?: string | null
+          project_id?: string
+          updated_at?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "idea_notes_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "idea_notes_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       link_click_daily: {
         Row: {
           clicks: number
@@ -433,6 +481,7 @@ export type Database = {
           created_at: string
           height: number
           id: string
+          note_id: string | null
           owner_id: string
           position: number
           post_id: string | null
@@ -446,6 +495,7 @@ export type Database = {
           created_at?: string
           height: number
           id?: string
+          note_id?: string | null
           owner_id: string
           position?: number
           post_id?: string | null
@@ -459,6 +509,7 @@ export type Database = {
           created_at?: string
           height?: number
           id?: string
+          note_id?: string | null
           owner_id?: string
           position?: number
           post_id?: string | null
@@ -468,6 +519,13 @@ export type Database = {
           width?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "media_files_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "idea_notes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "media_files_post_id_fkey"
             columns: ["post_id"]

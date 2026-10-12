@@ -7,9 +7,11 @@ import { Button, NotReadyButton } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { Input, Textarea } from "@/components/ui/field";
 import { adoptIdea, generateIdeas, refineIdeas } from "@/lib/ai/post-ideas-actions";
-import { IDEA_SOURCES, MAX_NEWS_CHARS, needsFillIn, type IdeaQuestion, type IdeaSource, type IdeasThread, type PostIdea } from "@/lib/ai/post-ideas";
+import { IDEA_SOURCES, MAX_NEWS_CHARS, needsFillIn, type IdeaNoteMaterial, type IdeaQuestion, type IdeaSource, type IdeasThread, type PostIdea } from "@/lib/ai/post-ideas";
 import { IDEA_PERIODS, type IdeaPeriod } from "@/lib/github/commit-reader";
+import { MAX_NOTES_FOR_IDEAS } from "@/lib/notes/rules";
 import { ISSUE_LABEL, SNS, checkTarget, type SnsKey } from "@/lib/sns";
+import { formatShort } from "@/lib/time";
 
 const PERIOD_LABEL: Record<IdeaPeriod, string> = { 3: "3 日", 7: "1 週間", 14: "2 週間", 30: "1 か月" };
 
@@ -30,6 +32,15 @@ const SOURCE_INFO: Record<IdeaSource, { title: string; summary: string; good: st
     good: "GitHub がなくても使える。自分の言葉なので、いちばん実感のこもった投稿になる",
     note: "どれか 1 つは答える必要がある（短くて大丈夫）",
     button: "このできごとからネタを出す",
+    working: "ネタを考えています…（20〜60 秒ほど）",
+    cost: "1 回あたり 10〜20 円ほど",
+  },
+  notes: {
+    title: "ネタ帳から",
+    summary: "ネタ帳に書き留めたメモを選ぶと、それを投稿の形に広げます。",
+    good: "生活の中で気づいたことが、そのまま実感のこもった投稿になる",
+    note: "メモに書いたことだけを使う。AI に送るのはメモの文だけで、写真は送らない（写真は下書きに添える）",
+    button: "選んだメモからネタを出す",
     working: "ネタを考えています…（20〜60 秒ほど）",
     cost: "1 回あたり 10〜20 円ほど",
   },
@@ -56,15 +67,19 @@ type Props = {
   defaultDays: IdeaPeriod;
   defaultSource: IdeaSource;
   newsQuestions: IdeaQuestion[];
+  // ネタ帳のまだ使っていないメモ（新しい順）と、ネタ帳の画面で選んできたメモ
+  notes: { id: string; body: string; hasImage: boolean; createdAt: string }[];
+  defaultNoteIds: string[];
   thread: IdeasThread | null;
 };
 
 // 材料（最近のコミット・最近のできごと・アカウント設計）から AI がネタを出し、利用者が質問に答えたり、ネタを選んで下書きにしたりする
-export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, snsOptions, maxSns, defaultSns, defaultDays, defaultSource, newsQuestions, thread }: Props) {
+export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, snsOptions, maxSns, defaultSns, defaultDays, defaultSource, newsQuestions, notes, defaultNoteIds, thread }: Props) {
   const [source, setSource] = useState<IdeaSource>(defaultSource);
   const [days, setDays] = useState<IdeaPeriod>(defaultDays);
   const [news, setNews] = useState<string[]>(() => newsQuestions.map(() => ""));
   const [sns, setSns] = useState<SnsKey[]>(defaultSns);
+  const [noteIds, setNoteIds] = useState<string[]>(defaultNoteIds);
   const [answers, setAnswers] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState<"generate" | "refine" | `adopt-${number}` | null>(null);
@@ -88,8 +103,14 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
   const info = SOURCE_INFO[source];
   const newsAnswered = newsQuestions.map((q, i) => ({ question: q.question, answer: news[i] ?? "" })).filter((a) => a.answer.trim());
   const commitsBlocked = source === "commits" && !repoFullName;
-  const canGenerate = sns.length > 0 && !commitsBlocked && (source !== "news" || newsAnswered.length > 0);
-  const input = source === "commits" ? { source, days } : source === "news" ? { source, news: newsAnswered } : { source };
+  const pickedNotes = noteIds.filter((id) => notes.some((n) => n.id === id && n.body.trim()));
+  const canGenerate = sns.length > 0 && !commitsBlocked && (source !== "news" || newsAnswered.length > 0) && (source !== "notes" || pickedNotes.length > 0);
+  const input =
+    source === "commits" ? { source, days } : source === "news" ? { source, news: newsAnswered } : source === "notes" ? { source, noteIds: pickedNotes } : { source };
+
+  function toggleNote(id: string) {
+    setNoteIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : cur.length >= MAX_NOTES_FOR_IDEAS ? cur : [...cur, id]));
+  }
 
   const latest = thread?.latest.content;
   const questions = latest?.questions ?? [];
@@ -106,7 +127,7 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
 
         <fieldset className="flex flex-col gap-2">
           <legend className="sr-only">ネタの材料</legend>
-          <div className="grid grid-cols-3 gap-3 max-lg:grid-cols-1">
+          <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
             {IDEA_SOURCES.map((k) => {
               const s = SOURCE_INFO[k];
               const on = source === k;
@@ -120,6 +141,7 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
                   <span className="text-xs text-muted">よいところ: {s.good}</span>
                   <span className="text-xs text-muted">気をつけること: {s.note}</span>
                   {k === "commits" && !repoFullName && <span className="text-xs font-semibold text-muted">GitHub をつなぐと使えます</span>}
+                  {k === "notes" && notes.length === 0 && <span className="text-xs font-semibold text-muted">まだ使っていないメモがありません</span>}
                 </label>
               );
             })}
@@ -197,6 +219,58 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
             ))}
           </fieldset>
         )}
+
+        {source === "notes" &&
+          (notes.length ? (
+            <fieldset className="flex flex-col gap-2">
+              <legend className="mb-2 text-[14px] font-bold">
+                使うメモ
+                <span className="ml-2 text-xs font-normal text-muted">
+                  {MAX_NOTES_FOR_IDEAS} 件まで。関係するメモはまとめて 1 つのネタになります（
+                  <Link href={`/projects/${projectId}/notes`} className="text-primary hover:underline">
+                    ネタ帳を開く
+                  </Link>
+                  ）
+                </span>
+              </legend>
+              <ul className="flex max-h-[22rem] flex-col gap-2 overflow-y-auto">
+                {notes.map((n) => {
+                  const on = noteIds.includes(n.id);
+                  const empty = !n.body.trim();
+                  return (
+                    <li key={n.id}>
+                      <label
+                        className={`flex gap-3 rounded-md border px-3.5 py-2.5 text-sm leading-[1.7] ${empty ? "border-line opacity-55" : on ? "cursor-pointer border-primary bg-primary-soft" : "cursor-pointer border-border hover:border-primary"}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={on}
+                          disabled={empty || (!on && noteIds.length >= MAX_NOTES_FOR_IDEAS)}
+                          onChange={() => toggleNote(n.id)}
+                          className="mt-1 size-4 shrink-0 accent-[var(--primary)]"
+                        />
+                        <span className="flex min-w-0 flex-col gap-0.5">
+                          <span className="line-clamp-3 break-words whitespace-pre-wrap">{empty ? "（画像だけのメモ。ネタ帳でひとこと書き足すと使えます）" : n.body}</span>
+                          <span className="text-xs text-muted">
+                            {formatShort(n.createdAt)}
+                            {n.hasImage && "・写真あり（下書きに添えます）"}
+                          </span>
+                        </span>
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+              <p className="text-xs text-muted">AI に送るのはメモの文だけです。写真は送らず、元にしたメモの写真を下書きに添えます。</p>
+            </fieldset>
+          ) : (
+            <div className="flex flex-col gap-2 rounded-md border border-line bg-surface2 px-4 py-3 text-sm leading-[1.8]">
+              <p>まだ使っていないメモがありません。思いついたことを、どの画面でも「＋ メモ」から 1 行で残しておくと、ここから投稿にできます。</p>
+              <Link href={`/projects/${projectId}/notes`} className="w-fit font-semibold text-primary hover:underline">
+                ネタ帳を開く
+              </Link>
+            </div>
+          ))}
 
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-2 text-[14px] font-bold">
@@ -301,6 +375,7 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
                 key={`${thread.latest.messageId}-${i}`}
                 idea={idea}
                 repoFullName={thread.request.repo || repoFullName || ""}
+                notes={(idea.notes ?? []).map((n) => thread.request.notes?.[n - 1]).filter((n): n is NonNullable<typeof n> => Boolean(n))}
                 adoptedPostId={latest.adopted?.[String(i)] ?? null}
                 projectId={projectId}
                 disabled={pending}
@@ -327,6 +402,7 @@ function sourceLabel(thread: IdeasThread): string {
   const r = thread.request;
   if (r.source === "news") return "最近のできごとから";
   if (r.source === "plan") return "アカウント設計から";
+  if (r.source === "notes") return `ネタ帳のメモ ${r.notes?.length ?? 0} 件から`;
   const days = r.days ?? 0;
   return `直近 ${PERIOD_LABEL[days as IdeaPeriod] ?? `${days} 日`}のコミット ${r.commitCount ?? 0} 件から`;
 }
@@ -334,6 +410,7 @@ function sourceLabel(thread: IdeasThread): string {
 function IdeaCard({
   idea,
   repoFullName,
+  notes,
   adoptedPostId,
   projectId,
   disabled,
@@ -342,6 +419,7 @@ function IdeaCard({
 }: {
   idea: PostIdea;
   repoFullName: string;
+  notes: IdeaNoteMaterial[];
   adoptedPostId: string | null;
   projectId: string;
   disabled: boolean;
@@ -384,6 +462,22 @@ function IdeaCard({
           );
         })}
       </div>
+
+      {notes.length > 0 && (
+        <details className="text-sm">
+          <summary className="cursor-pointer text-muted">
+            元にしたメモ（{notes.length} 件{notes.some((n) => n.photo) && "。写真は下書きに添えます"}）
+          </summary>
+          <ul className="mt-2 flex flex-col gap-1.5 leading-[1.7]">
+            {notes.map((n) => (
+              <li key={n.id} className="break-words whitespace-pre-wrap">
+                {n.body}
+                {n.photo && <span className="ml-1 text-xs text-muted">（写真あり）</span>}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
 
       {idea.commits.length > 0 && (
         <details className="text-sm">

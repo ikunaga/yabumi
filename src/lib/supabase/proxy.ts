@@ -25,6 +25,8 @@ const PUBLIC_PATHS = [
   // 利用規約とプライバシーポリシー（登録の前に読めるように。SNS 各社の審査でも、ログインなしで開けることが求められる）
   "/terms",
   "/privacy",
+  // ほかのアプリからの「共有」（4.26）。受け取ったものをブラウザに控えてから、画面がログインへ送る（ログインのあとで続ける）
+  "/share",
 ];
 
 function isPublicPath(pathname: string) {

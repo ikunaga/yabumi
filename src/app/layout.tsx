@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Zen_Kaku_Gothic_New } from "next/font/google";
 import { cookies } from "next/headers";
+import { ServiceWorkerRegister } from "@/components/service-worker";
 import { THEME_COOKIE, parseTheme } from "@/lib/theme";
 import "./globals.css";
 
@@ -26,7 +27,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
 
   return (
     <html lang="ja" data-theme={theme} className={`${zenKaku.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col font-sans">{children}</body>
+      <body className="flex min-h-full flex-col font-sans">
+        {children}
+        <ServiceWorkerRegister />
+      </body>
     </html>
   );
 }

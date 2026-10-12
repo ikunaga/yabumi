@@ -9,6 +9,8 @@ import { IDEA_SNS, MAX_IDEA_SNS, NEWS_QUESTIONS, pickIdeaSns, type IdeaSource } 
 import { getLatestIdeasThread } from "@/lib/ai/post-ideas-queries";
 import { DEFAULT_IDEA_PERIOD, isValidPeriod } from "@/lib/github/commit-reader";
 import { githubConfigured } from "@/lib/github/config";
+import { listNotes } from "@/lib/notes/queries";
+import { MAX_NOTES_FOR_IDEAS } from "@/lib/notes/rules";
 import { getAccountPlan } from "@/lib/plan/queries";
 import { connectedAccounts } from "@/lib/posts/queries";
 import { getProject } from "@/lib/projects/queries";
@@ -19,16 +21,17 @@ export const metadata: Metadata = { title: "投稿のネタを出す" };
 
 // 投稿のネタを AI が出す。材料は最近のコミット・最近のできごと・アカウント設計から選ぶ（要求 F04 の一部。docs/architecture.md の 4.15）
 export default async function IdeasPage(props: PageProps<"/projects/[id]/ideas">) {
-  const [{ id }, { done }] = await Promise.all([props.params, props.searchParams]);
+  const [{ id }, { done, source, notes: noteParam }] = await Promise.all([props.params, props.searchParams]);
   const project = await getProject(id);
   if (!project) notFound();
   const supabase = await createClient();
   const githubReady = githubConfigured();
-  const [{ data: link }, plan, accounts, thread] = await Promise.all([
+  const [{ data: link }, plan, accounts, thread, notes] = await Promise.all([
     supabase.from("project_github_repos").select("full_name").eq("project_id", id).maybeSingle(),
     getAccountPlan(id),
     connectedAccounts(id),
     getLatestIdeasThread(id),
+    listNotes(id, { unusedOnly: true }),
   ]);
   const repoFullName = githubReady ? (link?.full_name ?? null) : null;
 
@@ -39,7 +42,10 @@ export default async function IdeasPage(props: PageProps<"/projects/[id]/ideas">
   const defaultDays = thread?.request.days && isValidPeriod(thread.request.days) ? thread.request.days : DEFAULT_IDEA_PERIOD;
   // 材料の初期値: 前回の材料（コミットはつないでいるときだけ）→ つないでいればコミット、なければ最近のできごと
   const lastSource = thread?.request.source;
-  const defaultSource: IdeaSource = lastSource && (lastSource !== "commits" || repoFullName) ? lastSource : repoFullName ? "commits" : "news";
+  // ネタ帳の画面でメモを選んできたら（?source=notes&notes=...）、ネタ帳から
+  const defaultNoteIds = typeof noteParam === "string" ? noteParam.split(",").filter((n) => notes.some((x) => x.id === n)).slice(0, MAX_NOTES_FOR_IDEAS) : [];
+  const defaultSource: IdeaSource =
+    source === "notes" ? "notes" : lastSource && (lastSource !== "commits" || repoFullName) ? lastSource : repoFullName ? "commits" : "news";
   const noPillars = !plan || plan.plan.pillars.items.every((p) => !p.name.trim());
 
   return (
@@ -47,7 +53,7 @@ export default async function IdeasPage(props: PageProps<"/projects/[id]/ideas">
       <div className="flex flex-col gap-1.5">
         <h1 className="font-heading text-3xl font-bold max-sm:text-2xl">投稿のネタを出す</h1>
         <p className="text-base leading-[1.8] text-muted max-sm:text-[14px]">
-          何を投稿すればいいか浮かばないときに、AI がネタと下書きを出します。材料は、最近の開発（GitHub）、最近のできごと、アカウント設計から選べます。「何に詰まって、どう直したか」「なぜそう作ったか」のような作り手の話は、アプリを知ってもらう入り口になります。こうした発信を <Term k="buildInPublic" /> と呼びます。ネタは、アカウント設計の
+          何を投稿すればいいか浮かばないときに、AI がネタと下書きを出します。材料は、最近の開発（GitHub）、最近のできごと、ネタ帳のメモ、アカウント設計から選べます。「何に詰まって、どう直したか」「なぜそう作ったか」のような作り手の話は、アプリを知ってもらう入り口になります。こうした発信を <Term k="buildInPublic" /> と呼びます。ネタは、アカウント設計の
           <Term k="contentPillar" />
           と口調に沿います。
         </p>
@@ -73,6 +79,8 @@ export default async function IdeasPage(props: PageProps<"/projects/[id]/ideas">
         defaultDays={defaultDays}
         defaultSource={defaultSource}
         newsQuestions={NEWS_QUESTIONS}
+        notes={notes.map((n) => ({ id: n.id, body: n.body, hasImage: Boolean(n.image), createdAt: n.createdAt }))}
+        defaultNoteIds={defaultNoteIds}
         thread={thread}
       />
     </div>

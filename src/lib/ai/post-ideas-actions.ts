@@ -10,6 +10,7 @@ import { connectedAccounts } from "@/lib/posts/queries";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { aiConfigured, callPostIdeas } from "./anthropic";
+import { MAX_NOTES_FOR_IDEAS } from "@/lib/notes/rules";
 import { aiLimitsFromEnv } from "./limits";
 import { adoptPostIdea, generatePostIdeas, MAX_ANSWER_CHARS, MAX_IDEA_QUESTIONS, MAX_IDEAS, MAX_NEWS_CHARS, NEWS_QUESTIONS, refinePostIdeas } from "./post-ideas";
 
@@ -28,6 +29,7 @@ const inputSchema = z.discriminatedUnion("source", [
   z.object({ source: z.literal("commits"), days: z.number().refine(isValidPeriod) }),
   z.object({ source: z.literal("news"), news: z.array(z.object({ question: z.string().max(500), answer: z.string().max(MAX_NEWS_CHARS) })).max(NEWS_QUESTIONS.length) }),
   z.object({ source: z.literal("plan") }),
+  z.object({ source: z.literal("notes"), noteIds: z.array(z.uuid()).min(1).max(MAX_NOTES_FOR_IDEAS) }),
 ]);
 
 // 材料（最近のコミット・最近のできごと・アカウント設計）から、AI が投稿のネタを出す（30〜90 秒ほどかかる）
@@ -82,14 +84,16 @@ export async function adoptIdea(projectId: string, messageId: string, index: num
   const { supabase, userId } = await currentUser();
   if (!userId) return { error: "ログインし直してください。" };
   let postId: string;
+  let done = "idea";
   try {
     const r = await adoptPostIdea(supabase, createAdminClient(), { userId, projectId, messageId, index, accounts: await connectedAccounts(projectId) });
     if (!r.ok) return { error: r.message };
     postId = r.postId;
+    if (r.skippedImages) done = "idea_images_skipped";
   } catch (e) {
     console.error("[adoptIdea]", e);
     return FAILED;
   }
   revalidatePath(`/projects/${projectId}`, "layout");
-  redirect(`/projects/${projectId}/posts/${postId}?done=idea`);
+  redirect(`/projects/${projectId}/posts/${postId}?done=${done}`);
 }

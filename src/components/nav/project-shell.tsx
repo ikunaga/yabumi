@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Brand } from "@/components/brand";
+import { QuickNote, QuickNoteFab } from "@/components/notes/quick-note";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { logout } from "@/lib/auth/actions";
 import { ProjectMobileMenu } from "./project-mobile-menu";
@@ -25,7 +26,10 @@ export function ProjectShell({
       <aside className="w-[220px] shrink-0 bg-nav text-nav-fg max-sm:hidden">
         <div className="sticky top-0 flex h-dvh flex-col gap-7 px-5 py-7">
         <Brand href="/projects" tone="nav" />
-        <ProjectSwitcher current={project} projects={projects} variant="sidebar" />
+        <div className="flex flex-col gap-2.5">
+          <ProjectSwitcher current={project} projects={projects} variant="sidebar" />
+          <QuickNote projects={projects} projectId={project.id} variant="sidebar" />
+        </div>
         <nav aria-label="プロジェクトのメニュー">
           <ProjectNavLinks projectId={project.id} variant="sidebar" />
         </nav>
@@ -51,11 +55,14 @@ export function ProjectShell({
         <div className="flex min-w-0 items-center gap-4">
           <ThemeToggle tone="nav" />
           <ProjectSwitcher current={project} projects={projects} variant="header" />
-          <ProjectMobileMenu projectId={project.id} email={email} />
+          <ProjectMobileMenu projectId={project.id} email={email} projects={projects} />
         </div>
       </header>
 
       <main className="min-w-0 flex-1 px-12 py-10 max-lg:px-8 max-sm:px-4 max-sm:pt-5 max-sm:pb-28">{children}</main>
+
+      {/* スマホ: ネタ帳に残す「＋ メモ」（下のタブの上の右下） */}
+      <QuickNoteFab projects={projects} projectId={project.id} />
 
       {/* スマホ: 下のタブ */}
       <nav

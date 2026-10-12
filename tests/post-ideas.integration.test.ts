@@ -2,7 +2,11 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AiLimits } from "@/lib/ai/limits";
 import { adoptPostIdea, generatePostIdeas, KEEP_IDEA_THREADS, refinePostIdeas, type CallIdeas, type IdeasContent, type ReadCommits } from "@/lib/ai/post-ideas";
+import { MEDIA_BUCKET } from "@/lib/media/rules";
+import { issueUpload, verifyUpload } from "@/lib/media/store";
+import { createNote } from "@/lib/notes/store";
 import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
+import { testJpeg } from "./helpers/jpeg";
 
 const admin = adminClient();
 const roomy: AiLimits = { userMonthlyUsd: 1000, globalMonthlyUsd: 100000, userDailyTurns: 1000 };
@@ -41,6 +45,10 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  for (const owner of [aliceId, bobId]) {
+    const { data } = await admin.storage.from(MEDIA_BUCKET).list(owner, { limit: 1000 });
+    if (data?.length) await admin.storage.from(MEDIA_BUCKET).remove(data.map((f) => `${owner}/${f.name}`));
+  }
   await deleteUser(aliceId);
   await deleteUser(bobId);
 });
@@ -196,6 +204,51 @@ describe("投稿のネタ", () => {
     expect(deleted).toHaveLength(1);
     expect((await alice.from("ai_messages").select("id").eq("thread_id", target)).data).toEqual([]);
     expect((await alice.from("posts").select("id").eq("project_id", projectId)).data).toHaveLength(before);
+  });
+
+  it("ネタ帳のメモから出す。AI に送るのは本文だけ。下書きにすると、メモの写真を添え、メモに「投稿にした」の印を付ける", async () => {
+    const p4 = (await alice.from("projects").insert({ name: "メモのプロジェクト" }).select("id").single()).data!.id;
+    const ticket = await issueUpload(admin, aliceId);
+    await fetch(ticket.signedUrl, { method: "PUT", body: Buffer.from(testJpeg({ width: 400, height: 500 })), headers: { "Content-Type": "image/jpeg", "x-upsert": "false" } });
+    const img = await verifyUpload(admin, aliceId, ticket.path);
+    const n1 = await createNote(alice, admin, { userId: aliceId, projectId: p4, body: "友だちに「グラフが見にくい」と言われた", mediaId: img.id });
+    const n2 = await createNote(alice, admin, { userId: aliceId, projectId: p4, body: "通知の時間を選べたらいいのに", mediaId: null });
+    const ids = [n1, n2].map((n) => (n.ok ? n.noteId : ""));
+
+    // 選んだメモがなければ AI を呼ばない
+    const none = caller();
+    expect(await generatePostIdeas(alice, admin, deps({ callIdeas: none }), { userId: aliceId, projectId: p4, sns: ["x"], input: { source: "notes", noteIds: [] } })).toMatchObject({ ok: false });
+    expect(none).not.toHaveBeenCalled();
+
+    // 新しい順に並ぶので、n2 が 1 番、n1（写真あり）が 2 番
+    const out = { ideas: [{ ...ideasOutput.ideas[1], commits: [], notes: [2], drafts: [{ sns: "x", text: "グラフを見やすくしました" }] }], questions: [] };
+    const call = caller(out);
+    const r = await generatePostIdeas(alice, admin, deps({ callIdeas: call }), { userId: aliceId, projectId: p4, sns: ["x"], input: { source: "notes", noteIds: ids } });
+    expect(r.ok).toBe(true);
+    const sent = JSON.stringify(vi.mocked(call).mock.calls[0][0].messages);
+    expect(sent).toContain("グラフが見にくい");
+    expect(sent).toContain('photo=\\"あり\\"');
+    expect(sent).not.toContain(img.storagePath);
+    const t = (r as { threadId: string }).threadId;
+    const { id: messageId, all } = await latestIdeas(t);
+    expect(all[0].content).toMatchObject({ kind: "ideas_request", source: "notes", notes: [{ id: ids[1], photo: false }, { id: ids[0], photo: true }] });
+
+    // 他人のメモは材料にできない
+    const bobCall = caller();
+    expect(await generatePostIdeas(bob, admin, deps({ callIdeas: bobCall }), { userId: bobId, projectId: p4, sns: ["x"], input: { source: "notes", noteIds: ids } })).toMatchObject({ ok: false });
+    expect(bobCall).not.toHaveBeenCalled();
+
+    const adopted = await adoptPostIdea(alice, admin, { userId: aliceId, projectId: p4, messageId, index: 0, accounts: {} });
+    expect(adopted).toMatchObject({ ok: true, skippedImages: 0 });
+    const postId = (adopted as { postId: string }).postId;
+    const { data: images } = await admin.from("media_files").select("width, height, post_id").eq("post_id", postId);
+    expect(images).toEqual([{ width: 400, height: 500, post_id: postId }]);
+    const { data: notes } = await alice.from("idea_notes").select("id, used_at, post_id").in("id", ids);
+    const byId = new Map(notes!.map((n) => [n.id, n]));
+    expect(byId.get(ids[0])!.post_id).toBe(postId);
+    expect(byId.get(ids[0])!.used_at).not.toBeNull();
+    // 元にしていないメモには印を付けない
+    expect(byId.get(ids[1])!.used_at).toBeNull();
   });
 
   it("他人のプロジェクトでは出せない（リポジトリも読まない）", async () => {

@@ -11,6 +11,16 @@ export default function manifest(): MetadataRoute.Manifest {
     // トークンの bg（生成り）と primary（藍）
     background_color: "#f2f2ee",
     theme_color: "#23406e",
+    // ほかのアプリの「共有」から、ネタ帳のメモにする（4.26。Android の Chrome など。iOS の Safari は対応していない）。
+    // service worker（public/sw.js）が受けて、ブラウザの中に置いてから /share を開く
+    share_target: {
+      action: "/share/receive",
+      method: "POST",
+      enctype: "multipart/form-data",
+      params: { title: "title", text: "text", url: "url", files: [{ name: "image", accept: ["image/*"] }] },
+    },
+    // ホーム画面のアイコンを長押ししたときの近道
+    shortcuts: [{ name: "ネタ帳にメモを残す", short_name: "メモ", url: "/share" }],
     icons: [
       { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
       { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },

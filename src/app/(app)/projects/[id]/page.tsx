@@ -135,8 +135,8 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
             title="これからの投稿"
             action={
               <span className="flex gap-4">
-                <Link href={`/projects/${project.id}/ideas`} className="hover:underline">
-                  AI とネタを出す
+                <Link href={`/projects/${project.id}/compose`} className="hover:underline">
+                  投稿をつくる
                 </Link>
                 <Link href={`/projects/${project.id}/calendar`} className="hover:underline">
                   すべて見る

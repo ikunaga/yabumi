@@ -33,7 +33,7 @@ export const STEPS: Step[] = [
     key: "firstPost",
     title: "最初の投稿をつくる",
     shortTitle: "最初の投稿をつくる",
-    description: "下書きを書いて、つないだ SNS ごとに文面と送る日時を決めます。",
+    description: "自分で書くか、AI とネタを出してから書くかを選べます。つないだ SNS ごとに文面と送る日時を決めます。",
     cta: "投稿をつくる",
     available: true,
   },

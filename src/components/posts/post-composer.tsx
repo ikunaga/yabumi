@@ -11,6 +11,7 @@ import type { PostLinkPreview } from "@/lib/links/store";
 import { ImageAttachments, type AttachedImage } from "./image-attachments";
 import { applyFix } from "@/lib/ai/ai-check";
 import { AiCheckPanel } from "./ai-check-panel";
+import { ComposeStart } from "./compose-start";
 import { PlanHints, type PlanHintsData } from "./plan-hints";
 import { SendResults, type TargetResult } from "./send-results";
 import { ISSUE_LABEL, MAX_TITLE_LENGTH, SNS, SNS_KEYS, checkTarget, hasXUrl, instagramRatioOk, ignoresImages, isManualSns, type SnsKey, type TargetIssue } from "@/lib/sns";
@@ -193,17 +194,24 @@ export function PostComposer({
 
   return (
     <div className="flex min-h-full flex-col">
+      {/* 新しい投稿は、自分で書くか AI とネタを出すかを先に並べる（AI を使わなくても書いて送れることがわかるように） */}
+      {!postId && (
+        <div className="mb-6 max-sm:mb-4">
+          <ComposeStart projectId={projectId} aiEnabled={aiCheckEnabled} bodyId="post-body" />
+        </div>
+      )}
       <div className="grid flex-1 grid-cols-[1fr_440px] gap-7 max-xl:grid-cols-1">
         {/* 左: 下書き */}
         <section aria-labelledby="draft-heading" className="flex flex-col gap-3.5">
-          <div className="flex items-baseline justify-between gap-4">
+          {postId ? (
             <h1 id="draft-heading" className="font-heading text-2xl font-bold">
               下書き
             </h1>
-            <Link href={`/projects/${projectId}/ideas`} className="text-sm font-semibold text-primary hover:underline">
-              AI とネタを出す
-            </Link>
-          </div>
+          ) : (
+            <h2 id="draft-heading" className="text-[14px] font-bold">
+              本文
+            </h2>
+          )}
 
           {notice && (noticeTone === "error" ? <ErrorBanner>{notice}</ErrorBanner> : <SuccessBanner>{notice}</SuccessBanner>)}
           {result.error && <ErrorBanner>{result.error}</ErrorBanner>}
@@ -228,7 +236,7 @@ export function PostComposer({
               setBody(e.target.value);
               clearFieldError("body");
             }}
-            placeholder="伝えたいことを書きます。SNS ごとの調整は右の欄で。"
+            placeholder="伝えたいことを、自分の言葉で書きます。書いたらそのまま予約・送信できます。SNS ごとの調整は「送り先と文面の調整」で。"
             aria-invalid={fe.body ? true : undefined}
             className={`bg-ruled h-[260px] w-full resize-y rounded-lg border bg-surface px-5 py-4 text-[16px] leading-8 text-fg outline-none [background-position:0_16px] placeholder:text-muted ${fe.body ? "border-danger shadow-[0_0_0_1px_var(--danger)]" : "border-border focus:border-primary focus:shadow-[0_0_0_1px_var(--primary)]"}`}
           />
@@ -236,8 +244,6 @@ export function PostComposer({
             <span>{formatCount([...body].length)} 字</span>
             {fe.body && <span className="font-semibold text-danger">{fe.body}</span>}
           </div>
-
-          <PlanHints projectId={projectId} hints={planHints} />
 
           <section aria-labelledby="images-heading" className="flex flex-col gap-2">
             <h2 id="images-heading" className="text-[14px] font-bold">
@@ -265,12 +271,19 @@ export function PostComposer({
             />
           )}
 
-          <AiCheckPanel
-            projectId={projectId}
-            aiEnabled={aiCheckEnabled}
-            texts={(chosen.length ? chosen : (["x"] as SnsKey[])).map((sns) => ({ sns, text: overrides[sns] ?? body }))}
-            onApply={applyCheckFix}
-          />
+          {/* 書くときの手伝い。使わなくても送れるので、閉じて控えめに置く */}
+          <section aria-labelledby="helpers-heading" className="flex flex-col gap-2">
+            <h2 id="helpers-heading" className="text-xs font-bold text-muted">
+              書くときの手伝い（使わなくても送れます）
+            </h2>
+            <PlanHints projectId={projectId} hints={planHints} />
+            <AiCheckPanel
+              projectId={projectId}
+              aiEnabled={aiCheckEnabled}
+              texts={(chosen.length ? chosen : (["x"] as SnsKey[])).map((sns) => ({ sns, text: overrides[sns] ?? body }))}
+              onApply={applyCheckFix}
+            />
+          </section>
         </section>
 
         {/* 右: 送り先と文面の調整 */}

@@ -38,54 +38,61 @@ export function AiCheckPanel({ projectId, aiEnabled, texts, onApply }: Props) {
 
   const visible = result?.findings.map((f, i) => ({ f, i })).filter(({ i }) => state[i] !== "dismissed") ?? [];
 
+  // 使わなくても送れるので、閉じて置く（開くとボタンと説明が出る）。見てもらったあとは開いたまま
   return (
-    <section className="flex flex-col gap-3 rounded-lg border border-border bg-surface px-4 py-3 text-sm" aria-labelledby="ai-check-heading">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <h2 id="ai-check-heading" className="font-bold">
-          送る前に AI に見てもらう
-        </h2>
-        {aiEnabled ? (
-          <Button type="button" variant="secondary" size="sm" disabled={pending || !hasText} onClick={run}>
-            {pending ? "確かめています…" : result ? "もう一度確かめる" : "AI っぽくないか確かめる"}
-          </Button>
-        ) : (
-          <NotReadyButton variant="secondary" size="sm">
-            AI っぽくないか確かめる
-          </NotReadyButton>
-        )}
-      </div>
-      <p className="text-xs leading-[1.7] text-muted">
-        決まり文句、大げさな言葉、書いた人しか知らない事実（本当かどうか）、ハッシュタグの付けすぎ、設計の口調とのずれを見ます。直すかどうかはあなたが選べます。送るのは止めません（1 回 5 円ほど）。
-      </p>
-
-      {error && <ErrorBanner>{error}</ErrorBanner>}
-
-      {result && (
-        <div className="flex flex-col gap-3 border-t border-line pt-3">
-          <p className="flex items-start gap-2 leading-[1.7]">
-            <span className="shrink-0 rounded-full bg-primary-soft px-2 py-0.5 text-xs font-bold text-primary">AI の見立て</span>
-            <span>{result.summary || (result.findings.length ? "" : "気になるところは見つかりませんでした。")}</span>
-          </p>
-          {result.findings.length > 0 && visible.length === 0 && <p className="text-muted">指摘はすべて確かめました。</p>}
-          <ul className="flex flex-col gap-3">
-            {visible.map(({ f, i }) => (
-              <FindingItem
-                key={i}
-                f={f}
-                state={state[i]}
-                onApply={() => {
-                  // 親の文面を書き換えてから、この指摘の状態を変える（状態の更新の中で親を書き換えない）
-                  const applied = onApply(f.sns, f.quote, f.fix);
-                  setState((s) => ({ ...s, [i]: applied ? "applied" : "missing" }));
-                }}
-                onDismiss={() => setState((s) => ({ ...s, [i]: "dismissed" }))}
-                showSns={new Set(texts.map((t) => t.sns)).size > 1}
-              />
-            ))}
-          </ul>
+    <details className="group rounded-lg border border-border bg-surface text-sm">
+      <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-2.5 font-semibold">
+        <span aria-hidden className="text-muted transition-transform group-open:rotate-90">
+          ▸
+        </span>
+        <span id="ai-check-heading">送る前に AI に見てもらう</span>
+        <span className="ml-auto text-xs font-normal text-muted">1 回 5 円ほど</span>
+      </summary>
+      <section className="flex flex-col gap-3 border-t border-line px-4 py-3" aria-labelledby="ai-check-heading">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          {aiEnabled ? (
+            <Button type="button" variant="secondary" size="sm" disabled={pending || !hasText} onClick={run}>
+              {pending ? "確かめています…" : result ? "もう一度確かめる" : "AI っぽくないか確かめる"}
+            </Button>
+          ) : (
+            <NotReadyButton variant="secondary" size="sm">
+              AI っぽくないか確かめる
+            </NotReadyButton>
+          )}
         </div>
-      )}
-    </section>
+        <p className="text-xs leading-[1.7] text-muted">
+          決まり文句、大げさな言葉、書いた人しか知らない事実（本当かどうか）、ハッシュタグの付けすぎ、設計の口調とのずれを見ます。直すかどうかはあなたが選べます。送るのは止めません（1 回 5 円ほど）。
+        </p>
+
+        {error && <ErrorBanner>{error}</ErrorBanner>}
+
+        {result && (
+          <div className="flex flex-col gap-3 border-t border-line pt-3">
+            <p className="flex items-start gap-2 leading-[1.7]">
+              <span className="shrink-0 rounded-full bg-primary-soft px-2 py-0.5 text-xs font-bold text-primary">AI の見立て</span>
+              <span>{result.summary || (result.findings.length ? "" : "気になるところは見つかりませんでした。")}</span>
+            </p>
+            {result.findings.length > 0 && visible.length === 0 && <p className="text-muted">指摘はすべて確かめました。</p>}
+            <ul className="flex flex-col gap-3">
+              {visible.map(({ f, i }) => (
+                <FindingItem
+                  key={i}
+                  f={f}
+                  state={state[i]}
+                  onApply={() => {
+                    // 親の文面を書き換えてから、この指摘の状態を変える（状態の更新の中で親を書き換えない）
+                    const applied = onApply(f.sns, f.quote, f.fix);
+                    setState((s) => ({ ...s, [i]: applied ? "applied" : "missing" }));
+                  }}
+                  onDismiss={() => setState((s) => ({ ...s, [i]: "dismissed" }))}
+                  showSns={new Set(texts.map((t) => t.sns)).size > 1}
+                />
+              ))}
+            </ul>
+          </div>
+        )}
+      </section>
+    </details>
   );
 }
 

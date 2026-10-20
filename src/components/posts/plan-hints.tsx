@@ -6,14 +6,14 @@ export type PlanHintsData = {
   avoid: string;
 };
 
-// 投稿を書くときの手がかり: アカウント設計の「投稿の柱」と「口調」を見返す
+// 投稿を書くときの手がかり: アカウント設計の「投稿の柱」と「口調」を見返す。本文の欄を目立たせるため、閉じて置く（開けば見られる）
 export function PlanHints({ projectId, hints }: { projectId: string; hints: PlanHintsData | null }) {
   const planHref = `/projects/${projectId}/plan`;
   const empty = !hints || (hints.pillars.length === 0 && !hints.tone && !hints.avoid);
 
   return (
-    <details className="group rounded-lg border border-border bg-surface text-sm" open={!empty}>
-      <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-2.5 font-bold">
+    <details className="group rounded-lg border border-border bg-surface text-sm">
+      <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-2.5 font-semibold">
         <span aria-hidden className="text-muted transition-transform group-open:rotate-90">
           ▸
         </span>

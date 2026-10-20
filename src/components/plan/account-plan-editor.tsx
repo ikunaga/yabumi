@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useRef, useState, type ReactNode } from "react";
+import { startTransition, useActionState, useEffect, useRef, useState, type ReactNode } from "react";
 import { Button, buttonClass, NotReadyButton } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { Field, Input, Textarea } from "@/components/ui/field";
@@ -140,11 +140,14 @@ function SectionCard({
 }) {
   const [state, formAction, pending] = useActionState<SectionFormState, FormData>(saveSection.bind(null, projectId, sectionKey), {});
   const goNext = useRef(false);
+  const formRef = useRef<HTMLFormElement>(null);
   const meta = META[sectionKey];
   const isLast = index === SECTION_KEYS.length - 1;
   const bodyId = `plan-${sectionKey}`;
 
   useEffect(() => {
+    // 保存できたら、欄を保存した値（# を外したタグなど）に戻し、「数え直す」などの印を外す
+    if (state.savedAt) formRef.current?.reset();
     if (state.savedAt && goNext.current) {
       goNext.current = false;
       onSavedNext();
@@ -174,7 +177,17 @@ function SectionCard({
         </button>
       </h2>
       {/* 閉じても入力中の値が消えないよう、隠すだけにする */}
-      <form id={bodyId} action={formAction} hidden={!open} className="flex flex-col gap-5 border-t border-line px-6 py-5 max-sm:px-4">
+      {/* action={...} だと React が送ったあとに必ずフォームを戻し、保存できなかったとき（形の誤り）に書いた内容が消える。onSubmit で送り、戻すのは保存できたときだけ */}
+      <form
+        ref={formRef}
+        id={bodyId}
+        onSubmit={(e) => {
+          e.preventDefault();
+          const data = new FormData(e.currentTarget);
+          startTransition(() => formAction(data));
+        }}
+        hidden={!open}
+        className="flex flex-col gap-5 border-t border-line px-6 py-5 max-sm:px-4">
         <p className="text-[14px] leading-[1.8] text-muted">{meta.lead}</p>
         {/* 空欄を前に考え込ませないよう、このセクションを AI と考える入口を先に置く */}
         <div className="flex flex-wrap items-center gap-3 rounded-md bg-primary-soft px-4 py-3 text-sm">

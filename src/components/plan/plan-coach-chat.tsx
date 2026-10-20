@@ -249,7 +249,7 @@ function ProposalCard({
       <p className="flex items-center gap-2 text-sm">
         <span className="rounded-full bg-primary-soft px-2.5 py-1 text-xs font-bold text-primary">AI の案</span>
         <b>{sectionLabel(p.section)}</b>
-        <span className="text-xs text-muted">選んだ案だけが設計に保存されます</span>
+        <span className="text-xs text-muted">{isHashtags ? "印を付けたタグだけが設計に保存されます" : "選んだ案だけが設計に保存されます"}</span>
       </p>
       <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-3">
         {p.options.map((o, i) => {

@@ -17,7 +17,7 @@ export const OWNERSHIP_MODES = ["personal", "dedicated", "undecided"] as const;
 export const MAX_PILLARS = 5;
 // 設計に置けるハッシュタグの数（AI は 3〜6 個を出す。どの投稿にも全部を付けるのではなく、ネタに合うものだけを付ける）
 export const MAX_HASHTAGS = 10;
-const HASHTAG = "ハッシュタグは空白や記号（# のほか、句読点など）を入れずに書いてください";
+const HASHTAG = "ハッシュタグの中に空白や記号（句読点など）は入れられません。先頭の # はあってもなくても大丈夫です";
 // 最初の 1 か月の SNS ごとの週の回数の上限（1 日 2 本まで）
 export const MAX_WEEKLY_PER_SNS = 14;
 const WEEKLY = `週の回数は 1〜${MAX_WEEKLY_PER_SNS} の整数にしてください`;

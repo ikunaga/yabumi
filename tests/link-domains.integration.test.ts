@@ -180,7 +180,7 @@ describe("利用者のドメイン", () => {
 
   it("確かめる: TXT がない → DNS が届いていない → 値が違う → Proxy → 証明書を待つ → つながる", async () => {
     const { vercel, state } = fakeVercel({ needsTxt: true });
-    let now = Date.parse("2026-10-12T00:00:00Z");
+    let now = Date.now();
     const { zone, lookup } = fakeDns();
     let probe = false;
     const deps: LinkDomainDeps = { vercel, notify: quiet, limit: 100000, now: () => new Date((now += 60_000)), lookup, probe: async () => probe };
@@ -227,7 +227,7 @@ describe("利用者のドメイン", () => {
   it("つながったら新しいリンクはそのドメインで作り、そのドメインではそのプロジェクトのリンクだけを開く", async () => {
     const { vercel, state } = fakeVercel();
     state.misconfigured = false;
-    let now = Date.parse("2026-10-12T00:00:00Z");
+    let now = Date.now();
     const { zone, lookup } = fakeDns();
     const deps: LinkDomainDeps = { vercel, notify: quiet, limit: 100000, probe: async () => true, now: () => new Date((now += 60_000)), lookup };
     const domain = `go.j${rand()}.com`;
@@ -294,7 +294,7 @@ describe("利用者のドメイン", () => {
     const { zone, lookup } = fakeDns();
     const domain = `go.v${rand()}.com`;
     zone.cname.set(domain, ["cname.vercel-dns.com"]);
-    let now = Date.parse("2026-10-12T00:00:00Z");
+    let now = Date.now();
     const deps: LinkDomainDeps = { vercel, notify: quiet, limit: 100000, probe: async () => true, lookup, now: () => new Date((now += 60_000)) };
     await admin.from("link_domain_attempts").delete().eq("owner_id", bobId);
     expect(await addLinkDomain(admin, { ownerId: bobId, projectId: bobProject, domain }, deps)).toEqual({ ok: true });
@@ -337,7 +337,8 @@ describe("利用者のドメイン", () => {
     const { vercel, state } = fakeVercel();
     state.misconfigured = false;
     const { zone, lookup } = fakeDns();
-    let now = Date.parse("2026-10-12T00:00:00Z");
+    // 時計は今から進める（7 日たったものの取り消しは DB の now() と比べるので、固定の日付だと日がたつと消える）
+    let now = Date.now();
     const deps: LinkDomainDeps = { vercel, notify: quiet, limit: 100000, probe: async () => true, lookup, now: () => new Date((now += 60_000)) };
     const domain = `go.y${rand()}.com`;
     await admin.from("link_domain_attempts").delete().eq("owner_id", aliceId);
@@ -419,7 +420,7 @@ describe("利用者のドメイン", () => {
       sent.push(String(init?.body));
       return new Response("{}", { status: 200 });
     }) as typeof fetch };
-    let now = Date.parse("2026-10-12T00:00:00Z");
+    let now = Date.now();
     const deps: LinkDomainDeps = { vercel, notify, limit: 100000, probe: async () => true, lookup, now: () => new Date((now += 60_000)) };
     const carol = await signUpNewUser();
     const carolProject = (await carol.client.from("projects").insert({ name: "ドメイン C" }).select("id").single()).data!.id;

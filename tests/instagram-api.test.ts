@@ -136,11 +136,13 @@ describe("Instagram の決まり（作成画面と保存の確かめ）", () => 
     expect(instagramRatioOk(2000, 1000)).toBe(false);
   });
 
-  it("ハッシュタグは 30 個まで。全角の ＃ も数える", () => {
+  it("ハッシュタグは 5 個まで（2025 年 12 月から）。全角の ＃ も数える", () => {
     expect(countHashtags("#個人開発 #indiedev ＃アプリ")).toBe(3);
     expect(countHashtags("issue#12 は数えない")).toBe(0);
-    const many = Array.from({ length: 31 }, (_, i) => `#t${i}`).join(" ");
-    expect(checkTarget("instagram", many, { images: 1, videos: 0, sizes: [{ width: 1080, height: 1080 }] }).issues).toContain("too_many_hashtags");
+    const tags = (n: number) => Array.from({ length: n }, (_, i) => `#t${i}`).join(" ");
+    const img = { images: 1, videos: 0, sizes: [{ width: 1080, height: 1080 }] };
+    expect(checkTarget("instagram", tags(5), img).issues).not.toContain("too_many_hashtags");
+    expect(checkTarget("instagram", tags(6), img).issues).toContain("too_many_hashtags");
   });
 
   it("縦横比の合わない画像があれば、送れない", () => {

@@ -6,6 +6,7 @@ import { copyNoteImagesToPost, markNotesUsed } from "@/lib/notes/store";
 import { MAX_NOTES_FOR_IDEAS } from "@/lib/notes/rules";
 import { normalizePlan, type PlanData } from "@/lib/plan/schema";
 import { SNS, SNS_KEYS, isManualSns, type SnsKey } from "@/lib/sns";
+import { HASHTAG_RULES, tidyDraftHashtags } from "@/lib/sns/hashtags";
 import type { Database } from "@/lib/supabase/database.types";
 import type { ModelOutput, RepoLink } from "./app-description";
 import { checkAiLimits, type AiLimits } from "./limits";
@@ -118,7 +119,9 @@ ${DATA_RULES}
 - 材料と利用者の答えに書かれていることだけを書く。書かれていない苦労話、数字（時間、回数、人数など）、利用者の反応を作らない
 - 利用者にしか書けないところ（作品名、自分の感想、具体的な数字など）は作らずに、【作品名】のように【】で囲んで示す。【】は利用者が書き換えるまで投稿しない印になる。それ以外では【】を使わない
 - 技術の名前は、届けたい相手が開発者でなければ、言い換えるか省く。「何ができるようになったか」「使う人にとって何が変わるか」を先に書く
-- URL は入れない（X では URL があると送る費用が上がる。リンクは利用者が必要なら足す）。ハッシュタグは 2 つまで、なくてもよい。絵文字は口調で決まっていなければ使わない
+- URL は入れない（X では URL があると送る費用が上がる。リンクは利用者が必要なら足す）。絵文字は口調で決まっていなければ使わない
+- ハッシュタグは、アカウント設計の「ハッシュタグ」の中から、そのネタに合うもの（「付けるとき」に当てはまるもの）だけを、本文の最後に付ける。合うものがなければ付けない。どのネタ・どの下書きにも同じタグを決まりのように付けない。設計にないタグを作らない。設計でハッシュタグが決まっていなければ、どの下書きにも付けない
+- 1 投稿に付けるハッシュタグの数は、下の「下書きを書く SNS」に書いた数まで（SNS ごとに違う）
 - 「いかがでしたか」「〜してみた結果…！」のような、ありきたりで AI っぽい言い回しは使わない。誇張しない
 
 # 質問（questions）
@@ -145,7 +148,7 @@ const SNS_WRITING: Record<SnsKey, string> = {
 function snsRule(sns: SnsKey): string {
   const spec = SNS[sns];
   const limit = spec.maxLength === null ? "上限なし" : sns === "x" ? `全角換算 ${spec.maxLength} 字まで（半角英数は 0.5 字）` : `${spec.maxLength.toLocaleString("ja-JP")} 字まで`;
-  return `- ${sns}（${spec.label}）: ${limit}。${SNS_WRITING[sns]}`;
+  return `- ${sns}（${spec.label}）: ${limit}。${SNS_WRITING[sns]}。ハッシュタグは ${HASHTAG_RULES[sns].text}`;
 }
 
 export type IdeaContext = {
@@ -172,11 +175,19 @@ export function ideaContextText(ctx: IdeaContext): string {
   }
   lines.push(`口調: ${plan.pillars.tone.trim() || "（未設定）"}`);
   lines.push(`やらないこと: ${plan.pillars.avoid.trim() || "（未設定）"}`);
+  lines.push(...hashtagLines(plan));
   const roles = ctx.sns.map((s) => (plan.cadence.roles[s]?.trim() ? `- ${SNS[s].label}: ${plan.cadence.roles[s]!.trim()}` : null)).filter(Boolean);
   if (roles.length) lines.push("SNS ごとの役割:", ...(roles as string[]));
 
   lines.push("", "# 下書きを書く SNS（drafts の sns にはこの名前を使う）", ...ctx.sns.map(snsRule));
   return lines.join("\n");
+}
+
+// アカウント設計のハッシュタグ（下書きに付けてよいのはこの中だけ）。post-ideas と consult で使う
+export function hashtagLines(plan: PlanData): string[] {
+  const items = plan.hashtags.items;
+  if (!items.length) return ["ハッシュタグ: まだ決まっていません（下書きにハッシュタグは付けない）"];
+  return ["ハッシュタグ（付けてよいのはこの中だけ。ネタに合うものだけを付ける）:", ...items.map((i) => `- #${i.tag}${i.why.trim() ? `: ${i.why.trim()}` : ""}${i.when.trim() ? `（付けるとき: ${i.when.trim()}）` : ""}`)];
 }
 
 // コミットの中身に区切りのタグが入っていても、区切りが崩れないようにする
@@ -254,13 +265,19 @@ export function buildRefineIdeasRequest(ctx: IdeaContext, current: IdeasContent,
   );
 }
 
+export const planTags = (plan: PlanData) => plan.hashtags.items.map((i) => i.tag);
+
 const cap = (s: string, n: number) => {
   const t = s.trim();
   return t.length > n ? t.slice(0, n) : t;
 };
 
 // AI の返事を検証して整える。知らない sha と、頼んでいない SNS の下書きは捨てる。使えるネタがなければ null
-export function normalizeIdeas(raw: unknown, opts: { knownShas: string[]; sns: SnsKey[]; noteCount?: number }): { ideas: PostIdea[]; questions: IdeaQuestion[] } | null {
+// hashtags: アカウント設計で選んだタグ（# なし）。下書きのタグはこの中のもの・SNS の上限までにする（AI が指示を守らなかったとき用）
+export function normalizeIdeas(
+  raw: unknown,
+  opts: { knownShas: string[]; sns: SnsKey[]; noteCount?: number; hashtags?: string[] },
+): { ideas: PostIdea[]; questions: IdeaQuestion[] } | null {
   // notes は材料がネタ帳のときのために足した欄。なくても読む（前の版の返事と、ほかの材料）
   const withNotes =
     raw && typeof raw === "object" && Array.isArray((raw as { ideas?: unknown }).ideas)
@@ -280,7 +297,8 @@ export function normalizeIdeas(raw: unknown, opts: { knownShas: string[]; sns: S
     for (const sns of SNS_KEYS) {
       if (!opts.sns.includes(sns)) continue;
       const d = i.drafts.find((x) => x.sns === sns && x.text.trim());
-      if (d) drafts.push({ sns, text: cap(d.text, 3000) });
+      const text = d ? cap(tidyDraftHashtags(d.text, opts.hashtags ?? [], sns), 3000) : "";
+      if (text) drafts.push({ sns, text });
     }
     const title = cap(i.title, 80);
     if (!title || drafts.length === 0) continue;
@@ -436,7 +454,7 @@ export async function generatePostIdeas(
     console.error("[post-ideas] AI の呼び出しに失敗しました", e instanceof Error ? e.message : e);
     return { ok: false, message: AI_ERROR };
   }
-  const normalized = result.stopReason === "end_turn" ? normalizeIdeas(result.output, { knownShas, sns, noteCount: notes.length }) : null;
+  const normalized = result.stopReason === "end_turn" ? normalizeIdeas(result.output, { knownShas, sns, noteCount: notes.length, hashtags: planTags(ctx.plan) }) : null;
   if (!normalized) {
     // 使った分は、返事が使えなくても数える
     await recordUsage(admin, args.userId, null, result);
@@ -528,7 +546,7 @@ export async function refinePostIdeas(
   }
   await recordUsage(admin, args.userId, args.threadId, result);
   const knownShas = [...new Set(thread.latest.content.ideas.flatMap((i) => i.commits.map((c) => c.sha)))];
-  const normalized = result.stopReason === "end_turn" ? normalizeIdeas(result.output, { knownShas, sns: thread.request.sns, noteCount: thread.request.notes?.length ?? 0 }) : null;
+  const normalized = result.stopReason === "end_turn" ? normalizeIdeas(result.output, { knownShas, sns: thread.request.sns, noteCount: thread.request.notes?.length ?? 0, hashtags: planTags(ctx.plan) }) : null;
   if (!normalized) return { ok: false, message: "うまく出し直せませんでした。もう一度お試しください。" };
 
   const answerContent: IdeasAnswersContent = { kind: "ideas_answers", answers };

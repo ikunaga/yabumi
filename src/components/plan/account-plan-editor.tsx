@@ -7,7 +7,7 @@ import { ErrorBanner } from "@/components/ui/feedback";
 import { Field, Input, Textarea } from "@/components/ui/field";
 import { Term } from "@/components/ui/term";
 import { saveSection, type SectionFormState } from "@/lib/plan/actions";
-import { MAX_PILLARS, MAX_WEEKLY_PER_SNS, REQUIRED_FOR_DONE, SECTION_KEYS, isSectionDone, type PlanData, type SectionKey } from "@/lib/plan/schema";
+import { MAX_HASHTAGS, MAX_PILLARS, MAX_WEEKLY_PER_SNS, REQUIRED_FOR_DONE, SECTION_KEYS, isSectionDone, type PlanData, type SectionKey } from "@/lib/plan/schema";
 import { cycleInfo } from "@/lib/coach/pace";
 import { toYmd } from "@/lib/time";
 import { KPI_KEYS, KPIS, MAX_KPIS, recommendedKpis, type KpiKey } from "@/lib/metrics/kpis";
@@ -46,6 +46,14 @@ const META: Record<SectionKey, Meta> = {
       <>
         毎回ゼロからネタを考えなくて済むよう、投稿の「型」（<Term k="contentPillar" />
         ）を 3〜4 種類決めておきます。割合も決めると、宣伝ばかりになるのを防げます。
+      </>
+    ),
+  },
+  hashtags: {
+    title: "ハッシュタグ",
+    lead: (
+      <>
+        投稿に付ける <Term k="hashtag" /> の候補を決めます。届けたい相手が見ている言葉を選び、どの柱のときに付けるかも決めておくと、AI の下書きはネタに合うものだけを付けます。毎回同じタグを付ける必要はありません。
       </>
     ),
   },
@@ -217,6 +225,8 @@ function SectionFields({ sectionKey, plan, profileCtx }: { sectionKey: SectionKe
       return <ProfileFields v={plan.profile} roles={plan.cadence.roles} ctx={profileCtx} />;
     case "pillars":
       return <PillarsFields v={plan.pillars} />;
+    case "hashtags":
+      return <HashtagsFields v={plan.hashtags} />;
     case "cadence":
       return <CadenceFields v={plan.cadence} />;
     case "first_month":
@@ -403,6 +413,55 @@ function PillarsFields({ v }: { v: PlanData["pillars"] }) {
         <Textarea id="pillars-avoid" name="avoid" defaultValue={v.avoid} maxLength={500} rows={2} placeholder="例: 他のアプリを悪く言わない。宣伝だけの投稿を続けない。政治の話はしない" />
       </Field>
     </>
+  );
+}
+
+// 1 行目だけに例を出す（作品好きの人に届けたい、読書記録のアプリの例）
+const HASHTAG_EXAMPLE = { tag: "読書記録", why: "本の感想を投稿している人が見ている。人が多すぎず、話題がはっきりしている", when: "「読んだ本とアプリ」の柱のとき" };
+
+function HashtagsFields({ v }: { v: PlanData["hashtags"] }) {
+  const [rows, setRows] = useState(() => Math.min(MAX_HASHTAGS, Math.max(3, v.items.length + 1)));
+  return (
+    <fieldset className="flex flex-col gap-3">
+      <legend className="mb-1.5 text-[14px] font-bold">候補（最大 {MAX_HASHTAGS} 個）</legend>
+      <p className="text-xs leading-[1.7] text-muted">
+        # は付けなくても大丈夫です。タグの中に空白や記号は入れられません。1 投稿に付けるのは、X は 1〜2 個、Threads は 1 つ、Instagram は 5 個までです（どれも、ネタに合うものだけ）。
+      </p>
+      {Array.from({ length: rows }, (_, i) => {
+        const item = v.items[i];
+        const ex = i === 0 ? HASHTAG_EXAMPLE : null;
+        return (
+          <div key={i} className="grid grid-cols-[160px_1fr_1fr] gap-2 max-sm:grid-cols-1 max-sm:border-b max-sm:border-line max-sm:pb-3">
+            <div className="flex items-center gap-1">
+              <span aria-hidden className="text-muted">
+                #
+              </span>
+              <Input name={`hashtag-${i}-tag`} aria-label={`ハッシュタグ ${i + 1}`} defaultValue={item?.tag ?? ""} maxLength={51} placeholder={ex ? `例: ${ex.tag}` : ""} />
+            </div>
+            <Input
+              name={`hashtag-${i}-why`}
+              aria-label={`ハッシュタグ ${i + 1} を見ている人・使う理由`}
+              defaultValue={item?.why ?? ""}
+              maxLength={200}
+              placeholder={ex ? `どんな人が見ているか 例: ${ex.why}` : "どんな人が見ているか・なぜ使うか"}
+            />
+            <Input
+              name={`hashtag-${i}-when`}
+              aria-label={`ハッシュタグ ${i + 1} を付けるとき`}
+              defaultValue={item?.when ?? ""}
+              maxLength={200}
+              placeholder={ex ? `付けるとき 例: ${ex.when}` : "どの柱・どんなネタのときに付けるか"}
+            />
+          </div>
+        );
+      })}
+      {rows < MAX_HASHTAGS && (
+        <button type="button" onClick={() => setRows((n) => n + 1)} className="self-start text-sm font-semibold text-primary hover:underline">
+          ＋ 候補を足す
+        </button>
+      )}
+      <p className="text-xs text-muted">タグの欄を空にして保存すると、その候補は消えます。</p>
+    </fieldset>
   );
 }
 

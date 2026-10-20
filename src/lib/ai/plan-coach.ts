@@ -1,7 +1,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { saveSectionValue } from "@/lib/plan/save";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { isSectionKey, normalizePlan, type SectionKey } from "@/lib/plan/schema";
+import { isSectionKey, normalizePlan, type PlanData, type SectionKey } from "@/lib/plan/schema";
 import { isSnsKey, type SnsKey } from "@/lib/sns";
 import type { Database } from "@/lib/supabase/database.types";
 import { checkAiLimits, type AiLimits } from "./limits";
@@ -26,10 +26,10 @@ export type UserContent =
   | { kind: "start"; focus: SectionKey | null }
   | { kind: "text"; text: string }
   | { kind: "focus"; focus: SectionKey }
-  | { kind: "adopt"; messageId: string; optionIndex: number; section: SectionKey; title: string };
+  | { kind: "adopt"; messageId: string; optionIndex: number; section: SectionKey; title: string; tags?: string[] };
 
-// AI の返事。採用された案の番号を、あとから書き足す
-export type AssistantContent = CoachTurn & { adopted?: number | null };
+// AI の返事。採用された案の番号を、あとから書き足す。ハッシュタグの案は、選んだ候補の番号も（adoptedPicks）
+export type AssistantContent = CoachTurn & { adopted?: number | null; adoptedPicks?: number[] | null };
 
 export type StoredMessage =
   | { id: string; role: "user"; content: UserContent; created_at: string }
@@ -54,7 +54,9 @@ export function userContentToText(c: UserContent): string {
     case "focus":
       return `「${sectionLabel(c.focus)}」を一緒に考えたいです。`;
     case "adopt":
-      return `「${sectionLabel(c.section)}」の案「${c.title}」を採用して保存しました。次に進んでください。`;
+      return c.tags
+        ? `「${sectionLabel(c.section)}」の案「${c.title}」から、${c.tags.map((t) => `#${t}`).join(" ")} を選んで保存しました（ほかの候補は使いません）。次に進んでください。`
+        : `「${sectionLabel(c.section)}」の案「${c.title}」を採用して保存しました。次に進んでください。`;
   }
 }
 
@@ -83,7 +85,7 @@ export type CoachInput =
   | { kind: "start"; focus: SectionKey | null }
   | { kind: "text"; text: string }
   | { kind: "focus"; focus: SectionKey }
-  | { kind: "adopt"; messageId: string; optionIndex: number };
+  | { kind: "adopt"; messageId: string; optionIndex: number; picks?: number[] };
 
 export type CoachDeps = { callModel: CallModel; limits: AiLimits; now?: () => Date };
 export type CoachResult = { ok: true; threadId: string } | { ok: false; threadId: string | null; message: string };
@@ -155,13 +157,23 @@ export async function coachStep(
       if (!target || target.role !== "assistant" || !proposal || !option) {
         return { ok: false, threadId, message: "案が見つかりません。画面を読み込み直してください。" };
       }
-      const saved = await saveSectionValue(user, projectId, proposal.section, option.value, "ai", { now });
+      // ハッシュタグの案は、候補のうち利用者が選んだものだけを保存する
+      const picked = proposal.section === "hashtags" && input.picks ? pickHashtags(option.value as PlanData["hashtags"], input.picks) : null;
+      if (picked && picked.value.items.length === 0) return { ok: false, threadId, message: "使うハッシュタグを 1 つ以上選んでください。" };
+      const saved = await saveSectionValue(user, projectId, proposal.section, picked?.value ?? option.value, "ai", { now });
       if (!saved.ok) return { ok: false, threadId, message: "案を保存できませんでした。時間をおいてもう一度お試しください。" };
       await admin
         .from("ai_messages")
-        .update({ content: { ...target.content, adopted: input.optionIndex } as never })
+        .update({ content: { ...target.content, adopted: input.optionIndex, adoptedPicks: picked?.picks ?? null } as never })
         .eq("id", target.id);
-      userContent = { kind: "adopt", messageId: target.id, optionIndex: input.optionIndex, section: proposal.section, title: option.title };
+      userContent = {
+        kind: "adopt",
+        messageId: target.id,
+        optionIndex: input.optionIndex,
+        section: proposal.section,
+        title: option.title,
+        ...(picked ? { tags: picked.value.items.map((i) => i.tag) } : {}),
+      };
       break;
     }
   }
@@ -264,6 +276,12 @@ export async function coachStep(
   if (error) throw error;
   await admin.from("ai_threads").update({ updated_at: now.toISOString() }).eq("id", threadId);
   return { ok: true, threadId };
+}
+
+// ハッシュタグの案から、選んだ番号の候補だけを残す（範囲外と重なりは捨てる）
+export function pickHashtags(value: PlanData["hashtags"], picks: number[]): { value: PlanData["hashtags"]; picks: number[] } {
+  const valid = [...new Set(picks)].filter((i) => Number.isInteger(i) && i >= 0 && i < value.items.length).sort((a, b) => a - b);
+  return { value: { items: valid.map((i) => value.items[i]) }, picks: valid };
 }
 
 function sourcesOf(raw: unknown): Partial<Record<SectionKey, "ai" | "manual">> {

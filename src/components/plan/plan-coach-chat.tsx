@@ -8,13 +8,13 @@ import { sendCoachMessage } from "@/lib/ai/plan-coach-actions";
 import type { AssistantContent, StoredMessage } from "@/lib/ai/plan-coach";
 import { sectionLabel } from "@/lib/ai/plan-coach-prompt";
 import { describeSection } from "@/lib/plan/describe";
-import type { SectionKey } from "@/lib/plan/schema";
+import type { PlanData, SectionKey } from "@/lib/plan/schema";
 
 type Input =
   | { kind: "start"; focus: SectionKey | null }
   | { kind: "text"; text: string }
   | { kind: "focus"; focus: SectionKey }
-  | { kind: "adopt"; messageId: string; optionIndex: number };
+  | { kind: "adopt"; messageId: string; optionIndex: number; picks?: number[] };
 
 // アカウント設計を AI と話しながら進める画面
 export function PlanCoachChat({
@@ -98,7 +98,7 @@ export function PlanCoachChat({
               isLatest={m.id === lastAssistant?.id}
               disabled={pending}
               onChoice={(c) => send({ kind: "text", text: c })}
-              onAdopt={(i) => send({ kind: "adopt", messageId: m.id, optionIndex: i })}
+              onAdopt={(i, picks) => send({ kind: "adopt", messageId: m.id, optionIndex: i, ...(picks ? { picks } : {}) })}
               onRevise={(title) => {
                 setText(`案「${title}」の、ここを直したい: `);
                 inputRef.current?.focus();
@@ -169,7 +169,7 @@ function UserBubble({ message }: { message: Extract<StoredMessage, { role: "user
   if (c.kind === "adopt") {
     return (
       <li className="text-center text-sm text-success">
-        ✓ 「{sectionLabel(c.section)}」に案「{c.title}」を採用しました
+        ✓ 「{sectionLabel(c.section)}」に{c.tags ? ` ${c.tags.map((t) => `#${t}`).join(" ")} を選びました` : `案「${c.title}」を採用しました`}
       </li>
     );
   }
@@ -196,7 +196,7 @@ function AssistantBubble({
   isLatest: boolean;
   disabled: boolean;
   onChoice: (choice: string) => void;
-  onAdopt: (index: number) => void;
+  onAdopt: (index: number, picks?: number[]) => void;
   onRevise: (title: string) => void;
 }) {
   const c: AssistantContent = message.content;
@@ -234,11 +234,16 @@ function ProposalCard({
 }: {
   content: AssistantContent;
   disabled: boolean;
-  onAdopt: (index: number) => void;
+  onAdopt: (index: number, picks?: number[]) => void;
   onRevise: (title: string) => void;
 }) {
   const p = content.proposal!;
   const adopted = content.adopted ?? null;
+  const isHashtags = p.section === "hashtags";
+  // ハッシュタグの案は、候補ごとに使うかどうかを選ぶ（初めは全部に印）。案の番号 → 外した候補の番号
+  const [unpicked, setUnpicked] = useState<Record<number, number[]>>({});
+  const picksOf = (i: number) => (p.options[i].value as PlanData["hashtags"]).items.map((_, j) => j).filter((j) => !(unpicked[i] ?? []).includes(j));
+  const toggle = (i: number, j: number) => setUnpicked((u) => ({ ...u, [i]: (u[i] ?? []).includes(j) ? (u[i] ?? []).filter((x) => x !== j) : [...(u[i] ?? []), j] }));
   return (
     <section className="flex flex-col gap-3 rounded-lg border border-border bg-surface2 p-4 max-sm:p-3" aria-label={`${sectionLabel(p.section)}の AI の案`}>
       <p className="flex items-center gap-2 text-sm">
@@ -257,6 +262,17 @@ function ProposalCard({
                 {isRec && <span className="text-xs font-bold text-primary">おすすめ</span>}
               </header>
               {o.summary && <p className="leading-[1.7]">{o.summary}</p>}
+              {isHashtags ? (
+                <HashtagPicks
+                  items={(o.value as PlanData["hashtags"]).items}
+                  // 採用したあとは、選んだ候補だけに印（前の版の採用は全部）
+                  picked={isAdopted ? (content.adoptedPicks ?? (o.value as PlanData["hashtags"]).items.map((_, j) => j)) : adopted === null ? picksOf(i) : []}
+                  readOnly={adopted !== null}
+                  disabled={disabled}
+                  onToggle={(j) => toggle(i, j)}
+                  name={`${content.proposal!.section}-${i}`}
+                />
+              ) : (
               <dl className="flex flex-col gap-1.5 border-t border-line pt-2.5">
                 {describeSection(p.section, o.value).map((row) => (
                   <div key={row.label}>
@@ -265,6 +281,7 @@ function ProposalCard({
                   </div>
                 ))}
               </dl>
+              )}
               {(o.pros.length > 0 || o.cons.length > 0) && (
                 <div className="grid grid-cols-2 gap-2 border-t border-line pt-2.5 text-xs leading-[1.7] max-sm:grid-cols-1">
                   <div>
@@ -281,8 +298,14 @@ function ProposalCard({
                 {isAdopted ? (
                   <p className="font-bold text-success">✓ 採用しました</p>
                 ) : (
-                  <Button size="sm" variant={isRec ? "primary" : "secondary"} disabled={disabled} onClick={() => onAdopt(i)} className="w-full">
-                    この案にする
+                  <Button
+                    size="sm"
+                    variant={isRec ? "primary" : "secondary"}
+                    disabled={disabled || (isHashtags && picksOf(i).length === 0)}
+                    onClick={() => (isHashtags ? onAdopt(i, picksOf(i)) : onAdopt(i))}
+                    className="w-full"
+                  >
+                    {isHashtags ? `印を付けた ${picksOf(i).length} 個にする` : "この案にする"}
                   </Button>
                 )}
               </div>
@@ -311,5 +334,43 @@ function ProposalCard({
         </p>
       )}
     </section>
+  );
+}
+
+// ハッシュタグの候補。候補ごとに、どんな人が見ているか・付けるときと、使うかどうかの印
+function HashtagPicks({
+  items,
+  picked,
+  readOnly,
+  disabled,
+  onToggle,
+  name,
+}: {
+  items: PlanData["hashtags"]["items"];
+  picked: number[];
+  readOnly: boolean;
+  disabled: boolean;
+  onToggle: (index: number) => void;
+  name: string;
+}) {
+  return (
+    <fieldset className="flex flex-col gap-2 border-t border-line pt-2.5">
+      <legend className="sr-only">使うハッシュタグ</legend>
+      {!readOnly && <p className="text-xs text-muted">使うものに印を付けてください。投稿には、ネタに合うものだけが付きます。</p>}
+      {items.map((t, j) => {
+        const on = picked.includes(j);
+        const id = `${name}-tag-${j}`;
+        return (
+          <label key={t.tag} htmlFor={id} className={`flex gap-2.5 rounded-md border px-3 py-2 ${on ? "border-primary bg-primary-soft" : "border-line"} ${readOnly ? "" : "cursor-pointer"}`}>
+            <input id={id} type="checkbox" checked={on} disabled={readOnly || disabled} onChange={() => onToggle(j)} className="mt-1 size-4 shrink-0 accent-[var(--primary)]" />
+            <span className="flex min-w-0 flex-col gap-0.5">
+              <b className="break-all">#{t.tag}</b>
+              {t.why && <span className="leading-[1.7]">{t.why}</span>}
+              {t.when && <span className="text-xs leading-[1.7] text-muted">付けるとき: {t.when}</span>}
+            </span>
+          </label>
+        );
+      })}
+    </fieldset>
   );
 }

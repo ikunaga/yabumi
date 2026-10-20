@@ -439,7 +439,7 @@ export function PostComposer({
               </p>
             )}
             {focus === "instagram" && checks.instagram.issues.includes("too_many_hashtags") && (
-              <p className="text-xs font-semibold text-danger">Instagram のハッシュタグは 30 個までです。</p>
+              <p className="text-xs font-semibold text-danger">Instagram のハッシュタグは 5 個までです（2025 年 12 月から）。</p>
             )}
             {hasOverride ? (
               <div className="flex flex-col gap-1.5">

@@ -73,8 +73,8 @@ export const CONSULT_SYSTEM = `あなたは「矢書（やぶみ）」の中で�
   - recommended: おすすめの案の番号（0 から）、reason: おすすめの理由
 
 # 提案の中身の形（value_json）
-- plan_section: {"section": "goal" | "audience" | "pillars" | "ownership" | "profile" | "cadence" | "first_month", "value": （そのセクションの形）}
-  - セクションの形は、アカウント設計と同じ: goal {"what","goalType","note"}、audience {"who","pain","where"}、pillars {"items":[{"name","share","example"}],"tone","avoid"}、ownership {"mode","reason"}、profile {"displayName","handle","handleBackups","bio","link","bySns":{"x":{"displayName","handle","bio","link"}, ...}}（bySns は SNS ごとに変えるものだけ。空の項目は共通を使う。Threads の handle は、ふつう Instagram と同じなので入れない）、cadence {"frequency","roles":[{"sns","role"}]}、first_month {"goal","metrics","kpis":[...],"weekly":{"x":2,"instagram":1}}（weekly は SNS ごとの週の投稿の回数。伴走が見張る数字。直すときは今の値を基に）
+- plan_section: {"section": "goal" | "audience" | "pillars" | "hashtags" | "ownership" | "profile" | "cadence" | "first_month", "value": （そのセクションの形）}
+  - セクションの形は、アカウント設計と同じ: goal {"what","goalType","note"}、audience {"who","pain","where"}、pillars {"items":[{"name","share","example"}],"tone","avoid"}、hashtags {"items":[{"tag","why","when"}]}（tag は # なしで空白や記号を入れない。why はどんな人が見ているか・なぜ使うか、when はどの柱・どんなネタのときに付けるか。3〜6 個。届けたい相手が見ている言葉にし、人が多すぎて埋もれるタグ・だれも見ていないタグ・宣伝のためだけのタグは避ける）、ownership {"mode","reason"}、profile {"displayName","handle","handleBackups","bio","link","bySns":{"x":{"displayName","handle","bio","link"}, ...}}（bySns は SNS ごとに変えるものだけ。空の項目は共通を使う。Threads の handle は、ふつう Instagram と同じなので入れない）、cadence {"frequency","roles":[{"sns","role"}]}、first_month {"goal","metrics","kpis":[...],"weekly":{"x":2,"instagram":1}}（weekly は SNS ごとの週の投稿の回数。伴走が見張る数字。直すときは今の値を基に）
   - 直すセクション全体を入れる（直さない項目は今の値のまま）。1 つの提案の案は、どれも同じセクション
 - kgi: {"kgi": {"statement": "一文の目標", "kpi": 数字の名前, "target": 目標の値（数）, "deadline": "YYYY-MM-DD", "sns": SNS の名前 または null}}
   - deadline は「いまの状況」の今日の日付から数えて決める
@@ -82,6 +82,7 @@ export const CONSULT_SYSTEM = `あなたは「矢書（やぶみ）」の中で�
 - roadmap_items: {"items": [{"title": "やること（100 字以内）", "detail": "やり方の説明（任意）", "week": 今週を 0 とした何週目か（0〜52）, "kpi": 数字の名前 または null, "target": 目標の値 または null, "sns": SNS の名前 または null}]}（1〜8 個。kpi と target は両方入れるか、両方 null）
 - sns（kgi・kpi_targets・roadmap_items）: 数える SNS。kpi が posts のときだけ入れられる（ほかの数字は null）。「Instagram に 1 本」のように SNS を決めた投稿は、その SNS（例: "instagram"）。null は、すべての SNS の合計で数える。SNS の名前: x、threads、instagram、facebook、tiktok、youtube、note、substack
 - post_draft: {"sns": "x" | "threads" | "instagram" | "facebook" | "note" | "substack" | null, "text": "投稿の本文"}
+  - ハッシュタグは、アカウント設計の hashtags の中から、そのネタに合うもの（when に当てはまるもの）だけを本文の最後に付ける。合うものがなければ付けない。毎回同じタグを決まりのように付けない。設計にないタグを作らない。設計でハッシュタグが決まっていなければ付けない。1 投稿の数は X 1〜2 個、Threads 1 つ、Instagram 5 個まで、Facebook 1〜2 個まで
   - 本文は相手の口調と投稿の柱に合わせる。相手しか知らない事実（数字、できごと、アプリの機能の名前など）は作らず、【何を作ったか】のように【】で囲んで、相手が書き換える印にする
 - 数字の名前: posts=投稿した回数、link_clicks=ストアへのクリック、views=投稿の閲覧数、followers=フォロワーの増え方、store_page_views=ストアのページの閲覧、downloads=ダウンロード、revenue=課金（売上。円）
 `;
@@ -139,7 +140,7 @@ export function consultContextMessage(ctx: ConsultContext): string {
     `つないだ SNS（矢書から自動で送れる）: ${ctx.connectedSns.length ? ctx.connectedSns.join("、") : "まだない"}`,
     `手で投稿する SNS: ${ctx.manualSns.join("、")}（公式の投稿のしくみがないので、利用者が手で投稿する）`,
     "アカウント設計（JSON）:",
-    clip(JSON.stringify(plan), 4000),
+    clip(JSON.stringify(plan), 5000),
     "最近送った投稿（新しい順、最大 10 件。clicks は短縮リンクのクリック）:",
     ctx.recentPosts.length ? clip(JSON.stringify(ctx.recentPosts), 3000) : "まだない",
     "選んだ数字（KPI）:",

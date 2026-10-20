@@ -184,6 +184,54 @@ describe("AI と進めるアカウント設計", () => {
   });
 });
 
+describe("ハッシュタグの案（候補から選ぶ）", () => {
+  const tags = [
+    { tag: "読書記録", why: "本の感想を投稿している人が見ている", when: "読んだ本の柱のとき" },
+    { tag: "#本好きさんと繋がりたい", why: "本好きの人が見ている。人が多めで流れやすい", when: "" },
+    { tag: "積読", why: "読みきれない本の話をする人", when: "積読の話のとき" },
+    { tag: "拡散 希望", why: "空白入りは使えない", when: "" },
+  ];
+  const hashtagsProposal = {
+    message: "ハッシュタグの候補です。使うものに印を付けてください。",
+    choices: [],
+    proposal: {
+      section: "hashtags",
+      options: [{ title: "作品が好きな人向け", summary: "本好きの人が見ているタグ", pros: ["届けたい相手に近い"], cons: ["開発者には届きにくい"], value_json: JSON.stringify({ items: tags }) }],
+      recommended: 0,
+      reason: "届けたい相手が本好きの人のため",
+    },
+  };
+  let threadId: string;
+  let proposalId: string;
+
+  it("案の候補は # を外し、使えない形（空白入り）を捨てて残す", async () => {
+    const r = await step(alice, aliceId, reply(hashtagsProposal), null, { kind: "focus", focus: "hashtags" });
+    expect(r.ok).toBe(true);
+    threadId = r.threadId!;
+    const { data: msgs } = await alice.from("ai_messages").select("id, content").eq("thread_id", threadId).eq("role", "assistant");
+    proposalId = msgs![0].id;
+    const items = (msgs![0].content as { proposal: { options: { value: { items: { tag: string }[] } }[] } }).proposal.options[0].value.items;
+    expect(items.map((i) => i.tag)).toEqual(["読書記録", "本好きさんと繋がりたい", "積読"]);
+  });
+
+  it("1 つも選ばずには採用できない", async () => {
+    const r = await step(alice, aliceId, reply(question), threadId, { kind: "adopt", messageId: proposalId, optionIndex: 0, picks: [] });
+    expect(r).toMatchObject({ ok: false, message: "使うハッシュタグを 1 つ以上選んでください。" });
+  });
+
+  it("選んだ候補だけを設計に保存し、AI にも選んだタグを伝える", async () => {
+    const callModel = reply(question);
+    const r = await step(alice, aliceId, callModel, threadId, { kind: "adopt", messageId: proposalId, optionIndex: 0, picks: [2, 0, 0, 9] });
+    expect(r.ok).toBe(true);
+    const { data: plan } = await alice.from("account_plans").select("data, section_sources").eq("project_id", projectId).single();
+    expect((plan!.data as { hashtags: { items: { tag: string }[] } }).hashtags.items.map((i) => i.tag)).toEqual(["読書記録", "積読"]);
+    expect((plan!.section_sources as Record<string, string>).hashtags).toBe("ai");
+    const { data: m } = await alice.from("ai_messages").select("content").eq("id", proposalId).single();
+    expect(m!.content).toMatchObject({ adopted: 0, adoptedPicks: [0, 2] });
+    expect(JSON.stringify(vi.mocked(callModel).mock.calls[0][0].messages)).toContain("#読書記録 #積読 を選んで保存しました");
+  });
+});
+
 describe("AI まわりのテーブルの RLS", () => {
   it("本人は自分の会話・発言・利用量を読める。他人は読めない", async () => {
     expect((await alice.from("ai_threads").select("id")).data!.length).toBeGreaterThan(0);

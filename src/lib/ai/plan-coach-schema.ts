@@ -1,7 +1,7 @@
 import { KPI_KEYS } from "@/lib/metrics/kpis";
 import { z } from "zod";
 import { SNS_KEYS, type SnsKey } from "@/lib/sns";
-import { GOAL_TYPES, MAX_WEEKLY_PER_SNS, OWNERSHIP_MODES, PROFILE_OVERRIDE_FIELDS, SECTION_KEYS, sectionSchemas, type ProfileOverrideField, type SectionKey, type SectionValue } from "@/lib/plan/schema";
+import { GOAL_TYPES, isValidHashtag, MAX_HASHTAGS, MAX_WEEKLY_PER_SNS, normalizeHashtag, OWNERSHIP_MODES, PROFILE_OVERRIDE_FIELDS, SECTION_KEYS, sectionSchemas, type ProfileOverrideField, type SectionKey, type SectionValue } from "@/lib/plan/schema";
 
 // AI（アカウント設計の相棒）の 1 回の返事の形。構造化出力（output_config.format）でこの形に固定する。
 // 構造化出力のスキーマは文法にコンパイルされ、大きすぎると 400（compiled grammar is too large）になる。
@@ -19,6 +19,7 @@ export const valueSchemas = {
     tone: z.string(),
     avoid: z.string(),
   }),
+  hashtags: z.object({ items: z.array(z.object({ tag: z.string(), why: z.string().default(""), when: z.string().default("") })) }),
   ownership: z.object({ mode: z.enum(OWNERSHIP_MODES).nullable(), reason: z.string() }),
   profile: z.object({
     displayName: z.string(),
@@ -110,7 +111,7 @@ function normalizeProposal(raw: unknown): { proposal: Proposal | null; problem: 
     }
     const value = toSectionValue(section, v.data);
     if (!value) {
-      problems.push(`案 ${i + 1}: 値が長すぎるか、範囲外です（割合は 0〜100、柱は 5 本まで）`);
+      problems.push(`案 ${i + 1}: 値が長すぎるか、範囲外です（割合は 0〜100、柱は 5 本まで、ハッシュタグは # のあとに空白や記号なしで 1 個以上、理由は 200 字まで）`);
       continue;
     }
     options.push({ title: o.title, summary: o.summary, pros: o.pros, cons: o.cons, value });
@@ -140,6 +141,20 @@ export function toSectionValue(key: SectionKey, value: unknown): SectionValue<Se
   if (key === "pillars" && value && typeof value === "object") {
     const p = value as { items?: unknown };
     if (Array.isArray(p.items)) v = { ...p, items: (p.items as { name?: unknown }[]).filter((i) => typeof i.name === "string" && i.name.trim()).slice(0, 5) };
+  }
+  if (key === "hashtags" && value && typeof value === "object") {
+    // # を外し、使えない形のタグと重なりを捨てる（1 つの不備で案全体を捨てない）
+    const raw = (value as { items?: unknown }).items;
+    const seen = new Set<string>();
+    const items: { tag: string; why: unknown; when: unknown }[] = [];
+    for (const i of Array.isArray(raw) ? (raw as { tag?: unknown; why?: unknown; when?: unknown }[]) : []) {
+      const tag = typeof i.tag === "string" ? normalizeHashtag(i.tag) : "";
+      if (!tag || !isValidHashtag(tag) || seen.has(tag.toLowerCase())) continue;
+      seen.add(tag.toLowerCase());
+      items.push({ tag, why: i.why, when: i.when });
+    }
+    if (items.length === 0) return null;
+    v = { items: items.slice(0, MAX_HASHTAGS) };
   }
   if (key === "first_month" && value && typeof value === "object") {
     // 知らない SNS と、範囲外の回数を外す（数え始めの日は保存するときにサーバーが決める）

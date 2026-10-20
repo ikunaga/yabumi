@@ -36,6 +36,11 @@ export function describeSection(key: SectionKey, value: SectionValue<SectionKey>
       add("やらないこと", v.avoid);
       break;
     }
+    case "hashtags": {
+      const v = value as PlanData["hashtags"];
+      for (const i of v.items) add(`#${i.tag}`, [i.why.trim(), i.when.trim() && `付けるとき: ${i.when.trim()}`].filter(Boolean).join("\n") || "（説明なし）");
+      break;
+    }
     case "ownership": {
       const v = value as PlanData["ownership"];
       add("持ち方", v.mode ? OWNERSHIP_LABEL[v.mode] : "");

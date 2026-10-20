@@ -61,7 +61,7 @@ export function AiCheckPanel({ projectId, aiEnabled, texts, onApply }: Props) {
           )}
         </div>
         <p className="text-xs leading-[1.7] text-muted">
-          決まり文句、大げさな言葉、書いた人しか知らない事実（本当かどうか）、ハッシュタグの付けすぎ、設計の口調とのずれを見ます。直すかどうかはあなたが選べます。送るのは止めません（1 回 5 円ほど）。
+          決まり文句、大げさな言葉、書いた人しか知らない事実（本当かどうか）、ハッシュタグ（付けすぎ・ネタと関係ないもの・設計で決めたタグとのずれ）、設計の口調とのずれを見ます。直すかどうかはあなたが選べます。送るのは止めません（1 回 5 円ほど）。
         </p>
 
         {error && <ErrorBanner>{error}</ErrorBanner>}

@@ -13,7 +13,7 @@ const inputSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("start"), focus: z.string().nullable() }),
   z.object({ kind: z.literal("text"), text: z.string().max(MAX_USER_TEXT * 2) }),
   z.object({ kind: z.literal("focus"), focus: z.string() }),
-  z.object({ kind: z.literal("adopt"), messageId: z.uuid(), optionIndex: z.number().int().min(0).max(2) }),
+  z.object({ kind: z.literal("adopt"), messageId: z.uuid(), optionIndex: z.number().int().min(0).max(2), picks: z.array(z.number().int().min(0).max(20)).max(20).optional() }),
 ]);
 
 export type CoachActionResult = { ok: boolean; threadId: string | null; message?: string };

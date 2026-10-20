@@ -1,3 +1,4 @@
+import { extractHashtags, HASHTAG_RULES } from "./hashtags";
 import { xWeightedLength } from "./x-text";
 
 // 対象の SNS（要求 D1、D15）と、投稿のルール
@@ -101,8 +102,8 @@ export type TargetCheck = {
 // Instagram の画像の縦横比（幅 ÷ 高さ）。4:5（縦長）〜 1.91:1（横長）。外れると Instagram が断る（docs/architecture.md の 4.21）
 export const INSTAGRAM_MIN_RATIO = 4 / 5;
 export const INSTAGRAM_MAX_RATIO = 1.91;
-// Instagram のハッシュタグの上限
-export const INSTAGRAM_MAX_HASHTAGS = 30;
+// Instagram のハッシュタグの上限（2025 年 12 月から 5 個。前は 30 個。hashtags.ts の HASHTAG_RULES）
+export const INSTAGRAM_MAX_HASHTAGS = HASHTAG_RULES.instagram.max;
 
 export function instagramRatioOk(width: number, height: number): boolean {
   if (!width || !height) return false;
@@ -112,7 +113,7 @@ export function instagramRatioOk(width: number, height: number): boolean {
 }
 
 export function countHashtags(text: string): number {
-  return (text.match(/(^|[^\p{L}\p{N}_&])[#＃][\p{L}\p{N}_]+/gu) ?? []).length;
+  return extractHashtags(text).length;
 }
 
 export function checkTarget(

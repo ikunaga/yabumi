@@ -7,6 +7,7 @@ import { loadRoadmapWith } from "@/lib/roadmap/load";
 import { formatValue, itemProgress, weekStartOf, kpiLabel } from "@/lib/roadmap/schema";
 import { addItems, saveGoal, RoadmapError } from "@/lib/roadmap/write";
 import { isManualSns, isSnsKey, SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
+import { tidyDraftHashtags } from "@/lib/sns/hashtags";
 import type { Database } from "@/lib/supabase/database.types";
 import { addDays, toYmd } from "@/lib/time";
 import { checkAiLimits, type AiLimits } from "./limits";
@@ -441,12 +442,25 @@ export async function consultStep(
     }
   }
 
-  const { proposalProblem: _ignored, ...toSave } = turn;
+  const { proposalProblem: _ignored, ...rest } = turn;
   void _ignored;
+  const toSave = tidyConsultDrafts(rest, ctx.plan.hashtags.items.map((i) => i.tag));
   const { error } = await admin.from("ai_messages").insert({ thread_id: threadId, owner_id: userId, role: "assistant", content: { ...toSave, adopted: [] } as never });
   if (error) throw error;
   await admin.from("ai_threads").update({ updated_at: now.toISOString() }).eq("id", threadId);
   return { ok: true, threadId };
+}
+
+// 下書きの案のハッシュタグを、設計で選んだもの・SNS の上限までにする（AI が指示を守らなかったとき用）。SNS を決めていない下書きは X の数で
+export function tidyConsultDrafts(turn: ConsultTurn, tags: string[]): ConsultTurn {
+  if (turn.proposal?.kind !== "post_draft") return turn;
+  return {
+    ...turn,
+    proposal: {
+      ...turn.proposal,
+      options: turn.proposal.options.map((o) => (o.kind === "post_draft" ? { ...o, text: tidyDraftHashtags(o.text, tags, o.sns ?? "x") } : o)),
+    },
+  };
 }
 
 export async function loadConsultHistory(db: Db, threadId: string): Promise<ConsultMessage[]> {

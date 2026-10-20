@@ -4,7 +4,7 @@ import { SNS_KEYS, type SnsKey } from "@/lib/sns";
 import { isYmd } from "@/lib/time";
 
 // アカウント設計（要求 F15）のデータの形。DB の account_plans.data にセクションごとに入る。
-// セクションはここに書いた順に画面に並ぶ。名前は投稿の柱が決まらないと決めにくいので、柱 → 持ち方 → 名前の順にしている
+// セクションはここに書いた順に画面に並ぶ。名前は投稿の柱が決まらないと決めにくいので、柱 → ハッシュタグ → 持ち方 → 名前の順にしている
 // AI 壁打ち（F09）が案を出すときも、この形（セクション単位）で出して保存する想定。
 
 const CHOICE = { message: "選択肢から選んでください" };
@@ -15,9 +15,24 @@ const text = (max: number) => z.string().trim().max(max, `${max.toLocaleString("
 export const GOAL_TYPES = ["downloads", "paid", "awareness", "other"] as const;
 export const OWNERSHIP_MODES = ["personal", "dedicated", "undecided"] as const;
 export const MAX_PILLARS = 5;
+// 設計に置けるハッシュタグの数（AI は 3〜6 個を出す。どの投稿にも全部を付けるのではなく、ネタに合うものだけを付ける）
+export const MAX_HASHTAGS = 10;
+const HASHTAG = "ハッシュタグは空白や記号（# のほか、句読点など）を入れずに書いてください";
 // 最初の 1 か月の SNS ごとの週の回数の上限（1 日 2 本まで）
 export const MAX_WEEKLY_PER_SNS = 14;
 const WEEKLY = `週の回数は 1〜${MAX_WEEKLY_PER_SNS} の整数にしてください`;
+
+// 先頭の # / ＃ は外して持つ。タグの途中に空白や記号があると、SNS がそこでタグを切ってしまう
+export function normalizeHashtag(raw: string): string {
+  return raw.trim().replace(/^[#＃]+/, "").trim();
+}
+export function isValidHashtag(tag: string): boolean {
+  return /^[\p{L}\p{N}\p{M}_]+$/u.test(tag);
+}
+const hashtagText = z
+  .string()
+  .transform(normalizeHashtag)
+  .pipe(z.string().min(1, "ハッシュタグを入れてください").max(50, "ハッシュタグは 50 文字以内にしてください").refine(isValidHashtag, HASHTAG));
 
 const snsKeyEnum = z.enum(SNS_KEYS as [SnsKey, ...SnsKey[]]);
 
@@ -46,6 +61,15 @@ export const sectionSchemas = {
       .default([]),
     tone: text(300),
     avoid: text(500),
+  }),
+  // ハッシュタグ（2026-10-20）。タグ（# なし）・どんな人が見ているか・なぜ使うか（why）・どの柱やネタのときに付けるか（when）。
+  // 下書きを出す AI は、この中からネタに合うものだけを付ける（docs/architecture.md の 4.15）
+  hashtags: z.object({
+    items: z
+      .array(z.object({ tag: hashtagText, why: text(200), when: text(200) }))
+      .max(MAX_HASHTAGS, `ハッシュタグは ${MAX_HASHTAGS} 個までです`)
+      .refine((items) => new Set(items.map((i) => i.tag.toLowerCase())).size === items.length, "同じハッシュタグが 2 つあります")
+      .default([]),
   }),
   ownership: z.object({
     mode: z.enum(OWNERSHIP_MODES, CHOICE).nullable().default(null),
@@ -127,6 +151,8 @@ export function isSectionDone<K extends SectionKey>(key: K, v: SectionValue<K>):
     }
     case "pillars":
       return (v as PlanData["pillars"]).items.some((i) => filled(i.name));
+    case "hashtags":
+      return (v as PlanData["hashtags"]).items.length > 0;
     case "cadence":
       return filled((v as PlanData["cadence"]).frequency);
     case "first_month": {
@@ -188,6 +214,16 @@ function parseSectionFormAny(key: SectionKey, form: FormData) {
         items.push({ name, share, example });
       }
       return sectionSchemas.pillars.safeParse({ items, tone: s("tone"), avoid: s("avoid") });
+    }
+    case "hashtags": {
+      // 欄は hashtag-<n>-tag / why / when。タグが空の行は捨てる（理由だけ書いた行も、タグがなければ使えないため）
+      const items = [];
+      for (let i = 0; i < MAX_HASHTAGS; i++) {
+        const tag = s(`hashtag-${i}-tag`);
+        if (!normalizeHashtag(tag)) continue;
+        items.push({ tag, why: s(`hashtag-${i}-why`), when: s(`hashtag-${i}-when`) });
+      }
+      return sectionSchemas.hashtags.safeParse({ items });
     }
     case "cadence": {
       const roles: Partial<Record<SnsKey, string>> = {};

@@ -26,7 +26,13 @@ export const getAccountPlan = cache(async (projectId: string): Promise<AccountPl
 // プロジェクト一覧用: プロジェクトごとの設計の段階（済み、または飛ばした）
 export async function planProgressByProject(projects: { id: string; target_audience: string }[]): Promise<Record<string, boolean>> {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("account_plans").select("project_id, data, skipped_at");
+  const { data, error } = await supabase
+    .from("account_plans")
+    .select("project_id, data, skipped_at")
+    .in(
+      "project_id",
+      projects.map((p) => p.id),
+    );
   if (error) throw error;
   const rows = new Map(data.map((r) => [r.project_id, r]));
   return Object.fromEntries(

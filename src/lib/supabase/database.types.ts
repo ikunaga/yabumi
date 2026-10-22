@@ -1907,6 +1907,15 @@ export type Database = {
           sns: string
         }[]
       }
+      project_step_flags: {
+        Args: { p_project_id: string; p_week_start: string }
+        Returns: {
+          has_published: boolean
+          has_roadmap: boolean
+          project_id: string
+          this_week_todo: number
+        }[]
+      }
       purge_expired_data: {
         Args: never
         Returns: {

@@ -35,12 +35,12 @@ export async function listProjectSnsAccounts(projectId: string): Promise<Project
 }
 
 // プロジェクト一覧用: プロジェクトごとに、使える状態でつないだ SNS
-export async function activeSnsByProject(): Promise<Record<string, SnsKey[]>> {
+// projectId を渡すと、そのプロジェクトだけ
+export async function activeSnsByProject(projectId?: string): Promise<Record<string, SnsKey[]>> {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("project_social_accounts")
-    .select("project_id, social_accounts(id, sns, handle, display_name, status)")
-    .order("created_at");
+  let query = supabase.from("project_social_accounts").select("project_id, social_accounts(id, sns, handle, display_name, status)");
+  if (projectId) query = query.eq("project_id", projectId);
+  const { data, error } = await query.order("created_at");
   if (error) throw error;
   const result: Record<string, SnsKey[]> = {};
   for (const r of data as unknown as Row[]) {

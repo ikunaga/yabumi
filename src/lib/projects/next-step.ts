@@ -50,7 +50,9 @@ export const STEPS: Step[] = [
 // 設計が済んでいない（飛ばしてもいない）なら 1 段目、SNS をつないでいなければ 2 段目、まだ 1 本も送っていなければ 3 段目、
 // ロードマップ（目標かやること）がなければ 4 段目。すべて済んだら STEPS.length（概要は「今週のやること」を出す）。
 // 設計は「あとで設計する」で飛ばせる。済みの基準は docs/requirements.md の F15
-export function currentStepIndex(state: { planDone: boolean; connectedSnsCount: number; hasPublished?: boolean; hasRoadmap?: boolean }): number {
+export type StepState = { planDone: boolean; connectedSnsCount: number; hasPublished: boolean; hasRoadmap: boolean };
+
+export function currentStepIndex(state: StepState): number {
   if (!state.planDone) return 0;
   if (state.connectedSnsCount === 0) return 1;
   if (!state.hasPublished) return 2;
@@ -70,4 +72,12 @@ export function stepHref(key: StepKey, projectId: string): string {
     case "roadmap":
       return `/projects/${projectId}/roadmap`;
   }
+}
+
+// プロジェクト一覧の「次にやること」。4 段階のうちまだのものがあればその段階、すべて済んだら今週のやること（まだのものの数）。
+// どれも概要（いまやること・今週のやること）へ
+export function listNextStep(state: StepState & { thisWeekTodo: number }): { label: string; stepIndex: number } {
+  const stepIndex = currentStepIndex(state);
+  if (stepIndex < STEPS.length) return { label: STEPS[stepIndex].shortTitle, stepIndex };
+  return { label: state.thisWeekTodo > 0 ? `今週のやること あと ${state.thisWeekTodo} 件` : "今週のやることを見る", stepIndex };
 }

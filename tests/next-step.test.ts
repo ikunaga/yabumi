@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { currentStepIndex, STEPS, stepHref } from "@/lib/projects/next-step";
+import { currentStepIndex, listNextStep, STEPS, stepHref, type StepState } from "@/lib/projects/next-step";
 
-const step = (planDone: boolean, connectedSnsCount: number) => STEPS[currentStepIndex({ planDone, connectedSnsCount })].key;
+const none: StepState = { planDone: false, connectedSnsCount: 0, hasPublished: false, hasRoadmap: false };
+const step = (planDone: boolean, connectedSnsCount: number) => STEPS[currentStepIndex({ ...none, planDone, connectedSnsCount })].key;
 
 describe("いまやること", () => {
   it("設計 → SNS をつなぐ → 最初の投稿 の順に進む", () => {
@@ -15,7 +16,7 @@ describe("いまやること", () => {
   });
 
   it("最初の投稿を送ったら、目標とロードマップ。ロードマップができたら、すべて済み（今週のやることを出す）", () => {
-    expect(STEPS[currentStepIndex({ planDone: true, connectedSnsCount: 1, hasPublished: false })].key).toBe("firstPost");
+    expect(STEPS[currentStepIndex({ ...none, planDone: true, connectedSnsCount: 1 })].key).toBe("firstPost");
     expect(STEPS[currentStepIndex({ planDone: true, connectedSnsCount: 1, hasPublished: true, hasRoadmap: false })].key).toBe("roadmap");
     expect(currentStepIndex({ planDone: true, connectedSnsCount: 1, hasPublished: true, hasRoadmap: true })).toBe(STEPS.length);
   });
@@ -31,3 +32,27 @@ describe("いまやること", () => {
     expect(STEPS.every((s) => s.available)).toBe(true);
   });
 });
+
+// プロジェクト一覧の「次にやること」（2026-10-22 の不具合: 投稿済みでも、いつも「最初の投稿をつくる」になっていた）
+describe("一覧の次にやること", () => {
+  const label = (over: Partial<StepState & { thisWeekTodo: number }>) => listNextStep({ ...none, thisWeekTodo: 0, ...over }).label;
+  const done = { planDone: true, connectedSnsCount: 1, hasPublished: true, hasRoadmap: true };
+
+  it("済んだ段階ごとに変わる", () => {
+    expect(label({})).toBe("アカウントを設計する");
+    expect(label({ planDone: true })).toBe("SNS をつなぐ");
+    expect(label({ planDone: true, connectedSnsCount: 2 })).toBe("最初の投稿をつくる");
+    expect(label({ planDone: true, connectedSnsCount: 2, hasPublished: true })).toBe("目標とロードマップ");
+  });
+
+  it("投稿済みでロードマップもあれば、最初の投稿ではなく今週のやること（まだのものの数）", () => {
+    expect(label({ ...done, thisWeekTodo: 2 })).toBe("今週のやること あと 2 件");
+    expect(label({ ...done, thisWeekTodo: 0 })).toBe("今週のやることを見る");
+    expect(listNextStep({ ...done, thisWeekTodo: 0 }).stepIndex).toBe(STEPS.length);
+  });
+
+  it("ロードマップを先に作っていても、投稿していなければ最初の投稿", () => {
+    expect(label({ planDone: true, connectedSnsCount: 1, hasRoadmap: true, thisWeekTodo: 3 })).toBe("最初の投稿をつくる");
+  });
+});
+

@@ -19,6 +19,7 @@ import { formatShort } from "@/lib/time";
 import { Card, CardHeader, EmptyState } from "@/components/ui/card";
 import { Term } from "@/components/ui/term";
 import { currentStepIndex, STEPS } from "@/lib/projects/next-step";
+import { loadStepStates } from "@/lib/projects/step-state";
 import { loadRoadmap, thisWeekTodos } from "@/lib/roadmap/queries";
 import { itemProgress } from "@/lib/roadmap/schema";
 import { overdueItems } from "@/lib/roadmap/load";
@@ -53,7 +54,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
   const editHref = `/projects/${project.id}/edit`;
   const supabase = await createClient();
   const xReady = xConfigured();
-  const [upcoming, snsAccounts, attention, overdue, manualDue, plan, { data: repoLink }, { data: manualChannels }, xSpend, roadmap, { count: publishedCount }] = await Promise.all([
+  const [upcoming, snsAccounts, attention, overdue, manualDue, plan, { data: repoLink }, { data: manualChannels }, xSpend, roadmap, stepStates] = await Promise.all([
     listUpcomingPosts(project.id),
     listProjectSnsAccounts(project.id),
     listPostsNeedingAttention(project.id),
@@ -64,24 +65,20 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
     supabase.from("project_manual_channels").select("sns, profile_url").eq("project_id", project.id),
     xReady ? xSpendThisMonth() : null,
     loadRoadmap(project.id),
-    supabase
-      .from("post_targets")
-      .select("id, posts!inner(project_id)", { count: "exact", head: true })
-      .eq("posts.project_id", project.id)
-      .eq("status", "published"),
+    // いまやることの判定（一覧と同じ値。src/lib/projects/step-state.ts）
+    loadStepStates([project]),
   ]);
   // 伴走（4.27）: 最初の 1 か月の SNS ごとの週の回数とペース
   const { data: prefs } = await supabase.from("notification_prefs").select("behind_weekday").maybeSingle();
   const coach = plan ? await loadCoachView(supabase, project.id, { firstMonth: plan.plan.first_month, behindWeekday: prefs?.behind_weekday ?? DEFAULT_BEHIND_WEEKDAY }) : null;
   const showGithubPrompt = !repoLink && !project.github_prompt_dismissed_at;
-  const planDone = Boolean(plan && (plan.done || plan.skipped));
-  const connectedSnsCount = new Set(snsAccounts.filter((a) => a.status === "active").map((a) => a.sns)).size;
-  const hasRoadmap = Boolean(roadmap.roadmap?.kgi) || roadmap.items.length > 0;
+  const stepState = stepStates[project.id];
+  const planDone = stepState.planDone;
   // 同じ SNS の別のアカウントから付け替えたとき（つないだ直後だけ）。新しいアカウントの名前は今つながっているものから
   const replacedNames = typeof connected === "string" ? readReplacedCookie((await cookies()).get(SNS_REPLACED_COOKIE)?.value) : [];
   const connectedAccount = snsAccounts.find((a) => a.sns === connected && a.status === "active");
   const connectedName = connectedAccount ? (connectedAccount.handle ? `@${connectedAccount.handle}` : connectedAccount.displayName) : null;
-  const stepIndex = currentStepIndex({ planDone, connectedSnsCount, hasPublished: (publishedCount ?? 0) > 0, hasRoadmap });
+  const stepIndex = currentStepIndex(stepState);
 
   return (
     <div className="flex flex-col gap-7 max-sm:gap-4">

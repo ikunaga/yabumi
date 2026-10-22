@@ -6,11 +6,10 @@ import { ButtonLink } from "@/components/ui/button";
 import { Card, EmptyState } from "@/components/ui/card";
 import { SuccessBanner } from "@/components/ui/feedback";
 import { requireUser } from "@/lib/auth/user";
-import { STEPS, currentStepIndex } from "@/lib/projects/next-step";
+import { listNextStep } from "@/lib/projects/next-step";
 import { listProjects } from "@/lib/projects/queries";
+import { loadStepStates } from "@/lib/projects/step-state";
 import { SNS } from "@/lib/sns";
-import { activeSnsByProject } from "@/lib/sns/queries";
-import { planProgressByProject } from "@/lib/plan/queries";
 
 export const metadata: Metadata = { title: "プロジェクト" };
 
@@ -21,8 +20,9 @@ function storeLabel(p: { app_store_url: string | null; play_store_url: string | 
 
 export default async function ProjectsPage(props: PageProps<"/projects">) {
   const { sns_error, done } = await props.searchParams;
-  const [user, projects, snsByProject] = await Promise.all([requireUser(), listProjects(), activeSnsByProject()]);
-  const planByProject = await planProgressByProject(projects);
+  const [user, projects] = await Promise.all([requireUser(), listProjects()]);
+  // 次にやることの判定は概要と同じ値で（まとめて取る。src/lib/projects/step-state.ts）
+  const states = await loadStepStates(projects);
 
   return (
     <>
@@ -66,8 +66,9 @@ export default async function ProjectsPage(props: PageProps<"/projects">) {
             </div>
             <ul>
               {projects.map((p) => {
-                const sns = snsByProject[p.id] ?? [];
-                const step = STEPS[currentStepIndex({ planDone: planByProject[p.id] ?? false, connectedSnsCount: sns.length })];
+                const state = states[p.id];
+                const sns = state?.connectedSns ?? [];
+                const next = listNextStep(state ?? { planDone: false, connectedSnsCount: 0, hasPublished: false, hasRoadmap: false, thisWeekTodo: 0 });
                 const store = storeLabel(p);
                 return (
                   <li
@@ -87,7 +88,7 @@ export default async function ProjectsPage(props: PageProps<"/projects">) {
                       {sns.length ? sns.map((k) => SNS[k].label).join("・") : "なし"}
                     </span>
                     <Link href={`/projects/${p.id}`} className="font-bold text-primary hover:underline">
-                      {step.shortTitle} →
+                      {next.label} →
                     </Link>
                   </li>
                 );

@@ -20,7 +20,7 @@ export function Brand({
   const rtColor = tone === "nav" ? "text-nav-fg" : "text-muted";
 
   return (
-    <Link href={href} className={`relative inline-flex items-end gap-1.5 hover:no-underline ${nudge} ${color}`} aria-label="矢書（やぶみ） トップへ">
+    <Link href={href} className={`relative inline-flex shrink-0 items-end gap-1.5 whitespace-nowrap hover:no-underline ${nudge} ${color}`} aria-label="矢書（やぶみ） トップへ">
       {/* ふりがなは漢字の上に浮かせ、ロゴの箱の高さは漢字だけにする。隣のメニューと揃えるのは漢字なので、
           ふりがなまで箱に入れると、ロゴの中央が漢字より上にずれ、メニューの文字が浮いて見える */}
       <span className={`relative font-heading leading-none font-bold ${text}`}>

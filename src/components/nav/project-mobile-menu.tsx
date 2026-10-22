@@ -5,11 +5,13 @@ import { usePathname, useSelectedLayoutSegment } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { QuickNote } from "@/components/notes/quick-note";
 import { DismissableDetails } from "@/components/ui/dismissable-details";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { logout } from "@/lib/auth/actions";
 import { activeNavKey, projectNavItems } from "./project-nav-items";
 
 // スマホのヘッダーの「メニュー」。下のタブに入らない画面（アカウント設計・リンク・ロードマップ）と、アカウント・ログアウトへの入口。
-// プロジェクトの切り替えとは役目が違うので分ける（切り替えはプロジェクト名、ここは画面の一覧）
+// プロジェクトの切り替えとは役目が違うので分ける（切り替えはプロジェクト名、ここは画面の一覧）。
+// ライト・ダークの切り替えもここに入れる（320px の幅で、ロゴ・プロジェクト名・メニューを 1 行に収めるため）
 export function ProjectMobileMenu({ projectId, email, projects }: { projectId: string; email: string; projects: { id: string; name: string }[] }) {
   const active = activeNavKey(useSelectedLayoutSegment());
   const pathname = usePathname();
@@ -23,8 +25,8 @@ export function ProjectMobileMenu({ projectId, email, projects }: { projectId: s
   }, [pathname]);
 
   return (
-    <DismissableDetails className="group relative">
-      <summary className="flex cursor-pointer list-none items-center gap-1 text-sm text-nav-fg hover:text-nav-strong [&::-webkit-details-marker]:hidden">
+    <DismissableDetails className="group relative shrink-0">
+      <summary className="flex cursor-pointer list-none items-center gap-1 text-sm whitespace-nowrap text-nav-fg hover:text-nav-strong [&::-webkit-details-marker]:hidden">
         <span aria-hidden>≡</span>
         メニュー
       </summary>
@@ -57,6 +59,7 @@ export function ProjectMobileMenu({ projectId, email, projects }: { projectId: s
           </ul>
         </nav>
         <div className="mt-1 border-t border-line pt-1">
+          <ThemeToggle tone="menu" />
           <Link href="/settings" className="block px-4 py-3 hover:bg-primary-soft hover:no-underline">
             ログインと退会
             <span className="block truncate text-xs text-muted">{email}</span>

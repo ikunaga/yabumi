@@ -12,21 +12,21 @@ function currentTheme(): Theme {
 
 // ライトとダークを切り替える。何も選んでいない間は OS の設定に従う。
 // 表示する文字は CSS（dark: クラス）で出し分けるので、サーバーとブラウザで描画がずれない
-export function ThemeToggle({ tone = "default" }: { tone?: "default" | "nav" }) {
+// tone="menu": スマホのメニューの 1 行（幅いっぱいに押せる）
+export function ThemeToggle({ tone = "default" }: { tone?: "default" | "nav" | "menu" }) {
   function toggle() {
     const next: Theme = currentTheme() === "dark" ? "light" : "dark";
     document.documentElement.dataset.theme = next;
     document.cookie = `${THEME_COOKIE}=${next}; path=/; max-age=${ONE_YEAR}; samesite=lax`;
   }
 
-  const color = tone === "nav" ? "text-nav-fg hover:text-nav-strong" : "text-muted hover:text-fg";
+  const look =
+    tone === "menu"
+      ? "flex w-full items-center gap-2 px-4 py-3 text-left text-fg hover:bg-primary-soft"
+      : `inline-flex items-center gap-1.5 whitespace-nowrap hover:underline ${tone === "nav" ? "text-nav-fg hover:text-nav-strong" : "text-muted hover:text-fg"}`;
 
   return (
-    <button
-      type="button"
-      onClick={toggle}
-      className={`inline-flex items-center gap-1.5 text-sm whitespace-nowrap hover:underline ${color}`}
-    >
+    <button type="button" onClick={toggle} className={`text-sm ${look}`}>
       <MoonIcon className="size-3.5 dark:hidden" />
       <span className="dark:hidden">ダーク</span>
       <SunIcon className="hidden size-3.5 dark:inline" />

@@ -14,13 +14,13 @@ export function ProjectSwitcher({
   const summary =
     variant === "sidebar"
       ? "flex items-center justify-between gap-2 rounded-md border border-nav-active px-3 py-2.5 text-sm text-nav-strong hover:bg-nav-active"
-      : "flex max-w-[9rem] items-center gap-1 text-sm text-nav-fg hover:text-nav-strong";
+      : "flex max-w-[12rem] min-w-0 items-center gap-1 text-sm text-nav-fg hover:text-nav-strong";
 
   return (
-    <DismissableDetails className="group relative">
+    <DismissableDetails className="group relative min-w-0">
       <summary className={`cursor-pointer list-none [&::-webkit-details-marker]:hidden ${summary}`}>
         <span className="truncate">{current.name}</span>
-        <span aria-hidden className="text-xs transition-transform group-open:rotate-180">
+        <span aria-hidden className="shrink-0 text-xs transition-transform group-open:rotate-180">
           ▾
         </span>
         <span className="sr-only">プロジェクトを切り替える</span>

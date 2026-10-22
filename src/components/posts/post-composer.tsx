@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { ErrorBanner, SuccessBanner } from "@/components/ui/feedback";
 import { deletePost, savePost } from "@/lib/posts/actions";
@@ -14,6 +14,8 @@ import { AiCheckPanel } from "./ai-check-panel";
 import { ComposeStart } from "./compose-start";
 import { PlanHints, type PlanHintsData } from "./plan-hints";
 import { SendResults, type TargetResult } from "./send-results";
+import { SnsPreview } from "./sns-preview";
+import { previewTabs } from "@/lib/sns/preview";
 import { ISSUE_LABEL, MAX_TITLE_LENGTH, SNS, SNS_KEYS, checkTarget, hasXUrl, instagramRatioOk, ignoresImages, isManualSns, type SnsKey, type TargetIssue } from "@/lib/sns";
 import { X_PRICE_USD, formatUsd } from "@/lib/sns/x/pricing";
 import { Term } from "@/components/ui/term";
@@ -89,8 +91,9 @@ export function PostComposer({
   const [overrides, setOverrides] = useState<Partial<Record<SnsKey, string>>>(() =>
     Object.fromEntries(initial.targets.filter((t) => t.bodyOverride !== null).map((t) => [t.sns, t.bodyOverride!])),
   );
-  // 最初に見せる SNS: 文面を変えた SNS があればそれ、なければ並び順で最初に選ばれているもの
-  const [focus, setFocus] = useState<SnsKey>(
+  // 最初に見せる SNS: 文面を変えた SNS があればそれ、なければ並び順で最初に選ばれているもの。
+  // 見え方と SNS ごとの文面は、送り先に選んだ SNS のタブで切り替える（選んだ SNS にない SNS を指していたら、最初のタブ。focus）
+  const [picked, setFocus] = useState<SnsKey>(
     () =>
       initial.targets.find((t) => t.bodyOverride !== null)?.sns ??
       SNS_KEYS.find((s) => initial.targets.some((t) => t.sns === s)) ??
@@ -116,7 +119,10 @@ export function PostComposer({
   );
 
   const isLocked = (s: SnsKey) => LOCKED.has(results[s]?.status ?? "");
+  // 1 つでも送った（送信中・取り消し済みを含む）投稿
+  const sentAny = SNS_KEYS.some((s) => isLocked(s));
   const chosen = SNS_KEYS.filter((s) => selected.has(s));
+  const { tabs: previewSns, active: focus } = previewTabs(chosen, picked);
 
   // AI っぽさチェックの直しを当てる。SNS ごとの文面があればそれを、なければ共通の本文を直す
   function applyCheckFix(sns: SnsKey, quote: string, fix: string): boolean {
@@ -188,6 +194,11 @@ export function PostComposer({
     });
   }
 
+  // 保存・送信のあとに移ってきたら（?done=…）、上の知らせと送信の結果が見えるように、いちばん上に戻す
+  useEffect(() => {
+    if (notice) window.scrollTo({ top: 0 });
+  }, [notice]);
+
   const fe = result.fieldErrors ?? {};
   const focusLabel = SNS[focus].label;
   const hasOverride = overrides[focus] !== undefined;
@@ -195,6 +206,14 @@ export function PostComposer({
   return (
     <div className="flex min-h-full flex-col">
       {/* 新しい投稿は、自分で書くか AI とネタを出すかを先に並べる（AI を使わなくても書いて送れることがわかるように） */}
+      {/* 保存・送信の知らせと、送信の結果（送ったあとはこの投稿の画面に移り、ここに結果が出る） */}
+      {postId && (
+        <div className="mb-6 flex flex-col gap-3 max-sm:mb-4">
+          <h1 className="font-heading text-2xl font-bold">{sentAny ? "送った投稿" : "下書き"}</h1>
+          {notice && (noticeTone === "error" ? <ErrorBanner>{notice}</ErrorBanner> : <SuccessBanner>{notice}</SuccessBanner>)}
+          <SendResults projectId={projectId} postId={postId} results={results} />
+        </div>
+      )}
       {!postId && (
         <div className="mb-6 max-sm:mb-4">
           <ComposeStart projectId={projectId} aiEnabled={aiCheckEnabled} bodyId="post-body" />
@@ -203,17 +222,10 @@ export function PostComposer({
       <div className="grid flex-1 grid-cols-[1fr_440px] gap-7 max-xl:grid-cols-1">
         {/* 左: 下書き */}
         <section aria-labelledby="draft-heading" className="flex flex-col gap-3.5">
-          {postId ? (
-            <h1 id="draft-heading" className="font-heading text-2xl font-bold">
-              下書き
-            </h1>
-          ) : (
-            <h2 id="draft-heading" className="text-[14px] font-bold">
-              本文
-            </h2>
-          )}
+          <h2 id="draft-heading" className="text-[14px] font-bold">
+            本文
+          </h2>
 
-          {notice && (noticeTone === "error" ? <ErrorBanner>{notice}</ErrorBanner> : <SuccessBanner>{notice}</SuccessBanner>)}
           {result.error && <ErrorBanner>{result.error}</ErrorBanner>}
 
           {initial.roadmapItem && (
@@ -326,6 +338,7 @@ export function PostComposer({
                       className="size-4 accent-[var(--primary)]"
                     />
                     {spec.label}
+                    {overrides[sns] !== undefined && <span className="text-xs font-normal text-muted">文面を変更</span>}
                   </label>
                   <button
                     type="button"
@@ -378,13 +391,26 @@ export function PostComposer({
             </p>
           )}
 
-          {postId && <SendResults projectId={projectId} postId={postId} results={results} />}
-
-          <div className="flex flex-1 flex-col gap-2.5 bg-surface2 px-5 py-4">
-            <p className="text-xs text-muted">
-              {focusLabel} での見え方
-              {isManualSns(focus) && <span className="ml-2">・この SNS には、投稿の画面から手で投稿します</span>}
-            </p>
+          <div className="flex flex-1 flex-col gap-2.5 bg-surface2 px-5 py-4 max-sm:px-4">
+            <p className="text-xs font-bold">SNS ごとの見え方と文面</p>
+            {/* 送り先に選んだ SNS ごとのタブ。文面を変えた SNS には印 */}
+            <div role="tablist" aria-label="見え方を見る SNS" className="flex flex-wrap gap-1">
+              {previewSns.map((sns) => (
+                <button
+                  key={sns}
+                  type="button"
+                  role="tab"
+                  aria-selected={focus === sns}
+                  onClick={() => setFocus(sns)}
+                  className={`flex-none rounded-full border px-3 py-1 text-xs whitespace-nowrap ${focus === sns ? "border-primary bg-primary font-bold text-on-primary" : "border-border bg-surface text-fg hover:border-primary"}`}
+                >
+                  {SNS[sns].label}
+                  {overrides[sns] !== undefined && <span className="ml-1">✎<span className="sr-only">（文面を変えています）</span></span>}
+                </button>
+              ))}
+            </div>
+            {chosen.length === 0 && <p className="text-xs text-muted">送り先を選ぶと、選んだ SNS だけが並びます。</p>}
+            {isManualSns(focus) && <p className="text-xs text-muted">{focusLabel} には、投稿の画面から手で投稿します。</p>}
             {SNS[focus].needsTitle && (
               <div className="flex flex-col gap-1.5">
                 <label htmlFor="target-title" className="text-xs font-bold">
@@ -400,23 +426,7 @@ export function PostComposer({
                 />
               </div>
             )}
-            <div className="flex gap-2.5 rounded-lg border border-border bg-surface p-3.5">
-              <span aria-hidden className="size-9 flex-none rounded-full bg-primary-soft" />
-              <div className="flex min-w-0 flex-col gap-1 text-sm leading-[1.6]">
-                <b>{SNS[focus].needsTitle && titles[focus] ? titles[focus] : projectName}</b>
-                <span className="line-clamp-6 break-words whitespace-pre-wrap">{textFor(focus) || <span className="text-muted">（本文なし）</span>}</span>
-                {images.length > 0 && !ignoresImages(focus) && (
-                  <span className="mt-1 grid grid-cols-4 gap-1">
-                    {images.slice(0, SNS[focus].maxImages).map((image, i) =>
-                      image.previewUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element -- 署名つきの URL は期限があり、next/image の最適化を通さない
-                        <img key={image.id} src={image.previewUrl} alt={image.altText || `${i + 1} 枚目の画像`} className="aspect-square w-full rounded object-cover" />
-                      ) : null,
-                    )}
-                  </span>
-                )}
-              </div>
-            </div>
+            <SnsPreview key={focus} sns={focus} text={textFor(focus)} title={titles[focus] ?? null} projectName={projectName} images={images} length={checks[focus].length} />
             <ShortLinkPreviewNote sns={focus} text={textFor(focus)} enabled={shortLinks} preview={linkPreview} />
             {images.length > 0 && ignoresImages(focus) && (
               <p className="text-xs text-muted">
@@ -444,7 +454,7 @@ export function PostComposer({
             {hasOverride ? (
               <div className="flex flex-col gap-1.5">
                 <label htmlFor="override" className="text-xs font-bold">
-                  {focusLabel} 用の文面
+                  {focusLabel} 用の文面（ほかの SNS は共通の文面のまま）
                 </label>
                 <textarea
                   id="override"
@@ -468,13 +478,12 @@ export function PostComposer({
                 </button>
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={() => setOverrides((o) => ({ ...o, [focus]: body }))}
-                className="self-start text-xs font-semibold text-primary hover:underline"
-              >
-                {focusLabel} 用に文面を変える
-              </button>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-line pt-2.5">
+                <Button type="button" variant="secondary" size="sm" disabled={isLocked(focus)} onClick={() => setOverrides((o) => ({ ...o, [focus]: body }))}>
+                  {focusLabel} だけ文面を変える
+                </Button>
+                <span className="text-xs leading-[1.7] text-muted">字数を収めたいときや、ハッシュタグ・言い回しを SNS に合わせたいときに。</span>
+              </div>
             )}
           </div>
         </section>

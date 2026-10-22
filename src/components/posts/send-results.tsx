@@ -38,9 +38,11 @@ export function SendResults({ projectId, postId, results }: { projectId: string;
   if (rows.length === 0) return null;
 
   return (
-    <div className="border-b border-line">
-      <h3 className="px-5 pt-3 text-xs font-bold text-muted">送信の結果</h3>
-      <ul className="text-sm">
+    <section aria-labelledby="send-results-heading" className="overflow-hidden rounded-lg border border-border bg-surface">
+      <h2 id="send-results-heading" className="border-b border-line px-5 py-3 text-[14px] font-bold max-sm:px-4">
+        送信の結果
+      </h2>
+      <ul className="divide-y divide-line text-sm">
         {rows.map(({ sns, r }) =>
           isManualSns(sns) && r.manual ? (
             <ManualRow key={sns} sns={sns} r={r} projectId={projectId} postId={postId} />
@@ -49,7 +51,7 @@ export function SendResults({ projectId, postId, results }: { projectId: string;
           ),
         )}
       </ul>
-    </div>
+    </section>
   );
 }
 

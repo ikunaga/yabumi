@@ -31,7 +31,7 @@ const NOTICES: Record<string, { text: string; tone: "success" | "error" }> = {
   sent: { text: "送信しました。", tone: "success" },
   sending: { text: "送信を始めました。少しして読み込み直すと結果が出ます。", tone: "success" },
   preparing: { text: "送信を始めました。画像は SNS 側の処理を待ってから送ります（1〜2 分ほど）。少しして読み込み直すと結果が出ます。", tone: "success" },
-  send_failed: { text: "送れなかった SNS があります。右の「送信の結果」で理由を確かめてください。", tone: "error" },
+  send_failed: { text: "送れなかった SNS があります。下の「送信の結果」で理由を確かめてください。", tone: "error" },
   deleted_sns: { text: "SNS から取り消しました。矢書の下書きは残っています。", tone: "success" },
   manual_posted: { text: "投稿したことを記録しました。", tone: "success" },
   removed_on_sns: { text: "SNS で消したことを記録しました。消えた投稿へのリンクは、矢書からも消しました。", tone: "success" },

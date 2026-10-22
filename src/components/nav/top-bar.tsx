@@ -4,6 +4,7 @@ import { Brand } from "@/components/brand";
 import { QuickNoteEntry } from "@/components/notes/quick-note-entry";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { logout } from "@/lib/auth/actions";
+import { TopBarMenu } from "./top-bar-menu";
 
 // プロジェクト一覧・作成画面の上部バー（高さ 64、surface 地）
 export function TopBar({
@@ -30,29 +31,29 @@ export function TopBar({
             </Link>
           )}
         </nav>
-        <div className="ml-auto flex items-center gap-6 text-sm text-muted max-sm:gap-4">
+        <div className="ml-auto flex min-w-0 items-center gap-6 text-sm text-muted max-sm:gap-4">
           {quickNote && <QuickNoteEntry />}
           <ThemeToggle />
-          <Link href="/settings" className="hover:text-fg hover:underline max-sm:hidden" title="ログインと退会">
+          <Link href="/settings" className="min-w-0 truncate hover:text-fg hover:underline max-sm:hidden" title="ログインと退会">
             {email}
           </Link>
-          <Link href="/settings" className="hover:text-fg hover:underline sm:hidden">
-            ログインと退会
-          </Link>
-          <form action={logout}>
-            <button type="submit" className="hover:text-fg hover:underline">
+          <form action={logout} className="max-sm:hidden">
+            <button type="submit" className="whitespace-nowrap hover:text-fg hover:underline">
               ログアウト
             </button>
           </form>
+          <span className="sm:hidden">
+            <TopBarMenu email={email} />
+          </span>
         </div>
       </div>
       {mobileBack && (
         <div className="flex items-center gap-3.5 px-5 pt-[22px] pb-3.5 text-base sm:hidden">
-          <Link href={mobileBack.href} className="text-primary">
+          <Link href={mobileBack.href} className="shrink-0 whitespace-nowrap text-primary">
             ← 戻る
           </Link>
-          <b>{mobileBack.title}</b>
-          <span className="ml-auto">
+          <b className="min-w-0 truncate">{mobileBack.title}</b>
+          <span className="ml-auto shrink-0">
             <ThemeToggle />
           </span>
         </div>

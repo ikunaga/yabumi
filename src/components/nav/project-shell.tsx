@@ -53,8 +53,7 @@ export function ProjectShell({
       {/* スマホ: 上のヘッダー */}
       <header className="flex items-center justify-between bg-nav px-5 pt-[22px] pb-4 text-nav-strong sm:hidden">
         <Brand href="/projects" tone="nav" size="sm" />
-        <div className="flex min-w-0 items-center gap-4">
-          <ThemeToggle tone="nav" />
+        <div className="flex min-w-0 items-center gap-4 max-[359px]:gap-3">
           <ProjectSwitcher current={project} projects={projects} variant="header" />
           <ProjectMobileMenu projectId={project.id} email={email} projects={projects} />
         </div>

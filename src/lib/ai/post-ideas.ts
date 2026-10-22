@@ -12,6 +12,7 @@ import type { ModelOutput, RepoLink } from "./app-description";
 import { checkAiLimits, type AiLimits } from "./limits";
 import type { BetaMessageParam, BetaTextBlockParam } from "./plan-coach";
 import { estimateCostUsd } from "./pricing";
+import { LENGTH_RULES, shortenOverDrafts, type CallShorten } from "./shorten";
 
 // 投稿のネタを AI が出す（要求 F04 の一部。docs/architecture.md の 4.15）。材料は 3 つから選ぶ
 // - commits: 最近のコミット（GitHub をつないだ人）。メッセージ・変えたファイル・差分を読む
@@ -115,6 +116,8 @@ ${DATA_RULES}
 
 # 下書きの書き方
 - 指定された SNS ごとに 1 つずつ、文字数の目安を守って書く。SNS が変われば長さと書き方を変える
+- 上限は必ず守る。上限ぎりぎりまで書かず、目安の字数に収める（上限を超えた下書きは、矢書が数えて縮め直させる）
+- ${LENGTH_RULES.replace(/\n/g, "\n  ")}
 - 口調とやらないことは、アカウント設計に従う。決まっていなければ、です・ます調で、親しみやすく、控えめに
 - 材料と利用者の答えに書かれていることだけを書く。書かれていない苦労話、数字（時間、回数、人数など）、利用者の反応を作らない
 - 利用者にしか書けないところ（作品名、自分の感想、具体的な数字など）は作らずに、【作品名】のように【】で囲んで示す。【】は利用者が書き換えるまで投稿しない印になる。それ以外では【】を使わない
@@ -147,7 +150,7 @@ const SNS_WRITING: Record<SnsKey, string> = {
 
 function snsRule(sns: SnsKey): string {
   const spec = SNS[sns];
-  const limit = spec.maxLength === null ? "上限なし" : sns === "x" ? `全角換算 ${spec.maxLength} 字まで（半角英数は 0.5 字）` : `${spec.maxLength.toLocaleString("ja-JP")} 字まで`;
+  const limit = spec.maxLength === null ? "上限なし" : sns === "x" ? `全角換算 ${spec.maxLength} 字まで（数え方は上の「字数は矢書が次のように数えます」のとおり）` : `${spec.maxLength.toLocaleString("ja-JP")} 字まで`;
   return `- ${sns}（${spec.label}）: ${limit}。${SNS_WRITING[sns]}。ハッシュタグは ${HASHTAG_RULES[sns].text}`;
 }
 
@@ -388,7 +391,7 @@ export function hasPlanMaterial(ctx: IdeaContext): boolean {
 export async function generatePostIdeas(
   user: Db,
   admin: Db,
-  deps: { callIdeas: CallIdeas; readCommits: ReadCommits; limits: AiLimits; now?: () => Date },
+  deps: { callIdeas: CallIdeas; readCommits: ReadCommits; limits: AiLimits; callShorten?: CallShorten; now?: () => Date },
   args: { userId: string; projectId: string; sns: string[]; input: IdeasInput },
 ): Promise<IdeasOutcome> {
   const now = deps.now?.() ?? new Date();
@@ -454,7 +457,9 @@ export async function generatePostIdeas(
     console.error("[post-ideas] AI の呼び出しに失敗しました", e instanceof Error ? e.message : e);
     return { ok: false, message: AI_ERROR };
   }
-  const normalized = result.stopReason === "end_turn" ? normalizeIdeas(result.output, { knownShas, sns, noteCount: notes.length, hashtags: planTags(ctx.plan) }) : null;
+  const first = result.stopReason === "end_turn" ? normalizeIdeas(result.output, { knownShas, sns, noteCount: notes.length, hashtags: planTags(ctx.plan) }) : null;
+  const shortened = first ? await shortenIdeas(deps.callShorten, first, planTags(ctx.plan)) : null;
+  const normalized = shortened?.value ?? null;
   if (!normalized) {
     // 使った分は、返事が使えなくても数える
     await recordUsage(admin, args.userId, null, result);
@@ -465,6 +470,7 @@ export async function generatePostIdeas(
   const { data: thread, error } = await admin.from("ai_threads").insert({ owner_id: args.userId, project_id: args.projectId, purpose: "post_ideas" }).select("id").single();
   if (error) throw error;
   await recordUsage(admin, args.userId, thread.id, result);
+  if (shortened?.result) await recordUsage(admin, args.userId, thread.id, shortened.result);
   const ideas: IdeasContent = { kind: "ideas", ...normalized, adopted: {} };
   const { error: e1 } = await admin.from("ai_messages").insert({ thread_id: thread.id, owner_id: args.userId, role: "user", content: request as never });
   if (e1) throw e1;
@@ -518,7 +524,7 @@ async function loadIdeasThread(db: Db, threadId: string): Promise<IdeasThread | 
 export async function refinePostIdeas(
   user: Db,
   admin: Db,
-  deps: { callIdeas: CallIdeas; limits: AiLimits; now?: () => Date },
+  deps: { callIdeas: CallIdeas; limits: AiLimits; callShorten?: CallShorten; now?: () => Date },
   args: { userId: string; projectId: string; threadId: string; answers: IdeaAnswer[] },
 ): Promise<IdeasOutcome> {
   const answers = args.answers
@@ -546,7 +552,10 @@ export async function refinePostIdeas(
   }
   await recordUsage(admin, args.userId, args.threadId, result);
   const knownShas = [...new Set(thread.latest.content.ideas.flatMap((i) => i.commits.map((c) => c.sha)))];
-  const normalized = result.stopReason === "end_turn" ? normalizeIdeas(result.output, { knownShas, sns: thread.request.sns, noteCount: thread.request.notes?.length ?? 0, hashtags: planTags(ctx.plan) }) : null;
+  const first = result.stopReason === "end_turn" ? normalizeIdeas(result.output, { knownShas, sns: thread.request.sns, noteCount: thread.request.notes?.length ?? 0, hashtags: planTags(ctx.plan) }) : null;
+  const shortened = first ? await shortenIdeas(deps.callShorten, first, planTags(ctx.plan)) : null;
+  if (shortened?.result) await recordUsage(admin, args.userId, args.threadId, shortened.result);
+  const normalized = shortened?.value ?? null;
   if (!normalized) return { ok: false, message: "うまく出し直せませんでした。もう一度お試しください。" };
 
   const answerContent: IdeasAnswersContent = { kind: "ideas_answers", answers };
@@ -557,6 +566,25 @@ export async function refinePostIdeas(
   if (e2) throw e2;
   await admin.from("ai_threads").update({ updated_at: new Date().toISOString() }).eq("id", args.threadId);
   return { ok: true, threadId: args.threadId };
+}
+
+// 上限を超えた下書きだけを、AI に 1 回だけ縮めさせる（shorten.ts）。縮めても超えていれば、そのまま残す（画面で「上限を n 字超えています」）
+export async function shortenIdeas(
+  call: CallShorten | undefined,
+  value: { ideas: PostIdea[]; questions: IdeaQuestion[] },
+  hashtags: string[],
+): Promise<{ value: { ideas: PostIdea[]; questions: IdeaQuestion[] }; result: ModelOutput | null }> {
+  const drafts = value.ideas.flatMap((idea, i) => idea.drafts.map((d) => ({ id: `${i}:${d.sns}`, sns: d.sns, text: d.text })));
+  const { texts, result } = await shortenOverDrafts(call, drafts);
+  if (texts.size === 0) return { value, result };
+  const ideas = value.ideas.map((idea, i) => ({
+    ...idea,
+    drafts: idea.drafts.map((d) => {
+      const t = texts.get(`${i}:${d.sns}`);
+      return t ? { sns: d.sns, text: tidyDraftHashtags(t, hashtags, d.sns) } : d;
+    }),
+  }));
+  return { value: { ...value, ideas }, result };
 }
 
 // 利用者が書き換える必要のあるところ（【作品名】など）

@@ -242,6 +242,21 @@ describe("AI と振り返る（4.22 の段取り ⑦）", () => {
   });
 });
 
+describe("AI と相談: 下書きの文字数", () => {
+  it("SNS の上限を超えた下書きの案は、1 回だけ縮めさせて保存し、その分の利用量も数える", async () => {
+    const callModel = reply(proposalTurn("post_draft", [opt("長い", { sns: "x", text: "あ".repeat(150) }), opt("短い", { sns: "x", text: "短い" })]));
+    const callShorten = vi.fn(async () => ({ output: { drafts: [{ id: "0", text: "あ".repeat(100) }] }, stopReason: "end_turn", model: "claude-opus-5-5", usage: { ...usage, outputTokens: 321 } }));
+    const r = await consultStep(alice, admin, { callModel, callShorten, limits: roomy, loadKpiValues }, { userId: aliceId, projectId, threadId: null, input: { kind: "start", topic: "what_to_post" } });
+    expect(r.ok).toBe(true);
+    const threadId = r.ok ? r.threadId : "";
+    expect(callShorten).toHaveBeenCalledTimes(1);
+    const { data: m } = await admin.from("ai_messages").select("content").eq("thread_id", threadId).eq("role", "assistant").single();
+    expect((m!.content as { proposal: { options: { text: string }[] } }).proposal.options.map((o) => o.text)).toEqual(["あ".repeat(100), "短い"]);
+    const { data: u } = await admin.from("ai_usage").select("output_tokens").eq("thread_id", threadId);
+    expect(u!.map((x) => x.output_tokens)).toContain(321);
+  });
+});
+
 describe("返事の検証", () => {
   it("1 つの項目の案を確かめる。合わない案は外して理由を返す。下書きの SNS は決まった名前だけ", () => {
     const t = normalizeConsultTurn({

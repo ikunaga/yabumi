@@ -251,6 +251,35 @@ describe("投稿のネタ", () => {
     expect(byId.get(ids[1])!.used_at).toBeNull();
   });
 
+  it("上限を超えた下書きだけを 1 回縮めさせ、その分の利用量も数える。縮めても超えたものは、そのまま残す", async () => {
+    const p3 = (await alice.from("projects").insert({ name: "ながログ" }).select("id").single()).data!.id;
+    const long = "あ".repeat(150);
+    const call = caller({ ideas: [{ pillar: "a", title: "長いネタ", angle: "", commits: [], notes: [], drafts: [{ sns: "x", text: long }, { sns: "threads", text: long }] }, { pillar: "b", title: "まだ長い", angle: "", commits: [], notes: [], drafts: [{ sns: "x", text: "い".repeat(160) }] }], questions: [] });
+    const shorten = vi.fn(async () => ({ output: { drafts: [{ id: "0:x", text: "あ".repeat(120) }, { id: "1:x", text: "い".repeat(145) }] }, stopReason: "end_turn", model: "claude-opus-5-5", usage: { inputTokens: 1000, cacheWriteTokens: 0, cacheReadTokens: 0, outputTokens: 500 } }));
+    const r = await generatePostIdeas(alice, admin, deps({ callIdeas: call, callShorten: shorten }), { userId: aliceId, projectId: p3, sns: ["x", "threads"], input: { source: "news", news: [{ question: "やったこと", answer: "長く書いた" }] } });
+    expect(r.ok).toBe(true);
+    // 縮めさせたのは X の 2 つだけ（Threads は 500 字まで）
+    expect(shorten).toHaveBeenCalledTimes(1);
+    const sent = JSON.stringify(shorten.mock.calls[0]);
+    expect(sent).toContain('id=\\"0:x\\"');
+    expect(sent).toContain('id=\\"1:x\\"');
+    expect(sent).not.toContain("0:threads");
+    const t = (r as { threadId: string }).threadId;
+    const { content } = await latestIdeas(t);
+    expect(content.ideas[0].drafts).toEqual([{ sns: "x", text: "あ".repeat(120) }, { sns: "threads", text: long }]);
+    expect(content.ideas[1].drafts[0].text).toBe("い".repeat(145));
+    const { data: u } = await admin.from("ai_usage").select("output_tokens").eq("thread_id", t);
+    expect(u!.map((x) => x.output_tokens).sort()).toEqual([4000, 500]);
+  });
+
+  it("上限に収まっていれば、縮めさせない", async () => {
+    const p4 = (await alice.from("projects").insert({ name: "みじかログ" }).select("id").single()).data!.id;
+    const shorten = vi.fn();
+    const r = await generatePostIdeas(alice, admin, deps({ callShorten: shorten }), { userId: aliceId, projectId: p4, sns: ["x"], input: { source: "news", news: [{ question: "やったこと", answer: "短く" }] } });
+    expect(r.ok).toBe(true);
+    expect(shorten).not.toHaveBeenCalled();
+  });
+
   it("他人のプロジェクトでは出せない（リポジトリも読まない）", async () => {
     vi.mocked(commits).mockClear();
     const r = await generatePostIdeas(bob, admin, deps(), { userId: bobId, projectId, sns: ["x"], input: { source: "commits", days: 7 } });

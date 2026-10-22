@@ -1,12 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { normalizePlan, type PlanData } from "@/lib/plan/schema";
-import { SNS, SNS_KEYS, isSnsKey, type SnsKey } from "@/lib/sns";
+import { SNS, SNS_KEYS, displayLength, isSnsKey, type SnsKey } from "@/lib/sns";
 import type { Database } from "@/lib/supabase/database.types";
 import type { ModelOutput } from "./app-description";
 import { checkAiLimits, type AiLimits } from "./limits";
 import type { BetaMessageParam, BetaTextBlockParam } from "./plan-coach";
 import { estimateCostUsd } from "./pricing";
+import { LENGTH_RULES } from "./shorten";
 
 // AI っぽさチェック（要求 F11。docs/architecture.md の 4.20）。
 // 送る前の投稿の文面を AI が読み、「AI っぽい雑な投稿」になっていないかを指摘する。指摘には、なぜよくないかと、直した案を添える。
@@ -76,7 +77,10 @@ export const AI_CHECK_SYSTEM = `あなたは「矢書（やぶみ）」の中で
 - quote は、<post> の文面からそのまま抜き出す（言い換えない、要約しない）。同じ文面に同じ quote が 2 回出るなら、最初のものを指す
 - fix は quote と置き換える文だけを書く。投稿全体を書き直さない。書いた人の口調と言いたいことを残す。URL や、設計にないハッシュタグ、書かれていない事実を足さない（ハッシュタグの指摘で、設計のタグに置き換えるのはよい）
 - 同じところに問題が 2 つ以上あるとき（例: 事実か確かめたい数字があり、口調もずれている）は、1 つの指摘にまとめ、why で両方に触れ、fix で両方を直す。kind はいちばん大事なものにする（事実か確かめたいことが含まれるなら made_up）
-- 同じ文が複数の SNS の文面にあるときは、1 つの SNS だけで指摘する`;
+- 同じ文が複数の SNS の文面にあるときは、1 つの SNS だけで指摘する
+- fix を当てた文面が、その SNS の文字数の上限（<post> の max。いまの字数は now）を超えないようにする。上限に近い文面では、quote より長い fix にしない
+
+${LENGTH_RULES}`;
 
 const escapeData = (s: string) => s.replace(/<(\/?)(post)\b/gi, "<$1$2_");
 
@@ -98,7 +102,9 @@ export function checkContextText(ctx: CheckContext): string {
 }
 
 export function buildAiCheckRequest(ctx: CheckContext, texts: CheckText[]): { system: BetaTextBlockParam[]; messages: BetaMessageParam[] } {
-  const posts = texts.map((t) => `<post sns="${t.sns}" name="${SNS[t.sns].label}">\n${escapeData(t.text)}\n</post>`).join("\n\n");
+  const posts = texts
+    .map((t) => `<post sns="${t.sns}" name="${SNS[t.sns].label}" now="${displayLength(t.sns, t.text)}" max="${SNS[t.sns].maxLength ?? "なし"}">\n${escapeData(t.text)}\n</post>`)
+    .join("\n\n");
   return {
     system: [{ type: "text", text: AI_CHECK_SYSTEM }],
     messages: [{ role: "user", content: [{ type: "text", text: `${checkContextText(ctx)}\n\n# 確かめる投稿（送る前の文面）\n${posts}\n\nこの投稿を確かめてください。` }] }],

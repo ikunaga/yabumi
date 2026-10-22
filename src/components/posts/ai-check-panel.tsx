@@ -4,7 +4,8 @@ import { useState, useTransition } from "react";
 import { Button, NotReadyButton } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { checkPostTexts } from "@/lib/ai/ai-check-actions";
-import { FINDING_LABEL, type AiCheckFinding, type AiCheckResult, type CheckText } from "@/lib/ai/ai-check";
+import { applyFix, FINDING_LABEL, type AiCheckFinding, type AiCheckResult, type CheckText } from "@/lib/ai/ai-check";
+import { overLimit } from "@/lib/ai/shorten";
 import { SNS, type SnsKey } from "@/lib/sns";
 
 type Props = {
@@ -86,6 +87,7 @@ export function AiCheckPanel({ projectId, aiEnabled, texts, onApply }: Props) {
                   }}
                   onDismiss={() => setState((s) => ({ ...s, [i]: "dismissed" }))}
                   showSns={new Set(texts.map((t) => t.sns)).size > 1}
+                  overAfter={overAfterFix(texts, f)}
                 />
               ))}
             </ul>
@@ -96,18 +98,27 @@ export function AiCheckPanel({ projectId, aiEnabled, texts, onApply }: Props) {
   );
 }
 
+// 直しを当てたら、その SNS の上限を何字超えるか（いまの文面に当てて数える。当てられないときは 0）
+function overAfterFix(texts: CheckText[], f: AiCheckFinding): number {
+  const t = texts.find((x) => x.sns === f.sns);
+  const next = t ? applyFix(t.text, f.quote, f.fix) : null;
+  return next === null ? 0 : overLimit(f.sns, next);
+}
+
 function FindingItem({
   f,
   state,
   onApply,
   onDismiss,
   showSns,
+  overAfter,
 }: {
   f: AiCheckFinding;
   state?: "applied" | "dismissed" | "missing";
   onApply: () => void;
   onDismiss: () => void;
   showSns: boolean;
+  overAfter: number;
 }) {
   return (
     <li className="flex flex-col gap-1.5 rounded-md border border-line bg-surface2 px-3.5 py-3 leading-[1.7]">
@@ -125,6 +136,11 @@ function FindingItem({
         <span className="text-muted">直した案: </span>
         {f.fix ? `「${f.fix}」` : "このところを消す"}
       </p>
+      {overAfter > 0 && state !== "applied" && (
+        <p className="text-xs font-semibold text-danger">
+          この直しを使うと、{SNS[f.sns].label} の上限を {overAfter.toLocaleString("ja-JP")} 字超えます。使ったあと、ほかのところを縮めてください。
+        </p>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         {state === "applied" ? (
           <span className="text-xs font-bold text-success">✓ 直しました</span>

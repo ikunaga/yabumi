@@ -13,7 +13,7 @@ import { sectionLabel } from "@/lib/ai/plan-coach-prompt";
 import { KPIS } from "@/lib/metrics/kpis";
 import { describeSection } from "@/lib/plan/describe";
 import { formatValue, kpiLabel } from "@/lib/roadmap/schema";
-import { SNS, type SnsKey } from "@/lib/sns";
+import { SNS, checkTarget, type SnsKey } from "@/lib/sns";
 
 type Input = { kind: "start"; topic: ConsultTopic } | { kind: "text"; text: string } | { kind: "adopt"; messageId: string; actionIndex: number };
 
@@ -408,11 +408,24 @@ function ActionBodyView({ body: a }: { body: ActionBody }) {
     case "post_draft":
       return (
         <div className="flex flex-col gap-1">
-          {a.sns && <p className="text-xs text-muted">{SNS[a.sns].label} 向け</p>}
+          {a.sns && <DraftLength sns={a.sns} text={a.text} />}
           <p className="line-clamp-8 whitespace-pre-wrap">{a.text}</p>
         </div>
       );
   }
+}
+
+// SNS を決めた下書きの字数。上限を超えていれば、何字超えたかを出す（縮め直させても超えたとき。下書きにしたあとで直せる）
+function DraftLength({ sns, text }: { sns: SnsKey; text: string }) {
+  const { length, maxLength } = checkTarget(sns, text);
+  const over = maxLength !== null ? length - maxLength : 0;
+  return (
+    <p className="text-xs text-muted">
+      {SNS[sns].label} 向け・{length.toLocaleString("ja-JP")}
+      {maxLength !== null && ` / ${maxLength.toLocaleString("ja-JP")}`} 字
+      {over > 0 && <span className="font-bold text-danger">（上限を {over.toLocaleString("ja-JP")} 字超えています。下書きにしたあと、投稿の画面で縮めてください）</span>}
+    </p>
+  );
 }
 
 function KpiTargetList({ targets }: { targets: { kpi: keyof typeof KPIS; per_week: number; sns?: SnsKey | null }[] }) {

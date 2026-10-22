@@ -9,6 +9,7 @@ import { consultTurnSchema } from "./consult-schema";
 import { postIdeasSchema, type CallIdeas } from "./post-ideas";
 import { aiCheckSchema, type CallCheck } from "./ai-check";
 import { imageBriefSchema, type CallBrief } from "./image-brief";
+import { shortenSchema, type CallShorten } from "./shorten";
 import { PLAN_COACH_MODEL, type CallModel } from "./plan-coach";
 
 // Claude API のキー（ANTHROPIC_API_KEY）があるときだけ AI を使える。ないときは画面で「準備中」と出す
@@ -113,3 +114,5 @@ export const callPostIdeas: CallIdeas = structuredCaller(postIdeasSchema, 16000,
 export const callAiCheck: CallCheck = structuredCaller(aiCheckSchema, 4000, "low");
 // 画像の文字の案（docs/architecture.md の 4.25）。投稿から短い文字を拾う軽い作業なので effort は low
 export const callImageBrief: CallBrief = structuredCaller(imageBriefSchema, 4000, "low");
+// 上限を超えた下書きを縮める（docs/architecture.md の 4.15「文字数の上限」）。超えたときだけ呼ぶ。削るだけの軽い作業なので effort は low
+export const callShortenDrafts: CallShorten = structuredCaller(shortenSchema, 4000, "low");

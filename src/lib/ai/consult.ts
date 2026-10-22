@@ -16,6 +16,8 @@ import { adoptableOptions, normalizeConsultTurn, roadmapStepState, ROADMAP_STEPS
 import { CONSULT_SYSTEM, consultContextMessage, type ConsultContext } from "./consult-prompt";
 import { MAX_TURNS_PER_THREAD, MAX_USER_TEXT, type BetaMessageParam, type BetaTextBlockParam, type CallModel, type ModelRequest, type ModelResult } from "./plan-coach";
 import { estimateCostUsd } from "./pricing";
+import type { ModelOutput } from "./app-description";
+import { shortenOverDrafts, type CallShorten } from "./shorten";
 
 // AI と相談（F09、docs/architecture.md の 4.23）の会話の 1 往復。作りはアカウント設計の相棒（plan-coach.ts、4.9）と同じ。
 // AI の呼び出しは callModel として外から渡す（テストではモックし、本物の API は呼ばない）
@@ -296,7 +298,7 @@ export type ConsultInput =
   | { kind: "text"; text: string }
   | { kind: "adopt"; messageId: string; actionIndex: number };
 
-export type ConsultDeps = { callModel: CallModel; limits: AiLimits; loadKpiValues: LoadKpiValues; loadReview?: LoadReviewNumbers; now?: () => Date };
+export type ConsultDeps = { callModel: CallModel; limits: AiLimits; loadKpiValues: LoadKpiValues; loadReview?: LoadReviewNumbers; callShorten?: CallShorten; now?: () => Date };
 export type ConsultResult = { ok: true; threadId: string; redirect?: string } | { ok: false; threadId: string | null; message: string };
 
 const GENERIC_ERROR = "AI とのやりとりがうまくいきませんでした。時間をおいてもう一度お試しください。";
@@ -444,7 +446,24 @@ export async function consultStep(
 
   const { proposalProblem: _ignored, ...rest } = turn;
   void _ignored;
-  const toSave = tidyConsultDrafts(rest, ctx.plan.hashtags.items.map((i) => i.tag));
+  const tidied = tidyConsultDrafts(rest, ctx.plan.hashtags.items.map((i) => i.tag));
+  // 下書きの案が SNS の上限を超えていたら、超えた案だけを 1 回だけ縮めさせる（縮めても超えていれば、画面で「上限を n 字超えています」）
+  const shortened = await shortenConsultDrafts(deps.callShorten, tidied);
+  if (shortened.result) {
+    const r = shortened.result;
+    await admin.from("ai_usage").insert({
+      owner_id: userId,
+      thread_id: threadId,
+      purpose: "consult",
+      model: r.model,
+      input_tokens: r.usage.inputTokens,
+      cache_write_tokens: r.usage.cacheWriteTokens,
+      cache_read_tokens: r.usage.cacheReadTokens,
+      output_tokens: r.usage.outputTokens,
+      cost_usd: estimateCostUsd(r.model, r.usage),
+    });
+  }
+  const toSave = shortened.turn;
   const { error } = await admin.from("ai_messages").insert({ thread_id: threadId, owner_id: userId, role: "assistant", content: { ...toSave, adopted: [] } as never });
   if (error) throw error;
   await admin.from("ai_threads").update({ updated_at: now.toISOString() }).eq("id", threadId);
@@ -460,6 +479,18 @@ export function tidyConsultDrafts(turn: ConsultTurn, tags: string[]): ConsultTur
       ...turn.proposal,
       options: turn.proposal.options.map((o) => (o.kind === "post_draft" ? { ...o, text: tidyDraftHashtags(o.text, tags, o.sns ?? "x") } : o)),
     },
+  };
+}
+
+// 下書きの案（SNS を決めたもの）のうち、上限を超えたものを縮めさせる。SNS を決めていない下書きは、どの SNS に送るか決まっていないので数えない
+export async function shortenConsultDrafts(call: CallShorten | undefined, turn: ConsultTurn): Promise<{ turn: ConsultTurn; result: ModelOutput | null }> {
+  if (turn.proposal?.kind !== "post_draft") return { turn, result: null };
+  const drafts = turn.proposal.options.flatMap((o, i) => (o.kind === "post_draft" && o.sns ? [{ id: String(i), sns: o.sns, text: o.text }] : []));
+  const { texts, result } = await shortenOverDrafts(call, drafts);
+  if (texts.size === 0) return { turn, result };
+  return {
+    turn: { ...turn, proposal: { ...turn.proposal, options: turn.proposal.options.map((o, i) => (o.kind === "post_draft" && texts.has(String(i)) ? { ...o, text: texts.get(String(i))! } : o)) } },
+    result,
   };
 }
 

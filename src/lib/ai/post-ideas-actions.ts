@@ -9,7 +9,7 @@ import { readCommitsForIdeas } from "@/lib/github/service";
 import { connectedAccounts } from "@/lib/posts/queries";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { aiConfigured, callPostIdeas } from "./anthropic";
+import { aiConfigured, callPostIdeas, callShortenDrafts } from "./anthropic";
 import { MAX_NOTES_FOR_IDEAS } from "@/lib/notes/rules";
 import { aiLimitsFromEnv } from "./limits";
 import { adoptPostIdea, generatePostIdeas, MAX_ANSWER_CHARS, MAX_IDEA_QUESTIONS, MAX_IDEAS, MAX_NEWS_CHARS, NEWS_QUESTIONS, refinePostIdeas } from "./post-ideas";
@@ -46,7 +46,7 @@ export async function generateIdeas(projectId: string, input: unknown, sns: unkn
     const r = await generatePostIdeas(
       supabase,
       createAdminClient(),
-      { callIdeas: callPostIdeas, readCommits: (link, since) => readCommitsForIdeas(githubConfig(), link, since), limits: aiLimitsFromEnv() },
+      { callIdeas: callPostIdeas, callShorten: callShortenDrafts, readCommits: (link, since) => readCommitsForIdeas(githubConfig(), link, since), limits: aiLimitsFromEnv() },
       { userId, projectId, sns: snsList.data, input: parsed.data },
     );
     if (!r.ok) return { error: r.message };
@@ -68,7 +68,7 @@ export async function refineIdeas(projectId: string, threadId: string, answers: 
   const { supabase, userId } = await currentUser();
   if (!userId) return { error: "ログインし直してください。" };
   try {
-    const r = await refinePostIdeas(supabase, createAdminClient(), { callIdeas: callPostIdeas, limits: aiLimitsFromEnv() }, { userId, projectId, threadId, answers: a.data });
+    const r = await refinePostIdeas(supabase, createAdminClient(), { callIdeas: callPostIdeas, callShorten: callShortenDrafts, limits: aiLimitsFromEnv() }, { userId, projectId, threadId, answers: a.data });
     if (!r.ok) return { error: r.message };
   } catch (e) {
     console.error("[refineIdeas]", e);

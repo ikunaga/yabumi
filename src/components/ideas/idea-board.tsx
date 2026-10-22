@@ -12,7 +12,7 @@ import { IDEA_SOURCES, MAX_NEWS_CHARS, needsFillIn, type IdeaNoteMaterial, type 
 import { IDEA_PERIODS, type IdeaPeriod } from "@/lib/github/commit-reader";
 import { IDEA_STEPS, type IdeaStep, canGoIdeaStep, initialIdeaStep, visibleIdeaStep } from "@/lib/ideas/steps";
 import { MAX_NOTES_FOR_IDEAS } from "@/lib/notes/rules";
-import { ISSUE_LABEL, SNS, checkTarget, type SnsKey } from "@/lib/sns";
+import { SNS, checkTarget, type SnsKey } from "@/lib/sns";
 import { formatShort } from "@/lib/time";
 
 const PERIOD_LABEL: Record<IdeaPeriod, string> = { 3: "3 日", 7: "1 週間", 14: "2 週間", 30: "1 か月" };
@@ -553,7 +553,7 @@ function IdeaCard({
                 <span className={tooLong ? "font-bold text-danger" : "text-muted"}>
                   {check.length.toLocaleString("ja-JP")}
                   {check.maxLength !== null && ` / ${check.maxLength.toLocaleString("ja-JP")}`}
-                  {tooLong && `（${ISSUE_LABEL.too_long}。下書きにしてから短くできます）`}
+                  {tooLong && `（${SNS[d.sns].label} の上限を ${(check.length - check.maxLength!).toLocaleString("ja-JP")} 字超えています。下書きにしたあと、投稿の画面で縮めてください）`}
                 </span>
               </div>
               <p className="text-[14px] leading-[1.8] whitespace-pre-wrap">{d.text}</p>

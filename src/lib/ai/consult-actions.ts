@@ -5,7 +5,7 @@ import { z } from "zod";
 import { loadMetricsOverview } from "@/lib/metrics/queries";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { aiConfigured, callConsult } from "./anthropic";
+import { aiConfigured, callConsult, callShortenDrafts } from "./anthropic";
 import { MAX_OPTIONS } from "./consult-schema";
 import { consultStep, isConsultTopic, type ConsultInput } from "./consult";
 import { aiLimitsFromEnv } from "./limits";
@@ -48,6 +48,7 @@ export async function sendConsultMessage(projectId: string, threadId: string | n
       createAdminClient(),
       {
         callModel: callConsult,
+        callShorten: callShortenDrafts,
         limits: aiLimitsFromEnv(),
         loadKpiValues: async (user, id) => (await loadOverview(user, id)).kpiValues,
         // 振り返り（指標の画面の「AI と振り返る」）のときだけ読む

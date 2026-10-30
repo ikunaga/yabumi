@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<style>
+
+:root {
+  --color-brand-primary: #232425;
+  --color-brand-secondary: #0F7FFF;
+  --color-bg-page: #FFFFFF;
+  --color-bg-surface: #FAFAFA;
+  --color-bg-subtle: #F5F5F5;
+  --color-text-primary: #232425;
+  --color-text-secondary: #606366;
+  --color-text-tertiary: #909499;
+  --color-text-disabled: #C4C7CC;
+  --color-text-link: #0F7FFF;
+  --color-text-on-brand: #FFFFFF;
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-error: #EF4444;
+  --color-info: #3B82F6;
+  --color-border-default: #EAEAEA;
+  --color-border-strong: #D0D3D8;
+  --color-border-focus: #A3A3AD;
+  --color-border-input: #D4D4DC;
+  --color-border-subtle: #F2F2F2;
+  --color-border-brand: #0F7FFF;
+  --color-border-error: #EF4444;
+  --color-border-success: #10B981;
+  --space-4: 4px; --space-8: 8px; --space-12: 12px; --space-16: 16px;
+  --space-20: 20px; --space-24: 24px; --space-32: 32px; --space-48: 48px;
+  --text-h1: 36px; --text-h2: 28px; --text-h3: 22px; --text-h4: 18px;
+  --text-body: 16px; --text-small: 14px; --text-caption: 12px;
+  --radius-4: 4px; --radius-8: 8px; --radius-12: 12px;
+  --border-width-1: 1px; --border-width-2: 2px;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.07);
+  --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
+
+  /* Categorical color ramps (mirror of design-tokens.css) */
+  --color-cat-blue-50:#EBF3FE;--color-cat-blue-100:#C5DDFC;--color-cat-blue-200:#92BEF8;--color-cat-blue-400:#0F7FFF;--color-cat-blue-600:#0561C5;--color-cat-blue-800:#053F7C;--color-cat-blue-900:#06294F;
+  --color-cat-green-50:#E5F8F1;--color-cat-green-100:#B7EFD8;--color-cat-green-200:#7DE0BA;--color-cat-green-400:#10B981;--color-cat-green-600:#088762;--color-cat-green-800:#045A41;--color-cat-green-900:#023A29;
+  --color-cat-amber-50:#FEF3D9;--color-cat-amber-100:#FCE0A0;--color-cat-amber-200:#FAC865;--color-cat-amber-400:#F59E0B;--color-cat-amber-600:#B16E03;--color-cat-amber-800:#6E4500;--color-cat-amber-900:#422900;
+  --color-cat-red-50:#FDE9E9;--color-cat-red-100:#F9C2C2;--color-cat-red-200:#F49595;--color-cat-red-400:#EF4444;--color-cat-red-600:#C41B1B;--color-cat-red-800:#821212;--color-cat-red-900:#520B0B;
+  --color-cat-purple-50:#F0EAFE;--color-cat-purple-100:#D5C2FB;--color-cat-purple-200:#B59AF8;--color-cat-purple-400:#8B5CF6;--color-cat-purple-600:#6431D2;--color-cat-purple-800:#441E8E;--color-cat-purple-900:#2A1259;
+  --color-cat-teal-50:#DEF7F4;--color-cat-teal-100:#A6EBE2;--color-cat-teal-200:#6BDCCD;--color-cat-teal-400:#14B8A6;--color-cat-teal-600:#0D8779;--color-cat-teal-800:#075A50;--color-cat-teal-900:#043934;
+  --color-cat-coral-50:#FEE7EB;--color-cat-coral-100:#FCC0CA;--color-cat-coral-200:#FA98A8;--color-cat-coral-400:#FB7185;--color-cat-coral-600:#D14258;--color-cat-coral-800:#8C2336;--color-cat-coral-900:#5A111F;
+  --color-cat-pink-50:#FCE4F1;--color-cat-pink-100:#F7BAD9;--color-cat-pink-200:#F18BBE;--color-cat-pink-400:#EC4899;--color-cat-pink-600:#B81F75;--color-cat-pink-800:#7B0F4D;--color-cat-pink-900:#4D0530;
+  --color-cat-gray-50:#F3F4F6;--color-cat-gray-100:#E5E7EB;--color-cat-gray-200:#CBD0D7;--color-cat-gray-400:#6B7280;--color-cat-gray-600:#4A4F58;--color-cat-gray-800:#2A2D33;--color-cat-gray-900:#16181B;
+}
+.c-blue   { fill: var(--color-cat-blue-50);   stroke: var(--color-cat-blue-600);   color: var(--color-cat-blue-800);   background-color: var(--color-cat-blue-50);   border-color: var(--color-cat-blue-600); }
+.c-green  { fill: var(--color-cat-green-50);  stroke: var(--color-cat-green-600);  color: var(--color-cat-green-800);  background-color: var(--color-cat-green-50);  border-color: var(--color-cat-green-600); }
+.c-amber  { fill: var(--color-cat-amber-50);  stroke: var(--color-cat-amber-600);  color: var(--color-cat-amber-800);  background-color: var(--color-cat-amber-50);  border-color: var(--color-cat-amber-600); }
+.c-red    { fill: var(--color-cat-red-50);    stroke: var(--color-cat-red-600);    color: var(--color-cat-red-800);    background-color: var(--color-cat-red-50);    border-color: var(--color-cat-red-600); }
+.c-purple { fill: var(--color-cat-purple-50); stroke: var(--color-cat-purple-600); color: var(--color-cat-purple-800); background-color: var(--color-cat-purple-50); border-color: var(--color-cat-purple-600); }
+.c-teal   { fill: var(--color-cat-teal-50);   stroke: var(--color-cat-teal-600);   color: var(--color-cat-teal-800);   background-color: var(--color-cat-teal-50);   border-color: var(--color-cat-teal-600); }
+.c-coral  { fill: var(--color-cat-coral-50);  stroke: var(--color-cat-coral-600);  color: var(--color-cat-coral-800);  background-color: var(--color-cat-coral-50);  border-color: var(--color-cat-coral-600); }
+.c-pink   { fill: var(--color-cat-pink-50);   stroke: var(--color-cat-pink-600);   color: var(--color-cat-pink-800);   background-color: var(--color-cat-pink-50);   border-color: var(--color-cat-pink-600); }
+.c-gray   { fill: var(--color-cat-gray-50);   stroke: var(--color-cat-gray-600);   color: var(--color-cat-gray-800);   background-color: var(--color-cat-gray-50);   border-color: var(--color-cat-gray-600); }
+.c-blue text, .c-green text, .c-amber text, .c-red text,
+.c-purple text, .c-teal text, .c-coral text, .c-pink text, .c-gray text { fill: currentColor; stroke: none; }
+@media (prefers-color-scheme: dark) {
+  :root {
+  --color-brand-primary: #E8E9EA;
+  --color-brand-secondary: #4a9eff;
+  --color-bg-page: #1A1B1C;
+  --color-bg-surface: #232425;
+  --color-bg-subtle: #2A2B2C;
+  --color-text-primary: #FFFFFF;
+  --color-text-secondary: #B8BBBF;
+  --color-text-tertiary: #868B92;
+  --color-text-disabled: #4A4C4F;
+  --color-text-link: #8bb8ff;
+  --color-text-on-brand: #1A1B1C;
+  --color-border-default: #3A3B3C;
+  --color-border-strong: #4A4C4F;
+  --color-border-focus: #5A585C;
+  --color-border-input: rgba(255, 255, 255, 0.14);
+  --color-border-subtle: #2E2F30;
+  --color-border-brand: #4a9eff;
+  --color-border-error: #f87171;
+  --color-border-success: #34d399;
+  }
+  .c-blue { fill: var(--color-cat-blue-800); stroke: var(--color-cat-blue-200); color: var(--color-cat-blue-100); background-color: var(--color-cat-blue-800); border-color: var(--color-cat-blue-200); }
+  .c-green { fill: var(--color-cat-green-800); stroke: var(--color-cat-green-200); color: var(--color-cat-green-100); background-color: var(--color-cat-green-800); border-color: var(--color-cat-green-200); }
+  .c-amber { fill: var(--color-cat-amber-800); stroke: var(--color-cat-amber-200); color: var(--color-cat-amber-100); background-color: var(--color-cat-amber-800); border-color: var(--color-cat-amber-200); }
+  .c-red { fill: var(--color-cat-red-800); stroke: var(--color-cat-red-200); color: var(--color-cat-red-100); background-color: var(--color-cat-red-800); border-color: var(--color-cat-red-200); }
+  .c-purple { fill: var(--color-cat-purple-800); stroke: var(--color-cat-purple-200); color: var(--color-cat-purple-100); background-color: var(--color-cat-purple-800); border-color: var(--color-cat-purple-200); }
+  .c-teal { fill: var(--color-cat-teal-800); stroke: var(--color-cat-teal-200); color: var(--color-cat-teal-100); background-color: var(--color-cat-teal-800); border-color: var(--color-cat-teal-200); }
+  .c-coral { fill: var(--color-cat-coral-800); stroke: var(--color-cat-coral-200); color: var(--color-cat-coral-100); background-color: var(--color-cat-coral-800); border-color: var(--color-cat-coral-200); }
+  .c-pink { fill: var(--color-cat-pink-800); stroke: var(--color-cat-pink-200); color: var(--color-cat-pink-100); background-color: var(--color-cat-pink-800); border-color: var(--color-cat-pink-200); }
+  .c-gray { fill: var(--color-cat-gray-800); stroke: var(--color-cat-gray-200); color: var(--color-cat-gray-100); background-color: var(--color-cat-gray-800); border-color: var(--color-cat-gray-200); }
+}
+html[data-theme="dark"] {
+  --color-brand-primary: #E8E9EA;
+  --color-brand-secondary: #4a9eff;
+  --color-bg-page: #1A1B1C;
+  --color-bg-surface: #232425;
+  --color-bg-subtle: #2A2B2C;
+  --color-text-primary: #FFFFFF;
+  --color-text-secondary: #B8BBBF;
+  --color-text-tertiary: #868B92;
+  --color-text-disabled: #4A4C4F;
+  --color-text-link: #8bb8ff;
+  --color-text-on-brand: #1A1B1C;
+  --color-border-default: #3A3B3C;
+  --color-border-strong: #4A4C4F;
+  --color-border-focus: #5A585C;
+  --color-border-input: rgba(255, 255, 255, 0.14);
+  --color-border-subtle: #2E2F30;
+  --color-border-brand: #4a9eff;
+  --color-border-error: #f87171;
+  --color-border-success: #34d399;
+}
+html[data-theme="dark"] .c-blue { fill: var(--color-cat-blue-800); stroke: var(--color-cat-blue-200); color: var(--color-cat-blue-100); background-color: var(--color-cat-blue-800); border-color: var(--color-cat-blue-200); }
+html[data-theme="dark"] .c-green { fill: var(--color-cat-green-800); stroke: var(--color-cat-green-200); color: var(--color-cat-green-100); background-color: var(--color-cat-green-800); border-color: var(--color-cat-green-200); }
+html[data-theme="dark"] .c-amber { fill: var(--color-cat-amber-800); stroke: var(--color-cat-amber-200); color: var(--color-cat-amber-100); background-color: var(--color-cat-amber-800); border-color: var(--color-cat-amber-200); }
+html[data-theme="dark"] .c-red { fill: var(--color-cat-red-800); stroke: var(--color-cat-red-200); color: var(--color-cat-red-100); background-color: var(--color-cat-red-800); border-color: var(--color-cat-red-200); }
+html[data-theme="dark"] .c-purple { fill: var(--color-cat-purple-800); stroke: var(--color-cat-purple-200); color: var(--color-cat-purple-100); background-color: var(--color-cat-purple-800); border-color: var(--color-cat-purple-200); }
+html[data-theme="dark"] .c-teal { fill: var(--color-cat-teal-800); stroke: var(--color-cat-teal-200); color: var(--color-cat-teal-100); background-color: var(--color-cat-teal-800); border-color: var(--color-cat-teal-200); }
+html[data-theme="dark"] .c-coral { fill: var(--color-cat-coral-800); stroke: var(--color-cat-coral-200); color: var(--color-cat-coral-100); background-color: var(--color-cat-coral-800); border-color: var(--color-cat-coral-200); }
+html[data-theme="dark"] .c-pink { fill: var(--color-cat-pink-800); stroke: var(--color-cat-pink-200); color: var(--color-cat-pink-100); background-color: var(--color-cat-pink-800); border-color: var(--color-cat-pink-200); }
+html[data-theme="dark"] .c-gray { fill: var(--color-cat-gray-800); stroke: var(--color-cat-gray-200); color: var(--color-cat-gray-100); background-color: var(--color-cat-gray-800); border-color: var(--color-cat-gray-200); }
+:root { color-scheme: dark; }
+html, body { margin: 0; padding: 0; background: transparent !important; box-sizing: border-box;
+             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Inter', 'Helvetica Neue', Arial, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', 'Noto Sans JP', 'Noto Sans KR', system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; }
+*, *::before, *::after { box-sizing: inherit; }
+svg, svg text, svg tspan { font-family: inherit; }
+</style>
+<script>
+function sendPrompt(text) {
+  window.parent.postMessage(
+    { type: 'genspark_visualize_send_prompt', text: String(text) }, '*'
+  );
+}
+function _reportHeight() {
+  var h = Math.max(
+    document.body ? document.body.scrollHeight : 0,
+    document.documentElement ? document.documentElement.scrollHeight : 0,
+    100
+  );
+  window.parent.postMessage({ type: 'genspark_visualize_height', height: h }, '*');
+}
+window.addEventListener('load', function() {
+  _reportHeight();
+  if (window.ResizeObserver) {
+    new ResizeObserver(_reportHeight).observe(document.body);
+  }
+});
+window.addEventListener('resize', _reportHeight);
+
+// ── PNG export (rasterize the rendered widget inside the iframe) ─────────────
+// Runs here because sandbox="allow-scripts" (no allow-same-origin) makes the
+// iframe DOM unreachable from the parent. Clone <body>, swap each <canvas>
+// (Chart.js) for a snapshot <img>, inline the document styles with dark-scheme
+// rules stripped for a deterministic light export, wrap in <svg><foreignObject>,
+// and rasterize via a data: URL (a Blob URL would taint the canvas in Chromium).
+function _gsExportFont() { return "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Inter', 'Helvetica Neue', Arial, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', 'Noto Sans JP', 'Noto Sans KR', system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'"; }
+function _gsCollectStyles() {
+  var out = '';
+  var s = document.querySelectorAll('style');
+  for (var i = 0; i < s.length; i++) { out += (s[i].textContent || '') + '\n'; }
+  return out;
+}
+function _gsStripDarkMedia(css) {
+  var marker = '@media (prefers-color-scheme: dark)';
+  var idx = css.indexOf(marker);
+  while (idx !== -1) {
+    var brace = css.indexOf('{', idx);
+    if (brace === -1) { css = css.slice(0, idx); break; }
+    var depth = 1, j = brace + 1;
+    while (j < css.length && depth > 0) {
+      var ch = css.charAt(j);
+      if (ch === '{') depth++; else if (ch === '}') depth--;
+      j++;
+    }
+    css = css.slice(0, idx) + css.slice(j);
+    idx = css.indexOf(marker);
+  }
+  return css;
+}
+function _gsCleanup(node) {
+  var scripts = node.querySelectorAll('script');
+  for (var i = 0; i < scripts.length; i++) {
+    if (scripts[i].parentNode) scripts[i].parentNode.removeChild(scripts[i]);
+  }
+  var nameRe = /^[A-Za-z_:][A-Za-z0-9_:.-]*$/;
+  var els = node.querySelectorAll('*');
+  for (var k = 0; k < els.length; k++) {
+    var attrs = els[k].attributes;
+    for (var a = attrs.length - 1; a >= 0; a--) {
+      if (!nameRe.test(attrs[a].name)) els[k].removeAttribute(attrs[a].name);
+    }
+  }
+}
+function _gsSubstituteCanvases(live, clone) {
+  var lc = live.querySelectorAll('canvas');
+  var cc = clone.querySelectorAll('canvas');
+  for (var i = 0; i < lc.length && i < cc.length; i++) {
+    var data = lc[i].toDataURL('image/png');
+    var img = document.createElement('img');
+    img.setAttribute('src', data);
+    img.setAttribute('style', (cc[i].getAttribute('style') || '') +
+      ';width:' + lc[i].offsetWidth + 'px;height:' + lc[i].offsetHeight + 'px');
+    if (cc[i].parentNode) cc[i].parentNode.replaceChild(img, cc[i]);
+  }
+}
+function _gsPostPng(id, dataUrl, error) {
+  window.parent.postMessage(
+    { type: 'genspark_visualize_png', id: id, dataUrl: dataUrl || null, error: error || null },
+    '*'
+  );
+}
+function _gsRasterize(id, scale) {
+  try {
+    scale = scale || 2;
+    var PAD = 16;  // breathing room so content never sits flush against the edge
+    var W = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth, 1);
+    var H = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight, 1);
+    var bodyClone = document.body.cloneNode(true);
+    _gsSubstituteCanvases(document.body, bodyClone);
+    _gsCleanup(bodyClone);
+    var wrapper = document.createElement('div');
+    wrapper.setAttribute('style',
+      'font-family:' + _gsExportFont() + ';box-sizing:border-box;width:' + W + 'px');
+    while (bodyClone.firstChild) { wrapper.appendChild(bodyClone.firstChild); }
+    var inner = new XMLSerializer().serializeToString(wrapper);
+    var styleTag = '<style>' + _gsStripDarkMedia(_gsCollectStyles()) +
+      ' svg, svg text, svg tspan { font-family:' + _gsExportFont() + '; }</style>';
+    var CW = W + PAD * 2, CH = H + PAD * 2;
+    var SW = Math.round(CW * scale), SH = Math.round(CH * scale);
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + SW +
+      '" height="' + SH + '" viewBox="0 0 ' + CW + ' ' + CH + '">' +
+      '<foreignObject x="' + PAD + '" y="' + PAD + '" width="' + W + '" height="' + H + '">' +
+      '<div xmlns="http://www.w3.org/1999/xhtml">' + styleTag + inner + '</div>' +
+      '</foreignObject></svg>';
+    var img = new Image();
+    img.onload = function() {
+      try {
+        var cv = document.createElement('canvas');
+        cv.width = SW; cv.height = SH;
+        var ctx = cv.getContext('2d');
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, SW, SH);
+        ctx.drawImage(img, 0, 0);
+        _gsPostPng(id, cv.toDataURL('image/png'), null);
+      } catch (e) { _gsPostPng(id, null, 'tainted'); }
+    };
+    img.onerror = function() { _gsPostPng(id, null, 'image_error'); };
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  } catch (e) {
+    _gsPostPng(id, null,
+      (e && e.name === 'SecurityError') ? 'tainted' : String((e && e.message) || e));
+  }
+}
+window.addEventListener('message', function(ev) {
+  var d = ev.data || {};
+  if (!d || d.type !== 'genspark_visualize_request_png') return;
+  var run = function() { _gsRasterize(d.id, d.scale); };
+  if (document.fonts && document.fonts.ready && document.fonts.ready.then) {
+    document.fonts.ready.then(function() {
+      if (window.requestAnimationFrame) window.requestAnimationFrame(run);
+      else window.setTimeout(run, 0);
+    });
+  } else if (window.requestAnimationFrame) {
+    window.requestAnimationFrame(run);
+  } else {
+    window.setTimeout(run, 0);
+  }
+});
+</script>
+</head>
+<body><div class="wa">
+<style>
+.wa{width:100%;max-width:758px;color:var(--color-text-primary);font-size:12px;}
+.wa *{box-sizing:border-box;}
+.wa .win{border:1px solid var(--color-border-default);border-radius:var(--radius-12);background:var(--color-bg-surface);overflow:hidden;}
+.wa .nav{display:flex;align-items:center;gap:16px;padding:9px 14px;border-bottom:1px solid var(--color-border-subtle);background:var(--color-bg-subtle);font-size:11px;color:var(--color-text-secondary);}
+.wa .logo{font-weight:700;font-size:12px;color:var(--color-text-primary);letter-spacing:.02em;}
+.wa .logo i{color:var(--color-brand-primary);font-style:normal;}
+.wa .on{color:var(--color-brand-primary);font-weight:600;}
+.wa .sp{flex:1;}
+.wa .pill{border:1px solid var(--color-border-default);border-radius:99px;padding:3px 9px;background:var(--color-bg-surface);font-size:10px;}
+.wa .body{padding:13px;}
+.wa .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.wa .kpi{border:1px solid var(--color-border-default);border-radius:var(--radius-8);padding:8px 10px;}
+.wa .kpi .l{font-size:9.5px;color:var(--color-text-secondary);}
+.wa .kpi .v{font-size:19px;font-weight:700;margin-top:3px;font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
+.wa .kpi .d{font-size:9.5px;margin-top:2px;color:var(--color-text-tertiary);}
+.wa .up{color:var(--color-success);font-weight:700;}
+.wa .grid{display:grid;grid-template-columns:1.62fr 1fr;gap:9px;margin-top:9px;}
+.wa .col{display:flex;flex-direction:column;gap:9px;}
+.wa .box{border:1px solid var(--color-border-default);border-radius:var(--radius-8);padding:9px 11px;}
+.wa .h{display:flex;justify-content:space-between;align-items:baseline;font-size:10.5px;font-weight:700;margin-bottom:7px;}
+.wa .h em{font-style:normal;font-weight:400;color:var(--color-text-tertiary);font-size:9.5px;}
+.wa .pl{display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:10px;}
+.wa .pl .n{width:54px;color:var(--color-text-secondary);}
+.wa .pl .bar{flex:1;height:6px;border-radius:3px;background:var(--color-bg-subtle);overflow:hidden;}
+.wa .pl .bar b{display:block;height:100%;border-radius:3px;}
+.wa .pl .v{width:40px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700;}
+.wa .ev{display:flex;gap:6px;align-items:center;padding:5px 0;border-top:1px dashed var(--color-border-subtle);font-size:9.5px;}
+.wa .ev:first-of-type{border-top:0;}
+.wa .ev .t{width:52px;color:var(--color-text-tertiary);font-variant-numeric:tabular-nums;}
+.wa .ev .ti{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
+.wa .tag{font-size:8px;font-weight:700;padding:1px 4px;border-radius:3px;border:.5px solid;}
+</style>
+<div class="win">
+  <div class="nav">
+    <span class="logo"><i>◈</i> Loopcast</span>
+    <span class="on">概要</span><span>投稿</span><span>カレンダー</span><span>レポート</span>
+    <span class="sp"></span>
+    <span class="pill">直近30日 ▾</span>
+    <span class="pill">iOS + Android</span>
+  </div>
+  <div class="body">
+    <div class="kpis">
+      <div class="kpi"><div class="l">総ダウンロード</div><div class="v">28,430</div><div class="d"><span class="up">▲12.4%</span> 前月比</div></div>
+      <div class="kpi"><div class="l">SNS経由DL</div><div class="v">9,842</div><div class="d">全体の <b>34.6%</b></div></div>
+      <div class="kpi"><div class="l">投稿数（5媒体）</div><div class="v">126</div><div class="d">うち予約 84件</div></div>
+      <div class="kpi"><div class="l">SNS→DL率</div><div class="v">2.84%</div><div class="d"><span class="up">▲0.31pt</span></div></div>
+    </div>
+
+    <div class="grid">
+      <div class="col">
+        <div class="box">
+          <div class="h"><span>ダウンロード推移</span><em>直近14日 / 合計 28,430</em></div>
+          <svg viewBox="0 0 400 132" width="100%" style="display:block">
+            <line x1="10" y1="110" x2="392" y2="110" stroke="var(--color-border-subtle)" stroke-width=".5"/>
+            <line x1="10" y1="73" x2="392" y2="73" stroke="var(--color-border-subtle)" stroke-width=".5" stroke-dasharray="2 3"/>
+            <line x1="10" y1="36" x2="392" y2="36" stroke="var(--color-border-subtle)" stroke-width=".5" stroke-dasharray="2 3"/>
+            <rect x="14" y="76" width="15" height="34" rx="2" fill="var(--color-brand-secondary)" opacity=".4"/>
+            <rect x="41" y="72" width="15" height="38" rx="2" fill="var(--color-brand-secondary)" opacity=".4"/>
+            <rect x="68" y="79" width="15" height="31" rx="2" fill="var(--color-brand-secondary)" opacity=".4"/>
+            <rect x="95" y="67" width="15" height="43" rx="2" fill="var(--color-brand-secondary)" opacity=".4"/>
+            <rect x="122" y="59" width="15" height="51" rx="2" fill="var(--color-brand-secondary)" opacity=".4"/>
+            <rect x="149" y="64" width="15" height="46" rx="2" fill="var(--color-brand-secondary)" opacity=".4"/>
+            <rect x="176" y="51" width="15" height="59" rx="2" fill="var(--color-brand-secondary)" opacity=".4"/>
+            <rect x="203" y="42" width="15" height="68" rx="2" fill="var(--color-brand-secondary)" opacity=".4"/>
+            <rect x="230" y="53" width="15" height="57" rx="2" fill="var(--color-brand-secondary)" opacity=".4"/>
+            <rect x="257" y="37" width="15" height="73" rx="2" fill="var(--color-brand-secondary)" opacity=".4"/>
+            <rect x="284" y="28" width="15" height="82" rx="2" fill="var(--color-brand-secondary)" opacity=".4"/>
+            <rect x="311" y="33" width="15" height="77" rx="2" fill="var(--color-brand-secondary)" opacity=".4"/>
+            <rect x="338" y="17" width="15" height="93" rx="2" fill="var(--color-brand-secondary)" opacity=".4"/>
+            <rect x="365" y="14" width="15" height="96" rx="2" fill="var(--color-brand-secondary)"/>
+            <text x="365" y="8" font-size="8" text-anchor="middle" fill="var(--color-text-secondary)">3,350</text>
+            <text x="14" y="124" font-size="8" fill="var(--color-text-tertiary)">10/17</text>
+            <text x="176" y="124" font-size="8" fill="var(--color-text-tertiary)">10/23</text>
+            <text x="372" y="124" font-size="8" text-anchor="end" fill="var(--color-text-tertiary)">10/30</text>
+          </svg>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="box">
+          <div class="h"><span>媒体別 SNS経由DL</span><em>9,842</em></div>
+          <div class="pl"><span class="n">X</span><span class="bar"><b style="width:42%;background:var(--color-cat-blue-400)"></b></span><span class="v">4,120</span></div>
+          <div class="pl"><span class="n">Instagram</span><span class="bar"><b style="width:29%;background:var(--color-cat-pink-400)"></b></span><span class="v">2,890</span></div>
+          <div class="pl"><span class="n">TikTok</span><span class="bar"><b style="width:19%;background:var(--color-cat-purple-400)"></b></span><span class="v">1,840</span></div>
+          <div class="pl"><span class="n">Threads</span><span class="bar"><b style="width:6%;background:var(--color-cat-teal-400)"></b></span><span class="v">620</span></div>
+          <div class="pl"><span class="n">YouTube</span><span class="bar"><b style="width:4%;background:var(--color-cat-coral-400)"></b></span><span class="v">372</span></div>
+        </div>
+        <div class="box">
+          <div class="h"><span>次の予約投稿</span><em>今日</em></div>
+          <div class="ev"><span class="t">18:00</span><span class="tag" style="border-color:var(--color-cat-blue-400);color:var(--color-cat-blue-400)">X</span><span class="tag" style="border-color:var(--color-cat-teal-400);color:var(--color-cat-teal-400)">TH</span><span class="ti">β版リリース速報</span></div>
+          <div class="ev"><span class="t">明日12:00</span><span class="tag" style="border-color:var(--color-cat-pink-400);color:var(--color-cat-pink-400)">IG</span><span class="tag" style="border-color:var(--color-cat-purple-400);color:var(--color-cat-purple-400)">TT</span><span class="ti">15秒デモ動画</span></div>
+          <div class="ev"><span class="t">11/1 09:00</span><span class="tag" style="border-color:var(--color-border-strong);color:var(--color-text-secondary)">全5媒体</span><span class="ti">プレスリリース</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div></body>
+</html>

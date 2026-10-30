@@ -13,11 +13,15 @@ import type { ProjectSnsAccount } from "@/lib/sns/queries";
 import { dayOfMonth, formatShort, monthOf, weekdayLabel } from "@/lib/time";
 
 // 概要の右の列などの箱（見本 A の .box。見出しと右に小さな添え書き）
-export function Panel({ title, aside, children, className = "" }: { title: ReactNode; aside?: ReactNode; children: ReactNode; className?: string }) {
+// help は見出しの横の「?」（<HelpTip />）。見出しの中に入れると h2 の中に details が入るので、横に置く
+export function Panel({ title, help, aside, children, className = "" }: { title: ReactNode; help?: ReactNode; aside?: ReactNode; children: ReactNode; className?: string }) {
   return (
     <section className={`rounded-lg border border-border bg-surface px-5 py-4 max-sm:px-4 ${className}`}>
       <div className="mb-3 flex items-baseline justify-between gap-3">
-        <h2 className="text-[16px] font-bold max-sm:text-[15px]">{title}</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-[16px] font-bold max-sm:text-[15px]">{title}</h2>
+          {help}
+        </div>
         {aside && <span className="num shrink-0 text-sm text-faint">{aside}</span>}
       </div>
       {children}

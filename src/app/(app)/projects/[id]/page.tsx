@@ -6,6 +6,7 @@ import { NowBand } from "@/components/overview/now-band";
 import { OverviewCards } from "@/components/overview/overview-cards";
 import { AttentionStrip, ConnectedSnsLine, NextScheduled, Panel, SnsClicks } from "@/components/overview/overview-panels";
 import { displayStatus } from "@/components/posts/post-chip";
+import { Columns } from "@/components/ui/columns";
 import { Delta } from "@/components/ui/metric";
 import { SuccessBanner } from "@/components/ui/feedback";
 import { aiConfigured } from "@/lib/ai/anthropic";
@@ -127,62 +128,68 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
 
       <OverviewCards cards={numbers.cards} mobileHidden={numbers.chart?.kind} />
 
-      <div className="grid grid-cols-[1.62fr_1fr] items-start gap-4 max-lg:grid-cols-1 max-sm:gap-3">
-        <Panel
-          className="max-sm:hidden"
-          title={numbers.chart ? `${chartName}の推移` : "日ごとの数"}
-          aside={chart14 ? `直近 ${CHART_DAYS} 日 / 合計 ${total14.toLocaleString("ja-JP")}` : undefined}
-        >
-          {chart14 ? <DailyBars rows={chart14} label={`${chartName}の日ごとの数（直近 ${CHART_DAYS} 日）`} /> : <ChartEmpty>{emptyChart}</ChartEmpty>}
-        </Panel>
-
-        <div className="flex flex-col gap-4 max-sm:gap-3">
-          <Panel
-            title="SNS ごとのストアへのクリック"
-            aside={numbers.clicksBySns.length ? numbers.clicksBySns.reduce((n, c) => n + c.last30d, 0).toLocaleString("ja-JP") : undefined}
-          >
-            {numbers.clicksBySns.length ? (
-              <SnsClicks rows={numbers.clicksBySns} />
-            ) : (
-              <p className="text-sm text-muted">
-                {numbers.hasLinks ? "直近 30 日のクリックはまだありません。" : "SNS ごとの短縮リンクを付けて投稿すると、どの SNS からストアへ来たかが並びます。"}
-                <Link href={`${base}/links`} className="ml-1 font-bold text-fg underline">
-                  短縮リンク
-                </Link>
-              </p>
-            )}
-          </Panel>
-
-          {numbers.topPost && (
-            <Panel title="いちばんクリックされた投稿" aside="30 日" className="sm:hidden">
-              <Link href={`${base}/posts/${numbers.topPost.postId}`} className="block truncate font-bold text-fg">
-                {numbers.topPost.title}
-              </Link>
-              <p className="num mt-1 text-sm text-muted">{numbers.topPost.clicks.toLocaleString("ja-JP")} クリック</p>
+      {/* 2 列（xl から。左に日ごとの棒、右に SNS ごとのクリックと次の予約）。docs/design/new_design/README.md の「中身の幅と 2 列」 */}
+      <Columns
+        main={
+          <>
+            <Panel
+              className="max-sm:hidden"
+              title={numbers.chart ? `${chartName}の推移` : "日ごとの数"}
+              aside={chart14 ? `直近 ${CHART_DAYS} 日 / 合計 ${total14.toLocaleString("ja-JP")}` : undefined}
+            >
+              {chart14 ? <DailyBars rows={chart14} label={`${chartName}の日ごとの数（直近 ${CHART_DAYS} 日）`} /> : <ChartEmpty>{emptyChart}</ChartEmpty>}
             </Panel>
-          )}
+          </>
+        }
+        side={
+          <>
+            <Panel
+              title="SNS ごとのストアへのクリック"
+              aside={numbers.clicksBySns.length ? numbers.clicksBySns.reduce((n, c) => n + c.last30d, 0).toLocaleString("ja-JP") : undefined}
+            >
+              {numbers.clicksBySns.length ? (
+                <SnsClicks rows={numbers.clicksBySns} />
+              ) : (
+                <p className="text-sm text-muted">
+                  {numbers.hasLinks ? "直近 30 日のクリックはまだありません。" : "SNS ごとの短縮リンクを付けて投稿すると、どの SNS からストアへ来たかが並びます。"}
+                  <Link href={`${base}/links`} className="ml-1 font-bold text-fg underline">
+                    短縮リンク
+                  </Link>
+                </p>
+              )}
+            </Panel>
 
-          <Panel
-            title="次の予約"
-            aside={
-              <Link href={`${base}/calendar`} className="text-faint hover:text-fg">
-                カレンダー
-              </Link>
-            }
-          >
-            {scheduled.length ? (
-              <NextScheduled projectId={project.id} posts={scheduled} now={now} />
-            ) : (
-              <p className="text-sm text-muted">
-                予約した投稿はまだありません。
-                <Link href={`${base}/compose`} className="ml-1 font-bold text-fg underline">
-                  投稿をつくる
+            {numbers.topPost && (
+              <Panel title="いちばんクリックされた投稿" aside="30 日" className="sm:hidden">
+                <Link href={`${base}/posts/${numbers.topPost.postId}`} className="block truncate font-bold text-fg">
+                  {numbers.topPost.title}
                 </Link>
-              </p>
+                <p className="num mt-1 text-sm text-muted">{numbers.topPost.clicks.toLocaleString("ja-JP")} クリック</p>
+              </Panel>
             )}
-          </Panel>
-        </div>
-      </div>
+
+            <Panel
+              title="次の予約"
+              aside={
+                <Link href={`${base}/calendar`} className="text-faint hover:text-fg">
+                  カレンダー
+                </Link>
+              }
+            >
+              {scheduled.length ? (
+                <NextScheduled projectId={project.id} posts={scheduled} now={now} />
+              ) : (
+                <p className="text-sm text-muted">
+                  予約した投稿はまだありません。
+                  <Link href={`${base}/compose`} className="ml-1 font-bold text-fg underline">
+                    投稿をつくる
+                  </Link>
+                </p>
+              )}
+            </Panel>
+          </>
+        }
+      />
     </div>
   );
 }

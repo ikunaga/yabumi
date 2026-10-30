@@ -14,9 +14,9 @@ export default function SignupPage() {
       action={signup}
       notice={
         closed && (
-          <p className="rounded-md bg-primary-soft px-4 py-3 text-[14px] leading-7">
+          <p className="rounded-md border border-line bg-surface2 px-4 py-3 text-[14px] leading-7">
             いまは招待制です。招待のメールが届いた方は、メールのボタンから始めてください（ここでの登録はいりません）。まだの方は、
-            <Link href="/#apply" className="font-semibold text-primary hover:underline">
+            <Link href="/#apply" className="font-semibold underline">
               招待を申し込む
             </Link>
             からどうぞ。

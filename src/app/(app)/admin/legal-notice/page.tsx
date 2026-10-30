@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { LegalNoticeSend } from "@/components/admin/legal-notice-send";
 import { TopBar } from "@/components/nav/top-bar";
 import { Card, CardHeader, EmptyState } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
 import { requireUser } from "@/lib/auth/user";
 import { dailyLimit, docsLabel, noticeProgress } from "@/lib/legal/notice-mail";
 import { formatLegalDate, noticeStarted, upcomingLegalChange } from "@/lib/legal/version";
@@ -27,20 +28,21 @@ export default async function LegalNoticeAdminPage() {
         email={user.email}
         crumb={
           <span className="flex items-center gap-2">
-            <Link href="/admin" className="text-primary hover:underline">
+            <Link href="/admin" className="hover:text-fg hover:underline">
               運営
             </Link>
             <span className="text-muted">/</span>
-            <b>規約の変更の知らせ</b>
+            <b className="text-fg">規約の変更の知らせ</b>
           </span>
         }
         mobileBack={{ href: "/admin", title: "規約の変更の知らせ" }}
       />
-      <main className="flex max-w-[880px] flex-col gap-6 px-12 py-12 max-lg:px-6 max-sm:gap-4 max-sm:px-4 max-sm:py-5">
-        <h1 className="font-heading text-3xl font-bold max-sm:text-2xl">規約の変更の知らせ（運営者）</h1>
-        <p className="text-[14px] leading-[1.8] text-muted">
-          利用規約・プライバシーポリシーの予定の変更（src/lib/legal/version.ts の LEGAL_VERSIONS に足した、施行日が先の版）を、登録している全員にメールで知らせます。伴走のメールを止めた人にも送ります。1 日に送るのは {dailyLimit()} 通までで、残りは毎日 9:10 のジョブが続きを送ります。手順は docs/legal.md の「②の段取り」。
-        </p>
+      <main className="flex flex-col gap-5 px-12 py-10 max-lg:px-8 max-sm:gap-4 max-sm:px-4 max-sm:py-5">
+        <PageHeader
+          title="規約の変更の知らせ"
+          sub={`1 日に ${dailyLimit()} 通まで`}
+          help={`利用規約・プライバシーポリシーの予定の変更（src/lib/legal/version.ts の LEGAL_VERSIONS に足した、施行日が先の版）を、登録している全員にメールで知らせます。伴走のメールを止めた人にも送ります。1 日に送るのは ${dailyLimit()} 通までで、残りは毎日 9:10 のジョブが続きを送ります。手順は docs/legal.md の「②の段取り」。`}
+        />
         {!change ? (
           <Card className="overflow-hidden">
             <EmptyState title="予定の変更はありません" description="LEGAL_VERSIONS に施行日が先の版を足してデプロイすると、ここに出ます。" />
@@ -48,7 +50,7 @@ export default async function LegalNoticeAdminPage() {
         ) : (
           <Card className="overflow-hidden">
             <CardHeader title={`${formatLegalDate(change.version)} 施行の${docsLabel(change)}の変更`} />
-            <div className="flex flex-col gap-4 px-5 py-4 text-[14px] leading-[1.8]">
+            <div className="flex flex-col gap-4 px-6 pb-5 text-[15px] leading-[1.8] max-sm:px-4">
               <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
                 <dt className="text-muted">知らせ始める日</dt>
                 <dd>{change.noticeFrom ? formatLegalDate(change.noticeFrom) : "（未定）"}</dd>

@@ -430,7 +430,7 @@ export default function PrivacyPage() {
       <LegalSection id="contact" n={next()} title="運営者と問い合わせ先">
         <Bullets items={[`運営者: ${operator}`, `問い合わせ先: ${orPending(LEGAL.contact)}`]} />
         <p>
-          利用の条件は <Link href="/terms" className="text-primary hover:underline">利用規約</Link> をご覧ください。
+          利用の条件は <Link href="/terms" className="underline">利用規約</Link> をご覧ください。
         </p>
       </LegalSection>
     </LegalPage>

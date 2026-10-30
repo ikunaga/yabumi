@@ -21,7 +21,7 @@ export default function TermsPage() {
       lead={
         <p>
           この規約は、矢書（やぶみ。以下「本サービス」）を使うときの、利用者と運営者 {operator}（以下「運営者」）との約束です。登録する前にお読みください。登録した時点で、この規約と
-          <Link href="/privacy" className="text-primary hover:underline">
+          <Link href="/privacy" className="underline">
             プライバシーポリシー
           </Link>
           に同意したものとします。
@@ -142,7 +142,7 @@ export default function TermsPage() {
       <LegalSection id="withdraw" n={next()} title="退会">
         <p>
           利用者は、「ログインと退会」の画面からいつでも退会できます。退会すると、預かっている情報は
-          <Link href="/privacy#retention" className="text-primary hover:underline">
+          <Link href="/privacy#retention" className="underline">
             プライバシーポリシー
           </Link>
           のとおり消えます。SNS に投稿したものは消えないので、消したいときは退会の前に取り消してください。

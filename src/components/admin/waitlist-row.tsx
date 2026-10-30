@@ -20,17 +20,17 @@ export function WaitlistRow({ entry, createdAt }: { entry: WaitlistEntry; create
 
   if (result?.notice) {
     return (
-      <li className="px-5 py-3 text-[14px] text-success" role="status">
+      <li className="px-6 py-3 text-[15px] text-success max-sm:px-4" role="status">
         {entry.email}: {result.notice}
       </li>
     );
   }
 
   return (
-    <li className="flex flex-col gap-2 px-5 py-4 text-[14px]">
+    <li className="flex flex-col gap-2 px-6 py-4 text-[15px] max-sm:px-4">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <b className="break-all">{entry.email}</b>
-        <span className="text-xs text-muted">{createdAt}</span>
+        <span className="num text-[13px] text-faint">{createdAt}</span>
       </div>
       {(entry.appNote || entry.snsNote) && (
         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-muted">

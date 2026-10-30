@@ -3,13 +3,14 @@ import Link from "next/link";
 import { TopBar } from "@/components/nav/top-bar";
 import { SnsResultBanner } from "@/components/projects/sns-result-banner";
 import { ButtonLink } from "@/components/ui/button";
+import { SnsMark } from "@/components/ui/marks";
+import { PageHeader } from "@/components/ui/page-header";
 import { Card, EmptyState } from "@/components/ui/card";
 import { SuccessBanner } from "@/components/ui/feedback";
 import { requireUser } from "@/lib/auth/user";
 import { listNextStep } from "@/lib/projects/next-step";
 import { listProjects } from "@/lib/projects/queries";
 import { loadStepStates } from "@/lib/projects/step-state";
-import { SNS } from "@/lib/sns";
 
 export const metadata: Metadata = { title: "プロジェクト" };
 
@@ -27,21 +28,19 @@ export default async function ProjectsPage(props: PageProps<"/projects">) {
   return (
     <>
       <TopBar email={user.email} />
-      <main className="flex flex-col gap-7 px-12 py-12 max-lg:px-6 max-sm:gap-5 max-sm:px-5 max-sm:py-7">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div className="flex flex-col gap-1.5">
-            <h1 className="font-heading text-3xl font-bold max-sm:text-2xl">プロジェクト</h1>
-            {/* 空のときは、下のカードに同じ説明がある */}
-            {projects.length > 0 && <p className="text-base text-muted max-sm:hidden">広めたいアプリごとに 1 つ作ります。</p>}
-          </div>
-          {projects.length > 0 && <ButtonLink href="/projects/new">＋ 新しいプロジェクト</ButtonLink>}
-        </div>
+      <main className="flex flex-col gap-5 px-12 py-10 max-lg:px-8 max-sm:gap-4 max-sm:px-4 max-sm:py-5">
+        <PageHeader
+          title="プロジェクト"
+          help="広めたいアプリごとに 1 つ作ります。アプリ名だけで始められます。"
+          sub={projects.length > 0 ? `${projects.length} 件` : undefined}
+          actions={projects.length > 0 && <ButtonLink href="/projects/new">＋ 新しいプロジェクト</ButtonLink>}
+        />
 
         <SnsResultBanner error={sns_error} />
         {done === "password_updated" && <SuccessBanner>パスワードを変えました。</SuccessBanner>}
 
         {projects.length === 0 ? (
-          <Card className="max-w-xl overflow-hidden">
+          <Card className="overflow-hidden">
             <EmptyState
               title="まだプロジェクトがありません"
               description="広めたいアプリごとに 1 つ作ります。アプリ名だけで始められます。"
@@ -53,48 +52,38 @@ export default async function ProjectsPage(props: PageProps<"/projects">) {
             />
           </Card>
         ) : (
-          <Card>
-            <div
-              role="row"
-              className="grid grid-cols-[1.1fr_2fr_1fr_1fr_1fr] gap-4 border-b border-border px-6 py-3 text-xs text-muted max-md:hidden"
-            >
-              <span>アプリ</span>
-              <span>どんなアプリか</span>
-              <span>ストアページ</span>
-              <span>つないだ SNS</span>
-              <span>次にやること</span>
-            </div>
-            <ul>
-              {projects.map((p) => {
-                const state = states[p.id];
-                const sns = state?.connectedSns ?? [];
-                const next = listNextStep(state ?? { planDone: false, connectedSnsCount: 0, hasPublished: false, hasRoadmap: false, thisWeekTodo: 0 });
-                const store = storeLabel(p);
-                return (
-                  <li
-                    key={p.id}
-                    className="grid grid-cols-[1.1fr_2fr_1fr_1fr_1fr] items-center gap-4 border-b border-line px-6 py-5 text-[14px] last:border-b-0 max-md:grid-cols-1 max-md:gap-1.5 max-md:px-4 max-md:py-4"
+          <ul className="grid grid-cols-3 gap-4 max-xl:grid-cols-2 max-md:grid-cols-1">
+            {projects.map((p) => {
+              const state = states[p.id];
+              const sns = state?.connectedSns ?? [];
+              const next = listNextStep(state ?? { planDone: false, connectedSnsCount: 0, hasPublished: false, hasRoadmap: false, thisWeekTodo: 0 });
+              const store = storeLabel(p);
+              return (
+                <li key={p.id} className="flex min-w-0 flex-col rounded-lg border border-border bg-surface">
+                  <Link href={`/projects/${p.id}`} className="flex flex-1 flex-col gap-2 px-6 pt-5 pb-4 hover:no-underline max-sm:px-4">
+                    <span className="truncate text-[20px] font-bold hover:underline">{p.name}</span>
+                    <span className="line-clamp-2 text-[14px] leading-[1.7] text-muted">{p.description || "説明はまだありません"}</span>
+                    <dl className="mt-auto grid grid-cols-[6.5rem_1fr] items-center gap-x-3 gap-y-2 pt-2 text-[14px]">
+                      <dt className="text-faint">つないだ SNS</dt>
+                      <dd className="flex flex-wrap gap-1">{sns.length ? sns.map((k) => <SnsMark key={k} sns={k} />) : <span className="text-faint">なし</span>}</dd>
+                      <dt className="text-faint">ストアページ</dt>
+                      <dd className={store ? "" : "text-faint"}>{store ?? "未登録"}</dd>
+                    </dl>
+                  </Link>
+                  <Link
+                    href={`/projects/${p.id}`}
+                    className="flex items-center gap-2 border-t border-line px-6 py-3 text-[15px] hover:bg-surface2 hover:no-underline max-sm:px-4"
                   >
-                    <Link href={`/projects/${p.id}`} className="text-[16px] font-bold hover:underline">
-                      {p.name}
-                    </Link>
-                    <span className="line-clamp-2 text-muted">{p.description || "説明はまだありません"}</span>
-                    <span className={store ? "" : "text-muted"}>
-                      <span className="text-xs text-muted md:hidden">ストアページ: </span>
-                      {store ?? "未登録"}
+                    <span className="shrink-0 rounded-full bg-subtle px-2.5 py-0.5 text-xs font-bold text-muted">次にやること</span>
+                    <b className="min-w-0 truncate">{next.label}</b>
+                    <span aria-hidden className="ml-auto text-faint">
+                      →
                     </span>
-                    <span className={sns.length ? "" : "text-muted"}>
-                      <span className="text-xs text-muted md:hidden">つないだ SNS: </span>
-                      {sns.length ? sns.map((k) => SNS[k].label).join("・") : "なし"}
-                    </span>
-                    <Link href={`/projects/${p.id}`} className="font-bold text-primary hover:underline">
-                      {next.label} →
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </Card>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
         )}
       </main>
     </>

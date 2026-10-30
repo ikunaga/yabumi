@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PublicCard, PublicFrame } from "@/components/public/public-frame";
 
 export const metadata: Metadata = { title: "データ削除の確認" };
 
@@ -11,17 +12,18 @@ export default async function DeletionStatusPage(props: PageProps<"/sns/deletion
   const label = typeof sns === "string" ? (LABEL[sns] ?? "SNS") : "SNS";
 
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-4 px-5 py-16 text-center">
-      <h1 className="font-heading text-2xl font-bold">{label} のデータを削除しました</h1>
-      <p className="max-w-[480px] text-[14px] leading-[1.7] text-muted">
-        矢書に保存していた {label} のアカウント情報とアクセストークン、{label} から読んだ投稿の数字とフォロワーの数、{label} 上の投稿の ID と URL を削除しました。
-        矢書で書いた下書きや投稿の本文は残っています。不要であれば矢書から削除してください。
-      </p>
-      {confirmation && (
-        <p className="text-[14px]">
-          確認コード: <span className="font-bold">{confirmation}</span>
+    <PublicFrame>
+      <PublicCard title={`${label} のデータを削除しました`}>
+        <p>
+          矢書に保存していた {label} のアカウント情報とアクセストークン、{label} から読んだ投稿の数字とフォロワーの数、{label} 上の投稿の ID と URL を削除しました。
         </p>
-      )}
-    </main>
+        <p className="text-muted">矢書で書いた下書きや投稿の本文は残っています。不要であれば矢書から削除してください。</p>
+        {confirmation && (
+          <p className="rounded-md bg-surface2 px-4 py-3 text-[14px]">
+            確認コード: <span className="num font-bold">{confirmation}</span>
+          </p>
+        )}
+      </PublicCard>
+    </PublicFrame>
   );
 }

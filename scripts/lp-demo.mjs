@@ -52,6 +52,9 @@ async function seed() {
   const { data: created, error } = await admin.auth.admin.createUser({ email: EMAIL, email_confirm: true });
   if (error) throw error;
   const uid = created.user.id;
+  // いまの版の利用規約・プライバシーポリシーに同意したことにする（同意の帯が見本に写らないように）
+  const { currentLegalVersion } = await import("../src/lib/legal/version.ts");
+  await must(admin.from("legal_consents").insert({ user_id: uid, version: currentLegalVersion(), via: "signup" }));
 
   const project = await must(
     admin

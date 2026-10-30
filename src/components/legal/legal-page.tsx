@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Brand } from "@/components/brand";
+import { PublicFooter } from "@/components/public/public-frame";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { LegalChangeNotice, LegalHistory } from "./legal-notice";
 import { effectiveDateLabel, type LegalDoc } from "@/lib/legal/version";
@@ -8,39 +9,39 @@ import { effectiveDateLabel, type LegalDoc } from "@/lib/legal/version";
 // 利用規約とプライバシーポリシーの共通の枠。ログインなしで開ける（src/lib/supabase/proxy.ts の PUBLIC_PATHS）
 export function LegalPage({ doc, title, lead, children }: { doc: LegalDoc; title: string; lead: ReactNode; children: ReactNode }) {
   return (
-    <div className="mx-auto flex w-full max-w-[880px] flex-1 flex-col px-8 py-10 max-sm:px-4 max-sm:py-6">
-      <header className="flex items-center gap-3">
-        <Brand />
-        <nav className="ml-auto flex items-center gap-5 text-[14px] text-muted">
-          <ThemeToggle />
-          <Link href="/login" className="hover:text-fg">
-            ログイン
-          </Link>
-        </nav>
+    <div className="flex flex-1 flex-col bg-bg">
+      <header className="border-b border-border bg-nav">
+        <div className="flex h-[68px] items-center gap-4 px-12 max-lg:px-8 max-sm:h-14 max-sm:px-4">
+          <span className="flex max-sm:hidden">
+            <Brand href="/" />
+          </span>
+          <span className="flex sm:hidden">
+            <Brand href="/" size="sm" />
+          </span>
+          <nav className="ml-auto flex items-center gap-5 text-[15px] text-muted max-sm:gap-4">
+            <ThemeToggle />
+            <Link href="/login" className="font-bold text-fg hover:underline">
+              ログイン
+            </Link>
+          </nav>
+        </div>
       </header>
 
-      <main className="flex flex-col gap-6 py-10 max-sm:gap-5 max-sm:py-6">
-        <div className="flex flex-col gap-2">
-          <h1 className="font-heading text-3xl font-bold max-sm:text-2xl">{title}</h1>
-          <p className="text-[14px] text-muted">施行日: {effectiveDateLabel(new Date(), doc)}</p>
+      {/* 文を読む画面なので、読みやすい幅に狭める（docs/design/new_design/README.md の「中身の幅と 2 列」） */}
+      <main className="mx-auto flex w-full max-w-[880px] flex-col gap-6 px-8 py-10 max-sm:gap-5 max-sm:px-4 max-sm:py-6">
+        <div className="flex flex-col gap-1.5">
+          <h1 className="text-[28px] leading-tight font-bold max-sm:text-[24px]">{title}</h1>
+          <p className="num text-[15px] text-faint">施行日: {effectiveDateLabel(new Date(), doc)}</p>
         </div>
         <LegalChangeNotice />
-        <div className="text-base leading-[1.9]">{lead}</div>
-        <div className="flex flex-col gap-8 max-sm:gap-6">{children}</div>
+        <article className="flex flex-col gap-8 rounded-lg border border-border bg-surface px-10 py-9 text-base max-sm:gap-6 max-sm:px-5 max-sm:py-6">
+          <div className="leading-[1.9]">{lead}</div>
+          {children}
+        </article>
         <LegalHistory />
       </main>
 
-      <footer className="flex flex-wrap gap-x-6 gap-y-2 border-t border-line pt-5 text-[14px] text-muted">
-        <Link href="/terms" className="hover:text-fg">
-          利用規約
-        </Link>
-        <Link href="/privacy" className="hover:text-fg">
-          プライバシーポリシー
-        </Link>
-        <Link href="/" className="hover:text-fg">
-          トップ
-        </Link>
-      </footer>
+      <PublicFooter />
     </div>
   );
 }
@@ -48,7 +49,7 @@ export function LegalPage({ doc, title, lead, children }: { doc: LegalDoc; title
 export function LegalSection({ id, n, title, children }: { id: string; n: number; title: string; children: ReactNode }) {
   return (
     <section id={id} className="flex scroll-mt-6 flex-col gap-3">
-      <h2 className="font-heading text-xl font-bold max-sm:text-lg">
+      <h2 className="text-[20px] font-bold max-sm:text-[18px]">
         第 {n} 条　{title}
       </h2>
       <div className="flex flex-col gap-3 leading-[1.9]">{children}</div>
@@ -110,7 +111,7 @@ export function LegalTable({ head, rows }: { head: string[]; rows: ReactNode[][]
 
 export function ExternalLink({ href, children }: { href: string; children: ReactNode }) {
   return (
-    <a href={href} target="_blank" rel="noopener noreferrer" className="break-all text-primary hover:underline">
+    <a href={href} target="_blank" rel="noopener noreferrer" className="break-all underline">
       {children}
     </a>
   );

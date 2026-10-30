@@ -9,8 +9,8 @@ export function LegalChangeNotice({ now = new Date() }: { now?: Date }) {
   const change = upcomingLegalChange(now);
   if (!change || !noticeStarted(change, now)) return null;
   return (
-    <section id="legal-notice" aria-labelledby="legal-notice-title" className="flex scroll-mt-6 flex-col gap-2 rounded-lg border border-primary bg-primary-soft px-5 py-4 text-[15px] leading-[1.8] max-sm:px-4">
-      <h2 id="legal-notice-title" className="font-bold text-primary">
+    <section id="legal-notice" aria-labelledby="legal-notice-title" className="flex scroll-mt-6 flex-col gap-2 rounded-lg border border-signal bg-signal-soft px-5 py-4 text-[15px] leading-[1.8] max-sm:px-4">
+      <h2 id="legal-notice-title" className="font-bold text-signal">
         変更のお知らせ（{formatLegalDate(change.version)}から）
       </h2>
       <p>

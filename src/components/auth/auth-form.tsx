@@ -103,7 +103,7 @@ export function AuthForm({
         <p className="text-[14px] leading-7 text-muted">
           {state.email && <>送り先: {state.email}。</>}
           メールアドレスを間違えたときは{" "}
-          <button type="button" onClick={() => setReopenedFor(state)} className="font-semibold text-primary hover:underline">
+          <button type="button" onClick={() => setReopenedFor(state)} className="font-semibold underline">
             入れ直す
           </button>
         </p>
@@ -143,7 +143,7 @@ export function AuthForm({
           </Field>
         )}
         {mode === "login" && (
-          <Link href="/forgot-password" className="-mt-3 self-end text-[14px] font-semibold text-primary hover:underline">
+          <Link href="/forgot-password" className="-mt-3 self-end text-[14px] font-semibold underline">
             パスワードを忘れた
           </Link>
         )}
@@ -157,11 +157,11 @@ export function AuthForm({
         {mode === "signup" && (
           <p className="text-[14px] leading-[1.7] text-muted">
             登録すると、{LEGAL.minAge} 歳以上であることと、
-            <Link href="/terms" target="_blank" className="text-primary hover:underline">
+            <Link href="/terms" target="_blank" className="underline">
               利用規約
             </Link>
             と
-            <Link href="/privacy" target="_blank" className="text-primary hover:underline">
+            <Link href="/privacy" target="_blank" className="underline">
               プライバシーポリシー
             </Link>
             に同意したものとします。
@@ -173,7 +173,7 @@ export function AuthForm({
       </form>
       <p className="text-center text-[14px] text-muted">
         {c.switchText}{" "}
-        <Link href={c.switchHref} className="font-semibold text-primary hover:underline">
+        <Link href={c.switchHref} className="font-semibold underline">
           {c.switchLink}
         </Link>
       </p>

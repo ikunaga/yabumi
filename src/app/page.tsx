@@ -5,6 +5,10 @@ import { Brand } from "@/components/brand";
 import { Shot } from "@/components/lp/shot";
 import { WaitlistForm } from "@/components/lp/waitlist-form";
 import { buttonClass } from "@/components/ui/button";
+import { Disclosure, HelpTip } from "@/components/ui/help";
+import { SnsTag } from "@/components/ui/marks";
+import { Metric } from "@/components/ui/metric";
+import type { SnsKey } from "@/lib/sns";
 import { SuccessBanner } from "@/components/ui/feedback";
 import { Term } from "@/components/ui/term";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -14,34 +18,39 @@ import { createClient } from "@/lib/supabase/server";
 // 新規登録は閉じている（D24 の ①）ので、興味を持った人は招待を申し込む（いまは招待制の無料の試用。D24 の ②）。
 // ログイン済みの人はプロジェクトへ移る
 
+// short は見出しの下の 1 行。body は「くわしく」に畳む（2026-10-30 オーナーの決定）
 const pains = [
   {
     pain: "ネタがない",
+    short: "思いついたらメモ。AI がメモや更新から案を出します",
     answer: "思いついたらネタ帳へ。AI と一緒に投稿にする",
     body: "生活の中で思いついたことや、あったことを、どの画面からでも「＋ メモ」でさっと残せます。あとで AI が、メモやアプリの更新（GitHub）から投稿の案を出します。",
   },
   {
     pain: "時間がない",
+    short: "X・Threads・Instagram・Facebook ページに一度に予約",
     answer: "一度書けば、複数の SNS にまとめて予約",
     body: "1 つの文面を X・Threads・Instagram・Facebook ページに一度に予約。SNS ごとの字数や画像の決まりも確かめます。いつ何を出すかはカレンダーで一目でわかります。",
   },
   {
     pain: "何を見ればいいかわからない",
+    short: "閲覧からダウンロード・課金までを 1 枚で",
     answer: "追いかける数字を決めて、週ごとに振り返る",
     body: "投稿の閲覧から、ストアページ、ダウンロード、課金までをつなげて見られます。どの投稿から何人来たかは、SNS ごとの短縮リンクで数えます。",
   },
   {
     pain: "続かない",
+    short: "遅れそうなときと毎週の振り返りでお知らせ",
     answer: "矢書が伴走して、遅れそうなら声をかける",
     body: "最初の 1 か月の目標を SNS ごとの週の回数にし、毎日ペースを見ます。遅れそうなときと毎週の振り返りを、画面・メール・スマホの通知でお知らせします。",
   },
 ];
 
 const steps = [
-  { title: "設計する", body: "AI と話しながら、誰に・何のために・どんな名前で・どんな投稿をするかを決めます。マーケティングの用語は、出てきたときに解説します。" },
-  { title: "つなぐ", body: "使う SNS のアカウントをつなぎます。note・Substack は、文面を用意して手で投稿する形で使えます。" },
-  { title: "投稿する", body: "ネタ帳や AI の案から下書きをつくり、AI っぽさをチェックして、まとめて予約します。" },
-  { title: "振り返る", body: "数字を見ながら AI と相談し、ロードマップと次の週のやることを決めます。" },
+  { title: "設計する", short: "AI と話して、誰に・何を発信するか決める", body: "AI と話しながら、誰に・何のために・どんな名前で・どんな投稿をするかを決めます。マーケティングの用語は、出てきたときに解説します。" },
+  { title: "つなぐ", short: "使う SNS のアカウントをつなぐ", body: "使う SNS のアカウントをつなぎます。note・Substack は、文面を用意して手で投稿する形で使えます。" },
+  { title: "投稿する", short: "下書きをつくり、まとめて予約", body: "ネタ帳や AI の案から下書きをつくり、AI っぽさをチェックして、まとめて予約します。" },
+  { title: "振り返る", short: "数字を見て、次の週のやることを決める", body: "数字を見ながら AI と相談し、ロードマップと次の週のやることを決めます。" },
 ];
 
 type Feature = { name: string; title: string; body: string; shot?: { name: string; alt: string } };
@@ -64,10 +73,18 @@ const moreFeatures = [
   { title: "ストアの数字", body: "App Store・Google Play・RevenueCat の数字を取り込み、投稿の効果と並べて見られます。" },
 ];
 
-const sns = [
-  { group: "矢書から自動で投稿", items: ["X", "Threads", "Instagram", "Facebook ページ"] },
-  { group: "文面を用意して、手で投稿", items: ["note", "Substack"] },
-  { group: "準備中", items: ["TikTok", "YouTube"] },
+const sns: { group: string; items: SnsKey[]; ready: boolean }[] = [
+  { group: "矢書から自動で投稿", items: ["x", "threads", "instagram", "facebook"], ready: true },
+  { group: "文面を用意して、手で投稿", items: ["note", "substack"], ready: true },
+  { group: "準備中", items: ["tiktok", "youtube"], ready: false },
+];
+
+// 最初の画面の下の数字（見本 A の上の 4 つの形）。どれも、いまの矢書の決まりそのまま
+const facts = [
+  { label: "まとめて予約", value: "4", unit: "つの SNS", note: "X・Threads・Instagram・Facebook ページ" },
+  { label: "手で投稿", value: "2", unit: "つの SNS", note: "note・Substack（文面を用意）" },
+  { label: "最初にやること", value: "4", unit: "段", note: "設計 → つなぐ → 投稿 → 振り返り" },
+  { label: "いまの料金", value: "0", unit: "円", note: "招待制の試用。勝手に請求は始まりません" },
 ];
 
 const faqs: { q: string; a: ReactNode }[] = [
@@ -80,7 +97,7 @@ const faqs: { q: string; a: ReactNode }[] = [
     a: (
       <>
         AI（Anthropic の Claude）には、案や下書きをつくるのに要るものだけを送ります。たとえば、アプリの説明、アカウント設計の内容、投稿の下書き、ネタ帳で選んだメモの本文です。パスワードや SNS の鍵は送りません。Anthropic は、送られた内容を既定ではモデルの学習に使いません。くわしくは
-        <Link href="/privacy" className="text-primary underline">
+        <Link href="/privacy" className="underline">
           プライバシーポリシー
         </Link>
         に書いています。
@@ -105,9 +122,10 @@ const faqs: { q: string; a: ReactNode }[] = [
   },
 ];
 
-const section = "mx-auto w-full max-w-[1120px] px-10 max-lg:px-6 max-sm:px-4";
+const section = "w-full px-12 max-lg:px-8 max-sm:px-4";
 // 日本語を文節で折る（対応していないブラウザでは、ふつうの折り方になる）
-const h2 = "font-heading text-[32px] leading-[1.4] font-bold [word-break:auto-phrase] max-sm:text-[24px]";
+const h2 = "text-[28px] leading-[1.4] font-bold [word-break:auto-phrase] max-sm:text-[22px]";
+const card = "rounded-lg border border-border bg-surface";
 
 export default async function Home(props: PageProps<"/">) {
   const { done } = await props.searchParams;
@@ -116,141 +134,172 @@ export default async function Home(props: PageProps<"/">) {
   if (data?.claims) redirect("/projects");
 
   return (
-    <div className="flex flex-1 flex-col">
-      <header className={`${section} flex items-center gap-3 py-6 max-sm:py-4`}>
-        <span className="flex max-sm:hidden">
-          <Brand />
-        </span>
-        <span className="flex sm:hidden">
-          <Brand size="sm" />
-        </span>
-        <nav className="ml-auto flex items-center gap-6 text-[14px] text-muted max-sm:gap-4">
-          <a href="#features" className="hover:text-fg max-md:hidden">
-            できること
-          </a>
-          <a href="#price" className="hover:text-fg max-md:hidden">
-            料金
-          </a>
-          <a href="#faq" className="hover:text-fg max-md:hidden">
-            よくある質問
-          </a>
-          <ThemeToggle />
-          <Link href="/login" className="font-semibold text-primary hover:underline">
-            ログイン
-          </Link>
-          <a href="#apply" className={`${buttonClass({ size: "sm" })} max-sm:hidden`}>
-            招待を申し込む
-          </a>
-        </nav>
+    <div className="flex flex-1 flex-col bg-bg">
+      {/* 上の灰の帯（ログイン後の上の帯と同じ形） */}
+      <header className="sticky top-0 z-20 border-b border-border bg-nav">
+        <div className={`${section} flex h-[68px] items-center gap-7 max-sm:h-14 max-sm:gap-3`}>
+          <span className="flex max-sm:hidden">
+            <Brand href="/" />
+          </span>
+          <span className="flex sm:hidden">
+            <Brand href="/" size="sm" />
+          </span>
+          <nav aria-label="ページの中" className="flex items-center gap-6 text-[17px] font-bold text-muted max-md:hidden">
+            <a href="#features" className="hover:text-fg">
+              できること
+            </a>
+            <a href="#price" className="hover:text-fg">
+              料金
+            </a>
+            <a href="#faq" className="hover:text-fg">
+              よくある質問
+            </a>
+          </nav>
+          <div className="ml-auto flex items-center gap-4 max-sm:gap-3">
+            <ThemeToggle />
+            <Link href="/login" className="text-[15px] font-bold text-fg hover:underline">
+              ログイン
+            </Link>
+            <a href="#apply" className={`${buttonClass({ size: "sm" })} max-sm:hidden`}>
+              招待を申し込む
+            </a>
+          </div>
+        </div>
       </header>
 
       {done === "withdrawn" && (
-        <div className={section}>
+        <div className={`${section} pt-6`}>
           <SuccessBanner>退会しました。保存していたデータは消しました。ご利用ありがとうございました。</SuccessBanner>
         </div>
       )}
 
-      <main className="flex flex-col gap-24 pb-24 max-sm:gap-16 max-sm:pb-16">
+      <main className="flex flex-col gap-20 pt-14 pb-20 max-sm:gap-14 max-sm:pt-8 max-sm:pb-14">
         {/* 最初の画面 */}
-        <section className={`${section} grid grid-cols-[minmax(0,1fr)_minmax(0,500px)] items-center gap-12 pt-8 max-lg:grid-cols-1 max-lg:gap-10 max-sm:pt-2`}>
-          <div className="flex flex-col gap-6">
-            <p className="text-[14px] font-bold tracking-[.15em] text-primary">個人開発者のための SNS 運用ツール</p>
-            <h1 className="font-heading text-[48px] leading-[1.4] font-bold text-pretty max-lg:text-[40px] max-sm:text-[30px] max-sm:leading-[1.45]">
-              {/* 行の途中で折れないように、1 行ずつまとめる */}
-              <span className="inline-block">アプリは作れる。</span>
-              <br />
-              <span className="inline-block">でも、発信は苦手。</span>
-            </h1>
-            <p className="text-lg leading-[1.8] text-muted max-sm:text-base">
-              何を・いつ・どこに出すかを AI と一緒に決めて、複数の SNS にまとめて予約。数字を見て振り返り、続かないときは矢書が声をかけます。アプリづくりの時間を守りながら、届けたい人へ。
-            </p>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 max-sm:flex-col max-sm:items-stretch">
-              <a href="#apply" className={`${buttonClass()} h-[54px] px-7 text-[16px] max-sm:h-13`}>
-                招待を申し込む（無料）
-              </a>
-              <span className="text-[14px] text-muted">いまは 10 人ほどの招待制で、無料で試せます</span>
+        <section className={`${section} flex flex-col gap-10 max-sm:gap-8`}>
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] items-center gap-12 max-lg:grid-cols-1 max-lg:gap-8">
+            <div className="flex flex-col gap-6 max-sm:gap-5">
+              <p className="flex flex-col gap-1">
+                {/* ロゴに添える一言（ONE ARROW, EVERY FEED）。LP の最初と下の帯だけに出す（PM に確認中の提案） */}
+                <span className="text-[13px] font-bold tracking-[.25em] text-faint">ONE ARROW, EVERY FEED</span>
+                <span className="text-[15px] font-bold text-muted">個人開発者のための SNS 運用ツール</span>
+              </p>
+              <h1 className="text-[48px] leading-[1.35] font-bold text-pretty max-lg:text-[40px] max-sm:text-[30px] max-sm:leading-[1.45]">
+                {/* 行の途中で折れないように、1 行ずつまとめる */}
+                <span className="inline-block">アプリは作れる。</span>
+                <br />
+                <span className="inline-block">でも、発信は苦手。</span>
+              </h1>
+              <div className="flex items-center gap-2 text-[17px] leading-[1.8] text-muted max-sm:text-[15px]">
+                <p>何を・いつ・どこに出すかを AI と決めて、複数の SNS にまとめて予約。</p>
+                <HelpTip label="矢書でできること">
+                  何を・いつ・どこに出すかを AI と一緒に決めて、複数の SNS にまとめて予約。数字を見て振り返り、続かないときは矢書が声をかけます。アプリづくりの時間を守りながら、届けたい人へ。
+                </HelpTip>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 max-sm:flex-col max-sm:items-stretch">
+                <a href="#apply" className={buttonClass({ size: "lg", className: "px-8" })}>
+                  招待を申し込む（無料）
+                </a>
+                <span className="text-[14px] text-faint">いまは 10 人ほどの招待制です</span>
+              </div>
             </div>
+            <Shot name="compose" alt="投稿をつくる画面。1 つの文面を、X・Threads・Instagram・Facebook ページにまとめて予約する" priority sizes="(max-width: 1024px) 100vw, 720px" />
           </div>
-          <Shot name="compose" alt="投稿をつくる画面。1 つの文面を、X・Threads・Instagram・Facebook ページにまとめて予約する" priority sizes="(max-width: 1024px) 100vw, 500px" />
+          <ul className="grid grid-cols-4 gap-4 max-lg:grid-cols-2 max-sm:gap-2.5">
+            {facts.map((f) => (
+              <li key={f.label}>
+                <Metric label={f.label} value={f.value} unit={f.unit} note={f.note} className="h-full" />
+              </li>
+            ))}
+          </ul>
         </section>
 
         {/* 悩みと解決 */}
-        <section className={`${section} flex flex-col gap-8`} aria-labelledby="pains">
+        <section className={`${section} flex flex-col gap-6`} aria-labelledby="pains">
           <h2 id="pains" className={h2}>
             こんなことで、止まっていませんか
           </h2>
-          <ul className="grid grid-cols-2 gap-4 max-md:grid-cols-1">
+          <ul className="grid grid-cols-4 gap-4 max-xl:grid-cols-2 max-md:grid-cols-1">
             {pains.map((p) => (
-              <li key={p.pain} className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-6 max-sm:p-5">
-                <p className="text-[15px] text-muted">「{p.pain}」</p>
-                <p className="font-heading text-[22px] leading-[1.5] font-bold [word-break:auto-phrase] max-sm:text-[19px]">{p.answer}</p>
-                <p className="text-[15px] leading-[1.8] text-muted">{p.body}</p>
+              <li key={p.pain} className={`${card} flex flex-col gap-3 px-6 py-5 max-sm:px-4`}>
+                <span className="w-fit rounded-full bg-subtle px-2.5 py-0.5 text-[13px] font-bold text-muted">「{p.pain}」</span>
+                <p className="text-[18px] leading-[1.5] font-bold [word-break:auto-phrase]">{p.answer}</p>
+                <p className="text-[14px] leading-[1.7] text-faint">{p.short}</p>
+                <Disclosure className="mt-auto">{p.body}</Disclosure>
               </li>
             ))}
           </ul>
         </section>
 
         {/* 使い方の流れ */}
-        <section className={`${section} flex flex-col gap-8`} aria-labelledby="flow">
-          <h2 id="flow" className={h2}>
-            使い方は 4 つの段階
-          </h2>
+        <section className={`${section} flex flex-col gap-6`} aria-labelledby="flow">
+          <div className="flex items-center gap-2.5">
+            <h2 id="flow" className={h2}>
+              使い方は 4 つの段階
+            </h2>
+            <HelpTip label="目標の決め方">
+              目標は、最終的な目標（<Term k="kgi" />）と、日々追いかける数字（<Term k="kpi" />）に分けて決めます。数字の意味は、出てきたところで解説します。
+            </HelpTip>
+          </div>
           <ol className="grid grid-cols-4 gap-4 max-lg:grid-cols-2 max-sm:grid-cols-1">
             {steps.map((s, i) => (
-              <li key={s.title} className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-6 max-sm:p-5">
-                <span className="text-[13px] font-bold tracking-[.15em] text-primary">{`STEP ${i + 1}`}</span>
-                <b className="text-[17px]">{s.title}</b>
-                <p className="text-[14px] leading-[1.8] text-muted">{s.body}</p>
+              <li key={s.title} className={`${card} flex flex-col gap-2 px-6 py-5 max-sm:px-4`}>
+                <span className="num text-metric leading-none font-bold max-sm:text-[30px]">{i + 1}</span>
+                <b className="text-[18px]">{s.title}</b>
+                <p className="text-[14px] leading-[1.7] text-faint">{s.short}</p>
+                <Disclosure className="mt-auto">{s.body}</Disclosure>
               </li>
             ))}
           </ol>
-          <p className="text-[14px] leading-[1.8] text-muted">
-            目標は、最終的な目標（<Term k="kgi" />）と、日々追いかける数字（<Term k="kpi" />）に分けて決めます。数字の意味は、出てきたところで解説します。
-          </p>
         </section>
 
         {/* 機能の一覧 */}
-        <section id="features" className={`${section} flex scroll-mt-6 flex-col gap-10`} aria-labelledby="features-title">
-          <h2 id="features-title" className={h2}>
-            できること
-          </h2>
-          <div className="flex flex-col gap-16 max-sm:gap-12">
-            {features.map((f, i) => (
-              <article key={f.name} className={`grid items-center gap-10 max-lg:grid-cols-1 max-lg:gap-5 ${i % 2 ? "grid-cols-[1fr_380px]" : "grid-cols-[380px_1fr]"}`}>
-                <div className={`flex flex-col gap-3 ${i % 2 ? "lg:order-last" : ""}`}>
-                  <h3 className="font-heading text-[22px] leading-[1.5] font-bold">{f.title}</h3>
-                  <p className="text-[15px] leading-[1.8] text-muted">{f.body}</p>
-                </div>
-                {f.shot && <Shot name={f.shot.name} alt={f.shot.alt} />}
-              </article>
-            ))}
+        <section id="features" className={`${section} flex scroll-mt-20 flex-col gap-6`} aria-labelledby="features-title">
+          <div className="flex items-center gap-2.5">
+            <h2 id="features-title" className={h2}>
+              できること
+            </h2>
+            <HelpTip label="短縮リンク">
+              どの SNS から何人来たかは、<Term k="shortLink" />で数えます。
+            </HelpTip>
           </div>
-          <ul className="grid grid-cols-3 gap-4 max-lg:grid-cols-2 max-sm:grid-cols-1">
-            {moreFeatures.map((f) => (
-              <li key={f.title} className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-5">
-                <b className="text-[15px]">{f.title}</b>
-                <p className="text-[14px] leading-[1.8] text-muted">{f.body}</p>
+          <ul className="grid grid-cols-3 gap-4 max-xl:grid-cols-2 max-md:grid-cols-1">
+            {features.map((f) => (
+              <li key={f.name} className={`${card} flex flex-col overflow-hidden`}>
+                {f.shot && (
+                  <div className="border-b border-line bg-surface2 p-3 [&>div]:rounded-md">
+                    <Shot name={f.shot.name} alt={f.shot.alt} sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw" />
+                  </div>
+                )}
+                <div className="flex flex-col gap-1.5 px-6 py-5 max-sm:px-4">
+                  <h3 className="text-[18px] font-bold">{f.title}</h3>
+                  <p className="text-[14px] leading-[1.7] text-muted">{f.body}</p>
+                </div>
               </li>
             ))}
           </ul>
-          <p className="text-[14px] leading-[1.8] text-muted">
-            どの SNS から何人来たかは、<Term k="shortLink" />で数えます。
-          </p>
+          <ul className="grid grid-cols-3 gap-4 max-lg:grid-cols-2 max-sm:grid-cols-1">
+            {moreFeatures.map((f) => (
+              <li key={f.title} className={`${card} flex flex-col gap-1 px-6 py-4 max-sm:px-4`}>
+                <b className="text-[16px]">{f.title}</b>
+                <p className="text-[14px] leading-[1.7] text-muted">{f.body}</p>
+              </li>
+            ))}
+          </ul>
         </section>
 
         {/* 対応 SNS */}
-        <section className={`${section} flex flex-col gap-8`} aria-labelledby="sns">
+        <section className={`${section} flex flex-col gap-6`} aria-labelledby="sns">
           <h2 id="sns" className={h2}>
             対応している SNS
           </h2>
           <div className="grid grid-cols-3 gap-4 max-md:grid-cols-1">
             {sns.map((g) => (
-              <div key={g.group} className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-5">
-                <b className="text-[15px]">{g.group}</b>
-                <ul className="flex flex-wrap gap-2">
-                  {g.items.map((s) => (
-                    <li key={s} className={`rounded-full px-3 py-1 text-xs font-bold ${g.group === "準備中" ? "border border-line text-muted" : "bg-primary-soft text-primary"}`}>
-                      {s}
+              <div key={g.group} className={`${card} flex flex-col gap-3 px-6 py-5 max-sm:px-4`}>
+                <b className="text-[16px]">{g.group}</b>
+                <ul className={`flex flex-wrap gap-2 ${g.ready ? "" : "opacity-60"}`}>
+                  {g.items.map((k) => (
+                    <li key={k}>
+                      <SnsTag sns={k} />
                     </li>
                   ))}
                 </ul>
@@ -260,16 +309,18 @@ export default async function Home(props: PageProps<"/">) {
         </section>
 
         {/* 料金 */}
-        <section id="price" className={`${section} flex scroll-mt-6 flex-col gap-8`} aria-labelledby="price-title">
+        <section id="price" className={`${section} flex scroll-mt-20 flex-col gap-6`} aria-labelledby="price-title">
           <h2 id="price-title" className={h2}>
             料金
           </h2>
-          <div className="flex flex-col gap-4 rounded-lg border-2 border-primary bg-surface p-8 max-sm:p-5">
-            <p className="text-[15px] font-bold text-primary">いまは招待制の試用</p>
-            <p className="font-heading text-[48px] leading-none font-bold max-sm:text-[36px]">
-              0 円<span className="ml-2 text-[17px] font-normal text-muted">試用の間</span>
-            </p>
-            <ul className="flex list-disc flex-col gap-1 pl-5 text-[15px] leading-[1.8]">
+          <div className={`${card} grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-8 px-8 py-7 max-md:grid-cols-1 max-md:gap-4 max-sm:px-5 max-sm:py-5`}>
+            <div className="flex flex-col gap-1.5">
+              <p className="text-[16px] text-muted">いまは招待制の試用</p>
+              <p className="num text-[64px] leading-none font-bold max-sm:text-[44px]">
+                0<span className="ml-1.5 text-[20px] font-bold text-muted">円</span>
+              </p>
+            </div>
+            <ul className="flex list-disc flex-col gap-1.5 self-center pl-5 text-[15px] leading-[1.8]">
               <li>すべての機能を使えます（AI などには 1 人あたりの月の上限があります）</li>
               <li>10 人ほどの招待制で、申し込みの順にご案内します（時期は決まっていません。お断りすることもあります）</li>
               <li>有料のプランを始めるときは、前もってお知らせします。勝手に請求が始まることはありません</li>
@@ -278,52 +329,62 @@ export default async function Home(props: PageProps<"/">) {
         </section>
 
         {/* よくある質問 */}
-        <section id="faq" className={`${section} flex scroll-mt-6 flex-col gap-8`} aria-labelledby="faq-title">
+        <section id="faq" className={`${section} flex scroll-mt-20 flex-col gap-6`} aria-labelledby="faq-title">
           <h2 id="faq-title" className={h2}>
             よくある質問
           </h2>
-          <div className="flex flex-col overflow-hidden rounded-lg border border-border bg-surface">
+          <div className={`${card} flex flex-col overflow-hidden`}>
             {faqs.map((f) => (
               <details key={f.q} className="group border-line [&:not(:first-child)]:border-t">
-                <summary className="flex cursor-pointer items-center justify-between gap-4 px-6 py-4 text-[15px] font-bold max-sm:px-5 [&::-webkit-details-marker]:hidden">
+                <summary className="flex cursor-pointer items-center justify-between gap-4 px-6 py-4 text-[16px] font-bold max-sm:px-4 [&::-webkit-details-marker]:hidden">
                   {f.q}
-                  <span aria-hidden className="text-primary transition-transform group-open:rotate-45">
+                  <span aria-hidden className="text-muted transition-transform group-open:rotate-45">
                     ＋
                   </span>
                 </summary>
-                <p className="px-6 pb-5 text-[15px] leading-[1.8] text-muted max-sm:px-5">{f.a}</p>
+                <p className="px-6 pb-5 text-[15px] leading-[1.8] text-muted max-sm:px-4">{f.a}</p>
               </details>
             ))}
           </div>
         </section>
 
         {/* 招待の申し込み */}
-        <section id="apply" className={`${section} scroll-mt-6`} aria-labelledby="apply-title">
-          <div className="grid grid-cols-[1fr_440px] gap-12 rounded-lg border border-border bg-surface p-10 max-lg:grid-cols-1 max-lg:gap-6 max-sm:p-5">
-            <div className="flex flex-col gap-4">
-              <h2 id="apply-title" className={h2}>
-                招待を申し込む
-              </h2>
-              <p className="text-[15px] leading-[1.8] text-muted">
-                いまは 10 人ほどの招待制で、無料で試していただいています。メールアドレスを入れていただくと、申し込みの順にご案内します（時期は決まっていません。お断りすることもあります）。
-              </p>
-              <p className="text-[15px] leading-[1.8] text-muted">招待が届いたら、メールのボタンからパスワードを決めるだけで使い始められます。</p>
+        <section id="apply" className={`${section} scroll-mt-20`} aria-labelledby="apply-title">
+          <div className={`${card} grid grid-cols-[minmax(0,1fr)_440px] gap-12 px-10 py-9 max-lg:grid-cols-1 max-lg:gap-6 max-sm:px-5 max-sm:py-6`}>
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2.5">
+                <h2 id="apply-title" className={h2}>
+                  招待を申し込む
+                </h2>
+                <HelpTip label="招待のしくみ">
+                  いまは 10 人ほどの招待制で、無料で試していただいています。申し込みの順にご案内します（時期は決まっていません。お断りすることもあります）。招待が届いたら、メールのボタンからパスワードを決めるだけで使い始められます。
+                </HelpTip>
+              </div>
+              <p className="text-[15px] leading-[1.8] text-muted">メールアドレスを入れていただくと、申し込みの順にご案内します。</p>
             </div>
             <WaitlistForm />
           </div>
         </section>
       </main>
 
-      <footer className={`${section} flex flex-wrap gap-x-6 gap-y-2 border-t border-line py-6 text-[14px] text-muted max-sm:text-xs`}>
-        <Link href="/terms" className="hover:text-fg">
-          利用規約
-        </Link>
-        <Link href="/privacy" className="hover:text-fg">
-          プライバシーポリシー
-        </Link>
-        <Link href="/login" className="hover:text-fg">
-          ログイン
-        </Link>
+      <footer className="border-t border-border bg-nav">
+        <div className={`${section} flex flex-wrap items-center gap-x-6 gap-y-3 py-6 text-[14px] text-muted max-sm:text-[13px]`}>
+          <span className="flex items-center gap-3">
+            <Brand href="/" size="sm" />
+            <span className="text-[12px] font-bold tracking-[.2em] text-faint max-sm:hidden">ONE ARROW, EVERY FEED</span>
+          </span>
+          <nav className="flex flex-wrap gap-x-6 gap-y-2 sm:ml-auto">
+            <Link href="/terms" className="hover:text-fg">
+              利用規約
+            </Link>
+            <Link href="/privacy" className="hover:text-fg">
+              プライバシーポリシー
+            </Link>
+            <Link href="/login" className="hover:text-fg">
+              ログイン
+            </Link>
+          </nav>
+        </div>
       </footer>
     </div>
   );

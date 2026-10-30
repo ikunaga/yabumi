@@ -47,7 +47,7 @@ export function WaitlistForm() {
       </div>
       <Turnstile resetKey={state} />
       <p className="text-xs leading-[1.7] text-muted">
-        申し込むと、<Link href="/privacy" className="text-primary underline">プライバシーポリシー</Link>
+        申し込むと、<Link href="/privacy" className="underline">プライバシーポリシー</Link>
         に沿って、メールアドレスと一言をお預かりします。招待・お断り・取り消しのどれかで、すぐに消します（そのままなら 1 年で消します）。
       </p>
       <Button type="submit" disabled={pending} className="w-fit max-sm:h-13 max-sm:w-full">

@@ -96,7 +96,7 @@ export function ShareReceiver({ projects, fromServer }: { projects: { id: string
     return (
       <p className="text-[14px] leading-[1.8]">
         メモはプロジェクトごとに残します。先に{" "}
-        <Link href="/projects/new" className="font-semibold text-primary hover:underline">
+        <Link href="/projects/new" className="font-semibold underline">
           プロジェクトをつくる
         </Link>
         と、ここから残せます。

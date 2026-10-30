@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PublicCard, PublicFrame } from "@/components/public/public-frame";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { cancelAction } from "@/lib/waitlist/actions";
@@ -10,29 +11,43 @@ export const metadata: Metadata = { title: "招待の申し込みを取り消す
 export default async function WaitlistCancelPage(props: PageProps<"/waitlist/cancel">) {
   const sp = await props.searchParams;
   const token = typeof sp.t === "string" ? sp.t : "";
+  const top = (
+    <Link href="/" className="text-[14px] text-muted underline hover:text-fg">
+      矢書のトップへ
+    </Link>
+  );
   return (
-    <main className="mx-auto flex min-h-dvh max-w-[560px] flex-col justify-center gap-5 bg-bg px-4 py-12">
-      <h1 className="font-heading text-2xl font-bold">矢書の招待の申し込みを取り消す</h1>
+    <PublicFrame>
       {sp.done === "1" ? (
-        <p className="text-[14px] leading-[1.8]">取り消しました。お預かりしたメールアドレスと一言は消しました。招待のメールは届きません。</p>
+        <PublicCard title="招待の申し込みを取り消しました" actions={top}>
+          <p>お預かりしたメールアドレスと一言は消しました。招待のメールは届きません。</p>
+        </PublicCard>
       ) : sp.done === "0" || !token ? (
-        <p className="text-[14px] leading-[1.8]">
-          リンクが正しくないか、すでに取り消し済み・招待済みです。わからないことがあれば、
-          <Link href="/privacy" className="font-semibold text-primary hover:underline">
-            プライバシーポリシー
-          </Link>
-          の問い合わせ先にご連絡ください。
-        </p>
+        <PublicCard title="リンクが正しくないか、すでに取り消し済み・招待済みです" actions={top}>
+          <p>
+            わからないことがあれば、
+            <Link href="/privacy" className="font-semibold text-fg underline">
+              プライバシーポリシー
+            </Link>
+            の問い合わせ先にご連絡ください。
+          </p>
+        </PublicCard>
       ) : (
-        <form action={cancelAction} className="flex flex-col items-start gap-4">
+        <form action={cancelAction} className="flex w-full justify-center">
           <input type="hidden" name="t" value={token} />
-          <p className="text-[14px] leading-[1.8]">招待の申し込みを取り消します。お預かりしたメールアドレスと一言をすぐに消し、招待のメールは届かなくなります。</p>
-          <Button type="submit">申し込みを取り消す</Button>
+          <PublicCard
+            title="矢書の招待の申し込みを取り消す"
+            actions={
+              <>
+                <Button type="submit">申し込みを取り消す</Button>
+                {top}
+              </>
+            }
+          >
+            <p>お預かりしたメールアドレスと一言をすぐに消し、招待のメールは届かなくなります。</p>
+          </PublicCard>
         </form>
       )}
-      <Link href="/" className="text-[14px] font-semibold text-primary hover:underline">
-        矢書のトップへ
-      </Link>
-    </main>
+    </PublicFrame>
   );
 }

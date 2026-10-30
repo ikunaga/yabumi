@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { currentStepIndex, listNextStep, STEPS, stepHref, type StepState } from "@/lib/projects/next-step";
+import { currentStepIndex, listNextStep, nowBandKind, STEPS, stepHref, type StepState } from "@/lib/projects/next-step";
 
 const none: StepState = { planDone: false, connectedSnsCount: 0, hasPublished: false, hasRoadmap: false };
 const step = (planDone: boolean, connectedSnsCount: number) => STEPS[currentStepIndex({ ...none, planDone, connectedSnsCount })].key;
@@ -56,3 +56,13 @@ describe("一覧の次にやること", () => {
   });
 });
 
+describe("概要の「いまやること」の帯", () => {
+  it("最初の 4 段階が残っていれば、いつもその段（GitHub をつなぐ案内は帯にしない）", () => {
+    expect(nowBandKind({ stepIndex: 0, cycleEnded: false })).toBe("step");
+    expect(nowBandKind({ stepIndex: 3, cycleEnded: true })).toBe("step");
+  });
+  it("4 段階が済んだら、1 か月の区切り、そうでなければ今週のやること", () => {
+    expect(nowBandKind({ stepIndex: STEPS.length, cycleEnded: true })).toBe("cycle_ended");
+    expect(nowBandKind({ stepIndex: STEPS.length, cycleEnded: false })).toBe("this_week");
+  });
+});

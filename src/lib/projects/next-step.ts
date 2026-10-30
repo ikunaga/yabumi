@@ -83,3 +83,13 @@ export function listNextStep(state: StepState & { thisWeekTodo: number }): { lab
   if (stepIndex < STEPS.length) return { label: STEPS[stepIndex].shortTitle, stepIndex };
   return { label: state.thisWeekTodo > 0 ? `今週のやること あと ${state.thisWeekTodo} 件` : "今週のやることを見る", stepIndex };
 }
+
+// 概要の「いまやること」の帯に出すもの（いつも 1 つ出す。上から順に）。GitHub をつなぐ（任意）は帯の代わりにはせず、帯の下の小さな 1 行にする
+// （2026-10-30 通し確認: 新しい利用者に「GitHub をつなぐ」だけが出て、「アカウントを設計する」が見えなかった）
+export type NowBandKind = "step" | "cycle_ended" | "this_week";
+
+export function nowBandKind(state: { stepIndex: number; cycleEnded: boolean }): NowBandKind {
+  if (state.stepIndex < STEPS.length) return "step";
+  if (state.cycleEnded) return "cycle_ended";
+  return "this_week";
+}

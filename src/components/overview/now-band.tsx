@@ -9,17 +9,51 @@ import type { CoachView } from "@/lib/coach/load";
 import { CYCLE_WEEKS, remainingText, type PaceStatus } from "@/lib/coach/pace";
 import { SNS } from "@/lib/sns";
 import { DismissableDetails } from "@/components/ui/dismissable-details";
-import { STEPS, stepHref } from "@/lib/projects/next-step";
+import { nowBandKind, STEPS, stepHref } from "@/lib/projects/next-step";
 import type { RoadmapItem } from "@/lib/roadmap/load";
 import { formatValue, kpiLabel } from "@/lib/roadmap/schema";
 
-// 概要の「いまやること」（1 行とボタンの小さな帯。2026-10-30 オーナーの決定）。上から順に 1 つだけ出す:
-// GitHub をつなぐ（任意。設計の前で、飛ばしていなければ）→ 最初の 4 段階 → 1 か月の区切り → 今週のやること（ロードマップ）。
+// 概要の「いまやること」（1 行とボタンの小さな帯。2026-10-30 オーナーの決定）。いつも 1 つ出す（next-step.ts の nowBandKind）:
+// 最初の 4 段階 → 1 か月の区切り → 今週のやること（ロードマップ）。GitHub をつなぐ（任意）は帯の下の小さな 1 行。
 // 伴走（今週の回数）は帯の右に小さく出す。説明は「?」に畳む
-export function NowBand({
+// いまやることの帯（いつも出す）と、その下の GitHub をつなぐ（任意。つないでいない・飛ばしていないときだけの小さな 1 行）
+export function NowBand(props: Parameters<typeof MainBand>[0]) {
+  const { projectId, github } = props;
+  return (
+    <div className="flex flex-col gap-2">
+      <MainBand {...props} />
+      {github.show && <GithubLine projectId={projectId} configured={github.configured} />}
+    </div>
+  );
+}
+
+// GitHub をつなぐ（任意）の 1 行。説明は「?」に畳み、「今はしない」で消える
+function GithubLine({ projectId, configured }: { projectId: string; configured: boolean }) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 text-sm text-muted">
+      <span>任意: GitHub をつなぐと、AI が紹介文を下書きします</span>
+      <HelpTip label="GitHub をつなぐ理由">
+        アプリのリポジトリをつなぐと、AI がファイルを読んで、アプリの紹介文（どんなアプリか）を下書きします。紹介文は、アカウント設計の相談や投稿のネタの材料になります。非公開でも大丈夫です。
+      </HelpTip>
+      {configured ? (
+        <Link href={`/projects/${projectId}/github`} className="font-bold text-fg underline">
+          つなぐ
+        </Link>
+      ) : (
+        <span className="text-faint">つなぐ（準備中）</span>
+      )}
+      <form action={dismissGithubPrompt.bind(null, projectId)}>
+        <button type="submit" className="text-sm text-muted underline hover:text-fg">
+          今はしない
+        </button>
+      </form>
+    </div>
+  );
+}
+
+function MainBand({
   projectId,
   stepIndex,
-  github,
   coach,
   coachReady,
   todos,
@@ -42,37 +76,8 @@ export function NowBand({
   const base = `/projects/${projectId}`;
   const pace = coach ? <PaceChip projectId={projectId} view={coach} /> : null;
 
-  if (github.show && stepIndex === 0) {
-    return (
-      <ActionBar
-        label="最初に（任意）"
-        title="GitHub をつなぐ"
-        help={
-          <HelpTip label="GitHub をつなぐ理由" align="right">
-            アプリのリポジトリをつなぐと、AI がファイルを読んで、アプリの紹介文（どんなアプリか）を下書きします。紹介文は、アカウント設計の相談や投稿のネタの材料になります。非公開でも大丈夫です。
-          </HelpTip>
-        }
-        action={
-          <span className="flex items-center gap-3 max-sm:justify-between">
-            <form action={dismissGithubPrompt.bind(null, projectId)}>
-              <button type="submit" className="text-sm text-muted hover:text-fg hover:underline">
-                今はしない
-              </button>
-            </form>
-            {github.configured ? (
-              <ButtonLink href={`${base}/github`} size="sm">
-                つなぐ
-              </ButtonLink>
-            ) : (
-              <NotReadyButton size="sm">つなぐ</NotReadyButton>
-            )}
-          </span>
-        }
-      />
-    );
-  }
-
-  if (stepIndex < STEPS.length) {
+  const kind = nowBandKind({ stepIndex, cycleEnded: Boolean(coach?.cycle?.ended) });
+  if (kind === "step") {
     const step = STEPS[stepIndex];
     const rest = STEPS.slice(stepIndex + 1);
     return (
@@ -102,7 +107,7 @@ export function NowBand({
   }
 
   // 最初の 1 か月が終わった: 振り返りと次の 1 か月へ
-  if (coach?.cycle?.ended) {
+  if (kind === "cycle_ended") {
     return (
       <ActionBar
         label="いまやること"

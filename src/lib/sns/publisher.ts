@@ -182,7 +182,7 @@ async function markAccountExpired(admin: Admin, socialAccountId: string) {
   await admin.from("social_accounts").update({ status: "expired" }).eq("id", socialAccountId);
 }
 
-const RECONNECT = "概要の「つないだ SNS」からつなぎ直してください。";
+const RECONNECT = "プロジェクトの設定の「つないだ SNS」からつなぎ直してください。";
 
 // 費用を先に記録する。上限を超えるなら記録せず、どちらの上限か（user: その人の上限 / global: 矢書全体の上限）を返す。
 // DB の reserve_sns_spend が、同じ SNS の記録を順に行い、利用者ごとと全体の両方を同じロックの中で確かめる（同時に送っても超えない）

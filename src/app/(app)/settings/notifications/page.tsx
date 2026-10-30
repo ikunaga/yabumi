@@ -35,7 +35,7 @@ export default async function NotificationSettingsPage() {
         <div className="flex flex-col gap-1.5">
           <h1 className="font-heading text-3xl font-bold max-sm:text-2xl">お知らせの設定</h1>
           <p className="text-[14px] leading-[1.8] text-muted">
-            アカウント設計の「最初の 1 か月」で SNS ごとの週の投稿の回数を決めると、矢書が週ごとのペースを見守ります（伴走）。概要の一番上に今週のペースを出し、ここで選んだ方法でお知らせします。
+            アカウント設計の「最初の 1 か月」で SNS ごとの週の投稿の回数を決めると、矢書が週ごとのペースを見守ります（伴走）。概要の「いまやること」の帯に今週の回数を出し、ここで選んだ方法でお知らせします。
           </p>
         </div>
         <Card className="overflow-hidden">

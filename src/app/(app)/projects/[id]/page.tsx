@@ -1,44 +1,31 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
-import { AttentionCard } from "@/components/posts/attention-card";
-import { ManualDueCard } from "@/components/posts/manual-due-card";
+import { ChartEmpty, DailyBars } from "@/components/overview/daily-chart";
+import { NowBand } from "@/components/overview/now-band";
+import { OverviewCards } from "@/components/overview/overview-cards";
+import { AttentionStrip, ConnectedSnsLine, NextScheduled, Panel, SnsClicks } from "@/components/overview/overview-panels";
 import { displayStatus } from "@/components/posts/post-chip";
-import { NextAction } from "@/components/projects/next-action";
-import { SnsAccountsCard } from "@/components/projects/sns-accounts-card";
-import { PlanSummaryCard } from "@/components/plan/plan-summary-card";
-import { GithubPrompt } from "@/components/github/github-prompt";
+import { Delta } from "@/components/ui/metric";
 import { SuccessBanner } from "@/components/ui/feedback";
-import { githubConfigured } from "@/lib/github/config";
-import { createClient } from "@/lib/supabase/server";
-import { SnsResultBanner } from "@/components/projects/sns-result-banner";
-import { StatusMark } from "@/components/ui/marks";
-import { listDueManualPosts, listOverduePosts, listPostsNeedingAttention, listUpcomingPosts, postTitle } from "@/lib/posts/queries";
-import { formatShort } from "@/lib/time";
-import { Card, CardHeader, EmptyState } from "@/components/ui/card";
-import { Term } from "@/components/ui/term";
-import { currentStepIndex, STEPS } from "@/lib/projects/next-step";
-import { loadStepStates } from "@/lib/projects/step-state";
-import { loadRoadmap, thisWeekTodos } from "@/lib/roadmap/queries";
-import { itemProgress } from "@/lib/roadmap/schema";
-import { overdueItems } from "@/lib/roadmap/load";
-import { OverdueTodosCard } from "@/components/roadmap/overdue-card";
-import { ThisWeekCard } from "@/components/roadmap/this-week-card";
-import { getProject } from "@/lib/projects/queries";
-import { listProjectSnsAccounts } from "@/lib/sns/queries";
-import { readReplacedCookie, SNS_REPLACED_COOKIE } from "@/lib/sns/link";
-import { threadsConfigured } from "@/lib/sns/threads/config";
-import { xConfigured } from "@/lib/sns/x/config";
-import { instagramConfigured } from "@/lib/sns/instagram/config";
-import { facebookConfigured } from "@/lib/sns/facebook/config";
-import { xSpendThisMonth } from "@/lib/sns/x/spend";
-import { getAccountPlan } from "@/lib/plan/queries";
-import { isUuid } from "@/lib/uuid";
 import { aiConfigured } from "@/lib/ai/anthropic";
-import { CoachCard, CoachSetupCard, CycleSummaryCard } from "@/components/coach/coach-card";
 import { loadCoachView } from "@/lib/coach/load";
 import { DEFAULT_BEHIND_WEEKDAY } from "@/lib/coach/pace";
+import { githubConfigured } from "@/lib/github/config";
+import { recommendedKpis } from "@/lib/metrics/kpis";
+import { loadOverviewNumbers } from "@/lib/overview/load";
+import { CHART_DAYS, CHART_DAYS_MOBILE, compareDays, dailySeries, pctChange, type Daily } from "@/lib/overview/numbers";
+import { getAccountPlan } from "@/lib/plan/queries";
+import { listDueManualPosts, listOverduePosts, listPostsNeedingAttention, listUpcomingPosts } from "@/lib/posts/queries";
+import { currentStepIndex, STEPS } from "@/lib/projects/next-step";
+import { getProject } from "@/lib/projects/queries";
+import { loadStepStates } from "@/lib/projects/step-state";
+import { overdueItems } from "@/lib/roadmap/load";
+import { loadRoadmap, thisWeekTodos } from "@/lib/roadmap/queries";
+import { itemProgress } from "@/lib/roadmap/schema";
+import { listProjectSnsAccounts } from "@/lib/sns/queries";
+import { createClient } from "@/lib/supabase/server";
+import { isUuid } from "@/lib/uuid";
 
 export async function generateMetadata(props: PageProps<"/projects/[id]">): Promise<Metadata> {
   const { id } = await props.params;
@@ -46,196 +33,186 @@ export async function generateMetadata(props: PageProps<"/projects/[id]">): Prom
   return { title: project?.name ?? "プロジェクト" };
 }
 
+const STORE_NAME = { app_store: "App Store", google_play: "Google Play" } as const;
+
+// 概要（見本 A。決定 D33、2026-10-30 オーナーの決定）。上から: 見出しの行 → つないだ SNS → いまやること（1 行の帯）→ 要確認（あるときだけ）
+// → 数字のカード 4 枚 → 左に日ごとの棒グラフ、右に SNS ごとのストアへのクリックと次の予約。数字は直近 30 日と前の 30 日の比べ（docs/architecture.md の 4.31）
 export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
   const { id } = await props.params;
-  const { connected, sns_error, sns, done } = await props.searchParams;
+  const { done } = await props.searchParams;
   const project = await getProject(id);
   if (!project) notFound();
-  const editHref = `/projects/${project.id}/edit`;
   const supabase = await createClient();
-  const xReady = xConfigured();
-  const [upcoming, snsAccounts, attention, overdue, manualDue, plan, { data: repoLink }, { data: manualChannels }, xSpend, roadmap, stepStates] = await Promise.all([
-    listUpcomingPosts(project.id),
+  const plan = await getAccountPlan(project.id);
+  const chosen = plan?.plan.first_month.kpis ?? [];
+  const kpis = chosen.length ? chosen : recommendedKpis(plan?.plan.goal.goalType ?? null);
+  const [numbers, upcoming, snsAccounts, attention, overdue, manualDue, { data: repoLink }, { data: manualChannels }, roadmap, stepStates, { data: prefs }] = await Promise.all([
+    loadOverviewNumbers(project.id, kpis),
+    listUpcomingPosts(project.id, 8),
     listProjectSnsAccounts(project.id),
     listPostsNeedingAttention(project.id),
     listOverduePosts(project.id),
     listDueManualPosts(project.id),
-    getAccountPlan(project.id),
     supabase.from("project_github_repos").select("full_name").eq("project_id", project.id).maybeSingle(),
-    supabase.from("project_manual_channels").select("sns, profile_url").eq("project_id", project.id),
-    xReady ? xSpendThisMonth() : null,
+    supabase.from("project_manual_channels").select("sns").eq("project_id", project.id),
     loadRoadmap(project.id),
     // いまやることの判定（一覧と同じ値。src/lib/projects/step-state.ts）
     loadStepStates([project]),
+    supabase.from("notification_prefs").select("behind_weekday").maybeSingle(),
   ]);
   // 伴走（4.27）: 最初の 1 か月の SNS ごとの週の回数とペース
-  const { data: prefs } = await supabase.from("notification_prefs").select("behind_weekday").maybeSingle();
   const coach = plan ? await loadCoachView(supabase, project.id, { firstMonth: plan.plan.first_month, behindWeekday: prefs?.behind_weekday ?? DEFAULT_BEHIND_WEEKDAY }) : null;
-  const showGithubPrompt = !repoLink && !project.github_prompt_dismissed_at;
   const stepState = stepStates[project.id];
-  const planDone = stepState.planDone;
-  // 同じ SNS の別のアカウントから付け替えたとき（つないだ直後だけ）。新しいアカウントの名前は今つながっているものから
-  const replacedNames = typeof connected === "string" ? readReplacedCookie((await cookies()).get(SNS_REPLACED_COOKIE)?.value) : [];
-  const connectedAccount = snsAccounts.find((a) => a.sns === connected && a.status === "active");
-  const connectedName = connectedAccount ? (connectedAccount.handle ? `@${connectedAccount.handle}` : connectedAccount.displayName) : null;
   const stepIndex = currentStepIndex(stepState);
+  const todos = thisWeekTodos(roadmap);
+  const now = new Date();
+  const scheduled = upcoming.filter((p) => displayStatus(p) === "scheduled").slice(0, 3);
+  const base = `/projects/${project.id}`;
+
+  const chartName = numbers.chart?.kind === "downloads" ? "ダウンロード" : "ストアへのクリック";
+  const chart14 = numbers.chart ? dailySeries(numbers.chart.rows, numbers.today, CHART_DAYS) : null;
+  const chart7 = numbers.chart ? dailySeries(numbers.chart.rows, numbers.today, CHART_DAYS_MOBILE) : null;
+  const total14 = chart14?.reduce((n, r) => n + r.value, 0) ?? 0;
+
+  const emptyChart = (
+    <>
+      <p>
+        {numbers.hasLinks ? "まだクリックがありません。" : "ストアをつなぐか、短縮リンクを付けて投稿すると、日ごとの数がここに並びます。"}
+      </p>
+      <span className="flex flex-wrap justify-center gap-x-4 gap-y-1 font-bold">
+        <Link href={`${base}/stores`} className="text-fg underline">
+          ストアをつなぐ
+        </Link>
+        <Link href={`${base}/links`} className="text-fg underline">
+          短縮リンクを付けて投稿する
+        </Link>
+      </span>
+    </>
+  );
 
   return (
-    <div className="flex flex-col gap-7 max-sm:gap-4">
-      <div className="flex items-end justify-between gap-4 max-sm:hidden">
-        <div className="flex min-w-0 flex-col gap-1.5">
-          <h1 className="font-heading text-3xl font-bold">{project.name}</h1>
-          {project.description && <p className="text-base text-muted">{project.description}</p>}
+    <div className="flex flex-col gap-4 max-sm:gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <h1 className="min-w-0 truncate text-2xl font-bold max-sm:sr-only">{project.name}</h1>
+        <div className="flex flex-wrap gap-2 text-[13px] text-muted max-sm:hidden">
+          <span className="rounded-full border border-border bg-surface px-3 py-1">直近 30 日</span>
+          {numbers.stores.length > 0 && (
+            <span className="rounded-full border border-border bg-surface px-3 py-1">{numbers.stores.map((s) => STORE_NAME[s]).join(" + ")}</span>
+          )}
         </div>
-        <Link href={editHref} className="shrink-0 text-[14px] font-semibold text-primary hover:underline">
-          編集
-        </Link>
       </div>
-      <h1 className="sr-only sm:hidden">{project.name}</h1>
 
-      <SnsResultBanner connected={connected} error={sns_error} sns={sns} replaced={replacedNames} connectedName={connectedName} />
+      <ConnectedSnsLine projectId={project.id} accounts={snsAccounts} manualChannels={manualChannels ?? []} />
+
       {done === "description" && <SuccessBanner>アプリの紹介文（どんなアプリか）を保存しました。アカウント設計の AI にも伝わります。</SuccessBanner>}
 
-      {/* 伴走の声かけは一番上に（1 か月が終わったら、まとめと次の 1 か月へ） */}
-      {coach ? (
-        <>
-          {coach.cycle?.ended && <CycleSummaryCard projectId={project.id} view={coach} aiEnabled={aiConfigured()} />}
-          <CoachCard projectId={project.id} view={coach} aiEnabled={aiConfigured()} />
-        </>
-      ) : (
-        planDone && stepIndex >= STEPS.length && <CoachSetupCard projectId={project.id} />
-      )}
+      <NowBand
+        projectId={project.id}
+        stepIndex={stepIndex}
+        github={{ show: !repoLink && !project.github_prompt_dismissed_at, configured: githubConfigured() }}
+        coach={coach}
+        coachReady={stepState.planDone && stepIndex >= STEPS.length}
+        todos={todos}
+        progress={Object.fromEntries(todos.map((t) => [t.id, itemProgress(t, roadmap.daily)]))}
+        doneCount={roadmap.items.filter((i) => i.weekStart === roadmap.thisWeek && i.status === "done").length}
+        aiEnabled={aiConfigured()}
+      />
 
-      {/* ロードマップのやることで、予定日を過ぎたのに投稿を予約・送信していないもの（4.23） */}
-      <OverdueTodosCard projectId={project.id} items={overdueItems(roadmap.items, roadmap.today)} />
+      <AttentionStrip projectId={project.id} failed={attention} overdue={overdue} manualDue={manualDue} overdueTodos={overdueItems(roadmap.items, roadmap.today)} />
 
-      {showGithubPrompt && <GithubPrompt projectId={project.id} configured={githubConfigured()} />}
+      {/* スマホ（見本 D の右）: 大きな数字 1 つと 7 日の棒 */}
+      <div className="sm:hidden">
+        <MobileHero name={chartName} rows={chart7} today={numbers.today} source={numbers.chart?.rows ?? null} empty={emptyChart} />
+      </div>
 
-      {stepIndex < STEPS.length ? (
-        <NextAction stepIndex={stepIndex} projectId={project.id} />
-      ) : (
-        <ThisWeekCard
-          projectId={project.id}
-          todos={thisWeekTodos(roadmap)}
-          progress={Object.fromEntries(thisWeekTodos(roadmap).map((t) => [t.id, itemProgress(t, roadmap.daily)]))}
-          doneCount={roadmap.items.filter((i) => i.weekStart === roadmap.thisWeek && i.status === "done").length}
-        />
-      )}
+      <OverviewCards cards={numbers.cards} mobileHidden={numbers.chart?.kind} />
 
-      <ManualDueCard projectId={project.id} posts={manualDue} />
+      <div className="grid grid-cols-[1.62fr_1fr] items-start gap-4 max-lg:grid-cols-1 max-sm:gap-3">
+        <Panel
+          className="max-sm:hidden"
+          title={numbers.chart ? `${chartName}の推移` : "日ごとの数"}
+          aside={chart14 ? `直近 ${CHART_DAYS} 日 / 合計 ${total14.toLocaleString("ja-JP")}` : undefined}
+        >
+          {chart14 ? <DailyBars rows={chart14} label={`${chartName}の日ごとの数（直近 ${CHART_DAYS} 日）`} /> : <ChartEmpty>{emptyChart}</ChartEmpty>}
+        </Panel>
 
-      <AttentionCard projectId={project.id} posts={attention} overdue={overdue} />
-
-      <div className="grid grid-cols-2 gap-6 max-lg:grid-cols-1 max-sm:gap-4">
-        <Card className="overflow-hidden">
-          <CardHeader
-            title="これからの投稿"
-            action={
-              <span className="flex gap-4">
-                <Link href={`/projects/${project.id}/compose`} className="hover:underline">
-                  投稿をつくる
+        <div className="flex flex-col gap-4 max-sm:gap-3">
+          <Panel
+            title="SNS ごとのストアへのクリック"
+            aside={numbers.clicksBySns.length ? numbers.clicksBySns.reduce((n, c) => n + c.last30d, 0).toLocaleString("ja-JP") : undefined}
+          >
+            {numbers.clicksBySns.length ? (
+              <SnsClicks rows={numbers.clicksBySns} />
+            ) : (
+              <p className="text-sm text-muted">
+                {numbers.hasLinks ? "直近 30 日のクリックはまだありません。" : "SNS ごとの短縮リンクを付けて投稿すると、どの SNS からストアへ来たかが並びます。"}
+                <Link href={`${base}/links`} className="ml-1 font-bold text-fg underline">
+                  短縮リンク
                 </Link>
-                <Link href={`/projects/${project.id}/calendar`} className="hover:underline">
-                  すべて見る
-                </Link>
-              </span>
-            }
-          />
-          {upcoming.length === 0 ? (
-            <EmptyState
-              description={
-                <>
-                  まだ予定はありません。
-                  <Link href={`/projects/${project.id}/compose`} className="font-semibold text-primary hover:underline">
-                    投稿をつくる
-                  </Link>
-                  か、
-                  <Link href={`/projects/${project.id}/ideas`} className="font-semibold text-primary hover:underline">
-                    AI とネタを出す
-                  </Link>
-                  ところから始めましょう。
-                </>
-              }
-              className="px-5 py-8 max-sm:px-4 max-sm:py-5"
-            />
-          ) : (
-            <ul>
-              {upcoming.map((p) => {
-                const status = displayStatus(p);
-                return (
-                  <li key={p.id} className="border-b border-line last:border-b-0">
-                    <Link
-                      href={`/projects/${project.id}/posts/${p.id}`}
-                      className="grid grid-cols-[90px_1fr_auto] items-center gap-3 px-5 py-3 text-[14px] hover:bg-surface2 hover:no-underline max-sm:px-4"
-                    >
-                      <span className="text-muted">{p.planned_at ? formatShort(p.planned_at) : ""}</span>
-                      <span className="truncate">{postTitle(p.body, 30)}</span>
-                      <StatusMark status={status} />
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
+              </p>
+            )}
+          </Panel>
+
+          {numbers.topPost && (
+            <Panel title="いちばんクリックされた投稿" aside="30 日" className="sm:hidden">
+              <Link href={`${base}/posts/${numbers.topPost.postId}`} className="block truncate font-bold text-fg">
+                {numbers.topPost.title}
+              </Link>
+              <p className="num mt-1 text-sm text-muted">{numbers.topPost.clicks.toLocaleString("ja-JP")} クリック</p>
+            </Panel>
           )}
-        </Card>
 
-        <Card>
-          <CardHeader
-            title="このアプリについて"
-            action={
-              <Link href={editHref} className="hover:underline sm:hidden">
-                編集
+          <Panel
+            title="次の予約"
+            aside={
+              <Link href={`${base}/calendar`} className="text-faint hover:text-fg">
+                カレンダー
               </Link>
             }
-          />
-          <dl className="grid grid-cols-[minmax(120px,max-content)_1fr] text-[14px]">
-            <AboutRow label={<Term k="persona" />}>
-              {project.target_audience || <span className="text-muted">まだ決まっていません</span>}
-            </AboutRow>
-            <AboutRow label="App Store">
-              <StoreValue url={project.app_store_url} editHref={editHref} />
-            </AboutRow>
-            <AboutRow label="Google Play" last>
-              <StoreValue url={project.play_store_url} editHref={editHref} />
-            </AboutRow>
-          </dl>
-        </Card>
-
-        <SnsAccountsCard
-          projectId={project.id}
-          accounts={snsAccounts}
-          manualChannels={manualChannels ?? []}
-          connectable={{ threads: threadsConfigured(), x: xReady, instagram: instagramConfigured(), facebook: facebookConfigured() }}
-          xSpend={xSpend}
-        />
-
-        {plan && <PlanSummaryCard projectId={project.id} plan={plan.plan} />}
+          >
+            {scheduled.length ? (
+              <NextScheduled projectId={project.id} posts={scheduled} now={now} />
+            ) : (
+              <p className="text-sm text-muted">
+                予約した投稿はまだありません。
+                <Link href={`${base}/compose`} className="ml-1 font-bold text-fg underline">
+                  投稿をつくる
+                </Link>
+              </p>
+            )}
+          </Panel>
+        </div>
       </div>
     </div>
   );
 }
 
-function AboutRow({ label, children, last }: { label: React.ReactNode; children: React.ReactNode; last?: boolean }) {
-  const border = last ? "" : "border-b border-line";
-  return (
-    <>
-      <dt className={`px-5 py-3 whitespace-nowrap text-muted max-sm:px-4 ${border}`}>{label}</dt>
-      <dd className={`min-w-0 py-3 pr-5 leading-[1.6] ${border}`}>{children}</dd>
-    </>
-  );
-}
-
-function StoreValue({ url, editHref }: { url: string | null; editHref: string }) {
-  if (!url) {
+// スマホの大きな数字（見本 D の右の「きょうの DL」）。その日だけだと 0 が多いので、直近 7 日の合計と、その前の 7 日との比べ
+function MobileHero({ name, rows, source, today, empty }: { name: string; rows: Daily[] | null; source: Daily[] | null; today: string; empty: React.ReactNode }) {
+  if (!rows || !source) {
     return (
-      <Link href={editHref} className="font-semibold text-primary hover:underline">
-        ＋ 追加
-      </Link>
+      <Panel title="日ごとの数">
+        <ChartEmpty height="h-36">{empty}</ChartEmpty>
+      </Panel>
     );
   }
+  const { now, before } = compareDays(source, today, CHART_DAYS_MOBILE);
+  const delta = pctChange(now, before);
   return (
-    <a href={url} target="_blank" rel="noopener noreferrer" className="font-semibold text-success hover:underline">
-      ✓ 登録済み
-    </a>
+    <Panel title={name} aside={`直近 ${CHART_DAYS_MOBILE} 日`}>
+      <p className="num text-[40px] leading-none font-bold">{now.toLocaleString("ja-JP")}</p>
+      <p className="mt-2 flex items-baseline gap-1.5 text-sm text-faint">
+        {delta !== null ? (
+          <>
+            <Delta value={delta} unit="%" /> 前の 7 日比
+          </>
+        ) : (
+          "前の 7 日は 0"
+        )}
+      </p>
+      <div className="mt-3">
+        <DailyBars rows={rows} height="h-28" label={`${name}の日ごとの数（直近 ${CHART_DAYS_MOBILE} 日）`} />
+      </div>
+    </Panel>
   );
 }

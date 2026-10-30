@@ -44,7 +44,7 @@ export default async function ConnectInstagramPage(props: PageProps<"/projects/[
           ) : (
             <NotReadyButton>つなぐ</NotReadyButton>
           )}
-          <Link href={`/projects/${id}#sns`} className="font-semibold text-primary hover:underline">
+          <Link href={`/projects/${id}/edit#sns`} className="font-semibold text-primary hover:underline">
             あとにする
           </Link>
         </div>

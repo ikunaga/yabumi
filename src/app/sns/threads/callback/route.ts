@@ -1,3 +1,4 @@
+import { projectSettingsHref } from "@/lib/projects/paths";
 import { NextResponse, type NextRequest } from "next/server";
 import { revokeDeps } from "@/lib/sns/adapters";
 import { linkAccountToProject, replacedCookie, type ReplacedAccount } from "@/lib/sns/link";
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
     return finish(url);
   }
 
-  const back = new URL(`/projects/${saved.projectId}`, request.url);
+  const back = new URL(projectSettingsHref(saved.projectId), request.url);
   const code = params.get("code");
   if (!code) {
     // 利用者が認可画面で「キャンセル」を押したときは error=access_denied で戻る

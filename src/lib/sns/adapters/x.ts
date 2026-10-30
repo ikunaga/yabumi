@@ -2,7 +2,7 @@ import { createPost, createPostWithMedia, deletePost, postUrl, refreshTokens, se
 import { xPostCostUsd, xPostOperation } from "@/lib/sns/x/pricing";
 import { SnsPublishError, type SnsAdapter } from "./types";
 
-const RECONNECT = "概要の「つないだ SNS」からつなぎ直してください。";
+const RECONNECT = "プロジェクトの設定の「つないだ SNS」からつなぎ直してください。";
 const MANUAL = "送信の結果から、手で投稿して記録することもできます。";
 
 // X の上限・クレジット切れを表す problem の種類

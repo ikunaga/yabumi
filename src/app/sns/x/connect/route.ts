@@ -1,3 +1,4 @@
+import { projectSettingsHref } from "@/lib/projects/paths";
 import { NextResponse, type NextRequest } from "next/server";
 import { getProject } from "@/lib/projects/queries";
 import { newOAuthState, OAUTH_STATE_MAX_AGE, serializeOAuthState } from "@/lib/sns/oauth-state";
@@ -11,7 +12,7 @@ import { isUuid } from "@/lib/uuid";
 export async function GET(request: NextRequest) {
   const projectId = request.nextUrl.searchParams.get("project") ?? "";
   if (!isUuid(projectId)) return NextResponse.redirect(new URL("/projects", request.url));
-  const back = new URL(`/projects/${projectId}`, request.url);
+  const back = new URL(projectSettingsHref(projectId), request.url);
   back.searchParams.set("sns", "x");
 
   if (!xConfigured()) {

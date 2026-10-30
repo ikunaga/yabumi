@@ -18,7 +18,7 @@ export type KpiDef = {
   // 用語集のキー（あれば）
   term?: "impression" | "shortLink" | "storeListing" | "conversion";
   availability: KpiAvailability;
-  // connect のとき、つなぐ画面（stores: ストアと課金をつなぐ / sns: 概要の「つないだ SNS」）
+  // connect のとき、つなぐ画面（stores: ストアと課金をつなぐ / sns: プロジェクトの設定の「つないだ SNS」）
   connectTo?: "stores" | "sns";
   // later・partial のとき、何をすると出るか
   howToGet?: string;

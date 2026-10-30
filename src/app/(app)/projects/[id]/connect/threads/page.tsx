@@ -53,7 +53,7 @@ export default async function ConnectThreadsPage(props: PageProps<"/projects/[id
           ) : (
             <NotReadyButton>Threads をつなぐ</NotReadyButton>
           )}
-          <Link href={`/projects/${id}#sns`} className="font-semibold text-primary hover:underline">
+          <Link href={`/projects/${id}/edit#sns`} className="font-semibold text-primary hover:underline">
             あとにする
           </Link>
         </div>

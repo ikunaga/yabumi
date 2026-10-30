@@ -18,7 +18,7 @@ const CONNECT_HREF: Partial<Record<SnsKey, (projectId: string) => string>> = {
   facebook: (id) => `/projects/${id}/connect/facebook`,
 };
 
-// 概要の「つないだ SNS」。SNS ごとに 1 行
+// プロジェクトの設定の「つないだ SNS」。SNS ごとに 1 行
 // 手で投稿する SNS の説明（プロフィールを登録していないとき）
 const MANUAL_NOTE: Partial<Record<SnsKey, React.ReactNode>> = {
   note: "日本語の長文。個人開発の振り返りや技術の記事が読まれやすい",

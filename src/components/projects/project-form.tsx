@@ -52,6 +52,7 @@ export function ProjectForm({
   action,
   initial = {},
   title,
+  titleAs = "h1",
   lead,
   submitLabel,
   pendingLabel,
@@ -60,6 +61,8 @@ export function ProjectForm({
   action: (prev: ProjectFormState, formData: FormData) => Promise<ProjectFormState>;
   initial?: Values;
   title: string;
+  // 設定の画面では、画面の見出し（h1）の下の区切りとして h2 にする
+  titleAs?: "h1" | "h2";
   lead?: string;
   submitLabel: string;
   // 押したあと、終わるまでの表示（「作成しています…」など）
@@ -92,7 +95,11 @@ export function ProjectForm({
     <div className="grid grid-cols-[680px_1fr] gap-14 max-xl:grid-cols-1">
       <div className="flex flex-col gap-6 max-sm:gap-5">
         <div className="flex flex-col gap-1.5">
-          <h1 className="font-heading text-[30px] font-bold max-sm:hidden">{title}</h1>
+          {titleAs === "h2" ? (
+            <h2 className="text-[18px] font-bold">{title}</h2>
+          ) : (
+            <h1 className="font-heading text-[30px] font-bold max-sm:hidden">{title}</h1>
+          )}
           {lead && <p className="text-base text-muted max-sm:text-[14px] max-sm:leading-[1.7]">{lead}</p>}
         </div>
 

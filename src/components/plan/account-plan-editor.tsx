@@ -544,7 +544,7 @@ function FirstMonthFields({ v, goalType, mainSns }: { v: PlanData["first_month"]
       <fieldset className="flex flex-col gap-2">
         <legend className="text-[14px] font-bold">SNS ごとの週の投稿の回数（伴走）</legend>
         <p className="text-xs leading-[1.7] text-muted">
-          決めると、矢書が週ごとのペース（送った投稿と予約した投稿）を見守り、概要の一番上と、遅れそうなとき・毎週月曜のメールで声をかけます。続けられる回数にしましょう（迷ったら、メインの SNS に週 2、ほかは週 1）。使わない SNS は空欄で構いません。
+          決めると、矢書が週ごとのペース（送った投稿と予約した投稿）を見守り、概要の「いまやること」の帯と、遅れそうなとき・毎週月曜のメールで声をかけます。続けられる回数にしましょう（迷ったら、メインの SNS に週 2、ほかは週 1）。使わない SNS は空欄で構いません。
         </p>
         <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2">
           {mainSns.map((sns) => (

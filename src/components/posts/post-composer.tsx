@@ -311,7 +311,7 @@ export function PostComposer({
           {connected.length === 0 && (
             <p className="border-b border-line bg-surface2 px-5 py-3 text-sm leading-[1.7]">
               まだ SNS をつないでいません。下書きは保存できます。送るには{" "}
-              <Link href={`/projects/${projectId}#sns`} className="font-semibold text-primary hover:underline">
+              <Link href={`/projects/${projectId}/edit#sns`} className="font-semibold text-primary hover:underline">
                 先に SNS をつなぐ →
               </Link>
             </p>
@@ -385,7 +385,7 @@ export function PostComposer({
             <p className="border-b border-line px-5 py-3 text-sm leading-[1.7]">
               <span className="mr-1.5 font-bold text-signal">● 要確認</span>
               {needImageReconnect.filter((s) => selected.has(s)).map((s) => SNS[s].label).join("・")} に画像を送るには、画像を送る権限を足すためのつなぎ直しが要ります。
-              <Link href={`/projects/${projectId}#sns`} className="ml-1 font-semibold text-primary hover:underline">
+              <Link href={`/projects/${projectId}/edit#sns`} className="ml-1 font-semibold text-primary hover:underline">
                 つないだ SNS へ
               </Link>
             </p>
@@ -510,7 +510,7 @@ export function PostComposer({
           {!fe.plannedAt && blocker === missingConnectMessage && (
             <>
               {" "}
-              <Link href={`/projects/${projectId}#sns`} className="font-semibold text-primary hover:underline">
+              <Link href={`/projects/${projectId}/edit#sns`} className="font-semibold text-primary hover:underline">
                 つなぐ →
               </Link>
             </>

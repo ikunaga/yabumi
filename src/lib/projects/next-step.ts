@@ -1,3 +1,5 @@
+import { projectSettingsHref } from "./paths";
+
 // プロジェクトごとの「いまやること」。最初の 4 段階を順に案内する（設計 → つなぐ → 最初の投稿 → 目標とロードマップ。要求 F15・F10、決定 D12）。
 // 4 段階が済んだら、概要は「いまやること」の代わりに「今週のやること」（ロードマップ）を出す（docs/architecture.md の 4.23）
 export type StepKey = "plan" | "connect" | "firstPost" | "roadmap";
@@ -66,7 +68,7 @@ export function stepHref(key: StepKey, projectId: string): string {
     case "plan":
       return `/projects/${projectId}/plan`;
     case "connect":
-      return `/projects/${projectId}#sns`;
+      return projectSettingsHref(projectId, "sns");
     case "firstPost":
       return `/projects/${projectId}/compose`;
     case "roadmap":

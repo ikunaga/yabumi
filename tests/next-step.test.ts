@@ -24,7 +24,7 @@ describe("いまやること", () => {
   it("ボタンの行き先", () => {
     expect(stepHref("roadmap", "p")).toBe("/projects/p/roadmap");
     expect(stepHref("plan", "p")).toBe("/projects/p/plan");
-    expect(stepHref("connect", "p")).toBe("/projects/p#sns");
+    expect(stepHref("connect", "p")).toBe("/projects/p/edit#sns");
     expect(stepHref("firstPost", "p")).toBe("/projects/p/compose");
   });
 

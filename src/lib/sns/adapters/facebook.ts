@@ -13,7 +13,7 @@ const RATE_LIMIT_CODES = new Set([4, 17, 32, 613, 80001]);
 // 権限がない（ページの役割を外された、権限を外したなど）
 const PERMISSION_CODES = new Set([10, 200]);
 
-const RECONNECT = "概要の「つないだ SNS」からつなぎ直してください。";
+const RECONNECT = "プロジェクトの設定の「つないだ SNS」からつなぎ直してください。";
 
 // Facebook API のエラーを、送信ジョブが判断できる形に直す。
 // stage が "publish" の通信エラー・障害は、公開されたかどうかわからないので unknown にする

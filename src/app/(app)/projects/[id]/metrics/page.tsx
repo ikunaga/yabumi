@@ -41,7 +41,7 @@ function KpiCard({ k, value, projectId }: { k: KpiKey; value?: WeekValue; projec
           <p className="text-2xl font-bold text-muted">—</p>
           {def.availability === "connect" ? (
             <p className="text-xs leading-[1.7]">
-              <Link href={def.connectTo === "sns" ? `/projects/${projectId}#sns` : `/projects/${projectId}/stores`} className="font-semibold text-primary hover:underline">
+              <Link href={def.connectTo === "sns" ? `/projects/${projectId}/edit#sns` : `/projects/${projectId}/stores`} className="font-semibold text-primary hover:underline">
                 {def.howToGet}
               </Link>
             </p>
@@ -150,7 +150,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
         <p className="rounded-md border border-border bg-surface px-4 py-3 text-sm leading-[1.7]">
           <span className="mr-1.5 font-bold text-signal">● 要確認</span>
           {needReconnect.map((s) => SNS[s].label).join("・")} の閲覧数やフォロワーを見るには、数字を読む権限を足すためのつなぎ直しが要ります。
-          <Link href={`/projects/${project.id}#sns`} className="ml-1 font-semibold text-primary hover:underline">
+          <Link href={`/projects/${project.id}/edit#sns`} className="ml-1 font-semibold text-primary hover:underline">
             つないだ SNS へ
           </Link>
         </p>
@@ -182,7 +182,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
             description="Threads・Instagram・Facebook・X を数字の権限つきでつなぐと、送ってから 1・3・7・30 日目（Instagram は 2・4・8・31 日目）の閲覧数を取り込み、よく見られた投稿をここに並べます。"
             action={
               !hasAutoSns && (
-                <ButtonLink href={`/projects/${project.id}#sns`} variant="secondary" size="sm">
+                <ButtonLink href={`/projects/${project.id}/edit#sns`} variant="secondary" size="sm">
                   SNS をつなぐ
                 </ButtonLink>
               )

@@ -59,8 +59,9 @@ export async function updateProject(
   }
 
   revalidatePath("/projects");
-  revalidatePath(`/projects/${id}`);
-  redirect(`/projects/${id}`);
+  revalidatePath(`/projects/${id}`, "layout");
+  // 設定の画面に戻り、保存したことを知らせる
+  redirect(`/projects/${id}/edit?done=saved`);
 }
 
 // 失敗したときは { error } を返し、編集の画面に出す

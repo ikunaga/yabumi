@@ -6,7 +6,7 @@ import { SnsTag } from "@/components/ui/marks";
 import { SNS, type SnsKey } from "@/lib/sns";
 import { saveManualChannel } from "@/lib/sns/manual-actions";
 
-// 概要の「つないだ SNS」の、手で投稿する SNS の行。つなぐ代わりに、プロフィールの URL を登録できる（任意）
+// プロジェクトの設定の「つないだ SNS」の、手で投稿する SNS の行。つなぐ代わりに、プロフィールの URL を登録できる（任意）
 export function ManualChannelRow({ projectId, sns, profileUrl, note }: { projectId: string; sns: SnsKey; profileUrl: string | null; note: React.ReactNode }) {
   const [editing, setEditing] = useState(false);
   const [url, setUrl] = useState(profileUrl ?? "");

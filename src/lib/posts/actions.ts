@@ -92,7 +92,7 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
         }
         // 画像を送るのに要る権限がない（X は media.write を足す前につないだアカウント）
         if (needReconnect.includes(t.sns)) {
-          fieldErrors.targets = `${label} に画像を送るには、つなぎ直しが要ります。概要の「つないだ SNS」から ${label} をつなぎ直してください。`;
+          fieldErrors.targets = `${label} に画像を送るには、つなぎ直しが要ります。プロジェクトの設定の「つないだ SNS」から ${label} をつなぎ直してください。`;
           break;
         }
       }

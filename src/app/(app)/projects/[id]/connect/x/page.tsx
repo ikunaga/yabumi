@@ -67,7 +67,7 @@ export default async function ConnectXPage(props: PageProps<"/projects/[id]/conn
           ) : (
             <NotReadyButton>X をつなぐ</NotReadyButton>
           )}
-          <Link href={`/projects/${id}#sns`} className="font-semibold text-primary hover:underline">
+          <Link href={`/projects/${id}/edit#sns`} className="font-semibold text-primary hover:underline">
             あとにする
           </Link>
         </div>

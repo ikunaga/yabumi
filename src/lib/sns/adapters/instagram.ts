@@ -15,7 +15,7 @@ const RATE_LIMIT_CODES = new Set([4, 17, 32, 613]);
 // 24 時間に公開できる数（100 件）を超えた
 const PUBLISH_LIMIT_SUBCODE = 2207042;
 
-const RECONNECT = "概要の「つないだ SNS」からつなぎ直してください。";
+const RECONNECT = "プロジェクトの設定の「つないだ SNS」からつなぎ直してください。";
 
 // Instagram の投稿は、Instagram Login では API で消せない（docs/architecture.md の 4.21）。画面では取り消しのボタンを出さない
 export const INSTAGRAM_DELETE_UNSUPPORTED =

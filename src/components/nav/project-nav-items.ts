@@ -1,6 +1,6 @@
 // プロジェクト内のナビ。まだ作っていない画面は href なし（押せない）。
 // main: 上の横並びのメニュー（PC）とスマホの下のタブに出す 5 つ（決定 D33）。ほかは「…」（その他）と、スマホの「メニュー」と、関係する画面の中から開く
-export type ProjectNavKey = "overview" | "plan" | "compose" | "notes" | "calendar" | "links" | "metrics" | "consult" | "roadmap";
+export type ProjectNavKey = "overview" | "plan" | "compose" | "notes" | "calendar" | "links" | "metrics" | "consult" | "roadmap" | "settings";
 
 export type ProjectNavItem = { key: ProjectNavKey; label: string; tabLabel: string; href: string | null; main: boolean };
 
@@ -21,6 +21,8 @@ export function projectNavItems(projectId: string): ProjectNavItem[] {
     { key: "links", label: "短縮リンク", tabLabel: "短縮リンク", href: `${base}/links`, main: false },
     // ロードマップ（4.23）
     { key: "roadmap", label: "ロードマップ", tabLabel: "ロードマップ", href: `${base}/roadmap`, main: false },
+    // プロジェクトの設定（つないだ SNS・このアプリについて・削除）。概要の「つなぐ・外す」からも開く
+    { key: "settings", label: "プロジェクトの設定", tabLabel: "設定", href: `${base}/edit`, main: false },
   ];
 }
 
@@ -43,6 +45,8 @@ export function activeNavKey(segment: string | null): ProjectNavKey {
       return "roadmap";
     case "consult":
       return "consult";
+    case "edit":
+      return "settings";
     // ストアと課金をつなぐ画面は、分析の画面から開く
     case "metrics":
     case "stores":

@@ -103,7 +103,7 @@ Threads の Use cases → Settings の Uninstall Callback URL は `https://yabum
 
 1. Meta の Yabumi Dev → Use cases → Access the Threads API → Permissions で threads_manage_insights を足す（Add）。開発モードなので、Tester のアカウントにはすぐ使える
 2. Vercel の環境変数 `SNS_INSIGHTS` に `threads` を入れて Redeploy（deploy.md の 14）。これで矢書がつなぐときに threads_manage_insights も求める
-3. 矢書の概要の「つないだ SNS」で Threads を**つなぎ直す**（認可画面に、投稿の数字を読む権限が増えて出る）。つなぎ直すまでは、指標の画面に「● 要確認 … つなぎ直しが要ります」と出る
+3. 矢書のプロジェクトの設定の「つないだ SNS」で Threads を**つなぎ直す**（認可画面に、投稿の数字を読む権限が増えて出る）。つなぎ直すまでは、指標の画面に「● 要確認 … つなぎ直しが要ります」と出る
 4. 何か投稿を送り、翌日 5 時以降に指標の画面の「よく見られた投稿」と「投稿の閲覧数」に数字が出ることを確かめる（**これが申請の 30 日以内の呼び出しの実績になる**）
 5. 画面の録画（下の表の threads_manage_insights）を撮り、App Review でこの権限だけを追加で申請する（Instagram の申請と一緒に出す。決定 D21）
 
@@ -113,10 +113,10 @@ Threads の Use cases → Settings の Uninstall Callback URL は `https://yabum
 
 | 権限 | 録画の流れ |
 |---|---|
-| threads_basic | ① 審査用のアカウントで矢書にログイン ② プロジェクトの概要の「つないだ SNS」→ Threads の「つなぐ」③ Threads の認可画面（求める権限が並ぶ）で許可 ④ 矢書に戻り「✓ @ユーザー名」が出る |
+| threads_basic | ① 審査用のアカウントで矢書にログイン ② プロジェクトのプロジェクトの設定の「つないだ SNS」→ Threads の「つなぐ」③ Threads の認可画面（求める権限が並ぶ）で許可 ④ 矢書に戻り「✓ @ユーザー名」が出る |
 | threads_content_publish | ① ログイン済み、Threads はつないだ状態から ②「投稿をつくる」で本文を入れ、送り先に Threads を選ぶ ③ Threads のプレビュー（文字数）を見せる ④「今すぐ送る」⑤ 送信の結果の「Threads で見る」を押し、Threads で投稿が出ていることを見せる ⑥ 予約も見せる: 数分後に予約 → カレンダーに出る → 時刻が来て「✓ 送信済み」 |
 | threads_delete | ① 送信済みの投稿の画面 ②「Threads から取り消す」→ 確認 ③ 送信の結果が取り消しに変わる ④ Threads で投稿が消えたことを見せる |
-| threads_manage_insights | ① ログイン済みで、概要の「つないだ SNS」から Threads を「つなぎ直す」→ 認可画面に投稿の数字を読む権限（insights）が出ているところを見せて許可 ② 数日前に送った投稿がある状態で、サイドバーの「指標」（Metrics）を開く ③「投稿の閲覧数」（views）と先週との差、「フォロワーの増え方」を見せる ④「よく見られた投稿」（Most viewed posts）の 1 位を押して、その投稿の画面を開く ⑤ 同じ投稿を Threads のアプリで開き、表示回数が同じくらいであることを見せる（数字は 1 日 1 回の取り込みなので、少しずれてよい） |
+| threads_manage_insights | ① ログイン済みで、プロジェクトの設定の「つないだ SNS」から Threads を「つなぎ直す」→ 認可画面に投稿の数字を読む権限（insights）が出ているところを見せて許可 ② 数日前に送った投稿がある状態で、サイドバーの「指標」（Metrics）を開く ③「投稿の閲覧数」（views）と先週との差、「フォロワーの増え方」を見せる ④「よく見られた投稿」（Most viewed posts）の 1 位を押して、その投稿の画面を開く ⑤ 同じ投稿を Threads のアプリで開き、表示回数が同じくらいであることを見せる（数字は 1 日 1 回の取り込みなので、少しずれてよい） |
 
 ## 審査の担当者向けの説明（Reviewer instructions に貼る）
 

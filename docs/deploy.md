@@ -117,7 +117,7 @@
 |---|---|---|
 | 7-1 | オーナー | `https://yabumi-xxxx.vercel.app` を開き、5-3 のアカウントでログインできる。新規登録の画面で別のメールを入れると「いまは招待した方だけが登録できます。」と出る |
 | 7-2 | オーナー | プロジェクトを作る（本番の DB は空なので、ローカルのデータは入っていない） |
-| 7-3 | オーナー | 概要の「つないだ SNS」→ Threads の「つなぐ」→ @masa_i82 で許可 →「✓ @masa_i82」になる |
+| 7-3 | オーナー | プロジェクトの設定の「つないだ SNS」→ Threads の「つなぐ」→ @masa_i82 で許可 →「✓ @masa_i82」になる |
 | 7-4 | オーナー | 投稿をつくる → Threads だけを選んで「今すぐ送る」→ 送信の結果に「Threads で見る」が出る。テストの投稿は「Threads から取り消す」で消せる |
 | 7-5 | オーナー | 6 分以上先に予約して、時刻を過ぎて 1〜2 分で「✓ 送信済み」になる（予約ジョブが動いている） |
 | 7-6 | Claude | 予約ジョブの記録を確かめる: SQL Editor（または `supabase db` のコマンド）で `select status, return_message, start_time from cron.job_run_details order by start_time desc limit 5;` と `select status_code, content, created from net._http_response order by id desc limit 5;`。status_code が 200 なら届いている |
@@ -229,7 +229,7 @@ yabumi.app は Cloudflare Registrar で取る（オーナー）。DNS も Cloudf
 | # | 誰が | やること |
 |---|---|---|
 | D-1 | オーナー | `https://yabumi.vercel.app/projects` を開くと `https://yabumi.app/projects` に移る。yabumi.app でログインできる |
-| D-2 | オーナー | 概要の「つないだ SNS」で Threads（と X）の「つなぎ直す」を押し、許可して戻ってくる（戻り先が yabumi.app になっている） |
+| D-2 | オーナー | プロジェクトの設定の「つないだ SNS」で Threads（と X）の「つなぎ直す」を押し、許可して戻ってくる（戻り先が yabumi.app になっている） |
 | D-3 | オーナー | 予約ジョブ: Supabase の SQL Editor で `select status_code, created from net._http_response order by id desc limit 3;` が 200 で、数分おきに増えている |
 | D-4 | オーナー | X や Slack に `https://yabumi.app` を貼ると、矢書のカード（OGP）が出る |
 | D-5 | オーナー | ログアウトして「パスワードを忘れた」→ 届いたメールのリンクが `https://yabumi.app/auth/confirm?…` になっている |
@@ -290,7 +290,7 @@ yabumi.app は Cloudflare Registrar で取る（オーナー）。DNS も Cloudf
 
 ### オーナーが確かめる手順（12-6 のあと。本物の投稿になるので、オーナーの操作で）
 
-1. 概要の「つないだ SNS」→ Instagram の「つなぐ」→ 確かめの画面 →「プロアカウントにした・つなぐ」→ Instagram で許可 →「Instagram をつなぎました」と ✓ @ユーザー名
+1. プロジェクトの設定の「つないだ SNS」→ Instagram の「つなぐ」→ 確かめの画面 →「プロアカウントにした・つなぐ」→ Instagram で許可 →「Instagram をつなぎました」と ✓ @ユーザー名
 2. 投稿をつくる: 送り先に Instagram、画像を 1 枚（正方形など）添えて「今すぐ送る」→ 送信の結果の「Instagram で見る」で確かめる。取り消しのボタンは出ず、「Instagram のアプリで消す」の案内が出る
 3. 縦長すぎる画像（スマホのスクリーンショット）を添えると、作成画面に「画像の縦横比が合いません」と出て送れない
 4. Facebook の「つなぐ」→ 確かめの画面 → Facebook で許可（つなぐページにチェック）→ ページが 2 つ以上なら選ぶ画面 →「Facebook ページをつなぎました」
@@ -342,7 +342,7 @@ Threads・Instagram・Facebook の数字を読む権限は、Meta のアプリ�
 | 14-1 | オーナー | Threads: Meta の Yabumi Dev → Use cases → Access the Threads API → Permissions で **threads_manage_insights** を足す |
 | 14-2 | オーナー | Instagram（つないでいれば）: Instagram・Facebook 用のアプリ → Instagram のユースケース → Permissions で **instagram_business_manage_insights** を足す。Facebook ページ: Facebook Login for Business → Configurations → 矢書の設定 → 権限に **read_insights** を足す |
 | 14-3 | オーナー | Vercel → Settings → Environment Variables に `SNS_INSIGHTS`（値は 14-1・14-2 で足したものをカンマ区切りで。例 `threads,instagram,facebook`）を足して Redeploy |
-| 14-4 | オーナー | 矢書の概要の「つないだ SNS」で、それぞれ**つなぎ直す**（数字の権限が増えた認可画面が出る）。指標の画面の「● 要確認 … つなぎ直しが要ります」が消える |
+| 14-4 | オーナー | 矢書のプロジェクトの設定の「つないだ SNS」で、それぞれ**つなぎ直す**（数字の権限が増えた認可画面が出る）。指標の画面の「● 要確認 … つなぎ直しが要ります」が消える |
 | 14-5 | 確認 | 送った投稿があれば、翌日 5:00〜5:50 の取り込みのあと、指標の画面に「投稿の閲覧数」「フォロワーの増え方」「よく見られた投稿」が出る。Claude は `select status_code from net._http_response order by id desc limit 3;` と、`select count(*) from post_metrics;` で取り込みを確かめる |
 
 - 権限を外すときは、先に SNS_INSIGHTS から外して Redeploy し、そのあと Meta のアプリから外す（逆にすると、つなぐ画面がエラーになる）

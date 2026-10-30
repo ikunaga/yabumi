@@ -16,6 +16,7 @@ export default function PrivacyPage() {
 
   return (
     <LegalPage
+      doc="privacy"
       title="プライバシーポリシー"
       lead={
         <p>

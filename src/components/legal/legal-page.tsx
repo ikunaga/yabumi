@@ -3,10 +3,10 @@ import type { ReactNode } from "react";
 import { Brand } from "@/components/brand";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { LegalChangeNotice, LegalHistory } from "./legal-notice";
-import { effectiveDateLabel } from "@/lib/legal/version";
+import { effectiveDateLabel, type LegalDoc } from "@/lib/legal/version";
 
 // 利用規約とプライバシーポリシーの共通の枠。ログインなしで開ける（src/lib/supabase/proxy.ts の PUBLIC_PATHS）
-export function LegalPage({ title, lead, children }: { title: string; lead: ReactNode; children: ReactNode }) {
+export function LegalPage({ doc, title, lead, children }: { doc: LegalDoc; title: string; lead: ReactNode; children: ReactNode }) {
   return (
     <div className="mx-auto flex w-full max-w-[880px] flex-1 flex-col px-8 py-10 max-sm:px-4 max-sm:py-6">
       <header className="flex items-center gap-3">
@@ -22,7 +22,7 @@ export function LegalPage({ title, lead, children }: { title: string; lead: Reac
       <main className="flex flex-col gap-6 py-10 max-sm:gap-5 max-sm:py-6">
         <div className="flex flex-col gap-2">
           <h1 className="font-heading text-3xl font-bold max-sm:text-2xl">{title}</h1>
-          <p className="text-[14px] text-muted">施行日: {effectiveDateLabel()}</p>
+          <p className="text-[14px] text-muted">施行日: {effectiveDateLabel(new Date(), doc)}</p>
         </div>
         <LegalChangeNotice />
         <div className="text-base leading-[1.9]">{lead}</div>

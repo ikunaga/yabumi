@@ -16,11 +16,24 @@ export type LegalRevision = {
   adverse: boolean;
   // 知らせ始める日（ISO）。最初の制定は null
   noticeFrom: string | null;
+  // 前もって知らせずに施行した理由（noticeFrom が null のときだけ）。施行の時点で利用者が運営者だけで、運営者が了承したときに限る（docs/legal.md）
+  noticeWaived?: string;
 };
 
 // 施行日の古い順。最初の 1 件は制定（2026-10-12）。施行日が先の行は「予定の変更」（upcomingLegalChange）
 export const LEGAL_VERSIONS: readonly LegalRevision[] = [
   { version: "2026-10-12", docs: ["terms", "privacy"], summary: ["制定"], adverse: false, noticeFrom: null },
+  {
+    version: "2026-10-30",
+    docs: ["privacy"],
+    summary: [
+      "利用規約とプライバシーポリシーに同意した記録（版・日時・どこで同意したか）を預かることを書き足しました",
+      "規約やポリシーを変えるときに、施行日の前に画面とメールでお知らせする仕組みと、そのための記録と cookie を書き足しました",
+    ],
+    adverse: false,
+    noticeFrom: null,
+    noticeWaived: "施行の時点で利用者は運営者だけ（招待の前）で、運営者が了承した（2026-10-30）",
+  },
 ];
 
 // 知らせる期間（日）。利用者に不利でない変更は 14 日以上、不利な変更は 30 日以上（2026-10-12 オーナーの決定）
@@ -66,9 +79,11 @@ export function formatLegalDate(iso: string): string {
   return `${y}年${m}月${d}日`;
 }
 
-// ページなどに出す、今の版の施行日
-export function effectiveDateLabel(now: Date = new Date()): string {
-  return formatLegalDate(currentLegalVersion(now));
+// ページなどに出す、今の版の施行日。doc を渡すと、その文書が最後に変わった版の施行日（利用規約のページで、変わっていない規約の施行日を動かさない）
+export function effectiveDateLabel(now: Date = new Date(), doc?: LegalDoc, history: readonly LegalRevision[] = LEGAL_VERSIONS): string {
+  if (!doc) return formatLegalDate(currentLegalVersion(now, history));
+  const changed = publishedHistory(now, history).filter((r) => r.docs.includes(doc));
+  return formatLegalDate((changed.at(-1) ?? currentRevision(now, history)).version);
 }
 
 function daysBetween(fromIso: string, toIso: string): number {
@@ -84,6 +99,7 @@ export function historyProblems(history: readonly LegalRevision[] = LEGAL_VERSIO
     if (i > 0 && r.version <= history[i - 1].version) problems.push(`${r.version}: 施行日の古い順に並べる`);
     if (!r.summary.length || !r.docs.length) problems.push(`${r.version}: 要約と、変わる文書を書く`);
     if (i === 0) return;
+    if (r.noticeFrom === null && r.noticeWaived?.trim()) return;
     if (!r.noticeFrom || !iso.test(r.noticeFrom)) {
       problems.push(`${r.version}: 知らせ始める日（noticeFrom）を書く`);
       return;

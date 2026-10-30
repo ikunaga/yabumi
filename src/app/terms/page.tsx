@@ -16,6 +16,7 @@ export default function TermsPage() {
 
   return (
     <LegalPage
+      doc="terms"
       title="利用規約"
       lead={
         <p>

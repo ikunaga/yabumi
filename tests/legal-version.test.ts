@@ -32,6 +32,18 @@ describe("版の一覧（LEGAL_VERSIONS）", () => {
     expect(historyProblems([base, { ...next, noticeFrom: null }])[0]).toContain("noticeFrom");
     expect(historyProblems([next, base]).some((p) => p.includes("古い順"))).toBe(true);
   });
+
+  it("前もって知らせない版は、理由（noticeWaived）があるときだけ認める", () => {
+    expect(historyProblems([base, { ...next, noticeFrom: null, noticeWaived: "利用者は運営者だけ" }])).toEqual([]);
+    expect(historyProblems([base, { ...next, noticeFrom: null, noticeWaived: " " }])[0]).toContain("noticeFrom");
+  });
+
+  it("文書ごとの施行日は、その文書が最後に変わった版の日", () => {
+    const now = at("2026-11-21T00:00:00Z");
+    expect(effectiveDateLabel(now, "privacy", history)).toBe("2026年11月20日");
+    expect(effectiveDateLabel(now, "terms", history)).toBe("2026年10月12日");
+    expect(effectiveDateLabel(now, undefined, history)).toBe("2026年11月20日");
+  });
 });
 
 describe("今の版と予定の変更", () => {

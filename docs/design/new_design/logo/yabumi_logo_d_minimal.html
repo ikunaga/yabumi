@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<style>
+
+:root {
+  --color-brand-primary: #232425;
+  --color-brand-secondary: #0F7FFF;
+  --color-bg-page: #FFFFFF;
+  --color-bg-surface: #FAFAFA;
+  --color-bg-subtle: #F5F5F5;
+  --color-text-primary: #232425;
+  --color-text-secondary: #606366;
+  --color-text-tertiary: #909499;
+  --color-text-disabled: #C4C7CC;
+  --color-text-link: #0F7FFF;
+  --color-text-on-brand: #FFFFFF;
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-error: #EF4444;
+  --color-info: #3B82F6;
+  --color-border-default: #EAEAEA;
+  --color-border-strong: #D0D3D8;
+  --color-border-focus: #A3A3AD;
+  --color-border-input: #D4D4DC;
+  --color-border-subtle: #F2F2F2;
+  --color-border-brand: #0F7FFF;
+  --color-border-error: #EF4444;
+  --color-border-success: #10B981;
+  --space-4: 4px; --space-8: 8px; --space-12: 12px; --space-16: 16px;
+  --space-20: 20px; --space-24: 24px; --space-32: 32px; --space-48: 48px;
+  --text-h1: 36px; --text-h2: 28px; --text-h3: 22px; --text-h4: 18px;
+  --text-body: 16px; --text-small: 14px; --text-caption: 12px;
+  --radius-4: 4px; --radius-8: 8px; --radius-12: 12px;
+  --border-width-1: 1px; --border-width-2: 2px;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.07);
+  --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
+
+  /* Categorical color ramps (mirror of design-tokens.css) */
+  --color-cat-blue-50:#EBF3FE;--color-cat-blue-100:#C5DDFC;--color-cat-blue-200:#92BEF8;--color-cat-blue-400:#0F7FFF;--color-cat-blue-600:#0561C5;--color-cat-blue-800:#053F7C;--color-cat-blue-900:#06294F;
+  --color-cat-green-50:#E5F8F1;--color-cat-green-100:#B7EFD8;--color-cat-green-200:#7DE0BA;--color-cat-green-400:#10B981;--color-cat-green-600:#088762;--color-cat-green-800:#045A41;--color-cat-green-900:#023A29;
+  --color-cat-amber-50:#FEF3D9;--color-cat-amber-100:#FCE0A0;--color-cat-amber-200:#FAC865;--color-cat-amber-400:#F59E0B;--color-cat-amber-600:#B16E03;--color-cat-amber-800:#6E4500;--color-cat-amber-900:#422900;
+  --color-cat-red-50:#FDE9E9;--color-cat-red-100:#F9C2C2;--color-cat-red-200:#F49595;--color-cat-red-400:#EF4444;--color-cat-red-600:#C41B1B;--color-cat-red-800:#821212;--color-cat-red-900:#520B0B;
+  --color-cat-purple-50:#F0EAFE;--color-cat-purple-100:#D5C2FB;--color-cat-purple-200:#B59AF8;--color-cat-purple-400:#8B5CF6;--color-cat-purple-600:#6431D2;--color-cat-purple-800:#441E8E;--color-cat-purple-900:#2A1259;
+  --color-cat-teal-50:#DEF7F4;--color-cat-teal-100:#A6EBE2;--color-cat-teal-200:#6BDCCD;--color-cat-teal-400:#14B8A6;--color-cat-teal-600:#0D8779;--color-cat-teal-800:#075A50;--color-cat-teal-900:#043934;
+  --color-cat-coral-50:#FEE7EB;--color-cat-coral-100:#FCC0CA;--color-cat-coral-200:#FA98A8;--color-cat-coral-400:#FB7185;--color-cat-coral-600:#D14258;--color-cat-coral-800:#8C2336;--color-cat-coral-900:#5A111F;
+  --color-cat-pink-50:#FCE4F1;--color-cat-pink-100:#F7BAD9;--color-cat-pink-200:#F18BBE;--color-cat-pink-400:#EC4899;--color-cat-pink-600:#B81F75;--color-cat-pink-800:#7B0F4D;--color-cat-pink-900:#4D0530;
+  --color-cat-gray-50:#F3F4F6;--color-cat-gray-100:#E5E7EB;--color-cat-gray-200:#CBD0D7;--color-cat-gray-400:#6B7280;--color-cat-gray-600:#4A4F58;--color-cat-gray-800:#2A2D33;--color-cat-gray-900:#16181B;
+}
+.c-blue   { fill: var(--color-cat-blue-50);   stroke: var(--color-cat-blue-600);   color: var(--color-cat-blue-800);   background-color: var(--color-cat-blue-50);   border-color: var(--color-cat-blue-600); }
+.c-green  { fill: var(--color-cat-green-50);  stroke: var(--color-cat-green-600);  color: var(--color-cat-green-800);  background-color: var(--color-cat-green-50);  border-color: var(--color-cat-green-600); }
+.c-amber  { fill: var(--color-cat-amber-50);  stroke: var(--color-cat-amber-600);  color: var(--color-cat-amber-800);  background-color: var(--color-cat-amber-50);  border-color: var(--color-cat-amber-600); }
+.c-red    { fill: var(--color-cat-red-50);    stroke: var(--color-cat-red-600);    color: var(--color-cat-red-800);    background-color: var(--color-cat-red-50);    border-color: var(--color-cat-red-600); }
+.c-purple { fill: var(--color-cat-purple-50); stroke: var(--color-cat-purple-600); color: var(--color-cat-purple-800); background-color: var(--color-cat-purple-50); border-color: var(--color-cat-purple-600); }
+.c-teal   { fill: var(--color-cat-teal-50);   stroke: var(--color-cat-teal-600);   color: var(--color-cat-teal-800);   background-color: var(--color-cat-teal-50);   border-color: var(--color-cat-teal-600); }
+.c-coral  { fill: var(--color-cat-coral-50);  stroke: var(--color-cat-coral-600);  color: var(--color-cat-coral-800);  background-color: var(--color-cat-coral-50);  border-color: var(--color-cat-coral-600); }
+.c-pink   { fill: var(--color-cat-pink-50);   stroke: var(--color-cat-pink-600);   color: var(--color-cat-pink-800);   background-color: var(--color-cat-pink-50);   border-color: var(--color-cat-pink-600); }
+.c-gray   { fill: var(--color-cat-gray-50);   stroke: var(--color-cat-gray-600);   color: var(--color-cat-gray-800);   background-color: var(--color-cat-gray-50);   border-color: var(--color-cat-gray-600); }
+.c-blue text, .c-green text, .c-amber text, .c-red text,
+.c-purple text, .c-teal text, .c-coral text, .c-pink text, .c-gray text { fill: currentColor; stroke: none; }
+@media (prefers-color-scheme: dark) {
+  :root {
+  --color-brand-primary: #E8E9EA;
+  --color-brand-secondary: #4a9eff;
+  --color-bg-page: #1A1B1C;
+  --color-bg-surface: #232425;
+  --color-bg-subtle: #2A2B2C;
+  --color-text-primary: #FFFFFF;
+  --color-text-secondary: #B8BBBF;
+  --color-text-tertiary: #868B92;
+  --color-text-disabled: #4A4C4F;
+  --color-text-link: #8bb8ff;
+  --color-text-on-brand: #1A1B1C;
+  --color-border-default: #3A3B3C;
+  --color-border-strong: #4A4C4F;
+  --color-border-focus: #5A585C;
+  --color-border-input: rgba(255, 255, 255, 0.14);
+  --color-border-subtle: #2E2F30;
+  --color-border-brand: #4a9eff;
+  --color-border-error: #f87171;
+  --color-border-success: #34d399;
+  }
+  .c-blue { fill: var(--color-cat-blue-800); stroke: var(--color-cat-blue-200); color: var(--color-cat-blue-100); background-color: var(--color-cat-blue-800); border-color: var(--color-cat-blue-200); }
+  .c-green { fill: var(--color-cat-green-800); stroke: var(--color-cat-green-200); color: var(--color-cat-green-100); background-color: var(--color-cat-green-800); border-color: var(--color-cat-green-200); }
+  .c-amber { fill: var(--color-cat-amber-800); stroke: var(--color-cat-amber-200); color: var(--color-cat-amber-100); background-color: var(--color-cat-amber-800); border-color: var(--color-cat-amber-200); }
+  .c-red { fill: var(--color-cat-red-800); stroke: var(--color-cat-red-200); color: var(--color-cat-red-100); background-color: var(--color-cat-red-800); border-color: var(--color-cat-red-200); }
+  .c-purple { fill: var(--color-cat-purple-800); stroke: var(--color-cat-purple-200); color: var(--color-cat-purple-100); background-color: var(--color-cat-purple-800); border-color: var(--color-cat-purple-200); }
+  .c-teal { fill: var(--color-cat-teal-800); stroke: var(--color-cat-teal-200); color: var(--color-cat-teal-100); background-color: var(--color-cat-teal-800); border-color: var(--color-cat-teal-200); }
+  .c-coral { fill: var(--color-cat-coral-800); stroke: var(--color-cat-coral-200); color: var(--color-cat-coral-100); background-color: var(--color-cat-coral-800); border-color: var(--color-cat-coral-200); }
+  .c-pink { fill: var(--color-cat-pink-800); stroke: var(--color-cat-pink-200); color: var(--color-cat-pink-100); background-color: var(--color-cat-pink-800); border-color: var(--color-cat-pink-200); }
+  .c-gray { fill: var(--color-cat-gray-800); stroke: var(--color-cat-gray-200); color: var(--color-cat-gray-100); background-color: var(--color-cat-gray-800); border-color: var(--color-cat-gray-200); }
+}
+html[data-theme="dark"] {
+  --color-brand-primary: #E8E9EA;
+  --color-brand-secondary: #4a9eff;
+  --color-bg-page: #1A1B1C;
+  --color-bg-surface: #232425;
+  --color-bg-subtle: #2A2B2C;
+  --color-text-primary: #FFFFFF;
+  --color-text-secondary: #B8BBBF;
+  --color-text-tertiary: #868B92;
+  --color-text-disabled: #4A4C4F;
+  --color-text-link: #8bb8ff;
+  --color-text-on-brand: #1A1B1C;
+  --color-border-default: #3A3B3C;
+  --color-border-strong: #4A4C4F;
+  --color-border-focus: #5A585C;
+  --color-border-input: rgba(255, 255, 255, 0.14);
+  --color-border-subtle: #2E2F30;
+  --color-border-brand: #4a9eff;
+  --color-border-error: #f87171;
+  --color-border-success: #34d399;
+}
+html[data-theme="dark"] .c-blue { fill: var(--color-cat-blue-800); stroke: var(--color-cat-blue-200); color: var(--color-cat-blue-100); background-color: var(--color-cat-blue-800); border-color: var(--color-cat-blue-200); }
+html[data-theme="dark"] .c-green { fill: var(--color-cat-green-800); stroke: var(--color-cat-green-200); color: var(--color-cat-green-100); background-color: var(--color-cat-green-800); border-color: var(--color-cat-green-200); }
+html[data-theme="dark"] .c-amber { fill: var(--color-cat-amber-800); stroke: var(--color-cat-amber-200); color: var(--color-cat-amber-100); background-color: var(--color-cat-amber-800); border-color: var(--color-cat-amber-200); }
+html[data-theme="dark"] .c-red { fill: var(--color-cat-red-800); stroke: var(--color-cat-red-200); color: var(--color-cat-red-100); background-color: var(--color-cat-red-800); border-color: var(--color-cat-red-200); }
+html[data-theme="dark"] .c-purple { fill: var(--color-cat-purple-800); stroke: var(--color-cat-purple-200); color: var(--color-cat-purple-100); background-color: var(--color-cat-purple-800); border-color: var(--color-cat-purple-200); }
+html[data-theme="dark"] .c-teal { fill: var(--color-cat-teal-800); stroke: var(--color-cat-teal-200); color: var(--color-cat-teal-100); background-color: var(--color-cat-teal-800); border-color: var(--color-cat-teal-200); }
+html[data-theme="dark"] .c-coral { fill: var(--color-cat-coral-800); stroke: var(--color-cat-coral-200); color: var(--color-cat-coral-100); background-color: var(--color-cat-coral-800); border-color: var(--color-cat-coral-200); }
+html[data-theme="dark"] .c-pink { fill: var(--color-cat-pink-800); stroke: var(--color-cat-pink-200); color: var(--color-cat-pink-100); background-color: var(--color-cat-pink-800); border-color: var(--color-cat-pink-200); }
+html[data-theme="dark"] .c-gray { fill: var(--color-cat-gray-800); stroke: var(--color-cat-gray-200); color: var(--color-cat-gray-100); background-color: var(--color-cat-gray-800); border-color: var(--color-cat-gray-200); }
+:root { color-scheme: dark; }
+html, body { margin: 0; padding: 0; background: transparent !important; overflow: hidden;
+             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Inter', 'Helvetica Neue', Arial, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', 'Noto Sans JP', 'Noto Sans KR', system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; }
+svg { display: block; max-width: 100%; height: auto; background: transparent !important;
+      font-family: inherit; }
+svg text, svg tspan { font-family: inherit; }
+</style>
+<script>
+function sendPrompt(text) {
+  window.parent.postMessage(
+    { type: 'genspark_visualize_send_prompt', text: String(text) }, '*'
+  );
+}
+function _reportHeight() {
+  var h = Math.max(
+    document.body ? document.body.scrollHeight : 0,
+    document.documentElement ? document.documentElement.scrollHeight : 0,
+    100
+  );
+  window.parent.postMessage({ type: 'genspark_visualize_height', height: h }, '*');
+}
+window.addEventListener('load', function() {
+  _reportHeight();
+  if (window.ResizeObserver) {
+    new ResizeObserver(_reportHeight).observe(document.body);
+  }
+});
+window.addEventListener('resize', _reportHeight);
+
+// ── PNG export (rasterize the rendered widget inside the iframe) ─────────────
+// Runs here because sandbox="allow-scripts" (no allow-same-origin) makes the
+// iframe DOM unreachable from the parent. Clone <body>, swap each <canvas>
+// (Chart.js) for a snapshot <img>, inline the document styles with dark-scheme
+// rules stripped for a deterministic light export, wrap in <svg><foreignObject>,
+// and rasterize via a data: URL (a Blob URL would taint the canvas in Chromium).
+function _gsExportFont() { return "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Inter', 'Helvetica Neue', Arial, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', 'Noto Sans JP', 'Noto Sans KR', system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'"; }
+function _gsCollectStyles() {
+  var out = '';
+  var s = document.querySelectorAll('style');
+  for (var i = 0; i < s.length; i++) { out += (s[i].textContent || '') + '\n'; }
+  return out;
+}
+function _gsStripDarkMedia(css) {
+  var marker = '@media (prefers-color-scheme: dark)';
+  var idx = css.indexOf(marker);
+  while (idx !== -1) {
+    var brace = css.indexOf('{', idx);
+    if (brace === -1) { css = css.slice(0, idx); break; }
+    var depth = 1, j = brace + 1;
+    while (j < css.length && depth > 0) {
+      var ch = css.charAt(j);
+      if (ch === '{') depth++; else if (ch === '}') depth--;
+      j++;
+    }
+    css = css.slice(0, idx) + css.slice(j);
+    idx = css.indexOf(marker);
+  }
+  return css;
+}
+function _gsCleanup(node) {
+  var scripts = node.querySelectorAll('script');
+  for (var i = 0; i < scripts.length; i++) {
+    if (scripts[i].parentNode) scripts[i].parentNode.removeChild(scripts[i]);
+  }
+  var nameRe = /^[A-Za-z_:][A-Za-z0-9_:.-]*$/;
+  var els = node.querySelectorAll('*');
+  for (var k = 0; k < els.length; k++) {
+    var attrs = els[k].attributes;
+    for (var a = attrs.length - 1; a >= 0; a--) {
+      if (!nameRe.test(attrs[a].name)) els[k].removeAttribute(attrs[a].name);
+    }
+  }
+}
+function _gsSubstituteCanvases(live, clone) {
+  var lc = live.querySelectorAll('canvas');
+  var cc = clone.querySelectorAll('canvas');
+  for (var i = 0; i < lc.length && i < cc.length; i++) {
+    var data = lc[i].toDataURL('image/png');
+    var img = document.createElement('img');
+    img.setAttribute('src', data);
+    img.setAttribute('style', (cc[i].getAttribute('style') || '') +
+      ';width:' + lc[i].offsetWidth + 'px;height:' + lc[i].offsetHeight + 'px');
+    if (cc[i].parentNode) cc[i].parentNode.replaceChild(img, cc[i]);
+  }
+}
+function _gsPostPng(id, dataUrl, error) {
+  window.parent.postMessage(
+    { type: 'genspark_visualize_png', id: id, dataUrl: dataUrl || null, error: error || null },
+    '*'
+  );
+}
+function _gsRasterize(id, scale) {
+  try {
+    scale = scale || 2;
+    var PAD = 16;  // breathing room so content never sits flush against the edge
+    var W = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth, 1);
+    var H = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight, 1);
+    var bodyClone = document.body.cloneNode(true);
+    _gsSubstituteCanvases(document.body, bodyClone);
+    _gsCleanup(bodyClone);
+    var wrapper = document.createElement('div');
+    wrapper.setAttribute('style',
+      'font-family:' + _gsExportFont() + ';box-sizing:border-box;width:' + W + 'px');
+    while (bodyClone.firstChild) { wrapper.appendChild(bodyClone.firstChild); }
+    var inner = new XMLSerializer().serializeToString(wrapper);
+    var styleTag = '<style>' + _gsStripDarkMedia(_gsCollectStyles()) +
+      ' svg, svg text, svg tspan { font-family:' + _gsExportFont() + '; }</style>';
+    var CW = W + PAD * 2, CH = H + PAD * 2;
+    var SW = Math.round(CW * scale), SH = Math.round(CH * scale);
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + SW +
+      '" height="' + SH + '" viewBox="0 0 ' + CW + ' ' + CH + '">' +
+      '<foreignObject x="' + PAD + '" y="' + PAD + '" width="' + W + '" height="' + H + '">' +
+      '<div xmlns="http://www.w3.org/1999/xhtml">' + styleTag + inner + '</div>' +
+      '</foreignObject></svg>';
+    var img = new Image();
+    img.onload = function() {
+      try {
+        var cv = document.createElement('canvas');
+        cv.width = SW; cv.height = SH;
+        var ctx = cv.getContext('2d');
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, SW, SH);
+        ctx.drawImage(img, 0, 0);
+        _gsPostPng(id, cv.toDataURL('image/png'), null);
+      } catch (e) { _gsPostPng(id, null, 'tainted'); }
+    };
+    img.onerror = function() { _gsPostPng(id, null, 'image_error'); };
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  } catch (e) {
+    _gsPostPng(id, null,
+      (e && e.name === 'SecurityError') ? 'tainted' : String((e && e.message) || e));
+  }
+}
+window.addEventListener('message', function(ev) {
+  var d = ev.data || {};
+  if (!d || d.type !== 'genspark_visualize_request_png') return;
+  var run = function() { _gsRasterize(d.id, d.scale); };
+  if (document.fonts && document.fonts.ready && document.fonts.ready.then) {
+    document.fonts.ready.then(function() {
+      if (window.requestAnimationFrame) window.requestAnimationFrame(run);
+      else window.setTimeout(run, 0);
+    });
+  } else if (window.requestAnimationFrame) {
+    window.requestAnimationFrame(run);
+  } else {
+    window.setTimeout(run, 0);
+  }
+});
+</script>
+</head>
+<body><svg viewBox="0 0 758 336" width="100%" style="display:block;max-width:758px" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <g id="mkD" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14 26 L38 50 L14 74"/>
+    <path d="M38 50 L72 50"/>
+    <path d="M60 36 L76 50 L60 64"/>
+  </g>
+</defs>
+<style>.sd-lb{font-size:11px;font-weight:600;fill:#8C93A1;letter-spacing:.06em}.sd-sm{font-size:9px;fill:#9AA0AC;text-anchor:middle}</style>
+
+<rect x="40" y="30" width="320" height="168" rx="14" fill="#F7F4EC" stroke="#E3DAC6"/>
+<rect x="398" y="30" width="320" height="168" rx="14" fill="#16233D"/>
+
+<use href="#mkD" style="color:#16233D" transform="translate(66.25,70.5) scale(0.75)"/>
+<text x="136" y="105" font-size="30" font-weight="700" letter-spacing="3" fill="#16233D">yabumi</text>
+<text x="137" y="128" font-size="9" letter-spacing="1.6" fill="#A39A85">ONE ARROW, EVERY FEED</text>
+
+<use href="#mkD" style="color:#FFFFFF" transform="translate(424.25,70.5) scale(0.75)"/>
+<text x="494" y="105" font-size="30" font-weight="700" letter-spacing="3" fill="#FFFFFF">yabumi</text>
+<text x="495" y="128" font-size="9" letter-spacing="1.6" fill="#5D6A85">ONE ARROW, EVERY FEED</text>
+
+<text x="40" y="222" class="sd-lb">縮小耐性 — 96 / 64 / 44 / 32 / 24 / 16px</text>
+<rect x="40" y="232" width="96" height="96" rx="22" fill="#16233D"/>
+<use href="#mkD" style="color:#FFFFFF" transform="translate(47.5,235) scale(0.90)"/>
+<rect x="152" y="248" width="64" height="64" rx="15" fill="#16233D"/>
+<use href="#mkD" style="color:#FFFFFF" transform="translate(156.1,249) scale(0.62)"/>
+<rect x="232" y="258" width="44" height="44" rx="11" fill="#16233D"/>
+<use href="#mkD" style="color:#FFFFFF" transform="translate(234.2,258) scale(0.44)"/>
+<rect x="292" y="264" width="32" height="32" rx="8" fill="#16233D"/>
+<use href="#mkD" style="color:#FFFFFF" transform="translate(293.6,264) scale(0.32)"/>
+<rect x="340" y="268" width="24" height="24" rx="6" fill="#16233D"/>
+<use href="#mkD" style="color:#FFFFFF" transform="translate(341.2,268) scale(0.24)"/>
+<rect x="380" y="272" width="16" height="16" rx="4" fill="#16233D"/>
+<use href="#mkD" style="color:#FFFFFF" transform="translate(379.9,271) scale(0.18)"/>
+
+<text x="398" y="222" class="sd-lb">単色・線幅1色で成立（印刷／刻印）</text>
+<use href="#mkD" style="color:#16233D" transform="translate(398,236) scale(0.55)"/>
+<use href="#mkD" style="color:#D9472B" transform="translate(456,244) scale(0.40)"/>
+<use href="#mkD" style="color:#9AA0AC" transform="translate(506,252) scale(0.28)"/>
+<text x="424" y="316" class="sd-sm">墨</text>
+<text x="472" y="316" class="sd-sm">朱</text>
+<text x="516" y="316" class="sd-sm">グレー</text>
+<text x="560" y="262" font-size="9.5" fill="#8C93A1">塗りなし・角丸のみ</text>
+<text x="560" y="278" font-size="9.5" fill="#8C93A1">favicon 16pxでも判別可</text>
+</svg></body>
+</html>

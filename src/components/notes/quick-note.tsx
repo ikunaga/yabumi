@@ -10,7 +10,7 @@ type Project = { id: string; name: string };
 
 const TRIGGER: Record<"topbar" | "fab" | "fabFree" | "menu", string> = {
   // PC の上の帯（プロジェクトの中と外）。スマホは上の帯が狭いので、右下に浮かせる（fab・fabFree）
-  topbar: "inline-flex h-9 shrink-0 items-center gap-1 rounded-full border border-border bg-surface px-4 text-[14px] font-semibold whitespace-nowrap text-fg hover:border-input max-sm:hidden",
+  topbar: "inline-flex h-10 shrink-0 items-center gap-1 rounded-full border border-border bg-surface px-4 text-[15px] font-semibold whitespace-nowrap text-fg hover:border-input max-sm:hidden",
   fabFree: "fixed right-4 bottom-[calc(env(safe-area-inset-bottom)+20px)] z-10 inline-flex h-12 items-center gap-1 rounded-full bg-primary px-5 text-base font-bold text-on-primary shadow-pop hover:bg-primary-hover sm:hidden",
   // スマホ: 下のタブの上に浮かぶボタン（親指で届く右下）
   fab: "fixed right-4 bottom-[calc(72px+env(safe-area-inset-bottom)+14px)] z-10 inline-flex h-12 items-center gap-1 rounded-full bg-primary px-5 text-base font-bold text-on-primary shadow-pop hover:bg-primary-hover sm:hidden",

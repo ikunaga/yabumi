@@ -22,9 +22,9 @@ export function TopBar({
 }) {
   return (
     <header className="border-b border-border bg-nav">
-      <div className={`flex h-16 items-center gap-8 px-12 max-lg:px-8 max-sm:h-auto max-sm:px-4 max-sm:pt-[18px] max-sm:pb-3 ${mobileBack ? "max-sm:hidden" : ""}`}>
+      <div className={`flex h-[68px] items-center gap-8 px-12 max-lg:px-8 max-sm:h-auto max-sm:px-4 max-sm:pt-[18px] max-sm:pb-3 ${mobileBack ? "max-sm:hidden" : ""}`}>
         <Brand href="/projects" />
-        <nav aria-label="パンくず" className="text-[15px] font-semibold text-muted max-sm:hidden">
+        <nav aria-label="パンくず" className="text-[18px] font-semibold text-muted max-sm:hidden">
           {crumb ?? (
             <Link href="/projects" className="font-bold text-fg" aria-current="page">
               プロジェクト

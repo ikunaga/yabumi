@@ -15,7 +15,7 @@ export function ProjectNavLinks({ projectId, variant }: { projectId: string; var
 
   if (variant === "bar") {
     return (
-      <ul className="flex items-center gap-1 text-[15px] font-semibold">
+      <ul className="flex items-center gap-1.5 text-[18px] font-semibold max-xl:text-[16px] max-lg:text-[15px]">
         {main.map((item) => (
           <li key={item.key}>
             {item.href ? (

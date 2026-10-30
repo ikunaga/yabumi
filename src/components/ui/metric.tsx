@@ -34,14 +34,14 @@ export function Metric({
   className?: string;
 }) {
   return (
-    <div className={`min-w-0 rounded-lg border border-border bg-surface px-5 py-4 max-sm:px-4 max-sm:py-3 ${className}`}>
-      <p className="truncate text-[14px] text-muted">{label}</p>
-      <p className="num mt-1.5 text-metric font-bold max-sm:text-[28px]">
+    <div className={`min-w-0 rounded-lg border border-border bg-surface px-6 py-5 max-sm:px-4 max-sm:py-3.5 ${className}`}>
+      <p className="truncate text-[16px] text-muted">{label}</p>
+      <p className="num mt-1.5 text-metric font-bold max-sm:text-[30px]">
         {value}
         {unit && <span className="ml-1 text-sm font-bold text-muted">{unit}</span>}
       </p>
       {(delta || note) && (
-        <p className="mt-1.5 flex flex-wrap items-baseline gap-x-1.5 text-[14px] text-faint">
+        <p className="mt-1.5 flex flex-wrap items-baseline gap-x-1.5 text-[16px] text-faint">
           {delta}
           {note && <span>{note}</span>}
         </p>
@@ -67,12 +67,12 @@ export function BarRow({
 }) {
   const pct = max > 0 ? Math.max(0, Math.min(100, (value / max) * 100)) : 0;
   return (
-    <div className="grid grid-cols-[7rem_1fr_4.5rem] items-center gap-3 text-[15px] max-sm:grid-cols-[5rem_1fr_3.5rem] max-sm:text-sm">
+    <div className="grid grid-cols-[7.5rem_1fr_4.5rem] items-center gap-4 text-[17px] max-sm:grid-cols-[5rem_1fr_3.5rem] max-sm:text-sm">
       <span className="truncate text-muted">{label}</span>
-      <span className="h-2 overflow-hidden rounded-full bg-subtle" aria-hidden>
+      <span className="h-2.5 overflow-hidden rounded-full bg-subtle" aria-hidden>
         <span className={`block h-full rounded-full ${barClass}`} style={{ width: `${pct}%` }} />
       </span>
-      <span className="num text-right font-bold">{display ?? value.toLocaleString("ja-JP")}</span>
+      <span className="num text-right text-[18px] font-bold">{display ?? value.toLocaleString("ja-JP")}</span>
     </div>
   );
 }

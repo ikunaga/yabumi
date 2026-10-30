@@ -13,7 +13,7 @@ export function ProjectSwitcher({
 }) {
   const summary =
     variant === "bar"
-      ? "flex h-9 max-w-[15rem] min-w-0 items-center gap-1.5 rounded-full border border-border bg-surface px-4 text-[14px] font-semibold text-fg hover:border-input max-lg:max-w-[9rem]"
+      ? "flex h-10 max-w-[15rem] min-w-0 items-center gap-1.5 rounded-full border border-border bg-surface px-4 text-[15px] font-semibold text-fg hover:border-input max-lg:max-w-[9rem]"
       : "flex max-w-[12rem] min-w-0 items-center gap-1 text-sm text-nav-fg hover:text-nav-strong";
 
   return (

@@ -9,7 +9,7 @@ export function AccountMenu({ email }: { email: string }) {
   return (
     <DismissableDetails className="group relative shrink-0">
       <summary
-        className="flex size-9 cursor-pointer list-none items-center justify-center rounded-full border border-border bg-surface text-[14px] font-bold text-fg hover:border-input [&::-webkit-details-marker]:hidden"
+        className="flex size-10 cursor-pointer list-none items-center justify-center rounded-full border border-border bg-surface text-[14px] font-bold text-fg hover:border-input [&::-webkit-details-marker]:hidden"
         title={email}
       >
         <span aria-hidden>{initial}</span>

@@ -1,3 +1,6 @@
 ignoredBuiltDependencies:
   - sharp
   - unrs-resolver
+# 弱点の直し（vitest が引く vite 8.3.0〜8.3.2。GHSA-587h-7wmj-h5pm ほか。開発の道具だけで本番には入らない）
+overrides:
+  vite: ^8.3.3

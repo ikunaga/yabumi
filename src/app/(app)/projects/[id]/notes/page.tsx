@@ -18,7 +18,7 @@ export default async function NotesPage(props: PageProps<"/projects/[id]/notes">
   const notes = await listNotes(id);
 
   return (
-    <div className="flex max-w-[960px] flex-col gap-6 max-sm:gap-4">
+    <div className="flex flex-col gap-5 max-sm:gap-4">
       <PageHeader
         title="ネタ帳"
         sub={`メモ ${notes.length} 件`}

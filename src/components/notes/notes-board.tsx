@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { Button, ButtonLink, NotReadyButton } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/card";
+import { Card, CardHeader, EmptyState } from "@/components/ui/card";
+import { Columns } from "@/components/ui/columns";
 import { HelpTip } from "@/components/ui/help";
 import { tabClass, tabListClass } from "@/components/ui/tabs";
 import { discardImage } from "@/lib/media/actions";
@@ -44,133 +45,151 @@ export function NotesBoard({ projectId, projectName, notes, aiEnabled }: { proje
         </p>
       )}
 
-      {/* 上の段: 絞り込み（下線のタブ）と「＋ メモを書く」 */}
-      <div className="flex items-end justify-between gap-3 max-sm:flex-col-reverse max-sm:items-stretch">
-        {notes.length > 0 ? (
-          <div className={`${tabListClass} min-w-0 flex-1`} role="group" aria-label="メモの絞り込み">
-            <button type="button" aria-pressed={tab === "unused"} onClick={() => setTab("unused")} className={tabClass(tab === "unused")}>
-              まだ使っていない <span className="num">{unused.length}</span>
-            </button>
-            <button type="button" aria-pressed={tab === "used"} onClick={() => setTab("used")} className={tabClass(tab === "used")}>
-              投稿にした <span className="num">{used.length}</span>
-            </button>
-          </div>
-        ) : (
-          <span />
-        )}
-        {!writing && (
-          <span className="flex items-center gap-2 max-sm:justify-end">
-            <HelpTip label="メモの残し方" align="right">
-              どの画面でも、上の帯の「＋ メモ」（スマホは右下）から残せます。
-            </HelpTip>
-            <Button
-              onClick={() => {
-                setFlash(null);
-                setWriting(true);
-              }}
-            >
-              ＋ メモを書く
-            </Button>
-          </span>
-        )}
-      </div>
-
-      {writing && (
-        <section className="rounded-lg border border-border bg-surface p-5 max-sm:p-4" aria-label="メモを書く">
-          <NoteForm
-            key={round}
-            projects={[{ id: projectId, name: projectName }]}
-            projectId={projectId}
-            onSaved={() => {
-              setWriting(false);
-              setRound((r) => r + 1);
-              setTab("unused");
-              setFlash("ネタ帳に残しました");
-              router.refresh();
-            }}
-            onCancel={() => setWriting(false)}
-          />
-        </section>
-      )}
-
-      {notes.length === 0 ? (
-        <div className="rounded-lg border border-border bg-surface">
-          <EmptyState
-            title="まだメモがありません"
-            description={
-              <>
-                思いついたことや、あったことを 1 行で残しておくと、あとで AI が投稿にします。きれいな文でなくて大丈夫です。たとえば:
-                <span className="mt-2 flex flex-col gap-1">
-                  {EXAMPLES.map((e) => (
-                    <span key={e} className="text-fg">
-                      「{e}」
-                    </span>
-                  ))}
-                </span>
-              </>
-            }
-          />
-        </div>
-      ) : (
-        <>
-          {tab === "unused" && unused.length > 0 && (
-            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-surface px-5 py-3 max-sm:px-4">
-              <p className="flex min-w-0 flex-1 items-center gap-2 text-[15px] font-bold">
-                <span className="num whitespace-nowrap">
-                  選んだメモ {picked.length} / {MAX_NOTES_FOR_IDEAS}
-                </span>
-                <HelpTip label="AI とネタを出す">
-                  メモを選んで「AI とネタを出す」を押すと、AI が投稿の柱と口調に沿って、投稿のネタと下書きを出します（{MAX_NOTES_FOR_IDEAS} 件まで）。AI に送るのは選んだメモの文だけで、画像は送りません。
-                </HelpTip>
-              </p>
-              <div className="flex flex-wrap items-center gap-3">
-                {aiEnabled ? (
-                  picked.length ? (
-                    <ButtonLink size="sm" href={`/projects/${projectId}/ideas?source=notes&notes=${picked.join(",")}`}>
-                      選んだ {picked.length} 件で AI とネタを出す
-                    </ButtonLink>
-                  ) : (
-                    <Button size="sm" disabled>
-                      AI とネタを出す
-                    </Button>
-                  )
-                ) : (
-                  <NotReadyButton size="sm">AI とネタを出す</NotReadyButton>
-                )}
-                {picked.length > 0 && (
-                  <button type="button" onClick={() => setSelected([])} className="text-sm text-muted hover:text-fg hover:underline">
-                    選ぶのをやめる
-                  </button>
-                )}
+      <Columns
+        main={
+          <>
+          {/* 上の段: 絞り込み（下線のタブ）と「＋ メモを書く」 */}
+          <div className="flex items-end justify-between gap-3 max-sm:flex-col-reverse max-sm:items-stretch">
+            {notes.length > 0 ? (
+              <div className={`${tabListClass} min-w-0 flex-1`} role="group" aria-label="メモの絞り込み">
+                <button type="button" aria-pressed={tab === "unused"} onClick={() => setTab("unused")} className={tabClass(tab === "unused")}>
+                  まだ使っていない <span className="num">{unused.length}</span>
+                </button>
+                <button type="button" aria-pressed={tab === "used"} onClick={() => setTab("used")} className={tabClass(tab === "used")}>
+                  投稿にした <span className="num">{used.length}</span>
+                </button>
               </div>
-            </div>
-          )}
-
-          {shown.length === 0 ? (
-            <p className="text-sm text-muted">{tab === "unused" ? "まだ使っていないメモはありません。" : "投稿にしたメモはまだありません。"}</p>
-          ) : (
-            <ol className="flex flex-col gap-3">
-              {shown.map((n) => (
-                <NoteCard
-                  key={n.id}
-                  note={n}
-                  projectId={projectId}
-                  selectable={tab === "unused"}
-                  selected={picked.includes(n.id)}
-                  selectFull={picked.length >= MAX_NOTES_FOR_IDEAS}
-                  onToggle={() => toggle(n.id)}
-                  onDone={(msg) => {
-                    setFlash(msg);
-                    router.refresh();
+            ) : (
+              <span />
+            )}
+            {!writing && (
+              <span className="flex items-center gap-2 max-sm:justify-end">
+                <HelpTip label="メモの残し方" align="right">
+                  どの画面でも、上の帯の「＋ メモ」（スマホは右下）から残せます。
+                </HelpTip>
+                <Button
+                  onClick={() => {
+                    setFlash(null);
+                    setWriting(true);
                   }}
-                />
-              ))}
-            </ol>
-          )}
-        </>
-      )}
+                >
+                  ＋ メモを書く
+                </Button>
+              </span>
+            )}
+          </div>
 
-      <ShareHelp />
+          {writing && (
+            <section className="rounded-lg border border-border bg-surface p-5 max-sm:p-4" aria-label="メモを書く">
+              <NoteForm
+                key={round}
+                projects={[{ id: projectId, name: projectName }]}
+                projectId={projectId}
+                onSaved={() => {
+                  setWriting(false);
+                  setRound((r) => r + 1);
+                  setTab("unused");
+                  setFlash("ネタ帳に残しました");
+                  router.refresh();
+                }}
+                onCancel={() => setWriting(false)}
+              />
+            </section>
+          )}
+
+          {notes.length === 0 ? (
+            <div className="rounded-lg border border-border bg-surface">
+              <EmptyState
+                title="まだメモがありません"
+                description={
+                  <>
+                    思いついたことや、あったことを 1 行で残しておくと、あとで AI が投稿にします。きれいな文でなくて大丈夫です。たとえば:
+                    <span className="mt-2 flex flex-col gap-1">
+                      {EXAMPLES.map((e) => (
+                        <span key={e} className="text-fg">
+                          「{e}」
+                        </span>
+                      ))}
+                    </span>
+                  </>
+                }
+              />
+            </div>
+          ) : (
+            <>
+
+              {shown.length === 0 ? (
+                <p className="text-sm text-muted">{tab === "unused" ? "まだ使っていないメモはありません。" : "投稿にしたメモはまだありません。"}</p>
+              ) : (
+                <ol className="flex flex-col gap-3">
+                  {shown.map((n) => (
+                    <NoteCard
+                      key={n.id}
+                      note={n}
+                      projectId={projectId}
+                      selectable={tab === "unused"}
+                      selected={picked.includes(n.id)}
+                      selectFull={picked.length >= MAX_NOTES_FOR_IDEAS}
+                      onToggle={() => toggle(n.id)}
+                      onDone={(msg) => {
+                        setFlash(msg);
+                        router.refresh();
+                      }}
+                    />
+                  ))}
+                </ol>
+              )}
+            </>
+          )}
+          </>
+        }
+        side={
+          <>
+          {notes.length > 0 && (
+            <Card>
+              <CardHeader
+                title={
+                  <span className="flex items-center gap-2">
+                    AI とネタを出す
+                    <HelpTip label="AI とネタを出す" align="right">
+                      メモを選んで「AI とネタを出す」を押すと、AI が投稿の柱と口調に沿って、投稿のネタと下書きを出します（{MAX_NOTES_FOR_IDEAS} 件まで）。AI に送るのは選んだメモの文だけで、画像は送りません。
+                    </HelpTip>
+                  </span>
+                }
+              />
+              <div className="flex flex-col gap-3 px-6 pt-1 pb-5 max-sm:px-4">
+                <p className="num text-[15px] whitespace-nowrap text-faint">
+                  選んだメモ <b className="text-metric leading-none text-fg">{picked.length}</b> / {MAX_NOTES_FOR_IDEAS}
+                </p>
+                <div className="flex flex-wrap items-center gap-3">
+                  {aiEnabled ? (
+                    picked.length ? (
+                      <ButtonLink size="sm" href={`/projects/${projectId}/ideas?source=notes&notes=${picked.join(",")}`}>
+                        選んだ {picked.length} 件で AI とネタを出す
+                      </ButtonLink>
+                    ) : (
+                      <Button size="sm" disabled>
+                        メモを選んでください
+                      </Button>
+                    )
+                  ) : (
+                    <NotReadyButton size="sm">AI とネタを出す</NotReadyButton>
+                  )}
+                  {picked.length > 0 && (
+                    <button type="button" onClick={() => setSelected([])} className="text-sm text-muted hover:text-fg hover:underline">
+                      選ぶのをやめる
+                    </button>
+                  )}
+                </div>
+              </div>
+            </Card>
+          )}
+            <Card className="px-6 py-4 max-sm:px-4">
+              <ShareHelp />
+            </Card>
+          </>
+        }
+      />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Badge, chipClass } from "@/components/ui/chip";
+import { Columns } from "@/components/ui/columns";
 import { SuccessBanner } from "@/components/ui/feedback";
 import { PageHeader } from "@/components/ui/page-header";
 import { aiConfigured } from "@/lib/ai/anthropic";
@@ -42,7 +43,7 @@ export default async function ConsultListPage(props: PageProps<"/projects/[id]/c
   const base = `/projects/${id}/consult`;
 
   return (
-    <div className="flex max-w-[960px] flex-col gap-5 max-sm:gap-4">
+    <div className="flex flex-col gap-5 max-sm:gap-4">
       <PageHeader
         title="AI と相談"
         sub={`これまでの相談 ${threads.length} 件`}
@@ -51,40 +52,46 @@ export default async function ConsultListPage(props: PageProps<"/projects/[id]/c
       />
       {sp.done === "thread_deleted" && <SuccessBanner>会話を削除しました。採用した案（設計・ロードマップ・下書き）は残っています。</SuccessBanner>}
 
-      <Card>
-        <CardHeader title="新しい相談" />
-        <div className="flex flex-wrap gap-2 px-6 pt-1 pb-5 max-sm:px-4">
-          {listedConsultTopics().map((t) => (
-            <Link key={t} href={`${base}/new?start=${t}`} className={chipClass({ className: "h-10 px-4 text-[15px] text-fg hover:no-underline" })}>
-              {CONSULT_TOPIC_META[t].button}
-            </Link>
-          ))}
-        </div>
-      </Card>
-
-      <Card className="overflow-hidden">
-        <CardHeader title="これまでの相談" />
-        {threads.length === 0 ? (
-          <p className="px-6 pb-5 text-[15px] text-muted max-sm:px-4">まだありません。</p>
-        ) : (
-          <ul className="flex flex-col pb-2">
-            {threads.map((t) => (
-              <li key={t.id} className="border-t border-line first:border-t-0">
-                <Link href={`${base}/${t.id}`} className="flex items-center gap-3 px-6 py-3.5 text-[15px] hover:bg-surface2 hover:no-underline max-sm:flex-col max-sm:items-start max-sm:gap-1 max-sm:px-4">
-                  <span className="min-w-0 flex-1 truncate font-semibold text-fg max-sm:whitespace-normal">
-                    {t.topicTitle ?? t.title}
-                    {t.topicTitle && t.title && <span className="font-normal text-muted"> — {t.title}</span>}
-                  </span>
-                  <span className="num flex shrink-0 items-center gap-3 text-[13px] text-faint">
-                    {t.adopted > 0 && <Badge tone="success">採用した案 {t.adopted}</Badge>}
-                    <span>{formatShort(t.updatedAt)}</span>
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
+      <Columns
+        main={
+            <Card className="overflow-hidden">
+              <CardHeader title="これまでの相談" />
+              {threads.length === 0 ? (
+                <p className="px-6 pb-5 text-[15px] text-muted max-sm:px-4">まだありません。</p>
+              ) : (
+                <ul className="flex flex-col pb-2">
+                  {threads.map((t) => (
+                    <li key={t.id} className="border-t border-line first:border-t-0">
+                      <Link href={`${base}/${t.id}`} className="flex items-center gap-3 px-6 py-3.5 text-[15px] hover:bg-surface2 hover:no-underline max-sm:flex-col max-sm:items-start max-sm:gap-1 max-sm:px-4">
+                        <span className="min-w-0 flex-1 truncate font-semibold text-fg max-sm:whitespace-normal">
+                          {t.topicTitle ?? t.title}
+                          {t.topicTitle && t.title && <span className="font-normal text-muted"> — {t.title}</span>}
+                        </span>
+                        <span className="num flex shrink-0 items-center gap-3 text-[13px] text-faint">
+                          {t.adopted > 0 && <Badge tone="success">採用した案 {t.adopted}</Badge>}
+                          <span>{formatShort(t.updatedAt)}</span>
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+        }
+        side={
+            <Card>
+              <CardHeader title="新しい相談" />
+              <div className="flex flex-wrap gap-2 px-6 pt-1 pb-5 max-sm:px-4">
+                {listedConsultTopics().map((t) => (
+                  <Link key={t} href={`${base}/new?start=${t}`} className={chipClass({ className: "h-auto min-h-10 px-4 py-1.5 text-[15px] text-fg hover:no-underline max-sm:whitespace-normal" })}>
+                    {CONSULT_TOPIC_META[t].button}
+                  </Link>
+                ))}
+              </div>
+            </Card>
+        }
+        sideFirst
+      />
     </div>
   );
 }

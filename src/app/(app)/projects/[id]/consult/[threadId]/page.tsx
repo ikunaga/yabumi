@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { ConsultChat } from "@/components/ai/consult-chat";
 import { ConsultHeader } from "@/components/ai/consult-header";
+import { ConsultSide } from "@/components/ai/consult-side";
+import { Columns } from "@/components/ui/columns";
 import { aiConfigured } from "@/lib/ai/anthropic";
 import { getConsultThread, roadmapStepsFor } from "@/lib/ai/consult-queries";
 import { consultTopicMeta } from "@/lib/ai/consult-topics";
@@ -23,12 +25,16 @@ export default async function ConsultThreadPage(props: PageProps<"/projects/[id]
   if (!project || !isUuid(threadId)) notFound();
   const thread = await getConsultThread(id, threadId);
   if (!thread) notFound();
+  const adopted = thread.messages.reduce((n, m) => n + (m.role === "assistant" ? (m.content.adopted?.length ?? 0) : 0), 0);
   const first = thread.messages[0];
   const firstText = first?.role === "user" && first.content.kind === "text" ? first.content.text.replace(/\s+/g, " ").trim() : null;
   return (
-    <div className="flex max-w-[880px] flex-col gap-5 max-sm:gap-4">
+    <div className="flex flex-col gap-5 max-sm:gap-4">
       <ConsultHeader projectId={id} topic={thread.topic} threadId={thread.id} roadmapSteps={thread.topic === "roadmap" ? await roadmapStepsFor(id) : null} firstText={firstText} />
-      <ConsultChat key={thread.id} projectId={id} threadId={thread.id} messages={thread.messages} initialTopic={null} />
+      <Columns
+        main={<ConsultChat key={thread.id} projectId={id} threadId={thread.id} messages={thread.messages} initialTopic={null} />}
+        side={<ConsultSide projectId={id} adopted={adopted} lead={consultTopicMeta(thread.topic)?.entry?.lead} />}
+      />
     </div>
   );
 }

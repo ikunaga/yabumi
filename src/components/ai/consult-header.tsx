@@ -38,7 +38,6 @@ export function ConsultHeader({
       </div>
       <PageHeader
         title={entry?.title ?? meta?.listTitle ?? (firstText ? (firstText.length > 40 ? `${firstText.slice(0, 40)}…` : firstText) : threadId ? "相談" : "新しい相談")}
-        help={entry?.lead ?? "AI はアカウント設計・最近の投稿・数字・ロードマップを見たうえで、案を 2〜3 個出します。選んだ案だけが、設計やロードマップに入ります。"}
         actions={
           threadId && (
             <ThreadMenu

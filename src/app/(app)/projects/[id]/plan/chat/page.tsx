@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ThreadMenu } from "@/components/ai/thread-menu";
+import { PlanProgressCard } from "@/components/plan/account-plan-editor";
 import { PlanCoachChat } from "@/components/plan/plan-coach-chat";
+import { Columns } from "@/components/ui/columns";
+import { getAccountPlan } from "@/lib/plan/queries";
 import { SuccessBanner } from "@/components/ui/feedback";
 import { ButtonLink } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
@@ -31,11 +34,11 @@ export default async function PlanChatPage(props: PageProps<"/projects/[id]/plan
     );
   }
 
-  const thread = await getLatestPlanThread(id);
+  const [thread, plan] = await Promise.all([getLatestPlanThread(id), getAccountPlan(id)]);
   const focus = typeof sp.section === "string" && isSectionKey(sp.section) ? sp.section : null;
 
   return (
-    <div className="flex max-w-[880px] flex-col gap-5 max-sm:gap-4">
+    <div className="flex flex-col gap-5 max-sm:gap-4">
       <PageHeader
         title="AI と考える"
         help="アカウント設計を、AI と話しながら 1 つずつ決めます。AI の案を採用すると、設計の欄に入ります。"
@@ -57,7 +60,10 @@ export default async function PlanChatPage(props: PageProps<"/projects/[id]/plan
         }
       />
       {sp.done === "thread_deleted" && <SuccessBanner>会話を消しました。設計に採用した内容は残っています。</SuccessBanner>}
-      <PlanCoachChat key={thread?.id ?? "new"} projectId={id} threadId={thread?.id ?? null} messages={thread?.messages ?? []} initialFocus={focus} />
+      <Columns
+        main={<PlanCoachChat key={thread?.id ?? "new"} projectId={id} threadId={thread?.id ?? null} messages={thread?.messages ?? []} initialFocus={focus} />}
+        side={plan && <PlanProgressCard plan={plan.plan} planHref={planHref} />}
+      />
     </div>
   );
 }

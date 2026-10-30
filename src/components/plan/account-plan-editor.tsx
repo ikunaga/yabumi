@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { startTransition, useActionState, useEffect, useRef, useState, type ReactNode } from "react";
 import { Button, buttonClass, NotReadyButton } from "@/components/ui/button";
+import { Card, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/chip";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { HelpTip } from "@/components/ui/help";
@@ -89,21 +90,9 @@ export function AccountPlanEditor({
 }) {
   // 最初に開くのは、指定があればそのセクション、なければまだ書いていない最初のセクション
   const [open, setOpen] = useState<SectionKey | null>(() => initialOpen ?? SECTION_KEYS.find((k) => !isSectionDone(k, plan[k])) ?? null);
-  const doneCount = SECTION_KEYS.filter((k) => isSectionDone(k, plan[k])).length;
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-3">
-        <p className="num text-[15px] text-muted">
-          記入済み <b className="text-[20px] text-fg">{doneCount}</b> / {SECTION_KEYS.length}
-        </p>
-        <span className="h-2 max-w-48 flex-1 overflow-hidden rounded-full bg-subtle" aria-hidden>
-          <span className="block h-full rounded-full bg-success" style={{ width: `${(doneCount / SECTION_KEYS.length) * 100}%` }} />
-        </span>
-        <HelpTip label="記入の進み具合">
-          {REQUIRED_FOR_DONE.map((k) => META[k].title).join("・")}の 3 つが書けたら、「いまやること」が次（SNS をつなぐ）に進みます。どれも任意で、あとからいつでも直せます。
-        </HelpTip>
-      </div>
       {SECTION_KEYS.map((key, i) => (
         <SectionCard
           key={key}
@@ -121,6 +110,46 @@ export function AccountPlanEditor({
         </SectionCard>
       ))}
     </div>
+  );
+}
+
+// 右の列の「進み具合」: 記入済みの数・横棒・セクションの一覧（押すとそのセクションへ）
+// planHref: 設計の画面の外（AI と考える）から開くときは、設計の画面のそのセクションへ
+export function PlanProgressCard({ plan, planHref }: { plan: PlanData; planHref?: string }) {
+  const done = SECTION_KEYS.filter((k) => isSectionDone(k, plan[k]));
+  return (
+    <Card>
+      <CardHeader
+        title={
+          <span className="flex items-center gap-2">
+            進み具合
+            <HelpTip label="記入の進み具合">
+              {REQUIRED_FOR_DONE.map((k) => META[k].title).join("・")}の 3 つが書けたら、「いまやること」が次（SNS をつなぐ）に進みます。どれも任意で、あとからいつでも直せます。
+            </HelpTip>
+          </span>
+        }
+      />
+      <div className="flex flex-col gap-3 px-6 pt-1 pb-5 max-sm:px-4">
+        <p className="num text-[15px] text-faint">
+          <b className="text-metric leading-none text-fg">{done.length}</b> / {SECTION_KEYS.length} 記入済み
+        </p>
+        <span className="h-2.5 overflow-hidden rounded-full bg-subtle" aria-hidden>
+          <span className="block h-full rounded-full bg-success" style={{ width: `${(done.length / SECTION_KEYS.length) * 100}%` }} />
+        </span>
+        {/* 縦に積む幅では、すぐ下にセクションが並ぶので一覧は出さない */}
+        <ul className="flex flex-col text-[15px] max-xl:hidden">
+          {SECTION_KEYS.map((k, i) => (
+            <li key={k} className="border-t border-dashed border-line first:border-t-0">
+              <a href={planHref ? `${planHref}?open=${k}#plan-${k}-head` : `#plan-${k}-head`} className="flex items-center gap-2.5 py-2 hover:no-underline">
+                <span className="num w-5 text-faint">{i + 1}</span>
+                <span className="flex-1 text-fg">{META[k].title}</span>
+                {done.includes(k) ? <span className="text-sm font-bold text-success">✓</span> : <span className="text-sm text-faint">未記入</span>}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </Card>
   );
 }
 

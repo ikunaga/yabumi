@@ -124,7 +124,7 @@ export function PlanCoachChat({
       {error && <ErrorBanner>{error}</ErrorBanner>}
 
       {(messages.length > 0 || pending) && (
-        <div className="sticky bottom-0 z-[5] -mx-12 flex flex-col gap-2 border-t border-border bg-surface px-12 py-3 max-lg:-mx-8 max-lg:px-8 max-sm:bottom-[72px] max-sm:-mx-4 max-sm:px-4">
+        <div className="sticky bottom-0 z-[5] flex flex-col gap-2 bg-bg pt-3 pb-5 max-sm:bottom-[72px] max-sm:-mx-4 max-sm:border-t max-sm:border-border max-sm:bg-surface max-sm:px-4 max-sm:py-3">
           <label htmlFor="coach-input" className="sr-only">
             AI への返事
           </label>

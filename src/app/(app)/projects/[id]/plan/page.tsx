@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { AccountPlanEditor } from "@/components/plan/account-plan-editor";
+import { AccountPlanEditor, PlanProgressCard } from "@/components/plan/account-plan-editor";
 import { ButtonLink, NotReadyButton } from "@/components/ui/button";
+import { Columns } from "@/components/ui/columns";
 import { PageHeader } from "@/components/ui/page-header";
 import { aiConfigured } from "@/lib/ai/anthropic";
 import { listLinks } from "@/lib/links/queries";
@@ -26,8 +27,24 @@ export default async function PlanPage(props: PageProps<"/projects/[id]/plan">) 
 
   const aiEnabled = aiConfigured();
 
+  const editor = (
+    <AccountPlanEditor
+      projectId={id}
+      plan={plan.plan}
+      sources={plan.sources}
+      aiEnabled={aiEnabled}
+      initialOpen={isSectionKey(open) ? open : null}
+      profileCtx={{
+        projectId: id,
+        accounts: accounts.map((a) => ({ sns: a.sns, handle: a.handle })),
+        profileLinks,
+        destination: project.app_store_url ?? project.play_store_url ?? null,
+      }}
+    />
+  );
+
   return (
-    <div className="flex max-w-[880px] flex-col gap-5 max-sm:gap-4">
+    <div className="flex flex-col gap-5 max-sm:gap-4">
       {/* 主な入口は AI との会話。空欄を自分で埋めるのは、中身を確かめて直すとき */}
       <PageHeader
         title="アカウント設計"
@@ -42,20 +59,7 @@ export default async function PlanPage(props: PageProps<"/projects/[id]/plan">) 
           )
         }
       />
-
-      <AccountPlanEditor
-        projectId={id}
-        plan={plan.plan}
-        sources={plan.sources}
-        aiEnabled={aiEnabled}
-        initialOpen={isSectionKey(open) ? open : null}
-        profileCtx={{
-          projectId: id,
-          accounts: accounts.map((a) => ({ sns: a.sns, handle: a.handle })),
-          profileLinks,
-          destination: project.app_store_url ?? project.play_store_url ?? null,
-        }}
-      />
+      <Columns main={editor} side={<PlanProgressCard plan={plan.plan} />} sideFirst />
     </div>
   );
 }

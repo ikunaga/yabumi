@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { ConsultChat } from "@/components/ai/consult-chat";
 import { ConsultHeader } from "@/components/ai/consult-header";
+import { ConsultSide } from "@/components/ai/consult-side";
+import { Columns } from "@/components/ui/columns";
 import { aiConfigured } from "@/lib/ai/anthropic";
 import { isConsultTopic } from "@/lib/ai/consult";
 import { roadmapStepsFor } from "@/lib/ai/consult-queries";
@@ -21,9 +23,12 @@ export default async function ConsultNewPage(props: PageProps<"/projects/[id]/co
   if (!project) notFound();
   const topic = isConsultTopic(sp.start) ? sp.start : null;
   return (
-    <div className="flex max-w-[880px] flex-col gap-5 max-sm:gap-4">
+    <div className="flex flex-col gap-5 max-sm:gap-4">
       <ConsultHeader projectId={id} topic={topic} threadId={null} roadmapSteps={topic === "roadmap" ? await roadmapStepsFor(id) : null} />
-      <ConsultChat key={`new-${topic ?? ""}`} projectId={id} threadId={null} messages={[]} initialTopic={topic} />
+      <Columns
+        main={<ConsultChat key={`new-${topic ?? ""}`} projectId={id} threadId={null} messages={[]} initialTopic={topic} />}
+        side={<ConsultSide projectId={id} adopted={null} lead={consultTopicMeta(topic)?.entry?.lead} />}
+      />
     </div>
   );
 }

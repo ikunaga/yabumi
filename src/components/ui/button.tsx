@@ -8,11 +8,13 @@ const base =
   "inline-flex items-center justify-center gap-2 rounded-md whitespace-nowrap transition-colors duration-[120ms] ease-out disabled:pointer-events-none disabled:opacity-40 aria-disabled:pointer-events-none aria-disabled:opacity-40";
 
 const variants: Record<Variant, string> = {
+  // 押すものは黒（決定 D33）。二番手は白地に灰の枠
   primary: "bg-primary font-bold text-on-primary hover:bg-primary-hover",
-  secondary: "border border-primary font-semibold text-primary hover:bg-primary-soft",
+  secondary: "border border-input bg-surface font-semibold text-fg hover:border-muted hover:bg-subtle",
   text: "text-muted hover:text-fg hover:underline",
   danger: "bg-danger font-bold text-surface hover:bg-danger-hover",
-  inverse: "bg-on-primary font-bold text-primary hover:opacity-90",
+  // 暗い帯（bg-band）の中の主ボタン（白）
+  inverse: "bg-on-band font-bold text-band hover:opacity-90",
 };
 
 // md: 高さ 44 / sm: 高さ 32 / lg: スマホの主ボタン（高さ 52）
@@ -42,7 +44,7 @@ export function ButtonLink({ variant, size, className, ...props }: ComponentProp
 }
 
 // まだ使えない機能のボタン。押せない状態で「準備中」を添える（CLAUDE.md の「デザイン」）。
-// stack: ボタンの下に添える（藍の帯の中の主ボタンなど）。ふだんは右に添える
+// stack: ボタンの下に添える（黒の帯の中の主ボタンなど）。ふだんは右に添える
 export function NotReadyButton({
   variant = "primary",
   size,
@@ -50,7 +52,7 @@ export function NotReadyButton({
   stack = false,
   children,
 }: Common & { className?: string; stack?: boolean; children: ReactNode }) {
-  const note = variant === "inverse" ? "text-on-primary-muted" : "text-muted";
+  const note = variant === "inverse" ? "text-on-band-muted" : "text-muted";
   return (
     <span className={stack ? "flex flex-col items-center gap-1 max-sm:items-stretch" : "inline-flex flex-wrap items-center gap-2"}>
       <button type="button" disabled className={buttonClass({ variant, size, className })}>

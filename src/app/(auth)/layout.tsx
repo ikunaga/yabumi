@@ -9,18 +9,18 @@ const firstSteps = STEPS.map((s, i) => (i === 0 ? `アプリを登録して、${
 export default function AuthLayout({ children }: LayoutProps<"/">) {
   return (
     <div className="grid flex-1 grid-cols-2 max-md:grid-cols-1">
-      <aside className="flex flex-col justify-between bg-nav px-16 py-12 text-nav-fg max-lg:px-10 max-md:hidden">
-        <Brand tone="nav" size="lg" />
+      <aside className="flex flex-col justify-between border-r border-border bg-surface px-16 py-12 text-muted max-lg:px-10 max-md:hidden">
+        <Brand size="lg" />
         <div className="flex flex-col gap-5">
-          <p className="font-heading text-[34px] leading-[1.5] font-bold text-nav-strong">
+          <p className="font-heading text-[34px] leading-[1.5] font-bold text-fg">
             登録したら、
             <br />
             最初にやることは {firstSteps.length} つだけ。
           </p>
-          <ol className="border-t border-nav-active text-base">
+          <ol className="border-t border-border text-base">
             {firstSteps.map((s, i) => (
-              <li key={s} className="flex gap-3.5 border-b border-nav-active py-3.5 last:border-b-0">
-                <span className="font-bold text-nav-strong">{i + 1}</span>
+              <li key={s} className="flex items-center gap-3.5 border-b border-border py-3.5 last:border-b-0">
+                <span className="num inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-on-primary">{i + 1}</span>
                 {s}
               </li>
             ))}

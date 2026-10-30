@@ -1,12 +1,11 @@
 import { ConsentPrompt } from "@/components/legal/consent-prompt";
 import { LegalNoticeBanner } from "@/components/legal/legal-notice-banner";
-import { TopBars } from "@/components/legal/top-bars";
 import { requireUser } from "@/lib/auth/user";
 import { hasConsented } from "@/lib/legal/consent";
 import { currentLegalVersion, effectiveDateLabel } from "@/lib/legal/version";
 import { createClient } from "@/lib/supabase/server";
 
-// ログイン後の画面。枠（上部バー / サイドバー）は画面ごとに選ぶ。
+// ログイン後の画面。枠（プロジェクトの外の上部バー / プロジェクトの中の上の帯）は画面ごとに選ぶ。
 // いまの版の利用規約・プライバシーポリシーに同意していない方には、上に同意の帯を出す（決定 D31。使えなくはしない）。
 // その下に、規約・ポリシーの変更のお知らせの帯（施行日の前に、予定の変更があるときだけ。docs/architecture.md の 4.30）
 export default async function AppLayout({ children }: LayoutProps<"/">) {
@@ -14,11 +13,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const consent = await consentState();
   return (
     <div className="flex flex-1 flex-col">
-      {/* 帯の高さぶん、サイドバーを縮める（project-shell.tsx の --app-top-bars） */}
-      <TopBars>
-        {consent && <ConsentPrompt effectiveDate={effectiveDateLabel()} changed={consent.changed} />}
-        <LegalNoticeBanner />
-      </TopBars>
+      {consent && <ConsentPrompt effectiveDate={effectiveDateLabel()} changed={consent.changed} />}
+      <LegalNoticeBanner />
       {children}
     </div>
   );

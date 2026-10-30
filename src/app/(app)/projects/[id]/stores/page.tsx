@@ -60,7 +60,7 @@ export default async function StoresPage(props: PageProps<"/projects/[id]/stores
         <p className="text-base leading-[1.8] text-muted max-sm:text-[14px]">
           つなぐと、ダウンロードの数と売上を毎日取り込み、「
           <Link href={`/projects/${project.id}/metrics`} className="text-primary hover:underline">
-            指標
+            分析
           </Link>
           」の画面で投稿やクリックと並べて見られます（<Term k="conversion">コンバージョン</Term>）。どの投稿から来たかまではわからないので、同じ日の動きを見比べます。
         </p>

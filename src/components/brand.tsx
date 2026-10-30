@@ -1,48 +1,37 @@
 import Link from "next/link";
 
-// ロゴ。「矢書」には必ず「やぶみ」のふりがなを振り、右下に朱の角印「文」を添える（docs/design/logo/README.md）。
-// 画像のロゴは背景（生成り）が焼き込まれていてダークで浮くので、画面では文字を組み、角印はトークンの色で描く
-export function Brand({
-  href = "/",
-  tone = "default",
-  size = "md",
-}: {
-  href?: string;
-  tone?: "default" | "nav";
-  size?: "sm" | "md" | "lg";
-}) {
-  const text = { sm: "text-[19px]", md: "text-[22px]", lg: "text-[24px]" }[size];
-  const rt = size === "sm" ? "text-[8px]" : "text-[9px]";
-  // 漢字（Zen Kaku Gothic、行の高さ 1）は箱の中央より下に描かれ、隣のメニューの字（ヒラギノ、行の高さ 1.5）は中央より上に描かれる。
-  // 中央揃えで並べると漢字が 2〜3px 沈んで見えるので、字の 0.11 倍ほど上げて字面の中央どうしを合わせる（画素で測って決めた）
-  const nudge = { sm: "-top-[2px]", md: "-top-[2.5px]", lg: "-top-[2.75px]" }[size];
-  const color = tone === "nav" ? "text-nav-strong" : "text-fg";
-  const rtColor = tone === "nav" ? "text-nav-fg" : "text-muted";
+// ロゴ: 矢のマーク ＋ 小文字の「yabumi」（オーナーの決定 2026-10-30、見本は docs/design/new_design/logo/ の D ミニマル）。
+// 画面の文言の名前は「矢書」のまま。ロゴだけ yabumi にする。色はロゴの墨（--logo）
+export function Brand({ href = "/", size = "md" }: { href?: string; size?: "sm" | "md" | "lg" }) {
+  const look = {
+    sm: { mark: "h-[15px]", text: "text-[18px]", gap: "gap-2" },
+    md: { mark: "h-[18px]", text: "text-[21px]", gap: "gap-2.5" },
+    lg: { mark: "h-[22px]", text: "text-[26px]", gap: "gap-3" },
+  }[size];
 
   return (
-    <Link href={href} className={`relative inline-flex shrink-0 items-end gap-1.5 whitespace-nowrap hover:no-underline ${nudge} ${color}`} aria-label="矢書（やぶみ） トップへ">
-      {/* ふりがなは漢字の上に浮かせ、ロゴの箱の高さは漢字だけにする。隣のメニューと揃えるのは漢字なので、
-          ふりがなまで箱に入れると、ロゴの中央が漢字より上にずれ、メニューの文字が浮いて見える */}
-      <span className={`relative font-heading leading-none font-bold ${text}`}>
-        矢書
-        <span aria-hidden className={`absolute inset-x-0 bottom-full flex justify-around leading-none whitespace-nowrap ${rt} ${rtColor}`}>
-          {[..."やぶみ"].map((c) => (
-            <span key={c}>{c}</span>
-          ))}
-        </span>
+    <Link
+      href={href}
+      className={`inline-flex shrink-0 items-center whitespace-nowrap text-logo hover:no-underline ${look.gap}`}
+      aria-label="矢書（やぶみ） トップへ"
+    >
+      <LogoMark className={`${look.mark} w-auto`} />
+      {/* 字面の中央をマークに合わせるため、行の高さを 1 にして少し上げる（小文字は下に寄って見える） */}
+      <span aria-hidden className={`relative -top-px leading-none font-bold tracking-[0.06em] ${look.text}`}>
+        yabumi
       </span>
-      <Seal size={size} />
     </Link>
   );
 }
 
-// 朱の角印「文」。印なので朱（signal）を使ってよい（ボタンには使わない）。
-// 字は地の色（surface）で抜くので、ダークでは明るい朱に暗い字になり、どちらでも読める
-export function Seal({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
-  const box = { sm: "size-[13px] text-[10px]", md: "size-[15px] text-[11px]", lg: "size-4 text-xs" }[size];
+// 矢のマーク。線だけで描き、色は文字の色（currentColor）。16px でも形が分かる太さ（見本の線幅 7 / 幅 70）
+export function LogoMark({ className = "" }: { className?: string }) {
   return (
-    <span aria-hidden className={`mb-px inline-flex shrink-0 items-center justify-center rounded-[2px] bg-signal font-mincho leading-none font-semibold text-surface ${box}`}>
-      文
-    </span>
+    <svg aria-hidden viewBox="10 22 70 56" className={className} fill="none" stroke="currentColor" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round">
+      <path d={LOGO_MARK_PATH} />
+    </svg>
   );
 }
+
+// マークの形（viewBox は 10 22 70 56）。scripts/build-brand-assets.mjs のアイコンも同じ形で描く
+export const LOGO_MARK_PATH = "M14 26 L38 50 L14 74 M38 50 L72 50 M60 36 L76 50 L60 64";

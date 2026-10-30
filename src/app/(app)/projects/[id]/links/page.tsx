@@ -199,7 +199,7 @@ export default async function LinksPage(props: PageProps<"/projects/[id]/links">
         <p className="border-b border-line px-5 py-3 text-sm leading-[1.8] text-muted max-sm:px-4">
           投稿の本文の URL から自動で作ったリンクです（投稿ごと・SNS ごと）。投稿どうしで比べるなら、
           <Link href={`/projects/${project.id}/metrics`} className="text-primary hover:underline">
-            指標
+            分析
           </Link>
           の「クリックの多い投稿」が見やすいです。
         </p>

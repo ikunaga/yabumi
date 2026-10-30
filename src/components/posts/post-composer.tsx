@@ -601,7 +601,7 @@ function TargetStateMark({ status }: { status: TargetResult["status"] }) {
   }
 }
 
-// 手で投稿する SNS の印（自動の SNS と区別する。朱は使わない）
+// 手で投稿する SNS の印（自動の SNS と区別する。注意の印の色は使わない）
 function ManualMark() {
   return <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">手で投稿</span>;
 }

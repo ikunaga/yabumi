@@ -9,7 +9,7 @@ import { setItemPlannedOn, setItemStatus } from "@/lib/roadmap/actions";
 import { addDays, dayOfMonth, monthOf, weekdayLabel } from "@/lib/time";
 
 // カレンダーのロードマップのやることと週の目標（F06・F10。docs/architecture.md の 4.23）。
-// やることは投稿の予約と見分けられるように、藍の薄い地に「□」で出す（朱は使わない。朱は予約と要確認の印）
+// やることは投稿の予約と見分けられるように、薄い地に「□」で出す（注意の印の色は使わない。予約と要確認の印に使うため）
 
 const GOAL_STATUS: Record<PaceStatus, { mark: string; className: string; label: string }> = {
   done: { mark: "✓", className: "font-bold text-success", label: "届きました" },

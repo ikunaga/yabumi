@@ -3,7 +3,7 @@ import { consultTopicMeta } from "@/lib/ai/consult-topics";
 import { ROADMAP_STEPS, type RoadmapStepState } from "@/lib/ai/consult-schema";
 import { ThreadMenu } from "./thread-menu";
 
-// AI と相談の会話の画面の見出し。入口（ロードマップ・指標など）から始めた相談は、その入口の見出しと戻り先にする
+// AI と相談の会話の画面の見出し。入口（ロードマップ・分析など）から始めた相談は、その入口の見出しと戻り先にする
 export function ConsultHeader({
   projectId,
   topic,

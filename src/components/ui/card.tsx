@@ -6,9 +6,9 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
 
 export function CardHeader({ title, action }: { title: ReactNode; action?: ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-line px-5 py-3.5 max-sm:px-4 max-sm:py-3">
-      <h2 className="text-base font-bold max-sm:text-[14px]">{title}</h2>
-      {action && <div className="text-sm text-primary">{action}</div>}
+    <div className="flex items-baseline justify-between gap-4 px-5 pt-4 pb-2 max-sm:px-4 max-sm:pt-3.5">
+      <h2 className="text-[16px] font-bold max-sm:text-[15px]">{title}</h2>
+      {action && <div className="text-sm text-muted">{action}</div>}
     </div>
   );
 }

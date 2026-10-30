@@ -30,7 +30,7 @@ export default async function ConnectXPage(props: PageProps<"/projects/[id]/conn
           <ul className="list-disc pl-5">
             <li>矢書でつくった投稿を、今すぐ、または予約した日時に X へ送る（日本語は 140 字まで、画像は 4 枚まで）</li>
             <li>送った投稿を、投稿の画面の「X から取り消す」で X の上から消す</li>
-            {metrics && <li>送った投稿の閲覧数などと、フォロワー数を読む（指標の画面に出します）</li>}
+            {metrics && <li>送った投稿の閲覧数などと、フォロワー数を読む（分析の画面に出します）</li>}
           </ul>
           <p className="text-muted">あなたが「送る」「予約」を押していない文面を、矢書が勝手に投稿することはありません。</p>
         </section>

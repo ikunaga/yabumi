@@ -8,9 +8,9 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "個人開発者のための、SNS 運用をまるごと任せられるツール",
     start_url: "/projects",
     display: "standalone",
-    // トークンの bg（生成り）と primary（藍）
-    background_color: "#f2f2ee",
-    theme_color: "#23406e",
+    // トークンの bg（うすい灰）と、上の帯の地（白）
+    background_color: "#f6f6f7",
+    theme_color: "#ffffff",
     // ほかのアプリの「共有」から、ネタ帳のメモにする（4.26。Android の Chrome など。iOS の Safari は対応していない）。
     // service worker（public/sw.js）が受けて、ブラウザの中に置いてから /share を開く
     share_target: {

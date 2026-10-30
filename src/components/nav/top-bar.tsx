@@ -3,10 +3,10 @@ import type { ReactNode } from "react";
 import { Brand } from "@/components/brand";
 import { QuickNoteEntry } from "@/components/notes/quick-note-entry";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { logout } from "@/lib/auth/actions";
+import { AccountMenu } from "./account-menu";
 import { TopBarMenu } from "./top-bar-menu";
 
-// プロジェクト一覧・作成画面の上部バー（高さ 64、surface 地）
+// プロジェクト一覧・作成画面の上部バー（高さ 56、白地。プロジェクトの中の上の帯と揃える）
 export function TopBar({
   email,
   crumb,
@@ -21,35 +21,32 @@ export function TopBar({
   quickNote?: boolean;
 }) {
   return (
-    <header className="border-b border-border bg-surface">
-      <div className={`flex h-16 items-center gap-9 px-12 max-lg:px-6 max-sm:h-auto max-sm:px-5 max-sm:pt-[22px] max-sm:pb-3.5 ${mobileBack ? "max-sm:hidden" : ""}`}>
+    <header className="border-b border-border bg-nav">
+      <div className={`flex h-16 items-center gap-8 px-12 max-lg:px-8 max-sm:h-auto max-sm:px-4 max-sm:pt-[18px] max-sm:pb-3 ${mobileBack ? "max-sm:hidden" : ""}`}>
         <Brand href="/projects" />
-        <nav aria-label="パンくず" className="text-[14px] max-sm:hidden">
+        <nav aria-label="パンくず" className="text-[15px] font-semibold text-muted max-sm:hidden">
           {crumb ?? (
-            <Link href="/projects" className="font-bold text-primary" aria-current="page">
+            <Link href="/projects" className="font-bold text-fg" aria-current="page">
               プロジェクト
             </Link>
           )}
         </nav>
-        <div className="ml-auto flex min-w-0 items-center gap-6 text-sm text-muted max-sm:gap-4">
+        <div className="ml-auto flex min-w-0 items-center gap-3 text-sm text-muted max-sm:gap-4">
           {quickNote && <QuickNoteEntry />}
-          <ThemeToggle />
-          <Link href="/settings" className="min-w-0 truncate hover:text-fg hover:underline max-sm:hidden" title="ログインと退会">
-            {email}
-          </Link>
-          <form action={logout} className="max-sm:hidden">
-            <button type="submit" className="whitespace-nowrap hover:text-fg hover:underline">
-              ログアウト
-            </button>
-          </form>
+          <span className="max-sm:hidden">
+            <AccountMenu email={email} />
+          </span>
+          <span className="sm:hidden">
+            <ThemeToggle />
+          </span>
           <span className="sm:hidden">
             <TopBarMenu email={email} />
           </span>
         </div>
       </div>
       {mobileBack && (
-        <div className="flex items-center gap-3.5 px-5 pt-[22px] pb-3.5 text-base sm:hidden">
-          <Link href={mobileBack.href} className="shrink-0 whitespace-nowrap text-primary">
+        <div className="flex items-center gap-3.5 px-4 pt-[18px] pb-3 text-base sm:hidden">
+          <Link href={mobileBack.href} className="shrink-0 whitespace-nowrap text-muted hover:text-fg">
             ← 戻る
           </Link>
           <b className="min-w-0 truncate">{mobileBack.title}</b>

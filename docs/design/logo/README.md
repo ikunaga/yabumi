@@ -1,3 +1,5 @@
+> **古いロゴです（2026-10-30 まで）。** いまのロゴは矢のマーク ＋ yabumi（D ミニマル。[new_design/logo/](../new_design/logo/)、決まりは [new_design/README.md](../new_design/README.md) の「ロゴ」、決定 D33）。
+
 # 矢書のロゴ
 
 - **元の画像**: `yabumi-logo-2a-horizontal.png`（横組み 2808×1200）、`yabumi-logo-2a.png`（縦組み 1864×1200）。オーナーが用意したもの（2026-10-05）。消さない・上書きしない

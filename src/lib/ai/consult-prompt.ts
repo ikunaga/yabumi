@@ -161,7 +161,7 @@ export function consultContextMessage(ctx: ConsultContext): string {
 function reviewLines(review: NonNullable<ConsultContext["review"]>, kpiLine: (k: { kpi: KpiKey; thisWeek: number | null; lastWeek: number | null }) => string): string[] {
   const titled = <T extends { title: string }>(rows: T[]) => rows.map((r) => ({ ...r, title: clip(r.title || "（本文なし）", 60) }));
   return [
-    "# 振り返りの材料（指標の画面と同じ数字）",
+    "# 振り返りの材料（分析の画面と同じ数字）",
     "すべての数字:",
     KPI_KEYS.map((kpi) => kpiLine({ kpi, thisWeek: review.kpiValues[kpi]?.thisWeek ?? null, lastWeek: review.kpiValues[kpi]?.lastWeek ?? null })).join("\n"),
     "SNS ごとのストアへのクリック（直近 7 日・その前の 7 日・30 日）:",

@@ -1,24 +1,26 @@
-// プロジェクト内のナビ。まだ作っていない画面は href なし（押せない）
+// プロジェクト内のナビ。まだ作っていない画面は href なし（押せない）。
+// main: 上の横並びのメニュー（PC）とスマホの下のタブに出す 5 つ（決定 D33）。ほかは「…」（その他）と、スマホの「メニュー」と、関係する画面の中から開く
 export type ProjectNavKey = "overview" | "plan" | "compose" | "notes" | "calendar" | "links" | "metrics" | "consult" | "roadmap";
 
-export type ProjectNavItem = { key: ProjectNavKey; label: string; tabLabel: string; href: string | null; tab: boolean };
+export type ProjectNavItem = { key: ProjectNavKey; label: string; tabLabel: string; href: string | null; main: boolean };
 
 export function projectNavItems(projectId: string): ProjectNavItem[] {
   const base = `/projects/${projectId}`;
   return [
-    { key: "overview", label: "概要", tabLabel: "概要", href: base, tab: true },
-    // スマホの下のタブは 5 つで埋まっているので、設計はヘッダーの「メニュー」と概要の「いまやること」から開く
-    { key: "plan", label: "アカウント設計", tabLabel: "設計", href: `${base}/plan`, tab: false },
-    { key: "compose", label: "投稿をつくる", tabLabel: "投稿", href: `${base}/compose`, tab: true },
-    // ネタ帳（4.26）。スマホの下のタブは埋まっているので、ヘッダーの「メニュー」から開く（メモを残すのは右下の「＋ メモ」）
-    { key: "notes", label: "ネタ帳", tabLabel: "ネタ帳", href: `${base}/notes`, tab: false },
-    { key: "calendar", label: "カレンダー", tabLabel: "カレンダー", href: `${base}/calendar`, tab: true },
-    // 短縮リンク（4.22）。スマホの下のタブは埋まっているので、ヘッダーの「メニュー」から開く
-    { key: "links", label: "短縮リンク", tabLabel: "短縮リンク", href: `${base}/links`, tab: false },
-    { key: "metrics", label: "指標", tabLabel: "指標", href: `${base}/metrics`, tab: true },
-    { key: "consult", label: "AI と相談", tabLabel: "相談", href: `${base}/consult`, tab: true },
-    // ロードマップ（4.23）。スマホの下のタブは埋まっているので、ヘッダーの「メニュー」と概要の「今週のやること」から開く
-    { key: "roadmap", label: "ロードマップ", tabLabel: "ロードマップ", href: `${base}/roadmap`, tab: false },
+    { key: "overview", label: "概要", tabLabel: "概要", href: base, main: true },
+    { key: "compose", label: "投稿", tabLabel: "投稿", href: `${base}/compose`, main: true },
+    { key: "calendar", label: "カレンダー", tabLabel: "カレンダー", href: `${base}/calendar`, main: true },
+    // 前の名前は「指標」。追いかける数字とストアの数字を見る画面
+    { key: "metrics", label: "分析", tabLabel: "分析", href: `${base}/metrics`, main: true },
+    { key: "consult", label: "AI と相談", tabLabel: "相談", href: `${base}/consult`, main: true },
+    // ここから「…」（その他）。概要の「いまやること」「今週のやること」からも開く
+    { key: "plan", label: "アカウント設計", tabLabel: "設計", href: `${base}/plan`, main: false },
+    // ネタ帳（4.26）。メモを残すのは上の「＋ メモ」、スマホは右下の「＋ メモ」
+    { key: "notes", label: "ネタ帳", tabLabel: "ネタ帳", href: `${base}/notes`, main: false },
+    // 短縮リンク（4.22）
+    { key: "links", label: "短縮リンク", tabLabel: "短縮リンク", href: `${base}/links`, main: false },
+    // ロードマップ（4.23）
+    { key: "roadmap", label: "ロードマップ", tabLabel: "ロードマップ", href: `${base}/roadmap`, main: false },
   ];
 }
 
@@ -41,7 +43,7 @@ export function activeNavKey(segment: string | null): ProjectNavKey {
       return "roadmap";
     case "consult":
       return "consult";
-    // ストアと課金をつなぐ画面は、指標の画面から開く
+    // ストアと課金をつなぐ画面は、分析の画面から開く
     case "metrics":
     case "stores":
       return "metrics";

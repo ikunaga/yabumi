@@ -1,122 +1,240 @@
 @import "tailwindcss";
 
-/* ===== ここから: Claude Design の yabumi-tokens.css（docs/design/design_handoff_yabumi_1b）をそのまま貼り付け ===== */
-
-/* 矢書（やぶみ） デザイントークン — 1b 藍と朱
-   Tailwind CSS v4: globals.css に貼り付けて @import "tailwindcss"; の後に置く。
-   ダークは OS 設定（prefers-color-scheme）に従う。 */
+/* ===== 矢書（やぶみ） デザイントークン — 2026-10-30 の作り直し（決定 D33） =====
+   正は docs/design/new_design/README.md（見本は同じフォルダの 4 案）。値を変えるときは README の表と揃える。
+   白〜うすい灰の地、薄い 1px の枠、押すものは黒、数字は大きく太く、SNS ごとの色。
+   トークンの名前は前の版（藍と朱、docs/design/design_handoff_yabumi_1b）のものを残し、値だけを替えた。
+   画面のクラス（bg-primary、text-signal など）はそのままで新しい見た目になる。
+   ライトは :root、ダークは OS の設定（prefers-color-scheme）か、切り替えボタンで選んだ data-theme="dark"。
+   ダークの値は 2 か所（OS の設定と data-theme）にあるので、変えるときは両方を揃える */
 
 :root {
-  --bg: #f2f2ee;
-  --surface: #ffffff;
-  --surface2: #f7f7f4;
-  --fg: #1b2333;
-  --muted: #5d6577;
-  --border: #c9ccd2;
-  --line: #e6e8ec;
-  --input: #b3b8c2;
-  --primary: #23406e;          /* 藍: 主ボタン、リンク */
+  color-scheme: light;
+  /* 地・面・枠 */
+  --bg: #f3f3f4;               /* 画面の地（うすい灰。見本の地） */
+  --surface: #ffffff;          /* カード・入力欄 */
+  --surface2: #f8f8f9;         /* カードの中の一段下がった面、表の見出し */
+  --subtle: #efeff1;           /* 横棒の溝、選んでいないチップ、ホバーの面 */
+  --border: #e3e3e6;           /* カードの枠（見本 #eaeaea を灰の地で同じ濃さに見えるよう少し濃く） */
+  --line: #eeeef0;             /* カードの中の区切り線 */
+  --input: #d4d4dc;            /* 入力欄の枠 */
+  /* 文字 */
+  --fg: #232425;
+  --muted: #606366;            /* 補足・ラベル */
+  --faint: #909499;            /* さらに弱い補足（日付・件数の添え字） */
+  /* 押すもの（黒） */
+  --primary: #232425;
   --on-primary: #ffffff;
-  --on-primary-muted: #d5ddeb;
-  --primary-soft: #e3e7ef;
-  --signal: #b6402a;           /* 朱: 予約・要確認の印（押すものには使わない） */
-  --signal-soft: #f8e7e2;
-  --danger: #a8302a;
-  --danger-soft: #fbecea;
-  --success: #2d6a45;
-  --success-soft: #e2efe6;
-  --rule: #eef0f3;             /* 帳面の罫線 */
-  --nav: #1b2333;
-  --nav-fg: #c9cfdb;
-  --nav-active: #2a3550;
-  --nav-strong: #ffffff;
-  --pop: #1b2333;              /* 用語解説ポップアップ */
-  --on-pop: #e6e9ef;
-  --pop-link: #9fb4d8;
+  --on-primary-muted: #c4c7cc;
+  --primary-soft: #efeff1;     /* 選んだ行・ホバーの面 */
+  /* 暗い帯（概要の「いまやること」など、大きな強調の面）。ダークでも反転せず、地より少し浮いた暗い面にする */
+  --band: #232425;
+  --on-band: #ffffff;
+  --on-band-muted: #c4c7cc;
+  /* 状態 */
+  --signal: #b45309;           /* 注意の印（予約・要確認・遅れそう）。押すものには使わない */
+  --signal-soft: #fef3d9;
+  --danger: #dc2626;
+  --danger-soft: #fdecec;
+  --success: #088762;          /* 成功・上がった（▲） */
+  --success-soft: #e5f8f1;
+  --info: #0f7fff;             /* 情報・グラフの主の色 */
+  --info-soft: #ebf3fe;
+  --rule: #f0f0f2;             /* 帳面の罫線（下書き・空の状態） */
+  /* 上の帯（メニュー） */
+  --nav: #e9e9eb;              /* 上の帯は灰（見本の bg-subtle を地より一段濃く） */
+  --nav-fg: #606366;
+  --nav-active: #dfdfe2;
+  --nav-strong: #232425;
+  /* ロゴの墨（濃い紺）。ロゴのマークと「yabumi」だけに使う */
+  --logo: #16233d;
+  /* 用語解説のポップアップ */
+  --pop: #232425;
+  --on-pop: #f2f2f3;
+  --pop-link: #8bb8ff;
+  /* SNS ごとの色（印・横棒・カレンダーの札）。文字にも使えるよう、白地で読める濃さにしてある */
+  --sns-x: #0f7fff;
+  --sns-instagram: #db2777;
+  --sns-threads: #0d9488;
+  --sns-facebook: #1d4ed8;
+  --sns-tiktok: #7c3aed;
+  --sns-youtube: #dc2626;
+  --sns-note: #059669;
+  --sns-substack: #ea580c;
+  /* ホバー。ライトの黒は少し明るく、危険の赤は暗く寄せる */
+  --primary-hover: color-mix(in oklch, var(--primary), white 18%);
+  --danger-hover: color-mix(in oklch, var(--danger), black 12%);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #12151b;
-    --surface: #1a1f28;
-    --surface2: #161a22;
-    --fg: #e6e9ef;
-    --muted: #9aa3b5;
-    --border: #2e3644;
-    --line: #242b37;
-    --input: #3a4352;
-    --primary: #8fb0e3;
-    --on-primary: #0f1a2e;
-    --on-primary-muted: #24365a;
-    --primary-soft: #22304a;
-    --signal: #ec8a72;
-    --signal-soft: #3a2420;
-    --danger: #f08a7e;
-    --danger-soft: #3a1f1d;
-    --success: #86c79c;
-    --success-soft: #1c3326;
-    --rule: #1f2530;
-    --nav: #0d1015;
-    --nav-fg: #9aa3b5;
-    --nav-active: #1f2838;
-    --nav-strong: #ffffff;
-    --pop: #e6e9ef;
-    --on-pop: #1b2333;
-    --pop-link: #23406e;
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #161718;
+    --surface: #1e1f20;
+    --surface2: #232425;
+    --subtle: #2a2b2c;
+    --border: #343537;
+    --line: #2a2b2d;
+    --input: #47484b;
+    --fg: #f2f2f3;
+    --muted: #b8bbbf;
+    --faint: #868b92;
+    --primary: #ececed;
+    --on-primary: #161718;
+    --on-primary-muted: #4a4c4f;
+    --primary-soft: #2a2b2c;
+    --band: #2c2d2f;
+    --on-band: #f2f2f3;
+    --on-band-muted: #a8abb0;
+    --signal: #fbbf24;
+    --signal-soft: #3a2e12;
+    --danger: #f87171;
+    --danger-soft: #3a1d1d;
+    --success: #34d399;
+    --success-soft: #123326;
+    --info: #60a5fa;
+    --info-soft: #172a45;
+    --rule: #252627;
+    --nav: #232425;
+    --nav-fg: #b8bbbf;
+    --nav-active: #303133;
+    --nav-strong: #f2f2f3;
+    --logo: #f2f2f3;
+    --pop: #ececed;
+    --on-pop: #161718;
+    --pop-link: #0561c5;
+    --sns-x: #60a5fa;
+    --sns-instagram: #f472b6;
+    --sns-threads: #2dd4bf;
+    --sns-facebook: #818cf8;
+    --sns-tiktok: #a78bfa;
+    --sns-youtube: #f87171;
+    --sns-note: #34d399;
+    --sns-substack: #fb923c;
+    --primary-hover: color-mix(in oklch, var(--primary), black 14%);
+    --danger-hover: color-mix(in oklch, var(--danger), white 14%);
   }
+}
+
+/* 切り替えボタンで選んだダーク。値は上の OS の設定のダークの写し */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #161718;
+  --surface: #1e1f20;
+  --surface2: #232425;
+  --subtle: #2a2b2c;
+  --border: #343537;
+  --line: #2a2b2d;
+  --input: #47484b;
+  --fg: #f2f2f3;
+  --muted: #b8bbbf;
+  --faint: #868b92;
+  --primary: #ececed;
+  --on-primary: #161718;
+  --on-primary-muted: #4a4c4f;
+  --primary-soft: #2a2b2c;
+  --band: #2c2d2f;
+  --on-band: #f2f2f3;
+  --on-band-muted: #a8abb0;
+  --signal: #fbbf24;
+  --signal-soft: #3a2e12;
+  --danger: #f87171;
+  --danger-soft: #3a1d1d;
+  --success: #34d399;
+  --success-soft: #123326;
+  --info: #60a5fa;
+  --info-soft: #172a45;
+  --rule: #252627;
+  --nav: #232425;
+  --nav-fg: #b8bbbf;
+  --nav-active: #303133;
+  --nav-strong: #f2f2f3;
+  --logo: #f2f2f3;
+  --pop: #ececed;
+  --on-pop: #161718;
+  --pop-link: #0561c5;
+  --sns-x: #60a5fa;
+  --sns-instagram: #f472b6;
+  --sns-threads: #2dd4bf;
+  --sns-facebook: #818cf8;
+  --sns-tiktok: #a78bfa;
+  --sns-youtube: #f87171;
+  --sns-note: #34d399;
+  --sns-substack: #fb923c;
+  --primary-hover: color-mix(in oklch, var(--primary), black 14%);
+  --danger-hover: color-mix(in oklch, var(--danger), white 14%);
 }
 
 @theme inline {
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface2: var(--surface2);
+  --color-subtle: var(--subtle);
   --color-fg: var(--fg);
   --color-muted: var(--muted);
+  --color-faint: var(--faint);
   --color-border: var(--border);
   --color-line: var(--line);
   --color-input: var(--input);
   --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
   --color-on-primary: var(--on-primary);
   --color-on-primary-muted: var(--on-primary-muted);
   --color-primary-soft: var(--primary-soft);
+  --color-band: var(--band);
+  --color-on-band: var(--on-band);
+  --color-on-band-muted: var(--on-band-muted);
   --color-signal: var(--signal);
   --color-signal-soft: var(--signal-soft);
   --color-danger: var(--danger);
+  --color-danger-hover: var(--danger-hover);
   --color-danger-soft: var(--danger-soft);
   --color-success: var(--success);
   --color-success-soft: var(--success-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
   --color-rule: var(--rule);
   --color-nav: var(--nav);
   --color-nav-fg: var(--nav-fg);
   --color-nav-active: var(--nav-active);
   --color-nav-strong: var(--nav-strong);
+  --color-logo: var(--logo);
   --color-pop: var(--pop);
   --color-on-pop: var(--on-pop);
   --color-pop-link: var(--pop-link);
+  --color-sns-x: var(--sns-x);
+  --color-sns-instagram: var(--sns-instagram);
+  --color-sns-threads: var(--sns-threads);
+  --color-sns-facebook: var(--sns-facebook);
+  --color-sns-tiktok: var(--sns-tiktok);
+  --color-sns-youtube: var(--sns-youtube);
+  --color-sns-note: var(--sns-note);
+  --color-sns-substack: var(--sns-substack);
+  --color-scrim: rgb(0 0 0 / 0.45); /* スマホの下から出るシートの後ろを暗くする（ライト・ダーク共通） */
 
-  --font-sans: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
-  --font-heading: "Zen Kaku Gothic New", var(--font-sans); /* next/font/google で 500/700 */
-  /* ロゴの角印「文」だけに使う明朝体（端末に入っているもの） */
-  --font-mincho: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", serif;
+  /* 字体: 端末の字（Mac・iPhone はヒラギノ、Windows は游ゴシック・Segoe、Android は Noto）。見出しも本文と同じ字で、太さだけ変える */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Segoe UI", "Yu Gothic UI", "Noto Sans JP", sans-serif;
+  --font-heading: var(--font-sans);
 
   --text-xs: 12px;   --text-xs--line-height: 1.6;
   --text-sm: 13px;   --text-sm--line-height: 1.7;
-  --text-base: 15px; --text-base--line-height: 1.8;
-  --text-lg: 17px;   --text-lg--line-height: 1.7;
-  --text-xl: 22px;   --text-xl--line-height: 1.5;
+  --text-base: 15px; --text-base--line-height: 1.75;
+  --text-lg: 17px;   --text-lg--line-height: 1.6;
+  --text-xl: 22px;   --text-xl--line-height: 1.45;
   --text-2xl: 26px;  --text-2xl--line-height: 1.4;
-  --text-3xl: 32px;  --text-3xl--line-height: 1.4;
-  --text-display: 48px; --text-display--line-height: 1.35;
+  --text-3xl: 32px;  --text-3xl--line-height: 1.3;
+  --text-display: 48px; --text-display--line-height: 1.25;
+  /* 指標の数字（大きく太く）。Metric の部品で使う */
+  --text-metric: 34px; --text-metric--line-height: 1.1;
 
   --spacing: 4px;    /* 4 / 8 / 12 / 16 / 24 / 32 / 48 */
 
-  --radius-sm: 4px;
-  --radius-md: 6px;  /* ボタン、入力欄 */
-  --radius-lg: 8px;  /* カード */
+  --radius-sm: 6px;     /* チップ・小さな印 */
+  --radius-md: 10px;    /* ボタン、入力欄 */
+  --radius-lg: 14px;    /* カード（見本の 8px × 画面の大きさ 1.6 倍ほど） */
   --radius-sheet: 16px; /* スマホの下から出るシート */
 
-  --shadow-pop: 0 8px 24px rgb(15 20 30 / 0.25); /* ポップアップ専用。カードは枠線のみ */
-  --color-scrim: rgb(15 20 30 / 0.45); /* スマホの下から出るシートの後ろを暗くする（ライト・ダーク共通） */
+  --shadow-pop: 0 8px 24px rgb(0 0 0 / 0.14), 0 0 0 1px rgb(0 0 0 / 0.04); /* ポップアップ専用。カードは枠線のみ */
 }
 
 /* 帳面の罫線（下書き・空の状態） */
@@ -124,86 +242,10 @@
   background-image: repeating-linear-gradient(transparent 0 31px, var(--rule) 31px 32px);
 }
 
-/* ===== ここまで: yabumi-tokens.css ===== */
-
-/* ===== アプリ側の追加 ===== */
-
-/* ホバー色。ライトは暗く、ダーク（primary が明るい）は明るく寄せる */
-:root {
-  --primary-hover: color-mix(in oklch, var(--primary), black 12%);
-  --danger-hover: color-mix(in oklch, var(--danger), black 12%);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --primary-hover: color-mix(in oklch, var(--primary), white 14%);
-    --danger-hover: color-mix(in oklch, var(--danger), white 14%);
-  }
-}
-
-/* 画面の切り替えボタンで選んだテーマ（html の data-theme）。OS 設定より優先する。
-   値は yabumi-tokens.css の写し。トークンを変えるときはここも揃える */
-:root[data-theme="light"] {
-  color-scheme: light;
-  --bg: #f2f2ee;
-  --surface: #ffffff;
-  --surface2: #f7f7f4;
-  --fg: #1b2333;
-  --muted: #5d6577;
-  --border: #c9ccd2;
-  --line: #e6e8ec;
-  --input: #b3b8c2;
-  --primary: #23406e;
-  --on-primary: #ffffff;
-  --on-primary-muted: #d5ddeb;
-  --primary-soft: #e3e7ef;
-  --signal: #b6402a;
-  --signal-soft: #f8e7e2;
-  --danger: #a8302a;
-  --danger-soft: #fbecea;
-  --success: #2d6a45;
-  --success-soft: #e2efe6;
-  --rule: #eef0f3;
-  --nav: #1b2333;
-  --nav-fg: #c9cfdb;
-  --nav-active: #2a3550;
-  --nav-strong: #ffffff;
-  --pop: #1b2333;
-  --on-pop: #e6e9ef;
-  --pop-link: #9fb4d8;
-}
-
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --bg: #12151b;
-  --surface: #1a1f28;
-  --surface2: #161a22;
-  --fg: #e6e9ef;
-  --muted: #9aa3b5;
-  --border: #2e3644;
-  --line: #242b37;
-  --input: #3a4352;
-  --primary: #8fb0e3;
-  --on-primary: #0f1a2e;
-  --on-primary-muted: #24365a;
-  --primary-soft: #22304a;
-  --signal: #ec8a72;
-  --signal-soft: #3a2420;
-  --danger: #f08a7e;
-  --danger-soft: #3a1f1d;
-  --success: #86c79c;
-  --success-soft: #1c3326;
-  --rule: #1f2530;
-  --nav: #0d1015;
-  --nav-fg: #9aa3b5;
-  --nav-active: #1f2838;
-  --nav-strong: #ffffff;
-  --pop: #e6e9ef;
-  --on-pop: #1b2333;
-  --pop-link: #23406e;
-  --primary-hover: color-mix(in oklch, var(--primary), white 14%);
-  --danger-hover: color-mix(in oklch, var(--danger), white 14%);
+/* 数字の見せ方: 桁をそろえ（tabular-nums）、少し詰める。指標・件数・時刻に使う */
+@utility num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }
 
 /* dark: で始まるクラスを、選んだテーマと OS 設定の両方に効かせる */
@@ -218,18 +260,11 @@
   }
 }
 
-/* next/font は書体名をハッシュ付きの名前に置き換えるので、見出し書体は layout.tsx で読み込んだ変数を使う */
-@theme inline {
-  --font-heading: var(--font-zen-kaku), var(--font-sans);
-  --color-primary-hover: var(--primary-hover);
-  --color-danger-hover: var(--danger-hover);
-}
-
 body {
   background: var(--bg);
   color: var(--fg);
   font-size: 15px;
-  line-height: 1.8;
+  line-height: 1.75;
 }
 
 h1,

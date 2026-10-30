@@ -51,7 +51,7 @@ export async function sendConsultMessage(projectId: string, threadId: string | n
         callShorten: callShortenDrafts,
         limits: aiLimitsFromEnv(),
         loadKpiValues: async (user, id) => (await loadOverview(user, id)).kpiValues,
-        // 振り返り（指標の画面の「AI と振り返る」）のときだけ読む
+        // 振り返り（分析の画面の「AI と振り返る」）のときだけ読む
         loadReview: async (user, id) => {
           const o = await loadOverview(user, id);
           return {

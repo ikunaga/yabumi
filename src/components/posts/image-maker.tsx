@@ -251,7 +251,7 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
       {error && <ErrorBanner>{error}</ErrorBanner>}
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <div className="flex min-w-0 flex-col gap-2 lg:sticky lg:top-4 lg:self-start lg:order-2">
+        <div className="flex min-w-0 flex-col gap-2 lg:sticky lg:top-[72px] lg:self-start lg:order-2">
           <div className="rounded-md border border-line bg-surface2 p-2">
             <canvas ref={canvasRef} aria-label="できあがりの見本" role="img" className={`mx-auto block h-auto w-full ${tall ? "max-w-[360px]" : ""}`} />
           </div>

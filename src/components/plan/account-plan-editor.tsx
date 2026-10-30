@@ -579,7 +579,7 @@ function FirstMonthFields({ v, goalType, mainSns }: { v: PlanData["first_month"]
       </fieldset>
       <fieldset className="flex flex-col gap-1.5">
         <legend className="text-[14px] font-bold">
-          矢書の「指標」の画面で追いかける数字（<Term k="kpi" />。{MAX_KPIS} つまで）
+          矢書の「分析」の画面で追いかける数字（<Term k="kpi" />。{MAX_KPIS} つまで）
         </legend>
         <p className="text-xs text-muted">目的に合わせたおすすめに印を付けています。迷ったらそのままで大丈夫です。</p>
         <ul className="flex flex-col gap-1">

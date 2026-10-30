@@ -1,14 +1,13 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
 import { Brand } from "@/components/brand";
 import { QuickNote, QuickNoteFab } from "@/components/notes/quick-note";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { logout } from "@/lib/auth/actions";
+import { AccountMenu } from "./account-menu";
 import { ProjectMobileMenu } from "./project-mobile-menu";
 import { ProjectNavLinks } from "./project-nav-links";
 import { ProjectSwitcher } from "./project-switcher";
 
-// プロジェクト内の画面の枠。PC は左のサイドバー、スマホは上のヘッダーと下のタブ
+// プロジェクト内の画面の枠（決定 D33）。PC は上の横並びのメニュー（ロゴ・プロジェクトの切り替え・5 項目・その他・＋ メモ・アカウント）。
+// スマホは上の帯（ロゴ・プロジェクト名・メニュー）と下のタブ（5 項目）
 export function ProjectShell({
   project,
   projects,
@@ -21,38 +20,25 @@ export function ProjectShell({
   children: ReactNode;
 }) {
   return (
-    <div className="flex flex-1 max-sm:flex-col">
-      {/* PC: サイドバー */}
-      <aside className="w-[220px] shrink-0 bg-nav text-nav-fg max-sm:hidden">
-        {/* 画面の上に帯（同意・規約の変更のお知らせ）があるときは、その高さぶん縮めて、下端（ダーク・ログアウト）が画面に収まるようにする（入りきらないときは、サイドバーの中でスクロールする） */}
-        <div className="sticky top-0 flex h-[calc(100dvh-var(--app-top-bars,0px))] flex-col gap-7 overflow-y-auto px-5 py-7">
-        <Brand href="/projects" tone="nav" />
-        <div className="flex flex-col gap-2.5">
-          <ProjectSwitcher current={project} projects={projects} variant="sidebar" />
-          <QuickNote projects={projects} projectId={project.id} variant="sidebar" />
+    <div className="flex flex-1 flex-col">
+      {/* PC: 上の横並びのメニュー */}
+      <header className="sticky top-0 z-20 border-b border-border bg-nav max-sm:hidden">
+        <div className="flex h-16 items-center gap-6 px-12 max-lg:gap-3 max-lg:px-8">
+          <Brand href="/projects" />
+          <ProjectSwitcher current={project} projects={projects} variant="bar" />
+          <nav aria-label="プロジェクトのメニュー" className="min-w-0">
+            <ProjectNavLinks projectId={project.id} variant="bar" />
+          </nav>
+          <div className="ml-auto flex shrink-0 items-center gap-3">
+            <QuickNote projects={projects} projectId={project.id} variant="topbar" />
+            <AccountMenu email={email} />
+          </div>
         </div>
-        <nav aria-label="プロジェクトのメニュー">
-          <ProjectNavLinks projectId={project.id} variant="sidebar" />
-        </nav>
-        <div className="mt-auto flex flex-col items-start gap-1 text-xs">
-          <span className="mb-2">
-            <ThemeToggle tone="nav" />
-          </span>
-          <Link href="/settings" className="max-w-full truncate hover:text-nav-strong hover:underline" title="ログインと退会">
-            {email}
-          </Link>
-          <form action={logout}>
-            <button type="submit" className="hover:text-nav-strong hover:underline">
-              ログアウト
-            </button>
-          </form>
-        </div>
-        </div>
-      </aside>
+      </header>
 
-      {/* スマホ: 上のヘッダー */}
-      <header className="flex items-center justify-between bg-nav px-5 pt-[22px] pb-4 text-nav-strong sm:hidden">
-        <Brand href="/projects" tone="nav" size="sm" />
+      {/* スマホ: 上の帯 */}
+      <header className="flex items-center justify-between gap-3 border-b border-border bg-nav px-4 pt-[18px] pb-3 sm:hidden">
+        <Brand href="/projects" size="sm" />
         <div className="flex min-w-0 items-center gap-4 max-[359px]:gap-3">
           <ProjectSwitcher current={project} projects={projects} variant="header" />
           <ProjectMobileMenu projectId={project.id} email={email} projects={projects} />
@@ -67,7 +53,7 @@ export function ProjectShell({
       {/* スマホ: 下のタブ */}
       <nav
         aria-label="プロジェクトのメニュー"
-        className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] sm:hidden"
+        className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-nav pb-[env(safe-area-inset-bottom)] sm:hidden"
       >
         <ProjectNavLinks projectId={project.id} variant="tabs" />
       </nav>

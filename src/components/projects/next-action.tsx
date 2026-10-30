@@ -11,15 +11,15 @@ export function NextAction({ stepIndex, projectId }: { stepIndex: number; projec
   return (
     <div>
       <section aria-labelledby="next-action-title" className="rounded-lg border border-border bg-surface max-sm:border-0">
-        <div className="flex items-center gap-6 rounded-t-[7px] bg-primary px-7 py-[22px] text-on-primary max-sm:flex-col max-sm:items-stretch max-sm:gap-2.5 max-sm:rounded-lg max-sm:p-5">
+        <div className="flex items-center gap-6 rounded-t-[7px] bg-band px-7 py-[22px] text-on-band max-sm:flex-col max-sm:items-stretch max-sm:gap-2.5 max-sm:rounded-lg max-sm:p-5">
           <div className="flex flex-1 flex-col gap-1.5">
-            <p className="text-xs tracking-[0.15em] text-on-primary-muted max-sm:text-[11px]">
+            <p className="text-xs tracking-[0.15em] text-on-band-muted max-sm:text-[11px]">
               いまやること ・ {stepIndex + 1} / {STEPS.length}
             </p>
             <h2 id="next-action-title" className="text-xl leading-snug font-bold max-sm:text-[19px]">
               {step.title}
             </h2>
-            <p className="text-[14px] leading-[1.7] text-on-primary-muted max-sm:text-sm">{step.description}</p>
+            <p className="text-[14px] leading-[1.7] text-on-band-muted max-sm:text-sm">{step.description}</p>
           </div>
           <div className="flex flex-col items-center gap-1 max-sm:mt-1 max-sm:items-stretch">
             {href ? (

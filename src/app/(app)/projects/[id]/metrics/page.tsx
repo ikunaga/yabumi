@@ -14,7 +14,7 @@ import { getProject } from "@/lib/projects/queries";
 import { SNS } from "@/lib/sns";
 import { xMetricsUserMonthlyUsd } from "@/lib/sns/x/config";
 
-export const metadata: Metadata = { title: "指標" };
+export const metadata: Metadata = { title: "分析" };
 
 function formatCount(n: number) {
   return n.toLocaleString("ja-JP");
@@ -64,7 +64,7 @@ function KpiCard({ k, value, projectId }: { k: KpiKey; value?: WeekValue; projec
   );
 }
 
-// 指標（F07。docs/architecture.md の 4.22）。アカウント設計の「最初の 1 か月」で選んだ数字を先頭に出す
+// 分析（前の名前は指標。F07。docs/architecture.md の 4.22）。アカウント設計の「最初の 1 か月」で選んだ数字を先頭に出す
 export default async function MetricsPage(props: PageProps<"/projects/[id]/metrics">) {
   const { id } = await props.params;
   const project = await getProject(id);
@@ -88,7 +88,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
   return (
     <div className="flex max-w-[960px] flex-col gap-6 max-sm:gap-4">
       <div className="flex flex-col gap-1.5">
-        <h1 className="font-heading text-3xl font-bold max-sm:text-2xl">指標</h1>
+        <h1 className="font-heading text-3xl font-bold max-sm:text-2xl">分析</h1>
         <p className="text-base leading-[1.8] text-muted max-sm:text-[14px]">
           うまくいっているかを、数字で確かめます。全部を見る必要はありません。まずは上の {kpis.length} つだけ、週に 1 回見れば十分です。
         </p>

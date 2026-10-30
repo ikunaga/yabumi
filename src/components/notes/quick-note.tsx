@@ -8,16 +8,14 @@ import { NoteForm } from "./note-form";
 
 type Project = { id: string; name: string };
 
-const TRIGGER: Record<"sidebar" | "topbar" | "fab" | "fabFree" | "menu", string> = {
-  // PC のサイドバー（藍の地）
-  sidebar: "flex w-full items-center justify-center gap-1.5 rounded-md border border-nav-active px-3 py-2 text-sm font-semibold text-nav-strong hover:bg-nav-active",
-  // プロジェクトの外の上部バー（PC）。スマホは上部バーが狭いので、右下に浮かせる（fabFree）
-  topbar: "inline-flex h-8 shrink-0 items-center gap-1 rounded-md border border-primary px-3 text-sm font-semibold whitespace-nowrap text-primary hover:bg-primary-soft max-sm:hidden",
+const TRIGGER: Record<"topbar" | "fab" | "fabFree" | "menu", string> = {
+  // PC の上の帯（プロジェクトの中と外）。スマホは上の帯が狭いので、右下に浮かせる（fab・fabFree）
+  topbar: "inline-flex h-9 shrink-0 items-center gap-1 rounded-full border border-border bg-surface px-4 text-[14px] font-semibold whitespace-nowrap text-fg hover:border-input max-sm:hidden",
   fabFree: "fixed right-4 bottom-[calc(env(safe-area-inset-bottom)+20px)] z-10 inline-flex h-12 items-center gap-1 rounded-full bg-primary px-5 text-base font-bold text-on-primary shadow-pop hover:bg-primary-hover sm:hidden",
   // スマホ: 下のタブの上に浮かぶボタン（親指で届く右下）
   fab: "fixed right-4 bottom-[calc(72px+env(safe-area-inset-bottom)+14px)] z-10 inline-flex h-12 items-center gap-1 rounded-full bg-primary px-5 text-base font-bold text-on-primary shadow-pop hover:bg-primary-hover sm:hidden",
   // スマホの ≡ メニューの中
-  menu: "block w-full px-4 py-3 text-left font-semibold text-primary hover:bg-primary-soft",
+  menu: "block w-full px-4 py-3 text-left font-semibold hover:bg-subtle",
 };
 
 // どの画面からでも押せる「＋ メモ」（ネタ帳。docs/architecture.md の 4.26）。押すと書く欄が開き、保存したらすぐ閉じて知らせる

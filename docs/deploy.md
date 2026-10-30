@@ -169,8 +169,8 @@
 
 | # | 誰が | やること |
 |---|---|---|
-| 10-7 | オーナー | 同じ App の General → **Display information** → 「Upload a logo」で、`docs/design/logo/icons/favicon/icon-256.png`（角印「文」。src/app/icon.png と同じ絵）を選ぶ。形式は PNG・JPG・GIF で 1MB 未満、200×200 以上がおすすめ。切り抜きはそのまま（正方形）で「Set new avatar」 |
-| 10-8 | オーナー | 出てくる **Badge background color** に `f2f2ee`（ロゴの地の生成り。矢書の bg と同じ）を入れて保存 |
+| 10-7 | オーナー | 同じ App の General → **Display information** → 「Upload a logo」で、`src/app/icon.png`（矢のマーク。512×512。2026-10-30 のロゴ、D33）を選ぶ。形式は PNG・JPG・GIF で 1MB 未満、200×200 以上がおすすめ。切り抜きはそのまま（正方形）で「Set new avatar」 |
+| 10-8 | オーナー | 出てくる **Badge background color** に `16233d`（ロゴの墨。アイコンの地と同じ）を入れて保存 |
 
 ### 公開する
 
@@ -469,3 +469,20 @@ Threads・Instagram・Facebook の数字を読む権限は、Meta のアプリ�
 - 申し込みは、招待・お断り・本人の取り消しのどれでもなければ 1 年で自動で消える（毎日 3:50）
 - 申し込みが続けて断られる（「申し込みが混み合っています」）と問い合わせがあったら: 全員で 1 時間に 30 件の上限に達している。Supabase の SQL Editor で `select count(*) from waitlist where created_at > now() - interval '1 hour';` を見て、ロボットなら 19-2 の Turnstile を入れる
 
+## 20. デザインを作り直したあとに、本番で貼り直すもの（D33、2026-10-30）
+
+画面・アイコン・OGP 画像はデプロイで入れ替わる。次の 2 つは Supabase と GitHub の画面に貼ってあるので、デプロイだけでは変わらない。
+
+| # | 誰が | やること |
+|---|---|---|
+| 20-1 | オーナー | Supabase → Authentication → Emails → **Templates**。5 つのテンプレートを、それぞれ下の表のファイルの本文に貼り替えて「Save」。件名は変えていないので、そのままでよい |
+| 20-2 | オーナー | 20-1 のあと、ログアウトして「パスワードを忘れた」に自分のアドレスを入れる。届いたメールの上に矢のマークと「yabumi」のロゴが出て、ボタンが黒になっている（ロゴは `https://yabumi.app/icons/email-logo.png` を読む。デプロイが済んでから確かめる） |
+| 20-3 | オーナー | GitHub App のロゴを新しいアイコンにする（10-7・10-8 の手順。画像は `src/app/icon.png`、地の色は `16233d`） |
+
+| Supabase のテンプレート | 貼るファイル | 件名（supabase/config.toml の subject と同じ） |
+|---|---|---|
+| Confirm signup | `supabase/templates/confirmation.html` | 【矢書】メールアドレスの確認 |
+| Invite user | `supabase/templates/invite.html` | 【矢書】矢書への招待 |
+| Magic link | `supabase/templates/magic_link.html` | 【矢書】ログインのリンク |
+| Change email address | `supabase/templates/email_change.html` | 【矢書】メールアドレスの変更の確認 |
+| Reset password | `supabase/templates/recovery.html` | 【矢書】パスワードの再設定 |

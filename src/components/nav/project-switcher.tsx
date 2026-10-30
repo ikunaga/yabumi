@@ -9,20 +9,18 @@ export function ProjectSwitcher({
 }: {
   current: { id: string; name: string };
   projects: { id: string; name: string }[];
-  variant: "sidebar" | "header";
+  variant: "bar" | "header";
 }) {
   const summary =
-    variant === "sidebar"
-      ? "flex items-center justify-between gap-2 rounded-md border border-nav-active px-3 py-2.5 text-sm text-nav-strong hover:bg-nav-active"
+    variant === "bar"
+      ? "flex h-9 max-w-[15rem] min-w-0 items-center gap-1.5 rounded-full border border-border bg-surface px-4 text-[14px] font-semibold text-fg hover:border-input max-lg:max-w-[9rem]"
       : "flex max-w-[12rem] min-w-0 items-center gap-1 text-sm text-nav-fg hover:text-nav-strong";
 
   return (
     <DismissableDetails className="group relative min-w-0">
       <summary className={`cursor-pointer list-none [&::-webkit-details-marker]:hidden ${summary}`}>
         <span className="truncate">{current.name}</span>
-        <span aria-hidden className="shrink-0 text-xs transition-transform group-open:rotate-180">
-          ▾
-        </span>
+        <svg aria-hidden viewBox="0 0 12 12" className="size-3 shrink-0 text-muted transition-transform group-open:rotate-180" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3 4.5 6 7.5 9 4.5" /></svg>
         <span className="sr-only">プロジェクトを切り替える</span>
       </summary>
       <div
@@ -34,19 +32,19 @@ export function ProjectSwitcher({
               <Link
                 href={`/projects/${p.id}`}
                 aria-current={p.id === current.id ? "page" : undefined}
-                className="flex items-center justify-between gap-2 px-4 py-2.5 hover:bg-primary-soft hover:no-underline aria-[current=page]:font-bold"
+                className="flex items-center justify-between gap-2 px-4 py-2.5 hover:bg-subtle hover:no-underline aria-[current=page]:font-bold"
               >
                 <span className="truncate">{p.name}</span>
-                {p.id === current.id && <span className="text-primary">✓</span>}
+                {p.id === current.id && <span>✓</span>}
               </Link>
             </li>
           ))}
         </ul>
         <div className="mt-1 border-t border-line pt-1">
-          <Link href="/projects" className="block px-4 py-2.5 text-primary hover:bg-primary-soft">
+          <Link href="/projects" className="block px-4 py-2.5 hover:bg-subtle">
             すべてのプロジェクト
           </Link>
-          <Link href="/projects/new" className="block px-4 py-2.5 text-primary hover:bg-primary-soft">
+          <Link href="/projects/new" className="block px-4 py-2.5 hover:bg-subtle">
             ＋ 新しいプロジェクト
           </Link>
         </div>

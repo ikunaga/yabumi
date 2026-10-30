@@ -34,7 +34,7 @@ flowchart LR
 | 層 | 採用案 | 補足 |
 |---|---|---|
 | フロントエンド・API | Next.js（App Router）+ TypeScript | 画面と API を同じリポジトリで管理 |
-| UI | Tailwind CSS v4 + 自前の部品（src/components/ui） | デザインは Claude Design の 1b「藍と朱」。カレンダーは FullCalendar などのライブラリを検討 |
+| UI | Tailwind CSS v4 + 自前の部品（src/components/ui） | デザインは docs/design/new_design/README.md（D33。前は Claude Design の 1b「藍と朱」）。カレンダーは FullCalendar などのライブラリを検討 |
 | ホスティング | Vercel（Hobby） | 無料。商用提供を始める段階で Pro（有料）へ移行が必要 |
 | DB・認証・ファイル | Supabase（Free） | Postgres、メール/Google ログイン、画像・動画の保存。行単位のアクセス制御（RLS）でユーザー間のデータを分離 |
 | 予約投稿の実行 | Supabase の pg_cron から毎分 API を呼ぶ | Vercel Hobby の定期実行は 1 日 1 回までのため、毎分の実行は Supabase 側で行う |

@@ -35,10 +35,10 @@ export default async function PlanPage(props: PageProps<"/projects/[id]/plan">) 
       </div>
 
       {/* 主な入口は AI との会話。空欄を自分で埋めるのは、中身を確かめて直すとき */}
-      <section className="flex items-center gap-6 rounded-lg bg-primary px-7 py-6 text-on-primary max-sm:flex-col max-sm:items-stretch max-sm:gap-3 max-sm:p-5">
+      <section className="flex items-center gap-6 rounded-lg bg-band px-7 py-6 text-on-band max-sm:flex-col max-sm:items-stretch max-sm:gap-3 max-sm:p-5">
         <div className="flex flex-1 flex-col gap-1.5">
           <h2 className="text-xl font-bold max-sm:text-[19px]">AI と話しながら決める（おすすめ）</h2>
-          <p className="text-[14px] leading-[1.7] text-on-primary-muted">
+          <p className="text-[14px] leading-[1.7] text-on-band-muted">
             AI が 1 つずつ質問し、答えにあわせて案を出します。案には長所・短所とおすすめの理由が付くので、選ぶだけで進められます。
           </p>
         </div>

@@ -23,6 +23,7 @@ import { ISSUE_LABEL, MAX_TITLE_LENGTH, SNS, SNS_KEYS, checkTarget, hasXUrl, ins
 import { X_PRICE_USD, formatUsd } from "@/lib/sns/x/pricing";
 import { Term } from "@/components/ui/term";
 import { projectSettingsHref } from "@/lib/projects/paths";
+import { sendLabels, sendMode } from "@/lib/posts/send-mode";
 import { BAND_INFO, plannedAtFor, type TimeBand } from "@/lib/metrics/time-bands";
 
 export type ComposerInitial = {
@@ -238,6 +239,44 @@ export function PostComposer({
     .map((sns) => ({ sns, state: targetState(sns) }))
     .filter((w) => w.state && w.state.text !== "OK" && !TARGET_STATE_TEXTS.has(w.state.text));
 
+  const mode = sendMode({ sentAny, toSend: toSend.length });
+  const labels = sendLabels(mode, toSend.length);
+  const sentLabels = chosen.filter((s) => isLocked(s)).map((s) => SNS[s].label).join("・");
+
+  // 削除する（確かめてから）。送った投稿では、SNS の投稿は消えず矢書の記録だけが消えることを書く
+  const deleteRow = (sent: boolean) => {
+    if (!postId) return null;
+    return confirmDelete ? (
+      <span className="ml-auto flex flex-wrap items-center justify-end gap-1">
+        {sent && <span className="text-[13px] text-muted">SNS の投稿は消えません。</span>}
+        <Button
+          type="button"
+          variant="danger"
+          size="sm"
+          disabled={pending}
+          onClick={() =>
+            startTransition(async () => {
+              const res = await deletePost(projectId, postId);
+              if (res?.error) {
+                setResult({ error: res.error });
+                setConfirmDelete(false);
+              }
+            })
+          }
+        >
+          本当に削除する
+        </Button>
+        <Button type="button" variant="text" size="sm" disabled={pending} onClick={() => setConfirmDelete(false)}>
+          やめる
+        </Button>
+      </span>
+    ) : (
+      <Button type="button" variant="text" size="sm" className="ml-auto" onClick={() => setConfirmDelete(true)}>
+        {sent ? "矢書から削除する" : "削除する"}
+      </Button>
+    );
+  };
+
   return (
     <div className="flex flex-col gap-4">
       {/* 見出し。新しい投稿は、自分で書くか AI とネタを出すかの札を横に並べる（AI を使わなくても書いて送れることがわかるように） */}
@@ -362,7 +401,7 @@ export function PostComposer({
                   {fe.targets}
                 </p>
               )}
-              {connected.length === 0 && (
+              {connected.length === 0 && mode !== "all_sent" && (
                 <p className="text-[13px] text-muted">
                   まだ SNS をつないでいません（下書きは保存できます）。{" "}
                   <Link href={connectHref} className="font-semibold text-fg underline">
@@ -452,78 +491,64 @@ export function PostComposer({
               </div>
             )}
 
-            <div className="flex flex-col gap-2">
-              <Button type="button" size="lg" disabled={pending || blocker !== null} onClick={() => submit("schedule")} className="w-full">
-                {toSend.length > 0 ? `${toSend.length} つの SNS に予約する` : "予約する"}
-              </Button>
-              <p className={`text-[13px] ${fe.plannedAt || blocker ? "text-signal" : "text-faint"}`}>
-                {fe.plannedAt ?? blocker ?? "予約すると、この日時に自動で送ります"}
-                {!fe.plannedAt && blocker === missingConnectMessage && (
-                  <>
-                    {" "}
-                    <Link href={connectHref} className="font-semibold text-fg underline">
-                      つなぐ →
-                    </Link>
-                  </>
+            {mode === "all_sent" ? (
+              <div className="flex flex-col gap-2 border-t border-line pt-3.5">
+                <p className="text-[14px] leading-[1.7] text-muted">
+                  送った投稿です。直すときは各 SNS で、取り消すときは上の「送信の結果」から。ほかの SNS にも送るときは、送り先のチップで選んでください。
+                </p>
+                {deleteRow(true)}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {mode === "partial" && (
+                  <p className="text-[13px] text-muted">
+                    {sentLabels} には送信済みです（送り直しません）。残りの SNS の分だけ予約・送信できます。
+                  </p>
                 )}
-              </p>
-              {/* 今すぐ送るは取り消しにくいので、押したら確かめる */}
-              <div className="flex flex-wrap items-center gap-2">
-                {confirmSend ? (
-                  <>
-                    <Button type="button" variant="secondary" size="sm" disabled={pending} onClick={() => submit("now")}>
-                      本当に今すぐ送る
-                    </Button>
-                    <Button type="button" variant="text" size="sm" disabled={pending} onClick={() => setConfirmSend(false)}>
-                      やめる
-                    </Button>
-                  </>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    disabled={pending || nowBlocker !== null}
-                    title={nowBlocker ?? undefined}
-                    onClick={() => setConfirmSend(true)}
-                  >
-                    今すぐ送る
-                  </Button>
-                )}
-                <Button type="button" variant="secondary" size="sm" disabled={pending} onClick={() => submit("draft")}>
-                  下書きに保存する
+                <Button type="button" size="lg" disabled={pending || blocker !== null} onClick={() => submit("schedule")} className="w-full">
+                  {labels.schedule}
                 </Button>
-                {postId &&
-                  (confirmDelete ? (
-                    <span className="ml-auto flex items-center gap-1">
-                      <Button
-                        type="button"
-                        variant="danger"
-                        size="sm"
-                        disabled={pending}
-                        onClick={() =>
-                          startTransition(async () => {
-                            const res = await deletePost(projectId, postId);
-                            if (res?.error) {
-                              setResult({ error: res.error });
-                              setConfirmDelete(false);
-                            }
-                          })
-                        }
-                      >
-                        本当に削除する
+                <p className={`text-[13px] ${fe.plannedAt || blocker ? "text-signal" : "text-faint"}`}>
+                  {fe.plannedAt ?? blocker ?? "予約すると、この日時に自動で送ります"}
+                  {!fe.plannedAt && blocker === missingConnectMessage && (
+                    <>
+                      {" "}
+                      <Link href={connectHref} className="font-semibold text-fg underline">
+                        つなぐ →
+                      </Link>
+                    </>
+                  )}
+                </p>
+                {/* 今すぐ送るは取り消しにくいので、押したら確かめる */}
+                <div className="flex flex-wrap items-center gap-2">
+                  {confirmSend ? (
+                    <>
+                      <Button type="button" variant="secondary" size="sm" disabled={pending} onClick={() => submit("now")}>
+                        本当に{labels.now}
                       </Button>
-                      <Button type="button" variant="text" size="sm" disabled={pending} onClick={() => setConfirmDelete(false)}>
+                      <Button type="button" variant="text" size="sm" disabled={pending} onClick={() => setConfirmSend(false)}>
                         やめる
                       </Button>
-                    </span>
+                    </>
                   ) : (
-                    <Button type="button" variant="text" size="sm" className="ml-auto" onClick={() => setConfirmDelete(true)}>
-                      削除する
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      disabled={pending || nowBlocker !== null}
+                      title={nowBlocker ?? undefined}
+                      onClick={() => setConfirmSend(true)}
+                    >
+                      {labels.now}
                     </Button>
-                  ))}
+                  )}
+                  <Button type="button" variant="secondary" size="sm" disabled={pending} onClick={() => submit("draft")}>
+                    下書きに保存する
+                  </Button>
+                  {deleteRow(mode === "partial")}
+                </div>
               </div>
-            </div>
+            )}
           </section>
 
           {/* 書くときの手伝い。使わなくても送れるので、閉じて控えめに置く */}

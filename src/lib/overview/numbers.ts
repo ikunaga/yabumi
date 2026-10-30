@@ -12,7 +12,7 @@ export const CHART_DAYS_MOBILE = 7;
 export type Daily = { day: string; value: number };
 
 export type OverviewCard = {
-  key: "downloads" | "link_clicks" | "posts" | "kpi" | "scheduled" | "drafts";
+  key: "downloads" | "link_clicks" | "posts" | "kpi" | "play_dl" | "scheduled" | "drafts";
   // 追いかける数字（d）のときの種類。ラベルと用語の解説に使う
   kpi?: KpiKey;
   label: string;
@@ -39,6 +39,8 @@ export type OverviewInput = {
   // アカウント設計で選んだ追いかける数字（選んでいなければおすすめ）と、その週の値
   kpis: KpiKey[];
   kpiValues: KpiValues;
+  // Google Play が数えた、矢書の短縮リンクからの DL（直近 30 日。Google Play をつないでいなければ null。数字の段 3）
+  playSnsDl?: number | null;
 };
 
 // [from, to] の合計（日付は YYYY-MM-DD）
@@ -79,7 +81,7 @@ function compared(key: "downloads" | "link_clicks" | "posts", label: string, row
 
 // 4 枚のカードを、出せるものから順に選ぶ（PM と決めた a〜e。出せない数字は出さず、「準備中」でも埋めない）
 // a. ダウンロード（ストアをつないでいれば） b. ストアへのクリック（短縮リンクがあれば） c. 投稿数（いつも）
-// d. 追いかける数字のうち a〜c 以外で値があるもの e. 予約中 → 下書き（いつも出せる本当の数。比べない）
+// d. 追いかける数字のうち a〜c 以外で値があるもの d'. Google Play が数えた SNS からの DL（つないでいれば）e. 予約中 → 下書き（いつも出せる本当の数。比べない）
 export function pickOverviewCards(input: OverviewInput, max = 4): OverviewCard[] {
   const { today } = input;
   const cards: OverviewCard[] = [];
@@ -103,6 +105,11 @@ export function pickOverviewCards(input: OverviewInput, max = 4): OverviewCard[]
       deltaPct: v.noPrev ? null : pctChange(v.thisWeek, v.lastWeek),
       note: v.noPrev ? "直近 7 日・前の記録はまだありません" : v.unit ? "直近 28 日・1 週間前比" : "直近 7 日・先週比",
     });
+  }
+
+  // Google Play が数えた SNS からの DL（App Store の分は入らないので、名前と添え書きで必ずそう書く。前と比べない）
+  if (input.playSnsDl != null && cards.length < max) {
+    cards.push({ key: "play_dl", label: "Google Play が数えた SNS からの DL", value: input.playSnsDl, deltaPct: null, note: "直近 30 日・App Store は入りません" });
   }
 
   const fillers: OverviewCard[] = [

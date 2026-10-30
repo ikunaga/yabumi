@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Daily } from "@/lib/overview/numbers";
+import type { PlayUtmRow } from "./play-utm";
 import type { Database } from "@/lib/supabase/database.types";
 import { addDays, toYmd } from "@/lib/time";
 
@@ -21,6 +22,9 @@ export type DailyNumbers = {
   // ダウンロードは期間の中で取り込んだいちばん古い日、クリックはいちばん古い短縮リンクを作った日（日本時間）。なければ null
   storeSince: string | null;
   linksSince: string | null;
+  // Google Play が数えた、矢書の短縮リンクごとの DL（日ごと。数字の段 3）と、流入元のレポートを読めなかった日があったか
+  playUtm: PlayUtmRow[];
+  playUtmUnreadable: boolean;
 };
 
 // 概要と分析の日ごとの数（today を含む直近 days 日）。どれも本人だけが読める表と関数から読む（RLS）
@@ -43,6 +47,11 @@ export async function loadDailyNumbers(supabase: SupabaseClient<Database>, proje
     // ページの閲覧: App Store はレポート（app_store_views）、Google Play は同じ行の page_views（store_weekly_totals と同じ）
     pageViews: rows.filter((r) => r.source !== "app_store").map((r) => ({ day: r.day, value: value(r.values, "page_views") })),
     stores: (["app_store", "google_play"] as const).filter((s) => rows.some((r) => r.source === s)),
+    playUtm: rows.flatMap((r) => {
+      const u = r.source === "google_play" ? (r.values as { utm?: Omit<PlayUtmRow, "day"> } | null)?.utm : undefined;
+      return u ? [{ day: r.day, by_source: u.by_source ?? {}, by_campaign: u.by_campaign ?? {}, other: Number(u.other ?? 0) }] : [];
+    }),
+    playUtmUnreadable: rows.some((r) => r.source === "google_play" && Boolean((r.values as { utm_unreadable?: boolean } | null)?.utm_unreadable)),
     storeSince: rows.filter((r) => r.source !== "app_store_views").map((r) => r.day).sort()[0] ?? null,
     linksSince: firstLink.data ? toYmd(new Date(firstLink.data.created_at)) : null,
     lastStoreDay: Object.fromEntries(

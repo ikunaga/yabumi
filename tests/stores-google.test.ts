@@ -14,7 +14,9 @@ import {
   newAccountId,
   packageFromUrl,
   parseCsv,
+  parseCsvWithHeader,
   summarizePlay,
+  summarizePlayUtm,
 } from "@/lib/stores/google";
 
 const rsa = generateKeyPairSync("rsa", { modulusLength: 2048 });
@@ -58,6 +60,30 @@ describe("Google Cloud", () => {
     expect(e403.userMessage).toMatch(/招待/);
     const e404 = await listObjects("t", "pubsite_prod_rev_1", "stats/", (async () => json({}, 404)) as typeof fetch).catch((x) => x);
     expect(e404.userMessage).toMatch(/置き場所/);
+  });
+
+  it("流入元のレポート: 矢書のリンクの UTM ごとの獲得を日ごとに。Other は other に、ほかの UTM と検索は数えない。列が違えば読めない", () => {
+    const { header, rows } = parseCsvWithHeader(
+      [
+        "Date,Package name,Traffic source,Search term,UTM source,UTM campaign,Store listing acquisitions,Store listing visitors,Store listing conversion rate",
+        "2026-10-20,com.ex,Third-party referrals,,X,abc,3,30,10%",
+        "2026-10-20,com.ex,Third-party referrals,,x,def,1,5,20%",
+        "2026-10-20,com.ex,Third-party referrals,,link,Other,2,8,25%",
+        "2026-10-21,com.ex,Third-party referrals,,Other,Other,4,9,44%",
+        "2026-10-21,com.ex,Google Play search,kakeibo,,,9,90,10%",
+        "2026-10-21,com.ex,Third-party referrals,,x,abc,0,3,0%",
+      ].join("\n"),
+    );
+    expect(summarizePlayUtm(rows, header, ["x", "threads", "link"])).toEqual({
+      readable: true,
+      days: {
+        "2026-10-20": { by_source: { x: 4, link: 2 }, by_campaign: { abc: 3, def: 1 }, other: 0 },
+        "2026-10-21": { by_source: {}, by_campaign: {}, other: 4 },
+      },
+    });
+    // 見出しだけのファイルは読めた（0 件）。要る列がなければ読めない
+    expect(summarizePlayUtm([], parseCsvWithHeader("Date,UTM source,UTM campaign,Store listing acquisitions\n").header, ["x"])).toEqual({ readable: true, days: {} });
+    expect(summarizePlayUtm([], ["Date", "Traffic source", "Unique user install clicks"], ["x"]).readable).toBe(false);
   });
 
   it("UTF-16 の CSV を読み、日ごとのインストールとストアのページの訪問者（国ごとを合計）にまとめる", () => {

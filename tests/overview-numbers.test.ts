@@ -76,6 +76,15 @@ describe("概要: 数字のカード 4 枚（出せるものから。準備中�
   });
 });
 
+describe("概要: Google Play が数えた SNS からの DL", () => {
+  it("Google Play をつないでいれば、追いかける数字のあとに出す。名前に Google Play が数えたと書き、前と比べない", () => {
+    const cards = pickOverviewCards({ ...empty, playSnsDl: 12 });
+    expect(cards.map((c) => c.key)).toEqual(["posts", "play_dl", "scheduled", "drafts"]);
+    expect(cards[1]).toMatchObject({ label: "Google Play が数えた SNS からの DL", value: 12, deltaPct: null, note: "直近 30 日・App Store は入りません" });
+    expect(pickOverviewCards({ ...empty, playSnsDl: null }).some((c) => c.key === "play_dl")).toBe(false);
+  });
+});
+
 describe("概要: 次の予約の時刻", () => {
   const now = new Date("2026-10-30T10:00:00+09:00");
   it("今日は時刻だけ、明日は「明日」、それより先は月/日", () => {

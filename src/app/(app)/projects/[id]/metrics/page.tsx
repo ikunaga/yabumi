@@ -16,6 +16,7 @@ import { tabClass, tabListClass } from "@/components/ui/tabs";
 import { Term } from "@/components/ui/term";
 import { aiConfigured } from "@/lib/ai/anthropic";
 import { loadDailyNumbers } from "@/lib/metrics/daily";
+import { campaignTotal, sumPlayUtm, type PlayUtmTotals } from "@/lib/metrics/play-utm";
 import { confirmedUntil, MIN_DAYS, POST_EFFECT_DAYS, postEffect, type PostEffect } from "@/lib/metrics/post-effect";
 import type { PostMeta } from "@/lib/metrics/post-meta";
 import { KPIS, KPI_KEYS, recommendedKpis, type KpiKey } from "@/lib/metrics/kpis";
@@ -130,6 +131,21 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
   // 閲覧数を自動で読める SNS を 1 つでもつないでいるか（よく見られた投稿の空のときの案内を変える）
   const hasAutoSns = (["threads", "instagram", "facebook", "x"] as const).some((s) => accounts[s]);
   const later = KPI_KEYS.filter((k) => KPIS[k].availability === "later" && !kpis.includes(k));
+
+  // Google Play が数えた、矢書の短縮リンクごとの DL（数字の段 3）。SNS ごとは選んだ期間、投稿ごとは 30 日（投稿の順位と同じ）
+  const playConnected = daily.stores.includes("google_play") || daily.playUtm.length > 0;
+  const playUtm = sumPlayUtm(daily.playUtm, addDays(today, -(days - 1)), today);
+  const playUtm30 = sumPlayUtm(daily.playUtm, addDays(today, -29), today);
+  const postIds = [...new Set([...overview.topPosts, ...overview.topViewed].map((p) => p.postId))];
+  const postCodes = new Map<string, string[]>();
+  if (playConnected && postIds.length) {
+    const { data: links } = await supabase.from("short_links").select("code, post_targets!inner(post_id)").eq("project_id", project.id).eq("kind", "post").in("post_targets.post_id", postIds);
+    for (const l of links ?? []) {
+      const postId = (l.post_targets as unknown as { post_id: string }).post_id;
+      postCodes.set(postId, [...(postCodes.get(postId) ?? []), l.code]);
+    }
+  }
+  const playDlOf = (postId: string) => (playConnected ? campaignTotal(playUtm30.byCampaign, postCodes.get(postId) ?? []) : undefined);
 
   // 前の期間が、数え始める前（短縮リンクを作る前・ストアを取り込み始める前）にかかっていたら、比べない（数える前の日を 0 として比べない）
   const prevStart = addDays(today, -(2 * days - 1));
@@ -302,6 +318,19 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
                 </p>
               )}
             </Panel>
+            {playConnected && (
+              <Panel
+                title="Google Play が数えた SNS ごとの DL"
+                aside={`直近 ${days} 日`}
+                help={
+                  <HelpTip label="Google Play が数えた DL">
+                    矢書の短縮リンクから Google Play のページに来て、はじめてインストールした人の数です（Google Play の「ストアの掲載情報からの獲得」）。App Store の分は入っていません。3〜7 日遅れて届き、あとから直ることがあります。数が少ない流入元は、Google が「その他」にまとめるため、ここには出ません。
+                  </HelpTip>
+                }
+              >
+                <PlayDownloadsBox totals={playUtm} unreadable={daily.playUtmUnreadable} />
+              </Panel>
+            )}
             <Panel title={effectKind === "downloads" ? "投稿した日とダウンロード" : "投稿した日とクリック"} aside={`直近 ${POST_EFFECT_DAYS} 日`}>
               <PostEffectBox kind={effectKind} effect={effect} projectId={project.id} />
             </Panel>
@@ -346,7 +375,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
           <>
             <Panel title="よく見られた投稿" aside="30 日">
               {overview.topViewed.length ? (
-                <Ranked projectId={project.id} rows={overview.topViewed.map((p) => ({ ...p, value: `${formatCount(p.views)} 回表示` }))} />
+                <Ranked projectId={project.id} rows={overview.topViewed.map((p) => ({ ...p, value: `${formatCount(p.views)} 回表示`, playDl: playDlOf(p.postId) }))} />
               ) : (
                 <p className="text-sm text-muted">
                   Threads・Instagram・Facebook・X を数字の権限つきでつなぐと、送ってから 1・3・7・30 日目の閲覧数を取り込み、ここに並べます。
@@ -360,7 +389,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
             </Panel>
             <Panel title="クリックの多い投稿" aside="30 日">
               {overview.topPosts.length ? (
-                <Ranked projectId={project.id} rows={overview.topPosts.map((p) => ({ ...p, value: `${formatCount(p.clicks)} クリック` }))} />
+                <Ranked projectId={project.id} rows={overview.topPosts.map((p) => ({ ...p, value: `${formatCount(p.clicks)} クリック`, playDl: playDlOf(p.postId) }))} />
               ) : (
                 <p className="text-sm text-muted">投稿の本文のストアの URL を短縮リンクにして送ると、どの投稿からクリックされたかが並びます。</p>
               )}
@@ -396,7 +425,7 @@ function Notice({ children }: { children: ReactNode }) {
 }
 
 // 順位つきの投稿の一覧（よく見られた・クリックの多い）。同じ書き出しの投稿を見分けられるように、送った日と SNS の札を添える
-function Ranked({ projectId, rows }: { projectId: string; rows: (PostMeta & { postId: string; value: string })[] }) {
+function Ranked({ projectId, rows }: { projectId: string; rows: (PostMeta & { postId: string; value: string; playDl?: number })[] }) {
   return (
     <ol>
       {rows.map((r, i) => (
@@ -412,7 +441,10 @@ function Ranked({ projectId, rows }: { projectId: string; rows: (PostMeta & { po
                 ))}
               </span>
             </span>
-            <span className="num shrink-0 text-muted">{r.value}</span>
+            <span className="flex shrink-0 flex-col items-end gap-0.5">
+              <span className="num text-muted">{r.value}</span>
+              {r.playDl ? <span className="num text-xs text-faint">DL {formatCount(r.playDl)}（Google Play が数えた）</span> : null}
+            </span>
           </Link>
         </li>
       ))}
@@ -496,6 +528,33 @@ function PostEffectBox({ kind, effect, projectId }: { kind: "downloads" | "link_
       <p className="num text-xs text-faint">
         1 日あたり・{range}（{kind === "downloads" ? "ストアの数字が確定した日まで" : "昨日まで"}）・投稿日と翌日 {effect.postedDays} 日、それ以外の日 {effect.quietDays} 日
       </p>
+    </div>
+  );
+}
+
+// Google Play が数えた、SNS ごとの DL（矢書の短縮リンクから Google Play のページに来て、はじめてインストールした人）。
+// App Store の分は入らない。Google が「その他」にまとめた分は SNS に分けられないので、数だけ添える
+function PlayDownloadsBox({ totals, unreadable }: { totals: PlayUtmTotals; unreadable: boolean }) {
+  if (unreadable && totals.total === 0) {
+    return <p className="text-sm text-muted">Google Play の流入元のレポートを読めませんでした（レポートの形が変わったのかもしれません）。読めるようになるまで、ここには数字を出しません。</p>;
+  }
+  if (totals.total === 0) {
+    return (
+      <p className="text-sm text-muted">
+        この期間に、矢書の短縮リンクから Google Play で入れた人は、まだ数えられていません（3〜7 日遅れて届きます。数が少ないと Google が「その他」にまとめます）。
+      </p>
+    );
+  }
+  const max = Math.max(1, ...totals.bySns.map((r) => r.value));
+  return (
+    <div className="flex flex-col gap-2.5">
+      {totals.bySns.map((r) => (
+        <BarRow key={r.sns ?? "link"} label={r.sns ? SNS[r.sns].label : "SNS なし"} value={r.value} max={max} barClass={r.sns ? SNS_COLOR[r.sns].bg : "bg-faint"} />
+      ))}
+      <p className="num text-xs text-faint">
+        合計 {formatCount(totals.total)}・App Store の分は入っていません{totals.other > 0 && `・「その他」にまとめられた分 ${formatCount(totals.other)}（矢書のリンク以外も入ります）`}
+      </p>
+      {unreadable && <p className="text-xs text-signal">一部の月の流入元のレポートを読めませんでした。その月の分は入っていません。</p>}
     </div>
   );
 }

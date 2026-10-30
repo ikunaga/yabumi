@@ -2,7 +2,8 @@ import "server-only";
 import type { KpiKey } from "@/lib/metrics/kpis";
 import { loadMetricsOverview, type ClicksBySns, type MetricsOverview } from "@/lib/metrics/queries";
 import { createClient } from "@/lib/supabase/server";
-import { toYmd } from "@/lib/time";
+import { addDays, toYmd } from "@/lib/time";
+import { sumPlayUtm } from "@/lib/metrics/play-utm";
 import { loadDailyNumbers, type StoreSource } from "@/lib/metrics/daily";
 import { OVERVIEW_DAYS, pickOverviewCards, type Daily, type OverviewCard } from "./numbers";
 
@@ -54,6 +55,7 @@ export async function loadOverviewNumbers(projectId: string, kpis: KpiKey[]): Pr
     draftCount,
     kpis,
     kpiValues: overview.kpiValues,
+    playSnsDl: daily.stores.includes("google_play") || daily.playUtm.length ? sumPlayUtm(daily.playUtm, addDays(today, -(OVERVIEW_DAYS - 1)), today).total : null,
   });
 
   return {

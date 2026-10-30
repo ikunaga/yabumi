@@ -158,6 +158,11 @@ export function decodeCsv(buf: Buffer): string {
 
 // CSV（カンマ区切り、ダブルクォートで囲む値に対応）を、見出しの名前 → 値の行にする
 export function parseCsv(text: string): Record<string, string>[] {
+  return parseCsvWithHeader(text).rows;
+}
+
+// 見出しも返す（行がなくても見出しで形を確かめるため）
+export function parseCsvWithHeader(text: string): { header: string[]; rows: Record<string, string>[] } {
   const rows: string[][] = [];
   let row: string[] = [];
   let cell = "";
@@ -187,9 +192,9 @@ export function parseCsv(text: string): Record<string, string>[] {
     rows.push(row);
   }
   const nonEmpty = rows.filter((r) => r.some((v) => v.trim()));
-  if (!nonEmpty.length) return [];
+  if (!nonEmpty.length) return { header: [], rows: [] };
   const head = nonEmpty[0].map((h) => h.trim());
-  return nonEmpty.slice(1).map((r) => Object.fromEntries(head.map((h, i) => [h, (r[i] ?? "").trim()])));
+  return { header: head, rows: nonEmpty.slice(1).map((r) => Object.fromEntries(head.map((h, i) => [h, (r[i] ?? "").trim()]))) };
 }
 
 // 見出しの名前は大文字・小文字や表記の揺れがあるので、小文字にして比べる
@@ -207,7 +212,13 @@ const toNum = (v: string | undefined) => {
   return Number.isFinite(n) ? n : 0;
 };
 
-export type PlayDay = { downloads: number; uninstalls: number; page_views: number; store_acquisitions: number };
+// utm: Google Play が数えた、矢書の短縮リンク（UTM）ごとのストアの掲載情報からの獲得（はじめてのインストール。数字の段 3）。
+// utm_unreadable: 流入元のレポートはあったが、形が違って読めなかった日
+export type PlayDay = { downloads: number; uninstalls: number; page_views: number; store_acquisitions: number; utm?: PlayUtmDay; utm_unreadable?: true };
+
+// by_source: utm_source（矢書は SNS の名前、SNS を決めていないリンクは "link"）ごと。by_campaign: utm_campaign（短縮リンクのコード）ごと。
+// other: Google が、数が少ないため「Other」にまとめた分（矢書のリンク以外も入る）
+export type PlayUtmDay = { by_source: Record<string, number>; by_campaign: Record<string, number>; other: number };
 
 // インストールの概要（installs_<package>_<YYYYMM>_overview.csv）と、ストアの掲載情報（store_performance_<package>_<YYYYMM>_country.csv）を、日ごとにまとめる
 export function summarizePlay(installs: Record<string, string>[], storePerformance: Record<string, string>[]): Record<string, PlayDay> {
@@ -227,6 +238,38 @@ export function summarizePlay(installs: Record<string, string>[], storePerforman
     day(d).store_acquisitions += toNum(pick(r, "Store listing acquisitions"));
   }
   return days;
+}
+
+// 流入元のレポート（store_performance_<package>_<YYYYMM>_traffic_source.csv）の、矢書の短縮リンクから来た分を日ごとにまとめる。
+// 列は Google の資料（2026-10-30 に確かめた）: Date, Package name, Traffic source, Search term, UTM source, UTM campaign,
+// Store listing acquisitions, Store listing visitors, Store listing conversion rate。数が少ない UTM は「Other」になる。
+// 検索語（Search term）は預からない。要る列がなければ readable: false（落とさずに「読めなかった」と出す）
+export function summarizePlayUtm(rows: Record<string, string>[], header: string[], sources: readonly string[]): { readable: boolean; days: Record<string, PlayUtmDay> } {
+  const cols = header.map((h) => h.trim().toLowerCase());
+  const need = ["date", "utm source", "utm campaign", "store listing acquisitions"];
+  if (!need.every((n) => cols.includes(n))) return { readable: false, days: {} };
+  const known = new Set(sources.map((s) => s.toLowerCase()));
+  const days: Record<string, PlayUtmDay> = {};
+  for (const r of rows) {
+    const d = pick(r, "Date");
+    if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) continue;
+    const acq = toNum(pick(r, "Store listing acquisitions"));
+    if (acq <= 0) continue;
+    const source = (pick(r, "UTM source") ?? "").trim().toLowerCase();
+    const campaign = (pick(r, "UTM campaign") ?? "").trim();
+    const day = (days[d] ??= { by_source: {}, by_campaign: {}, other: 0 });
+    if (source === "other") {
+      day.other += acq;
+    } else if (known.has(source)) {
+      day.by_source[source] = (day.by_source[source] ?? 0) + acq;
+      if (campaign && campaign.toLowerCase() !== "other") day.by_campaign[campaign] = (day.by_campaign[campaign] ?? 0) + acq;
+    }
+  }
+  return { readable: true, days };
+}
+
+export function trafficSourceObject(pkg: string, yyyymm: string): string {
+  return `stats/store_performance/store_performance_${pkg}_${yyyymm}_traffic_source.csv`;
 }
 
 export function installsObject(pkg: string, yyyymm: string): string {

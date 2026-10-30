@@ -11,6 +11,10 @@ import {
   downloadObject,
   impersonate,
   installsObject,
+  parseCsvWithHeader,
+  summarizePlayUtm,
+  trafficSourceObject,
+  type PlayUtmDay,
   listObjects,
   listUserServiceAccounts,
   managerAccessToken,
@@ -22,6 +26,10 @@ import {
   type ManagerKey,
 } from "./google";
 import { openStoredCredential } from "./store";
+import { SNS_KEYS } from "@/lib/sns";
+
+// 矢書の短縮リンクが Google Play の referrer に入れる utm_source（SNS の名前。SNS を決めていないリンクは "link"。links/rules.ts）
+const UTM_SOURCES = [...SNS_KEYS, "link"] as const;
 
 // Google Play の取り込みと、App Store のストアのページの閲覧数（docs/architecture.md の 4.22、段取り ⑤）。admin は RLS を通らないクライアント。
 // 呼ぶ側で、ownerId がログイン中の利用者で、projectId がその人のものであることを確かめておく
@@ -168,14 +176,27 @@ export async function importPlay(admin: Admin, row: PlayRow, deps: GoogleDeps = 
     const token = await playToken(row, deps);
     const installs: Record<string, string>[] = [];
     const perf: Record<string, string>[] = [];
+    // 流入元（矢書の短縮リンクの UTM ごと。数字の段 3）。ない月はとばし、形が違えばその月の日に「読めなかった」の印を付ける
+    const utmDays: Record<string, PlayUtmDay> = {};
+    const unreadableMonths: string[] = [];
     for (const m of months(now)) {
       const a = await downloadObject(token, row.bucket, installsObject(row.package_name, m), deps.fetch);
       if (a) installs.push(...parseCsv(decodeCsv(a)));
       const b = await downloadObject(token, row.bucket, storePerformanceObject(row.package_name, m), deps.fetch);
       if (b) perf.push(...parseCsv(decodeCsv(b)));
+      const c = await downloadObject(token, row.bucket, trafficSourceObject(row.package_name, m), deps.fetch);
+      if (c) {
+        const { header, rows } = parseCsvWithHeader(decodeCsv(c));
+        const utm = summarizePlayUtm(rows, header, UTM_SOURCES);
+        if (utm.readable) Object.assign(utmDays, utm.days);
+        else unreadableMonths.push(`${m.slice(0, 4)}-${m.slice(4)}`);
+      }
     }
     const since = new Date(now.getTime() - 60 * 86_400_000).toISOString().slice(0, 10);
-    const days = Object.entries(summarizePlay(installs, perf)).filter(([d]) => d >= since);
+    const summary = summarizePlay(installs, perf);
+    for (const [d, utm] of Object.entries(utmDays)) (summary[d] ??= { downloads: 0, uninstalls: 0, page_views: 0, store_acquisitions: 0 }).utm = utm;
+    for (const [d, v] of Object.entries(summary)) if (unreadableMonths.includes(d.slice(0, 7))) v.utm_unreadable = true;
+    const days = Object.entries(summary).filter(([d]) => d >= since);
     if (days.length) {
       const { error } = await admin.from("store_daily").upsert(
         days.map(([day, values]) => ({ project_id: row.project_id, owner_id: row.owner_id, source: "google_play", day, values: values as unknown as Json })),

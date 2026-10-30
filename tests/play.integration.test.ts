@@ -46,6 +46,19 @@ const fakeFetch = vi.fn(async (input: string | URL | Request, init?: RequestInit
   if (url.includes(encodeURIComponent(`stats/store_performance/store_performance_com.ex.app_${ym}_country.csv`))) {
     return new Response(`Date,Country/region,Store listing visitors\n${recent(3)},JP,50\n${recent(3)},US,20\n`);
   }
+  // 流入元（Google の資料の列。数字の段 3）: 矢書のリンク（x・threads）、Google が「Other」にまとめた分、ほかの UTM、UTM なし（検索）
+  if (url.includes(encodeURIComponent(`stats/store_performance/store_performance_com.ex.app_${ym}_traffic_source.csv`))) {
+    return new Response(
+      [
+        "Date,Package name,Traffic source,Search term,UTM source,UTM campaign,Store listing acquisitions,Store listing visitors,Store listing conversion rate",
+        `${recent(3)},com.ex.app,Third-party referrals,,x,abc123,4,40,10%`,
+        `${recent(3)},com.ex.app,Third-party referrals,,threads,Other,2,10,20%`,
+        `${recent(3)},com.ex.app,Third-party referrals,,Other,Other,3,9,33%`,
+        `${recent(3)},com.ex.app,Third-party referrals,,newsletter,spring,5,20,25%`,
+        `${recent(3)},com.ex.app,Google Play search,yomilog,,,7,50,14%`,
+      ].join("\n"),
+    );
+  }
   if (url.includes("storage.googleapis.com")) return new Response("", { status: 404 });
   // App Store
   if (url.includes("/analyticsReportRequests?") || url.includes("/analyticsReportRequests?filter")) return json({ data: [] });
@@ -108,7 +121,8 @@ describe("Google Play", () => {
     const { data } = await alice.from("store_daily").select("day, values").eq("project_id", projectId).eq("source", "google_play").order("day");
     expect(data).toEqual([
       { day: recent(10), values: { downloads: 2, uninstalls: 0, page_views: 0, store_acquisitions: 0 } },
-      { day: recent(3), values: { downloads: 6, uninstalls: 0, page_views: 70, store_acquisitions: 0 } },
+      // 流入元は、矢書のリンクの分だけ（検索語やほかの UTM は預からない）。Google が「Other」にまとめた分は other
+      { day: recent(3), values: { downloads: 6, uninstalls: 0, page_views: 70, store_acquisitions: 0, utm: { by_source: { x: 4, threads: 2 }, by_campaign: { abc123: 4 }, other: 3 } } },
     ]);
     expect((await bob.from("store_daily").select("day").eq("project_id", projectId)).data).toEqual([]);
   });

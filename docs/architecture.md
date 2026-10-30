@@ -1241,6 +1241,17 @@ Facebook ページ（graph.facebook.com）:
   - 入れてもらう手順は、画面に 1 つずつ（スクリーンショットつき）出す。素人には「App Store Connect の API キー」「Issuer ID」がわかりにくいので、用語集にも足す
   - プライバシーポリシーに、預かる鍵と使い道を足す
 
+#### Google Play の流入元（数字の段 3。2026-10-30 に Google の資料で確かめた）
+
+- ファイル: 一括レポートの `stats/store_performance/store_performance_<パッケージ名>_<YYYYMM>_traffic_source.csv`（[Download and export monthly reports](https://support.google.com/googleplay/android-developer/answer/6135870)）
+- 列: Date, Package name, Traffic source, Search term, UTM source, UTM campaign, Store listing acquisitions, Store listing visitors, Store listing conversion rate
+- 少ない数: 「Search term・UTM source・UTM campaign は、決まった数に届かないと Other になる」（同じ資料）。「数が足りない検索語・UTM source・UTM campaign は Other にまとめる」（[Understand and grow your app's user base](https://support.google.com/googleplay/android-developer/answer/9859173)）
+- 数え方: Store listing acquisitions は「ストアの掲載情報に来てインストールした人のうち、そのときほかの端末にも入れていなかった人」（はじめてのインストール。同じ資料）
+- 2026 年 7 月から Play Console の画面の主な数字は「インストールボタンを押した人」（unique user install clicks）に変わったが、「Cloud Storage の一括レポート（CSV）は、これまでの acquisitions の数字だけを出し続ける」（同じ資料）。矢書は CSV の acquisitions を使う
+- 矢書の短縮リンクは referrer に `utm_source=<SNS の名前。SNS を決めていないリンクは link>`・`utm_medium=social`・`utm_campaign=<リンクのコード>` を入れる（src/lib/links/rules.ts）。取り込みは、UTM source が矢書の名前の行だけを日ごとに足し、Other の行は「その他」として数だけ持つ。ほかの UTM と、UTM のない行（検索など）は持たない。検索語（Search term）は預からない
+- 保存: store_daily の google_play の行の `values.utm`（`by_source`・`by_campaign`・`other`）。テーブルは足していない。ファイルがない月はとばし、要る列がないときはその月の日に `utm_unreadable` を付けて、画面で「読めませんでした」と出す（取り込み全体は止めない）
+- 画面: 分析の「Google Play が数えた SNS ごとの DL」（選んだ期間）、投稿の順位の行の「DL n（Google Play が数えた）」（30 日。投稿の本文の短縮リンクのコードで結ぶ）、概要の数字のカード「Google Play が数えた SNS からの DL」（4 枚に空きがあるとき）。どれも App Store の分は入らないと書く
+
 #### 取り込みの頻度と作り
 
 | ジョブ | いつ | 何を |

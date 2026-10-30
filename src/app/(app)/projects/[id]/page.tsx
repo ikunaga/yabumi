@@ -7,6 +7,7 @@ import { OverviewCards } from "@/components/overview/overview-cards";
 import { AttentionStrip, ConnectedSnsLine, NextScheduled, Panel, SnsClicks } from "@/components/overview/overview-panels";
 import { displayStatus } from "@/components/posts/post-chip";
 import { Columns } from "@/components/ui/columns";
+import { SnsMark } from "@/components/ui/marks";
 import { Delta } from "@/components/ui/metric";
 import { SuccessBanner } from "@/components/ui/feedback";
 import { aiConfigured } from "@/lib/ai/anthropic";
@@ -15,7 +16,7 @@ import { DEFAULT_BEHIND_WEEKDAY } from "@/lib/coach/pace";
 import { githubConfigured } from "@/lib/github/config";
 import { recommendedKpis } from "@/lib/metrics/kpis";
 import { loadOverviewNumbers } from "@/lib/overview/load";
-import { CHART_DAYS, CHART_DAYS_MOBILE, compareDays, dailySeries, pctChange, type Daily } from "@/lib/overview/numbers";
+import { CHART_DAYS, CHART_DAYS_MOBILE, compareDays, dailySeries, pctChange, shortDay, type Daily } from "@/lib/overview/numbers";
 import { getAccountPlan } from "@/lib/plan/queries";
 import { listDueManualPosts, listOverduePosts, listPostsNeedingAttention, listUpcomingPosts } from "@/lib/posts/queries";
 import { currentStepIndex, STEPS } from "@/lib/projects/next-step";
@@ -26,6 +27,7 @@ import { loadRoadmap, thisWeekTodos } from "@/lib/roadmap/queries";
 import { itemProgress } from "@/lib/roadmap/schema";
 import { listProjectSnsAccounts } from "@/lib/sns/queries";
 import { createClient } from "@/lib/supabase/server";
+import { toYmd } from "@/lib/time";
 import { isUuid } from "@/lib/uuid";
 
 export async function generateMetadata(props: PageProps<"/projects/[id]">): Promise<Metadata> {
@@ -164,7 +166,13 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
                 <Link href={`${base}/posts/${numbers.topPost.postId}`} className="block truncate font-bold text-fg">
                   {numbers.topPost.title}
                 </Link>
-                <p className="num mt-1 text-sm text-muted">{numbers.topPost.clicks.toLocaleString("ja-JP")} クリック</p>
+                <p className="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-muted">
+                  {numbers.topPost.sentAt && <span className="num">{shortDay(toYmd(new Date(numbers.topPost.sentAt)))}</span>}
+                  {numbers.topPost.sns.map((s) => (
+                    <SnsMark key={s} sns={s} />
+                  ))}
+                  <span className="num ml-auto">{numbers.topPost.clicks.toLocaleString("ja-JP")} クリック</span>
+                </p>
               </Panel>
             )}
 

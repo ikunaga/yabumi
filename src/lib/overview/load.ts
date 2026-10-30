@@ -1,6 +1,6 @@
 import "server-only";
 import type { KpiKey } from "@/lib/metrics/kpis";
-import { loadMetricsOverview, type ClicksBySns } from "@/lib/metrics/queries";
+import { loadMetricsOverview, type ClicksBySns, type MetricsOverview } from "@/lib/metrics/queries";
 import { createClient } from "@/lib/supabase/server";
 import { toYmd } from "@/lib/time";
 import { loadDailyNumbers, type StoreSource } from "@/lib/metrics/daily";
@@ -17,7 +17,7 @@ export type OverviewNumbers = {
   stores: StoreSource[];
   clicksBySns: ClicksBySns[];
   // いちばんクリックされた投稿（30 日。スマホの概要に出す）
-  topPost: { postId: string; title: string; clicks: number } | null;
+  topPost: MetricsOverview["topPosts"][number] | null;
 };
 
 // 概要の数字（直近 30 日と、その前の 30 日）。どれも本人だけが読める表と関数から読む（RLS）

@@ -9,14 +9,16 @@ import { ButtonLink, NotReadyButton } from "@/components/ui/button";
 import { Disclosure, HelpTip } from "@/components/ui/help";
 import { Delta } from "@/components/ui/metric";
 import { Columns } from "@/components/ui/columns";
+import { SnsMark } from "@/components/ui/marks";
 import { PageHeader } from "@/components/ui/page-header";
 import { tabClass, tabListClass } from "@/components/ui/tabs";
 import { Term } from "@/components/ui/term";
 import { aiConfigured } from "@/lib/ai/anthropic";
 import { loadDailyNumbers } from "@/lib/metrics/daily";
+import type { PostMeta } from "@/lib/metrics/post-meta";
 import { KPIS, KPI_KEYS, recommendedKpis, type KpiKey } from "@/lib/metrics/kpis";
 import { listManualTargets, loadMetricsOverview, snsNeedingInsightsReconnect, xMetricsOverLimit, type WeekValue } from "@/lib/metrics/queries";
-import { CHART_DAYS, dailySeries, pctChange, type Daily } from "@/lib/overview/numbers";
+import { CHART_DAYS, dailySeries, pctChange, shortDay, type Daily } from "@/lib/overview/numbers";
 import { connectedAccounts } from "@/lib/posts/queries";
 import { getAccountPlan } from "@/lib/plan/queries";
 import { getProject } from "@/lib/projects/queries";
@@ -304,7 +306,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
             </Panel>
             <Panel title="よく見られた投稿" aside="30 日">
               {overview.topViewed.length ? (
-                <Ranked projectId={project.id} rows={overview.topViewed.map((p) => ({ postId: p.postId, title: p.title, value: `${formatCount(p.views)} 回表示` }))} />
+                <Ranked projectId={project.id} rows={overview.topViewed.map((p) => ({ ...p, value: `${formatCount(p.views)} 回表示` }))} />
               ) : (
                 <p className="text-sm text-muted">
                   Threads・Instagram・Facebook・X を数字の権限つきでつなぐと、送ってから 1・3・7・30 日目の閲覧数を取り込み、ここに並べます。
@@ -318,7 +320,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
             </Panel>
             <Panel title="クリックの多い投稿" aside="30 日">
               {overview.topPosts.length ? (
-                <Ranked projectId={project.id} rows={overview.topPosts.map((p) => ({ postId: p.postId, title: p.title, value: `${formatCount(p.clicks)} クリック` }))} />
+                <Ranked projectId={project.id} rows={overview.topPosts.map((p) => ({ ...p, value: `${formatCount(p.clicks)} クリック` }))} />
               ) : (
                 <p className="text-sm text-muted">投稿の本文のストアの URL を短縮リンクにして送ると、どの投稿からクリックされたかが並びます。</p>
               )}
@@ -353,17 +355,25 @@ function Notice({ children }: { children: ReactNode }) {
   );
 }
 
-// 順位つきの投稿の一覧（よく見られた・クリックの多い）
-function Ranked({ projectId, rows }: { projectId: string; rows: { postId: string; title: string; value: string }[] }) {
+// 順位つきの投稿の一覧（よく見られた・クリックの多い）。同じ書き出しの投稿を見分けられるように、送った日と SNS の札を添える
+function Ranked({ projectId, rows }: { projectId: string; rows: (PostMeta & { postId: string; value: string })[] }) {
   return (
     <ol>
       {rows.map((r, i) => (
-        <li key={r.postId} className="flex items-center gap-3 border-t border-dashed border-line py-2 text-[14px] first:border-t-0">
-          <span className="num w-4 shrink-0 font-bold text-faint">{i + 1}</span>
-          <Link href={`/projects/${projectId}/posts/${r.postId}`} className="min-w-0 flex-1 truncate text-fg hover:underline">
-            {r.title}
+        <li key={r.postId} className="border-t border-dashed border-line first:border-t-0">
+          <Link href={`/projects/${projectId}/posts/${r.postId}`} className="flex items-center gap-3 py-2 text-[14px] text-fg hover:no-underline hover:opacity-80">
+            <span className="num w-4 shrink-0 font-bold text-faint">{i + 1}</span>
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <span className="truncate">{r.title}</span>
+              <span className="flex flex-wrap items-center gap-1.5 text-xs text-muted">
+                {r.sentAt && <span className="num">{shortDay(toYmd(new Date(r.sentAt)))}</span>}
+                {r.sns.map((s) => (
+                  <SnsMark key={s} sns={s} />
+                ))}
+              </span>
+            </span>
+            <span className="num shrink-0 text-muted">{r.value}</span>
           </Link>
-          <span className="num shrink-0 text-muted">{r.value}</span>
         </li>
       ))}
     </ol>

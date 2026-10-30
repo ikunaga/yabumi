@@ -8,6 +8,7 @@ import { SNS, isSnsKey, type SnsKey } from "@/lib/sns";
 import { X_PRICE_USD } from "@/lib/sns/x/pricing";
 import { toYmd } from "@/lib/time";
 import type { KpiKey } from "./kpis";
+import { firstLine, postMeta, type PostMeta } from "./post-meta";
 
 // 数字の画面（docs/architecture.md の 4.22）の読み込み。合計はすべて DB の関数で出す（行を読んで足さない）
 
@@ -20,8 +21,9 @@ export type ClicksBySns = { sns: SnsKey | null; label: string; thisWeek: number;
 export type MetricsOverview = {
   kpiValues: KpiValues;
   clicksBySns: ClicksBySns[];
-  topPosts: { postId: string; title: string; clicks: number }[];
-  topViewed: { postId: string; title: string; views: number }[];
+  // 投稿の行（本文の 1 行目・送った日時・送った SNS。post-meta.ts）
+  topPosts: (PostMeta & { postId: string; clicks: number })[];
+  topViewed: (PostMeta & { postId: string; views: number })[];
 };
 
 // db を渡すと、そのクライアントで読む（AI と相談の「いまの状況」は、利用者の権限のクライアントを渡す。4.23）
@@ -72,13 +74,13 @@ export async function loadMetricsOverview(projectId: string, db?: SupabaseClient
   const sum = (key: "thisWeek" | "lastWeek") => clicksBySns.reduce((n, c) => n + c[key], 0);
 
   const ids = [...new Set([...(top ?? []).map((t) => t.post_id), ...(topViews ?? []).map((t) => t.post_id)])];
-  const byId = new Map<string, string>();
+  const byId = new Map<string, Parameters<typeof postMeta>[0]>();
   if (ids.length) {
-    const { data: bodies } = await supabase.from("posts").select("id, body").in("id", ids);
-    for (const b of bodies ?? []) byId.set(b.id, b.body);
+    const { data: rows } = await supabase.from("posts").select("id, body, planned_at, post_targets(sns, status, published_at)").in("id", ids);
+    for (const r of rows ?? []) byId.set(r.id, r);
   }
-  const topPosts = (top ?? []).map((t) => ({ postId: t.post_id, title: firstLine(byId.get(t.post_id) ?? ""), clicks: Number(t.clicks) }));
-  const topViewed = (topViews ?? []).map((t) => ({ postId: t.post_id, title: firstLine(byId.get(t.post_id) ?? ""), views: Number(t.views) }));
+  const topPosts = (top ?? []).map((t) => ({ postId: t.post_id, ...postMeta(byId.get(t.post_id)), clicks: Number(t.clicks) }));
+  const topViewed = (topViews ?? []).map((t) => ({ postId: t.post_id, ...postMeta(byId.get(t.post_id)), views: Number(t.views) }));
 
   return {
     kpiValues: {
@@ -111,11 +113,6 @@ export async function loadMetricsOverview(projectId: string, db?: SupabaseClient
 
 function p0<T>(rows: T[] | null | undefined): T | undefined {
   return rows?.[0];
-}
-
-function firstLine(body: string) {
-  const line = body.split("\n").find((l) => l.trim()) ?? "（本文なし）";
-  return line.length > 40 ? `${line.slice(0, 40)}…` : line;
 }
 
 export type ManualTargetRow = {

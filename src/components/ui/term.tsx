@@ -13,7 +13,7 @@ const DESKTOP_QUERY = "(min-width: 640px)";
 const noopSubscribe = () => () => {};
 
 // PC では用語の下（入らなければ上）に置く。スマホは CSS でシートにするので位置は付けない
-function placePopover(pop: HTMLElement, button: HTMLElement) {
+export function placePopover(pop: HTMLElement, button: HTMLElement) {
   if (!window.matchMedia(DESKTOP_QUERY).matches) {
     pop.style.removeProperty("top");
     pop.style.removeProperty("left");

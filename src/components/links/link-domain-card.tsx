@@ -61,9 +61,9 @@ export function LinkDomainCard({ projectId, ready, domain, defaultHost, profileL
 
   return (
     <section aria-labelledby="link-domain-heading" className="rounded-lg border border-border bg-surface">
-      <div className="flex items-center gap-x-3 gap-y-3 px-5 py-4 max-sm:flex-col max-sm:items-start max-sm:px-4">
+      <div className="flex items-center gap-x-3 gap-y-3 px-6 py-5 max-sm:flex-col max-sm:items-start max-sm:px-4">
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <h2 id="link-domain-heading" className="text-base font-bold">
+          <h2 id="link-domain-heading" className="text-[18px] font-bold max-sm:text-[16px]">
             自分のドメインで作る<span className="ml-1.5 text-sm font-normal text-muted">（任意）</span>
           </h2>
           <p className="text-sm leading-[1.7] text-muted">
@@ -92,7 +92,7 @@ export function LinkDomainCard({ projectId, ready, domain, defaultHost, profileL
       </div>
 
       {ready && (open || domain) && (
-        <div id="link-domain-body" className="flex flex-col gap-5 border-t border-line px-5 py-5 max-sm:px-4">
+        <div id="link-domain-body" className="flex flex-col gap-5 border-t border-line px-6 py-5 max-sm:px-4">
           <Steps step={step} />
           {!domain && <DomainForm projectId={projectId} />}
           {domain && domain.status === "pending" && <DnsStep projectId={projectId} domain={domain} defaultHost={defaultHost} />}
@@ -343,7 +343,7 @@ function DnsStep({ projectId, domain, defaultHost }: { projectId: string; domain
               role="tab"
               aria-selected={provider === p.key}
               onClick={() => setProvider(p.key)}
-              className={`rounded-full border px-3 py-1 text-sm ${provider === p.key ? "border-primary bg-primary font-bold text-on-primary" : "border-border text-fg hover:bg-primary-soft"}`}
+              className={`rounded-full border px-3 py-1 text-sm ${provider === p.key ? "border-primary bg-surface font-bold text-fg" : "border-border text-muted hover:bg-primary-soft"}`}
             >
               {p.label}
             </button>

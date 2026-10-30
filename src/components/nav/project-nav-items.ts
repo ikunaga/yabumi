@@ -45,7 +45,10 @@ export function activeNavKey(segment: string | null): ProjectNavKey {
       return "roadmap";
     case "consult":
       return "consult";
+    // SNS をつなぐ画面と GitHub は、プロジェクトの設定（つないだ SNS・このアプリについて）から開く
     case "edit":
+    case "connect":
+    case "github":
       return "settings";
     // ストアと課金をつなぐ画面は、分析の画面から開く
     case "metrics":

@@ -4,7 +4,9 @@ import { DescriptionDrafter } from "@/components/github/description-drafter";
 import { RepoPicker, type PickableRepo } from "@/components/github/repo-picker";
 import { buttonClass, NotReadyButton } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
+import { Columns } from "@/components/ui/columns";
 import { ErrorBanner, SuccessBanner } from "@/components/ui/feedback";
+import { PageHeader } from "@/components/ui/page-header";
 import { aiConfigured } from "@/lib/ai/anthropic";
 import { disconnectRepo } from "@/lib/github/actions";
 import { githubConfig, githubConfigured } from "@/lib/github/config";
@@ -32,17 +34,16 @@ export default async function GithubPage(props: PageProps<"/projects/[id]/github
   const installHref = `/github/install?project=${id}`;
 
   const intro = (
-    <div className="flex flex-col gap-1.5">
-      <h1 className="font-heading text-3xl font-bold max-sm:text-2xl">GitHub をつなぐ（任意）</h1>
-      <p className="text-base leading-[1.8] text-muted max-sm:text-[14px]">
-        アプリのリポジトリをつなぐと、AI がファイルを読んで、アプリの紹介文（どんなアプリか）を下書きします。紹介文は、アカウント設計の相談や投稿のネタを考えるときの材料になります。非公開のリポジトリも読めます。つながなくても、手で書けば先へ進めます。
-      </p>
-    </div>
+    <PageHeader
+      title="GitHub をつなぐ"
+      sub="任意"
+      help="アプリのリポジトリをつなぐと、AI がファイルを読んで、アプリの紹介文（どんなアプリか）を下書きします。紹介文は、アカウント設計の相談や投稿のネタを考えるときの材料になります。非公開のリポジトリも読めます。つながなくても、手で書けば先へ進めます。"
+    />
   );
 
   if (!githubConfigured()) {
     return (
-      <div className="flex max-w-[760px] flex-col gap-5">
+      <div className="flex flex-col gap-5">
         {intro}
         <p>
           <NotReadyButton>GitHub をつなぐ</NotReadyButton>
@@ -78,97 +79,104 @@ export default async function GithubPage(props: PageProps<"/projects/[id]/github
   const stale = installations?.filter((i) => accessIsStale(i)) ?? [];
 
   return (
-    <div className="flex max-w-[760px] flex-col gap-6 max-sm:gap-4">
+    <div className="flex flex-col gap-5 max-sm:gap-4">
       {intro}
       {sp.connected === "1" && <SuccessBanner>GitHub とつなぎました。</SuccessBanner>}
       {error && <ErrorBanner>{error}</ErrorBanner>}
 
-      <Card>
-        <CardHeader title="矢書が読むもの・読まないもの" />
-        <div className="grid grid-cols-2 gap-5 px-5 py-4 text-sm leading-[1.8] max-sm:grid-cols-1 max-sm:px-4">
-          <div>
-            <p className="font-bold">読むもの</p>
-            <ul>
-              <li>・あなたがインストールのときに選んだリポジトリだけ</li>
-              <li>・ファイルの一覧を見て、AI が選んだファイル（README、資料、設定ファイル、画面の文言のファイルなど。15 件まで）</li>
-              <li>・読むだけで、書き込みはしません（権限は「中身の読み取り」のみ）</li>
-            </ul>
-          </div>
-          <div>
-            <p className="font-bold">読まないもの・残さないもの</p>
-            <ul>
-              <li>・.env、鍵、証明書など、秘密が入りがちなファイル</li>
-              <li>・読んだ中身は AI に渡すだけで、矢書には残しません。残すのは、あなたが採用した紹介文だけ</li>
-            </ul>
-          </div>
-        </div>
-      </Card>
-
-      <Card>
-        <CardHeader title="1. GitHub とつなぐ" />
-        <div className="flex flex-col gap-3 px-5 py-4 text-[14px] max-sm:px-4">
-          {installations?.length ? (
-            <>
-              <p>
-                <span className="font-bold text-success">✓ </span>
-                つないでいる GitHub: {installations.map((i) => i.account_login).join("、")}
-              </p>
-              {stale.length > 0 && (
-                <p className="leading-[1.8] text-muted">
-                  {stale.map((i) => i.account_login).join("、")} のリポジトリは、あなたが今も読めるかを確かめ直す必要があります（組織や共同作業のリポジトリは 7 日ごとに確かめます）。「GitHub をつなぎ直す」を押してください。
-                </p>
-              )}
-              <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-                <a href={installHref} className="font-semibold text-primary hover:underline">
-                  読ませるリポジトリを追加・変更する
-                </a>
-                <a href={`${installHref}&mode=sync`} className="font-semibold text-primary hover:underline">
-                  GitHub をつなぎ直す
-                </a>
-              </p>
-            </>
-          ) : (
-            <>
-              <p className="leading-[1.8] text-muted">
-                GitHub の画面で矢書の App をインストールし、読ませるリポジトリを選びます（「Only select repositories」で、このアプリのリポジトリだけを選ぶのがおすすめです）。
-              </p>
-              <div>
-                <a href={installHref} className={buttonClass()}>
-                  GitHub をつなぐ
-                </a>
+      <Columns
+        main={
+          <>
+            <Card>
+              <CardHeader title="1. GitHub とつなぐ" />
+              <div className="flex flex-col gap-3 px-6 pt-1 pb-5 text-[14px] max-sm:px-4">
+                {installations?.length ? (
+                  <>
+                    <p>
+                      <span className="font-bold text-success">✓ </span>
+                      つないでいる GitHub: {installations.map((i) => i.account_login).join("、")}
+                    </p>
+                    {stale.length > 0 && (
+                      <p className="leading-[1.8] text-muted">
+                        {stale.map((i) => i.account_login).join("、")} のリポジトリは、あなたが今も読めるかを確かめ直す必要があります（組織や共同作業のリポジトリは 7 日ごとに確かめます）。「GitHub をつなぎ直す」を押してください。
+                      </p>
+                    )}
+                    <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                      <a href={installHref} className="font-semibold text-primary hover:underline">
+                        読ませるリポジトリを追加・変更する
+                      </a>
+                      <a href={`${installHref}&mode=sync`} className="font-semibold text-primary hover:underline">
+                        GitHub をつなぎ直す
+                      </a>
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="leading-[1.8] text-muted">
+                      GitHub の画面で矢書の App をインストールし、読ませるリポジトリを選びます（「Only select repositories」で、このアプリのリポジトリだけを選ぶのがおすすめです）。
+                    </p>
+                    <div>
+                      <a href={installHref} className={buttonClass()}>
+                        GitHub をつなぐ
+                      </a>
+                    </div>
+                  </>
+                )}
               </div>
-            </>
-          )}
-        </div>
-      </Card>
+            </Card>
 
-      {installations?.length ? (
-        <Card>
-          <CardHeader title="2. リポジトリを選んで、紹介文を下書きする" />
-          <div className="flex flex-col gap-4 px-5 py-4 max-sm:px-4">
-            {link ? (
-              <>
-                <div className="flex flex-wrap items-center gap-3 text-[14px]">
-                  <span className="font-bold break-all">{link.full_name}</span>
-                  {link.is_private && <span className="text-xs text-muted">非公開</span>}
-                  <form action={disconnectRepo.bind(null, id)} className="ml-auto">
-                    <button type="submit" className="text-sm text-muted hover:text-fg hover:underline">
-                      外す
-                    </button>
-                  </form>
+            {installations?.length ? (
+              <Card>
+                <CardHeader title="2. リポジトリを選んで、紹介文を下書きする" />
+                <div className="flex flex-col gap-4 px-6 pt-1 pb-5 max-sm:px-4">
+                  {link ? (
+                    <>
+                      <div className="flex flex-wrap items-center gap-3 text-[14px]">
+                        <span className="font-bold break-all">{link.full_name}</span>
+                        {link.is_private && <span className="text-xs text-muted">非公開</span>}
+                        <form action={disconnectRepo.bind(null, id)} className="ml-auto">
+                          <button type="submit" className="text-sm text-muted hover:text-fg hover:underline">
+                            外す
+                          </button>
+                        </form>
+                      </div>
+                      <DescriptionDrafter projectId={id} aiEnabled={aiConfigured()} hasAudience={Boolean(project.target_audience.trim())} />
+                    </>
+                  ) : repos.length ? (
+                    <RepoPicker projectId={id} repos={repos} />
+                  ) : (
+                    <p className="text-sm leading-[1.8] text-muted">
+                      {repoError ? "リポジトリの一覧を読めませんでした。「GitHub をつなぎ直す」を試してください。" : "読ませているリポジトリがありません。「読ませるリポジトリを追加・変更する」から選んでください。"}
+                    </p>
+                  )}
                 </div>
-                <DescriptionDrafter projectId={id} aiEnabled={aiConfigured()} hasAudience={Boolean(project.target_audience.trim())} />
-              </>
-            ) : repos.length ? (
-              <RepoPicker projectId={id} repos={repos} />
-            ) : (
-              <p className="text-sm leading-[1.8] text-muted">
-                {repoError ? "リポジトリの一覧を読めませんでした。「GitHub をつなぎ直す」を試してください。" : "読ませているリポジトリがありません。「読ませるリポジトリを追加・変更する」から選んでください。"}
-              </p>
-            )}
-          </div>
-        </Card>
-      ) : null}
+              </Card>
+            ) : null}
+          </>
+        }
+        side={
+          <Card>
+            <CardHeader title="矢書が読むもの・読まないもの" />
+            <div className="flex flex-col gap-4 px-6 pt-1 pb-5 text-sm leading-[1.8] max-sm:px-4">
+              <div>
+                <p className="font-bold">読むもの</p>
+                <ul>
+                  <li>・あなたがインストールのときに選んだリポジトリだけ</li>
+                  <li>・ファイルの一覧を見て、AI が選んだファイル（README、資料、設定ファイル、画面の文言のファイルなど。15 件まで）</li>
+                  <li>・読むだけで、書き込みはしません（権限は「中身の読み取り」のみ）</li>
+                </ul>
+              </div>
+              <div>
+                <p className="font-bold">読まないもの・残さないもの</p>
+                <ul>
+                  <li>・.env、鍵、証明書など、秘密が入りがちなファイル</li>
+                  <li>・読んだ中身は AI に渡すだけで、矢書には残しません。残すのは、あなたが採用した紹介文だけ</li>
+                </ul>
+              </div>
+            </div>
+          </Card>
+        }
+      />
     </div>
   );
 }

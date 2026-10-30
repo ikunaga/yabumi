@@ -19,7 +19,7 @@ const WEEKDAYS = ["月", "火", "水", "木", "金"];
 export function NotificationPrefsForm({ emailMode, pushMode, behindWeekday }: { emailMode: Mode; pushMode: Mode; behindWeekday: number }) {
   const [state, action, pending] = useActionState<PrefsFormState, FormData>(saveNotificationPrefs, {});
   return (
-    <form action={action} className="flex flex-col gap-5 px-5 py-4 text-[14px] max-sm:px-4">
+    <form action={action} className="flex flex-col gap-5 px-6 pt-1 pb-5 text-[15px] max-sm:px-4">
       <ModeGroup name="email_mode" legend="メール" value={emailMode} />
       <ModeGroup name="push_mode" legend="スマホの通知" value={pushMode} note="スマホの通知は、下の「スマホの通知」でこの端末を登録すると届きます。" />
       <label className="flex flex-wrap items-center gap-2">

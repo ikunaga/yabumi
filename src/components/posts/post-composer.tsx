@@ -23,6 +23,7 @@ import { ISSUE_LABEL, MAX_TITLE_LENGTH, SNS, SNS_KEYS, checkTarget, hasXUrl, ins
 import { X_PRICE_USD, formatUsd } from "@/lib/sns/x/pricing";
 import { Term } from "@/components/ui/term";
 import { projectSettingsHref } from "@/lib/projects/paths";
+import { BAND_INFO, plannedAtFor, type TimeBand } from "@/lib/metrics/time-bands";
 
 export type ComposerInitial = {
   body: string;
@@ -56,6 +57,8 @@ type Props = {
   aiCheckEnabled?: boolean;
   // 下の数字の帯（前回の投稿・この投稿の数字。出せる数字がなければ渡さない）
   numbers?: ReactNode;
+  // 日時の欄の下の「この時間帯がよく見られています（傾向）」。比べられる数がなければ null（数字の段 4）
+  timeHint?: { band: TimeBand; kind: "views" | "clicks" } | null;
 };
 
 // 送信済み・送信中・取り消し済みの配信先は、選び直しも送り直しもできない
@@ -90,6 +93,7 @@ export function PostComposer({
   linkPreview = {},
   aiCheckEnabled = false,
   numbers = null,
+  timeHint = null,
 }: Props) {
   const [images, setImages] = useState<AttachedImage[]>(initial.images ?? []);
   const [shortLinks, setShortLinks] = useState(initial.shortLinks ?? true);
@@ -428,6 +432,25 @@ export function PostComposer({
               />
               <span className="inline-flex h-9 items-center rounded-md border border-border px-3 text-[14px] text-muted">日本時間</span>
             </div>
+            {timeHint && (
+              <div className="-mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted">
+                <span>{timeHint.kind === "views" ? "この時間帯がよく見られています（傾向）" : "この時間帯によくクリックされています（傾向）"}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const [ymd, hm] = jstNow();
+                    setPlannedAt(plannedAtFor(timeHint.band, plannedAt, ymd, hm));
+                    clearFieldError("plannedAt");
+                  }}
+                  className={chipClass({ className: "h-7 px-2.5 text-[12px]" })}
+                >
+                  {BAND_INFO[timeHint.band].label}（{BAND_INFO[timeHint.band].hours}）· {BAND_INFO[timeHint.band].at} にする
+                </button>
+                <HelpTip label="時間帯の傾向">
+                  矢書が数えた、直近 90 日のあなたの数字です（{timeHint.kind === "views" ? "送った時間帯ごとの 1 本あたりの閲覧数" : "短縮リンクが押された時間帯"}）。傾向であって、この時間に送れば必ず見られるわけではありません。くわしくはカレンダーの「時間帯の傾向」で見られます。
+                </HelpTip>
+              </div>
+            )}
 
             <div className="flex flex-col gap-2">
               <Button type="button" size="lg" disabled={pending || blocker !== null} onClick={() => submit("schedule")} className="w-full">
@@ -643,6 +666,16 @@ export function PostComposer({
       {numbers}
     </div>
   );
+}
+
+// 日本時間のいまの日付と時刻（"YYYY-MM-DD" と "HH:MM"）
+function jstNow(): [string, string] {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+      .formatToParts(new Date())
+      .map((x) => [x.type, x.value]),
+  );
+  return [`${p.year}-${p.month}-${p.day}`, `${p.hour}:${p.minute}`];
 }
 
 // 送った配信先の状態（スマホの行の右）

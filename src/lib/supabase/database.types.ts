@@ -1938,6 +1938,15 @@ export type Database = {
           sns: string
         }[]
       }
+      posting_time_trends: {
+        Args: { p_project_id: string; p_today: string }
+        Returns: {
+          avg_views: number
+          band: string
+          clicks: number
+          posts: number
+        }[]
+      }
       project_step_flags: {
         Args: { p_project_id: string; p_week_start: string }
         Returns: {
@@ -2084,6 +2093,7 @@ export type Database = {
           still_used: boolean
         }[]
       }
+      time_band_of: { Args: { p_at: string }; Returns: string }
       top_posts_by_clicks: {
         Args: {
           p_days?: number

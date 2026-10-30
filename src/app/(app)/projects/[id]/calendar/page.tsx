@@ -15,6 +15,9 @@ import { WeekGrid } from "@/components/calendar/week-grid";
 import { chipClass } from "@/components/ui/chip";
 import { Metric } from "@/components/ui/metric";
 import { loadCalendarStats, type CalendarStats } from "@/lib/calendar/stats";
+import { loadCoachView } from "@/lib/coach/load";
+import { loadTimeTrends } from "@/lib/metrics/time-trends";
+import { createClient } from "@/lib/supabase/server";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { SuccessBanner } from "@/components/ui/feedback";
@@ -56,12 +59,13 @@ export default async function CalendarPage(props: PageProps<"/projects/[id]/cale
   const isThisWeek = days.includes(today);
   // 数字と右の列は、今週なら今月、ほかの週はその週の木曜の月（週の多くの日がある月）
   const ym = ymOf(isThisWeek ? today : days[3]);
-  const [posts, undated, bands, stats, upcoming] = await Promise.all([
+  const [posts, undated, bands, stats, upcoming, side] = await Promise.all([
     listPostsBetween(project.id, startOfYmd(days[0]).toISOString(), startOfYmd(addDays(days[6], 1)).toISOString()),
     listUndatedDrafts(project.id),
     loadCalendarRoadmap(project.id, [days[0]], today),
     loadCalendarStats(project.id, ym),
     listUpcoming(project.id),
+    loadSide(project.id),
   ]);
   const band = bands.get(days[0]);
   const todosByDay = plannedTodos(band ? [band] : []);
@@ -126,7 +130,7 @@ export default async function CalendarPage(props: PageProps<"/projects/[id]/cale
 
           <UndatedDrafts posts={undated} base={base} />
         </div>
-        <CalendarSide stats={stats} month={Number(ym.slice(5, 7))} upcoming={upcoming} base={base} />
+        <CalendarSide stats={stats} month={Number(ym.slice(5, 7))} upcoming={upcoming} base={base} week={side.week} trends={side.trends} />
       </div>
 
       <MobileComposeButton base={base} />
@@ -163,6 +167,13 @@ function StatCards({ stats, month }: { stats: CalendarStats; month: number }) {
       <Metric label="送れなかった" value={<span className={stats.failed > 0 ? "text-danger" : ""}>{stats.failed}</span>} unit="件" />
     </div>
   );
+}
+
+// 右の列の今週の空き枠（伴走と同じ計算。週の回数を決めていなければ null）と、時間帯の傾向
+async function loadSide(projectId: string) {
+  const supabase = await createClient();
+  const [coach, trends] = await Promise.all([loadCoachView(supabase, projectId), loadTimeTrends(projectId, supabase)]);
+  return { week: coach?.week ?? null, trends };
 }
 
 // 次の予約（これから 60 日の予約のうち、近い 3 件）
@@ -232,13 +243,14 @@ async function MonthView({ projectId, base, ym, today, done }: { projectId: stri
   const grid = monthGrid(ym);
   const [from, to] = [startOfYmd(grid[0]).toISOString(), startOfYmd(addDays(grid[41], 1)).toISOString()];
   const weekStarts = Array.from({ length: grid.length / 7 }, (_, i) => grid[i * 7]);
-  const [posts, counts, undated, bandMap, stats, upcoming] = await Promise.all([
+  const [posts, counts, undated, bandMap, stats, upcoming, side] = await Promise.all([
     listPostsBetween(projectId, from, to, MONTH_POST_LIMIT),
     countPostsByDay(projectId, from, to),
     listUndatedDrafts(projectId),
     loadCalendarRoadmap(projectId, weekStarts, today),
     loadCalendarStats(projectId, ym),
     listUpcoming(projectId),
+    loadSide(projectId),
   ]);
   const bands = weekStarts.map((w) => bandMap.get(w));
   const todosByDay = plannedTodos([...bandMap.values()]);
@@ -294,7 +306,7 @@ async function MonthView({ projectId, base, ym, today, done }: { projectId: stri
           </div>
           <UndatedDrafts posts={undated} base={base} />
         </div>
-        <CalendarSide stats={stats} month={month} upcoming={upcoming} base={base} />
+        <CalendarSide stats={stats} month={month} upcoming={upcoming} base={base} week={side.week} trends={side.trends} />
       </div>
 
       <MobileComposeButton base={base} />

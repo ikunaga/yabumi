@@ -5,6 +5,8 @@ import { aiConfigured } from "@/lib/ai/anthropic";
 import { PostComposer } from "@/components/posts/post-composer";
 import { PostNumbersBand } from "@/components/posts/post-numbers-band";
 import { loadPostNumbers } from "@/lib/posts/numbers";
+import { loadTimeTrends } from "@/lib/metrics/time-trends";
+import { timeHintOf } from "@/lib/metrics/time-hint";
 import { connectedAccounts, getPost, postTitle } from "@/lib/posts/queries";
 import { getProject } from "@/lib/projects/queries";
 import { isManualSns, manualComposeUrl, xComposeUrl, type SnsKey } from "@/lib/sns";
@@ -55,6 +57,7 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
     postLinkPreview(supabase, post.id),
     loadPostNumbers(project.id, { postId: post.id, sent }),
   ]);
+  const timeHint = timeHintOf(await loadTimeTrends(project.id));
   // 画像はあとから足すこともあるので、画像がなくても調べる
   const needImageReconnect = await snsNeedingImageReconnect(accounts);
   // 短縮リンクのチェックの状態: 本文に URL があるのに、送る前の配信先に短縮リンクがなければ、オフで保存したもの
@@ -104,6 +107,7 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
       needImageReconnect={needImageReconnect}
       linkPreview={linkPreview}
       numbers={numbers && <PostNumbersBand projectId={project.id} numbers={numbers} />}
+      timeHint={timeHint}
       notice={notice?.text}
       noticeTone={notice?.tone}
       initial={{

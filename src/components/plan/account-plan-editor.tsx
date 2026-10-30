@@ -232,7 +232,7 @@ function SectionCard({
         className="flex flex-col gap-5 border-t border-line px-6 py-5 max-sm:px-4">
         {/* 説明は畳む（2026-10-30 オーナーの決定）。空欄を前に考え込ませないよう、このセクションを AI と考える入口を先に置く */}
         <div className="flex flex-wrap items-center gap-3 rounded-md bg-surface2 px-4 py-3 text-sm">
-          <span className="flex flex-1 items-center gap-2">
+          <span className="flex min-w-[14rem] flex-1 items-center gap-2">
             {fromAi ? "AI の案から採用した内容です。下の欄で直せます。" : "迷ったら、AI が質問しながら案を出します。"}
             <HelpTip label={`${meta.title}の説明`}>{meta.lead}</HelpTip>
           </span>

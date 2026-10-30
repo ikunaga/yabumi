@@ -2,7 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Daily } from "@/lib/overview/numbers";
 import type { Database } from "@/lib/supabase/database.types";
-import { addDays } from "@/lib/time";
+import { addDays, toYmd } from "@/lib/time";
 
 export type StoreSource = "app_store" | "google_play";
 
@@ -15,15 +15,23 @@ export type DailyNumbers = {
   pageViews: Daily[];
   // 期間の中で数字を取り込んだストア
   stores: StoreSource[];
+  // ストアごとの、取り込んだいちばん新しい日（確定した日だけで比べるため。post-effect.ts）
+  lastStoreDay: Partial<Record<StoreSource, string>>;
+  // 数え始めた日（比べる範囲の始まり。それより前は数えていないので 0 と扱わない）。
+  // ダウンロードは期間の中で取り込んだいちばん古い日、クリックはいちばん古い短縮リンクを作った日（日本時間）。なければ null
+  storeSince: string | null;
+  linksSince: string | null;
 };
 
 // 概要と分析の日ごとの数（today を含む直近 days 日）。どれも本人だけが読める表と関数から読む（RLS）
 export async function loadDailyNumbers(supabase: SupabaseClient<Database>, projectId: string, today: string, days: number): Promise<DailyNumbers> {
   const from = addDays(today, -(days - 1));
-  const [totals, store] = await Promise.all([
+  const [totals, store, firstLink] = await Promise.all([
     supabase.rpc("roadmap_daily_totals", { p_project_id: projectId, p_from: from, p_to: today }),
     supabase.from("store_daily").select("day, source, values").eq("project_id", projectId).in("source", ["app_store", "google_play", "app_store_views"]).gte("day", from),
+    supabase.from("short_links").select("created_at").eq("project_id", projectId).order("created_at").limit(1).maybeSingle(),
   ]);
+  if (firstLink.error) throw firstLink.error;
   if (totals.error) throw totals.error;
   if (store.error) throw store.error;
   const rows = store.data ?? [];
@@ -35,5 +43,13 @@ export async function loadDailyNumbers(supabase: SupabaseClient<Database>, proje
     // ページの閲覧: App Store はレポート（app_store_views）、Google Play は同じ行の page_views（store_weekly_totals と同じ）
     pageViews: rows.filter((r) => r.source !== "app_store").map((r) => ({ day: r.day, value: value(r.values, "page_views") })),
     stores: (["app_store", "google_play"] as const).filter((s) => rows.some((r) => r.source === s)),
+    storeSince: rows.filter((r) => r.source !== "app_store_views").map((r) => r.day).sort()[0] ?? null,
+    linksSince: firstLink.data ? toYmd(new Date(firstLink.data.created_at)) : null,
+    lastStoreDay: Object.fromEntries(
+      (["app_store", "google_play"] as const).flatMap((s) => {
+        const days = rows.filter((r) => r.source === s).map((r) => r.day).sort();
+        return days.length ? [[s, days[days.length - 1]]] : [];
+      }),
+    ),
   };
 }

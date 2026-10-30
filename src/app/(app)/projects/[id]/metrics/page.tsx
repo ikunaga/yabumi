@@ -4,20 +4,21 @@ import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { ManualMetricForm } from "@/components/metrics/manual-metric-form";
 import { ChartEmpty, DailyBars } from "@/components/overview/daily-chart";
-import { Panel, SnsClicks } from "@/components/overview/overview-panels";
+import { Panel } from "@/components/overview/overview-panels";
 import { ButtonLink, NotReadyButton } from "@/components/ui/button";
 import { Disclosure, HelpTip } from "@/components/ui/help";
-import { Delta } from "@/components/ui/metric";
+import { BarRow, Delta } from "@/components/ui/metric";
 import { Columns } from "@/components/ui/columns";
-import { SnsMark } from "@/components/ui/marks";
+import { SNS_COLOR, SnsMark } from "@/components/ui/marks";
 import { PageHeader } from "@/components/ui/page-header";
 import { tabClass, tabListClass } from "@/components/ui/tabs";
 import { Term } from "@/components/ui/term";
 import { aiConfigured } from "@/lib/ai/anthropic";
 import { loadDailyNumbers } from "@/lib/metrics/daily";
+import { confirmedUntil, MIN_DAYS, POST_EFFECT_DAYS, postEffect, type PostEffect } from "@/lib/metrics/post-effect";
 import type { PostMeta } from "@/lib/metrics/post-meta";
 import { KPIS, KPI_KEYS, recommendedKpis, type KpiKey } from "@/lib/metrics/kpis";
-import { listManualTargets, loadMetricsOverview, snsNeedingInsightsReconnect, xMetricsOverLimit, type WeekValue } from "@/lib/metrics/queries";
+import { listManualTargets, loadMetricsOverview, snsNeedingInsightsReconnect, xMetricsOverLimit, type ClicksBySns, type WeekValue } from "@/lib/metrics/queries";
 import { CHART_DAYS, dailySeries, pctChange, shortDay, type Daily } from "@/lib/overview/numbers";
 import { connectedAccounts } from "@/lib/posts/queries";
 import { getAccountPlan } from "@/lib/plan/queries";
@@ -26,7 +27,7 @@ import { projectSettingsHref } from "@/lib/projects/paths";
 import { SNS } from "@/lib/sns";
 import { xMetricsUserMonthlyUsd } from "@/lib/sns/x/config";
 import { createClient } from "@/lib/supabase/server";
-import { toYmd } from "@/lib/time";
+import { addDays, toYmd } from "@/lib/time";
 
 export const metadata: Metadata = { title: "分析" };
 
@@ -106,7 +107,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
     loadMetricsOverview(project.id),
     listManualTargets(project.id),
     connectedAccounts(project.id),
-    loadDailyNumbers(supabase, project.id, today, CHART_DAYS),
+    loadDailyNumbers(supabase, project.id, today, POST_EFFECT_DAYS),
   ]);
   const [needReconnect, xOver] = await Promise.all([snsNeedingInsightsReconnect(accounts), xMetricsOverLimit(accounts, xMetricsUserMonthlyUsd())]);
   const plan = account?.plan ?? null;
@@ -118,6 +119,14 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
   // 閲覧数を自動で読める SNS を 1 つでもつないでいるか（よく見られた投稿の空のときの案内を変える）
   const hasAutoSns = (["threads", "instagram", "facebook", "x"] as const).some((s) => accounts[s]);
   const later = KPI_KEYS.filter((k) => KPIS[k].availability === "later" && !kpis.includes(k));
+
+  // 投稿した日と DL（またはクリック）の関係（数字の段 1）。ダウンロードがあればダウンロード、なければ短縮リンクがあればクリック
+  const effectKind: "downloads" | "link_clicks" | null = overview.kpiValues.downloads ? "downloads" : overview.clicksBySns.length ? "link_clicks" : null;
+  const effectTo = effectKind ? confirmedUntil(today, effectKind, daily.lastStoreDay) : null;
+  // 始めたばかり（始まりが終わりより後）なら、0 日として「あと N 日」を出す。比べる始まりは、直近 60 日と、数え始めた日（ストアを取り込み始めた日・短縮リンクを作った日）の遅いほう。数える前の日を 0 として混ぜない
+  const effectFrom = [addDays(today, -(POST_EFFECT_DAYS - 1)), (effectKind === "downloads" ? daily.storeSince : daily.linksSince) ?? today].sort().at(-1)!;
+  const effect =
+    effectKind && effectTo ? postEffect(daily.published, effectKind === "downloads" ? daily.downloads : daily.clicks, effectFrom, effectTo) : null;
 
   // 日ごとの棒: 数字があるものだけ選べる（ダウンロードとページの閲覧はストアから取り込んだことがあるときだけ）
   const series: Partial<Record<ChartKey, Daily[]>> = {
@@ -270,25 +279,17 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
         }
         side={
           <>
-            <Panel title="SNS ごとのストアへのクリック" aside="30 日">
-              {overview.clicksBySns.some((c) => c.last30d > 0) ? (
+            <Panel title="SNS ごとのストアへのクリック" aside="直近 7 日・先週比">
+              {overview.clicksBySns.some((c) => c.thisWeek > 0 || c.lastWeek > 0 || c.last30d > 0) ? (
                 <>
-                  <SnsClicks rows={overview.clicksBySns.filter((c) => c.last30d > 0)} />
-                  <Disclosure summary="先週との比べ" className="mt-4">
+                  <SnsClicksCompared rows={overview.clicksBySns} />
+                  <Disclosure summary="30 日の数" className="mt-4">
                     <table className="num w-full text-sm text-fg">
-                      <thead className="text-left text-xs text-muted">
-                        <tr>
-                          <th className="py-1 font-normal">SNS</th>
-                          <th className="py-1 text-right font-normal">直近 7 日</th>
-                          <th className="py-1 text-right font-normal">その前の 7 日</th>
-                        </tr>
-                      </thead>
                       <tbody>
                         {overview.clicksBySns.map((c) => (
-                          <tr key={c.label} className="border-t border-line">
+                          <tr key={c.label} className="border-t border-line first:border-t-0">
                             <td className="py-1.5">{c.label}</td>
-                            <td className="py-1.5 text-right font-bold">{formatCount(c.thisWeek)}</td>
-                            <td className="py-1.5 text-right text-muted">{formatCount(c.lastWeek)}</td>
+                            <td className="py-1.5 text-right font-bold">{formatCount(c.last30d)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -303,6 +304,9 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
                   </Link>
                 </p>
               )}
+            </Panel>
+            <Panel title={effectKind === "downloads" ? "投稿した日とダウンロード" : "投稿した日とクリック"} aside={`直近 ${POST_EFFECT_DAYS} 日`}>
+              <PostEffectBox kind={effectKind} effect={effect} projectId={project.id} />
             </Panel>
             <Panel title="よく見られた投稿" aside="30 日">
               {overview.topViewed.length ? (
@@ -377,5 +381,84 @@ function Ranked({ projectId, rows }: { projectId: string; rows: (PostMeta & { po
         </li>
       ))}
     </ol>
+  );
+}
+
+// SNS ごとのストアへのクリック（直近 7 日の横棒と、前の 7 日と比べた ▲▼）。前が 0 なら % は出さない
+function SnsClicksCompared({ rows }: { rows: ClicksBySns[] }) {
+  const shown = [...rows].sort((a, b) => b.thisWeek - a.thisWeek || b.last30d - a.last30d);
+  const max = Math.max(1, ...shown.map((r) => r.thisWeek));
+  return (
+    <div className="flex flex-col gap-2.5">
+      {shown.map((r) => {
+        const delta = pctChange(r.thisWeek, r.lastWeek);
+        return (
+          <div key={r.label} className="grid grid-cols-[6.5rem_1fr_3.5rem_4.5rem] items-center gap-3 text-[15px] max-sm:grid-cols-[4.5rem_1fr_3rem_4rem] max-sm:gap-2 max-sm:text-sm">
+            <span className="truncate text-muted">{r.sns ? SNS[r.sns].label : "SNS なし"}</span>
+            <span className="h-2 overflow-hidden rounded-full bg-subtle" aria-hidden>
+              <span className={`block h-full rounded-full ${r.sns ? SNS_COLOR[r.sns].bg : "bg-faint"}`} style={{ width: `${(r.thisWeek / max) * 100}%` }} />
+            </span>
+            <span className="num text-right font-bold">{formatCount(r.thisWeek)}</span>
+            <span className="text-right text-xs">
+              {delta !== null ? <Delta value={delta} unit="%" /> : <span className="text-faint">{r.thisWeek > 0 ? "前は 0" : "—"}</span>}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// 投稿した日と DL（またはクリック）の 1 日あたりを並べる。どちらも MIN_DAYS 日そろうまでは比べない。相関であって原因ではないと書く
+function PostEffectBox({ kind, effect, projectId }: { kind: "downloads" | "link_clicks" | null; effect: PostEffect | null; projectId: string }) {
+  if (!kind || !effect) {
+    return (
+      <p className="text-sm text-muted">
+        ストアをつなぐか、短縮リンクを付けて投稿すると、投稿した日としなかった日の数を比べられます。
+        <Link href={`/projects/${projectId}/stores`} className="ml-1 font-bold text-fg underline">
+          ストアをつなぐ
+        </Link>
+      </p>
+    );
+  }
+  const name = kind === "downloads" ? "ダウンロード" : "クリック";
+  const range = `${shortDay(effect.from)}〜${shortDay(effect.to)}`;
+  if (!effect.ready) {
+    const left = Math.max(0, MIN_DAYS - effect.postedDays) + Math.max(0, MIN_DAYS - effect.quietDays);
+    return (
+      <div className="flex flex-col gap-2 text-sm">
+        <p className="font-bold">早ければ、あと {left} 日で出ます</p>
+        <p className="text-muted">
+          「投稿した日とその翌日」と「それ以外の日」が、それぞれ {MIN_DAYS} 日たまると比べます。少ない日数で比べると、偶然の差が大きいためです。
+        </p>
+        <p className="num text-faint">
+          いま: 投稿日と翌日 {effect.postedDays} 日・それ以外の日 {effect.quietDays} 日{effect.from <= effect.to && `（${range}）`}
+        </p>
+      </div>
+    );
+  }
+  const fmt = (n: number) => (n >= 10 ? Math.round(n).toLocaleString("ja-JP") : n.toLocaleString("ja-JP", { maximumFractionDigits: 1 }));
+  const max = Math.max(effect.postedAvg, effect.quietAvg);
+  const times = effect.quietAvg > 0 ? effect.postedAvg / effect.quietAvg : null;
+  return (
+    <div className="flex flex-col gap-3">
+      <BarRow label="投稿日と翌日" value={effect.postedAvg} max={max} barClass="bg-info" display={fmt(effect.postedAvg)} />
+      <BarRow label="それ以外の日" value={effect.quietAvg} max={max} barClass="bg-faint" display={fmt(effect.quietAvg)} />
+      <p className="text-sm">
+        {times === null
+          ? `投稿日と翌日以外の日の${name}は 0 でした。`
+          : times >= 1.05
+            ? `投稿日と翌日は、それ以外の日の約 ${times.toLocaleString("ja-JP", { maximumFractionDigits: 1 })} 倍の${name}でした。`
+            : times <= 0.95
+              ? `投稿日と翌日は、それ以外の日より${name}が少なめでした。`
+              : `投稿日と翌日と、それ以外の日で、${name}はほとんど変わりませんでした。`}
+        <span className="text-muted">
+          （<Term k="correlation">相関</Term>です。投稿のおかげとは限りません）
+        </span>
+      </p>
+      <p className="num text-xs text-faint">
+        1 日あたり・{range}（{kind === "downloads" ? "ストアの数字が確定した日まで" : "昨日まで"}）・投稿日と翌日 {effect.postedDays} 日、それ以外の日 {effect.quietDays} 日
+      </p>
+    </div>
   );
 }

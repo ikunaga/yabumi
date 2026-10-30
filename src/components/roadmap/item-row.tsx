@@ -33,7 +33,7 @@ export function RoadmapItemRow({
   const reached = progress !== null && progress.actual >= progress.target;
 
   return (
-    <li className="flex flex-col gap-1 border-b border-line px-5 py-3 last:border-b-0 max-sm:px-4">
+    <li className="flex flex-col gap-1 border-b border-line px-6 py-3 last:border-b-0 max-sm:px-4">
       <div className="flex items-start gap-3">
         <input
           type="checkbox"

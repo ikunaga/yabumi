@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ButtonLink } from "@/components/ui/button";
+import { Card, CardHeader } from "@/components/ui/card";
+import { Badge, chipClass } from "@/components/ui/chip";
 import { SuccessBanner } from "@/components/ui/feedback";
+import { PageHeader } from "@/components/ui/page-header";
 import { aiConfigured } from "@/lib/ai/anthropic";
 import { isConsultTopic } from "@/lib/ai/consult";
 import { listConsultThreads } from "@/lib/ai/consult-queries";
@@ -26,8 +29,8 @@ export default async function ConsultListPage(props: PageProps<"/projects/[id]/c
   if (!aiConfigured()) {
     return (
       <div className="flex max-w-[640px] flex-col items-start gap-4">
-        <h1 className="font-heading text-3xl font-bold max-sm:text-2xl">AI と相談</h1>
-        <p className="text-base leading-[1.8] text-muted">AI との相談は準備中です。ロードマップは、手で目標とやることを決められます。</p>
+        <PageHeader title="AI と相談" />
+        <p className="text-base text-muted">AI との相談は準備中です。ロードマップは手で決められます。</p>
         <ButtonLink href={`/projects/${id}/roadmap`} variant="secondary">
           ロードマップへ
         </ButtonLink>
@@ -39,54 +42,41 @@ export default async function ConsultListPage(props: PageProps<"/projects/[id]/c
   const base = `/projects/${id}/consult`;
 
   return (
-    <div className="flex max-w-[880px] flex-col gap-6 max-sm:gap-4">
-      <div className="flex flex-col gap-1.5">
-        <h1 className="font-heading text-3xl font-bold max-sm:text-2xl">AI と相談</h1>
-        <p className="text-[14px] leading-[1.8] text-muted">
-          運用の悩みを相談できます。AI はアカウント設計・最近の投稿・数字・ロードマップを見たうえで、案を 2〜3 個出します。選んだ案だけが、設計やロードマップに入ります。
-        </p>
-      </div>
+    <div className="flex max-w-[960px] flex-col gap-5 max-sm:gap-4">
+      <PageHeader
+        title="AI と相談"
+        sub={`これまでの相談 ${threads.length} 件`}
+        help="運用の悩みを相談できます。AI はアカウント設計・最近の投稿・数字・ロードマップを見たうえで、案を 2〜3 個出します。選んだ案だけが、設計やロードマップに入ります。"
+        actions={<ButtonLink href={`${base}/new`}>自由に書いて相談する</ButtonLink>}
+      />
       {sp.done === "thread_deleted" && <SuccessBanner>会話を削除しました。採用した案（設計・ロードマップ・下書き）は残っています。</SuccessBanner>}
 
-      <section aria-labelledby="new-consult" className="flex flex-col gap-3 rounded-lg border border-border bg-surface px-6 py-5 max-sm:px-4">
-        <h2 id="new-consult" className="font-bold">
-          新しい相談
-        </h2>
-        <div className="flex flex-wrap gap-2">
+      <Card>
+        <CardHeader title="新しい相談" />
+        <div className="flex flex-wrap gap-2 px-6 pt-1 pb-5 max-sm:px-4">
           {listedConsultTopics().map((t) => (
-            <Link
-              key={t}
-              href={`${base}/new?start=${t}`}
-              className="rounded-full border border-primary px-3.5 py-1.5 text-sm font-semibold text-primary hover:bg-primary-soft hover:no-underline"
-            >
+            <Link key={t} href={`${base}/new?start=${t}`} className={chipClass({ className: "h-10 px-4 text-[15px] text-fg hover:no-underline" })}>
               {CONSULT_TOPIC_META[t].button}
             </Link>
           ))}
         </div>
-        <Link href={`${base}/new`} className="self-start text-sm font-semibold text-primary hover:underline">
-          自由に書いて相談する →
-        </Link>
-      </section>
+      </Card>
 
-      <section aria-labelledby="past-threads" className="flex flex-col gap-2">
-        <h2 id="past-threads" className="font-bold">
-          これまでの相談
-        </h2>
+      <Card className="overflow-hidden">
+        <CardHeader title="これまでの相談" />
         {threads.length === 0 ? (
-          <p className="text-sm text-muted">まだありません。上の「新しい相談」から始めると、ここに並びます。</p>
+          <p className="px-6 pb-5 text-[15px] text-muted max-sm:px-4">まだありません。</p>
         ) : (
-          <ul className="flex flex-col divide-y divide-line rounded-lg border border-border bg-surface">
+          <ul className="flex flex-col pb-2">
             {threads.map((t) => (
-              <li key={t.id}>
-                <Link href={`${base}/${t.id}`} className="flex items-center gap-3 px-4 py-3 text-[14px] hover:bg-surface2 hover:no-underline max-sm:flex-col max-sm:items-start max-sm:gap-1">
-                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span className="min-w-0 truncate font-semibold text-fg max-sm:whitespace-normal">
-                      {t.topicTitle ?? t.title}
-                      {t.topicTitle && t.title && <span className="font-normal text-muted"> — {t.title}</span>}
-                    </span>
+              <li key={t.id} className="border-t border-line first:border-t-0">
+                <Link href={`${base}/${t.id}`} className="flex items-center gap-3 px-6 py-3.5 text-[15px] hover:bg-surface2 hover:no-underline max-sm:flex-col max-sm:items-start max-sm:gap-1 max-sm:px-4">
+                  <span className="min-w-0 flex-1 truncate font-semibold text-fg max-sm:whitespace-normal">
+                    {t.topicTitle ?? t.title}
+                    {t.topicTitle && t.title && <span className="font-normal text-muted"> — {t.title}</span>}
                   </span>
-                  <span className="flex shrink-0 items-center gap-3 text-xs text-muted">
-                    {t.adopted > 0 && <span>採用した案 {t.adopted}</span>}
+                  <span className="num flex shrink-0 items-center gap-3 text-[13px] text-faint">
+                    {t.adopted > 0 && <Badge tone="success">採用した案 {t.adopted}</Badge>}
                     <span>{formatShort(t.updatedAt)}</span>
                   </span>
                 </Link>
@@ -94,7 +84,7 @@ export default async function ConsultListPage(props: PageProps<"/projects/[id]/c
             ))}
           </ul>
         )}
-      </section>
+      </Card>
     </div>
   );
 }

@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { Button, ButtonLink, NotReadyButton } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/card";
+import { HelpTip } from "@/components/ui/help";
+import { tabClass, tabListClass } from "@/components/ui/tabs";
 import { discardImage } from "@/lib/media/actions";
 import { uploadImageFile } from "@/lib/media/client-upload";
 import { draftFromNote, editNote, removeNote } from "@/lib/notes/actions";
@@ -34,9 +36,6 @@ export function NotesBoard({ projectId, projectName, notes, aiEnabled }: { proje
     setSelected((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : cur.length >= MAX_NOTES_FOR_IDEAS ? cur : [...cur, id]));
   }
 
-  const tabClass = (on: boolean) =>
-    `rounded-full border px-3.5 py-1.5 text-sm font-semibold ${on ? "border-primary bg-primary-soft text-primary" : "border-border text-fg hover:border-primary"}`;
-
   return (
     <div className="flex flex-col gap-5 max-sm:gap-4">
       {flash && (
@@ -45,8 +44,39 @@ export function NotesBoard({ projectId, projectName, notes, aiEnabled }: { proje
         </p>
       )}
 
-      <section className="rounded-lg border border-border bg-surface p-5 max-sm:p-4" aria-label="メモを書く">
-        {writing ? (
+      {/* 上の段: 絞り込み（下線のタブ）と「＋ メモを書く」 */}
+      <div className="flex items-end justify-between gap-3 max-sm:flex-col-reverse max-sm:items-stretch">
+        {notes.length > 0 ? (
+          <div className={`${tabListClass} min-w-0 flex-1`} role="group" aria-label="メモの絞り込み">
+            <button type="button" aria-pressed={tab === "unused"} onClick={() => setTab("unused")} className={tabClass(tab === "unused")}>
+              まだ使っていない <span className="num">{unused.length}</span>
+            </button>
+            <button type="button" aria-pressed={tab === "used"} onClick={() => setTab("used")} className={tabClass(tab === "used")}>
+              投稿にした <span className="num">{used.length}</span>
+            </button>
+          </div>
+        ) : (
+          <span />
+        )}
+        {!writing && (
+          <span className="flex items-center gap-2 max-sm:justify-end">
+            <HelpTip label="メモの残し方" align="right">
+              どの画面でも、上の帯の「＋ メモ」（スマホは右下）から残せます。
+            </HelpTip>
+            <Button
+              onClick={() => {
+                setFlash(null);
+                setWriting(true);
+              }}
+            >
+              ＋ メモを書く
+            </Button>
+          </span>
+        )}
+      </div>
+
+      {writing && (
+        <section className="rounded-lg border border-border bg-surface p-5 max-sm:p-4" aria-label="メモを書く">
           <NoteForm
             key={round}
             projects={[{ id: projectId, name: projectName }]}
@@ -60,20 +90,8 @@ export function NotesBoard({ projectId, projectName, notes, aiEnabled }: { proje
             }}
             onCancel={() => setWriting(false)}
           />
-        ) : (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <Button
-              onClick={() => {
-                setFlash(null);
-                setWriting(true);
-              }}
-            >
-              ＋ メモを書く
-            </Button>
-            <span className="text-sm text-muted">どの画面でも、右下（PC は左のメニュー）の「＋ メモ」から残せます</span>
-          </div>
-        )}
-      </section>
+        </section>
+      )}
 
       {notes.length === 0 ? (
         <div className="rounded-lg border border-border bg-surface">
@@ -95,19 +113,15 @@ export function NotesBoard({ projectId, projectName, notes, aiEnabled }: { proje
         </div>
       ) : (
         <>
-          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="メモの絞り込み">
-            <button type="button" aria-pressed={tab === "unused"} onClick={() => setTab("unused")} className={tabClass(tab === "unused")}>
-              まだ使っていない（{unused.length}）
-            </button>
-            <button type="button" aria-pressed={tab === "used"} onClick={() => setTab("used")} className={tabClass(tab === "used")}>
-              投稿にした（{used.length}）
-            </button>
-          </div>
-
           {tab === "unused" && unused.length > 0 && (
-            <div className="flex flex-col gap-2 rounded-lg border border-line bg-surface2 px-4 py-3 text-sm leading-[1.7]">
-              <p>
-                メモを選んで「AI とネタを出す」を押すと、AI が投稿の柱と口調に沿って、投稿のネタと下書きを出します（{MAX_NOTES_FOR_IDEAS} 件まで。AI に送るのは選んだメモの文だけで、画像は送りません）。
+            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-surface px-5 py-3 max-sm:px-4">
+              <p className="flex min-w-0 flex-1 items-center gap-2 text-[15px] font-bold">
+                <span className="num whitespace-nowrap">
+                  選んだメモ {picked.length} / {MAX_NOTES_FOR_IDEAS}
+                </span>
+                <HelpTip label="AI とネタを出す">
+                  メモを選んで「AI とネタを出す」を押すと、AI が投稿の柱と口調に沿って、投稿のネタと下書きを出します（{MAX_NOTES_FOR_IDEAS} 件まで）。AI に送るのは選んだメモの文だけで、画像は送りません。
+                </HelpTip>
               </p>
               <div className="flex flex-wrap items-center gap-3">
                 {aiEnabled ? (
@@ -194,7 +208,7 @@ function NoteCard({
   }
 
   return (
-    <li className={`flex flex-col gap-3 rounded-lg border bg-surface p-4 ${selected ? "border-primary" : "border-border"}`}>
+    <li className={`flex flex-col gap-3 rounded-lg border bg-surface px-5 py-4 max-sm:px-4 ${selected ? "border-primary" : "border-border"}`}>
       <div className="flex items-start gap-3">
         {selectable && mode === "view" && (
           <input
@@ -409,8 +423,13 @@ function ShareHelp() {
     );
   }, [origin]);
   return (
-    <details className="rounded-lg border border-border bg-surface px-5 py-4 text-sm leading-[1.8] max-sm:px-4">
-      <summary className="cursor-pointer font-bold">ほかのアプリから、ネタ帳に送るには</summary>
+    <details className="group text-sm leading-[1.8]">
+      <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-muted hover:text-fg [&::-webkit-details-marker]:hidden">
+        <svg aria-hidden viewBox="0 0 12 12" className="size-3 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4.5 3 7.5 6 4.5 9" />
+        </svg>
+        ほかのアプリから、ネタ帳に送るには
+      </summary>
       <div className="mt-3 flex flex-col gap-3">
         <div>
           <p className="font-bold">Android</p>

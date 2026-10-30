@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ThreadMenu } from "@/components/ai/thread-menu";
 import { PlanCoachChat } from "@/components/plan/plan-coach-chat";
 import { SuccessBanner } from "@/components/ui/feedback";
 import { ButtonLink } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import { aiConfigured } from "@/lib/ai/anthropic";
 import { getLatestPlanThread } from "@/lib/ai/plan-coach-queries";
 import { isSectionKey } from "@/lib/plan/schema";
@@ -22,8 +22,8 @@ export default async function PlanChatPage(props: PageProps<"/projects/[id]/plan
   if (!aiConfigured()) {
     return (
       <div className="flex max-w-[640px] flex-col items-start gap-4">
-        <h1 className="font-heading text-3xl font-bold max-sm:text-2xl">AI と考える</h1>
-        <p className="text-base leading-[1.8] text-muted">AI との相談は準備中です。それまでは、設計の画面で記入例を見ながら手で入力できます。</p>
+        <PageHeader title="AI と考える" />
+        <p className="text-base text-muted">AI との相談は準備中です。設計の画面で手で入力できます。</p>
         <ButtonLink href={planHref} variant="secondary">
           設計の画面へ
         </ButtonLink>
@@ -36,26 +36,26 @@ export default async function PlanChatPage(props: PageProps<"/projects/[id]/plan
 
   return (
     <div className="flex max-w-[880px] flex-col gap-5 max-sm:gap-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="flex flex-col gap-1.5">
-          <h1 className="font-heading text-3xl font-bold max-sm:text-2xl">AI と考える</h1>
-          <p className="text-[14px] leading-[1.8] text-muted">アカウント設計を、AI と話しながら 1 つずつ決めます。</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link href={planHref} className="text-[14px] font-semibold text-primary hover:underline">
-            決まった中身を見る・手で直す
-          </Link>
-          {/* 削除は会話の下に混ざらないように、見出しの横の「…」に（AI と相談と同じ） */}
-          {thread && (
-            <ThreadMenu
-              projectId={id}
-              threadId={thread.id}
-              backPath={`/projects/${id}/plan/chat`}
-              keeps="設計に採用した内容は残ります。会話は、最後のやり取りから 1 年たつと自動で消えます。"
-            />
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title="AI と考える"
+        help="アカウント設計を、AI と話しながら 1 つずつ決めます。AI の案を採用すると、設計の欄に入ります。"
+        actions={
+          <>
+            <ButtonLink href={planHref} variant="secondary" size="sm">
+              決まった中身を見る
+            </ButtonLink>
+            {/* 削除は会話の下に混ざらないように、見出しの横の「…」に（AI と相談と同じ） */}
+            {thread && (
+              <ThreadMenu
+                projectId={id}
+                threadId={thread.id}
+                backPath={`/projects/${id}/plan/chat`}
+                keeps="設計に採用した内容は残ります。会話は、最後のやり取りから 1 年たつと自動で消えます。"
+              />
+            )}
+          </>
+        }
+      />
       {sp.done === "thread_deleted" && <SuccessBanner>会話を消しました。設計に採用した内容は残っています。</SuccessBanner>}
       <PlanCoachChat key={thread?.id ?? "new"} projectId={id} threadId={thread?.id ?? null} messages={thread?.messages ?? []} initialFocus={focus} />
     </div>

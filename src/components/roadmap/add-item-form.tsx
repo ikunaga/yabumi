@@ -16,7 +16,7 @@ export function AddItemForm({ projectId, weeks }: { projectId: string; weeks: { 
     if (state.ok) form.current?.reset();
   }, [state]);
   return (
-    <form ref={form} action={action} className="flex flex-col gap-2 px-5 py-4 text-sm max-sm:px-4">
+    <form ref={form} action={action} className="flex flex-col gap-2 px-6 py-4 text-sm max-sm:px-4">
       <div className="flex flex-wrap items-end gap-2">
         <label className="flex min-w-[220px] flex-1 flex-col gap-1 text-xs text-muted">
           やること

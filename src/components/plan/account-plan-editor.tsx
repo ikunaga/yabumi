@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { startTransition, useActionState, useEffect, useRef, useState, type ReactNode } from "react";
 import { Button, buttonClass, NotReadyButton } from "@/components/ui/button";
+import { Badge } from "@/components/ui/chip";
 import { ErrorBanner } from "@/components/ui/feedback";
+import { HelpTip } from "@/components/ui/help";
 import { Field, Input, Textarea } from "@/components/ui/field";
 import { Term } from "@/components/ui/term";
 import { saveSection, type SectionFormState } from "@/lib/plan/actions";
@@ -91,10 +93,17 @@ export function AccountPlanEditor({
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-sm text-muted">
-        記入済み {doneCount} / {SECTION_KEYS.length}　・　{REQUIRED_FOR_DONE.map((k) => META[k].title).join("・")}
-        の 3 つが書けたら、「いまやること」が次（SNS をつなぐ）に進みます。
-      </p>
+      <div className="flex items-center gap-3">
+        <p className="num text-[15px] text-muted">
+          記入済み <b className="text-[20px] text-fg">{doneCount}</b> / {SECTION_KEYS.length}
+        </p>
+        <span className="h-2 max-w-48 flex-1 overflow-hidden rounded-full bg-subtle" aria-hidden>
+          <span className="block h-full rounded-full bg-success" style={{ width: `${(doneCount / SECTION_KEYS.length) * 100}%` }} />
+        </span>
+        <HelpTip label="記入の進み具合">
+          {REQUIRED_FOR_DONE.map((k) => META[k].title).join("・")}の 3 つが書けたら、「いまやること」が次（SNS をつなぐ）に進みます。どれも任意で、あとからいつでも直せます。
+        </HelpTip>
+      </div>
       {SECTION_KEYS.map((key, i) => (
         <SectionCard
           key={key}
@@ -167,13 +176,17 @@ function SectionCard({
           aria-controls={bodyId}
           className="flex w-full items-center gap-3 px-6 py-4 text-left max-sm:px-4"
         >
-          <span className="w-5 text-[14px] font-bold text-primary">{index + 1}</span>
-          <span className="flex-1 text-base font-bold">{meta.title}</span>
-          {done && fromAi && <span className="rounded-full bg-primary-soft px-2 py-0.5 text-xs font-bold text-primary max-sm:hidden">AI の案から</span>}
-          {done ? <span className="text-sm font-bold text-success">✓ 記入済み</span> : <span className="text-sm text-muted">未記入</span>}
-          <span aria-hidden className={`text-muted transition-transform ${open ? "rotate-180" : ""}`}>
-            ▾
-          </span>
+          <span className="num inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-subtle text-[13px] font-bold text-muted">{index + 1}</span>
+          <span className="flex-1 text-[17px] font-bold max-sm:text-base">{meta.title}</span>
+          {done && fromAi && (
+            <Badge tone="info" className="max-sm:hidden">
+              AI の案から
+            </Badge>
+          )}
+          {done ? <Badge tone="success">✓ 記入済み</Badge> : <Badge>未記入</Badge>}
+          <svg aria-hidden viewBox="0 0 12 12" className={`size-3.5 shrink-0 text-muted transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 4.5 6 7.5 9 4.5" />
+          </svg>
         </button>
       </h2>
       {/* 閉じても入力中の値が消えないよう、隠すだけにする */}
@@ -188,11 +201,11 @@ function SectionCard({
         }}
         hidden={!open}
         className="flex flex-col gap-5 border-t border-line px-6 py-5 max-sm:px-4">
-        <p className="text-[14px] leading-[1.8] text-muted">{meta.lead}</p>
-        {/* 空欄を前に考え込ませないよう、このセクションを AI と考える入口を先に置く */}
-        <div className="flex flex-wrap items-center gap-3 rounded-md bg-primary-soft px-4 py-3 text-sm">
-          <span className="flex-1">
-            {fromAi ? "AI の案から採用した内容です。直したいところは下の欄で直せます。" : "何を書けばいいか迷ったら、AI が質問しながら案を出します。"}
+        {/* 説明は畳む（2026-10-30 オーナーの決定）。空欄を前に考え込ませないよう、このセクションを AI と考える入口を先に置く */}
+        <div className="flex flex-wrap items-center gap-3 rounded-md bg-surface2 px-4 py-3 text-sm">
+          <span className="flex flex-1 items-center gap-2">
+            {fromAi ? "AI の案から採用した内容です。下の欄で直せます。" : "迷ったら、AI が質問しながら案を出します。"}
+            <HelpTip label={`${meta.title}の説明`}>{meta.lead}</HelpTip>
           </span>
           {aiEnabled ? (
             <Link href={`/projects/${projectId}/plan/chat?section=${sectionKey}`} className={buttonClass({ variant: "secondary", size: "sm" })}>

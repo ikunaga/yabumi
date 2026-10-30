@@ -40,7 +40,7 @@
   --success-soft: #e5f8f1;
   --info: #0f7fff;             /* 情報・グラフの主の色 */
   --info-soft: #ebf3fe;
-  --rule: #f0f0f2;             /* 帳面の罫線（下書き・空の状態） */
+  --rule: #f0f0f2;             /* 画像を置く欄の斜めの縞 */
   /* 上の帯（メニュー） */
   --nav: #e9e9eb;              /* 上の帯は灰（見本の bg-subtle を地より一段濃く） */
   --nav-fg: #606366;
@@ -237,11 +237,6 @@
   --shadow-pop: 0 8px 24px rgb(0 0 0 / 0.14), 0 0 0 1px rgb(0 0 0 / 0.04); /* ポップアップ専用。カードは枠線のみ */
 }
 
-/* 帳面の罫線（下書き・空の状態） */
-@utility bg-ruled {
-  background-image: repeating-linear-gradient(transparent 0 31px, var(--rule) 31px 32px);
-}
-
 /* 数字の見せ方: 桁をそろえ（tabular-nums）、少し詰める。指標・件数・時刻に使う */
 @utility num {
   font-variant-numeric: tabular-nums;
@@ -271,6 +266,18 @@ h1,
 h2,
 h3 {
   line-height: 1.4;
+}
+
+/* PC のプロジェクトの画面は上の帯（高さ 68）が貼りつくので、ページ内のリンクや「次へ進む」で移った先が帯に隠れないようにする */
+@media (min-width: 640px) {
+  html {
+    scroll-padding-top: 84px;
+  }
+}
+
+/* fieldset は既定で中身の幅より狭くならず（min-width: min-content）、スマホで横にはみ出す。ほかの要素と同じく縮められるようにする */
+fieldset {
+  min-width: 0;
 }
 
 rt {

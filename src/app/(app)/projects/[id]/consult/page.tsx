@@ -29,7 +29,7 @@ export default async function ConsultListPage(props: PageProps<"/projects/[id]/c
 
   if (!aiConfigured()) {
     return (
-      <div className="flex max-w-[640px] flex-col items-start gap-4">
+      <div className="flex flex-col items-start gap-4">
         <PageHeader title="AI と相談" />
         <p className="text-base text-muted">AI との相談は準備中です。ロードマップは手で決められます。</p>
         <ButtonLink href={`/projects/${id}/roadmap`} variant="secondary">

@@ -6,6 +6,8 @@ import { ProjectForm } from "@/components/projects/project-form";
 import { SnsAccountsCard } from "@/components/projects/sns-accounts-card";
 import { SnsResultBanner } from "@/components/projects/sns-result-banner";
 import { Card, CardHeader } from "@/components/ui/card";
+import { Columns } from "@/components/ui/columns";
+import { PageHeader } from "@/components/ui/page-header";
 import { SuccessBanner } from "@/components/ui/feedback";
 import { updateProject } from "@/lib/projects/actions";
 import { getProject } from "@/lib/projects/queries";
@@ -39,21 +41,33 @@ export default async function ProjectSettingsPage(props: PageProps<"/projects/[i
   const connectedName = connectedAccount ? (connectedAccount.handle ? `@${connectedAccount.handle}` : connectedAccount.displayName) : null;
 
   return (
-    <div className="flex max-w-[680px] flex-col gap-8 max-sm:gap-5 xl:max-w-none">
-      <h1 className="font-heading text-[30px] font-bold max-sm:text-2xl">プロジェクトの設定</h1>
+    <div className="flex flex-col gap-5 max-sm:gap-4">
+      <PageHeader title="プロジェクトの設定" />
 
       <SnsResultBanner connected={connected} error={sns_error} sns={sns} replaced={replacedNames} connectedName={connectedName} />
       {done === "saved" && <SuccessBanner>このアプリについてを保存しました。</SuccessBanner>}
 
-      <div className="xl:max-w-[680px]">
-        <SnsAccountsCard
-          projectId={project.id}
-          accounts={snsAccounts}
-          manualChannels={manualChannels ?? []}
-          connectable={{ threads: threadsConfigured(), x: xReady, instagram: instagramConfigured(), facebook: facebookConfigured() }}
-          xSpend={xSpend}
-        />
-      </div>
+      {/* 左につないだ SNS、右に削除（危ない操作は端に寄せる）。このアプリについては、欄の説明と並ぶ 2 列の形なので幅いっぱいに置く */}
+      <Columns
+        main={
+          <SnsAccountsCard
+            projectId={project.id}
+            accounts={snsAccounts}
+            manualChannels={manualChannels ?? []}
+            connectable={{ threads: threadsConfigured(), x: xReady, instagram: instagramConfigured(), facebook: facebookConfigured() }}
+            xSpend={xSpend}
+          />
+        }
+        side={
+          <Card className="border-danger/50">
+            <CardHeader title={<span className="text-danger">プロジェクトを削除</span>} />
+            <div className="flex flex-col gap-4 px-6 pt-1 pb-5 max-sm:px-4">
+              <p className="text-[14px] text-muted">削除すると、このプロジェクトの情報は元に戻せません。</p>
+              <DeleteProjectButton projectId={project.id} projectName={project.name} />
+            </div>
+          </Card>
+        }
+      />
 
       <ProjectForm
         action={updateProject.bind(null, project.id)}
@@ -64,14 +78,6 @@ export default async function ProjectSettingsPage(props: PageProps<"/projects/[i
         pendingLabel="保存しています…"
         cancelHref={`/projects/${project.id}`}
       />
-
-      <Card className="border-danger/50 xl:max-w-[680px]">
-        <CardHeader title={<span className="text-danger">プロジェクトを削除</span>} />
-        <div className="flex flex-col gap-4 px-5 py-5 max-sm:px-4">
-          <p className="text-[14px] text-muted">削除すると、このプロジェクトの情報は元に戻せません。</p>
-          <DeleteProjectButton projectId={project.id} projectName={project.name} />
-        </div>
-      </Card>
     </div>
   );
 }

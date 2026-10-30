@@ -13,7 +13,7 @@ export function CardHeader({ title, action }: { title: ReactNode; action?: React
   );
 }
 
-// 空の状態: 帳面の罫線を敷く
+// 空の状態: 点線の枠の中に、短い説明と次の一歩（概要の「日ごとの数」と同じ形）
 export function EmptyState({
   title,
   description,
@@ -26,10 +26,12 @@ export function EmptyState({
   className?: string;
 }) {
   return (
-    <div className={`bg-ruled flex flex-col items-start gap-2.5 px-5 py-8 ${className}`}>
-      {title && <p className="text-lg font-bold">{title}</p>}
+    <div
+      className={`mx-6 mt-1 mb-6 flex flex-col items-center gap-2.5 rounded-md border border-dashed border-border px-6 py-8 text-center max-sm:mx-4 max-sm:mb-4 max-sm:px-4 ${className}`}
+    >
+      {title && <p className="text-[17px] font-bold">{title}</p>}
       <p className="text-[14px] leading-[1.8] text-muted">{description}</p>
-      {action && <div className="mt-1.5 w-full sm:w-auto">{action}</div>}
+      {action && <div className="mt-1.5 max-sm:w-full">{action}</div>}
     </div>
   );
 }

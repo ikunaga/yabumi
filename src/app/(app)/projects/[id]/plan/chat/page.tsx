@@ -24,7 +24,7 @@ export default async function PlanChatPage(props: PageProps<"/projects/[id]/plan
 
   if (!aiConfigured()) {
     return (
-      <div className="flex max-w-[640px] flex-col items-start gap-4">
+      <div className="flex flex-col items-start gap-4">
         <PageHeader title="AI と考える" />
         <p className="text-base text-muted">AI との相談は準備中です。設計の画面で手で入力できます。</p>
         <ButtonLink href={planHref} variant="secondary">

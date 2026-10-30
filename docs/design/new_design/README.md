@@ -125,7 +125,7 @@
 |---|---|
 | `Button` / `ButtonLink` / `buttonClass` | primary は黒、secondary は白地に灰の枠、text は文字だけ、danger は赤、inverse は暗い帯（`bg-band`）の中の白 |
 | `NotReadyButton` | まだ作っていない機能。押せない状態で「準備中」 |
-| `Card` / `CardHeader` / `EmptyState` | 白い面に 1px の枠、角丸 14。見出しは 18px 太字で区切り線なし、右の添え字は faint |
+| `Card` / `CardHeader` / `EmptyState` | 白い面に 1px の枠、角丸 14。見出しは 18px 太字で区切り線なし、右の添え字は faint。空の状態は点線の枠の中に短い説明と次の一歩（前の版の帳面の罫線はやめた） |
 | `PageHeader` | 画面の見出し: 短い見出し ＋「?」（その画面の説明）＋ 右のボタン ＋ 1 行の添え書き（件数・期間）。見出しの下に説明を並べない |
 | `Columns` | 中身の 2 列（左 1.62 : 右 1、xl から）。上の「中身の幅と 2 列」 |
 | `ActionBar` | 小さな帯（1 行の見出し ＋ ボタン）。「いまやること」など。黒い大きな面は使わない |

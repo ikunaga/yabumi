@@ -3,6 +3,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { FacebookPagePicker } from "@/components/projects/facebook-page-picker";
 import { Card } from "@/components/ui/card";
+import { Columns } from "@/components/ui/columns";
+import { SnsMark } from "@/components/ui/marks";
+import { PageHeader } from "@/components/ui/page-header";
 import { getProject } from "@/lib/projects/queries";
 import type { PageSummary } from "@/lib/sns/facebook/pages";
 import { createClient } from "@/lib/supabase/server";
@@ -23,20 +26,33 @@ export default async function SelectFacebookPagesPage(props: PageProps<"/project
       : { data: null };
 
   return (
-    <div className="flex max-w-[720px] flex-col gap-5">
-      <h1 className="font-heading text-3xl font-bold max-sm:text-2xl">つなぐページを選ぶ</h1>
-      <Card className="flex flex-col gap-4 p-5 text-[14px] leading-7">
-        {data ? (
-          <FacebookPagePicker projectId={id} choiceId={data.id} pages={data.pages as PageSummary[]} />
-        ) : (
-          <>
-            <p>選ぶ時間（15 分）が過ぎたか、すでにつなぎました。</p>
-            <Link href={`/projects/${id}/connect/facebook`} className="font-semibold text-primary hover:underline">
-              もう一度「つなぐ」から始める
-            </Link>
-          </>
-        )}
-      </Card>
+    <div className="flex flex-col gap-5 max-sm:gap-4">
+      <PageHeader
+        title={
+          <span className="flex items-center gap-3">
+            <SnsMark sns="facebook" />
+            つなぐページを選ぶ
+          </span>
+        }
+        help="投稿を作れる Facebook ページが 2 つ以上あるので、このプロジェクトで投稿するページを 1 つ選びます。選べる時間は 15 分です。"
+      />
+      <Columns
+        main={
+          <Card className="flex flex-col gap-4 px-6 py-5 text-[15px] leading-7 max-sm:px-4">
+            {data ? (
+              <FacebookPagePicker projectId={id} choiceId={data.id} pages={data.pages as PageSummary[]} />
+            ) : (
+              <>
+                <p>選ぶ時間（15 分）が過ぎたか、すでにつなぎました。</p>
+                <Link href={`/projects/${id}/connect/facebook`} className="font-semibold underline">
+                  もう一度「つなぐ」から始める
+                </Link>
+              </>
+            )}
+          </Card>
+        }
+        side={null}
+      />
     </div>
   );
 }

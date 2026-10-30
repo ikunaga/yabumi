@@ -76,7 +76,9 @@ export function dailySeries(rows: Daily[], today: string, days: number): Daily[]
 function compared(key: "downloads" | "link_clicks" | "posts", label: string, rows: Daily[], today: string, note?: string): OverviewCard {
   const { now, before } = compareDays(rows, today);
   const deltaPct = pctChange(now, before);
-  return { key, label, value: now, deltaPct, note: note ?? (deltaPct === null ? (before === 0 && now > 0 ? "前の 30 日は 0" : undefined) : "前の 30 日比") };
+  // 単位は予約中・下書き（件）とそろえる。ダウンロードは数だけ（「DL」と書き分けない）
+  const unit = key === "posts" ? "件" : key === "link_clicks" ? "回" : undefined;
+  return { key, label, value: now, unit, deltaPct, note: note ?? (deltaPct === null ? (before === 0 && now > 0 ? "前の 30 日は 0" : undefined) : "前の 30 日比") };
 }
 
 // 4 枚のカードを、出せるものから順に選ぶ（PM と決めた a〜e。出せない数字は出さず、「準備中」でも埋めない）

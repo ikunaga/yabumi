@@ -1,5 +1,6 @@
 import type { PostDisplayStatus } from "@/components/posts/post-chip";
 import type { CalendarTodo } from "@/lib/calendar/roadmap-view";
+import type { SnsKey } from "@/lib/sns";
 
 // 月の表示に渡す、1 件の投稿の短い表示（サーバーで作り、スマホの月の表示（クライアント）にもそのまま渡す）
 export type MonthItem = {
@@ -7,6 +8,8 @@ export type MonthItem = {
   href: string;
   time: string;
   sns: string;
+  // 送り先の SNS（札の色の点）
+  snsKeys: SnsKey[];
   title: string;
   status: PostDisplayStatus;
   warning: string | null;

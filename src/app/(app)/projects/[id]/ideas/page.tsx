@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { IdeaBoard } from "@/components/ideas/idea-board";
+import Link from "next/link";
+import { chipClass, chipSolidClass } from "@/components/ui/chip";
 import { SuccessBanner } from "@/components/ui/feedback";
+import { HelpTip } from "@/components/ui/help";
 import { Term } from "@/components/ui/term";
 import { aiConfigured } from "@/lib/ai/anthropic";
 import { IDEA_SNS, MAX_IDEA_SNS, NEWS_QUESTIONS, pickIdeaSns, type IdeaSource } from "@/lib/ai/post-ideas";
@@ -48,18 +51,22 @@ export default async function IdeasPage(props: PageProps<"/projects/[id]/ideas">
   const noPillars = !plan || plan.plan.pillars.items.every((p) => !p.name.trim());
 
   return (
-    <div className="flex max-w-[960px] flex-col gap-6 max-sm:gap-4">
-      <div className="flex flex-col gap-1.5">
-        <h1 className="font-heading text-3xl font-bold max-sm:text-2xl">投稿のネタを出す</h1>
-        <p className="text-base leading-[1.8] text-muted max-sm:text-[14px]">何を投稿すればいいか浮かばないときに、AI がネタと下書きを出します。</p>
-        <details className="text-sm leading-[1.8] text-muted">
-          <summary className="w-fit cursor-pointer font-semibold text-primary">どんなネタが出るか</summary>
-          <p className="mt-1.5">
-            「何に詰まって、どう直したか」「なぜそう作ったか」のような作り手の話は、アプリを知ってもらう入り口になります。こうした発信を <Term k="buildInPublic" /> と呼びます。ネタは、アカウント設計の
-            <Term k="contentPillar" />
-            と口調に沿います。
-          </p>
-        </details>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <h1 className="text-[26px] font-bold max-sm:text-[22px]">ネタを出す</h1>
+        <nav aria-label="投稿のつくり方" className="flex flex-wrap items-center gap-2">
+          <Link href={`/projects/${id}/compose`} className={`${chipClass()} hover:no-underline`}>
+            自分で書く
+          </Link>
+          <span aria-current="page" className={chipSolidClass(true)}>
+            AI とネタを出す
+          </span>
+        </nav>
+        <HelpTip label="どんなネタが出るか">
+          何を投稿すればいいか浮かばないときに、AI がネタと下書きを出します。「何に詰まって、どう直したか」「なぜそう作ったか」のような作り手の話は、アプリを知ってもらう入り口になります（
+          <Term k="buildInPublic" />
+          ）。ネタは、アカウント設計の <Term k="contentPillar" /> と口調に沿います。
+        </HelpTip>
       </div>
       {done === "thread_deleted" && <SuccessBanner>ネタの会話を消しました。下書きにした投稿は残っています。</SuccessBanner>}
       <IdeaBoard

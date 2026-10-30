@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { aiConfigured } from "@/lib/ai/anthropic";
 import { PostComposer } from "@/components/posts/post-composer";
+import { PostNumbersBand } from "@/components/posts/post-numbers-band";
+import { loadPostNumbers } from "@/lib/posts/numbers";
 import { connectedAccounts } from "@/lib/posts/queries";
 import { getProject } from "@/lib/projects/queries";
 import { SNS_KEYS, type SnsKey } from "@/lib/sns";
@@ -20,7 +22,7 @@ export default async function ComposePage(props: PageProps<"/projects/[id]/compo
   const [{ id }, searchParams] = await Promise.all([props.params, props.searchParams]);
   const project = await getProject(id);
   if (!project) notFound();
-  const [accounts, planHints] = await Promise.all([connectedAccounts(project.id), getPlanHints(project.id)]);
+  const [accounts, planHints, numbers] = await Promise.all([connectedAccounts(project.id), getPlanHints(project.id), loadPostNumbers(project.id)]);
   const item = typeof searchParams.item === "string" && /^[0-9a-f-]{36}$/.test(searchParams.item) ? await loadItem(project.id, searchParams.item) : null;
   const date = isYmd(searchParams.date) ? searchParams.date : (item?.planned_on ?? null);
   const needImageReconnect = await snsNeedingImageReconnect(accounts);
@@ -36,6 +38,7 @@ export default async function ComposePage(props: PageProps<"/projects/[id]/compo
       planHints={planHints}
       needImageReconnect={needImageReconnect}
       aiCheckEnabled={aiConfigured()}
+      numbers={numbers && <PostNumbersBand projectId={project.id} numbers={numbers} />}
       initial={{
         body: "",
         targets: (item?.sns && isSnsKey(item.sns) ? [item.sns] : SNS_KEYS.filter((s) => connected.includes(s))).map((sns) => ({ sns, bodyOverride: null })),

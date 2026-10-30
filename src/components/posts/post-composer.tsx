@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { chipClass } from "@/components/ui/chip";
+import { HelpTip } from "@/components/ui/help";
+import { tabClass, tabListClass } from "@/components/ui/tabs";
 import { ErrorBanner, SuccessBanner } from "@/components/ui/feedback";
 import { deletePost, savePost } from "@/lib/posts/actions";
 import type { SavePostResult } from "@/lib/posts/schema";
@@ -15,10 +18,11 @@ import { ComposeStart } from "./compose-start";
 import { PlanHints, type PlanHintsData } from "./plan-hints";
 import { SendResults, type TargetResult } from "./send-results";
 import { SnsPreview } from "./sns-preview";
-import { previewTabs } from "@/lib/sns/preview";
+import { PREVIEW, previewTabs } from "@/lib/sns/preview";
 import { ISSUE_LABEL, MAX_TITLE_LENGTH, SNS, SNS_KEYS, checkTarget, hasXUrl, instagramRatioOk, ignoresImages, isManualSns, type SnsKey, type TargetIssue } from "@/lib/sns";
 import { X_PRICE_USD, formatUsd } from "@/lib/sns/x/pricing";
 import { Term } from "@/components/ui/term";
+import { projectSettingsHref } from "@/lib/projects/paths";
 
 export type ComposerInitial = {
   body: string;
@@ -50,6 +54,8 @@ type Props = {
   linkPreview?: PostLinkPreview;
   // AI っぽさチェック（F11）を使えるか（Claude API のキーがあるか）
   aiCheckEnabled?: boolean;
+  // 下の数字の帯（前回の投稿・この投稿の数字。出せる数字がなければ渡さない）
+  numbers?: ReactNode;
 };
 
 // 送信済み・送信中・取り消し済みの配信先は、選び直しも送り直しもできない
@@ -83,6 +89,7 @@ export function PostComposer({
   needImageReconnect = [],
   linkPreview = {},
   aiCheckEnabled = false,
+  numbers = null,
 }: Props) {
   const [images, setImages] = useState<AttachedImage[]>(initial.images ?? []);
   const [shortLinks, setShortLinks] = useState(initial.shortLinks ?? true);
@@ -202,92 +209,302 @@ export function PostComposer({
   const fe = result.fieldErrors ?? {};
   const focusLabel = SNS[focus].label;
   const hasOverride = overrides[focus] !== undefined;
+  const connectHref = projectSettingsHref(projectId, "sns");
+  const plannedLabel = plannedAt ? `${Number(plannedAt.slice(5, 7))}/${Number(plannedAt.slice(8, 10))} ${plannedAt.slice(11, 16)}` : null;
+
+  // 送り先ごとの状態（スマホの行の右と、PC のチップの下の注意に出す）
+  function targetState(sns: SnsKey): { text: string; tone: string } | null {
+    const on = selected.has(sns);
+    const sent = results[sns];
+    const issue = checks[sns].issues[0];
+    if (on && sent && sent.status !== "pending") return TARGET_STATE[sent.status] ?? null;
+    if (on && sent?.status === "pending" && sent.errorMessage) return { text: "送り直し待ち", tone: "font-bold text-signal" };
+    if (!on) return { text: isManualSns(sns) ? "手で投稿" : "オフ", tone: "text-faint" };
+    if (issue) return { text: ISSUE_LABEL[issue], tone: `font-bold ${ISSUE_TONE[issue]}` };
+    if (isManualSns(sns)) return { text: "手で投稿", tone: "text-muted" };
+    if (connected.includes(sns)) return { text: "OK", tone: "font-bold text-success" };
+    return { text: "つないでいない", tone: "font-bold text-signal" };
+  }
+  const countText = (sns: SnsKey) => {
+    const c = checks[sns];
+    return c.maxLength ? `${formatCount(c.length)}/${formatCount(c.maxLength)}` : formatCount(c.length);
+  };
+  // PC はチップの下に、選んだ SNS のうち OK でないものだけを出す
+  const warnings = chosen
+    .map((sns) => ({ sns, state: targetState(sns) }))
+    .filter((w) => w.state && w.state.text !== "OK" && !TARGET_STATE_TEXTS.has(w.state.text));
 
   return (
-    <div className="flex min-h-full flex-col">
-      {/* 新しい投稿は、自分で書くか AI とネタを出すかを先に並べる（AI を使わなくても書いて送れることがわかるように） */}
+    <div className="flex flex-col gap-4">
+      {/* 見出し。新しい投稿は、自分で書くか AI とネタを出すかの札を横に並べる（AI を使わなくても書いて送れることがわかるように） */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <h1 className="text-[26px] font-bold max-sm:text-[22px]">{postId ? (sentAny ? "送った投稿" : "下書き") : "投稿をつくる"}</h1>
+        {!postId && <ComposeStart projectId={projectId} aiEnabled={aiCheckEnabled} />}
+        {postId && <span className="text-[15px] text-faint">{sentAny ? "送った SNS は選び直せません" : "保存済み"}</span>}
+      </div>
+
       {/* 保存・送信の知らせと、送信の結果（送ったあとはこの投稿の画面に移り、ここに結果が出る） */}
-      {postId && (
-        <div className="mb-6 flex flex-col gap-3 max-sm:mb-4">
-          <h1 className="font-heading text-2xl font-bold">{sentAny ? "送った投稿" : "下書き"}</h1>
-          {notice && (noticeTone === "error" ? <ErrorBanner>{notice}</ErrorBanner> : <SuccessBanner>{notice}</SuccessBanner>)}
-          <SendResults projectId={projectId} postId={postId} results={results} />
-        </div>
-      )}
-      {!postId && (
-        <div className="mb-6 max-sm:mb-4">
-          <ComposeStart projectId={projectId} aiEnabled={aiCheckEnabled} bodyId="post-body" />
-        </div>
-      )}
-      <div className="grid flex-1 grid-cols-[1fr_440px] gap-7 max-xl:grid-cols-1">
-        {/* 左: 下書き */}
-        <section aria-labelledby="draft-heading" className="flex flex-col gap-3.5">
-          <h2 id="draft-heading" className="text-[14px] font-bold">
-            本文
-          </h2>
+      {notice && (noticeTone === "error" ? <ErrorBanner>{notice}</ErrorBanner> : <SuccessBanner>{notice}</SuccessBanner>)}
+      {postId && <SendResults projectId={projectId} postId={postId} results={results} />}
 
-          {result.error && <ErrorBanner>{result.error}</ErrorBanner>}
+      <div className="grid grid-cols-[minmax(0,1.03fr)_minmax(0,1fr)] gap-4 max-lg:grid-cols-1">
+        {/* 左: 本文・送り先・短縮リンク・日時・送る */}
+        <div className="flex min-w-0 flex-col gap-3">
+          <section aria-labelledby="draft-heading" className="flex flex-col gap-3.5 rounded-lg border border-border bg-surface px-6 py-5 max-sm:px-4 max-sm:py-4">
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 id="draft-heading" className="text-[18px] font-bold max-sm:text-[16px]">
+                本文
+              </h2>
+              {plannedLabel && <span className="num text-[15px] text-faint">{plannedLabel} {sentAny ? "に送信" : "予約"}</span>}
+            </div>
 
-          {initial.roadmapItem && (
-            <RoadmapItemHint
-              item={initial.roadmapItem}
-              onInsert={() => {
-                const text = [initial.roadmapItem!.title, initial.roadmapItem!.detail].filter(Boolean).join("\n");
-                setBody((b) => (b.trim() ? `${b}\n\n${text}` : text));
-              }}
-            />
-          )}
+            {result.error && <ErrorBanner>{result.error}</ErrorBanner>}
 
-          <label htmlFor="post-body" className="sr-only">
-            本文
-          </label>
-          <textarea
-            id="post-body"
-            value={body}
-            onChange={(e) => {
-              setBody(e.target.value);
-              clearFieldError("body");
-            }}
-            placeholder="伝えたいことを、自分の言葉で書きます。書いたらそのまま予約・送信できます。SNS ごとの調整は「送り先と文面の調整」で。"
-            aria-invalid={fe.body ? true : undefined}
-            className={`bg-ruled h-[260px] w-full resize-y rounded-lg border bg-surface px-5 py-4 text-[16px] leading-8 text-fg outline-none [background-position:0_16px] placeholder:text-muted ${fe.body ? "border-danger shadow-[0_0_0_1px_var(--danger)]" : "border-border focus:border-primary focus:shadow-[0_0_0_1px_var(--primary)]"}`}
-          />
-          <div className="flex items-center gap-3 text-sm text-muted">
-            <span>{formatCount([...body].length)} 字</span>
-            {fe.body && <span className="font-semibold text-danger">{fe.body}</span>}
-          </div>
+            {initial.roadmapItem && (
+              <RoadmapItemHint
+                item={initial.roadmapItem}
+                onInsert={() => {
+                  const text = [initial.roadmapItem!.title, initial.roadmapItem!.detail].filter(Boolean).join("\n");
+                  setBody((b) => (b.trim() ? `${b}\n\n${text}` : text));
+                }}
+              />
+            )}
 
-          <section aria-labelledby="images-heading" className="flex flex-col gap-2">
-            <h2 id="images-heading" className="text-[14px] font-bold">
-              画像
-            </h2>
-            <ImageAttachments
-              images={images}
-              disabled={pending}
-              maker={{ projectId, projectName, aiEnabled: aiCheckEnabled, text: textFor(focus), targets: chosen }}
-              onChange={(next) => {
-                setImages(next);
-                clearFieldError("media");
-              }}
-            />
-            {fe.media && <p className="text-sm font-semibold text-danger">{fe.media}</p>}
+            <div
+              className={`flex flex-col rounded-md border bg-surface px-4 pt-3 pb-2 ${fe.body ? "border-danger shadow-[0_0_0_1px_var(--danger)]" : "border-input focus-within:border-primary focus-within:shadow-[0_0_0_1px_var(--primary)]"}`}
+            >
+              <label htmlFor="post-body" className="sr-only">
+                本文
+              </label>
+              <textarea
+                id="post-body"
+                value={body}
+                onChange={(e) => {
+                  setBody(e.target.value);
+                  clearFieldError("body");
+                }}
+                placeholder="伝えたいことを、自分の言葉で書きます"
+                aria-invalid={fe.body ? true : undefined}
+                className="min-h-[148px] w-full resize-y bg-transparent text-[17px] leading-[1.75] text-fg outline-none placeholder:text-faint max-sm:min-h-[120px] max-sm:text-[16px]"
+              />
+              <span className={`num self-end text-[13px] ${checks[focus].issues.includes("too_long") ? "font-bold text-danger" : "text-faint"}`}>
+                {countText(focus)}
+                {chosen.length > 1 && <span className="sr-only">（{focusLabel}）</span>}
+              </span>
+            </div>
+            {fe.body && <p className="text-sm font-semibold text-danger">{fe.body}</p>}
+
+            {/* 送り先。PC は字数つきのチップ（見本 B）、スマホは行（見本 D） */}
+            <fieldset className="flex flex-col gap-2">
+              <legend className="sr-only">送り先の SNS</legend>
+              <div className="flex flex-wrap gap-2 max-sm:hidden">
+                {SNS_KEYS.map((sns) => {
+                  const on = selected.has(sns);
+                  const over = on && checks[sns].issues.includes("too_long");
+                  return (
+                    <button
+                      key={sns}
+                      type="button"
+                      aria-pressed={on}
+                      disabled={isLocked(sns)}
+                      onClick={() => toggle(sns)}
+                      className={chipClass({ on, className: "disabled:cursor-not-allowed" })}
+                    >
+                      {on && <span aria-hidden>✓</span>}
+                      {SNS[sns].label}
+                      {on && <span className={`num ${over ? "text-danger" : ""}`}>{countText(sns)}</span>}
+                      {overrides[sns] !== undefined && <span aria-hidden>✎</span>}
+                      {isLocked(sns) && <span className="text-success">投稿済み</span>}
+                    </button>
+                  );
+                })}
+              </div>
+              <ul className="flex flex-col gap-1.5 sm:hidden">
+                {SNS_KEYS.map((sns) => {
+                  const on = selected.has(sns);
+                  const state = targetState(sns);
+                  return (
+                    <li key={sns}>
+                      <label className={`flex h-11 items-center gap-3 rounded-md border px-3.5 text-[15px] ${on ? "border-border bg-surface" : "border-line bg-surface2"}`}>
+                        <input
+                          type="checkbox"
+                          checked={on}
+                          disabled={isLocked(sns)}
+                          onChange={() => toggle(sns)}
+                          className="size-[18px] shrink-0 accent-[var(--primary)]"
+                        />
+                        <span className={on ? "font-bold" : "text-muted"}>{SNS[sns].label}</span>
+                        {overrides[sns] !== undefined && <span className="text-xs text-muted">✎ 文面を変更</span>}
+                        <span className="ml-auto flex items-center gap-2 text-[13px]">
+                          {on && !isLocked(sns) && <span className="num text-faint">{countText(sns)}</span>}
+                          {state && <span className={state.tone}>{state.text}</span>}
+                        </span>
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+              {warnings.length > 0 && (
+                <ul className="flex flex-col gap-1 text-[13px] max-sm:hidden">
+                  {warnings.map((w) => (
+                    <li key={w.sns}>
+                      <span className={w.state!.tone}>● {SNS[w.sns].label}: {w.state!.text}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {fe.targets && (
+                <p role="alert" className="text-sm font-semibold text-danger">
+                  {fe.targets}
+                </p>
+              )}
+              {connected.length === 0 && (
+                <p className="text-[13px] text-muted">
+                  まだ SNS をつないでいません（下書きは保存できます）。{" "}
+                  <Link href={connectHref} className="font-semibold text-fg underline">
+                    先に SNS をつなぐ →
+                  </Link>
+                </p>
+              )}
+            </fieldset>
+
+            {selected.has("x") && !isLocked("x") && hasXUrl(textFor("x")) && (
+              <XUrlCostNotice
+                onEdit={() => {
+                  setFocus("x");
+                  setOverrides((o) => (o.x !== undefined ? o : { ...o, x: body }));
+                }}
+              />
+            )}
+
+            {images.length > 0 && needImageReconnect.some((s) => selected.has(s) && !isLocked(s)) && (
+              <p className="text-[13px] leading-[1.7]">
+                <span className="mr-1.5 font-bold text-signal">● 要確認</span>
+                {needImageReconnect.filter((s) => selected.has(s)).map((s) => SNS[s].label).join("・")} に画像を送るには、つなぎ直しが要ります。
+                <Link href={connectHref} className="ml-1 font-semibold underline">
+                  つないだ SNS へ
+                </Link>
+              </p>
+            )}
+
+            <div className="flex flex-col gap-1.5">
+              <ImageAttachments
+                images={images}
+                disabled={pending}
+                maker={{ projectId, projectName, aiEnabled: aiCheckEnabled, text: textFor(focus), targets: chosen }}
+                onChange={(next) => {
+                  setImages(next);
+                  clearFieldError("media");
+                }}
+              />
+              {fe.media && <p className="text-sm font-semibold text-danger">{fe.media}</p>}
+            </div>
+
+            {(chosen.length === 0 || toSend.length > 0) && (
+              <ShortLinkToggle
+                checked={shortLinks}
+                onChange={setShortLinks}
+                projectId={projectId}
+                body={body}
+                targets={toSend.map((sns) => ({ sns, text: textFor(sns) }))}
+              />
+            )}
+
+            {/* 送る日時と送る */}
+            <div className="flex flex-wrap items-center gap-2">
+              <label htmlFor="planned-at" className="sr-only">
+                送る日時
+              </label>
+              <input
+                id="planned-at"
+                type="datetime-local"
+                value={plannedAt}
+                onChange={(e) => {
+                  setPlannedAt(e.target.value);
+                  clearFieldError("plannedAt");
+                }}
+                aria-invalid={fe.plannedAt ? true : undefined}
+                className={`num h-9 rounded-md border bg-surface px-3 text-[14px] text-fg outline-none max-sm:text-[16px] ${fe.plannedAt ? "border-danger shadow-[0_0_0_1px_var(--danger)]" : "border-border focus:border-primary"}`}
+              />
+              <span className="inline-flex h-9 items-center rounded-md border border-border px-3 text-[14px] text-muted">日本時間</span>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Button type="button" size="lg" disabled={pending || blocker !== null} onClick={() => submit("schedule")} className="w-full">
+                {toSend.length > 0 ? `${toSend.length} つの SNS に予約する` : "予約する"}
+              </Button>
+              <p className={`text-[13px] ${fe.plannedAt || blocker ? "text-signal" : "text-faint"}`}>
+                {fe.plannedAt ?? blocker ?? "予約すると、この日時に自動で送ります"}
+                {!fe.plannedAt && blocker === missingConnectMessage && (
+                  <>
+                    {" "}
+                    <Link href={connectHref} className="font-semibold text-fg underline">
+                      つなぐ →
+                    </Link>
+                  </>
+                )}
+              </p>
+              {/* 今すぐ送るは取り消しにくいので、押したら確かめる */}
+              <div className="flex flex-wrap items-center gap-2">
+                {confirmSend ? (
+                  <>
+                    <Button type="button" variant="secondary" size="sm" disabled={pending} onClick={() => submit("now")}>
+                      本当に今すぐ送る
+                    </Button>
+                    <Button type="button" variant="text" size="sm" disabled={pending} onClick={() => setConfirmSend(false)}>
+                      やめる
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={pending || nowBlocker !== null}
+                    title={nowBlocker ?? undefined}
+                    onClick={() => setConfirmSend(true)}
+                  >
+                    今すぐ送る
+                  </Button>
+                )}
+                <Button type="button" variant="secondary" size="sm" disabled={pending} onClick={() => submit("draft")}>
+                  下書きに保存する
+                </Button>
+                {postId &&
+                  (confirmDelete ? (
+                    <span className="ml-auto flex items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="danger"
+                        size="sm"
+                        disabled={pending}
+                        onClick={() =>
+                          startTransition(async () => {
+                            const res = await deletePost(projectId, postId);
+                            if (res?.error) {
+                              setResult({ error: res.error });
+                              setConfirmDelete(false);
+                            }
+                          })
+                        }
+                      >
+                        本当に削除する
+                      </Button>
+                      <Button type="button" variant="text" size="sm" disabled={pending} onClick={() => setConfirmDelete(false)}>
+                        やめる
+                      </Button>
+                    </span>
+                  ) : (
+                    <Button type="button" variant="text" size="sm" className="ml-auto" onClick={() => setConfirmDelete(true)}>
+                      削除する
+                    </Button>
+                  ))}
+              </div>
+            </div>
           </section>
 
-          {(chosen.length === 0 || toSend.length > 0) && (
-            <ShortLinkToggle
-              checked={shortLinks}
-              onChange={setShortLinks}
-              projectId={projectId}
-              body={body}
-              targets={toSend.map((sns) => ({ sns, text: textFor(sns) }))}
-            />
-          )}
-
           {/* 書くときの手伝い。使わなくても送れるので、閉じて控えめに置く */}
-          <section aria-labelledby="helpers-heading" className="flex flex-col gap-2">
-            <h2 id="helpers-heading" className="text-xs font-bold text-muted">
-              書くときの手伝い（使わなくても送れます）
-            </h2>
+          <section aria-label="書くときの手伝い（使わなくても送れます）" className="flex flex-col gap-2">
             <PlanHints projectId={projectId} hints={planHints} />
             <AiCheckPanel
               projectId={projectId}
@@ -296,332 +513,169 @@ export function PostComposer({
               onApply={applyCheckFix}
             />
           </section>
-        </section>
+        </div>
 
-        {/* 右: 送り先と文面の調整 */}
-        <section aria-labelledby="targets-heading" className="flex flex-col overflow-hidden rounded-lg border border-border bg-surface">
-          <h2 id="targets-heading" className="border-b-2 border-primary px-5 py-3 text-[14px] font-bold">
-            送り先と文面の調整
-          </h2>
-          {fe.targets && (
-            <p role="alert" className="border-b border-line bg-danger-soft px-5 py-2.5 text-sm font-semibold text-danger">
-              {fe.targets}
-            </p>
-          )}
-          {connected.length === 0 && (
-            <p className="border-b border-line bg-surface2 px-5 py-3 text-sm leading-[1.7]">
-              まだ SNS をつないでいません。下書きは保存できます。送るには{" "}
-              <Link href={`/projects/${projectId}/edit#sns`} className="font-semibold text-primary hover:underline">
-                先に SNS をつなぐ →
-              </Link>
-            </p>
-          )}
-          <ul className="text-sm">
-            {SNS_KEYS.map((sns) => {
-              const on = selected.has(sns);
-              const check = checks[sns];
-              const issue = check.issues[0];
-              const isFocus = focus === sns;
-              const spec = SNS[sns];
-              const sent = results[sns];
-              return (
-                <li
-                  key={sns}
-                  className={`grid grid-cols-[1fr_auto_auto] items-center border-b border-line ${isFocus ? "bg-primary-soft" : ""}`}
-                >
-                  <label className={`flex cursor-pointer items-center gap-2 py-[11px] pl-5 ${on ? "font-bold" : "text-muted"} ${isFocus ? "text-primary" : ""}`}>
-                    <input
-                      type="checkbox"
-                      checked={on}
-                      disabled={isLocked(sns)}
-                      onChange={() => toggle(sns)}
-                      className="size-4 accent-[var(--primary)]"
-                    />
-                    {spec.label}
-                    {overrides[sns] !== undefined && <span className="text-xs font-normal text-muted">文面を変更</span>}
+        {/* 右: SNS ごとの見え方と文面（タブ）、SNS ごとの注意 */}
+        <div className="flex min-w-0 flex-col gap-3">
+          <section aria-label="SNS ごとの見え方と文面" className="overflow-hidden rounded-lg border border-border bg-surface">
+            <div className="flex items-center gap-2 bg-surface2 pr-3">
+              <div role="tablist" aria-label="見え方を見る SNS" className={`${tabListClass} min-w-0 flex-1 px-2`}>
+                {previewSns.map((sns) => (
+                  <button key={sns} type="button" role="tab" aria-selected={focus === sns} onClick={() => setFocus(sns)} className={tabClass(focus === sns)}>
+                    {SNS[sns].label}
+                    {overrides[sns] !== undefined && (
+                      <span className="ml-1">
+                        ✎<span className="sr-only">（文面を変えています）</span>
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+              <HelpTip label={`${focusLabel} での出方`} align="right">
+                {PREVIEW[focus].note}
+              </HelpTip>
+            </div>
+            <div role="tabpanel" className="flex flex-col gap-3 px-6 py-5 max-sm:px-4 max-sm:py-4">
+              {isManualSns(focus) && <p className="text-[13px] text-muted">{focusLabel} には、投稿の画面から手で投稿します。</p>}
+              {SNS[focus].needsTitle && (
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="target-title" className="text-[13px] font-bold">
+                    {focusLabel} のタイトル
                   </label>
+                  <input
+                    id="target-title"
+                    value={titles[focus] ?? ""}
+                    maxLength={MAX_TITLE_LENGTH}
+                    onChange={(e) => setTitles((t) => ({ ...t, [focus]: e.target.value }))}
+                    placeholder="例: 個人開発で家計簿アプリを 3 か月作って気づいたこと"
+                    className="w-full rounded-md border border-input bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:shadow-[0_0_0_1px_var(--primary)] max-sm:text-[16px]"
+                  />
+                </div>
+              )}
+              <SnsPreview key={focus} sns={focus} text={textFor(focus)} title={titles[focus] ?? null} projectName={projectName} images={images} length={checks[focus].length} />
+              <ShortLinkPreviewNote sns={focus} text={textFor(focus)} enabled={shortLinks} preview={linkPreview} />
+              {images.length > 0 && ignoresImages(focus) && (
+                <p className="text-[13px] text-muted">
+                  {isManualSns(focus) ? `${focusLabel} には、画像は投稿の画面で手で添えてください。` : `${focusLabel} には画像を送りません（動画だけの SNS です）。`}
+                </p>
+              )}
+              {images.length > SNS[focus].maxImages && !ignoresImages(focus) && (
+                <p className="text-[13px] font-semibold text-danger">
+                  {focusLabel} に添えられる画像は {SNS[focus].maxImages} 枚までです。画像を減らすか、{focusLabel} を送り先から外してください。
+                </p>
+              )}
+              {focus === "instagram" && images.some((i) => !instagramRatioOk(i.width, i.height)) && (
+                <p className="text-[13px] font-semibold text-danger">
+                  Instagram に送れる画像の縦横比は、4:5（縦長）から 1.91:1（横長）までです。
+                  {images
+                    .map((i, n) => (instagramRatioOk(i.width, i.height) ? null : `${n + 1} 枚目（${i.width}×${i.height}）`))
+                    .filter(Boolean)
+                    .join("、")}
+                  が範囲の外です。スマホのスクリーンショット（縦長すぎる）は、上下を切って 4:5 に近づけてください。
+                </p>
+              )}
+              {focus === "instagram" && checks.instagram.issues.includes("too_many_hashtags") && (
+                <p className="text-[13px] font-semibold text-danger">Instagram のハッシュタグは 5 個までです（2025 年 12 月から）。</p>
+              )}
+              {hasOverride ? (
+                <div className="flex flex-col gap-1.5 border-t border-line pt-3">
+                  <label htmlFor="override" className="text-[13px] font-bold">
+                    {focusLabel} 用の文面
+                  </label>
+                  <textarea
+                    id="override"
+                    rows={SNS[focus].needsTitle ? 12 : 4}
+                    value={overrides[focus]}
+                    onChange={(e) => setOverrides((o) => ({ ...o, [focus]: e.target.value }))}
+                    className="w-full rounded-md border border-input bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:shadow-[0_0_0_1px_var(--primary)] max-sm:text-[16px]"
+                  />
                   <button
                     type="button"
-                    onClick={() => setFocus(sns)}
-                    className="px-3 py-[11px] text-right text-muted hover:underline"
-                    aria-label={`${spec.label} での見え方を表示`}
+                    onClick={() =>
+                      setOverrides((o) => {
+                        const next = { ...o };
+                        delete next[focus];
+                        return next;
+                      })
+                    }
+                    className="self-start text-[13px] font-semibold text-muted underline hover:text-fg"
                   >
-                    {on ? (check.maxLength ? `${formatCount(check.length)} / ${formatCount(check.maxLength)}` : formatCount(check.length)) : "—"}
+                    共通の文面に戻す
                   </button>
-                  <span className="min-w-[96px] py-[11px] pr-5 text-right">
-                    {on && sent && sent.status !== "pending" ? (
-                      <TargetStateMark status={sent.status} />
-                    ) : on && sent?.status === "pending" && sent.errorMessage ? (
-                      <span className="font-bold text-signal">送り直し待ち</span>
-                    ) : !on && isManualSns(sns) ? (
-                      <ManualMark />
-                    ) : !on ? (
-                      <span className="text-muted">{spec.media === "video" ? "動画が必要" : spec.media === "image_or_video" ? "画像が必要" : ""}</span>
-                    ) : issue ? (
-                      <span className={`font-bold ${ISSUE_TONE[issue]}`}>{ISSUE_LABEL[issue]}</span>
-                    ) : isManualSns(sns) ? (
-                      <ManualMark />
-                    ) : connected.includes(sns) ? (
-                      <span className="font-bold text-success">OK</span>
-                    ) : (
-                      <span className="font-bold text-signal">つないでいない</span>
-                    )}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-
-          {selected.has("x") && !isLocked("x") && hasXUrl(textFor("x")) && (
-            <XUrlCostNotice
-              onEdit={() => {
-                setFocus("x");
-                setOverrides((o) => (o.x !== undefined ? o : { ...o, x: body }));
-              }}
-            />
-          )}
-
-          {images.length > 0 && needImageReconnect.some((s) => selected.has(s) && !isLocked(s)) && (
-            <p className="border-b border-line px-5 py-3 text-sm leading-[1.7]">
-              <span className="mr-1.5 font-bold text-signal">● 要確認</span>
-              {needImageReconnect.filter((s) => selected.has(s)).map((s) => SNS[s].label).join("・")} に画像を送るには、画像を送る権限を足すためのつなぎ直しが要ります。
-              <Link href={`/projects/${projectId}/edit#sns`} className="ml-1 font-semibold text-primary hover:underline">
-                つないだ SNS へ
-              </Link>
-            </p>
-          )}
-
-          <div className="flex flex-1 flex-col gap-2.5 bg-surface2 px-5 py-4 max-sm:px-4">
-            <p className="text-xs font-bold">SNS ごとの見え方と文面</p>
-            {/* 送り先に選んだ SNS ごとのタブ。文面を変えた SNS には印 */}
-            <div role="tablist" aria-label="見え方を見る SNS" className="flex flex-wrap gap-1">
-              {previewSns.map((sns) => (
-                <button
-                  key={sns}
-                  type="button"
-                  role="tab"
-                  aria-selected={focus === sns}
-                  onClick={() => setFocus(sns)}
-                  className={`flex-none rounded-full border px-3 py-1 text-xs whitespace-nowrap ${focus === sns ? "border-primary bg-primary font-bold text-on-primary" : "border-border bg-surface text-fg hover:border-primary"}`}
-                >
-                  {SNS[sns].label}
-                  {overrides[sns] !== undefined && <span className="ml-1">✎<span className="sr-only">（文面を変えています）</span></span>}
-                </button>
-              ))}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 border-t border-line pt-3">
+                  <Button type="button" variant="secondary" size="sm" disabled={isLocked(focus)} onClick={() => setOverrides((o) => ({ ...o, [focus]: body }))}>
+                    {focusLabel} だけ文面を変える
+                  </Button>
+                  <HelpTip label="SNS ごとの文面">字数を収めたいときや、ハッシュタグ・言い回しを SNS に合わせたいときに。ほかの SNS は共通の文面のままです。</HelpTip>
+                </div>
+              )}
             </div>
-            {chosen.length === 0 && <p className="text-xs text-muted">送り先を選ぶと、選んだ SNS だけが並びます。</p>}
-            {isManualSns(focus) && <p className="text-xs text-muted">{focusLabel} には、投稿の画面から手で投稿します。</p>}
-            {SNS[focus].needsTitle && (
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="target-title" className="text-xs font-bold">
-                  {focusLabel} のタイトル
-                </label>
-                <input
-                  id="target-title"
-                  value={titles[focus] ?? ""}
-                  maxLength={MAX_TITLE_LENGTH}
-                  onChange={(e) => setTitles((t) => ({ ...t, [focus]: e.target.value }))}
-                  placeholder="例: 個人開発で家計簿アプリを 3 か月作って気づいたこと"
-                  className="w-full rounded-md border border-input bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:shadow-[0_0_0_1px_var(--primary)] max-sm:text-[16px]"
-                />
-              </div>
-            )}
-            <SnsPreview key={focus} sns={focus} text={textFor(focus)} title={titles[focus] ?? null} projectName={projectName} images={images} length={checks[focus].length} />
-            <ShortLinkPreviewNote sns={focus} text={textFor(focus)} enabled={shortLinks} preview={linkPreview} />
-            {images.length > 0 && ignoresImages(focus) && (
-              <p className="text-xs text-muted">
-                {isManualSns(focus) ? `${focusLabel} には、画像は投稿の画面で手で添えてください。` : `${focusLabel} には画像を送りません（動画だけの SNS です）。`}
-              </p>
-            )}
-            {images.length > SNS[focus].maxImages && !ignoresImages(focus) && (
-              <p className="text-xs font-semibold text-danger">
-                {focusLabel} に添えられる画像は {SNS[focus].maxImages} 枚までです。画像を減らすか、{focusLabel} を送り先から外してください。
-              </p>
-            )}
-            {focus === "instagram" && images.some((i) => !instagramRatioOk(i.width, i.height)) && (
-              <p className="text-xs font-semibold text-danger">
-                Instagram に送れる画像の縦横比は、4:5（縦長）から 1.91:1（横長）までです。
-                {images
-                  .map((i, n) => (instagramRatioOk(i.width, i.height) ? null : `${n + 1} 枚目（${i.width}×${i.height}）`))
-                  .filter(Boolean)
-                  .join("、")}
-                が範囲の外です。スマホのスクリーンショット（縦長すぎる）は、上下を切って 4:5 に近づけてください。
-              </p>
-            )}
-            {focus === "instagram" && checks.instagram.issues.includes("too_many_hashtags") && (
-              <p className="text-xs font-semibold text-danger">Instagram のハッシュタグは 5 個までです（2025 年 12 月から）。</p>
-            )}
-            {hasOverride ? (
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="override" className="text-xs font-bold">
-                  {focusLabel} 用の文面（ほかの SNS は共通の文面のまま）
-                </label>
-                <textarea
-                  id="override"
-                  rows={SNS[focus].needsTitle ? 12 : 4}
-                  value={overrides[focus]}
-                  onChange={(e) => setOverrides((o) => ({ ...o, [focus]: e.target.value }))}
-                  className="w-full rounded-md border border-input bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:shadow-[0_0_0_1px_var(--primary)] max-sm:text-[16px]"
-                />
-                <button
-                  type="button"
-                  onClick={() =>
-                    setOverrides((o) => {
-                      const next = { ...o };
-                      delete next[focus];
-                      return next;
-                    })
-                  }
-                  className="self-start text-xs font-semibold text-primary hover:underline"
-                >
-                  共通の文面に戻す
-                </button>
-              </div>
-            ) : (
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-line pt-2.5">
-                <Button type="button" variant="secondary" size="sm" disabled={isLocked(focus)} onClick={() => setOverrides((o) => ({ ...o, [focus]: body }))}>
-                  {focusLabel} だけ文面を変える
-                </Button>
-                <span className="text-xs leading-[1.7] text-muted">字数を収めたいときや、ハッシュタグ・言い回しを SNS に合わせたいときに。</span>
-              </div>
-            )}
-          </div>
-        </section>
-      </div>
+          </section>
 
-      {/* 下: 送る日時と保存 */}
-      <div className="sticky bottom-0 z-[5] -mx-12 mt-7 flex flex-wrap items-center gap-4 border-t border-border bg-surface px-12 py-3.5 max-lg:-mx-8 max-lg:px-8 max-sm:bottom-[72px] max-sm:-mx-4 max-sm:gap-3 max-sm:px-4">
-        <label htmlFor="planned-at" className="text-[14px] text-muted">
-          送る日時
-        </label>
-        <input
-          id="planned-at"
-          type="datetime-local"
-          value={plannedAt}
-          onChange={(e) => {
-            setPlannedAt(e.target.value);
-            clearFieldError("plannedAt");
-          }}
-          aria-invalid={fe.plannedAt ? true : undefined}
-          className={`rounded-md border bg-surface px-3.5 py-2 text-[14px] text-fg outline-none max-sm:text-[16px] ${fe.plannedAt ? "border-danger shadow-[0_0_0_1px_var(--danger)]" : "border-input focus:border-primary focus:shadow-[0_0_0_1px_var(--primary)]"}`}
-        />
-        <span className={`text-xs ${fe.plannedAt ? "font-semibold text-danger" : "text-muted"}`}>
-          {fe.plannedAt ?? blocker ?? "予約すると、この日時に自動で送ります"}
-          {!fe.plannedAt && blocker === missingConnectMessage && (
-            <>
-              {" "}
-              <Link href={`/projects/${projectId}/edit#sns`} className="font-semibold text-primary hover:underline">
-                つなぐ →
-              </Link>
-            </>
+          {/* SNS ごとの注意の小さなカード（見本 B の右下）。いま見ている SNS のほかに、選んだ SNS */}
+          {previewSns.length > 1 && (
+            <ul className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+              {previewSns
+                .filter((s) => s !== focus)
+                .slice(0, 4)
+                .map((sns) => (
+                  <li key={sns}>
+                    <button
+                      type="button"
+                      onClick={() => setFocus(sns)}
+                      className="flex h-full w-full flex-col gap-0.5 rounded-lg border border-border bg-surface px-4 py-3 text-left hover:border-input"
+                    >
+                      <b className="text-[15px]">{SNS[sns].label}</b>
+                      <span className="text-[13px] leading-[1.6] text-muted">
+                        {SNS[sns].maxLength ? `${formatCount(SNS[sns].maxLength!)} 字まで・` : ""}
+                        {PREVIEW[sns].short}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+            </ul>
           )}
-        </span>
-        {/* 今すぐ送るは取り消しにくいので、押したら確かめる */}
-        <div className="ml-auto flex flex-wrap items-center gap-3 max-sm:ml-0 max-sm:w-full">
-          {postId &&
-            (confirmDelete ? (
-              <>
-                <Button
-                  type="button"
-                  variant="danger"
-                  size="sm"
-                  disabled={pending}
-                  onClick={() =>
-                    startTransition(async () => {
-                      const res = await deletePost(projectId, postId);
-                      if (res?.error) {
-                        setResult({ error: res.error });
-                        setConfirmDelete(false);
-                      }
-                    })
-                  }
-                >
-                  本当に削除する
-                </Button>
-                <Button type="button" variant="text" size="sm" disabled={pending} onClick={() => setConfirmDelete(false)}>
-                  やめる
-                </Button>
-              </>
-            ) : (
-              <Button type="button" variant="text" size="sm" onClick={() => setConfirmDelete(true)}>
-                削除する
-              </Button>
-            ))}
-          <Button type="button" variant="secondary" disabled={pending} onClick={() => submit("draft")} className="max-sm:flex-1">
-            下書きに保存する
-          </Button>
-          {confirmSend ? (
-            <>
-              <Button type="button" variant="text" disabled={pending} onClick={() => setConfirmSend(false)}>
-                やめる
-              </Button>
-              <Button type="button" variant="secondary" disabled={pending} onClick={() => submit("now")} className="max-sm:flex-1">
-                本当に今すぐ送る
-              </Button>
-            </>
-          ) : (
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={pending || nowBlocker !== null}
-              title={nowBlocker ?? undefined}
-              onClick={() => setConfirmSend(true)}
-              className="max-sm:flex-1"
-            >
-              今すぐ送る
-            </Button>
-          )}
-          <Button
-            type="button"
-            disabled={pending || blocker !== null}
-            onClick={() => submit("schedule")}
-            className="max-sm:flex-1"
-          >
-            {toSend.length > 0 ? `${toSend.length} つの SNS に予約する` : "予約する"}
-          </Button>
         </div>
       </div>
+
+      {numbers}
     </div>
   );
 }
 
-function TargetStateMark({ status }: { status: TargetResult["status"] }) {
-  switch (status) {
-    case "published":
-      return <span className="font-bold text-success">✓ 投稿済み</span>;
-    case "preparing":
-    case "publishing":
-      return <span className="text-muted">送信中</span>;
-    case "deleted":
-      return <span className="text-muted">取り消し済み</span>;
-    case "failed":
-      return <span className="font-bold text-danger">! 失敗</span>;
-    default:
-      return null;
-  }
-}
+// 送った配信先の状態（スマホの行の右）
+const TARGET_STATE: Partial<Record<TargetResult["status"], { text: string; tone: string }>> = {
+  published: { text: "✓ 投稿済み", tone: "font-bold text-success" },
+  preparing: { text: "送信中", tone: "text-muted" },
+  publishing: { text: "送信中", tone: "text-muted" },
+  deleted: { text: "取り消し済み", tone: "text-muted" },
+  failed: { text: "! 失敗", tone: "font-bold text-danger" },
+};
+// 送ったあとの状態は、上の「送信の結果」に出ているので、チップの下の注意には出さない
+const TARGET_STATE_TEXTS = new Set(Object.values(TARGET_STATE).map((s) => s!.text));
 
-// 手で投稿する SNS の印（自動の SNS と区別する。注意の印の色は使わない）
-function ManualMark() {
-  return <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">手で投稿</span>;
-}
-
-// X は本文に URL があると、API の料金が 13 倍になる（決定 D16）。費用の差と、URL を外す代わりの案を出す
+// X は本文に URL があると、API の料金が 13 倍になる（決定 D16）。費用の差は 1 行で出し、URL を外す代わりの案は「?」に畳む
 function XUrlCostNotice({ onEdit }: { onEdit: () => void }) {
   return (
-    <div className="flex flex-col gap-2 border-b border-line px-5 py-3.5 text-sm">
-      <p>
-        <span className="mr-1.5 font-bold text-signal">● 費用</span>X の本文に URL があるため、この投稿は X の{" "}
-        <Term k="payPerUse">API の料金</Term>が 1 本 {formatUsd(X_PRICE_USD.post_with_url)}（約 30 円）かかります。URL がなければ{" "}
-        {formatUsd(X_PRICE_USD.post)}（約 2 円）です。
-      </p>
-      <ul className="list-disc pl-5 text-xs leading-6 text-muted">
-        <li>URL は X のプロフィールに置き、本文は「プロフィールのリンクから」とする</li>
-        <li>X 用に文面を変えて URL を外す（Threads など、ほかの SNS には URL を残せる）</li>
-        <li>「example.com」のように https:// を付けなくても、X は URL として数えます</li>
-        <li>短縮リンクも URL なので、料金は同じです。X で押された回数は、プロフィールのリンクを短縮リンクにして数えるのがおすすめです</li>
-      </ul>
-      <button type="button" onClick={onEdit} className="self-start text-xs font-semibold text-primary hover:underline">
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
+      <span className="font-bold text-signal">● 費用</span>
+      <span>
+        X は本文に URL があると 1 本 {formatUsd(X_PRICE_USD.post_with_url)}（約 30 円。なければ約 2 円）
+      </span>
+      <HelpTip label="X の URL の費用">
+        <ul className="list-disc pl-4">
+          <li>
+            URL があると、X の <Term k="payPerUse">API の料金</Term>が 1 本 {formatUsd(X_PRICE_USD.post_with_url)}、なければ {formatUsd(X_PRICE_USD.post)} です
+          </li>
+          <li>URL は X のプロフィールに置き、本文は「プロフィールのリンクから」とする</li>
+          <li>X 用に文面を変えて URL を外す（Threads など、ほかの SNS には URL を残せる）</li>
+          <li>「example.com」のように https:// を付けなくても、X は URL として数えます</li>
+          <li>短縮リンクも URL なので、料金は同じです。X で押された回数は、プロフィールのリンクを短縮リンクにして数えるのがおすすめです</li>
+        </ul>
+      </HelpTip>
+      <button type="button" onClick={onEdit} className="font-semibold underline">
         X 用に文面を変える
       </button>
     </div>
@@ -631,12 +685,15 @@ function XUrlCostNotice({ onEdit }: { onEdit: () => void }) {
 // ロードマップのやることから作るときの手がかり（4.23）。題と説明は本文に入れず、「本文に入れる」で手がかりとして入れられる
 function RoadmapItemHint({ item, onInsert }: { item: { title: string; detail: string }; onInsert: () => void }) {
   return (
-    <div className="flex flex-col gap-1 rounded-lg border border-primary/30 bg-primary-soft px-4 py-3 text-sm leading-6">
-      <p className="text-xs font-bold text-primary">ロードマップのやることから作っています（送ると、このやることの進み具合に数えます）</p>
-      <p className="font-bold">{item.title}</p>
+    <div className="flex flex-col gap-1 rounded-md border border-line bg-surface2 px-4 py-3 text-[13px] leading-[1.7]">
+      <p className="flex items-center gap-1.5 text-muted">
+        ロードマップのやることから
+        <HelpTip label="ロードマップのやること">送ると、このやることの進み具合に数えます。</HelpTip>
+      </p>
+      <p className="text-[15px] font-bold">{item.title}</p>
       {item.detail && <p className="text-muted">{item.detail}</p>}
-      <button type="button" onClick={onInsert} className="self-start text-sm font-semibold text-primary hover:underline">
-        題と説明を本文に入れる（下書きの手がかりに）
+      <button type="button" onClick={onInsert} className="self-start font-semibold underline">
+        題と説明を本文に入れる
       </button>
     </div>
   );

@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { HelpTip } from "@/components/ui/help";
 import { Term } from "@/components/ui/term";
 import { discardImage } from "@/lib/media/actions";
 import { uploadImageFile, uploadJpeg } from "@/lib/media/client-upload";
@@ -106,10 +107,8 @@ export function ImageAttachments({
           setDragging(false);
           if (!disabled) void addFiles([...e.dataTransfer.files]);
         }}
-        className={`flex flex-col items-center justify-center gap-2 rounded-lg border-[1.5px] border-dashed px-4 py-6 text-center text-sm ${dragging ? "border-primary bg-primary-soft" : "border-border text-muted"}`}
-        style={dragging ? undefined : { background: "repeating-linear-gradient(45deg, transparent 0 10px, var(--rule) 10px 11px)" }}
+        className={`flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-dashed px-3 py-2.5 text-sm ${dragging ? "border-primary bg-primary-soft" : "border-input text-muted"}`}
       >
-        <p>画像をここに置くか、選んでください（{MAX_IMAGES_PER_POST} 枚まで。X は 4 枚まで）</p>
         <input
           ref={inputRef}
           type="file"
@@ -121,17 +120,20 @@ export function ImageAttachments({
             e.target.value = "";
           }}
         />
-        <div className="flex flex-wrap justify-center gap-2">
-          <Button type="button" variant="secondary" size="sm" disabled={disabled || room <= 0} onClick={() => inputRef.current?.click()}>
-            画像を選ぶ
+        <Button type="button" variant="secondary" size="sm" disabled={disabled || room <= 0} onClick={() => inputRef.current?.click()}>
+          画像を選ぶ
+        </Button>
+        {maker && (
+          <Button type="button" variant="secondary" size="sm" disabled={disabled || room <= 0 || making} onClick={() => setMaking(true)}>
+            画像をつくる
           </Button>
-          {maker && (
-            <Button type="button" variant="secondary" size="sm" disabled={disabled || room <= 0 || making} onClick={() => setMaking(true)}>
-              画像をつくる
-            </Button>
-          )}
-        </div>
-        <p className="text-xs text-muted">送る前に JPEG に縮め、撮った場所などの情報は消します。動画は準備中です。</p>
+        )}
+        <span className="num text-[13px] text-faint">
+          置いても添えられます・{MAX_IMAGES_PER_POST} 枚まで（X は 4 枚）
+        </span>
+        <HelpTip label="画像の扱い" align="right">
+          送る前に JPEG に縮め、撮った場所などの情報は消します。動画は準備中です。
+        </HelpTip>
       </div>
 
       {maker && making && <ImageMaker {...maker} onAdd={addMade} onClose={() => setMaking(false)} />}

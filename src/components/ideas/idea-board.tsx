@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { DeleteThreadButton } from "@/components/ai/delete-thread-button";
-import { Button, NotReadyButton } from "@/components/ui/button";
+import { Button, ButtonLink, NotReadyButton } from "@/components/ui/button";
+import { Badge, chipClass } from "@/components/ui/chip";
+import { HelpTip } from "@/components/ui/help";
+import { SnsMark } from "@/components/ui/marks";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { Input, Textarea } from "@/components/ui/field";
 import { Steps } from "@/components/ui/steps";
@@ -154,344 +157,402 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
   const questions = latest?.questions ?? [];
   const answered = questions.map((q, i) => ({ question: q.question, answer: answers[i] ?? "" })).filter((a) => a.answer.trim());
 
-  const pill = (on: boolean) => `rounded-full border px-3.5 py-1.5 text-sm font-semibold ${on ? "border-primary bg-primary-soft text-primary" : "border-border text-fg hover:border-primary"}`;
+  const pill = (on: boolean) => chipClass({ on });
+  const card = "flex flex-col gap-4 rounded-lg border border-border bg-surface px-6 py-5 max-sm:px-4 max-sm:py-4";
+  const heading = "text-[18px] font-bold outline-none max-sm:text-[16px]";
 
-  return (
-    <div className="flex flex-col gap-5 max-sm:gap-4">
-      <Steps label="ネタを出す段取り" steps={IDEA_STEPS} current={shown} canGo={(k) => canGoIdeaStep(k, Boolean(thread))} onGo={go} />
-
-      {shown === 1 && (
-        <section className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-5 max-sm:p-4" aria-labelledby="ideas-step-1">
-          <h2 id="ideas-step-1" ref={headingRef} tabIndex={-1} className="text-base font-bold outline-none">
-            何からネタを出すか選ぶ
-          </h2>
-          <fieldset className="flex flex-col gap-2">
-            <legend className="sr-only">ネタの材料</legend>
-            <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
-              {IDEA_SOURCES.map((k) => {
-                const s = SOURCE_INFO[k];
-                const on = source === k;
-                return (
-                  <label key={k} className={`flex cursor-pointer flex-col gap-1.5 rounded-md border p-3.5 text-sm leading-[1.7] ${on ? "border-primary bg-primary-soft" : "border-border hover:border-primary"}`}>
-                    <span className="flex items-center gap-2 font-bold">
-                      <input type="radio" name="idea-source" value={k} checked={on} onChange={() => setSource(k)} className="size-4 accent-[var(--primary)]" />
-                      {s.title}
-                    </span>
-                    <span>{s.summary}</span>
-                    <span className="text-xs text-muted">よいところ: {s.good}</span>
-                    <span className="text-xs text-muted">気をつけること: {s.note}</span>
-                    {k === "commits" && !repoFullName && <span className="text-xs font-semibold text-muted">GitHub をつなぐと使えます</span>}
-                    {k === "notes" && notes.length === 0 && <span className="text-xs font-semibold text-muted">まだ使っていないメモがありません</span>}
-                  </label>
-                );
-              })}
+  // 右の列: ①② は選んでいるものと前に出したネタ、③ は質問とやり直し（見本 B の 2 列）
+  const side =
+    shown === 3 && thread && latest ? (
+      <div className="flex min-w-0 flex-col gap-4">
+        {questions.length > 0 && (
+          <section className={card} aria-labelledby="idea-questions">
+            <div className="flex items-center gap-1.5">
+              <h3 id="idea-questions" className="text-[18px] font-bold max-sm:text-[16px]">
+                質問に答える
+              </h3>
+              <HelpTip label="質問">答えると、ネタをよくして出し直します。答えなくても、いまのネタを下書きにできます。</HelpTip>
             </div>
-          </fieldset>
-          <div className="flex flex-wrap items-center gap-3">
-            <Button onClick={() => go(2)} className="max-sm:w-full">
-              次へ: 中身を入れる
-            </Button>
-            {thread && (
-              <Button variant="text" onClick={() => go(3)}>
-                前に出したネタを見る
-              </Button>
-            )}
-          </div>
-        </section>
-      )}
-
-      {shown === 2 && (
-        <section className="flex flex-col gap-5 rounded-lg border border-border bg-surface p-5 max-sm:p-4" aria-labelledby="ideas-step-2">
-          <div className="flex flex-col gap-1">
-            <h2 id="ideas-step-2" ref={headingRef} tabIndex={-1} className="text-base font-bold outline-none">
-              {STEP2_TITLE[source]}
-            </h2>
-            <p className="text-xs text-muted">
-              材料: {info.title}（
-              <button type="button" onClick={() => go(1)} className="text-primary hover:underline">
-                変える
-              </button>
-              ）
-            </p>
-          </div>
-
-          {source === "commits" &&
-            (repoFullName ? (
-              <fieldset className="flex flex-col gap-2">
-                <legend className="mb-2 text-[14px] font-bold">どのくらい前までのコミットを読むか</legend>
-                <div className="flex flex-wrap gap-2">
-                  {IDEA_PERIODS.map((p) => (
-                    <button key={p} type="button" aria-pressed={days === p} onClick={() => setDays(p)} className={pill(days === p)}>
-                      {PERIOD_LABEL[p]}
-                    </button>
-                  ))}
-                </div>
-                <p className="text-xs leading-[1.7] text-muted">
-                  読むリポジトリ: <span className="break-all">{repoFullName}</span>（
-                  <Link href={`/projects/${projectId}/github`} className="text-primary hover:underline">
-                    変える
-                  </Link>
-                  ）。.env や鍵などのファイルは読まず、コミットの中身は矢書に残しません。
-                </p>
-              </fieldset>
-            ) : (
-              <div className="flex flex-col gap-2 rounded-md border border-line bg-surface2 px-4 py-3 text-sm leading-[1.8]">
-                <p>GitHub のリポジトリをつなぐと、最近のコミットからネタを出せます。読むだけで、書き込みはしません。非公開のリポジトリも読めます。</p>
-                {githubReady ? (
-                  <Link href={`/projects/${projectId}/github`} className="w-fit font-semibold text-primary hover:underline">
-                    GitHub をつなぐ
-                  </Link>
-                ) : (
-                  <NotReadyButton variant="secondary" size="sm">
-                    GitHub をつなぐ
-                  </NotReadyButton>
-                )}
-              </div>
-            ))}
-
-          {source === "news" && (
-            <fieldset className="flex flex-col gap-4">
-              <legend className="mb-2 text-[14px] font-bold">
-                最近のできごと<span className="ml-2 text-xs font-normal text-muted">どれか 1 つに答えれば出せます</span>
-              </legend>
-              {newsQuestions.map((q, i) => (
-                <div key={q.question} className="flex flex-col gap-2">
-                  <label htmlFor={`idea-news-${i}`} className="text-[14px] leading-[1.7]">
-                    {q.question}
-                  </label>
+            {questions.map((q, i) => (
+              <div key={q.question} className="flex flex-col gap-2">
+                <label htmlFor={`idea-answer-${i}`} className="text-[15px] leading-[1.7]">
+                  {q.question}
+                </label>
+                {q.choices.length > 0 && (
                   <div className="flex flex-wrap gap-2">
                     {q.choices.map((c) => (
                       <button
                         key={c}
                         type="button"
-                        onClick={() => setNews((cur) => cur.map((x, j) => (j === i ? (x.trim() ? `${x}${x.endsWith("。") ? "" : "。"}${c}` : c) : x)))}
-                        className="rounded-full border border-border px-3 py-1 text-sm font-semibold text-fg hover:border-primary"
+                        aria-pressed={answers[i] === c}
+                        onClick={() => setAnswers((a) => questions.map((_, j) => (j === i ? c : (a[j] ?? ""))))}
+                        className={pill(answers[i] === c)}
                       >
                         {c}
                       </button>
                     ))}
                   </div>
-                  <Textarea
-                    id={`idea-news-${i}`}
-                    rows={2}
-                    maxLength={MAX_NEWS_CHARS}
-                    value={news[i] ?? ""}
-                    onChange={(e) => setNews((cur) => cur.map((x, j) => (j === i ? e.target.value : x)))}
-                    placeholder="例: 通知が 2 回届く不具合を直した。原因は時差の計算だった"
-                  />
-                </div>
-              ))}
-              <p className="text-xs text-muted">例を押してから書き足しても大丈夫です。</p>
-            </fieldset>
-          )}
-
-          {source === "notes" &&
-            (notes.length ? (
-              <fieldset className="flex flex-col gap-2">
-                <legend className="mb-2 text-[14px] font-bold">
-                  使うメモ<span className="ml-2 text-xs font-normal text-muted">{MAX_NOTES_FOR_IDEAS} 件まで</span>
-                </legend>
-                <ul className="flex max-h-[22rem] flex-col gap-2 overflow-y-auto">
-                  {notes.map((n) => {
-                    const on = noteIds.includes(n.id);
-                    const empty = !n.body.trim();
-                    return (
-                      <li key={n.id}>
-                        <label
-                          className={`flex gap-3 rounded-md border px-3.5 py-2.5 text-sm leading-[1.7] ${empty ? "border-line opacity-55" : on ? "cursor-pointer border-primary bg-primary-soft" : "cursor-pointer border-border hover:border-primary"}`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={on}
-                            disabled={empty || (!on && noteIds.length >= MAX_NOTES_FOR_IDEAS)}
-                            onChange={() => toggleNote(n.id)}
-                            className="mt-1 size-4 shrink-0 accent-[var(--primary)]"
-                          />
-                          <span className="flex min-w-0 flex-col gap-0.5">
-                            <span className="line-clamp-3 break-words whitespace-pre-wrap">{empty ? "（画像だけのメモ。ネタ帳でひとこと書き足すと使えます）" : n.body}</span>
-                            <span className="text-xs text-muted">
-                              {formatShort(n.createdAt)}
-                              {n.hasImage && "・写真あり（下書きに添えます）"}
-                            </span>
-                          </span>
-                        </label>
-                      </li>
-                    );
-                  })}
-                </ul>
-                <p className="text-xs leading-[1.7] text-muted">
-                  関係するメモはまとめて 1 つのネタになります。AI に送るのはメモの文だけで、写真は下書きに添えます（
-                  <Link href={`/projects/${projectId}/notes`} className="text-primary hover:underline">
-                    ネタ帳を開く
-                  </Link>
-                  ）。
-                </p>
-              </fieldset>
-            ) : (
-              <div className="flex flex-col gap-2 rounded-md border border-line bg-surface2 px-4 py-3 text-sm leading-[1.8]">
-                <p>まだ使っていないメモがありません。思いついたことを、どの画面でも「＋ メモ」から 1 行で残しておくと、ここから投稿にできます。</p>
-                <Link href={`/projects/${projectId}/notes`} className="w-fit font-semibold text-primary hover:underline">
-                  ネタ帳を開く
-                </Link>
+                )}
+                <Input
+                  id={`idea-answer-${i}`}
+                  value={answers[i] ?? ""}
+                  maxLength={1000}
+                  onChange={(e) => setAnswers((a) => questions.map((_, j) => (j === i ? e.target.value : (a[j] ?? ""))))}
+                  placeholder="自分の言葉で答えても大丈夫です"
+                />
               </div>
             ))}
-
-          {source === "plan" && (
-            <div className="flex flex-col gap-1.5 rounded-md border border-line bg-surface2 px-4 py-3 text-sm leading-[1.8]">
-              <p>入力はいりません。アカウント設計の投稿の柱と「どんなアプリか」から、柱ごとに 1 つずつネタを出します。</p>
-              <Link href={`/projects/${projectId}/plan`} className="w-fit font-semibold text-primary hover:underline">
-                アカウント設計を見る
-              </Link>
-            </div>
-          )}
-
-          <fieldset className="flex flex-col gap-2">
-            <legend className="mb-2 text-[14px] font-bold">
-              下書きを書く SNS<span className="ml-2 text-xs font-normal text-muted">{maxSns} つまで</span>
-            </legend>
-            <div className="flex flex-wrap gap-2">
-              {snsOptions.map((k) => (
-                <label key={k} className={`flex cursor-pointer items-center gap-2 ${pill(sns.includes(k))}`}>
-                  <input type="checkbox" className="sr-only" checked={sns.includes(k)} onChange={() => toggleSns(k)} />
-                  {SNS[k].label}
-                </label>
-              ))}
-            </div>
-            <p className="text-xs text-muted">SNS ごとに長さと書き方を変えます。</p>
-          </fieldset>
-
-          {noPillars && (
-            <p className="text-xs leading-[1.7] text-muted">
-              投稿の柱がまだ決まっていません。
-              <Link href={`/projects/${projectId}/plan`} className="font-semibold text-primary hover:underline">
-                アカウント設計
-              </Link>
-              で決めると、ネタが柱に沿います（決めなくても出せます）。
-            </p>
-          )}
-
-          <div className="flex flex-col gap-2">
             <div className="flex flex-wrap items-center gap-3">
-              {aiEnabled ? (
-                <Button disabled={pending || !canGenerate} onClick={() => run("generate", () => generateIdeas(projectId, input, sns))} className="max-sm:w-full">
-                  {info.button}
-                </Button>
-              ) : (
-                <NotReadyButton>{info.button}</NotReadyButton>
-              )}
-              <Button variant="text" disabled={pending} onClick={() => go(1)}>
-                ← 材料を選び直す
+              <Button variant="secondary" size="sm" disabled={pending || answered.length === 0} onClick={() => run("refine", () => refineIdeas(projectId, thread.threadId, answered))}>
+                答えて、ネタを出し直す
               </Button>
+              {working === "refine" && (
+                <span role="status" className="text-[13px] text-muted">
+                  出し直しています…
+                </span>
+              )}
             </div>
-            {working === "generate" ? (
-              <span role="status" className="text-sm text-muted">
-                {info.working}
-              </span>
-            ) : (
-              <span className="text-xs text-muted">{info.cost}の AI の費用がかかります（月の上限の中で数えます）</span>
-            )}
-          </div>
+          </section>
+        )}
+        <section className={card}>
+          <Button variant="secondary" disabled={pending} onClick={() => go(1)} className="w-full">
+            新しくネタを出す
+          </Button>
+          <DeleteThreadButton
+            projectId={projectId}
+            threadId={thread.threadId}
+            backPath={`/projects/${projectId}/ideas`}
+            keeps="このネタから下書きにした投稿は残ります。前に出したネタがあれば、それが出ます。"
+          />
         </section>
-      )}
+      </div>
+    ) : (
+      <div className="flex min-w-0 flex-col gap-4">
+        <section className={card} aria-label="選んでいるもの">
+          <dl className="grid grid-cols-[5rem_1fr] gap-x-3 gap-y-2.5 text-[15px]">
+            <dt className="text-muted">材料</dt>
+            <dd className="font-bold">{info.title}</dd>
+            {source === "commits" && repoFullName && (
+              <>
+                <dt className="text-muted">期間</dt>
+                <dd>直近 {PERIOD_LABEL[days]}</dd>
+              </>
+            )}
+            {source === "notes" && (
+              <>
+                <dt className="text-muted">メモ</dt>
+                <dd className="num">{pickedNotes.length} 件</dd>
+              </>
+            )}
+            {source === "news" && (
+              <>
+                <dt className="text-muted">答えた</dt>
+                <dd className="num">
+                  {newsAnswered.length} / {newsQuestions.length}
+                </dd>
+              </>
+            )}
+            <dt className="text-muted">SNS</dt>
+            <dd className="flex flex-wrap gap-1">{sns.length ? sns.map((k) => <SnsMark key={k} sns={k} />) : <span className="text-faint">まだ選んでいません</span>}</dd>
+            <dt className="text-muted">費用</dt>
+            <dd className="text-muted">{info.cost.replace("1 回あたり ", "1 回 ")}</dd>
+          </dl>
+        </section>
+        {thread && latest && (
+          <section className={card} aria-labelledby="ideas-last">
+            <div className="flex items-baseline justify-between gap-3">
+              <h3 id="ideas-last" className="text-[18px] font-bold max-sm:text-[16px]">
+                前に出したネタ
+              </h3>
+              <span className="num text-[15px] text-faint">{latest.ideas.length} 件</span>
+            </div>
+            <ul className="flex flex-col">
+              {latest.ideas.slice(0, 4).map((idea, i) => (
+                <li key={i} className="flex items-center gap-2 border-t border-line py-2 text-[15px] first:border-t-0">
+                  <span className="min-w-0 flex-1 truncate">{idea.title}</span>
+                  {latest.adopted?.[String(i)] && <span className="shrink-0 text-[13px] font-bold text-success">✓ 下書き</span>}
+                </li>
+              ))}
+            </ul>
+            <Button variant="secondary" size="sm" onClick={() => go(3)} className="self-start">
+              前に出したネタを見る
+            </Button>
+          </section>
+        )}
+      </div>
+    );
+
+  return (
+    <div className="flex flex-col gap-4">
+      <Steps label="ネタを出す段取り" steps={IDEA_STEPS} current={shown} canGo={(k) => canGoIdeaStep(k, Boolean(thread))} onGo={go} />
 
       {error && <ErrorBanner>{error}</ErrorBanner>}
 
-      {shown === 3 && thread && latest && (
-        <section className="flex flex-col gap-4" aria-labelledby="ideas-step-3">
-          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <h2 id="ideas-step-3" ref={headingRef} tabIndex={-1} className="text-lg font-bold outline-none">
-                ネタの案
+      <div className="grid grid-cols-[minmax(0,1.03fr)_minmax(0,1fr)] gap-4 max-lg:grid-cols-1">
+        <div className="flex min-w-0 flex-col gap-4">
+          {shown === 1 && (
+            <section className={card} aria-labelledby="ideas-step-1">
+              <h2 id="ideas-step-1" ref={headingRef} tabIndex={-1} className={heading}>
+                何からネタを出すか
               </h2>
-              <span className="text-sm text-muted">
-                {sourceLabel(thread)}
-                {thread.answered && "・あなたの答えを反映"}
-              </span>
-          </div>
-          <p className="flex flex-wrap items-center gap-2 text-sm">
-            <span className="rounded-full bg-primary-soft px-2.5 py-1 text-xs font-bold text-primary">AI の案</span>
-            <span className="text-muted">気に入ったネタを下書きにして、自由に直せます。</span>
-          </p>
+              <fieldset>
+                <legend className="sr-only">ネタの材料</legend>
+                <div className="flex flex-col gap-2">
+                  {IDEA_SOURCES.map((k) => {
+                    const s = SOURCE_INFO[k];
+                    const on = source === k;
+                    const off = k === "commits" && !repoFullName ? "GitHub をつなぐと使えます" : k === "notes" && notes.length === 0 ? "使っていないメモがありません" : null;
+                    return (
+                      <div key={k} className={`flex items-center gap-3 rounded-md border px-4 py-3 ${on ? "border-primary" : "border-border hover:border-input"}`}>
+                        <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
+                          <input type="radio" name="idea-source" value={k} checked={on} onChange={() => setSource(k)} className="size-4 shrink-0 accent-[var(--primary)]" />
+                          <span className="flex min-w-0 flex-col">
+                            <span className={`text-[15px] ${on ? "font-bold" : ""}`}>{s.title}</span>
+                            <span className="truncate text-[13px] text-faint">{off ?? s.summary}</span>
+                          </span>
+                        </label>
+                        <HelpTip label={s.title} align="right">
+                          <p>{s.summary}</p>
+                          <p className="mt-1">よいところ: {s.good}</p>
+                          <p className="mt-1">気をつけること: {s.note}</p>
+                        </HelpTip>
+                      </div>
+                    );
+                  })}
+                </div>
+              </fieldset>
+              <div className="flex flex-wrap items-center gap-3">
+                <Button onClick={() => go(2)} className="max-sm:w-full">
+                  次へ: 中身を入れる
+                </Button>
+              </div>
+            </section>
+          )}
 
-          {questions.length > 0 && (
-            <details open className="group rounded-lg border border-border bg-surface2">
-              <summary className="cursor-pointer px-5 py-3.5 max-sm:px-4">
-                <span id="idea-questions" className="text-[14px] font-bold">
-                  質問に答えて、ネタをよくする
-                </span>
-                <span className="ml-2 text-xs text-muted">答えなくても使えます</span>
-              </summary>
-              <div className="flex flex-col gap-3 px-5 pb-5 max-sm:px-4 max-sm:pb-4">
-                {questions.map((q, i) => (
-                  <div key={q.question} className="flex flex-col gap-2">
-                    <label htmlFor={`idea-answer-${i}`} className="text-[14px] leading-[1.7]">
-                      {q.question}
-                    </label>
-                    {q.choices.length > 0 && (
+          {shown === 2 && (
+            <section className={card} aria-labelledby="ideas-step-2">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                <h2 id="ideas-step-2" ref={headingRef} tabIndex={-1} className={heading}>
+                  {STEP2_TITLE[source]}
+                </h2>
+                <button type="button" onClick={() => go(1)} className="text-[13px] text-muted underline hover:text-fg">
+                  材料を変える
+                </button>
+              </div>
+
+              {source === "commits" &&
+                (repoFullName ? (
+                  <fieldset className="flex flex-col gap-2">
+                    <legend className="mb-2 text-[15px] font-bold">読むコミットの期間</legend>
+                    <div className="flex flex-wrap gap-2">
+                      {IDEA_PERIODS.map((p) => (
+                        <button key={p} type="button" aria-pressed={days === p} onClick={() => setDays(p)} className={pill(days === p)}>
+                          {PERIOD_LABEL[p]}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="flex flex-wrap items-center gap-1.5 text-[13px] text-faint">
+                      <span className="break-all">{repoFullName}</span>
+                      <Link href={`/projects/${projectId}/github`} className="underline">
+                        変える
+                      </Link>
+                      <HelpTip label="読むもの">.env や鍵などのファイルは読まず、コミットの中身は矢書に残しません。</HelpTip>
+                    </p>
+                  </fieldset>
+                ) : (
+                  <div className="flex flex-wrap items-center gap-3 rounded-md border border-line bg-surface2 px-4 py-3 text-[15px]">
+                    <span className="flex items-center gap-1.5">
+                      GitHub をつなぐと使えます
+                      <HelpTip label="GitHub">リポジトリを読むだけで、書き込みはしません。非公開のリポジトリも読めます。</HelpTip>
+                    </span>
+                    {githubReady ? (
+                      <ButtonLink href={`/projects/${projectId}/github`} variant="secondary" size="sm">
+                        GitHub をつなぐ
+                      </ButtonLink>
+                    ) : (
+                      <NotReadyButton variant="secondary" size="sm">
+                        GitHub をつなぐ
+                      </NotReadyButton>
+                    )}
+                  </div>
+                ))}
+
+              {source === "news" && (
+                <fieldset className="flex flex-col gap-4">
+                  <legend className="mb-2 flex items-center gap-1.5 text-[15px] font-bold">
+                    最近のできごと<span className="text-[13px] font-normal text-faint">どれか 1 つで出せます</span>
+                  </legend>
+                  {newsQuestions.map((q, i) => (
+                    <div key={q.question} className="flex flex-col gap-2">
+                      <label htmlFor={`idea-news-${i}`} className="text-[15px] leading-[1.7]">
+                        {q.question}
+                      </label>
                       <div className="flex flex-wrap gap-2">
                         {q.choices.map((c) => (
                           <button
                             key={c}
                             type="button"
-                            onClick={() => setAnswers((a) => questions.map((_, j) => (j === i ? c : (a[j] ?? ""))))}
-                            className={`rounded-full border px-3 py-1 text-sm font-semibold ${answers[i] === c ? "border-primary bg-primary-soft text-primary" : "border-border bg-surface text-fg hover:border-primary"}`}
+                            onClick={() => setNews((cur) => cur.map((x, j) => (j === i ? (x.trim() ? `${x}${x.endsWith("。") ? "" : "。"}${c}` : c) : x)))}
+                            className={pill(false)}
                           >
                             {c}
                           </button>
                         ))}
                       </div>
-                    )}
-                    <Input
-                      id={`idea-answer-${i}`}
-                      value={answers[i] ?? ""}
-                      maxLength={1000}
-                      onChange={(e) => setAnswers((a) => questions.map((_, j) => (j === i ? e.target.value : (a[j] ?? ""))))}
-                      placeholder="自分の言葉で答えても大丈夫です"
-                    />
+                      <Textarea
+                        id={`idea-news-${i}`}
+                        rows={2}
+                        maxLength={MAX_NEWS_CHARS}
+                        value={news[i] ?? ""}
+                        onChange={(e) => setNews((cur) => cur.map((x, j) => (j === i ? e.target.value : x)))}
+                        placeholder="例: 通知が 2 回届く不具合を直した。原因は時差の計算だった"
+                      />
+                    </div>
+                  ))}
+                </fieldset>
+              )}
+
+              {source === "notes" &&
+                (notes.length ? (
+                  <fieldset className="flex flex-col gap-2">
+                    <legend className="mb-2 flex items-center gap-1.5 text-[15px] font-bold">
+                      使うメモ<span className="num text-[13px] font-normal text-faint">{MAX_NOTES_FOR_IDEAS} 件まで</span>
+                      <HelpTip label="メモ">
+                        関係するメモはまとめて 1 つのネタになります。AI に送るのはメモの文だけで、写真は下書きに添えます。
+                      </HelpTip>
+                    </legend>
+                    <ul className="flex max-h-[22rem] flex-col gap-2 overflow-y-auto">
+                      {notes.map((n) => {
+                        const on = noteIds.includes(n.id);
+                        const empty = !n.body.trim();
+                        return (
+                          <li key={n.id}>
+                            <label
+                              className={`flex gap-3 rounded-md border px-3.5 py-2.5 text-[15px] leading-[1.7] ${empty ? "border-line opacity-55" : on ? "cursor-pointer border-primary" : "cursor-pointer border-border hover:border-input"}`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={on}
+                                disabled={empty || (!on && noteIds.length >= MAX_NOTES_FOR_IDEAS)}
+                                onChange={() => toggleNote(n.id)}
+                                className="mt-1 size-4 shrink-0 accent-[var(--primary)]"
+                              />
+                              <span className="flex min-w-0 flex-col gap-0.5">
+                                <span className="line-clamp-3 break-words whitespace-pre-wrap">{empty ? "（画像だけのメモ。ネタ帳でひとこと書き足すと使えます）" : n.body}</span>
+                                <span className="num text-[13px] text-faint">
+                                  {formatShort(n.createdAt)}
+                                  {n.hasImage && "・写真あり"}
+                                </span>
+                              </span>
+                            </label>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    <Link href={`/projects/${projectId}/notes`} className="w-fit text-[13px] text-muted underline hover:text-fg">
+                      ネタ帳を開く
+                    </Link>
+                  </fieldset>
+                ) : (
+                  <div className="flex flex-wrap items-center gap-3 rounded-md border border-line bg-surface2 px-4 py-3 text-[15px]">
+                    <span className="flex items-center gap-1.5">
+                      使っていないメモがありません
+                      <HelpTip label="ネタ帳">思いついたことを、どの画面でも「＋ メモ」から 1 行で残しておくと、ここから投稿にできます。</HelpTip>
+                    </span>
+                    <ButtonLink href={`/projects/${projectId}/notes`} variant="secondary" size="sm">
+                      ネタ帳を開く
+                    </ButtonLink>
                   </div>
                 ))}
-                <div className="flex flex-wrap items-center gap-3">
-                  <Button variant="secondary" size="sm" disabled={pending || answered.length === 0} onClick={() => run("refine", () => refineIdeas(projectId, thread.threadId, answered))}>
-                    答えて、ネタを出し直す
-                  </Button>
-                  {working === "refine" && (
-                    <span role="status" className="text-xs text-muted">
-                      出し直しています…
-                    </span>
-                  )}
+
+              {source === "plan" && (
+                <p className="flex flex-wrap items-center gap-2 rounded-md border border-line bg-surface2 px-4 py-3 text-[15px]">
+                  入力はいりません
+                  <HelpTip label="アカウント設計から">投稿の柱と「どんなアプリか」から、柱ごとに 1 つずつネタを出します。</HelpTip>
+                  <Link href={`/projects/${projectId}/plan`} className="ml-auto text-[13px] text-muted underline hover:text-fg">
+                    アカウント設計を見る
+                  </Link>
+                </p>
+              )}
+
+              <fieldset className="flex flex-col gap-2">
+                <legend className="mb-2 flex items-center gap-1.5 text-[15px] font-bold">
+                  下書きを書く SNS<span className="num text-[13px] font-normal text-faint">{maxSns} つまで</span>
+                  <HelpTip label="SNS">SNS ごとに長さと書き方を変えます。</HelpTip>
+                </legend>
+                <div className="flex flex-wrap gap-2">
+                  {snsOptions.map((k) => (
+                    <label key={k} className={`cursor-pointer ${pill(sns.includes(k))}`}>
+                      <input type="checkbox" className="sr-only" checked={sns.includes(k)} onChange={() => toggleSns(k)} />
+                      {sns.includes(k) && <span aria-hidden>✓</span>}
+                      {SNS[k].label}
+                    </label>
+                  ))}
                 </div>
+              </fieldset>
+
+              {noPillars && (
+                <p className="flex items-center gap-1.5 text-[13px] text-faint">
+                  投稿の柱がまだ決まっていません
+                  <HelpTip label="投稿の柱">
+                    アカウント設計で決めると、ネタが柱に沿います（決めなくても出せます）。
+                  </HelpTip>
+                  <Link href={`/projects/${projectId}/plan`} className="text-muted underline hover:text-fg">
+                    アカウント設計
+                  </Link>
+                </p>
+              )}
+
+              <div className="flex flex-col gap-2">
+                {aiEnabled ? (
+                  <Button size="lg" disabled={pending || !canGenerate} onClick={() => run("generate", () => generateIdeas(projectId, input, sns))} className="w-full">
+                    {info.button}
+                  </Button>
+                ) : (
+                  <NotReadyButton size="lg">{info.button}</NotReadyButton>
+                )}
+                {working === "generate" ? (
+                  <span role="status" className="text-[13px] text-muted">
+                    {info.working}
+                  </span>
+                ) : (
+                  <span className="text-[13px] text-faint">{info.cost}（月の上限の中で数えます）</span>
+                )}
               </div>
-            </details>
+            </section>
           )}
 
-          <ol className="flex flex-col gap-4">
-            {latest.ideas.map((idea, i) => (
-              <IdeaCard
-                key={`${thread.latest.messageId}-${i}`}
-                idea={idea}
-                repoFullName={thread.request.repo || repoFullName || ""}
-                notes={(idea.notes ?? []).map((n) => thread.request.notes?.[n - 1]).filter((n): n is NonNullable<typeof n> => Boolean(n))}
-                adoptedPostId={latest.adopted?.[String(i)] ?? null}
-                projectId={projectId}
-                disabled={pending}
-                saving={working === `adopt-${i}`}
-                onAdopt={() => run(`adopt-${i}`, () => adoptIdea(projectId, thread.latest.messageId, i))}
-              />
-            ))}
-          </ol>
-
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <Button variant="secondary" disabled={pending} onClick={() => go(1)} className="max-sm:w-full">
-              新しくネタを出す
-            </Button>
-            <DeleteThreadButton
-              projectId={projectId}
-              threadId={thread.threadId}
-              backPath={`/projects/${projectId}/ideas`}
-              keeps="このネタから下書きにした投稿は残ります。前に出したネタがあれば、それが出ます。"
-            />
-          </div>
-        </section>
-      )}
+          {shown === 3 && thread && latest && (
+            <section className="flex flex-col gap-4" aria-labelledby="ideas-step-3">
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <h2 id="ideas-step-3" ref={headingRef} tabIndex={-1} className={heading}>
+                  ネタの案
+                </h2>
+                <span className="text-[15px] text-faint">
+                  {sourceLabel(thread)}
+                  {thread.answered && "・答えを反映"}
+                </span>
+              </div>
+              <ol className="flex flex-col gap-4">
+                {latest.ideas.map((idea, i) => (
+                  <IdeaCard
+                    key={`${thread.latest.messageId}-${i}`}
+                    idea={idea}
+                    repoFullName={thread.request.repo || repoFullName || ""}
+                    notes={(idea.notes ?? []).map((n) => thread.request.notes?.[n - 1]).filter((n): n is NonNullable<typeof n> => Boolean(n))}
+                    adoptedPostId={latest.adopted?.[String(i)] ?? null}
+                    projectId={projectId}
+                    disabled={pending}
+                    saving={working === `adopt-${i}`}
+                    onAdopt={() => run(`adopt-${i}`, () => adoptIdea(projectId, thread.latest.messageId, i))}
+                  />
+                ))}
+              </ol>
+            </section>
+          )}
+        </div>
+        {side}
+      </div>
     </div>
   );
 }
@@ -526,19 +587,19 @@ function IdeaCard({
   onAdopt: () => void;
 }) {
   return (
-    <li className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-5 max-sm:p-4">
+    <li className="flex flex-col gap-3.5 rounded-lg border border-border bg-surface px-6 py-5 max-sm:px-4 max-sm:py-4">
       <div className="flex flex-col gap-1.5">
         {idea.pillar && (
-          <span className="w-fit rounded-full bg-primary-soft px-2.5 py-1 text-xs leading-none font-bold text-primary">柱: {idea.pillar}</span>
+          <Badge className="w-fit">柱: {idea.pillar}</Badge>
         )}
-        <h3 className="text-base font-bold">{idea.title}</h3>
-        {idea.angle && <p className="text-sm leading-[1.8] text-muted">{idea.angle}</p>}
+        <h3 className="text-[17px] font-bold">{idea.title}</h3>
+        {idea.angle && <p className="text-[15px] leading-[1.7] text-muted">{idea.angle}</p>}
       </div>
 
       {idea.drafts.some((d) => needsFillIn(d.text)) && (
-        <p className="text-sm leading-[1.7]">
-          <span className="font-bold text-signal">● 書き換えが必要</span>
-          <span className="text-muted"> 【】で囲んだところは、あなたにしか書けない部分です。下書きにしたあと、自分の言葉に書き換えてから送ってください。</span>
+        <p className="flex items-center gap-1.5 text-[13px]">
+          <span className="font-bold text-signal">● 【】を書き換える</span>
+          <HelpTip label="書き換え">【】で囲んだところは、あなたにしか書けない部分です。下書きにしたあと、自分の言葉に書き換えてから送ってください。</HelpTip>
         </p>
       )}
 
@@ -548,15 +609,15 @@ function IdeaCard({
           const tooLong = check.issues.includes("too_long");
           return (
             <div key={d.sns} className="flex flex-col gap-1.5 rounded-md border border-line bg-surface2 px-4 py-3">
-              <div className="flex items-center justify-between gap-3 text-xs">
-                <span className="font-bold">{SNS[d.sns].label}</span>
-                <span className={tooLong ? "font-bold text-danger" : "text-muted"}>
+              <div className="flex items-center justify-between gap-3 text-[13px]">
+                <SnsMark sns={d.sns} />
+                <span className={`num ${tooLong ? "font-bold text-danger" : "text-faint"}`}>
                   {check.length.toLocaleString("ja-JP")}
                   {check.maxLength !== null && ` / ${check.maxLength.toLocaleString("ja-JP")}`}
-                  {tooLong && `（${SNS[d.sns].label} の上限を ${(check.length - check.maxLength!).toLocaleString("ja-JP")} 字超えています。下書きにしたあと、投稿の画面で縮めてください）`}
+                  {tooLong && `（${(check.length - check.maxLength!).toLocaleString("ja-JP")} 字多い。投稿の画面で縮める）`}
                 </span>
               </div>
-              <p className="text-[14px] leading-[1.8] whitespace-pre-wrap">{d.text}</p>
+              <p className="text-[15px] leading-[1.75] whitespace-pre-wrap">{d.text}</p>
             </div>
           );
         })}
@@ -564,7 +625,7 @@ function IdeaCard({
 
       {notes.length > 0 && (
         <details className="text-sm">
-          <summary className="cursor-pointer text-muted">
+          <summary className="cursor-pointer text-[13px] text-muted">
             元にしたメモ（{notes.length} 件{notes.some((n) => n.photo) && "。写真は下書きに添えます"}）
           </summary>
           <ul className="mt-2 flex flex-col gap-1.5 leading-[1.7]">
@@ -580,12 +641,12 @@ function IdeaCard({
 
       {idea.commits.length > 0 && (
         <details className="text-sm">
-          <summary className="cursor-pointer text-muted">元にしたコミット（{idea.commits.length} 件）</summary>
+          <summary className="cursor-pointer text-[13px] text-muted">元にしたコミット（{idea.commits.length} 件）</summary>
           <ul className="mt-2 flex flex-col gap-1.5 leading-[1.7]">
             {idea.commits.map((c) => (
               <li key={c.sha}>
                 {c.note}{" "}
-                <a href={`https://github.com/${repoFullName}/commit/${c.sha}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-primary hover:underline">
+                <a href={`https://github.com/${repoFullName}/commit/${c.sha}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs underline">
                   {c.sha.slice(0, 7)}
                 </a>
               </li>
@@ -598,7 +659,7 @@ function IdeaCard({
         {adoptedPostId ? (
           <>
             <span className="text-sm font-bold text-success">✓ 下書きにしました</span>
-            <Link href={`/projects/${projectId}/posts/${adoptedPostId}`} className="text-sm font-semibold text-primary hover:underline">
+            <Link href={`/projects/${projectId}/posts/${adoptedPostId}`} className="text-sm font-semibold underline">
               下書きを開く
             </Link>
           </>

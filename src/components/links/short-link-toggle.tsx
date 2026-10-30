@@ -1,6 +1,9 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 import Link from "next/link";
+import { HelpTip } from "@/components/ui/help";
 import { Term } from "@/components/ui/term";
 import { findLinkableUrls, planShortLinks, substitutesBodyLinks, type ShortLinkPlan } from "@/lib/links/rules";
 import type { PostLinkPreview } from "@/lib/links/store";
@@ -28,88 +31,91 @@ export function ShortLinkToggle({
   const hasUrl = (targets.length ? targets.map((t) => t.text) : [body]).some((t) => findLinkableUrls(t).length > 0);
   const plan = planShortLinks(targets);
   const linksPage = (
-    <Link href={`/projects/${projectId}/links`} className="text-primary hover:underline">
+    <Link href={`/projects/${projectId}/links`} className="underline">
       短縮リンク
     </Link>
   );
   const profileHint = (
     <>
       X は本文に URL があると 1 本ごとの費用が上がる（約 2 円 → 約 30 円）ので、X で数えるなら、プロフィールに置くリンクを短縮リンクにするのがおすすめです（
-      <Link href={`/projects/${projectId}/plan?open=profile#plan-profile-head`} className="text-primary hover:underline">
+      <Link href={`/projects/${projectId}/plan?open=profile#plan-profile-head`} className="underline">
         アカウント設計の「5 名前とプロフィール」
       </Link>
       から作れます）。
     </>
   );
 
-  // 本文に URL がない: 置き換えるものがないので、チェックは出さない
+  // 見本 B の「UTM を自動付与」の位置に置く 1 行（2026-10-30 の PM の回答）。説明は「?」に畳む
+  const row = (control: ReactNode, note: ReactNode, help: ReactNode) => (
+    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[15px]">
+      {control}
+      <span className="text-[13px] text-faint">{note}</span>
+      <HelpTip label="短縮リンク">{help}</HelpTip>
+    </div>
+  );
+  const label = (
+    <span>
+      <Term k="shortLink">短縮リンク</Term>で押された回数を数える
+    </span>
+  );
+
+  // 本文に URL がない: 置き換えるものがないので、切り替えは出さない
   if (!hasUrl) {
-    return (
-      <div className="flex flex-col gap-1">
-        <p className="text-sm font-bold">
-          <Term k="shortLink">短縮リンク</Term>（押された回数を数える）
-        </p>
-        <p className="text-xs leading-[1.7] text-muted">
-          この投稿の本文には URL がないので、短縮リンクは付きません。本文に https:// から始まる URL（ストアのページなど）を入れると、SNS
-          ごとの短縮リンクに置き換えて、どの SNS から何人来たかを数えます。
-          {profileHint}
-        </p>
-      </div>
+    return row(
+      <span className="text-muted">{label}</span>,
+      "本文に URL がありません",
+      <>
+        本文に https:// から始まる URL（ストアのページなど）を入れると、SNS ごとの短縮リンクに置き換えて、どの SNS から何人来たかを数えます。
+        {profileHint}
+      </>,
     );
   }
 
   // 選んだ送り先のどれでも置き換えない（Instagram・手で投稿する SNS だけ）
   if (targets.length > 0 && plan.replaced.length === 0) {
-    return (
-      <div className="flex flex-col gap-1">
-        <p className="text-sm font-bold">
-          <Term k="shortLink">短縮リンク</Term>（押された回数を数える）
-        </p>
-        <p className="text-xs leading-[1.7] text-muted">
-          選んだ送り先の {skippedText(plan.skipped)}では本文の URL
-          を置き換えないので、この投稿では短縮リンクは付きません。押された回数は、プロフィールに置くリンクを短縮リンクにすると数えられます（
-          <Link href={`/projects/${projectId}/plan?open=profile#plan-profile-head`} className="text-primary hover:underline">
-            アカウント設計の「5 名前とプロフィール」
-          </Link>
-          から作れます）。
-        </p>
-      </div>
+    return row(
+      <span className="text-muted">{label}</span>,
+      "この送り先では付きません",
+      <>
+        選んだ送り先の {skippedText(plan.skipped)}では本文の URL を置き換えません。押された回数は、プロフィールに置くリンクを短縮リンクにすると数えられます（
+        <Link href={`/projects/${projectId}/plan?open=profile#plan-profile-head`} className="underline">
+          アカウント設計の「5 名前とプロフィール」
+        </Link>
+        から作れます）。
+      </>,
     );
   }
 
-  return (
-    <div className="flex flex-col gap-1">
-      <label className="flex items-center gap-2 text-sm font-bold">
-        <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="size-4 accent-[var(--primary)]" />
-        {/* label は flex なので、文を 1 つにまとめる（用語の印だけが細い箱になって折れないように） */}
-        <span>
-          本文の URL を<Term k="shortLink">短縮リンク</Term>
-          にして、押された回数を数える
-        </span>
-      </label>
-      <div className="flex flex-col gap-1 pl-6 text-xs leading-[1.7] text-muted">
-        {targets.length === 0 ? (
-          <p>送り先の SNS を選ぶと、どの SNS で置き換えるかをここに出します。</p>
-        ) : (
-          <>
-            <p>{checked ? "送るときに、SNS ごとに別の短縮リンクに置き換えます:" : "チェックを入れると、送るときに次の SNS で置き換えます:"}</p>
-            <ul className="flex flex-col gap-0.5">
-              {plan.replaced.map((r) => (
-                <li key={r.url}>
-                  {/* URL だけを途中で折る（SNS の名前は途中で折らない） */}
-                  <span className="break-all text-fg">{r.url}</span> → <span className="inline-block">{r.sns.map((s) => SNS[s].label).join("・")}</span>
-                </li>
-              ))}
-            </ul>
-            {plan.skipped.length > 0 && <p>置き換えない: {skippedText(plan.skipped)}</p>}
-          </>
-        )}
-        <p>
-          どの SNS から何人がストアなどに来たかは、{linksPage}
-          の画面で見られます。
-        </p>
-      </div>
-    </div>
+  return row(
+    <label className="flex cursor-pointer items-center gap-2.5">
+      <input
+        type="checkbox"
+        role="switch"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="relative h-5 w-9 shrink-0 cursor-pointer appearance-none rounded-full bg-input transition-colors after:absolute after:top-0.5 after:left-0.5 after:size-4 after:rounded-full after:bg-surface after:transition-transform checked:bg-primary checked:after:translate-x-4"
+      />
+      {label}
+    </label>,
+    targets.length === 0 ? "送り先を選ぶと決まります" : plan.replaced.flatMap((r) => r.sns).filter((s, i, a) => a.indexOf(s) === i).map((s) => SNS[s].label).join("・"),
+    <>
+      {targets.length === 0 ? (
+        <p>送り先の SNS を選ぶと、どの SNS で置き換えるかが決まります。</p>
+      ) : (
+        <>
+          <p>{checked ? "送るときに、SNS ごとに別の短縮リンクに置き換えます:" : "オンにすると、送るときに次の SNS で置き換えます:"}</p>
+          <ul>
+            {plan.replaced.map((r) => (
+              <li key={r.url}>
+                <span className="break-all">{r.url}</span> → <span className="inline-block">{r.sns.map((s) => SNS[s].label).join("・")}</span>
+              </li>
+            ))}
+          </ul>
+          {plan.skipped.length > 0 && <p>置き換えない: {skippedText(plan.skipped)}</p>}
+        </>
+      )}
+      <p>どの SNS から何人がストアなどに来たかは、{linksPage}の画面で見られます。</p>
+    </>,
   );
 }
 

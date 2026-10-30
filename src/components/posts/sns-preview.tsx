@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { SNS, ignoresImages, type SnsKey } from "@/lib/sns";
 import { PREVIEW, foldText, previewSegments } from "@/lib/sns/preview";
+import { SNS_COLOR } from "@/components/ui/marks";
 import type { AttachedImage } from "./image-attachments";
 
 type Props = {
@@ -15,7 +16,7 @@ type Props = {
   length: number;
 };
 
-// 1 つの SNS での見え方（投稿をつくる画面の右）。改行・長さ・画像の並び・折りたたみ・字数の上限が SNS ごとにわかるように。
+// 1 つの SNS での見え方（投稿をつくる画面の右のタブの中。出方の説明は呼ぶ側の「?」に畳む）。改行・長さ・画像の並び・折りたたみ・字数の上限が SNS ごとにわかるように。
 // 切り替えたら折りたたみを戻すため、呼ぶ側で key={sns} を付ける
 export function SnsPreview({ sns, text, title, projectName, images, length }: Props) {
   const spec = PREVIEW[sns];
@@ -43,11 +44,12 @@ export function SnsPreview({ sns, text, title, projectName, images, length }: Pr
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex flex-col gap-2 overflow-hidden rounded-lg border border-border bg-surface p-3.5 text-sm leading-[1.6]">
+      <div className="flex flex-col gap-2.5 overflow-hidden text-[15px] leading-[1.65]">
         {spec.layout !== "article" && (
           <div className="flex items-center gap-2.5">
-            <span aria-hidden className="size-9 flex-none rounded-full bg-primary-soft" />
+            <span aria-hidden className={`size-8 flex-none rounded-full ${SNS_COLOR[sns].bg}`} />
             <b className="min-w-0 truncate">{projectName}</b>
+            <span className="shrink-0 text-[13px] text-faint">· 今</span>
           </div>
         )}
         {spec.layout === "before" && <Images images={shownImages} layout="before" />}
@@ -68,14 +70,13 @@ export function SnsPreview({ sns, text, title, projectName, images, length }: Pr
         {spec.layout === "after_grid" && <Images images={shownImages} layout="grid" />}
         {spec.layout === "after_row" && <Images images={shownImages} layout="row" />}
       </div>
-      <p className="flex flex-wrap items-baseline gap-x-2 text-xs">
-        <span className={max !== null && length > max ? "font-bold text-danger" : "text-muted"}>
+      <p className="flex flex-wrap items-baseline gap-x-2 text-[13px]">
+        <span className={`num ${max !== null && length > max ? "font-bold text-danger" : "text-faint"}`}>
           {length.toLocaleString("ja-JP")}
           {max !== null ? ` / ${max.toLocaleString("ja-JP")} 字` : " 字（上限なし）"}
         </span>
         {max !== null && length > max && <span className="font-bold text-danger">{(length - max).toLocaleString("ja-JP")} 字多いので送れません</span>}
       </p>
-      <p className="text-xs leading-[1.7] text-muted">{spec.note}</p>
     </div>
   );
 }
@@ -83,7 +84,7 @@ export function SnsPreview({ sns, text, title, projectName, images, length }: Pr
 function Rich({ text }: { text: string }) {
   return (
     <>
-      {previewSegments(text).map((s, i) => (s.kind === "text" ? <span key={i}>{s.value}</span> : <span key={i} className="text-primary">{s.value}</span>))}
+      {previewSegments(text).map((s, i) => (s.kind === "text" ? <span key={i}>{s.value}</span> : <span key={i} className="text-info">{s.value}</span>))}
     </>
   );
 }
@@ -94,7 +95,7 @@ function Images({ images, layout }: { images: AttachedImage[]; layout: "before" 
   if (layout === "before") {
     // Instagram: 1 枚目を大きく、残りはめくって見る（枚数だけ出す）
     return (
-      <div className="relative -mx-3.5">
+      <div className="relative overflow-hidden rounded-md">
         {/* eslint-disable-next-line @next/next/no-img-element -- 署名つきの URL は期限があり、next/image の最適化を通さない */}
         <img src={images[0].previewUrl!} alt={alt(images[0], 0)} className="aspect-[4/5] w-full object-cover" />
         {images.length > 1 && <span className="absolute top-2 right-2 rounded-full bg-scrim px-2 py-0.5 text-xs text-on-primary">1 / {images.length}</span>}

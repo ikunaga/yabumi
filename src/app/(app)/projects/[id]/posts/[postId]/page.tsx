@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { XSyncOnView } from "@/components/posts/x-sync-on-view";
 import { aiConfigured } from "@/lib/ai/anthropic";
 import { PostComposer } from "@/components/posts/post-composer";
+import { PostNumbersBand } from "@/components/posts/post-numbers-band";
+import { loadPostNumbers } from "@/lib/posts/numbers";
 import { connectedAccounts, getPost, postTitle } from "@/lib/posts/queries";
 import { getProject } from "@/lib/projects/queries";
 import { isManualSns, manualComposeUrl, xComposeUrl, type SnsKey } from "@/lib/sns";
@@ -43,12 +45,15 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
   const [project, post] = await Promise.all([getProject(id), getPost(id, postId)]);
   if (!project || !post) notFound();
   const supabase = await createClient();
-  const [accounts, planHints, { data: channels }, images, linkPreview] = await Promise.all([
+  // 送った投稿ならその投稿の数字、まだならば前回送った投稿の数字
+  const sent = post.targets.some((t) => ["published", "preparing", "publishing", "deleted"].includes(t.status));
+  const [accounts, planHints, { data: channels }, images, linkPreview, numbers] = await Promise.all([
     connectedAccounts(project.id),
     getPlanHints(project.id),
     supabase.from("project_manual_channels").select("sns, profile_url").eq("project_id", project.id),
     loadPostImages(post.id),
     postLinkPreview(supabase, post.id),
+    loadPostNumbers(project.id, { postId: post.id, sent }),
   ]);
   // 画像はあとから足すこともあるので、画像がなくても調べる
   const needImageReconnect = await snsNeedingImageReconnect(accounts);
@@ -98,6 +103,7 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
       results={results}
       needImageReconnect={needImageReconnect}
       linkPreview={linkPreview}
+      numbers={numbers && <PostNumbersBand projectId={project.id} numbers={numbers} />}
       notice={notice?.text}
       noticeTone={notice?.tone}
       initial={{

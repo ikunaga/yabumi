@@ -2,7 +2,8 @@ import Link from "next/link";
 import type { WeekBand } from "@/lib/calendar/roadmap-view";
 import { monthOf } from "@/lib/time";
 import { TodoButton, WeekBandView } from "./roadmap-band";
-import { MARK, type MonthDay } from "./month-types";
+import type { MonthDay } from "./month-types";
+import { SnsLabel } from "./sns-label";
 
 const WEEKDAYS = ["月", "火", "水", "木", "金", "土", "日"];
 // 1 日のマスに出す件数。これより多い日は、1 つ減らして「ほか n 件」を出す（マスの高さをそろえる）
@@ -14,9 +15,9 @@ const MAX_ITEMS = 3;
 export function MonthGrid({ days, base, bands, today }: { days: MonthDay[]; base: string; bands: (WeekBand | undefined)[]; today: string }) {
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-surface">
-      <div className="grid grid-cols-7 border-b border-line">
+      <div className="grid grid-cols-7 border-b border-line bg-surface2">
         {WEEKDAYS.map((w) => (
-          <div key={w} className="px-2 py-1.5 text-center text-xs text-muted">
+          <div key={w} className="px-2 py-2 text-center text-[13px] text-faint">
             {w}
           </div>
         ))}
@@ -32,7 +33,7 @@ export function MonthGrid({ days, base, bands, today }: { days: MonthDay[]; base
           return (
             <div
               key={d.ymd}
-              className={`group relative flex min-h-[116px] min-w-0 flex-col gap-0.5 p-1.5 ${i % 7 < 6 ? "border-r" : ""} border-line ${d.isToday ? "bg-surface2" : ""}`}
+              className={`group relative flex min-h-[116px] min-w-0 flex-col gap-1 p-1.5 ${i % 7 < 6 ? "border-r" : ""} border-line ${d.isToday ? "bg-surface2" : ""}`}
             >
               {/* 空いているところを押すと、その日の投稿をつくる（日付と投稿のリンクは、この上に重ねる） */}
               <Link
@@ -58,20 +59,12 @@ export function MonthGrid({ days, base, bands, today }: { days: MonthDay[]; base
                 <TodoButton key={t.id} todo={t} base={base} variant="day" />
               ))}
               {shown.map((it) => (
-                <Link
-                  key={it.id}
-                  href={it.href}
-                  title={it.title}
-                  className={`relative z-10 truncate rounded-sm px-1 py-px text-xs leading-5 hover:bg-surface2 hover:no-underline ${d.inMonth ? "text-fg" : "text-muted opacity-60"}`}
-                >
-                  <span className={MARK[it.status].className}>{MARK[it.status].char}</span>
-                  <span className="sr-only">{MARK[it.status].label}</span> {it.time} {it.sns}
-                </Link>
+                <SnsLabel key={it.id} href={it.href} sns={it.snsKeys} status={it.status} time={it.time} title={it.title} dim={!d.inMonth} />
               ))}
               {more > 0 && (
                 <Link
                   href={`${base}/calendar?view=week&week=${d.ymd}`}
-                  className="relative z-10 self-start rounded-sm px-1 text-xs leading-5 font-semibold text-primary hover:bg-primary-soft hover:no-underline"
+                  className="relative z-10 self-start rounded-sm px-1 text-xs leading-5 font-semibold text-muted underline hover:text-fg"
                 >
                   ほか {more} 件
                 </Link>

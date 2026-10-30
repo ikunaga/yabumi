@@ -22,7 +22,8 @@ export type OverviewNumbers = {
 };
 
 // 概要の数字（直近 30 日と、その前の 30 日）。どれも本人だけが読める表と関数から読む（RLS）
-export async function loadOverviewNumbers(projectId: string, kpis: KpiKey[]): Promise<OverviewNumbers> {
+// projectSince: プロジェクトを作った日（日本時間の YYYY-MM-DD。投稿数の前の 30 日がこれより前なら比べない）
+export async function loadOverviewNumbers(projectId: string, kpis: KpiKey[], projectSince?: string): Promise<OverviewNumbers> {
   const supabase = await createClient();
   const today = toYmd(new Date());
   const [overview, daily, links, scheduled, drafts] = await Promise.all([
@@ -55,6 +56,7 @@ export async function loadOverviewNumbers(projectId: string, kpis: KpiKey[]): Pr
     draftCount,
     kpis,
     kpiValues: overview.kpiValues,
+    since: { downloads: daily.storeSince, clicks: daily.linksSince, posts: projectSince },
     playSnsDl: daily.stores.includes("google_play") || daily.playUtm.length ? sumPlayUtm(daily.playUtm, addDays(today, -(OVERVIEW_DAYS - 1)), today).total : null,
   });
 

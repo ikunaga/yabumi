@@ -85,6 +85,32 @@ describe("概要: Google Play が数えた SNS からの DL", () => {
   });
 });
 
+describe("概要: 前の期間が数え始める前なら比べない", () => {
+  it("短縮リンクを作った日・ストアを取り込み始めた日・プロジェクトを作った日が前の 30 日の始まりより後なら「前の記録はまだありません」", () => {
+    const cards = pickOverviewCards({
+      ...empty,
+      downloads: [at(1, 10)],
+      clicks: [at(2, 14)],
+      published: [at(3, 2)],
+      since: { downloads: addDays(today, -10), clicks: addDays(today, -5), posts: addDays(today, -5) },
+    });
+    for (const c of cards.slice(0, 3)) expect(c).toMatchObject({ deltaPct: null, note: "前の記録はまだありません" });
+    expect(cards.map((c) => c.value).slice(0, 3)).toEqual([10, 14, 2]);
+  });
+
+  it("前の 30 日の始まり（59 日前）かそれより前から数えていれば、いつもどおり比べる。数え始めた日がわからない（null）なら比べない", () => {
+    const rows = [at(1, 12), at(40, 10)];
+    expect(pickOverviewCards({ ...empty, clicks: rows, since: { clicks: addDays(today, -59) } })[0]).toMatchObject({ deltaPct: 20, note: "前の 30 日比" });
+    expect(pickOverviewCards({ ...empty, clicks: rows, since: { clicks: null } })[0]).toMatchObject({ deltaPct: null, note: "前の記録はまだありません" });
+  });
+
+  it("ストアのページの閲覧（追いかける数字）は、取り込み始めて 7 日たつまで比べない", () => {
+    const base = { ...empty, kpis: ["store_page_views" as const], kpiValues: { store_page_views: { thisWeek: 30, lastWeek: 0 } } };
+    expect(pickOverviewCards({ ...base, since: { downloads: addDays(today, -3) } })[1]).toMatchObject({ kpi: "store_page_views", deltaPct: null, note: "直近 7 日・前の記録はまだありません" });
+    expect(pickOverviewCards({ ...base, since: { downloads: addDays(today, -20) } })[1]).toMatchObject({ kpi: "store_page_views", note: "直近 7 日・先週比" });
+  });
+});
+
 describe("概要: 次の予約の時刻", () => {
   const now = new Date("2026-10-30T10:00:00+09:00");
   it("今日は時刻だけ、明日は「明日」、それより先は月/日", () => {

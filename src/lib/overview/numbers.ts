@@ -41,7 +41,16 @@ export type OverviewInput = {
   kpiValues: KpiValues;
   // Google Play が数えた、矢書の短縮リンクからの DL（直近 30 日。Google Play をつないでいなければ null。数字の段 3）
   playSnsDl?: number | null;
+  // 数え始めた日（日本時間の YYYY-MM-DD）。前の 30 日がこれより前にかかるなら比べない（数える前の日を 0 として比べない。分析と同じ）。
+  // ダウンロード・ストアのページの閲覧はストアを取り込み始めた日、クリックはいちばん古い短縮リンクを作った日、投稿はプロジェクトを作った日
+  since?: { downloads?: string | null; clicks?: string | null; posts?: string | null };
 };
+
+// 前の 30 日の始まりより前から数えていれば、比べられる
+export function prevKnown(since: string | null | undefined, today: string, days = OVERVIEW_DAYS): boolean {
+  if (since === undefined) return true;
+  return since !== null && since <= addDays(today, -(days * 2 - 1));
+}
 
 // [from, to] の合計（日付は YYYY-MM-DD）
 export function sumDays(rows: Daily[], from: string, to: string): number {
@@ -73,12 +82,13 @@ export function dailySeries(rows: Daily[], today: string, days: number): Daily[]
 }
 
 // 前の 30 日と比べる数字のカード
-function compared(key: "downloads" | "link_clicks" | "posts", label: string, rows: Daily[], today: string, note?: string): OverviewCard {
+function compared(key: "downloads" | "link_clicks" | "posts", label: string, rows: Daily[], today: string, since?: string | null): OverviewCard {
   const { now, before } = compareDays(rows, today);
-  const deltaPct = pctChange(now, before);
   // 単位は予約中・下書き（件）とそろえる。ダウンロードは数だけ（「DL」と書き分けない）
   const unit = key === "posts" ? "件" : key === "link_clicks" ? "回" : undefined;
-  return { key, label, value: now, unit, deltaPct, note: note ?? (deltaPct === null ? (before === 0 && now > 0 ? "前の 30 日は 0" : undefined) : "前の 30 日比") };
+  if (!prevKnown(since, today)) return { key, label, value: now, unit, deltaPct: null, note: "前の記録はまだありません" };
+  const deltaPct = pctChange(now, before);
+  return { key, label, value: now, unit, deltaPct, note: deltaPct === null ? (before === 0 && now > 0 ? "前の 30 日は 0" : undefined) : "前の 30 日比" };
 }
 
 // 4 枚のカードを、出せるものから順に選ぶ（PM と決めた a〜e。出せない数字は出さず、「準備中」でも埋めない）
@@ -87,16 +97,18 @@ function compared(key: "downloads" | "link_clicks" | "posts", label: string, row
 export function pickOverviewCards(input: OverviewInput, max = 4): OverviewCard[] {
   const { today } = input;
   const cards: OverviewCard[] = [];
-  if (input.downloads) cards.push(compared("downloads", "ダウンロード", input.downloads, today));
-  if (input.clicks) cards.push(compared("link_clicks", "ストアへのクリック", input.clicks, today));
+  if (input.downloads) cards.push(compared("downloads", "ダウンロード", input.downloads, today, input.since?.downloads));
+  if (input.clicks) cards.push(compared("link_clicks", "ストアへのクリック", input.clicks, today, input.since?.clicks));
   const postsAt = cards.length;
-  cards.push(compared("posts", "投稿数", input.published, today));
+  cards.push(compared("posts", "投稿数", input.published, today, input.since?.posts));
 
   for (const k of input.kpis) {
     if (cards.length >= max) break;
     if (k === "downloads" || k === "link_clicks" || k === "posts") continue;
-    const v = input.kpiValues[k];
-    if (!v) continue;
+    const raw = input.kpiValues[k];
+    if (!raw) continue;
+    // ストアのページの閲覧は、ストアを取り込み始めて 7 日たつまで比べない（直近 7 日と先週の比べ）
+    const v = k === "store_page_views" && !prevKnown(input.since?.downloads, today, 7) ? { ...raw, noPrev: true as const } : raw;
     cards.push({
       key: "kpi",
       kpi: k,

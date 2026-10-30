@@ -50,7 +50,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
   const chosen = plan?.plan.first_month.kpis ?? [];
   const kpis = chosen.length ? chosen : recommendedKpis(plan?.plan.goal.goalType ?? null);
   const [numbers, upcoming, snsAccounts, attention, overdue, manualDue, { data: repoLink }, { data: manualChannels }, roadmap, stepStates, { data: prefs }] = await Promise.all([
-    loadOverviewNumbers(project.id, kpis),
+    loadOverviewNumbers(project.id, kpis, toYmd(new Date(project.created_at))),
     listUpcomingPosts(project.id, 8),
     listProjectSnsAccounts(project.id),
     listPostsNeedingAttention(project.id),

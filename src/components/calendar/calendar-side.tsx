@@ -8,12 +8,10 @@ import { postTitle, type PostRow } from "@/lib/posts/queries";
 import { SNS } from "@/lib/sns";
 import { formatShort } from "@/lib/time";
 import type { WeekPace } from "@/lib/coach/pace";
-import type { TimeTrends } from "@/lib/metrics/time-bands";
-import { TimeTrendsCard } from "./time-trends-card";
 import { WeekSlotsCard } from "./week-slots-card";
 
-// カレンダーの右の列（見本 C の右）。今週の空き枠・SNS ごとの本数・時間帯の傾向・次の予約（数字の段 4。DL・相関は出さない）
-export function CalendarSide({ stats, month, upcoming, base, week, trends }: { stats: CalendarStats; month: number; upcoming: PostRow[]; base: string; week: WeekPace | null; trends: TimeTrends }) {
+// カレンダーの右の列（見本 C の右）。今週の空き枠・SNS ごとの本数・次の予約（数字の段 4。時間帯の傾向は左の列のマス目の下。DL・相関は出さない）
+export function CalendarSide({ stats, month, upcoming, base, week }: { stats: CalendarStats; month: number; upcoming: PostRow[]; base: string; week: WeekPace | null }) {
   const max = Math.max(0, ...stats.bySns.map((s) => s.count));
   return (
     <div className="flex min-w-0 flex-col gap-4">
@@ -30,7 +28,6 @@ export function CalendarSide({ stats, month, upcoming, base, week, trends }: { s
           <p className="px-6 pt-1 pb-5 text-[15px] text-faint">まだありません</p>
         )}
       </Card>
-      <TimeTrendsCard trends={trends} />
       <Card>
         <CardHeader title="次の予約" />
         {upcoming.length ? (

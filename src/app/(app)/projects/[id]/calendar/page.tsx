@@ -11,6 +11,7 @@ import { CalendarViewSwitch } from "@/components/calendar/view-switch";
 import { loadCalendarRoadmap, type CalendarTodo } from "@/lib/calendar/roadmap";
 import { displayStatus, postWarning, snsSummary } from "@/components/posts/post-chip";
 import { CalendarSide } from "@/components/calendar/calendar-side";
+import { TimeTrendsCard } from "@/components/calendar/time-trends-card";
 import { WeekGrid } from "@/components/calendar/week-grid";
 import { chipClass } from "@/components/ui/chip";
 import { Metric } from "@/components/ui/metric";
@@ -128,9 +129,10 @@ export default async function CalendarPage(props: PageProps<"/projects/[id]/cale
             })}
           </ol>
 
+          <TimeTrendsCard trends={side.trends} />
           <UndatedDrafts posts={undated} base={base} />
         </div>
-        <CalendarSide stats={stats} month={Number(ym.slice(5, 7))} upcoming={upcoming} base={base} week={side.week} trends={side.trends} />
+        <CalendarSide stats={stats} month={Number(ym.slice(5, 7))} upcoming={upcoming} base={base} week={side.week} />
       </div>
 
       <MobileComposeButton base={base} />
@@ -304,9 +306,10 @@ async function MonthView({ projectId, base, ym, today, done }: { projectId: stri
           <div className="md:hidden">
             <MonthMobile key={ym} days={days} base={base} initial={isThisMonth ? today : `${ym}-01`} bands={bands} today={today} />
           </div>
+          <TimeTrendsCard trends={side.trends} />
           <UndatedDrafts posts={undated} base={base} />
         </div>
-        <CalendarSide stats={stats} month={month} upcoming={upcoming} base={base} week={side.week} trends={side.trends} />
+        <CalendarSide stats={stats} month={month} upcoming={upcoming} base={base} week={side.week} />
       </div>
 
       <MobileComposeButton base={base} />

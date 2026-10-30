@@ -1,4 +1,6 @@
 import "server-only";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
 import { SNS_KEYS, type SnsKey } from "@/lib/sns";
 import { addMonths, startOfYmd } from "@/lib/time";
@@ -18,8 +20,9 @@ export type CalendarStats = {
   bySns: { sns: SnsKey; count: number }[];
 };
 
-export async function loadCalendarStats(projectId: string, ym: string): Promise<CalendarStats> {
-  const supabase = await createClient();
+// db を渡すと、そのクライアントで読む（テストでは利用者の権限のクライアントを渡す）
+export async function loadCalendarStats(projectId: string, ym: string, db?: SupabaseClient<Database>): Promise<CalendarStats> {
+  const supabase = db ?? (await createClient());
   const from = startOfYmd(`${ym}-01`).toISOString();
   const to = startOfYmd(`${addMonths(ym, 1)}-01`).toISOString();
   const head = { count: "exact", head: true } as const;

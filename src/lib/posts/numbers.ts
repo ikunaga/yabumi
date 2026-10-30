@@ -1,4 +1,6 @@
 import "server-only";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
 import { isSnsKey, type SnsKey } from "@/lib/sns";
 import { toYmd } from "@/lib/time";
@@ -18,8 +20,9 @@ export type PostNumbers = {
   clicks: number | null;
 };
 
-export async function loadPostNumbers(projectId: string, opts: { postId?: string | null; sent?: boolean } = {}): Promise<PostNumbers | null> {
-  const supabase = await createClient();
+// db を渡すと、そのクライアントで読む（テストでは利用者の権限のクライアントを渡す）
+export async function loadPostNumbers(projectId: string, opts: { postId?: string | null; sent?: boolean } = {}, db?: SupabaseClient<Database>): Promise<PostNumbers | null> {
+  const supabase = db ?? (await createClient());
 
   // どの投稿の数字を出すか
   let postId: string | null = opts.sent && opts.postId ? opts.postId : null;

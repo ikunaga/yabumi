@@ -12,8 +12,10 @@ import { firstLine, postMeta, type PostMeta } from "./post-meta";
 
 // 数字の画面（docs/architecture.md の 4.22）の読み込み。合計はすべて DB の関数で出す（行を読んで足さない）
 
+// thisWeek・lastWeek: 直近の期間と、その前の期間（既定は 7 日。loadMetricsOverview の days）。名前は前の版（週だけだった）のまま。
 // unit: 金額のときの通貨（JPY など）。数のときはなし
-export type WeekValue = { thisWeek: number; lastWeek: number; unit?: string };
+// noPrev: 前の期間の記録がない（フォロワーを記録し始めて間もないなど）。画面では比べない（lastWeek は thisWeek と同じ値にしてある）
+export type WeekValue = { thisWeek: number; lastWeek: number; unit?: string; noPrev?: true };
 export type KpiValues = Partial<Record<KpiKey, WeekValue>>;
 
 export type ClicksBySns = { sns: SnsKey | null; label: string; thisWeek: number; lastWeek: number; last30d: number };
@@ -26,49 +28,47 @@ export type MetricsOverview = {
   topViewed: (PostMeta & { postId: string; views: number })[];
 };
 
-// db を渡すと、そのクライアントで読む（AI と相談の「いまの状況」は、利用者の権限のクライアントを渡す。4.23）
-export async function loadMetricsOverview(projectId: string, db?: SupabaseClient<Database>): Promise<MetricsOverview> {
+// 分析の期間（数字の段 2）。画面で選べるのは 7 日と 30 日だけ（DB の関数もこれ以外は弾く）
+export const METRICS_PERIODS = [7, 30] as const;
+export type MetricsPeriod = (typeof METRICS_PERIODS)[number];
+
+// db を渡すと、そのクライアントで読む（AI と相談の「いまの状況」は、利用者の権限のクライアントを渡す。4.23）。
+// days: 直近 days 日と、その前の days 日を比べる（WeekValue の thisWeek・lastWeek に入る）。売上だけは RevenueCat の 28 日のまま。
+// よく見られた投稿・クリックの多い投稿は、期間によらず 30 日
+export async function loadMetricsOverview(projectId: string, db?: SupabaseClient<Database>, days: MetricsPeriod = 7): Promise<MetricsOverview> {
   const supabase = db ?? (await createClient());
   const today = toYmd(new Date());
   const [
-    { data: posts, error: e1 },
+    { data: totals, error: e1 },
     { data: clicks, error: e2 },
     { data: top, error: e3 },
-    { data: stores, error: e4 },
-    { data: snsTotals, error: e5 },
     { data: topViews, error: e6 },
     { count: downloadDays },
     { count: revenueCatDays },
     { count: pageViewDays },
   ] = await Promise.all([
-    supabase.rpc("weekly_post_totals", { p_project_id: projectId, p_today: today }),
-    supabase.rpc("link_clicks_by_sns", { p_project_id: projectId, p_today: today }),
+    supabase.rpc("metrics_period_totals", { p_project_id: projectId, p_today: today, p_days: days }),
+    supabase.rpc("link_clicks_by_sns_period", { p_project_id: projectId, p_today: today, p_days: days }),
     supabase.rpc("top_posts_by_clicks", { p_project_id: projectId, p_today: today, p_days: 30, p_limit: 5 }),
-    supabase.rpc("store_weekly_totals", { p_project_id: projectId, p_today: today }),
-    supabase.rpc("sns_weekly_totals", { p_project_id: projectId, p_today: today }),
     supabase.rpc("top_posts_by_views", { p_project_id: projectId, p_today: today, p_days: 30, p_limit: 5 }),
     // 取り込んだことがある取り込み元（つないでいなければ、ダウンロード・課金は「つなぐと出ます」）
     supabase.from("store_daily").select("day", { count: "exact", head: true }).eq("project_id", projectId).in("source", ["app_store", "google_play"]),
     supabase.from("store_daily").select("day", { count: "exact", head: true }).eq("project_id", projectId).eq("source", "revenuecat"),
     supabase.from("store_daily").select("day", { count: "exact", head: true }).eq("project_id", projectId).in("source", ["app_store_views", "google_play"]),
   ]);
-  if (e4) throw e4;
-  if (e5) throw e5;
-  if (e6) throw e6;
-  const sns = snsTotals?.[0];
-  // 閲覧数: SNS の数字（数字の権限つきでつないだもの）と、note・Substack で手で入れた数字の合計
-  const hasViews = Boolean(sns?.has_post_metrics) || Number(p0(posts)?.manual_views_this_week ?? 0) + Number(p0(posts)?.manual_views_last_week ?? 0) > 0;
-  const sources = new Set([...(downloadDays ? ["downloads"] : []), ...(revenueCatDays ? ["revenuecat"] : []), ...(pageViewDays ? ["page_views"] : [])]);
-  const st = stores?.[0];
   if (e1) throw e1;
   if (e2) throw e2;
   if (e3) throw e3;
+  if (e6) throw e6;
+  const t = totals?.[0];
+  // 閲覧数: SNS の数字（数字の権限つきでつないだもの）と、note・Substack で手で入れた数字の合計
+  const hasViews = Boolean(t?.has_post_metrics) || Number(t?.manual_views_now ?? 0) + Number(t?.manual_views_prev ?? 0) > 0;
+  const sources = new Set([...(downloadDays ? ["downloads"] : []), ...(revenueCatDays ? ["revenuecat"] : []), ...(pageViewDays ? ["page_views"] : [])]);
 
-  const p = posts?.[0];
   const clicksBySns: ClicksBySns[] = (clicks ?? [])
     .map((c) => {
       const sns = isSnsKey(c.sns) ? c.sns : null;
-      return { sns, label: sns ? SNS[sns].label : "SNS を決めていないリンク", thisWeek: Number(c.this_week), lastWeek: Number(c.last_week), last30d: Number(c.last_30d) };
+      return { sns, label: sns ? SNS[sns].label : "SNS を決めていないリンク", thisWeek: Number(c.clicks_now), lastWeek: Number(c.clicks_prev), last30d: Number(c.last_30d) };
     })
     .sort((a, b) => b.last30d - a.last30d);
   const sum = (key: "thisWeek" | "lastWeek") => clicksBySns.reduce((n, c) => n + c[key], 0);
@@ -84,35 +84,29 @@ export async function loadMetricsOverview(projectId: string, db?: SupabaseClient
 
   return {
     kpiValues: {
-      posts: { thisWeek: Number(p?.published_this_week ?? 0), lastWeek: Number(p?.published_last_week ?? 0) },
+      posts: { thisWeek: Number(t?.published_now ?? 0), lastWeek: Number(t?.published_prev ?? 0) },
       link_clicks: { thisWeek: sum("thisWeek"), lastWeek: sum("lastWeek") },
       ...(hasViews
         ? {
             views: {
-              thisWeek: Number(sns?.views_this_week ?? 0) + Number(p?.manual_views_this_week ?? 0),
-              lastWeek: Number(sns?.views_last_week ?? 0) + Number(p?.manual_views_last_week ?? 0),
+              thisWeek: Number(t?.views_now ?? 0) + Number(t?.manual_views_now ?? 0),
+              lastWeek: Number(t?.views_prev ?? 0) + Number(t?.manual_views_prev ?? 0),
             },
           }
         : {}),
-      ...(sns?.has_account_metrics && sns.followers_now != null
-        ? { followers: { thisWeek: Number(sns.followers_now), lastWeek: Number(sns.followers_week_ago ?? sns.followers_now) } }
+      ...(t?.has_account_metrics && t.followers_now != null
+        ? { followers: { thisWeek: Number(t.followers_now), lastWeek: Number(t.followers_ago ?? t.followers_now), ...(t.followers_ago == null ? { noPrev: true as const } : {}) } }
         : {}),
-      ...(sources.has("downloads") ? { downloads: { thisWeek: Number(st?.downloads_this_week ?? 0), lastWeek: Number(st?.downloads_last_week ?? 0) } } : {}),
-      ...(sources.has("page_views")
-        ? { store_page_views: { thisWeek: Number(st?.page_views_this_week ?? 0), lastWeek: Number(st?.page_views_last_week ?? 0) } }
-        : {}),
-      ...(sources.has("revenuecat") && st?.revenue_latest != null
-        ? { revenue: { thisWeek: Number(st.revenue_latest), lastWeek: Number(st.revenue_week_ago ?? st.revenue_latest), unit: st.revenue_currency ?? "JPY" } }
+      ...(sources.has("downloads") ? { downloads: { thisWeek: Number(t?.downloads_now ?? 0), lastWeek: Number(t?.downloads_prev ?? 0) } } : {}),
+      ...(sources.has("page_views") ? { store_page_views: { thisWeek: Number(t?.page_views_now ?? 0), lastWeek: Number(t?.page_views_prev ?? 0) } } : {}),
+      ...(sources.has("revenuecat") && t?.revenue_latest != null
+        ? { revenue: { thisWeek: Number(t.revenue_latest), lastWeek: Number(t.revenue_week_ago ?? t.revenue_latest), unit: t.revenue_currency ?? "JPY" } }
         : {}),
     },
     clicksBySns,
     topPosts,
     topViewed,
   };
-}
-
-function p0<T>(rows: T[] | null | undefined): T | undefined {
-  return rows?.[0];
 }
 
 export type ManualTargetRow = {

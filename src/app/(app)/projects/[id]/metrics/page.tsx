@@ -8,6 +8,7 @@ import { Panel } from "@/components/overview/overview-panels";
 import { ButtonLink, NotReadyButton } from "@/components/ui/button";
 import { Disclosure, HelpTip } from "@/components/ui/help";
 import { BarRow, Delta } from "@/components/ui/metric";
+import { chipSolidClass } from "@/components/ui/chip";
 import { Columns } from "@/components/ui/columns";
 import { SNS_COLOR, SnsMark } from "@/components/ui/marks";
 import { PageHeader } from "@/components/ui/page-header";
@@ -18,7 +19,7 @@ import { loadDailyNumbers } from "@/lib/metrics/daily";
 import { confirmedUntil, MIN_DAYS, POST_EFFECT_DAYS, postEffect, type PostEffect } from "@/lib/metrics/post-effect";
 import type { PostMeta } from "@/lib/metrics/post-meta";
 import { KPIS, KPI_KEYS, recommendedKpis, type KpiKey } from "@/lib/metrics/kpis";
-import { listManualTargets, loadMetricsOverview, snsNeedingInsightsReconnect, xMetricsOverLimit, type ClicksBySns, type WeekValue } from "@/lib/metrics/queries";
+import { listManualTargets, loadMetricsOverview, METRICS_PERIODS, snsNeedingInsightsReconnect, xMetricsOverLimit, type ClicksBySns, type MetricsPeriod, type WeekValue } from "@/lib/metrics/queries";
 import { CHART_DAYS, dailySeries, pctChange, shortDay, type Daily } from "@/lib/overview/numbers";
 import { connectedAccounts } from "@/lib/posts/queries";
 import { getAccountPlan } from "@/lib/plan/queries";
@@ -35,6 +36,11 @@ function formatCount(n: number) {
   return n.toLocaleString("ja-JP");
 }
 
+// 期間の比べの名前（「先週比」「前の 30 日比」）
+function periodCompare(days: MetricsPeriod) {
+  return days === 7 ? "先週比" : "前の 30 日比";
+}
+
 // カードが 4 枚に満たないときも、横幅いっぱいに並べる（Tailwind はクラス名をそのまま探すので書き並べる）
 const COLS: Record<number, string> = { 1: "grid-cols-1", 2: "grid-cols-2", 3: "grid-cols-3" };
 
@@ -48,7 +54,7 @@ const CHARTS = {
 type ChartKey = keyof typeof CHARTS;
 
 // 追いかける数字のカード（見本 A の数字のカード）。数字がまだ出せないものは、数字の代わりに出す方法（つなぐ）を出す
-function KpiCard({ k, value, projectId }: { k: KpiKey; value?: WeekValue; projectId: string }) {
+function KpiCard({ k, value, projectId, days }: { k: KpiKey; value?: WeekValue; projectId: string; days: MetricsPeriod }) {
   const def = KPIS[k];
   const label = (
     <span className="inline-flex items-center gap-1.5">
@@ -79,9 +85,11 @@ function KpiCard({ k, value, projectId }: { k: KpiKey; value?: WeekValue; projec
     );
   }
   const shown = value.unit ? (value.unit === "JPY" ? `¥${formatCount(Math.round(value.thisWeek))}` : `${formatCount(value.thisWeek)} ${value.unit}`) : formatCount(value.thisWeek);
-  const delta = pctChange(value.thisWeek, value.lastWeek);
-  const period = value.unit ? "直近 28 日" : "直近 7 日";
-  const note = delta !== null ? `${period}・${value.unit ? "1 週間前比" : "先週比"}` : value.lastWeek === 0 && value.thisWeek > 0 ? `${period}・先週は 0` : period;
+  const delta = value.noPrev ? null : pctChange(value.thisWeek, value.lastWeek);
+  // 売上は RevenueCat の 28 日の数字だけなので、期間を切り替えても 28 日のまま
+  const period = value.unit ? "直近 28 日" : `直近 ${days} 日`;
+  const before = value.unit ? "1 週間前比" : periodCompare(days);
+  const note = value.noPrev ? `${period}・前の記録はまだありません` : delta !== null ? `${period}・${before}` : value.lastWeek === 0 && value.thisWeek > 0 ? `${period}・${days === 7 && !value.unit ? "先週" : "前"}は 0` : period;
   return frame(
     <>
       <p className="num mt-1.5 text-metric font-bold max-sm:text-[28px]">{shown}</p>
@@ -97,14 +105,17 @@ function KpiCard({ k, value, projectId }: { k: KpiKey; value?: WeekValue; projec
 // よく見られた投稿・クリックの多い投稿 → note・Substack の数字。説明は「?」と開く欄に畳む
 export default async function MetricsPage(props: PageProps<"/projects/[id]/metrics">) {
   const { id } = await props.params;
-  const { chart } = await props.searchParams;
+  const { chart, days: daysParam } = await props.searchParams;
+  // 期間（数字の段 2）。7 日（既定）か 30 日
+  const days: MetricsPeriod = daysParam === "30" ? 30 : 7;
+  const chartDays = days === 30 ? 30 : CHART_DAYS;
   const project = await getProject(id);
   if (!project) notFound();
   const supabase = await createClient();
   const today = toYmd(new Date());
   const [account, overview, manual, accounts, daily] = await Promise.all([
     getAccountPlan(project.id),
-    loadMetricsOverview(project.id),
+    loadMetricsOverview(project.id, undefined, days),
     listManualTargets(project.id),
     connectedAccounts(project.id),
     loadDailyNumbers(supabase, project.id, today, POST_EFFECT_DAYS),
@@ -119,6 +130,16 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
   // 閲覧数を自動で読める SNS を 1 つでもつないでいるか（よく見られた投稿の空のときの案内を変える）
   const hasAutoSns = (["threads", "instagram", "facebook", "x"] as const).some((s) => accounts[s]);
   const later = KPI_KEYS.filter((k) => KPIS[k].availability === "later" && !kpis.includes(k));
+
+  // 前の期間が、数え始める前（短縮リンクを作る前・ストアを取り込み始める前）にかかっていたら、比べない（数える前の日を 0 として比べない）
+  const prevStart = addDays(today, -(2 * days - 1));
+  const linksPrevKnown = Boolean(daily.linksSince && daily.linksSince <= prevStart);
+  const storePrevKnown = Boolean(daily.storeSince && daily.storeSince <= prevStart);
+  const withPrevKnown = (k: KpiKey, v: WeekValue | undefined): WeekValue | undefined => {
+    if (!v) return v;
+    const known = k === "link_clicks" ? linksPrevKnown : k === "downloads" || k === "store_page_views" ? storePrevKnown : true;
+    return known ? v : { ...v, noPrev: true };
+  };
 
   // 投稿した日と DL（またはクリック）の関係（数字の段 1）。ダウンロードがあればダウンロード、なければ短縮リンクがあればクリック
   const effectKind: "downloads" | "link_clicks" | null = overview.kpiValues.downloads ? "downloads" : overview.clicksBySns.length ? "link_clicks" : null;
@@ -138,7 +159,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
   const chartKeys = Object.keys(series) as ChartKey[];
   const fallback: ChartKey = series.downloads ? "downloads" : "clicks";
   const current: ChartKey = typeof chart === "string" && chart in series ? (chart as ChartKey) : fallback;
-  const rows = dailySeries(series[current] ?? [], today, CHART_DAYS);
+  const rows = dailySeries(series[current] ?? [], today, chartDays);
   const total = rows.reduce((n, r) => n + r.value, 0);
 
   return (
@@ -161,6 +182,21 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
         }
         actions={
           <>
+            {/* 期間の切り替え（見本 A の「直近30日」の札）。グラフのタブは残す */}
+            <nav aria-label="期間" className="flex gap-1.5">
+              {METRICS_PERIODS.map((d) => (
+                <Link
+                  key={d}
+                  href={`?days=${d}${typeof chart === "string" ? `&chart=${chart}` : ""}`}
+                  scroll={false}
+                  replace
+                  aria-current={d === days ? "page" : undefined}
+                  className={`${chipSolidClass(d === days)} hover:no-underline`}
+                >
+                  直近 {d} 日
+                </Link>
+              ))}
+            </nav>
             <ButtonLink href={`${base}/stores`} variant="secondary" size="sm">
               ストアと課金をつなぐ
             </ButtonLink>
@@ -197,27 +233,27 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
 
       <div className={`grid ${COLS[kpis.length] ?? "grid-cols-3"} gap-4 max-lg:grid-cols-2 max-sm:grid-cols-1 max-sm:gap-3`}>
         {kpis.map((k) => (
-          <KpiCard key={k} k={k} value={overview.kpiValues[k]} projectId={project.id} />
+          <KpiCard key={k} k={k} value={withPrevKnown(k, overview.kpiValues[k])} projectId={project.id} days={days} />
         ))}
       </div>
 
-      {/* 2 列（xl から。左に日ごとの数と手で記録、右に SNS ごと・投稿ごとの要点）。docs/design/new_design/README.md の「中身の幅と 2 列」 */}
+      {/* 2 列（xl から。左に日ごとの数・SNS ごとのクリック・投稿した日との関係・手で記録、右に投稿ごとの順位。左右の長さが釣り合うように）。docs/design/new_design/README.md の「中身の幅と 2 列」 */}
       <Columns
         main={
           <>
-            <Panel title="日ごとの数" aside={`直近 ${CHART_DAYS} 日 / 合計 ${formatCount(total)}`}>
+            <Panel title="日ごとの数" aside={`直近 ${chartDays} 日 / 合計 ${formatCount(total)}`}>
               <nav className={`${tabListClass} mb-4`} aria-label="グラフの数字">
                 {chartKeys.map((k) => (
-                  <Link key={k} href={`?chart=${k}`} scroll={false} replace aria-current={k === current ? "page" : undefined} className={`${tabClass(k === current)} hover:no-underline`}>
+                  <Link key={k} href={`?chart=${k}${days === 30 ? "&days=30" : ""}`} scroll={false} replace aria-current={k === current ? "page" : undefined} className={`${tabClass(k === current)} hover:no-underline`}>
                     {CHARTS[k].label}
                   </Link>
                 ))}
               </nav>
               {total > 0 ? (
-                <DailyBars rows={rows} label={`${CHARTS[current].label}の日ごとの数（直近 ${CHART_DAYS} 日）`} />
+                <DailyBars rows={rows} label={`${CHARTS[current].label}の日ごとの数（直近 ${chartDays} 日）`} />
               ) : (
                 <ChartEmpty>
-                  <p>直近 {CHART_DAYS} 日の{CHARTS[current].label}はまだありません。</p>
+                  <p>直近 {chartDays} 日の{CHARTS[current].label}はまだありません。</p>
                   {current === "clicks" && (
                     <Link href={`${base}/links`} className="font-bold text-fg underline">
                       短縮リンクを付けて投稿する
@@ -239,6 +275,35 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
                   と並べて見られます。
                 </p>
               )}
+            </Panel>
+            <Panel title="SNS ごとのストアへのクリック" aside={`直近 ${days} 日・${periodCompare(days)}`}>
+              {overview.clicksBySns.some((c) => c.thisWeek > 0 || c.lastWeek > 0 || c.last30d > 0) ? (
+                <>
+                  <SnsClicksCompared rows={overview.clicksBySns} prevKnown={linksPrevKnown} />
+                  {days !== 30 && <Disclosure summary="30 日の数" className="mt-4">
+                    <table className="num w-full text-sm text-fg">
+                      <tbody>
+                        {overview.clicksBySns.map((c) => (
+                          <tr key={c.label} className="border-t border-line first:border-t-0">
+                            <td className="py-1.5">{c.label}</td>
+                            <td className="py-1.5 text-right font-bold">{formatCount(c.last30d)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </Disclosure>}
+                </>
+              ) : (
+                <p className="text-sm text-muted">
+                  SNS ごとの<Term k="shortLink" />を付けて投稿すると、どの SNS からストアへ来たかが並びます。
+                  <Link href={`${base}/links`} className="ml-1 font-bold text-fg underline">
+                    短縮リンクを作る
+                  </Link>
+                </p>
+              )}
+            </Panel>
+            <Panel title={effectKind === "downloads" ? "投稿した日とダウンロード" : "投稿した日とクリック"} aside={`直近 ${POST_EFFECT_DAYS} 日`}>
+              <PostEffectBox kind={effectKind} effect={effect} projectId={project.id} />
             </Panel>
             <Panel
               title="note・Substack の数字"
@@ -279,35 +344,6 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
         }
         side={
           <>
-            <Panel title="SNS ごとのストアへのクリック" aside="直近 7 日・先週比">
-              {overview.clicksBySns.some((c) => c.thisWeek > 0 || c.lastWeek > 0 || c.last30d > 0) ? (
-                <>
-                  <SnsClicksCompared rows={overview.clicksBySns} />
-                  <Disclosure summary="30 日の数" className="mt-4">
-                    <table className="num w-full text-sm text-fg">
-                      <tbody>
-                        {overview.clicksBySns.map((c) => (
-                          <tr key={c.label} className="border-t border-line first:border-t-0">
-                            <td className="py-1.5">{c.label}</td>
-                            <td className="py-1.5 text-right font-bold">{formatCount(c.last30d)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </Disclosure>
-                </>
-              ) : (
-                <p className="text-sm text-muted">
-                  SNS ごとの<Term k="shortLink" />を付けて投稿すると、どの SNS からストアへ来たかが並びます。
-                  <Link href={`${base}/links`} className="ml-1 font-bold text-fg underline">
-                    短縮リンクを作る
-                  </Link>
-                </p>
-              )}
-            </Panel>
-            <Panel title={effectKind === "downloads" ? "投稿した日とダウンロード" : "投稿した日とクリック"} aside={`直近 ${POST_EFFECT_DAYS} 日`}>
-              <PostEffectBox kind={effectKind} effect={effect} projectId={project.id} />
-            </Panel>
             <Panel title="よく見られた投稿" aside="30 日">
               {overview.topViewed.length ? (
                 <Ranked projectId={project.id} rows={overview.topViewed.map((p) => ({ ...p, value: `${formatCount(p.views)} 回表示` }))} />
@@ -384,14 +420,14 @@ function Ranked({ projectId, rows }: { projectId: string; rows: (PostMeta & { po
   );
 }
 
-// SNS ごとのストアへのクリック（直近 7 日の横棒と、前の 7 日と比べた ▲▼）。前が 0 なら % は出さない
-function SnsClicksCompared({ rows }: { rows: ClicksBySns[] }) {
+// SNS ごとのストアへのクリック（直近の期間の横棒と、その前の期間と比べた ▲▼）。前が 0 なら % は出さない
+function SnsClicksCompared({ rows, prevKnown }: { rows: ClicksBySns[]; prevKnown: boolean }) {
   const shown = [...rows].sort((a, b) => b.thisWeek - a.thisWeek || b.last30d - a.last30d);
   const max = Math.max(1, ...shown.map((r) => r.thisWeek));
   return (
     <div className="flex flex-col gap-2.5">
       {shown.map((r) => {
-        const delta = pctChange(r.thisWeek, r.lastWeek);
+        const delta = prevKnown ? pctChange(r.thisWeek, r.lastWeek) : null;
         return (
           <div key={r.label} className="grid grid-cols-[6.5rem_1fr_3.5rem_4.5rem] items-center gap-3 text-[15px] max-sm:grid-cols-[4.5rem_1fr_3rem_4rem] max-sm:gap-2 max-sm:text-sm">
             <span className="truncate text-muted">{r.sns ? SNS[r.sns].label : "SNS なし"}</span>
@@ -400,11 +436,12 @@ function SnsClicksCompared({ rows }: { rows: ClicksBySns[] }) {
             </span>
             <span className="num text-right font-bold">{formatCount(r.thisWeek)}</span>
             <span className="text-right text-xs">
-              {delta !== null ? <Delta value={delta} unit="%" /> : <span className="text-faint">{r.thisWeek > 0 ? "前は 0" : "—"}</span>}
+              {delta !== null ? <Delta value={delta} unit="%" /> : <span className="text-faint">{prevKnown && r.thisWeek > 0 ? "前は 0" : "—"}</span>}
             </span>
           </div>
         );
       })}
+      {!prevKnown && <p className="text-xs text-faint">前の期間は短縮リンクを作る前なので、比べていません。</p>}
     </div>
   );
 }

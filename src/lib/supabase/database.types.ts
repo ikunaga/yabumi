@@ -1891,11 +1891,42 @@ export type Database = {
           this_week: number
         }[]
       }
+      link_clicks_by_sns_period: {
+        Args: { p_days: number; p_project_id: string; p_today: string }
+        Returns: {
+          clicks_now: number
+          clicks_prev: number
+          last_30d: number
+          sns: string
+        }[]
+      }
       mark_manual_target_posted: {
         Args: { p_target_id: string; p_url?: string }
         Returns: undefined
       }
       media_usage_bytes: { Args: { p_owner_id: string }; Returns: number }
+      metrics_period_totals: {
+        Args: { p_days: number; p_project_id: string; p_today: string }
+        Returns: {
+          downloads_now: number
+          downloads_prev: number
+          followers_ago: number
+          followers_now: number
+          has_account_metrics: boolean
+          has_post_metrics: boolean
+          manual_views_now: number
+          manual_views_prev: number
+          page_views_now: number
+          page_views_prev: number
+          published_now: number
+          published_prev: number
+          revenue_currency: string
+          revenue_latest: number
+          revenue_week_ago: number
+          views_now: number
+          views_prev: number
+        }[]
+      }
       my_x_metrics_spend_this_month: { Args: never; Returns: number }
       post_counts_by_day: {
         Args: { p_from: string; p_project_id: string; p_to: string }

@@ -100,8 +100,8 @@ export function pickOverviewCards(input: OverviewInput, max = 4): OverviewCard[]
       value: v.thisWeek,
       currency: v.unit,
       // 売上は 28 日の合計、ほかは直近 7 日（分析の画面と同じ値）
-      deltaPct: pctChange(v.thisWeek, v.lastWeek),
-      note: v.unit ? "直近 28 日・1 週間前比" : "直近 7 日・先週比",
+      deltaPct: v.noPrev ? null : pctChange(v.thisWeek, v.lastWeek),
+      note: v.noPrev ? "直近 7 日・前の記録はまだありません" : v.unit ? "直近 28 日・1 週間前比" : "直近 7 日・先週比",
     });
   }
 

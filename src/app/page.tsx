@@ -179,7 +179,7 @@ export default async function Home(props: PageProps<"/">) {
           <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] items-center gap-12 max-lg:grid-cols-1 max-lg:gap-8">
             <div className="flex flex-col gap-6 max-sm:gap-5">
               <p className="flex flex-col gap-1">
-                {/* ロゴに添える一言（ONE ARROW, EVERY FEED）。LP の最初と下の帯だけに出す（PM に確認中の提案） */}
+                {/* ロゴに添える一言（ONE ARROW, EVERY FEED）。LP の最初と下の帯だけに出す（docs/design/new_design/README.md の「ロゴ」） */}
                 <span className="text-[13px] font-bold tracking-[.25em] text-faint">ONE ARROW, EVERY FEED</span>
                 <span className="text-[15px] font-bold text-muted">個人開発者のための SNS 運用ツール</span>
               </p>

@@ -25,6 +25,11 @@ export type DailyNumbers = {
   // Google Play が数えた、矢書の短縮リンクごとの DL（日ごと。数字の段 3）と、流入元のレポートを読めなかった日があったか
   playUtm: PlayUtmRow[];
   playUtmUnreadable: boolean;
+  // Apple が数えた、矢書のキャンペーンリンク（ct）ごとのはじめてのダウンロード（日ごと。数字の段 5）。other は使わない（0）
+  appleCampaigns: PlayUtmRow[];
+  appleCampaignsUnreadable: boolean;
+  // App Store のページの閲覧数のレポートを読んでいるか（Analytics Reports の依頼をしている印。キャンペーンもこの依頼で読む）
+  appleReports: boolean;
 };
 
 // 概要と分析の日ごとの数（today を含む直近 days 日）。どれも本人だけが読める表と関数から読む（RLS）
@@ -32,7 +37,7 @@ export async function loadDailyNumbers(supabase: SupabaseClient<Database>, proje
   const from = addDays(today, -(days - 1));
   const [totals, store, firstLink] = await Promise.all([
     supabase.rpc("roadmap_daily_totals", { p_project_id: projectId, p_from: from, p_to: today }),
-    supabase.from("store_daily").select("day, source, values").eq("project_id", projectId).in("source", ["app_store", "google_play", "app_store_views"]).gte("day", from),
+    supabase.from("store_daily").select("day, source, values").eq("project_id", projectId).in("source", ["app_store", "google_play", "app_store_views", "app_store_campaigns"]).gte("day", from),
     supabase.from("short_links").select("created_at").eq("project_id", projectId).order("created_at").limit(1).maybeSingle(),
   ]);
   if (firstLink.error) throw firstLink.error;
@@ -43,16 +48,22 @@ export async function loadDailyNumbers(supabase: SupabaseClient<Database>, proje
   return {
     published: (totals.data ?? []).map((r) => ({ day: r.day, value: Number(r.posts) })),
     clicks: (totals.data ?? []).map((r) => ({ day: r.day, value: Number(r.link_clicks) })),
-    downloads: rows.filter((r) => r.source !== "app_store_views").map((r) => ({ day: r.day, value: value(r.values, "downloads") })),
+    downloads: rows.filter((r) => r.source === "app_store" || r.source === "google_play").map((r) => ({ day: r.day, value: value(r.values, "downloads") })),
     // ページの閲覧: App Store はレポート（app_store_views）、Google Play は同じ行の page_views（store_weekly_totals と同じ）
-    pageViews: rows.filter((r) => r.source !== "app_store").map((r) => ({ day: r.day, value: value(r.values, "page_views") })),
+    pageViews: rows.filter((r) => r.source === "app_store_views" || r.source === "google_play").map((r) => ({ day: r.day, value: value(r.values, "page_views") })),
     stores: (["app_store", "google_play"] as const).filter((s) => rows.some((r) => r.source === s)),
     playUtm: rows.flatMap((r) => {
       const u = r.source === "google_play" ? (r.values as { utm?: Omit<PlayUtmRow, "day"> } | null)?.utm : undefined;
       return u ? [{ day: r.day, by_source: u.by_source ?? {}, by_campaign: u.by_campaign ?? {}, other: Number(u.other ?? 0) }] : [];
     }),
+    appleCampaigns: rows.flatMap((r) => {
+      const v = r.source === "app_store_campaigns" ? (r.values as { by_source?: Record<string, number>; by_campaign?: Record<string, number>; unreadable?: boolean } | null) : null;
+      return v && !v.unreadable ? [{ day: r.day, by_source: v.by_source ?? {}, by_campaign: v.by_campaign ?? {}, other: 0 }] : [];
+    }),
+    appleReports: rows.some((r) => r.source === "app_store_views" || r.source === "app_store_campaigns"),
+    appleCampaignsUnreadable: rows.some((r) => r.source === "app_store_campaigns" && Boolean((r.values as { unreadable?: boolean } | null)?.unreadable)),
     playUtmUnreadable: rows.some((r) => r.source === "google_play" && Boolean((r.values as { utm_unreadable?: boolean } | null)?.utm_unreadable)),
-    storeSince: rows.filter((r) => r.source !== "app_store_views").map((r) => r.day).sort()[0] ?? null,
+    storeSince: rows.filter((r) => r.source === "app_store" || r.source === "google_play").map((r) => r.day).sort()[0] ?? null,
     linksSince: firstLink.data ? toYmd(new Date(firstLink.data.created_at)) : null,
     lastStoreDay: Object.fromEntries(
       (["app_store", "google_play"] as const).flatMap((s) => {

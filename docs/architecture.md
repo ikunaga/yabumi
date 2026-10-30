@@ -1252,6 +1252,16 @@ Facebook ページ（graph.facebook.com）:
 - 保存: store_daily の google_play の行の `values.utm`（`by_source`・`by_campaign`・`other`）。テーブルは足していない。ファイルがない月はとばし、要る列がないときはその月の日に `utm_unreadable` を付けて、画面で「読めませんでした」と出す（取り込み全体は止めない）
 - 画面: 分析の「Google Play が数えた SNS ごとの DL」（選んだ期間）、投稿の順位の行の「DL n（Google Play が数えた）」（30 日。投稿の本文の短縮リンクのコードで結ぶ）、概要の数字のカード「Google Play が数えた SNS からの DL」（4 枚に空きがあるとき）。どれも App Store の分は入らないと書く
 
+#### Apple が数えたキャンペーンごとのダウンロード（数字の段 5。2026-10-30 に Apple の資料で確かめた）
+
+- レポート: Analytics Reports の App Store Downloads の **Detailed**（カテゴリは APP_STORE_COMMERCE）。Campaign の列は Detailed だけで、2024-11-19 から（[App Store Downloads](https://developer.apple.com/documentation/analytics-reports/app-download)）
+- 列: Date, App Name, App Apple Identifier, Download Type, App Version, Device, Platform Version, Source Type, Source Info, Campaign, Page Type, Page Title, Pre-Order, Territory, Counts。Download Type は First-time Download・Redownload・Manual update・Auto-update・Restore（同じ資料）。矢書は First-time Download だけを数える
+- 依頼: 新しい種類のレポートをはじめて依頼するのは Admin、できたレポートを読むのは Sales and Reports か Finance の役割（[Download Analytics Reports](https://developer.apple.com/help/app-store-connect-analytics/overview/analytics-reports-api/)）。矢書がページの閲覧数のために作った ONGOING の依頼で、ほかのレポートも作られる。最初のレポートは依頼から 24〜48 時間、日ごとの数は 2 日で確定（同じ資料と App Store Downloads）
+- 少ない数と乱数: Detailed は「5 人未満か 5 台未満の値を省く」「小さな乱数を足す。68.2% は ±2、95% は ±4、99.7% は ±6 の中」（[Protecting user privacy in report data](https://developer.apple.com/documentation/analytics-reports/privacy)）。キャンペーンは「はじめてのダウンロードが 5 人以上になってから出る」「リンクを押してから 24 時間以内のダウンロードを数える」（[Campaign links](https://developer.apple.com/help/app-store-connect-analytics/acquisition/campaign-links/)）
+- 矢書の短縮リンクは App Store の行き先に `ct=<SNS の名前か link>-<リンクのコード>`（30 字まで）と、利用者が入れた `pt` を付ける（src/lib/links/rules.ts）。取り込みは、Campaign がこの形で SNS の名前が矢書のものの行だけを足す。乱数で 0 より下になった値は 0 にする
+- 取り込み: ページの閲覧数の取り込み（毎日 3 時）のあとに、直近 14 日の回のうち新しい 7 つを読み直し、古い順に日ごとに上書きする（Detailed は遅れて届き、あとの回で直るため）。store_daily の source `app_store_campaigns`（マイグレーション 20261030160000）に `{ by_source, by_campaign }`。形が違う回は、その回の日に `{ unreadable: true }`。失敗してもページの閲覧の取り込みは止めない
+- 画面: 分析の「Apple が数えた SNS ごとの DL」（選んだ期間）。短縮リンクがあるのに数がない SNS は 0 と書かず「5 未満」。数には「Apple が数えた（少ない数は省かれ、少しずれます）」「Google Play の分は入っていません」と書く。ページの閲覧数の依頼をしていなければ、依頼への案内。投稿の順位の行に「DL n（Apple が数えた・少しずれます）」（30 日）。概要のカードには出さない
+
 #### 取り込みの頻度と作り
 
 | ジョブ | いつ | 何を |

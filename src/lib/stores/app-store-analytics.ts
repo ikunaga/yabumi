@@ -89,3 +89,70 @@ export async function readInstance(cred: AscCredential, instanceId: string, fetc
   }
   return days;
 }
+
+// ===== キャンペーン（ct）ごとのはじめてのダウンロード（数字の段 5） =====
+// App Store Downloads の Detailed（https://developer.apple.com/documentation/analytics-reports/app-download）。
+// Campaign の列は Detailed だけ（2024-11-19 から）。Detailed は 5 人未満の値を省き、少しの乱数を足す（68% は ±2、99.7% は ±6。
+// https://developer.apple.com/documentation/analytics-reports/privacy）。Download Type が First-time Download の行だけを数える
+
+export type CampaignDay = { by_source: Record<string, number>; by_campaign: Record<string, number> };
+
+// 回の TSV の行を、矢書の ct（<SNS の名前か link>-<リンクのコード>。links/rules.ts）ごとに日ごとに足す。
+// 要る列（Date・Download Type・Campaign・Counts）がなければ readable: false
+export function summarizeCampaigns(rows: Record<string, string>[], header: string[], sources: readonly string[]): { readable: boolean; days: Record<string, CampaignDay> } {
+  const cols = header.map((h) => h.trim().toLowerCase());
+  if (!["date", "download type", "campaign", "counts"].every((n) => cols.includes(n))) return { readable: false, days: {} };
+  const key = (row: Record<string, string>, name: string) => Object.entries(row).find(([k]) => k.trim().toLowerCase() === name)?.[1]?.trim() ?? "";
+  const known = new Set(sources.map((s) => s.toLowerCase()));
+  const days: Record<string, CampaignDay> = {};
+  for (const r of rows) {
+    const date = key(r, "date");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+    if (!/^first-time download$/i.test(key(r, "download type"))) continue;
+    const m = /^([a-z]+)-(.+)$/i.exec(key(r, "campaign"));
+    if (!m || !known.has(m[1].toLowerCase())) continue;
+    // 乱数で小さくなっても、0 より下にはしない
+    const n = Math.max(0, Math.round(Number(key(r, "counts")) || 0));
+    if (n === 0) continue;
+    const d = (days[date] ??= { by_source: {}, by_campaign: {} });
+    const source = m[1].toLowerCase();
+    d.by_source[source] = (d.by_source[source] ?? 0) + n;
+    d.by_campaign[m[2]] = (d.by_campaign[m[2]] ?? 0) + n;
+  }
+  return { readable: true, days };
+}
+
+// App Store Downloads の Detailed の日ごとの回（processingDate が since 以降。新しい順に limit まで）。まだなければ []
+export async function listCampaignInstances(cred: AscCredential, requestId: string, since: string, limit: number, fetchImpl: Fetch = fetch, now = new Date()): Promise<{ id: string; processingDate: string }[]> {
+  const reports = await asc<{ data?: Resource[] }>(cred, `/v1/analyticsReportRequests/${encodeURIComponent(requestId)}/reports?filter[category]=APP_STORE_COMMERCE`, {}, fetchImpl, now);
+  if (reports.status >= 300) throw ascError(reports.status, "キャンペーンごとのダウンロード");
+  const report = (reports.json.data ?? []).map((r) => ({ id: r.id, name: String(r.attributes?.name ?? "") })).find((r) => /download/i.test(r.name) && /detailed/i.test(r.name));
+  if (!report) return [];
+  const instances = await asc<{ data?: Resource[] }>(cred, `/v1/analyticsReports/${encodeURIComponent(report.id)}/instances?filter[granularity]=DAILY&limit=50`, {}, fetchImpl, now);
+  if (instances.status >= 300) throw ascError(instances.status, "キャンペーンごとのダウンロード");
+  return (instances.json.data ?? [])
+    .map((r) => ({ id: r.id, processingDate: String(r.attributes?.processingDate ?? "") }))
+    .filter((r) => /^\d{4}-\d{2}-\d{2}$/.test(r.processingDate) && r.processingDate >= since)
+    .sort((a, b) => b.processingDate.localeCompare(a.processingDate))
+    .slice(0, limit);
+}
+
+// 1 回分の TSV（いくつかの segment）を読む。見出しは最初の segment のもの
+export async function readInstanceTsv(cred: AscCredential, instanceId: string, fetchImpl: Fetch = fetch, now = new Date()): Promise<{ header: string[]; rows: Record<string, string>[] }> {
+  const segments = await asc<{ data?: Resource[] }>(cred, `/v1/analyticsReportInstances/${encodeURIComponent(instanceId)}/segments`, {}, fetchImpl, now);
+  if (segments.status >= 300) throw ascError(segments.status, "キャンペーンごとのダウンロード");
+  let header: string[] = [];
+  const rows: Record<string, string>[] = [];
+  for (const seg of segments.json.data ?? []) {
+    const url = String(seg.attributes?.url ?? "");
+    if (!url.startsWith("https://")) continue;
+    const res = await fetchImpl(url, { cache: "no-store", signal: AbortSignal.timeout(30_000) });
+    if (!res.ok) throw ascError(res.status, "キャンペーンごとのダウンロード");
+    const buf = Buffer.from(await res.arrayBuffer());
+    const text = (buf[0] === 0x1f && buf[1] === 0x8b ? gunzipSync(buf) : buf).toString("utf8");
+    const first = text.split(/\r?\n/).find((l) => l.trim());
+    if (first && !header.length) header = first.split("\t").map((h) => h.trim());
+    rows.push(...parseTsv(text));
+  }
+  return { header, rows };
+}

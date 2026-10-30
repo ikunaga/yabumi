@@ -3,7 +3,7 @@ import type { CredentialKeys } from "@/lib/crypto/credential-cipher";
 import { notifyOperatorOnce, type OperatorNotifyDeps } from "@/lib/notify/operator";
 import type { Database, Json } from "@/lib/supabase/database.types";
 import { appleIdFromUrl, StoreApiError, type AscCredential } from "./app-store";
-import { ensureOngoingRequest, listDailyInstances, readInstance } from "./app-store-analytics";
+import { ensureOngoingRequest, listCampaignInstances, listDailyInstances, readInstance, readInstanceTsv, summarizeCampaigns } from "./app-store-analytics";
 import {
   createServiceAccount,
   decodeCsv,
@@ -264,6 +264,10 @@ export async function importAppStoreViews(admin: Admin, row: ViewsRow, deps: Goo
       }
       last = inst.processingDate;
     }
+    // キャンペーンごとのはじめてのダウンロード（数字の段 5）。失敗してもページの閲覧の取り込みは止めない
+    await importAppStoreCampaigns(admin, row, cred, deps).catch((e) =>
+      console.error("[app-store-campaigns] 取り込みに失敗しました", e instanceof Error ? e.message : e),
+    );
     await admin
       .from("app_store_report_requests")
       .update({ status: "ok", last_error: null, last_checked_at: now.toISOString(), last_imported_day: last })
@@ -275,6 +279,31 @@ export async function importAppStoreViews(admin: Admin, row: ViewsRow, deps: Goo
     await admin.from("app_store_report_requests").update({ status: "error", last_error: message, last_checked_at: now.toISOString() }).eq("project_id", row.project_id);
     return { projectId: row.project_id, result: "failed", message };
   }
+}
+
+// Apple が数えた、矢書のキャンペーンリンク（ct）ごとのはじめてのダウンロード（数字の段 5。App Store Downloads の Detailed）。
+// Detailed は遅れて届き、あとの回で直ることがあるので、直近 14 日の回のうち新しい 7 つを毎日読み直し、古い順に上書きする。
+// 形が違う回は、その回の日（processingDate）に { unreadable: true } を入れて、画面で「読めませんでした」と出す
+export async function importAppStoreCampaigns(admin: Admin, row: ViewsRow, cred: AscCredential, deps: GoogleDeps = {}): Promise<number> {
+  const now = deps.now?.() ?? new Date();
+  const since = new Date(now.getTime() - 14 * 86_400_000).toISOString().slice(0, 10);
+  const instances = (await listCampaignInstances(cred, row.request_id, since, 7, deps.fetch, now)).reverse();
+  for (const inst of instances) {
+    const { header, rows } = await readInstanceTsv(cred, inst.id, deps.fetch, now);
+    const result = summarizeCampaigns(rows, header, UTM_SOURCES);
+    const upserts = result.readable
+      ? Object.entries(result.days).map(([day, values]) => ({ day, values: values as unknown as Json }))
+      : header.length
+        ? [{ day: inst.processingDate, values: { unreadable: true } as Json }]
+        : [];
+    if (!upserts.length) continue;
+    const { error } = await admin.from("store_daily").upsert(
+      upserts.map((u) => ({ project_id: row.project_id, owner_id: row.owner_id, source: "app_store_campaigns", day: u.day, values: u.values })),
+      { onConflict: "project_id,source,day" },
+    );
+    if (error) throw error;
+  }
+  return instances.length;
 }
 
 export async function removeAppStoreViews(admin: Admin, ownerId: string, projectId: string): Promise<void> {

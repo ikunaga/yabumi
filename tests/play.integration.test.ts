@@ -64,6 +64,23 @@ const fakeFetch = vi.fn(async (input: string | URL | Request, init?: RequestInit
   if (url.includes("/analyticsReportRequests?") || url.includes("/analyticsReportRequests?filter")) return json({ data: [] });
   if (url.includes("/apps/123456789/analyticsReportRequests")) return json({ data: [] });
   if (url.endsWith("/v1/analyticsReportRequests") && init?.method === "POST") return json({ data: { id: "req-1" } }, 201);
+  // App Store Downloads の Detailed（数字の段 5。Apple の資料の列）: 矢書の ct（<SNS>-<コード>）、ほかの ct、はじめてでないもの
+  if (url.includes("/analyticsReportRequests/req-1/reports") && url.includes("APP_STORE_COMMERCE")) {
+    return json({ data: [{ id: "r-dl-std", attributes: { name: "App Downloads Standard" } }, { id: "r-dl", attributes: { name: "App Downloads Detailed" } }] });
+  }
+  if (url.includes("/analyticsReports/r-dl/instances")) return json({ data: [{ id: "i-dl", attributes: { processingDate: recent(2) } }] });
+  if (url.includes("/analyticsReportInstances/i-dl/segments")) return json({ data: [{ id: "s-dl", attributes: { url: "https://apple.example/dl.gz" } }] });
+  if (url === "https://apple.example/dl.gz") {
+    const tsv = [
+      "Date\tApp Name\tApp Apple Identifier\tDownload Type\tSource Type\tCampaign\tTerritory\tCounts",
+      `${recent(3)}\tよみログ\t123456789\tFirst-time Download\tWeb referrer\tx-abc123\tJP\t6`,
+      `${recent(3)}\tよみログ\t123456789\tFirst-time Download\tWeb referrer\tx-abc123\tUS\t2`,
+      `${recent(3)}\tよみログ\t123456789\tRedownload\tWeb referrer\tx-abc123\tJP\t9`,
+      `${recent(3)}\tよみログ\t123456789\tFirst-time Download\tWeb referrer\tspring-sale\tJP\t7`,
+      `${recent(3)}\tよみログ\t123456789\tFirst-time Download\tApp Store search\t\tJP\t40`,
+    ].join("\n");
+    return new Response(gzipSync(Buffer.from(tsv)));
+  }
   if (url.includes("/analyticsReportRequests/req-1/reports")) return json({ data: [{ id: "r-std", attributes: { name: "App Store Discovery and Engagement Standard" } }] });
   if (url.includes("/analyticsReports/r-std/instances")) return json({ data: [{ id: "i1", attributes: { processingDate: recent(2) } }] });
   if (url.includes("/analyticsReportInstances/i1/segments")) return json({ data: [{ id: "s1", attributes: { url: "https://apple.example/seg.gz" } }] });
@@ -146,6 +163,10 @@ describe("App Store のストアのページの閲覧数", () => {
     expect(o).toMatchObject({ result: "imported", days: 1 });
     const { data } = await alice.from("store_daily").select("day, values").eq("project_id", projectId).eq("source", "app_store_views");
     expect(data).toEqual([{ day: recent(3), values: { page_views: 25, impressions: 300 } }]);
+    // 同じ依頼で、Apple が数えた矢書のキャンペーンごとのはじめてのダウンロード（ほかの ct・再ダウンロード・検索は数えない）を別の行に
+    const { data: campaigns } = await alice.from("store_daily").select("day, values").eq("project_id", projectId).eq("source", "app_store_campaigns");
+    expect(campaigns).toEqual([{ day: recent(3), values: { by_source: { x: 8 }, by_campaign: { abc123: 8 } } }]);
+    expect((await bob.from("store_daily").select("day").eq("project_id", projectId).eq("source", "app_store_campaigns")).data).toEqual([]);
   });
 
   it("週ごとの合計: ダウンロードは App Store と Google Play、ページの閲覧は両方の合計", async () => {

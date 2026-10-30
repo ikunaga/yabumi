@@ -2,7 +2,7 @@
 import { generateKeyPairSync, verify } from "node:crypto";
 import { gzipSync } from "node:zlib";
 import { describe, expect, it, vi } from "vitest";
-import { ensureOngoingRequest, listDailyInstances, readInstance } from "@/lib/stores/app-store-analytics";
+import { ensureOngoingRequest, listDailyInstances, readInstance, summarizeCampaigns } from "@/lib/stores/app-store-analytics";
 import { StoreApiError } from "@/lib/stores/app-store";
 import {
   createServiceAccount,
@@ -100,6 +100,26 @@ describe("Google Cloud", () => {
 });
 
 describe("App Store のストアのページの閲覧数", () => {
+  it("App Store Downloads の Detailed: はじめてのダウンロードを矢書の ct（<SNS>-<コード>）ごとに。乱数で 0 より下は 0。列が違えば読めない", () => {
+    const header = ["Date", "App Name", "Download Type", "Source Type", "Campaign", "Territory", "Counts"];
+    const rows = [
+      ["2026-10-20", "a", "First-time Download", "Web referrer", "x-abc", "JP", "5"],
+      ["2026-10-20", "a", "First-time Download", "Web referrer", "threads-def", "JP", "7"],
+      ["2026-10-20", "a", "First-time Download", "Web referrer", "x-abc", "US", "-1"],
+      ["2026-10-20", "a", "Redownload", "Web referrer", "x-abc", "JP", "9"],
+      ["2026-10-21", "a", "First-time Download", "Web referrer", "newsletter-1", "JP", "6"],
+      ["2026-10-21", "a", "First-time Download", "Web referrer", "link-ghi", "JP", "5"],
+    ].map((r) => Object.fromEntries(header.map((h, i) => [h, r[i]])));
+    expect(summarizeCampaigns(rows, header, ["x", "threads", "link"])).toEqual({
+      readable: true,
+      days: {
+        "2026-10-20": { by_source: { x: 5, threads: 7 }, by_campaign: { abc: 5, def: 7 } },
+        "2026-10-21": { by_source: { link: 5 }, by_campaign: { ghi: 5 } },
+      },
+    });
+    expect(summarizeCampaigns([], ["Date", "Download Type", "Counts"], ["x"]).readable).toBe(false);
+  });
+
   it("続けて作られる依頼があれば使い、なければ作る。Admin でないキーは断られる", async () => {
     const existing = vi.fn<(...a: Call) => Promise<Response>>(async () => json({ data: [{ id: "req-1", attributes: { stoppedDueToInactivity: false } }] }));
     expect(await ensureOngoingRequest(asc, "123456789", existing as unknown as typeof fetch)).toBe("req-1");

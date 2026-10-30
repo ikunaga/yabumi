@@ -26,7 +26,7 @@ import { connectedAccounts } from "@/lib/posts/queries";
 import { getAccountPlan } from "@/lib/plan/queries";
 import { getProject } from "@/lib/projects/queries";
 import { projectSettingsHref } from "@/lib/projects/paths";
-import { SNS } from "@/lib/sns";
+import { SNS, type SnsKey } from "@/lib/sns";
 import { xMetricsUserMonthlyUsd } from "@/lib/sns/x/config";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, toYmd } from "@/lib/time";
@@ -134,11 +134,12 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
 
   // Google Play が数えた、矢書の短縮リンクごとの DL（数字の段 3）。SNS ごとは選んだ期間、投稿ごとは 30 日（投稿の順位と同じ）
   const playConnected = daily.stores.includes("google_play") || daily.playUtm.length > 0;
+  const appleConnected = daily.stores.includes("app_store");
   const playUtm = sumPlayUtm(daily.playUtm, addDays(today, -(days - 1)), today);
   const playUtm30 = sumPlayUtm(daily.playUtm, addDays(today, -29), today);
   const postIds = [...new Set([...overview.topPosts, ...overview.topViewed].map((p) => p.postId))];
   const postCodes = new Map<string, string[]>();
-  if (playConnected && postIds.length) {
+  if ((playConnected || appleConnected) && postIds.length) {
     const { data: links } = await supabase.from("short_links").select("code, post_targets!inner(post_id)").eq("project_id", project.id).eq("kind", "post").in("post_targets.post_id", postIds);
     for (const l of links ?? []) {
       const postId = (l.post_targets as unknown as { post_id: string }).post_id;
@@ -146,6 +147,12 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
     }
   }
   const playDlOf = (postId: string) => (playConnected ? campaignTotal(playUtm30.byCampaign, postCodes.get(postId) ?? []) : undefined);
+  // Apple が数えた、キャンペーンリンク（ct）ごとのはじめてのダウンロード（数字の段 5）。5 人未満は Apple が省き、少しの乱数が入る
+  const apple = sumPlayUtm(daily.appleCampaigns, addDays(today, -(days - 1)), today);
+  const apple30 = sumPlayUtm(daily.appleCampaigns, addDays(today, -29), today);
+  const appleDlOf = (postId: string) => (appleConnected ? campaignTotal(apple30.byCampaign, postCodes.get(postId) ?? []) : undefined);
+  // 短縮リンクがある SNS（Apple の数がなければ「5 未満」と出す行）
+  const linkedSns = overview.clicksBySns.map((c) => c.sns);
 
   // 前の期間が、数え始める前（短縮リンクを作る前・ストアを取り込み始める前）にかかっていたら、比べない（数える前の日を 0 として比べない）
   const prevStart = addDays(today, -(2 * days - 1));
@@ -253,7 +260,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
         ))}
       </div>
 
-      {/* 2 列（xl から。左に日ごとの数・SNS ごとのクリック・投稿した日との関係・手で記録、右に投稿ごとの順位。左右の長さが釣り合うように）。docs/design/new_design/README.md の「中身の幅と 2 列」 */}
+      {/* 2 列（xl から。左に日ごとの数・SNS ごとのクリック・ストアが数えた SNS ごとの DL、右に投稿した日との関係・投稿ごとの順位・手で記録。左右の長さが釣り合うように）。docs/design/new_design/README.md の「中身の幅と 2 列」 */}
       <Columns
         main={
           <>
@@ -331,8 +338,46 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
                 <PlayDownloadsBox totals={playUtm} unreadable={daily.playUtmUnreadable} />
               </Panel>
             )}
+            {appleConnected && (
+              <Panel
+                title="Apple が数えた SNS ごとの DL"
+                aside={`直近 ${days} 日`}
+                help={
+                  <HelpTip label="Apple が数えた DL">
+                    矢書の短縮リンク（App Store のキャンペーンリンク）から App Store に来て、はじめてダウンロードした人の数です（App Store Connect の Analytics Reports の App Store Downloads の Detailed）。Google Play の分は入っていません。Apple は 5 人未満の数を省き、少しの乱数を足すので（多くは ±2 ほど）、少しずれます。2 日ほど遅れて届きます。
+                  </HelpTip>
+                }
+              >
+                <AppleDownloadsBox totals={apple} unreadable={daily.appleCampaignsUnreadable} requested={daily.appleReports} linkedSns={linkedSns} projectId={project.id} />
+              </Panel>
+            )}
+          </>
+        }
+        side={
+          <>
             <Panel title={effectKind === "downloads" ? "投稿した日とダウンロード" : "投稿した日とクリック"} aside={`直近 ${POST_EFFECT_DAYS} 日`}>
               <PostEffectBox kind={effectKind} effect={effect} projectId={project.id} />
+            </Panel>
+            <Panel title="よく見られた投稿" aside="30 日">
+              {overview.topViewed.length ? (
+                <Ranked projectId={project.id} rows={overview.topViewed.map((p) => ({ ...p, value: `${formatCount(p.views)} 回表示`, playDl: playDlOf(p.postId), appleDl: appleDlOf(p.postId) }))} />
+              ) : (
+                <p className="text-sm text-muted">
+                  Threads・Instagram・Facebook・X を数字の権限つきでつなぐと、送ってから 1・3・7・30 日目の閲覧数を取り込み、ここに並べます。
+                  {!hasAutoSns && (
+                    <Link href={projectSettingsHref(project.id, "sns")} className="ml-1 font-bold text-fg underline">
+                      SNS をつなぐ
+                    </Link>
+                  )}
+                </p>
+              )}
+            </Panel>
+            <Panel title="クリックの多い投稿" aside="30 日">
+              {overview.topPosts.length ? (
+                <Ranked projectId={project.id} rows={overview.topPosts.map((p) => ({ ...p, value: `${formatCount(p.clicks)} クリック`, playDl: playDlOf(p.postId), appleDl: appleDlOf(p.postId) }))} />
+              ) : (
+                <p className="text-sm text-muted">投稿の本文のストアの URL を短縮リンクにして送ると、どの投稿からクリックされたかが並びます。</p>
+              )}
             </Panel>
             <Panel
               title="note・Substack の数字"
@@ -371,31 +416,6 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
             </Panel>
           </>
         }
-        side={
-          <>
-            <Panel title="よく見られた投稿" aside="30 日">
-              {overview.topViewed.length ? (
-                <Ranked projectId={project.id} rows={overview.topViewed.map((p) => ({ ...p, value: `${formatCount(p.views)} 回表示`, playDl: playDlOf(p.postId) }))} />
-              ) : (
-                <p className="text-sm text-muted">
-                  Threads・Instagram・Facebook・X を数字の権限つきでつなぐと、送ってから 1・3・7・30 日目の閲覧数を取り込み、ここに並べます。
-                  {!hasAutoSns && (
-                    <Link href={projectSettingsHref(project.id, "sns")} className="ml-1 font-bold text-fg underline">
-                      SNS をつなぐ
-                    </Link>
-                  )}
-                </p>
-              )}
-            </Panel>
-            <Panel title="クリックの多い投稿" aside="30 日">
-              {overview.topPosts.length ? (
-                <Ranked projectId={project.id} rows={overview.topPosts.map((p) => ({ ...p, value: `${formatCount(p.clicks)} クリック`, playDl: playDlOf(p.postId) }))} />
-              ) : (
-                <p className="text-sm text-muted">投稿の本文のストアの URL を短縮リンクにして送ると、どの投稿からクリックされたかが並びます。</p>
-              )}
-            </Panel>
-          </>
-        }
       />
 
       {later.length > 0 && (
@@ -425,7 +445,7 @@ function Notice({ children }: { children: ReactNode }) {
 }
 
 // 順位つきの投稿の一覧（よく見られた・クリックの多い）。同じ書き出しの投稿を見分けられるように、送った日と SNS の札を添える
-function Ranked({ projectId, rows }: { projectId: string; rows: (PostMeta & { postId: string; value: string; playDl?: number })[] }) {
+function Ranked({ projectId, rows }: { projectId: string; rows: (PostMeta & { postId: string; value: string; playDl?: number; appleDl?: number })[] }) {
   return (
     <ol>
       {rows.map((r, i) => (
@@ -444,6 +464,7 @@ function Ranked({ projectId, rows }: { projectId: string; rows: (PostMeta & { po
             <span className="flex shrink-0 flex-col items-end gap-0.5">
               <span className="num text-muted">{r.value}</span>
               {r.playDl ? <span className="num text-xs text-faint">DL {formatCount(r.playDl)}（Google Play が数えた）</span> : null}
+              {r.appleDl ? <span className="num text-xs text-faint">DL {formatCount(r.appleDl)}（Apple が数えた・少しずれます）</span> : null}
             </span>
           </Link>
         </li>
@@ -555,6 +576,62 @@ function PlayDownloadsBox({ totals, unreadable }: { totals: PlayUtmTotals; unrea
         合計 {formatCount(totals.total)}・App Store の分は入っていません{totals.other > 0 && `・「その他」にまとめられた分 ${formatCount(totals.other)}（矢書のリンク以外も入ります）`}
       </p>
       {unreadable && <p className="text-xs text-signal">一部の月の流入元のレポートを読めませんでした。その月の分は入っていません。</p>}
+    </div>
+  );
+}
+
+// Apple が数えた、SNS ごとのはじめてのダウンロード（キャンペーンリンク）。Apple は 5 人未満の数を省くので、
+// 短縮リンクがあるのに数のない SNS は 0 と書かず「5 未満」。数にはいつも「Apple が数えた（少ない数は省かれ、少しずれます）」と添える
+function AppleDownloadsBox({
+  totals,
+  unreadable,
+  requested,
+  linkedSns,
+  projectId,
+}: {
+  totals: PlayUtmTotals;
+  unreadable: boolean;
+  requested: boolean;
+  linkedSns: (SnsKey | null)[];
+  projectId: string;
+}) {
+  if (!requested) {
+    return (
+      <p className="text-sm text-muted">
+        App Store のページの閲覧数の依頼をすると、Apple が数えた、短縮リンクごとのはじめてのダウンロードも読めます。
+        <Link href={`/projects/${projectId}/stores`} className="ml-1 font-bold text-fg underline">
+          ストアと課金をつなぐ
+        </Link>
+      </p>
+    );
+  }
+  if (unreadable && totals.total === 0) {
+    return <p className="text-sm text-muted">Apple のダウンロードのレポートを読めませんでした（レポートの形が変わったのかもしれません）。読めるようになるまで、ここには数字を出しません。</p>;
+  }
+  const shown = new Map<SnsKey | null, number | null>();
+  for (const r of totals.bySns) shown.set(r.sns, r.value);
+  for (const s of linkedSns) if (!shown.has(s)) shown.set(s, null);
+  if (shown.size === 0) {
+    return <p className="text-sm text-muted">短縮リンクを付けて投稿すると、ここに Apple が数えた SNS ごとのダウンロードが並びます。</p>;
+  }
+  const max = Math.max(1, ...totals.bySns.map((r) => r.value));
+  return (
+    <div className="flex flex-col gap-2.5">
+      {[...shown.entries()].map(([sns, value]) =>
+        value === null ? (
+          <div key={sns ?? "link"} className="grid grid-cols-[7rem_1fr_4.5rem] items-center gap-3 text-[15px] max-sm:grid-cols-[5rem_1fr_3.5rem] max-sm:text-sm">
+            <span className="truncate text-muted">{sns ? SNS[sns].label : "SNS なし"}</span>
+            <span className="h-2 rounded-full bg-subtle" aria-hidden />
+            <span className="num text-right text-sm text-faint">5 未満</span>
+          </div>
+        ) : (
+          <BarRow key={sns ?? "link"} label={sns ? SNS[sns].label : "SNS なし"} value={value} max={max} barClass={sns ? SNS_COLOR[sns].bg : "bg-faint"} />
+        ),
+      )}
+      <p className="text-xs text-faint">
+        Apple が数えた（少ない数は省かれ、少しずれます）・Google Play の分は入っていません。「5 未満」は、Apple が 5 人未満の数を省いたか、まだ届いていない分です。
+      </p>
+      {unreadable && <p className="text-xs text-signal">一部の日のダウンロードのレポートを読めませんでした。その日の分は入っていません。</p>}
     </div>
   );
 }

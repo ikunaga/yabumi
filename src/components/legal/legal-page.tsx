@@ -11,7 +11,7 @@ export function LegalPage({ doc, title, lead, children }: { doc: LegalDoc; title
   return (
     <div className="flex flex-1 flex-col bg-bg">
       <header className="border-b border-border bg-nav">
-        <div className="flex h-[68px] items-center gap-4 px-12 max-lg:px-8 max-sm:h-14 max-sm:px-4">
+        <div className="flex h-[60px] items-center gap-4 px-12 max-lg:px-8 max-sm:h-14 max-sm:px-4">
           <span className="flex max-sm:hidden">
             <Brand href="/" />
           </span>

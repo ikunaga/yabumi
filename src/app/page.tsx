@@ -137,7 +137,7 @@ export default async function Home(props: PageProps<"/">) {
     <div className="flex flex-1 flex-col bg-bg">
       {/* 上の灰の帯（ログイン後の上の帯と同じ形） */}
       <header className="sticky top-0 z-20 border-b border-border bg-nav">
-        <div className={`${section} flex h-[68px] items-center gap-7 max-sm:h-14 max-sm:gap-3`}>
+        <div className={`${section} flex h-[60px] items-center gap-7 max-sm:h-14 max-sm:gap-3`}>
           <span className="flex max-sm:hidden">
             <Brand href="/" />
           </span>

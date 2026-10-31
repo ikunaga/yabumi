@@ -15,20 +15,21 @@ export function ProjectNavLinks({ projectId, variant }: { projectId: string; var
 
   if (variant === "bar") {
     return (
-      <ul className="flex items-center gap-1.5 text-[18px] font-semibold max-xl:text-[16px] max-lg:text-[15px]">
+      <ul className="flex items-center gap-1.5 text-[16px] font-semibold max-xl:text-[15px] max-lg:text-[14px]">
         {main.map((item) => (
           <li key={item.key}>
             {item.href ? (
               <Link
                 href={item.href}
                 aria-current={item.key === active ? "page" : undefined}
+                title={item.label}
                 className="block rounded-md px-3 py-1.5 whitespace-nowrap text-muted hover:bg-nav-active hover:text-fg hover:no-underline aria-[current=page]:font-bold aria-[current=page]:text-fg max-lg:px-2"
               >
-                {item.label}
+                {item.barLabel}
               </Link>
             ) : (
               <span className="block px-3 py-1.5 whitespace-nowrap text-faint" aria-disabled="true" title="準備中">
-                {item.label}
+                {item.barLabel}
               </span>
             )}
           </li>
@@ -83,11 +84,11 @@ function MoreMenu({ items, active }: { items: ProjectNavItem[]; active: ProjectN
       <summary
         className={`flex cursor-pointer list-none items-center gap-1 rounded-md px-3 py-1.5 whitespace-nowrap hover:bg-nav-active hover:text-fg max-lg:px-2 [&::-webkit-details-marker]:hidden ${current ? "font-bold text-fg" : "text-muted"}`}
       >
-        {current ? current.label : <span aria-hidden>その他</span>}
+        {current ? current.barLabel : <span aria-hidden>More</span>}
         <svg aria-hidden viewBox="0 0 12 12" className="size-3 shrink-0 text-muted transition-transform group-open:rotate-180" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3 4.5 6 7.5 9 4.5" /></svg>
         <span className="sr-only">（そのほかの画面）</span>
       </summary>
-      <div ref={ref} className="absolute left-0 z-20 mt-1.5 w-52 overflow-hidden rounded-lg border border-border bg-surface py-1 text-sm text-fg shadow-pop">
+      <div ref={ref} className="absolute left-0 z-20 mt-1.5 w-64 overflow-hidden rounded-lg border border-border bg-surface py-1 text-sm text-fg shadow-pop">
         <ul>
           {items.map((item) => (
             <li key={item.key}>
@@ -95,13 +96,14 @@ function MoreMenu({ items, active }: { items: ProjectNavItem[]; active: ProjectN
                 <Link
                   href={item.href}
                   aria-current={item.key === active ? "page" : undefined}
-                  className="block px-4 py-2.5 hover:bg-subtle hover:no-underline aria-[current=page]:font-bold"
+                  className="flex items-baseline justify-between gap-3 px-4 py-2.5 hover:bg-subtle hover:no-underline aria-[current=page]:font-bold"
                 >
-                  {item.label}
+                  {item.barLabel}
+                  <span className="text-[12px] font-normal text-muted">{item.label}</span>
                 </Link>
               ) : (
                 <span className="flex items-center justify-between px-4 py-2.5 text-faint" aria-disabled="true">
-                  {item.label}
+                  {item.barLabel}
                   <span className="text-[11px]">準備中</span>
                 </span>
               )}

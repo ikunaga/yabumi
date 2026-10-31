@@ -23,7 +23,7 @@ export function ProjectShell({
     <div className="flex flex-1 flex-col">
       {/* PC: 上の横並びのメニュー */}
       <header className="sticky top-0 z-20 border-b border-border bg-nav max-sm:hidden">
-        <div className="flex h-[68px] items-center gap-7 px-12 max-lg:gap-3 max-lg:px-8">
+        <div className="flex h-[60px] items-center gap-7 px-12 max-lg:gap-3 max-lg:px-8">
           <Brand href="/projects" />
           <ProjectSwitcher current={project} projects={projects} variant="bar" />
           <nav aria-label="プロジェクトのメニュー" className="min-w-0">

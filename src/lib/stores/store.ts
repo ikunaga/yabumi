@@ -136,15 +136,29 @@ export async function importForCredential(admin: Admin, row: CredentialRow, deps
   }
 }
 
+// 種類で絞るために結合した projects を、行から外す（取り込みの関数には表の行だけを渡す）
+export function withoutProjectJoin<T extends { projects: unknown }>(row: T): Omit<T, "projects"> {
+  const rest: Partial<T> = { ...row };
+  delete rest.projects;
+  return rest as Omit<T, "projects">;
+}
+
 // 毎日のジョブ: 取り込みが済んでいない鍵を、古い順に limit 個まで。ownerId を渡すとその利用者の分だけ（結合テスト用）
 // deadlineMs: この時刻（ms）を過ぎたら、新しい鍵には手をつけない（Vercel の 60 秒に収める。残りは次の回）
+// 宣伝するものがアプリのプロジェクトだけ（決定 D34）。種類をアプリから変えたプロジェクトは、鍵と記録を残したまま読まない（アプリに戻せばまた読む）。
+// 問い合わせの段で絞る（読んでから飛ばすと、飛ばした行が古い順の先頭に残り続け、ほかの鍵が読まれなくなる）
 export async function runStoreImports(admin: Admin, deps: StoreDeps & { limit?: number; ownerId?: string; deadlineMs?: number } = {}): Promise<ImportOutcome[]> {
-  let q = admin.from("store_credentials").select("*").order("last_checked_at", { ascending: true, nullsFirst: true }).limit(deps.limit ?? 20);
+  let q = admin
+    .from("store_credentials")
+    .select("*, projects!inner(product_type)")
+    .eq("projects.product_type", "app")
+    .order("last_checked_at", { ascending: true, nullsFirst: true })
+    .limit(deps.limit ?? 20);
   if (deps.ownerId) q = q.eq("owner_id", deps.ownerId);
   const { data, error } = await q;
   if (error) throw error;
   const outcomes: ImportOutcome[] = [];
-  for (const row of data ?? []) {
+  for (const row of (data ?? []).map(withoutProjectJoin)) {
     if (deps.deadlineMs && Date.now() > deps.deadlineMs) break;
     outcomes.push(await importForCredential(admin, row, deps));
   }

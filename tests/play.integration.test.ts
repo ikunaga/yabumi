@@ -152,6 +152,18 @@ describe("Google Play", () => {
   });
 });
 
+describe("宣伝するものをアプリ以外に変えたとき（決定 D34）", () => {
+  it("Google Play の取り込みを毎日のジョブで読まない（つないだ記録は残る）。アプリに戻せばまた読む", async () => {
+    expect((await alice.from("projects").update({ product_type: "online_shop" }).eq("id", projectId)).error).toBeNull();
+    const skipped = await runPlayAndViewsImports(admin, { ...deps, ownerId: aliceId });
+    expect(skipped.find((o) => o.projectId === projectId)).toBeUndefined();
+    expect((await admin.from("play_connections").select("project_id").eq("project_id", projectId)).data).toHaveLength(1);
+    expect((await alice.from("projects").update({ product_type: "app" }).eq("id", projectId)).error).toBeNull();
+    const again = await runPlayAndViewsImports(admin, { ...deps, ownerId: aliceId });
+    expect(again.find((o) => o.projectId === projectId)).toMatchObject({ result: "imported" });
+  });
+});
+
 describe("App Store のストアのページの閲覧数", () => {
   it("Admin のキーで依頼を作り（キーは保存しない）、預かっている Sales and Reports のキーで日ごとに読む", async () => {
     await saveCredential(admin, { ownerId: aliceId, projectId, provider: "app_store_connect", secret: asc, hint: "" }, { keys });

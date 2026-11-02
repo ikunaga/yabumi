@@ -19,7 +19,7 @@ import { loadDailyNumbers } from "@/lib/metrics/daily";
 import { campaignTotal, sumPlayUtm, type PlayUtmTotals } from "@/lib/metrics/play-utm";
 import { confirmedUntil, MIN_DAYS, POST_EFFECT_DAYS, postEffect, type PostEffect } from "@/lib/metrics/post-effect";
 import type { PostMeta } from "@/lib/metrics/post-meta";
-import { clickLabel, KPIS, KPI_KEYS, recommendedKpis, type KpiKey } from "@/lib/metrics/kpis";
+import { chosenKpis, clickLabel, KPIS, KPI_KEYS, type KpiKey } from "@/lib/metrics/kpis";
 import { isAppProject, OUTCOME_ACTIONS } from "@/lib/projects/product-types";
 import { OutcomesBox } from "@/components/metrics/outcomes-box";
 import { listManualTargets, loadMetricsOverview, METRICS_PERIODS, snsNeedingInsightsReconnect, xMetricsOverLimit, type ClicksBySns, type MetricsPeriod, type WeekValue } from "@/lib/metrics/queries";
@@ -133,16 +133,17 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
   // 成果を手で記録する箱: アプリでないとき、または目標が成果（買う・申し込み・予約・問い合わせ・来店）のとき、または記録があるとき
   const showOutcomes = !isApp || (plan?.goal.goalType != null && (OUTCOME_ACTIONS as readonly string[]).includes(plan.goal.goalType)) || daily.outcomes.length > 0;
 
-  const chosen = plan?.first_month.kpis ?? [];
-  const kpis = chosen.length ? chosen : recommendedKpis(plan?.goal.goalType ?? null, project.product_type);
+  const kpis = chosenKpis(plan?.first_month.kpis, plan?.goal.goalType, project.product_type);
   const goal = plan?.first_month.goal.trim() ?? "";
   // 閲覧数を自動で読める SNS を 1 つでもつないでいるか（よく見られた投稿の空のときの案内を変える）
   const hasAutoSns = (["threads", "instagram", "facebook", "x"] as const).some((s) => accounts[s]);
   const later = KPI_KEYS.filter((k) => KPIS[k].availability === "later" && !kpis.includes(k));
 
   // Google Play が数えた、yabumi の短縮リンクごとの DL（数字の段 3）。SNS ごとは選んだ期間、投稿ごとは 30 日（投稿の順位と同じ）
-  const playConnected = daily.stores.includes("google_play") || daily.playUtm.length > 0;
-  const appleConnected = daily.stores.includes("app_store");
+  // アプリのときだけ。種類をアプリから変えたプロジェクトは、取り込んだ記録を残したまま出さない（決定 D34。アプリに戻せばまた出る）
+  const playConnected = isApp && (daily.stores.includes("google_play") || daily.playUtm.length > 0);
+  const appleConnected = isApp && daily.stores.includes("app_store");
+  const hasDownloads = isApp && Boolean(overview.kpiValues.downloads);
   const playUtm = sumPlayUtm(daily.playUtm, addDays(today, -(days - 1)), today);
   const playUtm30 = sumPlayUtm(daily.playUtm, addDays(today, -29), today);
   const postIds = [...new Set([...overview.topPosts, ...overview.topViewed].map((p) => p.postId))];
@@ -173,7 +174,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
   };
 
   // 投稿した日と DL（またはクリック）の関係（数字の段 1）。ダウンロードがあればダウンロード、なければ短縮リンクがあればクリック
-  const effectKind: "downloads" | "link_clicks" | null = overview.kpiValues.downloads ? "downloads" : overview.clicksBySns.length ? "link_clicks" : null;
+  const effectKind: "downloads" | "link_clicks" | null = hasDownloads ? "downloads" : overview.clicksBySns.length ? "link_clicks" : null;
   const effectTo = effectKind ? confirmedUntil(today, effectKind, daily.lastStoreDay) : null;
   // 始めたばかり（始まりが終わりより後）なら、0 日として「あと N 日」を出す。比べる始まりは、直近 60 日と、数え始めた日（ストアを取り込み始めた日・短縮リンクを作った日）の遅いほう。数える前の日を 0 として混ぜない
   const effectFrom = [addDays(today, -(POST_EFFECT_DAYS - 1)), (effectKind === "downloads" ? daily.storeSince : daily.linksSince) ?? today].sort().at(-1)!;
@@ -185,8 +186,8 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
     posts: daily.published,
     clicks: daily.clicks,
     ...(daily.outcomes.length ? { outcomes: daily.outcomes } : {}),
-    ...(overview.kpiValues.downloads ? { downloads: daily.downloads } : {}),
-    ...(overview.kpiValues.store_page_views ? { page_views: daily.pageViews } : {}),
+    ...(hasDownloads ? { downloads: daily.downloads } : {}),
+    ...(isApp && overview.kpiValues.store_page_views ? { page_views: daily.pageViews } : {}),
   };
   const chartKeys = Object.keys(series) as ChartKey[];
   const fallback: ChartKey = series.downloads ? "downloads" : "clicks";

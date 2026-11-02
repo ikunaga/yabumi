@@ -14,7 +14,7 @@ import { aiConfigured } from "@/lib/ai/anthropic";
 import { loadCoachView } from "@/lib/coach/load";
 import { DEFAULT_BEHIND_WEEKDAY } from "@/lib/coach/pace";
 import { githubConfigured } from "@/lib/github/config";
-import { clickLabel, recommendedKpis } from "@/lib/metrics/kpis";
+import { chosenKpis, clickLabel } from "@/lib/metrics/kpis";
 import { isAppProject, isDevProject } from "@/lib/projects/product-types";
 import { loadOverviewNumbers } from "@/lib/overview/load";
 import { CHART_DAYS, CHART_DAYS_MOBILE, compareDays, dailySeries, pctChange, shortDay, type Daily } from "@/lib/overview/numbers";
@@ -52,8 +52,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
     supabase.from("notification_prefs").select("behind_weekday").maybeSingle(),
   ]);
   if (!project) notFound();
-  const chosen = plan?.plan.first_month.kpis ?? [];
-  const kpis = chosen.length ? chosen : recommendedKpis(plan?.plan.goal.goalType ?? null, project.product_type);
+  const kpis = chosenKpis(plan?.plan.first_month.kpis, plan?.plan.goal.goalType, project.product_type);
   const [numbers, upcoming, snsAccounts, attention, overdue, manualDue, { data: repoLink }, { data: manualChannels }, roadmap, stepStates, coach] = await Promise.all([
     loadOverviewNumbers(project.id, kpis, toYmd(new Date(project.created_at)), project.product_type),
     listUpcomingPosts(project.id, 8),

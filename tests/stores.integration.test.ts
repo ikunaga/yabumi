@@ -94,6 +94,20 @@ describe("取り込み", () => {
     expect((await anonClient().rpc("store_weekly_totals", { p_project_id: projectId, p_today: today() })).error?.code).toBe("42501");
   });
 
+  it("宣伝するものをアプリ以外に変えたら、鍵と記録を残したまま毎日のジョブで読まない。アプリに戻せばまた読む（決定 D34）", async () => {
+    const row = await credRow("revenuecat");
+    await admin.from("store_credentials").update({ last_imported_day: null }).eq("id", row.id);
+    const fetch = vi.fn(async () => new Response(JSON.stringify({ metrics: [{ id: "revenue", value: 5400 }] }), { status: 200 }));
+    const run = () => runStoreImports(admin, { keys, fetch: fetch as typeof globalThis.fetch, now: () => NOW, ownerId: aliceId });
+    expect((await alice.from("projects").update({ product_type: "shop" }).eq("id", projectId)).error).toBeNull();
+    expect(await run()).toEqual([]);
+    expect(fetch).not.toHaveBeenCalled();
+    expect((await credRow("revenuecat")).id).toBe(row.id);
+    expect((await alice.from("store_daily").select("day").eq("project_id", projectId).eq("source", "revenuecat")).data).toHaveLength(1);
+    expect((await alice.from("projects").update({ product_type: "app" }).eq("id", projectId)).error).toBeNull();
+    expect((await run()).find((o) => o.provider === "revenuecat")).toMatchObject({ result: "imported" });
+  });
+
   it("鍵が使えなくなったら「要確認」にし、理由を残す", async () => {
     const row = await credRow("revenuecat");
     await admin.from("store_credentials").update({ last_imported_day: null }).eq("id", row.id);

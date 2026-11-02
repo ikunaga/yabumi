@@ -25,7 +25,7 @@ import {
   summarizePlay,
   type ManagerKey,
 } from "./google";
-import { openStoredCredential } from "./store";
+import { openStoredCredential, withoutProjectJoin } from "./store";
 import { SNS_KEYS } from "@/lib/sns";
 
 // yabumi の短縮リンクが Google Play の referrer に入れる utm_source（SNS の名前。SNS を決めていないリンクは "link"。links/rules.ts）
@@ -333,17 +333,29 @@ export async function cleanupOrphanServiceAccounts(admin: Admin, deps: GoogleDep
 export async function runPlayAndViewsImports(admin: Admin, deps: GoogleDeps & { ownerId?: string; limit?: number; deadlineMs?: number } = {}): Promise<PlayOutcome[]> {
   const outcomes: PlayOutcome[] = [];
   const late = () => Boolean(deps.deadlineMs && Date.now() > deps.deadlineMs);
-  let pq = admin.from("play_connections").select("*").not("bucket", "is", null).order("last_checked_at", { ascending: true, nullsFirst: true }).limit(deps.limit ?? 20);
+  // 宣伝するものがアプリのプロジェクトだけ（決定 D34。runStoreImports と同じく、問い合わせの段で絞る）
+  let pq = admin
+    .from("play_connections")
+    .select("*, projects!inner(product_type)")
+    .eq("projects.product_type", "app")
+    .not("bucket", "is", null)
+    .order("last_checked_at", { ascending: true, nullsFirst: true })
+    .limit(deps.limit ?? 20);
   if (deps.ownerId) pq = pq.eq("owner_id", deps.ownerId);
   const { data: plays } = await pq;
-  for (const row of plays ?? []) {
+  for (const row of (plays ?? []).map(withoutProjectJoin)) {
     if (late()) break;
     outcomes.push(await importPlay(admin, row, deps));
   }
-  let vq = admin.from("app_store_report_requests").select("*").order("last_checked_at", { ascending: true, nullsFirst: true }).limit(deps.limit ?? 20);
+  let vq = admin
+    .from("app_store_report_requests")
+    .select("*, projects!inner(product_type)")
+    .eq("projects.product_type", "app")
+    .order("last_checked_at", { ascending: true, nullsFirst: true })
+    .limit(deps.limit ?? 20);
   if (deps.ownerId) vq = vq.eq("owner_id", deps.ownerId);
   const { data: views } = await vq;
-  for (const row of views ?? []) {
+  for (const row of (views ?? []).map(withoutProjectJoin)) {
     if (late()) break;
     outcomes.push(await importAppStoreViews(admin, row, deps));
   }

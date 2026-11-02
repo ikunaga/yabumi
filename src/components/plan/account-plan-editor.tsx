@@ -14,7 +14,7 @@ import { saveSection, type SectionFormState } from "@/lib/plan/actions";
 import { MAX_HASHTAGS, MAX_PILLARS, MAX_WEEKLY_PER_SNS, REQUIRED_FOR_DONE, SECTION_KEYS, isSectionDone, type PlanData, type SectionKey } from "@/lib/plan/schema";
 import { cycleInfo } from "@/lib/coach/pace";
 import { toYmd } from "@/lib/time";
-import { KPI_KEYS, KPIS, MAX_KPIS, recommendedKpis, type KpiKey } from "@/lib/metrics/kpis";
+import { chosenKpis, kpiKeysFor, KPIS, MAX_KPIS, recommendedKpis, type KpiKey } from "@/lib/metrics/kpis";
 import { SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
 import { PLAN_EXAMPLES, type PlanExamples } from "@/lib/ai/product-guide";
 import { ProfileFields, type ProfileContext } from "./profile-fields";
@@ -551,8 +551,9 @@ function FirstMonthFields({ v, goalType, productType, mainSns }: { v: PlanData["
   const recommended = recommendedKpis(goalType, productType);
   const cycle = v.startedOn ? cycleInfo(v.startedOn, toYmd(new Date())) : null;
   const otherSns = SNS_KEYS.filter((k) => !mainSns.includes(k));
-  // まだ選んでいなければ、目的からのおすすめを入れておく（保存するまでは決まらない）
-  const [kpis, setKpis] = useState<KpiKey[]>(() => ((v.kpis ?? []).length ? (v.kpis ?? []) : recommended.slice(0, MAX_KPIS)));
+  // まだ選んでいなければ、目的からのおすすめを入れておく（保存するまでは決まらない）。
+  // アプリでなければストアの 3 つは選べない。種類をアプリから変えた人が前に選んだものは外して見せる（決定 D34）
+  const [kpis, setKpis] = useState<KpiKey[]>(() => chosenKpis(v.kpis, goalType, productType).slice(0, MAX_KPIS));
   return (
     <>
       <Field
@@ -618,7 +619,7 @@ function FirstMonthFields({ v, goalType, productType, mainSns }: { v: PlanData["
         </legend>
         <p className="text-xs text-muted">目的に合わせたおすすめに印を付けています。迷ったらそのままで大丈夫です。</p>
         <ul className="flex flex-col gap-1">
-          {KPI_KEYS.map((k) => {
+          {kpiKeysFor(productType).map((k) => {
             const on = kpis.includes(k);
             return (
               <li key={k}>
@@ -638,7 +639,8 @@ function FirstMonthFields({ v, goalType, productType, mainSns }: { v: PlanData["
                     {KPIS[k].availability === "connect" && (
                       <span className="ml-1.5 text-xs text-muted">（{KPIS[k].connectTo === "stores" ? "ストアや課金をつなぐと出ます" : "SNS をつなぐと出ます"}）</span>
                     )}
-                    {(KPIS[k].availability === "later" || KPIS[k].availability === "partial") && <span className="ml-1.5 text-xs text-muted">（いまは準備中）</span>}
+                    {KPIS[k].availability === "later" && <span className="ml-1.5 text-xs text-muted">（いまは準備中）</span>}
+                    {KPIS[k].availability === "partial" && <span className="ml-1.5 text-xs text-muted">（分析の画面で手で入れると出ます）</span>}
                     <span className="block text-xs text-muted">{KPIS[k].meaning}</span>
                   </span>
                 </label>

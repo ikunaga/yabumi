@@ -1,6 +1,6 @@
 // ロードマップの形と進み具合の計算（docs/architecture.md の 4.23）
 import { describe, expect, it } from "vitest";
-import { goalProposalSchema, itemProgress, itemSchema, itemsProposalSchema, kgiProgress, kpiChoiceValue, kpiLabel, kpiTargetsSchema, parseKpiChoice, weekStartOf, weekValue, type DailyTotal } from "@/lib/roadmap/schema";
+import { goalKpiKeys, kgiExample, notCountedYet, goalProposalSchema, itemProgress, itemSchema, itemsProposalSchema, kgiProgress, kpiChoiceValue, kpiLabel, kpiTargetsSchema, parseKpiChoice, weekStartOf, weekValue, type DailyTotal } from "@/lib/roadmap/schema";
 
 // 2026-10-12 は月曜
 const days = (from: string, n: number, f: (i: number) => Partial<DailyTotal>): DailyTotal[] =>
@@ -120,5 +120,26 @@ describe("SNS ごとに数える（2026-10-12 の不具合: Instagram に送っ�
     expect(parseKpiChoice("posts:x")).toEqual({ kpi: "posts", sns: "x" });
     expect(parseKpiChoice("posts")).toEqual({ kpi: "posts", sns: null });
     expect(parseKpiChoice(null)).toEqual({ kpi: "", sns: null });
+  });
+});
+
+describe("目標と数字の欄を種類で絞る（決定 D34）", () => {
+  it("アプリ以外はストアの 3 つを出さない。いま選んでいるもの（種類をアプリから変えた人）は残して、黙って変えない", () => {
+    expect(goalKpiKeys("app")).toContain("downloads");
+    expect(goalKpiKeys("shop").some((k) => ["store_page_views", "downloads", "revenue"].includes(k))).toBe(false);
+    expect(goalKpiKeys("shop", ["downloads"])).toContain("downloads");
+    expect(goalKpiKeys("shop", ["downloads"])).not.toContain("revenue");
+  });
+
+  it("アプリ以外でストアの数字を選んでいたら、つなぐ案内ではなく選び直しを案内する", () => {
+    expect(notCountedYet("downloads", "app")).toMatch(/App Store か Google Play をつなぐ/);
+    expect(notCountedYet("downloads", "shop")).toMatch(/アプリ」のときだけ数えます/);
+    expect(notCountedYet("views", "shop")).toMatch(/つなぐと出ます/);
+  });
+
+  it("目標の例は種類ごと。アプリ以外にダウンロードの例を出さない", () => {
+    expect(kgiExample("app")).toMatch(/ダウンロード/);
+    expect(kgiExample(null)).toMatch(/ダウンロード/);
+    for (const t of ["web_service", "shop", "online_shop", "service", "creator", "other"]) expect(kgiExample(t)).not.toMatch(/ダウンロード|ストア/);
   });
 });

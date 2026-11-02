@@ -1,4 +1,5 @@
 import type { GOAL_TYPES } from "@/lib/plan/schema";
+import { isAppProject } from "@/lib/projects/product-types";
 
 // 数字の画面で先頭に出す数字（KPI）の決まった名前（docs/architecture.md の 4.22）。
 // アカウント設計の「最初の 1 か月」に 1〜3 個選んで保存する（account_plans の first_month.kpis）。AI の案もこの名前で出す
@@ -114,4 +115,29 @@ export function isKpiKey(v: unknown): v is KpiKey {
 // 「行き先へのクリック」の画面での名前（アプリならストア。決定 D34）
 export function clickLabel(productType: string | null | undefined): string {
   return (productType ?? "app") === "app" ? "ストアへのクリック" : "行き先へのクリック";
+}
+
+// ストア・課金をつながないと出ない数字（ストアのページの閲覧・ダウンロード・課金）。宣伝するものがアプリのときだけ（決定 D34）
+export function isStoreKpi(kpi: KpiKey): boolean {
+  return KPIS[kpi].connectTo === "stores";
+}
+
+// その種類で選べる・出せる数字。アプリでなければストアの 3 つを外す
+export function kpiAllowed(kpi: KpiKey, productType: string | null | undefined): boolean {
+  return isAppProject({ product_type: productType }) || !isStoreKpi(kpi);
+}
+
+export function kpiKeysFor(productType: string | null | undefined): KpiKey[] {
+  return KPI_KEYS.filter((k) => kpiAllowed(k, productType));
+}
+
+// 分析・概要・AI と相談で使う、追いかける数字。アカウント設計で選んだもののうち、その種類で出せるもの（なければ目的からのおすすめ）。
+// 種類をアプリから変えた人のストアの数字は、記録は残したまま出さない（アプリに戻せばまた出る）
+export function chosenKpis(
+  chosen: readonly KpiKey[] | null | undefined,
+  goalType: (typeof GOAL_TYPES)[number] | null | undefined,
+  productType: string | null | undefined,
+): KpiKey[] {
+  const allowed = (chosen ?? []).filter((k) => kpiAllowed(k, productType));
+  return allowed.length ? allowed : recommendedKpis(goalType ?? null, productType ?? null);
 }

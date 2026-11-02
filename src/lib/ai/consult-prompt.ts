@@ -1,4 +1,4 @@
-import { KPI_KEYS, KPIS, type KpiKey } from "@/lib/metrics/kpis";
+import { KPIS, kpiKeysFor, type KpiKey } from "@/lib/metrics/kpis";
 import { SECTION_KEYS, isSectionDone, type PlanData } from "@/lib/plan/schema";
 import { actionFromLegacyGoal, type ProductType } from "@/lib/projects/product-types";
 import { sectionLabel } from "./plan-coach-prompt";
@@ -157,17 +157,22 @@ export function consultContextMessage(ctx: ConsultContext): string {
     r.items.length ? clip(`今週・来週のやること: ${JSON.stringify(r.items)}`, 2000) : "今週・来週のやること: まだない",
     ...(ctx.monthReview ? ["# 伴走の 1 か月の結果（送信済みの数 / その週の目標。予約はまだ数えない）", ctx.monthReview] : []),
     ...(ctx.roadmapSteps ? ["ロードマップづくりの段取り（この順に 1 つずつ決める。済みの段は飛ばす）:", ctx.roadmapSteps] : []),
-    ...(ctx.review ? reviewLines(ctx.review, kpiLine) : []),
+    ...(ctx.review ? reviewLines(ctx.review, kpiLine, p.productType ?? "app") : []),
   ].join("\n");
 }
 
-// 振り返りの材料。選んだ KPI 以外も、数えている数字はすべて出す（数えていないものは「まだ数えていない」）
-function reviewLines(review: NonNullable<ConsultContext["review"]>, kpiLine: (k: { kpi: KpiKey; thisWeek: number | null; lastWeek: number | null }) => string): string[] {
+// 振り返りの材料。選んだ KPI 以外も、数えている数字はすべて出す（数えていないものは「まだ数えていない」）。
+// アプリでなければストアの 3 つは渡さない（「まだ数えていない」と渡すと、AI がストアをつなぐよう勧めるため。決定 D34）
+function reviewLines(
+  review: NonNullable<ConsultContext["review"]>,
+  kpiLine: (k: { kpi: KpiKey; thisWeek: number | null; lastWeek: number | null }) => string,
+  productType: ProductType,
+): string[] {
   const titled = <T extends { title: string }>(rows: T[]) => rows.map((r) => ({ ...r, title: clip(r.title || "（本文なし）", 60) }));
   return [
     "# 振り返りの材料（分析の画面と同じ数字）",
     "すべての数字:",
-    KPI_KEYS.map((kpi) => kpiLine({ kpi, thisWeek: review.kpiValues[kpi]?.thisWeek ?? null, lastWeek: review.kpiValues[kpi]?.lastWeek ?? null })).join("\n"),
+    kpiKeysFor(productType).map((kpi) => kpiLine({ kpi, thisWeek: review.kpiValues[kpi]?.thisWeek ?? null, lastWeek: review.kpiValues[kpi]?.lastWeek ?? null })).join("\n"),
     "SNS ごとの行き先へのクリック（直近 7 日・その前の 7 日・30 日）:",
     review.clicksBySns.length ? clip(JSON.stringify(review.clicksBySns.slice(0, 10)), 1500) : "まだない",
     "よく見られた投稿（30 日、多い順）:",

@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadCoachView, type CoachView } from "@/lib/coach/load";
 import { saveSectionValue } from "@/lib/plan/save";
-import { isKpiKey, recommendedKpis, type KpiKey } from "@/lib/metrics/kpis";
+import { chosenKpis, isKpiKey, kpiAllowed, type KpiKey } from "@/lib/metrics/kpis";
 import { normalizePlan } from "@/lib/plan/schema";
 import { loadRoadmapWith } from "@/lib/roadmap/load";
 import { formatValue, itemProgress, weekStartOf, kpiLabel } from "@/lib/roadmap/schema";
@@ -169,8 +169,8 @@ export async function gatherConsultContext(
 
   // 選んだ KPI（なければ目的からのおすすめ）と、ロードマップの KPI の数字。4.22 の数字の画面と同じもの（数えていないものは null）
   const kpiValues = await loadKpiValues(user, projectId);
-  const kpis = (plan.first_month.kpis.length ? plan.first_month.kpis : recommendedKpis(plan.goal.goalType, project.product_type)).filter(isKpiKey);
-  const roadmapKpis = view.roadmap?.kpiTargets.map((t) => t.kpi) ?? [];
+  const kpis = chosenKpis(plan.first_month.kpis.filter(isKpiKey), plan.goal.goalType, project.product_type);
+  const roadmapKpis = (view.roadmap?.kpiTargets.map((t) => t.kpi) ?? []).filter((k) => kpiAllowed(k, project.product_type));
   const kpiNumbers = [...new Set([...kpis, ...roadmapKpis])].map((kpi) => ({
     kpi,
     thisWeek: kpiValues[kpi]?.thisWeek ?? null,

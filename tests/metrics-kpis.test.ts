@@ -1,6 +1,6 @@
 // 数字の画面の KPI と、アカウント設計の「最初の 1 か月」の kpis（docs/architecture.md の 4.22）
 import { describe, expect, it } from "vitest";
-import { KPI_KEYS, KPIS, recommendedKpis } from "@/lib/metrics/kpis";
+import { chosenKpis, kpiAllowed, kpiKeysFor, KPI_KEYS, KPIS, recommendedKpis } from "@/lib/metrics/kpis";
 import { normalizePlan, parseSectionForm, sectionSchemas } from "@/lib/plan/schema";
 
 describe("おすすめの KPI", () => {
@@ -43,5 +43,31 @@ describe("最初の 1 か月の kpis", () => {
     form.append("kpis", "link_clicks");
     const r = parseSectionForm("first_month", form);
     expect(r.success && r.data.kpis).toEqual(["posts", "link_clicks"]);
+  });
+});
+
+describe("種類で絞る数字（決定 D34）", () => {
+  const STORE = ["store_page_views", "downloads", "revenue"];
+
+  it("アプリ（と種類のない前のデータ）はすべて、アプリ以外はストアの 3 つを外す", () => {
+    expect(kpiKeysFor("app")).toEqual([...KPI_KEYS]);
+    expect(kpiKeysFor(null)).toEqual([...KPI_KEYS]);
+    for (const t of ["web_service", "shop", "online_shop", "service", "creator", "other"]) {
+      const keys = kpiKeysFor(t);
+      expect(keys.some((k) => STORE.includes(k))).toBe(false);
+      expect(keys).toContain("outcomes");
+      expect(keys).toContain("link_clicks");
+    }
+    expect(kpiAllowed("downloads", "shop")).toBe(false);
+    expect(kpiAllowed("downloads", "app")).toBe(true);
+  });
+
+  it("選んだ数字: アプリ以外ではストアの 3 つを外し、残りがなければ目的からのおすすめ", () => {
+    expect(chosenKpis(["downloads", "link_clicks"], "download", "app")).toEqual(["downloads", "link_clicks"]);
+    // 種類をアプリからお店に変えた人
+    expect(chosenKpis(["downloads", "link_clicks"], "download", "shop")).toEqual(["link_clicks"]);
+    expect(chosenKpis(["downloads", "revenue"], "visit", "shop")).toEqual(["link_clicks", "outcomes", "posts"]);
+    expect(chosenKpis([], "purchase", "online_shop")).toEqual(["link_clicks", "outcomes", "posts"]);
+    expect(chosenKpis(undefined, null, "app")).toEqual(["posts", "link_clicks"]);
   });
 });

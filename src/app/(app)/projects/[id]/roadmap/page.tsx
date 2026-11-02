@@ -14,7 +14,7 @@ import { BarRow, Metric } from "@/components/ui/metric";
 import { PageHeader } from "@/components/ui/page-header";
 import { Term } from "@/components/ui/term";
 import { aiConfigured } from "@/lib/ai/anthropic";
-import { recommendedKpis } from "@/lib/metrics/kpis";
+import { chosenKpis } from "@/lib/metrics/kpis";
 import { getAccountPlan } from "@/lib/plan/queries";
 import { getProject } from "@/lib/projects/queries";
 import { loadRoadmap, type RoadmapItem } from "@/lib/roadmap/queries";
@@ -39,7 +39,7 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
   const [project, view, plan] = await Promise.all([getProject(id), loadRoadmap(id), getAccountPlan(id)]);
   if (!project) notFound();
   const { roadmap, items, thisWeek, daily, kgi } = view;
-  const suggested = plan?.plan.first_month.kpis.length ? plan.plan.first_month.kpis : recommendedKpis(plan?.plan.goal.goalType ?? null, project?.product_type);
+  const suggested = chosenKpis(plan?.plan.first_month.kpis, plan?.plan.goal.goalType, project.product_type);
   const consultHref = `/projects/${id}/consult/new?start=roadmap`;
   const ai = aiConfigured();
 
@@ -110,7 +110,7 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
                           projectId={id}
                           item={item}
                           progress={itemProgress(item, daily)}
-                          notCounted={item.kpi ? notCountedYet(item.kpi) : null}
+                          notCounted={item.kpi ? notCountedYet(item.kpi, project.product_type) : null}
                         />
                       ))}
                     </ul>
@@ -125,7 +125,7 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
                   <summary className="cursor-pointer text-[14px] font-semibold text-primary">済んだこと・やらないことにしたこと（{past.length} 件）</summary>
                   <ul>
                     {past.map((item) => (
-                      <RoadmapItemRow key={item.id} projectId={id} item={item} progress={itemProgress(item, daily)} notCounted={item.kpi ? notCountedYet(item.kpi) : null} />
+                      <RoadmapItemRow key={item.id} projectId={id} item={item} progress={itemProgress(item, daily)} notCounted={item.kpi ? notCountedYet(item.kpi, project.product_type) : null} />
                     ))}
                   </ul>
                 </DismissableDetails>
@@ -154,7 +154,7 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
                     ) : (
                       <p className="flex items-center gap-2 text-[15px] text-muted">
                         <Badge>準備中</Badge>
-                        {notCountedYet(roadmap.kgi.kpi)}
+                        {notCountedYet(roadmap.kgi.kpi, project.product_type)}
                       </p>
                     )}
                     {kgi?.onTrack === false && <p className="text-[15px] text-signal">このままの調子だと届かない見込みです。やることを見直すか、目標を調整しましょう。</p>}
@@ -198,7 +198,7 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
                             <span className="flex items-center gap-2">
                               <Badge>準備中</Badge>
                               <HelpTip label="準備中の数字" align="right">
-                                {notCountedYet(t.kpi)}
+                                {notCountedYet(t.kpi, project.product_type)}
                               </HelpTip>
                             </span>
                           )}
@@ -221,7 +221,7 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
               <DismissableDetails className="border-t border-line px-6 py-3 max-sm:px-4">
                 <summary className="cursor-pointer text-[14px] font-semibold text-primary">目標と数字を手で決める・直す</summary>
                 <div className="pt-3" />
-                <GoalForm projectId={id} kgi={roadmap?.kgi ?? null} kpiTargets={roadmap?.kpiTargets ?? []} suggested={suggested} />
+                <GoalForm projectId={id} kgi={roadmap?.kgi ?? null} kpiTargets={roadmap?.kpiTargets ?? []} suggested={suggested} productType={project.product_type} />
               </DismissableDetails>
             </Card>
 

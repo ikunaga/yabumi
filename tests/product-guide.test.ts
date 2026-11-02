@@ -107,6 +107,14 @@ describe("アカウント設計・相談・見直しの「いまの状況」", (
       roadmap: { kgi: null, kpiTargets: [], startedOn: null, items: [], kgiProgress: null },
     };
     expect(consultContextMessage(ctx)).toContain("宣伝するものの種類: サービス（教室・サロン・フリーランス）");
+    // 振り返り: アプリでなければ、ストアの 3 つを「まだ数えていない」と渡さない（AI がストアをつなぐよう勧めないように）
+    const review = { kpiValues: { link_clicks: { thisWeek: 4, lastWeek: 2 } }, clicksBySns: [], topClicked: [], topViewed: [] };
+    const shopReview = consultContextMessage({ ...ctx, review });
+    expect(shopReview).toContain("行き先へのクリック（link_clicks）: ");
+    expect(shopReview).toContain("（outcomes）: まだ数えていない");
+    for (const k of ["store_page_views", "downloads", "revenue"]) expect(shopReview).not.toContain(`（${k}）`);
+    const appReview = consultContextMessage({ ...ctx, project: { ...ctx.project, productType: "app" }, review });
+    for (const k of ["store_page_views", "downloads", "revenue"]) expect(appReview).toContain(`（${k}）: まだ数えていない`);
     expect(checkContextText({ projectName: "ヨガ教室", plan, productType: "service" })).toContain("お客さん・生徒の変化");
   });
 });

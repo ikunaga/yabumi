@@ -2,21 +2,21 @@
 
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
-import { KPIS, type KpiKey } from "@/lib/metrics/kpis";
+import { KPIS, kpiAllowed, type KpiKey } from "@/lib/metrics/kpis";
 import { saveGoalForm, type RoadmapFormState } from "@/lib/roadmap/actions";
-import { kpiChoices, kpiChoiceValue, MAX_KPI_TARGETS, type Kgi, type KpiTarget } from "@/lib/roadmap/schema";
+import { goalKpiKeys, kgiExample, kpiChoices, kpiChoiceValue, MAX_KPI_TARGETS, type Kgi, type KpiTarget } from "@/lib/roadmap/schema";
 
 const input =
   "rounded-md border border-input bg-surface px-2.5 py-1.5 text-sm text-fg outline-none focus:border-primary focus:shadow-[0_0_0_1px_var(--primary)] max-sm:text-[16px]";
 
-function KpiOptions() {
+function KpiOptions({ kpis, productType }: { kpis: KpiKey[]; productType: string | null }) {
   return (
     <>
-      {/* 投稿した回数は SNS ごとにも選べる（すべての SNS / X / Instagram …） */}
-      {kpiChoices().map((c) => (
+      {/* 投稿した回数は SNS ごとにも選べる（すべての SNS / X / Instagram …）。アプリでなければストアの数字は出さない（いま選んでいるものだけ残す） */}
+      {kpiChoices(kpis).map((c) => (
         <option key={c.value} value={c.value}>
           {c.label}
-          {KPIS[c.kpi].availability === "later" ? "（まだ数えていない）" : ""}
+          {!kpiAllowed(c.kpi, productType) ? "（アプリのときだけ数えます）" : KPIS[c.kpi].availability === "later" ? "（まだ数えていない）" : ""}
         </option>
       ))}
     </>
@@ -24,7 +24,20 @@ function KpiOptions() {
 }
 
 // 目標（KGI）と、追いかける数字（KPI）の週の目標を手で決める・直す
-export function GoalForm({ projectId, kgi, kpiTargets, suggested }: { projectId: string; kgi: Kgi | null; kpiTargets: KpiTarget[]; suggested: KpiKey[] }) {
+export function GoalForm({
+  projectId,
+  kgi,
+  kpiTargets,
+  suggested,
+  productType,
+}: {
+  projectId: string;
+  kgi: Kgi | null;
+  kpiTargets: KpiTarget[];
+  suggested: KpiKey[];
+  productType: string | null;
+}) {
+  const kpis = goalKpiKeys(productType, [...(kgi ? [kgi.kpi] : []), ...kpiTargets.map((t) => t.kpi)]);
   const [state, action, pending] = useActionState<RoadmapFormState, FormData>(saveGoalForm.bind(null, projectId), {});
   const rows: (KpiTarget | null)[] = [...kpiTargets, ...Array(MAX_KPI_TARGETS).fill(null)].slice(0, MAX_KPI_TARGETS);
   return (
@@ -32,14 +45,14 @@ export function GoalForm({ projectId, kgi, kpiTargets, suggested }: { projectId:
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-1 font-bold">最終の目標（KGI）</legend>
         <label className="flex flex-col gap-1">
-          <span className="text-xs text-muted">いつまでに・何を・どれだけ（例: 3 か月で 100 ダウンロード）</span>
+          <span className="text-xs text-muted">いつまでに・何を・どれだけ（例: {kgiExample(productType)}）</span>
           <input name="statement" defaultValue={kgi?.statement ?? ""} maxLength={120} className={`${input} w-full`} />
         </label>
         <div className="flex flex-wrap gap-3">
           <label className="flex flex-col gap-1 text-xs text-muted">
             数字の種類
             <select name="kgi_kpi" defaultValue={kgi ? kpiChoiceValue(kgi.kpi, kgi.sns) : (suggested[0] ?? "posts")} className={input}>
-              <KpiOptions />
+              <KpiOptions kpis={kpis} productType={productType} />
             </select>
           </label>
           <label className="flex flex-col gap-1 text-xs text-muted">
@@ -58,7 +71,7 @@ export function GoalForm({ projectId, kgi, kpiTargets, suggested }: { projectId:
           <div key={i} className="flex flex-wrap items-center gap-2">
             <select name="kpi" defaultValue={t ? kpiChoiceValue(t.kpi, t.sns) : ""} aria-label={`${i + 1} つ目の数字`} className={input}>
               <option value="">（使わない）</option>
-              <KpiOptions />
+              <KpiOptions kpis={kpis} productType={productType} />
             </select>
             <span className="text-xs text-muted">1 週に</span>
             <input name="per_week" inputMode="decimal" defaultValue={t?.per_week ?? ""} aria-label={`${i + 1} つ目の 1 週の目標`} className={`${input} w-[90px]`} />

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { addDays, toYmd } from "@/lib/time";
 import { sumPlayUtm } from "@/lib/metrics/play-utm";
 import { loadDailyNumbers, type StoreSource } from "@/lib/metrics/daily";
+import { isAppProject } from "@/lib/projects/product-types";
 import { OVERVIEW_DAYS, pickOverviewCards, type Daily, type OverviewCard } from "./numbers";
 
 export type OverviewNumbers = {
@@ -39,8 +40,10 @@ export async function loadOverviewNumbers(projectId: string, kpis: KpiKey[], pro
   if (scheduled.error) throw scheduled.error;
   if (drafts.error) throw drafts.error;
 
-  // ダウンロードは、ストアから取り込んだことがあるときだけ（分析の画面と同じ判定）
-  const hasStore = Boolean(overview.kpiValues.downloads);
+  // ダウンロードは、宣伝するものがアプリで、ストアから取り込んだことがあるときだけ（分析の画面と同じ判定）。
+  // 種類をアプリから変えたプロジェクトは、取り込んだ記録を残したまま出さない（決定 D34。アプリに戻せばまた出る）
+  const isApp = isAppProject({ product_type: productType });
+  const hasStore = isApp && Boolean(overview.kpiValues.downloads);
   const hasLinks = (links.count ?? 0) > 0;
   const downloads: Daily[] | null = hasStore ? daily.downloads : null;
   const clicks: Daily[] | null = hasLinks ? daily.clicks : null;
@@ -58,7 +61,7 @@ export async function loadOverviewNumbers(projectId: string, kpis: KpiKey[], pro
     kpis,
     kpiValues: overview.kpiValues,
     since: { downloads: daily.storeSince, clicks: daily.linksSince, posts: projectSince },
-    playSnsDl: daily.stores.includes("google_play") || daily.playUtm.length ? sumPlayUtm(daily.playUtm, addDays(today, -(OVERVIEW_DAYS - 1)), today).total : null,
+    playSnsDl: isApp && (daily.stores.includes("google_play") || daily.playUtm.length) ? sumPlayUtm(daily.playUtm, addDays(today, -(OVERVIEW_DAYS - 1)), today).total : null,
   });
 
   return {
@@ -67,7 +70,7 @@ export async function loadOverviewNumbers(projectId: string, kpis: KpiKey[], pro
     chart: downloads ? { kind: "downloads", rows: downloads } : clicks ? { kind: "link_clicks", rows: clicks } : null,
     hasStore,
     hasLinks,
-    stores: daily.stores,
+    stores: isApp ? daily.stores : [],
     clicksBySns: overview.clicksBySns.filter((c) => c.last30d > 0),
     topPost: overview.topPosts[0] ?? null,
   };

@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { KPI_KEYS, KPIS, type KpiKey } from "@/lib/metrics/kpis";
+import { KPI_KEYS, KPIS, kpiAllowed, kpiKeysFor, type KpiKey } from "@/lib/metrics/kpis";
+import { isProductType, type ProductType } from "@/lib/projects/product-types";
 import { SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
 import { addDays, isYmd, weekdayOf } from "@/lib/time";
 
@@ -151,9 +152,33 @@ export function kgiProgress(kgi: Kgi, startedOn: string, today: string, daily: D
   };
 }
 
-// 自動で数えられない数字の、「何をすると出るか」の説明（4.22 の KPIS）
-export function notCountedYet(kpi: KpiKey): string {
+// 自動で数えられない数字の、「何をすると出るか」の説明（4.22 の KPIS）。
+// アプリでないのにストアの数字を選んでいる（種類をアプリから変えた）ときは、つなぐ先がないので選び直してもらう（決定 D34）
+export function notCountedYet(kpi: KpiKey, productType?: string | null): string {
+  if (!kpiAllowed(kpi, productType)) return "宣伝するものが「アプリ」のときだけ数えます。「目標と数字を手で決める・直す」で、ほかの数字を選び直してください";
   return KPIS[kpi].howToGet ?? "数字の取り込みを作ったら出ます";
+}
+
+// ロードマップの目標（KGI）の欄の例。宣伝するものの種類ごと（決定 D34）
+const KGI_EXAMPLES: Record<ProductType, string> = {
+  app: "3 か月で 100 ダウンロード",
+  web_service: "3 か月で登録 50 人",
+  shop: "3 か月で SNS を見て来たお客さん 30 人",
+  online_shop: "3 か月で 20 件売れる",
+  service: "3 か月で体験の申し込み 15 件",
+  creator: "3 か月でフォロワー 300 人",
+  other: "3 か月で行き先へのクリック 300 回",
+};
+
+export function kgiExample(productType: string | null | undefined): string {
+  return KGI_EXAMPLES[isProductType(productType) ? productType : "app"];
+}
+
+// 目標と数字の欄の選択肢にする数字。その種類で出せるものに、いま選んでいるもの（種類をアプリから変えた人のストアの数字）を足す。
+// 選んでいるものを黙って別の数字に変えないため（保存し直すまでは残る）
+export function goalKpiKeys(productType: string | null | undefined, current: readonly KpiKey[] = []): KpiKey[] {
+  const allowed = kpiKeysFor(productType);
+  return KPI_KEYS.filter((k) => allowed.includes(k) || current.includes(k));
 }
 
 export function formatValue(kpi: KpiKey, value: number): string {

@@ -67,6 +67,11 @@ export function PhotoMaker({
 
   if (!state) return error ? <ErrorBanner>{error}</ErrorBanner> : <p className="text-sm text-muted">読み込んでいます…</p>;
 
+  // 鍵（GEMINI_API_KEY）がない間は、注意も絵の説明の案も出さない（規約・ポリシーの施行の前に、新しい使い道の情報を預からない・送らない）
+  if (!state.enabled) {
+    return <p className="rounded-md border border-dashed border-line px-4 py-3.5 text-sm text-muted">AI で写真・絵をつくる機能は準備中です。</p>;
+  }
+
   if (!state.acknowledged) {
     return (
       <div className="flex flex-col gap-3 rounded-md border border-line bg-surface2 px-4 py-3.5 text-sm leading-[1.8]">

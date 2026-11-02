@@ -46,6 +46,7 @@ export async function photoPanelState(): Promise<{ state?: PhotoPanelState; erro
 }
 
 export async function acknowledgePhoto(): Promise<{ error?: string }> {
+  if (!photoConfigured()) return { error: "AI の画像はまだ準備中です。" };
   const { userId } = await currentUser();
   if (!userId) return { error: "ログインし直してください。" };
   try {
@@ -60,7 +61,7 @@ export async function acknowledgePhoto(): Promise<{ error?: string }> {
 export async function draftPhotoIdeas(projectId: string, text: unknown): Promise<{ ideas?: PhotoIdea[]; error?: string }> {
   const t = z.string().max(10000).safeParse(text);
   if (!z.uuid().safeParse(projectId).success || !t.success) return { error: "入力の形式が正しくありません。" };
-  if (!aiConfigured()) return { error: "AI はまだ準備中です。" };
+  if (!aiConfigured() || !photoConfigured()) return { error: "AI の画像はまだ準備中です。" };
   const { supabase, userId } = await currentUser();
   if (!userId) return { error: "ログインし直してください。" };
   try {

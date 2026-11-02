@@ -520,7 +520,7 @@ yabumi は、画面を開くたびに proxy.ts（とページ）で `supabase.au
   - 速さの直し（perf/instant-feedback: 押した瞬間の反応、画面ごとの読み込み中の表示、ログインの確かめを getClaims に）
   - 名前の表記を「矢書」から「yabumi」に（認証のメールの件名・本文も変わった）
   - プロジェクトの設定の「プロジェクトを削除する」を下に畳む、投稿をつくるの「?」の文
-- **DB**: 本番に当たっていないのは **20261102100000_general_product.sql だけ**（`supabase migration list --linked` で、ローカルにあって本番の列が空なのはこの 1 つ）。中身は足すだけ（projects.product_type を既定 app で足す、project_destinations と project_outcomes_daily を作る。どちらも RLS で本人だけ、authenticated に grant）。前のコード（23f12da）は新しい列と表を使わないので、**先に当てても本番は止まらない**。逆に、当てる前に新しいコードを出すと、プロジェクトの読み込みが product_type で失敗する
+- **DB**: 本番に当たっていないのは **20261102100000_general_product.sql だけ**（`supabase migration list --linked` で、ローカルにあって本番の列が空なのはこの 1 つ）。そのあと、セキュリティ確認の直しで **20261102210000_destinations_limit_lock.sql** が増えた（行き先の 20 件の上限のトリガーを、数える前にプロジェクトの行を押さえる形に置き換えるだけ。[security/2026-11-02_D34_セキュリティ確認.md](security/2026-11-02_D34_セキュリティ確認.md) の L3）。20261102100000 の中身は足すだけ（projects.product_type を既定 app で足す、project_destinations と project_outcomes_daily を作る。どちらも RLS で本人だけ、authenticated に grant）。前のコード（23f12da）は新しい列と表を使わないので、**先に当てても本番は止まらない**。逆に、当てる前に新しいコードを出すと、プロジェクトの読み込みが product_type で失敗する
 - **規約・ポリシー**: D34 は ② の変更（[legal.md](legal.md) の「案: 位置づけを広げ…（D34）」。2026-11-02 にオーナーが了承）。招待の前で利用者はオーナーだけなので、前もって知らせる期間は置かず（noticeWaived）、**出す日を施行日にする**。新しい本文と LEGAL_VERSIONS の 1 件は、ブランチ legal/d34（実装担当2）で用意して、同じ push で出す
 - **環境変数**: 足すもの・変えるものはない（.env.example の差はコメントだけ）
 
@@ -533,8 +533,8 @@ yabumi は、画面を開くたびに proxy.ts（とページ）で `supabase.au
 | 22-1 | PM | 前日まで | 出すブランチを main に取り込む: legal/d34（規約・ポリシーの本文の入れ替えと LEGAL_VERSIONS）。ほかの担当のブランチ（feat/voice-input・chore/lp-shots-d34）を一緒に出すかを決める。取り込んだあと、main で `pnpm test`・`pnpm exec tsc --noEmit`・`pnpm lint` が通ること |
 | 22-2 | PM | 前日まで | セキュリティチェック（CLAUDE.md のスキル security-check）。範囲は前回の本番以降の変更（`git diff 23f12da main`）。とくに 20261102100000 の 2 つの表（他人の行が読めない・他人のプロジェクトに行を作れない）と、種類・行き先・成果を保存するサーバーアクション（src/lib/projects/actions.ts・src/lib/metrics/actions.ts） |
 | 22-3 | PM | D 日 | **LEGAL_VERSIONS の施行日を D 日にそろえる**。legal/d34 で入れた行の version を D 日（"YYYY-MM-DD"）、noticeFrom は null、noticeWaived に理由（施行の時点で利用者は運営者だけ（招待の前）で、運営者が了承した（2026-11-02））、adverse は false。日付がずれたら（D 日に出せなかったら）、push の前に必ず直す。施行日より前に本文だけ出ると、ページの施行日と本文が合わなくなる。直したら `pnpm test`（tests の版の決まり historyProblems も通る）してコミット |
-| 22-4 | PM | D 日 | 本番に当たるものを確かめる: `supabase db push --dry-run`。出るのが **20261102100000_general_product.sql の 1 つだけ**であること（ほかが出たら止めて、どこから来たかを確かめる） |
-| 22-5 | PM | D 日（オーナーの了承のあと） | `supabase db push`。当たったら `supabase migration list --linked` で、20261102100000 の本番の列が埋まっていること。**`supabase db reset` は本番では使わない** |
+| 22-4 | PM | D 日 | 本番に当たるものを確かめる: `supabase db push --dry-run`。出るのが **20261102100000_general_product.sql と 20261102210000_destinations_limit_lock.sql の 2 つだけ**（この順）であること（ほかが出たら止めて、どこから来たかを確かめる） |
+| 22-5 | PM | D 日（オーナーの了承のあと） | `supabase db push`。当たったら `supabase migration list --linked` で、20261102100000 と 20261102210000 の本番の列が埋まっていること。**`supabase db reset` は本番では使わない** |
 | 22-6 | PM | D 日 | 当たった中身を数だけで確かめる（SQL Editor か `supabase db`。個人情報は見ない）: `select product_type, count(*) from projects group by 1;`（前のプロジェクトがすべて app）、`select count(*) from project_destinations;` と `select count(*) from project_outcomes_daily;`（どちらも 0） |
 | 22-7 | オーナー | D 日（22-5 のすぐあと） | `git push origin main`。Vercel → Deployments で、いちばん上のデプロイが main の最新のコミットで **Ready** になるまで待つ（数分）。Error になったら Build Logs を PM に渡す（このときは本番は前のデプロイのまま動いている） |
 | 22-8 | PM とオーナー | D 日（22-7 のあと） | 本番で確かめる（下の「本番で確かめること」）。問題があれば 22-13 で戻す |
@@ -547,7 +547,7 @@ yabumi は、画面を開くたびに proxy.ts（とページ）で `supabase.au
 
 | # | 誰が | やること |
 |---|---|---|
-| 22-13 | オーナー | 画面が壊れたら、Vercel → Deployments → 前のデプロイ（23f12da）→ **Instant Rollback**。DB は戻さない（20261102100000 は足すだけで、前のコードはそのまま動く）。直したら、もう一度 push する |
+| 22-13 | オーナー | 画面が壊れたら、Vercel → Deployments → 前のデプロイ（23f12da）→ **Instant Rollback**。DB は戻さない（20261102100000 は足すだけ、20261102210000 は新しい表のトリガーを置き換えるだけで、前のコードはそのまま動く）。直したら、もう一度 push する |
 | 22-14 | PM | 戻した間は、前のコードの規約・ポリシー（2026-10-30 の版）が出る。直して出し直す日が D 日と違えば、22-3 で施行日を出し直す日に変える（同意の記録は版の名前で持つので、出し直したあとにもう一度同意の帯が出る） |
 | 22-15 | オーナー | 鍵の切り替え（22-12）で問題が出たら、21 の「戻したいとき」（HS256 の鍵を今の鍵に戻す） |
 

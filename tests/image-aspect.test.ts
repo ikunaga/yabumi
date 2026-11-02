@@ -9,6 +9,10 @@ import {
   dragToPos,
   instagramRatioOk,
   padLayout,
+  phoneCropSide,
+  phoneFrameLayout,
+  phoneOrientation,
+  phoneScreenRatio,
   presetRatio,
   ratioLabel,
   suggestAspect,
@@ -104,6 +108,69 @@ describe("余白を足す", () => {
     expect(p.dw).toBe(p.w);
     expect(p.dy).toBeGreaterThan(0);
     expect(instagramRatioOk(p.w, p.h)).toBe(true);
+  });
+});
+
+describe("スマホの枠に入れる", () => {
+  const inside = (outer: { x: number; y: number; w: number; h: number }, inner: { x: number; y: number; w: number; h: number }) =>
+    inner.x >= outer.x - 0.01 && inner.y >= outer.y - 0.01 && inner.x + inner.w <= outer.x + outer.w + 0.01 && inner.y + inner.h <= outer.y + outer.h + 0.01;
+
+  it("縦長のスクリーンショット（9:19.5）は、縦向きの枠の画面にそのまま入る（切らない）", () => {
+    const shot = { w: 1080, h: 2340 };
+    expect(phoneOrientation(shot.w, shot.h)).toBe("portrait");
+    expect(phoneCropSide(shot.w, shot.h, "portrait")).toBeNull();
+    for (const p of ASPECT_PRESETS) {
+      const l = phoneFrameLayout(shot.w, shot.h, p.ratio, "portrait");
+      // できあがりは選んだ枠の比率で、Instagram に送れる
+      expect(Math.abs(l.w / l.h - p.ratio) / p.ratio).toBeLessThan(0.01);
+      expect(instagramRatioOk(l.w, l.h)).toBe(true);
+      expect(Math.max(l.w, l.h)).toBeLessThanOrEqual(MAX_LONG_EDGE);
+      // 画面は画像と同じ比率で、画像をまるごと使う
+      expect(Math.abs(l.screen.w / l.screen.h - shot.w / shot.h)).toBeLessThan(0.005);
+      expect(l.crop).toEqual({ sx: 0, sy: 0, sw: shot.w, sh: shot.h });
+      // 輪 ⊃ 縁 ⊃ 画面、輪はできあがりの中に余白を残して収まる、真ん中に置く
+      expect(inside(l.ring, l.bezel) && inside(l.bezel, l.screen)).toBe(true);
+      expect(l.ring.x).toBeGreaterThan(0);
+      expect(l.ring.y).toBeGreaterThan(0);
+      expect(l.ring.x + l.ring.w).toBeLessThan(l.w);
+      expect(l.ring.y + l.ring.h).toBeLessThan(l.h);
+      expect(Math.abs(l.screen.x + l.screen.w / 2 - l.w / 2)).toBeLessThan(0.01);
+      expect(Math.abs(l.screen.y + l.screen.h / 2 - l.h / 2)).toBeLessThan(0.01);
+    }
+  });
+
+  it("縦に長すぎる画像（縦に長いスクロールの画面）は、上をそろえて下を切る", () => {
+    const tall = { w: 1080, h: 4000 };
+    expect(phoneScreenRatio(tall.w, tall.h, "portrait")).toBeCloseTo(9 / 21);
+    expect(phoneCropSide(tall.w, tall.h, "portrait")).toBe("bottom");
+    const l = phoneFrameLayout(tall.w, tall.h, presetRatio("4:5"), "portrait");
+    expect(l.crop.sy).toBe(0);
+    expect(l.crop.sh).toBeLessThan(tall.h);
+  });
+
+  it("横長の画像は横向きの枠をすすめる。16:9 はそのまま入り、縦向きにすると左右を切る", () => {
+    const wide = { w: 1600, h: 900 };
+    expect(phoneOrientation(wide.w, wide.h)).toBe("landscape");
+    expect(phoneCropSide(wide.w, wide.h, "landscape")).toBeNull();
+    const l = phoneFrameLayout(wide.w, wide.h, presetRatio("1.91:1"), "landscape");
+    expect(l.screen.w).toBeGreaterThan(l.screen.h);
+    expect(instagramRatioOk(l.w, l.h)).toBe(true);
+    expect(phoneCropSide(wide.w, wide.h, "portrait")).toBe("sides");
+    expect(phoneCropSide(3000, 1000, "landscape")).toBe("sides");
+    // 正方形は縦向き。画面はスマホに見える 9:16 までにして、左右を切る（3:4 まで広げるとタブレットに見える）
+    expect(phoneOrientation(1000, 1000)).toBe("portrait");
+    expect(phoneScreenRatio(1000, 1000, "portrait")).toBeCloseTo(9 / 16);
+    expect(phoneCropSide(1000, 1000, "portrait")).toBe("sides");
+    expect(phoneScreenRatio(wide.w, wide.h, "portrait")).toBeCloseTo(9 / 16);
+  });
+
+  it("画面に入れる画像を引き伸ばさない（長い辺の上限まで）。小さな画像でも幅 1080px はある", () => {
+    const big = phoneFrameLayout(1290, 2796, presetRatio("4:5"), "portrait");
+    expect(Math.max(big.w, big.h)).toBe(MAX_LONG_EDGE);
+    const small = phoneFrameLayout(390, 844, presetRatio("4:5"), "portrait");
+    expect(small.w).toBe(1080);
+    const fit = phoneFrameLayout(600, 1300, presetRatio("1:1"), "portrait");
+    expect(fit.screen.w).toBeGreaterThanOrEqual(600 - 1);
   });
 });
 

@@ -3,7 +3,7 @@ import type { GOAL_TYPES } from "@/lib/plan/schema";
 // 数字の画面で先頭に出す数字（KPI）の決まった名前（docs/architecture.md の 4.22）。
 // アカウント設計の「最初の 1 か月」に 1〜3 個選んで保存する（account_plans の first_month.kpis）。AI の案もこの名前で出す
 
-export const KPI_KEYS = ["posts", "link_clicks", "views", "followers", "store_page_views", "downloads", "revenue"] as const;
+export const KPI_KEYS = ["posts", "link_clicks", "views", "followers", "store_page_views", "downloads", "revenue", "outcomes"] as const;
 export type KpiKey = (typeof KPI_KEYS)[number];
 export const MAX_KPIS = 3;
 
@@ -25,14 +25,22 @@ export type KpiDef = {
 };
 
 export const KPIS: Record<KpiKey, KpiDef> = {
+  // 手で記録する成果（決定 D34。project_outcomes_daily）。アプリ以外は、買った・予約などをストアのように自動では読めない
+  outcomes: {
+    label: "成果（手で記録）",
+    meaning: "買ってもらった・申し込み・予約・問い合わせ・来店の数。お店の帳簿や予約の画面を見て、日ごとに入れた分です。",
+    availability: "partial",
+    howToGet: "分析の画面の「成果を記録する」で、日ごとに入れると出ます",
+  },
   posts: {
     label: "投稿した回数",
     meaning: "続けられているかの数字。最初の 1 か月は、数字が小さくても続けることがいちばん大事です。",
     availability: "ready",
   },
   link_clicks: {
-    label: "ストアへのクリック",
-    meaning: "投稿やプロフィールの短縮リンクから、ストアなどに来た人の数。興味を持って一歩進んだ人です。",
+    // アプリの画面では「ストアへのクリック」と出す（clickLabel。決定 D34）
+    label: "行き先へのクリック",
+    meaning: "投稿やプロフィールの短縮リンクから、ストア・サイト・予約のページなどの行き先に来た人の数。興味を持って一歩進んだ人です。",
     term: "shortLink",
     availability: "ready",
   },
@@ -88,12 +96,12 @@ export function recommendedKpis(goalType: (typeof GOAL_TYPES)[number] | null, pr
     case "download":
       return app ? ["link_clicks", "downloads", "posts"] : ["link_clicks", "posts"];
     case "purchase":
-      return app ? ["downloads", "revenue", "link_clicks"] : ["link_clicks", "posts"];
+      return app ? ["downloads", "revenue", "link_clicks"] : ["link_clicks", "outcomes", "posts"];
     case "signup":
     case "booking":
     case "inquiry":
     case "visit":
-      return ["link_clicks", "posts"];
+      return ["link_clicks", "outcomes", "posts"];
     default:
       return ["posts", "link_clicks"];
   }
@@ -101,4 +109,9 @@ export function recommendedKpis(goalType: (typeof GOAL_TYPES)[number] | null, pr
 
 export function isKpiKey(v: unknown): v is KpiKey {
   return typeof v === "string" && (KPI_KEYS as readonly string[]).includes(v);
+}
+
+// 「行き先へのクリック」の画面での名前（アプリならストア。決定 D34）
+export function clickLabel(productType: string | null | undefined): string {
+  return (productType ?? "app") === "app" ? "ストアへのクリック" : "行き先へのクリック";
 }

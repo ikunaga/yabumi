@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { isAppProject, isProductType, PRODUCT_TYPE_DEFS } from "@/lib/projects/product-types";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { CopyButton } from "@/components/links/link-forms";
@@ -79,6 +81,20 @@ export default async function StoresPage(props: PageProps<"/projects/[id]/stores
   const { id } = await props.params;
   const project = await getProject(id);
   if (!project) notFound();
+  // ストアと課金の取り込みは、宣伝するものがアプリのときだけ（決定 D34）
+  if (!isAppProject(project)) {
+    return (
+      <div className="flex flex-col gap-4">
+        <PageHeader title="ストアと課金をつなぐ" />
+        <p className="rounded-lg border border-border bg-surface px-5 py-4 text-sm leading-[1.8] text-muted">
+          App Store・Google Play・RevenueCat の数字の取り込みは、宣伝するものが「アプリ」のときに使えます。いまの種類は「{isProductType(project.product_type) ? PRODUCT_TYPE_DEFS[project.product_type].label : "そのほか"}」です。
+          <Link href={`/projects/${project.id}/edit`} className="ml-1 font-bold text-fg underline">
+            プロジェクトの設定で変える
+          </Link>
+        </p>
+      </div>
+    );
+  }
   const supabase = await createClient();
   const { data: claims } = await supabase.auth.getClaims();
   const ownerId = claims!.claims!.sub;

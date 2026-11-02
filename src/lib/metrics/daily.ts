@@ -22,6 +22,8 @@ export type DailyNumbers = {
   // ダウンロードは期間の中で取り込んだいちばん古い日、クリックはいちばん古い短縮リンクを作った日（日本時間）。なければ null
   storeSince: string | null;
   linksSince: string | null;
+  // 手で記録した成果の日ごと（決定 D34。記録のない日は入らない）
+  outcomes: Daily[];
   // Google Play が数えた、yabumi の短縮リンクごとの DL（日ごと。数字の段 3）と、流入元のレポートを読めなかった日があったか
   playUtm: PlayUtmRow[];
   playUtmUnreadable: boolean;
@@ -35,11 +37,13 @@ export type DailyNumbers = {
 // 概要と分析の日ごとの数（today を含む直近 days 日）。どれも本人だけが読める表と関数から読む（RLS）
 export async function loadDailyNumbers(supabase: SupabaseClient<Database>, projectId: string, today: string, days: number): Promise<DailyNumbers> {
   const from = addDays(today, -(days - 1));
-  const [totals, store, firstLink] = await Promise.all([
+  const [totals, store, firstLink, outcomeRows] = await Promise.all([
     supabase.rpc("roadmap_daily_totals", { p_project_id: projectId, p_from: from, p_to: today }),
     supabase.from("store_daily").select("day, source, values").eq("project_id", projectId).in("source", ["app_store", "google_play", "app_store_views", "app_store_campaigns"]).gte("day", from),
     supabase.from("short_links").select("created_at").eq("project_id", projectId).order("created_at").limit(1).maybeSingle(),
+    supabase.from("project_outcomes_daily").select("day, count").eq("project_id", projectId).gte("day", from),
   ]);
+  if (outcomeRows.error) throw outcomeRows.error;
   if (firstLink.error) throw firstLink.error;
   if (totals.error) throw totals.error;
   if (store.error) throw store.error;
@@ -52,6 +56,9 @@ export async function loadDailyNumbers(supabase: SupabaseClient<Database>, proje
     // ページの閲覧: App Store はレポート（app_store_views）、Google Play は同じ行の page_views（store_weekly_totals と同じ）
     pageViews: rows.filter((r) => r.source === "app_store_views" || r.source === "google_play").map((r) => ({ day: r.day, value: value(r.values, "page_views") })),
     stores: (["app_store", "google_play"] as const).filter((s) => rows.some((r) => r.source === s)),
+    outcomes: Object.entries(
+      (outcomeRows.data ?? []).reduce<Record<string, number>>((m, r) => ({ ...m, [r.day]: (m[r.day] ?? 0) + r.count }), {}),
+    ).map(([day, value]) => ({ day, value })),
     playUtm: rows.flatMap((r) => {
       const u = r.source === "google_play" ? (r.values as { utm?: Omit<PlayUtmRow, "day"> } | null)?.utm : undefined;
       return u ? [{ day: r.day, by_source: u.by_source ?? {}, by_campaign: u.by_campaign ?? {}, other: Number(u.other ?? 0) }] : [];

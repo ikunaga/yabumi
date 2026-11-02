@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PRODUCT_TYPES } from "./product-types";
 
 const optionalStoreUrl = (hosts: string[], wrongHostMessage: string) =>
   z
@@ -21,7 +22,9 @@ const optionalStoreUrl = (hosts: string[], wrongHostMessage: string) =>
     });
 
 export const projectInputSchema = z.object({
-  name: z.string().trim().min(1, "アプリ名を入れてください").max(100, "アプリ名は 100 文字以内にしてください"),
+  // 送られてこなければアプリ（前のフォームと同じ）
+  product_type: z.enum(PRODUCT_TYPES, { message: "宣伝するものの種類を選んでください" }).default("app"),
+  name: z.string().trim().min(1, "名前を入れてください").max(100, "名前は 100 文字以内にしてください"),
   description: z.string().trim().max(2000, "説明は 2,000 文字以内にしてください"),
   target_audience: z.string().trim().max(1000, "届けたい相手は 1,000 文字以内にしてください"),
   app_store_url: optionalStoreUrl(["apps.apple.com"], "apps.apple.com の URL を入れてください"),
@@ -33,6 +36,7 @@ export type ProjectFieldErrors = Partial<Record<keyof ProjectInput, string>>;
 
 export function parseProjectForm(formData: FormData) {
   return projectInputSchema.safeParse({
+    product_type: String(formData.get("product_type") ?? "app"),
     name: String(formData.get("name") ?? ""),
     description: String(formData.get("description") ?? ""),
     target_audience: String(formData.get("target_audience") ?? ""),

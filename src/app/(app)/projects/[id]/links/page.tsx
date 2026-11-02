@@ -1,3 +1,5 @@
+import { isAppProject } from "@/lib/projects/product-types";
+import { destinationCandidates, listDestinations } from "@/lib/projects/destinations";
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -82,12 +84,11 @@ export default async function LinksPage(props: PageProps<"/projects/[id]/links">
   const { id } = await props.params;
   const project = await getProject(id);
   if (!project) notFound();
-  const [links, linkDomain] = await Promise.all([listLinks(project.id), getLinkDomain(await createClient(), project.id)]);
+  const supabase = await createClient();
+  const [links, linkDomain, registered] = await Promise.all([listLinks(project.id), getLinkDomain(supabase, project.id), listDestinations(supabase, project.id)]);
 
-  const destinations = [
-    ...(project.app_store_url ? [{ label: `App Store（${project.app_store_url}）`, url: project.app_store_url }] : []),
-    ...(project.play_store_url ? [{ label: `Google Play（${project.play_store_url}）`, url: project.play_store_url }] : []),
-  ];
+  // 行き先の候補: アプリならストアの URL、そしてプロジェクトの設定で入れた行き先の URL（決定 D34）
+  const destinations = destinationCandidates(project, registered);
   const profile = new Map(links.filter((l) => l.kind === "profile" && !l.disabled && l.sns).map((l) => [l.sns!, l]));
   const postLinks = links.filter((l) => l.kind === "post");
   const others = links.filter((l) => l.kind !== "post" && !(l.kind === "profile" && !l.disabled));
@@ -100,7 +101,15 @@ export default async function LinksPage(props: PageProps<"/projects/[id]/links">
         title="短縮リンク"
         help={
           <>
-            SNS から<Term k="storeListing">ストアページ</Term>に来た人を数えるための<Term k="shortLink">短縮リンク</Term>です。SNS ごとに別のリンクを使うと、どの SNS から何人来たかがわかります。行き先には、ストアの側でも見分けられる<Term k="campaignLink">印</Term>を自動で付けます。
+            {isAppProject(project) ? (
+              <>
+                SNS から<Term k="storeListing">ストアページ</Term>に来た人を数えるための<Term k="shortLink">短縮リンク</Term>です。SNS ごとに別のリンクを使うと、どの SNS から何人来たかがわかります。行き先には、ストアの側でも見分けられる<Term k="campaignLink">印</Term>を自動で付けます。
+              </>
+            ) : (
+              <>
+                SNS から行き先のページ（サイト・予約・お店のページなど）に来た人を数えるための<Term k="shortLink">短縮リンク</Term>です。SNS ごとに別のリンクを使うと、どの SNS から何人来たかがわかります。行き先には、解析の道具でも見分けられる<Term k="campaignLink">印</Term>を自動で付けます。
+              </>
+            )}
           </>
         }
       />
@@ -134,7 +143,7 @@ export default async function LinksPage(props: PageProps<"/projects/[id]/links">
                 title={
                   <span className="flex items-center gap-2">
                     プロフィールに置くリンク
-                    <HelpTip label="プロフィールに置くリンク">SNS のプロフィールのリンク欄に貼ります。投稿を見て興味を持った人は、プロフィールからストアへ進むことが多いからです。</HelpTip>
+                    <HelpTip label="プロフィールに置くリンク">SNS のプロフィールのリンク欄に貼ります。投稿を見て興味を持った人は、プロフィールから{isAppProject(project) ? "ストア" : "行き先のページ"}へ進むことが多いからです。</HelpTip>
                   </span>
                 }
               />
@@ -142,7 +151,7 @@ export default async function LinksPage(props: PageProps<"/projects/[id]/links">
                 <EmptyState
                   description={
                     <>
-                      先にプロジェクトにストアの URL を入れてください（<Link href={`/projects/${project.id}/edit`} className="text-primary hover:underline">プロジェクトを編集</Link>）。ほかの URL へのリンクは、下の「自由に作るリンク」で作れます。
+                      先に、プロジェクトの設定で{isAppProject(project) ? "ストアの URL か行き先の URL" : "行き先の URL（サイト・予約・お店のページなど）"}を入れてください（<Link href={`/projects/${project.id}/edit`} className="text-primary hover:underline">プロジェクトの設定</Link>）。ほかの URL へのリンクは、下の「自由に作るリンク」で作れます。
                     </>
                   }
                 />
@@ -263,7 +272,7 @@ export default async function LinksPage(props: PageProps<"/projects/[id]/links">
               })}
             />
 
-            {project.app_store_url && (
+            {isAppProject(project) && project.app_store_url && (
               <Card>
                 <CardHeader title="App Store のキャンペーンの印（任意）" />
                 <div className="flex flex-col gap-3 px-6 pt-1 pb-5 text-sm leading-[1.8] max-sm:px-4">

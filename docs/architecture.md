@@ -2145,6 +2145,35 @@ Facebook ページ（graph.facebook.com）:
 - SNS をつないだあとに戻る先と、つないだ結果の知らせ（SnsResultBanner）も、設定の画面にした（src/lib/projects/paths.ts の projectSettingsHref）
 - 設計のまとめのカードは、設計の画面にあるので外した
 
+### 4.32 宣伝するものの種類・行き先の URL・手で記録する成果（決定 D34、2026-11-02）
+
+yabumi を「個人開発者のアプリ」向けから、宣伝したい商品・サービスがある人のための汎用の SNS 運用ツールに広げた。その土台のデータと、分析・概要・短縮リンクの出し分け。AI への指示とネタの材料は実装担当3、文言・用語集・LP・規約は実装担当2 の担当。
+
+#### 種類・してほしいこと（src/lib/projects/product-types.ts）
+
+- 宣伝するものの種類 `projects.product_type`（マイグレーション 20261102100000）: app・web_service・shop・online_shop・service・creator・other。既定は app で、前のプロジェクトはアプリのまま
+  - アプリの機能（ストア・RevenueCat・Google Play・App Store の数字、/stores）は `isAppProject` のときだけ出す
+  - GitHub（紹介文の下書き・コミットからネタ）は `isDevProject`（app と web_service）のときだけ出す（PM の判断 2026-11-02）
+  - 種類は、プロジェクトの作成・設定のフォームで選ぶ（名前・説明・例つき）。アカウント設計の AI と考えるで決めて採用したときは `updateProductType` で保存する
+- 見た人にしてほしいこと: アカウント設計の `goal.goalType` を DESIRED_ACTIONS（download・purchase・signup・booking・inquiry・visit・follow・awareness・other）に広げた。projects に列は足していない
+  - 前の値（downloads・paid）は、読むときに download・purchase に読み替える（plan/schema.ts の preprocess。保存してあるデータは動かさない）
+  - 設計の画面では、種類ごとのおすすめ（RECOMMENDED_ACTIONS）を先に並べる
+- おすすめの追いかける数字（recommendedKpis）は、目標と種類で決める。アプリでなければ、ダウンロードと売上は勧めない。成果の目標（買う・申し込み・予約・問い合わせ・来店）なら「成果（手で記録）」を入れる
+
+#### 行き先の URL（project_destinations）
+
+- 種類（site・booking・shop・store・form・other）・名前・URL（https:// で 2,000 字まで）。画面では 10 まで、DB は 1 プロジェクト 20 まで（トリガー）
+- RLS で本人だけが読み書きできる。insert・update は自分のプロジェクトだけ。プロジェクトを消すと消える
+- 短縮リンクの行き先の候補（destinationCandidates）: アプリならストアの URL を先にし、そのあとに行き先の URL を並べる。アプリでなければ、ストアの URL が残っていても候補にしない
+  - ストアの URL（app_store_url・play_store_url）は、アプリのときの行き先として projects に残す。アプリでない種類のときは欄を出さず、保存しても値は変えない（アプリに戻したときのため）
+- 保存は、フォームの行に合わせて直す・足す・消す。先に足し・直してから消すので、途中で失敗しても全部は消えない
+
+#### 成果（project_outcomes_daily）
+
+- アプリ以外の成果（買ってもらった・申し込み・予約・問い合わせ・来店）は、ストアのように自動では読めない。そこで、利用者が日ごとに手で入れる。分析の「成果（手で記録）」の箱で入れ、同じ日・同じ種類は上書きし、0 を入れると消える。未来の日は入れられない
+- KPI の `outcomes`（成果・手で記録）として、分析と概要の数字のカードに出す。記録し始めたのが前の期間の始まりより後なら比べない（記録する前の日を 0 と取り違えないように）。分析の日ごとの棒にも「成果（手で記録）」のタブを出す
+- 「行き先へのクリック」（KPI の link_clicks）は、アプリの画面では「ストアへのクリック」と出す（clickLabel）
+
 ## 5. データモデル（主要テーブル）
 
 | テーブル | 内容 |

@@ -33,7 +33,7 @@ export default async function ConnectInstagramPage(props: PageProps<"/projects/[
         main={
           <Card className="flex flex-col gap-4 px-6 py-5 text-[15px] leading-7 max-sm:px-4">
             <p>
-              矢書から Instagram に投稿できるのは、<Term k="proAccount" />だけです。無料で、Instagram のアプリから数分で切り替えられます。
+             yabumi から Instagram に投稿できるのは、<Term k="proAccount" />だけです。無料で、Instagram のアプリから数分で切り替えられます。
             </p>
             <ol className="list-decimal pl-5">
               <li>Instagram のアプリで、右下のプロフィール → 右上の「≡」→「設定とアクティビティ」を開く</li>
@@ -46,8 +46,8 @@ export default async function ConnectInstagramPage(props: PageProps<"/projects/[
                 <li>Facebook ページは要りません</li>
                 <li>ブラウザで今 Instagram にログインしているアカウントでつながります。別のアカウントにするときは、先に instagram.com で切り替えてください</li>
                 <li>このプロジェクトでつなげる Instagram のアカウントは 1 つです。別のアカウントでつなぎ直すと、前のアカウントは外れ、予約中の投稿は新しいアカウントから送ります</li>
-                <li>Instagram には画像が必要です。矢書で投稿をつくるときに、画像を 1 枚以上添えてください（縦横比は 4:5〜1.91:1）</li>
-                <li>矢書から送った投稿は、矢書からは取り消せません。消すときは Instagram のアプリから消します</li>
+                <li>Instagram には画像が必要です。yabumi で投稿をつくるときに、画像を 1 枚以上添えてください（縦横比は 4:5〜1.91:1）</li>
+                <li>yabumi から送った投稿は、yabumi からは取り消せません。消すときは Instagram のアプリから消します</li>
               </ul>
             </section>
           </Card>

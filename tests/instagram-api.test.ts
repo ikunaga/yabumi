@@ -53,8 +53,8 @@ describe("認可とトークン", () => {
   });
 
   it("プロフィールから ID・ユーザー名・アカウントの種類を読む", async () => {
-    mockFetch([{ body: { user_id: "17841", username: "yabumi", name: "矢書", account_type: "MEDIA_CREATOR" } }]);
-    expect(await fetchProfile("t")).toEqual({ id: "17841", username: "yabumi", name: "矢書", accountType: "MEDIA_CREATOR" });
+    mockFetch([{ body: { user_id: "17841", username: "yabumi", name: "yabumi", account_type: "MEDIA_CREATOR" } }]);
+    expect(await fetchProfile("t")).toEqual({ id: "17841", username: "yabumi", name: "yabumi", accountType: "MEDIA_CREATOR" });
   });
 });
 

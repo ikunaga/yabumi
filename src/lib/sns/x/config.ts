@@ -29,7 +29,7 @@ export function xConfigured(): boolean {
   return envReady("X の接続", ["X_CLIENT_ID", "X_CLIENT_SECRET", "APP_URL"]);
 }
 
-// X に払う月の上限（米ドル、矢書全体）。超えたら X の配信先は送らずに「要確認」にする（決定 D16）
+// X に払う月の上限（米ドル、yabumi 全体）。超えたら X の配信先は送らずに「要確認」にする（決定 D16）
 export function xMonthlyBudgetUsd(): number {
   const raw = process.env.X_MONTHLY_BUDGET_USD;
   const n = raw ? Number(raw) : NaN;

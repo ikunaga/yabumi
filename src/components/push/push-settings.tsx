@@ -11,7 +11,7 @@ import { type PushStatus, pushStatus, subscribeDevice, testPushDevice, unsubscri
 
 type Env =
   | { kind: "loading" }
-  // iPhone・iPad の Safari など（ホーム画面に追加した矢書からでないと受け取れない）
+  // iPhone・iPad の Safari など（ホーム画面に追加した yabumi からでないと受け取れない）
   | { kind: "ios-browser"; tooOld: boolean }
   | { kind: "ios-too-old" }
   | { kind: "unsupported" }
@@ -252,9 +252,9 @@ export function PushSettings() {
             <p className="font-bold">Android</p>
             <p>Chrome なら、ホーム画面に追加しなくても通知を受け取れます。アプリのように開きたいときは、次の手順で追加します。</p>
             <ol className="mt-1 list-decimal pl-5">
-              <li>Chrome で矢書を開き、右上の「︙」を押す</li>
+              <li>Chrome で yabumi を開き、右上の「︙」を押す</li>
               <li>「ホーム画面に追加」（または「アプリをインストール」）を選び、「インストール」を押す</li>
-              <li>ホーム画面の矢書から開き、この画面で「この端末で通知を受け取る」を押す</li>
+              <li>ホーム画面の yabumi から開き、この画面で「この端末で通知を受け取る」を押す</li>
             </ol>
           </div>
         </div>
@@ -264,8 +264,8 @@ export function PushSettings() {
         <summary className="cursor-pointer px-4 py-2.5 font-semibold text-primary">届かないとき</summary>
         <ul className="flex list-disc flex-col gap-1 border-t border-line py-3 pr-4 pl-9">
           <li>「おやすみモード」や「集中モード」がオンだと、通知が出ないことがあります</li>
-          <li>iPhone・iPad は、ホーム画面の矢書から登録したときだけ届きます（Safari で開いた画面からは登録できません）</li>
-          <li>端末の設定で、矢書（またはブラウザ）の通知が許可されているか確かめてください</li>
+          <li>iPhone・iPad は、ホーム画面の yabumi から登録したときだけ届きます（Safari で開いた画面からは登録できません）</li>
+          <li>端末の設定で、yabumi （またはブラウザ）の通知が許可されているか確かめてください</li>
           <li>ブラウザのデータを消すと、登録も消えます。もう一度「この端末で通知を受け取る」を押してください</li>
           <li>ログアウトすると、その端末には届かなくなります（同じ端末をほかの人が使っても、あなたへの通知が出ないように）</li>
         </ul>
@@ -281,9 +281,9 @@ function TooOld() {
 function IphoneSteps() {
   return (
     <ol className="mt-1 list-decimal pl-5">
-      <li>Safari で矢書を開き、画面の下（iPad は上）の共有ボタン（四角から矢印が出ているもの）を押す</li>
+      <li>Safari で yabumi を開き、画面の下（iPad は上）の共有ボタン（四角から矢印が出ているもの）を押す</li>
       <li>「ホーム画面に追加」を選び（見つからなければ下にずらす）、右上の「追加」を押す</li>
-      <li>ホーム画面にできた矢書のアイコンから開き、ログインする（Safari とは別に、もう一度ログインが要ります）</li>
+      <li>ホーム画面にできた yabumi のアイコンから開き、ログインする（Safari とは別に、もう一度ログインが要ります）</li>
       <li>「お知らせの設定」の画面を開き、「この端末で通知を受け取る」を押して「許可」を選ぶ</li>
     </ol>
   );
@@ -296,7 +296,7 @@ function DeniedHelp({ ios, android }: { ios: boolean; android: boolean }) {
       <p className="font-bold">通知を許可していないとき</p>
       <p>前に「許可しない」を選んだため、ブラウザが聞いてこない状態です。次の手順で許可してから、この画面を開き直してください。</p>
       <ul className="mt-1 list-disc pl-5">
-        {ios && <li>iPhone・iPad: 「設定」アプリ →「通知」→「矢書」→「通知を許可」をオン</li>}
+        {ios && <li>iPhone・iPad: 「設定」アプリ →「通知」→「yabumi」→「通知を許可」をオン</li>}
         {android && <li>Android の Chrome: アドレスバーの左のアイコン →「権限」（または「サイトの設定」）→「通知」→「許可」</li>}
         {pc && <li>パソコン: アドレスバーの左のアイコン →「通知」→「許可」</li>}
       </ul>

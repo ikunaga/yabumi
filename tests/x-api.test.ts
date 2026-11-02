@@ -75,8 +75,8 @@ describe("投稿とユーザー", () => {
   });
 
   it("users/me から ID とユーザー名を読む", async () => {
-    mockFetch(200, { data: { id: "42", username: "yabumi", name: "矢書" } });
-    expect(await fetchMe("a1")).toEqual({ id: "42", username: "yabumi", name: "矢書" });
+    mockFetch(200, { data: { id: "42", username: "yabumi", name: "yabumi" } });
+    expect(await fetchMe("a1")).toEqual({ id: "42", username: "yabumi", name: "yabumi" });
   });
 
   it("エラーの応答から、メッセージと種類を取り出す", async () => {
@@ -97,7 +97,7 @@ describe("エラーの分け方", () => {
     expect(toXPublishError(new XApiError("x", 429), "publish").userMessage).toContain("手で投稿");
   });
 
-  it("上限・クレジット切れの文に、矢書の X のアプリの事情（Developer Console など）を出さない", () => {
+  it("上限・クレジット切れの文に、yabumi の X のアプリの事情（Developer Console など）を出さない", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const message = toXPublishError(new XApiError("x", 402, "CreditsDepleted"), "publish").userMessage;
     expect(message).not.toMatch(/Developer Console|残高|クレジット/);

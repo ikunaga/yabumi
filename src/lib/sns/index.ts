@@ -6,7 +6,7 @@ export type SnsKey = "x" | "instagram" | "facebook" | "threads" | "tiktok" | "yo
 
 export type MediaRequirement = "none" | "image_or_video" | "video";
 
-// auto: 矢書がつないで自動で送る / manual: 公式の投稿 API がないので、利用者が手で投稿する（D15）
+// auto: yabumi がつないで自動で送る / manual: 公式の投稿 API がないので、利用者が手で投稿する（D15）
 export type Delivery = "auto" | "manual";
 
 type SnsSpec = {
@@ -18,7 +18,7 @@ type SnsSpec = {
   // 長文の SNS は、タイトルを付けて投稿する
   needsTitle?: boolean;
   // 1 つの投稿に付けられる画像の数（各社の公式の資料、2026-10-11。docs/architecture.md の 4.18）。
-  // 0 は、矢書からは画像を送らない（動画だけの SNS、手で投稿する SNS）
+  // 0 は、yabumi からは画像を送らない（動画だけの SNS、手で投稿する SNS）
   maxImages: number;
 };
 

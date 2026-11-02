@@ -1,6 +1,6 @@
 // X の送信（トークンの取り直しを 1 回だけにする・月の上限・費用の記録）と、その権限。
 // X には偽のアダプターを使い、本物の X には送らない。取り出しは必ず postId を指定し、日時は未来にして pg_cron に拾われないようにする。
-// 月の上限は本番では矢書全体の合計で決まる。同じ DB で他のテストが同時に流れても左右されないよう、
+// 月の上限は本番では yabumi 全体の合計で決まる。同じ DB で他のテストが同時に流れても左右されないよう、
 // 上限を確かめるテストは数える範囲を alice の記録だけにする（budgetScopeOwner）。全体で数えることは別のテストで確かめる
 import { randomBytes, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -222,11 +222,11 @@ describe("費用と月の上限", () => {
     expect(await spentNow()).toBeCloseTo(budget, 6);
   });
 
-  it("全体の上限で止まったときは、矢書全体の上限だと出す", async () => {
+  it("全体の上限で止まったときは、yabumi 全体の上限だと出す", async () => {
     const { postId } = await scheduledPost(`全体の上限 ${randomUUID()}`);
     const [outcome] = await publishDueTargets(admin, deps(fakeX(), await spentNow(), 1000), { postId });
     expect(outcome.result).toBe("failed");
-    expect(outcome.message).toContain("矢書全体");
+    expect(outcome.message).toContain("yabumi 全体");
   });
 
   it("利用者ごとの上限に達したら、その人の X だけ送らず、手で投稿の案内を出す", async () => {
@@ -336,7 +336,7 @@ describe("権限", () => {
     expect(still!.length).toBe(mine!.length);
   });
 
-  it("範囲を指定しなければ（本番）、ほかの利用者の記録も合わせて矢書全体で数える", async () => {
+  it("範囲を指定しなければ（本番）、ほかの利用者の記録も合わせて yabumi 全体で数える", async () => {
     // bob の記録（$1）を足す。全体の合計は少なくとも alice の分 + $1 になる
     const { data: bobUsage } = await admin.from("sns_api_usage").insert({ owner_id: bobId, sns: "x", operation: "post", cost_usd: 1 }).select("id").single();
     const budget = (await spentNow()) + 0.5;

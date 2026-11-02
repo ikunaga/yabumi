@@ -1,7 +1,7 @@
 // 短縮リンクに使う利用者のドメインの決まり（F07、決定 D28。docs/architecture.md の 4.22）。画面とサーバーの両方から読む
 
 // ドメインの数の決まり。Vercel Hobby は 1 プロジェクトにドメイン 50 まで（https://vercel.com/docs/limits、2026-10-12 確認）。
-// 矢書の分（yabumi.app・www・go・vercel.app）を除いて、利用者の分は 40 まで。LINK_DOMAIN_LIMIT で変えられる（Pro にしたら上げる）
+// yabumi の分（yabumi.app・www・go・vercel.app）を除いて、利用者の分は 40 まで。LINK_DOMAIN_LIMIT で変えられる（Pro にしたら上げる）
 export const DEFAULT_LINK_DOMAIN_LIMIT = 40;
 // 上限のこの割合に達したら、運営者に知らせる
 export const LINK_DOMAIN_WARN_RATIO = 0.8;
@@ -10,7 +10,7 @@ export const LINK_DOMAIN_DAILY_ATTEMPTS = 5;
 // 「確かめる」を続けて押せる間隔（Vercel の API と DNS に問い合わせるので）
 export const LINK_DOMAIN_CHECK_INTERVAL_MS = 10_000;
 
-// つながったかを確かめるときに、利用者のドメインで開くパス。proxy がこの文を返す（DNS と証明書がそろって矢書に届いている印）
+// つながったかを確かめるときに、利用者のドメインで開くパス。proxy がこの文を返す（DNS と証明書がそろって yabumi に届いている印）
 export const LINK_CHECK_PATH = "/__yabumi/link-check";
 export const LINK_CHECK_BODY = "yabumi-link-domain-ok";
 
@@ -26,7 +26,7 @@ const SECOND_LEVEL = new Set([
 ]);
 
 const LABEL = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
-// 使えないドメイン: 矢書と Vercel のもの、内部やテスト用の名前
+// 使えないドメイン: yabumi と Vercel のもの、内部やテスト用の名前
 const RESERVED = /(^|\.)(yabumi\.app|vercel\.app|vercel\.com|vercel-dns\.com|now\.sh)$|\.(localhost|local|internal|test|invalid|example|onion)$|^localhost$/;
 
 export type DomainCheck = { ok: true; domain: string } | { ok: false; error: string; suggestion?: string };

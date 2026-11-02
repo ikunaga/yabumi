@@ -25,7 +25,7 @@ export type SnsMetricsDeps = {
   limit?: number;
   // トークンの延長（X は 2 時間で切れるので、延長してから読む）
   adapters?: Partial<Record<SnsKey, SnsAdapter>>;
-  // X の数字の費用の上限（米ドル）。ないと X は読まない。budgetUsd は矢書全体の X の月の上限（投稿と共有）、
+  // X の数字の費用の上限（米ドル）。ないと X は読まない。budgetUsd は yabumi 全体の X の月の上限（投稿と共有）、
   // userBudgetUsd は利用者 1 人の X の数字の月の上限。scopeOwner はテスト用（上限を数える範囲をその利用者だけにする）
   x?: { budgetUsd: number; userBudgetUsd: number; scopeOwner?: string };
 };
@@ -182,7 +182,7 @@ export async function runSnsMetricsImport(admin: Admin, deps: SnsMetricsDeps): P
       outcomes.push({ ...base, result: "failed", message: e instanceof Error ? e.message : String(e) });
     }
   }
-  // 矢書全体の X の上限の 80% に達したら、運営者に知らせる（月に 1 回）
+  // yabumi 全体の X の上限の 80% に達したら、運営者に知らせる（月に 1 回）
   if (xReserved && deps.x) await alertIfNearXBudget(admin, deps.x.budgetUsd, { scopeOwner: deps.x.scopeOwner, now });
   return outcomes;
 }

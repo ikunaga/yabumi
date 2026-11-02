@@ -85,7 +85,7 @@ export function AuthForm({
   const [reopenedFor, setReopenedFor] = useState<AuthFormState | null>(null);
   const sent = (mode === "signup" || mode === "forgot") && Boolean(state.message) && reopenedFor !== state;
   // 招待のメールから来た方には、始めるための言い方にする
-  const c = mode === "reset" && consent?.invited ? { ...copy.reset, title: "矢書をはじめる", lead: "招待ありがとうございます。これから使うパスワードを決めてください。決めると、そのまま使い始められます。", submit: "パスワードを決めて始める", pending: "準備しています…" } : copy[mode];
+  const c = mode === "reset" && consent?.invited ? { ...copy.reset, title: "yabumi をはじめる", lead: "招待ありがとうございます。これから使うパスワードを決めてください。決めると、そのまま使い始められます。", submit: "パスワードを決めて始める", pending: "準備しています…" } : copy[mode];
 
   // エラーが出たら、読み上げと目視のためにエラー帯へ移る
   useEffect(() => {

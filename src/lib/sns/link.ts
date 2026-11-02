@@ -33,7 +33,7 @@ export async function linkAccountToProject(
     }
     const { data: acc } = await admin.from("social_accounts").select("sns").eq("id", old.old_account_id).eq("owner_id", args.ownerId).maybeSingle();
     if (acc) {
-      // 取り消しに失敗しても、矢書の側のトークンは消すので、それ以上は使われない
+      // 取り消しに失敗しても、yabumi の側のトークンは消すので、それ以上は使われない
       await revokeSnsAccess(admin, old.old_account_id, acc.sns, deps);
       await purgeSnsDataOf(admin, [old.old_account_id]);
       // トークンはアカウントの行からカスケードで消える。配信先からの参照は空になる（本文と送った記録は残る）

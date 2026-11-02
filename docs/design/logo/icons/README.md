@@ -1,4 +1,4 @@
-# 矢書 アイコン（2a 落款）
+# yabumi アイコン（2a 落款）
 
 ## Next.js（App Router）
 - favicon/favicon.ico → src/app/favicon.ico

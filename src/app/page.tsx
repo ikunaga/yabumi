@@ -14,7 +14,7 @@ import { Term } from "@/components/ui/term";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { createClient } from "@/lib/supabase/server";
 
-// 矢書の LP（ログイン前のトップ。F19、決定 D30。docs/architecture.md の 4.29）。
+// yabumi の LP（ログイン前のトップ。F19、決定 D30。docs/architecture.md の 4.29）。
 // 新規登録は閉じている（D24 の ①）ので、興味を持った人は招待を申し込む（いまは招待制の無料の試用。D24 の ②）。
 // ログイン済みの人はプロジェクトへ移る
 
@@ -41,7 +41,7 @@ const pains = [
   {
     pain: "続かない",
     short: "遅れそうなときと毎週の振り返りでお知らせ",
-    answer: "矢書が伴走して遅れそうなら声をかける",
+    answer: "yabumi が伴走して遅れそうなら声をかける",
     body: "最初の 1 か月の目標を SNS ごとの週の回数にし、毎日ペースを見ます。遅れそうなときと毎週の振り返りを、画面・メール・スマホの通知でお知らせします。",
   },
 ];
@@ -74,12 +74,12 @@ const moreFeatures = [
 ];
 
 const sns: { group: string; items: SnsKey[]; ready: boolean }[] = [
-  { group: "矢書から自動で投稿", items: ["x", "threads", "instagram", "facebook"], ready: true },
+  { group: "yabumi から自動で投稿", items: ["x", "threads", "instagram", "facebook"], ready: true },
   { group: "文面を用意して手で投稿", items: ["note", "substack"], ready: true },
   { group: "準備中", items: ["tiktok", "youtube"], ready: false },
 ];
 
-// 最初の画面の下の数字（見本 A の上の 4 つの形）。どれも、いまの矢書の決まりそのまま
+// 最初の画面の下の数字（見本 A の上の 4 つの形）。どれも、いまの yabumi の決まりそのまま
 const facts = [
   { label: "まとめて予約", value: "4", unit: "つの SNS", note: "X・Threads・Instagram・Facebook ページ" },
   { label: "手で投稿", value: "2", unit: "つの SNS", note: "note・Substack（文面を用意）" },
@@ -106,11 +106,11 @@ const faqs: { q: string; a: ReactNode }[] = [
   },
   {
     q: "データはどう扱われますか？",
-    a: "預かったデータは、矢書の機能のためだけに使い、広告に使ったり売ったりしません。データは自分で消せて、退会するとすぐに消えます。AI との会話は最後のやり取りから 1 年で自動で消します。",
+    a: "預かったデータは、yabumi の機能のためだけに使い、広告に使ったり売ったりしません。データは自分で消せて、退会するとすぐに消えます。AI との会話は最後のやり取りから 1 年で自動で消します。",
   },
   {
     q: "どの SNS に対応していますか？",
-    a: "X・Threads・Instagram（プロアカウント）・Facebook ページに、矢書から投稿・予約できます。note・Substack は文面を用意して、手で投稿する形です。TikTok・YouTube は準備中です。",
+    a: "X・Threads・Instagram（プロアカウント）・Facebook ページに、yabumi から投稿・予約できます。note・Substack は文面を用意して、手で投稿する形です。TikTok・YouTube は準備中です。",
   },
   {
     q: "招待はいつ届きますか？",
@@ -118,7 +118,7 @@ const faqs: { q: string; a: ReactNode }[] = [
   },
   {
     q: "マーケティングの知識がなくても使えますか？",
-    a: "はい。矢書は、マーケティングがはじめての方を前提にしています。ひとりでお店や教室をしている人、ネットで物を売る人、アプリを作る人、作品や発信をしている人も使えます。空欄を自分で埋めるのではなく、AI が質問しながら一緒に整理し、案と理由を出すので、選んでいけば進みます。",
+    a: "はい。yabumi は、マーケティングがはじめての方を前提にしています。ひとりでお店や教室をしている人、ネットで物を売る人、アプリを作る人、作品や発信をしている人も使えます。空欄を自分で埋めるのではなく、AI が質問しながら一緒に整理し、案と理由を出すので、選んでいけば進みます。",
   },
 ];
 
@@ -191,8 +191,8 @@ export default async function Home(props: PageProps<"/">) {
               </h1>
               <div className="flex items-center gap-2 text-[17px] leading-[1.8] text-muted max-sm:text-[15px]">
                 <p>何を・いつ・どこに出すかを AI と決めて、複数の SNS にまとめて予約。</p>
-                <HelpTip label="矢書でできること">
-                  何を・いつ・どこに出すかを AI と一緒に決めて、複数の SNS にまとめて予約。数字を見て振り返り、続かないときは矢書が声をかけます。お店・教室・ネットのお店・作品・アプリ、本業の時間を守りながら、届けたい人へ。作品や発信をしている人も使えます。
+                <HelpTip label="yabumi でできること">
+                  何を・いつ・どこに出すかを AI と一緒に決めて、複数の SNS にまとめて予約。数字を見て振り返り、続かないときは yabumi が声をかけます。お店・教室・ネットのお店・作品・アプリ、本業の時間を守りながら、届けたい人へ。作品や発信をしている人も使えます。
                 </HelpTip>
               </div>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2 max-sm:flex-col max-sm:items-stretch">

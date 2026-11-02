@@ -10,7 +10,7 @@ type Profile = PlanData["profile"];
 // SNS ごとのプロフィールの決まり（各社の公式のヘルプ、2026-10-12 に確認。出典と、公式で確かめられなかった値は architecture.md の 4.8）。
 // 決まりは変わることがあるので、合わないときは保存を止めずに画面で知らせるだけにする
 export type ProfileRule = {
-  // ユーザー名。null は矢書では確かめない
+  // ユーザー名。null は yabumi では確かめない
   handle: {
     min: number;
     max: number;

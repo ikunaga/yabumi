@@ -146,7 +146,7 @@ describe("知らせの中身", () => {
     const f = mailFooter(ctx);
     expect(f).toContain("https://yabumi.app/settings/notifications");
     expect(f).toContain(`https://yabumi.app/unsubscribe?t=${ctx.unsubscribeToken}`);
-    expect(f).toContain("送信者: 矢書（運営 YuXport Labs）");
+    expect(f).toContain("送信者: yabumi （運営 YuXport Labs）");
     expect(f).toContain("問い合わせ: contact@yuxport.com");
     expect(unsubscribeHeaders(ctx)).toEqual({ "List-Unsubscribe": `<https://yabumi.app/api/unsubscribe?t=${ctx.unsubscribeToken}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" });
   });

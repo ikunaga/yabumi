@@ -153,7 +153,7 @@ export default async function StoresPage(props: PageProps<"/projects/[id]/stores
         state={stateOf(asc)}
         help={
           <HelpTip label="App Store のつなぎ方の注意">
-            画面の名前は、App Store Connect の表示の言語や更新で少し違うことがあります。Team キーはチームのすべてのアプリに届くので、矢書はこのプロジェクトの App Store の URL（id の数字）のアプリだけを数えます。
+            画面の名前は、App Store Connect の表示の言語や更新で少し違うことがあります。Team キーはチームのすべてのアプリに届くので、yabumi はこのプロジェクトの App Store の URL（id の数字）のアプリだけを数えます。
           </HelpTip>
         }
       >
@@ -187,7 +187,7 @@ export default async function StoresPage(props: PageProps<"/projects/[id]/stores
                 <Disclosure summary="依頼のしかた（Admin のキーを 1 回だけ使います）">
                   <div className="flex flex-col gap-4">
                     <p>
-                      ストアのページを見た人の数は、Apple に「レポートの依頼」を一度だけ出すと、毎日読めるようになります。依頼を出せるのは役割が<b>「Admin」</b>のキーだけなので、上とは別に Admin のキーを作り、下に入れてください。矢書は Admin のキーを依頼を出す 1 回だけ使い、<b>保存しません</b>（依頼のあとは、App Store Connect でそのキーを取り消してかまいません）。
+                      ストアのページを見た人の数は、Apple に「レポートの依頼」を一度だけ出すと、毎日読めるようになります。依頼を出せるのは役割が<b>「Admin」</b>のキーだけなので、上とは別に Admin のキーを作り、下に入れてください。yabumi は Admin のキーを依頼を出す 1 回だけ使い、<b>保存しません</b>（依頼のあとは、App Store Connect でそのキーを取り消してかまいません）。
                     </p>
                     <AppStoreViewsForm projectId={project.id} />
                   </div>
@@ -222,7 +222,7 @@ export default async function StoresPage(props: PageProps<"/projects/[id]/stores
         ) : !play ? (
           <>
             <p className="text-sm leading-[1.8]">
-              矢書が、このプロジェクト専用の<b>読み取り用のアカウント</b>（メールアドレスの形）を用意します。それを Play Console に招待すると、毎日のインストールとストアのページの閲覧の数を読めるようになります。鍵を預ける必要はありません。
+             yabumi が、このプロジェクト専用の<b>読み取り用のアカウント</b>（メールアドレスの形）を用意します。それを Play Console に招待すると、毎日のインストールとストアのページの閲覧の数を読めるようになります。鍵を預ける必要はありません。
             </p>
             <StartGooglePlayButton projectId={project.id} />
           </>

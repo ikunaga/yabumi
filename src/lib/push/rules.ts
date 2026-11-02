@@ -31,7 +31,7 @@ export function clip(text: string, max: number): string {
   return chars.length <= max ? chars.join("") : `${chars.slice(0, max - 1).join("")}…`;
 }
 
-// 押したときに開くのは矢書の中のパスだけ（「//」で始まる別のサイトや、javascript: などは「/」にする）
+// 押したときに開くのは yabumi の中のパスだけ（「//」で始まる別のサイトや、javascript: などは「/」にする）
 export function safePath(url: string): string {
   if (!url.startsWith("/") || url.startsWith("//") || url.startsWith("/\\")) return "/";
   try {
@@ -59,7 +59,7 @@ export function deviceLabel(userAgent: string): string {
             : /Safari/.test(ua)
               ? "Safari"
               : "";
-  // iPhone・iPad はホーム画面の矢書から登録するので、ブラウザの名前は出さない
+  // iPhone・iPad はホーム画面の yabumi から登録するので、ブラウザの名前は出さない
   if (os === "iPhone" || os === "iPad") return os;
   if (os && browser) return `${os} の ${browser}`;
   return os || browser || "この端末";

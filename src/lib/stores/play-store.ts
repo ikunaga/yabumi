@@ -28,7 +28,7 @@ import {
 import { openStoredCredential } from "./store";
 import { SNS_KEYS } from "@/lib/sns";
 
-// 矢書の短縮リンクが Google Play の referrer に入れる utm_source（SNS の名前。SNS を決めていないリンクは "link"。links/rules.ts）
+// yabumi の短縮リンクが Google Play の referrer に入れる utm_source（SNS の名前。SNS を決めていないリンクは "link"。links/rules.ts）
 const UTM_SOURCES = [...SNS_KEYS, "link"] as const;
 
 // Google Play の取り込みと、App Store のストアのページの閲覧数（docs/architecture.md の 4.22、段取り ⑤）。admin は RLS を通らないクライアント。
@@ -115,7 +115,7 @@ export function playCapacityMail(count: number, threshold: number) {
   return {
     subject: full ? `Google Play のつなぎが上限（${PLAY_CAPACITY_LIMIT}）に達しました` : `Google Play のつなぎが ${threshold} に達しました（上限 ${PLAY_CAPACITY_LIMIT}）`,
     text: [
-      "矢書の運営者へのお知らせです（自動で送っています）。",
+      "yabumi の運営者へのお知らせです（自動で送っています）。",
       "",
       `Google Play の読み取り用アカウントを直近 30 日に作った数: ${count}`,
       `全員を合わせた上限: ${PLAY_CAPACITY_LIMIT}（Google Cloud のサービスアカウントは既定 100 個）`,
@@ -176,7 +176,7 @@ export async function importPlay(admin: Admin, row: PlayRow, deps: GoogleDeps = 
     const token = await playToken(row, deps);
     const installs: Record<string, string>[] = [];
     const perf: Record<string, string>[] = [];
-    // 流入元（矢書の短縮リンクの UTM ごと。数字の段 3）。ない月はとばし、形が違えばその月の日に「読めなかった」の印を付ける
+    // 流入元（yabumi の短縮リンクの UTM ごと。数字の段 3）。ない月はとばし、形が違えばその月の日に「読めなかった」の印を付ける
     const utmDays: Record<string, PlayUtmDay> = {};
     const unreadableMonths: string[] = [];
     for (const m of months(now)) {
@@ -214,7 +214,7 @@ export async function importPlay(admin: Admin, row: PlayRow, deps: GoogleDeps = 
   }
 }
 
-// 外す: 矢書の側のサービスアカウントを消し（Play Console の招待も効かなくなる）、つなぎを消す。取り込んだ数字は残る
+// 外す: yabumi の側のサービスアカウントを消し（Play Console の招待も効かなくなる）、つなぎを消す。取り込んだ数字は残る
 export async function removePlay(admin: Admin, ownerId: string, projectId: string, deps: GoogleDeps = {}): Promise<void> {
   const { data: row } = await admin.from("play_connections").select("service_account_email").eq("project_id", projectId).eq("owner_id", ownerId).maybeSingle();
   if (!row) return;
@@ -222,7 +222,7 @@ export async function removePlay(admin: Admin, ownerId: string, projectId: strin
     const key = requireKey(deps);
     await deleteServiceAccount(await managerAccessToken(key, deps.fetch, deps.now?.()), row.service_account_email, deps.fetch);
   } catch (e) {
-    // 消せなくても、つなぎは消す（アカウントは鍵がなく、矢書からしか使えない）
+    // 消せなくても、つなぎは消す（アカウントは鍵がなく、yabumi からしか使えない）
     console.error("[play] サービスアカウントを消せませんでした", e instanceof Error ? e.message : e);
   }
   await admin.from("play_connections").delete().eq("project_id", projectId).eq("owner_id", ownerId);
@@ -281,7 +281,7 @@ export async function importAppStoreViews(admin: Admin, row: ViewsRow, deps: Goo
   }
 }
 
-// Apple が数えた、矢書のキャンペーンリンク（ct）ごとのはじめてのダウンロード（数字の段 5。App Store Downloads の Detailed）。
+// Apple が数えた、yabumi のキャンペーンリンク（ct）ごとのはじめてのダウンロード（数字の段 5。App Store Downloads の Detailed）。
 // Detailed は遅れて届き、あとの回で直ることがあるので、直近 14 日の回のうち新しい 7 つを毎日読み直し、古い順に上書きする。
 // 形が違う回は、その回の日（processingDate）に { unreadable: true } を入れて、画面で「読めませんでした」と出す
 export async function importAppStoreCampaigns(admin: Admin, row: ViewsRow, cred: AscCredential, deps: GoogleDeps = {}): Promise<number> {

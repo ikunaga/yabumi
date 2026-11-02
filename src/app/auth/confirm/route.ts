@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 const OTP_TYPES: EmailOtpType[] = ["email", "signup", "recovery", "email_change", "invite", "magiclink"];
 
 // メールのリンクから戻ってきたときの受け口（docs/architecture.md の 4.16）。
-// 矢書のメールのテンプレート（supabase/templates）は token_hash と type を付けて直接ここへ来る。
+// yabumi のメールのテンプレート（supabase/templates）は token_hash と type を付けて直接ここへ来る。
 // 別の端末で開いても使えるよう、こちらを基本にしている。
 // Supabase の既定のテンプレートのまま（本番で貼り忘れたときなど）は、Supabase で確かめたあと ?code= 付きで来るので、それも受ける
 export async function GET(request: NextRequest) {

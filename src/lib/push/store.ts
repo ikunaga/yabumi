@@ -94,7 +94,7 @@ export async function sendTestPush(admin: Db, userId: string, id: string, deps: 
     return { ok: false, message: `続けて送れません。${TEST_PUSH_INTERVAL_SECONDS} 秒ほどおいてから押してください。` };
   }
   await admin.from("push_subscriptions").update({ test_sent_at: new Date().toISOString() }).eq("id", id);
-  const result = await sendPush(admin, userId, { title: "矢書からのお知らせ", body: "この端末で通知を受け取れます。押すと矢書が開きます。", url: "/projects", tag: "test" }, { ...deps, onlyIds: [id] });
+  const result = await sendPush(admin, userId, { title: "yabumi からのお知らせ", body: "この端末で通知を受け取れます。押すと yabumi が開きます。", url: "/projects", tag: "test" }, { ...deps, onlyIds: [id] });
   if (result.sent) return { ok: true, result };
   if (result.removed) return { ok: false, message: "この端末には届けられなくなっていました。もう一度「この端末で通知を受け取る」を押してください。" };
   return { ok: false, message: "送れませんでした。時間をおいてもう一度お試しください。" };

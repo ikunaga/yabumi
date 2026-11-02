@@ -21,7 +21,7 @@ export function AppStoreConnectForm({ projectId }: { projectId: string }) {
       <Field label="Key ID" htmlFor="keyId" hint="作ったキーの行にある、英大文字と数字の ID">
         <Input id="keyId" name="keyId" autoComplete="off" spellCheck={false} placeholder="2X9R4HXF34" />
       </Field>
-      <Field label="秘密鍵（.p8 ファイル）" htmlFor="privateKey" hint="ダウンロードした .p8 ファイルを選ぶか、中身をそのまま貼ります。矢書は暗号化して保存し、二度と画面に出しません">
+      <Field label="秘密鍵（.p8 ファイル）" htmlFor="privateKey" hint="ダウンロードした .p8 ファイルを選ぶか、中身をそのまま貼ります。yabumi は暗号化して保存し、二度と画面に出しません">
         <input
           type="file"
           accept=".p8,text/plain"
@@ -64,7 +64,7 @@ export function RevenueCatForm({ projectId }: { projectId: string }) {
       <Field label="プロジェクトの ID" htmlFor="rcProjectId" hint="RevenueCat の Project settings にある ID（URL の /projects/ のあとの部分）">
         <Input id="rcProjectId" name="rcProjectId" autoComplete="off" spellCheck={false} placeholder="proj1ab2c3d4" className="max-w-[320px]" />
       </Field>
-      <Field label="シークレットキー（v2）" htmlFor="secretKey" hint="sk_ で始まる値。矢書は暗号化して保存し、二度と画面に出しません">
+      <Field label="シークレットキー（v2）" htmlFor="secretKey" hint="sk_ で始まる値。yabumi は暗号化して保存し、二度と画面に出しません">
         <Input id="secretKey" name="secretKey" type="password" autoComplete="off" spellCheck={false} placeholder="sk_…" />
       </Field>
       <div>

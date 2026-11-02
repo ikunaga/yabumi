@@ -91,7 +91,7 @@ describe("本文の URL の置き換え", () => {
 
 describe("短縮リンクのホストとパス", () => {
   const base = "https://go.yabumi.app";
-  it("go.yabumi.app/<code> は転送の処理（/go/<code>/_）に回す。/ だけなら矢書のトップへ", () => {
+  it("go.yabumi.app/<code> は転送の処理（/go/<code>/_）に回す。/ だけなら yabumi のトップへ", () => {
     expect(shortLinkRoute(new URL("https://go.yabumi.app/Ab3dE5fG?x=1"), base, "https://yabumi.app")).toEqual({ type: "rewrite", pathname: "/go/Ab3dE5fG/_" });
     expect(shortLinkRoute(new URL("https://go.yabumi.app/"), base, "https://yabumi.app")).toEqual({ type: "redirect", url: new URL("https://yabumi.app") });
   });
@@ -111,7 +111,7 @@ describe("短縮リンクのホストとパス", () => {
 });
 
 describe("行き先に使えるもの（悪用への備え）", () => {
-  it("https のふつうのサイトとストアだけ。IP アドレス・内部のホスト・矢書自身・ポート・認証情報つきは使えない", () => {
+  it("https のふつうのサイトとストアだけ。IP アドレス・内部のホスト・ yabumi 自身・ポート・認証情報つきは使えない", () => {
     expect(isValidDestination("https://apps.apple.com/jp/app/id1")).toBe(true);
     expect(isValidDestination("https://example.com/a?b=1")).toBe(true);
     for (const bad of [

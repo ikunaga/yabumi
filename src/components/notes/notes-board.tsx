@@ -453,13 +453,13 @@ function ShareHelp() {
         <div>
           <p className="font-bold">Android</p>
           <p>
-            Chrome で矢書を開き、メニューの「ホーム画面に追加」（アプリとしてインストール）をします。そのあと、ほかのアプリの「共有」で「矢書」を選ぶと、文・URL・画像 1 枚がネタ帳の新しいメモになります。
+            Chrome で yabumi を開き、メニューの「ホーム画面に追加」（アプリとしてインストール）をします。そのあと、ほかのアプリの「共有」で「yabumi」を選ぶと、文・URL・画像 1 枚がネタ帳の新しいメモになります。
           </p>
         </div>
         <div>
           <p className="font-bold">iPhone・iPad</p>
           <p>
-            Safari は、ほかのアプリの「共有」から Web のアプリに送る仕組みにまだ対応していません。代わりに「ショートカット」アプリで、共有から矢書を開く近道を作れます。
+            Safari は、ほかのアプリの「共有」から Web のアプリに送る仕組みにまだ対応していません。代わりに「ショートカット」アプリで、共有から yabumi を開く近道を作れます。
           </p>
           <ol className="mt-1 list-decimal pl-5">
             <li>ショートカットアプリで新しいショートカットを作り、「詳細」の「共有シートに表示」をオンにする（受け取るものは「テキスト」と「URL」）</li>
@@ -468,14 +468,14 @@ function ShareHelp() {
               アクション「URL を開く」に <code className="rounded-sm bg-surface2 px-1 break-all">{origin}/share#text=</code> と、そのあとに「URL エンコードされたテキスト」を続けて入れる
             </li>
           </ol>
-          <p className="mt-1 text-muted">画像は送れないので、写真は矢書の「＋ メモ」から選んでください。</p>
+          <p className="mt-1 text-muted">画像は送れないので、写真は yabumi の「＋ メモ」から選んでください。</p>
         </div>
         <div>
           <p className="font-bold">PC のブラウザ</p>
           <p>
             次のリンクをブックマークバーにドラッグすると、見ているページの題名と URL（選んだ文があればそれも）をネタ帳に送れます:{" "}
             <a ref={linkRef} className="font-semibold text-primary" onClick={(e) => e.preventDefault()}>
-              矢書のネタ帳へ
+             yabumi のネタ帳へ
             </a>
           </p>
         </div>

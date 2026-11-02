@@ -70,7 +70,7 @@ export async function createServiceAccount(key: ManagerKey, token: string, accou
   const { status, json } = await google<{ email?: string; error?: { message?: string } }>(
     `https://iam.googleapis.com/v1/projects/${encodeURIComponent(key.project_id)}/serviceAccounts`,
     token,
-    { method: "POST", body: JSON.stringify({ accountId, serviceAccount: { displayName: displayName.slice(0, 100), description: "矢書（yabumi）が Google Play の一括レポートを読むためのアカウント" } }) },
+    { method: "POST", body: JSON.stringify({ accountId, serviceAccount: { displayName: displayName.slice(0, 100), description: "yabumi （yabumi）が Google Play の一括レポートを読むためのアカウント" } }) },
     fetchImpl,
   );
   if (status === 429 || /quota/i.test(json.error?.message ?? "")) {
@@ -212,12 +212,12 @@ const toNum = (v: string | undefined) => {
   return Number.isFinite(n) ? n : 0;
 };
 
-// utm: Google Play が数えた、矢書の短縮リンク（UTM）ごとのストアの掲載情報からの獲得（はじめてのインストール。数字の段 3）。
+// utm: Google Play が数えた、yabumi の短縮リンク（UTM）ごとのストアの掲載情報からの獲得（はじめてのインストール。数字の段 3）。
 // utm_unreadable: 流入元のレポートはあったが、形が違って読めなかった日
 export type PlayDay = { downloads: number; uninstalls: number; page_views: number; store_acquisitions: number; utm?: PlayUtmDay; utm_unreadable?: true };
 
-// by_source: utm_source（矢書は SNS の名前、SNS を決めていないリンクは "link"）ごと。by_campaign: utm_campaign（短縮リンクのコード）ごと。
-// other: Google が、数が少ないため「Other」にまとめた分（矢書のリンク以外も入る）
+// by_source: utm_source（yabumi は SNS の名前、SNS を決めていないリンクは "link"）ごと。by_campaign: utm_campaign（短縮リンクのコード）ごと。
+// other: Google が、数が少ないため「Other」にまとめた分（yabumi のリンク以外も入る）
 export type PlayUtmDay = { by_source: Record<string, number>; by_campaign: Record<string, number>; other: number };
 
 // インストールの概要（installs_<package>_<YYYYMM>_overview.csv）と、ストアの掲載情報（store_performance_<package>_<YYYYMM>_country.csv）を、日ごとにまとめる
@@ -240,7 +240,7 @@ export function summarizePlay(installs: Record<string, string>[], storePerforman
   return days;
 }
 
-// 流入元のレポート（store_performance_<package>_<YYYYMM>_traffic_source.csv）の、矢書の短縮リンクから来た分を日ごとにまとめる。
+// 流入元のレポート（store_performance_<package>_<YYYYMM>_traffic_source.csv）の、yabumi の短縮リンクから来た分を日ごとにまとめる。
 // 列は Google の資料（2026-10-30 に確かめた）: Date, Package name, Traffic source, Search term, UTM source, UTM campaign,
 // Store listing acquisitions, Store listing visitors, Store listing conversion rate。数が少ない UTM は「Other」になる。
 // 検索語（Search term）は預からない。要る列がなければ readable: false（落とさずに「読めなかった」と出す）
@@ -289,7 +289,7 @@ export function packageFromUrl(url: string | null): string | null {
   }
 }
 
-// プロジェクトの、矢書が作った利用者ごとのアカウント（yabumi- で始まり、管理用のアカウントは除く）
+// プロジェクトの、yabumi が作った利用者ごとのアカウント（yabumi- で始まり、管理用のアカウントは除く）
 export async function listUserServiceAccounts(key: ManagerKey, token: string, fetchImpl: typeof fetch = fetch): Promise<string[]> {
   const emails: string[] = [];
   let pageToken = "";

@@ -117,11 +117,11 @@ describe("送る", () => {
 describe("メールの中身", () => {
   it("施行日・変わる点・ページへのリンク・送信者・問い合わせ先を書く", () => {
     const m = noticeMail("a@example.com", { version: "2026-11-20", docs: ["privacy"], summary: ["送り先に Google を足す"], adverse: false, noticeFrom: "2026-11-01" }, "https://yabumi.app");
-    expect(m.subject).toBe("矢書のプライバシーポリシーの変更のお知らせ");
+    expect(m.subject).toBe("yabumi のプライバシーポリシーの変更のお知らせ");
     expect(m.text).toContain("2026年11月20日から");
     expect(m.text).toContain("- 送り先に Google を足す");
     expect(m.text).toContain("https://yabumi.app/privacy#legal-notice");
-    expect(m.text).toContain("送信者: 矢書");
+    expect(m.text).toContain("送信者: yabumi");
     expect(m.text).toContain("お問い合わせ:");
   });
 });

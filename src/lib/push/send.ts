@@ -16,7 +16,7 @@ export type PushMessage = {
   title: string;
   // 80 字まで（超えたら「…」で切る）。投稿の本文などの中身は入れない（ロック画面に出る）
   body: string;
-  // 押したときに開く矢書の中のパス（「/」で始まるもの。ほかは「/」にする）
+  // 押したときに開く yabumi の中のパス（「/」で始まるもの。ほかは「/」にする）
   url: string;
   // 同じ tag の通知は新しいもので置き換わる（例 pace:<projectId>）
   tag?: string;
@@ -43,7 +43,7 @@ const defaultSender: PushSender = (target, payload, options) => webpush.sendNoti
 
 export function buildPayload(msg: PushMessage): PushPayload {
   return {
-    title: clip(msg.title, MAX_TITLE_CHARS) || "矢書",
+    title: clip(msg.title, MAX_TITLE_CHARS) || "yabumi",
     body: clip(msg.body, MAX_BODY_CHARS),
     url: safePath(msg.url),
     ...(msg.tag ? { tag: msg.tag.slice(0, 100) } : {}),

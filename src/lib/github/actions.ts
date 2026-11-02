@@ -31,7 +31,7 @@ export async function connectRepo(projectId: string, installationId: number, rep
   const { data: project } = await supabase.from("projects").select("id").eq("id", projectId).maybeSingle();
   const { data: inst } = await supabase.from("github_installations").select("installation_id").eq("installation_id", installationId).maybeSingle();
   if (!project || !inst) return { error: "プロジェクトか、つないだ GitHub が見つかりません。画面を読み込み直してください。" };
-  const notReadable = "そのリポジトリは読めません。GitHub の設定で、矢書に読ませるリポジトリに入っているか確かめてください。";
+  const notReadable = "そのリポジトリは読めません。GitHub の設定で、yabumi に読ませるリポジトリに入っているか確かめてください。";
   if (!(await userCanReadRepo(supabase, userId, installationId, repoId))) return { error: notReadable };
 
   try {

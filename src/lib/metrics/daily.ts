@@ -22,10 +22,10 @@ export type DailyNumbers = {
   // ダウンロードは期間の中で取り込んだいちばん古い日、クリックはいちばん古い短縮リンクを作った日（日本時間）。なければ null
   storeSince: string | null;
   linksSince: string | null;
-  // Google Play が数えた、矢書の短縮リンクごとの DL（日ごと。数字の段 3）と、流入元のレポートを読めなかった日があったか
+  // Google Play が数えた、yabumi の短縮リンクごとの DL（日ごと。数字の段 3）と、流入元のレポートを読めなかった日があったか
   playUtm: PlayUtmRow[];
   playUtmUnreadable: boolean;
-  // Apple が数えた、矢書のキャンペーンリンク（ct）ごとのはじめてのダウンロード（日ごと。数字の段 5）。other は使わない（0）
+  // Apple が数えた、yabumi のキャンペーンリンク（ct）ごとのはじめてのダウンロード（日ごと。数字の段 5）。other は使わない（0）
   appleCampaigns: PlayUtmRow[];
   appleCampaignsUnreadable: boolean;
   // App Store のページの閲覧数のレポートを読んでいるか（Analytics Reports の依頼をしている印。キャンペーンもこの依頼で読む）

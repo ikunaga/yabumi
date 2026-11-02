@@ -23,7 +23,7 @@ export function canPublish(sns: SnsKey): boolean {
   return adapters[sns] !== undefined;
 }
 
-// 送信ジョブ・「今すぐ送る」・取り消しに渡すもの。月の上限（矢書全体と利用者ごと）は呼ぶたびに環境変数から読む
+// 送信ジョブ・「今すぐ送る」・取り消しに渡すもの。月の上限（yabumi 全体と利用者ごと）は呼ぶたびに環境変数から読む
 export function publisherDeps(): PublisherDeps {
   return { adapters, budgetsUsd: { x: xMonthlyBudgetUsd() }, userBudgetsUsd: { x: xPostUserMonthlyUsd() } };
 }

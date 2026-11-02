@@ -5,7 +5,7 @@ import { LEGAL, operatorLabel, orPending } from "@/lib/legal/info";
 
 export const metadata: Metadata = {
   title: "利用規約",
-  description: "矢書（やぶみ）を使うときの約束",
+  description: "yabumi を使うときの約束",
 };
 
 // オーナーに確かめてほしい点は docs/legal.md。データの扱いはプライバシーポリシー（/privacy）と docs/architecture.md の 4.14
@@ -20,7 +20,7 @@ export default function TermsPage() {
       title="利用規約"
       lead={
         <p>
-          この規約は、矢書（やぶみ。以下「本サービス」）を使うときの、利用者と運営者 {operator}（以下「運営者」）との約束です。登録する前にお読みください。登録した時点で、この規約と
+          この規約は、yabumi（以下「本サービス」）を使うときの、利用者と運営者 {operator}（以下「運営者」）との約束です。登録する前にお読みください。登録した時点で、この規約と
           <Link href="/privacy" className="underline">
             プライバシーポリシー
           </Link>

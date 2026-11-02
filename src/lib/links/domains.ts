@@ -17,8 +17,8 @@ import { VercelApiError, vercelConfig, vercelDomains, type VercelDomains } from 
 
 // 短縮リンクに使う利用者のドメイン（F07、決定 D28。docs/architecture.md の 4.22）。
 // 足す: 枠を取る（claim_link_domain）→ Vercel のプロジェクトに足す → 入れてほしい DNS の行（CNAME と、要るなら TXT）を残す。
-// 確かめる: Vercel に所有の確認と DNS の向きを問い合わせ、矢書の持ち主の確認（_yabumi.<ドメイン> の TXT に利用者ごとの合言葉）を DNS over HTTPS で確かめ、
-// つながっていれば https でそのドメインの確認用のパスを開く（証明書まで出ているか）。矢書の持ち主の確認が通るまでは active にしない
+// 確かめる: Vercel に所有の確認と DNS の向きを問い合わせ、yabumi の持ち主の確認（_yabumi.<ドメイン> の TXT に利用者ごとの合言葉）を DNS over HTTPS で確かめ、
+// つながっていれば https でそのドメインの確認用のパスを開く（証明書まで出ているか）。yabumi の持ち主の確認が通るまでは active にしない
 // （Vercel は TXT を求めずに verified を返すことがあり、他人の使われなくなった CNAME を乗っ取れてしまうため。2026-10-12）。
 // つながらないまま 7 日たったものは取り消す（expire_link_domains）。毎日のジョブで、つながったものの TXT と CNAME が残っているか確かめる。
 // 外す: 行を消す（DB のトリガーが link_domain_removals に積む）→ Vercel から外す。外せなかったものは、次に誰かが足す・外すときにやり直す。
@@ -38,7 +38,7 @@ export type LinkDomainDeps = {
   vercel: VercelDomains | null;
   // DNS を引く（既定は DNS over HTTPS で 2 つのリゾルバに聞く。doh.ts）
   lookup?: Lookup;
-  // https://<domain>/__yabumi/link-check が矢書の答えを返すか（DNS と証明書がそろったか）
+  // https://<domain>/__yabumi/link-check が yabumi の答えを返すか（DNS と証明書がそろったか）
   probe?: (domain: string) => Promise<boolean>;
   limit?: number;
   now?: () => Date;
@@ -74,9 +74,9 @@ export async function getLinkDomain(db: Db, projectId: string): Promise<LinkDoma
   return data;
 }
 
-// そのプロジェクトの短縮リンクの URL の土台。つながった利用者のドメインがあればそれ、なければ矢書の短縮リンクのドメイン
+// そのプロジェクトの短縮リンクの URL の土台。つながった利用者のドメインがあればそれ、なければ yabumi の短縮リンクのドメイン
 export async function projectLinkBase(db: Db, projectId: string): Promise<string> {
-  // active で、矢書の持ち主の確認が済んだものだけ（確かめていないものは使わない。DB の check でも守る）
+  // active で、yabumi の持ち主の確認が済んだものだけ（確かめていないものは使わない。DB の check でも守る）
   const { data, error } = await db.from("link_domains").select("domain").eq("project_id", projectId).eq("status", "active").not("owner_verified_at", "is", null).maybeSingle();
   if (error) throw error;
   return data ? `https://${data.domain}` : shortLinkBase();
@@ -97,7 +97,7 @@ const CLAIM_ERRORS: Record<string, string> = {
   already: "自分のドメインは 1 人 1 つまでです（ほかのプロジェクトで使っています）。使っているものを外してから足してください。",
   taken: "このドメインは、ほかの方が使っているか、外している途中です。別のドメイン（例: go2.<あなたのドメイン>）にするか、時間をおいてお試しください。",
   daily: `ドメインを足せるのは 1 日に ${LINK_DOMAIN_DAILY_ATTEMPTS} 回までです。明日もう一度お試しください。`,
-  limit: "いま、自分のドメインを新しく受け付けられません（矢書全体の上限に達しています）。今のまま矢書のドメインの短縮リンクで数えられます。",
+  limit: "いま、自分のドメインを新しく受け付けられません（yabumi 全体の上限に達しています）。今のまま yabumi のドメインの短縮リンクで数えられます。",
 };
 
 export async function addLinkDomain(admin: Admin, input: { ownerId: string; projectId: string; domain: string }, deps: LinkDomainDeps): Promise<AddResult> {
@@ -154,7 +154,7 @@ export async function addLinkDomain(admin: Admin, input: { ownerId: string; proj
   return { ok: true };
 }
 
-// 矢書全体の数が上限に近づいたら（または達したら）、運営者に知らせる（7 日に 1 回）
+// yabumi 全体の数が上限に近づいたら（または達したら）、運営者に知らせる（7 日に 1 回）
 async function notifyNearLimit(admin: Admin, limit: number, deps: LinkDomainDeps, reached: boolean) {
   try {
     const [{ count: used }, { count: removing }] = await Promise.all([
@@ -171,7 +171,7 @@ async function notifyNearLimit(admin: Admin, limit: number, deps: LinkDomainDeps
         subject: reached ? "短縮リンクの利用者のドメインが上限に達しました" : "短縮リンクの利用者のドメインが上限に近づいています",
         text: [
           `利用者のドメイン（外す途中を含む）: ${total} / ${limit}`,
-          "Vercel Hobby は 1 プロジェクトにドメイン 50 までです（矢書の分を除いて利用者は 40 まで。LINK_DOMAIN_LIMIT）。",
+          "Vercel Hobby は 1 プロジェクトにドメイン 50 までです（yabumi の分を除いて利用者は 40 まで。LINK_DOMAIN_LIMIT）。",
           "Pro にして LINK_DOMAIN_LIMIT を上げるか、受け付けを止めるかを決めてください（docs/architecture.md の 4.22）。",
         ].join("\n"),
       },
@@ -195,7 +195,7 @@ async function classifyDns(domain: string, expected: string, lookup: Lookup): Pr
   return a.records.length ? "wrong_value" : "dns_missing";
 }
 
-// 矢書の持ち主の確認の TXT が見えるか（どちらかのリゾルバに見えればよい）
+// yabumi の持ち主の確認の TXT が見えるか（どちらかのリゾルバに見えればよい）
 async function ownerTxtFound(domain: string, token: string, lookup: Lookup): Promise<boolean> {
   if (!token) return false;
   const txt = await lookup(ownershipRecordName(domain), "TXT");
@@ -231,7 +231,7 @@ export async function checkLinkDomain(admin: Admin, input: { ownerId: string; pr
         throw e;
       });
     }
-    // 2. 矢書の持ち主の確認（利用者ごとの合言葉）
+    // 2. yabumi の持ち主の確認（利用者ごとの合言葉）
     const owner = await ownerTxtFound(row.domain, row.ownership_token, lookup);
     // 3. DNS の向き
     const config = await deps.vercel.config(row.domain);
@@ -320,13 +320,13 @@ export type RecheckReport = { checked: number; lost: number; unknown: number; un
 
 // DNS で確かめられない（リゾルバが答えない）まま、つながりを残しておける日数。超えたら閉じる側に倒す
 export const UNCONFIRMED_DAYS = 3;
-// 1 回の見回りで、確かめられずに戻したものがこの数以上なら、矢書の側の異常（DNS over HTTPS に届かない）として運営者に知らせる
+// 1 回の見回りで、確かめられずに戻したものがこの数以上なら、yabumi の側の異常（DNS over HTTPS に届かない）として運営者に知らせる
 export const UNCONFIRMED_NOTIFY_AT = 3;
 
-// 毎日のジョブ: つながったドメインの、矢書の持ち主の確認の TXT と CNAME がまだ残っているかを確かめ、外れていたら矢書のドメインに戻す
+// 毎日のジョブ: つながったドメインの、yabumi の持ち主の確認の TXT と CNAME がまだ残っているかを確かめ、外れていたら yabumi のドメインに戻す
 // （持ち主がドメインを手放したり DNS の行を消したりしたあとに、別の人のリンクがそのドメインで開かないように）。
 // リゾルバがどれも答えなかったものは、その日は外さないが、最後に確かめられてから 3 日を超えたら戻す（確かめられないときは閉じる側に倒す）。
-// 戻したものが多ければ、矢書の側の異常として運営者に知らせる。最後に、つながらないまま 7 日たったものを取り消す
+// 戻したものが多ければ、yabumi の側の異常として運営者に知らせる。最後に、つながらないまま 7 日たったものを取り消す
 export async function recheckLinkDomains(admin: Admin, deps: LinkDomainDeps, max = 500): Promise<RecheckReport> {
   const lookup = deps.lookup ?? dohLookup();
   const now = (deps.now ?? (() => new Date()))();
@@ -372,8 +372,8 @@ export async function recheckLinkDomains(admin: Admin, deps: LinkDomainDeps, max
       {
         subject: "利用者のドメインの DNS を確かめられません",
         text: [
-          `毎日の見回りで、DNS over HTTPS（Cloudflare・Google）が答えないまま ${UNCONFIRMED_DAYS} 日を超えたドメインを ${report.unconfirmed} 件、矢書のドメインに戻しました（確かめた ${report.checked} 件、答えがなかった ${report.unknown} 件）。`,
-          "矢書の側（Vercel から cloudflare-dns.com・dns.google に届かない）の異常の可能性があります。Vercel のログの [jobs/check-link-domains] を見てください（docs/architecture.md の 4.22）。",
+          `毎日の見回りで、DNS over HTTPS（Cloudflare・Google）が答えないまま ${UNCONFIRMED_DAYS} 日を超えたドメインを ${report.unconfirmed} 件、yabumi のドメインに戻しました（確かめた ${report.checked} 件、答えがなかった ${report.unknown} 件）。`,
+          "yabumi の側（Vercel から cloudflare-dns.com・dns.google に届かない）の異常の可能性があります。Vercel のログの [jobs/check-link-domains] を見てください（docs/architecture.md の 4.22）。",
           "直ったら、利用者が「確かめる」を押せば、またつながります。",
         ].join("\n"),
       },

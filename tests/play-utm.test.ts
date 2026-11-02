@@ -1,4 +1,4 @@
-// Google Play が数えた、矢書の短縮リンクごとの DL（src/lib/metrics/play-utm.ts。数字の段 3）
+// Google Play が数えた、yabumi の短縮リンクごとの DL（src/lib/metrics/play-utm.ts。数字の段 3）
 import { describe, expect, it } from "vitest";
 import { campaignTotal, sumPlayUtm, type PlayUtmRow } from "@/lib/metrics/play-utm";
 

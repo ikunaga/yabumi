@@ -6,7 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export const maxDuration = 60;
 
 // 短縮リンクの利用者のドメインの見回り（docs/architecture.md の 4.22、D28）。pg_cron から毎日呼ばれる。
-// つながったドメインの DNS（矢書の持ち主の確認の TXT と CNAME）がまだ残っているかを確かめて、外れていたら矢書のドメインに戻し、
+// つながったドメインの DNS（yabumi の持ち主の確認の TXT と CNAME）がまだ残っているかを確かめて、外れていたら yabumi のドメインに戻し、
 // つながらないまま 7 日たったものを取り消し、外す途中のものを Vercel から外す
 export async function POST(request: NextRequest) {
   if (!isAuthorizedJob(request.headers.get("authorization"))) {

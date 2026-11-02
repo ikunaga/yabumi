@@ -8,7 +8,7 @@
 
 出典: [機密性の高いスコープの確認](https://developers.google.com/identity/protocols/oauth2/production-readiness/sensitive-scope-verification)、[確認の要件](https://support.google.com/cloud/answer/13464321)、[ドメインの確認](https://developers.google.com/identity/verification/authentication-verification)、[Google API サービスのユーザーデータに関するポリシー](https://developers.google.com/terms/api-services-user-data-policy)
 
-| 要るもの | 中身 | 矢書の状態 |
+| 要るもの | 中身 | yabumi の状態 |
 |---|---|---|
 | **独自ドメイン** | ホームページ・プライバシーポリシーは、自分が持っていると Search Console で証明したドメインに置く。`vercel.app` は Public Suffix List に載っているので、`yabumi.vercel.app` は自分のドメインとして証明できない | yabumi.app を使う（README の R1）。Search Console で「ドメイン」として足し、Cloudflare の DNS に TXT を入れて確かめる |
 | ホームページ | 外から開け、アプリの機能を説明している（ログインの画面だけは不可） | トップ（/）。済み |
@@ -45,15 +45,15 @@
   - YouTube API サービスを使っていること
   - [Google のプライバシーポリシー](https://policies.google.com/privacy)へのリンク
   - YouTube から読む・保存するデータと、その使い道・渡す先
-  - Google のセキュリティの設定（https://myaccount.google.com/permissions）から、矢書へのアクセスを取り消せること
+  - Google のセキュリティの設定（https://myaccount.google.com/permissions）から、yabumi へのアクセスを取り消せること
   - 連絡先
-- 削除の期限: 矢書の中で外したら 7 日以内、Google の設定で取り消されたら 30 日以内に消す。保存した YouTube のデータは 30 日ごとに消すか読み直す
+- 削除の期限: yabumi の中で外したら 7 日以内、Google の設定で取り消されたら 30 日以内に消す。保存した YouTube のデータは 30 日ごとに消すか読み直す
 
 ## 投稿の画面の決まり
 
-- タイトル（100 字まで）、説明（5,000 バイトまで）、公開範囲（公開・非公開・限定公開）、子ども向けかどうか（selfDeclaredMadeForKids。COPPA のため、どの動画でも決める）を利用者が決める。矢書は利用者の入れた値を書き換えず、説明に文を足さない
+- タイトル（100 字まで）、説明（5,000 バイトまで）、公開範囲（公開・非公開・限定公開）、子ども向けかどうか（selfDeclaredMadeForKids。COPPA のため、どの動画でも決める）を利用者が決める。yabumi は利用者の入れた値を書き換えず、説明に文を足さない
 - 書き込みの前に、はっきり同意をもらう。公開範囲を勝手に変えない
-- 複数の SNS に送れる画面では、送り先を利用者が選べる（矢書は済み）
+- 複数の SNS に送れる画面では、送り先を利用者が選べる（yabumi は済み）
 
 ## オーナーの作業（つなぐ機能を作るとき）
 

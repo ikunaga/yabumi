@@ -1,4 +1,4 @@
-# 矢書（やぶみ）アーキテクチャ案
+# yabumi アーキテクチャ案
 
 - **作成日**: 2026-10-02
 - **状態**: 案（実装着手前。技術検証の結果で変わりうる）
@@ -134,7 +134,7 @@ APP_URL（ローカルは https://localhost:3100）にパスを付けたもの�
 | Meta の設定 | パス | 内容 |
 |---|---|---|
 | Redirect Callback URL | /sns/threads/callback | 認可画面からの戻り先 |
-| Uninstall Callback URL | /sns/threads/uninstall | 利用者が Threads 側で矢書を外したとき。トークンを消し、アカウントを「解除済み」にする（過去の投稿の記録のため行は残す） |
+| Uninstall Callback URL | /sns/threads/uninstall | 利用者が Threads 側で yabumi を外したとき。トークンを消し、アカウントを「解除済み」にする（過去の投稿の記録のため行は残す） |
 | Delete Callback URL | /sns/threads/delete | 利用者がデータの削除を求めたとき。アカウントとトークンを消し、確認ページ（/sns/threads/deletion）の URL と確認コードを返す |
 
 アンインストールと削除の通知は Meta からの POST で、signed_request の署名（アプリシークレットによる HMAC-SHA256）を確かめてから処理する。ログインなしで届くので proxy の公開パスに入れている。
@@ -237,7 +237,7 @@ pg_cron（毎日 3:00）→ 同上 → /api/jobs/refresh-tokens
 
 #### SNS 上での取り消し
 
-送信済みの配信先は、投稿の画面の「送信の結果」から SNS 上で取り消せる（Threads は threads_delete）。取り消しても矢書の下書きは残り、配信先の状態は deleted になる。矢書で投稿を削除しても、SNS 上の投稿は消えない。
+送信済みの配信先は、投稿の画面の「送信の結果」から SNS 上で取り消せる（Threads は threads_delete）。取り消しても yabumi の下書きは残り、配信先の状態は deleted になる。yabumi で投稿を削除しても、SNS 上の投稿は消えない。
 
 ### 4.8 アカウント設計のデータ（F15）
 
@@ -313,15 +313,15 @@ pg_cron（毎日 3:00）→ 同上 → /api/jobs/refresh-tokens
 | 上限 | 既定値 | 環境変数 | 超えたとき |
 |---|---|---|---|
 | 利用者ごとの月の費用 | $3（設計 3 回分ほど） | AI_USER_MONTHLY_BUDGET_USD | 来月まで AI を使えない。手での入力はできる |
-| 矢書全体の月の費用 | $10（約 1,500 円） | AI_GLOBAL_MONTHLY_BUDGET_USD | 全員、来月まで AI を使えない |
+| yabumi 全体の月の費用 | $10（約 1,500 円） | AI_GLOBAL_MONTHLY_BUDGET_USD | 全員、来月まで AI を使えない |
 | 利用者ごとの 1 日の往復回数 | 60 回 | AI_USER_DAILY_TURNS | 翌日まで使えない |
 | 1 つの会話の往復回数 | 80 回 | （コード） | 新しい会話を始めてもらう（履歴が長くなりすぎて費用が膨らむのを防ぐ） |
 | 1 回の発言の長さ | 2,000 字 | （コード） | 送れない |
 
 - 費用は ai_usage に、返事のたびに料金表から計算して記録する（断られた・形が合わなかった返事の分も数える）。月と日の区切りは日本時間
-- 上限の判定に使う合計（矢書全体の今月・本人の今月・本人の今日の回数）は、DB の ai_usage_totals で出す。行を読んで画面側で足すと、Supabase の API が 1 回に 1,000 行までしか返さないので数え漏れ、上限を超えても使えてしまう（2026-10-11 に見つけて直した）
-- 矢書全体の今月の費用が AI_GLOBAL_MONTHLY_BUDGET_USD の 80% 以上になったら、運営者にメールで知らせる（上限の判定のたびに確かめ、月に 1 回。src/lib/notify/budget.ts、4.13 の X と同じ）
-- 念のため、Claude Console の側でも月の利用上限（例: $15）を設定しておく。矢書の計算がずれても、それ以上は請求されない
+- 上限の判定に使う合計（yabumi 全体の今月・本人の今月・本人の今日の回数）は、DB の ai_usage_totals で出す。行を読んで画面側で足すと、Supabase の API が 1 回に 1,000 行までしか返さないので数え漏れ、上限を超えても使えてしまう（2026-10-11 に見つけて直した）
+- yabumi 全体の今月の費用が AI_GLOBAL_MONTHLY_BUDGET_USD の 80% 以上になったら、運営者にメールで知らせる（上限の判定のたびに確かめ、月に 1 回。src/lib/notify/budget.ts、4.13 の X と同じ）
+- 念のため、Claude Console の側でも月の利用上限（例: $15）を設定しておく。yabumi の計算がずれても、それ以上は請求されない
 - 他の AI 機能（ネタ出し 4.15、AI っぽさチェックなど）を足すときも、同じ ai_usage と上限を使う
 
 ### 4.10 GitHub のリポジトリから、アプリの紹介文を下書きする（F16、決定 D14）
@@ -345,7 +345,7 @@ pg_cron（毎日 3:00）→ 同上 → /api/jobs/refresh-tokens
 
 #### 他の人が入れるとき（Any account、2026-10-11）
 
-App を「Any account」（公開）にすると、他の人の個人アカウントや組織にも入れられる。そのとき、**インストールのトークンで読める範囲が、矢書の利用者本人の権限より広い**ことがある。
+App を「Any account」（公開）にすると、他の人の個人アカウントや組織にも入れられる。そのとき、**インストールのトークンで読める範囲が、yabumi の利用者本人の権限より広い**ことがある。
 
 - /user/installations は、本人がインストールのリポジトリの**どれか 1 つにでも**権限（所有・共同作業者・組織のメンバー）があれば、そのインストールを返す（[GitHub の資料](https://docs.github.com/en/rest/apps/installations#list-app-installations-accessible-to-the-user-access-token)）。たとえば ① 組織のインストールで、本人がチームの都合で見られない非公開リポジトリ ② 他の人の個人リポジトリに共同作業者として入っているときの、その人の他のリポジトリ。どちらもインストールのトークンなら読めてしまう
 - そこで、認可のときに利用者のトークンで /user/installations/{id}/repositories（本人が権限を持つリポジトリだけを返す）を読み、その ID を github_installations.repo_ids に記録する。インストール先が本人の個人アカウント（アカウントの ID が、認可した本人の GitHub の ID と同じ。名前は変えられるので ID で比べる）なら null（インストールの範囲すべて。範囲は本人が「Only select repositories」で選んだもの）
@@ -369,7 +369,7 @@ README が薄い個人開発のリポジトリやモノレポでも中身がわ�
 - 読んではいけないもの（一覧にも出さず、AI が選んでも読まない）: .env*、鍵・証明書（.pem / .p8 / .p12 / .keystore など）、google-services.json、GoogleService-Info.plist、credentials・secrets を名前に含むもの、node_modules や Pods などの依存物、画像・フォント・動画・圧縮ファイル、ロックファイル、200KB を超えるファイル
 - 上限: 1 ファイル 15,000 字、全体 50,000 字、15 件。念のため、鍵やトークンらしき文字列は伏せてから AI に渡す
 - 読んだ中身は AI に渡すだけで保存しない。AI の下書きも保存せず、利用者が採用した紹介文だけを保存する
-- 紹介文には、わかったことだけを書く。「読み取れませんでした」のような文は書かせず、もし入っていたら消す。どのファイルを読んだか・読まなかったかなどの矢書の側の事情は、利用者に見せない（読んだファイルの一覧は、折りたたんで見られるようにする）
+- 紹介文には、わかったことだけを書く。「読み取れませんでした」のような文は書かせず、もし入っていたら消す。どのファイルを読んだか・読まなかったかなどの yabumi の側の事情は、利用者に見せない（読んだファイルの一覧は、折りたたんで見られるようにする）
 
 #### プロンプトインジェクション対策
 
@@ -404,7 +404,7 @@ README が薄い個人開発のリポジトリやモノレポでも中身がわ�
 #### Supabase Free の一時停止
 
 - 条件: 「直近 1 週間に、十分なデータベースの利用がない」と一時停止される（[Supabase の資料](https://supabase.com/docs/guides/platform/free-project-pausing)。ダッシュボードを開く・API を呼ぶ・アプリからのリクエストが利用に数えられ、1 日に数回あれば足りる）。止まる約 1 週間前と、止まったときにメールが来る。止まっても 1 年以内なら戻せる
-- 矢書では、pg_cron が毎分 Vercel の /api/jobs/publish を呼び、そこから毎回 Supabase の API（claim_due_targets）を呼ぶ。つまり**毎分、アプリから API が呼ばれる**ので、止まる条件には当たらないと考える。オーナーが毎日使うことでも利用になる
+- yabumi では、pg_cron が毎分 Vercel の /api/jobs/publish を呼び、そこから毎回 Supabase の API（claim_due_targets）を呼ぶ。つまり**毎分、アプリから API が呼ばれる**ので、止まる条件には当たらないと考える。オーナーが毎日使うことでも利用になる
 - ただし、pg_cron は DB の中で動くので、一度止まると自分では起こせない（止まると予約が送られなくなる）。そこで次の 2 つで気づけるようにした
   - Supabase からの事前のメール（約 1 週間前）
   - 概要の「要確認」に、「予約時刻を 10 分以上過ぎても送られていない投稿」を出す（src/lib/posts/overdue.ts）。ジョブが止まった・Vercel が失敗した・Vault の設定が違う、のどれでも気づける
@@ -421,8 +421,8 @@ README が薄い個人開発のリポジトリやモノレポでも中身がわ�
 
 #### 登録できる人
 
-- 本番はオーナーだけが使う。オーナーのアカウントは Supabase の画面で「確認済み」として作り、Supabase の「新規登録を許可」をオフにする。矢書の画面からも、公開キーで Supabase の API を直接呼んでも、新しいアカウントは作れない
-- 念のため、矢書の側でも ALLOWED_SIGNUP_EMAILS（空なら登録を閉じる、アドレスを並べればそれだけ許す）で絞る（src/lib/auth/signup-policy.ts）。ローカルでは未設定で、誰でも登録できる
+- 本番はオーナーだけが使う。オーナーのアカウントは Supabase の画面で「確認済み」として作り、Supabase の「新規登録を許可」をオフにする。yabumi の画面からも、公開キーで Supabase の API を直接呼んでも、新しいアカウントは作れない
+- 念のため、yabumi の側でも ALLOWED_SIGNUP_EMAILS（空なら登録を閉じる、アドレスを並べればそれだけ許す）で絞る（src/lib/auth/signup-policy.ts）。ローカルでは未設定で、誰でも登録できる
 - 確認メールを使わないのは、いまの確認メールの受け口（/auth/confirm）が Supabase の既定のメールの形と合っていないため。他の人に提供するときに、メールのテンプレートと合わせて直す
 
 #### 本番のための変更
@@ -444,7 +444,7 @@ README が薄い個人開発のリポジトリやモノレポでも中身がわ�
 
 #### 扱い
 
-- SNS の定義に delivery（auto = 矢書が送る / manual = 利用者が手で投稿する）を持たせ、note と Substack を manual にした（src/lib/sns/index.ts、DB の is_manual_sns()）
+- SNS の定義に delivery（auto = yabumi が送る / manual = 利用者が手で投稿する）を持たせ、note と Substack を manual にした（src/lib/sns/index.ts、DB の is_manual_sns()）
 - 長文向けなので、配信先にタイトル（post_targets.title、200 字まで）を持つ。本文の上限は公表されていないので上限なし。タイトルがないと予約できない
 - 手で投稿する流れ: 投稿の画面の「送信の結果」で「タイトルをコピー」「本文をコピー」→「投稿の画面を開く」（note は https://note.com/notes/new、Substack は登録したプロフィールの URL から {origin}/publish/post）→ 利用者が手で投稿 →「投稿した」（投稿の URL は任意）で mark_manual_target_posted() が送信済みにする。送信の状態は利用者が直接書き換えられない（4.7）ので、この関数が本人の・手で投稿する SNS の配信先だけを書き換える
 - 予約の日時は「この日に投稿する予定」として扱う。予約ジョブ（claim_due_targets）は手で投稿する SNS を拾わない。時刻が来たら、概要の「手で投稿する番です」に出す。「止まった予約」の検知（4.11）からは外す
@@ -463,9 +463,9 @@ README が薄い個人開発のリポジトリやモノレポでも中身がわ�
 #### 料金（T1）
 
 - 2026 年 2 月に、月額のプラン（Free・Basic・Pro）は新規に申し込めなくなり、使った分だけ払う方式（pay-per-use）だけになった。**無料で投稿できる枠はない**。Developer Console（console.x.com）で先にクレジットを買い、呼ぶたびに差し引かれる（[X の料金のページ](https://docs.x.com/x-api/getting-started/pricing)）
-- 矢書が使う操作の単価:
+- yabumi が使う操作の単価:
 
-| 操作 | 単価 | 矢書で使う場面 |
+| 操作 | 単価 | yabumi で使う場面 |
 |---|---|---|
 | 投稿する（URL なし） | $0.015 | 送信 |
 | 投稿する（本文に URL がある） | $0.200 | 送信。2026-04-20 に $0.01 から上がった（スパム対策とされる） |
@@ -505,9 +505,9 @@ README が薄い個人開発のリポジトリやモノレポでも中身がわ�
 | 取り直し | 送る・取り消すときに、アクセストークンの残りが 5 分を切っていれば取り直す。DB の claim_token_refresh() で「延長中」（30 秒）にできた 1 か所だけが X に取り直しを頼み、ほかは終わるのを待って新しいトークンを読む。X への呼び出しは 20 秒で打ち切る（延長中のまま 30 秒を過ぎて二重になるのを防ぐ）。invalid_grant などで取り直せなければ、アカウントを期限切れにして「つなぎ直す」を出す |
 | 日次のジョブ | アクセストークンが切れていても期限切れにはしない（送るときに取り直す）。30 日取り直していなければ、使われないリフレッシュトークンが古くならないよう取り直す |
 | 送る・取り消す | POST /2/tweets。URL は `https://x.com/i/web/status/{id}`。取り消しは DELETE /2/tweets/{id}（無料） |
-| 費用の記録 | sns_api_usage（本人だけ読める・利用者は書けない。ai_usage と同じ考え方）。送る前に reserve_sns_spend() で記録し、月（日本時間）の合計が上限（利用者ごと・矢書全体）を超えるなら記録せずに送らない。同じ SNS の記録はアドバイザリロックで順に行うので、ジョブと「今すぐ送る」が重なっても超えない。送れなかったと確かなとき（上限・内容の問題・接続切れ）は記録を消し、投稿されたかわからないとき（X 側の障害・通信切れ）は払った見込みとして残す |
-| 月の上限 | 2 つある。① 利用者ごと: X_POST_USER_MONTHLY_USD（既定 $1。URL つきなら 5 本）。数えるのは X の投稿まわり（post・post_with_url・post_read・user_read）で、X の数字（metrics_read・followers_read）は別の上限（4.22）。② 矢書全体: X_MONTHLY_BUDGET_USD（既定 $3。投稿と数字の合計）。reserve_sns_spend() が、同じ X のロックの中で ① ② の順に確かめる（p_user_budget_usd・p_budget_usd。p_scope_owner は ② を数える範囲で、テストだけで使う。① は常にその利用者の記録を数える）ので、同時に送っても超えない。① に達したら「今月の X の自動投稿の上限（1 人 $1）に達しました」、② なら「今月の X の上限（矢書全体で $3）に達しました」で失敗にし、その人の X だけ止まる（ほかの人は ② の中で送れる）。どちらも送信の結果に「X に手で投稿する」（本文入りの x.com/intent/post を開く → 投稿したら URL を記録。mark_manual_target_posted() が、送れなかった X の配信先も受け付ける）を出す。プロジェクトの設定の「つないだ SNS」の X の行に、本人の今月の費用（うち投稿まわり）と本人の上限、矢書全体の上限に達したかを出す（ほかの人の使った額は見せない）。2026-10-11 に ① を足した（docs/cost-review.md の「見つけた穴」。それまでは ② だけで、1 人が URL つきを 15 本送ると全員が止まった）。値は料金プラン（cost-review.md の C4〜C6）で変わる前提で、プランの仕組みは作らず環境変数で変える |
-| 運営者への知らせ | 矢書全体の今月の X の費用が ② の 80% 以上になったら、運営者にメールで知らせる（src/lib/notify/budget.ts、D22 の notifyOperatorOnce。月に 1 回。本文は額と上限と確かめ方だけ）。送信・確認の読み取り・数字の読み取りで費用を記録したあとに確かめる。AI の全体の上限（AI_GLOBAL_MONTHLY_BUDGET_USD）の 80% も同じ（4.9） |
+| 費用の記録 | sns_api_usage（本人だけ読める・利用者は書けない。ai_usage と同じ考え方）。送る前に reserve_sns_spend() で記録し、月（日本時間）の合計が上限（利用者ごと・ yabumi 全体）を超えるなら記録せずに送らない。同じ SNS の記録はアドバイザリロックで順に行うので、ジョブと「今すぐ送る」が重なっても超えない。送れなかったと確かなとき（上限・内容の問題・接続切れ）は記録を消し、投稿されたかわからないとき（X 側の障害・通信切れ）は払った見込みとして残す |
+| 月の上限 | 2 つある。① 利用者ごと: X_POST_USER_MONTHLY_USD（既定 $1。URL つきなら 5 本）。数えるのは X の投稿まわり（post・post_with_url・post_read・user_read）で、X の数字（metrics_read・followers_read）は別の上限（4.22）。② yabumi 全体: X_MONTHLY_BUDGET_USD（既定 $3。投稿と数字の合計）。reserve_sns_spend() が、同じ X のロックの中で ① ② の順に確かめる（p_user_budget_usd・p_budget_usd。p_scope_owner は ② を数える範囲で、テストだけで使う。① は常にその利用者の記録を数える）ので、同時に送っても超えない。① に達したら「今月の X の自動投稿の上限（1 人 $1）に達しました」、② なら「今月の X の上限（yabumi 全体で $3）に達しました」で失敗にし、その人の X だけ止まる（ほかの人は ② の中で送れる）。どちらも送信の結果に「X に手で投稿する」（本文入りの x.com/intent/post を開く → 投稿したら URL を記録。mark_manual_target_posted() が、送れなかった X の配信先も受け付ける）を出す。プロジェクトの設定の「つないだ SNS」の X の行に、本人の今月の費用（うち投稿まわり）と本人の上限、yabumi 全体の上限に達したかを出す（ほかの人の使った額は見せない）。2026-10-11 に ① を足した（docs/cost-review.md の「見つけた穴」。それまでは ② だけで、1 人が URL つきを 15 本送ると全員が止まった）。値は料金プラン（cost-review.md の C4〜C6）で変わる前提で、プランの仕組みは作らず環境変数で変える |
+| 運営者への知らせ | yabumi 全体の今月の X の費用が ② の 80% 以上になったら、運営者にメールで知らせる（src/lib/notify/budget.ts、D22 の notifyOperatorOnce。月に 1 回。本文は額と上限と確かめ方だけ）。送信・確認の読み取り・数字の読み取りで費用を記録したあとに確かめる。AI の全体の上限（AI_GLOBAL_MONTHLY_BUDGET_USD）の 80% も同じ（4.9） |
 | X 側で断られたとき | 401 は接続切れ。402・429・UsageCapExceeded・CreditsDepleted は、やり直すと失敗や費用が重なるので自動でやり直さず「要確認」（手で投稿の案内つき）。投稿中の 5xx・通信切れは、投稿されたかわからないので「要確認」（二重投稿を避ける）。同じ文面の 403 は文面を変えるよう案内する |
 | 作成画面 | X を選び、X 向けの本文に URL があるとき、費用の差（$0.20 と $0.015）と代わりの案（URL はプロフィールに置く、X 用に文面を変えて URL を外す）を出す |
 
@@ -525,7 +525,7 @@ README が薄い個人開発のリポジトリやモノレポでも中身がわ�
 | Callback URI / Redirect URL | `https://localhost:3100/sns/x/callback` と、本番の `https://yabumi.app/sns/x/callback`（1 つのアプリに並べて登録する） |
 | Website URL | `https://yabumi.app` |
 | 環境変数 | X_CLIENT_ID、X_CLIENT_SECRET（OAuth 2.0 の Client ID と Client Secret）。X_MONTHLY_BUDGET_USD は空なら $3、X_POST_USER_MONTHLY_USD は空なら $1 |
-| 支払い | Developer Console でクレジットを買い、Spending limit を矢書の上限より少し上（$5 など）にする。矢書の上限を何かの理由ですり抜けても、X 側で止まる |
+| 支払い | Developer Console でクレジットを買い、Spending limit を yabumi の上限より少し上（$5 など）にする。yabumi の上限を何かの理由ですり抜けても、X 側で止まる |
 
 #### 画像（フェーズ 5、今回は作らない）
 
@@ -545,7 +545,7 @@ README が薄い個人開発のリポジトリやモノレポでも中身がわ�
 | AI の利用量（トークン数と費用。会話の中身は入らない） | ai_usage | **13 か月**で自動で消す。退会したときは利用者との紐づけを外して残す（月の上限の計算と費用の記録のため） | 消せない（中身を含まないため） |
 | SNS の API の費用（X に払った額。投稿の中身は入らない） | sns_api_usage | 同上（13 か月、退会したら紐づけを外す） | 同上 |
 | SNS のトークン（暗号化済み） | social_account_tokens | SNS をつないでいる間 | 「つないだ SNS」の「外す」、退会。すぐに消す |
-| SNS のアカウントの情報（SNS の ID、ユーザー名、表示名） | social_accounts | つないでいる間 | 「外す」、退会。外しても、矢書で書いた本文と送った記録は残る（SNS 上の投稿の ID・URL は消す。下の「SNS を外す」） |
+| SNS のアカウントの情報（SNS の ID、ユーザー名、表示名） | social_accounts | つないでいる間 | 「外す」、退会。外しても、yabumi で書いた本文と送った記録は残る（SNS 上の投稿の ID・URL は消す。下の「SNS を外す」） |
 | Facebook ページを選ぶまでのページの一覧と、暗号化したページのトークン | pending_page_choices | **15 分**で自動で消す。選んだらすぐに消す（4.21） | ― |
 | GitHub（インストールの ID、本人が読めるリポジトリの ID、つないだリポジトリの名前、最後に読んだ日時） | github_installations / project_github_repos | つないでいる間 | 「リポジトリを外す」、退会 |
 | GitHub のファイルの中身、コミット（メッセージと差分） | 保存しない | 紹介文やネタを作るときに読み、AI（Anthropic）に送るだけ（4.10、4.15） | ― |
@@ -559,7 +559,7 @@ README が薄い個人開発のリポジトリやモノレポでも中身がわ�
 | note・Substack の数字（利用者が手で入れた閲覧・反応） | manual_post_metrics | 投稿を消すか、退会まで | 投稿の削除、退会 |
 | 預かったストア・課金の鍵（App Store Connect の API キー、RevenueCat のキー。暗号化済み） | store_credentials | 外すか、プロジェクトを消すか、退会まで | 「ストアと課金をつなぐ」の「外す」、退会。すぐに消す |
 | ストアと課金の日ごとの数字（ダウンロード、受け取り、売上など） | store_daily | 利用者がプロジェクトを消すか、退会まで | プロジェクトの削除、退会 |
-| Google Play のつなぎ（矢書が作った読み取り用のアカウントのメールアドレス、バケット、パッケージ名） | play_connections | 外すか、プロジェクトを消すか、退会まで（外すと Google の側のアカウントも消す） | 「外す」、退会（退会やプロジェクトの削除では記録が先に消えるので、毎日の取り込みのときに、記録のない矢書のアカウントを Google の側で消す） |
+| Google Play のつなぎ（yabumi が作った読み取り用のアカウントのメールアドレス、バケット、パッケージ名） | play_connections | 外すか、プロジェクトを消すか、退会まで（外すと Google の側のアカウントも消す） | 「外す」、退会（退会やプロジェクトの削除では記録が先に消えるので、毎日の取り込みのときに、記録のない yabumi のアカウントを Google の側で消す） |
 | Google Play の読み取り用のアカウントを作った記録（利用者の ID と日時だけ） | play_account_creations | **30 日**で自動で消す。退会しても 30 日は残す（作る回数の上限を、退会と登録のし直しで数え直しにしないため） | 消せない（中身を含まないため） |
 | 伴走のお知らせの設定（メール・スマホの通知の選択、遅れの声かけの曜日、配信を止める合言葉） | notification_prefs | 退会まで | 「お知らせの設定」で変える、退会（4.27） |
 | 伴走の知らせを送った記録（利用者・プロジェクト・種類・週・経路・日時。中身は持たない） | notification_log | **90 日**で自動で消す（二重に送らないため） | 退会・プロジェクトの削除で消える |
@@ -596,9 +596,9 @@ README が薄い個人開発のリポジトリやモノレポでも中身がわ�
 #### SNS を外す
 
 - 「つないだ SNS」の各行に「外す」を置く。social_accounts の行を消し、トークンも一緒に消える（配信先からの参照は空になり、本文と送った記録は残る。SNS 上の投稿の ID・URL と数字は、下の「アクセスがなくなったら」のとおり消す）
-- **アクセスがなくなったら、その SNS から受け取ったものを消す**（2026-10-11、X の Developer Policy と Meta の Platform Terms に合わせる。オーナーへは報告）: 矢書の「外す」（ほかのプロジェクトでも使っていて、このプロジェクトとの紐づけだけを外すときは除く）、SNS の側で外された（Deauthorize の知らせ）、データの削除を求められた（Data deletion callback）のどれでも、送った投稿の数字（post_metrics）、フォロワーの数（account_metrics）、SNS 上の投稿の ID・URL・送信の途中の情報（post_targets の external_post_id・external_url・sns_container）を消す。投稿の本文と「送った」という記録は利用者が書いたものなので残す（src/lib/sns/accounts.ts の purgeSnsDataOf）。どの SNS も同じ扱いにする（SNS ごとに違うと利用者に説明しにくく、規約の求めの強いほうに合わせる）
+- **アクセスがなくなったら、その SNS から受け取ったものを消す**（2026-10-11、X の Developer Policy と Meta の Platform Terms に合わせる。オーナーへは報告）: yabumi の「外す」（ほかのプロジェクトでも使っていて、このプロジェクトとの紐づけだけを外すときは除く）、SNS の側で外された（Deauthorize の知らせ）、データの削除を求められた（Data deletion callback）のどれでも、送った投稿の数字（post_metrics）、フォロワーの数（account_metrics）、SNS 上の投稿の ID・URL・送信の途中の情報（post_targets の external_post_id・external_url・sns_container）を消す。投稿の本文と「送った」という記録は利用者が書いたものなので残す（src/lib/sns/accounts.ts の purgeSnsDataOf）。どの SNS も同じ扱いにする（SNS ごとに違うと利用者に説明しにくく、規約の求めの強いほうに合わせる）
 - SNS で投稿が消されたとき（配信先が取り消し済みになったとき。4.19 の 3 つの経路）は、その投稿の数字も DB のトリガーで消す（20261011380000。ID と URL は 4.19 のトリガーが消す）
-- X は、X 側でもトークンを取り消す（POST /2/oauth2/revoke）。Threads はアプリ側から連携を解除する API がないので、画面で「Threads の設定 → アカウント → ウェブサイトのアクセス許可から矢書を削除」と案内する
+- X は、X 側でもトークンを取り消す（POST /2/oauth2/revoke）。Threads はアプリ側から連携を解除する API がないので、画面で「Threads の設定 → アカウント → ウェブサイトのアクセス許可から yabumi を削除」と案内する
 - まだ送っていない配信先（予約）は、送る時点で「アカウントがつながっていません」の要確認になる。外す前に、予約が残っていれば件数を出して確かめる
 
 #### 退会
@@ -607,7 +607,7 @@ README が薄い個人開発のリポジトリやモノレポでも中身がわ�
 - 順番（サーバー）:
   1. パスワードで本人を確かめる
   2. X のトークンを X 側で取り消す（失敗しても続ける）
-  3. GitHub App のインストールを外す（ほかの矢書の利用者が同じインストールを使っていないときだけ。失敗しても続ける）
+  3. GitHub App のインストールを外す（ほかの yabumi の利用者が同じインストールを使っていないときだけ。失敗しても続ける）
   4. Supabase Auth の利用者を消す。auth.users からのカスケードで、プロジェクト・投稿・会話・トークンなど本人のデータがすべて消える。ai_usage と sns_api_usage は紐づけ（owner_id）を空にして残す
   5. ログアウトし、トップに「退会しました」を出す
 - SNS 側の投稿は消さない（SNS 上の投稿は利用者のもの。消したい場合は、退会の前に「SNS から取り消す」を使うよう画面で案内する）
@@ -641,7 +641,7 @@ README が薄い個人開発のリポジトリやモノレポでも中身がわ�
 - 付けてよいのは、アカウント設計の「ハッシュタグ」（account_plans.data.hashtags。タグ・どんな人が見ているか・付けるとき）の中だけ。AI には「ネタに合うもの（付けるときに当てはまるもの）だけを本文の最後に」「合わなければ付けない」「同じタグを決まりのように付けない」「設計で決まっていなければ付けない」と指示し、設計のタグを「付けるとき」つきで渡す（ideaContextText の hashtagLines。AI と相談の post_draft も同じ指示）
 - 前は「ハッシュタグは 2 つまで、なくてもよい」だけで、AI が無難な #個人開発 を毎回付けていた（本番の X の下書き）
 - 1 投稿の数（2026-10-20 に各社の資料で確かめた。src/lib/sns/hashtags.ts の HASHTAG_RULES）: X 2 つまで（X のヘルプのすすめ）、Threads 1 つ（トピックタグは 1 投稿に 1 つ）、Instagram 5 個まで（2025 年 12 月からの決まり）、Facebook 2 つ・TikTok 3 個・YouTube 3 個（目安。YouTube は 15 個を超えると全部が無視される）
-- AI が守らなかったとき用に、返事を整えるときに矢書が直す（tidyDraftHashtags）: 設計にないタグと、上限を超えた分（前から数える）を外す。タグだけの行にあれば消し、文の途中にあれば # だけを外して言葉は残す（文が崩れないように）
+- AI が守らなかったとき用に、返事を整えるときに yabumi が直す（tidyDraftHashtags）: 設計にないタグと、上限を超えた分（前から数える）を外す。タグだけの行にあれば消し、文の途中にあれば # だけを外して言葉は残す（文が崩れないように）
 - 設計の AI と考える（4.9）は、届けたい相手と柱から候補を 3〜6 個出し、利用者が候補ごとに印を付けて選ぶ（adopt の picks。選んだものだけを保存し、AI の返事に adoptedPicks を書き足す）。AI と相談の plan_section（hashtags）は、案ごとに全部を採用する（あとで設計の画面で直せる）
 
 #### 読み方（src/lib/github/commit-reader.ts）
@@ -672,8 +672,8 @@ README が薄い個人開発のリポジトリやモノレポでも中身がわ�
 #### 文字数の上限（2026-10-22。オーナーのメモ「文字数オーバーの投稿が AI につくられる」）
 
 - 起きていたこと: AI は字数を正確に数えられず、指示の目安（X は全角 100〜120 字、上限 140）だけに頼っていた。返ってきた下書きは 3,000 字で切るだけで、上限を超えたまま会話に残り、下書きにもなっていた（画面に「文字数オーバー」と出るだけ）。X は全角換算（半角は 0.5 字）なので、日本語の多い文はいちばん超えやすい。起きうるところは、ネタの下書き（出す・出し直す）、AI と相談の下書きの案（post_draft）、AI の見直しの直し（fix。当てると長くなることがある）
-- 数え方をそろえる: AI への指示（下書き・縮め直し・見直し）に、矢書の数え方（src/lib/sns の displayLength。X は src/lib/sns/x-text.ts）と同じ決まりを書く（shorten.ts の LENGTH_RULES）。X は日本語・全角の記号 1 字、半角の英数字・記号・空白・改行 0.5 字、絵文字 1 字、URL は 1 つで 11.5 字（重み 23 の半分）
-- 返ってきた下書きを矢書が数え、上限を超えたもの**だけ**を、AI に 1 回だけ縮めさせる（src/lib/ai/shorten.ts。いまの字数・上限・目標（上限の 9 割）を伝える）。縮めた本文が前より短いときだけ差し替え、ハッシュタグは設計のものだけに整え直す
+- 数え方をそろえる: AI への指示（下書き・縮め直し・見直し）に、yabumi の数え方（src/lib/sns の displayLength。X は src/lib/sns/x-text.ts）と同じ決まりを書く（shorten.ts の LENGTH_RULES）。X は日本語・全角の記号 1 字、半角の英数字・記号・空白・改行 0.5 字、絵文字 1 字、URL は 1 つで 11.5 字（重み 23 の半分）
+- 返ってきた下書きを yabumi が数え、上限を超えたもの**だけ**を、AI に 1 回だけ縮めさせる（src/lib/ai/shorten.ts。いまの字数・上限・目標（上限の 9 割）を伝える）。縮めた本文が前より短いときだけ差し替え、ハッシュタグは設計のものだけに整え直す
 - それでも超えていたら、そのまま出して「X の上限を n 字超えています。下書きにしたあと、投稿の画面で縮めてください」と出す（ネタのカード、相談の案）。下書きにはでき、予約・送信は投稿の画面の確かめ（checkTarget）で止まる
 - 相談の下書きの案は、SNS を決めたもの（sns が null でないもの）だけ数える。null は送る SNS が決まっていないので数えない（投稿の画面で SNS を選ぶと確かめる）
 - AI の見直し: 文面ごとにいまの字数と上限を渡し、上限を超える直しを出さないよう指示する。それでも超える直しは、当てる前に「この直しを使うと、X の上限を n 字超えます」と出す（当てるのは止めない）
@@ -727,8 +727,8 @@ Supabase の既定のメール送信は、**プロジェクトのメンバーの
 | Amazon SES | なし（1,000 通 $0.10） | 同左 | 独自ドメイン、AWS のアカウント、本番利用の申請（サンドボックスの解除） | 一番安いが、申請と AWS の設定が手間 |
 | Brevo | 1 日 300 通 | 月 $9 から | 独自ドメイン（推奨） | 無料の通数は多いが、送信元に「Brevo」の表示が入ることがある |
 
-- どれも、届きやすくする（迷惑メールにされない）ために**独自ドメイン**が要る。gmail.com などのアドレスを送信元にすると、受け取る側で拒否される（DMARC）。ドメインは年 1,500〜2,500 円（7 の費用の表）。ドメインを取れば、矢書の URL も yabumi.vercel.app から独自ドメインに変えられる（そのときは Threads・GitHub App・X・Supabase Auth・Vault の URL を直す。4.11）
-- 送信元は `noreply@<ドメイン>`、送信者名は「矢書」
+- どれも、届きやすくする（迷惑メールにされない）ために**独自ドメイン**が要る。gmail.com などのアドレスを送信元にすると、受け取る側で拒否される（DMARC）。ドメインは年 1,500〜2,500 円（7 の費用の表）。ドメインを取れば、yabumi の URL も yabumi.vercel.app から独自ドメインに変えられる（そのときは Threads・GitHub App・X・Supabase Auth・Vault の URL を直す。4.11）
+- 送信元は `noreply@<ドメイン>`、送信者名は「yabumi」
 
 #### 大量の登録・ログインへの備え
 
@@ -783,7 +783,7 @@ Instagram（画像が必須）をつなぐ前提として、X と Threads にも
 | Instagram（後で） | 1 枚、またはカルーセルで 10 枚まで | **JPEG だけ**、8MB まで、縦横比 4:5〜1.91:1 | alt_text、1,000 字 | image_url を取りに来る（コンテナを作るとき） |
 | Facebook ページ（後で） | 複数枚の上限は未確認 | JPEG・PNG など、**4MB まで** | ― | url を取りに来る。複数枚は公開しない写真を上げてから attached_media で投稿 |
 
-- 矢書は、どの SNS でも通るよう **JPEG・1 枚 4MB まで・長い辺 2,048px まで** にそろえる（src/lib/media/rules.ts）。枚数は SNS ごとに src/lib/sns の maxImages で見て、超えたら作成画面で「画像が多すぎます」
+- yabumi は、どの SNS でも通るよう **JPEG・1 枚 4MB まで・長い辺 2,048px まで** にそろえる（src/lib/media/rules.ts）。枚数は SNS ごとに src/lib/sns の maxImages で見て、超えたら作成画面で「画像が多すぎます」
 - 1 つの投稿の画像は、すべての送り先で共通（SNS ごとに選び分けはしない）。投稿全体の上限は 10 枚（Instagram のカルーセルに合わせる）。X には 5 枚以上なら送らない
 - Instagram の縦横比（4:5〜1.91:1）は、Instagram をつなぐときに作成画面で確かめる（いまは Instagram に送れないので、確かめていない）
 - 動画だけの SNS（TikTok・YouTube）と、手で投稿する SNS（note・Substack）には画像を送らない。作成画面で「この SNS には画像を送りません」「画像は投稿の画面で手で添えてください」と出す
@@ -836,7 +836,7 @@ Instagram（画像が必須）をつなぐ前提として、X と Threads にも
 | 投稿に添えないまま（上げたが保存しなかった） | 1 日たったら（ネタ帳のメモに添えた画像は除く。4.26） |
 | 投稿を消した | 次の片付けで（投稿を消すと media_files.post_id が空になる） |
 | 投稿から外した | 投稿を保存したときにすぐ |
-| 送り終えた（どの配信先も送信待ち・送信中でなく、1 つ以上が送信済み） | 最後の配信先の更新から **30 日**。送ったあとは SNS に残っているので、矢書の側は消す。投稿の本文と送信の結果は残る |
+| 送り終えた（どの配信先も送信待ち・送信中でなく、1 つ以上が送信済み） | 最後の配信先の更新から **30 日**。送ったあとは SNS に残っているので、yabumi の側は消す。投稿の本文と送信の結果は残る |
 | 下書き・予約中 | 消さない（利用者が消すか、退会まで） |
 | 記録のないファイル（確かめる前に止まった、など） | 1 日たったら |
 
@@ -848,30 +848,30 @@ Instagram（画像が必須）をつなぐ前提として、X と Threads にも
 
 ### 4.19 X の規約への対応（2026-10-11）
 
-X の開発者規約（[Developer Agreement](https://docs.x.com/developer-terms/agreement)、[Developer Policy](https://docs.x.com/developer-terms/policy)）のうち、矢書が作りとして守るもの。審査と規約の確認の一覧は docs/review/x.md。
+X の開発者規約（[Developer Agreement](https://docs.x.com/developer-terms/agreement)、[Developer Policy](https://docs.x.com/developer-terms/policy)）のうち、yabumi が作りとして守るもの。審査と規約の確認の一覧は docs/review/x.md。
 
 #### X で消された投稿の記録
 
-X の開発者規約は、X 側で消された・見られなくなった投稿の情報を、アプリ側でも最新に保つ（消す）ことを求めている。矢書が持つ X の情報は、矢書から送った（または手で投稿して記録した）投稿の **ID と URL**、その投稿の数字とフォロワーの数（4.22 の段取り ⑥。SNS_INSIGHTS に x を入れたとき）だけ（本文は利用者が書いたもので、X から取ったものではない）。X を「外す」と、これらはすべて消す（4.14）。これを次の 3 つで最新に保つ。
+X の開発者規約は、X 側で消された・見られなくなった投稿の情報を、アプリ側でも最新に保つ（消す）ことを求めている。yabumi が持つ X の情報は、yabumi から送った（または手で投稿して記録した）投稿の **ID と URL**、その投稿の数字とフォロワーの数（4.22 の段取り ⑥。SNS_INSIGHTS に x を入れたとき）だけ（本文は利用者が書いたもので、X から取ったものではない）。X を「外す」と、これらはすべて消す（4.14）。これを次の 3 つで最新に保つ。
 
 | 経路 | どう反映するか | 費用 |
 |---|---|---|
-| 矢書から取り消した | 配信先が「取り消し済み」になったら、DB のトリガー（clear_removed_target_refs）が ID と URL を消す。これまでに取り消したものも、マイグレーションで消した。その投稿の数字（4.22 の post_metrics）も、別のトリガー（delete_metrics_of_removed_target、20261011380000）が消す。下の 2 つの経路も同じ | 無料 |
+| yabumi から取り消した | 配信先が「取り消し済み」になったら、DB のトリガー（clear_removed_target_refs）が ID と URL を消す。これまでに取り消したものも、マイグレーションで消した。その投稿の数字（4.22 の post_metrics）も、別のトリガー（delete_metrics_of_removed_target、20261011380000）が消す。下の 2 つの経路も同じ | 無料 |
 | 利用者が X の画面で消した（知らせてくれた） | 送信の結果の「X の画面でこの投稿を消した場合」→「X で消したと記録する」。取り消し済みにして、ID と URL を消す（X には何もしない） | 無料 |
 | 利用者が X の画面で消した（知らせていない）・X が消した | 投稿の画面を開いたあとに、ブラウザから X に投稿があるかを確かめる（src/lib/sns/x/sync.ts、GET /2/tweets/:id）。見つからなければ取り消し済みにして ID と URL を消し、画面に「X で消されていました」と出す | 1 件 $0.005 |
 
 - 確かめるのは、その投稿の X の配信先だけ、送ってから 10 分以上たったもの、前に確かめてから 24 時間以上たったもの。サーバー側の描画では確かめない（リンクの先読みのたびに費用がかかるのを防ぐ）
-- 1 人が 1 日（日本時間）に確かめられるのは 30 回まで（最大 $0.15）。X の上限は矢書全体で共有なので、1 人が画面を開き続けたり、手で投稿した記録（URL は利用者が入れられる）をたくさん作ったりして、ほかの人の投稿の分を使い切らないようにする（2026-10-11、セキュリティの確認で指摘を受けて）。回数と月の上限の確かめと記録は、DB の reserve_sns_read が reserve_sns_spend と同じロックの中で行うので、同時に開かれても超えない
-- 費用は sns_api_usage（operation = post_read）に、読む前に記録し、X の月の上限（利用者ごとの X_POST_USER_MONTHLY_USD と、矢書全体の X_MONTHLY_BUDGET_USD。4.13）に数える。どちらかに達していたら確かめない（投稿のほうを優先する）。読めなかった（接続切れ・X の障害）ときは記録を消す。1 日 30 回でも 1 か月続けると $4.5 になり全体の上限を超えるので、利用者ごとの上限にも数える（2026-10-11）
+- 1 人が 1 日（日本時間）に確かめられるのは 30 回まで（最大 $0.15）。X の上限は yabumi 全体で共有なので、1 人が画面を開き続けたり、手で投稿した記録（URL は利用者が入れられる）をたくさん作ったりして、ほかの人の投稿の分を使い切らないようにする（2026-10-11、セキュリティの確認で指摘を受けて）。回数と月の上限の確かめと記録は、DB の reserve_sns_read が reserve_sns_spend と同じロックの中で行うので、同時に開かれても超えない
+- 費用は sns_api_usage（operation = post_read）に、読む前に記録し、X の月の上限（利用者ごとの X_POST_USER_MONTHLY_USD と、yabumi 全体の X_MONTHLY_BUDGET_USD。4.13）に数える。どちらかに達していたら確かめない（投稿のほうを優先する）。読めなかった（接続切れ・X の障害）ときは記録を消す。1 日 30 回でも 1 か月続けると $4.5 になり全体の上限を超えるので、利用者ごとの上限にも数える（2026-10-11）
 - 消えたとみなすのは、X が「見つからない」（resource-not-found）と返したときだけ。権限のエラーや障害は、消えたとはみなさない
 - 見込み: 1 人が月に 30 本送り、それぞれの投稿の画面を数回開いても、確かめるのは 1 本あたり 1 日に 1 回なので、月 $0.15〜0.5 ほど。投稿（1 本 $0.015）より安いが、上限は投稿と共有する
-- 開かれない投稿は確かめないので、X で消えたまま矢書に ID と URL が残ることはある。毎日すべてを確かめる方法は、30 本 × 30 日で 1 人あたり月 $4.5 かかり、月の上限（$3）と合わないので採らなかった
+- 開かれない投稿は確かめないので、X で消えたまま yabumi に ID と URL が残ることはある。毎日すべてを確かめる方法は、30 本 × 30 日で 1 人あたり月 $4.5 かかり、月の上限（$3）と合わないので採らなかった
 - 将来の案: X Activity API の post.delete（Webhook）を使えば、消されたことをすぐに知れる。料金のページでは「post.delete は課金しない」とあるが、X Activity API の説明では「配信した post.delete は Post として課金する」とあり、食い違っている。ほかにも、公開の受け口と CRC の確かめ、利用者ごとの購読（セルフサーブは 1,500 件まで）、鍵をかけたアカウントの投稿は届かない、という制約がある。利用者が増えて画面を開く方式で足りなくなったら、費用を確かめてから検討する
 - 【未確認】料金のページの書き込みの表に「投稿を消す」の行がなく、「Interaction: Delete $0.010」「Content: Manage $0.005」がある。上の単価の表では「投稿を消す 無料」としているが、どちらかに当たる可能性がある（取り消しの費用は sns_api_usage に記録していない）
 
 #### 上限を数える範囲（テスト）と、テストで全体を対象にする処理
 
-- reserve_sns_spend の p_scope_owner が null なら矢書全体で数える（本番）。値を入れるとその利用者の記録だけを数える。テストはこれを使い、同じローカルの DB で他のセッションのテストが同時に流れても、上限の判定が左右されないようにした（2026-10-11、全体のテストで 1 回落ちたのを受けて）。利用者ごとの上限を作るときにも使える
+- reserve_sns_spend の p_scope_owner が null なら yabumi 全体で数える（本番）。値を入れるとその利用者の記録だけを数える。テストはこれを使い、同じローカルの DB で他のセッションのテストが同時に流れても、上限の判定が左右されないようにした（2026-10-11、全体のテストで 1 回落ちたのを受けて）。利用者ごとの上限を作るときにも使える
 - 同じ考え方で、日次のトークン延長（refreshDueTokens）にも任意の onlyOwner を足した。テストは偽のアダプターで延長するので、対象を自分のテスト用の利用者に絞らないと、共有のローカル DB にある他のテストのアカウントや、オーナーの本物の接続を「期限切れ」にしたり偽のトークンで上書きしたりする（2026-10-11 に見つけた）。本番は渡さない（すべてのアカウント）
 - 結合テストを洗った結果（2026-10-11）: 送信（publishDueTargets）はすべて投稿を指定して呼んでいる。GitHub の再同期は利用者を指定している。purge_expired_data は全体を対象にするが、偽物ではなく本番と同じ決まり（1 年・13 か月を過ぎたものを消す）で、ローカルの pg_cron も毎日同じことをするので、そのままにした
 
@@ -938,7 +938,7 @@ X の開発者規約は、X 側で消された・見られなくなった投稿�
 | Instagram のログイン | **Instagram API with Instagram Login**（Business Login for Instagram） | Facebook ページがなくても、Instagram のプロアカウントだけでつなげる。個人開発者には Facebook ページを持っていない人が多く、つなぐ前の準備が 1 段減る |
 | Facebook ページ | **Facebook Login for Business** でページのトークンを取る | 個人のプロフィール（タイムライン）への投稿は API でできない（2018 年に廃止）。投稿できるのはページだけ |
 
-- Instagram Login の短所: **Instagram の投稿を API で消せない**（IG Media の DELETE は「Facebook Login の構成だけ」と公式の資料にある）。矢書では「Instagram から取り消す」を出さず、Instagram のアプリから消すよう案内する
+- Instagram Login の短所: **Instagram の投稿を API で消せない**（IG Media の DELETE は「Facebook Login の構成だけ」と公式の資料にある）。yabumi では「Instagram から取り消す」を出さず、Instagram のアプリから消すよう案内する
 - 別の案: Instagram も Facebook Login にすると、取り消しができ、Facebook ページと 1 回のログインで済む。そのかわり、利用者は Instagram のプロアカウントを Facebook ページにつないでおく必要がある（素人には手間が大きい）。利用者の声を見て、後から足すこともできる
 
 #### 利用者の前提条件（つなぐ前に案内する）
@@ -971,11 +971,11 @@ X の開発者規約は、X 側で消された・見られなくなった投稿�
 
 Instagram（graph.instagram.com、Graph API の版はその時点の最新）:
 
-1. 画像は、投稿の時点で Meta のサーバーが読める URL で渡す。矢書の画像は非公開のバケットにあるので、Threads と同じく、送る直前にサーバーが作る署名つきの URL（4.18）を渡す
+1. 画像は、投稿の時点で Meta のサーバーが読める URL で渡す。yabumi の画像は非公開のバケットにあるので、Threads と同じく、送る直前にサーバーが作る署名つきの URL（4.18）を渡す
 2. コンテナを作る: `POST /{ig-user-id}/media`（image_url、caption）。カルーセルは画像ごとに is_carousel_item=true でコンテナを作り、`media_type=CAROUSEL` と children で親を作る（最大 10 枚。1 本として数える）
 3. 状態を見る: `GET /{container-id}?fields=status_code`。FINISHED になるまで、1 回のジョブの中では待たない。作った直後に 1 回だけ見て、まだなら「準備中」として次の回（1 分後）に続きを確かめる（4.7「1 回のジョブの時間」。公式の目安も 1 分に 1 回、5 分まで）
 4. 公開: `POST /{ig-user-id}/media_publish`（creation_id）→ 投稿の ID。URL は `GET /{media-id}?fields=permalink`
-- 画像の決まり: **JPEG だけ**、最大 8MB、縦横比は 4:5〜1.91:1、幅 320〜1440px（広いものは Instagram が縮める）。4.18 で矢書の画像はすべて JPEG・4MB・長い辺 2,048px にそろえてあるので、そのまま送れる。**縦横比だけ**は、Instagram を選んだときに作成画面で確かめる（4.18 の「Instagram の縦横比」）。カルーセルは 1 枚目の比率で切り取られる
+- 画像の決まり: **JPEG だけ**、最大 8MB、縦横比は 4:5〜1.91:1、幅 320〜1440px（広いものは Instagram が縮める）。4.18 で yabumi の画像はすべて JPEG・4MB・長い辺 2,048px にそろえてあるので、そのまま送れる。**縦横比だけ**は、Instagram を選んだときに作成画面で確かめる（4.18 の「Instagram の縦横比」）。カルーセルは 1 枚目の比率で切り取られる
 - 本文（キャプション）: 2,200 字、ハッシュタグ 5 個まで（2025 年 12 月から。前は 30 個。投稿と Reels、コメントに書いた分も数える。2026-10-20 に確かめて直した。src/lib/sns/hashtags.ts の HASHTAG_RULES）。SNS の定義の maxLength 2,200 と同じ
 - 回数の上限: **24 時間で 100 件**（API で公開した数。カルーセルは 1 件）。`GET /{ig-user-id}/content_publishing_limit` で使った数が読める。個人開発者の使い方（週 2〜3 本）なら届かない
 - Reels（動画）は動画の添付ができてから（フェーズ 5）
@@ -985,8 +985,8 @@ Facebook ページ（graph.facebook.com）:
 
 - 文章・リンク: `POST /{page-id}/feed`（message、link）
 - 画像: 1 枚は `POST /{page-id}/photos`（url、message）。複数は、各画像を published=false で上げてから `/{page-id}/feed` の attached_media に並べる
-- 取り消し: `DELETE /{post-id}`（矢書が投稿したものだけ消せる）。「Facebook から取り消す」を出せる
-- Facebook 側にも予約の仕組み（scheduled_publish_time）があるが、ほかの SNS と揃えて、矢書の予約ジョブで送る
+- 取り消し: `DELETE /{post-id}`（yabumi が投稿したものだけ消せる）。「Facebook から取り消す」を出せる
+- Facebook 側にも予約の仕組み（scheduled_publish_time）があるが、ほかの SNS と揃えて、yabumi の予約ジョブで送る
 
 #### トークン
 
@@ -998,7 +998,7 @@ Facebook ページ（graph.facebook.com）:
 
 - 保存は social_account_tokens に暗号化して（4.6 と同じ）。Instagram は 1 アカウント = social_accounts の 1 行、Facebook はページ 1 つ = 1 行（external_id はページの ID）
 
-#### 矢書の画面の流れ（素人が前提）
+#### yabumi の画面の流れ（素人が前提）
 
 1. プロジェクトの設定の「つないだ SNS」で Instagram の「つなぐ」を押すと、先に**確かめの画面**を出す: 「Instagram のプロアカウント（無料）が要ります」「切り替え方（Instagram のアプリ → 設定 → アカウントの種類とツール → プロアカウントに切り替える）」「クリエイターとビジネスのどちらでもよい（迷ったらクリエイター）」。「切り替え済み → つなぐ」で Instagram の認可画面へ
 2. Instagram から戻ったら、アカウントの種類（`/me?fields=user_id,username,account_type`）を見て、プロアカウントでなければつながずに、切り替え方を出す
@@ -1012,7 +1012,7 @@ Facebook ページ（graph.facebook.com）:
 | 設定する場所 | パス | 内容 |
 |---|---|---|
 | Instagram のユースケースの「Business login settings」の OAuth redirect URIs | /sns/instagram/callback | 認可画面からの戻り先 |
-| 同じく Deauthorize callback URL | /sns/instagram/uninstall | 利用者が Instagram 側で矢書を外したとき（トークンを消し「解除済み」に。Threads と同じ） |
+| 同じく Deauthorize callback URL | /sns/instagram/uninstall | 利用者が Instagram 側で yabumi を外したとき（トークンを消し「解除済み」に。Threads と同じ） |
 | 同じく Data deletion request URL | /sns/instagram/delete | データの削除の求め（Threads と同じ。確認のページの URL を返す） |
 | Facebook Login for Business の Valid OAuth Redirect URIs | /sns/facebook/callback | 認可画面からの戻り先 |
 | App settings → Basic の Data deletion callback URL | /sns/facebook/delete | Facebook 側のデータの削除の求め |
@@ -1092,7 +1092,7 @@ Facebook ページ（graph.facebook.com）:
 
 | 項目 | 案 |
 |---|---|
-| 形 | `https://go.yabumi.app/<6〜8 文字>`。go.yabumi.app を Vercel の同じプロジェクトにつなぎ、矢書のアプリの中で転送する（下の「案 A」） |
+| 形 | `https://go.yabumi.app/<6〜8 文字>`。go.yabumi.app を Vercel の同じプロジェクトにつなぎ、yabumi のアプリの中で転送する（下の「案 A」） |
 | 発行 | 投稿をつくるとき、本文の URL（ストア・サイト）を見つけたら「短縮リンクにする」を出す（初期値はオン）。SNS ごとに別のリンクにして、どの SNS・どの投稿から来たかを分ける。X と Instagram は本文の URL の扱いが特別なので、**プロフィールに置くリンク**も SNS ごとに発行できるようにする（下の注意） |
 | 転送 | 302 で行き先へ。`Cache-Control: no-store`（301 はブラウザに覚えられ、2 回目のクリックが届かない）。行き先が App Store なら `ct=<SNS>-<リンクのコード>`（30 字まで）と、利用者が一度入れた `pt` を足す。Google Play なら `referrer=utm_source%3D<SNS>%26utm_campaign%3D<コード>` を足す |
 | 数え方 | 転送の応答を返したあと（Next.js の after()）に 1 件記録する。数えないもの: User-Agent がクローラー（facebookexternalhit、meta-external*、Twitterbot、Slackbot、Discordbot、bot・crawler・preview など）、HEAD、先読み（Sec-Purpose: prefetch）。同じ人（下のハッシュ）の同じリンクは 10 分に 1 回まで。除いたものも「除外」として別に数え、あとで基準を変えられるようにする |
@@ -1103,7 +1103,7 @@ Facebook ページ（graph.facebook.com）:
 
 | 案 | 中身 | 長所 | 短所 |
 |---|---|---|---|
-| **A（おすすめ）** | Vercel の矢書の中に `/l/[code]` の受け口を作り、go.yabumi.app をつなぐ | 今の作りのまま。記録は Supabase に直接入り、画面と同じ DB で集計できる | クリックごとに Vercel の関数の呼び出しを使う（Hobby は月 100 万回、Pro は含まれる分を超えると従量）。Vercel が止まるとリンクも止まる |
+| **A（おすすめ）** | Vercel の yabumi の中に `/l/[code]` の受け口を作り、go.yabumi.app をつなぐ | 今の作りのまま。記録は Supabase に直接入り、画面と同じ DB で集計できる | クリックごとに Vercel の関数の呼び出しを使う（Hobby は月 100 万回、Pro は含まれる分を超えると従量）。Vercel が止まるとリンクも止まる |
 | B | Cloudflare Workers で go.yabumi.app を動かし、D1 に記録して日ごとに Supabase へ送る | 無料で 1 日 10 万回。Vercel の枠を使わない。商用でも使える | 仕組みが 2 か所になり、リンクの行き先を Workers 側に写す仕組みが要る。有料は月 $5 |
 
 - 見込み: 100 人 × 月 30 本 × 20 クリックでも月 6 万回で、A の枠に十分収まる。クリックが月 50 万回を超えるようなら B に移す
@@ -1120,7 +1120,7 @@ Facebook ページ（graph.facebook.com）:
 | 表 | `short_links`（コード、行き先、SNS、種類 post / profile / custom、配信先、止めた日時。利用者は読むだけ）、`link_clicks`（1 クリック。サーバーだけ。90 日）、`link_click_daily`（日本時間の日 × 端末の集計。利用者は読むだけ）、`link_hash_salts`（その日だけの秘密。サーバーだけ。昨日より前は purge_expired_data が消す）。projects に App Store の `app_store_provider_token`（pt） |
 | 記録 | DB の `record_link_click`（service_role だけ）が、その日の秘密で `sha256(秘密 + IP + User-Agent)` を作り、10 分以内の同じ人を「重複」にし、1 クリックの行と日ごとの集計を 1 回で書く。IP と User-Agent は DB に渡すだけで保存しない |
 | 合計 | `link_click_totals`（security invoker。本人のものだけ）。行を読んで足さない |
-| 転送 | `/go/[code]/[host]`（src/app/go/[code]/[host]/route.ts）。<APP_URL>/go/<code>・go.yabumi.app/<code>・利用者のドメインの /<code> を、src/proxy.ts が /go/<code>/<開いたホスト>（矢書のホストは `_`）に書き換える。最後の部分は proxy が毎回付け直すので、外から入れた値は使われない（ヘッダーで渡すと、書き換えのあとに届かないことがあった。2026-10-12）。/go は、独自ドメインへの転送とログインの確認より先に通す。302・no-store、記録は after()。HEAD は数えない |
+| 転送 | `/go/[code]/[host]`（src/app/go/[code]/[host]/route.ts）。<APP_URL>/go/<code>・go.yabumi.app/<code>・利用者のドメインの /<code> を、src/proxy.ts が /go/<code>/<開いたホスト>（yabumi のホストは `_`）に書き換える。最後の部分は proxy が毎回付け直すので、外から入れた値は使われない（ヘッダーで渡すと、書き換えのあとに届かないことがあった。2026-10-12）。/go は、独自ドメインへの転送とログインの確認より先に通す。302・no-store、記録は after()。HEAD は数えない |
 | 本文の置き換え | 投稿を保存するとき（savePost）、送る前の自動の配信先ごとに、本文の https の URL それぞれの短縮リンクを用意する（preparePostLinks。チェックを外すと消す）。送る直前に送信ジョブが置き換える（substituteForTarget）。作成画面の見え方の欄に「この短縮リンクに置き換えて送ります」と実際の URL を出す（X の規約の「送る文をそのまま見せる」）。Instagram は本文の URL を押せないので置き換えない。手で投稿する SNS も置き換えない。作成画面のチェックは、送る文面に URL があり、置き換える SNS があるときだけ出し、どの URL をどの SNS で置き換えるか・置き換えない SNS と理由を添える（planShortLinks。preparePostLinks と同じ決まり）。URL がないとき・置き換える SNS がないときはチェックを出さず、URL の入れ方と、X はプロフィールのリンクで数えるのがよいことを案内し、アカウント設計の「名前とプロフィール」（/plan?open=profile）へつなぐ（チェックだけ出ていて、URL がないのに短縮リンクが付くと思われたため。2026-10-12） |
 | 画面 | プロジェクトの「短縮リンク」（/projects/[id]/links）: SNS ごとのプロフィールのリンク、自由に作るリンク、作ったリンクの一覧と 7 日・30 日・これまでのクリック、止める・使い直す、App Store の pt |
 | 土台の URL | SHORT_LINK_BASE_URL（go.yabumi.app ができたら）。なければ `<APP_URL>/go`。DNS の手順は deploy.md の 11 の H。利用者のドメインがつながったプロジェクトは、そのドメイン（下の「利用者のドメイン」） |
@@ -1132,27 +1132,27 @@ Facebook ページ（graph.facebook.com）:
 | 部分 | 中身 |
 |---|---|
 | 表 | `link_domains`（1 利用者 1 行・1 プロジェクト 1 行・ドメインは全体で 1 つ。pending / active、入れてほしい CNAME と TXT、最後に確かめた結果と日時、つながった日時。利用者は読むだけ、書くのはサーバー）、`link_domain_attempts`（足した回数。サーバーだけ。7 日）、`link_domain_removals`（Vercel から外すまでのドメイン。行が消えるとトリガーが積む。サーバーだけ） |
-| 足す | 「短縮リンク」の画面の「自分のドメインで作る（任意）」。① ドメインを入れる（normalizeLinkDomain: 小文字・xn--・ドメインそのもの（apex）は断って go. の案を出す・矢書と Vercel と内部の名前は使えない）→ `claim_link_domain`（service_role だけ。ロックの中で、本人のプロジェクトか・1 人 1 つ・ほかの人が使っていないか（外す途中も）・1 日 5 回・矢書全体の上限を確かめて行を入れる）→ Vercel の `POST /v10/projects/{id}/domains`。Vercel が断ったら行を消す（409 はほかの Vercel のプロジェクトで使われている）。返った TXT（verified が false のとき）と、`GET /v6/domains/{domain}/config` の recommendedCNAME（なければ cname.vercel-dns.com）を残す |
-| 持ち主の確認（2026-10-12、セキュリティの見直しの指摘で足した） | Vercel は、ほかの Vercel のアカウントが使っていないドメインなら TXT を求めずに verified を返す。他人のドメインが、使われなくなった Vercel を CNAME で指したまま残っていると（ぶら下がった CNAME）、持ち主でない人がつなげてしまう。そこで矢書が自分で確かめる: 足すときに利用者ごと・ドメインごとに合言葉を作り（24 バイトの乱数、足すたびに作り直す。link_domains.ownership_token）、`_yabumi.<ドメイン>` の TXT に `yabumi-verify=<合言葉>` を入れてもらう。「確かめる」でこれが見えるまでは active にしない（owner_txt_missing） |
+| 足す | 「短縮リンク」の画面の「自分のドメインで作る（任意）」。① ドメインを入れる（normalizeLinkDomain: 小文字・xn--・ドメインそのもの（apex）は断って go. の案を出す・ yabumi と Vercel と内部の名前は使えない）→ `claim_link_domain`（service_role だけ。ロックの中で、本人のプロジェクトか・1 人 1 つ・ほかの人が使っていないか（外す途中も）・1 日 5 回・ yabumi 全体の上限を確かめて行を入れる）→ Vercel の `POST /v10/projects/{id}/domains`。Vercel が断ったら行を消す（409 はほかの Vercel のプロジェクトで使われている）。返った TXT（verified が false のとき）と、`GET /v6/domains/{domain}/config` の recommendedCNAME（なければ cname.vercel-dns.com）を残す |
+| 持ち主の確認（2026-10-12、セキュリティの見直しの指摘で足した） | Vercel は、ほかの Vercel のアカウントが使っていないドメインなら TXT を求めずに verified を返す。他人のドメインが、使われなくなった Vercel を CNAME で指したまま残っていると（ぶら下がった CNAME）、持ち主でない人がつなげてしまう。そこで yabumi が自分で確かめる: 足すときに利用者ごと・ドメインごとに合言葉を作り（24 バイトの乱数、足すたびに作り直す。link_domains.ownership_token）、`_yabumi.<ドメイン>` の TXT に `yabumi-verify=<合言葉>` を入れてもらう。「確かめる」でこれが見えるまでは active にしない（owner_txt_missing） |
 | DNS の引き方 | DNS over HTTPS で、運営の違う 2 つの公開のリゾルバ（Cloudflare の cloudflare-dns.com と Google の dns.google）に聞く（src/lib/links/doh.ts）。サーバーの OS の DNS は前の答えを覚えていて、足したばかり・消したばかりの行が反映されにくいため。「ある」はどちらかに見えればある（リゾルバは無い行を作らないので、片方に先に届いた行を待たせない）。「ない」は答えたリゾルバのすべてで見えないときだけ（片方が古い答えを覚えていても、もう片方で消えたことがわかる）。どちらも答えなければ「わからない」として、つながりを外さない |
 | 期限 | つながらないまま 7 日たった pending は取り消す（expire_link_domains。行を消すとトリガーが Vercel から外す列に積む）。取り消すのは、誰かがドメインを足すとき（claim_link_domain の中）、「確かめる」のとき、毎日のジョブ。7 日は pending になった日時（pending_since）から数える（足したとき、またはつながりが外れて戻したとき）。画面に期限の日付を出す |
-| 毎日の見回り | `/api/jobs/check-link-domains`（pg_cron、毎日 4:40）: active のドメインの、持ち主の確認の TXT と CNAME がまだ残っているかを DNS over HTTPS で確かめ、外れていたら pending に戻して矢書のドメインに戻す（持ち主がドメインを手放したあとに、別の人のリンクがそのドメインで開かないように）。画面に「見えなくなったので戻しました」を出す。そのあと期限切れを取り消し、外す途中のものを Vercel から外す |
-| 閉じる側に倒す（2026-10-12、セキュリティの見直しの指摘で足した） | 確かめられないときは、つながりを残さない。① リンクを開く判定（linkAllowedOnDomain）と URL の土台（projectLinkBase）は、active で、矢書の持ち主の確認が済んだ（owner_verified_at がある）ものだけ。DB の check（link_domains_active_owner_verified）でも「active なら持ち主の確認が済み、合言葉がある」を守る。② 20261012110000 で、持ち主の確認の前から active だった行に合言葉を作り、pending に戻した。③ 毎日の見回りは、DNS で確かめられたときだけ dns_confirmed_at を進め、リゾルバが答えないまま最後に確かめられてから 3 日を超えたら pending（last_check = error）に戻す。1 回の見回りで 3 件以上戻ったら、矢書の側の異常（Vercel から DNS over HTTPS に届かない）として運営者に知らせる（notifyOperatorOnce、1 日に 1 回）。利用者は「確かめる」を押せば、またつながる |
+| 毎日の見回り | `/api/jobs/check-link-domains`（pg_cron、毎日 4:40）: active のドメインの、持ち主の確認の TXT と CNAME がまだ残っているかを DNS over HTTPS で確かめ、外れていたら pending に戻して yabumi のドメインに戻す（持ち主がドメインを手放したあとに、別の人のリンクがそのドメインで開かないように）。画面に「見えなくなったので戻しました」を出す。そのあと期限切れを取り消し、外す途中のものを Vercel から外す |
+| 閉じる側に倒す（2026-10-12、セキュリティの見直しの指摘で足した） | 確かめられないときは、つながりを残さない。① リンクを開く判定（linkAllowedOnDomain）と URL の土台（projectLinkBase）は、active で、yabumi の持ち主の確認が済んだ（owner_verified_at がある）ものだけ。DB の check（link_domains_active_owner_verified）でも「active なら持ち主の確認が済み、合言葉がある」を守る。② 20261012110000 で、持ち主の確認の前から active だった行に合言葉を作り、pending に戻した。③ 毎日の見回りは、DNS で確かめられたときだけ dns_confirmed_at を進め、リゾルバが答えないまま最後に確かめられてから 3 日を超えたら pending（last_check = error）に戻す。1 回の見回りで 3 件以上戻ったら、yabumi の側の異常（Vercel から DNS over HTTPS に届かない）として運営者に知らせる（notifyOperatorOnce、1 日に 1 回）。利用者は「確かめる」を押せば、またつながる |
 | 前の形の関数 | claim_link_domain の前の形（合言葉なし、5 引数。20261012090000）を残している。呼ぶと DB が合言葉を作って新しい形を呼ぶ（pending を作るだけで、持ち主の確認は飛ばさない。service_role だけ）。取り込みとデプロイの切り替わりの間に、前のコードが止まらないようにするため。**次に link_domains まわりのマイグレーションを足すときに消す** |
-| 手順の画面 | ② DNS に行を足す: 1 行目（CNAME、矢書につなぐため）と 2 行目（TXT、あなたのドメインだと確かめるため）、Vercel が求めたときは 3 行目（TXT）を、なぜ要るかの一言とコピーのボタンつきで出し（名前は go のようにドメインを除いた形）、DNS のサービスごとの手順を切り替えて出す（Cloudflare（Proxy は灰色の雲）、お名前.com、ムームードメイン、Squarespace（旧 Google Domains）、Xserver、そのほか）。用語（DNS、CNAME、サブドメイン）は Term。③ 確かめる |
-| 確かめる | `checkLinkDomain`（10 秒に 1 回まで）: Vercel で所有の確認（TXT が要るときは verify）→ 矢書の持ち主の確認の TXT → config の misconfigured が false なら、`https://<domain>/__yabumi/link-check` を開いて矢書の答えが返るか（DNS と証明書がそろったか）。結果は txt_missing / dns_missing（向きが届いていない。Node の DNS で CNAME・A がない、または Vercel に向いている）/ wrong_value（別のところに向いている）/ proxied（configuredBy が http。Cloudflare の Proxy）/ cert_pending / ok / error。ok で active、DNS が外れたら pending に戻す（開けないリンクを作らない） |
-| 使う | active の間、そのプロジェクトの短縮リンクの URL の土台を `https://<domain>` にする（projectLinkBase。一覧・プロフィールのリンク・投稿の本文の置き換え・作成画面の見え方）。コードは全体で 1 つなので、前に作ったリンクも矢書のドメインと利用者のドメインの両方で開ける。つながったら、プロフィールのリンクを貼り直す案内を出す |
-| 転送 | src/proxy.ts（src/lib/links/host.ts）: 矢書のホスト（APP_URL とそのサブドメイン、SHORT_LINK_BASE_URL、*.vercel.app、ローカル）でなければ利用者のドメインとして扱い、/<code> と /go/<code> を /go/<code>/<そのドメイン> に回し、`/__yabumi/link-check` には決まった文を返し、ほかのパスは 404（ログインなど矢書の画面を出さない）。転送の処理は、ホストが `_` でなければ、そのドメインが active で、リンクがそのドメインのプロジェクトのものであることを確かめる（linkAllowedOnDomain。ほかの人のコード・登録のないドメイン・つながる前のドメインでは開かない）。開いたホストは Host のヘッダーで見る |
+| 手順の画面 | ② DNS に行を足す: 1 行目（CNAME、yabumi につなぐため）と 2 行目（TXT、あなたのドメインだと確かめるため）、Vercel が求めたときは 3 行目（TXT）を、なぜ要るかの一言とコピーのボタンつきで出し（名前は go のようにドメインを除いた形）、DNS のサービスごとの手順を切り替えて出す（Cloudflare（Proxy は灰色の雲）、お名前.com、ムームードメイン、Squarespace（旧 Google Domains）、Xserver、そのほか）。用語（DNS、CNAME、サブドメイン）は Term。③ 確かめる |
+| 確かめる | `checkLinkDomain`（10 秒に 1 回まで）: Vercel で所有の確認（TXT が要るときは verify）→ yabumi の持ち主の確認の TXT → config の misconfigured が false なら、`https://<domain>/__yabumi/link-check` を開いて yabumi の答えが返るか（DNS と証明書がそろったか）。結果は txt_missing / dns_missing（向きが届いていない。Node の DNS で CNAME・A がない、または Vercel に向いている）/ wrong_value（別のところに向いている）/ proxied（configuredBy が http。Cloudflare の Proxy）/ cert_pending / ok / error。ok で active、DNS が外れたら pending に戻す（開けないリンクを作らない） |
+| 使う | active の間、そのプロジェクトの短縮リンクの URL の土台を `https://<domain>` にする（projectLinkBase。一覧・プロフィールのリンク・投稿の本文の置き換え・作成画面の見え方）。コードは全体で 1 つなので、前に作ったリンクも yabumi のドメインと利用者のドメインの両方で開ける。つながったら、プロフィールのリンクを貼り直す案内を出す |
+| 転送 | src/proxy.ts（src/lib/links/host.ts）: yabumi のホスト（APP_URL とそのサブドメイン、SHORT_LINK_BASE_URL、*.vercel.app、ローカル）でなければ利用者のドメインとして扱い、/<code> と /go/<code> を /go/<code>/<そのドメイン> に回し、`/__yabumi/link-check` には決まった文を返し、ほかのパスは 404（ログインなど yabumi の画面を出さない）。転送の処理は、ホストが `_` でなければ、そのドメインが active で、リンクがそのドメインのプロジェクトのものであることを確かめる（linkAllowedOnDomain。ほかの人のコード・登録のないドメイン・つながる前のドメインでは開かない）。開いたホストは Host のヘッダーで見る |
 | 外す | 行を消す → トリガーが link_domain_removals に積む → Vercel の DELETE（404 は外れたもの）。プロジェクトの削除・退会のカスケードでも積み、その場で外す。外せなければ残し、次に誰かが足す・外すときにやり直す。5 回続けて外せなければ運営者に知らせる。外すと、そのドメインの短縮リンクは開けなくなるので、画面で貼り直しと DNS の行を消してよいことを案内する |
-| 上限と費用 | Vercel Hobby は 1 プロジェクトにドメイン 50 まで（https://vercel.com/docs/limits、2026-10-12 確認。Pro は実質なし）。矢書の分（yabumi.app・www・go・vercel.app）を除き、利用者の分は 40（`LINK_DOMAIN_LIMIT`）。外す途中も数える。80%（32）に達したら運営者に知らせ（notifyOperatorOnce、7 日に 1 回）、上限に達したら受け付けを止めて画面で「今のままで数えられます」と出す。Vercel の API とドメインは無料（費用は増えない）。証明書は Vercel が自動で出す |
-| 悪用への備え | 1 利用者 1 ドメイン、1 日 5 回（足した回数を数える）、「確かめる」は 10 秒に 1 回。利用者のドメインへのリンクは短縮リンクの行き先にできない（入れ子）。利用者のドメインの下には短縮リンクしか出さないので、矢書の画面を使ったなりすましはできない |
+| 上限と費用 | Vercel Hobby は 1 プロジェクトにドメイン 50 まで（https://vercel.com/docs/limits、2026-10-12 確認。Pro は実質なし）。yabumi の分（yabumi.app・www・go・vercel.app）を除き、利用者の分は 40（`LINK_DOMAIN_LIMIT`）。外す途中も数える。80%（32）に達したら運営者に知らせ（notifyOperatorOnce、7 日に 1 回）、上限に達したら受け付けを止めて画面で「今のままで数えられます」と出す。Vercel の API とドメインは無料（費用は増えない）。証明書は Vercel が自動で出す |
+| 悪用への備え | 1 利用者 1 ドメイン、1 日 5 回（足した回数を数える）、「確かめる」は 10 秒に 1 回。利用者のドメインへのリンクは短縮リンクの行き先にできない（入れ子）。利用者のドメインの下には短縮リンクしか出さないので、yabumi の画面を使ったなりすましはできない |
 | 準備 | 運営者の環境変数 `VERCEL_API_TOKEN`・`VERCEL_PROJECT_ID`・`VERCEL_TEAM_ID`（deploy.md の 17）。ないときは画面に「準備中」 |
 
 #### 悪用への備え
 
-- 短縮リンクは、利用者が決めた行き先へ矢書のドメインで転送する。それ自体が役目なので、行き先を自由に決められることは残る（2026-10-11、security-guidance の「オープンリダイレクト」の指摘への判断）
-- そのうえで: 行き先は https だけ、IP アドレスそのもの・内部のホスト（localhost、.local など）・ポートの指定・認証情報つき・矢書自身（yabumi.app、vercel.app。リンクの入れ子を防ぐ）は使えない（isValidDestination）。手で作るリンクは 1 プロジェクト 100 個まで。リンクを作れるのは登録した利用者だけ（誰が作ったかわかる）
-- 短縮リンクは go.yabumi.app（サブドメイン）にして、矢書の画面と分ける
+- 短縮リンクは、利用者が決めた行き先へ yabumi のドメインで転送する。それ自体が役目なので、行き先を自由に決められることは残る（2026-10-11、security-guidance の「オープンリダイレクト」の指摘への判断）
+- そのうえで: 行き先は https だけ、IP アドレスそのもの・内部のホスト（localhost、.local など）・ポートの指定・認証情報つき・ yabumi 自身（yabumi.app、vercel.app。リンクの入れ子を防ぐ）は使えない（isValidDestination）。手で作るリンクは 1 プロジェクト 100 個まで。リンクを作れるのは登録した利用者だけ（誰が作ったかわかる）
+- 短縮リンクは go.yabumi.app（サブドメイン）にして、yabumi の画面と分ける
 - 悪用の知らせが来たら、そのリンクを止め、続くならアカウントを止める（deploy.md の 11 の H、利用規約）。数が増えたら、作るときに Google Safe Browsing などで行き先を確かめることを考える
 
 #### 数字の画面と KPI の実装（2026-10-11、段取り ②）
@@ -1197,7 +1197,7 @@ Facebook ページ（graph.facebook.com）:
 | Google Play のつなぎ方 | オーナーの Google Cloud のプロジェクトに「管理用」のサービスアカウント（GOOGLE_PLAY_MANAGER_KEY。役割はサービス アカウント管理者とトークン作成者だけ）を置く。「Google Play をつなぐ」で、利用者・プロジェクトごとに `yabumi-<乱数>@<プロジェクト>.iam.gserviceaccount.com` を作り（`play_connections`、サーバーだけ）、利用者が Play Console に「アプリ情報の表示と一括レポートのダウンロード」だけで招待する。バケット（pubsite_prod_rev_…）とパッケージ名を入れると、なりかわりの 10 分のトークン（devstorage.read_only）で 1 回読んで確かめてから保存する |
 | 鍵を預からない | 利用者ごとのアカウントには鍵を作らない。読むたびに、管理用のアカウントが generateAccessToken で 10 分のトークンを作る。ほかの人のバケットの名前を入れても、そのアカウントは招待されていないので読めない（利用者ごとにアカウントを分ける理由） |
 | Google Play の取り込み | 今月と先月の `stats/installs/installs_<package>_<YYYYMM>_overview.csv`（Daily User Installs）と `stats/store_performance/store_performance_<package>_<YYYYMM>_country.csv`（Store listing visitors を国ごとに合計）。UTF-16 の CSV。3〜7 日遅れ、あとから直るので、毎日直近 60 日を上書きする。`store_daily` の source = google_play（downloads、page_views、uninstalls、store_acquisitions） |
-| 外す | 矢書の側のサービスアカウントを消す（Play Console の招待も効かなくなる）。取り込んだ数字は残る |
+| 外す | yabumi の側のサービスアカウントを消す（Play Console の招待も効かなくなる）。取り込んだ数字は残る |
 | 上限 | オーナーの Google Cloud のプロジェクトのサービスアカウントは既定 100 個までで、全員で分け合う。1 人がプロジェクトを作っては「つなぐ」を繰り返して使い切らないよう、1 人 3 つのプロジェクトまで、作るのは直近 30 日で 5 回まで（外して作り直す分も数える。消したサービスアカウントも Google Cloud に 30 日は残り、上限に数えられることがあるため）。作った記録（利用者の ID と日時だけ）は退会しても 30 日残し、退会と登録のし直しで数え直しにならないようにする。さらに、メールアドレスを変えて登録し直せば利用者ごとの上限を何人分でも使えるので、全員を合わせて直近 30 日に作るのは 80 まで（超えたら「混み合っています」と出し、運営者が様子を見て Google Cloud の上限を引き上げるか悪用を止める。100 個を使い切ってだれもつなげなくなることは防ぐ）。play_connections に入れるときの DB のトリガーが、1 つのロックの中で順に数える（20261011330000・340100・340200。2026-10-11、セキュリティの確認の 3 回の指摘を受けて）。残るリスク: メールアドレスを何十も用意して確認まで済ませれば、全員の上限（80）を埋めて、新しくつなぐのを止められる（つないである人の取り込みは止まらない）。Google Cloud の枠を使い切られて全員が二度とつなげなくなるより軽いので、止まったら運営者が気づける形を優先した。これに備えて、直近 30 日の作成数が 60 と 80 に達したら、それぞれ 30 日に 1 回だけ運営者にメールで知らせる（オーナーの決定 D22 の案 A。しきい値は PLAY_CAPACITY_NOTIFY_AT。送る部分は src/lib/notify/operator.ts の共通の関数で、Resend の API を使い、キーのない環境ではログにだけ残す。同じ件を送った記録は operator_notifications。20261011370000）。運営者はメールを見て、悪用なら止め、そうでなければ上限を上げる（deploy.md の 15「運営者の見方」）。レポートのファイルは 1 つ 20MB まで読む（それより大きいものは、読みながら止める） |
 | 片付け | 退会やプロジェクトの削除では記録（play_connections）が先に消えるので、毎日の取り込み（import-stores）のときに、Google の側の `yabumi-` で始まるアカウントのうち記録のないものを消す。つなぐときは先に記録してからアカウントを作る（メールアドレスは ID で決まる）ので、作ったばかりのものを消すことはない |
 | App Store のストアのページの閲覧 | Analytics Reports の依頼（ONGOING）は Admin のキーでしか作れないので、Admin のキーを 1 回だけ使って依頼を作り、**キーは保存しない**（依頼の ID だけを `app_store_report_requests` に）。読むのは預かっている Sales and Reports のキー。App Store Discovery and Engagement の **Standard**（Detailed は 5 未満を省くので使わない）の日ごとの回を、まだ読んでいない古い順に 1 回 5 つまで、Event が Page view の Counts を日ごとに合計（同じ日は後の回で上書き）。source = app_store_views |
@@ -1212,7 +1212,7 @@ Facebook ページ（graph.facebook.com）:
 | 読むもの | 投稿: `GET /2/tweets/:id?tweet.fields=public_metrics`（impression_count → views、like_count → likes、reply_count → replies、retweet_count → reposts、quote_count → quotes、bookmark_count → saves）。送ってから 1・3・7・30 日目（ほかの SNS と同じ 3 日の幅）。フォロワー: `GET /2/users/me?user.fields=public_metrics` を **7 日に 1 回**（ほかの SNS は毎日） |
 | 読まないもの | 投稿のクリック（non_public_metrics の url_link_clicks など）は読まない。X は本文に URL を入れないすすめ（4.13）で、ストアへのクリックは短縮リンク（プロフィールのリンク）で数えるため。D19 の「30 日以内ならクリックも」はこれで置き換える |
 | 権限 | 投稿のときから求めている tweet.read・users.read で足りる（つなぎ直しは要らない）。SNS_INSIGHTS に `x` を入れたときだけ読む |
-| 費用の記録 | 読む前に sns_api_usage に記録する（operation は metrics_read $0.005・followers_read $0.010）。`reserve_x_metrics_read` が、4.19 と同じ X のロックの中で ① 利用者の今月の X の数字の費用が X_METRICS_USER_MONTHLY_USD（既定 $1。見込みは 1 人 月 約 $0.64）を超えないか ② 矢書全体の X の月の上限（X_MONTHLY_BUDGET_USD、投稿と共有）を超えないか（reserve_sns_spend）を確かめる。どちらかを超えるなら記録せず読まない。読めなかった（X の障害・消された投稿など）ときは記録を消す |
+| 費用の記録 | 読む前に sns_api_usage に記録する（operation は metrics_read $0.005・followers_read $0.010）。`reserve_x_metrics_read` が、4.19 と同じ X のロックの中で ① 利用者の今月の X の数字の費用が X_METRICS_USER_MONTHLY_USD（既定 $1。見込みは 1 人 月 約 $0.64）を超えないか ② yabumi 全体の X の月の上限（X_MONTHLY_BUDGET_USD、投稿と共有）を超えないか（reserve_sns_spend）を確かめる。どちらかを超えるなら記録せず読まない。読めなかった（X の障害・消された投稿など）ときは記録を消す |
 | 上限に達したとき | その月は読まない（3 日の幅を過ぎた分は読まないまま）。指標の画面に「● 要確認 今月は X の数字の上限に達しました」（本人の今月の費用は `my_x_metrics_spend_this_month`。security invoker で本人の分だけ） |
 | トークン | X のアクセストークンは 2 時間で切れるので、取り込みでも送信と同じアダプターで延長してから読む |
 | ジョブ | 4 の import-sns-metrics に相乗り |
@@ -1234,9 +1234,9 @@ Facebook ページ（graph.facebook.com）:
 
 | 取り込み元 | 取れるもの | 要るもの（利用者が用意） | 遅れ | 注意 |
 |---|---|---|---|---|
-| App Store Connect: Sales and Trends（salesReports、SUMMARY、DAILY） | ダウンロード（units）、売上 | **Team の API キー**（役割は **Sales and Reports**）の .p8・Key ID・Issuer ID、vendorNumber | 翌日（太平洋時間の朝 8 時ごろ） | Individual のキーは売上のレポートを読めない。Team のキーはチームのすべてのアプリに届く（アプリ単位に絞れない）。JWT は 20 分まで、矢書は GET だけの scope を付けて作る |
+| App Store Connect: Sales and Trends（salesReports、SUMMARY、DAILY） | ダウンロード（units）、売上 | **Team の API キー**（役割は **Sales and Reports**）の .p8・Key ID・Issuer ID、vendorNumber | 翌日（太平洋時間の朝 8 時ごろ） | Individual のキーは売上のレポートを読めない。Team のキーはチームのすべてのアプリに届く（アプリ単位に絞れない）。JWT は 20 分まで、yabumi は GET だけの scope を付けて作る |
 | App Store Connect: Analytics Reports | ストアの表示回数・ページの閲覧（Discovery and Engagement）、ダウンロード（初回・再）、購入。キャンペーン（ct）ごとの内訳（Detailed のレポートだけ） | 同上。ただし**レポートの依頼を作るのは Admin の役割だけ**。最初の 1 回だけ Admin のキーで依頼を作り、あとは Sales and Reports のキーで読む形を想定（【未確認】Sales and Reports のキーで依頼の一覧を読めるか） | 依頼から 1〜2 日で始まり、日ごとのデータは 2〜3 日で確定 | 同じ日の行が後の日のレポートで上書きされるので、足し合わせない（最新を使う）。Detailed は 5 未満を省き ±2 ほどのノイズが入るので、個人開発の規模ではキャンペーンごとの数字はほとんど出ない見込み。長く読まないと止まる |
-| Google Play: Cloud Storage の一括レポート（`gs://pubsite_prod_rev_…`） | インストール（日ごと）、ストアの掲載情報の訪問者と獲得（流入元ごと。**UTM の source・campaign の列**あり）、売上（概算） | 矢書の**サービスアカウントのメール**を、Play Console の「ユーザーと権限」に招待してもらう（権限は「アプリ情報の表示」をアカウント全体で。売上も見るなら「財務データの表示」）。バケットの ID を入れてもらう | **3〜7 日** | 鍵を預からずに済む。ただし全利用者が同じサービスアカウントを招待すると、ほかの人のバケットの ID を入れれば読めてしまう。**利用者ごとに別のサービスアカウントを作る**（Google Cloud の 1 プロジェクトで既定 100 個まで。増やすには申請）。CSV は UTF-16、月ごとのファイルに日ごとの行 |
+| Google Play: Cloud Storage の一括レポート（`gs://pubsite_prod_rev_…`） | インストール（日ごと）、ストアの掲載情報の訪問者と獲得（流入元ごと。**UTM の source・campaign の列**あり）、売上（概算） | yabumi の**サービスアカウントのメール**を、Play Console の「ユーザーと権限」に招待してもらう（権限は「アプリ情報の表示」をアカウント全体で。売上も見るなら「財務データの表示」）。バケットの ID を入れてもらう | **3〜7 日** | 鍵を預からずに済む。ただし全利用者が同じサービスアカウントを招待すると、ほかの人のバケットの ID を入れれば読めてしまう。**利用者ごとに別のサービスアカウントを作る**（Google Cloud の 1 プロジェクトで既定 100 個まで。増やすには申請）。CSV は UTF-16、月ごとのファイルに日ごとの行 |
 | RevenueCat（v2） | MRR、有効な定期購入、直近 28 日の売上、新しい客、試用中。売上の日ごとのグラフ | v2 のシークレットキー（Charts & Metrics の読み取りの権限だけ） | ほぼすぐ | 1 分 25 回まで。プロジェクト全体に効く鍵 |
 
 - 「ダウンロード」と「課金」は、どの投稿から来たかまではわからない（App Store のキャンペーン、Google Play の UTM は、数が少ないと出ない）。**日ごとに、投稿・クリックと並べて見せる**（4.4 のとおり）。「この投稿の翌日にダウンロードが増えた」は、相関であって原因とは言い切れない、と画面に書く
@@ -1252,18 +1252,18 @@ Facebook ページ（graph.facebook.com）:
 - 列: Date, Package name, Traffic source, Search term, UTM source, UTM campaign, Store listing acquisitions, Store listing visitors, Store listing conversion rate
 - 少ない数: 「Search term・UTM source・UTM campaign は、決まった数に届かないと Other になる」（同じ資料）。「数が足りない検索語・UTM source・UTM campaign は Other にまとめる」（[Understand and grow your app's user base](https://support.google.com/googleplay/android-developer/answer/9859173)）
 - 数え方: Store listing acquisitions は「ストアの掲載情報に来てインストールした人のうち、そのときほかの端末にも入れていなかった人」（はじめてのインストール。同じ資料）
-- 2026 年 7 月から Play Console の画面の主な数字は「インストールボタンを押した人」（unique user install clicks）に変わったが、「Cloud Storage の一括レポート（CSV）は、これまでの acquisitions の数字だけを出し続ける」（同じ資料）。矢書は CSV の acquisitions を使う
-- 矢書の短縮リンクは referrer に `utm_source=<SNS の名前。SNS を決めていないリンクは link>`・`utm_medium=social`・`utm_campaign=<リンクのコード>` を入れる（src/lib/links/rules.ts）。取り込みは、UTM source が矢書の名前の行だけを日ごとに足し、Other の行は「その他」として数だけ持つ。ほかの UTM と、UTM のない行（検索など）は持たない。検索語（Search term）は預からない
+- 2026 年 7 月から Play Console の画面の主な数字は「インストールボタンを押した人」（unique user install clicks）に変わったが、「Cloud Storage の一括レポート（CSV）は、これまでの acquisitions の数字だけを出し続ける」（同じ資料）。yabumi は CSV の acquisitions を使う
+- yabumi の短縮リンクは referrer に `utm_source=<SNS の名前。SNS を決めていないリンクは link>`・`utm_medium=social`・`utm_campaign=<リンクのコード>` を入れる（src/lib/links/rules.ts）。取り込みは、UTM source が yabumi の名前の行だけを日ごとに足し、Other の行は「その他」として数だけ持つ。ほかの UTM と、UTM のない行（検索など）は持たない。検索語（Search term）は預からない
 - 保存: store_daily の google_play の行の `values.utm`（`by_source`・`by_campaign`・`other`）。テーブルは足していない。ファイルがない月はとばし、要る列がないときはその月の日に `utm_unreadable` を付けて、画面で「読めませんでした」と出す（取り込み全体は止めない）
 - 画面: 分析の「Google Play が数えた SNS ごとの DL」（選んだ期間）、投稿の順位の行の「DL n（Google Play が数えた）」（30 日。投稿の本文の短縮リンクのコードで結ぶ）、概要の数字のカード「Google Play が数えた SNS からの DL」（4 枚に空きがあるとき）。どれも App Store の分は入らないと書く
 
 #### Apple が数えたキャンペーンごとのダウンロード（数字の段 5。2026-10-30 に Apple の資料で確かめた）
 
 - レポート: Analytics Reports の App Store Downloads の **Detailed**（カテゴリは APP_STORE_COMMERCE）。Campaign の列は Detailed だけで、2024-11-19 から（[App Store Downloads](https://developer.apple.com/documentation/analytics-reports/app-download)）
-- 列: Date, App Name, App Apple Identifier, Download Type, App Version, Device, Platform Version, Source Type, Source Info, Campaign, Page Type, Page Title, Pre-Order, Territory, Counts。Download Type は First-time Download・Redownload・Manual update・Auto-update・Restore（同じ資料）。矢書は First-time Download だけを数える
-- 依頼: 新しい種類のレポートをはじめて依頼するのは Admin、できたレポートを読むのは Sales and Reports か Finance の役割（[Download Analytics Reports](https://developer.apple.com/help/app-store-connect-analytics/overview/analytics-reports-api/)）。矢書がページの閲覧数のために作った ONGOING の依頼で、ほかのレポートも作られる。最初のレポートは依頼から 24〜48 時間、日ごとの数は 2 日で確定（同じ資料と App Store Downloads）
+- 列: Date, App Name, App Apple Identifier, Download Type, App Version, Device, Platform Version, Source Type, Source Info, Campaign, Page Type, Page Title, Pre-Order, Territory, Counts。Download Type は First-time Download・Redownload・Manual update・Auto-update・Restore（同じ資料）。yabumi は First-time Download だけを数える
+- 依頼: 新しい種類のレポートをはじめて依頼するのは Admin、できたレポートを読むのは Sales and Reports か Finance の役割（[Download Analytics Reports](https://developer.apple.com/help/app-store-connect-analytics/overview/analytics-reports-api/)）。yabumi がページの閲覧数のために作った ONGOING の依頼で、ほかのレポートも作られる。最初のレポートは依頼から 24〜48 時間、日ごとの数は 2 日で確定（同じ資料と App Store Downloads）
 - 少ない数と乱数: Detailed は「5 人未満か 5 台未満の値を省く」「小さな乱数を足す。68.2% は ±2、95% は ±4、99.7% は ±6 の中」（[Protecting user privacy in report data](https://developer.apple.com/documentation/analytics-reports/privacy)）。キャンペーンは「はじめてのダウンロードが 5 人以上になってから出る」「リンクを押してから 24 時間以内のダウンロードを数える」（[Campaign links](https://developer.apple.com/help/app-store-connect-analytics/acquisition/campaign-links/)）
-- 矢書の短縮リンクは App Store の行き先に `ct=<SNS の名前か link>-<リンクのコード>`（30 字まで）と、利用者が入れた `pt` を付ける（src/lib/links/rules.ts）。取り込みは、Campaign がこの形で SNS の名前が矢書のものの行だけを足す。乱数で 0 より下になった値は 0 にする
+- yabumi の短縮リンクは App Store の行き先に `ct=<SNS の名前か link>-<リンクのコード>`（30 字まで）と、利用者が入れた `pt` を付ける（src/lib/links/rules.ts）。取り込みは、Campaign がこの形で SNS の名前が yabumi のものの行だけを足す。乱数で 0 より下になった値は 0 にする
 - 取り込み: ページの閲覧数の取り込み（毎日 3 時）のあとに、直近 14 日の回のうち新しい 7 つを読み直し、古い順に日ごとに上書きする（Detailed は遅れて届き、あとの回で直るため）。store_daily の source `app_store_campaigns`（マイグレーション 20261030160000）に `{ by_source, by_campaign }`。形が違う回は、その回の日に `{ unreadable: true }`。失敗してもページの閲覧の取り込みは止めない
 - 画面: 分析の「Apple が数えた SNS ごとの DL」（選んだ期間）。短縮リンクがあるのに数がない SNS は 0 と書かず「5 未満」。数には「Apple が数えた（少ない数は省かれ、少しずれます）」「Google Play の分は入っていません」と書く。ページの閲覧数の依頼をしていなければ、依頼への案内。投稿の順位の行に「DL n（Apple が数えた・少しずれます）」（30 日）。概要のカードには出さない
 
@@ -1447,7 +1447,7 @@ Facebook ページ（graph.facebook.com）:
 | 送り終えたら | **すべての送り先が終わって 1 日で消す**（画像は 30 日） | 容量と転送量のいちばんの原因になるので、早く消す |
 | TikTok | まずは**下書きとして送る（Upload、video.upload）**。直接投稿（Direct Post、video.publish）は監査のあと | 予約投稿が規約で認められるかが書かれていない（下）。下書きなら、利用者が TikTok のアプリで仕上げるので、予約の時刻に送っても規約の問題が起きにくい |
 | YouTube | videos.insert（再開できるアップロード）、スコープは youtube.upload だけ | 投稿だけなら最小のスコープ。restricted（CASA が要る）には入っていない |
-| Google Cloud のプロジェクト | **F07 の M6（Google Play）とは別に、YouTube 用を作る** | 同じでも作れるが、OAuth の確認はプロジェクトのすべての OAuth クライアントが対象になり、利用者の上限（未確認のアプリは 100 人）もプロジェクト単位。矢書の名前と yabumi.app で確認を受け、Play の連携を巻き込まない |
+| Google Cloud のプロジェクト | **F07 の M6（Google Play）とは別に、YouTube 用を作る** | 同じでも作れるが、OAuth の確認はプロジェクトのすべての OAuth クライアントが対象になり、利用者の上限（未確認のアプリは 100 人）もプロジェクト単位。yabumi の名前と yabumi.app で確認を受け、Play の連携を巻き込まない |
 | 費用 | 動画を使う人が 2〜3 人を超えたら **Supabase Pro（$25/月 ≒ 3,750 円）** が要る | 月 3,000 円の予算を、これだけで超える。料金プランで回収するか、動画を有料の機能にするかをオーナーが決める（下の「オーナーに決めてもらうこと」） |
 
 #### SNS ごとの動画の決まり（API で送る場合）
@@ -1463,7 +1463,7 @@ Facebook ページ（graph.facebook.com）:
 | Facebook ページのリール | MP4、H.264・H.265、AAC 48kHz、closed GOP 2〜5 秒 | 【未確認】 | **3〜90 秒** | **9:16、540×960 以上**、24〜60fps・**固定** | 3 段階（start → rupload に送るか file_url → finish） | status が ready になるまで |
 
 - 古い資料の「X は 140 秒・512MB まで」は、いまは 20 分・8GB になっている
-- 矢書の 1 本の形（上の結論）は、この表のいちばん厳しい条件を集めたもの: 容器と moov の位置（Instagram・Threads）、H.264（X）、AAC 48kHz・128kbps（Instagram・Threads・X）、30fps 固定（Facebook）、9:16（Facebook・ショート）、90 秒（Facebook）、2 秒ごとのキーフレーム（Facebook の closed GOP・X の open GOP 不可）、映像 5〜6Mbps（50MB に収め、X の「5Mbps 以上」の記載【未確認】にも合わせる）
+- yabumi の 1 本の形（上の結論）は、この表のいちばん厳しい条件を集めたもの: 容器と moov の位置（Instagram・Threads）、H.264（X）、AAC 48kHz・128kbps（Instagram・Threads・X）、30fps 固定（Facebook）、9:16（Facebook・ショート）、90 秒（Facebook）、2 秒ごとのキーフレーム（Facebook の closed GOP・X の open GOP 不可）、映像 5〜6Mbps（50MB に収め、X の「5Mbps 以上」の記載【未確認】にも合わせる）
 - Facebook を選ばないときは 3 分（ショート）まで、と長さの上限を送り先で変えることもできる。ただ 50MB（Supabase Free）に収まるのは 5Mbps で約 80 秒なので、Free のうちは 90 秒で一律にする
 
 #### ブラウザで形をそろえる（WebCodecs）
@@ -1501,11 +1501,11 @@ Facebook ページ（graph.facebook.com）:
 | SNS | 送り方 |
 |---|---|
 | Instagram・Threads・Facebook | 送る直前に作る 1 時間の署名 URL を渡し、SNS に取りに来てもらう（画像と同じ）。処理が終わるまで待つ（最長 5 分）。予約ジョブの 1 回の中では待ち続けず、「準備中」にして次の回に続きを確かめる（画像の badee7f と同じ） |
-| TikTok・YouTube・X | 矢書のサーバーが Storage から読み、分割して SNS に送る（50MB なら 1 回の関数の時間に収まる見込み）。TikTok の PULL_FROM_URL は、ドメインの所有確認が要るので使わない（yabumi.app の下に、Storage から流すだけの中継を置く方法もあるが、Vercel の転送量を使うので、FILE_UPLOAD のほうが素直） |
+| TikTok・YouTube・X | yabumi のサーバーが Storage から読み、分割して SNS に送る（50MB なら 1 回の関数の時間に収まる見込み）。TikTok の PULL_FROM_URL は、ドメインの所有確認が要るので使わない（yabumi.app の下に、Storage から流すだけの中継を置く方法もあるが、Vercel の転送量を使うので、FILE_UPLOAD のほうが素直） |
 
 - 作成画面で SNS ごとに要る項目（素人向けに、説明と初期値を添える）:
   - TikTok: タイトル（直せる）、公開範囲（creator_info の選択肢から**利用者が選ぶ。最初から選んだ状態にしない**）、コメント・デュエット・リミックス（最初はオフ）、「宣伝の内容を含む」のスイッチ（最初はオフ）、同意の文と TikTok の音楽の利用の確認へのリンク（docs/review/tiktok.md の 8 つの決まり）
-  - YouTube: タイトル（100 字）、説明（5,000 バイト）、公開範囲（公開・限定公開・非公開）、**子ども向けかどうか（selfDeclaredMadeForKids。法律〈COPPA〉で、すべての動画で決める必要がある）**。説明に矢書が文を足さない
+  - YouTube: タイトル（100 字）、説明（5,000 バイト）、公開範囲（公開・限定公開・非公開）、**子ども向けかどうか（selfDeclaredMadeForKids。法律〈COPPA〉で、すべての動画で決める必要がある）**。説明に yabumi が文を足さない
   - Instagram: キャプション（共通の本文）、フィードにも出すか（share_to_feed）
   - X・Threads・Facebook: 共通の本文
 - 動画だけの SNS（TikTok・YouTube）を選んで動画がないときは、作成画面で「動画が必要」と出す（今もある needs_video）
@@ -1533,9 +1533,9 @@ Facebook ページ（graph.facebook.com）:
 - 確認（sensitive のスコープ）に要るもの: 英語で同意の画面を出し、許可までを見せるデモ動画（YouTube に限定公開）、yabumi.app のプライバシーポリシー、Search Console での yabumi.app の所有確認、スコープごとの理由、ログインの画面だけではないホームページ。日数は 3〜5 営業日（FAQ には 10 営業日とあり食い違う）。youtube.upload は restricted ではないので、セキュリティの評価（CASA）は要らない見込み
 - YouTube API の監査（割り当てを増やすとき）は、OAuth の確認とは別の申請（docs/review/youtube.md）
 
-#### 矢書の画面での流れ（素人前提）
+#### yabumi の画面での流れ（素人前提）
 
-1. プロジェクトの設定の「つないだ SNS」に TikTok・YouTube の「つなぐ」。つなぐ前に、何ができて何ができないかを出す（TikTok は監査の前は「自分だけに見える投稿」になり、アカウントも非公開にしておく必要がある、YouTube は Google の画面で「確認されていないアプリ」と出ることがある、など。今だけの事情は「矢書の準備の都合で」と書き、利用者のせいに見えないようにする）
+1. プロジェクトの設定の「つないだ SNS」に TikTok・YouTube の「つなぐ」。つなぐ前に、何ができて何ができないかを出す（TikTok は監査の前は「自分だけに見える投稿」になり、アカウントも非公開にしておく必要がある、YouTube は Google の画面で「確認されていないアプリ」と出ることがある、など。今だけの事情は「yabumi の準備の都合で」と書き、利用者のせいに見えないようにする）
 2. 作成画面の「画像」の欄を「画像・動画」にし、「動画を選ぶ」を足す。選んだら、長さと大きさを確かめ、必要なら作り直す（進み具合つき）→ 上げる（進み具合つき。途中で切れても続きから）→ 1 秒目のサムネイルとプレビュー
 3. 送り先ごとに、動画が送れるか・要る項目（上の表）を出す。TikTok と YouTube の欄は、選んだときに開く
 4. 予約・今すぐ送る。動画は SNS 側の処理に数分かかるので、送信の結果に「処理中」を出し、終わったら「送信済み」にする
@@ -1554,7 +1554,7 @@ Facebook ページ（graph.facebook.com）:
 
 #### 費用と、月 3,000 円との関係
 
-前提: 動画を使う人は 1 人あたり月 8 本（週 2 本）、1 本 40MB（60 秒・5Mbps）。送ったら 1 日で消すので、置いている量は 1 人あたり常に 2〜4 本（約 160MB）。転送量（egress）は、Instagram・Threads・Facebook が取りに来る分と、矢書のサーバーが TikTok・YouTube・X へ送るために読む分で、1 本あたり 4 回ほど → 1 人あたり月 約 1.3GB。SNS の API は動画でも無料（X は投稿 1 本 $0.015 のまま。動画の上げ方の料金の行はない【未確認】）。
+前提: 動画を使う人は 1 人あたり月 8 本（週 2 本）、1 本 40MB（60 秒・5Mbps）。送ったら 1 日で消すので、置いている量は 1 人あたり常に 2〜4 本（約 160MB）。転送量（egress）は、Instagram・Threads・Facebook が取りに来る分と、yabumi のサーバーが TikTok・YouTube・X へ送るために読む分で、1 本あたり 4 回ほど → 1 人あたり月 約 1.3GB。SNS の API は動画でも無料（X は投稿 1 本 $0.015 のまま。動画の上げ方の料金の行はない【未確認】）。
 
 | 利用者（動画を使う人） | Storage（常に置いている量） | 転送量（月） | Supabase | Vercel の転送量（サーバーが送る分） | 動画のための費用 |
 |---|---|---|---|---|---|
@@ -1579,7 +1579,7 @@ Facebook ページ（graph.facebook.com）:
 
 ### 4.25 画像の生成（F14 の残り、2026-10-11 に調査・設計。2026-10-12 に段取り ① テンプレートを実装）
 
-目的: 投稿に添える画像を、素人の個人開発者が矢書の中で作れるようにする。オーナーが I1〜I7 をおすすめどおりに決めた（2026-10-12、requirements.md の D25）。① テンプレートを作り（下の「① テンプレートの作り」）、② AI の背景と ③ 試し比べは、料金プランを始める公開の段階 ③（D24、roadmap.md の 2.5）に進むときに作る。料金と仕様は各社の公式の資料（2026-10-11 に確認）。公式で確かめられなかったものは【未確認】、第三者の検証によるものは【第三者】と書く。1 ドル = 150 円。
+目的: 投稿に添える画像を、素人の個人開発者が yabumi の中で作れるようにする。オーナーが I1〜I7 をおすすめどおりに決めた（2026-10-12、requirements.md の D25）。① テンプレートを作り（下の「① テンプレートの作り」）、② AI の背景と ③ 試し比べは、料金プランを始める公開の段階 ③（D24、roadmap.md の 2.5）に進むときに作る。料金と仕様は各社の公式の資料（2026-10-11 に確認）。公式で確かめられなかったものは【未確認】、第三者の検証によるものは【第三者】と書く。1 ドル = 150 円。
 
 #### 結論（おすすめ）
 
@@ -1587,8 +1587,8 @@ Facebook ページ（graph.facebook.com）:
 |---|---|---|
 | 作り方 | **文字はテンプレートで重ね、AI には文字のない背景や絵だけを作らせる**。図解・アプリの紹介画像・お知らせ・note のヘッダーは **テンプレートだけ（AI の画像の費用 0）** で作る | 画像の中の日本語は、どの AI でも誤字が出ることがある（OpenAI も公式に「文字の位置と鮮明さに苦戦することがある」と書いている）。テンプレートなら文字は必ず正しく、あとから直せて、費用もかからない。アプリの画面は本物のスクリーンショットを使う（AI に画面を描かせると、実物と違う画面で誤解を招く） |
 | 文字と中身 | 見出し・図解の項目・代わりの文（alt）は、いまの AI（Claude）が投稿の文面とアカウント設計から下書きする | 既存の仕組み（4.5、ai_usage、上限）のまま使える。1 回 1〜3 円ほど |
-| テンプレートを描く場所 | **ブラウザ**（Canvas に、矢書の画面と同じ Zen Kaku Gothic New で描く）→ 既存の画像の添付（4.18）にそのまま入れる | サーバーで描く（next/og の ImageResponse）と、日本語のフォント（数 MB）が 500KB の上限を超える。ブラウザなら費用 0 で、4.18 の JPEG への描き直し・中身の確かめを通る |
-| AI の画像のサービス | **Google の Gemini API の Nano Banana 2.1（gemini-nano-banana-2.1）、1K、1 枚 $0.0336（約 5 円）**。文字の多い画像を AI に直接作らせたくなったら、OpenAI の GPT Image 2 を足すか比べる（下の段取りの ③） | 1K で主な候補の中でいちばん安い部類で、Instagram の 4:5 などの縦横比をそのまま指定できる。有料で使えば送ったものを学習に使わない。Google は生成物の所有権を主張しない。利用者の年齢（18 歳以上）が矢書の規約と同じ |
+| テンプレートを描く場所 | **ブラウザ**（Canvas に、yabumi の画面と同じ Zen Kaku Gothic New で描く）→ 既存の画像の添付（4.18）にそのまま入れる | サーバーで描く（next/og の ImageResponse）と、日本語のフォント（数 MB）が 500KB の上限を超える。ブラウザなら費用 0 で、4.18 の JPEG への描き直し・中身の確かめを通る |
+| AI の画像のサービス | **Google の Gemini API の Nano Banana 2.1（gemini-nano-banana-2.1）、1K、1 枚 $0.0336（約 5 円）**。文字の多い画像を AI に直接作らせたくなったら、OpenAI の GPT Image 2 を足すか比べる（下の段取りの ③） | 1K で主な候補の中でいちばん安い部類で、Instagram の 4:5 などの縦横比をそのまま指定できる。有料で使えば送ったものを学習に使わない。Google は生成物の所有権を主張しない。利用者の年齢（18 歳以上）が yabumi の規約と同じ |
 | 1 回に作る枚数 | 押すたびに **2 枚**。選ばなかったものは 1 日で消す | 選べるが、費用が増えすぎない（1 回 約 10 円） |
 | 上限 | ai_usage に記録し、**押す前に費用を予約する**（X の reserve_sns_spend と同じ考え方）。利用者ごとに **月 30 枚**（約 $1）と、全体の月の上限 | 1 枚ずつの値段が決まっていて、同時に何度も押されても上限を超えないようにするため |
 
@@ -1626,12 +1626,12 @@ Facebook ページ（graph.facebook.com）:
 | Midjourney | API がない | | | | | 使えない |
 | Anthropic（Claude） | 画像は作れない | | | | | 文字・図解の中身・指示文の下書きに使う |
 
-- 比べた結果: 安さと縦横比の指定のしやすさでは **Nano Banana 2.1（1K 約 5 円）**、画像の中の日本語では **GPT Image 2（縦長 medium 約 6 円）** が有力。矢書は文字をテンプレートで重ねるので、AI の画像に日本語を入れる必要がなく、安いほうを先に選ぶ
+- 比べた結果: 安さと縦横比の指定のしやすさでは **Nano Banana 2.1（1K 約 5 円）**、画像の中の日本語では **GPT Image 2（縦長 medium 約 6 円）** が有力。yabumi は文字をテンプレートで重ねるので、AI の画像に日本語を入れる必要がなく、安いほうを先に選ぶ
 - GPT Image 2 の low（1 枚 約 1 円）は安いが、絵の質が落ちる。案を多く出して、選んだものを medium で作り直す使い方もある（費用が読みにくくなるので、最初はしない）
 - Batch（半額）は数時間かかるので、画面で待つ使い方には合わない
 - モデルの入れ替えが速い（Gemini 2.5 Flash Image は 2026-10-02 で終了、gpt-image-1 も終わる予定と言われている【第三者】）。モデルの名前と 1 枚の値段は環境変数と src/lib/ai/pricing.ts に置き、すぐ差し替えられるようにする
 
-#### 3. 矢書の画面での流れ
+#### 3. yabumi の画面での流れ
 
 ```
 投稿の作成画面の「画像」の欄 →「画像をつくる」
@@ -1641,14 +1641,14 @@ Facebook ページ（graph.facebook.com）:
        → 利用者は案を選んで、文字を直せる
   ③ テンプレートの種類なら、すぐにプレビュー（費用 0）
      アイキャッチなら「背景をつくる（2 枚・10 円ほど）」→ 2 枚から選ぶ（作り直しもできる）
-  ④ 色（矢書のトークンからいくつか）と、文字の位置を選ぶ → ブラウザで重ねて描く
+  ④ 色（yabumi のトークンからいくつか）と、文字の位置を選ぶ → ブラウザで重ねて描く
   ⑤「この画像を添える」→ 4.18 の流れ（JPEG に描き直し → 引換券 → Storage → 確かめ → media_files）
        代わりの文は ② の下書きが入る
 ```
 
 - **SNS ごとの縦横比**: 1 つの投稿の画像はすべての送り先で同じ（4.18）なので、送り先から既定の比率を決め、利用者が変えられるようにする
 
-| 送り先 | 既定 | 大きさ（矢書が描く） | 理由 |
+| 送り先 | 既定 | 大きさ（yabumi が描く） | 理由 |
 |---|---|---|---|
 | Instagram・Facebook を含む | **4:5** | 1080×1350 | Instagram のフィードで最も大きく見える。4:5〜1.91:1 の範囲（4.18） |
 | Threads を含む（Instagram なし） | 4:5 | 1080×1350 | 縦長が大きく見える |
@@ -1657,7 +1657,7 @@ Facebook ページ（graph.facebook.com）:
 
 - 4:5・1:1・16:9 は、どれも Instagram の範囲（4:5〜1.91:1）に入るので、選び直しても送れる。AI の背景はその比率で頼む（Nano Banana は比率、GPT Image は 1024×1280 など）。4.18 の「長い辺 2,048px まで」に収まる
 - AI の背景の候補は、非公開のバケットの別の場所（`<利用者の ID>/gen/<乱数>.png`）にサーバーが置き、プレビューは署名 URL（1 時間）。選んだものはブラウザが受け取って文字を重ね、4.18 の上げ方で上げ直す（4.18 の中身の確かめと 100MB の上限をそのまま通る）。**候補は 1 日で消す**（4.18 の毎日の片付けに足す）
-- テンプレート: 文字のカード・図解（3 点・前後・手順・数字）・アプリの画面（端末の枠つき）・アイキャッチ（背景＋見出し）・note のヘッダーの 5 種類から始める。色は矢書のトークンの組み合わせ（藍・墨・生成りなど）から選ぶ。描く処理は src/lib/media に置き、文字の折り返し・はみ出し（長い見出しは小さくする）を単体テストで確かめる
+- テンプレート: 文字のカード・図解（3 点・前後・手順・数字）・アプリの画面（端末の枠つき）・アイキャッチ（背景＋見出し）・note のヘッダーの 5 種類から始める。色は yabumi のトークンの組み合わせ（藍・墨・生成りなど）から選ぶ。描く処理は src/lib/media に置き、文字の折り返し・はみ出し（長い見出しは小さくする）を単体テストで確かめる
 - 送る前の AI っぽさチェック（4.20）は文面だけを見る。画像の見出しも同じ指示（決まり文句・誇張）で下書きさせる
 
 #### 4. 費用の見積もり（1 枚・月・利用者の数）と上限
@@ -1718,14 +1718,14 @@ Facebook ページ（graph.facebook.com）:
 **生成した画像の権利（/terms）**
 
 - Google は生成物の所有権を主張しないが、同じような画像をほかの人にも作ることがある。日本では AI が作っただけの画像には著作権が生じない場合がある（文化庁「AI と著作権に関する考え方について」2024）。規約に「AI で作った画像は、自分だけのものにならないことがある」「他人の権利を侵さないように使うのは利用者の責任」を書く
-- Google の禁止の使い方のポリシー（Generative AI Prohibited Use Policy）を、矢書の規約の禁止事項から参照する
-- 年齢: Google は API の利用者に 18 歳以上を求める。矢書の規約はすでに 18 歳以上（2026-10-11 の決定）なので合う
+- Google の禁止の使い方のポリシー（Generative AI Prohibited Use Policy）を、yabumi の規約の禁止事項から参照する
+- 年齢: Google は API の利用者に 18 歳以上を求める。yabumi の規約はすでに 18 歳以上（2026-10-11 の決定）なので合う
 - 実在の人・他社のロゴ・本物のように見えるアプリの画面を作らないこと（指示文で避けるが、利用者の責任として規約にも書く）
 
 **AI で作ったことの表示**
 
 - Nano Banana の画像には SynthID（見えない透かし。画素に入るので、JPEG にしても残る）が入る
-- 矢書の JPEG の確かめ（4.18、src/lib/media/jpeg.ts）は、JFIF・色の情報以外のメタデータを消すので、**C2PA（作った AI の記録。OpenAI が付ける）があっても消える**。Meta は C2PA・IPTC を見て「AI 情報」のラベルを付けると発表している（2024）。正直に見せるなら、AI の背景を使った画像だけ IPTC の「AI で作った」印を付けるか、何もしないかをオーナーが決める（I5）。SNS ごとの表示の義務は【未確認】（TikTok・YouTube は動画の写実的な AI に表示を求めるが、静止画の背景は対象外と見られる）
+- yabumi の JPEG の確かめ（4.18、src/lib/media/jpeg.ts）は、JFIF・色の情報以外のメタデータを消すので、**C2PA（作った AI の記録。OpenAI が付ける）があっても消える**。Meta は C2PA・IPTC を見て「AI 情報」のラベルを付けると発表している（2024）。正直に見せるなら、AI の背景を使った画像だけ IPTC の「AI で作った」印を付けるか、何もしないかをオーナーが決める（I5）。SNS ごとの表示の義務は【未確認】（TikTok・YouTube は動画の写実的な AI に表示を求めるが、静止画の背景は対象外と見られる）
 
 #### 6. 段取りの案
 
@@ -1756,7 +1756,7 @@ Facebook ページ（graph.facebook.com）:
 - 並べ方は src/lib/media/templates.ts（Canvas に触らない。単体テストで、どの種類・大きさでも文字がはみ出さないことを確かめる）。描くのは src/lib/media/template-render.ts
   - 文字の折り返し: 句読点・閉じかっこを行の頭に、開きかっこを行の終わりに置かない。英数字の単語は途中で折らない。行の後ろ 4 割に読点・空白があればそこで折る。決めた行数に収まるまで字を小さくし、だめなら最後の行を「…」で切る
   - 見出しの最後の行に 1〜2 字だけ残るときは、字を 2 割まで小さくして意味の切れ目で折れる大きさを探し、だめなら行数を変えずに幅を少し狭める
-- 色: 選ぶだけで整う 6 つ（藍・生成り・墨・若草・桜・空。文字と背景の濃さの差 4.5:1 以上をテストで確かめる）と「アプリの色」（1 色を選ぶと、文字は白か黒の読みやすいほうになる）。矢書の画面のトークンには縛らない（利用者のアプリらしさを出すため）。選んだ色と書体は、プロジェクトごとにこの端末に覚える（localStorage）
+- 色: 選ぶだけで整う 6 つ（藍・生成り・墨・若草・桜・空。文字と背景の濃さの差 4.5:1 以上をテストで確かめる）と「アプリの色」（1 色を選ぶと、文字は白か黒の読みやすいほうになる）。yabumi の画面のトークンには縛らない（利用者のアプリらしさを出すため）。選んだ色と書体は、プロジェクトごとにこの端末に覚える（localStorage）
 - 書体: すっきり（Zen Kaku Gothic New）・やわらか（Zen Maru Gothic）・落ち着き（Zen Old Mincho）・力強い（Dela Gothic One。見出しだけ）。next/font で自前で配信し、前もって読み込まない（preload: false）。日本語の書体は字ごとに分けて配信されるので、描く前に document.fonts.load で描く字のぶんだけ読む（数 MB の書体を丸ごと読まない）
 - 文字の案: 「AI に文字の案を出してもらう」で、Claude（Opus 5.5、effort low）が投稿の本文とアカウント設計（口調・投稿の柱・やらないこと）から、おすすめの種類と理由・ラベル・見出し 3 案・補足・図解の項目を出す（src/lib/ai/image-brief.ts）。結果は保存しない。利用量は ai_usage に purpose `image_brief` で記録し、AI の上限（4.9）に数える。1 回 約 $0.01〜0.02。AI がなくても手で書ける
 - 代わりの文（alt）: 描いた文字から作る（「〇〇」と書かれた画像、図解の項目など）。直すこともできる
@@ -1783,12 +1783,12 @@ Facebook ページ（graph.facebook.com）:
 
 #### ほかのアプリからの共有（Web Share Target）
 
-- manifest（src/app/manifest.ts）の share_target: POST /share/receive、multipart/form-data、title・text・url と画像 1 枚（name="image"、image/*）。ホーム画面に追加した（インストールした）矢書だけが、共有の送り先に出る。あわせて、アイコンを長押ししたときの近道（shortcuts）に「ネタ帳にメモを残す」（/share）
+- manifest（src/app/manifest.ts）の share_target: POST /share/receive、multipart/form-data、title・text・url と画像 1 枚（name="image"、image/*）。ホーム画面に追加した（インストールした）yabumi だけが、共有の送り先に出る。あわせて、アイコンを長押ししたときの近道（shortcuts）に「ネタ帳にメモを残す」（/share）
 - service worker（public/sw.js。src/components/service-worker.tsx で登録）が POST /share/receive を受け、本文と画像をサーバーに送らずにブラウザの中（Cache Storage の yabumi-share）に置いてから、/share へ 303 で移る。ほかの通信には手を出さない（オフラインの保存もしない）。sw.js は proxy の対象から外し（ログインなしで読める）、Cache-Control: no-cache で配る（next.config.ts）
 - /share（src/app/share/page.tsx）はログインなしでも開ける。ログインしていなければ、# のあとの本文を sessionStorage に控えてから /login?next=/share へ送る。ログインのあとで、Cache Storage（と控え）を読んで書く欄を開く。読んだものはすぐ消す。前にメモを残したプロジェクトを最初に選んでおく（localStorage）
 - service worker がまだ動いていない（入れた直後など）ときは、サーバーの /share/receive（route.ts）が受け、本文だけを 10 分の cookie（yabumi_share、httpOnly、300 字まで）に置いて /share へ移る。画像は受け取れないので「画像は受け取れませんでした」と出す。メモを残したら cookie を消す
 - 対応（2026-10-12 に確認）: Android の Chrome などの Chromium 系。iPhone・iPad の Safari は対応していない（WebKit の要望 bugs.webkit.org の 194593 は 2026-05-23 の時点で NEW のまま。WebKit の立場は neutral。MDN の share_target も「限られた環境だけ」）。代わりの手を、ネタ帳の画面の「ほかのアプリから、ネタ帳に送るには」に載せる:
-  - iPhone・iPad: 「ショートカット」アプリで、共有シートに出るショートカットを作る（入力を URL エンコードし、`<矢書の URL>/share#text=` に続けて開く）。# のあとはサーバーに送られない。画像は送れない
+  - iPhone・iPad: 「ショートカット」アプリで、共有シートに出るショートカットを作る（入力を URL エンコードし、`<yabumi の URL>/share#text=` に続けて開く）。# のあとはサーバーに送られない。画像は送れない
   - PC のブラウザ: ブックマークレット（見ているページの題名・URL・選んだ文を /share#title=…&url=…&text=… で開く）
   - 将来、Safari が対応したら、manifest のままで動く
 
@@ -1835,7 +1835,7 @@ Facebook ページ（graph.facebook.com）:
 
 ### 4.27 伴走（F18、決定 D29、2026-10-12）
 
-「最初の 1 か月」の目標を SNS ごとの週の投稿の回数にし、矢書がペースを見守って、画面・メール・スマホの通知で声をかける。オーナーの言葉「KPI の実行をユーザーが行えているかウォッチしたりお尻を叩いたりする仕組みは現状ありますか？」に、PM の案（目標を数字に → ペースを見張る → 画面とメールで声かけ → 1 か月で振り返り）を「おすすめ通りで OK」。スマホの通知（届ける部分）は 4.28。
+「最初の 1 か月」の目標を SNS ごとの週の投稿の回数にし、yabumi がペースを見守って、画面・メール・スマホの通知で声をかける。オーナーの言葉「KPI の実行をユーザーが行えているかウォッチしたりお尻を叩いたりする仕組みは現状ありますか？」に、PM の案（目標を数字に → ペースを見張る → 画面とメールで声かけ → 1 か月で振り返り）を「おすすめ通りで OK」。スマホの通知（届ける部分）は 4.28。
 
 #### 目標を数字にする
 
@@ -1873,7 +1873,7 @@ Facebook ページ（graph.facebook.com）:
 - 予定日を過ぎたやることは、お知らせの設定に種類を足さず、「遅れそうなとき」に含める（「毎週の振り返りだけ」「送らない」の人には送らない）。しつこくしないため: ① 種類を増やすと選ぶことが増え、素人には違いがわかりにくい ② 同じやることは 1 回だけ ③ 1 日に 2 通送らない（遅れの声かけの曜日はその知らせに、月曜は振り返りに入れ、ほかの日だけそれだけの知らせを送る。1 日の新しいものは 1 通にまとめる） ④ 予定日から 7 日までのものだけ（初めて動いたときに古いものをまとめて送らない）。どれが過ぎたかは概要のカードと同じ決まり（src/lib/roadmap/load.ts の overdueItems、DB の roadmap_item_progress）
 - 週の回数をまだ決めていなければ、「いまやること」が済んだあとの概要に「週の回数を決める」を出す
 - スマホの通知は題 30 字・本文 80 字（4.28 が切る）。ロック画面に出るので、投稿の本文やメールアドレスは入れない（プロジェクトの名前とあと何本かだけ）。tag は pace:<プロジェクト>・weekly:<プロジェクト>（同じ種類は新しいもので置き換わる）
-- メールは Resend の API（src/lib/notify/user-mail.ts。RESEND_API_KEY がなければ送らず、ログに件名だけ）。送り元は NOTIFY_EMAIL_FROM（なければ OPERATOR_EMAIL_FROM）。本文は日本語で、最後に「何のメールか」「お知らせの設定へのリンク」「このお知らせのメールを止める（ワンクリック）」「送信者（矢書、運営 YuXport Labs）」「問い合わせ先」を付ける。見出しに List-Unsubscribe と List-Unsubscribe-Post（RFC 8058 のワンクリックの配信停止。Gmail・Yahoo の送信者の要件）
+- メールは Resend の API（src/lib/notify/user-mail.ts。RESEND_API_KEY がなければ送らず、ログに件名だけ）。送り元は NOTIFY_EMAIL_FROM（なければ OPERATOR_EMAIL_FROM）。本文は日本語で、最後に「何のメールか」「お知らせの設定へのリンク」「このお知らせのメールを止める（ワンクリック）」「送信者（yabumi、運営 YuXport Labs）」「問い合わせ先」を付ける。見出しに List-Unsubscribe と List-Unsubscribe-Post（RFC 8058 のワンクリックの配信停止。Gmail・Yahoo の送信者の要件）
 - 特定電子メール法: 伴走のメールは、利用者が決めた目標についての、サービスの中の知らせ（広告・宣伝を含めない）として送る。それでも、送信者の名前・問い合わせ先・配信の停止の方法は必ず表示する。住所の表示（広告・宣伝のメールで求められる）は、広告・宣伝を含めるようになったら要る（オーナーに確かめる点として roadmap.md に記録）
 - AI は使わない（中身は決まった文）。月末の「AI と振り返る」は 4.23 の相談の上限に数える
 
@@ -1918,12 +1918,12 @@ Facebook ページ（graph.facebook.com）:
 ```
 伴走のジョブ（src/lib/coach/notify.ts）→ sendPush(admin, userId, { title, body, url, tag })（src/lib/push/send.ts）
   → web-push のライブラリで暗号化（RFC 8291、aes128gcm）と VAPID の署名（RFC 8292）→ 端末ごとの push サービスに POST
-  → 端末の service worker（public/sw.js）の push → 通知を出す → 押す（notificationclick）→ 矢書のその画面を開く
+  → 端末の service worker（public/sw.js）の push → 通知を出す → 押す（notificationclick）→ yabumi のその画面を開く
 ```
 
 - **送る部品の形**（4.27 の実装担当と取り決め）: `sendPush(admin, userId, msg)` は、その利用者が登録したすべての端末に送り、`{ sent, removed, failed }` を返す。端末がなければ `{ sent: 0 }`（エラーにしない）。`hasPushDevice(admin, userId)` は、お知らせの設定の画面で「端末を登録すると届きます」を出すのに使う
   - title は 30 字、body は 80 字まで（iPhone のロック画面で 4 行、Android の閉じた表示で 2 行ほど）。超えたら「…」で切る。投稿の本文やメールアドレスなどの中身は入れない（ロック画面に出るため）
-  - url は矢書の中のパス（「/」で始まる）だけ。ほかのものは「/」にする（サーバーと service worker の両方で確かめる）。伴走は /projects/<id> か /projects/<id>/compose
+  - url は yabumi の中のパス（「/」で始まる）だけ。ほかのものは「/」にする（サーバーと service worker の両方で確かめる）。伴走は /projects/<id> か /projects/<id>/compose
   - tag: 同じ tag の通知は、端末の上で新しいものに置き換わる（たまっていかない）。push サービスの Topic にも、tag のハッシュ（32 字）を入れる（届く前なら、push サービスの中でも古いものを置き換える）。伴走は `pace:<projectId>`（遅れそう）と `weekly:<projectId>`（毎週の振り返り）
   - TTL は 24 時間（端末の電源が切れていても、1 日以内に入れば届く。それより古い声かけは意味が薄い）。Urgency は normal
   - 端末ごとに並べて送り、1 端末 10 秒で打ち切る
@@ -1939,21 +1939,21 @@ Facebook ページ（graph.facebook.com）:
 
 | 端末 | 出すもの |
 |---|---|
-| iPhone・iPad の Safari（ホーム画面に追加していない） | 「iPhone・iPad では、ホーム画面に追加すると通知を受け取れます」と手順（共有ボタン →「ホーム画面に追加」→ ホーム画面の矢書から開いてログイン → この画面でボタン）。ボタンは出さない |
+| iPhone・iPad の Safari（ホーム画面に追加していない） | 「iPhone・iPad では、ホーム画面に追加すると通知を受け取れます」と手順（共有ボタン →「ホーム画面に追加」→ ホーム画面の yabumi から開いてログイン → この画面でボタン）。ボタンは出さない |
 | iOS 16.4 より前 | 「iOS 16.4 以降が必要です」とアップデートの場所 |
-| ホーム画面の矢書（iOS 16.4 以降）、Android の Chrome、PC の Chrome・Edge・Firefox・Safari | 「この端末で通知を受け取る」。登録済みなら「この端末（iPhone）で受け取っています」「試しに送る」「この端末では受け取らないようにする」 |
-| 通知を「許可しない」にした端末 | 端末ごとの許可の手順（iPhone は設定 → 通知 → 矢書、Android の Chrome はアドレスバーの左 → 権限 → 通知、PC はアドレスバーの左 → 通知） |
+| ホーム画面の yabumi （iOS 16.4 以降）、Android の Chrome、PC の Chrome・Edge・Firefox・Safari | 「この端末で通知を受け取る」。登録済みなら「この端末（iPhone）で受け取っています」「試しに送る」「この端末では受け取らないようにする」 |
+| 通知を「許可しない」にした端末 | 端末ごとの許可の手順（iPhone は設定 → 通知 → yabumi、Android の Chrome はアドレスバーの左 → 権限 → 通知、PC はアドレスバーの左 → 通知） |
 | 通知に対応していないブラウザ | 「このブラウザは通知を受け取れません」 |
 | 鍵がない（運営者がまだ入れていない） | 「準備中」（NotReadyButton） |
 
 - ほかに登録している端末を並べ、そこからも外せる。「ホーム画面に追加する手順（iPhone・Android）」と「届かないとき」を、たたんで置く
-- 「試しに送る」: その端末だけに「矢書からのお知らせ」を送る。30 秒は続けて送れない
-- 対応（2026-10-12 に確認）: iOS・iPadOS は 16.4 以降で、ホーム画面に追加した Web アプリのときだけ受け取れる（WebKit の「Web Push for Web Apps on iOS and iPadOS」）。ホーム画面の矢書は Safari とログインが別なので、もう一度ログインが要る。Android の Chrome は、ホーム画面に追加しなくても受け取れる。iOS 18.4 からの Declarative Web Push（service worker なしで出せる形）は使わない（いまの形のまま iOS でも届く。WebKit も従来の形との互換を保つとしている）
+- 「試しに送る」: その端末だけに「yabumi からのお知らせ」を送る。30 秒は続けて送れない
+- 対応（2026-10-12 に確認）: iOS・iPadOS は 16.4 以降で、ホーム画面に追加した Web アプリのときだけ受け取れる（WebKit の「Web Push for Web Apps on iOS and iPadOS」）。ホーム画面の yabumi は Safari とログインが別なので、もう一度ログインが要る。Android の Chrome は、ホーム画面に追加しなくても受け取れる。iOS 18.4 からの Declarative Web Push（service worker なしで出せる形）は使わない（いまの形のまま iOS でも届く。WebKit も従来の形との互換を保つとしている）
 
 #### service worker（public/sw.js）
 
-- push: 中身（JSON の title・body・url・tag）で通知を出す。読めなければ「矢書からのお知らせ」で出す（Safari は、受けても通知を出さないことが続くと購読を止めるため、必ず出す）。アイコンは /icons/icon-192.png。同じ tag で置き換えたときも知らせ直す（renotify）
-- notificationclick: 矢書の画面がすでに開いていればそこに移ってその URL を開き、なければ新しく開く
+- push: 中身（JSON の title・body・url・tag）で通知を出す。読めなければ「yabumi からのお知らせ」で出す（Safari は、受けても通知を出さないことが続くと購読を止めるため、必ず出す）。アイコンは /icons/icon-192.png。同じ tag で置き換えたときも知らせ直す（renotify）
+- notificationclick: yabumi の画面がすでに開いていればそこに移ってその URL を開き、なければ新しく開く
 - pushsubscriptionchange（Firefox などで購読が新しくなったとき）: 新しい購読を /api/push/renew に送る。サーバーはログインの cookie で本人を確かめ、前の宛先がその人の登録で、新しい宛先がほかの人の登録でないときだけ付け替える（renewDevice。利用者が押した登録ではないので、ほかの人の宛先を移さない。ボタンからの登録だけが、同じ端末の宛先をその人に移す）
 - 共有の受け取り（4.26）と同じ 1 つの service worker。ほかの通信には手を出さない
 
@@ -1976,9 +1976,9 @@ Facebook ページ（graph.facebook.com）:
 - 新しい送り先: 端末ごとの push サービス（Apple・Google・Mozilla・Microsoft）。送るのは通知の題・本文・開く画面のパス（暗号化して送るので、push サービスは中身を読めない。宛先と時刻・大きさは push サービスに見える）
 - cookie: yabumi_push_device（この端末で登録した宛先の id。httpOnly、1 年。ログアウトで外すため）
 
-### 4.29 矢書の LP と招待の申し込み（F19、決定 D30。2026-10-12）
+### 4.29 yabumi の LP と招待の申し込み（F19、決定 D30。2026-10-12）
 
-ログイン前のトップ（/、src/app/page.tsx）で、矢書が誰のためのもので何ができるかを伝え、興味を持った人が招待を申し込めるようにする。新規登録を閉じている間（D24 の ①・②）の受け皿。ログイン済みの人が / を開いたら、今までどおりプロジェクトへ移る。
+ログイン前のトップ（/、src/app/page.tsx）で、yabumi が誰のためのもので何ができるかを伝え、興味を持った人が招待を申し込めるようにする。新規登録を閉じている間（D24 の ①・②）の受け皿。ログイン済みの人が / を開いたら、今までどおりプロジェクトへ移る。
 
 #### 構成
 
@@ -2011,7 +2011,7 @@ Facebook ページ（graph.facebook.com）:
 本人 → 確認のメールのリンク /waitlist/cancel?t=… → 「申し込みを取り消す」を押す → すぐ消す
 ```
 
-- **確認のメール**: 件名「矢書の招待の申し込みを受け付けました」。招待制であること、申し込みの順に案内すること（時期は決まっていない。お断りすることもある。規約と同じ）、取り消しのリンク。RESEND_API_KEY がなければ送らず、画面に「受け付けました」だけを出す
+- **確認のメール**: 件名「yabumi の招待の申し込みを受け付けました」。招待制であること、申し込みの順に案内すること（時期は決まっていない。お断りすることもある。規約と同じ）、取り消しのリンク。RESEND_API_KEY がなければ送らず、画面に「受け付けました」だけを出す
 - **二重の申し込み**: メールアドレスは小文字にそろえて一意。すでに申し込み済みでも同じ「受け付けました」を返し、確認のメールは送り直さない（他人のアドレスが申し込み済みかを知られない。他人のアドレスに何度もメールを送らせない）
 - **ロボット対策と上限**: 人には見えない欄（入っていれば受けない）。Turnstile は、NEXT_PUBLIC_TURNSTILE_SITE_KEY（画面）と TURNSTILE_SECRET_KEY（サーバーで確かめる。https://challenges.cloudflare.com/turnstile/v0/siteverify）がそろっているときだけ。上限は同じ IP から 1 時間に 3 回、全員で 1 時間に 30 件（確認のメールを大量に送らせない）。全員の上限に達している間は、ほかの人も申し込めない（1 時間で戻る。Turnstile があれば、ロボットにまとめて入れられることはまずない）
 - **IP アドレスは持たない**: その日（日本時間）だけの鍵で作るハッシュ（HMAC-SHA256。鍵は CRON_SECRET から作る）を、上限のために 1 日だけ持つ。日をまたぐと同じ IP でも別の値になり、申し込みどうしを長くつなげられない
@@ -2055,7 +2055,7 @@ Facebook ページ（graph.facebook.com）:
 |---|---|---|
 | /terms・/privacy の先頭（LegalPage） | 知らせ始める日から施行日の前日まで | 「変更のお知らせ（○月○日から）」、変わる文書、変わる点の要約、使い続けると同意したものとして扱うこと・それまでに退会できること。`#legal-notice` |
 | ログイン後のすべての画面の上（(app)/layout.tsx。ConsentPrompt の下） | 同じ。「×」で閉じたら、その版については出さない | 「プライバシーポリシーが○月○日に変わります」、要約の 1 行目（スマホでは出さない）、「変更のお知らせを見る」 |
-| 登録している全員へのメール | 運営者が「全員に送る」を押してから、施行日の前日まで | 件名「矢書の○○の変更のお知らせ」。施行日、変わる点、ページへのリンク、退会できること、送信者（運営者の名前）と問い合わせ先。伴走のメールを止めた人にも送る（取引上の知らせ） |
+| 登録している全員へのメール | 運営者が「全員に送る」を押してから、施行日の前日まで | 件名「yabumi の○○の変更のお知らせ」。施行日、変わる点、ページへのリンク、退会できること、送信者（運営者の名前）と問い合わせ先。伴走のメールを止めた人にも送る（取引上の知らせ） |
 | /terms・/privacy の末尾 | いつも | 改定の履歴（施行済みの版。新しい順） |
 
 #### 全員へのメール
@@ -2228,6 +2228,6 @@ Facebook ページ（graph.facebook.com）:
 - 固定の幅は、Vercel Pro と Supabase Pro を入れるかどうかの差
 - AI の幅の上の端は、ネタ出しを毎週使う場合（2026-10-11 に F04 の実績を足した）。利用者ごとの月の上限（$3）があるので、1 人あたり $3 を超えない
 - 予算（D8: 月 3,000 円）に収まるのは、オーナー 1 人で使う場合だけ。他の人に提供するなら、料金プランで回収するか、AI と X の上限を利用者ごとにして、その範囲で無料にするかを決める必要がある（roadmap.md の 2.5）
-- X は、利用者ごとに自分の X の開発者アカウント（自分の Client ID）を使ってもらえば、矢書の負担は 0 になる。そのかわり、利用者は X の開発者登録とクレジットの購入が要る
+- X は、利用者ごとに自分の X の開発者アカウント（自分の Client ID）を使ってもらえば、yabumi の負担は 0 になる。そのかわり、利用者は X の開発者登録とクレジットの購入が要る
 - 指標（F07、4.22）を作ると、1 人あたり X の数字 約 $0.64 と振り返りの AI 約 $0.17 が足される（どちらも使う場合）。10 人で約 $8、100 人で約 $81。ほかの取り込み元は無料。DB は 1 人・年 2〜3MB 増えるので、50 人を超えたら Supabase Pro（上の表の固定費）を考える
 

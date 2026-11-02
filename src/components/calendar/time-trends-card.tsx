@@ -4,7 +4,7 @@ import { HelpTip } from "@/components/ui/help";
 import { BarRow } from "@/components/ui/metric";
 import { BAND_INFO, MIN_CLICKS_PER_BAND, MIN_POSTS_PER_BAND, type TimeTrends, type TrendSide } from "@/lib/metrics/time-bands";
 
-// 時間帯ごとの傾向（見本 C の右。数字の段 4）。矢書が数えた、直近 90 日のあなたの数字。少ない帯は比べない
+// 時間帯ごとの傾向（見本 C の右。数字の段 4）。yabumi が数えた、直近 90 日のあなたの数字。少ない帯は比べない
 export function TimeTrendsCard({ trends }: { trends: TimeTrends }) {
   return (
     <Card>
@@ -13,7 +13,7 @@ export function TimeTrendsCard({ trends }: { trends: TimeTrends }) {
           <span className="flex items-center gap-1.5">
             時間帯の傾向
             <HelpTip label="時間帯の傾向">
-              矢書が数えた、直近 90 日のあなたの数字です。よく見られるは、送った時間帯ごとの 1 本あたりの閲覧数（SNS から取り込めた投稿と、手で入れた note・Substack）。クリックされるは、短縮リンクが押された時間帯です。投稿が {MIN_POSTS_PER_BAND}{" "}
+             yabumi が数えた、直近 90 日のあなたの数字です。よく見られるは、送った時間帯ごとの 1 本あたりの閲覧数（SNS から取り込めた投稿と、手で入れた note・Substack）。クリックされるは、短縮リンクが押された時間帯です。投稿が {MIN_POSTS_PER_BAND}{" "}
               本未満・クリックが {MIN_CLICKS_PER_BAND} 回未満の時間帯は比べません。傾向であって、その時間に送れば必ず見られるわけではありません。
             </HelpTip>
           </span>

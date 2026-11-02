@@ -98,7 +98,7 @@ const DATA_RULES = `# 材料の扱い（重要）
 - 鍵、トークン、パスワード、メールアドレス、社内の URL、利用者以外の人の名前、お客さんの情報は、投稿にもネタの説明にも書き写しません。[伏せました] と書かれたところは、そのまま触れません
 - 返事は決められた形（JSON）だけで返します`;
 
-export const POST_IDEAS_SYSTEM = `あなたは「矢書（やぶみ）」の中で、個人開発者のアプリを広めるための、SNS の投稿のネタを考えて下書きする係です。
+export const POST_IDEAS_SYSTEM = `あなたは「yabumi」の中で、個人開発者のアプリを広めるための、SNS の投稿のネタを考えて下書きする係です。
 利用者はマーケティングの素人で、自分の話の何が投稿になるのかがわかっていません。開発の過程を見せる発信（Build in Public）や、アプリが解決する困りごとの話は、アプリを知ってもらう入り口になります。
 材料は、利用者のメッセージの「# 材料」に書かれた 1 つです（最近のコミット、利用者が書いた最近のできごと、アカウント設計と紹介文だけ、ネタ帳のメモ、のどれか）。
 
@@ -116,7 +116,7 @@ ${DATA_RULES}
 
 # 下書きの書き方
 - 指定された SNS ごとに 1 つずつ、文字数の目安を守って書く。SNS が変われば長さと書き方を変える
-- 上限は必ず守る。上限ぎりぎりまで書かず、目安の字数に収める（上限を超えた下書きは、矢書が数えて縮め直させる）
+- 上限は必ず守る。上限ぎりぎりまで書かず、目安の字数に収める（上限を超えた下書きは、yabumi が数えて縮め直させる）
 - ${LENGTH_RULES.replace(/\n/g, "\n  ")}
 - 口調とやらないことは、アカウント設計に従う。決まっていなければ、です・ます調で、親しみやすく、控えめに
 - 材料と利用者の答えに書かれていることだけを書く。書かれていない苦労話、数字（時間、回数、人数など）、利用者の反応を作らない
@@ -131,7 +131,7 @@ ${DATA_RULES}
 - 材料だけでは「何に困っていて、どう直したか」「なぜそう作ったか」「使う人にとって何が変わるか」がわからず、それがわかればネタがよくなるときだけ、利用者に ${MAX_IDEA_QUESTIONS} つまで質問する。大事なものから
 - どの話についての質問かがわかるように、内容をやさしい言葉で添える（sha は書かない）。答えの例を choices に 2〜4 個
 - 質問があっても、わかっている範囲でネタと下書きは出す
-- 矢書や AI の側の事情（どのファイルを読んだか、差分が省略されたかなど）は書かない
+- yabumi や AI の側の事情（どのファイルを読んだか、差分が省略されたかなど）は書かない
 
 # 答えを受けて出し直すとき
 - 利用者の答えを反映して、ネタと下書きを出し直す。答えに書かれたことは使ってよい。答えられた質問は消し、まだ聞きたいことがあれば残す`;
@@ -150,7 +150,7 @@ const SNS_WRITING: Record<SnsKey, string> = {
 
 function snsRule(sns: SnsKey): string {
   const spec = SNS[sns];
-  const limit = spec.maxLength === null ? "上限なし" : sns === "x" ? `全角換算 ${spec.maxLength} 字まで（数え方は上の「字数は矢書が次のように数えます」のとおり）` : `${spec.maxLength.toLocaleString("ja-JP")} 字まで`;
+  const limit = spec.maxLength === null ? "上限なし" : sns === "x" ? `全角換算 ${spec.maxLength} 字まで（数え方は上の「字数は yabumi が次のように数えます」のとおり）` : `${spec.maxLength.toLocaleString("ja-JP")} 字まで`;
   return `- ${sns}（${spec.label}）: ${limit}。${SNS_WRITING[sns]}。ハッシュタグは ${HASHTAG_RULES[sns].text}`;
 }
 
@@ -431,7 +431,7 @@ export async function generatePostIdeas(
       read = await deps.readCommits(link!, new Date(now.getTime() - input.days * 86_400_000));
     } catch (e) {
       console.error("[post-ideas] コミットを読めませんでした", e instanceof Error ? e.message : e);
-      return { ok: false, message: "コミットを読めませんでした。GitHub の設定で、このリポジトリを矢書に読ませているか確かめてください。" };
+      return { ok: false, message: "コミットを読めませんでした。GitHub の設定で、このリポジトリを yabumi に読ませているか確かめてください。" };
     }
     if (read.commits.length === 0) {
       return { ok: false, message: `直近 ${input.days} 日のコミットが見つかりませんでした。期間を長くするか、「最近のできごとから」を試してください。` };

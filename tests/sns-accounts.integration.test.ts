@@ -136,7 +136,7 @@ describe("アクセスがなくなったら、その SNS から受け取った�
       key,
     );
 
-  it("矢書の「外す」（purgeSnsDataOf）: 投稿の数字・フォロワーの数・投稿の ID と URL を消し、本文は残す", async () => {
+  it("yabumi の「外す」（purgeSnsDataOf）: 投稿の数字・フォロワーの数・投稿の ID と URL を消し、本文は残す", async () => {
     const x = await save("x");
     const { postId, targetId } = await publishedWithMetrics("x", x);
     await purgeSnsDataOf(admin, [x]);

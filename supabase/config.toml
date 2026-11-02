@@ -73,7 +73,7 @@ allowed_cidrs = ["0.0.0.0/0"]
 allowed_cidrs_v6 = ["::/0"]
 
 [realtime]
-# ローカルでは止める（矢書は Realtime を使っていない。メモリを空けるため。README の「ローカルの Supabase を軽くする」）
+# ローカルでは止める（yabumi は Realtime を使っていない。メモリを空けるため。README の「ローカルの Supabase を軽くする」）
 enabled = false
 # Bind realtime via either IPv4 or IPv6. (default: IPv4)
 # ip_version = "IPv6"
@@ -197,23 +197,23 @@ otp_expiry = 3600
 # Uncomment to customize email template
 # メールの本文（日本語）。本番は Supabase の画面（Authentication → Emails）に同じ件名と本文を貼る（docs/deploy.md）
 [auth.email.template.confirmation]
-subject = "【矢書】メールアドレスの確認"
+subject = "【yabumi】メールアドレスの確認"
 content_path = "./supabase/templates/confirmation.html"
 
 [auth.email.template.recovery]
-subject = "【矢書】パスワードの再設定"
+subject = "【yabumi】パスワードの再設定"
 content_path = "./supabase/templates/recovery.html"
 
 [auth.email.template.email_change]
-subject = "【矢書】メールアドレスの変更の確認"
+subject = "【yabumi】メールアドレスの変更の確認"
 content_path = "./supabase/templates/email_change.html"
 
 [auth.email.template.magic_link]
-subject = "【矢書】ログインのリンク"
+subject = "【yabumi】ログインのリンク"
 content_path = "./supabase/templates/magic_link.html"
 
 [auth.email.template.invite]
-subject = "【矢書】矢書への招待"
+subject = "【yabumi】yabumi への招待"
 content_path = "./supabase/templates/invite.html"
 
 [auth.sms]
@@ -334,7 +334,7 @@ authorization_url_path = "/oauth/consent"
 allow_dynamic_registration = false
 
 [edge_runtime]
-# ローカルでは止める（矢書は Edge Functions を使っていない。README の「ローカルの Supabase を軽くする」）
+# ローカルでは止める（yabumi は Edge Functions を使っていない。README の「ローカルの Supabase を軽くする」）
 enabled = false
 # Supported request policies: `oneshot`, `per_worker`.
 # `per_worker` (default) — enables hot reload during local development.

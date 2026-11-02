@@ -1,4 +1,4 @@
-// Google Play が数えた、矢書の短縮リンク（UTM）ごとの DL（数字の段 3。docs/roadmap.md の「数字の段」の D-2・F）。
+// Google Play が数えた、yabumi の短縮リンク（UTM）ごとの DL（数字の段 3。docs/roadmap.md の「数字の段」の D-2・F）。
 // 取り込みは src/lib/stores/google.ts の summarizePlayUtm。ここは期間で足すだけ（DB を触らない）
 import { isSnsKey, type SnsKey } from "@/lib/sns";
 
@@ -9,7 +9,7 @@ export type PlayUtmTotals = {
   bySns: { sns: SnsKey | null; value: number }[];
   byCampaign: Record<string, number>;
   total: number;
-  // Google が「Other」にまとめた分（矢書のリンク以外も入る）
+  // Google が「Other」にまとめた分（yabumi のリンク以外も入る）
   other: number;
 };
 

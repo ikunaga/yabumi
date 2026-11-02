@@ -251,7 +251,7 @@ export async function coachStep(
             content: [
               {
                 type: "text",
-                text: `（矢書からの自動の連絡）案の value_json が決められた形に合いませんでした: ${turn.proposalProblem}。「案の中身の形」に合わせて直し、同じ返事の形でもう一度返してください。`,
+                text: `（yabumi からの自動の連絡）案の value_json が決められた形に合いませんでした: ${turn.proposalProblem}。「案の中身の形」に合わせて直し、同じ返事の形でもう一度返してください。`,
               },
             ],
           },

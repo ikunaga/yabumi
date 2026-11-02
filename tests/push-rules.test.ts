@@ -38,7 +38,7 @@ describe("文の長さと開く URL", () => {
     expect(clip("  改行\nと  空白  ", 30)).toBe("改行 と 空白");
   });
 
-  it("矢書の中のパスだけを開く", () => {
+  it("yabumi の中のパスだけを開く", () => {
     expect(safePath("/projects/abc/compose")).toBe("/projects/abc/compose");
     expect(safePath("/projects/abc?x=1#y")).toBe("/projects/abc?x=1#y");
     expect(safePath("//evil.example/x")).toBe("/");
@@ -54,7 +54,7 @@ describe("文の長さと開く URL", () => {
     expect(Array.from(p.body)).toHaveLength(80);
     expect(p.url).toBe("/");
     expect(p.tag).toBe("pace:p1");
-    expect(buildPayload({ title: " ", body: "", url: "/projects" })).toEqual({ title: "矢書", body: "", url: "/projects" });
+    expect(buildPayload({ title: " ", body: "", url: "/projects" })).toEqual({ title: "yabumi", body: "", url: "/projects" });
   });
 
   it("Topic は URL で使える 32 字まで（同じ tag なら同じ）", () => {

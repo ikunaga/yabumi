@@ -6,7 +6,7 @@ import { recordClick, resolveLink } from "@/lib/links/store";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // 短縮リンクの転送（docs/architecture.md の 4.22、決定 D20・D28）。<APP_URL>/go/<code>、go.yabumi.app/<code>、利用者のドメインの /<code> を、
-// proxy が /go/<code>/<開いたホスト> に回す（ホストは proxy が毎回付け直す。矢書のホストは "_"）。
+// proxy が /go/<code>/<開いたホスト> に回す（ホストは proxy が毎回付け直す。yabumi のホストは "_"）。
 // ログインなしで届く（proxy の公開のパス。ログインの確認も飛ばして速くする）。
 // 302 で転送し、ブラウザに覚えさせない（2 回目のクリックも届くように）。記録は応答を返したあと（after）に行う
 

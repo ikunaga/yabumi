@@ -46,7 +46,7 @@ const fakeFetch = vi.fn(async (input: string | URL | Request, init?: RequestInit
   if (url.includes(encodeURIComponent(`stats/store_performance/store_performance_com.ex.app_${ym}_country.csv`))) {
     return new Response(`Date,Country/region,Store listing visitors\n${recent(3)},JP,50\n${recent(3)},US,20\n`);
   }
-  // 流入元（Google の資料の列。数字の段 3）: 矢書のリンク（x・threads）、Google が「Other」にまとめた分、ほかの UTM、UTM なし（検索）
+  // 流入元（Google の資料の列。数字の段 3）: yabumi のリンク（x・threads）、Google が「Other」にまとめた分、ほかの UTM、UTM なし（検索）
   if (url.includes(encodeURIComponent(`stats/store_performance/store_performance_com.ex.app_${ym}_traffic_source.csv`))) {
     return new Response(
       [
@@ -64,7 +64,7 @@ const fakeFetch = vi.fn(async (input: string | URL | Request, init?: RequestInit
   if (url.includes("/analyticsReportRequests?") || url.includes("/analyticsReportRequests?filter")) return json({ data: [] });
   if (url.includes("/apps/123456789/analyticsReportRequests")) return json({ data: [] });
   if (url.endsWith("/v1/analyticsReportRequests") && init?.method === "POST") return json({ data: { id: "req-1" } }, 201);
-  // App Store Downloads の Detailed（数字の段 5。Apple の資料の列）: 矢書の ct（<SNS>-<コード>）、ほかの ct、はじめてでないもの
+  // App Store Downloads の Detailed（数字の段 5。Apple の資料の列）: yabumi の ct（<SNS>-<コード>）、ほかの ct、はじめてでないもの
   if (url.includes("/analyticsReportRequests/req-1/reports") && url.includes("APP_STORE_COMMERCE")) {
     return json({ data: [{ id: "r-dl-std", attributes: { name: "App Downloads Standard" } }, { id: "r-dl", attributes: { name: "App Downloads Detailed" } }] });
   }
@@ -138,7 +138,7 @@ describe("Google Play", () => {
     const { data } = await alice.from("store_daily").select("day, values").eq("project_id", projectId).eq("source", "google_play").order("day");
     expect(data).toEqual([
       { day: recent(10), values: { downloads: 2, uninstalls: 0, page_views: 0, store_acquisitions: 0 } },
-      // 流入元は、矢書のリンクの分だけ（検索語やほかの UTM は預からない）。Google が「Other」にまとめた分は other
+      // 流入元は、yabumi のリンクの分だけ（検索語やほかの UTM は預からない）。Google が「Other」にまとめた分は other
       { day: recent(3), values: { downloads: 6, uninstalls: 0, page_views: 70, store_acquisitions: 0, utm: { by_source: { x: 4, threads: 2 }, by_campaign: { abc123: 4 }, other: 3 } } },
     ]);
     expect((await bob.from("store_daily").select("day").eq("project_id", projectId)).data).toEqual([]);
@@ -163,7 +163,7 @@ describe("App Store のストアのページの閲覧数", () => {
     expect(o).toMatchObject({ result: "imported", days: 1 });
     const { data } = await alice.from("store_daily").select("day, values").eq("project_id", projectId).eq("source", "app_store_views");
     expect(data).toEqual([{ day: recent(3), values: { page_views: 25, impressions: 300 } }]);
-    // 同じ依頼で、Apple が数えた矢書のキャンペーンごとのはじめてのダウンロード（ほかの ct・再ダウンロード・検索は数えない）を別の行に
+    // 同じ依頼で、Apple が数えた yabumi のキャンペーンごとのはじめてのダウンロード（ほかの ct・再ダウンロード・検索は数えない）を別の行に
     const { data: campaigns } = await alice.from("store_daily").select("day, values").eq("project_id", projectId).eq("source", "app_store_campaigns");
     expect(campaigns).toEqual([{ day: recent(3), values: { by_source: { x: 8 }, by_campaign: { abc123: 8 } } }]);
     expect((await bob.from("store_daily").select("day").eq("project_id", projectId).eq("source", "app_store_campaigns")).data).toEqual([]);
@@ -223,7 +223,7 @@ describe("つなげる数の上限", () => {
 });
 
 describe("片付け", () => {
-  it("記録のない矢書のアカウントだけを消す（記録のあるもの・管理用・ほかの名前は消さない）", async () => {
+  it("記録のない yabumi のアカウントだけを消す（記録のあるもの・管理用・ほかの名前は消さない）", async () => {
     vi.mocked(fakeFetch).mockClear();
     const removed = await cleanupOrphanServiceAccounts(admin, deps);
     expect(removed).toEqual(["yabumi-orphan00000000@yabumi-123.iam.gserviceaccount.com"]);
@@ -234,7 +234,7 @@ describe("片付け", () => {
 });
 
 describe("外す", () => {
-  it("Google Play を外すと、矢書の側のアカウントを消し（Google に頼む）、つなぎも消える。数字は残る", async () => {
+  it("Google Play を外すと、yabumi の側のアカウントを消し（Google に頼む）、つなぎも消える。数字は残る", async () => {
     vi.mocked(fakeFetch).mockClear();
     await removePlay(admin, aliceId, projectId, deps);
     expect(vi.mocked(fakeFetch).mock.calls.some(([u, i]) => String(u).includes(encodeURIComponent(saEmail)) && i?.method === "DELETE")).toBe(true);

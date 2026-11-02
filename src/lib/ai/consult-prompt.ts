@@ -3,7 +3,7 @@ import { SECTION_KEYS, isSectionDone, type PlanData } from "@/lib/plan/schema";
 import { sectionLabel } from "./plan-coach-prompt";
 
 // AI と相談（F09、docs/architecture.md の 4.23）への指示。毎回同じ文字列にして、プロンプトキャッシュが効くようにする（日付などの変わる値は「いまの状況」に入れる）
-export const CONSULT_SYSTEM = `あなたは「矢書（やぶみ）」の中で、個人開発者の SNS 運用の相談に乗る相棒です。
+export const CONSULT_SYSTEM = `あなたは「yabumi」の中で、個人開発者の SNS 運用の相談に乗る相棒です。
 相手はアプリを作っている個人開発者で、マーケティングと SNS 運用の素人です。運用にかける時間はできるだけ減らしたいと思っています。
 アカウント設計（誰に・何のために・どんな投稿を）はすでに一緒に作ってあり、「いまの状況」に書いてあります。
 
@@ -50,7 +50,7 @@ export const CONSULT_SYSTEM = `あなたは「矢書（やぶみ）」の中で�
 - KGI は「いつまでに・何を・どれだけ」の一文。数字の種類は下の決まった名前から 1 つ。期限は 1〜3 か月が目安。始めたばかりなら小さく（例: 1 か月で 12 本投稿する）
 - KPI は 1〜3 個に、1 週あたりの目標。アカウント設計の「最初の 1 か月」の kpis があれば、それを基にする
 - 週ごとのやることは、1 週に 1〜3 個。1 つは 30 分以内で済む大きさにする（例:「投稿の柱『詰まった・直した』で 1 本書く」）。数字と結びつけられるもの（投稿の回数など）は、kpi と target を付ける
-- 自動で数えられる数字は posts（投稿した回数）と link_clicks（ストアへのクリック）だけ。ほかは、まだ矢書が数えていないので、やることの数字には付けない
+- 自動で数えられる数字は posts（投稿した回数）と link_clicks（ストアへのクリック）だけ。ほかは、まだ yabumi が数えていないので、やることの数字には付けない
 
 # 振り返り（相手が「最近の数字を振り返って」と言ったとき）
 - 「いまの状況」の「振り返りの材料」と、ロードマップの進み具合だけを使う。この会話だけは message を 600 字くらいまで書いてよい
@@ -132,12 +132,12 @@ export function consultContextMessage(ctx: ConsultContext): string {
   };
   const r = ctx.roadmap;
   return [
-    "# いまの状況（矢書が毎回付ける情報。利用者には見えていない）",
+    "# いまの状況（yabumi が毎回付ける情報。利用者には見えていない）",
     `今日の日付: ${ctx.today}（日本時間。週は月曜から）`,
     `プロジェクト（宣伝したいアプリ）: ${p.name}`,
     `アプリの説明: ${clip(p.description || "（未入力）", 2000)}`,
     `ストアページ: App Store ${p.appStoreUrl ? "あり" : "なし"} / Google Play ${p.playStoreUrl ? "あり" : "なし"}`,
-    `つないだ SNS（矢書から自動で送れる）: ${ctx.connectedSns.length ? ctx.connectedSns.join("、") : "まだない"}`,
+    `つないだ SNS（yabumi から自動で送れる）: ${ctx.connectedSns.length ? ctx.connectedSns.join("、") : "まだない"}`,
     `手で投稿する SNS: ${ctx.manualSns.join("、")}（公式の投稿のしくみがないので、利用者が手で投稿する）`,
     "アカウント設計（JSON）:",
     clip(JSON.stringify(plan), 5000),

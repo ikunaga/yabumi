@@ -88,7 +88,7 @@ describe("別のアカウントでつなぎ直す", () => {
 
     expect(replaced).toEqual([{ name: "@old", removed: true, movedTargets: 2 }]);
     expect(await linkedX(projectId)).toEqual([newId]);
-    // 古いアカウントは X の側でも取り消し、矢書からアカウントとトークンと数字を消す
+    // 古いアカウントは X の側でも取り消し、yabumi からアカウントとトークンと数字を消す
     expect(revoked).toEqual(["refresh-old", "token-old"]);
     expect((await admin.from("social_accounts").select("id").eq("id", oldId)).data).toEqual([]);
     expect((await admin.from("social_account_tokens").select("social_account_id").eq("social_account_id", oldId)).data).toEqual([]);

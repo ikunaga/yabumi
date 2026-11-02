@@ -3,7 +3,7 @@ import { ASC_API, ascJwt, parseTsv, StoreApiError, type AscCredential } from "./
 
 // App Store Connect の Analytics Reports（ストアのページの閲覧数。docs/architecture.md の 4.22）。
 // https://developer.apple.com/documentation/analytics-reports
-// 依頼（ONGOING）を作れるのは Admin のキーだけ。矢書は Admin のキーを保存せず、作るときに 1 回だけ使う。
+// 依頼（ONGOING）を作れるのは Admin のキーだけ。yabumi は Admin のキーを保存せず、作るときに 1 回だけ使う。
 // 読むのは、預かっている Sales and Reports のキー（読めるかは【未確認】。読めなければ画面に理由を出す）
 
 type Fetch = typeof fetch;
@@ -97,7 +97,7 @@ export async function readInstance(cred: AscCredential, instanceId: string, fetc
 
 export type CampaignDay = { by_source: Record<string, number>; by_campaign: Record<string, number> };
 
-// 回の TSV の行を、矢書の ct（<SNS の名前か link>-<リンクのコード>。links/rules.ts）ごとに日ごとに足す。
+// 回の TSV の行を、yabumi の ct（<SNS の名前か link>-<リンクのコード>。links/rules.ts）ごとに日ごとに足す。
 // 要る列（Date・Download Type・Campaign・Counts）がなければ readable: false
 export function summarizeCampaigns(rows: Record<string, string>[], header: string[], sources: readonly string[]): { readable: boolean; days: Record<string, CampaignDay> } {
   const cols = header.map((h) => h.trim().toLowerCase());

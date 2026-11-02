@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 // ロゴ: 矢のマーク ＋ 小文字の「yabumi」（オーナーの決定 2026-10-30、見本は docs/design/new_design/logo/ の D ミニマル）。
-// 画面の文言の名前は「矢書」のまま。ロゴだけ yabumi にする。色はロゴの墨（--logo）
+// 画面の文言の名前は「yabumi」のまま。ロゴだけ yabumi にする。色はロゴの墨（--logo）
 export function Brand({ href = "/", size = "md" }: { href?: string; size?: "sm" | "md" | "lg" }) {
   const look = {
     sm: { mark: "h-[15px]", text: "text-[18px]", gap: "gap-2" },
@@ -13,12 +13,12 @@ export function Brand({ href = "/", size = "md" }: { href?: string; size?: "sm" 
     <Link
       href={href}
       className={`inline-flex shrink-0 items-center whitespace-nowrap text-logo hover:no-underline ${look.gap}`}
-      aria-label="矢書（やぶみ） トップへ"
+      aria-label="yabumi トップへ"
     >
       <LogoMark className={`${look.mark} w-auto`} />
       {/* 字面の中央をマークに合わせるため、行の高さを 1 にして少し上げる（小文字は下に寄って見える） */}
       <span aria-hidden className={`relative -top-px leading-none font-bold tracking-[0.06em] ${look.text}`}>
-        yabumi
+       yabumi
       </span>
     </Link>
   );

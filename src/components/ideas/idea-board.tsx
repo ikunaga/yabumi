@@ -356,7 +356,7 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
                       <Link href={`/projects/${projectId}/github`} className="underline">
                         変える
                       </Link>
-                      <HelpTip label="読むもの">.env や鍵などのファイルは読まず、コミットの中身は矢書に残しません。</HelpTip>
+                      <HelpTip label="読むもの">.env や鍵などのファイルは読まず、コミットの中身は yabumi に残しません。</HelpTip>
                     </p>
                   </fieldset>
                 ) : (

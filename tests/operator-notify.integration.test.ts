@@ -10,7 +10,7 @@ import { adminClient, anonClient, deleteUser, signUpNewUser, type TestClient } f
 const admin = adminClient();
 const ok = () => vi.fn(async () => new Response(JSON.stringify({ id: "mail-1" }), { status: 200 }));
 const ng = () => vi.fn(async () => new Response("bad", { status: 500 }));
-const deps = (f: ReturnType<typeof vi.fn>) => ({ fetch: f as unknown as typeof fetch, apiKey: "re_test", to: "operator@yabumi.test", from: "矢書 <noreply@yabumi.test>" });
+const deps = (f: ReturnType<typeof vi.fn>) => ({ fetch: f as unknown as typeof fetch, apiKey: "re_test", to: "operator@yabumi.test", from: "yabumi <noreply@yabumi.test>" });
 // このテストで使う知らせの名前（ほかのテストや本当の記録と重ならないように）
 const KEY = `test:${randomUUID()}`;
 
@@ -40,7 +40,7 @@ describe("送る部分", () => {
     const [url, init] = f.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe(RESEND_API_URL);
     expect((init.headers as Record<string, string>).Authorization).toBe("Bearer re_test");
-    expect(JSON.parse(String(init.body))).toEqual({ from: "矢書 <noreply@yabumi.test>", to: ["operator@yabumi.test"], subject: "【矢書の運営】件名", text: "本文" });
+    expect(JSON.parse(String(init.body))).toEqual({ from: "yabumi <noreply@yabumi.test>", to: ["operator@yabumi.test"], subject: "【yabumi の運営】件名", text: "本文" });
   });
 
   it("キーか送り先がなければ送らず、ログにだけ残す。送れなければ failed", async () => {

@@ -36,11 +36,11 @@ export function ipHash(ip: string, key: string, now: Date): string {
 export function confirmationMail(email: string, cancelUrl: string) {
   return {
     to: email,
-    subject: "矢書の招待の申し込みを受け付けました",
+    subject: "yabumi の招待の申し込みを受け付けました",
     text: [
-      "矢書（やぶみ）の招待の申し込みを受け付けました。ありがとうございます。",
+      "yabumi の招待の申し込みを受け付けました。ありがとうございます。",
       "",
-      "いまは 10 人ほどの招待制で、無料で試していただいています。申し込みの順にご案内します（時期は決まっていません。お断りすることもあります）。招待するときは、件名「矢書への招待」のメールをお送りします。",
+      "いまは 10 人ほどの招待制で、無料で試していただいています。申し込みの順にご案内します（時期は決まっていません。お断りすることもあります）。招待するときは、件名「yabumi への招待」のメールをお送りします。",
       "お待たせしてしまうこと、ご希望に沿えない場合があることを、ご了承ください。",
       "",
       "申し込みを取り消すときは、次のリンクを開いてください（取り消すと、お預かりしたメールアドレスと一言をすぐに消します）。",
@@ -48,7 +48,7 @@ export function confirmationMail(email: string, cancelUrl: string) {
       "",
       "心当たりがない場合は、上のリンクから取り消すか、このメールを削除してください（招待のメールは届きません）。",
       "",
-      "矢書 https://yabumi.app",
+      "yabumi https://yabumi.app",
     ].join("\n"),
   };
 }

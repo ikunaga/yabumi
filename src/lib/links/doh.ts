@@ -52,7 +52,7 @@ export function dohLookup(fetcher: typeof fetch = fetch): Lookup {
   };
 }
 
-// 矢書の持ち主の確認の TXT の名前と値
+// yabumi の持ち主の確認の TXT の名前と値
 export function ownershipRecordName(domain: string): string {
   return `_yabumi.${domain}`;
 }

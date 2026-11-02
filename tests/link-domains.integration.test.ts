@@ -1,5 +1,5 @@
 // 短縮リンクを利用者のドメインで作る（F07、D28。4.22）。ローカルの Supabase を使う。Vercel の API と DNS はまねたものを渡す（本物は呼ばない）。
-// 矢書全体の上限は DB の全体の数で決まるので、上限のテストは「今の数」を上限として渡して確かめる（ほかのテストの行は触らない）
+// yabumi 全体の上限は DB の全体の数で決まるので、上限のテストは「今の数」を上限として渡して確かめる（ほかのテストの行は触らない）
 import { randomBytes } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ownershipRecordName, ownershipRecordValue, type Lookup } from "@/lib/links/doh";
@@ -93,7 +93,7 @@ let bobId: string;
 let aliceProject: string;
 let bobProject: string;
 
-// 矢書全体の上限（利用者のドメインの数）と、全員の分をまとめて見る見回り（期限切れ・DNS の確かめ直し）を流すので、
+// yabumi 全体の上限（利用者のドメインの数）と、全員の分をまとめて見る見回り（期限切れ・DNS の確かめ直し）を流すので、
 // 同じマシンの link-domains のテスト（ほかのセッションの分も）は 1 つずつ流す
 holdLockDuringFile("link-domains-global");
 
@@ -152,7 +152,7 @@ describe("利用者のドメイン", () => {
     await alice.from("projects").delete().eq("id", second);
   });
 
-  it("1 日の回数と、矢書全体の上限を超えては足せない", async () => {
+  it("1 日の回数と、yabumi 全体の上限を超えては足せない", async () => {
     const { vercel } = fakeVercel();
     const [{ count: used }, { count: removing }] = await Promise.all([
       admin.from("link_domains").select("id", { count: "exact", head: true }),
@@ -287,7 +287,7 @@ describe("利用者のドメイン", () => {
     await admin.from("link_domain_attempts").delete().in("owner_id", [aliceId, bobId]);
   });
 
-  it("他人のドメインは、Vercel が通しても、矢書の持ち主の確認の TXT がなければつながらない", async () => {
+  it("他人のドメインは、Vercel が通しても、yabumi の持ち主の確認の TXT がなければつながらない", async () => {
     // Vercel は TXT を求めず、DNS も Vercel を向いていて、確認用のパスも答える（使われなくなった CNAME が残っている他人のドメイン）
     const { vercel, state } = fakeVercel();
     state.misconfigured = false;
@@ -333,7 +333,7 @@ describe("利用者のドメイン", () => {
     await admin.from("link_domain_attempts").delete().in("owner_id", [aliceId, bobId]);
   });
 
-  it("毎日の見回り: TXT か CNAME が外れたら矢書のドメインに戻す。リゾルバが答えなければ外さない", async () => {
+  it("毎日の見回り: TXT か CNAME が外れたら yabumi のドメインに戻す。リゾルバが答えなければ外さない", async () => {
     const { vercel, state } = fakeVercel();
     state.misconfigured = false;
     const { zone, lookup } = fakeDns();

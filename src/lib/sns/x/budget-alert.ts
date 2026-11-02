@@ -3,7 +3,7 @@ import { alertIfNearBudgetSafely } from "@/lib/notify/budget";
 import type { OperatorNotifyDeps } from "@/lib/notify/operator";
 import type { Database } from "@/lib/supabase/database.types";
 
-// X に費用を記録したあとに呼ぶ。矢書全体の今月の X の費用が上限の 80% 以上なら、運営者に知らせる（月に 1 回）。
+// X に費用を記録したあとに呼ぶ。yabumi 全体の今月の X の費用が上限の 80% 以上なら、運営者に知らせる（月に 1 回）。
 // scopeOwner は上限を数える範囲と同じ（テストで、共有の DB の他の記録に左右されないため）。本番は渡さない
 export async function alertIfNearXBudget(
   admin: SupabaseClient<Database>,

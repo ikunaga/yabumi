@@ -33,7 +33,7 @@ export default async function ConnectFacebookPage(props: PageProps<"/projects/[i
         main={
           <Card className="flex flex-col gap-4 px-6 py-5 text-[15px] leading-7 max-sm:px-4">
             <p>
-              矢書から Facebook に投稿できるのは、<Term k="facebookPage" />だけです。個人のプロフィール（タイムライン）には投稿できません。
+             yabumi から Facebook に投稿できるのは、<Term k="facebookPage" />だけです。個人のプロフィール（タイムライン）には投稿できません。
             </p>
             <p className="font-bold">ページがまだないとき</p>
             <ol className="list-decimal pl-5">

@@ -164,7 +164,7 @@ export async function getPermalink(appSecret: string, pageToken: string, postId:
   return json.permalink_url ?? null;
 }
 
-// 投稿を消す（矢書が投稿したものだけ消せる）
+// 投稿を消す（yabumi が投稿したものだけ消せる）
 export async function deletePost(appSecret: string, pageToken: string, postId: string): Promise<void> {
   await call<{ success: boolean }>(graph(postId, pageToken, appSecret), { method: "DELETE" });
 }

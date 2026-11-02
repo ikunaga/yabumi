@@ -15,9 +15,9 @@ export default async function DeletionStatusPage(props: PageProps<"/sns/deletion
     <PublicFrame>
       <PublicCard title={`${label} のデータを削除しました`}>
         <p>
-          矢書に保存していた {label} のアカウント情報とアクセストークン、{label} から読んだ投稿の数字とフォロワーの数、{label} 上の投稿の ID と URL を削除しました。
+         yabumi に保存していた {label} のアカウント情報とアクセストークン、{label} から読んだ投稿の数字とフォロワーの数、{label} 上の投稿の ID と URL を削除しました。
         </p>
-        <p className="text-muted">矢書で書いた下書きや投稿の本文は残っています。不要であれば矢書から削除してください。</p>
+        <p className="text-muted">yabumi で書いた下書きや投稿の本文は残っています。不要であれば yabumi から削除してください。</p>
         {confirmation && (
           <p className="rounded-md bg-surface2 px-4 py-3 text-[14px]">
             確認コード: <span className="num font-bold">{confirmation}</span>

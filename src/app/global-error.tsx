@@ -9,7 +9,7 @@ export default function GlobalError({ error, retry }: { error: Error & { digest?
   return (
     <html lang="ja" className="h-full antialiased">
       <body className="flex min-h-full flex-col font-sans">
-        <title>エラー | 矢書</title>
+        <title>エラー | yabumi</title>
         <ErrorFallback error={error} retry={retry} />
       </body>
     </html>

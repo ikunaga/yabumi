@@ -66,7 +66,7 @@ export async function signUpNewUser(): Promise<{ client: TestClient; userId: str
 }
 
 // テストの利用者を消す。費用の記録（ai_usage、sns_api_usage）は利用者を消しても持ち主を空にして残る決まり（4.14）なので、先に消す。
-// 残すと、共有のローカル DB で矢書全体の今月の合計が増え続け、全体の上限に達してオーナーが AI や X を使えなくなる。
+// 残すと、共有のローカル DB で yabumi 全体の今月の合計が増え続け、全体の上限に達してオーナーが AI や X を使えなくなる。
 // Google Play の読み取り用のアカウントを作った記録（play_account_creations）も、退会しても 30 日残る決まりなので消す。
 // 残すと、全員の上限（直近 30 日に 80）に届いて、play のテストが「混み合っています」で落ちる（2026-10-12、README の「テスト」）
 export async function deleteUser(userId: string) {

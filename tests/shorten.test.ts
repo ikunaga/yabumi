@@ -25,7 +25,7 @@ describe("文字数の上限: 数え方", () => {
     expect(overLimit("facebook", "あ".repeat(10000))).toBe(0);
   });
 
-  it("AI への指示に、矢書と同じ数え方を書く（下書き・縮め直し・見直し）", () => {
+  it("AI への指示に、yabumi と同じ数え方を書く（下書き・縮め直し・見直し）", () => {
     for (const s of ["半角の英数字・記号・空白・改行は 0.5 字", "絵文字は 1 字", "URL は長さに関係なく 1 つで 11.5 字"]) expect(LENGTH_RULES).toContain(s);
     expect(POST_IDEAS_SYSTEM).toContain("URL は長さに関係なく 1 つで 11.5 字");
     expect(POST_IDEAS_SYSTEM).toContain("上限は必ず守る");

@@ -113,7 +113,7 @@ function AccountLabel({ account }: { account: ProjectSnsAccount }) {
   );
 }
 
-// X は使った分だけ払うので、今月の自分の費用と、自分の自動投稿の上限・矢書全体の上限に達したかを出す（決定 D16・D23）。
+// X は使った分だけ払うので、今月の自分の費用と、自分の自動投稿の上限・ yabumi 全体の上限に達したかを出す（決定 D16・D23）。
 // 列が狭い（PC は 2 段組みの左）ので、費用と上限を 2 行に分け、言葉のまとまり（inline-block）の間でだけ折る。上限に達した印は 3 行目に出す
 function XSpendLine({ spend }: { spend: XSpend }) {
   return (
@@ -137,7 +137,7 @@ function XSpendLine({ spend }: { spend: XSpend }) {
         spend.budgetReached && (
           <span className="block font-bold text-signal">
             <span className="inline-block">今月の上限に達しました</span>
-            <span className="inline-block">（矢書全体）</span>
+            <span className="inline-block">（yabumi 全体）</span>
           </span>
         )
       )}

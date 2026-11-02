@@ -243,7 +243,7 @@ export function PostComposer({
   const labels = sendLabels(mode, toSend.length);
   const sentLabels = chosen.filter((s) => isLocked(s)).map((s) => SNS[s].label).join("・");
 
-  // 削除する（確かめてから）。送った投稿では、SNS の投稿は消えず矢書の記録だけが消えることを書く
+  // 削除する（確かめてから）。送った投稿では、SNS の投稿は消えず yabumi の記録だけが消えることを書く
   const deleteRow = (sent: boolean) => {
     if (!postId) return null;
     return confirmDelete ? (
@@ -272,7 +272,7 @@ export function PostComposer({
       </span>
     ) : (
       <Button type="button" variant="text" size="sm" className="ml-auto" onClick={() => setConfirmDelete(true)}>
-        {sent ? "矢書から削除する" : "削除する"}
+        {sent ? "yabumi から削除する" : "削除する"}
       </Button>
     );
   };
@@ -486,7 +486,7 @@ export function PostComposer({
                   {BAND_INFO[timeHint.band].label}（{BAND_INFO[timeHint.band].hours}）· {BAND_INFO[timeHint.band].at} にする
                 </button>
                 <HelpTip label="時間帯の傾向">
-                  矢書が数えた、直近 90 日のあなたの数字です（{timeHint.kind === "views" ? "送った時間帯ごとの 1 本あたりの閲覧数" : "短縮リンクが押された時間帯"}）。傾向であって、この時間に送れば必ず見られるわけではありません。くわしくはカレンダーの「時間帯の傾向」で見られます。
+                 yabumi が数えた、直近 90 日のあなたの数字です（{timeHint.kind === "views" ? "送った時間帯ごとの 1 本あたりの閲覧数" : "短縮リンクが押された時間帯"}）。傾向であって、この時間に送れば必ず見られるわけではありません。くわしくはカレンダーの「時間帯の傾向」で見られます。
                 </HelpTip>
               </div>
             )}

@@ -6,7 +6,7 @@ import type { Database } from "@/lib/supabase/database.types";
 // 本文に利用者の個人情報（メールアドレス・ID・プロジェクトの名前など）を入れない
 
 export const RESEND_API_URL = "https://api.resend.com/emails";
-const DEFAULT_FROM = "矢書 <noreply@yabumi.app>";
+const DEFAULT_FROM = "yabumi <noreply@yabumi.app>";
 
 export type OperatorMail = { subject: string; text: string };
 export type OperatorNotifyDeps = { fetch?: typeof fetch; apiKey?: string | null; to?: string | null; from?: string };
@@ -23,7 +23,7 @@ export async function notifyOperator(mail: OperatorMail, deps: OperatorNotifyDep
     const res = await (deps.fetch ?? fetch)(RESEND_API_URL, {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: deps.from ?? process.env.OPERATOR_EMAIL_FROM ?? DEFAULT_FROM, to: [to], subject: `【矢書の運営】${mail.subject}`, text: mail.text }),
+      body: JSON.stringify({ from: deps.from ?? process.env.OPERATOR_EMAIL_FROM ?? DEFAULT_FROM, to: [to], subject: `【yabumi の運営】${mail.subject}`, text: mail.text }),
       cache: "no-store",
       signal: AbortSignal.timeout(10_000),
     });

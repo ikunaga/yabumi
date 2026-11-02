@@ -18,8 +18,8 @@ export class LinkError extends Error {
 
 export type LinkKind = "post" | "profile" | "custom";
 
-// 行き先に使えない場所。短縮リンクは利用者が決めた行き先へ転送するので、矢書のドメインを借りた悪用を減らすため、
-// IP アドレスそのもの・内部のホスト・矢書自身（リンクの入れ子）は使えなくする（4.22 の「悪用への備え」）
+// 行き先に使えない場所。短縮リンクは利用者が決めた行き先へ転送するので、yabumi のドメインを借りた悪用を減らすため、
+// IP アドレスそのもの・内部のホスト・ yabumi 自身（リンクの入れ子）は使えなくする（4.22 の「悪用への備え」）
 const BLOCKED_HOSTS = /^(localhost|.*\.localhost|.*\.local|.*\.internal|.*\.test)$/i;
 const OWN_HOSTS = /(^|\.)yabumi\.app$|(^|\.)vercel\.app$/i;
 
@@ -43,8 +43,8 @@ export async function createShortLink(
   admin: Admin,
   input: { ownerId: string; projectId: string; destinationUrl: string; sns: SnsKey | null; kind: LinkKind; postTargetId?: string | null; label?: string },
 ): Promise<{ id: string; code: string }> {
-  if (!isValidDestination(input.destinationUrl)) throw new LinkError("リンクの行き先は https:// で始まる URL にしてください（IP アドレスそのものや、矢書の URL は使えません）。");
-  // 利用者の短縮リンクのドメイン（D28）へのリンクも、矢書の URL と同じく入れ子になるので作らない
+  if (!isValidDestination(input.destinationUrl)) throw new LinkError("リンクの行き先は https:// で始まる URL にしてください（IP アドレスそのものや、yabumi の URL は使えません）。");
+  // 利用者の短縮リンクのドメイン（D28）へのリンクも、yabumi の URL と同じく入れ子になるので作らない
   const { data: own } = await admin.from("link_domains").select("id").eq("domain", new URL(input.destinationUrl).hostname.replace(/\.+$/, "")).limit(1);
   if (own?.length) throw new LinkError("短縮リンクのドメインへのリンクは作れません。行き先には、ストアなどのページの URL を入れてください。");
   for (let i = 0; i < 5; i++) {

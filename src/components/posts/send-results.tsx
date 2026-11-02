@@ -17,9 +17,9 @@ export type TargetResult = {
   manual?: ManualInfo;
   // 自動で送れなかった X を、手で投稿して記録するための情報
   fallback?: ManualInfo;
-  // 手で投稿して記録したもの（SNS 上の投稿の ID がないので、矢書からは取り消せない）
+  // 手で投稿して記録したもの（SNS 上の投稿の ID がないので、yabumi からは取り消せない）
   postedByHand?: boolean;
-  // 矢書の外（SNS の画面など）で消されていた。矢書から取り消したときは false
+  // yabumi の外（SNS の画面など）で消されていた。yabumi から取り消したときは false
   removedOnSns?: boolean;
 };
 
@@ -119,9 +119,9 @@ function ResultRow({ sns, r, projectId, postId }: { sns: SnsKey; r: TargetResult
         )}
         {r.status === "deleted" &&
           (r.removedOnSns ? (
-            <span className="text-muted">{label} で消されていました。消えた投稿へのリンクは、矢書からも消しました（矢書の下書きは残っています）</span>
+            <span className="text-muted">{label} で消されていました。消えた投稿へのリンクは、yabumi からも消しました（yabumi の下書きは残っています）</span>
           ) : (
-            <span className="text-muted">{label} から取り消しました（矢書の下書きは残っています）</span>
+            <span className="text-muted">{label} から取り消しました（yabumi の下書きは残っています）</span>
           ))}
         {r.status === "failed" && (
           <>
@@ -157,7 +157,7 @@ function ResultRow({ sns, r, projectId, postId }: { sns: SnsKey; r: TargetResult
   );
 }
 
-// SNS の画面で投稿を消したときに、矢書の記録からも消す（消えた投稿の ID と URL を残さない）
+// SNS の画面で投稿を消したときに、yabumi の記録からも消す（消えた投稿の ID と URL を残さない）
 function RemovedOnSns({ label, onConfirm }: { label: string; onConfirm: () => Promise<{ error?: string } | undefined> }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -171,7 +171,7 @@ function RemovedOnSns({ label, onConfirm }: { label: string; onConfirm: () => Pr
   }
   return (
     <div className="flex flex-col gap-1.5 text-xs text-muted">
-      <p>{label} で消した投稿は、矢書の記録からもリンクを消します（{label} には何もしません）。</p>
+      <p>{label} で消した投稿は、yabumi の記録からもリンクを消します（{label} には何もしません）。</p>
       <span className="flex gap-2">
         <Button
           type="button"

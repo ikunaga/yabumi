@@ -7,7 +7,7 @@ type Admin = SupabaseClient<Database>;
 
 // SNS 側の連携を、アプリから解除できるものは解除する（SNS を外す・退会のとき。docs/architecture.md の 4.14）。
 // X: トークンを X 側で取り消す。Threads: 解除する API がないので何もしない（画面で、Threads の設定から外せると案内する）。
-// 失敗しても、矢書の側のトークンは呼ぶ側が消すので、それ以上は使われない。結果だけを返す
+// 失敗しても、yabumi の側のトークンは呼ぶ側が消すので、それ以上は使われない。結果だけを返す
 export type RevokeDeps = {
   key?: Buffer;
   revokeX?: (token: string, hint: "access_token" | "refresh_token") => Promise<void>;

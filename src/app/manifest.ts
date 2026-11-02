@@ -3,8 +3,8 @@ import type { MetadataRoute } from "next";
 // ホーム画面に追加したときの名前とアイコン（アイコンは scripts/build-brand-assets.mjs で作る）
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "矢書（やぶみ）",
-    short_name: "矢書",
+    name: "yabumi",
+    short_name: "yabumi",
     description: "ひとりで売る人のための SNS 運用ツール。何を・いつ・どこに出すかを AI と決めて、複数の SNS にまとめて予約。",
     start_url: "/projects",
     display: "standalone",

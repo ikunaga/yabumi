@@ -154,7 +154,7 @@ export function AttentionStrip({
             </Group>
           )}
           {overdue.length > 0 && (
-            <Group title="予約時刻を過ぎても送られていない投稿" note="矢書の側で送信が遅れています。動き出せば、自動で送られます。">
+            <Group title="予約時刻を過ぎても送られていない投稿" note="yabumi の側で送信が遅れています。動き出せば、自動で送られます。">
               {overdue.map((p) => (
                 <li key={p.id}>
                   <Link href={`${base}/posts/${p.id}`} className="hover:underline">

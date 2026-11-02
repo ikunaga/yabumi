@@ -19,7 +19,7 @@ const RECONNECT = "プロジェクトの設定の「つないだ SNS」からつ
 
 // Instagram の投稿は、Instagram Login では API で消せない（docs/architecture.md の 4.21）。画面では取り消しのボタンを出さない
 export const INSTAGRAM_DELETE_UNSUPPORTED =
-  "Instagram の投稿は、矢書からは取り消せません。Instagram のアプリで投稿を開き、「…」→「削除」から消してください。";
+  "Instagram の投稿は、yabumi からは取り消せません。Instagram のアプリで投稿を開き、「…」→「削除」から消してください。";
 
 // Instagram API のエラーを、送信ジョブが判断できる形に直す。
 // stage が "publish" の通信エラー・障害は、公開されたかどうかわからないので unknown にする

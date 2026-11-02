@@ -431,7 +431,7 @@ export async function consultStep(
           { role: "assistant", content: [{ type: "text", text: JSON.stringify(result.turn) }] },
           {
             role: "user",
-            content: [{ type: "text", text: `（矢書からの自動の連絡）提案の案が決められた形に合いませんでした: ${turn.proposalProblem}。「提案の中身の形」に合わせて直し（1 回の提案は 1 つの項目だけ、案は 2〜3 個）、同じ返事の形でもう一度返してください。` }],
+            content: [{ type: "text", text: `（yabumi からの自動の連絡）提案の案が決められた形に合いませんでした: ${turn.proposalProblem}。「提案の中身の形」に合わせて直し（1 回の提案は 1 つの項目だけ、案は 2〜3 個）、同じ返事の形でもう一度返してください。` }],
           },
         ],
       });

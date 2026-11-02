@@ -1,4 +1,4 @@
-// Vercel の API（Project Domains）で、利用者のドメインを矢書の Vercel のプロジェクトに足す・確かめる・外す（4.22、D28）。
+// Vercel の API（Project Domains）で、利用者のドメインを yabumi の Vercel のプロジェクトに足す・確かめる・外す（4.22、D28）。
 // トークンは運営者の環境変数（VERCEL_API_TOKEN、VERCEL_PROJECT_ID、VERCEL_TEAM_ID。docs/deploy.md の 12）。
 // 使う API（https://vercel.com/openapi.json、2026-10-12 確認）:
 // - POST   /v10/projects/{id}/domains              ドメインを足す（verified が false なら verification の TXT が要る）

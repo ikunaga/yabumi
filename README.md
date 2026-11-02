@@ -1,4 +1,4 @@
-# 矢書（やぶみ）
+# yabumi
 
 個人開発者のための SNS 運用ツール。要求・設計・段取りは [docs/](docs/) を参照。
 
@@ -54,8 +54,8 @@ Mac のメモリが足りなくなっていたので、supabase/config.toml で�
 | 止めた部品 | 理由 | 止めると困ること |
 |---|---|---|
 | analytics（とログを集める vector） | ログの集計。analytics だけで約 700MB、CPU も多く使っていた | Studio の「Logs」が見られない（各部品のログは `docker logs supabase_auth_yabumi` などで見られる） |
-| realtime | 矢書は Realtime を使っていない（約 260MB） | なし |
-| edge_runtime | 矢書は Edge Functions を使っていない | なし |
+| realtime | yabumi は Realtime を使っていない（約 260MB） | なし |
+| edge_runtime | yabumi は Edge Functions を使っていない | なし |
 
 止めていないもの: API、DB（pg_cron・pg_net を含む）、Auth、Storage（画像の添付）、Studio（と Studio が使う pg_meta）、Mailpit（確認メール）。本番（Supabase の本番の環境）には関係しない。
 
@@ -84,10 +84,10 @@ printf '\nGITHUB_APP_PRIVATE_KEY=%s\n' "$(awk '{printf "%s\\n", $0}' ~/Downloads
 
 ## X（自動で投稿する）
 
-X の API は使った分だけ払う方式（投稿 1 本 $0.015、本文に URL があると $0.20）。矢書は月 $3 を上限にしていて、超えたら X は自動では送らず、手で投稿してもらう（決定 D16、docs/architecture.md の 4.13）。
+X の API は使った分だけ払う方式（投稿 1 本 $0.015、本文に URL があると $0.20）。yabumi は月 $3 を上限にしていて、超えたら X は自動では送らず、手で投稿してもらう（決定 D16、docs/architecture.md の 4.13）。
 
 1. https://console.x.com に、投稿に使う X のアカウントでログインする（開発者の登録がまだなら、画面の案内に沿って登録する）
-2. **クレジットを買う**: Billing（支払い）でカードを登録し、クレジットを買う（最初にカードを登録すると $20 分がもらえる）。**Spending limit**（請求期間ごとの上限）を **$5** にする。矢書の上限 $3 を何かの理由ですり抜けても、X 側で止まる
+2. **クレジットを買う**: Billing（支払い）でカードを登録し、クレジットを買う（最初にカードを登録すると $20 分がもらえる）。**Spending limit**（請求期間ごとの上限）を **$5** にする。yabumi の上限 $3 を何かの理由ですり抜けても、X 側で止まる
 3. **アプリを作る**: Create App。名前は `yabumi` など（ほかの人と重なれば `yabumi-masa` など）
 4. アプリの **User authentication settings**（または Authentication settings）を開き、次のように設定する
 
@@ -153,24 +153,24 @@ select vault.create_secret('<.env.local の CRON_SECRET>', 'cron_secret');
 
 | 原因 | 落ちていた例 | 対策 |
 |---|---|---|
-| 片付けの漏れで、矢書全体の上限に届いていた | play の 7 件が「Google Play のつなぎが混み合っていて」。play_account_creations が、消したテストの利用者の分だけで全員の上限（直近 30 日に 80）に届いていた（退会しても 30 日残る決まりのため、流すたびに積もった） | deleteUser で作成の記録も消す。溜まっていた 80 行はローカルだけで消した（下の掃除の SQL） |
-| 矢書全体の状態を一時的に変える・全体をまとめて処理するテストが、ほかのセッションの同じテストとぶつかる | link-domains（全体のドメインの上限、外す途中のドメインの処理、見回り）、play と operator-notify（全員の上限を 80 まで埋める、全員で 1 つの知らせの記録） | 同じマシンの中で、同じ名前のロックを持つファイルは 1 つずつ流す（tests/helpers/lock.ts の holdLockDuringFile。play-global と link-domains-global）。外す途中のドメインの処理は、テストではそのテストのドメインに絞る（drainLinkDomainRemovals の onlyDomains） |
+| 片付けの漏れで、yabumi 全体の上限に届いていた | play の 7 件が「Google Play のつなぎが混み合っていて」。play_account_creations が、消したテストの利用者の分だけで全員の上限（直近 30 日に 80）に届いていた（退会しても 30 日残る決まりのため、流すたびに積もった） | deleteUser で作成の記録も消す。溜まっていた 80 行はローカルだけで消した（下の掃除の SQL） |
+| yabumi 全体の状態を一時的に変える・全体をまとめて処理するテストが、ほかのセッションの同じテストとぶつかる | link-domains（全体のドメインの上限、外す途中のドメインの処理、見回り）、play と operator-notify（全員の上限を 80 まで埋める、全員で 1 つの知らせの記録） | 同じマシンの中で、同じ名前のロックを持つファイルは 1 つずつ流す（tests/helpers/lock.ts の holdLockDuringFile。play-global と link-domains-global）。外す途中のドメインの処理は、テストではそのテストのドメインに絞る（drainLinkDomainRemovals の onlyDomains） |
 | ローカルの Supabase の入り口（Kong）の 502 | 「An invalid response was received from the upstream server」が毎回ちがうテストで。Kong のログは `upstream prematurely closed connection`。PostgREST は落ちておらず、CPU も余っていた。PostgREST（warp）が空いた接続を 30 秒ほどで閉じ、Kong が 60 秒まで使い回すため、閉じたばかりの接続に送ってしまう（負荷とは関係なく、まれに起きる） | テストのクライアント（tests/helpers/supabase.ts）は、502 のときだけ少し待って 2 回まで送り直す。届く前に切れているので、送り直しても二重にならない（送り直せない本文のときは送り直さない） |
 
 - あわせて、同じマシン全体で同時に DB に問い合わせる結合テストのファイルを 4 つまでにした（tests/helpers/supabase.ts を読み込んだファイルは、最初に席を取る。`YABUMI_TEST_DB_SLOTS` で変えられる）。3 人で 9 ファイルが並ぶと、認証サーバーと DB が詰まって時間切れが起きやすいため
 - ロックと席は、OS の一時フォルダの `yabumi-test-locks/` にディレクトリで作り、中に持ち主のプロセスの番号を書く。持ち主のプロセスがもういない、または 5 分を過ぎたものは、残ったものとみなして取り直す（テストが途中で落ちても残らない）。どうしても止まったら、そのフォルダを消してよい
 - テストの作りの直し: 並び順を決めずに比べていた（plan-coach の利用量。`order("id")` を付けた）、決まった宛先の URL を使っていて一意の制約にぶつかった（push）、更新のエラーを捨てていた（sns-metrics。原因がわかるように投げる）
 - 結果（2026-10-12）: 直す前は、3 つを同時に 4 回流して 12 回中 11 回落ちた。直したあとは、3 つを同時に 10 回流して 30 回すべて通った（その間に Kong の 502 が 9 回あったが、送り直しで通った）。1 人で流すと 9〜10 秒、3 人で同時だと 1 回 30 秒ほど
-- 新しいテストを書くとき: 矢書全体の数や上限を一時的に変えるテストは holdLockDuringFile でロックを取る。全体をまとめて処理する関数は、テストの利用者やデータに絞る引数を足して呼ぶ。後片付けで、退会しても残る決まりの記録も消す
+- 新しいテストを書くとき: yabumi 全体の数や上限を一時的に変えるテストは holdLockDuringFile でロックを取る。全体をまとめて処理する関数は、テストの利用者やデータに絞る引数を足して呼ぶ。後片付けで、退会しても残る決まりの記録も消す
 
 結合テストが使うローカルの Supabase は、同じマシンの他の作業（別のセッションのテスト、開発サーバー）と共有で、オーナーが登録した本物のデータ（SNS の接続など）も入っている。そのため:
 
 - テストの利用者は、テストのファイルごとに新しく作る（tests/helpers/supabase.ts の signUpNewUser）。他のファイルと使い回さない
 - DB 全体を対象にする処理（日次のトークン延長、予約の取り出し、費用の上限の合計など）は、必ずテストの利用者に絞って呼ぶ（refreshDueTokens の onlyOwner、publishDueTargets の postId、費用の上限の budgetScopeOwner）。偽のアダプターで全体を処理すると、他のテストのアカウントやオーナーの本物の接続を壊す
 - 他のテストが同時に流れても結果が変わらないように書く（全体の合計や件数に頼らない。purge_expired_data のように DB 全体を対象にする処理の「消した件数」も、別のテストが先に消すことがあるので確かめない）
-- テストで作った費用の記録（ai_usage、sns_api_usage）は後片付けで消す。利用者を消すと費用の記録は持ち主を空にして残る決まりなので、消さないと矢書全体の今月の合計が増え続け、ローカルで全体の上限に達して AI や X が使えなくなる（tests/helpers/supabase.ts の deleteUser は先に消す）
+- テストで作った費用の記録（ai_usage、sns_api_usage）は後片付けで消す。利用者を消すと費用の記録は持ち主を空にして残る決まりなので、消さないと yabumi 全体の今月の合計が増え続け、ローカルで全体の上限に達して AI や X が使えなくなる（tests/helpers/supabase.ts の deleteUser は先に消す）
 
-それでも全体の上限に達してしまったとき（「矢書全体の上限に達しました」と出る）は、ローカルの DB だけで次を流す。**本番では絶対に流さない**（本番の持ち主のない記録は、退会した利用者の本物の費用の記録）。共有の DB なので、流す前に一緒に作業している人に知らせる。
+それでも全体の上限に達してしまったとき（「yabumi 全体の上限に達しました」と出る）は、ローカルの DB だけで次を流す。**本番では絶対に流さない**（本番の持ち主のない記録は、退会した利用者の本物の費用の記録）。共有の DB なので、流す前に一緒に作業している人に知らせる。
 
 ```sql
 -- ローカル専用。Supabase Studio（http://127.0.0.1:55323）の SQL Editor で

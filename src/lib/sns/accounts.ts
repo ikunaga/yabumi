@@ -87,7 +87,7 @@ export async function deleteAccountsByExternalId(admin: Admin, sns: SnsKey, exte
   return data.length;
 }
 
-// アクセスがなくなったとき（矢書の「外す」、SNS の側で外された、データの削除を求められた）に、その SNS から受け取ったものを消す:
+// アクセスがなくなったとき（yabumi の「外す」、SNS の側で外された、データの削除を求められた）に、その SNS から受け取ったものを消す:
 // 送った投稿の数字（post_metrics）とフォロワーの数（account_metrics）、SNS 上の投稿の ID・URL・送信の途中の情報。
 // 投稿の本文と「送った」という記録は利用者が書いたものなので残す。X の Developer Policy と Meta の Platform Terms に合わせ、
 // どの SNS も同じ扱いにする（docs/architecture.md の 4.14、プライバシーポリシーの第 5・6 条）
@@ -105,7 +105,7 @@ export async function purgeSnsDataOf(admin: Admin, socialAccountIds: string[]): 
   if (e2) throw e2;
 }
 
-// Facebook の側で矢書が外されたとき。その Facebook の利用者がつないだページを、すべて「解除済み」にしてトークンを消す
+// Facebook の側で yabumi が外されたとき。その Facebook の利用者がつないだページを、すべて「解除済み」にしてトークンを消す
 export async function revokeAccountsByParentId(admin: Admin, sns: SnsKey, parentExternalId: string): Promise<number> {
   const { data, error } = await admin
     .from("social_accounts")

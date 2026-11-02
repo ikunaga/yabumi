@@ -12,7 +12,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.rewrite(new URL(short.pathname + request.nextUrl.search, request.url));
   }
   if (short?.type === "redirect") return NextResponse.redirect(short.url, 302);
-  // 利用者のドメイン（4.22、D28）で、短縮リンクとつながりの確認以外のパス。矢書の画面は出さない
+  // 利用者のドメイン（4.22、D28）で、短縮リンクとつながりの確認以外のパス。yabumi の画面は出さない
   if (short?.type === "respond") {
     return new NextResponse(short.body, {
       status: short.status,

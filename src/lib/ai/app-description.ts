@@ -58,7 +58,7 @@ const DATA_RULES = `# リポジトリの中身の扱い（重要）
 - 鍵、トークン、パスワード、メールアドレス、社内の URL などは書き写しません
 - 返事は決められた形（JSON）だけで返します`;
 
-export const FILE_PICK_SYSTEM = `あなたは「矢書（やぶみ）」の中で、個人開発者のアプリの紹介文を書くために、リポジトリのどのファイルを読むかを選ぶ係です。
+export const FILE_PICK_SYSTEM = `あなたは「yabumi」の中で、個人開発者のアプリの紹介文を書くために、リポジトリのどのファイルを読むかを選ぶ係です。
 利用者のリポジトリのファイル一覧（パスと大きさ）を見て、「このアプリで何ができるか・誰向けか・どの OS か・どこまでできているか」がわかりそうなファイルを、${MAX_PICKED_FILES} 件まで、役に立つ順に選びます。
 
 ${DATA_RULES}
@@ -72,8 +72,8 @@ ${DATA_RULES}
 - テスト、自動生成されたファイル、CI の設定、ライセンスは選ばない
 - 一覧にないパスは書かない`;
 
-export const APP_DESCRIPTION_SYSTEM = `あなたは「矢書（やぶみ）」の中で、個人開発者のアプリの紹介文（どんなアプリか）を下書きする係です。
-紹介文は、矢書がアカウント設計の相談や投稿のネタを考えるときの材料になります。相手はマーケティングの素人で、下書きを確かめて直してから使います。
+export const APP_DESCRIPTION_SYSTEM = `あなたは「yabumi」の中で、個人開発者のアプリの紹介文（どんなアプリか）を下書きする係です。
+紹介文は、yabumi がアカウント設計の相談や投稿のネタを考えるときの材料になります。相手はマーケティングの素人で、下書きを確かめて直してから使います。
 
 ${DATA_RULES}
 
@@ -88,7 +88,7 @@ ${DATA_RULES}
 # 質問（questions）
 - 紹介文をよくするために、利用者に聞きたいことがあれば、答えやすい質問にして ${MAX_QUESTIONS} つまで書く。いちばん大事なものから
 - 例:「このアプリでいちばんできることは何ですか？」に、答えの例「お金の記録をつける」「予定を管理する」などを choices に添える。例はリポジトリから推し量れるものにする
-- どのファイルを読んだ・読んでいないなど、矢書や AI の側の事情は書かない。利用者が答えられないこと（技術の詳しいこと）は聞かない
+- どのファイルを読んだ・読んでいないなど、yabumi や AI の側の事情は書かない。利用者が答えられないこと（技術の詳しいこと）は聞かない
 - 十分にわかっていれば空にする
 
 # 答えを受けて書き直すとき
@@ -106,7 +106,7 @@ export function buildFilePickRequest(projectName: string, repoFullName: string, 
     messages: [
       {
         role: "user",
-        content: [{ type: "text", text: `矢書のプロジェクト名: ${projectName}\nリポジトリ: ${repoFullName}\n\n読むファイルを選んでください。\n\n${fileListBlock(files, truncated)}` }],
+        content: [{ type: "text", text: `yabumi のプロジェクト名: ${projectName}\nリポジトリ: ${repoFullName}\n\n読むファイルを選んでください。\n\n${fileListBlock(files, truncated)}` }],
       },
     ] as BetaMessageParam[],
   };
@@ -123,7 +123,7 @@ export function buildAppDescriptionRequest(projectName: string, repoFullName: st
     messages: [
       {
         role: "user",
-        content: [{ type: "text", text: `矢書のプロジェクト名: ${projectName}\nリポジトリ: ${repoFullName}\n\n${list}次のファイルを読んで、アプリの紹介文を下書きしてください。\n\n${body}` }],
+        content: [{ type: "text", text: `yabumi のプロジェクト名: ${projectName}\nリポジトリ: ${repoFullName}\n\n${list}次のファイルを読んで、アプリの紹介文を下書きしてください。\n\n${body}` }],
       },
     ] as BetaMessageParam[],
   };
@@ -141,7 +141,7 @@ export function buildRefineRequest(projectName: string, draft: AppDescriptionDra
         content: [
           {
             type: "text",
-            text: `矢書のプロジェクト名: ${projectName}\n\nいまの下書き（JSON）:\n${JSON.stringify(draft)}\n\n利用者の答え:\n${qa}\n\n答えを反映して、紹介文を書き直してください。`,
+            text: `yabumi のプロジェクト名: ${projectName}\n\nいまの下書き（JSON）:\n${JSON.stringify(draft)}\n\n利用者の答え:\n${qa}\n\n答えを反映して、紹介文を書き直してください。`,
           },
         ],
       },
@@ -217,7 +217,7 @@ export async function draftAppDescription(
   const limit = await checkAiLimits(admin, args.userId, deps.limits, now);
   if (!limit.ok) return { ok: false, message: limit.message };
 
-  const repoError = "リポジトリを読めませんでした。GitHub の設定で、このリポジトリを矢書に読ませているか確かめてください。";
+  const repoError = "リポジトリを読めませんでした。GitHub の設定で、このリポジトリを yabumi に読ませているか確かめてください。";
   let entries: TreeEntry[];
   try {
     entries = await deps.repo.listFiles(link);

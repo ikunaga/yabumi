@@ -39,7 +39,7 @@ export type ImageBrief = {
   diagram: { title: string; style: DiagramStyle; items: TemplateItem[] };
 };
 
-export const IMAGE_BRIEF_SYSTEM = `あなたは「矢書（やぶみ）」の中で、個人開発者が SNS の投稿に添える画像の文字を考える係です。
+export const IMAGE_BRIEF_SYSTEM = `あなたは「yabumi」の中で、個人開発者が SNS の投稿に添える画像の文字を考える係です。
 画像はテンプレート（色の背景に大きな文字、図解、アプリの画面に見出し）で作ります。あなたが考えるのは、画像に入れる短い文字だけです。
 利用者はマーケティングの素人です。
 

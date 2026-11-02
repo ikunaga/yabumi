@@ -73,16 +73,16 @@ export default async function SettingsPage() {
             <Card className="overflow-hidden">
               <CardHeader title="退会する" />
               <div className="flex flex-col gap-4 px-6 pt-1 pb-5 text-[14px] leading-7">
-                <p>退会すると、矢書に保存しているあなたのデータをすべて消します。元に戻せません。</p>
+                <p>退会すると、yabumi に保存しているあなたのデータをすべて消します。元に戻せません。</p>
                 <ul className="list-disc pl-5">
                   <li>消えるもの: アカウント、プロジェクト、アカウント設計、投稿（下書き・予約・送信の記録）、AI との会話、つないだ SNS とそのトークン、GitHub のつながり</li>
-                  <li>X は、X の側でも矢書を外します。GitHub は、矢書の GitHub App を外します</li>
+                  <li>X は、X の側でも yabumi を外します。GitHub は、yabumi の GitHub App を外します</li>
                   <li>
                     SNS に送った投稿は消しません。消したい投稿があれば、退会の前に、投稿の画面の「SNS から取り消す」を使ってください
                   </li>
                   {(snsCount ?? 0) > 0 && (
                     <li>
-                      Threads・Instagram・Facebook の側から矢書を外すことは、矢書からはできません。それぞれのアプリの設定の「ウェブサイトのアクセス許可」（Facebook は「ビジネス統合」）から矢書を削除してください
+                      Threads・Instagram・Facebook の側から yabumi を外すことは、yabumi からはできません。それぞれのアプリの設定の「ウェブサイトのアクセス許可」（Facebook は「ビジネス統合」）から yabumi を削除してください
                     </li>
                   )}
                   {(githubCount ?? 0) > 0 && <li>GitHub App を外せなかったときは、GitHub の Settings → Applications から外せます</li>}

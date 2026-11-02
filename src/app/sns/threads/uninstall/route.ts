@@ -4,7 +4,7 @@ import { parseSignedRequest } from "@/lib/sns/meta/signed-request";
 import { threadsConfig } from "@/lib/sns/threads/config";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-// Uninstall Callback URL: 利用者が Threads の設定から矢書を外したときに Meta から届く
+// Uninstall Callback URL: 利用者が Threads の設定から yabumi を外したときに Meta から届く
 export async function POST(request: NextRequest) {
   const form = await request.formData().catch(() => null);
   const signed = form?.get("signed_request");

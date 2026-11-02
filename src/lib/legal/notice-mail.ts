@@ -34,11 +34,11 @@ export function noticeMail(to: string, change: LegalRevision, appUrl: string) {
   const links = change.docs.map((d) => `- ${DOC_LABEL[d]}: ${appUrl}/${d}#legal-notice`).join("\n");
   return {
     to,
-    subject: `矢書の${docs}の変更のお知らせ`,
+    subject: `yabumi の${docs}の変更のお知らせ`,
     text: [
-      "矢書（やぶみ）をご利用いただき、ありがとうございます。",
+      "yabumi をご利用いただき、ありがとうございます。",
       "",
-      `${formatLegalDate(change.version)}から、矢書の${docs}を変更します。`,
+      `${formatLegalDate(change.version)}から、yabumi の${docs}を変更します。`,
       "",
       "変わる点:",
       ...change.summary.map((s) => `- ${s}`),
@@ -46,11 +46,11 @@ export function noticeMail(to: string, change: LegalRevision, appUrl: string) {
       "くわしくは、次のページの先頭の「変更のお知らせ」をご覧ください。",
       links,
       "",
-      `${formatLegalDate(change.version)}以降に矢書を使い続けると、変更後の${docs}に同意したものとして扱います。同意できない場合は、それまでに「アカウント」の画面から退会できます。`,
+      `${formatLegalDate(change.version)}以降に yabumi を使い続けると、変更後の${docs}に同意したものとして扱います。同意できない場合は、それまでに「アカウント」の画面から退会できます。`,
       "",
-      "このメールは、矢書に登録しているすべての方にお送りしている、ご利用の条件に関する大切なお知らせです（伴走のお知らせのメールを止めている方にもお送りしています）。",
+      "このメールは、yabumi に登録しているすべての方にお送りしている、ご利用の条件に関する大切なお知らせです（伴走のお知らせのメールを止めている方にもお送りしています）。",
       "",
-      `送信者: 矢書（${operatorLabel()}）`,
+      `送信者: yabumi （${operatorLabel()}）`,
       `お問い合わせ: ${orPending(LEGAL.contact)}`,
     ].join("\n"),
   };

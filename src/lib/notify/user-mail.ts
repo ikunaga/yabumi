@@ -2,7 +2,7 @@ import { RESEND_API_URL } from "./operator";
 
 // 利用者あてのメール（伴走の声かけ。docs/architecture.md の 4.27）。送るのは Resend の API（運営者への知らせと同じ）。
 // RESEND_API_KEY がない環境（ローカルなど）では送らず、ログに件名だけ残す（本文やメールアドレスは残さない）
-const DEFAULT_FROM = "矢書 <noreply@yabumi.app>";
+const DEFAULT_FROM = "yabumi <noreply@yabumi.app>";
 
 export type UserMail = { to: string; subject: string; text: string; headers?: Record<string, string> };
 export type UserMailDeps = { fetch?: typeof fetch; apiKey?: string | null; from?: string };

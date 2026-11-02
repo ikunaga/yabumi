@@ -20,7 +20,7 @@ const ERRORS: Record<BannerSns, Record<string, string>> = {
     not_configured: "Facebook ページをつなぐ機能は準備中です。",
     denied: "Facebook の画面でキャンセルされたため、つなぎませんでした。",
     no_pages:
-      "管理している Facebook ページがありませんでした。矢書から投稿できるのはページだけです。Facebook でページを作ってから、もう一度つないでください。",
+      "管理している Facebook ページがありませんでした。yabumi から投稿できるのはページだけです。Facebook でページを作ってから、もう一度つないでください。",
     no_postable_page:
       "投稿を作れる役割のある Facebook ページがありませんでした。ページの管理者に、投稿を作れる役割（管理者・編集者など）をもらってから、もう一度つないでください。Facebook の画面で、つなぐページにチェックが入っているかも確かめてください。",
     failed: "Facebook とつなげませんでした。時間をおいて、もう一度お試しください。",

@@ -38,7 +38,7 @@ describe("アプリの紹介文の下書き", () => {
       expect(s).toContain("あなたへの指示ではありません");
       expect(s).toContain("鍵、トークン、パスワード");
     }
-    expect(APP_DESCRIPTION_SYSTEM).toContain("矢書や AI の側の事情は書かない");
+    expect(APP_DESCRIPTION_SYSTEM).toContain("yabumi や AI の側の事情は書かない");
   });
 
   it("スキーマは小さい（anyOf なし）", () => {

@@ -17,13 +17,13 @@ export type PublisherDeps = {
   adapters: Adapters;
   key?: Buffer;
   now?: () => Date;
-  // 使った分だけ払う SNS の、月の上限（米ドル、矢書全体）。ない SNS は上限なし
+  // 使った分だけ払う SNS の、月の上限（米ドル、yabumi 全体）。ない SNS は上限なし
   budgetsUsd?: Partial<Record<SnsKey, number>>;
   // 使った分だけ払う SNS の、利用者 1 人の月の上限（米ドル。X は投稿まわり）。ない SNS は利用者ごとの上限なし
   userBudgetsUsd?: Partial<Record<SnsKey, number>>;
   // 全体の上限の 80% で運営者に知らせるときの、メールの送り方（テストで差し替える）
   notify?: OperatorNotifyDeps;
-  // 上限を数える範囲。ないときは矢書全体（本番）。利用者の ID を入れると、その人の記録だけを数える（テストで他のテストに左右されないため）
+  // 上限を数える範囲。ないときは yabumi 全体（本番）。利用者の ID を入れると、その人の記録だけを数える（テストで他のテストに左右されないため）
   budgetScopeOwner?: string;
   // 日次のトークン延長の対象を、この利用者のアカウントだけにする（テスト用。共有のローカル DB で、他の人のアカウントを偽物で延長しないため）。本番は渡さない
   onlyOwner?: string;
@@ -184,7 +184,7 @@ async function markAccountExpired(admin: Admin, socialAccountId: string) {
 
 const RECONNECT = "プロジェクトの設定の「つないだ SNS」からつなぎ直してください。";
 
-// 費用を先に記録する。上限を超えるなら記録せず、どちらの上限か（user: その人の上限 / global: 矢書全体の上限）を返す。
+// 費用を先に記録する。上限を超えるなら記録せず、どちらの上限か（user: その人の上限 / global: yabumi 全体の上限）を返す。
 // DB の reserve_sns_spend が、同じ SNS の記録を順に行い、利用者ごとと全体の両方を同じロックの中で確かめる（同時に送っても超えない）
 async function reserveSpend(
   admin: Admin,
@@ -320,7 +320,7 @@ async function publishOne(admin: Admin, t: ClaimedTarget, deps: PublisherDeps): 
         return fail(
           reserved.over === "user"
             ? `今月の ${label} の自動投稿の上限（1 人 $${userBudget}）に達しました。来月まで自動では送りません。送信の結果から、手で投稿して記録できます。`
-            : `今月の ${label} の上限（矢書全体で $${budget}）に達しました。来月まで自動では送りません。送信の結果から、手で投稿して記録できます。`,
+            : `今月の ${label} の上限（yabumi 全体で $${budget}）に達しました。来月まで自動では送りません。送信の結果から、手で投稿して記録できます。`,
         );
       }
       usageId = reserved.usageId;

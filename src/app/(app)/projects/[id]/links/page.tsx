@@ -117,7 +117,7 @@ export default async function LinksPage(props: PageProps<"/projects/[id]/links">
       <Disclosure summary="2 種類のリンク（プロフィールに置く・投稿の本文から自動で作る）">
         <ul className="flex flex-col gap-2">
           <li>
-            <b className="text-fg">プロフィールに置くリンク</b>: この画面で作り、コピーして SNS のプロフィールに<b className="text-fg">自分で貼ります</b>。矢書がプロフィールを書き換えることはありません。
+            <b className="text-fg">プロフィールに置くリンク</b>: この画面で作り、コピーして SNS のプロフィールに<b className="text-fg">自分で貼ります</b>。yabumi がプロフィールを書き換えることはありません。
           </li>
           <li>
             <b className="text-fg">投稿の本文の URL</b>: 投稿をつくるときに本文に URL を入れると、送るときに投稿ごと・SNS ごとの短縮リンクに<b className="text-fg">自動で置き換わります</b>
@@ -156,7 +156,7 @@ export default async function LinksPage(props: PageProps<"/projects/[id]/links">
                           <SnsMark sns={sns} />
                           <b>{SNS[sns].label}</b>
                           <HelpTip label={`${SNS[sns].label} のリンクを貼る場所`}>
-                            {link ? "コピーして" : "作ったら、コピーして"}、{SNS[sns].label} のプロフィールに自分で貼ってください（矢書からプロフィールは書き換えません）。貼る場所: {PROFILE_RULES[sns].linkNote}
+                            {link ? "コピーして" : "作ったら、コピーして"}、{SNS[sns].label} のプロフィールに自分で貼ってください（yabumi からプロフィールは書き換えません）。貼る場所: {PROFILE_RULES[sns].linkNote}
                             {PROFILE_NOTE[sns] && <span className="mt-2 block">{PROFILE_NOTE[sns]}</span>}
                           </HelpTip>
                           {link ? (

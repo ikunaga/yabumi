@@ -5,11 +5,11 @@ import { THEME_COOKIE, parseTheme } from "@/lib/theme";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "矢書（やぶみ）", template: "%s | 矢書" },
+  title: { default: "yabumi", template: "%s | yabumi" },
   description: "ひとりで売る人のための SNS 運用ツール。何を・いつ・どこに出すかを AI と決めて、複数の SNS にまとめて予約。",
   // OGP 画像などを絶対 URL で出すため。本番は APP_URL（https://yabumi.vercel.app）
   metadataBase: new URL(process.env.APP_URL ?? "https://localhost:3100"),
-  openGraph: { siteName: "矢書（やぶみ）", locale: "ja_JP", type: "website" },
+  openGraph: { siteName: "yabumi", locale: "ja_JP", type: "website" },
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

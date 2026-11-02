@@ -37,7 +37,7 @@ export async function createLink(projectId: string, _prev: LinkActionState, form
   if (kind === "profile" && !sns?.success) return { error: "SNS を選んでください。" };
   if (sns && !sns.success) return { error: "SNS の選び方が正しくありません。" };
   const destination = String(formData.get("destination") ?? "").trim();
-  if (!isValidDestination(destination)) return { error: "行き先は https:// で始まる URL にしてください（IP アドレスそのものや、矢書の URL は使えません）。" };
+  if (!isValidDestination(destination)) return { error: "行き先は https:// で始まる URL にしてください（IP アドレスそのものや、yabumi の URL は使えません）。" };
   const label = String(formData.get("label") ?? "").trim().slice(0, 100);
 
   const admin = createAdminClient();
@@ -140,5 +140,5 @@ export async function removeLinkDomainAction(projectId: string): Promise<LinkDom
     return { error: "いま外せませんでした。時間をおいてもう一度お試しください。" };
   }
   revalidatePath(`/projects/${projectId}/links`);
-  return { ok: "外しました。これからの短縮リンクは、矢書のドメインで作ります。" };
+  return { ok: "外しました。これからの短縮リンクは、yabumi のドメインで作ります。" };
 }

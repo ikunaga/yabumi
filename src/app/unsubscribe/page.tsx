@@ -22,7 +22,7 @@ export default async function UnsubscribePage(props: PageProps<"/unsubscribe">) 
       {sp.done === "1" ? (
         <PublicCard title="お知らせのメールを止めました">
           <p>伴走のお知らせのメール（遅れそうなとき・毎週の振り返り）は、もう届きません。</p>
-          <p className="text-muted">スマホの通知と、矢書の画面の声かけはそのままです。また受け取りたくなったら、ログインして{settings}から戻せます。</p>
+          <p className="text-muted">スマホの通知と、yabumi の画面の声かけはそのままです。また受け取りたくなったら、ログインして{settings}から戻せます。</p>
         </PublicCard>
       ) : sp.done === "0" || !token ? (
         <PublicCard title="リンクが正しくないか、古くなっています">
@@ -31,9 +31,9 @@ export default async function UnsubscribePage(props: PageProps<"/unsubscribe">) 
       ) : (
         <form action={unsubscribeAction} className="flex w-full justify-center">
           <input type="hidden" name="t" value={token} />
-          <PublicCard title="矢書のお知らせのメールを止める" actions={<Button type="submit">メールを止める</Button>}>
+          <PublicCard title="yabumi のお知らせのメールを止める" actions={<Button type="submit">メールを止める</Button>}>
             <p>伴走のお知らせのメール（遅れそうなとき・毎週の振り返り）を止めます。</p>
-            <p className="text-muted">スマホの通知と、矢書の画面の声かけはそのままです。</p>
+            <p className="text-muted">スマホの通知と、yabumi の画面の声かけはそのままです。</p>
           </PublicCard>
         </form>
       )}

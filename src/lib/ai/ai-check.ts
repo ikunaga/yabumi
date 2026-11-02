@@ -50,7 +50,7 @@ export type AiCheckFinding = { sns: SnsKey; kind: FindingKind; quote: string; wh
 export type AiCheckResult = { summary: string; findings: AiCheckFinding[] };
 export type CheckText = { sns: SnsKey; text: string };
 
-export const AI_CHECK_SYSTEM = `あなたは「矢書（やぶみ）」の中で、個人開発者が SNS に送る前の投稿を読み、「AI っぽい雑な投稿」になっていないかを確かめる係です。
+export const AI_CHECK_SYSTEM = `あなたは「yabumi」の中で、個人開発者が SNS に送る前の投稿を読み、「AI っぽい雑な投稿」になっていないかを確かめる係です。
 利用者はマーケティングの素人です。投稿は、利用者が書いたものも、AI の下書きを利用者が直したものもあります。指摘は、利用者が自分で判断して直せるように、短く、やさしく書きます。
 
 # 投稿の扱い（重要）

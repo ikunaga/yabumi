@@ -132,7 +132,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
   const hasAutoSns = (["threads", "instagram", "facebook", "x"] as const).some((s) => accounts[s]);
   const later = KPI_KEYS.filter((k) => KPIS[k].availability === "later" && !kpis.includes(k));
 
-  // Google Play が数えた、矢書の短縮リンクごとの DL（数字の段 3）。SNS ごとは選んだ期間、投稿ごとは 30 日（投稿の順位と同じ）
+  // Google Play が数えた、yabumi の短縮リンクごとの DL（数字の段 3）。SNS ごとは選んだ期間、投稿ごとは 30 日（投稿の順位と同じ）
   const playConnected = daily.stores.includes("google_play") || daily.playUtm.length > 0;
   const appleConnected = daily.stores.includes("app_store");
   const playUtm = sumPlayUtm(daily.playUtm, addDays(today, -(days - 1)), today);
@@ -331,7 +331,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
                 aside={`直近 ${days} 日`}
                 help={
                   <HelpTip label="Google Play が数えた DL">
-                    矢書の短縮リンクから Google Play のページに来て、はじめてインストールした人の数です（Google Play の「ストアの掲載情報からの獲得」）。App Store の分は入っていません。3〜7 日遅れて届き、あとから直ることがあります。数が少ない流入元は、Google が「その他」にまとめるため、ここには出ません。
+                   yabumi の短縮リンクから Google Play のページに来て、はじめてインストールした人の数です（Google Play の「ストアの掲載情報からの獲得」）。App Store の分は入っていません。3〜7 日遅れて届き、あとから直ることがあります。数が少ない流入元は、Google が「その他」にまとめるため、ここには出ません。
                   </HelpTip>
                 }
               >
@@ -344,7 +344,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
                 aside={`直近 ${days} 日`}
                 help={
                   <HelpTip label="Apple が数えた DL">
-                    矢書の短縮リンク（App Store のキャンペーンリンク）から App Store に来て、はじめてダウンロードした人の数です（App Store Connect の Analytics Reports の App Store Downloads の Detailed）。Google Play の分は入っていません。Apple は 5 人未満の数を省き、少しの乱数を足すので（多くは ±2 ほど）、少しずれます。2 日ほど遅れて届きます。
+                   yabumi の短縮リンク（App Store のキャンペーンリンク）から App Store に来て、はじめてダウンロードした人の数です（App Store Connect の Analytics Reports の App Store Downloads の Detailed）。Google Play の分は入っていません。Apple は 5 人未満の数を省き、少しの乱数を足すので（多くは ±2 ほど）、少しずれます。2 日ほど遅れて届きます。
                   </HelpTip>
                 }
               >
@@ -553,7 +553,7 @@ function PostEffectBox({ kind, effect, projectId }: { kind: "downloads" | "link_
   );
 }
 
-// Google Play が数えた、SNS ごとの DL（矢書の短縮リンクから Google Play のページに来て、はじめてインストールした人）。
+// Google Play が数えた、SNS ごとの DL（yabumi の短縮リンクから Google Play のページに来て、はじめてインストールした人）。
 // App Store の分は入らない。Google が「その他」にまとめた分は SNS に分けられないので、数だけ添える
 function PlayDownloadsBox({ totals, unreadable }: { totals: PlayUtmTotals; unreadable: boolean }) {
   if (unreadable && totals.total === 0) {
@@ -562,7 +562,7 @@ function PlayDownloadsBox({ totals, unreadable }: { totals: PlayUtmTotals; unrea
   if (totals.total === 0) {
     return (
       <p className="text-sm text-muted">
-        この期間に、矢書の短縮リンクから Google Play で入れた人は、まだ数えられていません（3〜7 日遅れて届きます。数が少ないと Google が「その他」にまとめます）。
+        この期間に、yabumi の短縮リンクから Google Play で入れた人は、まだ数えられていません（3〜7 日遅れて届きます。数が少ないと Google が「その他」にまとめます）。
       </p>
     );
   }
@@ -573,7 +573,7 @@ function PlayDownloadsBox({ totals, unreadable }: { totals: PlayUtmTotals; unrea
         <BarRow key={r.sns ?? "link"} label={r.sns ? SNS[r.sns].label : "SNS なし"} value={r.value} max={max} barClass={r.sns ? SNS_COLOR[r.sns].bg : "bg-faint"} />
       ))}
       <p className="num text-xs text-faint">
-        合計 {formatCount(totals.total)}・App Store の分は入っていません{totals.other > 0 && `・「その他」にまとめられた分 ${formatCount(totals.other)}（矢書のリンク以外も入ります）`}
+        合計 {formatCount(totals.total)}・App Store の分は入っていません{totals.other > 0 && `・「その他」にまとめられた分 ${formatCount(totals.other)}（yabumi のリンク以外も入ります）`}
       </p>
       {unreadable && <p className="text-xs text-signal">一部の月の流入元のレポートを読めませんでした。その月の分は入っていません。</p>}
     </div>

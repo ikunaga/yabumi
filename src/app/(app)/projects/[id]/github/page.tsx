@@ -22,7 +22,7 @@ const ERRORS: Record<string, string> = {
   state: "つなぐときの確認に失敗しました。もう一度「GitHub をつなぐ」から始めてください。",
   denied: "GitHub の画面でキャンセルされたため、つなぎませんでした。",
   pending_approval: "組織（Organization）の管理者の承認待ちです。承認されたら「GitHub をつなぎ直す」を押してください。",
-  no_installation: "矢書の GitHub App がインストールされていませんでした。「GitHub をつなぐ」からインストールしてください。",
+  no_installation: "yabumi の GitHub App がインストールされていませんでした。「GitHub をつなぐ」からインストールしてください。",
   failed: "GitHub とつなげませんでした。時間をおいてもう一度お試しください。",
 };
 
@@ -113,7 +113,7 @@ export default async function GithubPage(props: PageProps<"/projects/[id]/github
                 ) : (
                   <>
                     <p className="leading-[1.8] text-muted">
-                      GitHub の画面で矢書の App をインストールし、読ませるリポジトリを選びます（「Only select repositories」で、このアプリのリポジトリだけを選ぶのがおすすめです）。
+                      GitHub の画面で yabumi の App をインストールし、読ませるリポジトリを選びます（「Only select repositories」で、このアプリのリポジトリだけを選ぶのがおすすめです）。
                     </p>
                     <div>
                       <a href={installHref} className={buttonClass()}>
@@ -156,7 +156,7 @@ export default async function GithubPage(props: PageProps<"/projects/[id]/github
         }
         side={
           <Card>
-            <CardHeader title="矢書が読むもの・読まないもの" />
+            <CardHeader title="yabumi が読むもの・読まないもの" />
             <div className="flex flex-col gap-4 px-6 pt-1 pb-5 text-sm leading-[1.8] max-sm:px-4">
               <div>
                 <p className="font-bold">読むもの</p>
@@ -170,7 +170,7 @@ export default async function GithubPage(props: PageProps<"/projects/[id]/github
                 <p className="font-bold">読まないもの・残さないもの</p>
                 <ul>
                   <li>・.env、鍵、証明書など、秘密が入りがちなファイル</li>
-                  <li>・読んだ中身は AI に渡すだけで、矢書には残しません。残すのは、あなたが採用した紹介文だけ</li>
+                  <li>・読んだ中身は AI に渡すだけで、yabumi には残しません。残すのは、あなたが採用した紹介文だけ</li>
                 </ul>
               </div>
             </div>

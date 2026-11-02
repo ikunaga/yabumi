@@ -13,7 +13,7 @@ export default async function WaitlistCancelPage(props: PageProps<"/waitlist/can
   const token = typeof sp.t === "string" ? sp.t : "";
   const top = (
     <Link href="/" className="text-[14px] text-muted underline hover:text-fg">
-      矢書のトップへ
+     yabumi のトップへ
     </Link>
   );
   return (
@@ -36,7 +36,7 @@ export default async function WaitlistCancelPage(props: PageProps<"/waitlist/can
         <form action={cancelAction} className="flex w-full justify-center">
           <input type="hidden" name="t" value={token} />
           <PublicCard
-            title="矢書の招待の申し込みを取り消す"
+            title="yabumi の招待の申し込みを取り消す"
             actions={
               <>
                 <Button type="submit">申し込みを取り消す</Button>

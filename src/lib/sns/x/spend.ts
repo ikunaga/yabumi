@@ -6,7 +6,7 @@ import { X_PRICE_USD } from "./pricing";
 
 // mineUsd: ログイン中の利用者が今月 X に使った額（数字の読み取りも含む）
 // minePostUsd: そのうち、利用者ごとの上限（userBudgetUsd）に数える投稿まわりの額。userReached: その上限に達したか
-// budgetReached: 矢書全体の月の上限に達したか。上限は X の開発者アカウント（オーナー）にかかるので全員分を合計するが、
+// budgetReached: yabumi 全体の月の上限に達したか。上限は X の開発者アカウント（オーナー）にかかるので全員分を合計するが、
 // ほかの人の使った額が見えないよう、画面には達したかどうかだけを渡す
 export type XSpend = { mineUsd: number; minePostUsd: number; userBudgetUsd: number; userReached: boolean; budgetUsd: number; budgetReached: boolean };
 

@@ -1,7 +1,7 @@
 # Meta（Threads、後で Instagram・Facebook）の審査の準備
 
 - **作成日**: 2026-10-11
-- **対象のアプリ**: Yabumi Dev（Threads 専用。architecture.md の 4.6）と、Instagram・Facebook 用のアプリ（Yabumi。矢書の側は architecture.md の 4.21 で作り済み。Meta の側のアプリを作るのはオーナーの作業で、deploy.md の 12）
+- **対象のアプリ**: Yabumi Dev（Threads 専用。architecture.md の 4.6）と、Instagram・Facebook 用のアプリ（Yabumi。yabumi の側は architecture.md の 4.21 で作り済み。Meta の側のアプリを作るのはオーナーの作業で、deploy.md の 12）
 - **ポリシーとの一致**: 下の説明文とデータの扱いの答えは、/privacy の第 1〜6 条と同じ中身にしてある（2026-10-11 に突き合わせ）。どちらかを変えたら、もう片方も直す
 - **いまの状態**: 開発モード。Threads Tester に登録したアカウント（オーナーの @masa_i82）だけがつなげる
 
@@ -12,10 +12,10 @@
 | 1 | ビジネスポートフォリオを作り、アプリをそこに入れる | Meta Business Suite（business.facebook.com）→ 設定 → ビジネスポートフォリオ。アプリのダッシュボード → App settings → Basic → 「Business portfolio」で紐づけ | ― | すぐ |
 | 2 | **ビジネス認証**（Business Verification） | ビジネス設定 → セキュリティセンター →「認証を開始」。管理者だけができる | YuXport Labs の名前・住所・電話、Web サイト `https://yabumi.app` と、それが書かれた書類（下の「ビジネス認証」） | 数日（公式の目安は未確認） |
 | 3 | アプリの基本設定を埋める | App settings → Basic（下の「基本設定」） | プライバシーポリシーの URL、アイコン、カテゴリ、連絡先メール、データ削除の URL | すぐ |
-| 4 | 各権限で API を 1 回以上呼んでおく | 本番の矢書で、テスターのアカウントでつないで投稿・削除する | 申請の **30 日以内**に、申請する権限ごとに成功した呼び出しが要る | ― |
+| 4 | 各権限で API を 1 回以上呼んでおく | 本番の yabumi で、テスターのアカウントでつないで投稿・削除する | 申請の **30 日以内**に、申請する権限ごとに成功した呼び出しが要る | ― |
 | 5 | **App Review** に出す | App Review → Requests → 権限を選んで「Request」 | 権限ごとの説明文と画面の録画（下）、審査の担当者用のアカウント | 1 週間ほど（公式）。却下されたら直して出し直す |
 | 6 | データの扱いの質問に答える（Data Handling Questions） | App Review の提出の中、またはダッシュボードの案内 | 下の「データの扱いの答え」 | その場で判定（最大 30 秒） |
-| 7 | **Tech Provider 認証**（Access Verification） | App settings → Basic → Verifications → Access verification | 矢書がどんなサービスか、他の人のデータをどう使うかの説明（下） | 約 5 日 |
+| 7 | **Tech Provider 認証**（Access Verification） | App settings → Basic → Verifications → Access verification | yabumi がどんなサービスか、他の人のデータをどう使うかの説明（下） | 約 5 日 |
 | 8 | アプリを **Live** にする | 左のメニューの「Publish」（Threads の新しい画面） | 1〜7 が済んでいること。Data Use Checkup（年 1 回）も済ませる | すぐ |
 
 - 7 は、アプリの役割を持たない人が threads_basic・threads_content_publish（と、将来足す threads_manage_insights）を使うときに要る（済んでいないと、エラーコード 100 で断られる）。threads_delete は一覧にない
@@ -24,23 +24,23 @@
 
 ## 決めたこと: threads_manage_insights は申請しない（案 A、2026-10-11 オーナーの決定）
 
-矢書は threads_manage_insights（投稿の閲覧数などを読む権限）を求めていたが、**使っていない**（指標 F07 はフェーズ 3）ので、案 A に決めて求める権限から外した（src/lib/sns/threads/api.ts の THREADS_SCOPES）。審査には threads_basic・threads_content_publish・threads_delete を出す。
+yabumi は threads_manage_insights（投稿の閲覧数などを読む権限）を求めていたが、**使っていない**（指標 F07 はフェーズ 3）ので、案 A に決めて求める権限から外した（src/lib/sns/threads/api.ts の THREADS_SCOPES）。審査には threads_basic・threads_content_publish・threads_delete を出す。
 
-**2026-10-11 追記**: 指標の画面（F07）を作ったので、threads_manage_insights は「使う権限」になった。最初の審査（threads_basic・threads_content_publish・threads_delete）はそのまま出し、threads_manage_insights は Instagram の申請と一緒に追加で出す（決定 D21）。手順は下の「権限ごとの説明文」の threads_manage_insights。矢書がこの権限を求めるのは、環境変数 SNS_INSIGHTS に threads を入れたときだけ（deploy.md の 14）
+**2026-10-11 追記**: 指標の画面（F07）を作ったので、threads_manage_insights は「使う権限」になった。最初の審査（threads_basic・threads_content_publish・threads_delete）はそのまま出し、threads_manage_insights は Instagram の申請と一緒に追加で出す（決定 D21）。手順は下の「権限ごとの説明文」の threads_manage_insights。yabumi がこの権限を求めるのは、環境変数 SNS_INSIGHTS に threads を入れたときだけ（deploy.md の 14）
 
 ### オーナーの作業: Meta アプリから権限を外す
 
 1. https://developers.facebook.com/apps で Yabumi Dev を開く
 2. 左のメニューの Use cases → 「Access the Threads API」の Customize（または Permissions）
 3. threads_manage_insights の行の「Remove」（外す）を押す。threads_basic・threads_content_publish・threads_delete は残す
-4. すでにつないでいるアカウントは、次に「つなぎ直す」までは前の権限のまま。矢書は threads_manage_insights を使っていないので、困ることはない
+4. すでにつないでいるアカウントは、次に「つなぎ直す」までは前の権限のまま。yabumi は threads_manage_insights を使っていないので、困ることはない
 5. 指標を作るときは、ここで threads_manage_insights を足し直し、その権限だけを追加で審査に出す
 
 以下は、決める前の検討（記録として残す）。Meta は「要らない権限の申請」を却下の理由に挙げており、手順 4 の「30 日以内に呼んだ実績」も作れない。
 
 | 案 | 中身 | 長所 | 短所 |
 |---|---|---|---|
-| A（おすすめ） | いまは申請しない。矢書が求める権限からも外す（src/lib/sns/threads/api.ts の THREADS_SCOPES）。指標を作るときに足して、その権限だけ追加で審査に出す | 審査が通りやすく、早い。利用者に「使わない権限」を求めない | 指標を作ったとき、利用者に「つなぎ直す」をしてもらう必要がある |
+| A（おすすめ） | いまは申請しない。yabumi が求める権限からも外す（src/lib/sns/threads/api.ts の THREADS_SCOPES）。指標を作るときに足して、その権限だけ追加で審査に出す | 審査が通りやすく、早い。利用者に「使わない権限」を求めない | 指標を作ったとき、利用者に「つなぎ直す」をしてもらう必要がある |
 | B | 先に指標の一部（投稿ごとの閲覧数）を作ってから、4 つまとめて申請する | つなぎ直しが要らない | 審査が指標の完成まで遅れる |
 
 ## ビジネス認証（YuXport Labs の名義。2026-10-11 決定）
@@ -102,8 +102,8 @@ Threads の Use cases → Settings の Uninstall Callback URL は `https://yabum
 #### 申請までの流れ（オーナー。DB と画面は 2026-10-11 に作り済み）
 
 1. Meta の Yabumi Dev → Use cases → Access the Threads API → Permissions で threads_manage_insights を足す（Add）。開発モードなので、Tester のアカウントにはすぐ使える
-2. Vercel の環境変数 `SNS_INSIGHTS` に `threads` を入れて Redeploy（deploy.md の 14）。これで矢書がつなぐときに threads_manage_insights も求める
-3. 矢書のプロジェクトの設定の「つないだ SNS」で Threads を**つなぎ直す**（認可画面に、投稿の数字を読む権限が増えて出る）。つなぎ直すまでは、指標の画面に「● 要確認 … つなぎ直しが要ります」と出る
+2. Vercel の環境変数 `SNS_INSIGHTS` に `threads` を入れて Redeploy（deploy.md の 14）。これで yabumi がつなぐときに threads_manage_insights も求める
+3. yabumi のプロジェクトの設定の「つないだ SNS」で Threads を**つなぎ直す**（認可画面に、投稿の数字を読む権限が増えて出る）。つなぎ直すまでは、指標の画面に「● 要確認 … つなぎ直しが要ります」と出る
 4. 何か投稿を送り、翌日 5 時以降に指標の画面の「よく見られた投稿」と「投稿の閲覧数」に数字が出ることを確かめる（**これが申請の 30 日以内の呼び出しの実績になる**）
 5. 画面の録画（下の表の threads_manage_insights）を撮り、App Review でこの権限だけを追加で申請する（Instagram の申請と一緒に出す。決定 D21）
 
@@ -113,7 +113,7 @@ Threads の Use cases → Settings の Uninstall Callback URL は `https://yabum
 
 | 権限 | 録画の流れ |
 |---|---|
-| threads_basic | ① 審査用のアカウントで矢書にログイン ② プロジェクトのプロジェクトの設定の「つないだ SNS」→ Threads の「つなぐ」③ Threads の認可画面（求める権限が並ぶ）で許可 ④ 矢書に戻り「✓ @ユーザー名」が出る |
+| threads_basic | ① 審査用のアカウントで yabumi にログイン ② プロジェクトのプロジェクトの設定の「つないだ SNS」→ Threads の「つなぐ」③ Threads の認可画面（求める権限が並ぶ）で許可 ④ yabumi に戻り「✓ @ユーザー名」が出る |
 | threads_content_publish | ① ログイン済み、Threads はつないだ状態から ②「投稿をつくる」で本文を入れ、送り先に Threads を選ぶ ③ Threads のプレビュー（文字数）を見せる ④「今すぐ送る」⑤ 送信の結果の「Threads で見る」を押し、Threads で投稿が出ていることを見せる ⑥ 予約も見せる: 数分後に予約 → カレンダーに出る → 時刻が来て「✓ 送信済み」 |
 | threads_delete | ① 送信済みの投稿の画面 ②「Threads から取り消す」→ 確認 ③ 送信の結果が取り消しに変わる ④ Threads で投稿が消えたことを見せる |
 | threads_manage_insights | ① ログイン済みで、プロジェクトの設定の「つないだ SNS」から Threads を「つなぎ直す」→ 認可画面に投稿の数字を読む権限（insights）が出ているところを見せて許可 ② 数日前に送った投稿がある状態で、サイドバーの「指標」（Metrics）を開く ③「投稿の閲覧数」（views）と先週との差、「フォロワーの増え方」を見せる ④「よく見られた投稿」（Most viewed posts）の 1 位を押して、その投稿の画面を開く ⑤ 同じ投稿を Threads のアプリで開き、表示回数が同じくらいであることを見せる（数字は 1 日 1 回の取り込みなので、少しずれてよい） |
@@ -129,21 +129,21 @@ Threads の Use cases → Settings の Uninstall Callback URL は `https://yabum
 > Test account: email ______ / password ______
 
 - テスト用のアカウントは、審査のためだけに作る（deploy.md の 5-3 の手順で、本番に作る）。オーナー個人の Meta アカウントの情報は書かない
-- 審査の担当者が矢書にログインできないと、提出全体が却下される
+- 審査の担当者が yabumi にログインできないと、提出全体が却下される
 
 ## データの扱いの答え（Data Handling Questions の下書き）
 
 | 質問の趣旨 | 答え |
 |---|---|
-| データを処理する他社（委託先）はあるか | ある: Supabase（DB、東京）、Vercel（サーバー、東京）、Anthropic（AI）。Anthropic には、利用者が AI の機能を使うときに、利用者が入れたプロジェクトの情報と矢書で書いた投稿の本文を送る。利用者が「AI と相談」「AI と振り返る」を使うときは、その利用者自身の投稿の数字（Threads・Instagram・Facebook から読んだ閲覧数・フォロワー数など）も送る（/privacy の第 3 条）。Anthropic は API の内容を学習に使わず、30 日以内に消す |
+| データを処理する他社（委託先）はあるか | ある: Supabase（DB、東京）、Vercel（サーバー、東京）、Anthropic（AI）。Anthropic には、利用者が AI の機能を使うときに、利用者が入れたプロジェクトの情報と yabumi で書いた投稿の本文を送る。利用者が「AI と相談」「AI と振り返る」を使うときは、その利用者自身の投稿の数字（Threads・Instagram・Facebook から読んだ閲覧数・フォロワー数など）も送る（/privacy の第 3 条）。Anthropic は API の内容を学習に使わず、30 日以内に消す |
 | Threads のデータを他社に売る・渡すか | しない |
 | 政府などからの開示の求めへの方針 | 法律に基づく正式な求めにだけ、必要な範囲で応じる。求めが不当なら争う。利用者に知らせることが法律で禁じられていなければ知らせる（運営者の方針として、オーナーが確かめる） |
-| 保存するデータ | ユーザー ID、ユーザー名、表示名、アクセストークン（AES-256-GCM で暗号化）、矢書から送った投稿の ID と URL。数字の権限つきでつないだときは、矢書から送った投稿の数字（1・3・7・30 日目）とフォロワー数（日ごと）。Facebook はページの ID・名前と、つないだ Facebook の利用者の ID（ページを選ぶまでの 15 分だけ、ページの一覧と暗号化したページのトークンも） |
-| 削除 | 利用者が矢書で「外す」とき、Meta の側で矢書が外されたとき（Deauthorize の知らせ）、Meta からデータの削除の依頼が来たとき（確認のページと確認コードを返す）、退会したとき: どれも、アカウントの情報（Deauthorize のときは「解除済み」の印だけ残す）・トークン・フォロワー数・矢書から送った投稿の数字・SNS 上の投稿の ID と URL をすぐ消す（Threads・Instagram・Facebook とも）。SNS で投稿が消されたら、その投稿の数字と ID・URL を消す。矢書で書いた投稿の本文は利用者のものなので残す |
+| 保存するデータ | ユーザー ID、ユーザー名、表示名、アクセストークン（AES-256-GCM で暗号化）、yabumi から送った投稿の ID と URL。数字の権限つきでつないだときは、yabumi から送った投稿の数字（1・3・7・30 日目）とフォロワー数（日ごと）。Facebook はページの ID・名前と、つないだ Facebook の利用者の ID（ページを選ぶまでの 15 分だけ、ページの一覧と暗号化したページのトークンも） |
+| 削除 | 利用者が yabumi で「外す」とき、Meta の側で yabumi が外されたとき（Deauthorize の知らせ）、Meta からデータの削除の依頼が来たとき（確認のページと確認コードを返す）、退会したとき: どれも、アカウントの情報（Deauthorize のときは「解除済み」の印だけ残す）・トークン・フォロワー数・ yabumi から送った投稿の数字・SNS 上の投稿の ID と URL をすぐ消す（Threads・Instagram・Facebook とも）。SNS で投稿が消されたら、その投稿の数字と ID・URL を消す。yabumi で書いた投稿の本文は利用者のものなので残す |
 
 ## Instagram と Facebook ページ
 
-矢書の側は作り済み（architecture.md の 4.21）。別の Meta アプリ（Instagram・Facebook 用）を作り、同じ流れ（ビジネス認証は同じポートフォリオで済む）で申請する。設計と、アプリの作り方・権限・コールバック URL は architecture.md の 4.21（Instagram は Instagram Login、Facebook はページだけ。Instagram Login では投稿を API で消せないので、threads_delete に当たる権限は申請しない）。
+yabumi の側は作り済み（architecture.md の 4.21）。別の Meta アプリ（Instagram・Facebook 用）を作り、同じ流れ（ビジネス認証は同じポートフォリオで済む）で申請する。設計と、アプリの作り方・権限・コールバック URL は architecture.md の 4.21（Instagram は Instagram Login、Facebook はページだけ。Instagram Login では投稿を API で消せないので、threads_delete に当たる権限は申請しない）。
 
 | SNS | 権限 | 条件 |
 |---|---|---|

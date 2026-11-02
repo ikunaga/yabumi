@@ -19,7 +19,7 @@ export type LinkDomainView = {
   cnameTarget: string;
   txtName: string;
   txtValue: string;
-  // 矢書の持ち主の確認の合言葉（_yabumi.<ドメイン> の TXT）
+  // yabumi の持ち主の確認の合言葉（_yabumi.<ドメイン> の TXT）
   ownershipToken: string;
   // pending になった日時（ここから 7 日で取り消す）と、前につながっていた日時（外れて戻したときに知らせる）
   pendingSince: string;
@@ -175,14 +175,14 @@ function DomainForm({ projectId }: { projectId: string }) {
 
 type DnsRecord = { type: string; name: string; value: string; why: string };
 
-// 1 行目はつなぐため、2 行目はあなたのドメインだと矢書が確かめるため、3 行目（要るときだけ）は Vercel が確かめるため
+// 1 行目はつなぐため、2 行目はあなたのドメインだと yabumi が確かめるため、3 行目（要るときだけ）は Vercel が確かめるため
 function records(domain: LinkDomainView): DnsRecord[] {
   const apex = apexOf(domain.domain);
   const list: DnsRecord[] = [
-    { type: "CNAME", name: dnsRecordName(domain.domain, apex), value: domain.cnameTarget, why: "矢書につなぐため" },
+    { type: "CNAME", name: dnsRecordName(domain.domain, apex), value: domain.cnameTarget, why: "yabumi につなぐため" },
     { type: "TXT", name: dnsRecordName(ownershipRecordName(domain.domain), apex), value: ownershipRecordValue(domain.ownershipToken), why: "あなたのドメインだと確かめるため" },
   ];
-  if (domain.txtValue) list.push({ type: "TXT", name: dnsRecordName(domain.txtName || `_vercel.${apex}`, apex), value: domain.txtValue, why: "Vercel（矢書の置き場所）が確かめるため" });
+  if (domain.txtValue) list.push({ type: "TXT", name: dnsRecordName(domain.txtName || `_vercel.${apex}`, apex), value: domain.txtValue, why: "Vercel（yabumi の置き場所）が確かめるため" });
   return list;
 }
 
@@ -308,12 +308,12 @@ function DnsStep({ projectId, domain, defaultHost }: { projectId: string; domain
         <ErrorBanner>
           {domain.lastCheck === "error" ? (
             <>
-              {domain.domain} の DNS の行を、何日か確かめられなかったので、念のため短縮リンクを矢書のドメインに戻しました。下の行が入っていることを確かめて「確かめる」を押すと、また使えます。
+              {domain.domain} の DNS の行を、何日か確かめられなかったので、念のため短縮リンクを yabumi のドメインに戻しました。下の行が入っていることを確かめて「確かめる」を押すと、また使えます。
             </>
           ) : (
             <>
-              {domain.domain} の DNS の行（{domain.lastCheck === "owner_txt_missing" ? "あなたのドメインだと確かめる TXT" : "矢書につなぐ CNAME"}
-              ）が見えなくなったので、短縮リンクを矢書のドメインに戻しました。下の行を足し直して「確かめる」を押すと、また使えます。
+              {domain.domain} の DNS の行（{domain.lastCheck === "owner_txt_missing" ? "あなたのドメインだと確かめる TXT" : "yabumi につなぐ CNAME"}
+              ）が見えなくなったので、短縮リンクを yabumi のドメインに戻しました。下の行を足し直して「確かめる」を押すと、また使えます。
             </>
           )}
         </ErrorBanner>
@@ -324,8 +324,8 @@ function DnsStep({ projectId, domain, defaultHost }: { projectId: string; domain
         </h3>
         <p className="text-sm leading-[1.8] text-muted">
           ドメインを買ったサービス（お名前.com や Cloudflare など）の管理画面で、{domain.txtValue ? "3" : "2"} 行とも足します。1 行目（<Term k="cname">CNAME</Term>
-          ）は <b className="text-fg">{domain.domain}</b> を矢書につなぐため、2 行目（TXT）はあなたのドメインだと確かめるためです（ほかの人が勝手に使えないように）。
-          {domain.txtValue && "このドメインでは、矢書の置き場所（Vercel）の確かめの 3 行目も要ります。"}
+          ）は <b className="text-fg">{domain.domain}</b> を yabumi につなぐため、2 行目（TXT）はあなたのドメインだと確かめるためです（ほかの人が勝手に使えないように）。
+          {domain.txtValue && "このドメインでは、yabumi の置き場所（Vercel）の確かめの 3 行目も要ります。"}
         </p>
         <RecordTable domain={domain} />
         <p className="text-xs leading-[1.7] text-muted">

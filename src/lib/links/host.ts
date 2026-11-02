@@ -1,16 +1,16 @@
 // 短縮リンクのホストとパスの見分け（docs/architecture.md の 4.22、決定 D20・D28）。proxy から呼ぶ
-// - SHORT_LINK_BASE_URL のホスト（go.yabumi.app）で開かれたら: /<code> を転送の処理に回す。/ だけなら矢書のトップへ
+// - SHORT_LINK_BASE_URL のホスト（go.yabumi.app）で開かれたら: /<code> を転送の処理に回す。/ だけなら yabumi のトップへ
 // - どのホストでも /go/<code>（短縮リンクのホストの DNS ができる前、ローカル）: 転送の処理に回す（ログインの確認を飛ばす）
-// - 矢書のものではないホスト（利用者のドメイン。例 go.example.com）で開かれたら: /<code> を転送の処理に回し、
-//   ほかのパスは 404 にする（利用者のドメインの下に、ログインなど矢書の画面を出さない）
+// - yabumi のものではないホスト（利用者のドメイン。例 go.example.com）で開かれたら: /<code> を転送の処理に回し、
+//   ほかのパスは 404 にする（利用者のドメインの下に、ログインなど yabumi の画面を出さない）
 // 転送の処理は /go/<code>/<開いたホスト>（src/app/go/[code]/[host]/route.ts）。ホストは proxy が毎回付け直す（外から入れた値は使わない）。
-// 矢書のホストは "_"。利用者のドメインなら、そのドメインのプロジェクトのリンクだけを開く。
+// yabumi のホストは "_"。利用者のドメインなら、そのドメインのプロジェクトのリンクだけを開く。
 // （ホストをヘッダーで渡すと、rewrite のあとの処理に届かないことがあったので、パスに入れる。2026-10-12）
 
 import { LINK_CHECK_BODY, LINK_CHECK_PATH } from "./domain-rules";
 import { CODE_PATTERN } from "./rules";
 
-// 矢書のホストを表す、転送の処理のパスの最後の部分
+// yabumi のホストを表す、転送の処理のパスの最後の部分
 export const YABUMI_HOST_SEGMENT = "_";
 
 export type ShortLinkRoute =
@@ -32,8 +32,8 @@ function hostnameOf(host: string): string {
   return host.toLowerCase().replace(/:\d+$/, "").replace(/\.+$/, "");
 }
 
-// 矢書のホストか（APP_URL とそのサブドメイン、SHORT_LINK_BASE_URL、vercel.app、ローカル）。
-// APP_URL がないときは、すべて矢書のホストとして扱う（利用者のドメインの扱いをしない）
+// yabumi のホストか（APP_URL とそのサブドメイン、SHORT_LINK_BASE_URL、vercel.app、ローカル）。
+// APP_URL がないときは、すべて yabumi のホストとして扱う（利用者のドメインの扱いをしない）
 export function isYabumiHost(hostname: string, env: { appUrl?: string; shortLinkBaseUrl?: string }): boolean {
   const host = hostnameOf(hostname);
   const app = parse(env.appUrl)?.hostname.toLowerCase();

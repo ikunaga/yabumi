@@ -22,7 +22,7 @@ export function LegalChangeNotice({ now = new Date() }: { now?: Date }) {
         ))}
       </ul>
       <p className="text-[14px] text-muted">
-        {formatLegalDate(change.version)}以降に矢書を使い続けると、変更後の{docsLabel(change)}に同意したものとして扱います。同意できない場合は、それまでに「アカウント」の画面から退会できます。
+        {formatLegalDate(change.version)}以降に yabumi を使い続けると、変更後の{docsLabel(change)}に同意したものとして扱います。同意できない場合は、それまでに「アカウント」の画面から退会できます。
       </p>
     </section>
   );

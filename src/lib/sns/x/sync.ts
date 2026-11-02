@@ -5,8 +5,8 @@ import type { Database } from "@/lib/supabase/database.types";
 import { X_API_URL } from "./api";
 import { alertIfNearXBudget } from "./budget-alert";
 
-// X の開発者規約への対応: X 側で消された投稿の情報を、矢書でも最新に保つ（docs/architecture.md の 4.19）。
-// 矢書が持つ X の情報は、矢書から送った（または手で投稿して記録した）投稿の ID と URL だけ。
+// X の開発者規約への対応: X 側で消された投稿の情報を、yabumi でも最新に保つ（docs/architecture.md の 4.19）。
+// yabumi が持つ X の情報は、yabumi から送った（または手で投稿して記録した）投稿の ID と URL だけ。
 // 投稿を読むのは 1 件 $0.005 かかるので、利用者が投稿の画面を開いたときに、その投稿の X の配信先だけを、24 時間に 1 回まで確かめる。
 // 消えていたら、配信先を「取り消し済み」にして ID と URL を消す（DB のトリガー）。費用は sns_api_usage に記録し、X の月の上限に数える。
 
@@ -16,7 +16,7 @@ type Admin = SupabaseClient<Database>;
 export const X_POST_READ_USD = 0.005;
 // 同じ投稿を確かめ直すまでの間（X は同じものを 1 日（UTC）に何度読んでも 1 回分なので、それより短くしても費用は変わらないが、回数を抑える）
 export const X_RECHECK_MS = 24 * 3600_000;
-// 1 人が 1 日（日本時間）に確かめられる回数。X の上限は矢書全体で共有なので、1 人が投稿の画面を開き続けたり、
+// 1 人が 1 日（日本時間）に確かめられる回数。X の上限は yabumi 全体で共有なので、1 人が投稿の画面を開き続けたり、
 // 手で投稿した記録（URL は利用者が入れられる）をたくさん作ったりして、ほかの人の投稿の分を使い切らないようにする（最大 $0.15 / 日）
 export const X_MAX_READS_PER_USER_PER_DAY = 30;
 // 送ってすぐは確かめない（確かめる意味がない）
@@ -59,7 +59,7 @@ export function xPostIdFromUrl(url: string | null): string | null {
 export type SyncDeps = {
   publisher: Pick<PublisherDeps, "key" | "now" | "refreshWait">;
   adapter: SnsAdapter;
-  // X の月の上限（米ドル、矢書全体）。null なら上限なし
+  // X の月の上限（米ドル、yabumi 全体）。null なら上限なし
   budgetUsd: number | null;
   // 利用者 1 人の、X の投稿まわりの月の上限（米ドル。確かめる読み取りも数える）。ないときは確かめない
   userBudgetUsd?: number | null;
@@ -114,7 +114,7 @@ export async function syncXTargetsOfPost(admin: Admin, deps: SyncDeps, postId: s
       continue;
     }
 
-    // 読む前に費用を記録する。月の上限（矢書全体・利用者ごと）か、1 人 1 日の回数の上限に達していれば確かめない（投稿のほうを優先する）。
+    // 読む前に費用を記録する。月の上限（yabumi 全体・利用者ごと）か、1 人 1 日の回数の上限に達していれば確かめない（投稿のほうを優先する）。
     // 上限の確かめと記録は、DB の中で 1 つのロックの中で行う（同時に呼ばれても回数を超えない）
     const { data: usageId, error: reserveError } = await admin.rpc("reserve_sns_read", {
       p_owner_id: t.owner_id,

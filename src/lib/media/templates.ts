@@ -2,7 +2,7 @@ import type { SnsKey } from "@/lib/sns";
 
 // テンプレートで画像を作る（F14 の段取り ①。docs/architecture.md の 4.25）。
 // ここは描く中身（どこに何をどの大きさで置くか）を決めるだけで、Canvas には触らない（単体テストできるように）。
-// 色は画像の中身の色で、矢書の画面の色（トークン）ではない。利用者のお店・作品・アプリらしさを出せるよう、選ぶだけで整う組み合わせにしぼる
+// 色は画像の中身の色で、yabumi の画面の色（トークン）ではない。利用者のお店・作品・アプリらしさを出せるよう、選ぶだけで整う組み合わせにしぼる
 
 export const TEMPLATE_KINDS = ["card", "diagram", "screen", "note"] as const;
 export type TemplateKind = (typeof TEMPLATE_KINDS)[number];

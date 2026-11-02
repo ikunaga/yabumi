@@ -82,7 +82,7 @@ export async function removeStoreCredential(projectId: string, provider: Provide
 
 // ===== Google Play（段取り ⑤） =====
 
-// 矢書の側に、この利用者・プロジェクト専用の読み取り用のアカウントを作る（利用者は表示されたメールアドレスを Play Console に招待する）
+// yabumi の側に、この利用者・プロジェクト専用の読み取り用のアカウントを作る（利用者は表示されたメールアドレスを Play Console に招待する）
 export async function startGooglePlay(projectId: string): Promise<StoreFormState> {
   const userId = await ownProject(projectId);
   if (!userId) return { error: "ログインし直してください。" };

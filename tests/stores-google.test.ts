@@ -62,7 +62,7 @@ describe("Google Cloud", () => {
     expect(e404.userMessage).toMatch(/置き場所/);
   });
 
-  it("流入元のレポート: 矢書のリンクの UTM ごとの獲得を日ごとに。Other は other に、ほかの UTM と検索は数えない。列が違えば読めない", () => {
+  it("流入元のレポート: yabumi のリンクの UTM ごとの獲得を日ごとに。Other は other に、ほかの UTM と検索は数えない。列が違えば読めない", () => {
     const { header, rows } = parseCsvWithHeader(
       [
         "Date,Package name,Traffic source,Search term,UTM source,UTM campaign,Store listing acquisitions,Store listing visitors,Store listing conversion rate",
@@ -100,7 +100,7 @@ describe("Google Cloud", () => {
 });
 
 describe("App Store のストアのページの閲覧数", () => {
-  it("App Store Downloads の Detailed: はじめてのダウンロードを矢書の ct（<SNS>-<コード>）ごとに。乱数で 0 より下は 0。列が違えば読めない", () => {
+  it("App Store Downloads の Detailed: はじめてのダウンロードを yabumi の ct（<SNS>-<コード>）ごとに。乱数で 0 より下は 0。列が違えば読めない", () => {
     const header = ["Date", "App Name", "Download Type", "Source Type", "Campaign", "Territory", "Counts"];
     const rows = [
       ["2026-10-20", "a", "First-time Download", "Web referrer", "x-abc", "JP", "5"],

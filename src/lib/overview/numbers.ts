@@ -39,7 +39,7 @@ export type OverviewInput = {
   // アカウント設計で選んだ追いかける数字（選んでいなければおすすめ）と、その週の値
   kpis: KpiKey[];
   kpiValues: KpiValues;
-  // Google Play が数えた、矢書の短縮リンクからの DL（直近 30 日。Google Play をつないでいなければ null。数字の段 3）
+  // Google Play が数えた、yabumi の短縮リンクからの DL（直近 30 日。Google Play をつないでいなければ null。数字の段 3）
   playSnsDl?: number | null;
   // 数え始めた日（日本時間の YYYY-MM-DD）。前の 30 日がこれより前にかかるなら比べない（数える前の日を 0 として比べない。分析と同じ）。
   // ダウンロード・ストアのページの閲覧はストアを取り込み始めた日、クリックはいちばん古い短縮リンクを作った日、投稿はプロジェクトを作った日

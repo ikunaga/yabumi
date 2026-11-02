@@ -34,17 +34,17 @@ export default async function ConnectThreadsPage(props: PageProps<"/projects/[id
         main={
           <Card className="flex flex-col gap-4 px-6 py-5 text-[15px] leading-7 max-sm:px-4">
             <p>
-              「つなぐ」を押すと Threads（Meta）の画面が開きます。投稿に使うアカウントでログインし、矢書を「許可」してください。Threads のパスワードは矢書に渡りません。
+              「つなぐ」を押すと Threads（Meta）の画面が開きます。投稿に使うアカウントでログインし、yabumi を「許可」してください。Threads のパスワードは yabumi に渡りません。
             </p>
 
             <section className="flex flex-col gap-1">
-              <h2 className="text-[16px] font-bold">矢書ができること</h2>
+              <h2 className="text-[16px] font-bold">yabumi ができること</h2>
               <ul className="list-disc pl-5">
-                <li>矢書でつくった投稿を、今すぐ、または予約した日時に Threads へ送る（500 字まで、画像は 20 枚まで）</li>
+                <li>yabumi でつくった投稿を、今すぐ、または予約した日時に Threads へ送る（500 字まで、画像は 20 枚まで）</li>
                 <li>送った投稿を、投稿の画面の「Threads から取り消す」で Threads の上から消す</li>
                 {metrics && <li>送った投稿の閲覧数などと、フォロワー数を読む（分析の画面に出します）</li>}
               </ul>
-              <p className="text-muted">あなたが「送る」「予約」を押していない文面を、矢書が勝手に投稿することはありません。費用はかかりません。</p>
+              <p className="text-muted">あなたが「送る」「予約」を押していない文面を、yabumi が勝手に投稿することはありません。費用はかかりません。</p>
             </section>
 
             <section className="flex flex-col gap-1">
@@ -54,7 +54,7 @@ export default async function ConnectThreadsPage(props: PageProps<"/projects/[id
                 <li>ブラウザで今 Threads（Instagram）にログインしているアカウントでつながります。別のアカウントにするときは、先に threads.com で切り替えてください</li>
                 <li>このプロジェクトでつなげる Threads のアカウントは 1 つです。別のアカウントでつなぎ直すと、前のアカウントは外れ、予約中の投稿は新しいアカウントから送ります</li>
                 <li>
-                  矢書から外したあと、Threads の側の許可も消すときは、Threads のアプリの「設定 → アカウント → ウェブサイトのアクセス許可」から矢書を削除します
+                 yabumi から外したあと、Threads の側の許可も消すときは、Threads のアプリの「設定 → アカウント → ウェブサイトのアクセス許可」から yabumi を削除します
                 </li>
               </ul>
             </section>

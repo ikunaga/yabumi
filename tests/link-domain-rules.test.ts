@@ -18,7 +18,7 @@ describe("ドメインの形", () => {
     expect(isApexDomain("go.example.co.jp")).toBe(false);
   });
 
-  it("矢書・Vercel のドメイン、IP アドレス、内部の名前、形の崩れたものは使えない", () => {
+  it("yabumi ・Vercel のドメイン、IP アドレス、内部の名前、形の崩れたものは使えない", () => {
     for (const bad of ["go.yabumi.app", "x.vercel.app", "1.2.3.4", "go.localhost", "a.b.local", "go.example.test", "go..example.com", "go.-a.com", "user@go.example.com", "go.example.com:8080", ""]) {
       expect(normalizeLinkDomain(bad).ok, bad).toBe(false);
     }
@@ -32,7 +32,7 @@ describe("ドメインの形", () => {
     expect(dnsRecordName("_vercel.example.com", "example.com")).toBe("_vercel");
   });
 
-  it("矢書全体の上限は既定 40、LINK_DOMAIN_LIMIT で変えられる", () => {
+  it("yabumi 全体の上限は既定 40、LINK_DOMAIN_LIMIT で変えられる", () => {
     expect(linkDomainLimit(undefined)).toBe(40);
     expect(linkDomainLimit("100")).toBe(100);
     expect(linkDomainLimit("abc")).toBe(40);
@@ -42,7 +42,7 @@ describe("ドメインの形", () => {
 describe("利用者のドメインで開かれたとき（proxy）", () => {
   const env = ["https://go.yabumi.app", "https://yabumi.app"] as const;
 
-  it("矢書のホスト（APP_URL とそのサブドメイン、vercel.app、ローカル）は見分ける", () => {
+  it("yabumi のホスト（APP_URL とそのサブドメイン、vercel.app、ローカル）は見分ける", () => {
     const e = { appUrl: env[1], shortLinkBaseUrl: env[0] };
     for (const h of ["yabumi.app", "www.yabumi.app", "go.yabumi.app", "yabumi-x.vercel.app", "localhost:3100", "127.0.0.1"]) expect(isYabumiHost(h, e), h).toBe(true);
     expect(isYabumiHost("go.example.com", e)).toBe(false);
@@ -50,23 +50,23 @@ describe("利用者のドメインで開かれたとき（proxy）", () => {
     expect(isYabumiHost("go.example.com", {})).toBe(true);
   });
 
-  it("/<code> は、開いたドメインを付けて転送の処理に回し、つながりの確認のパスには矢書の印を返す", () => {
+  it("/<code> は、開いたドメインを付けて転送の処理に回し、つながりの確認のパスには yabumi の印を返す", () => {
     expect(shortLinkRoute(new URL("https://go.example.com/Ab3dE5fG?x=1"), ...env)).toEqual({ type: "rewrite", pathname: "/go/Ab3dE5fG/go.example.com" });
     expect(shortLinkRoute(new URL("https://Go.Example.com./Ab3dE5fG"), ...env)).toEqual({ type: "rewrite", pathname: "/go/Ab3dE5fG/go.example.com" });
     expect(shortLinkRoute(new URL(`https://go.example.com${LINK_CHECK_PATH}`), ...env)).toEqual({ type: "respond", status: 200, body: LINK_CHECK_BODY });
   });
 
-  it("ほかのパス（ログインなど矢書の画面、トップ、API）は 404 にする", () => {
+  it("ほかのパス（ログインなど yabumi の画面、トップ、API）は 404 にする", () => {
     for (const path of ["/", "/login", "/api/jobs/publish", "/privacy/x", "/projects/x", "/Ab3dE5fG/x"]) {
       expect(shortLinkRoute(new URL(`https://go.example.com${path}`), ...env), path).toMatchObject({ type: "respond", status: 404 });
     }
-    // コードの形の言葉（/projects・/privacy など）は /go に回る。そのコードのリンクはないので、/go が 404 を返す（矢書の画面は出ない）
+    // コードの形の言葉（/projects・/privacy など）は /go に回る。そのコードのリンクはないので、/go が 404 を返す（yabumi の画面は出ない）
     expect(shortLinkRoute(new URL("https://go.example.com/projects"), ...env)).toEqual({ type: "rewrite", pathname: "/go/projects/go.example.com" });
-    // /go/<code> もどのホストでも転送の処理に回し、開いたドメインを付け直す（/_ や別のドメインを入れても、矢書のホストとしては開けない）
+    // /go/<code> もどのホストでも転送の処理に回し、開いたドメインを付け直す（/_ や別のドメインを入れても、yabumi のホストとしては開けない）
     expect(shortLinkRoute(new URL("https://go.example.com/go/Ab3dE5fG"), ...env)).toEqual({ type: "rewrite", pathname: "/go/Ab3dE5fG/go.example.com" });
     expect(shortLinkRoute(new URL("https://go.example.com/go/Ab3dE5fG/_"), ...env)).toEqual({ type: "rewrite", pathname: "/go/Ab3dE5fG/go.example.com" });
     expect(shortLinkRoute(new URL("https://go.example.com/go"), ...env)).toMatchObject({ type: "respond", status: 404 });
-    // 矢書のホストは今までどおり
+    // yabumi のホストは今までどおり
     expect(shortLinkRoute(new URL("https://yabumi.app/login"), ...env)).toBeNull();
     // 開いたホストはヘッダーで見る（next dev では URL のホストが待ち受けのアドレスになる）
     expect(shortLinkRoute(new URL("http://127.0.0.1:3103/login"), ...env, "go.example.com")).toMatchObject({ type: "respond", status: 404 });

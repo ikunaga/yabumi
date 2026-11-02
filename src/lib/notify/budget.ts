@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { notifyOperatorOnce, type OperatorNotifyDeps, type OperatorNotifyResult } from "./operator";
 
-// 矢書全体の月の上限（X・AI）の 80% に達したら、運営者にメールで知らせる（docs/cost-review.md の「見つけた穴」）。
+// yabumi 全体の月の上限（X・AI）の 80% に達したら、運営者にメールで知らせる（docs/cost-review.md の「見つけた穴」）。
 // 上限に達すると全員がその月は使えなくなるので、その前に、上限を上げるか、使い方のおかしい人がいないかを確かめられるように。
 // 同じ月の同じ上限は 1 回だけ（key に月を入れる）。本文に利用者の情報は入れない
 export const BUDGET_ALERT_RATIO = 0.8;
@@ -35,12 +35,12 @@ export function budgetAlertMail(kind: BudgetKind, spentUsd: number, budgetUsd: n
   const l = LABEL[kind];
   const full = spentUsd >= budgetUsd;
   return {
-    subject: full ? `${l.name} の今月の費用が、矢書全体の上限に達しました` : `${l.name} の今月の費用が、矢書全体の上限の ${Math.round(BUDGET_ALERT_RATIO * 100)}% に達しました`,
+    subject: full ? `${l.name} の今月の費用が、yabumi 全体の上限に達しました` : `${l.name} の今月の費用が、yabumi 全体の上限の ${Math.round(BUDGET_ALERT_RATIO * 100)}% に達しました`,
     text: [
-      "矢書の運営者へのお知らせです（自動で送っています）。",
+      "yabumi の運営者へのお知らせです（自動で送っています）。",
       "",
       `${l.name} の今月の費用（日本時間の月初から）: $${spentUsd.toFixed(2)}`,
-      `矢書全体の月の上限（${l.env}）: $${budgetUsd.toFixed(2)}`,
+      `yabumi 全体の月の上限（${l.env}）: $${budgetUsd.toFixed(2)}`,
       full
         ? "上限に達したので、今月の残りは全員が自動では使えません（X は手で投稿して記録、AI は手で入力）。"
         : "上限に達すると、今月の残りは全員が自動では使えなくなります。",

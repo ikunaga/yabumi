@@ -189,12 +189,7 @@ export default async function Home(props: PageProps<"/">) {
                 <br />
                 <span className="inline-block">でも発信は苦手。</span>
               </h1>
-              <div className="flex items-center gap-2 text-[17px] leading-[1.8] text-muted max-sm:text-[15px]">
-                <p>何を・いつ・どこに出すかを AI と決めて、複数の SNS にまとめて予約。</p>
-                <HelpTip label="yabumi でできること">
-                  何を・いつ・どこに出すかを AI と一緒に決めて、複数の SNS にまとめて予約。数字を見て振り返り、続かないときは yabumi が声をかけます。お店・教室・ネットのお店・作品・アプリ、本業の時間を守りながら、届けたい人へ。作品や発信をしている人も使えます。
-                </HelpTip>
-              </div>
+              <p className="text-[17px] leading-[1.8] text-muted max-sm:text-[15px]">何を・いつ・どこに出すかを AI と決めて、複数の SNS にまとめて予約。</p>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2 max-sm:flex-col max-sm:items-stretch">
                 <a href="#apply" className={buttonClass({ size: "lg", className: "px-8" })}>
                   招待を申し込む（無料）

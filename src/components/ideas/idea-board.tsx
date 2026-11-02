@@ -479,7 +479,6 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
               <fieldset className="flex flex-col gap-2">
                 <legend className="mb-2 flex items-center gap-1.5 text-[15px] font-bold">
                   下書きを書く SNS<span className="num text-[13px] font-normal text-faint">{maxSns} つまで</span>
-                  <HelpTip label="SNS">SNS ごとに長さと書き方を変えます。</HelpTip>
                 </legend>
                 <div className="flex flex-wrap gap-2">
                   {snsOptions.map((k) => (

@@ -24,7 +24,7 @@ export default async function ConsultListPage(props: PageProps<"/projects/[id]/c
   // 前の URL（?thread= と ?start=）は、新しい形に移す
   if (typeof sp.thread === "string" && isUuid(sp.thread)) redirect(`/projects/${id}/consult/${sp.thread}`);
   if (isConsultTopic(sp.start)) redirect(`/projects/${id}/consult/new?start=${sp.start}`);
-  const project = await getProject(id);
+  const [project, threads] = await Promise.all([getProject(id), aiConfigured() ? listConsultThreads(id) : []]);
   if (!project) notFound();
 
   if (!aiConfigured()) {
@@ -39,7 +39,6 @@ export default async function ConsultListPage(props: PageProps<"/projects/[id]/c
     );
   }
 
-  const threads = await listConsultThreads(id);
   const base = `/projects/${id}/consult`;
 
   return (

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { DismissableDetails } from "@/components/ui/dismissable-details";
 import { logout } from "@/lib/auth/actions";
+import { SubmitButton } from "@/components/ui/submit-button";
 
 // プロジェクトの外の上部バー（TopBar）の、スマホの「メニュー」。ログインと退会・ログアウトをまとめる
 // （320px の幅で、ロゴ・ダーク・メニューを 1 行に収めるため。PC ではメールアドレスとログアウトを並べる）
@@ -17,9 +18,9 @@ export function TopBarMenu({ email }: { email: string }) {
           <span className="block truncate text-xs text-muted">{email}</span>
         </Link>
         <form action={logout}>
-          <button type="submit" className="block w-full px-4 py-3 text-left hover:bg-primary-soft">
+          <SubmitButton pendingText="ログアウトしています…" className="block w-full px-4 py-3 text-left hover:bg-primary-soft">
             ログアウト
-          </button>
+          </SubmitButton>
         </form>
       </div>
     </DismissableDetails>

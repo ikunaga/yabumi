@@ -44,13 +44,17 @@ const STORE_NAME = { app_store: "App Store", google_play: "Google Play" } as con
 export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
   const { id } = await props.params;
   const { done } = await props.searchParams;
-  const project = await getProject(id);
-  if (!project) notFound();
   const supabase = await createClient();
-  const plan = await getAccountPlan(project.id);
+  // 待ち時間を縮めるため、id だけで読めるもの（プロジェクト・アカウント設計・お知らせの設定）は並べて読む
+  const [project, plan, { data: prefs }] = await Promise.all([
+    getProject(id),
+    getAccountPlan(id),
+    supabase.from("notification_prefs").select("behind_weekday").maybeSingle(),
+  ]);
+  if (!project) notFound();
   const chosen = plan?.plan.first_month.kpis ?? [];
   const kpis = chosen.length ? chosen : recommendedKpis(plan?.plan.goal.goalType ?? null, project.product_type);
-  const [numbers, upcoming, snsAccounts, attention, overdue, manualDue, { data: repoLink }, { data: manualChannels }, roadmap, stepStates, { data: prefs }] = await Promise.all([
+  const [numbers, upcoming, snsAccounts, attention, overdue, manualDue, { data: repoLink }, { data: manualChannels }, roadmap, stepStates, coach] = await Promise.all([
     loadOverviewNumbers(project.id, kpis, toYmd(new Date(project.created_at)), project.product_type),
     listUpcomingPosts(project.id, 8),
     listProjectSnsAccounts(project.id),
@@ -62,10 +66,9 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
     loadRoadmap(project.id),
     // いまやることの判定（一覧と同じ値。src/lib/projects/step-state.ts）
     loadStepStates([project]),
-    supabase.from("notification_prefs").select("behind_weekday").maybeSingle(),
+    // 伴走（4.27）: 最初の 1 か月の SNS ごとの週の回数とペース
+    plan ? loadCoachView(supabase, project.id, { firstMonth: plan.plan.first_month, behindWeekday: prefs?.behind_weekday ?? DEFAULT_BEHIND_WEEKDAY }) : null,
   ]);
-  // 伴走（4.27）: 最初の 1 か月の SNS ごとの週の回数とペース
-  const coach = plan ? await loadCoachView(supabase, project.id, { firstMonth: plan.plan.first_month, behindWeekday: prefs?.behind_weekday ?? DEFAULT_BEHIND_WEEKDAY }) : null;
   const stepState = stepStates[project.id];
   const stepIndex = currentStepIndex(stepState);
   const todos = thisWeekTodos(roadmap);

@@ -14,6 +14,7 @@ import { accessIsStale, canReadRepo } from "@/lib/github/installations";
 import { reposForInstallation } from "@/lib/github/service";
 import { getProject } from "@/lib/projects/queries";
 import { createClient } from "@/lib/supabase/server";
+import { SubmitButton } from "@/components/ui/submit-button";
 
 export const metadata: Metadata = { title: "GitHub をつなぐ" };
 
@@ -135,9 +136,9 @@ export default async function GithubPage(props: PageProps<"/projects/[id]/github
                         <span className="font-bold break-all">{link.full_name}</span>
                         {link.is_private && <span className="text-xs text-muted">非公開</span>}
                         <form action={disconnectRepo.bind(null, id)} className="ml-auto">
-                          <button type="submit" className="text-sm text-muted hover:text-fg hover:underline">
+                          <SubmitButton pendingText="外しています…" className="text-sm text-muted hover:text-fg hover:underline">
                             外す
-                          </button>
+                          </SubmitButton>
                         </form>
                       </div>
                       <DescriptionDrafter projectId={id} aiEnabled={aiConfigured()} hasAudience={Boolean(project.target_audience.trim())} />

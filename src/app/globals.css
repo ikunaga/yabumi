@@ -275,6 +275,16 @@ h3 {
   }
 }
 
+/* 読み込み中の骨組み（ui/skeleton.tsx）。すぐ終わる読み込みでは見えないよう、遅れて薄く出す */
+@keyframes skeleton-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 /* fieldset は既定で中身の幅より狭くならず（min-width: min-content）、スマホで横にはみ出す。ほかの要素と同じく縮められるようにする */
 fieldset {
   min-width: 0;

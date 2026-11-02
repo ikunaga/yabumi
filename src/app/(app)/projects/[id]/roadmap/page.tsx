@@ -35,9 +35,9 @@ function weekLabel(weekStart: string, thisWeek: string): string {
 // ロードマップ（F10、docs/architecture.md の 4.23）: 最終の目標（KGI）、追いかける数字（KPI）、週ごとのやること
 export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadmap">) {
   const { id } = await props.params;
-  const project = await getProject(id);
+  // id だけで読めるので、プロジェクトと並べて読む（待ち時間を縮める）
+  const [project, view, plan] = await Promise.all([getProject(id), loadRoadmap(id), getAccountPlan(id)]);
   if (!project) notFound();
-  const [view, plan] = await Promise.all([loadRoadmap(id), getAccountPlan(id)]);
   const { roadmap, items, thisWeek, daily, kgi } = view;
   const suggested = plan?.plan.first_month.kpis.length ? plan.plan.first_month.kpis : recommendedKpis(plan?.plan.goal.goalType ?? null, project?.product_type);
   const consultHref = `/projects/${id}/consult/new?start=roadmap`;

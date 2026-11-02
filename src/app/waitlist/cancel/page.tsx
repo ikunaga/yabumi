@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { PublicCard, PublicFrame } from "@/components/public/public-frame";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { cancelAction } from "@/lib/waitlist/actions";
+import { SubmitButton } from "@/components/ui/submit-button";
 
 export const metadata: Metadata = { title: "招待の申し込みを取り消す", robots: { index: false } };
 
@@ -39,7 +39,7 @@ export default async function WaitlistCancelPage(props: PageProps<"/waitlist/can
             title="yabumi の招待の申し込みを取り消す"
             actions={
               <>
-                <Button type="submit">申し込みを取り消す</Button>
+                <SubmitButton variant="primary" pendingText="取り消しています…">申し込みを取り消す</SubmitButton>
                 {top}
               </>
             }

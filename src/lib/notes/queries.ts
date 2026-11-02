@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { MAX_NOTES_PER_PROJECT, type IdeaNote } from "./rules";
 
 // プロジェクトのネタ帳のメモ（新しい順）。RLS で本人のものだけ。画像のプレビューの URL はサーバーで作る（4.18）
-export async function listNotes(projectId: string, opts: { unusedOnly?: boolean } = {}): Promise<IdeaNote[]> {
+export async function listNotes(projectId: string, opts: { unusedOnly?: boolean; limit?: number } = {}): Promise<IdeaNote[]> {
   const supabase = await createClient();
   // 画像は media_files.note_id でつながる（1 枚まで）
   let q = supabase
@@ -14,7 +14,7 @@ export async function listNotes(projectId: string, opts: { unusedOnly?: boolean 
     .select("id, project_id, body, used_at, post_id, created_at, media_files(id, storage_path, width, height)")
     .eq("project_id", projectId)
     .order("created_at", { ascending: false })
-    .limit(MAX_NOTES_PER_PROJECT);
+    .limit(opts.limit ?? MAX_NOTES_PER_PROJECT);
   if (opts.unusedOnly) q = q.is("used_at", null);
   const { data: notes, error } = await q;
   if (error) throw error;

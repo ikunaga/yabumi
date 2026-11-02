@@ -16,6 +16,10 @@ import { ImageAttachments, type AttachedImage } from "./image-attachments";
 import { applyFix } from "@/lib/ai/ai-check";
 import { AiCheckPanel } from "./ai-check-panel";
 import { ComposeStart } from "./compose-start";
+import { NotePicker, type NoteInsertMode } from "./note-picker";
+import { noteImageForCompose } from "@/lib/notes/actions";
+import type { IdeaNote } from "@/lib/notes/rules";
+import { MAX_IMAGES_PER_POST } from "@/lib/media/rules";
 import { PlanHints, type PlanHintsData } from "./plan-hints";
 import { SendResults, type TargetResult } from "./send-results";
 import { SnsPreview } from "./sns-preview";
@@ -77,6 +81,9 @@ const ISSUE_TONE: Record<TargetIssue, string> = {
   too_many_images: "text-danger",
 };
 
+// まだ何も書いていないときの、送れない理由（朱にしない）
+const QUIET_BLOCKER = "本文を書くと、予約・送信できます";
+
 function formatCount(n: number) {
   return n.toLocaleString("ja-JP");
 }
@@ -123,6 +130,13 @@ export function PostComposer({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmSend, setConfirmSend] = useState(false);
   const [pending, startTransition] = useTransition();
+  // 「ネタ帳から」本文に入れたメモ（保存したら「投稿にした」の印を付ける）
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [noteIds, setNoteIds] = useState<string[]>([]);
+  // まだ何も書いていない新しい投稿では、「本文がありません」などの印を出さない（書いて消したとき・保存を押したときから出す。2026-11-02 オーナーの指摘）
+  const [touched, setTouched] = useState(Boolean(postId) || initial.body.trim() !== "");
+  if (!touched && body.trim() !== "") setTouched(true);
+  const quiet = !touched;
 
   const textFor = (sns: SnsKey) => overrides[sns] ?? body;
   const checks = useMemo(
@@ -157,6 +171,7 @@ export function PostComposer({
   const sendBlocker = (() => {
     if (chosen.length === 0) return "送り先の SNS を選んでください";
     if (toSend.length === 0) return "選んだ SNS にはすべて投稿済みです";
+    if (quiet) return QUIET_BLOCKER;
     for (const s of toSend) {
       const issue = checks[s].issues[0];
       if (issue) return `${SNS[s].label}: ${ISSUE_LABEL[issue]}`;
@@ -189,7 +204,22 @@ export function PostComposer({
     setFocus(sns);
   }
 
+  // メモを本文に入れる。写真があれば、投稿の画像として写して添える
+  async function pickNote(note: IdeaNote, mode: NoteInsertMode): Promise<string | null> {
+    const text = note.body.trim();
+    if (text) setBody((b) => (mode === "replace" || !b.trim() ? text : `${b.trimEnd()}\n\n${text}`));
+    setNoteIds((ids) => (mode === "replace" ? [note.id] : [...ids, note.id]));
+    clearFieldError("body");
+    if (!note.image) return null;
+    if (images.length >= MAX_IMAGES_PER_POST) return `画像は ${MAX_IMAGES_PER_POST} 枚までなので、メモの写真は添えませんでした（本文は入れました）。`;
+    const r = await noteImageForCompose(projectId, note.id);
+    if (r.error) return `${r.error}（本文は入れました）`;
+    if (r.image) setImages((prev) => [...prev, r.image!]);
+    return null;
+  }
+
   function submit(intent: "draft" | "schedule" | "now") {
+    setTouched(true);
     setResult({});
     setConfirmSend(false);
     startTransition(async () => {
@@ -202,6 +232,7 @@ export function PostComposer({
         media: images.map((i) => ({ id: i.id, altText: i.altText })),
         shortLinks,
         roadmapItemId: initial.roadmapItem?.id ?? null,
+        noteIds,
         targets: chosen.map((sns) => ({ sns, bodyOverride: overrides[sns] ?? null, title: SNS[sns].needsTitle ? (titles[sns] ?? null) : null })),
       });
       // 成功時はサーバーで画面を移るので、ここに来るのは失敗したときだけ
@@ -228,6 +259,7 @@ export function PostComposer({
     if (on && sent && sent.status !== "pending") return TARGET_STATE[sent.status] ?? null;
     if (on && sent?.status === "pending" && sent.errorMessage) return { text: "送り直し待ち", tone: "font-bold text-signal" };
     if (!on) return { text: isManualSns(sns) ? "手で投稿" : "オフ", tone: "text-faint" };
+    if (quiet) return null;
     if (issue) return { text: ISSUE_LABEL[issue], tone: `font-bold ${ISSUE_TONE[issue]}` };
     if (isManualSns(sns)) return { text: "手で投稿", tone: "text-muted" };
     if (connected.includes(sns)) return { text: "OK", tone: "font-bold text-success" };
@@ -285,13 +317,17 @@ export function PostComposer({
       {/* 見出し。新しい投稿は、自分で書くか AI とネタを出すかの札を横に並べる（AI を使わなくても書いて送れることがわかるように） */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <h1 className="text-[26px] font-bold max-sm:text-[22px]">{postId ? (sentAny ? "送った投稿" : "下書き") : "投稿をつくる"}</h1>
-        {!postId && <ComposeStart projectId={projectId} aiEnabled={aiCheckEnabled} />}
+        {!postId && <ComposeStart projectId={projectId} aiEnabled={aiCheckEnabled} notesOpen={notesOpen} onNotes={() => setNotesOpen((o) => !o)} />}
         {postId && <span className="text-[15px] text-faint">{sentAny ? "送った SNS は選び直せません" : "保存済み"}</span>}
       </div>
 
       {/* 保存・送信の知らせと、送信の結果（送ったあとはこの投稿の画面に移り、ここに結果が出る） */}
       {notice && (noticeTone === "error" ? <ErrorBanner>{notice}</ErrorBanner> : <SuccessBanner>{notice}</SuccessBanner>)}
       {postId && <SendResults projectId={projectId} postId={postId} results={results} />}
+
+      {notesOpen && !postId && (
+        <NotePicker projectId={projectId} bodyHasText={body.trim() !== ""} pickedIds={noteIds} onPick={pickNote} onClose={() => setNotesOpen(false)} />
+      )}
 
       <div className="grid grid-cols-[minmax(0,1.03fr)_minmax(0,1fr)] gap-4 max-lg:grid-cols-1">
         {/* 左: 本文・送り先・短縮リンク・日時・送る */}
@@ -350,6 +386,9 @@ export function PostComposer({
               </div>
             </div>
             {fe.body && <p className="text-sm font-semibold text-danger">{fe.body}</p>}
+            {noteIds.length > 0 && (
+              <p className="text-[13px] text-muted">ネタ帳のメモ {noteIds.length} 件から。保存すると、ネタ帳でそのメモに「投稿にした」の印が付きます。</p>
+            )}
 
             {/* 送り先。PC は字数つきのチップ（見本 B）、スマホは行（見本 D） */}
             <fieldset className="flex flex-col gap-2">
@@ -522,7 +561,7 @@ export function PostComposer({
                 <Button type="button" size="lg" disabled={pending || blocker !== null} onClick={() => submit("schedule")} className="w-full">
                   {labels.schedule}
                 </Button>
-                <p className={`text-[13px] ${fe.plannedAt || blocker ? "text-signal" : "text-faint"}`}>
+                <p className={`text-[13px] ${fe.plannedAt || (blocker && blocker !== QUIET_BLOCKER) ? "text-signal" : "text-faint"}`}>
                   {fe.plannedAt ?? blocker ?? "予約すると、この日時に自動で送ります"}
                   {!fe.plannedAt && blocker === missingConnectMessage && (
                     <>

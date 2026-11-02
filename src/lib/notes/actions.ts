@@ -9,9 +9,12 @@ import type { SnsKey } from "@/lib/sns";
 import { canPublish } from "@/lib/sns/adapters";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { MAX_NOTE_CHARS } from "./rules";
+import { PREVIEW_URL_SECONDS } from "@/lib/media/rules";
+import { signedUrls } from "@/lib/media/store";
+import { listNotes } from "./queries";
+import { MAX_NOTE_CHARS, MAX_NOTES_FOR_COMPOSE, type IdeaNote } from "./rules";
 import { SHARE_COOKIE } from "./share";
-import { createNote, deleteNote, noteToDraft, updateNote } from "./store";
+import { copyNoteImageForCompose, createNote, deleteNote, noteToDraft, updateNote } from "./store";
 
 // ネタ帳の操作（docs/architecture.md の 4.26）。画像は 4.18 の流れ（requestImageUpload → 上げる → confirmImageUpload）で上げてから、id を渡す
 
@@ -103,4 +106,38 @@ export async function draftFromNote(projectId: string, noteId: string): Promise<
   }
   revalidatePath(`/projects/${projectId}`, "layout");
   redirect(to);
+}
+
+// 「投稿をつくる」の「ネタ帳から」で選べるメモ（まだ投稿にしていないもの、新しい順）
+export async function notesForCompose(projectId: string): Promise<{ notes?: IdeaNote[]; error?: string }> {
+  if (!uuid.safeParse(projectId).success) return BAD_INPUT;
+  const { userId } = await currentUser();
+  if (!userId) return { error: "ログインし直してください。" };
+  try {
+    return { notes: await listNotes(projectId, { unusedOnly: true, limit: MAX_NOTES_FOR_COMPOSE }) };
+  } catch (e) {
+    console.error("[notesForCompose]", e);
+    return { error: "ネタ帳を読み込めませんでした。時間をおいてもう一度お試しください。" };
+  }
+}
+
+export type ComposeNoteImage = { id: string; previewUrl: string | null; altText: string; width: number; height: number; sizeBytes: number };
+
+// 選んだメモの画像を、投稿に添える画像として写す（画像がなければ image: null）
+export async function noteImageForCompose(projectId: string, noteId: string): Promise<{ image?: ComposeNoteImage | null; error?: string }> {
+  if (!uuid.safeParse(projectId).success || !uuid.safeParse(noteId).success) return BAD_INPUT;
+  const { supabase, userId } = await currentUser();
+  if (!userId) return { error: "ログインし直してください。" };
+  const admin = createAdminClient();
+  try {
+    const r = await copyNoteImageForCompose(supabase, admin, { userId, projectId, noteId });
+    if (!r.ok) return { error: r.message };
+    if (!r.image) return { image: null };
+    const urls = await signedUrls(admin, [r.image.storagePath], PREVIEW_URL_SECONDS);
+    const { storagePath, ...rest } = r.image;
+    return { image: { ...rest, previewUrl: urls.get(storagePath) ?? null } };
+  } catch (e) {
+    console.error("[noteImageForCompose]", e);
+    return { error: "メモの画像を写せませんでした。時間をおいてもう一度お試しください。" };
+  }
 }

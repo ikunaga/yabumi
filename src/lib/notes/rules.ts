@@ -6,6 +6,9 @@ export const MAX_NOTE_CHARS = 2000;
 export const MAX_NOTES_PER_PROJECT = 1000;
 // 「AI とネタを出す」で一度に選べるメモの数
 export const MAX_NOTES_FOR_IDEAS = 10;
+// 「投稿をつくる」の「ネタ帳から」に出すメモの数（新しい順）と、1 つの投稿に足せるメモの数
+export const MAX_NOTES_FOR_COMPOSE = 50;
+export const MAX_NOTES_PER_POST = 10;
 
 export type NoteImage = { id: string; previewUrl: string | null; width: number; height: number };
 

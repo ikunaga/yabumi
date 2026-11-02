@@ -6,10 +6,14 @@ import { normalizePlan, parseSectionForm, sectionSchemas } from "@/lib/plan/sche
 describe("おすすめの KPI", () => {
   it("目的ごとに 4.22 の表のとおり。どれも決まった名前で、3 つまで", () => {
     expect(recommendedKpis("awareness")).toEqual(["views", "followers", "posts"]);
-    expect(recommendedKpis("downloads")).toEqual(["link_clicks", "downloads", "posts"]);
-    expect(recommendedKpis("paid")).toEqual(["downloads", "revenue", "link_clicks"]);
+    expect(recommendedKpis("download")).toEqual(["link_clicks", "downloads", "posts"]);
+    expect(recommendedKpis("purchase")).toEqual(["downloads", "revenue", "link_clicks"]);
+    // アプリでなければ、ストアと RevenueCat の数字は出さない（決定 D34）
+    expect(recommendedKpis("purchase", "online_shop")).toEqual(["link_clicks", "posts"]);
+    expect(recommendedKpis("booking", "service")).toEqual(["link_clicks", "posts"]);
+    expect(recommendedKpis("follow", "creator")).toEqual(["views", "followers", "posts"]);
     expect(recommendedKpis(null)).toEqual(["posts", "link_clicks"]);
-    for (const g of ["awareness", "downloads", "paid", "other", null] as const) {
+    for (const g of ["awareness", "download", "purchase", "signup", "booking", "inquiry", "visit", "follow", "other", null] as const) {
       const r = recommendedKpis(g);
       expect(r.length).toBeLessThanOrEqual(3);
       expect(r.every((k) => (KPI_KEYS as readonly string[]).includes(k))).toBe(true);

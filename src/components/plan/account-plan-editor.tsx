@@ -1,5 +1,6 @@
 "use client";
 
+import { DESIRED_ACTION_DEFS, DESIRED_ACTIONS, PRODUCT_TYPE_DEFS, RECOMMENDED_ACTIONS, type ProductType } from "@/lib/projects/product-types";
 import Link from "next/link";
 import { startTransition, useActionState, useEffect, useRef, useState, type ReactNode } from "react";
 import { Button, buttonClass, NotReadyButton } from "@/components/ui/button";
@@ -271,7 +272,7 @@ function SectionCard({
 function SectionFields({ sectionKey, plan, profileCtx }: { sectionKey: SectionKey; plan: PlanData; profileCtx: ProfileContext }) {
   switch (sectionKey) {
     case "goal":
-      return <GoalFields v={plan.goal} />;
+      return <GoalFields v={plan.goal} productType={profileCtx.productType ?? "app"} />;
     case "audience":
       return <AudienceFields v={plan.audience} />;
     case "ownership":
@@ -289,6 +290,7 @@ function SectionFields({ sectionKey, plan, profileCtx }: { sectionKey: SectionKe
         <FirstMonthFields
           v={plan.first_month}
           goalType={plan.goal.goalType}
+          productType={profileCtx.productType ?? "app"}
           // 週の回数の欄を出す SNS: 役割を書いた SNS・つないだ SNS・もう回数を決めた SNS（ほかは折りたたむ）
           mainSns={SNS_KEYS.filter((k) => plan.cadence.roles[k]?.trim() || profileCtx.accounts.some((a) => a.sns === k) || (plan.first_month.weekly[k] ?? 0) > 0)}
         />
@@ -327,34 +329,35 @@ function Choices<T extends string>({
   );
 }
 
-function GoalFields({ v }: { v: PlanData["goal"] }) {
+function GoalFields({ v, productType }: { v: PlanData["goal"]; productType: ProductType }) {
+  // 種類ごとのおすすめを先に（決定 D34）。説明は選択肢の下に小さく
+  const order = [...RECOMMENDED_ACTIONS[productType], ...DESIRED_ACTIONS.filter((a) => !RECOMMENDED_ACTIONS[productType].includes(a))];
   return (
     <>
-      <Field label="何を広めたいか" htmlFor="goal-what" hint="アプリそのもの、アプリが解決する困りごと、作っているあなた自身など">
-        <Textarea id="goal-what" name="what" defaultValue={v.what} maxLength={500} placeholder="例: レシートを撮るだけで続く家計簿アプリ「かけいぼ日和」" />
+      <Field label="何を広めたいか" htmlFor="goal-what" hint="商品・サービスそのもの、それが解決する困りごと、作っているあなた自身など">
+        <Textarea id="goal-what" name="what" defaultValue={v.what} maxLength={500} placeholder="例: 駅前の小さなパン屋「こむぎ日和」の、朝 7 時に焼き上がる食パン" />
       </Field>
       <Choices
         name="goalType"
         legend={
           <>
-            いちばんの目標（<Term k="kgi" /> の方向）
+            見た人にいちばんしてほしいこと（<Term k="kgi" /> の方向）
           </>
         }
-        hint="迷ったら「まず知ってもらう」。具体的な数字は「最初の 1 か月」で決めます。"
+        hint={`「${PRODUCT_TYPE_DEFS[productType].label}」のおすすめを先に並べています。迷ったら「まず知ってもらう」。具体的な数字は「最初の 1 か月」で決めます。`}
         value={v.goalType}
-        options={[
-          { value: "downloads", label: "ダウンロードを増やす" },
-          { value: "paid", label: "課金してもらう" },
-          {
-            value: "awareness",
-            label: (
+        options={order.map((a) => ({
+          value: a,
+          label:
+            a === "awareness" ? (
               <>
-                まず知ってもらう（<Term k="awareness" />）
+                {DESIRED_ACTION_DEFS[a].label}（<Term k="awareness" />）
               </>
+            ) : (
+              DESIRED_ACTION_DEFS[a].label
             ),
-          },
-          { value: "other", label: "その他" },
-        ]}
+          description: DESIRED_ACTION_DEFS[a].description,
+        }))}
       />
       <Field label="補足" htmlFor="goal-note">
         <Textarea id="goal-note" name="note" defaultValue={v.note} maxLength={500} rows={2} placeholder="例: 半年で有料プランの利用者を 100 人にしたい" />
@@ -554,8 +557,8 @@ function CadenceFields({ v }: { v: PlanData["cadence"] }) {
   );
 }
 
-function FirstMonthFields({ v, goalType, mainSns }: { v: PlanData["first_month"]; goalType: PlanData["goal"]["goalType"]; mainSns: SnsKey[] }) {
-  const recommended = recommendedKpis(goalType);
+function FirstMonthFields({ v, goalType, productType, mainSns }: { v: PlanData["first_month"]; goalType: PlanData["goal"]["goalType"]; productType: ProductType; mainSns: SnsKey[] }) {
+  const recommended = recommendedKpis(goalType, productType);
   const cycle = v.startedOn ? cycleInfo(v.startedOn, toYmd(new Date())) : null;
   const otherSns = SNS_KEYS.filter((k) => !mainSns.includes(k));
   // まだ選んでいなければ、目的からのおすすめを入れておく（保存するまでは決まらない）

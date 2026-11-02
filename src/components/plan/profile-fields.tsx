@@ -1,5 +1,6 @@
 "use client";
 
+import type { ProductType } from "@/lib/projects/product-types";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
@@ -30,6 +31,8 @@ export type ProfileContext = {
   profileLinks: Partial<Record<SnsKey, string>>;
   // 短縮リンクの行き先（プロジェクトのストアの URL）。空なら短縮リンクの画面へ案内する
   destination: string | null;
+  // 宣伝するものの種類（決定 D34）。目標の選択肢の並びと、おすすめの数字に使う
+  productType?: ProductType;
 };
 
 type Common = Pick<PlanData["profile"], "displayName" | "handle" | "handleBackups" | "bio" | "link">;

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { isProductType, type ProductType } from "./product-types";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { defaultLinkDomainDeps, drainLinkDomainRemovals } from "@/lib/links/domains";
@@ -78,4 +79,16 @@ export async function deleteProject(id: string): Promise<{ error?: string }> {
 
   revalidatePath("/projects");
   redirect("/projects");
+}
+
+// 宣伝するものの種類を変える（決定 D34）。プロジェクトの設定の画面と、アカウント設計の AI と考える（案を採用したとき）から呼ぶ。
+// 本人のプロジェクトだけ（RLS でも守る）。決まった種類だけ（DB の check でも守る）
+export async function updateProductType(projectId: string, productType: ProductType): Promise<{ error?: string }> {
+  if (!idSchema.safeParse(projectId).success) return { error: "プロジェクトが見つかりません" };
+  if (!isProductType(productType)) return { error: "宣伝するものの種類を選んでください" };
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("projects").update({ product_type: productType }).eq("id", projectId).select("id");
+  if (error || !data?.length) return { error: "保存できませんでした。時間をおいてもう一度お試しください。" };
+  revalidatePath(`/projects/${projectId}`, "layout");
+  return {};
 }

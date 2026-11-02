@@ -1,3 +1,4 @@
+import { isProductType } from "@/lib/projects/product-types";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AccountPlanEditor, PlanProgressCard } from "@/components/plan/account-plan-editor";
@@ -39,6 +40,7 @@ export default async function PlanPage(props: PageProps<"/projects/[id]/plan">) 
         accounts: accounts.map((a) => ({ sns: a.sns, handle: a.handle })),
         profileLinks,
         destination: project.app_store_url ?? project.play_store_url ?? null,
+        productType: isProductType(project.product_type) ? project.product_type : "app",
       }}
     />
   );

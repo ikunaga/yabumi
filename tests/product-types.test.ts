@@ -41,3 +41,14 @@ describe("宣伝するものの種類", () => {
     expect(isAppProject({ product_type: "shop" })).toBe(false);
   });
 });
+
+describe("アカウント設計の目標（見た人にしてほしいこと）", () => {
+  it("前の版の値（downloads・paid）は、読むときに download・purchase に読み替える。新しい値はそのまま、決まっていない値は受け付けない", async () => {
+    const { normalizePlan, sectionSchemas } = await import("@/lib/plan/schema");
+    expect(normalizePlan({ goal: { what: "a", goalType: "downloads", note: "" } }, "").goal.goalType).toBe("download");
+    expect(normalizePlan({ goal: { what: "a", goalType: "paid", note: "" } }, "").goal.goalType).toBe("purchase");
+    expect(sectionSchemas.goal.parse({ what: "", goalType: "booking", note: "" }).goalType).toBe("booking");
+    expect(sectionSchemas.goal.parse({ what: "", note: "" }).goalType).toBeNull();
+    expect(sectionSchemas.goal.safeParse({ what: "", goalType: "restaurant", note: "" }).success).toBe(false);
+  });
+});

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { actionFromLegacyGoal, DESIRED_ACTIONS } from "@/lib/projects/product-types";
 import { KPI_KEYS, MAX_KPIS } from "@/lib/metrics/kpis";
 import { SNS_KEYS, type SnsKey } from "@/lib/sns";
 import { isYmd } from "@/lib/time";
@@ -12,7 +13,9 @@ const SHARE = "割合は 0〜100 の整数にしてください";
 
 const text = (max: number) => z.string().trim().max(max, `${max.toLocaleString("ja-JP")} 文字以内にしてください`).default("");
 
-export const GOAL_TYPES = ["downloads", "paid", "awareness", "other"] as const;
+// いちばんの目標（見た人にしてほしいこと。決定 D34 で広げた。src/lib/projects/product-types.ts の DESIRED_ACTIONS）。
+// 前の版の値（downloads・paid）は、読むときに download・purchase に読み替える（保存してあるデータは動かさない）
+export const GOAL_TYPES = DESIRED_ACTIONS;
 export const OWNERSHIP_MODES = ["personal", "dedicated", "undecided"] as const;
 export const MAX_PILLARS = 5;
 // 設計に置けるハッシュタグの数（AI は 3〜6 個を出す。どの投稿にも全部を付けるのではなく、ネタに合うものだけを付ける）
@@ -45,7 +48,7 @@ export type ProfileOverride = z.infer<typeof profileOverrideSchema>;
 export const sectionSchemas = {
   goal: z.object({
     what: text(500),
-    goalType: z.enum(GOAL_TYPES, CHOICE).nullable().default(null),
+    goalType: z.preprocess((v) => (typeof v === "string" ? (actionFromLegacyGoal(v) ?? v) : v), z.enum(GOAL_TYPES, CHOICE).nullable()).default(null),
     note: text(500),
   }),
   // who は projects.target_audience に入る（DB の関数が振り分ける）

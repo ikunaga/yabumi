@@ -1,8 +1,8 @@
 import { KPIS } from "@/lib/metrics/kpis";
 import { SNS, SNS_KEYS } from "@/lib/sns";
+import { DESIRED_ACTION_DEFS } from "@/lib/projects/product-types";
 import type { PlanData, SectionKey, SectionValue } from "./schema";
 
-const GOAL_TYPE_LABEL = { downloads: "ダウンロードを増やす", paid: "課金してもらう", awareness: "まず知ってもらう", other: "その他" } as const;
 const OWNERSHIP_LABEL = { personal: "個人のアカウントを使う", dedicated: "アプリ専用のアカウントを作る", undecided: "まだ決めていない" } as const;
 
 // セクションの中身を「項目名: 値」の行にする（AI の案の表示に使う）。空の項目は出さない
@@ -15,7 +15,7 @@ export function describeSection(key: SectionKey, value: SectionValue<SectionKey>
     case "goal": {
       const v = value as PlanData["goal"];
       add("何を広めたいか", v.what);
-      add("いちばんの目標", v.goalType ? GOAL_TYPE_LABEL[v.goalType] : "");
+      add("いちばんの目標（見た人にしてほしいこと）", v.goalType ? DESIRED_ACTION_DEFS[v.goalType].label : "");
       add("補足", v.note);
       break;
     }

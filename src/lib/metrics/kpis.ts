@@ -77,15 +77,23 @@ export const KPIS: Record<KpiKey, KpiDef> = {
   },
 };
 
-// アカウント設計で KPI を決めていないとき、目的から出すおすすめ（4.22 の表）
-export function recommendedKpis(goalType: (typeof GOAL_TYPES)[number] | null): KpiKey[] {
+// アカウント設計で KPI を決めていないとき、目的（見た人にしてほしいこと）から出すおすすめ（4.22 の表。決定 D34 で広げた）。
+// ダウンロード・売上（RevenueCat）はアプリのときだけ読めるので、アプリでなければ出さない
+export function recommendedKpis(goalType: (typeof GOAL_TYPES)[number] | null, productType: string | null = "app"): KpiKey[] {
+  const app = (productType ?? "app") === "app";
   switch (goalType) {
     case "awareness":
+    case "follow":
       return ["views", "followers", "posts"];
-    case "downloads":
-      return ["link_clicks", "downloads", "posts"];
-    case "paid":
-      return ["downloads", "revenue", "link_clicks"];
+    case "download":
+      return app ? ["link_clicks", "downloads", "posts"] : ["link_clicks", "posts"];
+    case "purchase":
+      return app ? ["downloads", "revenue", "link_clicks"] : ["link_clicks", "posts"];
+    case "signup":
+    case "booking":
+    case "inquiry":
+    case "visit":
+      return ["link_clicks", "posts"];
     default:
       return ["posts", "link_clicks"];
   }

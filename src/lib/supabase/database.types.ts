@@ -1137,6 +1137,50 @@ export type Database = {
           },
         ]
       }
+      project_destinations: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          label: string
+          owner_id: string
+          position: number
+          project_id: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind: string
+          label?: string
+          owner_id?: string
+          position?: number
+          project_id: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          label?: string
+          owner_id?: string
+          position?: number
+          project_id?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_destinations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_github_repos: {
         Row: {
           created_at: string
@@ -1226,6 +1270,41 @@ export type Database = {
           },
         ]
       }
+      project_outcomes_daily: {
+        Row: {
+          action: string
+          count: number
+          day: string
+          owner_id: string
+          project_id: string
+          updated_at: string
+        }
+        Insert: {
+          action: string
+          count: number
+          day: string
+          owner_id?: string
+          project_id: string
+          updated_at?: string
+        }
+        Update: {
+          action?: string
+          count?: number
+          day?: string
+          owner_id?: string
+          project_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_outcomes_daily_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_social_accounts: {
         Row: {
           created_at: string
@@ -1273,6 +1352,7 @@ export type Database = {
           name: string
           owner_id: string
           play_store_url: string | null
+          product_type: string
           target_audience: string
           updated_at: string
         }
@@ -1286,6 +1366,7 @@ export type Database = {
           name: string
           owner_id?: string
           play_store_url?: string | null
+          product_type?: string
           target_audience?: string
           updated_at?: string
         }
@@ -1299,6 +1380,7 @@ export type Database = {
           name?: string
           owner_id?: string
           play_store_url?: string | null
+          product_type?: string
           target_audience?: string
           updated_at?: string
         }

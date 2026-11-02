@@ -12,12 +12,17 @@ export const NOTE_DRAFT_KEY = "yabumi-note-draft";
 export const NOTE_DRAFT_EVENT = "yabumi-note-draft";
 // これより古い控えは戻さない（30 日）
 export const NOTE_DRAFT_DAYS = 30;
+// ログインの前に共有で受け取った控え（持ち主なし）を、次にログインした人のものにしてよい間（1 時間）。
+// 共有してそのままログインした人の分だけを引き継ぎ、前の人が残していったものを後から来た人に渡さない
+export const PENDING_DRAFT_MS = 60 * 60 * 1000;
 
 export type NoteDraft = { body: string; projectId: string | null; at: number; owner: string | null };
 
 // いまログインしている人（NoteDraftOwner が画面を描くときに入れる）。わからないときは null（ログインの前）
 let draftOwner: string | null = null;
 export function setDraftOwner(userId: string | null): void {
+  // サーバーで描くときは入れない（サーバーの変数は、ほかの人の表示と共有される）
+  if (typeof window === "undefined") return;
   draftOwner = userId;
 }
 
@@ -60,9 +65,9 @@ export function readDraft(): NoteDraft | null {
 }
 
 // 控えを、いまの人に見せてよいか。ログインの前の控え（持ち主 null）は、ログインした人のものにする
-export function ownDraft(draft: NoteDraft, owner: string | null): NoteDraft | null {
+export function ownDraft(draft: NoteDraft, owner: string | null, now: number = Date.now()): NoteDraft | null {
   if (draft.owner === owner) return draft;
-  if (draft.owner === null && owner) {
+  if (draft.owner === null && owner && now - draft.at <= PENDING_DRAFT_MS) {
     const claimed = { ...draft, owner };
     try {
       storage()?.setItem(NOTE_DRAFT_KEY, JSON.stringify(claimed));
@@ -74,12 +79,22 @@ export function ownDraft(draft: NoteDraft, owner: string | null): NoteDraft | nu
   return null;
 }
 
-// 本文が空なら控えを消す
+// いまの人の控えとして書く。本文が空なら控えを消す。いまの人がわからない（ログインの前など）ときは書かない（持ち主のない控えを作らない）
 export function writeDraft(body: string, projectId: string | null): void {
+  if (!draftOwner) return;
+  putDraft(body, projectId, draftOwner);
+}
+
+// ログインの前に共有で受け取った本文を、持ち主なしの控えとして書く（/share の ShareStash だけが使う。1 時間だけ引き継げる）
+export function writePendingDraft(body: string): void {
+  putDraft(body, null, null);
+}
+
+function putDraft(body: string, projectId: string | null, owner: string | null): void {
   const s = storage();
   if (!s) return;
   try {
-    if (body.trim()) s.setItem(NOTE_DRAFT_KEY, JSON.stringify({ body: body.slice(0, MAX_NOTE_CHARS), projectId, at: Date.now(), owner: draftOwner } satisfies NoteDraft));
+    if (body.trim()) s.setItem(NOTE_DRAFT_KEY, JSON.stringify({ body: body.slice(0, MAX_NOTE_CHARS), projectId, at: Date.now(), owner } satisfies NoteDraft));
     else s.removeItem(NOTE_DRAFT_KEY);
   } catch {
     // 容量が足りないなど。控えられなくても書く・保存するは続けられる

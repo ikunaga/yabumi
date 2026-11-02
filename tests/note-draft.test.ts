@@ -1,6 +1,6 @@
 // 書きかけのメモの控え（src/lib/notes/draft.ts）。保存するまで端末に残し、黙って捨てない
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { clearDraft, clearNoteDraftsOnDevice, mergeShared, NOTE_DRAFT_DAYS, NOTE_DRAFT_KEY, parseDraft, readDraft, saveFailureMessage, setDraftOwner, writeDraft } from "@/lib/notes/draft";
+import { clearDraft, clearNoteDraftsOnDevice, mergeShared, ownDraft, PENDING_DRAFT_MS, writePendingDraft, NOTE_DRAFT_DAYS, NOTE_DRAFT_KEY, parseDraft, readDraft, saveFailureMessage, setDraftOwner, writeDraft } from "@/lib/notes/draft";
 import { SHARE_CACHE } from "@/lib/notes/share";
 
 class MemoryStorage {
@@ -132,7 +132,7 @@ describe("別の人には出さない（同じブラウザで別のアカウン�
 
   it("ログインの前に共有で受け取ったもの（持ち主なし）は、次にログインした人のものになる", () => {
     setDraftOwner(null);
-    writeDraft("ログインの前に共有した URL", null);
+    writePendingDraft("ログインの前に共有した URL");
     expect(JSON.parse(store().getItem(NOTE_DRAFT_KEY)!).owner).toBeNull();
     setDraftOwner(BOB);
     expect(readDraft()).toMatchObject({ body: "ログインの前に共有した URL", owner: BOB });
@@ -152,5 +152,20 @@ describe("ログアウト・退会で消える", () => {
     // ログアウトのあとは、誰の控えも戻さない
     setDraftOwner(ALICE);
     expect(readDraft()).toBeNull();
+  });
+});
+
+describe("持ち主のない控えを作らない・長く引き継がない", () => {
+  it("いまの人がわからないとき（ログインの前・ログアウトのあと）は、ふつうの書き込みでは控えを作らない", () => {
+    setDraftOwner(null);
+    writeDraft("ログアウトのあとに打った", null);
+    expect(store().getItem(NOTE_DRAFT_KEY)).toBeNull();
+  });
+
+  it("ログインの前の共有の控えは、1 時間を過ぎたら次の人に渡さない", () => {
+    const now = Date.now();
+    const pending = { body: "前の人が残した共有", projectId: null, at: now - PENDING_DRAFT_MS - 1000, owner: null };
+    expect(ownDraft(pending, BOB, now)).toBeNull();
+    expect(ownDraft({ ...pending, at: now - 1000 }, BOB, now)).toMatchObject({ owner: BOB });
   });
 });

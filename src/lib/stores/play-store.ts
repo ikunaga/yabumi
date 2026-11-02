@@ -342,7 +342,9 @@ export async function runPlayAndViewsImports(admin: Admin, deps: GoogleDeps & { 
     .order("last_checked_at", { ascending: true, nullsFirst: true })
     .limit(deps.limit ?? 20);
   if (deps.ownerId) pq = pq.eq("owner_id", deps.ownerId);
-  const { data: plays } = await pq;
+  const { data: plays, error: playsError } = await pq;
+  // 読めなければ、取り込みが黙って止まらないように投げる（ジョブのログに残り、運営者が気づける。store.ts の runStoreImports と同じ）
+  if (playsError) throw playsError;
   for (const row of (plays ?? []).map(withoutProjectJoin)) {
     if (late()) break;
     outcomes.push(await importPlay(admin, row, deps));
@@ -354,7 +356,8 @@ export async function runPlayAndViewsImports(admin: Admin, deps: GoogleDeps & { 
     .order("last_checked_at", { ascending: true, nullsFirst: true })
     .limit(deps.limit ?? 20);
   if (deps.ownerId) vq = vq.eq("owner_id", deps.ownerId);
-  const { data: views } = await vq;
+  const { data: views, error: viewsError } = await vq;
+  if (viewsError) throw viewsError;
   for (const row of (views ?? []).map(withoutProjectJoin)) {
     if (late()) break;
     outcomes.push(await importAppStoreViews(admin, row, deps));

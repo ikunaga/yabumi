@@ -148,6 +148,7 @@ export async function copyNoteImageForCompose(
   if (!note) return NOT_FOUND;
   const [r] = await noteImageRows(admin, args.userId, [note.id]);
   if (!r) return { ok: true, image: null };
+  // 上限の確かめと記録は一続きではない（同時に何度も押すと少し超えうる）が、超えるのは本人の容量の中だけで、添えていない画像は 1 日で消えるので受け入れる（2026-11-02 PM の判断）
   const { count } = await admin.from("media_files").select("id", { count: "exact", head: true }).eq("owner_id", args.userId).is("post_id", null).is("note_id", null);
   if ((count ?? 0) >= MAX_UNATTACHED) {
     return { ok: false, message: `保存していない画像が ${MAX_UNATTACHED} 枚あります。投稿を保存するか、要らない画像を外してから選んでください。` };

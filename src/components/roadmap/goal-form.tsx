@@ -1,5 +1,6 @@
 "use client";
 
+import { guardAction } from "@/lib/client-errors";
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { KPIS, kpiAllowed, type KpiKey } from "@/lib/metrics/kpis";
@@ -38,7 +39,7 @@ export function GoalForm({
   productType: string | null;
 }) {
   const kpis = goalKpiKeys(productType, [...(kgi ? [kgi.kpi] : []), ...kpiTargets.map((t) => t.kpi)]);
-  const [state, action, pending] = useActionState<RoadmapFormState, FormData>(saveGoalForm.bind(null, projectId), {});
+  const [state, action, pending] = useActionState<RoadmapFormState, FormData>(guardAction(saveGoalForm.bind(null, projectId), (m) => ({ error: m })), {});
   const rows: (KpiTarget | null)[] = [...kpiTargets, ...Array(MAX_KPI_TARGETS).fill(null)].slice(0, MAX_KPI_TARGETS);
   return (
     <form action={action} className="flex flex-col gap-4 text-sm">

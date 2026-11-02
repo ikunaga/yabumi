@@ -1,5 +1,6 @@
 "use client";
 
+import { guardAction } from "@/lib/client-errors";
 import Link from "next/link";
 import { useActionState, useId } from "react";
 import { Turnstile } from "@/components/auth/turnstile";
@@ -11,7 +12,7 @@ import { MAX_NOTE_CHARS } from "@/lib/waitlist/rules";
 
 // 招待の申し込み（F19。docs/architecture.md の 4.29）。メールアドレスと、任意の一言 2 つ
 export function WaitlistForm() {
-  const [state, action, pending] = useActionState<ApplyState, FormData>(applyAction, { status: "idle" });
+  const [state, action, pending] = useActionState<ApplyState, FormData>(guardAction(applyAction, (m, d) => ({ status: "error", message: m, email: String(d.get("email") ?? ""), appNote: String(d.get("app_note") ?? ""), snsNote: String(d.get("sns_note") ?? "") })), { status: "idle" });
   const id = useId();
 
   if (state.status === "done") {

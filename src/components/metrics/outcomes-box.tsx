@@ -1,5 +1,6 @@
 "use client";
 
+import { guardAction } from "@/lib/client-errors";
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { saveOutcome, type OutcomeState } from "@/lib/metrics/actions";
@@ -24,7 +25,7 @@ export function OutcomesBox({
   goal: DesiredAction | null;
   today: string;
 }) {
-  const [state, action, pending] = useActionState<OutcomeState, FormData>(saveOutcome.bind(null, projectId), {});
+  const [state, action, pending] = useActionState<OutcomeState, FormData>(guardAction(saveOutcome.bind(null, projectId), (m) => ({ error: m })), {});
   const order = [...OUTCOME_ACTIONS].sort((a, b) => (a === goal ? -1 : b === goal ? 1 : 0));
   const recent = [...rows].sort((a, b) => b.day.localeCompare(a.day)).slice(0, 5);
   return (

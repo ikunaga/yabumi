@@ -1,5 +1,6 @@
 "use client";
 
+import { guardAction } from "@/lib/client-errors";
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { saveManualMetric, type ManualMetricState } from "@/lib/metrics/actions";
@@ -20,7 +21,7 @@ export function ManualMetricForm({
   viewsLabel: string;
   reactionsLabel: string;
 }) {
-  const [state, action, pending] = useActionState<ManualMetricState, FormData>(saveManualMetric.bind(null, projectId, targetId), {});
+  const [state, action, pending] = useActionState<ManualMetricState, FormData>(guardAction(saveManualMetric.bind(null, projectId, targetId), (m) => ({ error: m })), {});
   const input =
     "w-[110px] rounded-md border border-input bg-surface px-2.5 py-1.5 text-sm text-fg outline-none focus:border-primary focus:shadow-[0_0_0_1px_var(--primary)] max-sm:text-[16px]";
   return (

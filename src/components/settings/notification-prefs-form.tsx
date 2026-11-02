@@ -1,5 +1,6 @@
 "use client";
 
+import { guardAction } from "@/lib/client-errors";
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/feedback";
@@ -17,7 +18,7 @@ const WEEKDAYS = ["月", "火", "水", "木", "金"];
 
 // 伴走のお知らせの設定（4.27）。メールとスマホの通知を別々に選ぶ
 export function NotificationPrefsForm({ emailMode, pushMode, behindWeekday }: { emailMode: Mode; pushMode: Mode; behindWeekday: number }) {
-  const [state, action, pending] = useActionState<PrefsFormState, FormData>(saveNotificationPrefs, {});
+  const [state, action, pending] = useActionState<PrefsFormState, FormData>(guardAction(saveNotificationPrefs, (m) => ({ error: m })), {});
   return (
     <form action={action} className="flex flex-col gap-5 px-6 pt-1 pb-5 text-[15px] max-sm:px-4">
       <ModeGroup name="email_mode" legend="メール" value={emailMode} />

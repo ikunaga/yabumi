@@ -1,7 +1,11 @@
 "use client";
 
+import { callAction } from "@/lib/client-errors";
+import { DraftRestoreBar } from "@/components/ui/draft-restore";
+import { clearFormDraft, parseFormDraft, rawFormDraft, writeFormDraft, type FormDraft } from "@/lib/form-draft";
+import { getDraftOwner } from "@/lib/notes/draft";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { chipClass } from "@/components/ui/chip";
 import { HelpTip } from "@/components/ui/help";
@@ -137,6 +141,46 @@ export function PostComposer({
   // まだ何も書いていない新しい投稿では、「本文がありません」などの印を出さない（書いて消したとき・保存を押したときから出す。2026-11-02 オーナーの指摘）
   const [touched, setTouched] = useState(Boolean(postId) || initial.body.trim() !== "");
   if (!touched && body.trim() !== "") setTouched(true);
+
+  // 書きかけの控え（4.35）。本文・SNS ごとの文面・タイトルを、保存できるまでこの端末に置く。古い画面で保存できず読み込み直したときなどに戻せる。
+  // 保存して移ってきた（notice がある）ときは、この投稿と「新しい投稿」の控えを消す
+  const draftKey = `post:${postId ?? `new:${projectId}`}`;
+  const initialDraft = useMemo<PostDraft>(
+    () => ({
+      body: initial.body,
+      overrides: Object.fromEntries(initial.targets.filter((t) => t.bodyOverride !== null).map((t) => [t.sns, t.bodyOverride!])),
+      titles: Object.fromEntries(initial.targets.filter((t) => t.title).map((t) => [t.sns, t.title!])),
+    }),
+    [initial],
+  );
+  // 開いたときに見つけた控え（戻すか捨てるかを選ぶまで、新しく書き込まない）。サーバーで描くときは undefined（まだ見ていない）
+  const rawDraft = useSyncExternalStore(noopSubscribe, () => rawFormDraft(draftKey), () => undefined);
+  const [found, setFound] = useState<{ draft: FormDraft<PostDraft> | null } | undefined>(undefined);
+  if (found === undefined && rawDraft !== undefined) {
+    const d = notice ? null : parseFormDraft<PostDraft>(rawDraft, getDraftOwner());
+    setFound({ draft: d && !samePostDraft(d.value, initialDraft) ? d : null });
+  }
+  const restorable = found?.draft ?? null;
+  const setRestorable = (d: null) => setFound({ draft: d });
+  useEffect(() => {
+    if (!notice) return;
+    clearFormDraft(draftKey);
+    clearFormDraft(`post:new:${projectId}`);
+  }, [notice, draftKey, projectId]);
+  useEffect(() => {
+    if (!found || found.draft) return;
+    const now: PostDraft = { body, overrides, titles };
+    if (samePostDraft(now, initialDraft)) clearFormDraft(draftKey);
+    else writeFormDraft(draftKey, now);
+  }, [body, overrides, titles, found, draftKey, initialDraft]);
+  function restoreDraft() {
+    if (!restorable) return;
+    const v = restorable.value;
+    setBody(v.body);
+    setOverrides(v.overrides ?? {});
+    setTitles(v.titles ?? {});
+    setRestorable(null);
+  }
   const quiet = !touched;
 
   const textFor = (sns: SnsKey) => overrides[sns] ?? body;
@@ -224,7 +268,7 @@ export function PostComposer({
     setResult({});
     setConfirmSend(false);
     startTransition(async () => {
-      const res = await savePost({
+      const out = await callAction(() => savePost({
         projectId,
         postId,
         body,
@@ -235,9 +279,10 @@ export function PostComposer({
         roadmapItemId: initial.roadmapItem?.id ?? null,
         noteIds,
         targets: chosen.map((sns) => ({ sns, bodyOverride: overrides[sns] ?? null, title: SNS[sns].needsTitle ? (titles[sns] ?? null) : null })),
-      });
-      // 成功時はサーバーで画面を移るので、ここに来るのは失敗したときだけ
-      if (res) setResult(res);
+      }), "書いた内容は残しています。");
+      // 成功時はサーバーで画面を移るので、ここに来るのは失敗したときだけ。古い画面・通信が切れているときも、書いた内容は消さずに理由を出す（4.35）
+      if (!out.ok) setResult({ error: out.failure.message });
+      else if (out.value) setResult(out.value);
     });
   }
 
@@ -292,9 +337,10 @@ export function PostComposer({
           disabled={pending}
           onClick={() =>
             startTransition(async () => {
-              const res = await deletePost(projectId, postId);
-              if (res?.error) {
-                setResult({ error: res.error });
+              const out = await callAction(() => deletePost(projectId, postId));
+              const message = out.ok ? out.value?.error : out.failure.message;
+              if (message) {
+                setResult({ error: message });
                 setConfirmDelete(false);
               }
             })
@@ -342,6 +388,7 @@ export function PostComposer({
             </div>
 
             {result.error && <ErrorBanner>{result.error}</ErrorBanner>}
+            {restorable && <DraftRestoreBar at={restorable.at} what="本文の書きかけ" onRestore={restoreDraft} onDiscard={() => (clearFormDraft(draftKey), setRestorable(null))} />}
 
             {initial.roadmapItem && (
               <RoadmapItemHint
@@ -825,3 +872,16 @@ function RoadmapItemHint({ item, onInsert }: { item: { title: string; detail: st
     </div>
   );
 }
+
+// 投稿をつくるの書きかけの控え（4.35）
+type PostDraft = { body: string; overrides: Partial<Record<SnsKey, string>>; titles: Partial<Record<SnsKey, string>> };
+
+function samePostDraft(a: PostDraft, b: PostDraft): boolean {
+  const same = (x: Partial<Record<string, string>> = {}, y: Partial<Record<string, string>> = {}) => {
+    const keys = new Set([...Object.keys(x), ...Object.keys(y)]);
+    return [...keys].every((k) => (x[k] ?? "") === (y[k] ?? ""));
+  };
+  return a.body === b.body && same(a.overrides, b.overrides) && same(a.titles, b.titles);
+}
+
+const noopSubscribe = () => () => {};

@@ -1,5 +1,6 @@
 "use client";
 
+import { guardAction } from "@/lib/client-errors";
 import { useActionState, useState, type ReactNode } from "react";
 import { Button, NotReadyButton } from "@/components/ui/button";
 import { ErrorBanner, SuccessBanner } from "@/components/ui/feedback";
@@ -131,7 +132,7 @@ function Steps({ step }: { step: number }) {
 }
 
 function DomainForm({ projectId }: { projectId: string }) {
-  const [state, action, pending] = useActionState<LinkDomainActionState, FormData>(addLinkDomainAction.bind(null, projectId), {});
+  const [state, action, pending] = useActionState<LinkDomainActionState, FormData>(guardAction(addLinkDomainAction.bind(null, projectId), (m) => ({ error: m })), {});
   const [value, setValue] = useState("");
   return (
     <form action={action} className="flex flex-col gap-3">
@@ -297,7 +298,7 @@ const PROVIDERS: { key: string; label: string; steps: (r: { name: string; value:
 
 function DnsStep({ projectId, domain, defaultHost }: { projectId: string; domain: LinkDomainView; defaultHost: string }) {
   const [provider, setProvider] = useState("cloudflare");
-  const [state, action, pending] = useActionState<LinkDomainActionState, FormData>(checkLinkDomainAction.bind(null, projectId), {});
+  const [state, action, pending] = useActionState<LinkDomainActionState, FormData>(guardAction(checkLinkDomainAction.bind(null, projectId), (m) => ({ error: m })), {});
   const cname = records(domain)[0];
   const current = PROVIDERS.find((p) => p.key === provider) ?? PROVIDERS[0];
   const message = CHECK_MESSAGE[domain.lastCheck];
@@ -416,7 +417,7 @@ function Connected({ domain, profileLinks }: { domain: LinkDomainView; profileLi
 
 function RemoveDomain({ projectId, domain, defaultHost }: { projectId: string; domain: LinkDomainView; defaultHost: string }) {
   const [confirming, setConfirming] = useState(false);
-  const [state, action, pending] = useActionState<LinkDomainActionState, FormData>(removeLinkDomainAction.bind(null, projectId), {});
+  const [state, action, pending] = useActionState<LinkDomainActionState, FormData>(guardAction(removeLinkDomainAction.bind(null, projectId), (m) => ({ error: m })), {});
   return (
     <div className="flex flex-col gap-2 border-t border-line pt-4">
       {state.error && <ErrorBanner>{state.error}</ErrorBanner>}

@@ -6,6 +6,7 @@ import { VoiceInputButton } from "@/components/ui/voice-input";
 import { discardImage } from "@/lib/media/actions";
 import { uploadImageFile } from "@/lib/media/client-upload";
 import { saveNote } from "@/lib/notes/actions";
+import { announceStale } from "@/lib/client-errors";
 import { clearDraft, readDraft, saveFailureMessage, writeDraft } from "@/lib/notes/draft";
 import { MAX_NOTE_CHARS } from "@/lib/notes/rules";
 
@@ -146,6 +147,7 @@ export function NoteForm({
     } catch (e) {
       console.error("[NoteForm.save]", e);
       const f = saveFailureMessage(e, navigator.onLine !== false);
+      if (f.reload) announceStale();
       setSaving(false);
       setReload(f.reload);
       return setError(f.message);

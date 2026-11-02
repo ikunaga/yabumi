@@ -1,5 +1,6 @@
 "use client";
 
+import { formValues, guardAction } from "@/lib/client-errors";
 import { useActionState, useEffect, useState, type ReactNode } from "react";
 import type { ProjectFormState } from "@/lib/projects/actions";
 import { Button, ButtonLink } from "@/components/ui/button";
@@ -145,7 +146,7 @@ export function ProjectForm({
   pendingLabel: string;
   cancelHref: string;
 }) {
-  const [state, formAction, pending] = useActionState(action, {});
+  const [state, formAction, pending] = useActionState(guardAction(action, (m, d) => ({ error: m, values: formValues(d) })), {});
   const [focused, setFocused] = useState<FieldKey>("name");
   const v: Values = { ...initial, ...state.values };
   const fe = state.fieldErrors ?? {};

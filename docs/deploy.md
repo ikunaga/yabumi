@@ -58,6 +58,7 @@
 | APP_URL | `https://yabumi-xxxx.vercel.app`（3-3 のあと） | いいえ |
 | ALLOWED_SIGNUP_EMAILS | 空（値なし）。新規登録を閉じる | いいえ |
 | TOKEN_ENCRYPTION_KEY | 0-4 で新しく作った値（ローカルとは別） | **はい** |
+| NEXT_SERVER_ACTIONS_ENCRYPTION_KEY | 23 で新しく作った値（出し直しても、開いたままの画面の保存や送信を止めないため） | **はい** |
 | CRON_SECRET | 0-4 で新しく作った値（ローカルとは別。5-2 の Vault にも同じ値） | **はい** |
 | THREADS_APP_ID | Meta の Yabumi Dev の App ID（ローカルと同じ） | いいえ |
 | THREADS_APP_SECRET | Meta の Yabumi Dev の App secret（ローカルと同じ） | **はい** |
@@ -594,3 +595,16 @@ yabumi は、画面を開くたびに proxy.ts（とページ）で `supabase.au
 | 予約ジョブ | 7-6 のとおり、D 日のあとも status_code が 200 | — |
 
 確かめ終わったら、PM が結果（どの行を誰が見たか、問題があればスクショ）を roadmap.md の「D34 の本番への反映」に書く。
+
+## 23. 本番に出し直しても、開いたままの画面の保存や送信が止まらないようにする（2026-11-02、fix/stale-deploy。architecture.md の 4.35）
+
+Next.js の server action の ID は、ビルドごとの暗号の鍵から作られる。鍵を決めておかないと、本番に出し直すたびに ID が変わり、出し直す前から開いていた画面（スマホのホーム画面の yabumi など）で、保存・送信・AI の呼び出しがすべて失敗する。鍵を決めて、出し直しても ID が変わらないようにする。
+
+| 段 | 誰が | すること |
+|---|---|---|
+| 23-1 | オーナー | ターミナルで `openssl rand -base64 32` を実行し、出た値をパスワード管理アプリに控える（TOKEN_ENCRYPTION_KEY・CREDENTIAL_ENCRYPTION_KEY とは別の、新しい値） |
+| 23-2 | オーナー | Vercel → Settings → Environment Variables に `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`（値は 23-1、Environment は Production と Preview、**Sensitive**）を足し、Redeploy |
+| 23-3 | PM | 本番で、画面を開いたままにしてから main をもう一度出し、その画面で保存できることを確かめる。開いた画面に戻ると、上に「yabumi の新しい版があります」の帯が出ることも確かめる |
+
+- この鍵は、server action に渡す値の暗号にも使うので、秘密にする（Sensitive）。**変えると、その時点で開いていた画面の保存や送信が 1 回失敗する**（画面は「yabumi が新しくなりました・読み込み直す」を出し、投稿の本文・設計・メモは読み込み直しても戻る）。漏れたときだけ変える
+- 「新しい版があります」の帯は、ビルドの前に scripts/write-version.mjs が書く public/version.json と、画面の版（VERCEL_DEPLOYMENT_ID）を比べて出す。Vercel が入れる値なので、設定は要らない。費用もかからない（静的なファイル）

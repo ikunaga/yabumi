@@ -1,8 +1,12 @@
 "use client";
 
+import { DraftRestoreBar } from "@/components/ui/draft-restore";
+import { clearFormDraft, parseFormDraft, rawFormDraft, writeFormDraft, type FormDraft } from "@/lib/form-draft";
+import { getDraftOwner } from "@/lib/notes/draft";
+import { guardAction } from "@/lib/client-errors";
 import { DESIRED_ACTION_DEFS, DESIRED_ACTIONS, PRODUCT_TYPE_DEFS, RECOMMENDED_ACTIONS, isDevProject, type ProductType } from "@/lib/projects/product-types";
 import Link from "next/link";
-import { startTransition, useActionState, useEffect, useRef, useState, type ReactNode } from "react";
+import { startTransition, useActionState, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Button, buttonClass, NotReadyButton } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/chip";
@@ -178,16 +182,38 @@ function SectionCard({
   onSavedNext: () => void;
   children: ReactNode;
 }) {
-  const [state, formAction, pending] = useActionState<SectionFormState, FormData>(saveSection.bind(null, projectId, sectionKey), {});
+  const [state, formAction, pending] = useActionState<SectionFormState, FormData>(guardAction(saveSection.bind(null, projectId, sectionKey), (m) => ({ error: m })), {});
   const goNext = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
   const meta = META[sectionKey];
   const isLast = index === SECTION_KEYS.length - 1;
   const bodyId = `plan-${sectionKey}`;
 
+  // 書きかけの控え（4.35）。欄を直すたびにこの端末に置き、保存できたら消す。古い画面で保存できず読み込み直したときなどに戻せる
+  const draftKey = `plan:${projectId}:${sectionKey}`;
+  const rawDraft = useSyncExternalStore(noopSubscribe, () => rawFormDraft(draftKey), () => undefined);
+  const [found, setFound] = useState<{ draft: FormDraft<[string, string][]> | null } | undefined>(undefined);
+  if (found === undefined && rawDraft !== undefined) setFound({ draft: parseFormDraft<[string, string][]>(rawDraft, getDraftOwner()) });
+  const restorable = found?.draft ?? null;
+  // 開いたときの欄の値（これと同じなら控えない）
+  const initialEntries = useRef<string | null>(null);
+  useEffect(() => {
+    if (formRef.current) initialEntries.current = JSON.stringify(formEntries(formRef.current));
+  }, []);
+  function keepDraft() {
+    const form = formRef.current;
+    if (!form || restorable) return;
+    const entries = formEntries(form);
+    if (JSON.stringify(entries) === initialEntries.current) clearFormDraft(draftKey);
+    else writeFormDraft(draftKey, entries);
+  }
+
   useEffect(() => {
     // 保存できたら、欄を保存した値（# を外したタグなど）に戻し、「数え直す」などの印を外す
-    if (state.savedAt) formRef.current?.reset();
+    if (state.savedAt) {
+      formRef.current?.reset();
+      clearFormDraft(draftKey);
+    }
     if (state.savedAt && goNext.current) {
       goNext.current = false;
       onSavedNext();
@@ -230,8 +256,23 @@ function SectionCard({
           const data = new FormData(e.currentTarget);
           startTransition(() => formAction(data));
         }}
+        onInput={keepDraft}
+        onChange={keepDraft}
         hidden={!open}
         className="flex flex-col gap-5 border-t border-line px-6 py-5 max-sm:px-4">
+        {restorable && (
+          <DraftRestoreBar
+            at={restorable.at}
+            onRestore={() => {
+              if (formRef.current) restoreEntries(formRef.current, restorable.value);
+              setFound({ draft: null });
+            }}
+            onDiscard={() => {
+              clearFormDraft(draftKey);
+              setFound({ draft: null });
+            }}
+          />
+        )}
         {/* 説明は畳む（2026-10-30 オーナーの決定）。空欄を前に考え込ませないよう、このセクションを AI と考える入口を先に置く */}
         <div className="flex flex-wrap items-center gap-3 rounded-md bg-surface2 px-4 py-3 text-sm">
           <span className="flex min-w-[14rem] flex-1 items-center gap-2">
@@ -666,4 +707,34 @@ function WeeklyInput({ sns, value }: { sns: SnsKey; value: number | undefined })
       <span className="text-muted">回</span>
     </label>
   );
+}
+
+const noopSubscribe = () => () => {};
+
+// フォームの文字の欄を、並び順のまま [名前, 値] で取る（同じ名前の欄が並ぶ柱などもそのまま）
+function formEntries(form: HTMLFormElement): [string, string][] {
+  return [...new FormData(form).entries()].filter((e): e is [string, string] => typeof e[1] === "string" && !e[0].startsWith("$ACTION"));
+}
+
+// 控えた値を欄に戻す。React が見ている欄も変わるよう、ブラウザの値の入れ方で入れて input・change を起こす。
+// 欄の数が控えたときと違う（柱を足した・減らした）ときは、ある欄の分だけ戻す
+function restoreEntries(form: HTMLFormElement, entries: [string, string][]) {
+  const byName = new Map<string, string[]>();
+  for (const [k, v] of entries) byName.set(k, [...(byName.get(k) ?? []), v]);
+  for (const [name, values] of byName) {
+    const fields = [...form.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(`[name="${CSS.escape(name)}"]`)];
+    let i = 0;
+    for (const el of fields) {
+      if (el instanceof HTMLInputElement && (el.type === "checkbox" || el.type === "radio")) {
+        const on = values.includes(el.value);
+        if (el.checked !== on) el.click();
+        continue;
+      }
+      if (i >= values.length) break;
+      const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : el instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
+      Object.getOwnPropertyDescriptor(proto, "value")?.set?.call(el, values[i++]);
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  }
 }

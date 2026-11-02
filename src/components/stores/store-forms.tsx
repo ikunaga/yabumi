@@ -1,5 +1,6 @@
 "use client";
 
+import { guardAction } from "@/lib/client-errors";
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ErrorBanner, SuccessBanner } from "@/components/ui/feedback";
@@ -9,7 +10,7 @@ import { saveAppStoreConnect, saveGooglePlay, saveRevenueCat, startAppStorePageV
 // 鍵を入れる欄（docs/architecture.md の 4.22）。保存を押すと、1 回呼んで使えるかを確かめてから保存する
 
 export function AppStoreConnectForm({ projectId }: { projectId: string }) {
-  const [state, action, pending] = useActionState<StoreFormState, FormData>(saveAppStoreConnect.bind(null, projectId), {});
+  const [state, action, pending] = useActionState<StoreFormState, FormData>(guardAction(saveAppStoreConnect.bind(null, projectId), (m) => ({ error: m })), {});
   const [privateKey, setPrivateKey] = useState("");
   return (
     <form action={action} className="flex flex-col gap-4">
@@ -56,7 +57,7 @@ export function AppStoreConnectForm({ projectId }: { projectId: string }) {
 }
 
 export function RevenueCatForm({ projectId }: { projectId: string }) {
-  const [state, action, pending] = useActionState<StoreFormState, FormData>(saveRevenueCat.bind(null, projectId), {});
+  const [state, action, pending] = useActionState<StoreFormState, FormData>(guardAction(saveRevenueCat.bind(null, projectId), (m) => ({ error: m })), {});
   return (
     <form action={action} className="flex flex-col gap-4">
       {state.error && <ErrorBanner>{state.error}</ErrorBanner>}
@@ -79,7 +80,7 @@ export function RevenueCatForm({ projectId }: { projectId: string }) {
 // ===== Google Play（段取り ⑤） =====
 
 export function StartGooglePlayButton({ projectId }: { projectId: string }) {
-  const [state, action, pending] = useActionState<StoreFormState, FormData>(async () => startGooglePlay(projectId), {});
+  const [state, action, pending] = useActionState<StoreFormState, FormData>(guardAction(async () => startGooglePlay(projectId), (m) => ({ error: m })), {});
   return (
     <form action={action} className="flex flex-col gap-2">
       {state.error && <ErrorBanner>{state.error}</ErrorBanner>}
@@ -93,7 +94,7 @@ export function StartGooglePlayButton({ projectId }: { projectId: string }) {
 }
 
 export function GooglePlayForm({ projectId, defaultPackage, defaultBucket }: { projectId: string; defaultPackage: string; defaultBucket: string }) {
-  const [state, action, pending] = useActionState<StoreFormState, FormData>(saveGooglePlay.bind(null, projectId), {});
+  const [state, action, pending] = useActionState<StoreFormState, FormData>(guardAction(saveGooglePlay.bind(null, projectId), (m) => ({ error: m })), {});
   return (
     <form action={action} className="flex flex-col gap-4">
       {state.error && <ErrorBanner>{state.error}</ErrorBanner>}
@@ -116,7 +117,7 @@ export function GooglePlayForm({ projectId, defaultPackage, defaultBucket }: { p
 // ===== App Store のストアのページの閲覧数（段取り ⑤） =====
 
 export function AppStoreViewsForm({ projectId }: { projectId: string }) {
-  const [state, action, pending] = useActionState<StoreFormState, FormData>(startAppStorePageViews.bind(null, projectId), {});
+  const [state, action, pending] = useActionState<StoreFormState, FormData>(guardAction(startAppStorePageViews.bind(null, projectId), (m) => ({ error: m })), {});
   const [privateKey, setPrivateKey] = useState("");
   return (
     <form action={action} className="flex flex-col gap-4">

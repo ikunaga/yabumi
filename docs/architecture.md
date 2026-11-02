@@ -2211,6 +2211,23 @@ yabumi を「個人開発者のアプリ」向けから、宣伝したい商品�
 - 結果は保存しない。利用量は ai_usage に purpose `tidy_draft` で記録し（縮め直しの分も）、上限（4.9）に数える。effort は medium、1 回 5〜15 円ほど（入力 3〜4 千トークン・出力 2〜3 千トークンの見込み。縮め直しがあると 2〜3 円足される）
 - テストは tests/tidy-draft.test.ts と tests/tidy-draft.integration.test.ts（AI は差し替え）
 
+### 4.35 開いたままの画面が古いとき・通信が切れているとき（2026-11-02、PM の依頼。fix/stale-deploy）
+
+ネタ帳のメモが残らなかった件（4.26「書きかけの控え」）の原因の候補 ★1 を、すべての画面で塞ぐ。
+
+- **なぜ起きるか**: Next.js の server action の ID は、ビルドごとの暗号の鍵を混ぜて作る。鍵を決めていないと、本番に出し直すたびに ID が変わり、本番に出す前から開いたままの画面（スマホのホーム画面の yabumi は何日も開いたままになる）の保存・送信・AI の呼び出しが、すべて「見つからない」（UnrecognizedActionError）で失敗する。以前は、それがエラーの画面に飛んで入力が消えるか、知らせなしに止まっていた
+- **1. ID を変えない**: 本番の環境変数 `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` に決まった鍵を入れる（deploy.md の 23。オーナーの作業）。これで、関数の名前と置き場所を変えない限り、出し直しても古い画面の保存や送信がそのまま届く。server action の名前や置き場所を変えたときだけ、古い画面で失敗する
+- **2. 押す前に気づく**: 画面のいちばん上の小さな帯（src/components/app-status-bar.tsx。ルートのレイアウト）
+  - 「yabumi の新しい版があります・読み込み直す」: 画面に戻ってきたとき（visibilitychange・focus・online）と 30 分ごと（見えている間だけ。1 分はあける）に、静的なファイル `/version.json` を読み、自分の版（`<html data-app-version>`）と違えば出す。version.json は本番に出すたびに scripts/write-version.mjs が Vercel のデプロイの ID（VERCEL_DEPLOYMENT_ID）で書く（`pnpm build` の前。git には入れない）。静的なファイルで、proxy も通さないので、読んでも Vercel の関数は動かず費用は増えない。ローカルでは版の名前がないので出さない
+  - 「通信がつながっていません」: navigator.onLine と online・offline の知らせ。Next.js は通信が切れていると、つながるまで送るのを待つので、押しても何も起きないように見える
+  - next.config.ts の `deploymentId` にも同じ ID を入れる（Next.js が、古い画面から新しいサーバーへ画面を移るときに読み込み直しにする。Vercel の Skew Protection は Pro 以上なので使わない）。Next.js の data-dpl-id は読んだあと消えるので、比べるのには使わない
+- **3. 失敗しても入力を消さず、理由を出す**（src/lib/client-errors.ts）
+  - 古い画面（UnrecognizedActionError・JS の読み込みの失敗）・通信が切れている・そのほか、で文を分ける。古い画面のときは上の帯にも出す（STALE_EVENT）
+  - useActionState のフォーム（16 か所）は guardAction で包み、失敗をその画面のエラーの状態にする（エラーの画面に飛ばさない）。プロジェクトの作成・設定は送った値を戻す
+  - 直接呼ぶもの（投稿の保存・削除、SNS から取り消す、AI と相談、AI と考える、AI っぽさチェック、ネタ帳のメモ）は callAction で包む。通信が切れていれば呼ばずに知らせる
+  - それでもエラーの画面に来たとき（ErrorFallback）は、古い画面が原因なら「yabumi が新しくなりました・読み込み直す」を出す
+- **4. 読み込み直しても戻る**: 投稿をつくるの本文・SNS ごとの文面・タイトル（キー post:<投稿の ID か new:プロジェクト>）と、アカウント設計の各セクションの欄（plan:<プロジェクト>:<セクション>）を、保存できるまでこの端末の localStorage（yabumi-form-draft:…。src/lib/form-draft.ts）に控える。次に開いたとき「保存していない書きかけがあります（日時）」と出し、「戻す」「捨てる」を選んでもらう（黙って上書きしない）。保存できたら消す。持ち主（いまの人）のものだけを戻し、ログアウト・退会で消す（ネタ帳の控えと同じ決まり）。いまの人は NoteDraftOwner が HTML に書く印（data-draft-owner）からも読む（部品が先に描かれることがあるため）
+
 ## 5. データモデル（主要テーブル）
 
 | テーブル | 内容 |

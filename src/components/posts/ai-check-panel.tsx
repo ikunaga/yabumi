@@ -1,5 +1,6 @@
 "use client";
 
+import { callAction } from "@/lib/client-errors";
 import { useState, useTransition } from "react";
 import { Button, NotReadyButton } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/feedback";
@@ -28,7 +29,12 @@ export function AiCheckPanel({ projectId, aiEnabled, texts, onApply }: Props) {
   const run = () =>
     startTransition(async () => {
       setError(null);
-      const res = await checkPostTexts(projectId, texts.filter((t) => t.text.trim()));
+      const r = await callAction(() => checkPostTexts(projectId, texts.filter((t) => t.text.trim())));
+      if (!r.ok) {
+        setError(r.failure.message);
+        return;
+      }
+      const res = r.value;
       if (res.error || !res.result) {
         setError(res.error ?? "うまくいきませんでした。");
         return;

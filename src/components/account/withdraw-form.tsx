@@ -1,5 +1,6 @@
 "use client";
 
+import { guardAction } from "@/lib/client-errors";
 import { useActionState, useState } from "react";
 import { Turnstile } from "@/components/auth/turnstile";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,7 @@ import { withdraw, type WithdrawState } from "@/lib/account/actions";
 
 // 退会のフォーム。消えるものを確かめるチェックと、パスワードの入れ直し
 export function WithdrawForm() {
-  const [state, action, pending] = useActionState<WithdrawState, FormData>(withdraw, {});
+  const [state, action, pending] = useActionState<WithdrawState, FormData>(guardAction(withdraw, (m) => ({ error: m })), {});
   const [understood, setUnderstood] = useState(false);
   return (
     <form action={action} className="flex flex-col gap-4 border-t border-line pt-4">

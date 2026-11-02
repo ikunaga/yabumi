@@ -42,3 +42,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# 本番に出すたびに scripts/write-version.mjs が書く、いまの版の名前（docs/architecture.md の 4.33）
+/public/version.json

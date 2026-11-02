@@ -1,3 +1,5 @@
+import { actionFailure } from "@/lib/client-errors";
+import { clearAllFormDrafts } from "@/lib/form-draft";
 import { MAX_NOTE_CHARS } from "./rules";
 import { SHARE_CACHE } from "./share";
 
@@ -20,10 +22,23 @@ export type NoteDraft = { body: string; projectId: string | null; at: number; ow
 
 // いまログインしている人（NoteDraftOwner が画面を描くときに入れる）。わからないときは null（ログインの前）
 let draftOwner: string | null = null;
+// ログアウトしたあと（画面が移るまでの間も、誰の控えも書かない・戻さない）
+let signedOut = false;
+
+// いまの人。NoteDraftOwner が入れた値か、まだ入っていなければ、サーバーが HTML に書いた印（data-draft-owner）から読む
+// （画面の部品が NoteDraftOwner より先に描かれることがあるため。React の描く順に頼らない）
+export function getDraftOwner(): string | null {
+  if (signedOut) return null;
+  if (draftOwner) return draftOwner;
+  if (typeof document === "undefined") return null;
+  return document.querySelector("[data-draft-owner]")?.getAttribute("data-draft-owner") || null;
+}
+
 export function setDraftOwner(userId: string | null): void {
   // サーバーで描くときは入れない（サーバーの変数は、ほかの人の表示と共有される）
   if (typeof window === "undefined") return;
   draftOwner = userId;
+  if (userId) signedOut = false;
 }
 
 function storage(): Storage | null {
@@ -61,7 +76,7 @@ export function readDraft(): NoteDraft | null {
       // 消せなくても、戻さないだけ
     }
   }
-  return draft ? ownDraft(draft, draftOwner) : null;
+  return draft ? ownDraft(draft, getDraftOwner()) : null;
 }
 
 // 控えを、いまの人に見せてよいか。ログインの前の控え（持ち主 null）は、ログインした人のものにする
@@ -81,8 +96,9 @@ export function ownDraft(draft: NoteDraft, owner: string | null, now: number = D
 
 // いまの人の控えとして書く。本文が空なら控えを消す。いまの人がわからない（ログインの前など）ときは書かない（持ち主のない控えを作らない）
 export function writeDraft(body: string, projectId: string | null): void {
-  if (!draftOwner) return;
-  putDraft(body, projectId, draftOwner);
+  const owner = getDraftOwner();
+  if (!owner) return;
+  putDraft(body, projectId, owner);
 }
 
 // ログインの前に共有で受け取った本文を、持ち主なしの控えとして書く（/share の ShareStash だけが使う。1 時間だけ引き継げる）
@@ -121,7 +137,9 @@ export async function clearNoteDraftsOnDevice(): Promise<void> {
   } catch {
     // 消せなくても、持ち主の違う控えは出さない
   }
+  clearAllFormDrafts();
   draftOwner = null;
+  signedOut = true;
   try {
     if ("caches" in window) await caches.delete(SHARE_CACHE);
   } catch {
@@ -142,14 +160,8 @@ export function mergeShared(draft: string, shared: string): string {
 // 本文だけで残し、画像を添えられなかったときの知らせ
 export const IMAGE_SKIPPED_MESSAGE = "ネタ帳に残しました。画像は添えられなかったので、ネタ帳でメモを直して、もう一度選んでください。";
 
-// 保存できなかったときの知らせ。Next.js の server action が見つからない（画面を開いたあとに yabumi が新しくなった）ときは、読み込み直しを勧める
+// 保存できなかったときの知らせ（src/lib/client-errors.ts の決まりに、本文を残していることを足す）
 export function saveFailureMessage(e: unknown, online: boolean): { message: string; reload: boolean } {
-  const kept = "書いた内容はこの端末に残しています。";
-  if (!online) return { message: `通信がつながっていないので、保存できませんでした。つながってから、もう一度「ネタ帳に保存する」を押してください。${kept}`, reload: false };
-  const name = e instanceof Error ? e.name : "";
-  const text = e instanceof Error ? e.message : "";
-  if (name === "UnrecognizedActionError" || /Server Action .* was not found/.test(text)) {
-    return { message: `yabumi が新しくなったため、保存できませんでした。画面を読み込み直してから、もう一度保存してください。${kept}`, reload: true };
-  }
-  return { message: `保存できませんでした。通信を確かめて、もう一度「ネタ帳に保存する」を押してください。${kept}`, reload: false };
+  const f = actionFailure(e, online, "書いた内容はこの端末に残しています。");
+  return { message: f.message, reload: f.stale };
 }

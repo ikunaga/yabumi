@@ -1,5 +1,6 @@
 "use client";
 
+import { callAction } from "@/lib/client-errors";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
@@ -69,7 +70,14 @@ export function ConsultChat({
     // 返事を待つ間も、何を頼んだかが見えるように、利用者の発言を先に吹き出しで出す（入口のボタンから始めたときも）
     setSentText(input.kind === "text" ? input.text : input.kind === "start" ? CONSULT_TOPIC_META[input.topic].button : null);
     startTransition(async () => {
-      const res = await sendConsultMessage(projectId, input.kind === "start" ? null : threadId, input);
+      // 失敗しても書いた文は消さない（古い画面・通信が切れているときは、その理由を出す。4.35）
+      const r = await callAction(() => sendConsultMessage(projectId, input.kind === "start" ? null : threadId, input));
+      if (!r.ok) {
+        setError(r.failure.message);
+        setSentText(null);
+        return;
+      }
+      const res = r.value;
       if (res.redirect) {
         router.push(res.redirect);
         return;

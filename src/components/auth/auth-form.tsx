@@ -1,5 +1,6 @@
 "use client";
 
+import { guardAction } from "@/lib/client-errors";
 import Link from "next/link";
 import { type ReactNode, useActionState, useEffect, useState } from "react";
 import type { AuthFormState } from "@/lib/auth/actions";
@@ -79,7 +80,7 @@ export function AuthForm({
   // 新しいパスワードを決める画面で、いまの版の規約・ポリシーに同意していない方（招待から始める方など）。施行日を渡すと、同意のチェックを出す
   consent?: { effectiveDate: string; invited: boolean } | null;
 }) {
-  const [state, formAction, pending] = useActionState(action, { error: initialError });
+  const [state, formAction, pending] = useActionState(guardAction(action, (m, d) => ({ error: m, email: String(d.get("email") ?? "") })), { error: initialError });
   const [passwordLength, setPasswordLength] = useState(0);
   // メールを送れたら（登録・再設定）フォームを隠し、二度押しを防ぐ。「入れ直す」で、その結果に対してだけフォームを戻す
   const [reopenedFor, setReopenedFor] = useState<AuthFormState | null>(null);

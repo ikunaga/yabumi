@@ -1,11 +1,12 @@
 "use client";
 
+import { guardAction } from "@/lib/client-errors";
 import { useActionState } from "react";
 import { skipPlan } from "@/lib/plan/actions";
 
 // 「あとで設計する」（概要の「いまやること」の帯）。保存に失敗したときは、ボタンの下に理由を出す
 export function SkipPlanForm({ projectId }: { projectId: string }) {
-  const [state, action, pending] = useActionState(skipPlan.bind(null, projectId), {});
+  const [state, action, pending] = useActionState(guardAction(skipPlan.bind(null, projectId), (m) => ({ error: m })), {});
   return (
     <form action={action}>
       <button

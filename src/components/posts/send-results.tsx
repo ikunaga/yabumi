@@ -1,5 +1,6 @@
 "use client";
 
+import { callAction } from "@/lib/client-errors";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { deleteFromSns, markManualPosted, markRemovedOnSns } from "@/lib/posts/send-actions";
@@ -91,9 +92,10 @@ function ResultRow({ sns, r, projectId, postId }: { sns: SnsKey; r: TargetResult
                     onClick={() =>
                       startTransition(async () => {
                         setError(null);
-                        const res = await deleteFromSns(projectId, postId, r.id);
+                        const out = await callAction(() => deleteFromSns(projectId, postId, r.id));
                         // 成功したらサーバーで画面を読み直すので、ここに来るのは失敗したときだけ
-                        if (res?.error) setError(res.error);
+                        const message = out.ok ? out.value?.error : out.failure.message;
+                        if (message) setError(message);
                         setConfirm(false);
                       })
                     }

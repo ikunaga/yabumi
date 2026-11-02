@@ -1,5 +1,6 @@
 "use client";
 
+import { guardAction } from "@/lib/client-errors";
 import { useActionState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { addItemForm, type RoadmapFormState } from "@/lib/roadmap/actions";
@@ -10,7 +11,7 @@ const input =
 
 // やることを 1 つ足す。週は選べる週（今週から 8 週先まで）から
 export function AddItemForm({ projectId, weeks }: { projectId: string; weeks: { value: string; label: string }[] }) {
-  const [state, action, pending] = useActionState<RoadmapFormState, FormData>(addItemForm.bind(null, projectId), {});
+  const [state, action, pending] = useActionState<RoadmapFormState, FormData>(guardAction(addItemForm.bind(null, projectId), (m) => ({ error: m })), {});
   const form = useRef<HTMLFormElement>(null);
   useEffect(() => {
     if (state.ok) form.current?.reset();

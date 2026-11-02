@@ -1,5 +1,6 @@
 "use client";
 
+import { callAction } from "@/lib/client-errors";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
@@ -46,7 +47,14 @@ export function PlanCoachChat({
     setError(null);
     setSentText(input.kind === "text" ? input.text : null);
     startTransition(async () => {
-      const res = await sendCoachMessage(projectId, opts.newThread ? null : threadId, input);
+      // 失敗しても書いた文は消さない（4.35）
+      const r = await callAction(() => sendCoachMessage(projectId, opts.newThread ? null : threadId, input));
+      if (!r.ok) {
+        setError(r.failure.message);
+        setSentText(null);
+        return;
+      }
+      const res = r.value;
       if (res.threadId) setThreadId(res.threadId);
       if (res.ok) {
         if (input.kind === "text") setText("");

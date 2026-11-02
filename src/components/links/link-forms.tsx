@@ -1,5 +1,6 @@
 "use client";
 
+import { guardAction } from "@/lib/client-errors";
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ErrorBanner, SuccessBanner } from "@/components/ui/feedback";
@@ -57,7 +58,7 @@ function DestinationField({ destinations, id }: { destinations: Destination[]; i
 }
 
 export function ProfileLinkForm({ projectId, sns, destinations }: { projectId: string; sns: SnsKey; destinations: Destination[] }) {
-  const [state, action, pending] = useActionState<LinkActionState, FormData>(createLink.bind(null, projectId), {});
+  const [state, action, pending] = useActionState<LinkActionState, FormData>(guardAction(createLink.bind(null, projectId), (m) => ({ error: m })), {});
   return (
     <form action={action} className="flex flex-col gap-3">
       <input type="hidden" name="kind" value="profile" />
@@ -75,7 +76,7 @@ export function ProfileLinkForm({ projectId, sns, destinations }: { projectId: s
 }
 
 export function CustomLinkForm({ projectId, destinations }: { projectId: string; destinations: Destination[] }) {
-  const [state, action, pending] = useActionState<LinkActionState, FormData>(createLink.bind(null, projectId), {});
+  const [state, action, pending] = useActionState<LinkActionState, FormData>(guardAction(createLink.bind(null, projectId), (m) => ({ error: m })), {});
   return (
     <form action={action} className="flex flex-col gap-4">
       <input type="hidden" name="kind" value="custom" />
@@ -110,7 +111,7 @@ export function CustomLinkForm({ projectId, destinations }: { projectId: string;
 }
 
 export function ProviderTokenForm({ projectId, current }: { projectId: string; current: string | null }) {
-  const [state, action, pending] = useActionState<LinkActionState, FormData>(saveProviderToken.bind(null, projectId), {});
+  const [state, action, pending] = useActionState<LinkActionState, FormData>(guardAction(saveProviderToken.bind(null, projectId), (m) => ({ error: m })), {});
   return (
     <form action={action} className="flex flex-col gap-3">
       {state.error && <ErrorBanner>{state.error}</ErrorBanner>}

@@ -46,7 +46,18 @@ export async function notifyOperatorOnce(
   mail: OperatorMail,
   deps: OperatorNotifyDeps = {},
 ): Promise<OperatorNotifyResult | "skipped"> {
-  const { data: claimed, error } = await admin.rpc("claim_operator_notification", { p_key: key, p_window: `${windowDays} days` });
+  return notifyOperatorWithin(admin, key, `${windowDays} days`, mail, deps);
+}
+
+// 同じ件（key）は window（"1 hour" など、Postgres の interval の書き方）に 1 回だけ知らせる。日より短い間隔で間引くとき（AI が使えないときなど）
+export async function notifyOperatorWithin(
+  admin: SupabaseClient<Database>,
+  key: string,
+  window: string,
+  mail: OperatorMail,
+  deps: OperatorNotifyDeps = {},
+): Promise<OperatorNotifyResult | "skipped"> {
+  const { data: claimed, error } = await admin.rpc("claim_operator_notification", { p_key: key, p_window: window });
   if (error) throw error;
   if (!claimed) return "skipped";
   const result = await notifyOperator(mail, deps);

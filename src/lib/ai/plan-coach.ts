@@ -10,6 +10,7 @@ import { normalizeCoachTurn, toWireTurn, type CoachSectionKey, type CoachTurn, t
 import { coachContextMessage, PLAN_COACH_SYSTEM, sectionLabel, type CoachContext } from "./plan-coach-prompt";
 import { estimateCostUsd, type TokenUsage } from "./pricing";
 import { productTypeOf } from "./product-guide";
+import { aiFailureMessage } from "./provider-failure";
 
 // アカウント設計を AI と進める会話の 1 往復（docs/architecture.md の 4.9）。
 // AI の呼び出しは callModel として外から渡す（テストではモックし、本物の API は呼ばない）。
@@ -244,7 +245,7 @@ export async function coachStep(
     result = await deps.callModel(request);
   } catch (e) {
     console.error("[plan-coach] AI の呼び出しに失敗しました", e instanceof Error ? e.message : e);
-    return fail(GENERIC_ERROR);
+    return fail(aiFailureMessage(e, GENERIC_ERROR));
   }
   // 使った分は、返事が使えなくても記録する（上限の計算に入れる）
   await recordUsage(result);

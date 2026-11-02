@@ -7,6 +7,7 @@ import { alertIfNearBudgetSafely } from "@/lib/notify/budget";
 import type { Database } from "@/lib/supabase/database.types";
 import type { ModelOutput } from "./app-description";
 import { ImageBlockedError, type GenerateImage } from "./gemini-image";
+import { AiUnavailableError, aiFailureMessage } from "./provider-failure";
 import { checkAiLimits, jstPeriodStarts, type AiLimits } from "./limits";
 import {
   MAX_PHOTOS_PER_RUN,
@@ -92,7 +93,7 @@ export async function runPhotoIdeas(
     );
   } catch (e) {
     console.error("[photo-ideas] AI の呼び出しに失敗しました", e instanceof Error ? e.message : e);
-    return { ok: false, message: "AI とのやりとりがうまくいきませんでした。時間をおいてもう一度お試しください。説明は手で書くこともできます。" };
+    return { ok: false, message: aiFailureMessage(e, "AI とのやりとりがうまくいきませんでした。時間をおいてもう一度お試しください。") + "説明は手で書くこともできます。" };
   }
   await admin.from("ai_usage").insert({
     owner_id: args.userId,
@@ -170,9 +171,11 @@ export async function runPhotoGeneration(
   const stored: PhotoCandidate[] = [];
   let inputTokens = 0;
   let blocked = false;
+  let unavailable = false;
   for (const res of results) {
     if (res.status === "rejected") {
       if (res.reason instanceof ImageBlockedError) blocked = true;
+      else if (res.reason instanceof AiUnavailableError) unavailable = true;
       else console.error("[photo-gen] 画像の AI の呼び出しに失敗しました", res.reason instanceof Error ? res.reason.message : res.reason);
       continue;
     }
@@ -205,9 +208,11 @@ export async function runPhotoGeneration(
     return {
       ok: false,
       remainingImages,
-      message: blocked
-        ? "この説明では、画像の AI の安全の決まりに当たって作れませんでした。説明を変えてお試しください（枚数には数えません）。"
-        : "画像をつくれませんでした。時間をおいてもう一度お試しください（枚数には数えません）。",
+      message: unavailable
+        ? "AI の画像はいま使えません（運営者に知らせました。枚数には数えません）。テンプレートの画像と、手持ちの写真は使えます。"
+        : blocked
+          ? "この説明では、画像の AI の安全の決まりに当たって作れませんでした。説明を変えてお試しください（枚数には数えません）。"
+          : "画像をつくれませんでした。時間をおいてもう一度お試しください（枚数には数えません）。",
     };
   }
   const { data: urls, error: urlError } = await admin.storage.from(MEDIA_BUCKET).createSignedUrls(stored.map((s) => s.path), PREVIEW_URL_SECONDS);

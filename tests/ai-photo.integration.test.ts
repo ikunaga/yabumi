@@ -6,6 +6,7 @@ vi.mock("server-only", () => ({}));
 
 import { ImageBlockedError, type GenerateImage } from "@/lib/ai/gemini-image";
 import { PHOTO_LIMITS } from "@/lib/ai/photo";
+import { AiUnavailableError } from "@/lib/ai/provider-failure";
 import { acknowledgePhotoNotice, ownRecentPhotoJob, photoStatus, runPhotoGeneration } from "@/lib/ai/photo-gen";
 import { readAiMark } from "@/lib/media/jpeg";
 import { MEDIA_BUCKET } from "@/lib/media/rules";
@@ -125,6 +126,21 @@ describe("つくる", () => {
     }
     const s = await photoStatus(admin, aliceId, MODEL);
     expect(s.usedImages).toBe(3);
+  });
+
+  it("支払い・鍵の問題（402・403・401）なら「いま使えない（運営者に知らせた）」と出し、「時間をおいて」とは言わず、数えない", async () => {
+    for (const status of [402, 403, 401]) {
+      const r = await run(alice, aliceId, aliceProject, async () => {
+        throw new AiUnavailableError("gemini", status);
+      });
+      expect(r.ok).toBe(false);
+      if (!r.ok) {
+        expect(r.message).toContain("AI の画像はいま使えません（運営者に知らせました");
+        expect(r.message).not.toContain("時間をおいて");
+        expect(r.remainingImages).toBe(PHOTO_LIMITS.userMonthlyImages - 3);
+      }
+    }
+    expect((await photoStatus(admin, aliceId, MODEL)).usedImages).toBe(3);
   });
 
   it("他人のプロジェクトでは作れない", async () => {

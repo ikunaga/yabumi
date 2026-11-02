@@ -10,6 +10,7 @@ import { checkAiLimits, type AiLimits } from "./limits";
 import type { BetaMessageParam, BetaTextBlockParam } from "./plan-coach";
 import { estimateCostUsd } from "./pricing";
 import { LENGTH_RULES } from "./shorten";
+import { aiFailureMessage } from "./provider-failure";
 
 // AI っぽさチェック（要求 F11。docs/architecture.md の 4.20）。
 // 送る前の投稿の文面を AI が読み、「AI っぽい雑な投稿」になっていないかを指摘する。指摘には、なぜよくないかと、直した案を添える。
@@ -184,7 +185,7 @@ export async function runAiCheck(
     r = await deps.callCheck(buildAiCheckRequest({ projectName: project.name, plan: normalizePlan(planRow?.data, project.target_audience ?? ""), productType: productTypeOf(project.product_type) }, texts));
   } catch (e) {
     console.error("[ai-check] AI の呼び出しに失敗しました", e instanceof Error ? e.message : e);
-    return { ok: false, message: "AI とのやりとりがうまくいきませんでした。時間をおいてもう一度お試しください。" };
+    return { ok: false, message: aiFailureMessage(e, "AI とのやりとりがうまくいきませんでした。時間をおいてもう一度お試しください。") };
   }
   await admin.from("ai_usage").insert({
     owner_id: args.userId,

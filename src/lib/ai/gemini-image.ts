@@ -1,6 +1,8 @@
 import "server-only";
 import { envReady } from "@/lib/env-check";
 import { photoModel } from "./photo";
+import { AiUnavailableError, isUnavailableResponse } from "./provider-failure";
+import { reportAiUnavailable } from "./provider-failure-report";
 
 // Google の Gemini API で画像を 1 枚作る（docs/architecture.md の 4.25 の ②）。
 // 2026-11-02 の公式の案内（ai.google.dev/gemini-api/docs/image-generation）の Interactions API を、SDK を足さずに fetch で呼ぶ。
@@ -60,6 +62,12 @@ export const generateWithGemini: GenerateImage = async ({ prompt, aspectRatio })
     // 400 で安全の決まりに当たったときも、ここに来る。中身（指示文）はログに出さない
     const msg = json?.errors?.[0]?.message ?? (json as { error?: { message?: string } } | null)?.error?.message ?? "";
     if (/safety|blocked|policy|prohibited/i.test(msg)) throw new ImageBlockedError(msg);
+    // 402（支払いの準備ができていない）・403（API が有効でない・鍵の制限）・401（鍵が違う）は、時間をおいても直らない。運営者に知らせる
+    if (isUnavailableResponse("gemini", res.status)) {
+      const err = new AiUnavailableError("gemini", res.status);
+      await reportAiUnavailable(err);
+      throw err;
+    }
     throw new Error(`Gemini API ${res.status}`);
   }
   const image = extractImage(json);

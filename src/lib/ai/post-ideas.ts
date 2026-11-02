@@ -15,6 +15,7 @@ import { estimateCostUsd } from "./pricing";
 import { actionFromLegacyGoal, type ProductType } from "@/lib/projects/product-types";
 import { guideFor, productLines, productTypeOf, usesDevTalk } from "./product-guide";
 import { LENGTH_RULES, shortenOverDrafts, type CallShorten } from "./shorten";
+import { aiFailureMessage } from "./provider-failure";
 
 // 投稿のネタを AI が出す（要求 F04 の一部。docs/architecture.md の 4.15）。材料は 3 つから選ぶ
 // - commits: 最近のコミット（GitHub をつないだ人）。メッセージ・変えたファイル・差分を読む
@@ -468,7 +469,7 @@ export async function generatePostIdeas(
     result = await deps.callIdeas(req);
   } catch (e) {
     console.error("[post-ideas] AI の呼び出しに失敗しました", e instanceof Error ? e.message : e);
-    return { ok: false, message: AI_ERROR };
+    return { ok: false, message: aiFailureMessage(e, AI_ERROR) };
   }
   const first = result.stopReason === "end_turn" ? normalizeIdeas(result.output, { knownShas, sns, noteCount: notes.length, hashtags: planTags(ctx.plan) }) : null;
   const shortened = first ? await shortenIdeas(deps.callShorten, first, planTags(ctx.plan)) : null;
@@ -561,7 +562,7 @@ export async function refinePostIdeas(
     result = await deps.callIdeas(buildRefineIdeasRequest(ctx, thread.latest.content, answers, thread.request.news, thread.request.notes));
   } catch (e) {
     console.error("[post-ideas] 出し直しに失敗しました", e instanceof Error ? e.message : e);
-    return { ok: false, message: AI_ERROR };
+    return { ok: false, message: aiFailureMessage(e, AI_ERROR) };
   }
   await recordUsage(admin, args.userId, args.threadId, result);
   const knownShas = [...new Set(thread.latest.content.ideas.flatMap((i) => i.commits.map((c) => c.sha)))];

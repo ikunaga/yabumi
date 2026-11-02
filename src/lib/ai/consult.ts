@@ -19,6 +19,7 @@ import { estimateCostUsd } from "./pricing";
 import { productTypeOf } from "./product-guide";
 import type { ModelOutput } from "./app-description";
 import { shortenOverDrafts, type CallShorten } from "./shorten";
+import { aiFailureMessage } from "./provider-failure";
 
 // AI と相談（F09、docs/architecture.md の 4.23）の会話の 1 往復。作りはアカウント設計の相棒（plan-coach.ts、4.9）と同じ。
 // AI の呼び出しは callModel として外から渡す（テストではモックし、本物の API は呼ばない）
@@ -415,7 +416,7 @@ export async function consultStep(
     result = await deps.callModel(request);
   } catch (e) {
     console.error("[consult] AI の呼び出しに失敗しました", e instanceof Error ? e.message : e);
-    return fail(GENERIC_ERROR);
+    return fail(aiFailureMessage(e, GENERIC_ERROR));
   }
   // 使った分は、返事が使えなくても記録する（上限の計算に入れる）
   await recordUsage(result);

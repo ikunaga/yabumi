@@ -14,6 +14,8 @@ import type { CallPhotoIdeas } from "./photo-gen";
 import { shortenSchema, type CallShorten } from "./shorten";
 import { tidyDraftSchema, type CallTidy } from "./tidy-draft";
 import { PLAN_COACH_MODEL, type CallModel } from "./plan-coach";
+import { AiUnavailableError, isUnavailableResponse } from "./provider-failure";
+import { reportAiUnavailable } from "./provider-failure-report";
 
 // Claude API のキー（ANTHROPIC_API_KEY）があるときだけ AI を使える。ないときは画面で「準備中」と出す
 export function aiConfigured(): boolean {
@@ -21,9 +23,29 @@ export function aiConfigured(): boolean {
 }
 
 let client: Anthropic | null = null;
-function anthropic() {
+function anthropicClient() {
   client ??= new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, maxRetries: 2, timeout: 120_000 });
   return client;
+}
+
+// 支払い・鍵の問題（401・402・403、残高が足りないときの 400）は、時間をおいても直らない。運営者に知らせて AiUnavailableError にする。
+// それ以外の失敗は、そのまま投げる（呼ぶ側で「時間をおいて」と出す）
+export async function guardUnavailable<T>(call: () => Promise<T>, report = reportAiUnavailable): Promise<T> {
+  try {
+    return await call();
+  } catch (e) {
+    if (e instanceof Anthropic.APIError && typeof e.status === "number" && isUnavailableResponse("anthropic", e.status, e.message)) {
+      const err = new AiUnavailableError("anthropic", e.status);
+      await report(err);
+      throw err;
+    }
+    throw e;
+  }
+}
+
+function anthropic() {
+  const c = anthropicClient();
+  return { beta: { messages: { parse: ((params: Parameters<typeof c.beta.messages.parse>[0]) => guardUnavailable(() => c.beta.messages.parse(params))) as typeof c.beta.messages.parse } } };
 }
 
 // アカウント設計の相棒を呼ぶ。返事は構造化出力で coachTurnSchema の形に固定する。

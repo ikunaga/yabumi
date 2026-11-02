@@ -9,6 +9,7 @@ import { checkContextText, type CheckContext } from "./ai-check";
 import { checkAiLimits, type AiLimits } from "./limits";
 import type { BetaMessageParam, BetaTextBlockParam } from "./plan-coach";
 import { estimateCostUsd } from "./pricing";
+import { aiFailureMessage } from "./provider-failure";
 
 // 画像の文字の案（F14 の段取り ①。docs/architecture.md の 4.25）。
 // 投稿の文面とアカウント設計から、テンプレートに入れる見出し・補足・図解の項目を AI が下書きする（代わりの文は、描いた文字から画面で作る）。
@@ -128,7 +129,7 @@ export async function runImageBrief(
     r = await deps.callBrief(buildImageBriefRequest({ projectName: project.name, plan: normalizePlan(planRow?.data, project.target_audience ?? ""), productType: productTypeOf(project.product_type) }, text));
   } catch (e) {
     console.error("[image-brief] AI の呼び出しに失敗しました", e instanceof Error ? e.message : e);
-    return { ok: false, message: "AI とのやりとりがうまくいきませんでした。時間をおいてもう一度お試しください。文字は手で書くこともできます。" };
+    return { ok: false, message: aiFailureMessage(e, "AI とのやりとりがうまくいきませんでした。時間をおいてもう一度お試しください。") + "文字は手で書くこともできます。" };
   }
   await admin.from("ai_usage").insert({
     owner_id: args.userId,

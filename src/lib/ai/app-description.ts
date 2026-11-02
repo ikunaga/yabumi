@@ -7,6 +7,7 @@ import type { Database } from "@/lib/supabase/database.types";
 import { checkAiLimits, type AiLimits } from "./limits";
 import type { BetaMessageParam, BetaTextBlockParam } from "./plan-coach";
 import { estimateCostUsd, type TokenUsage } from "./pricing";
+import { aiFailureMessage } from "./provider-failure";
 
 // GitHub のリポジトリから、開発しているもの（アプリ・Web のサービス）の紹介文を AI が下書きする（要求 F16、決定 D14。docs/architecture.md の 4.10）
 // ① ファイル一覧から、読むファイルを AI が選ぶ → ② それを読んで紹介文を書く。わからないところは、利用者への質問にする
@@ -256,7 +257,7 @@ export async function draftAppDescription(
     result = await deps.callDescriber(buildAppDescriptionRequest(project.name, link.fullName, files, candidates));
   } catch (e) {
     console.error("[app-description] AI の呼び出しに失敗しました", e instanceof Error ? e.message : e);
-    return { ok: false, message: "AI とのやりとりがうまくいきませんでした。時間をおいてもう一度お試しください。" };
+    return { ok: false, message: aiFailureMessage(e, "AI とのやりとりがうまくいきませんでした。時間をおいてもう一度お試しください。") };
   }
   await recordUsage(admin, args.userId, result);
   await admin.from("project_github_repos").update({ last_read_at: now.toISOString() }).eq("project_id", args.projectId);
@@ -286,7 +287,7 @@ export async function refineAppDescription(
     result = await deps.callDescriber(buildRefineRequest(project.name, args.draft, answers));
   } catch (e) {
     console.error("[app-description] 書き直しに失敗しました", e instanceof Error ? e.message : e);
-    return { ok: false, message: "AI とのやりとりがうまくいきませんでした。時間をおいてもう一度お試しください。" };
+    return { ok: false, message: aiFailureMessage(e, "AI とのやりとりがうまくいきませんでした。時間をおいてもう一度お試しください。") };
   }
   await recordUsage(admin, args.userId, result);
   const draft = result.stopReason === "end_turn" ? normalizeDraft(result.output) : null;

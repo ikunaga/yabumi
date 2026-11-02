@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { sharedText } from "@/lib/notes/rules";
-import { mergeShared, readDraft, writeDraft } from "@/lib/notes/draft";
+import { mergeShared, readDraft, writeDraft, writePendingDraft } from "@/lib/notes/draft";
 import { SHARE_CACHE, SHARE_CACHE_IMAGE, SHARE_CACHE_TEXT, textFromHash, type SharedPayload } from "@/lib/notes/share";
 import { NoteForm } from "./note-form";
 
@@ -26,7 +26,7 @@ export function ShareStash() {
     const text = window.location.hash ? textFromHash(window.location.hash) : "";
     if (text) {
       const draft = readDraft();
-      writeDraft(mergeShared(draft?.body ?? "", text), draft?.projectId ?? null);
+      writePendingDraft(mergeShared(draft?.body ?? "", text));
     }
     window.location.replace("/login?next=/share");
   }, []);

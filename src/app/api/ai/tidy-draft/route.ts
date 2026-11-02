@@ -3,6 +3,7 @@ import { z } from "zod";
 import { aiConfigured, callShortenDrafts, callTidyDraft } from "@/lib/ai/anthropic";
 import { aiLimitsFromEnv } from "@/lib/ai/limits";
 import { MAX_TIDY_CHARS, runTidyDraft } from "@/lib/ai/tidy-draft";
+import { parseDirection } from "@/lib/ai/tidy-direction";
 import type { TidyOption } from "@/lib/ai/tidy-draft-apply";
 import { isSameOriginJson } from "@/lib/http/same-origin";
 import { SNS_KEYS, type SnsKey } from "@/lib/sns";
@@ -13,6 +14,8 @@ const inputSchema = z.object({
   projectId: z.uuid(),
   text: z.string().max(MAX_TIDY_CHARS * 2),
   sns: z.array(z.enum(SNS_KEYS as [SnsKey, ...SnsKey[]])).max(SNS_KEYS.length),
+  // 整え方（形が合わない項目は「おまかせ」にする。ほかに一言は 100 字まで）
+  direction: z.unknown().optional(),
 });
 
 export type TidyDraftResponse = { error?: string; options?: TidyOption[] };
@@ -37,7 +40,7 @@ export async function POST(req: Request) {
       supabase,
       createAdminClient(),
       { callTidy: callTidyDraft, callShorten: callShortenDrafts, limits: aiLimitsFromEnv() },
-      { userId, projectId: t.data.projectId, text: t.data.text, sns: t.data.sns },
+      { userId, projectId: t.data.projectId, text: t.data.text, sns: t.data.sns, direction: parseDirection(t.data.direction) },
     );
     return reply(r.ok ? { options: r.options } : { error: r.message });
   } catch (e) {

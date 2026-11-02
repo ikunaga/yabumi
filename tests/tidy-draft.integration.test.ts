@@ -46,6 +46,20 @@ describe("AI で投稿に整える", () => {
     expect(await purposes()).toEqual([{ purpose: "tidy_draft", thread_id: null }]);
   });
 
+  it("選んだ整え方を、AI への材料に入れる（形が合わない項目は受け取ったところでおまかせにしてある）", async () => {
+    const call = caller(good);
+    const r = await runTidyDraft(
+      alice,
+      admin,
+      { callTidy: call, limits: roomy },
+      { userId: aliceId, projectId, text, sns: ["x"], direction: { tone: "calm", length: "short", aim: "empathy", emoji: "some", note: "専門用語を使わないで" } },
+    );
+    expect(r.ok).toBe(true);
+    const sent = JSON.stringify(vi.mocked(call).mock.calls[0][0].messages);
+    expect(sent).toContain("落ち着いた口調");
+    expect(sent).toContain("専門用語を使わないで");
+  });
+
   it("上限を超えた案は 1 回縮めさせ、その分も tidy_draft として数える", async () => {
     const before = (await purposes()).length;
     const long = { options: [{ label: "a", why: "", drafts: [{ sns: "x", text: "あ".repeat(160) }] }] };

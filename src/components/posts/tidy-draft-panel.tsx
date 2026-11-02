@@ -1,12 +1,25 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
 import { Button, NotReadyButton } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { HelpTip } from "@/components/ui/help";
+import { chipClass } from "@/components/ui/chip";
 import type { TidyDraftResponse } from "@/app/api/ai/tidy-draft/route";
 import { adoptTidyOption, tidyMainSns, type TidyOption } from "@/lib/ai/tidy-draft-apply";
+import {
+  DEFAULT_DIRECTION,
+  directionSummary,
+  isDefaultDirection,
+  MAX_DIRECTION_NOTE,
+  parseDirection,
+  TIDY_AIMS,
+  TIDY_EMOJIS,
+  TIDY_LENGTHS,
+  TIDY_TONES,
+  type TidyDirection,
+} from "@/lib/ai/tidy-direction";
 import { isOnline } from "@/lib/client-errors";
 import { displayLength, isManualSns, SNS, type SnsKey } from "@/lib/sns";
 
@@ -35,6 +48,13 @@ export const TIDY_WAIT = "20〜40 秒ほど";
 // 案はカードの中でそのまま直せ、選ぶと本文と SNS ごとの文面に入る（入れたあとも直せる）。「元に戻す」で整える前の文に戻せる
 export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace, onShowBody, onEditOverride, onAdoptedChange }: Props) {
   const [options, setOptions] = useState<TidyOption[] | null>(null);
+  // 整え方。このプロジェクトで前に選んだものを、この端末に覚えておいて次も同じから始める（サーバーには保存しない）
+  const storageKey = `yabumi:tidy-direction:${projectId}`;
+  const stored = useSyncExternalStore(noopSubscribe, () => readStored(storageKey), () => null);
+  const [picked, setPicked] = useState<TidyDirection | null>(null);
+  const direction = picked ?? (stored ? parseDirection(safeJson(stored)) : DEFAULT_DIRECTION);
+  const [directionOpen, setDirectionOpen] = useState(false);
+  const summary = directionSummary(direction);
   // 整える前の文（案を使ったときに覚え、「元に戻す」で戻す）
   const [original, setOriginal] = useState<Composer | null>(null);
   const [adopted, setAdopted] = useState<{ index: number; main: SnsKey | null; split: SnsKey[] } | null>(null);
@@ -68,7 +88,7 @@ export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace, 
       const res = await fetch("/api/ai/tidy-draft", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId, text: source, sns }),
+        body: JSON.stringify({ projectId, text: source, sns, direction }),
         signal: controller.signal,
       });
       const body = (await res.json().catch(() => ({}))) as TidyDraftResponse;
@@ -89,6 +109,16 @@ export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace, 
         abort.current = null;
         setStartedAt(null);
       }
+    }
+  }
+
+  function chooseDirection(next: TidyDirection) {
+    setPicked(next);
+    try {
+      if (isDefaultDirection(next)) window.localStorage.removeItem(storageKey);
+      else window.localStorage.setItem(storageKey, JSON.stringify(next));
+    } catch {
+      // 覚えられない端末（プライベートの窓など）では、この画面の間だけ
     }
   }
 
@@ -154,11 +184,29 @@ export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace, 
             AI で投稿に整える
           </NotReadyButton>
         )}
+        {aiEnabled && (
+          <button
+            type="button"
+            aria-expanded={directionOpen}
+            aria-controls="tidy-direction"
+            onClick={() => setDirectionOpen((o) => !o)}
+            className="text-left text-[13px] font-semibold text-fg underline-offset-2 hover:underline"
+          >
+            {summary ? `整え方: ${summary}` : "整え方を選ぶ"}
+            <span aria-hidden className={`ml-1 inline-block text-[10px] text-muted transition-transform ${directionOpen ? "rotate-180" : ""}`}>
+              ▼
+            </span>
+          </button>
+        )}
         <span className="text-xs text-muted">{!hasText ? "本文を話すか書くと押せます" : !hasSns ? "送り先の SNS（note・Substack 以外）を選ぶと押せます" : "1 回 5〜15 円ほど"}</span>
         <HelpTip label="AI で投稿に整える">
-          話した言葉や思いつくままに書いた文から、言いたいことを 1 つに絞り、選んだ SNS ごとの字数に収めた案を 2〜3 個出します。最初の 1 行で引きつける・問いかけで終えるなど、形の違う案から選べます。案はその場で直してから使えます。あなたが言っていないこと（数字・できごと・感想）は足しません。口調とやらないこと、ハッシュタグはアカウント設計に合わせます。AI はいまはやっている言葉や話題を知らない（その時々のデータを見ていない）ので、はやりには合わせません。1 回 5〜15 円ほどかかります。
+          話した言葉や思いつくままに書いた文から、言いたいことを 1 つに絞り、選んだ SNS ごとの字数に収めた案を 2〜3 個出します。最初の 1 行で引きつける・問いかけで終えるなど、形の違う案から選べます。案はその場で直してから使えます。あなたが言っていないこと（数字・できごと・感想）は足しません。口調とやらないこと、ハッシュタグはアカウント設計に合わせます（口調・長さ・ねらい・絵文字は「整え方を選ぶ」で変えられます。やらないことはどの整え方でも守ります）。AI はいまはやっている言葉や話題を知らない（その時々のデータを見ていない）ので、はやりには合わせません。1 回 5〜15 円ほどかかります。
         </HelpTip>
       </div>
+
+      {aiEnabled && directionOpen && !collapsed && (
+        <DirectionPicker value={direction} onChange={chooseDirection} onClose={() => setDirectionOpen(false)} />
+      )}
 
       {error && <ErrorBanner>{error}</ErrorBanner>}
 
@@ -244,6 +292,104 @@ export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace, 
 }
 
 const linkClass = "font-semibold text-primary underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:text-faint";
+
+const noopSubscribe = () => () => {};
+
+function readStored(key: string): string | null {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeJson(raw: string): unknown {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+// 整え方を選ぶ欄。口調・長さ・ねらい・絵文字は選んだものの説明を 1 行で、ほかに一言は 100 字まで
+function DirectionPicker({ value, onChange, onClose }: { value: TidyDirection; onChange: (next: TidyDirection) => void; onClose: () => void }) {
+  const noteId = useId();
+  return (
+    <div id="tidy-direction" className="flex flex-col gap-3.5 rounded-lg border border-line bg-surface2 px-4 py-3.5">
+      <ChoiceRow label="口調" list={TIDY_TONES} value={value.tone} onChange={(tone) => onChange({ ...value, tone })} />
+      <ChoiceRow label="長さ" list={TIDY_LENGTHS} value={value.length} onChange={(length) => onChange({ ...value, length })} />
+      <ChoiceRow label="ねらい" list={TIDY_AIMS} value={value.aim} onChange={(aim) => onChange({ ...value, aim })} />
+      <ChoiceRow label="絵文字" list={TIDY_EMOJIS} value={value.emoji} onChange={(emoji) => onChange({ ...value, emoji })} />
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-baseline justify-between gap-2">
+          <label htmlFor={noteId} className="text-[13px] font-bold">
+            ほかに一言<span className="ml-1 font-normal text-muted">（なくてもよい）</span>
+          </label>
+          <span className="num text-xs text-faint">
+            {[...value.note].length}/{MAX_DIRECTION_NOTE}
+          </span>
+        </div>
+        <input
+          id={noteId}
+          value={value.note}
+          maxLength={MAX_DIRECTION_NOTE}
+          onChange={(e) => onChange({ ...value, note: e.target.value })}
+          placeholder="例: 季節感を出して／専門用語を使わないで"
+          className="h-9 w-full rounded-md border border-input bg-surface px-3 text-sm outline-none focus:border-primary focus:shadow-[0_0_0_1px_var(--primary)] max-sm:text-[16px]"
+        />
+      </div>
+      <p className="text-xs leading-[1.7] text-muted">
+        どの整え方でも、書いていないことは足さず、設計の「やらないこと」は守ります。選んだものはこの端末に覚え、次もここから始まります。
+      </p>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px]">
+        {!isDefaultDirection(value) && (
+          <button type="button" onClick={() => onChange(DEFAULT_DIRECTION)} className="font-semibold text-muted underline-offset-2 hover:text-fg hover:underline">
+            設計どおりに戻す
+          </button>
+        )}
+        <button type="button" onClick={onClose} className="font-semibold text-fg underline-offset-2 hover:underline">
+          閉じる
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ChoiceRow<K extends string>({
+  label,
+  list,
+  value,
+  onChange,
+}: {
+  label: string;
+  list: readonly { key: K; label: string; hint: string }[];
+  value: K;
+  onChange: (key: K) => void;
+}) {
+  const id = useId();
+  const current = list.find((c) => c.key === value);
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span id={id} className="text-[13px] font-bold">
+        {label}
+      </span>
+      <div role="group" aria-labelledby={id} className="flex flex-wrap gap-1.5">
+        {list.map((c) => (
+          <button
+            key={c.key}
+            type="button"
+            aria-pressed={c.key === value}
+            onClick={() => onChange(c.key)}
+            className={chipClass({ on: c.key === value })}
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
+      {current && <span className="text-xs text-muted">{current.hint}</span>}
+    </div>
+  );
+}
 
 // 案の文面。使う前はその場で直せ、直すたびに字数を数える
 function DraftEditor({

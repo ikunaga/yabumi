@@ -10,7 +10,7 @@ import { formatShort } from "@/lib/time";
 import type { WeekPace } from "@/lib/coach/pace";
 import { WeekSlotsCard } from "./week-slots-card";
 
-// カレンダーの右の列（見本 C の右）。今週の空き枠・SNS ごとの本数・次の予約（数字の段 4。時間帯の傾向は左の列のマス目の下。DL・相関は出さない）
+// カレンダーの右の列（見本 C の右）。今週の投稿のあと何本・SNS ごとの本数・次の予約（数字の段 4。時間帯の傾向は左の列のマス目の下。DL・相関は出さない）
 export function CalendarSide({ stats, month, upcoming, base, week }: { stats: CalendarStats; month: number; upcoming: PostRow[]; base: string; week: WeekPace | null }) {
   const max = Math.max(0, ...stats.bySns.map((s) => s.count));
   return (

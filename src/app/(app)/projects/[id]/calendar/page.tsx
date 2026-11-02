@@ -171,7 +171,7 @@ function StatCards({ stats, month }: { stats: CalendarStats; month: number }) {
   );
 }
 
-// 右の列の今週の空き枠（伴走と同じ計算。週の回数を決めていなければ null）と、時間帯の傾向
+// 右の列の今週の投稿のあと何本（伴走と同じ計算。週の回数を決めていなければ null）と、時間帯の傾向
 async function loadSide(projectId: string) {
   const supabase = await createClient();
   const [coach, trends] = await Promise.all([loadCoachView(supabase, projectId), loadTimeTrends(projectId, supabase)]);

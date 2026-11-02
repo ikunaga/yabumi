@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Button, NotReadyButton } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { Input, Textarea } from "@/components/ui/field";
@@ -17,6 +17,8 @@ import {
   FONT_LABEL,
   MAX_ITEMS,
   PALETTES,
+  PHOTO_FITS,
+  PHOTO_FIT_LABEL,
   TEMPLATE_KINDS,
   TEMPLATE_KIND_HINT,
   TEMPLATE_KIND_LABEL,
@@ -27,12 +29,16 @@ import {
   templateReady,
   type DiagramStyle,
   type FontKey,
+  type PhotoFit,
   type TemplateInput,
   type TemplateItem,
   type TemplateKind,
   type TemplateSizeKey,
 } from "@/lib/media/templates";
 import type { SnsKey } from "@/lib/sns";
+import { Choice, Group } from "./maker-parts";
+import { AiBadge } from "./ai-badge";
+import { PhotoMaker, type PickedPhoto } from "./photo-maker";
 
 export type ImageMakerProps = {
   projectId: string;
@@ -42,7 +48,8 @@ export type ImageMakerProps = {
   text: string;
   // いま選んでいる送り先（縦横比の既定を決める）
   targets: SnsKey[];
-  onAdd: (jpeg: Blob, altText: string) => Promise<boolean>;
+  // ai: AI で作った画像から作ったとき（サーバーが確かめて AI の印を付ける）
+  onAdd: (jpeg: Blob, altText: string, ai?: { jobId: string; source: "generated" | "composite" }) => Promise<boolean>;
   onClose: () => void;
 };
 
@@ -56,29 +63,6 @@ function loadSaved(projectId: string): Saved | null {
   } catch {
     return null;
   }
-}
-
-function Choice({ on, onClick, children, className = "" }: { on: boolean; onClick: () => void; children: ReactNode; className?: string }) {
-  return (
-    <button
-      type="button"
-      aria-pressed={on}
-      onClick={onClick}
-      className={`rounded-md border px-3 py-1.5 text-sm transition-colors ${on ? "border-primary bg-primary-soft font-bold text-primary" : "border-border bg-surface text-fg hover:border-primary"} ${className}`}
-    >
-      {children}
-    </button>
-  );
-}
-
-function Group({ label, children, hint }: { label: string; children: ReactNode; hint?: ReactNode }) {
-  return (
-    <fieldset className="flex min-w-0 flex-col gap-1.5">
-      <legend className="mb-1.5 text-[14px] font-bold">{label}</legend>
-      <div className="flex flex-wrap gap-2">{children}</div>
-      {hint && <p className="text-xs leading-[1.7] text-muted">{hint}</p>}
-    </fieldset>
-  );
 }
 
 // テンプレートで画像をつくる（F14 の段取り ①。docs/architecture.md の 4.25）。
@@ -103,7 +87,10 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
     { title: "", text: "" },
     { title: "", text: "" },
   ]);
-  const [shot, setShot] = useState<{ bitmap: ImageBitmap; name: string } | null>(null);
+  const [mode, setMode] = useState<"template" | "photo">("template");
+  // aiJobId: 写真が AI で作ったものなら、その記録の ID（添えるときに AI の印を付ける）
+  const [shot, setShot] = useState<{ bitmap: ImageBitmap; name: string; aiJobId?: string } | null>(null);
+  const [photoFit, setPhotoFit] = useState<PhotoFit>("frame");
   const [alt, setAlt] = useState("");
   const [altTouched, setAltTouched] = useState(false);
   const [brief, setBrief] = useState<ImageBrief | null>(null);
@@ -138,6 +125,7 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
     diagramStyle,
     items,
     screenshot: shot ? { w: shot.bitmap.width, h: shot.bitmap.height } : null,
+    photoFit,
   };
   const notReady = templateReady(input);
   const altText = altTouched ? alt : autoAlt(input);
@@ -161,7 +149,7 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
       .catch(() => seq === drawSeq.current && setRenderError(true));
     // input は inputKey にまとめて見ている
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inputKey]);
+  }, [inputKey, mode]);
 
   function applyBrief(b: ImageBrief) {
     setBrief(b);
@@ -204,12 +192,32 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
     setError(null);
     try {
       const jpeg = await canvasToJpeg(canvas);
-      if (await onAdd(jpeg, altText.slice(0, MAX_ALT_LENGTH))) onClose();
+      const ai = kind === "screen" && shot?.aiJobId ? { jobId: shot.aiJobId, source: "composite" as const } : undefined;
+      if (await onAdd(jpeg, altText.slice(0, MAX_ALT_LENGTH), ai)) onClose();
     } catch {
       setError("画像を作れませんでした。もう一度お試しください。");
     } finally {
       setAdding(false);
     }
+  }
+
+  // AI で作った写真を、そのまま添える（その大きさのまま JPEG にする）
+  async function addPhotoAsIs(photo: PickedPhoto, altText: string) {
+    const c = document.createElement("canvas");
+    c.width = photo.bitmap.width;
+    c.height = photo.bitmap.height;
+    c.getContext("2d")?.drawImage(photo.bitmap, 0, 0);
+    photo.bitmap.close();
+    const jpeg = await canvasToJpeg(c);
+    if (await onAdd(jpeg, altText, { jobId: photo.jobId, source: "generated" })) onClose();
+  }
+
+  // AI で作った写真を「写真に見出し」に敷く
+  function usePhotoInTemplate(photo: PickedPhoto) {
+    setShot({ bitmap: photo.bitmap, name: `ai:${photo.jobId}:${photo.bitmap.width}`, aiJobId: photo.jobId });
+    setKind("screen");
+    setPhotoFit("cover");
+    setMode("template");
   }
 
   const tall = kind !== "note" && size !== "landscape";
@@ -221,214 +229,250 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
         <h3 id="image-maker-heading" className="text-[15px] font-bold">
           画像をつくる
         </h3>
-        <span className="text-xs text-muted">テンプレートに文字を入れて作ります。画像の費用はかかりません</span>
+        <span className="text-xs text-muted">{mode === "template" ? "テンプレートに文字を入れて作ります。画像の費用はかかりません" : "絵の説明から、AI が写真や絵をつくります（1 枚 5 円ほど）"}</span>
         <Button type="button" variant="text" size="sm" className="ml-auto" onClick={onClose}>
           やめる
         </Button>
       </div>
 
-      <div className="flex flex-col gap-2 rounded-md bg-surface2 px-3.5 py-3 text-sm">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          {aiEnabled ? (
-            <Button type="button" variant="secondary" size="sm" disabled={drafting || !hasText} onClick={draft}>
-              {drafting ? "考えています…" : brief ? "別の案を出してもらう" : "AI に文字の案を出してもらう"}
-            </Button>
-          ) : (
-            <NotReadyButton variant="secondary" size="sm">
-              AI に文字の案を出してもらう
-            </NotReadyButton>
-          )}
-          <span className="text-xs text-muted">{hasText ? "本文とアカウント設計から考えます（1 回 2 円ほど）" : "本文を書くと、AI が画像の文字を考えます"}</span>
-        </div>
-        {brief && (
-          <p className="leading-[1.7]">
-            <span className="mr-2 rounded-full bg-primary-soft px-2 py-0.5 text-xs font-bold text-primary">AI のおすすめ</span>
-            {TEMPLATE_KIND_LABEL[brief.recommend]}。{brief.reason}
-          </p>
-        )}
+      <div role="group" aria-label="つくり方" className="flex flex-wrap gap-2">
+        <Choice on={mode === "template"} onClick={() => setMode("template")}>
+          テンプレート
+        </Choice>
+        <Choice on={mode === "photo"} onClick={() => setMode("photo")}>
+          AI で写真・絵をつくる
+        </Choice>
       </div>
 
-      {error && <ErrorBanner>{error}</ErrorBanner>}
-
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <div className="flex min-w-0 flex-col gap-2 lg:sticky lg:top-[72px] lg:self-start lg:order-2">
-          <div className="rounded-md border border-line bg-surface2 p-2">
-            <canvas ref={canvasRef} aria-label="できあがりの見本" role="img" className={`mx-auto block h-auto w-full ${tall ? "max-w-[360px]" : ""}`} />
-          </div>
-          {renderError && <p className="text-xs text-danger">見本を描けませんでした。ページを読み込み直してください。</p>}
-        </div>
-
-        <div className="flex min-w-0 flex-col gap-4 lg:order-1">
-          <Group label="種類" hint={TEMPLATE_KIND_HINT[kind]}>
-            {TEMPLATE_KINDS.map((k) => (
-              <Choice key={k} on={kind === k} onClick={() => setKind(k)}>
-                {TEMPLATE_KIND_LABEL[k]}
-              </Choice>
-            ))}
-          </Group>
-
-          {kind !== "note" && (
-            <Group label="縦横" hint={size === suggested.size ? `おすすめ: ${suggested.reason}` : "どれも Instagram に送れる比率です"}>
-              {(Object.keys(TEMPLATE_SIZES) as TemplateSizeKey[]).map((s) => (
-                <Choice key={s} on={size === s} onClick={() => setSize(s)}>
-                  {TEMPLATE_SIZES[s].label}
-                </Choice>
-              ))}
-            </Group>
-          )}
-
-          {kind === "screen" && (
-            <div className="flex flex-col gap-1.5">
-              <span className="text-[14px] font-bold">写真</span>
-              <div className="flex flex-wrap items-center gap-2">
-                <input ref={fileRef} type="file" accept="image/*" className="sr-only" onChange={(e) => void pickShot(e.target.files?.[0]).finally(() => (e.target.value = ""))} />
-                <Button type="button" variant="secondary" size="sm" onClick={() => fileRef.current?.click()}>
-                  {shot ? "写真を選び直す" : "写真を選ぶ"}
+      {mode === "photo" ? (
+        <>
+          {error && <ErrorBanner>{error}</ErrorBanner>}
+          <PhotoMaker projectId={projectId} text={text} size={size} onSize={setSize} onUseAsIs={addPhotoAsIs} onUseInTemplate={usePhotoInTemplate} />
+        </>
+      ) : (
+        <>
+          <div className="flex flex-col gap-2 rounded-md bg-surface2 px-3.5 py-3 text-sm">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              {aiEnabled ? (
+                <Button type="button" variant="secondary" size="sm" disabled={drafting || !hasText} onClick={draft}>
+                  {drafting ? "考えています…" : brief ? "別の案を出してもらう" : "AI に文字の案を出してもらう"}
                 </Button>
-                {shot && <span className="text-xs text-muted">{shot.bitmap.width}×{shot.bitmap.height}</span>}
-              </div>
-              <p className="text-xs leading-[1.7] text-muted">写真（商品・お店・アプリの画面など）は、この画面の中で重ねるだけで、AI には送りません。本物の写真を使ってください。</p>
+              ) : (
+                <NotReadyButton variant="secondary" size="sm">
+                  AI に文字の案を出してもらう
+                </NotReadyButton>
+              )}
+              <span className="text-xs text-muted">{hasText ? "本文とアカウント設計から考えます（1 回 2 円ほど）" : "本文を書くと、AI が画像の文字を考えます"}</span>
             </div>
-          )}
+            {brief && (
+              <p className="leading-[1.7]">
+                <span className="mr-2 rounded-full bg-primary-soft px-2 py-0.5 text-xs font-bold text-primary">AI のおすすめ</span>
+                {TEMPLATE_KIND_LABEL[brief.recommend]}。{brief.reason}
+              </p>
+            )}
+          </div>
 
-          <label className="flex flex-col gap-1.5">
-            <span className="text-[14px] font-bold">
-              ラベル<span className="ml-1.5 text-xs font-normal text-muted">任意。例: 新機能、お知らせ</span>
-            </span>
-            <Input value={label} maxLength={12} onChange={(e) => setLabel(e.target.value)} className="py-2" />
-          </label>
+          {error && <ErrorBanner>{error}</ErrorBanner>}
 
-          {kind === "diagram" ? (
-            <>
-              <label className="flex flex-col gap-1.5">
-                <span className="text-[14px] font-bold">図解のタイトル</span>
-                <Input value={diagramTitle} maxLength={40} onChange={(e) => setDiagramTitle(e.target.value)} className="py-2" />
-              </label>
-              <Group label="並べ方">
-                {DIAGRAM_STYLES.map((s) => (
-                  <Choice key={s} on={diagramStyle === s} onClick={() => setDiagramStyle(s)}>
-                    {DIAGRAM_STYLE_LABEL[s]}
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+            <div className="flex min-w-0 flex-col gap-2 lg:sticky lg:top-[72px] lg:self-start lg:order-2">
+              <div className="rounded-md border border-line bg-surface2 p-2">
+                <canvas ref={canvasRef} aria-label="できあがりの見本" role="img" className={`mx-auto block h-auto w-full ${tall ? "max-w-[360px]" : ""}`} />
+              </div>
+              {kind === "screen" && shot?.aiJobId && (
+                <p className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                  <AiBadge />
+                  添えると、AI で作った画像の印が付きます
+                </p>
+              )}
+              {renderError && <p className="text-xs text-danger">見本を描けませんでした。ページを読み込み直してください。</p>}
+            </div>
+
+            <div className="flex min-w-0 flex-col gap-4 lg:order-1">
+              <Group label="種類" hint={TEMPLATE_KIND_HINT[kind]}>
+                {TEMPLATE_KINDS.map((k) => (
+                  <Choice key={k} on={kind === k} onClick={() => setKind(k)}>
+                    {TEMPLATE_KIND_LABEL[k]}
                   </Choice>
                 ))}
               </Group>
-              <ol className="flex flex-col gap-2.5">
-                {(diagramStyle === "compare" ? items.slice(0, 2) : items).map((it, i) => (
-                  <li key={i} className="flex flex-col gap-1.5 rounded-md border border-line p-2.5">
-                    <div className="flex items-center gap-2 text-xs font-bold">
-                      {diagramStyle === "compare" ? (i === 0 ? "前" : "後") : `${i + 1} つ目`}
-                      {diagramStyle !== "compare" && items.length > 1 && (
-                        <button type="button" className="ml-auto font-normal text-muted hover:text-fg hover:underline" onClick={() => setItems((xs) => xs.filter((_, j) => j !== i))}>
-                          外す
-                        </button>
-                      )}
-                    </div>
-                    <Input aria-label={`${i + 1} つ目の見出し`} placeholder="見出し（14 字まで）" value={it.title} maxLength={24} onChange={(e) => setItems((xs) => xs.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)))} className="py-2" />
-                    <Input aria-label={`${i + 1} つ目の説明`} placeholder="説明（36 字まで）" value={it.text} maxLength={60} onChange={(e) => setItems((xs) => xs.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)))} className="py-2" />
-                  </li>
-                ))}
-              </ol>
-              {diagramStyle === "compare" && items.length < 2 && (
-                <Button type="button" variant="text" size="sm" className="self-start" onClick={() => setItems((xs) => [...xs, { title: "", text: "" }])}>
-                  ＋ 後を足す
-                </Button>
-              )}
-              {diagramStyle !== "compare" && items.length < MAX_ITEMS && (
-                <Button type="button" variant="text" size="sm" className="self-start" onClick={() => setItems((xs) => [...xs, { title: "", text: "" }])}>
-                  ＋ 項目を足す
-                </Button>
-              )}
-            </>
-          ) : (
-            <>
-              <label className="flex flex-col gap-1.5">
-                <span className="text-[14px] font-bold">見出し</span>
-                <Textarea value={headline} rows={2} maxLength={40} onChange={(e) => setHeadline(e.target.value)} className="py-2" />
-                <span className="text-xs text-muted">22 字くらいまでが、ひと目で読めます。改行も使えます</span>
-              </label>
-              {brief && brief.headlines.length > 1 && (
-                <Group label="AI の見出しの案">
-                  {brief.headlines.map((h) => (
-                    <Choice key={h} on={headline === h} onClick={() => setHeadline(h)} className="text-left">
-                      {h}
+
+              {kind !== "note" && (
+                <Group label="縦横" hint={size === suggested.size ? `おすすめ: ${suggested.reason}` : "どれも Instagram に送れる比率です"}>
+                  {(Object.keys(TEMPLATE_SIZES) as TemplateSizeKey[]).map((s) => (
+                    <Choice key={s} on={size === s} onClick={() => setSize(s)}>
+                      {TEMPLATE_SIZES[s].label}
                     </Choice>
                   ))}
                 </Group>
               )}
+
+              {kind === "screen" && (
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[14px] font-bold">写真</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input ref={fileRef} type="file" accept="image/*" className="sr-only" onChange={(e) => void pickShot(e.target.files?.[0]).finally(() => (e.target.value = ""))} />
+                    <Button type="button" variant="secondary" size="sm" onClick={() => fileRef.current?.click()}>
+                      {shot ? "写真を選び直す" : "写真を選ぶ"}
+                    </Button>
+                    <Button type="button" variant="text" size="sm" onClick={() => setMode("photo")}>
+                      AI でつくる
+                    </Button>
+                    {shot && <span className="text-xs text-muted">{shot.bitmap.width}×{shot.bitmap.height}</span>}
+                  </div>
+                  <p className="text-xs leading-[1.7] text-muted">選んだ写真は、この画面の中で重ねるだけで、AI には送りません。</p>
+                </div>
+              )}
+              {kind === "screen" && (
+                <Group label="写真の置き方">
+                  {PHOTO_FITS.map((f) => (
+                    <Choice key={f} on={photoFit === f} onClick={() => setPhotoFit(f)}>
+                      {PHOTO_FIT_LABEL[f]}
+                    </Choice>
+                  ))}
+                </Group>
+              )}
+
               <label className="flex flex-col gap-1.5">
                 <span className="text-[14px] font-bold">
-                  補足<span className="ml-1.5 text-xs font-normal text-muted">任意</span>
+                  ラベル<span className="ml-1.5 text-xs font-normal text-muted">任意。例: 新機能、お知らせ</span>
                 </span>
-                <Input value={subline} maxLength={60} onChange={(e) => setSubline(e.target.value)} className="py-2" />
+                <Input value={label} maxLength={12} onChange={(e) => setLabel(e.target.value)} className="py-2" />
               </label>
-            </>
-          )}
 
-          <label className="flex flex-col gap-1.5">
-            <span className="text-[14px] font-bold">
-              下に小さく出す名前<span className="ml-1.5 text-xs font-normal text-muted">任意</span>
-            </span>
-            <Input value={footer} maxLength={30} onChange={(e) => setFooter(e.target.value)} className="py-2" />
-          </label>
+              {kind === "diagram" ? (
+                <>
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-[14px] font-bold">図解のタイトル</span>
+                    <Input value={diagramTitle} maxLength={40} onChange={(e) => setDiagramTitle(e.target.value)} className="py-2" />
+                  </label>
+                  <Group label="並べ方">
+                    {DIAGRAM_STYLES.map((s) => (
+                      <Choice key={s} on={diagramStyle === s} onClick={() => setDiagramStyle(s)}>
+                        {DIAGRAM_STYLE_LABEL[s]}
+                      </Choice>
+                    ))}
+                  </Group>
+                  <ol className="flex flex-col gap-2.5">
+                    {(diagramStyle === "compare" ? items.slice(0, 2) : items).map((it, i) => (
+                      <li key={i} className="flex flex-col gap-1.5 rounded-md border border-line p-2.5">
+                        <div className="flex items-center gap-2 text-xs font-bold">
+                          {diagramStyle === "compare" ? (i === 0 ? "前" : "後") : `${i + 1} つ目`}
+                          {diagramStyle !== "compare" && items.length > 1 && (
+                            <button type="button" className="ml-auto font-normal text-muted hover:text-fg hover:underline" onClick={() => setItems((xs) => xs.filter((_, j) => j !== i))}>
+                              外す
+                            </button>
+                          )}
+                        </div>
+                        <Input aria-label={`${i + 1} つ目の見出し`} placeholder="見出し（14 字まで）" value={it.title} maxLength={24} onChange={(e) => setItems((xs) => xs.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)))} className="py-2" />
+                        <Input aria-label={`${i + 1} つ目の説明`} placeholder="説明（36 字まで）" value={it.text} maxLength={60} onChange={(e) => setItems((xs) => xs.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)))} className="py-2" />
+                      </li>
+                    ))}
+                  </ol>
+                  {diagramStyle === "compare" && items.length < 2 && (
+                    <Button type="button" variant="text" size="sm" className="self-start" onClick={() => setItems((xs) => [...xs, { title: "", text: "" }])}>
+                      ＋ 後を足す
+                    </Button>
+                  )}
+                  {diagramStyle !== "compare" && items.length < MAX_ITEMS && (
+                    <Button type="button" variant="text" size="sm" className="self-start" onClick={() => setItems((xs) => [...xs, { title: "", text: "" }])}>
+                      ＋ 項目を足す
+                    </Button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-[14px] font-bold">見出し</span>
+                    <Textarea value={headline} rows={2} maxLength={40} onChange={(e) => setHeadline(e.target.value)} className="py-2" />
+                    <span className="text-xs text-muted">22 字くらいまでが、ひと目で読めます。改行も使えます</span>
+                  </label>
+                  {brief && brief.headlines.length > 1 && (
+                    <Group label="AI の見出しの案">
+                      {brief.headlines.map((h) => (
+                        <Choice key={h} on={headline === h} onClick={() => setHeadline(h)} className="text-left">
+                          {h}
+                        </Choice>
+                      ))}
+                    </Group>
+                  )}
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-[14px] font-bold">
+                      補足<span className="ml-1.5 text-xs font-normal text-muted">任意</span>
+                    </span>
+                    <Input value={subline} maxLength={60} onChange={(e) => setSubline(e.target.value)} className="py-2" />
+                  </label>
+                </>
+              )}
 
-          <Group label="色">
-            {PALETTES.map((p) => (
-              <Choice key={p.key} on={paletteKey === p.key} onClick={() => setPaletteKey(p.key)} className="inline-flex items-center gap-1.5">
-                {/* 画像の中身の色の見本（画面の色ではない） */}
-                <span aria-hidden className="inline-block size-4 rounded-full border border-line" style={{ background: `linear-gradient(135deg, ${p.bg} 55%, ${p.accent} 55%)` }} />
-                {p.label}
-              </Choice>
-            ))}
-            <span className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-sm ${paletteKey === "brand" ? "border-primary bg-primary-soft font-bold text-primary" : "border-border"}`}>
-              <input
-                type="color"
-                aria-label="いつもの色を選ぶ"
-                value={brand}
-                onChange={(e) => {
-                  setBrand(e.target.value);
-                  setPaletteKey("brand");
-                }}
-                className="size-6 cursor-pointer rounded border-0 bg-transparent p-0"
-              />
-              <button type="button" aria-pressed={paletteKey === "brand"} onClick={() => setPaletteKey("brand")}>
-                いつもの色
-              </button>
-            </span>
-          </Group>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-[14px] font-bold">
+                  下に小さく出す名前<span className="ml-1.5 text-xs font-normal text-muted">任意</span>
+                </span>
+                <Input value={footer} maxLength={30} onChange={(e) => setFooter(e.target.value)} className="py-2" />
+              </label>
 
-          <Group label="文字の形" hint="日本語の書体は、使う字のぶんだけ読み込みます">
-            {FONT_KEYS.map((f) => (
-              <Choice key={f} on={font === f} onClick={() => setFont(f)} className={FONT_CLASS[f]}>
-                {FONT_LABEL[f]}
-              </Choice>
-            ))}
-          </Group>
+              <Group label="色">
+                {PALETTES.map((p) => (
+                  <Choice key={p.key} on={paletteKey === p.key} onClick={() => setPaletteKey(p.key)} className="inline-flex items-center gap-1.5">
+                    {/* 画像の中身の色の見本（画面の色ではない） */}
+                    <span aria-hidden className="inline-block size-4 rounded-full border border-line" style={{ background: `linear-gradient(135deg, ${p.bg} 55%, ${p.accent} 55%)` }} />
+                    {p.label}
+                  </Choice>
+                ))}
+                <span className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-sm ${paletteKey === "brand" ? "border-primary bg-primary-soft font-bold text-primary" : "border-border"}`}>
+                  <input
+                    type="color"
+                    aria-label="いつもの色を選ぶ"
+                    value={brand}
+                    onChange={(e) => {
+                      setBrand(e.target.value);
+                      setPaletteKey("brand");
+                    }}
+                    className="size-6 cursor-pointer rounded border-0 bg-transparent p-0"
+                  />
+                  <button type="button" aria-pressed={paletteKey === "brand"} onClick={() => setPaletteKey("brand")}>
+                    いつもの色
+                  </button>
+                </span>
+              </Group>
 
-          <label className="flex flex-col gap-1.5">
-            <span className="text-[14px] font-bold">代わりの文（alt）</span>
-            <Textarea
-              value={altText}
-              rows={2}
-              maxLength={MAX_ALT_LENGTH}
-              onChange={(e) => {
-                setAltTouched(true);
-                setAlt(e.target.value);
-              }}
-              className="py-2 text-sm"
-            />
-            <span className="text-xs text-muted">画像の文字から作っています。直すこともできます</span>
-          </label>
-        </div>
-      </div>
+              <Group label="文字の形" hint="日本語の書体は、使う字のぶんだけ読み込みます">
+                {FONT_KEYS.map((f) => (
+                  <Choice key={f} on={font === f} onClick={() => setFont(f)} className={FONT_CLASS[f]}>
+                    {FONT_LABEL[f]}
+                  </Choice>
+                ))}
+              </Group>
 
-      <div className="flex flex-wrap items-center gap-3 border-t border-line pt-3">
-        <Button type="button" disabled={Boolean(notReady) || adding || renderError} onClick={() => void add()}>
-          {adding ? "添えています…" : "この画像を添える"}
-        </Button>
-        <Button type="button" variant="text" onClick={onClose}>
-          やめる
-        </Button>
-        {notReady && <span className="text-sm text-muted">{notReady}</span>}
-      </div>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-[14px] font-bold">代わりの文（alt）</span>
+                <Textarea
+                  value={altText}
+                  rows={2}
+                  maxLength={MAX_ALT_LENGTH}
+                  onChange={(e) => {
+                    setAltTouched(true);
+                    setAlt(e.target.value);
+                  }}
+                  className="py-2 text-sm"
+                />
+                <span className="text-xs text-muted">画像の文字から作っています。直すこともできます</span>
+              </label>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 border-t border-line pt-3">
+            <Button type="button" disabled={Boolean(notReady) || adding || renderError} onClick={() => void add()}>
+              {adding ? "添えています…" : "この画像を添える"}
+            </Button>
+            <Button type="button" variant="text" onClick={onClose}>
+              やめる
+            </Button>
+            {notReady && <span className="text-sm text-muted">{notReady}</span>}
+          </div>
+        </>
+      )}
     </section>
   );
 }

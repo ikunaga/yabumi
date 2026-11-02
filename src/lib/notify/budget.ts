@@ -7,7 +7,7 @@ import { notifyOperatorOnce, type OperatorNotifyDeps, type OperatorNotifyResult 
 // 同じ月の同じ上限は 1 回だけ（key に月を入れる）。本文に利用者の情報は入れない
 export const BUDGET_ALERT_RATIO = 0.8;
 
-export type BudgetKind = "x" | "ai";
+export type BudgetKind = "x" | "ai" | "image";
 
 const LABEL: Record<BudgetKind, { name: string; env: string; where: string }> = {
   x: {
@@ -19,6 +19,12 @@ const LABEL: Record<BudgetKind, { name: string; env: string; where: string }> = 
     name: "AI（Claude API）",
     env: "AI_GLOBAL_MONTHLY_BUDGET_USD",
     where: "select owner_id, sum(cost_usd) from ai_usage where created_at >= date_trunc('month', now() at time zone 'Asia/Tokyo') at time zone 'Asia/Tokyo' group by 1 order by 2 desc limit 10;",
+  },
+  // 画像の AI の上限は、DB の reserve_ai_images の中で固定している（D35）。上げるときはマイグレーションで変える
+  image: {
+    name: "AI の画像（Gemini API）",
+    env: "reserve_ai_images の c_global_monthly_usd",
+    where: "select owner_id, sum(images), sum(cost_usd) from ai_image_jobs where status <> 'failed' and created_at >= date_trunc('month', now() at time zone 'Asia/Tokyo') at time zone 'Asia/Tokyo' group by 1 order by 3 desc limit 10;",
   },
 };
 

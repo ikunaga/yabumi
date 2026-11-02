@@ -9,6 +9,8 @@ import { consultTurnSchema } from "./consult-schema";
 import { postIdeasSchema, type CallIdeas } from "./post-ideas";
 import { aiCheckSchema, type CallCheck } from "./ai-check";
 import { imageBriefSchema, type CallBrief } from "./image-brief";
+import { photoIdeasSchema } from "./photo";
+import type { CallPhotoIdeas } from "./photo-gen";
 import { shortenSchema, type CallShorten } from "./shorten";
 import { tidyDraftSchema, type CallTidy } from "./tidy-draft";
 import { PLAN_COACH_MODEL, type CallModel } from "./plan-coach";
@@ -115,6 +117,8 @@ export const callPostIdeas: CallIdeas = structuredCaller(postIdeasSchema, 16000,
 export const callAiCheck: CallCheck = structuredCaller(aiCheckSchema, 4000, "low");
 // 画像の文字の案（docs/architecture.md の 4.25）。投稿から短い文字を拾う軽い作業なので effort は low
 export const callImageBrief: CallBrief = structuredCaller(imageBriefSchema, 4000, "low");
+// AI で写真・絵をつくるときの、場面の説明の案（docs/architecture.md の 4.25 の ②）。本文から場面を 2〜3 考える軽い作業なので effort は low
+export const callPhotoIdeas: CallPhotoIdeas = structuredCaller(photoIdeasSchema, 4000, "low");
 // 上限を超えた下書きを縮める（docs/architecture.md の 4.15「文字数の上限」）。超えたときだけ呼ぶ。削るだけの軽い作業なので effort は low
 export const callShortenDrafts: CallShorten = structuredCaller(shortenSchema, 4000, "low");
 // AI で投稿に整える（docs/architecture.md の 4.34）。話し言葉を絞って書き分け、誇張や作り話をしない判断が要るので effort は medium

@@ -17,7 +17,7 @@ export const TEMPLATE_KIND_LABEL: Record<TemplateKind, string> = {
 export const TEMPLATE_KIND_HINT: Record<TemplateKind, string> = {
   card: "お知らせ・リリース・ひとことを、大きな文字で",
   diagram: "ポイント・手順・使う前と後を、並べて見せる",
-  screen: "商品・お店・アプリの画面などの写真に見出しを添える（写真はあなたが選ぶ）",
+  screen: "商品・お店・アプリの画面などの写真に見出しを添える（写真は選ぶか、AI でつくる）",
   note: "note の記事の見出し画像（1280×670）",
 };
 
@@ -252,7 +252,10 @@ export type DrawOp =
   | { type: "circle"; cx: number; cy: number; r: number; fill: string }
   | { type: "tri"; points: [number, number][]; fill: string }
   | { type: "text"; x: number; y: number; text: string; font: FontFace; size: number; color: string; align: "left" | "center" | "right" }
-  | { type: "image"; x: number; y: number; w: number; h: number; r: number }
+  // fit: top は上をそろえて切る（スマホの画面は上が大事）、center は真ん中で切る（写真を全面に敷くとき）
+  | { type: "image"; x: number; y: number; w: number; h: number; r: number; fit?: "top" | "center" }
+  // 上から下へ色を変える帯（写真の上の文字を読みやすくする影）
+  | { type: "shade"; x: number; y: number; w: number; h: number; from: string; to: string }
   | { type: "placeholder"; x: number; y: number; w: number; h: number; r: number; text: string; font: FontFace; size: number; color: string; stroke: string };
 
 export type TemplateItem = { title: string; text: string };
@@ -270,7 +273,13 @@ export type TemplateInput = {
   items: TemplateItem[];
   // 写真（商品・お店・アプリの画面など）の大きさ（選んでいなければ null）
   screenshot: { w: number; h: number } | null;
+  // 写真に見出しの置き方。frame: 端末の枠に入れる（アプリの画面など）、cover: 写真を全面に敷いて下に見出し（AI で作った写真など）
+  photoFit?: PhotoFit;
 };
+
+export const PHOTO_FITS = ["frame", "cover"] as const;
+export type PhotoFit = (typeof PHOTO_FITS)[number];
+export const PHOTO_FIT_LABEL: Record<PhotoFit, string> = { frame: "端末の枠に入れる", cover: "全面に敷く" };
 
 export type Layout = { w: number; h: number; ops: DrawOp[] };
 
@@ -284,6 +293,7 @@ export function layoutTemplate(input: TemplateInput, measure: Measure): Layout {
   if (input.kind === "card") layoutCard(ctx, "left");
   else if (input.kind === "note") layoutCard(ctx, "center");
   else if (input.kind === "diagram") layoutDiagram(ctx);
+  else if (input.photoFit === "cover") layoutPhotoCover(ctx);
   else layoutScreen(ctx);
   return { w, h, ops };
 }
@@ -505,6 +515,32 @@ function layoutScreen(ctx: Ctx) {
   } else {
     ops.push({ type: "placeholder", x: fx, y: fy, w: fw, h: Math.min(fh, h - fy), r, text: "画面の画像を選んでください", font: input.fonts.body, size: 30 * u, color: "#d4d4d4", stroke: "#3a3a3a" });
   }
+}
+
+// 写真を全面に敷き、下に影を重ねて見出しを白で置く。写真の色に左右されずに読めるよう、文字の後ろを暗くする
+function layoutPhotoCover(ctx: Ctx) {
+  const { input, w, h, u, ops, measure } = ctx;
+  const m = 72 * u;
+  const textW = w - m * 2;
+  const landscape = w > h;
+  const label = fitText(input.label, { maxWidth: textW, maxLines: 1, maxSize: 34 * u, minSize: 24 * u, font: input.fonts.bodyBold }, measure);
+  const headline = fitText(
+    input.headline,
+    { maxWidth: textW, maxLines: landscape ? 2 : 3, maxSize: 92 * u, minSize: 48 * u, font: input.fonts.heading, lineHeight: 1.3, balance: true },
+    measure,
+  );
+  const sub = fitText(input.subline, { maxWidth: textW, maxLines: 2, maxSize: 36 * u, minSize: 24 * u, font: input.fonts.body, lineHeight: 1.55 }, measure);
+  const gap = 22 * u;
+  const textH = (label.lines.length ? blockHeight(label) + gap : 0) + blockHeight(headline) + (sub.lines.length ? gap + blockHeight(sub) : 0);
+
+  if (input.screenshot) ops.push({ type: "image", x: 0, y: 0, w, h, r: 0, fit: "center" });
+  else ops.push({ type: "placeholder", x: m, y: m, w: w - m * 2, h: h - m * 2, r: 24 * u, text: "写真を選んでください", font: input.fonts.body, size: 30 * u, color: "#d4d4d4", stroke: "#3a3a3a" });
+  let y = h - m - textH;
+  const shadeTop = Math.max(0, y - 220 * u);
+  ops.push({ type: "shade", x: 0, y: shadeTop, w, h: h - shadeTop, from: "rgba(0,0,0,0)", to: "rgba(0,0,0,0.72)" });
+  if (label.lines.length) y += pushLines(ctx, label, m, y, input.fonts.bodyBold, "#ffe7a3", "left") + gap;
+  y += pushLines(ctx, headline, m, y, input.fonts.heading, "#ffffff", "left");
+  if (sub.lines.length) pushLines(ctx, sub, m, y + gap, input.fonts.body, "rgba(255,255,255,0.88)", "left");
 }
 
 // 画像に描く文字がすべて入っているか（空の見出しのまま添えないため）

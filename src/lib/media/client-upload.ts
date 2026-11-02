@@ -3,7 +3,7 @@ import { JPEG_QUALITY, MAX_IMAGE_BYTES, MAX_LONG_EDGE, formatBytes } from "./rul
 
 // ブラウザで画像を JPEG にして上げる（4.18）。投稿の画像とネタ帳のメモの画像で使う
 
-export type UploadedImage = { id: string; previewUrl: string | null; altText: string; width: number; height: number; sizeBytes: number };
+export type UploadedImage = { id: string; previewUrl: string | null; altText: string; width: number; height: number; sizeBytes: number; aiGenerated?: boolean };
 
 // 画像を JPEG に描き直し、長い辺を MAX_LONG_EDGE までに縮める。描き直すので、位置情報などのメタデータは残らない。
 // 画像として読めないファイル（拡張子だけ画像のものなど）は、ここで読めずに失敗する
@@ -42,14 +42,15 @@ export async function uploadImageFile(file: File): Promise<UploadedImage> {
 }
 
 // JPEG を上げて確かめる（選んだ画像も、テンプレートで作った画像も同じ流れ。4.18）
-export async function uploadJpeg(blob: Blob, name: string): Promise<UploadedImage> {
+// ai: AI で作った画像から作ったとき（サーバーが確かめて、AI の印を付ける）
+export async function uploadJpeg(blob: Blob, name: string, ai?: { jobId: string; source: "generated" | "composite" }): Promise<UploadedImage> {
   if (blob.size > MAX_IMAGE_BYTES) throw new Error(`${name}は ${formatBytes(MAX_IMAGE_BYTES)} を超えます。`);
   const { ticket, error } = await requestImageUpload();
   if (!ticket) throw new Error(error ?? "画像を追加できませんでした。");
   const res = await fetch(ticket.signedUrl, { method: "PUT", body: blob, headers: { "Content-Type": "image/jpeg", "x-upsert": "false" } });
   if (!res.ok) throw new Error(`${name}を上げられませんでした。時間をおいてもう一度お試しください。`);
-  const confirmed = await confirmImageUpload(ticket.path);
+  const confirmed = await confirmImageUpload(ticket.path, ai);
   if (!confirmed.image) throw new Error(confirmed.error ?? "画像を確かめられませんでした。");
-  const { id, previewUrl, altText, width, height, sizeBytes } = confirmed.image;
-  return { id, previewUrl, altText, width, height, sizeBytes };
+  const { id, previewUrl, altText, width, height, sizeBytes, aiGenerated } = confirmed.image;
+  return { id, previewUrl, altText, width, height, sizeBytes, aiGenerated };
 }

@@ -21,3 +21,27 @@ export function estimateCostUsd(model: string, u: TokenUsage): number {
     1_000_000;
   return Math.round(cost * 1_000_000) / 1_000_000;
 }
+
+// 画像の AI の料金（米ドル。docs/architecture.md の 4.25。Gemini API の料金表 2026-10-30 更新を 2026-11-02 に確かめた）。
+// 1K（約 100 万画素）1 枚の値段と、指示文（入力）の 100 万トークンの値段。モデルは環境変数 IMAGE_GEN_MODEL で差し替える。
+// 料金が変わったらここと docs/architecture.md の 4.25 を直す
+type ImagePrice = { perImage: number; inputPerMillion: number };
+
+const IMAGE_PRICES: Record<string, ImagePrice> = {
+  "gemini-nano-banana-2.1": { perImage: 0.0336, inputPerMillion: 1.5 },
+  "gemini-3.1-flash-lite-image": { perImage: 0.0336, inputPerMillion: 0.25 },
+  "gemini-3.1-flash-image": { perImage: 0.067, inputPerMillion: 0.5 },
+};
+// 表にないモデルは高めに見積もる（上限を超えない側に倒す）
+const FALLBACK_IMAGE_PRICE: ImagePrice = { perImage: 0.134, inputPerMillion: 2 };
+// 予約のときの指示文の見込み（実際の値で直す）
+const RESERVE_INPUT_TOKENS = 1000;
+
+export function imagePrice(model: string): ImagePrice {
+  return IMAGE_PRICES[model] ?? FALLBACK_IMAGE_PRICE;
+}
+
+export function estimateImageCostUsd(model: string, images: number, inputTokens = RESERVE_INPUT_TOKENS): number {
+  const p = imagePrice(model);
+  return Math.round((images * p.perImage + (inputTokens * p.inputPerMillion) / 1_000_000) * 1_000_000) / 1_000_000;
+}

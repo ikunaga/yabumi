@@ -10,6 +10,7 @@ import { uploadImageFile, uploadJpeg } from "@/lib/media/client-upload";
 import { MAX_ALT_LENGTH, MAX_IMAGES_PER_POST, formatBytes } from "@/lib/media/rules";
 
 import type { ImageMakerProps } from "./image-maker";
+import { AiBadge } from "./ai-badge";
 
 // 画像をつくる画面は、開いたときに読み込む（書体とテンプレートの処理を、作成画面の最初の読み込みに入れない）
 const ImageMaker = dynamic(() => import("./image-maker").then((m) => m.ImageMaker), {
@@ -19,7 +20,8 @@ const ImageMaker = dynamic(() => import("./image-maker").then((m) => m.ImageMake
 
 export type ImageMakerContext = Omit<ImageMakerProps, "onAdd" | "onClose">;
 
-export type AttachedImage = { id: string; previewUrl: string | null; altText: string; width: number; height: number; sizeBytes: number };
+// aiGenerated: AI で作った画像（「AI で作った画像」の札を出す）
+export type AttachedImage = { id: string; previewUrl: string | null; altText: string; width: number; height: number; sizeBytes: number; aiGenerated?: boolean };
 
 // 投稿に添える画像。並べ替え・外す・代わりの文（alt）。保存は投稿の保存と一緒に行う（images を savePost に渡す）
 export function ImageAttachments({
@@ -60,7 +62,7 @@ export function ImageAttachments({
   }
 
   // テンプレートで作った画像を添える。添えられたら true（画面を閉じる）
-  async function addMade(jpeg: Blob, altText: string): Promise<boolean> {
+  async function addMade(jpeg: Blob, altText: string, ai?: { jobId: string; source: "generated" | "composite" }): Promise<boolean> {
     setError(null);
     if (room <= 0) {
       setError(`画像は 1 つの投稿に ${MAX_IMAGES_PER_POST} 枚までです。`);
@@ -68,7 +70,7 @@ export function ImageAttachments({
     }
     setBusy((n) => n + 1);
     try {
-      const image = await uploadJpeg(jpeg, "作った画像");
+      const image = await uploadJpeg(jpeg, "作った画像", ai);
       onChange((prev) => [...prev, { ...image, altText }]);
       return true;
     } catch (e) {
@@ -160,6 +162,7 @@ export function ImageAttachments({
               <div className="flex min-w-0 flex-col gap-1.5">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
                   <span className="font-bold text-fg">{i + 1} 枚目</span>
+                  {image.aiGenerated && <AiBadge />}
                   <span>
                     {image.width}×{image.height}・{formatBytes(image.sizeBytes)}
                   </span>

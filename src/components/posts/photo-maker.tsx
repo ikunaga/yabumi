@@ -1,0 +1,266 @@
+"use client";
+
+import { useEffect, useState, useTransition } from "react";
+import { Button, NotReadyButton } from "@/components/ui/button";
+import { ErrorBanner } from "@/components/ui/feedback";
+import { Textarea } from "@/components/ui/field";
+import { acknowledgePhoto, draftPhotoIdeas, generatePhotos, photoPanelState, type PhotoPanelState } from "@/lib/ai/photo-actions";
+import { MAX_PHOTOS_PER_RUN, MAX_SCENE_CHARS, PHOTO_STYLES, PHOTO_STYLE_LABEL, type PhotoIdea, type PhotoStyle } from "@/lib/ai/photo";
+import type { PhotoCandidate } from "@/lib/ai/photo-gen";
+import { MAX_ALT_LENGTH } from "@/lib/media/rules";
+import { TEMPLATE_SIZES, type TemplateSizeKey } from "@/lib/media/templates";
+import { AiBadge } from "./ai-badge";
+import { Choice, Group } from "./maker-parts";
+
+export type PickedPhoto = { jobId: string; bitmap: ImageBitmap; scene: string };
+
+
+// 署名つきの URL から画像を読む（fetch で読むので、Canvas に描いても書き出せる）
+async function loadBitmap(url: string): Promise<ImageBitmap> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("load");
+  return createImageBitmap(await res.blob());
+}
+
+// AI で写真・絵をつくる（docs/architecture.md の 4.25 の ②、決定 D35）。
+// ① 絵の説明を AI（Claude）に案を出してもらうか手で書く → ② 画像の AI で 1〜2 枚 → ③ 選んでそのまま添えるか、見出しを重ねる
+export function PhotoMaker({
+  projectId,
+  text,
+  size,
+  onSize,
+  onUseAsIs,
+  onUseInTemplate,
+}: {
+  projectId: string;
+  text: string;
+  size: TemplateSizeKey;
+  onSize: (s: TemplateSizeKey) => void;
+  onUseAsIs: (photo: PickedPhoto, altText: string) => Promise<void>;
+  onUseInTemplate: (photo: PickedPhoto) => void;
+}) {
+  const [state, setState] = useState<PhotoPanelState | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [ideas, setIdeas] = useState<PhotoIdea[]>([]);
+  const [scene, setScene] = useState("");
+  const [style, setStyle] = useState<PhotoStyle>("photo");
+  const [count, setCount] = useState(2);
+  const [candidates, setCandidates] = useState<{ jobId: string; items: PhotoCandidate[]; scene: string } | null>(null);
+  const [picked, setPicked] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [using, setUsing] = useState(false);
+  const [drafting, startDraft] = useTransition();
+  const [making, startMake] = useTransition();
+  const [acking, startAck] = useTransition();
+
+  useEffect(() => {
+    let alive = true;
+    void photoPanelState().then((r) => {
+      if (!alive) return;
+      if (r.state) setState(r.state);
+      else setError(r.error ?? "読み込めませんでした。");
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (!state) return error ? <ErrorBanner>{error}</ErrorBanner> : <p className="text-sm text-muted">読み込んでいます…</p>;
+
+  if (!state.acknowledged) {
+    return (
+      <div className="flex flex-col gap-3 rounded-md border border-line bg-surface2 px-4 py-3.5 text-sm leading-[1.8]">
+        <p className="font-bold">AI でつくる画像について（はじめの 1 回だけ出します）</p>
+        <ul className="list-disc space-y-1 pl-5">
+          <li>作った画像には「AI で作った画像」の印を付けます（この画面の札と、画像の中の情報）。</li>
+          <li>実在の人に似せたり、自分の商品・お店・お客さんを本物の写真のように見せたりすると、見た人の誤解を招いたり、景品表示法（実際よりよく見せる表示）の問題になったりすることがあります。</li>
+          <li>Instagram・Facebook・Threads などは、写真のような AI の画像に「AI で作った」ことの表示を求めています。投稿するときは、各 SNS の AI の表示も付けてください。</li>
+          <li>絵の説明は、画像をつくる Google に送ります（学習には使われません）。何をつくるかと使い方は、あなたの責任になります。</li>
+        </ul>
+        {error && <ErrorBanner>{error}</ErrorBanner>}
+        <Button
+          type="button"
+          size="sm"
+          className="self-start"
+          disabled={acking}
+          onClick={() =>
+            startAck(async () => {
+              const r = await acknowledgePhoto();
+              if (r.error) setError(r.error);
+              else setState({ ...state, acknowledged: true });
+            })
+          }
+        >
+          わかりました
+        </Button>
+      </div>
+    );
+  }
+
+  const hasText = text.trim().length > 0;
+  const canMake = state.enabled && !state.globalReached && state.remainingImages > 0;
+  const n = Math.min(count, Math.max(1, state.remainingImages));
+  const pickedItem = candidates?.items.find((c) => c.path === picked) ?? null;
+
+  function draft() {
+    startDraft(async () => {
+      setError(null);
+      const r = await draftPhotoIdeas(projectId, text);
+      if (!r.ideas) {
+        setError(r.error ?? "うまくいきませんでした。");
+        return;
+      }
+      setIdeas(r.ideas);
+      setScene(r.ideas[0].scene);
+    });
+  }
+
+  function make() {
+    startMake(async () => {
+      setError(null);
+      setNotice(null);
+      const r = await generatePhotos({ projectId, scene, style, size, count: n });
+      if (state && r.remainingImages !== undefined) setState({ ...state, remainingImages: r.remainingImages });
+      if (!r.candidates || !r.jobId) {
+        setError(r.error ?? "画像をつくれませんでした。");
+        return;
+      }
+      setCandidates({ jobId: r.jobId, items: r.candidates, scene });
+      setPicked(r.candidates[0]?.path ?? null);
+      if (r.partial) setNotice("頼んだうちの一部だけできました（できなかった分は数えません）。");
+    });
+  }
+
+  async function use(asIs: boolean) {
+    if (!pickedItem || !candidates) return;
+    setUsing(true);
+    setError(null);
+    try {
+      const bitmap = await loadBitmap(pickedItem.url);
+      const photo = { jobId: candidates.jobId, bitmap, scene: candidates.scene };
+      if (asIs) await onUseAsIs(photo, `AI で作った画像。${candidates.scene}`.slice(0, MAX_ALT_LENGTH));
+      else onUseInTemplate(photo);
+    } catch {
+      setError("画像を読めませんでした。候補は 1 時間で見られなくなります。もう一度つくってください。");
+    } finally {
+      setUsing(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2 rounded-md bg-surface2 px-3.5 py-3 text-sm">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          {state.ideasEnabled ? (
+            <Button type="button" variant="secondary" size="sm" disabled={drafting || !hasText} onClick={draft}>
+              {drafting ? "考えています…" : ideas.length ? "別の案を出してもらう" : "AI に絵の説明の案を出してもらう"}
+            </Button>
+          ) : (
+            <NotReadyButton variant="secondary" size="sm">
+              AI に絵の説明の案を出してもらう
+            </NotReadyButton>
+          )}
+          <span className="text-xs text-muted">{hasText ? "本文とアカウント設計から 2〜3 案（1 回 2 円ほど）" : "本文を書くと、AI が場面を考えます。手で書いても作れます"}</span>
+        </div>
+        {ideas.length > 0 && (
+          <ul className="flex flex-col gap-2" aria-label="絵の説明の案">
+            {ideas.map((idea) => (
+              <li key={idea.scene}>
+                <button
+                  type="button"
+                  aria-pressed={scene === idea.scene}
+                  onClick={() => setScene(idea.scene)}
+                  className={`flex w-full flex-col gap-0.5 rounded-md border px-3 py-2 text-left transition-colors ${scene === idea.scene ? "border-primary bg-primary-soft" : "border-border bg-surface hover:border-primary"}`}
+                >
+                  <span className="font-bold">{idea.title}</span>
+                  <span className="text-xs leading-[1.7] text-muted">{idea.why}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {error && <ErrorBanner>{error}</ErrorBanner>}
+
+      <label className="flex flex-col gap-1.5">
+        <span className="text-[14px] font-bold">絵の説明</span>
+        <Textarea value={scene} rows={4} maxLength={MAX_SCENE_CHARS} onChange={(e) => setScene(e.target.value)} placeholder="例: 朝の光が入る木のカウンターに、焼きたてのパンが並んでいる。近くから少し斜めに" className="py-2 text-sm" />
+        <span className="text-xs text-muted">何が・どこで・どんな光と雰囲気か。文字は入れずに作り、見出しはあとで重ねられます</span>
+      </label>
+
+      <Group label="描き方">
+        {PHOTO_STYLES.map((s) => (
+          <Choice key={s} on={style === s} onClick={() => setStyle(s)}>
+            {PHOTO_STYLE_LABEL[s]}
+          </Choice>
+        ))}
+      </Group>
+      <Group label="縦横">
+        {(Object.keys(TEMPLATE_SIZES) as TemplateSizeKey[]).map((s) => (
+          <Choice key={s} on={size === s} onClick={() => onSize(s)}>
+            {TEMPLATE_SIZES[s].label}
+          </Choice>
+        ))}
+      </Group>
+      <Group label="枚数">
+        {Array.from({ length: MAX_PHOTOS_PER_RUN }, (_, i) => i + 1).map((c) => (
+          <Choice key={c} on={count === c} onClick={() => setCount(c)}>
+            {c} 枚
+          </Choice>
+        ))}
+      </Group>
+
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        {state.enabled ? (
+          <Button type="button" disabled={!canMake || making || !scene.trim()} onClick={make}>
+            {making ? "つくっています…" : `つくる（${n} 枚・約 ${n * state.unitYen} 円）`}
+          </Button>
+        ) : (
+          <NotReadyButton>つくる</NotReadyButton>
+        )}
+        <span className="num text-sm text-muted">
+          {state.globalReached
+            ? "今月は yabumi 全体の上限に達しました。来月 1 日にまたつくれます"
+            : state.remainingImages > 0
+              ? `今月はあと ${state.remainingImages} 枚つくれます（1 人 月 ${state.monthlyImages} 枚まで）`
+              : `今月の上限（${state.monthlyImages} 枚）に達しました。来月 1 日にまたつくれます`}
+        </span>
+      </div>
+      {making && <p className="text-sm text-muted">画像の AI がつくっています。30 秒ほどかかることがあります。</p>}
+      {notice && <p className="text-sm text-muted">{notice}</p>}
+
+      {candidates && candidates.items.length > 0 && (
+        <div className="flex flex-col gap-3 border-t border-line pt-3">
+          <span className="text-[14px] font-bold">できた画像から選ぶ</span>
+          <ul className="grid grid-cols-2 gap-3 max-sm:gap-2">
+            {candidates.items.map((c, i) => (
+              <li key={c.path}>
+                <button
+                  type="button"
+                  aria-pressed={picked === c.path}
+                  aria-label={`${i + 1} 枚目を選ぶ`}
+                  onClick={() => setPicked(c.path)}
+                  className={`relative block w-full overflow-hidden rounded-md border-2 ${picked === c.path ? "border-primary" : "border-transparent"}`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element -- 署名つきの URL は期限があり、next/image の最適化を通さない */}
+                  <img src={c.url} alt={`AI で作った画像の候補 ${i + 1}`} className="block h-auto w-full bg-surface2" />
+                  <AiBadge className="absolute left-2 top-2" />
+                </button>
+              </li>
+            ))}
+          </ul>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" disabled={!pickedItem || using} onClick={() => void use(false)}>
+              見出しを重ねる
+            </Button>
+            <Button type="button" variant="secondary" disabled={!pickedItem || using} onClick={() => void use(true)}>
+              {using ? "添えています…" : "このまま添える"}
+            </Button>
+          </div>
+          <p className="text-xs leading-[1.7] text-muted">選ばなかった画像は 1 日で消えます。</p>
+        </div>
+      )}
+    </div>
+  );
+}

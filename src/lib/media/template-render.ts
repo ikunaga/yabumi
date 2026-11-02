@@ -60,12 +60,20 @@ function drawOp(ctx: CanvasRenderingContext2D, op: DrawOp, shot: ImageBitmap | n
       ctx.save();
       roundRect(ctx, op.x, op.y, op.w, op.h, op.r);
       ctx.clip();
-      // 枠いっぱいに、上をそろえて切り取る（スマホの画面は上が大事）
+      // 枠いっぱいに切り取る。既定は上をそろえる（スマホの画面は上が大事）、center は真ん中
       const scale = Math.max(op.w / shot.width, op.h / shot.height);
       const sw = op.w / scale;
       const sh = op.h / scale;
-      ctx.drawImage(shot, (shot.width - sw) / 2, 0, sw, sh, op.x, op.y, op.w, op.h);
+      ctx.drawImage(shot, (shot.width - sw) / 2, op.fit === "center" ? (shot.height - sh) / 2 : 0, sw, sh, op.x, op.y, op.w, op.h);
       ctx.restore();
+      return;
+    }
+    case "shade": {
+      const g = ctx.createLinearGradient(0, op.y, 0, op.y + op.h);
+      g.addColorStop(0, op.from);
+      g.addColorStop(1, op.to);
+      ctx.fillStyle = g;
+      ctx.fillRect(op.x, op.y, op.w, op.h);
       return;
     }
     case "placeholder":

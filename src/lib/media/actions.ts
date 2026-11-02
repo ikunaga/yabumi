@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { ownRecentPhotoJob } from "@/lib/ai/photo-gen";
 import { PREVIEW_URL_SECONDS } from "./rules";
 import { MediaError, discardUnattached, issueUpload, signedUrls, verifyUpload, type MediaFile, type UploadTicket } from "./store";
 
@@ -33,13 +34,17 @@ export async function requestImageUpload(): Promise<{ ticket?: UploadTicket; err
 
 export type UploadedImage = MediaFile & { previewUrl: string | null };
 
-export async function confirmImageUpload(path: string): Promise<{ image?: UploadedImage; error?: string }> {
+// ai: AI で作った画像（photo-gen の jobId）から作ったとき。そのままなら generated、文字を重ねたなら composite。
+// jobId がこの利用者の 1 日以内のものかをサーバーで確かめてから、AI の印を付ける
+export async function confirmImageUpload(path: string, ai?: { jobId: string; source: "generated" | "composite" }): Promise<{ image?: UploadedImage; error?: string }> {
   if (typeof path !== "string" || path.length > 200) return { error: "入力の形式が正しくありません。" };
+  if (ai !== undefined && (!z.uuid().safeParse(ai?.jobId).success || !["generated", "composite"].includes(ai.source))) return { error: "入力の形式が正しくありません。" };
   const userId = await currentUserId();
   if (!userId) return { error: "ログインし直してください。" };
   const admin = createAdminClient();
   try {
-    const file = await verifyUpload(admin, userId, path);
+    const marked = ai && (await ownRecentPhotoJob(admin, userId, ai.jobId)) ? ai.source : undefined;
+    const file = await verifyUpload(admin, userId, path, { ai: marked });
     const urls = await signedUrls(admin, [file.storagePath], PREVIEW_URL_SECONDS);
     return { image: { ...file, previewUrl: urls.get(file.storagePath) ?? null } };
   } catch (e) {

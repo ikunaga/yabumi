@@ -18,6 +18,7 @@ export async function loadPostImages(postId: string): Promise<AttachedImage[]> {
     width: f.width,
     height: f.height,
     sizeBytes: f.sizeBytes,
+    aiGenerated: f.aiGenerated,
   }));
 }
 

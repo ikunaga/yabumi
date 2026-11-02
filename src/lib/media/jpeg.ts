@@ -104,3 +104,56 @@ export function sanitizeJpeg(input: Uint8Array): SanitizedJpeg {
   }
   return { bytes, width, height };
 }
+
+// ── AI で作った画像の印（docs/architecture.md の 4.25、D25 の I5・D35） ──
+// IPTC の「デジタルの出どころ（Digital Source Type）」を XMP（APP1）で入れる。Meta などはこの印を見て「AI 情報」のラベルを付ける。
+// generated: AI が作った画像をそのまま、composite: AI の画像に文字などを重ねたもの。
+// sanitizeJpeg で消したあとに、サーバーがこの印だけを入れる（利用者が送ったメタデータは残さない）
+export type AiSource = "generated" | "composite";
+
+const DIGITAL_SOURCE_TYPE: Record<AiSource, string> = {
+  generated: "http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia",
+  composite: "http://cv.iptc.org/newscodes/digitalsourcetype/compositeWithTrainedAlgorithmicMedia",
+};
+
+const XMP_NS = "http://ns.adobe.com/xap/1.0/\0";
+
+export function aiXmpPacket(source: AiSource): string {
+  return [
+    '<?xpacket begin="﻿" id="W5M0MpCehiHzreSzNTczkc9d"?>',
+    '<x:xmpmeta xmlns:x="adobe:ns:meta/">',
+    '<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">',
+    '<rdf:Description rdf:about="" xmlns:Iptc4xmpExt="http://iptc.org/std/Iptc4xmpExt/2008-02-29/" xmlns:dc="http://purl.org/dc/elements/1.1/">',
+    `<Iptc4xmpExt:DigitalSourceType>${DIGITAL_SOURCE_TYPE[source]}</Iptc4xmpExt:DigitalSourceType>`,
+    '<dc:description><rdf:Alt><rdf:li xml:lang="x-default">AI-generated image (made with yabumi)</rdf:li></rdf:Alt></dc:description>',
+    "</rdf:Description>",
+    "</rdf:RDF>",
+    "</x:xmpmeta>",
+    '<?xpacket end="r"?>',
+  ].join("");
+}
+
+// sanitizeJpeg を通した JPEG に、AI の印（XMP）を入れる。APP0（JFIF）があればそのすぐ後、なければ SOI の後に置く
+export function withAiMark(clean: Uint8Array, source: AiSource): Uint8Array {
+  if (clean[0] !== 0xff || clean[1] !== SOI) throw new InvalidImageError("JPEG の画像ではありません");
+  const payload = new TextEncoder().encode(XMP_NS + aiXmpPacket(source));
+  const length = payload.length + 2;
+  const segment = new Uint8Array(2 + length);
+  segment.set([0xff, 0xe1, length >> 8, length & 0xff]);
+  segment.set(payload, 4);
+  let at = 2;
+  if (clean[2] === 0xff && clean[3] === APP0) at = 4 + ((clean[4] << 8) | clean[5]);
+  const out = new Uint8Array(clean.length + segment.length);
+  out.set(clean.subarray(0, at));
+  out.set(segment, at);
+  out.set(clean.subarray(at), at + segment.length);
+  return out;
+}
+
+// XMP に入っている AI の印を読む（テストと確かめ用）
+export function readAiMark(bytes: Uint8Array): AiSource | null {
+  const text = new TextDecoder("latin1").decode(bytes.subarray(0, Math.min(bytes.length, 65536)));
+  if (text.includes(DIGITAL_SOURCE_TYPE.composite)) return "composite";
+  if (text.includes(DIGITAL_SOURCE_TYPE.generated)) return "generated";
+  return null;
+}

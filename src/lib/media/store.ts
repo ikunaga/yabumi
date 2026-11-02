@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
-import { InvalidImageError, sanitizeJpeg } from "./jpeg";
+import { InvalidImageError, sanitizeJpeg, withAiMark, type AiSource } from "./jpeg";
 import {
   MAX_ALT_LENGTH,
   MAX_DIMENSION,
@@ -21,7 +21,8 @@ import {
 
 type Admin = SupabaseClient<Database>;
 
-export type MediaFile = { id: string; width: number; height: number; sizeBytes: number; altText: string; storagePath: string };
+// aiGenerated: AI で作った画像（画面に札を出す。画像には IPTC の印が入っている）
+export type MediaFile = { id: string; width: number; height: number; sizeBytes: number; altText: string; storagePath: string; aiGenerated: boolean };
 
 export class MediaError extends Error {
   constructor(readonly userMessage: string) {
@@ -30,8 +31,8 @@ export class MediaError extends Error {
   }
 }
 
-function toMediaFile(row: { id: string; width: number; height: number; size_bytes: number; alt_text: string; storage_path: string }): MediaFile {
-  return { id: row.id, width: row.width, height: row.height, sizeBytes: row.size_bytes, altText: row.alt_text, storagePath: row.storage_path };
+function toMediaFile(row: { id: string; width: number; height: number; size_bytes: number; alt_text: string; storage_path: string; ai_generated: boolean }): MediaFile {
+  return { id: row.id, width: row.width, height: row.height, sizeBytes: row.size_bytes, altText: row.alt_text, storagePath: row.storage_path, aiGenerated: row.ai_generated };
 }
 
 async function removeObjects(admin: Admin, paths: string[]) {
@@ -77,8 +78,9 @@ export async function issueUpload(admin: Admin, ownerId: string, id: string = cr
 }
 
 // ブラウザが Storage に直接上げた画像を確かめる。JPEG か（中身で）、大きさ、上限を確かめ、
-// 位置情報などのメタデータを消して置き直してから記録する。だめなら画像を消して MediaError
-export async function verifyUpload(admin: Admin, ownerId: string, path: string): Promise<MediaFile> {
+// 位置情報などのメタデータを消して置き直してから記録する。だめなら画像を消して MediaError。
+// ai を渡すと（AI で作った画像から作ったと、呼ぶ側が確かめたとき）、消したあとに AI の印（IPTC）を入れ、ai_generated を付ける
+export async function verifyUpload(admin: Admin, ownerId: string, path: string, opts: { ai?: AiSource } = {}): Promise<MediaFile> {
   if (!isOwnMediaPath(ownerId, path)) throw new MediaError("画像の置き場所が正しくありません。もう一度選び直してください。");
 
   const { data: existing } = await admin.from("media_files").select("*").eq("storage_path", path).maybeSingle();
@@ -107,6 +109,7 @@ export async function verifyUpload(admin: Admin, ownerId: string, path: string):
       throw e;
     }
     if (clean.width > MAX_DIMENSION || clean.height > MAX_DIMENSION) throw new MediaError("画像の縦横が大きすぎます。");
+    if (opts.ai) clean = { ...clean, bytes: withAiMark(clean.bytes, opts.ai) };
     if (Number(used ?? 0) + clean.bytes.length > USER_QUOTA_BYTES) {
       throw new MediaError(`置ける画像の合計（${formatBytes(USER_QUOTA_BYTES)}）を超えます。送り終えた画像は ${KEEP_AFTER_SENT_DAYS} 日で消えます。要らない下書きの画像を外してください。`);
     }
@@ -119,7 +122,7 @@ export async function verifyUpload(admin: Admin, ownerId: string, path: string):
 
     const { data: row, error: insError } = await admin
       .from("media_files")
-      .insert({ owner_id: ownerId, storage_path: path, width: clean.width, height: clean.height, size_bytes: clean.bytes.length })
+      .insert({ owner_id: ownerId, storage_path: path, width: clean.width, height: clean.height, size_bytes: clean.bytes.length, ai_generated: Boolean(opts.ai) })
       .select("*")
       .single();
     if (insError) throw insError;

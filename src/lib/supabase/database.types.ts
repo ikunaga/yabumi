@@ -107,6 +107,62 @@ export type Database = {
           },
         ]
       }
+      ai_image_jobs: {
+        Row: {
+          cost_usd: number
+          created_at: string
+          id: string
+          images: number
+          model: string
+          owner_id: string | null
+          project_id: string | null
+          status: string
+        }
+        Insert: {
+          cost_usd?: number
+          created_at?: string
+          id?: string
+          images: number
+          model: string
+          owner_id?: string | null
+          project_id?: string | null
+          status?: string
+        }
+        Update: {
+          cost_usd?: number
+          created_at?: string
+          id?: string
+          images?: number
+          model?: string
+          owner_id?: string | null
+          project_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_image_jobs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_image_notices: {
+        Row: {
+          acknowledged_at: string
+          owner_id: string
+        }
+        Insert: {
+          acknowledged_at?: string
+          owner_id: string
+        }
+        Update: {
+          acknowledged_at?: string
+          owner_id?: string
+        }
+        Relationships: []
+      }
       ai_messages: {
         Row: {
           content: Json
@@ -664,6 +720,7 @@ export type Database = {
       }
       media_files: {
         Row: {
+          ai_generated: boolean
           alt_text: string
           created_at: string
           height: number
@@ -678,6 +735,7 @@ export type Database = {
           width: number
         }
         Insert: {
+          ai_generated?: boolean
           alt_text?: string
           created_at?: string
           height: number
@@ -692,6 +750,7 @@ export type Database = {
           width: number
         }
         Update: {
+          ai_generated?: boolean
           alt_text?: string
           created_at?: string
           height?: number
@@ -2061,6 +2120,22 @@ export type Database = {
       requeue_failed_targets: {
         Args: { p_post_id: string; p_sns: string[] }
         Returns: number
+      }
+      reserve_ai_images: {
+        Args: {
+          p_cost_usd: number
+          p_images: number
+          p_model: string
+          p_owner_id: string
+          p_project_id: string
+          p_scope_owner?: string
+        }
+        Returns: {
+          global_month_usd: number
+          job_id: string
+          status: string
+          user_month_images: number
+        }[]
       }
       reserve_sns_read: {
         Args: {

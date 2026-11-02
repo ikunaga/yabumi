@@ -30,7 +30,7 @@ async function receiveShare(request) {
       new Response(JSON.stringify({ title: str("title"), text: str("text"), url: str("url"), at: Date.now() }), { headers: { "Content-Type": "application/json" } }),
     );
     const file = form.getAll("image").find((v) => typeof v !== "string" && v.size > 0 && v.size <= MAX_IMAGE_BYTES && v.type.startsWith("image/"));
-    if (file) await cache.put(SHARE_CACHE_IMAGE, new Response(file, { headers: { "Content-Type": file.type, "X-File-Name": encodeURIComponent(file.name || "image") } }));
+    if (file) await cache.put(SHARE_CACHE_IMAGE, new Response(file, { headers: { "Content-Type": file.type, "X-File-Name": encodeURIComponent(file.name || "image"), "X-At": String(Date.now()) } }));
     else await cache.delete(SHARE_CACHE_IMAGE);
   } catch {
     // 読めなかったときは、空のメモとして開く

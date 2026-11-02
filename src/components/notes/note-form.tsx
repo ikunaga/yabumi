@@ -6,6 +6,7 @@ import { VoiceInputButton } from "@/components/ui/voice-input";
 import { discardImage } from "@/lib/media/actions";
 import { uploadImageFile } from "@/lib/media/client-upload";
 import { saveNote } from "@/lib/notes/actions";
+import { clearDraft, readDraft, saveFailureMessage, writeDraft } from "@/lib/notes/draft";
 import { MAX_NOTE_CHARS } from "@/lib/notes/rules";
 
 type Project = { id: string; name: string };
@@ -13,7 +14,9 @@ type Project = { id: string; name: string };
 // 画像は選んだらすぐに上げ始める（保存を 1 回押すだけにするため）。上げ終わる前に保存を押したら、上げ終わるのを待つ
 type Picked = { previewUrl: string; upload: Promise<{ id: string } | { error: string }>; id: string | null; error: string | null };
 
-// メモを書いて残すフォーム（「＋ メモ」と、ほかのアプリからの共有で使う。docs/architecture.md の 4.26）
+// メモを書いて残すフォーム（「＋ メモ」と、ほかのアプリからの共有で使う。docs/architecture.md の 4.26）。
+// 書いた本文は保存できるまでこの端末に控える（src/lib/notes/draft.ts）。閉じても次に開いたときに戻し、
+// 保存に失敗したら本文を残したまま目立つ形で知らせる。控えを消すのは、保存できたときと「捨てる」を選んだときだけ
 export function NoteForm({
   projects,
   projectId: fixedProjectId,
@@ -21,6 +24,7 @@ export function NoteForm({
   initialBody = "",
   initialFile = null,
   notice,
+  noticeRestored = false,
   autoFocus = true,
   onSaved,
   onCancel,
@@ -33,12 +37,24 @@ export function NoteForm({
   initialBody?: string;
   initialFile?: File | null;
   notice?: string;
+  // notice が「保存していないメモがあります」のときは、目立つ形で出す
+  noticeRestored?: boolean;
   autoFocus?: boolean;
-  onSaved: (projectId: string) => void;
+  // imageSkipped: 本文だけで残し、画像は添えられなかった（知らせに書く）
+  onSaved: (projectId: string, info: { imageSkipped: boolean }) => void;
   onCancel: () => void;
 }) {
-  const [body, setBody] = useState(initialBody);
-  const [projectId, setProjectId] = useState(fixedProjectId ?? initialProjectId ?? (projects.length === 1 ? projects[0].id : ""));
+  // 書きかけの控え（開いたときに 1 回だけ読む）。共有で受け取ったものは、受け取る側（ShareReceiver）が控えに足してから渡す
+  const [restored] = useState(() => (typeof window === "undefined" ? null : readDraft()));
+  const restoredProject = restored?.projectId && projects.some((p) => p.id === restored.projectId) ? restored.projectId : null;
+  const [body, setBody] = useState(restored && !initialBody ? restored.body : initialBody);
+  const [projectId, setProjectId] = useState(
+    (restored && !initialBody ? restoredProject : null) ?? fixedProjectId ?? initialProjectId ?? (projects.length === 1 ? projects[0].id : ""),
+  );
+  // 控えの保存先が、いま開いているプロジェクトと違うときは、保存先を選べるようにする（黙って別のプロジェクトに入れない）
+  const choosable = !fixedProjectId || projectId !== fixedProjectId;
+  const [reload, setReload] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [picked, setPicked] = useState<Picked | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -87,8 +103,17 @@ export function NoteForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 開いたときに 1 回だけ
   }, []);
 
-  // やめたら、上げた画像をすぐに消す（Esc などで閉じたときは、翌日の片付けで消える。4.18）
+  function changeBody(next: string) {
+    setBody(next);
+    setConfirmDiscard(false);
+    writeDraft(next, projectId || null);
+  }
+
+  // やめたら、上げた画像をすぐに消す（Esc などで閉じたときは、翌日の片付けで消える。4.18）。
+  // 書いた本文があれば、捨ててよいかをその場で確かめる（確かめずに捨てない）
   function cancel() {
+    if (body.trim() && !confirmDiscard) return setConfirmDiscard(true);
+    clearDraft();
     drop();
     onCancel();
   }
@@ -99,6 +124,9 @@ export function NoteForm({
     if (!body.trim() && !picked) return setError("ひとこと書くか、画像を選んでください。");
     setSaving(true);
     let mediaId: string | null = null;
+    setReload(false);
+    setConfirmDiscard(false);
+    writeDraft(body, projectId);
     if (picked) {
       const r = await picked.upload;
       if ("error" in r) {
@@ -107,11 +135,26 @@ export function NoteForm({
       }
       mediaId = r.id;
     }
-    const res = await saveNote(projectId, body, mediaId);
+    // 通信が切れていると、Next.js はつながるまで待ち続ける（押しても何も起きないように見える）ので、先に確かめる
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      setSaving(false);
+      return setError(saveFailureMessage(null, false).message);
+    }
+    let res: Awaited<ReturnType<typeof saveNote>>;
+    try {
+      res = await saveNote(projectId, body, mediaId);
+    } catch (e) {
+      console.error("[NoteForm.save]", e);
+      const f = saveFailureMessage(e, navigator.onLine !== false);
+      setSaving(false);
+      setReload(f.reload);
+      return setError(f.message);
+    }
     setSaving(false);
-    if (res.error) return setError(res.error);
+    if (res.error) return setError(`${res.error} 書いた内容はこの端末に残しています。`);
+    clearDraft();
     if (picked) URL.revokeObjectURL(picked.previewUrl);
-    onSaved(projectId);
+    onSaved(projectId, { imageSkipped: Boolean(res.imageSkipped) });
   }
 
   const uploading = Boolean(picked && !picked.id && !picked.error);
@@ -124,8 +167,23 @@ export function NoteForm({
         void save();
       }}
     >
-      {notice && <p className="text-sm leading-[1.7] text-muted">{notice}</p>}
-      {!fixedProjectId && projects.length > 1 && (
+      {restored && !initialBody ? (
+        <p role="status" className="rounded-md border border-line bg-surface2 px-3 py-2 text-sm leading-[1.7]">
+          <span className="font-semibold">保存していないメモがあります。</span>前に書きかけたものを戻しました。保存するか、いらなければ「やめる」で捨ててください。
+        </p>
+      ) : noticeRestored && notice ? (
+        <p role="status" className="rounded-md border border-line bg-surface2 px-3 py-2 text-sm leading-[1.7] font-semibold">
+          {notice}
+        </p>
+      ) : (
+        notice && <p className="text-sm leading-[1.7] text-muted">{notice}</p>
+      )}
+      {!choosable && (
+        <p className="text-sm text-muted">
+          保存先: <b className="text-fg">{projects.find((p) => p.id === fixedProjectId)?.name ?? "このプロジェクト"}</b>
+        </p>
+      )}
+      {choosable && projects.length > 1 && (
         <div className="flex flex-col gap-1.5">
           <label htmlFor={`${id}-project`} className="text-[14px] font-bold">
             どのプロジェクトのメモか
@@ -133,7 +191,10 @@ export function NoteForm({
           <select
             id={`${id}-project`}
             value={projectId}
-            onChange={(e) => setProjectId(e.target.value)}
+            onChange={(e) => {
+              setProjectId(e.target.value);
+              writeDraft(body, e.target.value || null);
+            }}
             className="w-full rounded-md border border-input bg-surface px-3 py-2.5 text-base text-fg outline-none focus:border-primary max-sm:text-[16px]"
           >
             <option value="">選んでください</option>
@@ -156,7 +217,7 @@ export function NoteForm({
         autoFocus={autoFocus}
         maxLength={MAX_NOTE_CHARS}
         value={body}
-        onChange={(e) => setBody(e.target.value)}
+        onChange={(e) => changeBody(e.target.value)}
         onKeyDown={(e) => {
           // PC は Ctrl / ⌘ + Enter でも保存できる
           if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -167,7 +228,7 @@ export function NoteForm({
         placeholder="例: 朝の通勤中に、家計簿をつけ忘れたことに気づいた。通知の時間を選べたらいいのに"
         className="w-full resize-y rounded-md border border-input bg-surface px-3.5 py-3 text-base leading-[1.7] text-fg outline-none placeholder:text-muted focus:border-primary focus:shadow-[0_0_0_1px_var(--primary)] max-sm:text-[16px]"
       />
-      <VoiceInputButton target={bodyRef} label="メモ" onChange={setBody} />
+      <VoiceInputButton target={bodyRef} label="メモ" onChange={changeBody} />
 
       <input
         ref={inputRef}
@@ -199,19 +260,38 @@ export function NoteForm({
       )}
 
       {error && (
-        <p role="alert" className="text-sm font-semibold text-danger">
-          {error}
-        </p>
+        <div role="alert" className="flex flex-col gap-2 rounded-md border border-danger bg-danger-soft px-3 py-2.5 text-sm leading-[1.7] font-semibold text-danger">
+          <p>{error}</p>
+          {reload && (
+            <Button type="button" variant="secondary" size="sm" className="w-fit" onClick={() => window.location.reload()}>
+              読み込み直す
+            </Button>
+          )}
+        </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit" disabled={saving}>
-          {saving ? (uploading ? "画像を上げています…" : "保存しています…") : "ネタ帳に保存する"}
-        </Button>
-        <Button type="button" variant="text" onClick={cancel} disabled={saving}>
-          やめる
-        </Button>
-      </div>
+      {confirmDiscard ? (
+        <div role="alert" className="flex flex-col gap-2 rounded-md border border-line bg-surface2 px-3 py-2.5">
+          <p className="text-sm font-semibold">書いたメモを捨てますか？ 捨てると戻せません。</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button type="button" variant="danger" size="sm" onClick={cancel}>
+              捨てる
+            </Button>
+            <Button type="button" variant="text" size="sm" onClick={() => setConfirmDiscard(false)}>
+              書き続ける
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-3">
+          <Button type="submit" disabled={saving}>
+            {saving ? (uploading ? "画像を上げています…" : "保存しています…") : "ネタ帳に保存する"}
+          </Button>
+          <Button type="button" variant="text" onClick={cancel} disabled={saving}>
+            やめる
+          </Button>
+        </div>
+      )}
     </form>
   );
 }

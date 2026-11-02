@@ -37,15 +37,18 @@ function refresh(projectId: string) {
 }
 
 // メモを残す（「＋ メモ」と、ほかのアプリからの共有）
-export async function saveNote(projectId: string, body: unknown, mediaId: unknown): Promise<NoteActionResult> {
+// imageSkipped: 本文だけで残し、画像は添えられなかった（画面で知らせる）
+export async function saveNote(projectId: string, body: unknown, mediaId: unknown): Promise<NoteActionResult & { imageSkipped?: boolean }> {
   const b = bodySchema.safeParse(body);
   const m = uuid.nullable().safeParse(mediaId);
   if (!uuid.safeParse(projectId).success || !b.success || !m.success) return BAD_INPUT;
   const { supabase, userId } = await currentUser();
   if (!userId) return { error: "ログインし直してください。" };
+  let imageSkipped = false;
   try {
     const r = await createNote(supabase, createAdminClient(), { userId, projectId, body: b.data, mediaId: m.data });
     if (!r.ok) return { error: r.message };
+    imageSkipped = Boolean(r.imageSkipped);
   } catch (e) {
     console.error("[saveNote]", e);
     return FAILED;
@@ -53,7 +56,7 @@ export async function saveNote(projectId: string, body: unknown, mediaId: unknow
   // 共有で受け取ったものを残したら、受け取った控えを消す
   (await cookies()).delete(SHARE_COOKIE);
   refresh(projectId);
-  return {};
+  return imageSkipped ? { imageSkipped } : {};
 }
 
 export async function editNote(projectId: string, noteId: string, body: unknown, image: unknown): Promise<NoteActionResult> {

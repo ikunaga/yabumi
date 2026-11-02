@@ -36,7 +36,7 @@ export const LEGAL_VERSIONS: readonly LegalRevision[] = [
   },
   {
     // D34。施行日は本番に出す日（仮の日付。決まったら直す）
-    version: "2026-11-05",
+    version: "2026-11-02",
     docs: ["terms", "privacy"],
     summary: [
       "yabumi を、アプリに限らず、宣伝したい商品・サービス・作品がある人のための道具にしました（利用規約 第 1 条）",

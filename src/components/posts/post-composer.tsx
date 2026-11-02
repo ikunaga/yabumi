@@ -746,7 +746,9 @@ function RoadmapItemHint({ item, onInsert }: { item: { title: string; detail: st
     <div className="flex flex-col gap-1 rounded-md border border-line bg-surface2 px-4 py-3 text-[13px] leading-[1.7]">
       <p className="flex items-center gap-1.5 text-muted">
         ロードマップのやることから
-        <HelpTip label="ロードマップのやること">送ると、このやることの進み具合に数えます。</HelpTip>
+        <HelpTip label="ロードマップのやること">
+          この投稿は、ロードマップに書いた下のやることのために作るものです。送ると、ロードマップの画面でこのやることが 1 回進んだことになります（たとえば「今週 3 回投稿する」なら、3 回のうち 1 回）。
+        </HelpTip>
       </p>
       <p className="text-[15px] font-bold">{item.title}</p>
       {item.detail && <p className="text-muted">{item.detail}</p>}

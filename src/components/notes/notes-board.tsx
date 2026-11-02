@@ -65,9 +65,6 @@ export function NotesBoard({ projectId, projectName, notes, aiEnabled }: { proje
             )}
             {!writing && (
               <span className="flex items-center gap-2 max-sm:justify-end">
-                <HelpTip label="メモの残し方" align="right">
-                  どの画面でも、上の帯の「＋ メモ」（スマホは右下）から残せます。
-                </HelpTip>
                 <Button
                   onClick={() => {
                     setFlash(null);

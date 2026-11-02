@@ -2,6 +2,7 @@ import Link from "next/link";
 import { DismissableDetails } from "@/components/ui/dismissable-details";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { logout } from "@/lib/auth/actions";
+import { LogoutForm } from "@/components/notes/draft-owner";
 import { SubmitButton } from "@/components/ui/submit-button";
 
 // PC の上の帯の右端の「アカウント」。メールアドレスの頭文字の丸を押すと、ダークの切り替え・ログインと退会・ログアウトが開く
@@ -22,11 +23,11 @@ export function AccountMenu({ email }: { email: string }) {
         <Link href="/settings" className="block px-4 py-3 hover:bg-subtle hover:no-underline">
           ログインと退会
         </Link>
-        <form action={logout}>
+        <LogoutForm action={logout}>
           <SubmitButton pendingText="ログアウトしています…" className="block w-full px-4 py-3 text-left hover:bg-subtle">
             ログアウト
           </SubmitButton>
-        </form>
+        </LogoutForm>
       </div>
     </DismissableDetails>
   );

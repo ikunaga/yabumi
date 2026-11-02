@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ClearNoteDrafts } from "@/components/notes/draft-owner";
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { Brand } from "@/components/brand";
@@ -170,6 +171,7 @@ export default async function Home(props: PageProps<"/">) {
       {done === "withdrawn" && (
         <div className={`${section} pt-6`}>
           <SuccessBanner>退会しました。保存していたデータは消しました。ご利用ありがとうございました。</SuccessBanner>
+          <ClearNoteDrafts />
         </div>
       )}
 

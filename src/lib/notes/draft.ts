@@ -1,8 +1,11 @@
 import { MAX_NOTE_CHARS } from "./rules";
+import { SHARE_CACHE } from "./share";
 
 // 書きかけのメモの控え（ネタ帳。docs/architecture.md の 4.26）。保存するまで、この端末のブラウザ（localStorage）に置く。
 // 「＋ メモ」を外側のタップ・戻る操作・画面の読み込み直し・通信の失敗で閉じても、次に開いたときに戻せるようにする。
-// 消すのは、保存できたときと、利用者が「捨てる」を選んだときだけ（黙って捨てない）。画像は控えない（本文と保存先だけ）
+// 消すのは、保存できたときと、利用者が「捨てる」を選んだとき、ログアウト・退会のときだけ（黙って捨てない）。画像は控えない（本文と保存先だけ）。
+// 控えには持ち主（ユーザー ID）を持たせ、いまログインしている人のものだけを戻す（同じブラウザで別の人がログインしても出さない）。
+// 持ち主が null の控えは、ログインの前に共有で受け取ったもの（その端末で送ったもの）で、次にログインした人のものにする
 
 export const NOTE_DRAFT_KEY = "yabumi-note-draft";
 // 控えを書き換えたことを、同じ画面のほかの部品（「＋ メモ」の印）に知らせる
@@ -10,7 +13,13 @@ export const NOTE_DRAFT_EVENT = "yabumi-note-draft";
 // これより古い控えは戻さない（30 日）
 export const NOTE_DRAFT_DAYS = 30;
 
-export type NoteDraft = { body: string; projectId: string | null; at: number };
+export type NoteDraft = { body: string; projectId: string | null; at: number; owner: string | null };
+
+// いまログインしている人（NoteDraftOwner が画面を描くときに入れる）。わからないときは null（ログインの前）
+let draftOwner: string | null = null;
+export function setDraftOwner(userId: string | null): void {
+  draftOwner = userId;
+}
 
 function storage(): Storage | null {
   try {
@@ -25,14 +34,17 @@ export function parseDraft(raw: string | null, now: number = Date.now()): NoteDr
   try {
     const v = JSON.parse(raw) as Partial<NoteDraft>;
     if (typeof v.body !== "string" || !v.body.trim() || typeof v.at !== "number") return null;
+    // 持ち主の欄がない形は、誰のものかわからないので戻さない
+    if (!(typeof v.owner === "string" || v.owner === null)) return null;
     if (now - v.at > NOTE_DRAFT_DAYS * 86_400_000) return null;
-    return { body: v.body.slice(0, MAX_NOTE_CHARS), projectId: typeof v.projectId === "string" ? v.projectId : null, at: v.at };
+    return { body: v.body.slice(0, MAX_NOTE_CHARS), projectId: typeof v.projectId === "string" ? v.projectId : null, at: v.at, owner: v.owner };
   } catch {
     return null;
   }
 }
 
-// 古すぎる・壊れた控えは、戻さずに消す
+// 古すぎる・壊れた控えは、戻さずに消す。ほかの人の控えは戻さない（消しもしない。その人が次にログインしたときに戻る。
+// ただし、いまの人が書き始めると上書きする）
 export function readDraft(): NoteDraft | null {
   const s = storage();
   const raw = s?.getItem(NOTE_DRAFT_KEY) ?? null;
@@ -44,7 +56,22 @@ export function readDraft(): NoteDraft | null {
       // 消せなくても、戻さないだけ
     }
   }
-  return draft;
+  return draft ? ownDraft(draft, draftOwner) : null;
+}
+
+// 控えを、いまの人に見せてよいか。ログインの前の控え（持ち主 null）は、ログインした人のものにする
+export function ownDraft(draft: NoteDraft, owner: string | null): NoteDraft | null {
+  if (draft.owner === owner) return draft;
+  if (draft.owner === null && owner) {
+    const claimed = { ...draft, owner };
+    try {
+      storage()?.setItem(NOTE_DRAFT_KEY, JSON.stringify(claimed));
+    } catch {
+      // 書けなくても、見せるのはいまの人だけ
+    }
+    return claimed;
+  }
+  return null;
 }
 
 // 本文が空なら控えを消す
@@ -52,7 +79,7 @@ export function writeDraft(body: string, projectId: string | null): void {
   const s = storage();
   if (!s) return;
   try {
-    if (body.trim()) s.setItem(NOTE_DRAFT_KEY, JSON.stringify({ body: body.slice(0, MAX_NOTE_CHARS), projectId, at: Date.now() } satisfies NoteDraft));
+    if (body.trim()) s.setItem(NOTE_DRAFT_KEY, JSON.stringify({ body: body.slice(0, MAX_NOTE_CHARS), projectId, at: Date.now(), owner: draftOwner } satisfies NoteDraft));
     else s.removeItem(NOTE_DRAFT_KEY);
   } catch {
     // 容量が足りないなど。控えられなくても書く・保存するは続けられる
@@ -65,6 +92,25 @@ export function clearDraft(): void {
     storage()?.removeItem(NOTE_DRAFT_KEY);
   } catch {
     // 消せなくても、次に開いたときに「保存していないメモ」として出るだけ
+  }
+  window.dispatchEvent(new Event(NOTE_DRAFT_EVENT));
+}
+
+// ログアウト・退会のとき: この端末の書きかけと、共有で受け取って残していたもの（Cache Storage）を消す（共有の端末で次の人に残さない）。
+// 前にメモを残したプロジェクトの覚え（share-receiver の yabumi-note-project）も消す
+export async function clearNoteDraftsOnDevice(): Promise<void> {
+  const s = storage();
+  try {
+    s?.removeItem(NOTE_DRAFT_KEY);
+    s?.removeItem("yabumi-note-project");
+  } catch {
+    // 消せなくても、持ち主の違う控えは出さない
+  }
+  draftOwner = null;
+  try {
+    if ("caches" in window) await caches.delete(SHARE_CACHE);
+  } catch {
+    // 同じ
   }
   window.dispatchEvent(new Event(NOTE_DRAFT_EVENT));
 }

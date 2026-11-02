@@ -68,6 +68,37 @@ describe("行き先の URL", () => {
     expect((await alice.from("project_destinations").insert(rows)).error).toBeNull();
     expect((await alice.from("project_destinations").insert({ project_id: p, owner_id: aliceId, kind: "site", url: "https://example.com/21" })).error?.message).toContain("20 まで");
   });
+
+  it("同時に足しても 20 を超えない（プロジェクトの行を押さえて順に数える）", async () => {
+    const p = (await alice.from("projects").insert({ name: "同時" }).select("id").single()).data!.id;
+    const rows = Array.from({ length: 18 }, (_, i) => ({ project_id: p, owner_id: aliceId, kind: "site", url: `https://example.com/${i}` }));
+    expect((await alice.from("project_destinations").insert(rows)).error).toBeNull();
+    const results = await Promise.all(
+      Array.from({ length: 6 }, (_, i) => alice.from("project_destinations").insert({ project_id: p, owner_id: aliceId, kind: "site", url: `https://example.com/x${i}` })),
+    );
+    expect(results.filter((r) => r.error === null)).toHaveLength(2);
+    const { count } = await alice.from("project_destinations").select("id", { count: "exact", head: true }).eq("project_id", p);
+    expect(count).toBe(20);
+  });
+
+  it("行を押さえるようにしたあとも、本人は 1 件ずつ 20 件目まで足せ、他人のプロジェクトには今までどおり足せない", async () => {
+    const p = (await alice.from("projects").insert({ name: "1 件ずつ" }).select("id").single()).data!.id;
+    for (let i = 0; i < 20; i++) {
+      expect((await alice.from("project_destinations").insert({ project_id: p, owner_id: aliceId, kind: "site", url: `https://example.com/one/${i}` })).error).toBeNull();
+    }
+    expect((await alice.from("project_destinations").insert({ project_id: p, owner_id: aliceId, kind: "site", url: "https://example.com/one/20" })).error?.code).toBe("23514");
+    // 他人（bob）が alice のプロジェクトに入れようとしても、行を押さえられず（RLS で見えない）、with check で断られる
+    expect((await bob.from("project_destinations").insert({ project_id: projectId, owner_id: bobId, kind: "site", url: "https://example.com/bob" })).error?.code).toBe("42501");
+    expect((await bob.from("project_destinations").insert({ project_id: projectId, kind: "site", url: "https://example.com/bob2" })).error?.code).toBe("42501");
+  });
+
+  it("本人でも、自分の行の project_id を他人のプロジェクトに書き換えられない", async () => {
+    const bobProject = (await bob.from("projects").insert({ name: "ボブの店" }).select("id").single()).data!.id;
+    const row = (await alice.from("project_destinations").insert({ project_id: projectId, owner_id: aliceId, kind: "site", url: "https://example.com/move" }).select("id").single()).data!;
+    expect((await alice.from("project_destinations").update({ project_id: bobProject }).eq("id", row.id)).error?.code).toBe("42501");
+    expect((await alice.from("project_destinations").select("project_id").eq("id", row.id).single()).data).toEqual({ project_id: projectId });
+    expect((await bob.from("project_destinations").select("id").eq("project_id", bobProject)).data).toEqual([]);
+  });
 });
 
 describe("手で入れる成果", () => {
@@ -81,6 +112,16 @@ describe("手で入れる成果", () => {
     expect((await anonClient().from("project_outcomes_daily").select("*").limit(1)).error?.code).toBe("42501");
     expect((await alice.from("project_outcomes_daily").insert({ project_id: projectId, owner_id: aliceId, day, action: "download", count: 1 })).error?.code).toBe("23514");
     expect((await alice.from("project_outcomes_daily").insert({ project_id: projectId, owner_id: aliceId, day, action: "visit", count: -1 })).error?.code).toBe("23514");
+  });
+
+  it("本人でも、自分の行の project_id を他人のプロジェクトに書き換えられない", async () => {
+    const bobProject = (await bob.from("projects").insert({ name: "ボブの教室" }).select("id").single()).data!.id;
+    const day = "2026-10-29";
+    expect((await alice.from("project_outcomes_daily").insert({ project_id: projectId, owner_id: aliceId, day, action: "inquiry", count: 2 })).error).toBeNull();
+    const moved = await alice.from("project_outcomes_daily").update({ project_id: bobProject }).eq("project_id", projectId).eq("day", day).eq("action", "inquiry");
+    expect(moved.error?.code).toBe("42501");
+    expect((await alice.from("project_outcomes_daily").select("project_id").eq("day", day).eq("action", "inquiry").single()).data).toEqual({ project_id: projectId });
+    expect((await bob.from("project_outcomes_daily").select("day").eq("project_id", bobProject)).data).toEqual([]);
   });
 
   it("プロジェクトを消すと、行き先と成果も消える", async () => {

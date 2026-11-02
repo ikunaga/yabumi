@@ -2169,7 +2169,7 @@ yabumi を「個人開発者のアプリ」向けから、宣伝したい商品�
 
 #### 行き先の URL（project_destinations）
 
-- 種類（site・booking・shop・store・form・other）・名前・URL（https:// で 2,000 字まで）。画面では 10 まで、DB は 1 プロジェクト 20 まで（トリガー）
+- 種類（site・booking・shop・store・form・other）・名前・URL（https:// で 2,000 字まで）。画面では 10 まで、DB は 1 プロジェクト 20 まで（トリガー）。トリガーは数える前にプロジェクトの行を for update で押さえ、同時の足し込みを順に通す（20261102210000。security invoker なので、押さえられるのは本人が更新できる自分のプロジェクトだけ）
 - RLS で本人だけが読み書きできる。insert・update は自分のプロジェクトだけ。プロジェクトを消すと消える
 - 短縮リンクの行き先の候補（destinationCandidates）: アプリならストアの URL を先にし、そのあとに行き先の URL を並べる。アプリでなければ、ストアの URL が残っていても候補にしない
   - ストアの URL（app_store_url・play_store_url）は、アプリのときの行き先として projects に残す。アプリでない種類のときは欄を出さず、保存しても値は変えない（アプリに戻したときのため）

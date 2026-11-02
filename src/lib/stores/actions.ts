@@ -5,6 +5,7 @@ import { after } from "next/server";
 import { z } from "zod";
 import { credentialsConfigured } from "@/lib/crypto/credential-cipher";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isAppProject } from "@/lib/projects/product-types";
 import { createClient } from "@/lib/supabase/server";
 import { checkAscFormat, StoreApiError } from "./app-store";
 import { checkRevenueCatFormat } from "./revenuecat";
@@ -16,13 +17,27 @@ import { importForCredential, removeCredential, saveCredential, verifyCredential
 export type StoreFormState = { error?: string; ok?: string };
 
 async function ownProject(projectId: string) {
+  return (await ownProjectWithType(projectId))?.userId ?? null;
+}
+
+async function ownProjectWithType(projectId: string) {
   if (!z.uuid().safeParse(projectId).success) return null;
   const supabase = await createClient();
   const { data: claims } = await supabase.auth.getClaims();
   const userId = claims?.claims?.sub;
   if (!userId) return null;
-  const { data: project } = await supabase.from("projects").select("id").eq("id", projectId).maybeSingle();
-  return project ? userId : null;
+  const { data: project } = await supabase.from("projects").select("id, product_type").eq("id", projectId).maybeSingle();
+  return project ? { userId, project } : null;
+}
+
+// ストアと課金は、宣伝するものがアプリのときだけ（決定 D34）。画面に出さないだけでなく、つなぐ操作はサーバーでも断る（github/actions.ts と同じ形）。
+// 外す操作は、種類を変えたあとでも預かった鍵を消せるように断らない
+const NOT_APP = "ストアと課金の取り込みは、宣伝するものがアプリのときに使えます。プロジェクトの設定で種類を確かめてください。";
+async function appProjectUser(projectId: string): Promise<{ userId: string; error?: undefined } | { userId?: undefined; error: string }> {
+  const own = await ownProjectWithType(projectId);
+  if (!own) return { error: "ログインし直してください。" };
+  if (!isAppProject(own.project)) return { error: NOT_APP };
+  return { userId: own.userId };
 }
 
 const NOT_READY = "ストアと課金の取り込みは準備中です。";
@@ -47,8 +62,8 @@ async function verifySaveImport(projectId: string, userId: string, provider: Pro
 }
 
 export async function saveAppStoreConnect(projectId: string, _prev: StoreFormState, formData: FormData): Promise<StoreFormState> {
-  const userId = await ownProject(projectId);
-  if (!userId) return { error: "ログインし直してください。" };
+  const { userId, error: notApp } = await appProjectUser(projectId);
+  if (!userId) return { error: notApp };
   if (!credentialsConfigured()) return { error: NOT_READY };
   const secret = {
     issuerId: String(formData.get("issuerId") ?? "").trim(),
@@ -62,8 +77,8 @@ export async function saveAppStoreConnect(projectId: string, _prev: StoreFormSta
 }
 
 export async function saveRevenueCat(projectId: string, _prev: StoreFormState, formData: FormData): Promise<StoreFormState> {
-  const userId = await ownProject(projectId);
-  if (!userId) return { error: "ログインし直してください。" };
+  const { userId, error: notApp } = await appProjectUser(projectId);
+  if (!userId) return { error: notApp };
   if (!credentialsConfigured()) return { error: NOT_READY };
   const secret = { projectId: String(formData.get("rcProjectId") ?? "").trim(), secretKey: String(formData.get("secretKey") ?? "").trim() };
   const formatError = checkRevenueCatFormat(secret);
@@ -84,8 +99,8 @@ export async function removeStoreCredential(projectId: string, provider: Provide
 
 // yabumi の側に、この利用者・プロジェクト専用の読み取り用のアカウントを作る（利用者は表示されたメールアドレスを Play Console に招待する）
 export async function startGooglePlay(projectId: string): Promise<StoreFormState> {
-  const userId = await ownProject(projectId);
-  if (!userId) return { error: "ログインし直してください。" };
+  const { userId, error: notApp } = await appProjectUser(projectId);
+  if (!userId) return { error: notApp };
   // 作ったあと（上限で断られたときも）、全員の作成数を数え、しきい値に達していれば運営者に知らせる（返事は待たせない）
   after(() => checkPlayCapacity(createAdminClient()).catch((e) => console.error("[stores] 作成数を確かめられませんでした", e instanceof Error ? e.message : e)));
   try {
@@ -100,8 +115,8 @@ export async function startGooglePlay(projectId: string): Promise<StoreFormState
 }
 
 export async function saveGooglePlay(projectId: string, _prev: StoreFormState, formData: FormData): Promise<StoreFormState> {
-  const userId = await ownProject(projectId);
-  if (!userId) return { error: "ログインし直してください。" };
+  const { userId, error: notApp } = await appProjectUser(projectId);
+  if (!userId) return { error: notApp };
   // 「gs://pubsite_prod_rev_…」で貼っても、バケットの名前だけにする
   const bucket = String(formData.get("bucket") ?? "").trim().replace(/^gs:\/\//, "").replace(/\/.*$/, "");
   const pkg = String(formData.get("package") ?? "").trim();
@@ -130,8 +145,8 @@ export async function removeGooglePlay(projectId: string): Promise<void> {
 
 // Admin のキーで、続けて作られるレポートの依頼を作る。キーは保存しない（この 1 回だけ使う）
 export async function startAppStorePageViews(projectId: string, _prev: StoreFormState, formData: FormData): Promise<StoreFormState> {
-  const userId = await ownProject(projectId);
-  if (!userId) return { error: "ログインし直してください。" };
+  const { userId, error: notApp } = await appProjectUser(projectId);
+  if (!userId) return { error: notApp };
   const adminCred = {
     issuerId: String(formData.get("issuerId") ?? "").trim(),
     keyId: String(formData.get("keyId") ?? "").trim().toUpperCase(),

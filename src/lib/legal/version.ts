@@ -35,7 +35,7 @@ export const LEGAL_VERSIONS: readonly LegalRevision[] = [
     noticeWaived: "施行の時点で利用者は運営者だけ（招待の前）で、運営者が了承した（2026-10-30）",
   },
   {
-    // D34。施行日は本番に出す日（仮の日付。決まったら直す）
+    // D34。本番に出した日に施行した
     version: "2026-11-02",
     docs: ["terms", "privacy"],
     summary: [
@@ -46,6 +46,18 @@ export const LEGAL_VERSIONS: readonly LegalRevision[] = [
     adverse: false,
     noticeFrom: null,
     noticeWaived: "施行の時点で利用者は運営者だけ（2026-10-30 のあとも招待していない）で、運営者が了承した（2026-11-02）",
+  },
+  {
+    // D35（AI で写真・絵をつくる）。施行日は本番に出す日（仮の日付。決まったら PM が直す）
+    version: "2026-11-05",
+    docs: ["terms", "privacy"],
+    summary: [
+      "AI で写真や絵をつくれるようにしました。AI で作った画像には印を付けます。実在の人に似せたり、本物の写真のように見せて誤解させたりする使い方を禁止事項に足しました（利用規約 AI の案・してはいけないこと）",
+      "AI で画像をつくるときに、絵の説明を Google（Gemini API）に送ります。作った枚数と費用を記録し、候補の画像は 1 日で消します（プライバシーポリシー 送り先・預かる情報・保存期間）",
+    ],
+    adverse: false,
+    noticeFrom: null,
+    noticeWaived: "施行の時点で利用者は運営者だけ（招待していない）で、運営者が了承した（2026-11-02）",
   },
 ];
 

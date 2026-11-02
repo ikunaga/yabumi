@@ -157,7 +157,7 @@ export default async function LinksPage(props: PageProps<"/projects/[id]/links">
                   {PROFILE_SNS.map((sns) => {
                     const link = profile.get(sns);
                     return (
-                      <li key={sns} className="flex flex-col gap-2 border-t border-line px-6 py-4 max-sm:px-4">
+                      <li key={sns} id={`profile-${sns}`} className="flex scroll-mt-20 flex-col gap-2 border-t border-line px-6 py-4 max-sm:scroll-mt-4 max-sm:px-4">
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                           <SnsMark sns={sns} />
                           <b>{SNS[sns].label}</b>

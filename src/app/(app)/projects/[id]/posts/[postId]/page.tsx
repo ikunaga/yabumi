@@ -9,6 +9,7 @@ import { loadTimeTrends } from "@/lib/metrics/time-trends";
 import { timeHintOf } from "@/lib/metrics/time-hint";
 import { connectedAccounts, getPost, postTitle } from "@/lib/posts/queries";
 import { getProject } from "@/lib/projects/queries";
+import { loadProfileLinkInfo } from "@/lib/posts/profile-link-info";
 import { isManualSns, manualComposeUrl, xComposeUrl, type SnsKey } from "@/lib/sns";
 import { createClient } from "@/lib/supabase/server";
 import { canPublish } from "@/lib/sns/adapters";
@@ -58,6 +59,7 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
     loadPostNumbers(project.id, { postId: post.id, sent }),
   ]);
   const timeHint = timeHintOf(await loadTimeTrends(project.id));
+  const profileLink = await loadProfileLinkInfo(supabase, project);
   // 画像はあとから足すこともあるので、画像がなくても調べる
   const needImageReconnect = await snsNeedingImageReconnect(accounts);
   // 短縮リンクのチェックの状態: 本文に URL があるのに、送る前の配信先に短縮リンクがなければ、オフで保存したもの
@@ -108,6 +110,7 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
       linkPreview={linkPreview}
       numbers={numbers && <PostNumbersBand projectId={project.id} numbers={numbers} />}
       timeHint={timeHint}
+      profileLink={profileLink}
       notice={notice?.text}
       noticeTone={notice?.tone}
       initial={{

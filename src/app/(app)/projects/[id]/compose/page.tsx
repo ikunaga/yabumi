@@ -8,6 +8,7 @@ import { loadTimeTrends } from "@/lib/metrics/time-trends";
 import { timeHintOf } from "@/lib/metrics/time-hint";
 import { connectedAccounts } from "@/lib/posts/queries";
 import { getProject } from "@/lib/projects/queries";
+import { loadProfileLinkInfo } from "@/lib/posts/profile-link-info";
 import { SNS_KEYS, type SnsKey } from "@/lib/sns";
 import { canPublish } from "@/lib/sns/adapters";
 import { getPlanHints } from "@/lib/plan/queries";
@@ -26,6 +27,7 @@ export default async function ComposePage(props: PageProps<"/projects/[id]/compo
   if (!project) notFound();
   const [accounts, planHints, numbers] = await Promise.all([connectedAccounts(project.id), getPlanHints(project.id), loadPostNumbers(project.id)]);
   const timeHint = timeHintOf(await loadTimeTrends(project.id));
+  const profileLink = await loadProfileLinkInfo(await createClient(), project);
   const item = typeof searchParams.item === "string" && /^[0-9a-f-]{36}$/.test(searchParams.item) ? await loadItem(project.id, searchParams.item) : null;
   const date = isYmd(searchParams.date) ? searchParams.date : (item?.planned_on ?? null);
   const needImageReconnect = await snsNeedingImageReconnect(accounts);
@@ -43,6 +45,7 @@ export default async function ComposePage(props: PageProps<"/projects/[id]/compo
       aiCheckEnabled={aiConfigured()}
       numbers={numbers && <PostNumbersBand projectId={project.id} numbers={numbers} />}
       timeHint={timeHint}
+      profileLink={profileLink}
       initial={{
         body: "",
         targets: (item?.sns && isSnsKey(item.sns) ? [item.sns] : SNS_KEYS.filter((s) => connected.includes(s))).map((sns) => ({ sns, bodyOverride: null })),

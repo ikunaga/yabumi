@@ -46,6 +46,32 @@ describe("返事の検証", () => {
     expect(out[1].drafts.map((d) => d.sns)).toEqual(["x", "threads"]);
   });
 
+  it("Instagram の文面に URL が残っていたら外し、「プロフィールのリンクから」にする（ほかの SNS の URL は残す）", () => {
+    const raw = {
+      options: [
+        {
+          label: "そのまままとめる",
+          why: "",
+          drafts: [
+            { sns: "threads", text: "金曜の朝だけ焼きます。\nご予約はこちら https://yoyaku.example.com" },
+            { sns: "instagram", text: "金曜の朝だけ焼きます。\nご予約はこちら https://yoyaku.example.com\n#パン屋" },
+          ],
+        },
+        { label: "指示どおり", why: "", drafts: [{ sns: "instagram", text: "金曜の朝だけ焼きます。\n\n▶︎ ご予約はプロフィールのリンクから" }] },
+      ],
+    };
+    const out = normalizeTidy(raw, ["threads", "instagram"], ["パン屋"], "shop")!;
+    expect(out[0].drafts[0].text).toContain("https://yoyaku.example.com");
+    expect(out[0].drafts[1].text).toBe("金曜の朝だけ焼きます。\n\n▶︎ ご予約・お店の場所はプロフィールのリンクから\n\n#パン屋");
+    expect(out[1].drafts[1].text).toBe("金曜の朝だけ焼きます。\n\n▶︎ ご予約はプロフィールのリンクから");
+    // Instagram が足りないときに埋めたほかの SNS の文面からも、URL を外す
+    expect(normalizeTidy({ options: [{ label: "a", why: "", drafts: [{ sns: "x", text: "焼きます https://example.com" }] }] }, ["x", "instagram"], [], "app")![0].drafts).toEqual([
+      { sns: "x", text: "焼きます https://example.com" },
+      { sns: "instagram", text: "焼きます\n\n▶︎ アプリはプロフィールのリンクから" },
+    ]);
+    expect(TIDY_DRAFT_SYSTEM).toContain("プロフィールのリンクから");
+  });
+
   it("形が合わない・使える案がないときは null", () => {
     expect(normalizeTidy({ x: 1 }, ["x"], [])).toBeNull();
     expect(normalizeTidy({ options: [] }, ["x"], [])).toBeNull();

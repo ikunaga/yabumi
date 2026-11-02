@@ -9,6 +9,7 @@ import type { BetaMessageParam, BetaTextBlockParam } from "./plan-coach";
 import { IDEA_SNS, ideaContextText, loadContext, planTags, type IdeaContext } from "./post-ideas";
 import { estimateCostUsd } from "./pricing";
 import { LENGTH_RULES, shortenOverDrafts, type CallShorten } from "./shorten";
+import { findUrls, profileLinkLine, withProfileLink } from "@/lib/posts/profile-link";
 import type { TidyOption } from "./tidy-draft-apply";
 
 // AI で投稿に整える（docs/architecture.md の 4.34）。
@@ -61,7 +62,11 @@ ${DATA_RULES}
 - 誇張（「革命的」「最強」「神〇〇」「絶対」「誰でも簡単に」など）、釣りの見出し（「【必見】」「〜した結果…！」「衝撃の」など）、感嘆符や絵文字の重ねすぎ（絵文字は口調で決まっていなければ使わない）
 - 「いかがでしたか」「ぜひ使ってみてください！」のような、ありきたりで AI っぽい言い回し
 - はやりの言葉・ハッシュタグ・話題に合わせる（あなたはいまはやっていることを知りません。設計と元の文だけを使う）
-- URL を足す（元の文にあれば残してよい）。見た人にしてほしいこと（予約・購入など）を、元の文になければ押しつけない
+- URL を足す（元の文にあれば残してよい。Instagram は下の決まり）。見た人にしてほしいこと（予約・購入など）を、元の文になければ押しつけない
+
+# Instagram の文面
+- Instagram は本文の URL を押せません（リンクにならない）。Instagram の文面には URL を書きません
+- 元の文に URL があれば、Instagram の文面ではその URL を外し、最後（ハッシュタグの前）に「▶︎ 〇〇はプロフィールのリンクから」の 1 行を置きます。〇〇は URL の行き先に合う言い方（アプリ、ご予約、ご購入、くわしく など）。元の文に URL がなければ、この 1 行は足しません
 
 # 案の出し方
 - 案は 2〜${MAX_TIDY_OPTIONS} 個。同じ中身で、形を変える。例:
@@ -94,7 +99,8 @@ const cap = (s: string, n: number) => {
 
 // 返事を検証して整える。頼んでいない SNS の文面は捨て、足りない SNS は同じ案のほかの文面で埋める。
 // ハッシュタグは設計で選んだもの・SNS の上限までにする（AI が指示を守らなかったとき用）。使える案がなければ null
-export function normalizeTidy(raw: unknown, sns: SnsKey[], hashtags: string[]): TidyOption[] | null {
+// Instagram の文面に URL が残っていれば外し、「▶︎ 〇〇はプロフィールのリンクから」にする（AI が指示を守らなかったとき用）
+export function normalizeTidy(raw: unknown, sns: SnsKey[], hashtags: string[], productType: string | null = null): TidyOption[] | null {
   const parsed = tidyDraftSchema.safeParse(raw);
   if (!parsed.success) return null;
   const options: TidyOption[] = [];
@@ -106,7 +112,7 @@ export function normalizeTidy(raw: unknown, sns: SnsKey[], hashtags: string[]): 
     }
     const fallback = [...texts.values()][0];
     if (!fallback) continue;
-    const drafts = sns.map((s) => ({ sns: s, text: cap(tidyDraftHashtags(texts.get(s) ?? fallback, hashtags, s), 3000) }));
+    const drafts = sns.map((s) => ({ sns: s, text: cap(instagramText(tidyDraftHashtags(texts.get(s) ?? fallback, hashtags, s), s, productType), 3000) }));
     if (options.some((x) => x.drafts.every((d, i) => d.text === drafts[i].text))) continue;
     options.push({ label: cap(o.label, 20) || `案 ${options.length + 1}`, why: cap(o.why, 300), drafts });
     if (options.length >= MAX_TIDY_OPTIONS) break;
@@ -114,8 +120,19 @@ export function normalizeTidy(raw: unknown, sns: SnsKey[], hashtags: string[]): 
   return options.length ? options : null;
 }
 
+function instagramText(text: string, sns: SnsKey, productType: string | null): string {
+  if (sns !== "instagram") return text;
+  const url = findUrls(text)[0];
+  return url ? withProfileLink(text, profileLinkLine({ productType, url })) : text;
+}
+
 // 上限を超えた文面だけを、AI に 1 回だけ縮めさせる（shorten.ts）。縮めても超えていれば、そのまま残す（画面で「上限を n 字超えています」）
-export async function shortenTidy(call: CallShorten | undefined, options: TidyOption[], hashtags: string[]): Promise<{ options: TidyOption[]; result: ModelOutput | null }> {
+export async function shortenTidy(
+  call: CallShorten | undefined,
+  options: TidyOption[],
+  hashtags: string[],
+  productType: string | null = null,
+): Promise<{ options: TidyOption[]; result: ModelOutput | null }> {
   const drafts = options.flatMap((o, i) => o.drafts.map((d) => ({ id: `${i}:${d.sns}`, sns: d.sns, text: d.text })));
   const { texts, result } = await shortenOverDrafts(call, drafts);
   if (texts.size === 0) return { options, result };
@@ -124,7 +141,7 @@ export async function shortenTidy(call: CallShorten | undefined, options: TidyOp
       ...o,
       drafts: o.drafts.map((d) => {
         const t = texts.get(`${i}:${d.sns}`);
-        return t ? { sns: d.sns, text: tidyDraftHashtags(t, hashtags, d.sns) } : d;
+        return t ? { sns: d.sns, text: instagramText(tidyDraftHashtags(t, hashtags, d.sns), d.sns, productType) } : d;
       }),
     })),
     result,
@@ -179,10 +196,10 @@ export async function runTidyDraft(
   await recordUsage(admin, args.userId, r);
   if (r.stopReason === "refusal") return { ok: false, message: "AI がこの文には答えられませんでした。" };
   const hashtags = planTags(ctx.plan);
-  const options = r.stopReason === "end_turn" ? normalizeTidy(r.output, sns, hashtags) : null;
+  const options = r.stopReason === "end_turn" ? normalizeTidy(r.output, sns, hashtags, ctx.project.productType) : null;
   if (!options) return { ok: false, message: "うまく整えられませんでした。もう一度お試しください。" };
 
-  const shortened = await shortenTidy(deps.callShorten, options, hashtags);
+  const shortened = await shortenTidy(deps.callShorten, options, hashtags, ctx.project.productType);
   if (shortened.result) await recordUsage(admin, args.userId, shortened.result);
   return { ok: true, options: shortened.options };
 }

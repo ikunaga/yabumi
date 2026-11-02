@@ -37,6 +37,7 @@ import { X_PRICE_USD, formatUsd } from "@/lib/sns/x/pricing";
 import { Term } from "@/components/ui/term";
 import { projectSettingsHref } from "@/lib/projects/paths";
 import { sendLabels, sendMode } from "@/lib/posts/send-mode";
+import { findUrls, hasProfileLinkLine, profileLinkLine, withProfileLink, type ProfileLinkInfo } from "@/lib/posts/profile-link";
 import { BAND_INFO, plannedAtFor, type TimeBand } from "@/lib/metrics/time-bands";
 
 export type ComposerInitial = {
@@ -73,6 +74,8 @@ type Props = {
   numbers?: ReactNode;
   // 日時の欄の下の「この時間帯がよく見られています（傾向）」。比べられる数がなければ null（数字の段 4）
   timeHint?: { band: TimeBand; kind: "views" | "clicks" } | null;
+  // Instagram の「プロフィールのリンクから」に使う（行き先の URL と、プロフィールに置く短縮リンクがあるか。4.37）
+  profileLink?: ProfileLinkInfo | null;
 };
 
 // 送信済み・送信中・取り消し済みの配信先は、選び直しも送り直しもできない
@@ -116,6 +119,7 @@ export function PostComposer({
   aiCheckEnabled = false,
   numbers = null,
   timeHint = null,
+  profileLink = null,
 }: Props) {
   const [images, setImages] = useState<AttachedImage[]>(initial.images ?? []);
   const [shortLinks, setShortLinks] = useState(initial.shortLinks ?? true);
@@ -141,6 +145,8 @@ export function PostComposer({
   const [plannedAt, setPlannedAt] = useState(initial.plannedAt);
   // AI で整えた案を使った知らせが出ているか（出ている間は、SNS ごとの文面の 1 行をその知らせにまとめる）
   const [tidyAdopted, setTidyAdopted] = useState(false);
+  // Instagram の文面を「プロフィールのリンクから」にした（したことを 1 行で知らせる）
+  const [igLinked, setIgLinked] = useState(false);
   const [result, setResult] = useState<SavePostResult>({});
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmSend, setConfirmSend] = useState(false);
@@ -281,6 +287,16 @@ export function PostComposer({
     if (r.error) return `${r.error}（本文は入れました）`;
     if (r.image) setImages((prev) => [...prev, r.image!]);
     return null;
+  }
+
+  // Instagram 用の文面を作り（なければ本文から写す）、URL を外して最後に「▶︎ 〇〇はプロフィールのリンクから」を入れる。
+  // PC は右に Instagram のタブを開いて見せる。スマホは下の欄へは飛ばさず、知らせの「Instagram 用の文面を直す」から
+  function applyProfileLink() {
+    const current = overrides.instagram ?? body;
+    const line = profileLinkLine({ productType: profileLink?.productType, destinations: profileLink?.destinations, url: findUrls(current)[0] ?? null });
+    setOverrides((o) => ({ ...o, instagram: withProfileLink(o.instagram ?? body, line) }));
+    setIgLinked(true);
+    if (isSideBySide()) setFocus("instagram");
   }
 
   // 本文の欄へ行く（AI で整えた案を使ったあとの「本文を見る」）。カーソルはマウスで使う画面だけ置く（スマホで鍵盤が開かないように）
@@ -641,6 +657,17 @@ export function PostComposer({
               />
             )}
 
+            {selected.has("instagram") && !isLocked("instagram") && (
+              <InstagramLinkNotice
+                projectId={projectId}
+                text={textFor("instagram")}
+                info={profileLink}
+                done={igLinked && overrides.instagram !== undefined}
+                onApply={applyProfileLink}
+                onEdit={() => editOverride("instagram")}
+              />
+            )}
+
             {images.length > 0 && needImageReconnect.some((s) => selected.has(s) && !isLocked(s)) && (
               <p className="text-[13px] leading-[1.7]">
                 <span className="mr-1.5 font-bold text-signal">● 要確認</span>
@@ -962,6 +989,73 @@ function XUrlCostNotice({ onEdit }: { onEdit: () => void }) {
       <button type="button" onClick={onEdit} className="font-semibold underline">
         X 用に文面を変える
       </button>
+    </div>
+  );
+}
+
+// Instagram は本文の URL を押せない（4.37）。URL があれば知らせて、文面を「プロフィールのリンクから」にするボタンを出す。
+// URL がなくても、行き先の URL を登録していれば一言を足すボタンを控えめに。プロフィールに置く短縮リンクがなければ、作る画面への 1 行
+function InstagramLinkNotice({
+  projectId,
+  text,
+  info,
+  done,
+  onApply,
+  onEdit,
+}: {
+  projectId: string;
+  text: string;
+  info: ProfileLinkInfo | null;
+  done: boolean;
+  onApply: () => void;
+  onEdit: () => void;
+}) {
+  const hasUrl = findUrls(text).length > 0;
+  const hasLine = hasProfileLinkLine(text);
+  const canAdd = !hasUrl && !hasLine && text.trim() !== "" && (info?.destinations.length ?? 0) > 0;
+  const needLink = info !== null && !info.hasInstagramLink && (hasUrl || hasLine);
+  const showDone = done && !hasUrl && hasLine;
+  if (!hasUrl && !showDone && !canAdd && !needLink) return null;
+  return (
+    <div className="flex flex-col gap-1 text-[13px] leading-[1.7]">
+      {hasUrl && (
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="font-bold text-signal">● 要確認</span>
+          <span>Instagram では本文の URL は押せません</span>
+          <button type="button" onClick={onApply} className="text-left font-semibold underline">
+            Instagram の文面を「プロフィールのリンクから」にする
+          </button>
+        </p>
+      )}
+      {showDone && (
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span>
+            <span aria-hidden className="mr-1 font-bold text-success">
+              ✓
+            </span>
+            Instagram 用の文面の URL を外し、最後に「{text.split("\n").find(hasProfileLinkLine)?.trim()}」を入れました。
+          </span>
+          <button type="button" onClick={onEdit} className="font-semibold underline">
+            Instagram 用の文面を直す
+          </button>
+        </p>
+      )}
+      {canAdd && (
+        <p className="text-muted">
+          <button type="button" onClick={onApply} className="text-left underline hover:text-fg">
+            Instagram の文面に「プロフィールのリンクから」の一言を足す
+          </button>
+        </p>
+      )}
+      {needLink && (
+        <p className="text-muted">
+          Instagram のプロフィールに置くリンクがまだありません。
+          <Link href={`/projects/${projectId}/links#profile-instagram`} className="font-semibold text-fg underline">
+            プロフィールに置くリンクを作る（短縮リンク）
+          </Link>
+          （作ったら、Instagram のプロフィールに自分で貼ります）
+        </p>
+      )}
     </div>
   );
 }

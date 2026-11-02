@@ -531,6 +531,8 @@ yabumi は、画面を開くたびに proxy.ts（とページ）で `supabase.au
 
 済んだら、この表の状態と roadmap.md の D34 の表を直す。
 
+- **そのあと出し直した（2026-11-02）**: main **fc40864** を出した（マイグレーションなし）。中身と確かめは 23 の「出した記録」。22-9〜22-12 はこの出し直しでは変わらない（まだ）
+
 
 - **コード**: 本番（origin/main）は 23f12da（2026-10-31 の「上の帯を詰め、PC のメニューを英語にする」）。D33 の画面の作り直しと数字の段 1〜5 はもう本番に出ている。main はそこから 15 コミット先で、出すのは次のもの
   - D34 の汎用化（宣伝するものの種類・行き先の URL・手で入れる成果、文言・用語集・LP、AI への指示、アカウント設計の記入例、GitHub を開発しているものだけに）
@@ -600,11 +602,19 @@ yabumi は、画面を開くたびに proxy.ts（とページ）で `supabase.au
 
 Next.js の server action の ID は、ビルドごとの暗号の鍵から作られる。鍵を決めておかないと、本番に出し直すたびに ID が変わり、出し直す前から開いていた画面（スマホのホーム画面の yabumi など）で、保存・送信・AI の呼び出しがすべて失敗する。鍵を決めて、出し直しても ID が変わらないようにする。
 
-| 段 | 誰が | すること |
-|---|---|---|
-| 23-1 | オーナー | ターミナルで `openssl rand -base64 32` を実行し、出た値をパスワード管理アプリに控える（TOKEN_ENCRYPTION_KEY・CREDENTIAL_ENCRYPTION_KEY とは別の、新しい値） |
-| 23-2 | オーナー | Vercel → Settings → Environment Variables に `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`（値は 23-1、Environment は Production と Preview、**Sensitive**）を足し、Redeploy |
-| 23-3 | PM | 本番で、画面を開いたままにしてから main をもう一度出し、その画面で保存できることを確かめる。開いた画面に戻ると、上に「yabumi の新しい版があります」の帯が出ることも確かめる |
+| 段 | 誰が | すること | 状態 |
+|---|---|---|---|
+| 23-1 | オーナー | ターミナルで `openssl rand -base64 32` を実行し、出た値をパスワード管理アプリに控える（TOKEN_ENCRYPTION_KEY・CREDENTIAL_ENCRYPTION_KEY とは別の、新しい値） | 済（2026-11-02） |
+| 23-2 | オーナー | Vercel → Settings → Environment Variables に `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`（値は 23-1、Environment は Production と Preview、**Sensitive**）を足し、Redeploy | 済（2026-11-02。fc40864 を出す前） |
+| 23-3 | PM | 本番で、画面を開いたままにしてから main をもう一度出し、その画面で保存できることを確かめる。開いた画面に戻ると、上に「yabumi の新しい版があります」の帯が出ることも確かめる | まだ（次に出し直すときに確かめる） |
 
 - この鍵は、server action に渡す値の暗号にも使うので、秘密にする（Sensitive）。**変えると、その時点で開いていた画面の保存や送信が 1 回失敗する**（画面は「yabumi が新しくなりました・読み込み直す」を出し、投稿の本文・設計・メモは読み込み直しても戻る）。漏れたときだけ変える
 - 「新しい版があります」の帯は、ビルドの前に scripts/write-version.mjs が書く public/version.json と、画面の版（VERCEL_DEPLOYMENT_ID）を比べて出す。Vercel が入れる値なので、設定は要らない。費用もかからない（静的なファイル）
+
+### 出した記録（2026-11-02）
+
+- **出したもの**: main **fc40864**（オーナーの git push。前は f7d4ccb）。**マイグレーションなし**、環境変数は 23-2 の `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` を足した
+- **中身**: 見ればわかる「?」の説明を外す・短くする（ced394b・86b17ae）、用語の点線（Term）の字の色をまわりに合わせる（f31e520）、ネタ帳のメモを黙って失わない（bd2e274）と書きかけの控えを本人にだけ戻す・持ち主のない控えは 1 時間だけ（28ea4c0・26a9592）、投稿をつくるの「AI で投稿に整える」（1052c00。architecture.md 4.34）、開いたままの画面の対策（fc40864。architecture.md 4.35）
+- **規約・ポリシー**: /privacy の Anthropic の行に「AI で投稿に整える」で送る本文を書き足した（4bafa02）。① の書き足しなので、施行日と LEGAL_VERSIONS は変えていない（[legal.md](legal.md) の「AI で投稿に整える本文を、Anthropic に送るものに書き足す」）
+- **本番の確かめ（PM）**: /version.json と画面の data-app-version が同じ（dpl_5MZYJEG5…）。LP・ログイン・/terms・/privacy が 200 で、/privacy に「AI で投稿に整える」の文がある
+- **残り**: 23-3（開いたままの画面で保存できるか）は、次に出し直すときに PM が確かめる

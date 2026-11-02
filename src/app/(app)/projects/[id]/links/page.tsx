@@ -22,6 +22,7 @@ import { PROFILE_RULES } from "@/lib/plan/profile";
 import { getProject } from "@/lib/projects/queries";
 import { createClient } from "@/lib/supabase/server";
 import { SNS, type SnsKey } from "@/lib/sns";
+import { SubmitButton } from "@/components/ui/submit-button";
 
 export const metadata: Metadata = { title: "短縮リンク" };
 
@@ -70,9 +71,9 @@ function LinkLine({ projectId, link }: { projectId: string; link: LinkRow }) {
           </Link>
         )}
         <form action={setLinkDisabled.bind(null, projectId, link.id, !link.disabled)} className="ml-auto">
-          <button type="submit" className="text-muted hover:text-fg hover:underline">
+          <SubmitButton pendingText={link.disabled ? "使い直しています…" : "止めています…"} className="text-muted hover:text-fg hover:underline">
             {link.disabled ? "使い直す" : "止める"}
-          </button>
+          </SubmitButton>
         </form>
       </div>
     </li>
@@ -82,10 +83,9 @@ function LinkLine({ projectId, link }: { projectId: string; link: LinkRow }) {
 // 短縮リンク（F07 のストアページ到達。docs/architecture.md の 4.22、決定 D20）
 export default async function LinksPage(props: PageProps<"/projects/[id]/links">) {
   const { id } = await props.params;
-  const project = await getProject(id);
-  if (!project) notFound();
   const supabase = await createClient();
-  const [links, linkDomain, registered] = await Promise.all([listLinks(project.id), getLinkDomain(supabase, project.id), listDestinations(supabase, project.id)]);
+  const [project, links, linkDomain, registered] = await Promise.all([getProject(id), listLinks(id), getLinkDomain(supabase, id), listDestinations(supabase, id)]);
+  if (!project) notFound();
 
   // 行き先の候補: アプリならストアの URL、そしてプロジェクトの設定で入れた行き先の URL（決定 D34）
   const destinations = destinationCandidates(project, registered);
@@ -182,9 +182,9 @@ export default async function LinksPage(props: PageProps<"/projects/[id]/links">
                           <div className="flex flex-wrap items-center gap-x-3 text-xs text-muted">
                             <span className="min-w-0 break-all">→ {link.destination}</span>
                             <form action={setLinkDisabled.bind(null, project.id, link.id, true)} className="ml-auto">
-                              <button type="submit" className="hover:text-fg hover:underline">
+                              <SubmitButton pendingText="止めています…" className="hover:text-fg hover:underline">
                                 止める
-                              </button>
+                              </SubmitButton>
                             </form>
                           </div>
                         ) : (

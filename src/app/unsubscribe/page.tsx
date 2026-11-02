@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { PublicCard, PublicFrame } from "@/components/public/public-frame";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { unsubscribeAction } from "./actions";
+import { SubmitButton } from "@/components/ui/submit-button";
 
 export const metadata: Metadata = { title: "お知らせのメールを止める", robots: { index: false } };
 
@@ -31,7 +31,7 @@ export default async function UnsubscribePage(props: PageProps<"/unsubscribe">) 
       ) : (
         <form action={unsubscribeAction} className="flex w-full justify-center">
           <input type="hidden" name="t" value={token} />
-          <PublicCard title="yabumi のお知らせのメールを止める" actions={<Button type="submit">メールを止める</Button>}>
+          <PublicCard title="yabumi のお知らせのメールを止める" actions={<SubmitButton variant="primary" pendingText="止めています…">メールを止める</SubmitButton>}>
             <p>伴走のお知らせのメール（遅れそうなとき・毎週の振り返り）を止めます。</p>
             <p className="text-muted">スマホの通知と、yabumi の画面の声かけはそのままです。</p>
           </PublicCard>

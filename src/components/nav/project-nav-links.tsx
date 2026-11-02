@@ -2,14 +2,23 @@
 
 import Link from "next/link";
 import { usePathname, useSelectedLayoutSegment } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { type MouseEvent, useEffect, useRef, useState } from "react";
 import { DismissableDetails } from "@/components/ui/dismissable-details";
 import { activeNavKey, type ProjectNavItem, type ProjectNavKey, projectNavItems } from "./project-nav-items";
 
 // プロジェクト内のメニュー。開いている画面を URL から判定して選択中にする。
 // bar: PC の上の横並び（5 つ ＋「…」その他）。tabs: スマホの下のタブ（5 つ）
 export function ProjectNavLinks({ projectId, variant }: { projectId: string; variant: "bar" | "tabs" }) {
-  const active = activeNavKey(useSelectedLayoutSegment());
+  const current = activeNavKey(useSelectedLayoutSegment());
+  // 押した瞬間に選んでいる印を移す（次の画面ができるのを待たない。押した感覚を返すため）。URL が変わったら URL のほうに戻す
+  const pathname = usePathname();
+  const [pending, setPending] = useState<{ key: ProjectNavKey; from: string } | null>(null);
+  const active = pending && pending.from === pathname ? pending.key : current;
+  const press = (key: ProjectNavKey) => (e: MouseEvent) => {
+    // 新しいタブで開く押し方（⌘・Ctrl・Shift・中ボタン）では、この画面は変わらないので印も動かさない
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    setPending({ key, from: pathname });
+  };
   const items = projectNavItems(projectId);
   const main = items.filter((i) => i.main);
 
@@ -21,6 +30,7 @@ export function ProjectNavLinks({ projectId, variant }: { projectId: string; var
             {item.href ? (
               <Link
                 href={item.href}
+                onClick={press(item.key)}
                 aria-current={item.key === active ? "page" : undefined}
                 title={item.label}
                 className="block rounded-md px-3 py-1.5 whitespace-nowrap text-muted hover:bg-nav-active hover:text-fg hover:no-underline aria-[current=page]:font-bold aria-[current=page]:text-fg max-lg:px-2"
@@ -35,7 +45,7 @@ export function ProjectNavLinks({ projectId, variant }: { projectId: string; var
           </li>
         ))}
         <li>
-          <MoreMenu items={items.filter((i) => !i.main)} active={active} />
+          <MoreMenu items={items.filter((i) => !i.main)} active={active} onPress={press} />
         </li>
       </ul>
     );
@@ -48,6 +58,7 @@ export function ProjectNavLinks({ projectId, variant }: { projectId: string; var
           {item.href ? (
             <Link
               href={item.href}
+              onClick={press(item.key)}
               aria-current={item.key === active ? "page" : undefined}
               className="flex flex-1 flex-col items-center justify-center gap-1 leading-none hover:no-underline aria-[current=page]:font-bold aria-[current=page]:text-fg"
             >
@@ -67,7 +78,7 @@ export function ProjectNavLinks({ projectId, variant }: { projectId: string; var
 }
 
 // 「…」（その他）。5 つに入らない画面（アカウント設計・ネタ帳・短縮リンク・ロードマップ）
-function MoreMenu({ items, active }: { items: ProjectNavItem[]; active: ProjectNavKey }) {
+function MoreMenu({ items, active, onPress }: { items: ProjectNavItem[]; active: ProjectNavKey; onPress: (key: ProjectNavKey) => (e: MouseEvent) => void }) {
   const pathname = usePathname();
   const ref = useRef<HTMLDivElement>(null);
 
@@ -95,6 +106,7 @@ function MoreMenu({ items, active }: { items: ProjectNavItem[]; active: ProjectN
               {item.href ? (
                 <Link
                   href={item.href}
+                  onClick={onPress(item.key)}
                   aria-current={item.key === active ? "page" : undefined}
                   className="flex items-baseline justify-between gap-3 px-4 py-2.5 hover:bg-subtle hover:no-underline aria-[current=page]:font-bold"
                 >

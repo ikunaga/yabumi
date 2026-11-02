@@ -22,9 +22,10 @@ export default async function PlanPage(props: PageProps<"/projects/[id]/plan">) 
   const { id } = await props.params;
   // ?open=profile のように、開いておくセクションを指定できる（作成画面の短縮リンクの案内から「名前とプロフィール」へ）
   const { open } = await props.searchParams;
-  const [plan, project] = await Promise.all([getAccountPlan(id), getProject(id)]);
+  // id だけで読めるので、まとめて並べて読む（待ち時間を縮める）
+  const supabase = await createClient();
+  const [plan, project, accounts, links, registered] = await Promise.all([getAccountPlan(id), getProject(id), listProjectSnsAccounts(id), listLinks(id), listDestinations(supabase, id)]);
   if (!plan || !project) notFound();
-  const [accounts, links, registered] = await Promise.all([listProjectSnsAccounts(id), listLinks(id), listDestinations(await createClient(), id)]);
   const profileLinks: Partial<Record<SnsKey, string>> = {};
   for (const l of links) if (l.kind === "profile" && !l.disabled && l.sns && !profileLinks[l.sns]) profileLinks[l.sns] = l.url;
 

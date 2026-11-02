@@ -11,6 +11,8 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "db:keys": "node scripts/ensure-signing-key.mjs",
+    "db:start": "node scripts/start-supabase.mjs",
     "db:types": "supabase gen types typescript --local < /dev/null > src/lib/supabase/database.types.ts"
   },
   "dependencies": {

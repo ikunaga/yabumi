@@ -6,3 +6,6 @@
 .env.keys
 .env.local
 .env.*.local
+
+# ローカルの JWT の署名鍵（ES256。pnpm db:keys で作る。docs/deploy.md の 21）。コミットしない
+signing_keys.json

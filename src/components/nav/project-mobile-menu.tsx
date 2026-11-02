@@ -8,6 +8,7 @@ import { DismissableDetails } from "@/components/ui/dismissable-details";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { logout } from "@/lib/auth/actions";
 import { activeNavKey, projectNavItems } from "./project-nav-items";
+import { SubmitButton } from "@/components/ui/submit-button";
 
 // スマホのヘッダーの「メニュー」。下のタブに入らない画面（アカウント設計・リンク・ロードマップ）と、アカウント・ログアウトへの入口。
 // プロジェクトの切り替えとは役目が違うので分ける（切り替えはプロジェクト名、ここは画面の一覧）。
@@ -65,9 +66,9 @@ export function ProjectMobileMenu({ projectId, email, projects }: { projectId: s
             <span className="block truncate text-xs text-muted">{email}</span>
           </Link>
           <form action={logout}>
-            <button type="submit" className="block w-full px-4 py-3 text-left hover:bg-primary-soft">
+            <SubmitButton pendingText="ログアウトしています…" className="block w-full px-4 py-3 text-left hover:bg-primary-soft">
               ログアウト
-            </button>
+            </SubmitButton>
           </form>
         </div>
       </div>

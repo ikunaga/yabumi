@@ -486,3 +486,27 @@ yabumi は利用者ごとに「読み取り用のサービスアカウント」�
 | Magic link | `supabase/templates/magic_link.html` | 【yabumi】ログインのリンク |
 | Change email address | `supabase/templates/email_change.html` | 【yabumi】メールアドレスの変更の確認 |
 | Reset password | `supabase/templates/recovery.html` | 【yabumi】パスワードの再設定 |
+
+## 21. ログインの確かめを速くする（JWT の署名鍵を ES256 に。2026-11-02、perf/instant-feedback）
+
+yabumi は、画面を開くたびに proxy.ts（とページ）で `supabase.auth.getClaims()` を使い、ログインしているかを確かめる。署名鍵が HS256（Supabase の既定。共有の秘密鍵）のままだと、getClaims は手元では確かめられず、毎回 Supabase に問い合わせる（getUser と同じ）。非対称の署名鍵（ES256）にすると、公開鍵（JWKS。一度取れば覚えておく）で手元で確かめるので、毎回の問い合わせがなくなる。署名を確かめることは変わらないので、安全さは落ちない。
+
+### 本番（オーナー）
+
+| # | 誰が | やること |
+|---|---|---|
+| 21-1 | オーナー | Supabase のダッシュボード → Project Settings → **JWT Keys** を開く。「JWT Signing Keys」の画面で **Migrate JWT secret** を押す（今の HS256 の秘密鍵が「前の鍵」として残り、すでに出ているトークンはそのまま通る） |
+| 21-2 | オーナー | **Create standby key** で、種類に **ECC (P-256)** を選んで作る |
+| 21-3 | オーナー | 数分おいてから、作った鍵の **Rotate keys**（standby の鍵を今の鍵にする）。これ以降に出るトークンは ES256 で署名される。前の HS256 の鍵は「前の鍵」として残るので、ログイン中の人がすぐにログインし直しになることはない（トークンの期限の 1 時間で入れ替わる） |
+| 21-4 | オーナー | 1 時間以上たってから、前の HS256 の鍵を **Revoke** する（取り消すと、HS256 のトークンは通らなくなる。21-3 のあと急がなくてよい） |
+| 21-5 | 確かめ | yabumi にログインし直して、画面を移る。Vercel のログで、proxy の時間が短くなっていること。ブラウザの開発ツールでトークン（cookie の sb-…-auth-token）の頭が `alg: ES256` になっていること |
+
+- アプリのコードと環境変数は変えない（publishable key・secret key はそのまま。getClaims は JWKS を `/auth/v1/.well-known/jwks.json` から自分で取る）
+- 戻したいときは、ダッシュボードで HS256 の鍵を今の鍵に戻す（Rotate）
+
+### ローカル（開発する人）
+
+- 共有のローカルの Supabase は、ES256 の鍵で動いている（2026-11-02 に切り替えた）
+- 鍵のファイルは `supabase/signing_keys.json`（gitignore。コミットしない）。`supabase/config.toml` の `signing_keys_path` は、鍵がないとすべての supabase のコマンド（migration up・gen types など）が止まるので、リポジトリでは閉じたまま（HS256 で動く）にしている
+- ローカルの Supabase を起動し直すときは、`supabase start` ではなく **`pnpm db:start`**（鍵がなければ作り、起動するあいだだけ signing_keys_path を開く）。`supabase start` で起動すると HS256 に戻る（動くが、ログインの確かめが毎回の問い合わせになる）
+- 鍵だけ作るときは `pnpm db:keys`。切り替えたあとは、前の HS256 のトークンが通らないので、ログインし直す

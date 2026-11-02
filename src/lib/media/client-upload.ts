@@ -1,4 +1,4 @@
-import { confirmImageUpload, requestImageUpload } from "./actions";
+import { confirmImageUpload, requestImageUpload, type AiOrigin } from "./actions";
 import { JPEG_QUALITY, MAX_IMAGE_BYTES, MAX_LONG_EDGE, formatBytes } from "./rules";
 
 // ブラウザで画像を JPEG にして上げる（4.18）。投稿の画像とネタ帳のメモの画像で使う
@@ -43,7 +43,7 @@ export async function uploadImageFile(file: File): Promise<UploadedImage> {
 
 // JPEG を上げて確かめる（選んだ画像も、テンプレートで作った画像も同じ流れ。4.18）
 // ai: AI で作った画像から作ったとき（サーバーが確かめて、AI の印を付ける）
-export async function uploadJpeg(blob: Blob, name: string, ai?: { jobId: string; source: "generated" | "composite" }): Promise<UploadedImage> {
+export async function uploadJpeg(blob: Blob, name: string, ai?: AiOrigin): Promise<UploadedImage> {
   if (blob.size > MAX_IMAGE_BYTES) throw new Error(`${name}は ${formatBytes(MAX_IMAGE_BYTES)} を超えます。`);
   const { ticket, error } = await requestImageUpload();
   if (!ticket) throw new Error(error ?? "画像を追加できませんでした。");

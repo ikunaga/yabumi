@@ -609,6 +609,7 @@ export function PostComposer({
                 images={images}
                 disabled={pending}
                 maker={{ projectId, projectName, aiEnabled: aiCheckEnabled, text: textFor(focus), targets: chosen }}
+                instagram={chosen.includes("instagram")}
                 onChange={(next) => {
                   setImages(next);
                   clearFieldError("media");
@@ -794,7 +795,7 @@ export function PostComposer({
                     .map((i, n) => (instagramRatioOk(i.width, i.height) ? null : `${n + 1} 枚目（${i.width}×${i.height}）`))
                     .filter(Boolean)
                     .join("、")}
-                  が範囲の外です。スマホのスクリーンショット（縦長すぎる）は、上下を切って 4:5 に近づけてください。
+                  が範囲の外です。画像の欄の「縦横を整える」で、切り取るか余白を足して収められます。
                 </p>
               )}
               {focus === "instagram" && checks.instagram.issues.includes("too_many_hashtags") && (

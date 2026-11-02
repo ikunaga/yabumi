@@ -177,6 +177,12 @@ export async function attachMedia(admin: Admin, ownerId: string, postId: string,
   }
 }
 
+// この利用者の、AI で作った画像か（縦横を整えて上げ直したときに、AI の印を引き継ぐため）
+export async function ownAiMedia(admin: Admin, ownerId: string, mediaId: string): Promise<boolean> {
+  const { data } = await admin.from("media_files").select("id").eq("id", mediaId).eq("owner_id", ownerId).eq("ai_generated", true).maybeSingle();
+  return Boolean(data);
+}
+
 // 保存していない画像を外す（画面の「外す」）。投稿に添えた画像は、投稿を保存したときに attachMedia が消す
 export async function discardUnattached(admin: Admin, ownerId: string, id: string): Promise<void> {
   const { data } = await admin.from("media_files").select("id, storage_path").eq("id", id).eq("owner_id", ownerId).is("post_id", null).maybeSingle();

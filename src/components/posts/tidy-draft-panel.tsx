@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button, NotReadyButton } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { HelpTip } from "@/components/ui/help";
-import { overLimit } from "@/lib/ai/shorten";
-import { tidyPostDraft } from "@/lib/ai/tidy-draft-actions";
-import { adoptTidyOption, type TidyOption } from "@/lib/ai/tidy-draft-apply";
-import { isManualSns, SNS, type SnsKey } from "@/lib/sns";
+import type { TidyDraftResponse } from "@/app/api/ai/tidy-draft/route";
+import { adoptTidyOption, tidyMainSns, type TidyOption } from "@/lib/ai/tidy-draft-apply";
+import { isOnline } from "@/lib/client-errors";
+import { displayLength, isManualSns, SNS, type SnsKey } from "@/lib/sns";
 
 type Composer = { body: string; overrides: Partial<Record<SnsKey, string>> };
 
@@ -18,42 +18,84 @@ type Props = {
   current: Composer;
   // 整える SNS（送り先に選んだもの）
   sns: SnsKey[];
-  // 本文と SNS ごとの文面を入れ替える
-  onReplace: (next: Composer) => void;
+  // 本文と SNS ごとの文面を入れ替える。edit: 案を使ったときに、SNS ごとの文面に入れた SNS（その欄を開いて見せる）
+  onReplace: (next: Composer, edit?: SnsKey) => void;
 };
 
+// 待つ時間の目安（画面に出す）。effort medium で、案 2〜3 個 × SNS ごとの文面を書く（docs/architecture.md の 4.34）
+export const TIDY_WAIT = "20〜40 秒ほど";
+
 // AI で投稿に整える（docs/architecture.md の 4.34）: 声で入れた話し言葉などを、言いたいことを 1 つに絞って SNS ごとの字数に収めた案にする。
-// 案を選ぶと本文と SNS ごとの文面に入り、「元に戻す」で整える前の文に戻せる
+// 案はカードの中でそのまま直せ、選ぶと本文と SNS ごとの文面に入る（入れたあとも直せる）。「元に戻す」で整える前の文に戻せる
 export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace }: Props) {
   const [options, setOptions] = useState<TidyOption[] | null>(null);
   // 整える前の文（案を使ったときに覚え、「元に戻す」で戻す）
   const [original, setOriginal] = useState<Composer | null>(null);
-  const [adopted, setAdopted] = useState<number | null>(null);
+  const [adopted, setAdopted] = useState<{ index: number; main: SnsKey | null; split: SnsKey[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
+  // 待っている間（始めた時刻）。やめるときは abort で待つのをやめる
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const abort = useRef<AbortController | null>(null);
+  const waiting = startedAt !== null;
   // 案を使ったあとに整え直すときは、整える前の文から
   const source = original?.body ?? current.body;
   const hasText = source.trim() !== "";
   // note・Substack（長い記事）は整えない
   const hasSns = sns.some((s) => !isManualSns(s));
 
-  const run = () =>
-    startTransition(async () => {
-      setError(null);
-      const res = await tidyPostDraft(projectId, { text: source, sns });
-      if (res.error || !res.options) {
-        setError(res.error ?? "うまくいきませんでした。");
+  // 画面を離れたら、待つのをやめる
+  useEffect(() => () => abort.current?.abort(), []);
+
+  async function run() {
+    setError(null);
+    if (!isOnline()) {
+      setError("インターネットにつながっていないようです。つながってから、もう一度押してください。");
+      return;
+    }
+    const controller = new AbortController();
+    abort.current = controller;
+    setStartedAt(Date.now());
+    try {
+      const res = await fetch("/api/ai/tidy-draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, text: source, sns }),
+        signal: controller.signal,
+      });
+      const body = (await res.json().catch(() => ({}))) as TidyDraftResponse;
+      if (body.error || !body.options) {
+        setError(body.error ?? "うまくいきませんでした。時間をおいてもう一度お試しください。");
         return;
       }
-      setOptions(res.options);
+      setOptions(body.options);
       setAdopted(null);
-    });
+    } catch (e) {
+      if (controller.signal.aborted) return;
+      console.error("[tidy-draft]", e);
+      setError("AI とのやりとりがうまくいきませんでした。通信をたしかめて、もう一度お試しください。");
+    } finally {
+      if (abort.current === controller) {
+        abort.current = null;
+        setStartedAt(null);
+      }
+    }
+  }
+
+  // やめる（AI は最後まで動くので、費用はかかり、上限にも数える）
+  function cancel() {
+    abort.current?.abort();
+    abort.current = null;
+    setStartedAt(null);
+  }
 
   function adopt(i: number) {
+    const option = options![i];
     const base = original ?? current;
     if (!original) setOriginal(current);
-    onReplace(adoptTidyOption(options![i], base));
-    setAdopted(i);
+    const next = adoptTidyOption(option, base);
+    const split = option.drafts.map((d) => d.sns).filter((s) => next.overrides[s] !== undefined);
+    onReplace(next, split[0]);
+    setAdopted({ index: i, main: tidyMainSns(option), split });
   }
 
   function restore() {
@@ -63,7 +105,12 @@ export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace }
     setAdopted(null);
   }
 
+  function editDraft(i: number, sns: SnsKey, text: string) {
+    setOptions((prev) => prev && prev.map((o, n) => (n === i ? { ...o, drafts: o.drafts.map((d) => (d.sns === sns ? { ...d, text } : d)) } : o)));
+  }
+
   const showSns = (options?.[0]?.drafts.length ?? 0) > 1;
+  const adoptedOption = adopted ? options?.[adopted.index] : undefined;
 
   return (
     <section className="flex flex-col gap-3" aria-labelledby="tidy-heading">
@@ -72,8 +119,8 @@ export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace }
           AI で投稿に整える
         </h2>
         {aiEnabled ? (
-          <Button type="button" variant="secondary" size="sm" disabled={pending || !hasText || !hasSns} onClick={run}>
-            {pending ? "整えています…" : options ? "もう一度整える" : "AI で投稿に整える"}
+          <Button type="button" variant="secondary" size="sm" disabled={waiting || !hasText || !hasSns} aria-busy={waiting || undefined} onClick={run}>
+            {waiting ? "整えています…" : options ? "もう一度整える" : "AI で投稿に整える"}
           </Button>
         ) : (
           <NotReadyButton variant="secondary" size="sm">
@@ -82,33 +129,40 @@ export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace }
         )}
         <span className="text-xs text-muted">{!hasText ? "本文を話すか書くと押せます" : !hasSns ? "送り先の SNS（note・Substack 以外）を選ぶと押せます" : "1 回 5〜15 円ほど"}</span>
         <HelpTip label="AI で投稿に整える">
-          話した言葉や思いつくままに書いた文から、言いたいことを 1 つに絞り、選んだ SNS ごとの字数に収めた案を 2〜3 個出します。最初の 1 行で引きつける・問いかけで終えるなど、形の違う案から選べます。あなたが言っていないこと（数字・できごと・感想）は足しません。口調とやらないこと、ハッシュタグはアカウント設計に合わせます。AI はいまはやっている言葉や話題を知らない（その時々のデータを見ていない）ので、はやりには合わせません。1 回 5〜15 円ほどかかります。
+          話した言葉や思いつくままに書いた文から、言いたいことを 1 つに絞り、選んだ SNS ごとの字数に収めた案を 2〜3 個出します。最初の 1 行で引きつける・問いかけで終えるなど、形の違う案から選べます。案はその場で直してから使えます。あなたが言っていないこと（数字・できごと・感想）は足しません。口調とやらないこと、ハッシュタグはアカウント設計に合わせます。AI はいまはやっている言葉や話題を知らない（その時々のデータを見ていない）ので、はやりには合わせません。1 回 5〜15 円ほどかかります。
         </HelpTip>
       </div>
 
       {error && <ErrorBanner>{error}</ErrorBanner>}
 
-      {adopted !== null && options?.[adopted] && (
-        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md bg-primary-soft px-3 py-2 text-sm text-fg" role="status">
-          <span>
-            「{options[adopted].label}」の案を本文に入れました。直してから送れます。
-          </span>
-          <button type="button" className="font-semibold text-primary underline-offset-2 hover:underline" onClick={restore}>
-            元に戻す
-          </button>
-        </p>
+      {waiting && <TidyWaiting startedAt={startedAt} cards={Math.min(3, Math.max(2, options?.length ?? 3))} onCancel={cancel} />}
+
+      {!waiting && adopted && adoptedOption && (
+        <div className="flex flex-col gap-1 rounded-md bg-primary-soft px-3 py-2 text-sm text-fg" role="status">
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span>「{adoptedOption.label}」の案を入れました。このまま直せます。</span>
+            <button type="button" className="font-semibold text-primary underline-offset-2 hover:underline" onClick={restore}>
+              元に戻す
+            </button>
+          </p>
+          {adopted.split.length > 0 && adopted.main && (
+            <p className="text-[13px] text-muted">
+              本文には {SNS[adopted.main].label} の文面を、{adopted.split.map((s) => SNS[s].label).join("・")} には SNS ごとの文面を入れました（字数が違うため）。
+            </p>
+          )}
+        </div>
       )}
 
-      {options && (
+      {!waiting && options && (
         <ul className="flex flex-col gap-3">
           {options.map((o, i) => (
-            <li key={i} className={`flex flex-col gap-2 rounded-lg border bg-surface p-4 ${adopted === i ? "border-primary" : "border-line"}`}>
+            <li key={i} className={`flex flex-col gap-2 rounded-lg border bg-surface p-4 ${adopted?.index === i ? "border-primary" : "border-line"}`}>
               <div className="flex items-start gap-3">
                 <div className="flex min-w-0 flex-1 flex-col gap-1">
                   <span className="font-bold text-fg">{o.label}</span>
                   {o.why && <span className="text-[13px] leading-[1.7] text-muted">{o.why}</span>}
                 </div>
-                {adopted === i ? (
+                {adopted?.index === i ? (
                   <span className="shrink-0 rounded-full bg-primary-soft px-2.5 py-1 text-xs font-bold text-primary">使っています</span>
                 ) : (
                   <Button type="button" variant="secondary" size="sm" className="shrink-0" onClick={() => adopt(i)}>
@@ -116,24 +170,122 @@ export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace }
                   </Button>
                 )}
               </div>
-              {o.drafts.map((d) => {
-                const over = overLimit(d.sns, d.text);
-                return (
-                  <div key={d.sns} className="flex flex-col gap-1 border-t border-line pt-2">
-                    {showSns && <span className="text-xs font-semibold text-muted">{SNS[d.sns].label}</span>}
-                    <p className="text-[15px] leading-[1.75] whitespace-pre-wrap text-fg">{d.text}</p>
-                    {over > 0 && (
-                      <p className="text-[13px] font-semibold text-danger">
-                        {SNS[d.sns].label} の上限を {over} 字超えています。使ったあとで縮めてください。
-                      </p>
-                    )}
-                  </div>
-                );
-              })}
+              {o.drafts.map((d) => (
+                <DraftEditor
+                  key={d.sns}
+                  id={`tidy-${i}-${d.sns}`}
+                  sns={d.sns}
+                  text={d.text}
+                  showSns={showSns}
+                  // 使っている案は、本文と SNS ごとの文面の側で直す（直す場所を二重にしない）
+                  readOnly={adopted?.index === i}
+                  onChange={(text) => editDraft(i, d.sns, text)}
+                />
+              ))}
             </li>
           ))}
         </ul>
       )}
     </section>
+  );
+}
+
+// 案の文面。使う前はその場で直せ、直すたびに字数を数える
+function DraftEditor({
+  id,
+  sns,
+  text,
+  showSns,
+  readOnly,
+  onChange,
+}: {
+  id: string;
+  sns: SnsKey;
+  text: string;
+  showSns: boolean;
+  readOnly: boolean;
+  onChange: (text: string) => void;
+}) {
+  const max = SNS[sns].maxLength;
+  const length = displayLength(sns, text);
+  const over = max !== null && length > max;
+  const label = SNS[sns].label;
+  return (
+    <div className="flex flex-col gap-1 border-t border-line pt-2">
+      <div className="flex items-baseline justify-between gap-2">
+        <label htmlFor={id} className="text-xs font-semibold text-muted">
+          {showSns ? label : "文面"}
+          {readOnly ? "（本文と SNS ごとの文面に入れました）" : "（ここで直してから使えます）"}
+        </label>
+        <span className={`num shrink-0 text-xs ${over ? "font-bold text-danger" : "text-faint"}`}>
+          {length}
+          {max !== null && `/${max}`}
+        </span>
+      </div>
+      {readOnly ? (
+        <p id={id} className="text-[15px] leading-[1.75] whitespace-pre-wrap text-fg">
+          {text}
+        </p>
+      ) : (
+        <textarea
+          id={id}
+          value={text}
+          onChange={(e) => onChange(e.target.value)}
+          rows={Math.min(10, Math.max(3, text.split("\n").length + Math.ceil(text.length / 40)))}
+          className="w-full resize-y rounded-md border border-input bg-surface px-3 py-2 text-[15px] leading-[1.75] text-fg outline-none focus:border-primary focus:shadow-[0_0_0_1px_var(--primary)] max-sm:text-[16px]"
+        />
+      )}
+      {over && (
+        <p className="text-[13px] font-semibold text-danger">
+          {label} の上限を {length - max!} 字超えています。{readOnly ? "本文か SNS ごとの文面で縮めてください。" : "ここで縮めてから使えます。"}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// 案を待っている間。案のカードの形の骨組みと、スピナー、待つ時間の目安と経った秒数、やめる
+function TidyWaiting({ startedAt, cards, onCancel }: { startedAt: number | null; cards: number; onCancel: () => void }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    // 出たら見える位置に（スマホで、ボタンの下が画面の外にあるとき）
+    box.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  const seconds = startedAt ? Math.max(0, Math.floor((now - startedAt) / 1000)) : 0;
+  return (
+    <div ref={box} className="flex flex-col gap-3">
+      <div role="status" aria-live="polite" className="flex flex-col gap-2 rounded-lg border border-primary bg-primary-soft px-4 py-3.5">
+        <p className="flex items-start gap-2.5 text-[15px] font-bold text-fg">
+          <span aria-hidden className="mt-0.5 inline-block size-4.5 shrink-0 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <span>AI が案を考えています</span>
+        </p>
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] leading-[1.7] text-muted">
+          <span>
+            {TIDY_WAIT}かかります。待っている間も本文は書けます（<span className="num">{seconds}</span> 秒）
+          </span>
+          <button type="button" onClick={onCancel} className="font-semibold text-fg underline-offset-2 hover:underline">
+            やめる
+          </button>
+        </p>
+      </div>
+      <ul aria-hidden className="flex flex-col gap-3">
+        {Array.from({ length: cards }, (_, i) => (
+          <li key={i} className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-1 flex-col gap-2">
+                <div className="h-4 w-32 rounded-md bg-subtle" />
+                <div className="h-3 w-3/4 rounded-md bg-subtle" />
+              </div>
+              <div className="h-8 w-24 rounded-md bg-subtle" />
+            </div>
+            <div className="h-3 w-full rounded-md bg-subtle" />
+            <div className="h-3 w-5/6 rounded-md bg-subtle" />
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

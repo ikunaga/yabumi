@@ -1,7 +1,7 @@
 // AI で投稿に整える（4.34）の、AI を呼ばない部分
 import { describe, expect, it } from "vitest";
 import { buildTidyRequest, normalizeTidy, pickTidySns, shortenTidy, TIDY_DRAFT_SYSTEM } from "@/lib/ai/tidy-draft";
-import { adoptTidyOption, type TidyOption } from "@/lib/ai/tidy-draft-apply";
+import { adoptTidyOption, tidyMainSns, type TidyOption } from "@/lib/ai/tidy-draft-apply";
 import type { CallShorten } from "@/lib/ai/shorten";
 import { normalizePlan } from "@/lib/plan/schema";
 
@@ -74,6 +74,11 @@ describe("案を使う", () => {
       body: "長い方の文",
       overrides: { note: "記事", x: "短い" },
     });
+  });
+
+  it("本文に入れるのは上限のいちばん大きい SNS の文面（画面で「本文には Threads の文面を」と出す）", () => {
+    expect(tidyMainSns(option)).toBe("threads");
+    expect(tidyMainSns({ label: "a", why: "", drafts: [] })).toBeNull();
   });
 
   it("同じ文面の SNS は SNS ごとの文面を外す", () => {

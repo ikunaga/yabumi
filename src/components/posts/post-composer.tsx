@@ -6,6 +6,7 @@ import { clearFormDraft, parseFormDraft, rawFormDraft, writeFormDraft, type Form
 import { getDraftOwner } from "@/lib/notes/draft";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition, type ReactNode } from "react";
+import { flushSync } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { chipClass } from "@/components/ui/chip";
 import { HelpTip } from "@/components/ui/help";
@@ -275,6 +276,15 @@ export function PostComposer({
     return null;
   }
 
+  // SNS ごとの文面の欄へ行く（そのタブを開いてから、欄を見える位置にしてカーソルを置く）
+  function editOverride(sns: SnsKey) {
+    flushSync(() => setFocus(sns));
+    const el = overrideRef.current;
+    if (!el) return;
+    el.scrollIntoView({ block: "center", behavior: "smooth" });
+    el.focus({ preventScroll: true });
+  }
+
   function submit(intent: "draft" | "schedule" | "now") {
     setTouched(true);
     setResult({});
@@ -347,6 +357,10 @@ export function PostComposer({
   const fe = result.fieldErrors ?? {};
   const focusLabel = SNS[focus].label;
   const hasOverride = overrides[focus] !== undefined;
+  // SNS ごとの文面で送る SNS（送り終えたものは除く）
+  const splitSns = toSend.filter((s) => overrides[s] !== undefined);
+  // 本文の欄の字数は、本文で送る SNS で数える（いま見ている SNS が SNS ごとの文面なら、本文で送るほかの SNS で。なければそのまま）
+  const bodySns = overrides[focus] === undefined ? focus : (previewSns.find((s) => overrides[s] === undefined) ?? focus);
   const connectHref = projectSettingsHref(projectId, "sns");
   const plannedLabel = plannedAt ? `${Number(plannedAt.slice(5, 7))}/${Number(plannedAt.slice(8, 10))} ${plannedAt.slice(11, 16)}` : null;
 
@@ -486,13 +500,25 @@ export function PostComposer({
                     clearFieldError("body");
                   }}
                 />
-                <span className={`num shrink-0 pt-1.5 text-[13px] ${checks[focus].issues.includes("too_long") ? "font-bold text-danger" : "text-faint"}`}>
-                  {countText(focus)}
-                  {chosen.length > 1 && <span className="sr-only">（{focusLabel}）</span>}
+                <span className={`num shrink-0 pt-1.5 text-[13px] ${checks[bodySns].issues.includes("too_long") ? "font-bold text-danger" : "text-faint"}`}>
+                  {bodySns !== focus && <span className="mr-1">{SNS[bodySns].label}</span>}
+                  {countText(bodySns)}
+                  {chosen.length > 1 && bodySns === focus && <span className="sr-only">（{focusLabel}）</span>}
                 </span>
               </div>
             </div>
             {fe.body && <p className="text-sm font-semibold text-danger">{fe.body}</p>}
+            {/* SNS ごとの文面がある SNS は、本文を直しても変わらない。そのことと、その欄へ行くボタンを 1 行で */}
+            {splitSns.length > 0 && (
+              <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted">
+                <span>{splitSns.map((s) => SNS[s].label).join("・")} は SNS ごとの文面で送ります（本文を直しても変わりません）。</span>
+                {splitSns.map((s) => (
+                  <button key={s} type="button" onClick={() => editOverride(s)} className="font-semibold text-fg underline underline-offset-2">
+                    {SNS[s].label} 用の文面を直す
+                  </button>
+                ))}
+              </p>
+            )}
             {/* 送り先をすべて送り終えた投稿では、整えても送れないので出さない */}
             {(!sentAny || toSend.length > 0) && (
               <TidyDraftPanel
@@ -500,10 +526,13 @@ export function PostComposer({
                 aiEnabled={aiCheckEnabled}
                 current={{ body, overrides }}
                 sns={toSend}
-                onReplace={(next) => {
+                onReplace={(next, edit) => {
                   setBody(next.body);
                   setOverrides(next.overrides);
                   clearFieldError("body");
+                  // 案を使ったら、入った本文を見せ、SNS ごとの文面に入れた SNS のタブを開いておく（その欄ですぐ直せるように）
+                  if (edit) setFocus(edit);
+                  bodyRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
                 }}
               />
             )}

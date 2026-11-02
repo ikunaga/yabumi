@@ -179,7 +179,7 @@ export function ImageAttachments({
                   </span>
                 </div>
                 <label htmlFor={`alt-${image.id}`} className="text-xs font-bold">
-                  代わりの文（alt）
+                  画像の説明文<span className="ml-1 font-normal text-muted">何が写っているか（任意）</span>
                 </label>
                 <textarea
                   id={`alt-${image.id}`}
@@ -201,7 +201,7 @@ export function ImageAttachments({
       )}
       {images.length > 0 && (
         <p className="text-xs leading-[1.7] text-muted">
-          代わりの文は、目の見えにくい人の読み上げや、画像が表示されないときに出る説明です。何が写っているかを一文で書きます。X では 1 枚につき $0.005（1 円ほど）の<Term k="payPerUse">API の料金</Term>がかかります。
+          画像の説明文は、目の見えにくい人のスマホが読み上げたり、画像が表示されないときに代わりに出たりする文です（alt）。投稿の本文には出ません。X では 1 枚につき $0.005（1 円ほど）の<Term k="payPerUse">API の料金</Term>がかかります。
         </p>
       )}
     </div>

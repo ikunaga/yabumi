@@ -446,7 +446,7 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
               </Group>
 
               <label className="flex flex-col gap-1.5">
-                <span className="text-[14px] font-bold">代わりの文（alt）</span>
+                <span className="text-[14px] font-bold">画像の説明文</span>
                 <Textarea
                   value={altText}
                   rows={2}
@@ -457,7 +457,7 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
                   }}
                   className="py-2 text-sm"
                 />
-                <span className="text-xs text-muted">画像の文字から作っています。直すこともできます</span>
+                <span className="text-xs text-muted">読み上げや、画像が出ないときに使われる文です。画像の文字から作っています。直すこともできます</span>
               </label>
             </div>
           </div>

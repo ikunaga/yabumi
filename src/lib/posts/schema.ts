@@ -22,7 +22,7 @@ export const savePostInputSchema = z.object({
     .max(SNS_KEYS.length),
   // 添える画像（並び順）。画像はブラウザから Storage に上げて確かめ済みのもの（docs/architecture.md の 4.18）
   media: z
-    .array(z.object({ id: z.uuid(), altText: z.string().max(MAX_ALT_LENGTH, `代わりの文は ${MAX_ALT_LENGTH} 字までです`) }))
+    .array(z.object({ id: z.uuid(), altText: z.string().max(MAX_ALT_LENGTH, `画像の説明文は ${MAX_ALT_LENGTH} 字までです`) }))
     .max(MAX_IMAGES_PER_POST)
     .default([]),
   // 本文のストアなどの URL を、配信先ごとの短縮リンクにする（docs/architecture.md の 4.22、決定 D20。初期値はオン）

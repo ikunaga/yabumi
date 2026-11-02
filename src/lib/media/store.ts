@@ -143,7 +143,7 @@ export async function attachMedia(admin: Admin, ownerId: string, postId: string,
   if (items.length > MAX_IMAGES_PER_POST) throw new MediaError(`画像は 1 つの投稿に ${MAX_IMAGES_PER_POST} 枚までです。`);
   if (new Set(items.map((i) => i.id)).size !== items.length) throw new MediaError("同じ画像が 2 回入っています。");
   for (const i of items) {
-    if (i.altText.length > MAX_ALT_LENGTH) throw new MediaError(`代わりの文は ${MAX_ALT_LENGTH} 字までです。`);
+    if (i.altText.length > MAX_ALT_LENGTH) throw new MediaError(`画像の説明文は ${MAX_ALT_LENGTH} 字までです。`);
   }
 
   const { data: post } = await admin.from("posts").select("id").eq("id", postId).eq("owner_id", ownerId).maybeSingle();

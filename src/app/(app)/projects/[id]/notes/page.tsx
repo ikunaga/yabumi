@@ -4,6 +4,7 @@ import { NotesBoard } from "@/components/notes/notes-board";
 import { SuccessBanner } from "@/components/ui/feedback";
 import { PageHeader } from "@/components/ui/page-header";
 import { aiConfigured } from "@/lib/ai/anthropic";
+import { IMAGE_SKIPPED_MESSAGE } from "@/lib/notes/draft";
 import { listNotes } from "@/lib/notes/queries";
 import { getProject } from "@/lib/projects/queries";
 
@@ -22,6 +23,7 @@ export default async function NotesPage(props: PageProps<"/projects/[id]/notes">
         sub={`メモ ${notes.length} 件`}
       />
       {done === "saved" && <SuccessBanner>ネタ帳に残しました</SuccessBanner>}
+      {done === "saved_no_image" && <SuccessBanner>{IMAGE_SKIPPED_MESSAGE}</SuccessBanner>}
       <NotesBoard projectId={project.id} projectName={project.name} notes={notes} aiEnabled={aiConfigured()} />
     </div>
   );

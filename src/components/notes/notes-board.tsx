@@ -12,6 +12,7 @@ import { tabClass, tabListClass } from "@/components/ui/tabs";
 import { discardImage } from "@/lib/media/actions";
 import { uploadImageFile } from "@/lib/media/client-upload";
 import { draftFromNote, editNote, removeNote } from "@/lib/notes/actions";
+import { IMAGE_SKIPPED_MESSAGE } from "@/lib/notes/draft";
 import { MAX_NOTE_CHARS, MAX_NOTES_FOR_IDEAS, type IdeaNote } from "@/lib/notes/rules";
 import { formatShort } from "@/lib/time";
 import { NoteForm } from "./note-form";
@@ -83,11 +84,11 @@ export function NotesBoard({ projectId, projectName, notes, aiEnabled }: { proje
                 key={round}
                 projects={[{ id: projectId, name: projectName }]}
                 projectId={projectId}
-                onSaved={() => {
+                onSaved={(_, { imageSkipped }) => {
                   setWriting(false);
                   setRound((r) => r + 1);
                   setTab("unused");
-                  setFlash("ネタ帳に残しました");
+                  setFlash(imageSkipped ? IMAGE_SKIPPED_MESSAGE : "ネタ帳に残しました");
                   router.refresh();
                 }}
                 onCancel={() => setWriting(false)}
@@ -460,8 +461,9 @@ function ShareHelp() {
         <div>
           <p className="font-bold">iPhone・iPad</p>
           <p>
-            Safari は、ほかのアプリの「共有」から Web のアプリに送る仕組みにまだ対応していません。代わりに「ショートカット」アプリで、共有から yabumi を開く近道を作れます。
+            Safari は、ほかのアプリの「共有」から Web のアプリに送る仕組みにまだ対応していないので、共有の一覧に yabumi は出ません。いちばん手早いのは、文や URL をコピーして、yabumi の右下の「＋ メモ」に貼ることです。
           </p>
+          <p className="mt-1">共有から送りたいときは、「ショートカット」アプリで、共有から yabumi を開く近道を作れます。</p>
           <ol className="mt-1 list-decimal pl-5">
             <li>ショートカットアプリで新しいショートカットを作り、「詳細」の「共有シートに表示」をオンにする（受け取るものは「テキスト」と「URL」）</li>
             <li>アクション「URL エンコード」で「ショートカットの入力」をエンコードする</li>
@@ -469,7 +471,9 @@ function ShareHelp() {
               アクション「URL を開く」に <code className="rounded-sm bg-surface2 px-1 break-all">{origin}/share#text=</code> と、そのあとに「URL エンコードされたテキスト」を続けて入れる
             </li>
           </ol>
-          <p className="mt-1 text-muted">画像は送れないので、写真は yabumi の「＋ メモ」から選んでください。</p>
+          <p className="mt-1 text-muted">
+            ショートカットは Safari で yabumi を開くので、Safari でもログインしておいてください（ホーム画面に追加した yabumi とは、ログインと書きかけのメモが別です）。画像は送れないので、写真は yabumi の「＋ メモ」から選んでください。
+          </p>
         </div>
         <div>
           <p className="font-bold">PC のブラウザ</p>

@@ -1781,11 +1781,20 @@ Facebook ページ（graph.facebook.com）:
 - やめたら、上げた画像はすぐ消す（Esc や外側を押して閉じたときは、翌日の片付けで消える）
 - PC は Ctrl / ⌘ + Enter でも保存できる
 
+#### 書きかけの控え（2026-11-02。オーナーの「スマホから送ったメモが残っていない」から）
+
+- メモを書く欄（src/components/notes/note-form.tsx。「＋ メモ」・ネタ帳の「＋ メモを書く」・/share）は、書いた本文と保存先を、保存できるまでこの端末の localStorage（yabumi-note-draft。src/lib/notes/draft.ts）に控える。消すのは、保存できたときと、「やめる」→「捨てる」を選んだときだけ。30 日より古い控えは戻さずに消す
+- 閉じても（外側を押す・Esc・戻る・画面の読み込み直し・アプリを閉じる）、次に開いたときに「保存していないメモがあります」と出して戻す。「＋ メモ」のボタンに印（朱の点）を出す。控えの保存先が、いま開いているプロジェクトと違うときは、保存先を選べる形にする（黙って別のプロジェクトに入れない）。保存先が決まっているときも「保存先: ○○」を出す
+- 「＋ メモ」は、書きかけがあるときは外側を押しても閉じない（スマホでキーボードを閉じようと外側を押して閉じてしまうため）。「やめる」は、本文があれば「書いたメモを捨てますか？」をその場で確かめる
+- 保存に失敗したら、本文を残したまま、目立つ形（赤の枠）で理由を出す: 通信が切れている（navigator.onLine。Next.js の server action は、つながるまで待ち続けて押しても何も起きないように見えるので先に確かめる）、yabumi が新しくなった（画面を開いたあとにデプロイがあり server action が見つからない。UnrecognizedActionError。「読み込み直す」ボタン。控えがあるので読み込み直しても本文は戻る）、そのほか。以前は例外で「保存しています…」のまま止まり、知らせが出なかった
+- 保存できたら、必ず「ネタ帳に残しました」を出す。画像を添えられなかった（上げた画像が先に片付けられたなど）ときは、本文だけで残し（createNote の imageSkipped）、そのことを知らせる。以前は本文ごと残さなかった。画像だけのメモは、画像がなければ残さない
+- 控えは利用者のブラウザの中だけで、サーバーには送らない（/privacy に ① として書いた。docs/legal.md）
+
 #### ほかのアプリからの共有（Web Share Target）
 
 - manifest（src/app/manifest.ts）の share_target: POST /share/receive、multipart/form-data、title・text・url と画像 1 枚（name="image"、image/*）。ホーム画面に追加した（インストールした）yabumi だけが、共有の送り先に出る。あわせて、アイコンを長押ししたときの近道（shortcuts）に「ネタ帳にメモを残す」（/share）
 - service worker（public/sw.js。src/components/service-worker.tsx で登録）が POST /share/receive を受け、本文と画像をサーバーに送らずにブラウザの中（Cache Storage の yabumi-share）に置いてから、/share へ 303 で移る。ほかの通信には手を出さない（オフラインの保存もしない）。sw.js は proxy の対象から外し（ログインなしで読める）、Cache-Control: no-cache で配る（next.config.ts）
-- /share（src/app/share/page.tsx）はログインなしでも開ける。ログインしていなければ、# のあとの本文を sessionStorage に控えてから /login?next=/share へ送る。ログインのあとで、Cache Storage（と控え）を読んで書く欄を開く。読んだものはすぐ消す。前にメモを残したプロジェクトを最初に選んでおく（localStorage）
+- /share（src/app/share/page.tsx）はログインなしでも開ける。ログインしていなければ、# のあとの本文を書きかけの控え（下の「書きかけの控え」。localStorage）に足してから /login?next=/share へ送る（sessionStorage はタブごとで、メールのリンクでログインすると別のタブになり消えるため。2026-11-02）。ログインのあとで、Cache Storage を読み、本文を書きかけの控えに足してから Cache Storage の本文を消し、書く欄を開く。画像は控えに入らないので、保存するか捨てるまで Cache Storage に残す（受けた時刻 X-At から 1 日で使わずに消す）。前にメモを残したプロジェクトを最初に選んでおく（localStorage）
 - service worker がまだ動いていない（入れた直後など）ときは、サーバーの /share/receive（route.ts）が受け、本文だけを 10 分の cookie（yabumi_share、httpOnly、300 字まで）に置いて /share へ移る。画像は受け取れないので「画像は受け取れませんでした」と出す。メモを残したら cookie を消す
 - 対応（2026-10-12 に確認）: Android の Chrome などの Chromium 系。iPhone・iPad の Safari は対応していない（WebKit の要望 bugs.webkit.org の 194593 は 2026-05-23 の時点で NEW のまま。WebKit の立場は neutral。MDN の share_target も「限られた環境だけ」）。代わりの手を、ネタ帳の画面の「ほかのアプリから、ネタ帳に送るには」に載せる:
   - iPhone・iPad: 「ショートカット」アプリで、共有シートに出るショートカットを作る（入力を URL エンコードし、`<yabumi の URL>/share#text=` に続けて開く）。# のあとはサーバーに送られない。画像は送れない

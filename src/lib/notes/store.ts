@@ -45,7 +45,12 @@ async function noteImageRows(admin: Db, ownerId: string, noteIds: string[]) {
 }
 
 // メモを残す。本文か画像のどちらかが要る
-export async function createNote(user: Db, admin: Db, args: { userId: string; projectId: string; body: string; mediaId: string | null }): Promise<NoteOutcome<{ noteId: string }>> {
+// imageSkipped: 画像を添えられなかった（上げた画像が先に片付けられたなど）。本文はあるので、本文だけで残した（本文まで捨てない）
+export async function createNote(
+  user: Db,
+  admin: Db,
+  args: { userId: string; projectId: string; body: string; mediaId: string | null },
+): Promise<NoteOutcome<{ noteId: string; imageSkipped?: boolean }>> {
   const body = cleanBody(args.body);
   if (body === null) return { ok: false, message: `メモは ${MAX_NOTE_CHARS.toLocaleString("ja-JP")} 字までです。` };
   if (!body && !args.mediaId) return { ok: false, message: "ひとこと書くか、画像を選んでください。" };
@@ -63,6 +68,8 @@ export async function createNote(user: Db, admin: Db, args: { userId: string; pr
   const { data: note, error } = await user.from("idea_notes").insert({ project_id: args.projectId, body }).select("id").single();
   if (error || !note) return { ok: false, message: "プロジェクトが見つかりません。画面を読み込み直してください。" };
   if (args.mediaId && !(await attachImage(admin, args.userId, note.id, args.mediaId))) {
+    if (body) return { ok: true, noteId: note.id, imageSkipped: true };
+    // 画像だけのメモは、画像がなければ中身がないので残さない
     await user.from("idea_notes").delete().eq("id", note.id);
     return { ok: false, message: "画像が見つかりません。もう一度選んでください。" };
   }

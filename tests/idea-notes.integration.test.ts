@@ -64,6 +64,34 @@ describe("メモを残す", () => {
     expect(await createNote(alice, admin, { userId: aliceId, projectId, body: "あ".repeat(2001), mediaId: null })).toMatchObject({ ok: false });
   });
 
+  it("画像を添えられなかったときは、本文だけで残して知らせる（本文まで捨てない）。画像だけのメモは残さない", async () => {
+    // 上げた画像が、確かめたあと・添える前に片付けられた（添える update が 0 行になる）ときをまねる
+    const stub = { eq: () => stub, is: () => stub, select: () => Promise.resolve({ data: [], error: null }) };
+    const failingAdmin = new Proxy(admin, {
+      get(target, key, receiver) {
+        if (key !== "from") return Reflect.get(target, key, receiver);
+        return (table: string) => {
+          const q = target.from(table as "media_files");
+          return table === "media_files" ? new Proxy(q, { get: (qt, qk, qr) => (qk === "update" ? () => stub : Reflect.get(qt, qk, qr)) }) : q;
+        };
+      },
+    }) as typeof admin;
+    const img = await uploadImage(aliceId);
+    const r = await createNote(alice, failingAdmin, { userId: aliceId, projectId, body: "画像が消えても残したい", mediaId: img.id });
+    expect(r).toMatchObject({ ok: true, imageSkipped: true });
+    const { data } = await alice.from("idea_notes").select("body").eq("id", r.ok ? r.noteId : "");
+    expect(data).toEqual([{ body: "画像が消えても残したい" }]);
+    expect(await noteImage(r.ok ? r.noteId : "")).toBeNull();
+
+    const before = (await alice.from("idea_notes").select("id", { count: "exact", head: true }).eq("project_id", projectId)).count;
+    expect(await createNote(alice, failingAdmin, { userId: aliceId, projectId, body: "", mediaId: img.id })).toMatchObject({ ok: false });
+    expect((await alice.from("idea_notes").select("id", { count: "exact", head: true }).eq("project_id", projectId)).count).toBe(before);
+
+    // 添えなかった画像は、ふつうの片付けで消える（ほかのテストの数に入れない）
+    await admin.from("media_files").update({ created_at: new Date(Date.now() - 3 * 86_400_000).toISOString() }).eq("id", img.id);
+    await cleanupMedia(admin, { ownerId: aliceId });
+  });
+
   it("他人の画像・他人のプロジェクトには残せない", async () => {
     const bobImage = await uploadImage(bobId);
     expect(await createNote(alice, admin, { userId: aliceId, projectId, body: "x", mediaId: bobImage.id })).toMatchObject({ ok: false });

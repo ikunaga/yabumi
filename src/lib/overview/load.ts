@@ -23,7 +23,7 @@ export type OverviewNumbers = {
 
 // 概要の数字（直近 30 日と、その前の 30 日）。どれも本人だけが読める表と関数から読む（RLS）
 // projectSince: プロジェクトを作った日（日本時間の YYYY-MM-DD。投稿数の前の 30 日がこれより前なら比べない）
-export async function loadOverviewNumbers(projectId: string, kpis: KpiKey[], projectSince?: string): Promise<OverviewNumbers> {
+export async function loadOverviewNumbers(projectId: string, kpis: KpiKey[], projectSince?: string, productType?: string): Promise<OverviewNumbers> {
   const supabase = await createClient();
   const today = toYmd(new Date());
   const [overview, daily, links, scheduled, drafts] = await Promise.all([
@@ -49,6 +49,7 @@ export async function loadOverviewNumbers(projectId: string, kpis: KpiKey[], pro
 
   const cards = pickOverviewCards({
     today,
+    productType,
     downloads,
     clicks,
     published,

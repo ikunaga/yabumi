@@ -19,7 +19,9 @@ import { loadDailyNumbers } from "@/lib/metrics/daily";
 import { campaignTotal, sumPlayUtm, type PlayUtmTotals } from "@/lib/metrics/play-utm";
 import { confirmedUntil, MIN_DAYS, POST_EFFECT_DAYS, postEffect, type PostEffect } from "@/lib/metrics/post-effect";
 import type { PostMeta } from "@/lib/metrics/post-meta";
-import { KPIS, KPI_KEYS, recommendedKpis, type KpiKey } from "@/lib/metrics/kpis";
+import { clickLabel, KPIS, KPI_KEYS, recommendedKpis, type KpiKey } from "@/lib/metrics/kpis";
+import { isAppProject, OUTCOME_ACTIONS } from "@/lib/projects/product-types";
+import { OutcomesBox } from "@/components/metrics/outcomes-box";
 import { listManualTargets, loadMetricsOverview, METRICS_PERIODS, snsNeedingInsightsReconnect, xMetricsOverLimit, type ClicksBySns, type MetricsPeriod, type WeekValue } from "@/lib/metrics/queries";
 import { CHART_DAYS, dailySeries, pctChange, shortDay, type Daily } from "@/lib/overview/numbers";
 import { connectedAccounts } from "@/lib/posts/queries";
@@ -51,12 +53,14 @@ const CHARTS = {
   clicks: { label: "ストアへのクリック", unit: "回" },
   downloads: { label: "ダウンロード", unit: "件" },
   page_views: { label: "ストアのページの閲覧", unit: "回" },
+  outcomes: { label: "成果（手で記録）", unit: "件" },
 } as const;
 type ChartKey = keyof typeof CHARTS;
 
 // 追いかける数字のカード（見本 A の数字のカード）。数字がまだ出せないものは、数字の代わりに出す方法（つなぐ）を出す
-function KpiCard({ k, value, projectId, days }: { k: KpiKey; value?: WeekValue; projectId: string; days: MetricsPeriod }) {
-  const def = KPIS[k];
+function KpiCard({ k, value, projectId, days, productType }: { k: KpiKey; value?: WeekValue; projectId: string; days: MetricsPeriod; productType: string }) {
+  // 行き先へのクリックは、アプリなら「ストアへのクリック」（決定 D34）
+  const def = k === "link_clicks" ? { ...KPIS[k], label: clickLabel(productType) } : KPIS[k];
   const label = (
     <span className="inline-flex items-center gap-1.5">
       {def.term ? <Term k={def.term}>{def.label}</Term> : def.label}
@@ -124,9 +128,13 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
   const [needReconnect, xOver] = await Promise.all([snsNeedingInsightsReconnect(accounts), xMetricsOverLimit(accounts, xMetricsUserMonthlyUsd())]);
   const plan = account?.plan ?? null;
   const base = `/projects/${project.id}`;
+  // アプリのときだけ、ストア・RevenueCat・Google Play・App Store の数字と入口を出す（決定 D34）
+  const isApp = isAppProject(project);
+  // 成果を手で記録する箱: アプリでないとき、または目標が成果（買う・申し込み・予約・問い合わせ・来店）のとき、または記録があるとき
+  const showOutcomes = !isApp || (plan?.goal.goalType != null && (OUTCOME_ACTIONS as readonly string[]).includes(plan.goal.goalType)) || daily.outcomes.length > 0;
 
   const chosen = plan?.first_month.kpis ?? [];
-  const kpis = chosen.length ? chosen : recommendedKpis(plan?.goal.goalType ?? null);
+  const kpis = chosen.length ? chosen : recommendedKpis(plan?.goal.goalType ?? null, project.product_type);
   const goal = plan?.first_month.goal.trim() ?? "";
   // 閲覧数を自動で読める SNS を 1 つでもつないでいるか（よく見られた投稿の空のときの案内を変える）
   const hasAutoSns = (["threads", "instagram", "facebook", "x"] as const).some((s) => accounts[s]);
@@ -176,6 +184,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
   const series: Partial<Record<ChartKey, Daily[]>> = {
     posts: daily.published,
     clicks: daily.clicks,
+    ...(daily.outcomes.length ? { outcomes: daily.outcomes } : {}),
     ...(overview.kpiValues.downloads ? { downloads: daily.downloads } : {}),
     ...(overview.kpiValues.store_page_views ? { page_views: daily.pageViews } : {}),
   };
@@ -220,9 +229,11 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
                 </Link>
               ))}
             </nav>
-            <ButtonLink href={`${base}/stores`} variant="secondary" size="sm">
-              ストアと課金をつなぐ
-            </ButtonLink>
+            {isApp && (
+              <ButtonLink href={`${base}/stores`} variant="secondary" size="sm">
+                ストアと課金をつなぐ
+              </ButtonLink>
+            )}
             {aiConfigured() ? (
               <ButtonLink href={`${base}/consult/new?start=review`} size="sm">
                 AI と振り返る
@@ -256,7 +267,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
 
       <div className={`grid ${COLS[kpis.length] ?? "grid-cols-3"} gap-4 max-lg:grid-cols-2 max-sm:grid-cols-1 max-sm:gap-3`}>
         {kpis.map((k) => (
-          <KpiCard key={k} k={k} value={withPrevKnown(k, overview.kpiValues[k])} projectId={project.id} days={days} />
+          <KpiCard key={k} k={k} value={withPrevKnown(k, overview.kpiValues[k])} projectId={project.id} days={days} productType={project.product_type} />
         ))}
       </div>
 
@@ -268,15 +279,15 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
               <nav className={`${tabListClass} mb-4`} aria-label="グラフの数字">
                 {chartKeys.map((k) => (
                   <Link key={k} href={`?chart=${k}${days === 30 ? "&days=30" : ""}`} scroll={false} replace aria-current={k === current ? "page" : undefined} className={`${tabClass(k === current)} hover:no-underline`}>
-                    {CHARTS[k].label}
+                    {k === "clicks" ? clickLabel(project.product_type) : CHARTS[k].label}
                   </Link>
                 ))}
               </nav>
               {total > 0 ? (
-                <DailyBars rows={rows} label={`${CHARTS[current].label}の日ごとの数（直近 ${chartDays} 日）`} />
+                <DailyBars rows={rows} label={`${current === "clicks" ? clickLabel(project.product_type) : CHARTS[current].label}の日ごとの数（直近 ${chartDays} 日）`} />
               ) : (
                 <ChartEmpty>
-                  <p>直近 {chartDays} 日の{CHARTS[current].label}はまだありません。</p>
+                  <p>直近 {chartDays} 日の{current === "clicks" ? clickLabel(project.product_type) : CHARTS[current].label}はまだありません。</p>
                   {current === "clicks" && (
                     <Link href={`${base}/links`} className="font-bold text-fg underline">
                       短縮リンクを付けて投稿する
@@ -289,7 +300,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
                   )}
                 </ChartEmpty>
               )}
-              {!series.downloads && (
+              {isApp && !series.downloads && (
                 <p className="mt-3 text-sm text-muted">
                   ダウンロードは、
                   <Link href={`${base}/stores`} className="font-bold text-fg underline">
@@ -299,7 +310,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
                 </p>
               )}
             </Panel>
-            <Panel title="SNS ごとのストアへのクリック" aside={`直近 ${days} 日・${periodCompare(days)}`}>
+            <Panel title={`SNS ごとの${clickLabel(project.product_type)}`} aside={`直近 ${days} 日・${periodCompare(days)}`}>
               {overview.clicksBySns.some((c) => c.thisWeek > 0 || c.lastWeek > 0 || c.last30d > 0) ? (
                 <>
                   <SnsClicksCompared rows={overview.clicksBySns} prevKnown={linksPrevKnown} />
@@ -318,13 +329,26 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
                 </>
               ) : (
                 <p className="text-sm text-muted">
-                  SNS ごとの<Term k="shortLink" />を付けて投稿すると、どの SNS からストアへ来たかが並びます。
+                  SNS ごとの<Term k="shortLink" />を付けて投稿すると、どの SNS から{isApp ? "ストア" : "行き先のページ"}へ来たかが並びます。
                   <Link href={`${base}/links`} className="ml-1 font-bold text-fg underline">
                     短縮リンクを作る
                   </Link>
                 </p>
               )}
             </Panel>
+            {showOutcomes && (
+              <Panel
+                title="成果（手で記録）"
+                aside={`直近 ${days} 日`}
+                help={
+                  <HelpTip label="成果を手で記録する理由">
+                    買ってもらった・申し込み・予約・問い合わせ・来店の数は、SNS からは読めません。お店の帳簿や予約の画面を見て、日ごとに入れてください。同じ日・同じ種類は上書きされ、0 を入れると消えます。入れていない日は数えません。
+                  </HelpTip>
+                }
+              >
+                <OutcomesBox projectId={project.id} rows={daily.outcomes} total={series.outcomes ? dailySeries(series.outcomes, today, days).reduce((n, r) => n + r.value, 0) : 0} goal={plan?.goal.goalType ?? null} today={today} />
+              </Panel>
+            )}
             {playConnected && (
               <Panel
                 title="Google Play が数えた SNS ごとの DL"
@@ -356,7 +380,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
         side={
           <>
             <Panel title={effectKind === "downloads" ? "投稿した日とダウンロード" : "投稿した日とクリック"} aside={`直近 ${POST_EFFECT_DAYS} 日`}>
-              <PostEffectBox kind={effectKind} effect={effect} projectId={project.id} />
+              <PostEffectBox kind={effectKind} effect={effect} projectId={project.id} isApp={isApp} clickName={clickLabel(project.product_type)} />
             </Panel>
             <Panel title="よく見られた投稿" aside="30 日">
               {overview.topViewed.length ? (
@@ -376,7 +400,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
               {overview.topPosts.length ? (
                 <Ranked projectId={project.id} rows={overview.topPosts.map((p) => ({ ...p, value: `${formatCount(p.clicks)} クリック`, playDl: playDlOf(p.postId), appleDl: appleDlOf(p.postId) }))} />
               ) : (
-                <p className="text-sm text-muted">投稿の本文のストアの URL を短縮リンクにして送ると、どの投稿からクリックされたかが並びます。</p>
+                <p className="text-sm text-muted">投稿の本文の{isApp ? "ストア" : "行き先"}の URL を短縮リンクにして送ると、どの投稿からクリックされたかが並びます。</p>
               )}
             </Panel>
             <Panel
@@ -500,13 +524,20 @@ function SnsClicksCompared({ rows, prevKnown }: { rows: ClicksBySns[]; prevKnown
 }
 
 // 投稿した日と DL（またはクリック）の 1 日あたりを並べる。どちらも MIN_DAYS 日そろうまでは比べない。相関であって原因ではないと書く
-function PostEffectBox({ kind, effect, projectId }: { kind: "downloads" | "link_clicks" | null; effect: PostEffect | null; projectId: string }) {
+function PostEffectBox({ kind, effect, projectId, isApp, clickName }: { kind: "downloads" | "link_clicks" | null; effect: PostEffect | null; projectId: string; isApp: boolean; clickName: string }) {
   if (!kind || !effect) {
-    return (
+    return isApp ? (
       <p className="text-sm text-muted">
         ストアをつなぐか、短縮リンクを付けて投稿すると、投稿した日としなかった日の数を比べられます。
         <Link href={`/projects/${projectId}/stores`} className="ml-1 font-bold text-fg underline">
           ストアをつなぐ
+        </Link>
+      </p>
+    ) : (
+      <p className="text-sm text-muted">
+        短縮リンクを付けて投稿すると、投稿した日としなかった日の{clickName}を比べられます。
+        <Link href={`/projects/${projectId}/links`} className="ml-1 font-bold text-fg underline">
+          短縮リンクを作る
         </Link>
       </p>
     );

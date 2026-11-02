@@ -6,7 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { SNS, isSnsKey, type SnsKey } from "@/lib/sns";
 import { X_PRICE_USD } from "@/lib/sns/x/pricing";
-import { toYmd } from "@/lib/time";
+import { addDays, toYmd } from "@/lib/time";
 import type { KpiKey } from "./kpis";
 import { firstLine, postMeta, type PostMeta } from "./post-meta";
 
@@ -46,6 +46,8 @@ export async function loadMetricsOverview(projectId: string, db?: SupabaseClient
     { count: downloadDays },
     { count: revenueCatDays },
     { count: pageViewDays },
+    { data: outcomeRows, error: e7 },
+    { data: firstOutcome },
   ] = await Promise.all([
     supabase.rpc("metrics_period_totals", { p_project_id: projectId, p_today: today, p_days: days }),
     supabase.rpc("link_clicks_by_sns_period", { p_project_id: projectId, p_today: today, p_days: days }),
@@ -55,11 +57,18 @@ export async function loadMetricsOverview(projectId: string, db?: SupabaseClient
     supabase.from("store_daily").select("day", { count: "exact", head: true }).eq("project_id", projectId).in("source", ["app_store", "google_play"]),
     supabase.from("store_daily").select("day", { count: "exact", head: true }).eq("project_id", projectId).eq("source", "revenuecat"),
     supabase.from("store_daily").select("day", { count: "exact", head: true }).eq("project_id", projectId).in("source", ["app_store_views", "google_play"]),
+    // 手で記録した成果（決定 D34）。直近の期間とその前の期間の分
+    supabase.from("project_outcomes_daily").select("day, count").eq("project_id", projectId).gte("day", addDays(today, -(days * 2 - 1))),
+    supabase.from("project_outcomes_daily").select("day").eq("project_id", projectId).order("day").limit(1).maybeSingle(),
   ]);
   if (e1) throw e1;
   if (e2) throw e2;
   if (e3) throw e3;
   if (e6) throw e6;
+  if (e7) throw e7;
+  // 成果: 記録が 1 日でもあれば出す。記録し始めたのが前の期間の始まりより後なら比べない（記録する前の日を 0 と取り違えないように）
+  const outcomeNow = (outcomeRows ?? []).filter((r) => r.day > addDays(today, -days)).reduce((n, r) => n + r.count, 0);
+  const outcomePrev = (outcomeRows ?? []).filter((r) => r.day <= addDays(today, -days)).reduce((n, r) => n + r.count, 0);
   const t = totals?.[0];
   // 閲覧数: SNS の数字（数字の権限つきでつないだもの）と、note・Substack で手で入れた数字の合計
   const hasViews = Boolean(t?.has_post_metrics) || Number(t?.manual_views_now ?? 0) + Number(t?.manual_views_prev ?? 0) > 0;
@@ -99,6 +108,12 @@ export async function loadMetricsOverview(projectId: string, db?: SupabaseClient
         : {}),
       ...(sources.has("downloads") ? { downloads: { thisWeek: Number(t?.downloads_now ?? 0), lastWeek: Number(t?.downloads_prev ?? 0) } } : {}),
       ...(sources.has("page_views") ? { store_page_views: { thisWeek: Number(t?.page_views_now ?? 0), lastWeek: Number(t?.page_views_prev ?? 0) } } : {}),
+      ...(outcomeRows?.length
+        ? (() => {
+            const known = Boolean(firstOutcome && firstOutcome.day <= addDays(today, -(days * 2 - 1)));
+            return { outcomes: { thisWeek: outcomeNow, lastWeek: known ? outcomePrev : outcomeNow, ...(known ? {} : { noPrev: true as const }) } };
+          })()
+        : {}),
       ...(sources.has("revenuecat") && t?.revenue_latest != null
         ? { revenue: { thisWeek: Number(t.revenue_latest), lastWeek: Number(t.revenue_week_ago ?? t.revenue_latest), unit: t.revenue_currency ?? "JPY" } }
         : {}),

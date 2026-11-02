@@ -8,7 +8,7 @@ export async function listProjects() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("projects")
-    .select("id, name, description, target_audience, app_store_url, play_store_url, updated_at")
+    .select("id, name, description, target_audience, product_type, app_store_url, play_store_url, updated_at")
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data;

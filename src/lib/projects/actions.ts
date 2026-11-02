@@ -7,6 +7,7 @@ import { z } from "zod";
 import { defaultLinkDomainDeps, drainLinkDomainRemovals } from "@/lib/links/domains";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { parseDestinationsForm, saveDestinations } from "./destinations";
 import { parseProjectForm, toFieldErrors, type ProjectFieldErrors } from "./schema";
 
 export type ProjectFormState = {
@@ -19,7 +20,7 @@ const idSchema = z.uuid();
 
 function echoValues(formData: FormData) {
   const values: Record<string, string> = {};
-  for (const key of ["name", "description", "target_audience", "app_store_url", "play_store_url"]) {
+  for (const key of ["product_type", "name", "description", "target_audience", "app_store_url", "play_store_url"]) {
     values[key] = String(formData.get(key) ?? "");
   }
   return values;
@@ -27,14 +28,23 @@ function echoValues(formData: FormData) {
 
 export async function createProject(_prev: ProjectFormState, formData: FormData): Promise<ProjectFormState> {
   const parsed = parseProjectForm(formData);
-  if (!parsed.success) {
-    return { fieldErrors: toFieldErrors(parsed.error), values: echoValues(formData) };
+  const dest = parseDestinationsForm(formData);
+  if (!parsed.success || !dest.ok) {
+    return { fieldErrors: parsed.success ? {} : toFieldErrors(parsed.error), error: dest.ok ? undefined : dest.error, values: echoValues(formData) };
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase.from("projects").insert(parsed.data).select("id").single();
+  // アプリでなければ、ストアの URL は入れない（欄も出していない）
+  const row = parsed.data.product_type === "app" ? parsed.data : { ...parsed.data, app_store_url: null, play_store_url: null };
+  const { data, error } = await supabase.from("projects").insert(row).select("id").single();
   if (error) {
     return { error: "プロジェクトを作成できませんでした。時間をおいてもう一度お試しください。", values: echoValues(formData) };
+  }
+  try {
+    await saveDestinations(supabase, data.id, dest.items);
+  } catch (e) {
+    console.error("[createProject] 行き先の URL を保存できませんでした", e instanceof Error ? e.message : e);
+    redirect(`/projects/${data.id}/edit?done=destinations_failed`);
   }
 
   revalidatePath("/projects");
@@ -49,14 +59,24 @@ export async function updateProject(
   if (!idSchema.safeParse(id).success) return { error: "プロジェクトが見つかりません" };
 
   const parsed = parseProjectForm(formData);
-  if (!parsed.success) {
-    return { fieldErrors: toFieldErrors(parsed.error), values: echoValues(formData) };
+  const dest = parseDestinationsForm(formData);
+  if (!parsed.success || !dest.ok) {
+    return { fieldErrors: parsed.success ? {} : toFieldErrors(parsed.error), error: dest.ok ? undefined : dest.error, values: echoValues(formData) };
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase.from("projects").update(parsed.data).eq("id", id).select("id");
+  // アプリでなければストアの URL の欄を出していないので、入っている値は変えない（アプリに戻したときのため）
+  const { app_store_url, play_store_url, ...rest } = parsed.data;
+  const row = parsed.data.product_type === "app" ? { ...rest, app_store_url, play_store_url } : rest;
+  const { data, error } = await supabase.from("projects").update(row).eq("id", id).select("id");
   if (error || data.length === 0) {
     return { error: "保存できませんでした。時間をおいてもう一度お試しください。", values: echoValues(formData) };
+  }
+  try {
+    await saveDestinations(supabase, id, dest.items);
+  } catch (e) {
+    console.error("[updateProject] 行き先の URL を保存できませんでした", e instanceof Error ? e.message : e);
+    return { error: "行き先の URL を保存できませんでした。時間をおいてもう一度お試しください。", values: echoValues(formData) };
   }
 
   revalidatePath("/projects");

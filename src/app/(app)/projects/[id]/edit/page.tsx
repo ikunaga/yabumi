@@ -1,3 +1,5 @@
+import { isAppProject } from "@/lib/projects/product-types";
+import { listDestinations } from "@/lib/projects/destinations";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
@@ -7,7 +9,7 @@ import { SnsAccountsCard } from "@/components/projects/sns-accounts-card";
 import { SnsResultBanner } from "@/components/projects/sns-result-banner";
 import { Disclosure } from "@/components/ui/help";
 import { PageHeader } from "@/components/ui/page-header";
-import { SuccessBanner } from "@/components/ui/feedback";
+import { ErrorBanner, SuccessBanner } from "@/components/ui/feedback";
 import { updateProject } from "@/lib/projects/actions";
 import { getProject } from "@/lib/projects/queries";
 import { facebookConfigured } from "@/lib/sns/facebook/config";
@@ -29,10 +31,11 @@ export default async function ProjectSettingsPage(props: PageProps<"/projects/[i
   if (!project) notFound();
   const supabase = await createClient();
   const xReady = xConfigured();
-  const [snsAccounts, { data: manualChannels }, xSpend] = await Promise.all([
+  const [snsAccounts, { data: manualChannels }, xSpend, destinations] = await Promise.all([
     listProjectSnsAccounts(project.id),
     supabase.from("project_manual_channels").select("sns, profile_url").eq("project_id", project.id),
     xReady ? xSpendThisMonth() : null,
+    listDestinations(supabase, project.id),
   ]);
   // 同じ SNS の別のアカウントから付け替えたとき（つないだ直後だけ）。新しいアカウントの名前は今つながっているものから
   const replacedNames = typeof connected === "string" ? readReplacedCookie((await cookies()).get(SNS_REPLACED_COOKIE)?.value) : [];
@@ -44,7 +47,8 @@ export default async function ProjectSettingsPage(props: PageProps<"/projects/[i
       <PageHeader title="プロジェクトの設定" />
 
       <SnsResultBanner connected={connected} error={sns_error} sns={sns} replaced={replacedNames} connectedName={connectedName} />
-      {done === "saved" && <SuccessBanner>このアプリについてを保存しました。</SuccessBanner>}
+      {done === "saved" && <SuccessBanner>保存しました。</SuccessBanner>}
+      {done === "destinations_failed" && <ErrorBanner>プロジェクトは作りましたが、行き先の URL を保存できませんでした。下の欄で入れ直してください。</ErrorBanner>}
 
       <SnsAccountsCard
         projectId={project.id}
@@ -57,7 +61,8 @@ export default async function ProjectSettingsPage(props: PageProps<"/projects/[i
       <ProjectForm
         action={updateProject.bind(null, project.id)}
         initial={project}
-        title="このアプリについて"
+        initialDestinations={destinations}
+        title={isAppProject(project) ? "このアプリについて" : "宣伝するもの"}
         titleAs="h2"
         submitLabel="保存する"
         pendingLabel="保存しています…"

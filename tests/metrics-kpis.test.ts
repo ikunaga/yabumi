@@ -9,8 +9,8 @@ describe("おすすめの KPI", () => {
     expect(recommendedKpis("download")).toEqual(["link_clicks", "downloads", "posts"]);
     expect(recommendedKpis("purchase")).toEqual(["downloads", "revenue", "link_clicks"]);
     // アプリでなければ、ストアと RevenueCat の数字は出さない（決定 D34）
-    expect(recommendedKpis("purchase", "online_shop")).toEqual(["link_clicks", "posts"]);
-    expect(recommendedKpis("booking", "service")).toEqual(["link_clicks", "posts"]);
+    expect(recommendedKpis("purchase", "online_shop")).toEqual(["link_clicks", "outcomes", "posts"]);
+    expect(recommendedKpis("booking", "service")).toEqual(["link_clicks", "outcomes", "posts"]);
     expect(recommendedKpis("follow", "creator")).toEqual(["views", "followers", "posts"]);
     expect(recommendedKpis(null)).toEqual(["posts", "link_clicks"]);
     for (const g of ["awareness", "download", "purchase", "signup", "booking", "inquiry", "visit", "follow", "other", null] as const) {

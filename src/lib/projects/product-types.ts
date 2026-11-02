@@ -45,6 +45,10 @@ export const DESIRED_ACTION_DEFS: Record<DesiredAction, DesiredActionDef> = {
   other: { label: "そのほか", description: "上のどれにも当てはまらないこと" },
 };
 
+// 手で記録する成果（project_outcomes_daily の action。ダウンロード・フォロー・知ってもらうは自動で読むか数えられないので入れない）
+export const OUTCOME_ACTIONS = ["purchase", "signup", "booking", "inquiry", "visit"] as const satisfies readonly DesiredAction[];
+export type OutcomeAction = (typeof OUTCOME_ACTIONS)[number];
+
 // 種類ごとのおすすめ（先頭がいちばんのおすすめ。AI の案と、選ぶ画面の並びに使う）
 export const RECOMMENDED_ACTIONS: Record<ProductType, DesiredAction[]> = {
   app: ["download", "purchase", "awareness"],
@@ -112,4 +116,10 @@ export function isDestinationKind(v: unknown): v is DestinationKind {
 // アプリ前提の機能（ストア・RevenueCat・Google Play・App Store の数字、GitHub の入口）を出すか
 export function isAppProject(project: { product_type?: string | null }): boolean {
   return (project.product_type ?? "app") === "app";
+}
+
+// GitHub の機能（リポジトリから紹介文の下書き・コミットからネタ）を出すか。アプリと Web のサービス（PM の判断 2026-11-02。ストアの数字はアプリだけ）
+export function isDevProject(project: { product_type?: string | null }): boolean {
+  const t = project.product_type ?? "app";
+  return t === "app" || t === "web_service";
 }

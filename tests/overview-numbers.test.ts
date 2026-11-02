@@ -111,6 +111,17 @@ describe("概要: 前の期間が数え始める前なら比べない", () => {
   });
 });
 
+describe("概要: 宣伝するものの種類（決定 D34）", () => {
+  it("クリックのカードは、アプリなら「ストアへのクリック」、ほかは「行き先へのクリック」", () => {
+    expect(pickOverviewCards({ ...empty, clicks: [at(1, 3)] })[0].label).toBe("ストアへのクリック");
+    expect(pickOverviewCards({ ...empty, clicks: [at(1, 3)], productType: "service" })[0].label).toBe("行き先へのクリック");
+  });
+  it("手で記録した成果は、追いかける数字のカードとして出す（前の期間に記録がなければ比べない）", () => {
+    const cards = pickOverviewCards({ ...empty, productType: "shop", kpis: ["outcomes"], kpiValues: { outcomes: { thisWeek: 5, lastWeek: 5, noPrev: true } } });
+    expect(cards[1]).toMatchObject({ kpi: "outcomes", label: "成果（手で記録）", value: 5, deltaPct: null });
+  });
+});
+
 describe("概要: 次の予約の時刻", () => {
   const now = new Date("2026-10-30T10:00:00+09:00");
   it("今日は時刻だけ、明日は「明日」、それより先は月/日", () => {

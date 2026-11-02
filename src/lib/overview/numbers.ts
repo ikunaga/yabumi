@@ -1,5 +1,5 @@
 // 概要の数字（見本 A。docs/architecture.md の 4.31）。読み込みは load.ts、ここは並べ方を決めるだけ（テストできるように DB を触らない）
-import { KPIS, type KpiKey } from "@/lib/metrics/kpis";
+import { clickLabel, KPIS, type KpiKey } from "@/lib/metrics/kpis";
 import type { KpiValues } from "@/lib/metrics/queries";
 import { addDays, formatTime, toYmd } from "@/lib/time";
 
@@ -44,6 +44,8 @@ export type OverviewInput = {
   // 数え始めた日（日本時間の YYYY-MM-DD）。前の 30 日がこれより前にかかるなら比べない（数える前の日を 0 として比べない。分析と同じ）。
   // ダウンロード・ストアのページの閲覧はストアを取り込み始めた日、クリックはいちばん古い短縮リンクを作った日、投稿はプロジェクトを作った日
   since?: { downloads?: string | null; clicks?: string | null; posts?: string | null };
+  // 宣伝するものの種類（決定 D34）。クリックのカードの名前を、アプリなら「ストアへのクリック」、ほかは「行き先へのクリック」にする
+  productType?: string | null;
 };
 
 // 前の 30 日の始まりより前から数えていれば、比べられる
@@ -92,13 +94,13 @@ function compared(key: "downloads" | "link_clicks" | "posts", label: string, row
 }
 
 // 4 枚のカードを、出せるものから順に選ぶ（PM と決めた a〜e。出せない数字は出さず、「準備中」でも埋めない）
-// a. ダウンロード（ストアをつないでいれば） b. ストアへのクリック（短縮リンクがあれば） c. 投稿数（いつも）
+// a. ダウンロード（ストアをつないでいれば） b. 行き先へのクリック（アプリならストア。短縮リンクがあれば） c. 投稿数（いつも）
 // d. 追いかける数字のうち a〜c 以外で値があるもの d'. Google Play が数えた SNS からの DL（つないでいれば）e. 予約中 → 下書き（いつも出せる本当の数。比べない）
 export function pickOverviewCards(input: OverviewInput, max = 4): OverviewCard[] {
   const { today } = input;
   const cards: OverviewCard[] = [];
   if (input.downloads) cards.push(compared("downloads", "ダウンロード", input.downloads, today, input.since?.downloads));
-  if (input.clicks) cards.push(compared("link_clicks", "ストアへのクリック", input.clicks, today, input.since?.clicks));
+  if (input.clicks) cards.push(compared("link_clicks", clickLabel(input.productType), input.clicks, today, input.since?.clicks));
   const postsAt = cards.length;
   cards.push(compared("posts", "投稿数", input.published, today, input.since?.posts));
 

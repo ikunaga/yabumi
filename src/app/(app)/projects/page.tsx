@@ -1,3 +1,4 @@
+import { isAppProject, isProductType, PRODUCT_TYPE_DEFS } from "@/lib/projects/product-types";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { TopBar } from "@/components/nav/top-bar";
@@ -14,7 +15,9 @@ import { loadStepStates } from "@/lib/projects/step-state";
 
 export const metadata: Metadata = { title: "プロジェクト" };
 
-function storeLabel(p: { app_store_url: string | null; play_store_url: string | null }) {
+// 一覧の添え書き: アプリならストアの名前、ほかは宣伝するものの種類（決定 D34）
+function storeLabel(p: { product_type?: string | null; app_store_url: string | null; play_store_url: string | null }) {
+  if (!isAppProject(p)) return isProductType(p.product_type) ? PRODUCT_TYPE_DEFS[p.product_type].label : null;
   const stores = [p.app_store_url && "App Store", p.play_store_url && "Google Play"].filter(Boolean);
   return stores.length ? stores.join(" / ") : null;
 }

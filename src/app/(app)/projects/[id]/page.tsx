@@ -14,7 +14,8 @@ import { aiConfigured } from "@/lib/ai/anthropic";
 import { loadCoachView } from "@/lib/coach/load";
 import { DEFAULT_BEHIND_WEEKDAY } from "@/lib/coach/pace";
 import { githubConfigured } from "@/lib/github/config";
-import { recommendedKpis } from "@/lib/metrics/kpis";
+import { clickLabel, recommendedKpis } from "@/lib/metrics/kpis";
+import { isAppProject, isDevProject } from "@/lib/projects/product-types";
 import { loadOverviewNumbers } from "@/lib/overview/load";
 import { CHART_DAYS, CHART_DAYS_MOBILE, compareDays, dailySeries, pctChange, shortDay, type Daily } from "@/lib/overview/numbers";
 import { getAccountPlan } from "@/lib/plan/queries";
@@ -48,9 +49,9 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
   const supabase = await createClient();
   const plan = await getAccountPlan(project.id);
   const chosen = plan?.plan.first_month.kpis ?? [];
-  const kpis = chosen.length ? chosen : recommendedKpis(plan?.plan.goal.goalType ?? null);
+  const kpis = chosen.length ? chosen : recommendedKpis(plan?.plan.goal.goalType ?? null, project.product_type);
   const [numbers, upcoming, snsAccounts, attention, overdue, manualDue, { data: repoLink }, { data: manualChannels }, roadmap, stepStates, { data: prefs }] = await Promise.all([
-    loadOverviewNumbers(project.id, kpis, toYmd(new Date(project.created_at))),
+    loadOverviewNumbers(project.id, kpis, toYmd(new Date(project.created_at)), project.product_type),
     listUpcomingPosts(project.id, 8),
     listProjectSnsAccounts(project.id),
     listPostsNeedingAttention(project.id),
@@ -72,7 +73,10 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
   const scheduled = upcoming.filter((p) => displayStatus(p) === "scheduled").slice(0, 3);
   const base = `/projects/${project.id}`;
 
-  const chartName = numbers.chart?.kind === "downloads" ? "ダウンロード" : "ストアへのクリック";
+  // アプリのときだけストアの入口、アプリと Web のサービスのときだけ GitHub の案内を出す（決定 D34）
+  const isApp = isAppProject(project);
+  const clicks = clickLabel(project.product_type);
+  const chartName = numbers.chart?.kind === "downloads" ? "ダウンロード" : clicks;
   const chart14 = numbers.chart ? dailySeries(numbers.chart.rows, numbers.today, CHART_DAYS) : null;
   const chart7 = numbers.chart ? dailySeries(numbers.chart.rows, numbers.today, CHART_DAYS_MOBILE) : null;
   const total14 = chart14?.reduce((n, r) => n + r.value, 0) ?? 0;
@@ -80,12 +84,14 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
   const emptyChart = (
     <>
       <p>
-        {numbers.hasLinks ? "まだクリックがありません。" : "ストアをつなぐか、短縮リンクを付けて投稿すると、日ごとの数がここに並びます。"}
+        {numbers.hasLinks ? "まだクリックがありません。" : isApp ? "ストアをつなぐか、短縮リンクを付けて投稿すると、日ごとの数がここに並びます。" : "短縮リンクを付けて投稿すると、行き先に来た人の数がここに並びます。"}
       </p>
       <span className="flex flex-wrap justify-center gap-x-4 gap-y-1 font-bold">
-        <Link href={`${base}/stores`} className="text-fg underline">
-          ストアをつなぐ
-        </Link>
+        {isApp && (
+          <Link href={`${base}/stores`} className="text-fg underline">
+            ストアをつなぐ
+          </Link>
+        )}
         <Link href={`${base}/links`} className="text-fg underline">
           短縮リンクを付けて投稿する
         </Link>
@@ -112,7 +118,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
       <NowBand
         projectId={project.id}
         stepIndex={stepIndex}
-        github={{ show: !repoLink && !project.github_prompt_dismissed_at, configured: githubConfigured() }}
+        github={{ show: isDevProject(project) && !repoLink && !project.github_prompt_dismissed_at, configured: githubConfigured() }}
         coach={coach}
         coachReady={stepState.planDone && stepIndex >= STEPS.length}
         todos={todos}
@@ -146,14 +152,14 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
         side={
           <>
             <Panel
-              title="SNS ごとのストアへのクリック"
+              title={`SNS ごとの${clicks}`}
               aside={numbers.clicksBySns.length ? numbers.clicksBySns.reduce((n, c) => n + c.last30d, 0).toLocaleString("ja-JP") : undefined}
             >
               {numbers.clicksBySns.length ? (
                 <SnsClicks rows={numbers.clicksBySns} />
               ) : (
                 <p className="text-sm text-muted">
-                  {numbers.hasLinks ? "直近 30 日のクリックはまだありません。" : "SNS ごとの短縮リンクを付けて投稿すると、どの SNS からストアへ来たかが並びます。"}
+                  {numbers.hasLinks ? "直近 30 日のクリックはまだありません。" : `SNS ごとの短縮リンクを付けて投稿すると、どの SNS から${isApp ? "ストア" : "行き先"}へ来たかが並びます。`}
                   <Link href={`${base}/links`} className="ml-1 font-bold text-fg underline">
                     短縮リンク
                   </Link>

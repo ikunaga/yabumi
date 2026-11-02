@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import {
   actionFromLegacyGoal,
+  isDevProject,
   DESIRED_ACTION_DEFS,
   DESIRED_ACTIONS,
   DESTINATION_KIND_DEFS,
@@ -39,6 +40,10 @@ describe("宣伝するものの種類", () => {
     expect(isAppProject({ product_type: "app" })).toBe(true);
     expect(isAppProject({})).toBe(true);
     expect(isAppProject({ product_type: "shop" })).toBe(false);
+    // GitHub はアプリと Web のサービス
+    expect(isDevProject({ product_type: "web_service" })).toBe(true);
+    expect(isDevProject({})).toBe(true);
+    expect(isDevProject({ product_type: "creator" })).toBe(false);
   });
 });
 

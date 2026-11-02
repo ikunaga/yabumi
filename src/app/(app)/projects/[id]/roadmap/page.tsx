@@ -39,7 +39,7 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
   if (!project) notFound();
   const [view, plan] = await Promise.all([loadRoadmap(id), getAccountPlan(id)]);
   const { roadmap, items, thisWeek, daily, kgi } = view;
-  const suggested = plan?.plan.first_month.kpis.length ? plan.plan.first_month.kpis : recommendedKpis(plan?.plan.goal.goalType ?? null);
+  const suggested = plan?.plan.first_month.kpis.length ? plan.plan.first_month.kpis : recommendedKpis(plan?.plan.goal.goalType ?? null, project?.product_type);
   const consultHref = `/projects/${id}/consult/new?start=roadmap`;
   const ai = aiConfigured();
 

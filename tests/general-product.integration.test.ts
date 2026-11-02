@@ -1,7 +1,20 @@
 // 宣伝するものの種類・行き先の URL・手で入れる成果（決定 D34。マイグレーション 20261102100000）。
 // 他人からは読めない・書けない、ログインしていない人は触れない、プロジェクトを消すと消える
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { anonClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
+
+// 分析の読み込み（server-only）をテストから呼ぶ
+vi.mock("server-only", () => ({}));
+vi.mock("@/lib/supabase/server", () => ({
+  createClient: async () => {
+    throw new Error("テストではクライアントを渡す");
+  },
+}));
+vi.mock("@/lib/supabase/admin", () => ({
+  createAdminClient: () => {
+    throw new Error("テストでは使わない");
+  },
+}));
 
 let alice: TestClient;
 let bob: TestClient;
@@ -77,5 +90,50 @@ describe("手で入れる成果", () => {
     expect((await alice.from("projects").delete().eq("id", p)).error).toBeNull();
     expect((await alice.from("project_destinations").select("id").eq("project_id", p)).data).toEqual([]);
     expect((await alice.from("project_outcomes_daily").select("day").eq("project_id", p)).data).toEqual([]);
+  });
+});
+
+describe("行き先の URL の保存（saveDestinations）", () => {
+  it("フォームの行に合わせて、直し・足し・なくなった行を消す。並びも保つ", async () => {
+    const { saveDestinations, listDestinations } = await import("@/lib/projects/destinations");
+    const p = (await alice.from("projects").insert({ name: "保存", product_type: "service" }).select("id").single()).data!.id;
+    await saveDestinations(alice, p, [
+      { id: null, kind: "booking", label: "予約", url: "https://example.com/r" },
+      { id: null, kind: "site", label: "", url: "https://example.com" },
+    ]);
+    const first = await listDestinations(alice, p);
+    expect(first.map((d) => d.kind)).toEqual(["booking", "site"]);
+    await saveDestinations(alice, p, [
+      { id: first[1].id, kind: "site", label: "公式", url: "https://example.com/top" },
+      { id: null, kind: "form", label: "", url: "https://example.com/contact" },
+    ]);
+    const second = await listDestinations(alice, p);
+    expect(second.map((d) => [d.kind, d.label, d.url])).toEqual([
+      ["site", "公式", "https://example.com/top"],
+      ["form", "", "https://example.com/contact"],
+    ]);
+    expect(second[0].id).toBe(first[1].id);
+  });
+});
+
+describe("分析の成果の数字", () => {
+  it("手で記録した成果を、直近の期間とその前に分けて足す。記録し始めたのが前の期間の始まりより後なら比べない印", async () => {
+    const { loadMetricsOverview } = await import("@/lib/metrics/queries");
+    const p = (await alice.from("projects").insert({ name: "成果", product_type: "shop" }).select("id").single()).data!.id;
+    const ymd = (n: number) => new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Tokyo" }).format(new Date(Date.now() - n * 86_400_000));
+    await alice.from("project_outcomes_daily").insert([
+      { project_id: p, owner_id: aliceId, day: ymd(1), action: "visit", count: 4 },
+      { project_id: p, owner_id: aliceId, day: ymd(2), action: "booking", count: 2 },
+    ]);
+    expect((await loadMetricsOverview(p, alice, 7)).kpiValues.outcomes).toEqual({ thisWeek: 6, lastWeek: 6, noPrev: true });
+    // 前の期間の途中から記録し始めた（9 日前）なら、まだ比べない
+    await alice.from("project_outcomes_daily").insert({ project_id: p, owner_id: aliceId, day: ymd(9), action: "visit", count: 3 });
+    expect((await loadMetricsOverview(p, alice, 7)).kpiValues.outcomes).toMatchObject({ thisWeek: 6, noPrev: true });
+    // 前の期間の始まり（13 日前）から記録していれば比べる
+    await alice.from("project_outcomes_daily").insert({ project_id: p, owner_id: aliceId, day: ymd(13), action: "visit", count: 1 });
+    expect((await loadMetricsOverview(p, alice, 7)).kpiValues.outcomes).toEqual({ thisWeek: 6, lastWeek: 4 });
+    // 記録がなければ出さない
+    const q = (await alice.from("projects").insert({ name: "記録なし", product_type: "shop" }).select("id").single()).data!.id;
+    expect((await loadMetricsOverview(q, alice, 7)).kpiValues.outcomes).toBeUndefined();
   });
 });

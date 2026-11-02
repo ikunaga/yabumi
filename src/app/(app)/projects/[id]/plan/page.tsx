@@ -1,3 +1,5 @@
+import { createClient } from "@/lib/supabase/server";
+import { destinationCandidates, listDestinations } from "@/lib/projects/destinations";
 import { isProductType } from "@/lib/projects/product-types";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -22,7 +24,7 @@ export default async function PlanPage(props: PageProps<"/projects/[id]/plan">) 
   const { open } = await props.searchParams;
   const [plan, project] = await Promise.all([getAccountPlan(id), getProject(id)]);
   if (!plan || !project) notFound();
-  const [accounts, links] = await Promise.all([listProjectSnsAccounts(id), listLinks(id)]);
+  const [accounts, links, registered] = await Promise.all([listProjectSnsAccounts(id), listLinks(id), listDestinations(await createClient(), id)]);
   const profileLinks: Partial<Record<SnsKey, string>> = {};
   for (const l of links) if (l.kind === "profile" && !l.disabled && l.sns && !profileLinks[l.sns]) profileLinks[l.sns] = l.url;
 
@@ -39,7 +41,7 @@ export default async function PlanPage(props: PageProps<"/projects/[id]/plan">) 
         projectId: id,
         accounts: accounts.map((a) => ({ sns: a.sns, handle: a.handle })),
         profileLinks,
-        destination: project.app_store_url ?? project.play_store_url ?? null,
+        destination: destinationCandidates(project, registered)[0]?.url ?? null,
         productType: isProductType(project.product_type) ? project.product_type : "app",
       }}
     />

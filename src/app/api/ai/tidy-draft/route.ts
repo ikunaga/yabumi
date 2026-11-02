@@ -4,6 +4,7 @@ import { aiConfigured, callShortenDrafts, callTidyDraft } from "@/lib/ai/anthrop
 import { aiLimitsFromEnv } from "@/lib/ai/limits";
 import { MAX_TIDY_CHARS, runTidyDraft } from "@/lib/ai/tidy-draft";
 import type { TidyOption } from "@/lib/ai/tidy-draft-apply";
+import { isSameOriginJson } from "@/lib/http/same-origin";
 import { SNS_KEYS, type SnsKey } from "@/lib/sns";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -22,6 +23,8 @@ const reply = (body: TidyDraftResponse, status = 200) => NextResponse.json(body,
 // server action ではなく route handler にしたのは、画面の「やめる」で待つのをやめられるようにするため（server action は 1 つずつしか動かず、
 // やめても AI の返事を待つ間は保存などを押せなくなる）。やめても、ここは最後まで動いて利用量を記録する（費用はかかっているので、上限に数える）
 export async function POST(req: Request) {
+  // ほかのサイトから呼ばせない（AI の費用と利用者の上限を使わせない）
+  if (!isSameOriginJson(req)) return reply({ error: "この画面からは使えません。" }, 403);
   const t = inputSchema.safeParse(await req.json().catch(() => null));
   if (!t.success) return reply({ error: "入力の形式が正しくありません。" }, 400);
   if (!aiConfigured()) return reply({ error: "AI はまだ準備中です。" });

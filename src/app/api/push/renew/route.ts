@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isSameOriginJson } from "@/lib/http/same-origin";
 import { deviceLabel } from "@/lib/push/rules";
 import { renewDevice, subscriptionSchema } from "@/lib/push/store";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -10,6 +11,8 @@ import { createClient } from "@/lib/supabase/server";
 const bodySchema = z.object({ oldEndpoint: z.string().max(1000).nullable(), subscription: subscriptionSchema });
 
 export async function POST(request: Request) {
+  // ほかのサイトから呼ばせない（service worker の fetch は同じサイトの JSON）
+  if (!isSameOriginJson(request)) return new Response(null, { status: 403 });
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;

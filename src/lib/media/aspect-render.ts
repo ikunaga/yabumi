@@ -1,4 +1,6 @@
 import { cropOutput, cropRect, padLayout, phoneFrameLayout, type PhoneOrientation } from "./aspect";
+import { phoneFrameOps, type PhoneFrameColor } from "./phone-frame";
+import { drawOp } from "./template-render";
 
 // 縦横を整えた画像を Canvas に描く（ブラウザだけで動く。aspect.ts の計算を使う）。
 // できた Canvas は template-render.ts の canvasToJpeg で JPEG にして、4.18 の流れで上げる
@@ -53,14 +55,9 @@ export function renderPad(canvas: HTMLCanvasElement, src: ImageBitmap, ratio: nu
   ctx.drawImage(src, l.dx * scale, l.dy * scale, l.dw * scale, l.dh * scale);
 }
 
-export type PhoneFrameColor = "black" | "white";
-// 縁の色と、地の色に紛れないよう外側に置く細い輪の色（画像の中身の色。画面の色ではない）。黒はテンプレートの枠と同じ
-const FRAME_COLORS: Record<PhoneFrameColor, { bezel: string; ring: string }> = {
-  black: { bezel: "#0e0e10", ring: "rgba(255,255,255,0.22)" },
-  white: { bezel: "#f4f4f2", ring: "rgba(0,0,0,0.14)" },
-};
+export type { PhoneFrameColor };
 
-// スマホの枠に入れる: 地を塗り、真ん中に枠を置いて、画面の中に画像を描く
+// スマホの枠に入れる: 地を塗り、真ん中に枠（phone-frame.ts）を置いて、画面の中に画像を描く
 export function renderPhoneFrame(
   canvas: HTMLCanvasElement,
   src: ImageBitmap,
@@ -77,22 +74,11 @@ export function renderPhoneFrame(
   fillGround(ctx, src, canvas.width, canvas.height, opts.fill);
   // ここから先は、できあがりの大きさの座標で描く
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
-  const color = FRAME_COLORS[opts.frame];
-  for (const [box, fillStyle] of [
-    [l.ring, color.ring],
-    [l.bezel, color.bezel],
-  ] as const) {
-    ctx.fillStyle = fillStyle;
-    ctx.beginPath();
-    ctx.roundRect(box.x, box.y, box.w, box.h, box.r);
-    ctx.fill();
-  }
-  ctx.save();
-  ctx.beginPath();
-  ctx.roundRect(l.screen.x, l.screen.y, l.screen.w, l.screen.h, l.screen.r);
-  ctx.clip();
   ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(src, l.crop.sx, l.crop.sy, l.crop.sw, l.crop.sh, l.screen.x, l.screen.y, l.screen.w, l.screen.h);
-  ctx.restore();
+  const f = phoneFrameOps(l.screen, opts.orientation, opts.frame);
+  for (const op of f.back) drawOp(ctx, op, null);
+  // 画面: aspect.ts の phoneCrop と同じ範囲（縦向きは上をそろえ、横向きは真ん中）
+  drawOp(ctx, { type: "image", ...l.screen, r: f.screenR, fit: opts.orientation === "portrait" ? "top" : "center" }, src);
+  for (const op of f.front) drawOp(ctx, op, null);
   ctx.setTransform(1, 0, 0, 1, 0, 0);
 }

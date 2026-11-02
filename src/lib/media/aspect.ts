@@ -1,4 +1,5 @@
 import { INSTAGRAM_MAX_RATIO, INSTAGRAM_MIN_RATIO, instagramRatioOk } from "@/lib/sns";
+import { PHONE_EDGE, type PhoneOrientation } from "./phone-frame";
 import { MAX_LONG_EDGE } from "./rules";
 
 // 画像の縦横を整える（Instagram の 4:5〜1.91:1 に収める。docs/architecture.md の 4.18）。
@@ -62,6 +63,11 @@ export function outputSize(baseW: number, baseH: number, ratio: number): { w: nu
   const scale = Math.min(1, MAX_LONG_EDGE / Math.max(w, h));
   w = Math.max(1, Math.round(w * scale));
   h = Math.max(1, Math.round(w / ratio));
+  // 縦長の比率では、高さの端数の繰り上げで上限を 1px 超えることがある。そのときは高さを上限にして幅を決め直す
+  if (h > MAX_LONG_EDGE) {
+    h = MAX_LONG_EDGE;
+    w = Math.max(1, Math.floor(h * ratio));
+  }
   return { w, h };
 }
 
@@ -98,17 +104,12 @@ export function dragToPos(pos: number, deltaPx: number, srcW: number, srcH: numb
 }
 
 // ── スマホの枠に入れる（アプリの画面のスクリーンショットなど）──
-// 描き方はテンプレートの「写真に見出し」の端末の枠（templates.ts の layoutScreen）に合わせる: 角丸の縁と、外側の細い輪。
-// 実在の機種の形（ノッチ・ボタン・ロゴ）は写さない
+// 枠の描き方は phone-frame.ts（テンプレートの「写真に見出し」と共通）。ここは画面の大きさと置き場所を決める
 
-export type PhoneOrientation = "portrait" | "landscape";
+export type { PhoneOrientation };
 
 // 画面の縦横の範囲。縦向きは 9:21〜9:16（スマホの画面に見える範囲。3:4 まで広げるとタブレットに見える）、横向きはその逆。外れた画像は画面に合わせて切る
 export const PHONE_SCREEN_RANGE = { min: 9 / 21, max: 9 / 16 } as const;
-// 縁と輪の太さ・画面の角の丸み（画面の短い辺に対する割合。テンプレートの枠と同じ見た目になる値）
-const PHONE_BEZEL = 0.022;
-const PHONE_RING = 0.0045;
-const PHONE_RADIUS = 0.085;
 // まわりの余白（できあがりの短い辺に対する割合。テンプレートの余白 80/1080 と同じ）
 const PHONE_MARGIN = 0.074;
 // できあがりの幅の下限（小さなスクリーンショットでも Instagram の幅 320px を下回らず、見てわかる大きさにする）
@@ -133,29 +134,30 @@ export function phoneCropSide(srcW: number, srcH: number, orientation: PhoneOrie
   return orientation === "portrait" ? "bottom" : "topBottom";
 }
 
-type Box = { x: number; y: number; w: number; h: number; r: number };
-export type PhoneLayout = { w: number; h: number; ring: Box; bezel: Box; screen: Box; crop: Rect };
+type Box = { x: number; y: number; w: number; h: number };
+// screen: 画面の場所（枠はこのまわりに phone-frame.ts で描く）、crop: 画面に入れる元の画像の範囲
+export type PhoneLayout = { w: number; h: number; screen: Box; crop: Rect };
+
+// 画面に入れる範囲。縦向きで縦に長いときは上をそろえる（スマホの画面は上が大事）。左右を切るときは真ん中を残す。
+// テンプレートの image の fit（top・center）と同じ切り方
+function phoneCrop(srcW: number, srcH: number, screenRatio: number, orientation: PhoneOrientation): Rect {
+  const top = orientation === "portrait" && cropAxis(srcW, srcH, screenRatio) === "y";
+  return cropRect(srcW, srcH, screenRatio, top ? 0 : 0.5);
+}
 
 // W×H の中に、枠を真ん中に置く
 function placePhone(W: number, H: number, screenRatio: number, srcW: number, srcH: number, orientation: PhoneOrientation): Omit<PhoneLayout, "w" | "h"> {
   const m = Math.min(W, H) * PHONE_MARGIN;
   const availW = W - m * 2;
   const availH = H - m * 2;
-  const k = PHONE_BEZEL + PHONE_RING;
-  // 画面の短い辺を s として、縁と輪を足した外側が余白の内に収まる、いちばん大きい s
+  const k = PHONE_EDGE;
+  // 画面の短い辺を s として、枠（縁・帯・ボタン）を足した外側が余白の内に収まる、いちばん大きい s
   const s = screenRatio <= 1 ? Math.min(availW / (1 + 2 * k), availH / (1 / screenRatio + 2 * k)) : Math.min(availW / (screenRatio + 2 * k), availH / (1 + 2 * k));
   const sw = screenRatio <= 1 ? s : s * screenRatio;
   const sh = screenRatio <= 1 ? s / screenRatio : s;
-  const bezel = s * PHONE_BEZEL;
-  const ring = s * PHONE_RING;
-  const r = s * PHONE_RADIUS;
-  const x = (W - sw) / 2;
-  const y = (H - sh) / 2;
   return {
-    ring: { x: x - bezel - ring, y: y - bezel - ring, w: sw + (bezel + ring) * 2, h: sh + (bezel + ring) * 2, r: r + bezel + ring },
-    bezel: { x: x - bezel, y: y - bezel, w: sw + bezel * 2, h: sh + bezel * 2, r: r + bezel },
-    screen: { x, y, w: sw, h: sh, r },
-    crop: cropRect(srcW, srcH, screenRatio, orientation === "portrait" ? 0 : 0.5),
+    screen: { x: (W - sw) / 2, y: (H - sh) / 2, w: sw, h: sh },
+    crop: phoneCrop(srcW, srcH, screenRatio, orientation),
   };
 }
 

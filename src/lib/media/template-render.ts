@@ -28,7 +28,7 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.roundRect(x, y, w, h, Math.max(0, Math.min(r, w / 2, h / 2)));
 }
 
-function drawOp(ctx: CanvasRenderingContext2D, op: DrawOp, shot: ImageBitmap | null) {
+export function drawOp(ctx: CanvasRenderingContext2D, op: DrawOp, shot: ImageBitmap | null) {
   switch (op.type) {
     case "rect":
       ctx.fillStyle = op.fill;

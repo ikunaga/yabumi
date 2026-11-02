@@ -1,4 +1,5 @@
 import type { SnsKey } from "@/lib/sns";
+import { phoneFrameOps } from "./phone-frame";
 
 // テンプレートで画像を作る（F14 の段取り ①。docs/architecture.md の 4.25）。
 // ここは描く中身（どこに何をどの大きさで置くか）を決めるだけで、Canvas には触らない（単体テストできるように）。
@@ -505,16 +506,24 @@ function layoutScreen(ctx: Ctx) {
     fy = top;
   }
   const fh = fw / shotRatio;
-  const r = (shotRatio < 1 ? 56 : 24) * u;
-  // 端末の縁（画像の中身の色）。暗い背景でも縁が見えるよう、外側に薄い明るい輪を置く
-  const ring = 3 * u;
-  ops.push({ type: "rect", x: fx - bezel - ring, y: fy - bezel - ring, w: fw + (bezel + ring) * 2, h: fh + (bezel + ring) * 2, r: r + bezel + ring, fill: "rgba(255,255,255,0.22)" });
-  ops.push({ type: "rect", x: fx - bezel, y: fy - bezel, w: fw + bezel * 2, h: fh + bezel * 2, r: r + bezel, fill: "#0e0e10" });
+  // 縦長の画面はスマホの枠（「縦横を整える」のスマホの枠と同じ部品。phone-frame.ts）。横長の画面（PC）は、カメラの穴のない角丸の縁
+  const phone = shotRatio < 1 ? phoneFrameOps({ x: fx, y: fy, w: fw, h: fh }, "portrait", "black") : null;
+  const r = phone ? phone.screenR : 24 * u;
+  if (phone) {
+    ops.push(...phone.back);
+  } else {
+    // 端末の縁（画像の中身の色）。暗い背景でも縁が見えるよう、外側に薄い明るい輪を置く
+    const ring = 3 * u;
+    ops.push({ type: "rect", x: fx - bezel - ring, y: fy - bezel - ring, w: fw + (bezel + ring) * 2, h: fh + (bezel + ring) * 2, r: r + bezel + ring, fill: "rgba(255,255,255,0.22)" });
+    ops.push({ type: "rect", x: fx - bezel, y: fy - bezel, w: fw + bezel * 2, h: fh + bezel * 2, r: r + bezel, fill: "#0e0e10" });
+  }
   if (shot) {
     ops.push({ type: "image", x: fx, y: fy, w: fw, h: fh, r });
   } else {
     ops.push({ type: "placeholder", x: fx, y: fy, w: fw, h: Math.min(fh, h - fy), r, text: "画面の画像を選んでください", font: input.fonts.body, size: 30 * u, color: "#d4d4d4", stroke: "#3a3a3a" });
   }
+  // カメラの穴は画面の上に重ねる（画像を選ぶ前の見本の枠でも、スマホに見えるように）
+  if (phone) ops.push(...phone.front);
 }
 
 // 写真を全面に敷き、下に影を重ねて見出しを白で置く。写真の色に左右されずに読めるよう、文字の後ろを暗くする

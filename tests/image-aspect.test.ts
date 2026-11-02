@@ -17,7 +17,8 @@ import {
   ratioLabel,
   suggestAspect,
 } from "@/lib/media/aspect";
-import { TEMPLATE_SIZES } from "@/lib/media/templates";
+import { TEMPLATE_SIZES, type DrawOp } from "@/lib/media/templates";
+import { phoneFrameOps } from "@/lib/media/phone-frame";
 import { MAX_LONG_EDGE } from "@/lib/media/rules";
 
 const IPHONE = { w: 1170, h: 2532 }; // スマホのスクリーンショット（1:2.16）
@@ -111,6 +112,14 @@ describe("余白を足す", () => {
   });
 });
 
+// 枠の部品（rect）をすべて囲む箱
+function frameBox(ops: DrawOp[]) {
+  const rects = ops.flatMap((o) => (o.type === "rect" ? [o] : []));
+  const x = Math.min(...rects.map((r) => r.x));
+  const y = Math.min(...rects.map((r) => r.y));
+  return { x, y, w: Math.max(...rects.map((r) => r.x + r.w)) - x, h: Math.max(...rects.map((r) => r.y + r.h)) - y };
+}
+
 describe("スマホの枠に入れる", () => {
   const inside = (outer: { x: number; y: number; w: number; h: number }, inner: { x: number; y: number; w: number; h: number }) =>
     inner.x >= outer.x - 0.01 && inner.y >= outer.y - 0.01 && inner.x + inner.w <= outer.x + outer.w + 0.01 && inner.y + inner.h <= outer.y + outer.h + 0.01;
@@ -128,12 +137,13 @@ describe("スマホの枠に入れる", () => {
       // 画面は画像と同じ比率で、画像をまるごと使う
       expect(Math.abs(l.screen.w / l.screen.h - shot.w / shot.h)).toBeLessThan(0.005);
       expect(l.crop).toEqual({ sx: 0, sy: 0, sw: shot.w, sh: shot.h });
-      // 輪 ⊃ 縁 ⊃ 画面、輪はできあがりの中に余白を残して収まる、真ん中に置く
-      expect(inside(l.ring, l.bezel) && inside(l.bezel, l.screen)).toBe(true);
-      expect(l.ring.x).toBeGreaterThan(0);
-      expect(l.ring.y).toBeGreaterThan(0);
-      expect(l.ring.x + l.ring.w).toBeLessThan(l.w);
-      expect(l.ring.y + l.ring.h).toBeLessThan(l.h);
+      // 枠（ボタンの出っ張りまで）はできあがりの中に余白を残して収まる。画面は真ん中に置く
+      const box = frameBox(phoneFrameOps(l.screen, "portrait", "black").back);
+      expect(inside(box, l.screen)).toBe(true);
+      expect(box.x).toBeGreaterThan(0);
+      expect(box.y).toBeGreaterThan(0);
+      expect(box.x + box.w).toBeLessThan(l.w);
+      expect(box.y + box.h).toBeLessThan(l.h);
       expect(Math.abs(l.screen.x + l.screen.w / 2 - l.w / 2)).toBeLessThan(0.01);
       expect(Math.abs(l.screen.y + l.screen.h / 2 - l.h / 2)).toBeLessThan(0.01);
     }

@@ -88,8 +88,10 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
     { title: "", text: "" },
   ]);
   const [mode, setMode] = useState<"template" | "photo">("template");
-  // aiJobId: 写真が AI で作ったものなら、その記録の ID（添えるときに AI の印を付ける）
-  const [shot, setShot] = useState<{ bitmap: ImageBitmap; name: string; aiJobId?: string } | null>(null);
+  // 「AI で写真・絵をつくる」を一度開いたら、タブを切り替えても外さない（作った候補・絵の説明を残す）
+  const [photoOpened, setPhotoOpened] = useState(false);
+  // aiJobId: 写真が AI で作ったものなら、その記録の ID（添えるときに AI の印を付ける）。scene はその絵の説明（説明文に使う）
+  const [shot, setShot] = useState<{ bitmap: ImageBitmap; name: string; aiJobId?: string; scene?: string } | null>(null);
   const [photoFit, setPhotoFit] = useState<PhotoFit>("frame");
   const [alt, setAlt] = useState("");
   const [altTouched, setAltTouched] = useState(false);
@@ -201,20 +203,48 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
     }
   }
 
-  // AI で作った写真を、そのまま添える（その大きさのまま JPEG にする）
-  async function addPhotoAsIs(photo: PickedPhoto, altText: string) {
+  function openPhoto() {
+    setPhotoOpened(true);
+    setMode("photo");
+  }
+
+  // AI で作った写真を、影も文字も重ねずにそのまま添える（その大きさのまま JPEG にする。AI の印は「そのまま」の trainedAlgorithmicMedia）
+  async function addAsIs(bitmap: ImageBitmap, jobId: string, altText: string): Promise<boolean> {
     const c = document.createElement("canvas");
-    c.width = photo.bitmap.width;
-    c.height = photo.bitmap.height;
-    c.getContext("2d")?.drawImage(photo.bitmap, 0, 0);
-    photo.bitmap.close();
+    c.width = bitmap.width;
+    c.height = bitmap.height;
+    c.getContext("2d")?.drawImage(bitmap, 0, 0);
     const jpeg = await canvasToJpeg(c);
-    if (await onAdd(jpeg, altText, { jobId: photo.jobId, source: "generated" })) onClose();
+    const ok = await onAdd(jpeg, altText, { jobId, source: "generated" });
+    if (ok) onClose();
+    return ok;
+  }
+
+  async function addPhotoAsIs(photo: PickedPhoto, altText: string) {
+    try {
+      await addAsIs(photo.bitmap, photo.jobId, altText);
+    } finally {
+      photo.bitmap.close();
+    }
+  }
+
+  // 「見出しを重ねる」のあと、やっぱり見出しなしで添える（敷いている AI の写真をそのまま）
+  async function addShotAsIs() {
+    if (!shot?.aiJobId) return;
+    setAdding(true);
+    setError(null);
+    try {
+      await addAsIs(shot.bitmap, shot.aiJobId, `AI で作った画像。${shot.scene ?? ""}`.slice(0, MAX_ALT_LENGTH));
+    } catch {
+      setError("画像を添えられませんでした。もう一度お試しください。");
+    } finally {
+      setAdding(false);
+    }
   }
 
   // AI で作った写真を「写真に見出し」に敷く
   function usePhotoInTemplate(photo: PickedPhoto) {
-    setShot({ bitmap: photo.bitmap, name: `ai:${photo.jobId}:${photo.bitmap.width}`, aiJobId: photo.jobId });
+    setShot({ bitmap: photo.bitmap, name: `ai:${photo.jobId}:${photo.bitmap.width}`, aiJobId: photo.jobId, scene: photo.scene });
     setKind("screen");
     setPhotoFit("cover");
     setMode("template");
@@ -239,18 +269,34 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
         <Choice on={mode === "template"} onClick={() => setMode("template")}>
           テンプレート
         </Choice>
-        <Choice on={mode === "photo"} onClick={() => setMode("photo")}>
+        <Choice on={mode === "photo"} onClick={openPhoto}>
           AI で写真・絵をつくる
         </Choice>
       </div>
 
-      {mode === "photo" ? (
+      {photoOpened && (
+        <div hidden={mode !== "photo"} className="flex flex-col gap-4">
+          {mode === "photo" && error && <ErrorBanner>{error}</ErrorBanner>}
+          <PhotoMaker projectId={projectId} visible={mode === "photo"} text={text} size={size} onSize={setSize} onUseAsIs={addPhotoAsIs} onUseInTemplate={usePhotoInTemplate} />
+        </div>
+      )}
+      {mode === "template" && (
         <>
-          {error && <ErrorBanner>{error}</ErrorBanner>}
-          <PhotoMaker projectId={projectId} text={text} size={size} onSize={setSize} onUseAsIs={addPhotoAsIs} onUseInTemplate={usePhotoInTemplate} />
-        </>
-      ) : (
-        <>
+          {kind === "screen" && shot?.aiJobId && (
+            <div className="flex flex-col items-start gap-2 rounded-md border border-line px-3.5 py-2.5 max-sm:px-3">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <Button type="button" variant="text" size="sm" className="-ml-2" onClick={() => setMode("photo")}>
+                  ← 候補に戻る
+                </Button>
+                <span className="text-xs text-muted">AI で作った画像に見出しを重ねています</span>
+              </div>
+              {/* スマホの幅では 2 行にする（1 行だと 320 幅で枠からはみ出す） */}
+              <Button type="button" variant="secondary" size="sm" className="h-auto min-h-8 gap-0 py-1.5 max-sm:flex-col max-sm:items-start" disabled={adding} onClick={() => void addShotAsIs()}>
+                <span>見出しなしで添える</span>
+                <span className="max-sm:text-xs max-sm:font-normal">（AI の画像をそのまま）</span>
+              </Button>
+            </div>
+          )}
           <div className="flex flex-col gap-2 rounded-md bg-surface2 px-3.5 py-3 text-sm">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               {aiEnabled ? (
@@ -315,7 +361,7 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
                     <Button type="button" variant="secondary" size="sm" onClick={() => fileRef.current?.click()}>
                       {shot ? "写真を選び直す" : "写真を選ぶ"}
                     </Button>
-                    <Button type="button" variant="text" size="sm" onClick={() => setMode("photo")}>
+                    <Button type="button" variant="text" size="sm" onClick={openPhoto}>
                       AI でつくる
                     </Button>
                     {shot && <span className="text-xs text-muted">{shot.bitmap.width}×{shot.bitmap.height}</span>}

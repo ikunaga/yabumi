@@ -8,7 +8,7 @@ import { aiConfigured, callPhotoIdeas } from "./anthropic";
 import { generateWithGemini, photoConfigured } from "./gemini-image";
 import { aiLimitsFromEnv } from "./limits";
 import { MAX_PHOTOS_PER_RUN, MAX_SCENE_CHARS, PHOTO_LIMITS, PHOTO_STYLES, photoModel, photoUnitYen, type PhotoIdea } from "./photo";
-import { acknowledgePhotoNotice, photoStatus, runPhotoGeneration, runPhotoIdeas, type PhotoCandidate } from "./photo-gen";
+import { acknowledgePhotoNotice, photoStatus, refreshCandidateUrls, runPhotoGeneration, runPhotoIdeas, type PhotoCandidate } from "./photo-gen";
 
 // 画面から呼ぶ、AI で写真・絵をつくる操作（docs/architecture.md の 4.25 の ②、決定 D35）。
 // 利用者の ID は、ここでログインの情報（getClaims）から取る。画面から渡された値は使わない
@@ -95,5 +95,22 @@ export async function generatePhotos(input: unknown): Promise<GeneratePhotosResu
   } catch (e) {
     console.error("[generatePhotos]", e instanceof Error ? e.message : e);
     return { error: "画像をつくれませんでした。時間をおいてもう一度お試しください。" };
+  }
+}
+
+const refreshInput = z.object({ jobId: z.uuid(), paths: z.array(z.string().max(200)).min(1).max(MAX_PHOTOS_PER_RUN) });
+
+// 候補の表示の URL を作り直す（候補に戻ったときに、1 時間の期限が切れていれば）。自分の 1 日以内の候補だけ
+export async function refreshPhotoCandidates(input: unknown): Promise<{ urls?: { path: string; url: string }[]; error?: string }> {
+  const parsed = refreshInput.safeParse(input);
+  if (!parsed.success) return { error: "入力の形式が正しくありません。" };
+  const { userId } = await currentUser();
+  if (!userId) return { error: "ログインし直してください。" };
+  try {
+    const urls = await refreshCandidateUrls(createAdminClient(), userId, parsed.data.jobId, parsed.data.paths);
+    return urls ? { urls } : { error: "候補は 1 日で消えます。もう一度つくってください。" };
+  } catch (e) {
+    console.error("[refreshPhotoCandidates]", e instanceof Error ? e.message : e);
+    return { error: "候補を読み直せませんでした。もう一度お試しください。" };
   }
 }

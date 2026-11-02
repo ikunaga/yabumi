@@ -7,7 +7,7 @@ vi.mock("server-only", () => ({}));
 import { ImageBlockedError, type GenerateImage } from "@/lib/ai/gemini-image";
 import { PHOTO_LIMITS } from "@/lib/ai/photo";
 import { AiUnavailableError } from "@/lib/ai/provider-failure";
-import { acknowledgePhotoNotice, ownRecentPhotoJob, photoStatus, runPhotoGeneration } from "@/lib/ai/photo-gen";
+import { acknowledgePhotoNotice, ownRecentPhotoJob, photoStatus, refreshCandidateUrls, runPhotoGeneration } from "@/lib/ai/photo-gen";
 import { readAiMark } from "@/lib/media/jpeg";
 import { MEDIA_BUCKET } from "@/lib/media/rules";
 import { downloadMedia, issueUpload, verifyUpload } from "@/lib/media/store";
@@ -76,6 +76,7 @@ describe("注意を読むまでは作れない", () => {
 
 describe("つくる", () => {
   let jobId: string;
+  let paths: string[] = [];
 
   it("候補を <利用者>/gen/ に置き、できた枚数と費用で記録する", async () => {
     await acknowledgePhotoNotice(admin, aliceId);
@@ -88,6 +89,7 @@ describe("つくる", () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     jobId = r.jobId;
+    paths = r.candidates.map((c) => c.path);
     expect(r.candidates).toHaveLength(2);
     expect(r.remainingImages).toBe(PHOTO_LIMITS.userMonthlyImages - 2);
     expect(prompts[0]).toMatch(/^4:5\|/);
@@ -146,6 +148,23 @@ describe("つくる", () => {
   it("他人のプロジェクトでは作れない", async () => {
     const r = await run(alice, aliceId, bobProject, fakeImage);
     expect(r).toMatchObject({ ok: false, message: "プロジェクトが見つかりません。" });
+  });
+
+  it("候補に戻ったとき、表示の URL を作り直せるのは、自分の 1 日以内の記録の、自分の候補の置き場所だけ", async () => {
+    const urls = await refreshCandidateUrls(admin, aliceId, jobId, paths);
+    expect(urls?.map((u) => u.path)).toEqual(paths);
+    for (const u of urls!) expect((await fetch(u.url)).ok).toBe(true);
+    // 他人の記録・他人の置き場所・形の違う置き場所・多すぎる・1 日より前の記録は断る
+    expect(await refreshCandidateUrls(admin, bobId, jobId, paths)).toBeNull();
+    expect(await refreshCandidateUrls(admin, bobId, jobId, paths.map((p) => p.replace(aliceId, bobId)))).toBeNull();
+    expect(await refreshCandidateUrls(admin, aliceId, jobId, [`${aliceId}/gen/../${bobId}/x.jpg`])).toBeNull();
+    expect(await refreshCandidateUrls(admin, aliceId, jobId, [`${aliceId}/${paths[0].split("/gen/")[1]}`])).toBeNull();
+    expect(await refreshCandidateUrls(admin, aliceId, jobId, [...paths, ...paths])).toBeNull();
+    expect(await refreshCandidateUrls(admin, aliceId, jobId, [])).toBeNull();
+    expect(await refreshCandidateUrls(admin, aliceId, jobId, paths, new Date(Date.now() + 25 * 3600_000))).toBeNull();
+    // 片付けで消えた候補は作り直せない
+    const missing = `${aliceId}/gen/${crypto.randomUUID()}.jpg`;
+    expect(await refreshCandidateUrls(admin, aliceId, jobId, [missing])).toBeNull();
   });
 
   it("添えるとき、自分の 1 日以内の記録なら AI の印を付ける", async () => {

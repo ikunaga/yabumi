@@ -243,6 +243,17 @@ function checkImage(bytes: Uint8Array, mimeType: string): { bytes: Uint8Array; e
 }
 
 // 添える画像が、この利用者が 1 日以内に AI で作ったものから来たか（AI の印を付けるため）。
+// 候補の表示の URL を作り直す（署名つきの URL は 1 時間で切れる。候補のファイルは 1 日で片付けられる）。
+// その利用者の 1 日以内の記録（jobId）で、その利用者の候補の置き場所（<利用者の ID>/gen/<乱数>.<拡張子>）だけを受ける。ほかは null
+export async function refreshCandidateUrls(admin: Db, userId: string, jobId: string, paths: string[], now = new Date()): Promise<{ path: string; url: string }[] | null> {
+  const own = new RegExp(`^${userId}/gen/[0-9a-f-]{36}\\.(jpg|png|webp)$`);
+  if (!paths.length || paths.length > MAX_PHOTOS_PER_RUN || !paths.every((p) => own.test(p))) return null;
+  if (!(await ownRecentPhotoJob(admin, userId, jobId, now))) return null;
+  const { data, error } = await admin.storage.from(MEDIA_BUCKET).createSignedUrls(paths, PREVIEW_URL_SECONDS);
+  if (error) return null;
+  const urls = (data ?? []).flatMap((u) => (!u.error && u.signedUrl && u.path ? [{ path: u.path, url: u.signedUrl }] : []));
+  return urls.length === paths.length ? urls : null;
+}
 // 印を付けるかどうかだけに使う（作っていない画像に印を付けても、利用者の損にはならない）
 export async function ownRecentPhotoJob(admin: Db, userId: string, jobId: string, now = new Date()): Promise<boolean> {
   const { data } = await admin

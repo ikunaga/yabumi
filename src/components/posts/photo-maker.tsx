@@ -4,15 +4,19 @@ import { useEffect, useState, useTransition } from "react";
 import { Button, NotReadyButton } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { Textarea } from "@/components/ui/field";
-import { acknowledgePhoto, draftPhotoIdeas, generatePhotos, photoPanelState, type PhotoPanelState } from "@/lib/ai/photo-actions";
+import { acknowledgePhoto, draftPhotoIdeas, generatePhotos, photoPanelState, refreshPhotoCandidates, type PhotoPanelState } from "@/lib/ai/photo-actions";
 import { MAX_PHOTOS_PER_RUN, MAX_SCENE_CHARS, PHOTO_STYLES, PHOTO_STYLE_LABEL, type PhotoIdea, type PhotoStyle } from "@/lib/ai/photo";
 import type { PhotoCandidate } from "@/lib/ai/photo-gen";
-import { MAX_ALT_LENGTH } from "@/lib/media/rules";
+import { MAX_ALT_LENGTH, PREVIEW_URL_SECONDS } from "@/lib/media/rules";
 import { TEMPLATE_SIZES, type TemplateSizeKey } from "@/lib/media/templates";
 import { AiBadge } from "./ai-badge";
 import { Choice, Group } from "./maker-parts";
 
 export type PickedPhoto = { jobId: string; bitmap: ImageBitmap; scene: string };
+
+// 候補の表示の URL は 1 時間で切れる。切れる 5 分前からは、使う前・候補に戻ったときに作り直す
+const STALE_AFTER_MS = (PREVIEW_URL_SECONDS - 5 * 60) * 1000;
+type Candidates = { jobId: string; items: PhotoCandidate[]; scene: string; signedAt: number };
 
 
 // 署名つきの URL から画像を読む（fetch で読むので、Canvas に描いても書き出せる）
@@ -23,9 +27,11 @@ async function loadBitmap(url: string): Promise<ImageBitmap> {
 }
 
 // AI で写真・絵をつくる（docs/architecture.md の 4.25 の ②、決定 D35）。
-// ① 絵の説明を AI（Claude）に案を出してもらうか手で書く → ② 画像の AI で 1〜2 枚 → ③ 選んでそのまま添えるか、見出しを重ねる
+// ① 絵の説明を AI（Claude）に案を出してもらうか手で書く → ② 画像の AI で 1〜2 枚 → ③ 選んでそのまま添えるか、見出しを重ねる。
+// 「テンプレート」のタブに切り替えても外さずに隠すだけなので、作った候補・選んだ候補・絵の説明は残る（visible は隠しているか）
 export function PhotoMaker({
   projectId,
+  visible,
   text,
   size,
   onSize,
@@ -33,6 +39,7 @@ export function PhotoMaker({
   onUseInTemplate,
 }: {
   projectId: string;
+  visible: boolean;
   text: string;
   size: TemplateSizeKey;
   onSize: (s: TemplateSizeKey) => void;
@@ -45,7 +52,7 @@ export function PhotoMaker({
   const [scene, setScene] = useState("");
   const [style, setStyle] = useState<PhotoStyle>("photo");
   const [count, setCount] = useState(2);
-  const [candidates, setCandidates] = useState<{ jobId: string; items: PhotoCandidate[]; scene: string } | null>(null);
+  const [candidates, setCandidates] = useState<Candidates | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [using, setUsing] = useState(false);
@@ -64,6 +71,31 @@ export function PhotoMaker({
       alive = false;
     };
   }, []);
+
+  // 候補に戻ってきたとき、表示の URL が切れかけていれば作り直す
+  useEffect(() => {
+    if (visible && candidates && Date.now() - candidates.signedAt > STALE_AFTER_MS) void freshItems();
+    // freshItems は candidates から作る
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
+
+  // 候補の URL を、切れかけていれば作り直して返す（force: 画像が読めなかったとき。作り直して 30 秒以内なら繰り返さない）。
+  // 候補が消えていたら（1 日たった）候補を外して知らせる
+  async function freshItems(force = false): Promise<PhotoCandidate[] | null> {
+    if (!candidates) return null;
+    if (!force && Date.now() - candidates.signedAt <= STALE_AFTER_MS) return candidates.items;
+    const r = await refreshPhotoCandidates({ jobId: candidates.jobId, paths: candidates.items.map((c) => c.path) });
+    if (!r.urls) {
+      setCandidates(null);
+      setPicked(null);
+      setError(r.error ?? "候補を読み直せませんでした。");
+      return null;
+    }
+    const byPath = new Map(r.urls.map((u) => [u.path, u.url]));
+    const items = candidates.items.map((c) => ({ ...c, url: byPath.get(c.path) ?? c.url }));
+    setCandidates({ ...candidates, items, signedAt: Date.now() });
+    return items;
+  }
 
   if (!state) return error ? <ErrorBanner>{error}</ErrorBanner> : <p className="text-sm text-muted">読み込んでいます…</p>;
 
@@ -130,7 +162,7 @@ export function PhotoMaker({
         setError(r.error ?? "画像をつくれませんでした。");
         return;
       }
-      setCandidates({ jobId: r.jobId, items: r.candidates, scene });
+      setCandidates({ jobId: r.jobId, items: r.candidates, scene, signedAt: Date.now() });
       setPicked(r.candidates[0]?.path ?? null);
       if (r.partial) setNotice("頼んだうちの一部だけできました（できなかった分は数えません）。");
     });
@@ -141,7 +173,10 @@ export function PhotoMaker({
     setUsing(true);
     setError(null);
     try {
-      const bitmap = await loadBitmap(pickedItem.url);
+      const items = await freshItems();
+      const item = items?.find((c) => c.path === pickedItem.path);
+      if (!item) return;
+      const bitmap = await loadBitmap(item.url);
       const photo = { jobId: candidates.jobId, bitmap, scene: candidates.scene };
       if (asIs) await onUseAsIs(photo, `AI で作った画像。${candidates.scene}`.slice(0, MAX_ALT_LENGTH));
       else onUseInTemplate(photo);
@@ -249,7 +284,7 @@ export function PhotoMaker({
                   className={`relative block w-full overflow-hidden rounded-md border-2 ${picked === c.path ? "border-primary" : "border-transparent"}`}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element -- 署名つきの URL は期限があり、next/image の最適化を通さない */}
-                  <img src={c.url} alt={`AI で作った画像の候補 ${i + 1}`} className="block h-auto w-full bg-surface2" />
+                  <img src={c.url} alt={`AI で作った画像の候補 ${i + 1}`} onError={() => candidates && Date.now() - candidates.signedAt > 30_000 && void freshItems(true)} className="block h-auto w-full bg-surface2" />
                   <AiBadge className="absolute left-2 top-2" />
                 </button>
               </li>

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { MAX_ALT_LENGTH, MAX_IMAGES_PER_POST } from "@/lib/media/rules";
+import { MAX_NOTES_PER_POST } from "@/lib/notes/rules";
 import { SNS_KEYS, type SnsKey } from "@/lib/sns";
 
 // now: 今すぐ送る
@@ -31,6 +32,8 @@ export const savePostInputSchema = z.object({
   intent: saveIntent,
   // ロードマップのやることから作った投稿（docs/architecture.md の 4.23）。同じプロジェクトのやることだけ（DB のトリガーで守る）
   roadmapItemId: z.uuid().nullable().optional(),
+  // 「ネタ帳から」で本文に入れたメモ。保存したら「投稿にした」の印を付ける（同じプロジェクトの、まだ使っていないメモだけ）
+  noteIds: z.array(z.uuid()).max(MAX_NOTES_PER_POST).default([]),
 });
 
 export type SavePostInput = z.input<typeof savePostInputSchema>;

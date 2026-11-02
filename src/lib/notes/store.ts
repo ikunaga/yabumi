@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { MAX_IMAGES_PER_POST, MEDIA_BUCKET, USER_QUOTA_BYTES, mediaPath } from "@/lib/media/rules";
+import { MAX_IMAGES_PER_POST, MAX_UNATTACHED, MEDIA_BUCKET, USER_QUOTA_BYTES, mediaPath } from "@/lib/media/rules";
 import type { SnsKey } from "@/lib/sns";
 import type { Database } from "@/lib/supabase/database.types";
 import { MAX_NOTE_CHARS, MAX_NOTES_PER_PROJECT } from "./rules";
@@ -136,10 +136,47 @@ export async function copyNoteImagesToPost(admin: Db, ownerId: string, postId: s
   return { copied, skipped: rows.length - copied };
 }
 
-// メモに「投稿にした」の印を付け、その投稿へのリンクを残す
-export async function markNotesUsed(user: Db, noteIds: string[], postId: string) {
+// 「投稿をつくる」でメモを選んだときに、メモの画像を、まだ投稿に添えていない画像として写す（投稿を保存すると、その投稿の画像になる。
+// 保存しなければ、ほかの添えていない画像と同じく 1 日で消える。4.18）。メモに画像がなければ null。
+// メモは利用者の権限で、同じプロジェクトのものだけを読む
+export async function copyNoteImageForCompose(
+  user: Db,
+  admin: Db,
+  args: { userId: string; projectId: string; noteId: string },
+): Promise<NoteOutcome<{ image: { id: string; storagePath: string; width: number; height: number; sizeBytes: number; altText: string } | null }>> {
+  const { data: note } = await user.from("idea_notes").select("id").eq("id", args.noteId).eq("project_id", args.projectId).maybeSingle();
+  if (!note) return NOT_FOUND;
+  const [r] = await noteImageRows(admin, args.userId, [note.id]);
+  if (!r) return { ok: true, image: null };
+  const { count } = await admin.from("media_files").select("id", { count: "exact", head: true }).eq("owner_id", args.userId).is("post_id", null).is("note_id", null);
+  if ((count ?? 0) >= MAX_UNATTACHED) {
+    return { ok: false, message: `保存していない画像が ${MAX_UNATTACHED} 枚あります。投稿を保存するか、要らない画像を外してから選んでください。` };
+  }
+  const { data: used } = await admin.rpc("media_usage_bytes", { p_owner_id: args.userId });
+  if (Number(used ?? 0) + r.size_bytes > USER_QUOTA_BYTES) {
+    return { ok: false, message: "置ける画像の合計を超えるので、メモの画像は写せませんでした。要らない下書きの画像を外してください。" };
+  }
+  const path = mediaPath(args.userId, crypto.randomUUID());
+  const { error: copyError } = await admin.storage.from(MEDIA_BUCKET).copy(r.storage_path, path);
+  if (copyError) throw copyError;
+  const { data: row, error } = await admin
+    .from("media_files")
+    .insert({ owner_id: args.userId, storage_path: path, alt_text: r.alt_text, width: r.width, height: r.height, size_bytes: r.size_bytes })
+    .select("id, storage_path, width, height, size_bytes, alt_text")
+    .single();
+  if (error || !row) {
+    await admin.storage.from(MEDIA_BUCKET).remove([path]);
+    throw error ?? new Error("画像を記録できませんでした");
+  }
+  return { ok: true, image: { id: row.id, storagePath: row.storage_path, width: row.width, height: row.height, sizeBytes: row.size_bytes, altText: row.alt_text } };
+}
+
+// メモに「投稿にした」の印を付け、その投稿へのリンクを残す。projectId を渡すと、そのプロジェクトのまだ使っていないメモだけに付ける
+export async function markNotesUsed(user: Db, noteIds: string[], postId: string, projectId?: string) {
   if (!noteIds.length) return;
-  const { error } = await user.from("idea_notes").update({ used_at: new Date().toISOString(), post_id: postId }).in("id", noteIds);
+  let q = user.from("idea_notes").update({ used_at: new Date().toISOString(), post_id: postId }).in("id", noteIds);
+  if (projectId) q = q.eq("project_id", projectId).is("used_at", null);
+  const { error } = await q;
   if (error) throw error;
 }
 

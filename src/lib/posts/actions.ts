@@ -12,6 +12,7 @@ import { fromInputValue, toYmd } from "@/lib/time";
 import { needsFillIn } from "@/lib/ai/post-ideas";
 import { snsNeedingImageReconnect } from "@/lib/media/queries";
 import { MediaError, attachMedia } from "@/lib/media/store";
+import { markNotesUsed } from "@/lib/notes/store";
 import { preparePostLinks } from "@/lib/links/store";
 import { connectedAccounts } from "./queries";
 import { savePostInputSchema, type SavePostInput, type SavePostResult } from "./schema";
@@ -22,7 +23,7 @@ const MIN_LEAD_MS = 5 * 60 * 1000;
 export async function savePost(input: SavePostInput): Promise<SavePostResult> {
   const parsed = savePostInputSchema.safeParse(input);
   if (!parsed.success) return { error: "入力の形式が正しくありません。画面を読み込み直してください。" };
-  const { projectId, postId, body, targets, plannedAt, intent, media, shortLinks, roadmapItemId } = parsed.data;
+  const { projectId, postId, body, targets, plannedAt, intent, media, shortLinks, roadmapItemId, noteIds } = parsed.data;
 
   const fieldErrors: NonNullable<SavePostResult["fieldErrors"]> = {};
   if (body.trim() === "") fieldErrors.body = "本文を入れてください";
@@ -138,6 +139,13 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
     if (e instanceof MediaError) return { fieldErrors: { media: e.userMessage } };
     console.error("[savePost] 画像を保存できませんでした", e);
     return { error: "画像を保存できませんでした。時間をおいてもう一度お試しください。" };
+  }
+
+  // 「ネタ帳から」入れたメモに「投稿にした」の印を付ける（ネタ帳の「下書きにする」と同じ）。失敗しても投稿の保存は済んでいるので、続ける
+  try {
+    await markNotesUsed(supabase, [...new Set(noteIds)], savedId, projectId);
+  } catch (e) {
+    console.error("[savePost] メモに印を付けられませんでした", e);
   }
 
   // 本文の URL の短縮リンクを用意する（送るときに置き換わる。4.22）。失敗しても保存は済んでいるので、元の URL のまま送る

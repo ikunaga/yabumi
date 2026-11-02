@@ -71,7 +71,7 @@ export function Term({ k, children }: { k: GlossaryKey; children?: ReactNode }) 
         popoverTarget={id}
         aria-expanded={open}
         aria-controls={id}
-        className="cursor-help border-b-[1.5px] border-dotted border-primary leading-[1.3] text-fg hover:text-primary"
+        className="cursor-help border-b-[1.5px] border-dotted border-current leading-[1.3] text-inherit hover:opacity-70"
       >
         {children ?? term.label}
       </button>

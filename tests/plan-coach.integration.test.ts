@@ -267,3 +267,43 @@ describe("AI まわりのテーブルの RLS", () => {
     expect(data).toEqual([{ thread_id: null }]);
   });
 });
+
+// 何を宣伝するか（決定 D34）: 案を採用すると、アカウント設計ではなくプロジェクトの種類（projects.product_type）に保存する
+describe("何を宣伝するかを一緒に決める", () => {
+  const productProposal = {
+    message: "宣伝するものの種類の案です。",
+    choices: [],
+    proposal: {
+      section: "product",
+      options: [
+        { title: "お店（実店舗）", summary: "来てもらうお店として", pros: ["来店につながる"], cons: ["場所の案内が要る"], value_json: JSON.stringify({ productType: "shop" }) },
+        { title: "ネットで物を売る", summary: "通販として", pros: ["遠くの人にも届く"], cons: ["送料の案内が要る"], value_json: JSON.stringify({ productType: "bakery" }) },
+      ],
+      recommended: 0,
+      reason: "駅前で営業しているため",
+    },
+  };
+
+  it("形に合わない種類の案は捨て、合う案だけを残す。採用するとプロジェクトの種類が変わり、AI に新しい種類が渡る", async () => {
+    const started = await step(alice, aliceId, reply(productProposal), null, { kind: "start", focus: null });
+    expect(started.ok).toBe(true);
+    const { data: msgs } = await alice.from("ai_messages").select("id, content").eq("thread_id", started.threadId!).eq("role", "assistant").order("created_at");
+    const saved = msgs![msgs!.length - 1];
+    expect((saved.content as { proposal: { options: unknown[] } }).proposal.options).toHaveLength(1);
+
+    const { data: before } = await alice.from("account_plans").select("data").eq("project_id", projectId).maybeSingle();
+    const callModel = reply(question);
+    const r = await step(alice, aliceId, callModel, started.threadId!, { kind: "adopt", messageId: saved.id, optionIndex: 0 });
+    expect(r.ok).toBe(true);
+    const { data: project } = await alice.from("projects").select("product_type").eq("id", projectId).single();
+    expect(project!.product_type).toBe("shop");
+    // アカウント設計は変えない
+    const { data: after } = await alice.from("account_plans").select("data").eq("project_id", projectId).maybeSingle();
+    expect(after?.data ?? null).toEqual(before?.data ?? null);
+
+    const sent = JSON.stringify(vi.mocked(callModel).mock.calls[0][0]);
+    expect(sent).toContain("「何を宣伝するか」の案「お店（実店舗）」を採用して保存しました");
+    expect(sent).toContain("宣伝するものの種類: お店（実店舗）（shop。");
+    expect(sent).toContain("visit（来てもらう）");
+  });
+});

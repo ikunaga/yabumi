@@ -1,13 +1,15 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { saveSectionValue } from "@/lib/plan/save";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { isSectionKey, normalizePlan, type PlanData, type SectionKey } from "@/lib/plan/schema";
+import { isSectionKey, normalizePlan, type PlanData, type SectionKey, type SectionValue } from "@/lib/plan/schema";
+import { isProductType, type ProductType } from "@/lib/projects/product-types";
 import { isSnsKey, type SnsKey } from "@/lib/sns";
 import type { Database } from "@/lib/supabase/database.types";
 import { checkAiLimits, type AiLimits } from "./limits";
-import { normalizeCoachTurn, toWireTurn, type CoachTurn } from "./plan-coach-schema";
+import { normalizeCoachTurn, toWireTurn, type CoachSectionKey, type CoachTurn, type ProductValue } from "./plan-coach-schema";
 import { coachContextMessage, PLAN_COACH_SYSTEM, sectionLabel, type CoachContext } from "./plan-coach-prompt";
 import { estimateCostUsd, type TokenUsage } from "./pricing";
+import { productTypeOf } from "./product-guide";
 
 // アカウント設計を AI と進める会話の 1 往復（docs/architecture.md の 4.9）。
 // AI の呼び出しは callModel として外から渡す（テストではモックし、本物の API は呼ばない）。
@@ -26,7 +28,7 @@ export type UserContent =
   | { kind: "start"; focus: SectionKey | null }
   | { kind: "text"; text: string }
   | { kind: "focus"; focus: SectionKey }
-  | { kind: "adopt"; messageId: string; optionIndex: number; section: SectionKey; title: string; tags?: string[] };
+  | { kind: "adopt"; messageId: string; optionIndex: number; section: CoachSectionKey; title: string; tags?: string[] };
 
 // AI の返事。採用された案の番号を、あとから書き足す。ハッシュタグの案は、選んだ候補の番号も（adoptedPicks）
 export type AssistantContent = CoachTurn & { adopted?: number | null; adoptedPicks?: number[] | null };
@@ -95,6 +97,13 @@ const GENERIC_ERROR = "AI とのやりとりがうまくいきませんでした
 // 会話を 1 往復進める。
 // user: 利用者の権限のクライアント（設計の保存とプロジェクトの読み込み。RLS で本人のものだけ）
 // admin: サーバーの権限のクライアント（会話と利用量の書き込み）。呼ぶ前に userId がログイン中の利用者であることを確かめておく
+// 「何を宣伝するか」の案を採用したとき: プロジェクトの種類を保存する（利用者の権限。RLS で本人のプロジェクトだけ。updateProductType と同じ書き込み）
+async function saveProductType(user: SupabaseClient<Database>, projectId: string, productType: ProductType): Promise<{ ok: boolean }> {
+  if (!isProductType(productType)) return { ok: false };
+  const { data, error } = await user.from("projects").update({ product_type: productType }).eq("id", projectId).select("id");
+  return { ok: !error && Boolean(data?.length) };
+}
+
 export async function coachStep(
   user: Db,
   admin: Db,
@@ -104,7 +113,8 @@ export async function coachStep(
   const now = deps.now?.() ?? new Date();
   const { userId, projectId, input } = args;
 
-  const { data: project } = await user.from("projects").select("id, name, description, target_audience, app_store_url, play_store_url").eq("id", projectId).maybeSingle();
+  // 種類（product_type）も使うので、すべての列を読む
+  const { data: project } = await user.from("projects").select("*").eq("id", projectId).maybeSingle();
   if (!project) return { ok: false, threadId: args.threadId, message: "プロジェクトが見つかりません。" };
 
   if (input.kind === "text") {
@@ -138,6 +148,8 @@ export async function coachStep(
     return { ok: false, threadId, message: "この会話は長くなったので、ここまでにしましょう。「最初から相談する」で新しい会話を始められます（決まった設計は残ります）。" };
   }
 
+  // 宣伝するものの種類（「何を宣伝するか」の案を採用したら、AI にはすぐ新しい種類を渡す）
+  let productType = productTypeOf(project.product_type);
   // 利用者の発言を決める。採用のときは、ここで設計に保存する
   let userContent: UserContent;
   switch (input.kind) {
@@ -160,8 +172,13 @@ export async function coachStep(
       // ハッシュタグの案は、候補のうち利用者が選んだものだけを保存する
       const picked = proposal.section === "hashtags" && input.picks ? pickHashtags(option.value as PlanData["hashtags"], input.picks) : null;
       if (picked && picked.value.items.length === 0) return { ok: false, threadId, message: "使うハッシュタグを 1 つ以上選んでください。" };
-      const saved = await saveSectionValue(user, projectId, proposal.section, picked?.value ?? option.value, "ai", { now });
+      // 「何を宣伝するか」はプロジェクトの種類（projects.product_type）に、ほかはアカウント設計に保存する
+      const saved =
+        proposal.section === "product"
+          ? await saveProductType(user, projectId, (option.value as ProductValue).productType)
+          : await saveSectionValue(user, projectId, proposal.section, picked?.value ?? (option.value as SectionValue<SectionKey>), "ai", { now });
       if (!saved.ok) return { ok: false, threadId, message: "案を保存できませんでした。時間をおいてもう一度お試しください。" };
+      if (proposal.section === "product") productType = (option.value as ProductValue).productType;
       await admin
         .from("ai_messages")
         .update({ content: { ...target.content, adopted: input.optionIndex, adoptedPicks: picked?.picks ?? null } as never })
@@ -190,7 +207,7 @@ export async function coachStep(
   const { data: planRow } = await user.from("account_plans").select("data, section_sources").eq("project_id", projectId).maybeSingle();
   const focus = input.kind === "start" || input.kind === "focus" ? input.focus : null;
   const ctx: CoachContext = {
-    project: { name: project.name, description: project.description, appStoreUrl: project.app_store_url, playStoreUrl: project.play_store_url },
+    project: { name: project.name, description: project.description, appStoreUrl: project.app_store_url, playStoreUrl: project.play_store_url, productType },
     plan: normalizePlan(planRow?.data, project.target_audience),
     sources: sourcesOf(planRow?.section_sources),
     focus,

@@ -8,7 +8,9 @@ import { sendCoachMessage } from "@/lib/ai/plan-coach-actions";
 import type { AssistantContent, StoredMessage } from "@/lib/ai/plan-coach";
 import { sectionLabel } from "@/lib/ai/plan-coach-prompt";
 import { describeSection } from "@/lib/plan/describe";
-import type { PlanData, SectionKey } from "@/lib/plan/schema";
+import type { CoachSectionKey, CoachValue, ProductValue } from "@/lib/ai/plan-coach-schema";
+import type { PlanData, SectionKey, SectionValue } from "@/lib/plan/schema";
+import { PRODUCT_TYPE_DEFS } from "@/lib/projects/product-types";
 
 type Input =
   | { kind: "start"; focus: SectionKey | null }
@@ -274,7 +276,7 @@ function ProposalCard({
                 />
               ) : (
               <dl className="flex flex-col gap-1.5 border-t border-line pt-2.5">
-                {describeSection(p.section, o.value).map((row) => (
+                {describeCoachValue(p.section, o.value).map((row) => (
                   <div key={row.label}>
                     <dt className="text-xs text-muted">{row.label}</dt>
                     <dd className="leading-[1.7] whitespace-pre-wrap">{row.text}</dd>
@@ -373,4 +375,16 @@ function HashtagPicks({
       })}
     </fieldset>
   );
+}
+
+// 案の中身を表の行にする。「何を宣伝するか」はプロジェクトの種類、ほかはアカウント設計のセクション
+function describeCoachValue(section: CoachSectionKey, value: CoachValue): { label: string; text: string }[] {
+  if (section === "product") {
+    const def = PRODUCT_TYPE_DEFS[(value as ProductValue).productType];
+    return [
+      { label: "宣伝するもの", text: def.label },
+      { label: "どんなものか", text: `${def.description}（例: ${def.examples}）` },
+    ];
+  }
+  return describeSection(section, value as SectionValue<SectionKey>);
 }

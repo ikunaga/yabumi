@@ -87,7 +87,7 @@ describe("ハッシュタグ: 下書きへの付け方", () => {
     expect(extractHashtags("本文 ＃読書記録 と #積読")).toEqual(["読書記録", "積読"]);
   });
 
-  const ctx = (plan: PlanData): IdeaContext => ({ project: { name: "よみログ", description: "読書記録のアプリ", targetAudience: "本が好きな人" }, plan, sns: ["x", "threads"] });
+  const ctx = (plan: PlanData): IdeaContext => ({ project: { name: "よみログ", description: "読書記録のアプリ", targetAudience: "本が好きな人", productType: "app" }, plan, sns: ["x", "threads"] });
 
   it("下書きを出す AI に、設計のタグと付けるとき・SNS ごとの数を渡す。決まっていなければ付けないと伝える", () => {
     const withTags = normalizePlan({ hashtags }, "本が好きな人");

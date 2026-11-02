@@ -1,6 +1,7 @@
 import { KPI_KEYS } from "@/lib/metrics/kpis";
 import { z } from "zod";
 import { SNS_KEYS, type SnsKey } from "@/lib/sns";
+import { PRODUCT_TYPES, type ProductType } from "@/lib/projects/product-types";
 import { GOAL_TYPES, isValidHashtag, MAX_HASHTAGS, MAX_WEEKLY_PER_SNS, normalizeHashtag, OWNERSHIP_MODES, PROFILE_OVERRIDE_FIELDS, SECTION_KEYS, sectionSchemas, type ProfileOverrideField, type SectionKey, type SectionValue } from "@/lib/plan/schema";
 
 // AI（アカウント設計の相棒）の 1 回の返事の形。構造化出力（output_config.format）でこの形に固定する。
@@ -10,8 +11,15 @@ import { GOAL_TYPES, isValidHashtag, MAX_HASHTAGS, MAX_WEEKLY_PER_SNS, normalize
 
 const snsEnum = z.enum(SNS_KEYS as [SnsKey, ...SnsKey[]]);
 
+// AI と考えるで決めるもの: アカウント設計のセクションに、最初の「何を宣伝するか」（projects.product_type。D34）を足したもの
+export const COACH_SECTION_KEYS = ["product", ...SECTION_KEYS] as const;
+export type CoachSectionKey = (typeof COACH_SECTION_KEYS)[number];
+export type ProductValue = { productType: ProductType };
+export type CoachValue = SectionValue<SectionKey> | ProductValue;
+
 // 案の中身の形（value_json を JSON として読んだもの）。保存する形とほぼ同じで、SNS ごとの役割だけ配列で受け取る
 export const valueSchemas = {
+  product: z.object({ productType: z.enum(PRODUCT_TYPES) }),
   goal: z.object({ what: z.string(), goalType: z.enum(GOAL_TYPES).nullable(), note: z.string() }),
   audience: z.object({ who: z.string(), pain: z.string(), where: z.string() }),
   pillars: z.object({
@@ -43,10 +51,10 @@ export const valueSchemas = {
     kpis: z.array(z.enum(KPI_KEYS)).max(3).default([]),
     weekly: z.record(z.string(), z.number()).default({}),
   }),
-} satisfies Record<SectionKey, z.ZodType>;
+} satisfies Record<CoachSectionKey, z.ZodType>;
 
 const proposalSchema = z.object({
-  section: z.enum(SECTION_KEYS as [SectionKey, ...SectionKey[]]),
+  section: z.enum(COACH_SECTION_KEYS),
   options: z
     .array(
       z.object({
@@ -68,14 +76,14 @@ export const coachTurnSchema = z.object({
   proposal: proposalSchema.nullable(),
 });
 
-export type ProposalOption<K extends SectionKey = SectionKey> = {
+export type ProposalOption = {
   title: string;
   summary: string;
   pros: string[];
   cons: string[];
-  value: SectionValue<K>;
+  value: CoachValue;
 };
-export type Proposal = { section: SectionKey; options: ProposalOption[]; recommended: number; reason: string };
+export type Proposal = { section: CoachSectionKey; options: ProposalOption[]; recommended: number; reason: string };
 export type CoachTurn = { message: string; choices: string[]; proposal: Proposal | null };
 
 // AI の返事を検証し、案の中身を保存する形に直す。
@@ -109,7 +117,7 @@ function normalizeProposal(raw: unknown): { proposal: Proposal | null; problem: 
       problems.push(`案 ${i + 1}: value_json が ${section} の形に合いません（${v.error.issues.map((x) => `${x.path.join(".")}: ${x.message}`).join("、")}）`);
       continue;
     }
-    const value = toSectionValue(section, v.data);
+    const value: CoachValue | null = section === "product" ? (v.data as ProductValue) : toSectionValue(section, v.data);
     if (!value) {
       problems.push(`案 ${i + 1}: 値が長すぎるか、範囲外です（割合は 0〜100、柱は 5 本まで、ハッシュタグは # のあとに空白や記号なしで 1 個以上、理由は 200 字まで）`);
       continue;
@@ -186,7 +194,7 @@ export function toWireTurn(t: CoachTurn): unknown {
         summary: o.summary,
         pros: o.pros,
         cons: o.cons,
-        value_json: JSON.stringify(toWireValue(t.proposal!.section, o.value)),
+        value_json: JSON.stringify(t.proposal!.section === "product" ? o.value : toWireValue(t.proposal!.section, o.value as SectionValue<SectionKey>)),
       })),
       recommended: t.proposal.recommended,
       reason: t.proposal.reason,

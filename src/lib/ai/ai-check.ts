@@ -1,3 +1,5 @@
+import { actionFromLegacyGoal, type ProductType } from "@/lib/projects/product-types";
+import { productLines, productTypeOf } from "./product-guide";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { normalizePlan, type PlanData } from "@/lib/plan/schema";
@@ -50,7 +52,7 @@ export type AiCheckFinding = { sns: SnsKey; kind: FindingKind; quote: string; wh
 export type AiCheckResult = { summary: string; findings: AiCheckFinding[] };
 export type CheckText = { sns: SnsKey; text: string };
 
-export const AI_CHECK_SYSTEM = `あなたは「yabumi」の中で、個人開発者が SNS に送る前の投稿を読み、「AI っぽい雑な投稿」になっていないかを確かめる係です。
+export const AI_CHECK_SYSTEM = `あなたは「yabumi」の中で、宣伝したい商品・サービスがある人が SNS に送る前の投稿を読み、「AI っぽい雑な投稿」になっていないかを確かめる係です。
 利用者はマーケティングの素人です。投稿は、利用者が書いたものも、AI の下書きを利用者が直したものもあります。指摘は、利用者が自分で判断して直せるように、短く、やさしく書きます。
 
 # 投稿の扱い（重要）
@@ -60,12 +62,12 @@ export const AI_CHECK_SYSTEM = `あなたは「yabumi」の中で、個人開発
 # 見るところ（当てはまるものだけを指摘する）
 - made_up（事実か確かめて）: 具体的な時間・回数・人数・お金・ユーザーの反応・苦労話など、書いた人しか知らない事実。あなたには本当かどうかわからないので、「本当ですか」と確かめてもらう指摘にする。fix は、事実がわからなくても言える言い方（例:「半日探した」→「しばらく探した」）か、空文字
 - cliche（決まり文句）: 「いかがでしたか」「〜してみた結果…！」「皆さん、こんにちは！」「ぜひ使ってみてください！」の連発、「〜ではないでしょうか」の多用、中身のない締め、見出しのような「【必見】」など、どこかで見た言い回し
-- exaggeration（誇張）: 「革命的」「圧倒的」「神アプリ」「最強」「誰でも簡単に」「完全に」など、確かめられない大げさな言葉。感嘆符や絵文字の重ねすぎ
+- exaggeration（誇張）: 「革命的」「圧倒的」「最強」「神〇〇（神アプリ・神商品など）」「絶対に〇〇できる」「誰でも簡単に」「完全に」など、確かめられない大げさな言葉。感嘆符や絵文字の重ねすぎ
 - hashtags（ハッシュタグ）: 次のどれかに当たるタグ
   - 数が多い: X で 3 つ以上、Threads で 2 つ以上（Threads は 1 つしかタグにならない）、Instagram で 6 個以上（Instagram は 5 個までしか付けられない）、Facebook で 3 つ以上
-  - 投稿の中身と関係のないタグ（例: 開発の話ではない投稿に #個人開発）
+  - 投稿の中身と関係のないタグ（例: メニューの紹介の投稿に、同業者向けの #飲食店経営、開発の話ではない投稿に #個人開発）
   - アカウント設計の「ハッシュタグ」にないタグ（設計で決めたタグがあるとき）。設計の「付けるとき」に合わないタグ。why で、設計のどのタグがこのネタに合うか（合うものがなければ付けなくてよいこと）を伝え、fix は設計に合うタグか空文字
-  - 宣伝のためだけのタグ（#拡散希望 #相互フォロー など）、人が多すぎて埋もれるだけのタグ（#アプリ #おすすめ など）
+  - 宣伝のためだけのタグ（#拡散希望 #相互フォロー など）、人が多すぎて埋もれるだけのタグ（#おすすめ #かわいい のような大きな言葉だけ、など）
   - 本文の途中に並べたタグ
   - 設計でハッシュタグが決まっていないときは、数・関係・宣伝だけのタグだけを見る（タグがないことは指摘しない）
 - tone（口調）: アカウント設計の口調と合っていない（です・ます調とくだけた口調が混ざる、決めた口調と違う）
@@ -84,10 +86,10 @@ ${LENGTH_RULES}`;
 
 const escapeData = (s: string) => s.replace(/<(\/?)(post)\b/gi, "<$1$2_");
 
-export type CheckContext = { projectName: string; plan: PlanData };
+export type CheckContext = { projectName: string; plan: PlanData; productType?: ProductType };
 
 export function checkContextText(ctx: CheckContext): string {
-  const lines = [`# プロジェクト: ${ctx.projectName}`, "# アカウント設計"];
+  const lines = [`# プロジェクト: ${ctx.projectName}`, ...productLines({ productType: ctx.productType ?? "app", desiredAction: actionFromLegacyGoal(ctx.plan.goal.goalType) }), "# アカウント設計"];
   const pillars = ctx.plan.pillars.items.filter((p) => p.name.trim());
   if (pillars.length) lines.push(`投稿の柱: ${pillars.map((p) => p.name.trim()).join("、")}`);
   lines.push(`口調: ${ctx.plan.pillars.tone.trim() || "（未設定。です・ます調か、くだけた口調かの一方にそろっていればよい）"}`);
@@ -169,7 +171,8 @@ export async function runAiCheck(
   if (texts.reduce((n, t) => n + [...t.text].length, 0) > MAX_CHECK_CHARS) {
     return { ok: false, message: `一度に確かめられるのは ${MAX_CHECK_CHARS.toLocaleString("ja-JP")} 字までです。` };
   }
-  const { data: project } = await user.from("projects").select("id, name, target_audience").eq("id", args.projectId).maybeSingle();
+  // 種類（product_type）も使うので、すべての列を読む
+  const { data: project } = await user.from("projects").select("*").eq("id", args.projectId).maybeSingle();
   if (!project) return { ok: false, message: "プロジェクトが見つかりません。" };
   const { data: planRow } = await user.from("account_plans").select("data").eq("project_id", args.projectId).maybeSingle();
 
@@ -178,7 +181,7 @@ export async function runAiCheck(
 
   let r: ModelOutput;
   try {
-    r = await deps.callCheck(buildAiCheckRequest({ projectName: project.name, plan: normalizePlan(planRow?.data, project.target_audience ?? "") }, texts));
+    r = await deps.callCheck(buildAiCheckRequest({ projectName: project.name, plan: normalizePlan(planRow?.data, project.target_audience ?? ""), productType: productTypeOf(project.product_type) }, texts));
   } catch (e) {
     console.error("[ai-check] AI の呼び出しに失敗しました", e instanceof Error ? e.message : e);
     return { ok: false, message: "AI とのやりとりがうまくいきませんでした。時間をおいてもう一度お試しください。" };

@@ -7,7 +7,8 @@ import { SuccessBanner } from "@/components/ui/feedback";
 import { HelpTip } from "@/components/ui/help";
 import { Term } from "@/components/ui/term";
 import { aiConfigured } from "@/lib/ai/anthropic";
-import { IDEA_SNS, MAX_IDEA_SNS, NEWS_QUESTIONS, pickIdeaSns, type IdeaSource } from "@/lib/ai/post-ideas";
+import { IDEA_SNS, MAX_IDEA_SNS, ideaSourcesFor, newsQuestionsFor, pickIdeaSns, type IdeaSource } from "@/lib/ai/post-ideas";
+import { guideFor, productTypeOf } from "@/lib/ai/product-guide";
 import { getLatestIdeasThread } from "@/lib/ai/post-ideas-queries";
 import { DEFAULT_IDEA_PERIOD, isValidPeriod } from "@/lib/github/commit-reader";
 import { githubConfigured } from "@/lib/github/config";
@@ -42,12 +43,14 @@ export default async function IdeasPage(props: PageProps<"/projects/[id]/ideas">
   const preferred = thread ? pickIdeaSns(thread.request.sns) : pickIdeaSns([...Object.keys(accounts), ...fromPlan]);
   const defaultSns = preferred.length ? preferred : pickIdeaSns(["x", "threads"]);
   const defaultDays = thread?.request.days && isValidPeriod(thread.request.days) ? thread.request.days : DEFAULT_IDEA_PERIOD;
-  // 材料の初期値: 前回の材料（コミットはつないでいるときだけ）→ つないでいればコミット、なければ最近のできごと
   const lastSource = thread?.request.source;
   // ネタ帳の画面でメモを選んできたら（?source=notes&notes=...）、ネタ帳から
   const defaultNoteIds = typeof noteParam === "string" ? noteParam.split(",").filter((n) => notes.some((x) => x.id === n)).slice(0, MAX_NOTES_FOR_IDEAS) : [];
+  // 材料の初期値（D34）: ネタ帳から来たらネタ帳 → 前回の材料（いま選べるものだけ。コミットはアプリでつないでいるときだけ）→ 最近のできごと
+  const productType = productTypeOf(project.product_type);
+  const sources = ideaSourcesFor(productType);
   const defaultSource: IdeaSource =
-    source === "notes" || defaultNoteIds.length ? "notes" : lastSource && (lastSource !== "commits" || repoFullName) ? lastSource : repoFullName ? "commits" : "news";
+    source === "notes" || defaultNoteIds.length ? "notes" : lastSource && sources.includes(lastSource) && (lastSource !== "commits" || repoFullName) ? lastSource : "news";
   const noPillars = !plan || plan.plan.pillars.items.every((p) => !p.name.trim());
 
   return (
@@ -63,9 +66,7 @@ export default async function IdeasPage(props: PageProps<"/projects/[id]/ideas">
           </span>
         </nav>
         <HelpTip label="どんなネタが出るか">
-          何を投稿すればいいか浮かばないときに、AI がネタと下書きを出します。「何に詰まって、どう直したか」「なぜそう作ったか」のような作り手の話は、アプリを知ってもらう入り口になります（
-          <Term k="buildInPublic" />
-          ）。ネタは、アカウント設計の <Term k="contentPillar" /> と口調に沿います。
+          何を投稿すればいいか浮かばないときに、AI がネタと下書きを出します。作っている過程や仕事の裏側、お客さん・使う人の声のような話は、知ってもらう入り口になります。ネタは、宣伝するものの種類と、アカウント設計の <Term k="contentPillar" /> と口調に沿います。
         </HelpTip>
       </div>
       {done === "thread_deleted" && <SuccessBanner>ネタの会話を消しました。下書きにした投稿は残っています。</SuccessBanner>}
@@ -79,7 +80,9 @@ export default async function IdeasPage(props: PageProps<"/projects/[id]/ideas">
         defaultSns={defaultSns}
         defaultDays={defaultDays}
         defaultSource={defaultSource}
-        newsQuestions={NEWS_QUESTIONS}
+        newsQuestions={newsQuestionsFor(productType)}
+        newsExample={guideFor(productType).newsExample}
+        sources={sources}
         notes={notes.map((n) => ({ id: n.id, body: n.body, hasImage: Boolean(n.image), createdAt: n.createdAt }))}
         defaultNoteIds={defaultNoteIds}
         thread={thread}

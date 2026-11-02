@@ -287,3 +287,24 @@ describe("投稿のネタ", () => {
     expect(commits).not.toHaveBeenCalled();
   });
 });
+
+// 宣伝するものがアプリでないとき（決定 D34）: 「最近の開発から（GitHub）」は使えず、AI もコミットの読み取りも呼ばない。
+// 最近のできごとからのネタには、種類（お店）と種類ごとの手がかりが渡る
+describe("アプリではないプロジェクト", () => {
+  it("コミットからは出さない。最近のできごとには種類が渡る", async () => {
+    const shop = (await alice.from("projects").insert({ name: "喫茶ひより", product_type: "shop" }).select("id").single()).data!.id;
+    const call = caller();
+    const read: ReadCommits = vi.fn(async () => ({ commits: [], truncated: false }));
+    const r = await generatePostIdeas(alice, admin, deps({ callIdeas: call, readCommits: read }), { userId: aliceId, projectId: shop, sns: ["x"], input: { source: "commits", days: 7 } });
+    expect(r).toMatchObject({ ok: false, message: expect.stringContaining("アプリのときだけ") });
+    expect(call).not.toHaveBeenCalled();
+    expect(read).not.toHaveBeenCalled();
+
+    const news = caller();
+    const ok = await generatePostIdeas(alice, admin, deps({ callIdeas: news }), { userId: aliceId, projectId: shop, sns: ["x"], input: { source: "news", news: [{ question: "新しく出したものは？", answer: "秋のケーキを出した" }] } });
+    expect(ok.ok).toBe(true);
+    const sent = JSON.stringify(vi.mocked(news).mock.calls[0][0].messages);
+    expect(sent).toContain("宣伝するものの種類: お店（実店舗）（shop。");
+    expect(sent).toContain("アプリではないので");
+  });
+});

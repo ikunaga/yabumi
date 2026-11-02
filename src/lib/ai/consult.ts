@@ -16,6 +16,7 @@ import { adoptableOptions, normalizeConsultTurn, roadmapStepState, ROADMAP_STEPS
 import { CONSULT_SYSTEM, consultContextMessage, type ConsultContext } from "./consult-prompt";
 import { MAX_TURNS_PER_THREAD, MAX_USER_TEXT, type BetaMessageParam, type BetaTextBlockParam, type CallModel, type ModelRequest, type ModelResult } from "./plan-coach";
 import { estimateCostUsd } from "./pricing";
+import { productTypeOf } from "./product-guide";
 import type { ModelOutput } from "./app-description";
 import { shortenOverDrafts, type CallShorten } from "./shorten";
 
@@ -124,7 +125,8 @@ export async function gatherConsultContext(
 ): Promise<ConsultContext | null> {
   const { data: project } = await user
     .from("projects")
-    .select("id, name, description, target_audience, app_store_url, play_store_url")
+    // 種類（product_type）も使うので、すべての列を読む
+    .select("*")
     .eq("id", projectId)
     .maybeSingle();
   if (!project) return null;
@@ -191,7 +193,7 @@ export async function gatherConsultContext(
     ...(coach ? { monthReview: coachSummaryLines(coach) } : {}),
     ...(steps ? { roadmapSteps: ROADMAP_STEPS.map((s, i) => `${i + 1}. ${s.label}（${s.key}）: ${steps.done[s.key] ? "済み" : s.key === steps.next ? "次に決める" : "まだ"}`).join("\n") } : {}),
     today,
-    project: { name: project.name, description: project.description, appStoreUrl: project.app_store_url, playStoreUrl: project.play_store_url },
+    project: { name: project.name, description: project.description, appStoreUrl: project.app_store_url, playStoreUrl: project.play_store_url, productType: productTypeOf(project.product_type) },
     plan,
     connectedSns: [...connected].map((s) => SNS[s].label),
     manualSns: SNS_KEYS.filter(isManualSns).map((s) => SNS[s].label),

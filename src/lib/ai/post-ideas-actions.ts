@@ -12,7 +12,7 @@ import { createClient } from "@/lib/supabase/server";
 import { aiConfigured, callPostIdeas, callShortenDrafts } from "./anthropic";
 import { MAX_NOTES_FOR_IDEAS } from "@/lib/notes/rules";
 import { aiLimitsFromEnv } from "./limits";
-import { adoptPostIdea, generatePostIdeas, MAX_ANSWER_CHARS, MAX_IDEA_QUESTIONS, MAX_IDEAS, MAX_NEWS_CHARS, NEWS_QUESTIONS, refinePostIdeas } from "./post-ideas";
+import { adoptPostIdea, generatePostIdeas, MAX_ANSWER_CHARS, MAX_IDEA_QUESTIONS, MAX_IDEAS, MAX_NEWS_CHARS, MAX_NEWS_QUESTIONS, refinePostIdeas } from "./post-ideas";
 
 async function currentUser() {
   const supabase = await createClient();
@@ -27,7 +27,7 @@ const FAILED = { error: "うまくいきませんでした。時間をおいて�
 
 const inputSchema = z.discriminatedUnion("source", [
   z.object({ source: z.literal("commits"), days: z.number().refine(isValidPeriod) }),
-  z.object({ source: z.literal("news"), news: z.array(z.object({ question: z.string().max(500), answer: z.string().max(MAX_NEWS_CHARS) })).max(NEWS_QUESTIONS.length) }),
+  z.object({ source: z.literal("news"), news: z.array(z.object({ question: z.string().max(500), answer: z.string().max(MAX_NEWS_CHARS) })).max(MAX_NEWS_QUESTIONS) }),
   z.object({ source: z.literal("plan") }),
   z.object({ source: z.literal("notes"), noteIds: z.array(z.uuid()).min(1).max(MAX_NOTES_FOR_IDEAS) }),
 ]);

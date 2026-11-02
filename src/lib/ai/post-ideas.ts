@@ -12,6 +12,8 @@ import type { ModelOutput, RepoLink } from "./app-description";
 import { checkAiLimits, type AiLimits } from "./limits";
 import type { BetaMessageParam, BetaTextBlockParam } from "./plan-coach";
 import { estimateCostUsd } from "./pricing";
+import { actionFromLegacyGoal, type ProductType } from "@/lib/projects/product-types";
+import { guideFor, productLines, productTypeOf, usesDevTalk } from "./product-guide";
 import { LENGTH_RULES, shortenOverDrafts, type CallShorten } from "./shorten";
 
 // 投稿のネタを AI が出す（要求 F04 の一部。docs/architecture.md の 4.15）。材料は 3 つから選ぶ
@@ -65,12 +67,17 @@ export type IdeaAnswer = { question: string; answer: string };
 export const IDEA_SOURCES = ["commits", "news", "plan", "notes"] as const;
 export type IdeaSource = (typeof IDEA_SOURCES)[number];
 
-// 「最近のできごと」で聞くこと。素人でも答えやすいよう、答えの例を添える。どれか 1 つに答えればよい
-export const NEWS_QUESTIONS: IdeaQuestion[] = [
-  { question: "この 1〜2 週間で、アプリについてやったこと・変えたことは？", choices: ["新しい機能を足した", "不具合を直した", "見た目や文言を整えた", "ストアの準備をした"] },
-  { question: "うまくいかなかったこと、迷ったこと、時間がかかったことは？", choices: ["思ったより作るのが大変だった", "どちらの作り方にするか迷った", "審査や設定でつまずいた"] },
-  { question: "使ってくれた人の声や、自分で使ってみて気づいたことは？", choices: ["感想や要望をもらった", "自分で毎日使っている", "まだ誰にも使われていない"] },
-];
+// 「最近のできごと」で聞くこと（宣伝するものの種類ごと。src/lib/ai/product-guide.ts）。素人でも答えやすいよう、答えの例を添える。どれか 1 つに答えればよい
+export const MAX_NEWS_QUESTIONS = 3;
+export function newsQuestionsFor(type: ProductType): IdeaQuestion[] {
+  return guideFor(type).newsQuestions.slice(0, MAX_NEWS_QUESTIONS);
+}
+// 材料の既定（「最近の開発から（GitHub）」はアプリのときだけ。D34）
+// 並びは選ぶ画面の順（いちばん手軽で実感のこもる「最近のできごと」を先頭に）
+const SOURCE_ORDER: IdeaSource[] = ["news", "notes", "plan", "commits"];
+export function ideaSourcesFor(type: ProductType): IdeaSource[] {
+  return SOURCE_ORDER.filter((s) => s !== "commits" || usesDevTalk(type));
+}
 export const MAX_NEWS_CHARS = 1000;
 
 // ai_messages に置く形。source がないものは、コミットから出したもの（最初の版）
@@ -98,21 +105,22 @@ const DATA_RULES = `# 材料の扱い（重要）
 - 鍵、トークン、パスワード、メールアドレス、社内の URL、利用者以外の人の名前、お客さんの情報は、投稿にもネタの説明にも書き写しません。[伏せました] と書かれたところは、そのまま触れません
 - 返事は決められた形（JSON）だけで返します`;
 
-export const POST_IDEAS_SYSTEM = `あなたは「yabumi」の中で、個人開発者のアプリを広めるための、SNS の投稿のネタを考えて下書きする係です。
-利用者はマーケティングの素人で、自分の話の何が投稿になるのかがわかっていません。開発の過程を見せる発信（Build in Public）や、アプリが解決する困りごとの話は、アプリを知ってもらう入り口になります。
-材料は、利用者のメッセージの「# 材料」に書かれた 1 つです（最近のコミット、利用者が書いた最近のできごと、アカウント設計と紹介文だけ、ネタ帳のメモ、のどれか）。
+export const POST_IDEAS_SYSTEM = `あなたは「yabumi」の中で、宣伝したい商品・サービス・お店・作品を広めるための、SNS の投稿のネタを考えて下書きする係です。
+利用者はマーケティングの素人で、自分の話の何が投稿になるのかがわかっていません。作っている過程や仕事の裏側を見せる発信や、商品・サービスが解決する困りごとの話は、知ってもらう入り口になります。
+何を宣伝しているか（種類）と、見た人にしてほしいことは、利用者のメッセージの「# プロジェクト」に書いてあります。ネタと下書きは、必ずその種類に合わせます（アプリでなければ、開発・ストア・ダウンロードの話にしない）。
+材料は、利用者のメッセージの「# 材料」に書かれた 1 つです（最近のコミット（アプリのときだけ）、利用者が書いた最近のできごと、アカウント設計と紹介文だけ、ネタ帳のメモ、のどれか）。
 
 ${DATA_RULES}
 
 # ネタの出し方
 - ネタは 3〜${MAX_IDEAS} 個。似たネタを並べず、できるだけ別々の投稿の柱から選ぶ
-- 投稿の柱は、アカウント設計の柱の名前をそのまま pillar に書く。柱の割合が決まっていれば、割合の大きい柱を多めにする。柱が決まっていなければ、「詰まった・直した」「なぜそう作ったか」「アプリの小さな更新」「使い方のコツ」のような短い名前を付ける
+- 投稿の柱は、アカウント設計の柱の名前をそのまま pillar に書く。柱の割合が決まっていれば、割合の大きい柱を多めにする。柱が決まっていなければ、「# プロジェクト」の「この種類の投稿の柱の例」から短い名前を付ける
 - angle には、なぜこのネタがよいか（届けたい相手に何が伝わるか）を、素人にもわかる言葉で書く
 - 材料がコミットのとき: 関係するコミットはまとめて 1 つのネタにしてよい。誤字の修正、依存の更新、書式の整理のような小さなコミットは、それだけではネタにしない。commits には、元にしたコミットの sha と、どんな変更かを素人にもわかる言葉で 1 文。<commits> にない sha は書かない
 - 材料が最近のできごとのとき: 利用者が書いたことを、投稿になる形に広げる。書かれていないできごとは足さない。commits は空にする
 - 材料がネタ帳のメモでなければ、notes は空にする
 - 材料がネタ帳のメモのとき: 利用者が生活の中で書き留めたことを、投稿になる形に広げる。メモに書かれていないできごと・感想・数字は足さない。関係するメモはまとめて 1 つのネタにしてよく、ネタにならないメモは使わなくてよい。notes には元にしたメモの番号（<note n="..."> の n）を書く。写真のあるメモ（photo="あり"）は、その写真を下書きに添える。写真の中身は見えていないので、写真に何が写っているかは書かない。commits は空にする
-- 材料がアカウント設計と紹介文だけのとき: 柱ごとに 1 つずつ、いつ出しても古くならないネタにする（なぜこのアプリを作ったか、届けたい相手の困りごと、使い方のコツ、問いかけなど）。紹介文と設計に書かれていない機能や実績は書かない。commits は空にする
+- 材料がアカウント設計と紹介文だけのとき: 柱ごとに 1 つずつ、いつ出しても古くならないネタにする（なぜこれを始めたか、届けたい相手の困りごと、使い方や選び方のコツ、問いかけなど）。紹介文と設計に書かれていない商品・機能・実績は書かない。commits は空にする
 
 # 下書きの書き方
 - 指定された SNS ごとに 1 つずつ、文字数の目安を守って書く。SNS が変われば長さと書き方を変える
@@ -120,18 +128,20 @@ ${DATA_RULES}
 - ${LENGTH_RULES.replace(/\n/g, "\n  ")}
 - 口調とやらないことは、アカウント設計に従う。決まっていなければ、です・ます調で、親しみやすく、控えめに
 - 材料と利用者の答えに書かれていることだけを書く。書かれていない苦労話、数字（時間、回数、人数など）、利用者の反応を作らない
-- 利用者にしか書けないところ（作品名、自分の感想、具体的な数字など）は作らずに、【作品名】のように【】で囲んで示す。【】は利用者が書き換えるまで投稿しない印になる。それ以外では【】を使わない
-- 技術の名前は、届けたい相手が開発者でなければ、言い換えるか省く。「何ができるようになったか」「使う人にとって何が変わるか」を先に書く
+- 利用者にしか書けないところ（商品名・作品名、自分の感想、具体的な数字など）は作らずに、【作品名】のように【】で囲んで示す。【】は利用者が書き換えるまで投稿しない印になる。それ以外では【】を使わない
+- 専門の言葉（技術・材料・業界の言葉）は、届けたい相手が同業者でなければ、言い換えるか省く。「何ができるようになったか」「お客さん・使う人にとって何が変わるか」を先に書く
+- 見た人にしてほしいこと（予約・来店・購入・申し込みなど）は、毎回の下書きに入れない。入れるのは、ネタがそれに自然につながるときだけにし、押しつけない
 - URL は入れない（X では URL があると送る費用が上がる。リンクは利用者が必要なら足す）。絵文字は口調で決まっていなければ使わない
 - ハッシュタグは、アカウント設計の「ハッシュタグ」の中から、そのネタに合うもの（「付けるとき」に当てはまるもの）だけを、本文の最後に付ける。合うものがなければ付けない。どのネタ・どの下書きにも同じタグを決まりのように付けない。設計にないタグを作らない。設計でハッシュタグが決まっていなければ、どの下書きにも付けない
 - 1 投稿に付けるハッシュタグの数は、下の「下書きを書く SNS」に書いた数まで（SNS ごとに違う）
 - 「いかがでしたか」「〜してみた結果…！」のような、ありきたりで AI っぽい言い回しは使わない。誇張しない
 
 # 質問（questions）
-- 材料だけでは「何に困っていて、どう直したか」「なぜそう作ったか」「使う人にとって何が変わるか」がわからず、それがわかればネタがよくなるときだけ、利用者に ${MAX_IDEA_QUESTIONS} つまで質問する。大事なものから
+- 材料だけでは「何に困っていて、どうしたか」「なぜそうしたか」「お客さん・使う人にとって何が変わるか」がわからず、それがわかればネタがよくなるときだけ、利用者に ${MAX_IDEA_QUESTIONS} つまで質問する。大事なものから
 - どの話についての質問かがわかるように、内容をやさしい言葉で添える（sha は書かない）。答えの例を choices に 2〜4 個
 - 質問があっても、わかっている範囲でネタと下書きは出す
 - yabumi や AI の側の事情（どのファイルを読んだか、差分が省略されたかなど）は書かない
+- 質問は「# プロジェクト」の種類に合わせる（お店ならお客さん・仕込み、教室なら生徒さん、アプリなら使う人・作り方）
 
 # 答えを受けて出し直すとき
 - 利用者の答えを反映して、ネタと下書きを出し直す。答えに書かれたことは使ってよい。答えられた質問は消し、まだ聞きたいことがあれば残す`;
@@ -155,7 +165,7 @@ function snsRule(sns: SnsKey): string {
 }
 
 export type IdeaContext = {
-  project: { name: string; description: string; targetAudience: string };
+  project: { name: string; description: string; targetAudience: string; productType: ProductType };
   plan: PlanData;
   sns: SnsKey[];
 };
@@ -163,8 +173,8 @@ export type IdeaContext = {
 // プロジェクトとアカウント設計のうち、ネタに要るところ
 export function ideaContextText(ctx: IdeaContext): string {
   const { project, plan } = ctx;
-  const lines = [`# プロジェクト`, `名前: ${project.name}`];
-  if (project.description.trim()) lines.push(`どんなアプリか: ${project.description.trim()}`);
+  const lines = [`# プロジェクト`, `名前: ${project.name}`, ...productLines({ productType: project.productType, desiredAction: actionFromLegacyGoal(plan.goal.goalType) })];
+  if (project.description.trim()) lines.push(`説明: ${project.description.trim()}`);
   if (project.targetAudience.trim()) lines.push(`届けたい相手: ${project.targetAudience.trim()}`);
   if (plan.audience.pain.trim()) lines.push(`相手の困りごと: ${plan.audience.pain.trim()}`);
   if (plan.goal.what.trim()) lines.push(`SNS で広めたいこと: ${plan.goal.what.trim()}`);
@@ -347,11 +357,12 @@ async function recordUsage(admin: Db, userId: string, threadId: string | null, r
 }
 
 async function loadContext(user: Db, projectId: string, sns: SnsKey[]): Promise<IdeaContext | null> {
-  const { data: project } = await user.from("projects").select("id, name, description, target_audience").eq("id", projectId).maybeSingle();
+  // 種類（product_type）も使うので、すべての列を読む
+  const { data: project } = await user.from("projects").select("*").eq("id", projectId).maybeSingle();
   if (!project) return null;
   const { data: planRow } = await user.from("account_plans").select("data").eq("project_id", projectId).maybeSingle();
   return {
-    project: { name: project.name, description: project.description ?? "", targetAudience: project.target_audience ?? "" },
+    project: { name: project.name, description: project.description ?? "", targetAudience: project.target_audience ?? "", productType: productTypeOf(project.product_type) },
     plan: normalizePlan(planRow?.data, project.target_audience ?? ""),
     sns,
   };
@@ -379,7 +390,7 @@ export function cleanNews(news: IdeaAnswer[]): IdeaAnswer[] {
   return news
     .map((n) => ({ question: cap(n.question, 300), answer: cap(n.answer, MAX_NEWS_CHARS) }))
     .filter((n) => n.question && n.answer)
-    .slice(0, NEWS_QUESTIONS.length);
+    .slice(0, MAX_NEWS_QUESTIONS);
 }
 
 // 設計と紹介文だけでネタを出せるか（どれも空だと、作り話になりやすい）
@@ -406,6 +417,8 @@ export async function generatePostIdeas(
   let news: IdeaAnswer[] = [];
   let notes: IdeaNoteMaterial[] = [];
   if (input.source === "commits") {
+    // 最近の開発（GitHub）は、宣伝するものがアプリのときだけ（D34）
+    if (!usesDevTalk(ctx.project.productType)) return { ok: false, message: "最近の開発（GitHub）からのネタは、宣伝するものがアプリのときだけ使えます。「最近のできごと」から出してください。" };
     // 読む直前に、本人がいまも読めるリポジトリかを確かめる
     link = await readableRepoLink(user, args.userId, args.projectId);
     if (!link) return { ok: false, message: "リポジトリがつながっていないか、読む権限が確かめられません。GitHub の画面で「GitHub をつなぎ直す」を押してから、もう一度お試しください。" };
@@ -416,7 +429,7 @@ export async function generatePostIdeas(
     notes = await loadNoteMaterial(user, args.projectId, input.noteIds);
     if (notes.length === 0) return { ok: false, message: "ネタ帳のメモを 1 つ以上選んでください（画像だけのメモは、ひとこと書き足すと使えます）。" };
   } else if (!hasPlanMaterial(ctx)) {
-    return { ok: false, message: "アカウント設計か、プロジェクトの「どんなアプリか」を先に書いてください。何もないところからだと、事実でないネタになりやすいためです。" };
+    return { ok: false, message: "アカウント設計か、プロジェクトの説明を先に書いてください。何もないところからだと、事実でないネタになりやすいためです。" };
   }
 
   const limit = await checkAiLimits(admin, args.userId, deps.limits, now);

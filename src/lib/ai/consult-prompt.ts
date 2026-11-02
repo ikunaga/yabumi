@@ -1,10 +1,13 @@
 import { KPI_KEYS, KPIS, type KpiKey } from "@/lib/metrics/kpis";
 import { SECTION_KEYS, isSectionDone, type PlanData } from "@/lib/plan/schema";
+import { actionFromLegacyGoal, type ProductType } from "@/lib/projects/product-types";
 import { sectionLabel } from "./plan-coach-prompt";
+import { productLines } from "./product-guide";
 
 // AI と相談（F09、docs/architecture.md の 4.23）への指示。毎回同じ文字列にして、プロンプトキャッシュが効くようにする（日付などの変わる値は「いまの状況」に入れる）
-export const CONSULT_SYSTEM = `あなたは「yabumi」の中で、個人開発者の SNS 運用の相談に乗る相棒です。
-相手はアプリを作っている個人開発者で、マーケティングと SNS 運用の素人です。運用にかける時間はできるだけ減らしたいと思っています。
+export const CONSULT_SYSTEM = `あなたは「yabumi」の中で、宣伝したい商品・サービスがある人の SNS 運用の相談に乗る相棒です。
+相手は、ひとりで商売をしている人（お店・教室・フリーランス）、ネットで物を売る人、作品や発信をしている人、アプリを作る人などで、マーケティングと SNS 運用の素人です。運用にかける時間はできるだけ減らしたいと思っています。
+何を宣伝しているか（種類）と、見た人にしてほしいことは「いまの状況」に書いてあります。答え・例・やることは、必ずその種類に合わせます（アプリでなければ、開発・ストア・ダウンロードの話を前提にしない）。
 アカウント設計（誰に・何のために・どんな投稿を）はすでに一緒に作ってあり、「いまの状況」に書いてあります。
 
 # あなたの役目
@@ -49,8 +52,8 @@ export const CONSULT_SYSTEM = `あなたは「yabumi」の中で、個人開発�
   全部が済んだら、決まったことを短く振り返り、ロードマップの画面で手で直せると伝える。相手が済んだ段を直したいと言ったら、その段の案を出す
 - KGI は「いつまでに・何を・どれだけ」の一文。数字の種類は下の決まった名前から 1 つ。期限は 1〜3 か月が目安。始めたばかりなら小さく（例: 1 か月で 12 本投稿する）
 - KPI は 1〜3 個に、1 週あたりの目標。アカウント設計の「最初の 1 か月」の kpis があれば、それを基にする
-- 週ごとのやることは、1 週に 1〜3 個。1 つは 30 分以内で済む大きさにする（例:「投稿の柱『詰まった・直した』で 1 本書く」）。数字と結びつけられるもの（投稿の回数など）は、kpi と target を付ける
-- 自動で数えられる数字は posts（投稿した回数）と link_clicks（ストアへのクリック）だけ。ほかは、まだ yabumi が数えていないので、やることの数字には付けない
+- 週ごとのやることは、1 週に 1〜3 個。1 つは 30 分以内で済む大きさにする（例:「投稿の柱『季節のおすすめ』で 1 本書く」）。数字と結びつけられるもの（投稿の回数など）は、kpi と target を付ける
+- 自動で数えられる数字は posts（投稿した回数）と link_clicks（短縮リンクから行き先へのクリック）だけ。ほかは、まだ yabumi が数えていないので、やることの数字には付けない
 
 # 振り返り（相手が「最近の数字を振り返って」と言ったとき）
 - 「いまの状況」の「振り返りの材料」と、ロードマップの進み具合だけを使う。この会話だけは message を 600 字くらいまで書いてよい
@@ -83,13 +86,13 @@ export const CONSULT_SYSTEM = `あなたは「yabumi」の中で、個人開発�
 - sns（kgi・kpi_targets・roadmap_items）: 数える SNS。kpi が posts のときだけ入れられる（ほかの数字は null）。「Instagram に 1 本」のように SNS を決めた投稿は、その SNS（例: "instagram"）。null は、すべての SNS の合計で数える。SNS の名前: x、threads、instagram、facebook、tiktok、youtube、note、substack
 - post_draft: {"sns": "x" | "threads" | "instagram" | "facebook" | "note" | "substack" | null, "text": "投稿の本文"}
   - ハッシュタグは、アカウント設計の hashtags の中から、そのネタに合うもの（when に当てはまるもの）だけを本文の最後に付ける。合うものがなければ付けない。毎回同じタグを決まりのように付けない。設計にないタグを作らない。設計でハッシュタグが決まっていなければ付けない。1 投稿の数は X 1〜2 個、Threads 1 つ、Instagram 5 個まで、Facebook 1〜2 個まで
-  - 本文は相手の口調と投稿の柱に合わせる。相手しか知らない事実（数字、できごと、アプリの機能の名前など）は作らず、【何を作ったか】のように【】で囲んで、相手が書き換える印にする
-- 数字の名前: posts=投稿した回数、link_clicks=ストアへのクリック、views=投稿の閲覧数、followers=フォロワーの増え方、store_page_views=ストアのページの閲覧、downloads=ダウンロード、revenue=課金（売上。円）
+  - 本文は相手の口調と投稿の柱に合わせる。相手しか知らない事実（数字、できごと、商品やメニュー・機能の名前など）は作らず、【何を作ったか】のように【】で囲んで、相手が書き換える印にする
+- 数字の名前: posts=投稿した回数、link_clicks=短縮リンクから行き先（予約・お店・ストアのページなど）へのクリック、views=投稿の閲覧数、followers=フォロワーの増え方、store_page_views=アプリのストアのページの閲覧、downloads=アプリのダウンロード、revenue=アプリの課金（売上。円）。store_page_views・downloads・revenue は、種類がアプリのときだけ使う
 `;
 
 export type ConsultContext = {
   today: string;
-  project: { name: string; description: string; appStoreUrl: string | null; playStoreUrl: string | null };
+  project: { name: string; description: string; appStoreUrl: string | null; playStoreUrl: string | null; productType?: ProductType };
   plan: PlanData;
   connectedSns: string[];
   manualSns: string[];
@@ -134,9 +137,10 @@ export function consultContextMessage(ctx: ConsultContext): string {
   return [
     "# いまの状況（yabumi が毎回付ける情報。利用者には見えていない）",
     `今日の日付: ${ctx.today}（日本時間。週は月曜から）`,
-    `プロジェクト（宣伝したいアプリ）: ${p.name}`,
-    `アプリの説明: ${clip(p.description || "（未入力）", 2000)}`,
-    `ストアページ: App Store ${p.appStoreUrl ? "あり" : "なし"} / Google Play ${p.playStoreUrl ? "あり" : "なし"}`,
+    `プロジェクト（宣伝したいもの）: ${p.name}`,
+    `説明: ${clip(p.description || "（未入力）", 2000)}`,
+    ...productLines({ productType: p.productType ?? "app", desiredAction: actionFromLegacyGoal(ctx.plan.goal.goalType) }),
+    ...((p.productType ?? "app") === "app" ? [`ストアページ: App Store ${p.appStoreUrl ? "あり" : "なし"} / Google Play ${p.playStoreUrl ? "あり" : "なし"}`] : []),
     `つないだ SNS（yabumi から自動で送れる）: ${ctx.connectedSns.length ? ctx.connectedSns.join("、") : "まだない"}`,
     `手で投稿する SNS: ${ctx.manualSns.join("、")}（公式の投稿のしくみがないので、利用者が手で投稿する）`,
     "アカウント設計（JSON）:",
@@ -164,11 +168,11 @@ function reviewLines(review: NonNullable<ConsultContext["review"]>, kpiLine: (k:
     "# 振り返りの材料（分析の画面と同じ数字）",
     "すべての数字:",
     KPI_KEYS.map((kpi) => kpiLine({ kpi, thisWeek: review.kpiValues[kpi]?.thisWeek ?? null, lastWeek: review.kpiValues[kpi]?.lastWeek ?? null })).join("\n"),
-    "SNS ごとのストアへのクリック（直近 7 日・その前の 7 日・30 日）:",
+    "SNS ごとの行き先へのクリック（直近 7 日・その前の 7 日・30 日）:",
     review.clicksBySns.length ? clip(JSON.stringify(review.clicksBySns.slice(0, 10)), 1500) : "まだない",
     "よく見られた投稿（30 日、多い順）:",
     review.topViewed.length ? clip(JSON.stringify(titled(review.topViewed)), 1500) : "まだない（閲覧数を数えていない、または投稿がない）",
-    "ストアへのクリックが多かった投稿（30 日、多い順）:",
+    "行き先へのクリックが多かった投稿（30 日、多い順）:",
     review.topClicked.length ? clip(JSON.stringify(titled(review.topClicked)), 1500) : "まだない",
   ];
 }

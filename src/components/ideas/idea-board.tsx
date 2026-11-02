@@ -11,7 +11,7 @@ import { ErrorBanner } from "@/components/ui/feedback";
 import { Input, Textarea } from "@/components/ui/field";
 import { Steps } from "@/components/ui/steps";
 import { adoptIdea, generateIdeas, refineIdeas } from "@/lib/ai/post-ideas-actions";
-import { IDEA_SOURCES, MAX_NEWS_CHARS, needsFillIn, type IdeaNoteMaterial, type IdeaQuestion, type IdeaSource, type IdeasThread, type PostIdea } from "@/lib/ai/post-ideas";
+import { MAX_NEWS_CHARS, needsFillIn, type IdeaNoteMaterial, type IdeaQuestion, type IdeaSource, type IdeasThread, type PostIdea } from "@/lib/ai/post-ideas";
 import { IDEA_PERIODS, type IdeaPeriod } from "@/lib/github/commit-reader";
 import { IDEA_STEPS, type IdeaStep, canGoIdeaStep, initialIdeaStep, visibleIdeaStep } from "@/lib/ideas/steps";
 import { MAX_NOTES_FOR_IDEAS } from "@/lib/notes/rules";
@@ -34,7 +34,7 @@ const SOURCE_INFO: Record<IdeaSource, { title: string; summary: string; good: st
   news: {
     title: "最近のできごとから",
     summary: "3 つの質問に答えると、それを投稿の形に広げます。",
-    good: "GitHub がなくても使える。自分の言葉なので、いちばん実感のこもった投稿になる",
+    good: "自分の言葉なので、いちばん実感のこもった投稿になる。答えの例を押すだけでも書ける",
     note: "どれか 1 つは答える必要がある（短くて大丈夫）",
     button: "このできごとからネタを出す",
     working: "ネタを考えています…（20〜60 秒ほど）",
@@ -51,7 +51,7 @@ const SOURCE_INFO: Record<IdeaSource, { title: string; summary: string; good: st
   },
   plan: {
     title: "アカウント設計から（入力なし）",
-    summary: "投稿の柱と「どんなアプリか」から、柱ごとに 1 つずつ出します。",
+    summary: "投稿の柱と、プロジェクトの説明から、柱ごとに 1 つずつ出します。",
     good: "何も書かなくてよい。いつ出しても古くならないネタがそろう",
     note: "最近の話は入らないので、ほかの材料と交互に使うのがおすすめ",
     button: "アカウント設計からネタを出す",
@@ -80,6 +80,10 @@ type Props = {
   defaultDays: IdeaPeriod;
   defaultSource: IdeaSource;
   newsQuestions: IdeaQuestion[];
+  // 最近のできごとの答えの欄に薄く出す例（種類ごと）
+  newsExample: string;
+  // 選べる材料（宣伝するものの種類で変わる。「最近の開発から（GitHub）」はアプリのときだけ）
+  sources: IdeaSource[];
   // ネタ帳のまだ使っていないメモ（新しい順）と、ネタ帳の画面で選んできたメモ
   notes: { id: string; body: string; hasImage: boolean; createdAt: string }[];
   defaultNoteIds: string[];
@@ -90,7 +94,7 @@ type Props = {
 
 // 材料（最近のコミット・最近のできごと・ネタ帳・アカウント設計）から AI がネタを出し、利用者が質問に答えたり、ネタを選んで下書きにしたりする。
 // ① 材料を選ぶ → ② 中身を入れる → ③ ネタを選んで下書きにする の 3 つのステップに分け、いまいるステップの項目だけを出す（入れたものはステップを移っても残る）
-export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, snsOptions, maxSns, defaultSns, defaultDays, defaultSource, newsQuestions, notes, defaultNoteIds, thread, noPillars }: Props) {
+export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, snsOptions, maxSns, defaultSns, defaultDays, defaultSource, newsQuestions, newsExample, sources, notes, defaultNoteIds, thread, noPillars }: Props) {
   const [step, setStep] = useState<IdeaStep>(() => initialIdeaStep({ hasThread: Boolean(thread), fromNotes: defaultNoteIds.length > 0 }));
   const [source, setSource] = useState<IdeaSource>(defaultSource);
   const [days, setDays] = useState<IdeaPeriod>(defaultDays);
@@ -298,7 +302,7 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
               <fieldset>
                 <legend className="sr-only">ネタの材料</legend>
                 <div className="flex flex-col gap-2">
-                  {IDEA_SOURCES.map((k) => {
+                  {sources.map((k) => {
                     const s = SOURCE_INFO[k];
                     const on = source === k;
                     const off = k === "commits" && !repoFullName ? "GitHub をつなぐと使えます" : k === "notes" && notes.length === 0 ? "使っていないメモがありません" : null;
@@ -405,7 +409,7 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
                         maxLength={MAX_NEWS_CHARS}
                         value={news[i] ?? ""}
                         onChange={(e) => setNews((cur) => cur.map((x, j) => (j === i ? e.target.value : x)))}
-                        placeholder="例: 通知が 2 回届く不具合を直した。原因は時差の計算だった"
+                        placeholder={newsExample}
                       />
                     </div>
                   ))}
@@ -468,7 +472,7 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
               {source === "plan" && (
                 <p className="flex flex-wrap items-center gap-2 rounded-md border border-line bg-surface2 px-4 py-3 text-[15px]">
                   入力はいりません
-                  <HelpTip label="アカウント設計から">投稿の柱と「どんなアプリか」から、柱ごとに 1 つずつネタを出します。</HelpTip>
+                  <HelpTip label="アカウント設計から">投稿の柱と、プロジェクトの説明から、柱ごとに 1 つずつネタを出します。</HelpTip>
                   <Link href={`/projects/${projectId}/plan`} className="ml-auto text-[13px] text-muted underline hover:text-fg">
                     アカウント設計を見る
                   </Link>

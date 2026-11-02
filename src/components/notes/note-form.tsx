@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { VoiceInputButton } from "@/components/ui/voice-input";
 import { discardImage } from "@/lib/media/actions";
 import { uploadImageFile } from "@/lib/media/client-upload";
 import { saveNote } from "@/lib/notes/actions";
@@ -42,6 +43,7 @@ export function NoteForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
   const id = useId();
   const pickedRef = useRef<Picked | null>(null);
 
@@ -148,6 +150,7 @@ export function NoteForm({
       </label>
       <textarea
         id={`${id}-body`}
+        ref={bodyRef}
         rows={4}
         // 開いてすぐ書けるように（数秒で残すため）
         autoFocus={autoFocus}
@@ -164,6 +167,7 @@ export function NoteForm({
         placeholder="例: 朝の通勤中に、家計簿をつけ忘れたことに気づいた。通知の時間を選べたらいいのに"
         className="w-full resize-y rounded-md border border-input bg-surface px-3.5 py-3 text-base leading-[1.7] text-fg outline-none placeholder:text-muted focus:border-primary focus:shadow-[0_0_0_1px_var(--primary)] max-sm:text-[16px]"
       />
+      <VoiceInputButton target={bodyRef} label="メモ" onChange={setBody} />
 
       <input
         ref={inputRef}

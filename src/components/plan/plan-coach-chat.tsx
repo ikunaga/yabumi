@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { VoiceInputButton } from "@/components/ui/voice-input";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { sendCoachMessage } from "@/lib/ai/plan-coach-actions";
 import type { AssistantContent, StoredMessage } from "@/lib/ai/plan-coach";
@@ -148,6 +149,7 @@ export function PlanCoachChat({
             className="w-full resize-none rounded-md border border-input bg-surface px-3.5 py-2.5 text-[14px] outline-none focus:border-primary focus:shadow-[0_0_0_1px_var(--primary)] max-sm:text-[16px]"
           />
           <div className="flex flex-wrap items-center gap-3">
+            <VoiceInputButton target={inputRef} label="返事" onChange={setText} />
             <button
               type="button"
               disabled={pending}

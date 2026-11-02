@@ -7,6 +7,7 @@ import { Button, ButtonLink, NotReadyButton } from "@/components/ui/button";
 import { Card, CardHeader, EmptyState } from "@/components/ui/card";
 import { Columns } from "@/components/ui/columns";
 import { HelpTip } from "@/components/ui/help";
+import { VoiceInputButton } from "@/components/ui/voice-input";
 import { tabClass, tabListClass } from "@/components/ui/tabs";
 import { discardImage } from "@/lib/media/actions";
 import { uploadImageFile } from "@/lib/media/client-upload";
@@ -327,6 +328,7 @@ function NoteEditor({ note, projectId, onCancel, onSaved }: { note: IdeaNote; pr
   const [busy, setBusy] = useState<"upload" | "save" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
   const id = useId();
 
   async function pick(file: File) {
@@ -361,12 +363,14 @@ function NoteEditor({ note, projectId, onCancel, onSaved }: { note: IdeaNote; pr
       </label>
       <textarea
         id={`${id}-body`}
+        ref={bodyRef}
         rows={4}
         maxLength={MAX_NOTE_CHARS}
         value={body}
         onChange={(e) => setBody(e.target.value)}
         className="w-full resize-y rounded-md border border-input bg-surface px-3.5 py-3 text-base leading-[1.7] text-fg outline-none focus:border-primary focus:shadow-[0_0_0_1px_var(--primary)] max-sm:text-[16px]"
       />
+      <VoiceInputButton target={bodyRef} label="メモ" onChange={setBody} />
       <input
         ref={inputRef}
         type="file"

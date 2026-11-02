@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { chipClass } from "@/components/ui/chip";
 import { HelpTip } from "@/components/ui/help";
+import { VoiceInputButton } from "@/components/ui/voice-input";
 import { tabClass, tabListClass } from "@/components/ui/tabs";
 import { ErrorBanner, SuccessBanner } from "@/components/ui/feedback";
 import { deletePost, savePost } from "@/lib/posts/actions";
@@ -99,6 +100,8 @@ export function PostComposer({
   const [images, setImages] = useState<AttachedImage[]>(initial.images ?? []);
   const [shortLinks, setShortLinks] = useState(initial.shortLinks ?? true);
   const [body, setBody] = useState(initial.body);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const overrideRef = useRef<HTMLTextAreaElement>(null);
   const [selected, setSelected] = useState<Set<SnsKey>>(() => new Set(initial.targets.map((t) => t.sns)));
   const [overrides, setOverrides] = useState<Partial<Record<SnsKey, string>>>(() =>
     Object.fromEntries(initial.targets.filter((t) => t.bodyOverride !== null).map((t) => [t.sns, t.bodyOverride!])),
@@ -321,6 +324,7 @@ export function PostComposer({
               </label>
               <textarea
                 id="post-body"
+                ref={bodyRef}
                 value={body}
                 onChange={(e) => {
                   setBody(e.target.value);
@@ -330,10 +334,20 @@ export function PostComposer({
                 aria-invalid={fe.body ? true : undefined}
                 className="min-h-[148px] w-full resize-y bg-transparent text-[17px] leading-[1.75] text-fg outline-none placeholder:text-faint max-sm:min-h-[120px] max-sm:text-[16px]"
               />
-              <span className={`num self-end text-[13px] ${checks[focus].issues.includes("too_long") ? "font-bold text-danger" : "text-faint"}`}>
-                {countText(focus)}
-                {chosen.length > 1 && <span className="sr-only">（{focusLabel}）</span>}
-              </span>
+              <div className="flex items-start justify-between gap-3">
+                <VoiceInputButton
+                  target={bodyRef}
+                  label="本文"
+                  onChange={(v) => {
+                    setBody(v);
+                    clearFieldError("body");
+                  }}
+                />
+                <span className={`num shrink-0 pt-1.5 text-[13px] ${checks[focus].issues.includes("too_long") ? "font-bold text-danger" : "text-faint"}`}>
+                  {countText(focus)}
+                  {chosen.length > 1 && <span className="sr-only">（{focusLabel}）</span>}
+                </span>
+              </div>
             </div>
             {fe.body && <p className="text-sm font-semibold text-danger">{fe.body}</p>}
 
@@ -632,11 +646,13 @@ export function PostComposer({
                   </label>
                   <textarea
                     id="override"
+                    ref={overrideRef}
                     rows={SNS[focus].needsTitle ? 12 : 4}
                     value={overrides[focus]}
                     onChange={(e) => setOverrides((o) => ({ ...o, [focus]: e.target.value }))}
                     className="w-full rounded-md border border-input bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:shadow-[0_0_0_1px_var(--primary)] max-sm:text-[16px]"
                   />
+                  <VoiceInputButton key={focus} target={overrideRef} label={`${focusLabel} 用の文面`} onChange={(v) => setOverrides((o) => ({ ...o, [focus]: v }))} />
                   <button
                     type="button"
                     onClick={() =>

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { VoiceInputButton } from "@/components/ui/voice-input";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { Term } from "@/components/ui/term";
 import { sendConsultMessage } from "@/lib/ai/consult-actions";
@@ -186,7 +187,8 @@ export function ConsultChat({
           placeholder="悩みや、聞きたいことを書いてください（⌘ / Ctrl + Enter で送る）"
           className="w-full resize-none rounded-md border border-input bg-surface px-3.5 py-2.5 text-[14px] outline-none focus:border-primary focus:shadow-[0_0_0_1px_var(--primary)] max-sm:text-[16px]"
         />
-        <div className="flex items-center">
+        <div className="flex items-start gap-3">
+          <VoiceInputButton className="flex-1" target={inputRef} label="相談" onChange={setText} />
           <Button className="ml-auto" size="sm" disabled={pending || !text.trim()} onClick={submitText}>
             送る
           </Button>

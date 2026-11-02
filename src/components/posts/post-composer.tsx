@@ -603,22 +603,34 @@ export function PostComposer({
                 {SNS_KEYS.map((sns) => {
                   const on = selected.has(sns);
                   const state = targetState(sns);
+                  // 1 段目の右には字数と短い状態（OK・オフ）だけ。長い印（画像が必要・つないでいない・投稿済みなど）と「文面を変更」は、
+                  // 名前の下の 2 段目にまとめる（320 幅でも 1 段目が折れないように）
+                  const inline = state && (!on || state.text === "OK") ? state : null;
+                  const below = state && !inline ? state : null;
+                  const changed = overrides[sns] !== undefined;
                   return (
                     <li key={sns}>
-                      <label className={`flex h-11 items-center gap-3 rounded-md border px-3.5 text-[15px] ${on ? "border-border bg-surface" : "border-line bg-surface2"}`}>
-                        <input
-                          type="checkbox"
-                          checked={on}
-                          disabled={isLocked(sns)}
-                          onChange={() => toggle(sns)}
-                          className="size-[18px] shrink-0 accent-[var(--primary)]"
-                        />
-                        <span className={on ? "font-bold" : "text-muted"}>{SNS[sns].label}</span>
-                        {overrides[sns] !== undefined && <span className="text-xs text-muted">✎ 文面を変更</span>}
-                        <span className="ml-auto flex items-center gap-2 text-[13px]">
-                          {on && !isLocked(sns) && <span className="num text-faint">{countText(sns)}</span>}
-                          {state && <span className={state.tone}>{state.text}</span>}
+                      <label className={`flex min-h-11 flex-col justify-center gap-0.5 rounded-md border px-3.5 py-2 text-[15px] ${on ? "border-border bg-surface" : "border-line bg-surface2"}`}>
+                        <span className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={on}
+                            disabled={isLocked(sns)}
+                            onChange={() => toggle(sns)}
+                            className="size-[18px] shrink-0 accent-[var(--primary)]"
+                          />
+                          <span className={`min-w-0 truncate ${on ? "font-bold" : "text-muted"}`}>{SNS[sns].label}</span>
+                          <span className="ml-auto flex shrink-0 items-center gap-2 text-[13px]">
+                            {on && !isLocked(sns) && <span className="num text-faint">{countText(sns)}</span>}
+                            {inline && <span className={inline.tone}>{inline.text}</span>}
+                          </span>
                         </span>
+                        {(below || changed) && (
+                          <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5 pl-[30px] text-xs">
+                            {below && <span className={below.tone}>{below.text}</span>}
+                            {changed && <span className="text-muted">✎ 文面を変更</span>}
+                          </span>
+                        )}
                       </label>
                     </li>
                   );

@@ -33,7 +33,7 @@ function GithubLine({ projectId, configured }: { projectId: string; configured: 
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 text-sm text-muted">
       <span>任意: GitHub をつなぐと、AI が紹介文を下書きします</span>
       <HelpTip label="GitHub をつなぐ理由">
-        アプリのリポジトリをつなぐと、AI がファイルを読んで、アプリの紹介文（どんなアプリか）を下書きします。紹介文は、アカウント設計の相談や投稿のネタの材料になります。非公開でも大丈夫です。
+        作っているアプリや Web のサービスのリポジトリをつなぐと、AI がファイルを読んで紹介文を下書きします。紹介文は、アカウント設計の相談や投稿のネタの材料になります。非公開でも大丈夫です。
       </HelpTip>
       {configured ? (
         <Link href={`/projects/${projectId}/github`} className="font-bold text-fg underline">

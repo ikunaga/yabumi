@@ -21,7 +21,7 @@ const CONNECT_HREF: Partial<Record<SnsKey, (projectId: string) => string>> = {
 // プロジェクトの設定の「つないだ SNS」。SNS ごとに 1 行
 // 手で投稿する SNS の説明（プロフィールを登録していないとき）
 const MANUAL_NOTE: Partial<Record<SnsKey, React.ReactNode>> = {
-  note: "日本語の長文。個人開発の振り返りや技術の記事が読まれやすい",
+  note: "日本語の長文。作り手の考えや、取り組みの振り返り、詳しい使い方が読まれやすい",
   substack: (
     <>
       メールで届く<Term k="newsletter" />。読者が<Term k="ownedAudience" />になる。英語圏に強い

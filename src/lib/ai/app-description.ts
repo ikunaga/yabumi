@@ -8,7 +8,7 @@ import { checkAiLimits, type AiLimits } from "./limits";
 import type { BetaMessageParam, BetaTextBlockParam } from "./plan-coach";
 import { estimateCostUsd, type TokenUsage } from "./pricing";
 
-// GitHub のリポジトリから、アプリの紹介文（どんなアプリか）を AI が下書きする（要求 F16、決定 D14。docs/architecture.md の 4.10）
+// GitHub のリポジトリから、開発しているもの（アプリ・Web のサービス）の紹介文を AI が下書きする（要求 F16、決定 D14。docs/architecture.md の 4.10）
 // ① ファイル一覧から、読むファイルを AI が選ぶ → ② それを読んで紹介文を書く。わからないところは、利用者への質問にする
 // → ③ 利用者が答えたら、その答えで紹介文を書き直す（リポジトリは読み直さない）
 
@@ -39,8 +39,8 @@ export const filePickSchema = z.object({
 
 // ② ③ 紹介文。構造化出力のスキーマは小さく保つ（大きいと 400 になる。4.9 を参照）
 export const appDescriptionSchema = z.object({
-  appName: z.string().describe("アプリ名。わからなければ空文字"),
-  what: z.string().describe("何ができるアプリか。わかったことだけで、素人にもわかる言葉で 2〜4 文。わからないことには触れない"),
+  appName: z.string().describe("アプリ・サービスの名前。わからなければ空文字"),
+  what: z.string().describe("何ができるアプリ・サービスか。わかったことだけで、素人にもわかる言葉で 2〜4 文。わからないことには触れない"),
   audience: z.string().describe("誰向けか。1〜2 文。推測なら空文字にして質問にする"),
   platforms: z.array(z.enum(PLATFORMS)).describe("対応している、または対応予定の OS"),
   stage: z.enum(STAGES).describe("今の段階"),
@@ -58,28 +58,28 @@ const DATA_RULES = `# リポジトリの中身の扱い（重要）
 - 鍵、トークン、パスワード、メールアドレス、社内の URL などは書き写しません
 - 返事は決められた形（JSON）だけで返します`;
 
-export const FILE_PICK_SYSTEM = `あなたは「yabumi」の中で、個人開発者のアプリの紹介文を書くために、リポジトリのどのファイルを読むかを選ぶ係です。
-利用者のリポジトリのファイル一覧（パスと大きさ）を見て、「このアプリで何ができるか・誰向けか・どの OS か・どこまでできているか」がわかりそうなファイルを、${MAX_PICKED_FILES} 件まで、役に立つ順に選びます。
+export const FILE_PICK_SYSTEM = `あなたは「yabumi」の中で、利用者が開発しているアプリや Web のサービスの紹介文を書くために、リポジトリのどのファイルを読むかを選ぶ係です。
+利用者のリポジトリのファイル一覧（パスと大きさ）を見て、「これで何ができるか・誰向けか・どの OS や画面で使うか・どこまでできているか」がわかりそうなファイルを、${MAX_PICKED_FILES} 件まで、役に立つ順に選びます。
 
 ${DATA_RULES}
 
 # 選び方
-- README は、ルートだけでなく、各アプリのフォルダ（apps/*、packages/*、front/、mobile/、web/ など）のものも見る。README が薄そうなら、他のファイルを多めに選ぶ
-- アプリ名や対応 OS がわかる設定（package.json、app.json、app.config、pubspec.yaml、Info.plist、build.gradle、AndroidManifest.xml）
+- README は、ルートだけでなく、各アプリ・サービスのフォルダ（apps/*、packages/*、front/、mobile/、web/ など）のものも見る。README が薄そうなら、他のファイルを多めに選ぶ
+- 名前や対応 OS・使う画面がわかる設定（package.json、app.json、app.config、pubspec.yaml、Info.plist、build.gradle、AndroidManifest.xml）
 - 画面の文言のファイル（ja.json、en.json、locales/、i18n/、Localizable.strings、strings.xml、arb）。画面に何が書いてあるかで、できることがわかる
 - 要件や設計の資料（docs/ の要件・仕様、CLAUDE.md、AGENTS.md、SPEC.md など）、ストアの説明（fastlane/metadata など）
 - 画面やルートの一覧になるファイル（ルーターの定義、ナビゲーションの定義）。ただし大きなソースコードは避ける
 - テスト、自動生成されたファイル、CI の設定、ライセンスは選ばない
 - 一覧にないパスは書かない`;
 
-export const APP_DESCRIPTION_SYSTEM = `あなたは「yabumi」の中で、個人開発者のアプリの紹介文（どんなアプリか）を下書きする係です。
+export const APP_DESCRIPTION_SYSTEM = `あなたは「yabumi」の中で、利用者が開発しているアプリや Web のサービスの紹介文（どんなものか）を下書きする係です。
 紹介文は、yabumi がアカウント設計の相談や投稿のネタを考えるときの材料になります。相手はマーケティングの素人で、下書きを確かめて直してから使います。
 
 ${DATA_RULES}
 
 # 紹介文の書き方
 - 日本語で、短く、やさしい言葉で書きます。技術の名前（フレームワークやライブラリ）は、使う人に関係がなければ書きません
-- what: そのアプリで何ができるか、どんな困りごとを解決するかを、わかったことだけで 2〜4 文。「読み取れませんでした」「わかりません」「ファイルには書かれていません」のような文は、どの欄にも書かない
+- what: それで何ができるか、どんな困りごとを解決するかを、わかったことだけで 2〜4 文。「読み取れませんでした」「わかりません」「ファイルには書かれていません」のような文は、どの欄にも書かない
 - audience: 誰向けか。はっきりわからなければ空文字にして、質問にする
 - platforms: 設定ファイルや README から判断する
 - stage: ストアの URL、バージョン、README の記述から判断する。わからなければ unknown
@@ -87,7 +87,7 @@ ${DATA_RULES}
 
 # 質問（questions）
 - 紹介文をよくするために、利用者に聞きたいことがあれば、答えやすい質問にして ${MAX_QUESTIONS} つまで書く。いちばん大事なものから
-- 例:「このアプリでいちばんできることは何ですか？」に、答えの例「お金の記録をつける」「予定を管理する」などを choices に添える。例はリポジトリから推し量れるものにする
+- 例:「これでいちばんできることは何ですか？」に、答えの例「お金の記録をつける」「予定を管理する」などを choices に添える。例はリポジトリから推し量れるものにする
 - どのファイルを読んだ・読んでいないなど、yabumi や AI の側の事情は書かない。利用者が答えられないこと（技術の詳しいこと）は聞かない
 - 十分にわかっていれば空にする
 
@@ -123,7 +123,7 @@ export function buildAppDescriptionRequest(projectName: string, repoFullName: st
     messages: [
       {
         role: "user",
-        content: [{ type: "text", text: `yabumi のプロジェクト名: ${projectName}\nリポジトリ: ${repoFullName}\n\n${list}次のファイルを読んで、アプリの紹介文を下書きしてください。\n\n${body}` }],
+        content: [{ type: "text", text: `yabumi のプロジェクト名: ${projectName}\nリポジトリ: ${repoFullName}\n\n${list}次のファイルを読んで、紹介文を下書きしてください。\n\n${body}` }],
       },
     ] as BetaMessageParam[],
   };
@@ -294,7 +294,7 @@ export async function refineAppDescription(
   return { ok: true, draft, filesRead: [] };
 }
 
-// 下書きを、プロジェクトの「どんなアプリか」に入れる文にする（利用者が直してから保存する）
+// 下書きを、プロジェクトの説明に入れる文にする（利用者が直してから保存する）
 export function composeDescription(d: AppDescriptionDraft): string {
   const lines = [d.what.trim()].filter(Boolean);
   const platforms = [...new Set(d.platforms)].map((p) => PLATFORM_LABEL[p]).join("・");

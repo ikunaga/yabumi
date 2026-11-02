@@ -7,7 +7,7 @@ import { connectRepo } from "@/lib/github/actions";
 
 export type PickableRepo = { installationId: number; id: number; fullName: string; isPrivate: boolean; description: string | null };
 
-// 読ませたリポジトリの中から、このプロジェクトのアプリのものを選ぶ
+// 読ませたリポジトリの中から、このプロジェクトのものを選ぶ
 export function RepoPicker({ projectId, repos }: { projectId: string; repos: PickableRepo[] }) {
   const [selected, setSelected] = useState<string>(repos.length === 1 ? `${repos[0].installationId}:${repos[0].id}` : "");
   const [error, setError] = useState<string | null>(null);
@@ -16,7 +16,7 @@ export function RepoPicker({ projectId, repos }: { projectId: string; repos: Pic
   return (
     <div className="flex flex-col gap-3">
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-1.5 text-[14px] font-bold">このアプリのリポジトリ</legend>
+        <legend className="mb-1.5 text-[14px] font-bold">このプロジェクトのリポジトリ</legend>
         {repos.map((r) => {
           const value = `${r.installationId}:${r.id}`;
           return (

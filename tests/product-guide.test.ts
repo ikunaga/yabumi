@@ -8,6 +8,9 @@ import { PLAN_COACH_SYSTEM, coachContextMessage } from "@/lib/ai/plan-coach-prom
 import { POST_IDEAS_SYSTEM, buildNewsIdeasRequest, ideaSourcesFor, newsQuestionsFor, type IdeaContext } from "@/lib/ai/post-ideas";
 import { PLAN_EXAMPLES, PRODUCT_GUIDES, productLines, productTypeOf, usesDevTalk, usesStoreTalk } from "@/lib/ai/product-guide";
 import { normalizePlan } from "@/lib/plan/schema";
+import { describeSection } from "@/lib/plan/describe";
+import { APP_DESCRIPTION_SYSTEM, FILE_PICK_SYSTEM } from "@/lib/ai/app-description";
+import { glossary } from "@/lib/glossary/terms";
 import { PRODUCT_TYPES, isDevProject } from "@/lib/projects/product-types";
 
 describe("種類ごとの手がかり", () => {
@@ -129,3 +132,31 @@ describe("アカウント設計の画面の記入例", () => {
   });
 });
 
+
+describe("汎用化の取りこぼし（文言）", () => {
+  it("最初の 1 か月の記入例も種類ごと。アプリでなければストアの話をしない", () => {
+    for (const t of PRODUCT_TYPES) {
+      expect(PLAN_EXAMPLES[t].firstMonthGoal).not.toBe("");
+      expect(PLAN_EXAMPLES[t].firstMonthMetrics).not.toBe("");
+    }
+    expect(PLAN_EXAMPLES.shop.firstMonthGoal).not.toMatch(/ストア/);
+    expect(PLAN_EXAMPLES.app.firstMonthGoal).toContain("ストアページ");
+  });
+
+  it("アカウントの持ち方の「専用」は、アプリに限らない言い方", () => {
+    expect(describeSection("ownership", { mode: "dedicated", reason: "" })).toEqual([{ label: "持ち方", text: "専用のアカウントを作る" }]);
+  });
+
+  it("GitHub の紹介文の指示は、開発しているもの（アプリ・Web のサービス）向けで、個人開発者に決めつけない", () => {
+    for (const sys of [FILE_PICK_SYSTEM, APP_DESCRIPTION_SYSTEM]) {
+      expect(sys).toContain("アプリや Web のサービス");
+      expect(sys).not.toContain("個人開発者");
+    }
+  });
+
+  it("キャンペーンリンクの用語は、ふつうのサイトの例を先に、App Store は「アプリなら」", () => {
+    const t = glossary.campaignLink;
+    expect(t.summary.indexOf("サイト")).toBeLessThan(t.summary.indexOf("App Store"));
+    expect(t.summary).toContain("アプリなら");
+  });
+});

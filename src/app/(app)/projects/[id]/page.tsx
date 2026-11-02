@@ -116,7 +116,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
 
       <ConnectedSnsLine projectId={project.id} accounts={snsAccounts} manualChannels={manualChannels ?? []} />
 
-      {done === "description" && <SuccessBanner>アプリの紹介文（どんなアプリか）を保存しました。アカウント設計の AI にも伝わります。</SuccessBanner>}
+      {done === "description" && <SuccessBanner>紹介文（プロジェクトの説明）を保存しました。アカウント設計の AI にも伝わります。</SuccessBanner>}
 
       <NowBand
         projectId={project.id}

@@ -65,7 +65,7 @@ export function ShortLinkToggle({
       <span className="text-muted">{label}</span>,
       "本文に URL がありません",
       <>
-        本文に https:// から始まる URL（ストアのページなど）を入れると、SNS ごとの短縮リンクに置き換えて、どの SNS から何人来たかを数えます。
+        本文に https:// から始まる URL（サイト・予約・お店・ストアのページなど）を入れると、SNS ごとの短縮リンクに置き換えて、どの SNS から何人来たかを数えます。
         {profileHint}
       </>,
     );
@@ -114,7 +114,7 @@ export function ShortLinkToggle({
           {plan.skipped.length > 0 && <p>置き換えない: {skippedText(plan.skipped)}</p>}
         </>
       )}
-      <p>どの SNS から何人がストアなどに来たかは、{linksPage}の画面で見られます。</p>
+      <p>どの SNS から何人が行き先（サイト・予約・お店・ストアなど）に来たかは、{linksPage}の画面で見られます。</p>
     </>,
   );
 }

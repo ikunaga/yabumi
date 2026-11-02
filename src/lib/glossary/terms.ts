@@ -123,8 +123,8 @@ export const glossary = {
   campaignLink: {
     label: "キャンペーンリンク",
     summary:
-      "どこから来た人かを、ストアや解析の側でも見分けられるよう、URL に印を付けたもの。App Store では pt と ct、Google Play やふつうのサイトでは utm_source などを付けます。yabumi の短縮リンクは、行き先に自動で付けます。",
-    example: "例: App Store Connect の「キャンペーン」で、SNS ごとのダウンロード数が見られる（数が少ないうちは出ません）。",
+      "どこから来た人かを、行き先のサイトや解析の側でも見分けられるよう、URL に印を付けたもの。ふつうのサイトや予約・ネットのお店のページでは utm_source などを付けます（アプリなら、App Store では pt と ct、Google Play では utm_source）。yabumi の短縮リンクは、行き先に自動で付けます。",
+    example: "例: お店のサイトの解析（Google アナリティクスなど）で、どの SNS から何人来たかが見られる。アプリなら、App Store Connect の「キャンペーン」で SNS ごとのダウンロード数が見られる（数が少ないうちは出ません）。",
   },
   dns: {
     label: "DNS",

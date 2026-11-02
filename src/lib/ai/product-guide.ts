@@ -160,6 +160,9 @@ export type PlanExamples = {
   avoid: string;
   hashtag: { tag: string; why: string; when: string };
   frequency: string;
+  // 最初の 1 か月の目標と、何を見て判断するか
+  firstMonthGoal: string;
+  firstMonthMetrics: string;
   roles: Record<"x" | "threads" | "instagram" | "facebook" | "tiktok" | "youtube" | "note" | "substack", string>;
   profile: { displayName: string; handle: string; handleBackups: string; bio: string; link: string };
 };
@@ -180,6 +183,8 @@ export const PLAN_EXAMPLES: Record<ProductType, PlanExamples> = {
     avoid: "ほかのアプリを悪く言わない。宣伝だけの投稿を続けない。政治の話はしない",
     hashtag: { tag: "家計簿", why: "家計簿を探している人や続けている人が見ている。人が多すぎず、話題がはっきりしている", when: "「なぜそう作ったか」「使っている人の声」の柱のとき" },
     frequency: "週 3 回（月・水・金の 21 時）",
+    firstMonthGoal: "12 回投稿する。フォロワー 50 人。ストアページへのアクセス 30 回",
+    firstMonthMetrics: "投稿ごとの表示回数と、ストアページへのアクセス数を、週に 1 回（日曜の夜）見る",
     roles: {
       x: "作っている裏側と小さな更新を短く",
       threads: "X と同じ内容を、少し丁寧な言葉で",
@@ -207,6 +212,8 @@ export const PLAN_EXAMPLES: Record<ProductType, PlanExamples> = {
     avoid: "ほかのサービスを悪く言わない。数字は確かめたものだけを書く",
     hashtag: { tag: "美容室経営", why: "お店を営んでいる人が見ている。届けたい相手と同じ立場の人が多い", when: "「使う人の困りごと」の柱のとき" },
     frequency: "週 3 回（火・木・土の 12 時）",
+    firstMonthGoal: "12 回投稿する。サービスの紹介ページへのクリック 30 回。無料登録 5 件",
+    firstMonthMetrics: "投稿ごとの表示回数と、紹介ページへのクリック・登録の数を、週に 1 回見る",
     roles: {
       x: "小さな改善と、店主の困りごとへの答えを短く",
       threads: "X と同じ内容を、少し丁寧な言葉で",
@@ -234,6 +241,8 @@ export const PLAN_EXAMPLES: Record<ProductType, PlanExamples> = {
     avoid: "ほかのお店を悪く言わない。宣伝だけの投稿を続けない。政治の話はしない",
     hashtag: { tag: "パン屋巡り", why: "近くのパン屋を探している人が見ている。人が多すぎず、話題がはっきりしている", when: "「季節のおすすめ」の柱のとき" },
     frequency: "週 3 回（月・水・金の朝 7 時）",
+    firstMonthGoal: "12 回投稿する。フォロワー 50 人。地図のページへのクリック 30 回",
+    firstMonthMetrics: "投稿ごとの表示回数と、地図のページへのクリック、「SNS を見て来た」と言われた数を、週に 1 回見る",
     roles: {
       x: "その日に焼いたものと、売り切れのお知らせを短く",
       threads: "X と同じ内容を、少し丁寧な言葉で",
@@ -261,6 +270,8 @@ export const PLAN_EXAMPLES: Record<ProductType, PlanExamples> = {
     avoid: "ほかの作家さんの作品と比べない。在庫や納期は確かめてから書く",
     hashtag: { tag: "リネン雑貨", why: "布の雑貨が好きな人が見ている。作家さんと買う人の両方がいる", when: "「作る過程」「新しい商品」の柱のとき" },
     frequency: "週 3 回（火・木・日の 21 時）",
+    firstMonthGoal: "12 回投稿する。お店のページへのクリック 40 回。注文 5 件",
+    firstMonthMetrics: "投稿ごとの表示回数と、お店のページへのクリック・注文の数を、週に 1 回見る",
     roles: {
       x: "再入荷とお知らせを短く",
       threads: "作る過程を、話しかけるように",
@@ -288,6 +299,8 @@ export const PLAN_EXAMPLES: Record<ProductType, PlanExamples> = {
     avoid: "効き目を言い切らない（「必ず治る」など）。ほかの教室を悪く言わない",
     hashtag: { tag: "大人のヨガ", why: "これからヨガを始めたい大人が見ている。人が多すぎず、届けたい相手に近い", when: "「よくある質問への答え」の柱のとき" },
     frequency: "週 3 回（月・水・土の 12 時）",
+    firstMonthGoal: "12 回投稿する。予約のページへのクリック 20 回。体験の予約 3 件",
+    firstMonthMetrics: "投稿ごとの表示回数と、予約のページへのクリック・予約の数を、週に 1 回見る",
     roles: {
       x: "よくある質問への答えを短く",
       threads: "生徒さんの変化を、話しかけるように",
@@ -315,6 +328,8 @@ export const PLAN_EXAMPLES: Record<ProductType, PlanExamples> = {
     avoid: "ほかの作家さんと比べない。依頼の値段は確かめてから書く",
     hashtag: { tag: "夕焼けイラスト", why: "夕焼けの絵が好きな人が見ている。話題がはっきりしていて、見つけてもらいやすい", when: "「新作」の柱のとき" },
     frequency: "週 2 回（水・日の 20 時）",
+    firstMonthGoal: "8 回投稿する。フォロワー 50 人。作品のページへのクリック 30 回",
+    firstMonthMetrics: "投稿ごとの表示回数と、フォロワーの増え方、作品のページへのクリックを、週に 1 回見る",
     roles: {
       x: "新作と制作の過程を短く",
       threads: "作品に込めた考えを、話しかけるように",
@@ -342,6 +357,8 @@ export const PLAN_EXAMPLES: Record<ProductType, PlanExamples> = {
     avoid: "ほかの団体を悪く言わない。参加した人の顔は許可を得てから出す",
     hashtag: { tag: "地域イベント", why: "近くのイベントを探している人が見ている。地名と合わせると届きやすい", when: "「お知らせ」の柱のとき" },
     frequency: "週 2 回（水・土の朝 9 時）",
+    firstMonthGoal: "8 回投稿する。案内のページへのクリック 20 回。申し込み 3 件",
+    firstMonthMetrics: "投稿ごとの表示回数と、案内のページへのクリック・申し込みの数を、週に 1 回見る",
     roles: {
       x: "お知らせを短く",
       threads: "取り組みの過程を、話しかけるように",

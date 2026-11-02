@@ -29,7 +29,7 @@ const ERRORS: Record<string, string> = {
   failed: "GitHub とつなげませんでした。時間をおいてもう一度お試しください。",
 };
 
-// GitHub のリポジトリをつなぎ、AI がアプリの紹介文（どんなアプリか）を下書きする（要求 F16、決定 D14）
+// GitHub のリポジトリをつなぎ、AI がアプリ・Web のサービスの紹介文を下書きする（要求 F16、決定 D14）
 export default async function GithubPage(props: PageProps<"/projects/[id]/github">) {
   const [{ id }, sp] = await Promise.all([props.params, props.searchParams]);
   const project = await getProject(id);
@@ -136,7 +136,7 @@ export default async function GithubPage(props: PageProps<"/projects/[id]/github
                 ) : (
                   <>
                     <p className="leading-[1.8] text-muted">
-                      GitHub の画面で yabumi の App をインストールし、読ませるリポジトリを選びます（「Only select repositories」で、このアプリのリポジトリだけを選ぶのがおすすめです）。
+                      GitHub の画面で yabumi の App をインストールし、読ませるリポジトリを選びます（「Only select repositories」で、このプロジェクトのリポジトリだけを選ぶのがおすすめです）。
                     </p>
                     <div>
                       <a href={installHref} className={buttonClass()}>

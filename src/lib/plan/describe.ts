@@ -3,7 +3,7 @@ import { SNS, SNS_KEYS } from "@/lib/sns";
 import { DESIRED_ACTION_DEFS } from "@/lib/projects/product-types";
 import type { PlanData, SectionKey, SectionValue } from "./schema";
 
-const OWNERSHIP_LABEL = { personal: "個人のアカウントを使う", dedicated: "アプリ専用のアカウントを作る", undecided: "まだ決めていない" } as const;
+const OWNERSHIP_LABEL = { personal: "個人のアカウントを使う", dedicated: "専用のアカウントを作る", undecided: "まだ決めていない" } as const;
 
 // セクションの中身を「項目名: 値」の行にする（AI の案の表示に使う）。空の項目は出さない
 export function describeSection(key: SectionKey, value: SectionValue<SectionKey>): { label: string; text: string }[] {

@@ -46,7 +46,7 @@ export async function createShortLink(
   if (!isValidDestination(input.destinationUrl)) throw new LinkError("リンクの行き先は https:// で始まる URL にしてください（IP アドレスそのものや、yabumi の URL は使えません）。");
   // 利用者の短縮リンクのドメイン（D28）へのリンクも、yabumi の URL と同じく入れ子になるので作らない
   const { data: own } = await admin.from("link_domains").select("id").eq("domain", new URL(input.destinationUrl).hostname.replace(/\.+$/, "")).limit(1);
-  if (own?.length) throw new LinkError("短縮リンクのドメインへのリンクは作れません。行き先には、ストアなどのページの URL を入れてください。");
+  if (own?.length) throw new LinkError("短縮リンクのドメインへのリンクは作れません。行き先には、サイトや予約・お店・ストアなどのページの URL を入れてください。");
   for (let i = 0; i < 5; i++) {
     const code = generateCode();
     const { data, error } = await admin

@@ -24,7 +24,7 @@ const pains = [
     pain: "ネタがない",
     short: "思いついたらメモ。AI がメモから案を出します",
     answer: "思いついたらネタ帳へ。AI と一緒に投稿にする",
-    body: "生活の中で思いついたことや、あったことを、どの画面からでも「＋ メモ」でさっと残せます。あとで AI が、メモから投稿の案を出します（アプリなら GitHub の更新からも）。",
+    body: "生活の中で思いついたことや、あったことを、どの画面からでも「＋ メモ」でさっと残せます。あとで AI が、メモから投稿の案を出します（アプリや Web のサービスなら GitHub の更新からも）。",
   },
   {
     pain: "時間がない",
@@ -58,7 +58,7 @@ type Feature = { name: string; title: string; body: string; shot?: { name: strin
 const features: Feature[] = [
   { name: "compose", title: "投稿をつくる・まとめて予約", body: "1 つの文面を、選んだ SNS にまとめて予約。SNS ごとの字数・画像の数を確かめ、文面を SNS ごとに少し変えることもできます。", shot: { name: "compose", alt: "投稿をつくる画面。下書きと、送り先の SNS ごとの字数と状態" } },
   { name: "calendar", title: "カレンダー", body: "週と月の表示で、予約・投稿済み・下書きを一目で。空いている日から投稿をつくれます。", shot: { name: "calendar", alt: "カレンダーの週の表示。予約と投稿済みの印" } },
-  { name: "notes", title: "ネタ帳と AI のネタ出し", body: "思いついたことを写真 1 枚と一緒に残し、AI がメモから投稿の案を出します（アプリなら GitHub の更新からも）。", shot: { name: "notes", alt: "ネタ帳の画面。まだ使っていないメモの一覧" } },
+  { name: "notes", title: "ネタ帳と AI のネタ出し", body: "思いついたことを写真 1 枚と一緒に残し、AI がメモから投稿の案を出します（アプリや Web のサービスなら GitHub の更新からも）。", shot: { name: "notes", alt: "ネタ帳の画面。まだ使っていないメモの一覧" } },
   { name: "metrics", title: "分析と振り返り", body: "閲覧から、行き先へのクリック・成果までを 1 枚で。数字の読み方と次の一手を、やさしい言葉で添えます。", shot: { name: "metrics", alt: "分析の画面。投稿の閲覧と、行き先へのクリックの数字" } },
   { name: "plan", title: "アカウント設計と AI と相談", body: "誰に向けて何を発信するかを、AI が質問しながら一緒に整理します。決めたことはロードマップの目標になります。", shot: { name: "plan", alt: "アカウント設計の画面。項目ごとの決めたこと" } },
   { name: "coach", title: "伴走", body: "今週あと何本出せば目標に届くかを、毎日見て声をかけます。", shot: { name: "coach", alt: "概要の画面。今週のペースと声かけ" } },

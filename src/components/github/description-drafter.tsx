@@ -7,7 +7,7 @@ import { Field, Input, Textarea } from "@/components/ui/field";
 import type { AppDescriptionDraft } from "@/lib/ai/app-description";
 import { adoptDescription, draftDescription, refineDescription } from "@/lib/github/actions";
 
-// リポジトリを読んで AI がアプリの紹介文（どんなアプリか）を下書きし、利用者が質問に答えたり直したりして採用する
+// リポジトリを読んで AI が紹介文（どんなアプリ・サービスか）を下書きし、利用者が質問に答えたり直したりして採用する
 export function DescriptionDrafter({ projectId, aiEnabled, hasAudience }: { projectId: string; aiEnabled: boolean; hasAudience: boolean }) {
   const [draft, setDraft] = useState<AppDescriptionDraft | null>(null);
   const [filesRead, setFilesRead] = useState<string[]>([]);
@@ -48,7 +48,7 @@ export function DescriptionDrafter({ projectId, aiEnabled, hasAudience }: { proj
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm leading-[1.8] text-muted">
-        AI がリポジトリを読んで、アプリの<b className="text-fg">紹介文（どんなアプリか）</b>を下書きします。紹介文は、アカウント設計の相談や、投稿のネタを考えるときの材料になります。確かめて直してから使えます。
+        AI がリポジトリを読んで、<b className="text-fg">紹介文（どんなアプリ・サービスか）</b>を下書きします。紹介文は、アカウント設計の相談や、投稿のネタを考えるときの材料になります。確かめて直してから使えます。
       </p>
       {!draft && (
         <div className="flex flex-wrap items-center gap-3">
@@ -119,7 +119,7 @@ export function DescriptionDrafter({ projectId, aiEnabled, hasAudience }: { proj
             </section>
           )}
 
-          <Field label="紹介文（どんなアプリか）" htmlFor="draft-description" hint="プロジェクトの「どんなアプリか」に入ります。アカウント設計の AI や、投稿のネタを考えるときの材料になります">
+          <Field label="紹介文（どんなアプリ・サービスか）" htmlFor="draft-description" hint="プロジェクトの説明に入ります。アカウント設計の AI や、投稿のネタを考えるときの材料になります">
             <Textarea id="draft-description" rows={6} maxLength={2000} value={description} onChange={(e) => setDescription(e.target.value)} />
           </Field>
 

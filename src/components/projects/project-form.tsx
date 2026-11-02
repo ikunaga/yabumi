@@ -75,6 +75,17 @@ const DESCRIPTION_PLACEHOLDER: Record<ProductType, string> = {
   other: "例: 月に 1 回の手づくり品の市",
 };
 
+// 届けたい相手の説明で使う呼び方（アプリ以外）
+const AUDIENCE_NOUN: Record<ProductType, string> = {
+  app: "使う人",
+  web_service: "使う人",
+  shop: "お客さん",
+  online_shop: "買ってくれる人",
+  service: "お客さん・生徒さん",
+  creator: "見てくれる人・読者",
+  other: "関わってほしい人",
+};
+
 // 右の欄に出す「この欄について」。選んでいる欄の説明を出す
 const HELP: Record<"name" | "description" | "target_audience" | "store", { title: string; body: ReactNode }> = {
   name: {
@@ -151,7 +162,17 @@ export function ProjectForm({
       ? { title: NAME_LABEL[productType], body: "宣伝したいものの名前です。お店や看板、サイトと同じ名前にしておくと、投稿を見た人が探しやすくなります。" }
       : !isApp && helpKey(focused) === "description"
         ? { title: DESCRIPTION_LABEL[productType], body: "何を提供していて、誰のどんな困りごとや楽しみに応えるのか。AI が投稿のネタを考えるときの材料になります。" }
-        : HELP[helpKey(focused)];
+        : !isApp && helpKey(focused) === "target_audience"
+          ? {
+              title: "届けたい相手",
+              body: (
+                <>
+                  {AUDIENCE_NOUN[productType]}として来てほしい人の像（<Term k="persona" />
+                  ）です。具体的なほど、投稿の言葉選びがぶれなくなります。
+                </>
+              ),
+            }
+          : HELP[helpKey(focused)];
   const updateDest = (key: number, patch: Partial<DestRow>) => setDests((rows) => rows.map((r) => (r.key === key ? { ...r, ...patch } : r)));
 
   // 送信してエラーがあれば、最初のエラー欄へ移る
@@ -232,7 +253,7 @@ export function ProjectForm({
             label={DESCRIPTION_LABEL[productType]}
             htmlFor="description"
             error={fe.description}
-            hint="何ができて、誰のどんな困りごとを解決するのか。AI がネタを考えるときの材料になります。"
+            hint={isApp ? "何ができて、誰のどんな困りごとを解決するのか。AI がネタを考えるときの材料になります。" : "何を提供していて、誰のどんな困りごとや楽しみに応えるのか。AI がネタを考えるときの材料になります。"}
           >
             <Textarea
               {...fieldProps("description")}

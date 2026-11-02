@@ -1,6 +1,6 @@
 "use client";
 
-import { DESIRED_ACTION_DEFS, DESIRED_ACTIONS, PRODUCT_TYPE_DEFS, RECOMMENDED_ACTIONS, type ProductType } from "@/lib/projects/product-types";
+import { DESIRED_ACTION_DEFS, DESIRED_ACTIONS, PRODUCT_TYPE_DEFS, RECOMMENDED_ACTIONS, isDevProject, type ProductType } from "@/lib/projects/product-types";
 import Link from "next/link";
 import { startTransition, useActionState, useEffect, useRef, useState, type ReactNode } from "react";
 import { Button, buttonClass, NotReadyButton } from "@/components/ui/button";
@@ -337,7 +337,10 @@ function Choices<T extends string>({
 
 function GoalFields({ v, productType }: { v: PlanData["goal"]; productType: ProductType }) {
   // 種類ごとのおすすめを先に（決定 D34）。説明は選択肢の下に小さく
-  const order = [...RECOMMENDED_ACTIONS[productType], ...DESIRED_ACTIONS.filter((a) => !RECOMMENDED_ACTIONS[productType].includes(a))];
+  // 「ダウンロードしてもらう」は開発しているもの（アプリ・Web のサービス）のときだけ選べる（いま選んでいる値は残す）
+  const order = [...RECOMMENDED_ACTIONS[productType], ...DESIRED_ACTIONS.filter((a) => !RECOMMENDED_ACTIONS[productType].includes(a))].filter(
+    (a) => a !== "download" || isDevProject({ product_type: productType }) || v.goalType === "download",
+  );
   return (
     <>
       <Field label="何を広めたいか" htmlFor="goal-what" hint="お店・商品・サービス・作品・アプリそのもの、それが解決する困りごと、やっているあなた自身など">
@@ -561,7 +564,7 @@ function FirstMonthFields({ v, goalType, productType, mainSns }: { v: PlanData["
         htmlFor="first-month-goal"
         hint="続けられたかどうか（投稿の回数）も立派な目標です"
       >
-        <Textarea id="first-month-goal" name="goal" defaultValue={v.goal} maxLength={300} rows={2} placeholder="例: 12 回投稿する。フォロワー 50 人。ストアページへのアクセス 30 回" />
+        <Textarea id="first-month-goal" name="goal" defaultValue={v.goal} maxLength={300} rows={2} placeholder={`例: ${PLAN_EXAMPLES[productType].firstMonthGoal}`} />
       </Field>
       <Field label="何を見て判断するか" htmlFor="first-month-metrics">
         <Textarea
@@ -570,7 +573,7 @@ function FirstMonthFields({ v, goalType, productType, mainSns }: { v: PlanData["
           defaultValue={v.metrics}
           maxLength={500}
           rows={2}
-          placeholder="例: 投稿ごとの表示回数と、ストアページへのアクセス数を、週に 1 回（日曜の夜）見る"
+          placeholder={`例: ${PLAN_EXAMPLES[productType].firstMonthMetrics}`}
         />
       </Field>
       <fieldset className="flex flex-col gap-2">

@@ -92,6 +92,11 @@ const ISSUE_TONE: Record<TargetIssue, string> = {
 // まだ何も書いていないときの、送れない理由（朱にしない）
 const QUIET_BLOCKER = "本文を書くと、予約・送信できます";
 
+// 左（本文など）と右（SNS ごとの見え方と文面）が横に並ぶ幅か（並ばないと、右の欄は左のずっと下に来る。下の grid の max-lg）
+function isSideBySide() {
+  return window.matchMedia("(min-width: 64rem)").matches;
+}
+
 function formatCount(n: number) {
   return n.toLocaleString("ja-JP");
 }
@@ -134,6 +139,8 @@ export function PostComposer({
     Object.fromEntries(initial.targets.filter((t) => t.title).map((t) => [t.sns, t.title!])),
   );
   const [plannedAt, setPlannedAt] = useState(initial.plannedAt);
+  // AI で整えた案を使った知らせが出ているか（出ている間は、SNS ごとの文面の 1 行をその知らせにまとめる）
+  const [tidyAdopted, setTidyAdopted] = useState(false);
   const [result, setResult] = useState<SavePostResult>({});
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmSend, setConfirmSend] = useState(false);
@@ -274,6 +281,14 @@ export function PostComposer({
     if (r.error) return `${r.error}（本文は入れました）`;
     if (r.image) setImages((prev) => [...prev, r.image!]);
     return null;
+  }
+
+  // 本文の欄へ行く（AI で整えた案を使ったあとの「本文を見る」）。カーソルはマウスで使う画面だけ置く（スマホで鍵盤が開かないように）
+  function showBody() {
+    const el = bodyRef.current;
+    if (!el) return;
+    el.scrollIntoView({ block: "center", behavior: "smooth" });
+    if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) el.focus({ preventScroll: true });
   }
 
   // SNS ごとの文面の欄へ行く（そのタブを開いてから、欄を見える位置にしてカーソルを置く）
@@ -509,7 +524,7 @@ export function PostComposer({
             </div>
             {fe.body && <p className="text-sm font-semibold text-danger">{fe.body}</p>}
             {/* SNS ごとの文面がある SNS は、本文を直しても変わらない。そのことと、その欄へ行くボタンを 1 行で */}
-            {splitSns.length > 0 && (
+            {splitSns.length > 0 && !tidyAdopted && (
               <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted">
                 <span>{splitSns.map((s) => SNS[s].label).join("・")} は SNS ごとの文面で送ります（本文を直しても変わりません）。</span>
                 {splitSns.map((s) => (
@@ -530,10 +545,13 @@ export function PostComposer({
                   setBody(next.body);
                   setOverrides(next.overrides);
                   clearFieldError("body");
-                  // 案を使ったら、入った本文を見せ、SNS ごとの文面に入れた SNS のタブを開いておく（その欄ですぐ直せるように）
-                  if (edit) setFocus(edit);
-                  bodyRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+                  // 本文の欄へは飛ばさない（案の欄の知らせから「本文を見る」で行く）。PC は右に見え方と文面が並んでいるので、
+                  // SNS ごとの文面に入れた SNS のタブを開いておく。スマホは右の欄がずっと下にあるので開かない（知らせの「X 用の文面を直す」から）
+                  if (edit && isSideBySide()) setFocus(edit);
                 }}
+                onShowBody={showBody}
+                onEditOverride={editOverride}
+                onAdoptedChange={setTidyAdopted}
               />
             )}
             {noteIds.length > 0 && (

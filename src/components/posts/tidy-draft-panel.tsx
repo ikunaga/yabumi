@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { Button, NotReadyButton } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { HelpTip } from "@/components/ui/help";
@@ -18,8 +19,13 @@ type Props = {
   current: Composer;
   // 整える SNS（送り先に選んだもの）
   sns: SnsKey[];
-  // 本文と SNS ごとの文面を入れ替える。edit: 案を使ったときに、SNS ごとの文面に入れた SNS（その欄を開いて見せる）
+  // 本文と SNS ごとの文面を入れ替える。edit: 案を使ったときに、SNS ごとの文面に入れた SNS（PC ではそのタブを開いて見せる）
   onReplace: (next: Composer, edit?: SnsKey) => void;
+  // 案を使ったあとの 1 行から、本文・SNS ごとの文面の欄へ行く（押した人だけ）
+  onShowBody: () => void;
+  onEditOverride: (sns: SnsKey) => void;
+  // 案を使った知らせを出しているか（出している間は、SNS ごとの文面の 1 行をこちらにまとめる）
+  onAdoptedChange: (adopted: boolean) => void;
 };
 
 // 待つ時間の目安（画面に出す）。effort medium で、案 2〜3 個 × SNS ごとの文面を書く（docs/architecture.md の 4.34）
@@ -27,11 +33,14 @@ export const TIDY_WAIT = "20〜40 秒ほど";
 
 // AI で投稿に整える（docs/architecture.md の 4.34）: 声で入れた話し言葉などを、言いたいことを 1 つに絞って SNS ごとの字数に収めた案にする。
 // 案はカードの中でそのまま直せ、選ぶと本文と SNS ごとの文面に入る（入れたあとも直せる）。「元に戻す」で整える前の文に戻せる
-export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace }: Props) {
+export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace, onShowBody, onEditOverride, onAdoptedChange }: Props) {
   const [options, setOptions] = useState<TidyOption[] | null>(null);
   // 整える前の文（案を使ったときに覚え、「元に戻す」で戻す）
   const [original, setOriginal] = useState<Composer | null>(null);
   const [adopted, setAdopted] = useState<{ index: number; main: SnsKey | null; split: SnsKey[] } | null>(null);
+  // 案を使ったら案の欄を閉じ、知らせの 1 行だけにする（「ほかの案を見る」で開き直す）
+  const [showOptions, setShowOptions] = useState(true);
+  const notice = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
   // 待っている間（始めた時刻）。やめるときは abort で待つのをやめる
   const [startedAt, setStartedAt] = useState<number | null>(null);
@@ -69,6 +78,8 @@ export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace }
       }
       setOptions(body.options);
       setAdopted(null);
+      setShowOptions(true);
+      onAdoptedChange(false);
     } catch (e) {
       if (controller.signal.aborted) return;
       console.error("[tidy-draft]", e);
@@ -94,15 +105,27 @@ export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace }
     if (!original) setOriginal(current);
     const next = adoptTidyOption(option, base);
     const split = option.drafts.map((d) => d.sns).filter((s) => next.overrides[s] !== undefined);
-    onReplace(next, split[0]);
-    setAdopted({ index: i, main: tidyMainSns(option), split });
+    // 上（本文）へは飛ばさない。案の欄を閉じて知らせの 1 行のあたりに留め、次の手順（画像の欄）がすぐ下に見えるようにする
+    flushSync(() => {
+      onReplace(next, split[0]);
+      onAdoptedChange(true);
+      setAdopted({ index: i, main: tidyMainSns(option), split });
+      setShowOptions(false);
+    });
+    const el = notice.current;
+    if (!el) return;
+    el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    // 押したボタンは消えるので、知らせにカーソルを移す
+    el.focus({ preventScroll: true });
   }
 
   function restore() {
     if (!original) return;
     onReplace(original);
+    onAdoptedChange(false);
     setOriginal(null);
     setAdopted(null);
+    setShowOptions(true);
   }
 
   function editDraft(i: number, sns: SnsKey, text: string) {
@@ -111,13 +134,17 @@ export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace }
 
   const showSns = (options?.[0]?.drafts.length ?? 0) > 1;
   const adoptedOption = adopted ? options?.[adopted.index] : undefined;
+  // SNS ごとの文面に入れた SNS のうち、いまも SNS ごとの文面のもの（「共通の文面に戻す」をしたら出さない）
+  const split = adopted ? adopted.split.filter((s) => current.overrides[s] !== undefined) : [];
+  const collapsed = !waiting && adoptedOption !== undefined && !showOptions;
 
   return (
     <section className="flex flex-col gap-3" aria-labelledby="tidy-heading">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        <h2 id="tidy-heading" className="sr-only">
-          AI で投稿に整える
-        </h2>
+      <h2 id="tidy-heading" className="sr-only">
+        AI で投稿に整える
+      </h2>
+      {/* 案を使って閉じている間は、知らせの 1 行（もう一度整えるもそこ）だけ */}
+      <div className={`flex flex-wrap items-center gap-x-3 gap-y-1.5 ${collapsed ? "hidden" : ""}`}>
         {aiEnabled ? (
           <Button type="button" variant="secondary" size="sm" disabled={waiting || !hasText || !hasSns} aria-busy={waiting || undefined} onClick={run}>
             {waiting ? "整えています…" : options ? "もう一度整える" : "AI で投稿に整える"}
@@ -138,22 +165,48 @@ export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace }
       {waiting && <TidyWaiting startedAt={startedAt} cards={Math.min(3, Math.max(2, options?.length ?? 3))} onCancel={cancel} />}
 
       {!waiting && adopted && adoptedOption && (
-        <div className="flex flex-col gap-1 rounded-md bg-primary-soft px-3 py-2 text-sm text-fg" role="status">
-          <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span>「{adoptedOption.label}」の案を入れました。このまま直せます。</span>
-            <button type="button" className="font-semibold text-primary underline-offset-2 hover:underline" onClick={restore}>
-              元に戻す
+        <div
+          ref={notice}
+          tabIndex={-1}
+          role="status"
+          className="flex scroll-mt-20 scroll-mb-24 flex-col gap-1 max-sm:scroll-mt-3 rounded-md bg-primary-soft px-3 py-2 text-sm text-fg outline-none focus-visible:shadow-[0_0_0_2px_var(--primary)]"
+        >
+          <p>
+            「{adoptedOption.label}」の案を使いました。本文に入れました（
+            <button type="button" className={linkClass} onClick={onShowBody}>
+              本文を見る
             </button>
+            ）
           </p>
-          {adopted.split.length > 0 && adopted.main && (
+          {split.length > 0 && adopted.main && (
             <p className="text-[13px] text-muted">
-              本文には {SNS[adopted.main].label} の文面を、{adopted.split.map((s) => SNS[s].label).join("・")} には SNS ごとの文面を入れました（字数が違うため）。
+              {split.map((s) => SNS[s].label).join("・")} には SNS ごとの文面を入れました（{SNS[adopted.main].label} と字数が違うため）。
+              {split.map((s) => (
+                <button key={s} type="button" className={`ml-2 ${linkClass}`} onClick={() => onEditOverride(s)}>
+                  {SNS[s].label} 用の文面を直す
+                </button>
+              ))}
             </p>
           )}
+          <p className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            {!showOptions && (
+              <button type="button" className={linkClass} onClick={() => setShowOptions(true)}>
+                ほかの案を見る
+              </button>
+            )}
+            <button type="button" className={linkClass} onClick={restore}>
+              元に戻す
+            </button>
+            {collapsed && aiEnabled && (
+              <button type="button" className={linkClass} disabled={!hasText || !hasSns} onClick={run}>
+                もう一度整える<span className="ml-1 text-xs font-normal text-muted">1 回 5〜15 円ほど</span>
+              </button>
+            )}
+          </p>
         </div>
       )}
 
-      {!waiting && options && (
+      {!waiting && options && showOptions && (
         <ul className="flex flex-col gap-3">
           {options.map((o, i) => (
             <li key={i} className={`flex flex-col gap-2 rounded-lg border bg-surface p-4 ${adopted?.index === i ? "border-primary" : "border-line"}`}>
@@ -189,6 +242,8 @@ export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace }
     </section>
   );
 }
+
+const linkClass = "font-semibold text-primary underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:text-faint";
 
 // 案の文面。使う前はその場で直せ、直すたびに字数を数える
 function DraftEditor({

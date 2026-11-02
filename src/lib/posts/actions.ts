@@ -16,6 +16,7 @@ import { markNotesUsed } from "@/lib/notes/store";
 import { preparePostLinks } from "@/lib/links/store";
 import { connectedAccounts } from "./queries";
 import { savePostInputSchema, type SavePostInput, type SavePostResult } from "./schema";
+import { isSendNowPost } from "./send-now";
 
 // 予約は少なくとも 5 分後から（送信ジョブの間隔より余裕を持たせる）
 const MIN_LEAD_MS = 5 * 60 * 1000;
@@ -155,22 +156,9 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
     console.error("[savePost] 短縮リンクを用意できませんでした", e);
   }
 
-  if (intent === "now") {
-    // 予約ジョブと重なっても、claim_due_targets が同じ配信先を 2 回取り出さない
-    let done = "sent";
-    try {
-      const outcomes = await publishDueTargets(createAdminClient(), publisherDeps(), { postId: savedId });
-      if (outcomes.length === 0) done = "sending";
-      else if (outcomes.some((o) => o.result === "failed" || o.result === "retry")) done = "send_failed";
-      // 画像の準備中（Threads・Instagram）や、時間が足りず次の回に回したものは、次の送信ジョブ（1 分ごと）で続きを送る
-      else if (outcomes.some((o) => o.result === "preparing" || o.result === "deferred")) done = "preparing";
-    } catch (e) {
-      console.error("[savePost] 送信に失敗しました", e);
-      done = "send_failed";
-    }
-    revalidatePath(`/projects/${projectId}`, "layout");
-    redirect(`/projects/${projectId}/posts/${savedId}?done=${done}`);
-  }
+  // 今すぐ送るは、ここでは保存だけして投稿の id を返す。画面が続けて sendSavedPost で送り、その間、送り先ごとの進み具合を出す（4.36）。
+  // 画面を閉じても、保存した投稿は「いま送る予約」なので、次の送信ジョブ（1 分ごと）が送る
+  if (intent === "now") return { sendPostId: savedId };
 
   revalidatePath(`/projects/${projectId}`, "layout");
 
@@ -188,4 +176,34 @@ export async function deletePost(projectId: string, postId: string): Promise<{ e
   if (error) return { error: "投稿を削除できませんでした。時間をおいて、もう一度お試しください。" };
   revalidatePath(`/projects/${projectId}`, "layout");
   redirect(`/projects/${projectId}/calendar?done=deleted`);
+}
+
+// 送り終えたかどうか（投稿の画面の ?done=）
+export type SendDone = "sent" | "sending" | "send_failed" | "preparing";
+
+// 今すぐ送る（savePost で保存した投稿を送る）。送り終えたら投稿の画面に移る。
+// 「いま送る予約」になっている本人の投稿だけを送る（isSendNowPost）
+export async function sendSavedPost(projectId: string, postId: string): Promise<{ error?: string }> {
+  if (!z.uuid().safeParse(projectId).success || !z.uuid().safeParse(postId).success) return { error: "入力の形式が正しくありません。" };
+  const supabase = await createClient();
+  const { data: claims } = await supabase.auth.getClaims();
+  if (!claims?.claims?.sub) return { error: "ログインし直してください。" };
+  const { data: post } = await supabase.from("posts").select("id, status, planned_at").eq("id", postId).eq("project_id", projectId).maybeSingle();
+  if (!post) return { error: "投稿が見つかりません。" };
+  if (!isSendNowPost(post, new Date())) return { error: "この投稿は、いま送る投稿ではありません。" };
+
+  // 予約ジョブと重なっても、claim_due_targets が同じ配信先を 2 回取り出さない
+  let done: SendDone = "sent";
+  try {
+    const outcomes = await publishDueTargets(createAdminClient(), publisherDeps(), { postId });
+    if (outcomes.length === 0) done = "sending";
+    else if (outcomes.some((o) => o.result === "failed" || o.result === "retry")) done = "send_failed";
+    // 画像の準備中（Threads・Instagram）や、時間が足りず次の回に回したものは、次の送信ジョブ（1 分ごと）で続きを送る
+    else if (outcomes.some((o) => o.result === "preparing" || o.result === "deferred")) done = "preparing";
+  } catch (e) {
+    console.error("[sendSavedPost] 送信に失敗しました", e);
+    done = "send_failed";
+  }
+  revalidatePath(`/projects/${projectId}`, "layout");
+  redirect(`/projects/${projectId}/posts/${postId}?done=${done}`);
 }

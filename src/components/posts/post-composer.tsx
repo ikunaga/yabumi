@@ -12,7 +12,9 @@ import { HelpTip } from "@/components/ui/help";
 import { VoiceInputButton } from "@/components/ui/voice-input";
 import { tabClass, tabListClass } from "@/components/ui/tabs";
 import { ErrorBanner, SuccessBanner } from "@/components/ui/feedback";
-import { deletePost, savePost } from "@/lib/posts/actions";
+import { deletePost, savePost, sendSavedPost } from "@/lib/posts/actions";
+import { useRouter } from "next/navigation";
+import { clearSending, markSending, SendProgress } from "./send-progress";
 import type { SavePostResult } from "@/lib/posts/schema";
 import { ShortLinkPreviewNote, ShortLinkToggle } from "@/components/links/short-link-toggle";
 import type { PostLinkPreview } from "@/lib/links/store";
@@ -135,6 +137,16 @@ export function PostComposer({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmSend, setConfirmSend] = useState(false);
   const [pending, startTransition] = useTransition();
+  const router = useRouter();
+  // 押したボタン（押した瞬間から、そのボタンを「〜しています…」にし、ほかの操作を止める）。
+  // 今すぐ送るでは、保存できたら sending に投稿の id と送る SNS を入れ、投稿の画面に移るまで進み具合を出す（4.36）
+  const [busy, setBusy] = useState<"draft" | "schedule" | "now" | null>(null);
+  const [sending, setSending] = useState<{ postId: string | null; sns: SnsKey[] } | null>(null);
+  // 画面を移り終えたら（同じ投稿の画面に戻ってきたときも）、止めていた操作を戻す
+  if (!pending && busy !== null) {
+    setBusy(null);
+    setSending(null);
+  }
   // 「ネタ帳から」本文に入れたメモ（保存したら「投稿にした」の印を付ける）
   const [notesOpen, setNotesOpen] = useState(false);
   const [noteIds, setNoteIds] = useState<string[]>([]);
@@ -267,6 +279,10 @@ export function PostComposer({
     setTouched(true);
     setResult({});
     setConfirmSend(false);
+    setBusy(intent);
+    // 自動で送る SNS（note・Substack は手で投稿するので、ここでは送らない）
+    const autoSns = toSend.filter((s) => !isManualSns(s));
+    if (intent === "now") setSending({ postId: null, sns: autoSns });
     startTransition(async () => {
       const out = await callAction(() => savePost({
         projectId,
@@ -280,11 +296,48 @@ export function PostComposer({
         noteIds,
         targets: chosen.map((sns) => ({ sns, bodyOverride: overrides[sns] ?? null, title: SNS[sns].needsTitle ? (titles[sns] ?? null) : null })),
       }), "書いた内容は残しています。");
+      const sendPostId = out.ok ? out.value?.sendPostId : undefined;
+      if (sendPostId) {
+        // 保存できた。続けて送る（送り終えると、サーバーが投稿の画面に移す。移るまで進み具合を出したまま）
+        setSending({ postId: sendPostId, sns: autoSns });
+        markSending(sendPostId);
+        await callAction(() => sendSavedPost(projectId, sendPostId));
+        // ここに来るのは、送る呼び出しが失敗したとき（通信が切れたなど）。投稿は保存済みで、送信ジョブ（1 分ごと）が送るので、
+        // 同じ投稿を二重に作らないよう、投稿の画面に移って結果を見てもらう
+        router.push(`/projects/${projectId}/posts/${sendPostId}?done=sending`);
+        return;
+      }
       // 成功時はサーバーで画面を移るので、ここに来るのは失敗したときだけ。古い画面・通信が切れているときも、書いた内容は消さずに理由を出す（4.35）
       if (!out.ok) setResult({ error: out.failure.message });
       else if (out.value) setResult(out.value);
     });
   }
+
+  // 今すぐ送っている間に画面を離れようとしたら確かめる（閉じる・読み込み直す・yabumi の中のリンク）。
+  // 離れても、保存した投稿は送信ジョブが送る。二重には送らない（claim_due_targets が同じ配信先を 2 回取り出さない）
+  useEffect(() => {
+    if (busy !== "now") return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => e.preventDefault();
+    const onClick = (e: MouseEvent) => {
+      const a = (e.target as Element | null)?.closest?.("a[href]");
+      if (!a) return;
+      if (!window.confirm("送っている途中です。画面を離れても送信は続き、結果は投稿の画面で確かめられます。離れますか？")) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    document.addEventListener("click", onClick, true);
+    return () => {
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      document.removeEventListener("click", onClick, true);
+    };
+  }, [busy]);
+
+  // 今すぐ送ったあと、この投稿の画面に移り終えたら、移る間の知らせの目印を消す
+  useEffect(() => {
+    if (postId) clearSending(postId);
+  }, [postId]);
 
   // 保存・送信のあとに移ってきたら（?done=…）、上の知らせと送信の結果が見えるように、いちばん上に戻す
   useEffect(() => {
@@ -360,7 +413,13 @@ export function PostComposer({
   };
 
   return (
-    <div className="flex flex-col gap-4">
+    <>
+      {/* 止めている間は画面が読み上げの対象から外れるので、進み具合はここで知らせる */}
+      <p className="sr-only" role="status" aria-live="polite">
+        {busy === "now" ? "送っています。数秒から数十秒かかります。このまま待ってください。" : busy === "schedule" ? "予約しています。" : busy === "draft" ? "保存しています。" : ""}
+      </p>
+      {/* 保存・送信を押したら、画面に移るか失敗が返るまで、本文の編集・送り先の変更などを止める（押せない・打てない） */}
+      <div className="flex flex-col gap-4" inert={busy !== null || undefined} aria-busy={busy !== null || undefined}>
       {/* 見出し。新しい投稿は、自分で書くか AI とネタを出すかの札を横に並べる（AI を使わなくても書いて送れることがわかるように） */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <h1 className="text-[26px] font-bold max-sm:text-[22px]">{postId ? (sentAny ? "送った投稿" : "下書き") : "投稿をつくる"}</h1>
@@ -434,17 +493,20 @@ export function PostComposer({
               </div>
             </div>
             {fe.body && <p className="text-sm font-semibold text-danger">{fe.body}</p>}
-            <TidyDraftPanel
-              projectId={projectId}
-              aiEnabled={aiCheckEnabled}
-              current={{ body, overrides }}
-              sns={toSend}
-              onReplace={(next) => {
-                setBody(next.body);
-                setOverrides(next.overrides);
-                clearFieldError("body");
-              }}
-            />
+            {/* 送り先をすべて送り終えた投稿では、整えても送れないので出さない */}
+            {(!sentAny || toSend.length > 0) && (
+              <TidyDraftPanel
+                projectId={projectId}
+                aiEnabled={aiCheckEnabled}
+                current={{ body, overrides }}
+                sns={toSend}
+                onReplace={(next) => {
+                  setBody(next.body);
+                  setOverrides(next.overrides);
+                  clearFieldError("body");
+                }}
+              />
+            )}
             {noteIds.length > 0 && (
               <p className="text-[13px] text-muted">ネタ帳のメモ {noteIds.length} 件から。保存すると、ネタ帳でそのメモに「投稿にした」の印が付きます。</p>
             )}
@@ -617,8 +679,9 @@ export function PostComposer({
                     {sentLabels} には送信済みです（送り直しません）。残りの SNS の分だけ予約・送信できます。
                   </p>
                 )}
+                {sending && <SendProgress postId={sending.postId} sns={sending.sns} hasImages={images.length > 0} />}
                 <Button type="button" size="lg" disabled={pending || blocker !== null} onClick={() => submit("schedule")} className="w-full">
-                  {labels.schedule}
+                  {busy === "schedule" ? "予約しています…" : labels.schedule}
                 </Button>
                 <p className={`text-[13px] ${fe.plannedAt || (blocker && blocker !== QUIET_BLOCKER) ? "text-signal" : "text-faint"}`}>
                   {fe.plannedAt ?? blocker ?? "予約すると、この日時に自動で送ります"}
@@ -651,11 +714,11 @@ export function PostComposer({
                       title={nowBlocker ?? undefined}
                       onClick={() => setConfirmSend(true)}
                     >
-                      {labels.now}
+                      {busy === "now" ? "送っています…" : labels.now}
                     </Button>
                   )}
                   <Button type="button" variant="secondary" size="sm" disabled={pending} onClick={() => submit("draft")}>
-                    下書きに保存する
+                    {busy === "draft" ? "保存しています…" : "下書きに保存する"}
                   </Button>
                   {deleteRow(mode === "partial")}
                 </div>
@@ -803,7 +866,8 @@ export function PostComposer({
       </div>
 
       {numbers}
-    </div>
+      </div>
+    </>
   );
 }
 

@@ -42,4 +42,6 @@ export type SavePostResult = {
   error?: string;
   // 欄ごとのエラー
   fieldErrors?: { body?: string; plannedAt?: string; targets?: string; media?: string };
+  // 今すぐ送る: 保存できた投稿。画面は続けて sendSavedPost で送り、送っている間は送り先ごとの進み具合を読む（4.36）
+  sendPostId?: string;
 };

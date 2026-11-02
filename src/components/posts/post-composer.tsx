@@ -539,7 +539,7 @@ export function PostComposer({
                   {BAND_INFO[timeHint.band].label}（{BAND_INFO[timeHint.band].hours}）· {BAND_INFO[timeHint.band].at} にする
                 </button>
                 <HelpTip label="時間帯の傾向">
-                 yabumi が数えた、直近 90 日のあなたの数字です（{timeHint.kind === "views" ? "送った時間帯ごとの 1 本あたりの閲覧数" : "短縮リンクが押された時間帯"}）。傾向であって、この時間に送れば必ず見られるわけではありません。くわしくはカレンダーの「時間帯の傾向」で見られます。
+                 yabumi が数えた、直近 90 日のあなたの数字です（{timeHint.kind === "views" ? "送った時間帯ごとの 1 本あたりの閲覧数" : "短縮リンクが押された時間帯"}）。傾向であって、この時間に送れば必ず見られるわけではありません。
                 </HelpTip>
               </div>
             )}
@@ -711,7 +711,7 @@ export function PostComposer({
                   <Button type="button" variant="secondary" size="sm" disabled={isLocked(focus)} onClick={() => setOverrides((o) => ({ ...o, [focus]: body }))}>
                     {focusLabel} だけ文面を変える
                   </Button>
-                  <HelpTip label="SNS ごとの文面">字数を収めたいときや、ハッシュタグ・言い回しを SNS に合わせたいときに。ほかの SNS は共通の文面のままです。</HelpTip>
+                  <HelpTip label="SNS ごとの文面">ほかの SNS は共通の文面のままです。</HelpTip>
                 </div>
               )}
             </div>

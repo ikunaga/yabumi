@@ -18,7 +18,7 @@ export function PostNumbersBand({ projectId, numbers }: { projectId: string; num
         <h2 id="post-numbers" className="flex items-center gap-1.5 text-[15px] text-muted">
           {numbers.kind === "this" ? "この投稿の数字" : "前回の投稿の数字"}
           <HelpTip label="数字">
-            SNS から取り込めた数字と、短縮リンクが押された回数です。取り込めていない数字は出しません。くわしくは「分析」で見られます。
+            SNS から取り込めた数字と、短縮リンクが押された回数です。取り込めていない数字は出しません。
           </HelpTip>
         </h2>
         <p className="flex flex-wrap items-center gap-1.5 text-[13px] text-faint">

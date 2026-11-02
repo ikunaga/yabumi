@@ -175,7 +175,6 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
               <h3 id="idea-questions" className="text-[18px] font-bold max-sm:text-[16px]">
                 質問に答える
               </h3>
-              <HelpTip label="質問">答えると、ネタをよくして出し直します。答えなくても、いまのネタを下書きにできます。</HelpTip>
             </div>
             {questions.map((q, i) => (
               <div key={q.question} className="flex flex-col gap-2">
@@ -461,7 +460,6 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
                   <div className="flex flex-wrap items-center gap-3 rounded-md border border-line bg-surface2 px-4 py-3 text-[15px]">
                     <span className="flex items-center gap-1.5">
                       使っていないメモがありません
-                      <HelpTip label="ネタ帳">思いついたことを、どの画面でも「＋ メモ」から 1 行で残しておくと、ここから投稿にできます。</HelpTip>
                     </span>
                     <ButtonLink href={`/projects/${projectId}/notes`} variant="secondary" size="sm">
                       ネタ帳を開く
@@ -472,7 +470,6 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
               {source === "plan" && (
                 <p className="flex flex-wrap items-center gap-2 rounded-md border border-line bg-surface2 px-4 py-3 text-[15px]">
                   入力はいりません
-                  <HelpTip label="アカウント設計から">投稿の柱と、プロジェクトの説明から、柱ごとに 1 つずつネタを出します。</HelpTip>
                   <Link href={`/projects/${projectId}/plan`} className="ml-auto text-[13px] text-muted underline hover:text-fg">
                     アカウント設計を見る
                   </Link>

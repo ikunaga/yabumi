@@ -21,7 +21,7 @@ export default async function AdminPage() {
     <>
       <TopBar email={user.email} crumb={<b className="text-fg">運営</b>} mobileBack={{ href: "/projects", title: "運営" }} />
       <main className="flex flex-col gap-5 px-12 py-10 max-lg:px-8 max-sm:gap-4 max-sm:px-4 max-sm:py-5">
-        <PageHeader title="運営" help="OPERATOR_ADMIN_EMAILS のアドレスでログインした人だけが開けます。ほかの人には、ないページ（404）と同じに見えます。" sub="運営者だけ" />
+        <PageHeader title="運営" sub="運営者だけ" />
         <div className="grid grid-cols-2 gap-4 max-md:grid-cols-1">
           <Link href="/admin/waitlist" className="group hover:no-underline">
             <Metric

@@ -28,7 +28,7 @@ export default async function SharePage() {
     <div className="flex flex-1 flex-col bg-bg">
       <TopBar email={email} crumb={<b className="text-fg">ネタ帳に残す</b>} mobileBack={{ href: "/projects", title: "ネタ帳に残す" }} quickNote={false} />
       <main className="flex flex-col gap-5 px-12 py-10 max-lg:px-8 max-sm:gap-4 max-sm:px-4 max-sm:py-5">
-        <PageHeader title="ネタ帳に残す" help="ほかのアプリから共有したものや、ショートカットから送ったものを、ネタ帳のメモにします。残したメモは、AI とネタを出すときの材料になります。" />
+        <PageHeader title="ネタ帳に残す" />
         <Columns
           main={
             <section className="rounded-lg border border-border bg-surface px-6 py-5 max-sm:px-4 max-sm:py-4">

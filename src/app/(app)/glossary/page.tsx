@@ -19,7 +19,7 @@ export default async function GlossaryPage() {
         mobileBack={{ href: "/projects", title: "用語集" }}
       />
       <main className="flex flex-col gap-5 px-12 py-10 max-lg:px-8 max-sm:gap-4 max-sm:px-4 max-sm:py-5">
-        <PageHeader title="用語集" sub={`${GLOSSARY_KEYS.length} 語`} help="yabumi の画面に出てくるマーケティングの言葉を、平易に説明しています。画面の点線の言葉を押しても、同じ説明が出ます。" />
+        <PageHeader title="用語集" sub={`${GLOSSARY_KEYS.length} 語`} />
         <Card className="overflow-hidden">
           {/* 広い画面では 2 列に並べる（1 語ずつは短い文なので、1 列だと右が空く） */}
           <dl className="grid xl:grid-cols-2">

@@ -66,7 +66,7 @@ export default async function IdeasPage(props: PageProps<"/projects/[id]/ideas">
           </span>
         </nav>
         <HelpTip label="どんなネタが出るか">
-          何を投稿すればいいか浮かばないときに、AI がネタと下書きを出します。作っている過程や仕事の裏側、お客さん・使う人の声のような話は、知ってもらう入り口になります。ネタは、宣伝するものの種類と、アカウント設計の <Term k="contentPillar" /> と口調に沿います。
+          ネタは、宣伝するものの種類と、アカウント設計の <Term k="contentPillar" /> と口調に沿います。
         </HelpTip>
       </div>
       {done === "thread_deleted" && <SuccessBanner>ネタの会話を消しました。下書きにした投稿は残っています。</SuccessBanner>}

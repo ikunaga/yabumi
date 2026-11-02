@@ -199,12 +199,6 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
     <div className="flex flex-col gap-4 max-sm:gap-3">
       <PageHeader
         title="分析"
-        help={
-          <>
-            <p>うまくいっているかを、数字で確かめる画面です。全部を見る必要はありません。上の {kpis.length} つだけ、週に 1 回見れば十分です。</p>
-            <p className="mt-2">追いかける数字（KPI）は、アカウント設計の「最初の 1 か月」で選べます。選んでいなければ、目的に合わせたおすすめを出しています。</p>
-          </>
-        }
         sub={
           <>
             {goal ? `目標: ${goal}` : "最初の 1 か月の目標は、まだ決めていません"}

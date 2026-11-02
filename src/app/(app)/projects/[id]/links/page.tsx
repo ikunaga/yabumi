@@ -141,10 +141,7 @@ export default async function LinksPage(props: PageProps<"/projects/[id]/links">
             <Card>
               <CardHeader
                 title={
-                  <span className="flex items-center gap-2">
-                    プロフィールに置くリンク
-                    <HelpTip label="プロフィールに置くリンク">SNS のプロフィールのリンク欄に貼ります。投稿を見て興味を持った人は、プロフィールから{isAppProject(project) ? "ストア" : "行き先のページ"}へ進むことが多いからです。</HelpTip>
-                  </span>
+                  "プロフィールに置くリンク"
                 }
               />
               {destinations.length === 0 ? (
@@ -202,13 +199,7 @@ export default async function LinksPage(props: PageProps<"/projects/[id]/links">
                 title={
                   <span className="flex items-center gap-2">
                     投稿の本文から作ったリンク
-                    <HelpTip label="投稿の本文から作ったリンク">
-                      投稿の本文の URL から自動で作ったリンクです（投稿ごと・SNS ごと）。投稿どうしで比べるなら、
-                      <Link href={`/projects/${project.id}/metrics`} className="font-bold underline">
-                        分析
-                      </Link>
-                      の「クリックの多い投稿」が見やすいです。
-                    </HelpTip>
+                    <HelpTip label="投稿の本文から作ったリンク">投稿の本文の URL から自動で作ったリンクです（投稿ごと・SNS ごと）。</HelpTip>
                   </span>
                 }
                 action={<span className="num">{postLinks.length} 本</span>}

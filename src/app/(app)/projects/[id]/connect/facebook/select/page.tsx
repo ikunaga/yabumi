@@ -34,7 +34,7 @@ export default async function SelectFacebookPagesPage(props: PageProps<"/project
             つなぐページを選ぶ
           </span>
         }
-        help="投稿を作れる Facebook ページが 2 つ以上あるので、このプロジェクトで投稿するページを 1 つ選びます。選べる時間は 15 分です。"
+        help="選べる時間は 15 分です。過ぎたら、もう一度つなぎ直してください。"
       />
       <Columns
         main={

@@ -1,7 +1,7 @@
-// LP（トップ）の画面の見本を撮るための、見本用のアカウントとデータ（docs/architecture.md の 4.29）。
+// LP（トップ）の画面の見本を撮るための、見本用のアカウントとデータ（docs/architecture.md の 4.29）。見本は駅前のパン屋「こむぎ日和」（D34）。
 // オーナーの実データは使わない。ローカルの Supabase だけで使い、撮り終えたら消す。本番では使わない。
 //
-//   node scripts/lp-demo.mjs seed    見本用の利用者 lp-demo@yabumi.test と、架空のアプリ「かけいぼ日和」のデータを作る（作り直す）。
+//   node scripts/lp-demo.mjs seed    見本用の利用者 lp-demo@yabumi.test と、架空のパン屋「こむぎ日和」のデータを作る（作り直す）。
 //                                    ログイン用のリンク（マジックリンク）を表示する
 //   node scripts/lp-demo.mjs remove  見本用の利用者とデータを消す
 //
@@ -56,28 +56,35 @@ async function seed() {
   const { currentLegalVersion } = await import("../src/lib/legal/version.ts");
   await must(admin.from("legal_consents").insert({ user_id: uid, version: currentLegalVersion(), via: "signup" }));
 
+  // D34（2026-11-02）: 届けたい相手が広がったので、見本はアプリ以外の「駅前の小さなパン屋」にする。
+  // アカウント設計の画面の記入例（src/lib/ai/product-guide.ts の PLAN_EXAMPLES.shop）とそろえる
   const project = await must(
     admin
       .from("projects")
       .insert({
         owner_id: uid,
-        name: "かけいぼ日和",
-        description: "レシートを撮るだけで家計簿がつく iPhone・Android のアプリ。月ごとのグラフで、使いすぎに気づける。",
-        app_store_url: "https://apps.apple.com/jp/app/id000000000",
-        play_store_url: "https://play.google.com/store/apps/details?id=example.kakeibo",
-        target_audience: "家計簿を何度も挫折した 20〜30 代の会社員",
+        name: "こむぎ日和",
+        product_type: "shop",
+        description: "駅前の小さなパン屋。朝 7 時に焼き上がる食パンと、季節のパンを並べています。火曜定休。",
+        target_audience: "朝の通勤前にパンを買いたい、駅を使う 30 代の会社員",
       })
       .select("id")
       .single(),
   );
   const pid = project.id;
+  await must(
+    admin.from("project_destinations").insert([
+      { owner_id: uid, project_id: pid, kind: "site", label: "お店の地図と営業時間", url: "https://example.com/komugi-biyori", position: 0 },
+      { owner_id: uid, project_id: pid, kind: "booking", label: "パンの取り置き", url: "https://example.com/komugi-biyori/reserve", position: 1 },
+    ]),
+  );
 
   const accounts = {};
   for (const [sns, handle, name] of [
-    ["x", "kakeibo_biyori", "かけいぼ日和"],
-    ["threads", "kakeibo_biyori", "かけいぼ日和"],
-    ["instagram", "kakeibo.biyori", "かけいぼ日和"],
-    ["facebook", "kakeibo.biyori", "かけいぼ日和"],
+    ["x", "komugi_biyori", "こむぎ日和"],
+    ["threads", "komugi.biyori", "こむぎ日和"],
+    ["instagram", "komugi.biyori", "こむぎ日和"],
+    ["facebook", "komugi.biyori", "こむぎ日和"],
   ]) {
     const a = await must(admin.from("social_accounts").insert({ owner_id: uid, sns, external_id: `lp-demo-${sns}-${randomUUID()}`, handle, display_name: name }).select("id").single());
     accounts[sns] = a.id;
@@ -89,34 +96,36 @@ async function seed() {
       owner_id: uid,
       project_id: pid,
       data: {
-        goal: { what: "3 か月で、ダウンロードを月 300 にする", goalType: "downloads", note: "" },
-        audience: { pain: "家計簿をつけ始めても、入力が面倒で 1 週間で止まる", where: "X と Instagram で、節約や暮らしの投稿を見ている" },
+        goal: { what: "朝 7 時に焼き上がる食パンと、季節のパン", goalType: "visit", note: "近くで働く人に、まず一度来てもらう" },
+        audience: { who: "朝の通勤前にパンを買いたい、駅を使う 30 代の会社員", pain: "朝は急いでいて、どこのパン屋が開いているかわからない", where: "通勤の電車の中で、朝 7 時ごろに Instagram を見ている" },
         pillars: {
           items: [
-            { name: "使いすぎに気づく小ネタ", share: 40, example: "コンビニの「ついで買い」が月いくらになるか" },
-            { name: "開発の裏側", share: 30, example: "レシートの読み取りを速くした話" },
-            { name: "使っている人の声", share: 30, example: "3 か月続いた人のグラフ" },
+            { name: "季節のおすすめ・新しいもの", share: 40, example: "今週から栗のデニッシュが並びます" },
+            { name: "仕込み・準備のようす", share: 30, example: "朝 4 時から生地を伸ばしているところ" },
+            { name: "お客さんの声", share: 15, example: "贈り物にしてくれた方の感想を紹介" },
+            { name: "来る前に知っておくと便利なこと", share: 15, example: "焼き上がりの時間と、売り切れやすいパン" },
           ],
-          tone: "身近で、責めない。数字は具体的に",
-          avoid: "節約を押しつける言い方",
+          tone: "です・ます調。あたたかく、短く。絵文字は 1 投稿に 1 つまで",
+          avoid: "ほかのお店を悪く言わない。宣伝だけの投稿を続けない",
         },
-        ownership: { mode: "dedicated", reason: "アプリの名前で覚えてもらうため" },
-        profile: { displayName: "かけいぼ日和｜撮るだけ家計簿", handle: "kakeibo_biyori", handleBackups: "", bio: "レシートを撮るだけで家計簿がつくアプリ。使いすぎに気づく小ネタを毎週お届け。", link: "", bySns: {} },
-        cadence: { frequency: "週に 6 本ほど", roles: { x: "小ネタと更新のお知らせ", instagram: "グラフの画像で見せる" } },
-        first_month: { goal: "毎週決めた本数を出し続ける", metrics: "ストアページへのクリック", kpis: ["downloads", "link_clicks", "posts"], weekly: { x: 3, threads: 2, instagram: 1 }, startedOn: ymdOffset(monday, -7) },
+        hashtags: { items: [{ tag: "パン屋巡り", why: "近くのパン屋を探している人が見ている", when: "「季節のおすすめ」の柱のとき" }] },
+        ownership: { mode: "dedicated", reason: "お店の名前で探されるので、お店のアカウントにする" },
+        profile: { displayName: "こむぎ日和｜駅前の小さなパン屋", handle: "komugi_biyori", handleBackups: "", bio: "駅前の小さなパン屋「こむぎ日和」。朝 7 時に焼き上がる食パンと、季節のパンのお知らせをしています。火曜定休。", link: "https://example.com/komugi-biyori", bySns: {} },
+        cadence: { frequency: "週に 6 本ほど", roles: { x: "その日に焼いたものと、売り切れのお知らせを短く", threads: "X と同じ内容を、少し丁寧な言葉で", instagram: "パンの写真で、季節の新作を見せる" } },
+        first_month: { goal: "毎週決めた本数を出し続ける", metrics: "地図・取り置きのページへのクリックと、来てくれた人の数", kpis: ["link_clicks", "outcomes", "posts"], weekly: { x: 3, threads: 2, instagram: 1 }, startedOn: ymdOffset(monday, -7) },
       },
     }),
   );
 
   // 投稿: 先週と今週の投稿済み、これからの予約、日付のない下書き
   const posts = [
-    { body: "コンビニの「ついで買い」、1 回 200 円でも月 20 回で 4,000 円。レシートを撮っておくと、月末にグラフで見えます。", at: jst(ymdOffset(monday, -6), "20:00"), targets: ["x", "threads"], published: true },
-    { body: "v1.2 で、月ごとのグラフが見られるようになりました。先月と比べて、どこで使いすぎたかが一目でわかります。", at: jst(ymdOffset(monday, -4), "12:00"), targets: ["x", "threads", "instagram", "facebook"], published: true },
-    { body: "家計簿が続かなかった理由の 1 位は「入力が面倒」。だから、撮るだけにしました。", at: jst(ymdOffset(monday, -2), "21:00"), targets: ["x"], published: true },
-    { body: "レシートの読み取りを 2 倍速くした話。画像を小さくしてから送るだけで、待ち時間が 3 秒から 1.5 秒に。", at: jst(monday, "08:00"), targets: ["x", "threads"], published: true },
-    { body: "今週の小ネタ: サブスク、いくつ入っていますか？ 先月のレシートとカードの明細から、使っていないものを探してみましょう。", at: jst(ymdOffset(monday, 1), "20:00"), targets: ["x", "threads"], published: false },
-    { body: "3 か月続いた人のグラフを見せてもらいました（ご本人の了承を得ています）。", at: jst(ymdOffset(monday, 3), "12:00"), targets: ["instagram", "facebook"], published: false },
-    { body: "週末のまとめ買い、何に使っていますか？", at: jst(ymdOffset(monday, 5), "10:00"), targets: ["x"], published: false },
+    { body: "今週から栗のデニッシュが並びます。焼き上がりは朝 7 時と 11 時の 2 回です。", at: jst(ymdOffset(monday, -6), "07:00"), targets: ["x", "threads"], published: true },
+    { body: "朝 4 時、食パンの生地を伸ばしているところ。この時間がいちばん好きです。", at: jst(ymdOffset(monday, -4), "07:30"), targets: ["x", "threads", "instagram", "facebook"], published: true },
+    { body: "贈り物にしてくださった方から「みんなで取り合いになった」とお便りをいただきました。うれしいです。", at: jst(ymdOffset(monday, -2), "12:00"), targets: ["x"], published: true },
+    { body: "売り切れやすいのは、くるみのカンパーニュと塩バターパン。お昼までに来ていただくと確実です。", at: jst(monday, "07:00"), targets: ["x", "threads"], published: true },
+    { body: "あしたは定休日です。水曜の朝 7 時に、焼きたての食パンでお待ちしています。", at: jst(ymdOffset(monday, 1), "18:00"), targets: ["x", "threads"], published: false },
+    { body: "秋のパン、3 種類そろいました。栗・さつまいも・りんご。", at: jst(ymdOffset(monday, 3), "07:00"), targets: ["instagram", "facebook"], published: false },
+    { body: "週末の朝、焼き上がりの時間をお知らせします。", at: jst(ymdOffset(monday, 5), "07:00"), targets: ["x"], published: false },
   ];
   const publishedTargets = [];
   for (const p of posts) {
@@ -139,7 +148,7 @@ async function seed() {
       if (p.published) publishedTargets.push({ id: t.id, sns });
     }
   }
-  await must(admin.from("posts").insert({ owner_id: uid, project_id: pid, body: "アプリのアイコンを変えました。前と後、どちらが好きですか？", status: "draft" }));
+  await must(admin.from("posts").insert({ owner_id: uid, project_id: pid, body: "お店の看板を新しくしました。前と後、どちらが好きですか？", status: "draft" }));
 
   // 投稿の数字（閲覧数など）
   for (const [i, t] of publishedTargets.entries()) {
@@ -148,27 +157,24 @@ async function seed() {
 
   // ネタ帳
   for (const [i, body] of [
-    "朝の通勤中に、昨日のレシートを撮り忘れたことに気づいた。通知の時間を選べたらいいのに",
-    "友だちに「家計簿アプリってどれも同じじゃない？」と言われた。違いを 1 行で言えるようにしたい",
-    "スーパーのレシートが長すぎて、1 枚に収まらない問題",
-    "妻が使い始めて 2 週間。外食が先月より 30% 減っていた",
+    "常連さんに「食パンの耳だけ売ってほしい」と言われた。ラスクにしたら喜ばれるかも",
+    "雨の日は朝のお客さんが半分になる。雨の日だけのおまけを考えたい",
+    "栗の仕込みに 2 時間かかる。皮むきの話はネタになりそう",
+    "近くの小学校の子どもたちが、窓からパンを見ていた",
   ].entries()) {
     await must(admin.from("idea_notes").insert({ owner_id: uid, project_id: pid, body, created_at: new Date(Date.now() - (i + 1) * 9 * 3_600_000).toISOString() }));
   }
 
-  // ストアの数字（直近 14 日）とクリック
+  // 地図・取り置きのページへのクリック（短縮リンク）と、手で入れた来店の数（直近 14 日）
   const link = await must(
-    admin.from("short_links").insert({ owner_id: uid, project_id: pid, code: `lp${randomUUID().slice(0, 6)}`, destination_url: "https://apps.apple.com/jp/app/id000000000", kind: "profile", sns: "x", label: "X のプロフィール" }).select("id").single(),
+    admin.from("short_links").insert({ owner_id: uid, project_id: pid, code: `lp${randomUUID().slice(0, 6)}`, destination_url: "https://example.com/komugi-biyori", kind: "profile", sns: "instagram", label: "Instagram のプロフィール" }).select("id").single(),
   );
   for (let d = 13; d >= 0; d--) {
     const day = ymdOffset(today, -d);
     const w = d < 7 ? 1.3 : 1;
-    await admin.from("store_daily").insert({ owner_id: uid, project_id: pid, source: "app_store", day, values: { downloads: Math.round((6 + (d % 4)) * w) } });
-    await admin.from("store_daily").insert({ owner_id: uid, project_id: pid, source: "app_store_views", day, values: { page_views: Math.round((40 + (d % 5) * 6) * w) } });
     await admin.from("link_click_daily").insert({ owner_id: uid, link_id: link.id, day, device: "ios", clicks: Math.round((5 + (d % 3)) * w) });
+    await admin.from("project_outcomes_daily").insert({ owner_id: uid, project_id: pid, day, action: "visit", count: Math.round((2 + (d % 3)) * w) });
   }
-  await admin.from("store_daily").insert({ owner_id: uid, project_id: pid, source: "revenuecat", day: today, values: { revenue: 12800, currency: "JPY" } });
-  await admin.from("store_daily").insert({ owner_id: uid, project_id: pid, source: "revenuecat", day: ymdOffset(today, -7), values: { revenue: 9600, currency: "JPY" } });
 
   const { data: linkData } = await admin.auth.admin.generateLink({ type: "magiclink", email: EMAIL });
   console.log(`作りました。プロジェクト ${pid}`);

@@ -5,6 +5,7 @@ import { Columns } from "@/components/ui/columns";
 import { PageHeader } from "@/components/ui/page-header";
 import { cookies } from "next/headers";
 import { TopBar } from "@/components/nav/top-bar";
+import { NoteDraftOwner } from "@/components/notes/draft-owner";
 import { ShareReceiver, ShareStash } from "@/components/notes/share-receiver";
 import { SHARE_COOKIE, decodeShareCookie } from "@/lib/notes/share";
 import { listProjectNames } from "@/lib/projects/queries";
@@ -26,6 +27,7 @@ export default async function SharePage() {
 
   return (
     <div className="flex flex-1 flex-col bg-bg">
+      <NoteDraftOwner userId={claims.sub} />
       <TopBar email={email} crumb={<b className="text-fg">ネタ帳に残す</b>} mobileBack={{ href: "/projects", title: "ネタ帳に残す" }} quickNote={false} />
       <main className="flex flex-col gap-5 px-12 py-10 max-lg:px-8 max-sm:gap-4 max-sm:px-4 max-sm:py-5">
         <PageHeader title="ネタ帳に残す" />

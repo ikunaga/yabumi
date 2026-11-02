@@ -7,6 +7,7 @@ import { QuickNote } from "@/components/notes/quick-note";
 import { DismissableDetails } from "@/components/ui/dismissable-details";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { logout } from "@/lib/auth/actions";
+import { LogoutForm } from "@/components/notes/draft-owner";
 import { activeNavKey, projectNavItems } from "./project-nav-items";
 import { SubmitButton } from "@/components/ui/submit-button";
 
@@ -65,11 +66,11 @@ export function ProjectMobileMenu({ projectId, email, projects }: { projectId: s
             ログインと退会
             <span className="block truncate text-xs text-muted">{email}</span>
           </Link>
-          <form action={logout}>
+          <LogoutForm action={logout}>
             <SubmitButton pendingText="ログアウトしています…" className="block w-full px-4 py-3 text-left hover:bg-primary-soft">
               ログアウト
             </SubmitButton>
-          </form>
+          </LogoutForm>
         </div>
       </div>
     </DismissableDetails>

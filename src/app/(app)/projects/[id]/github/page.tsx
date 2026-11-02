@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { DescriptionDrafter } from "@/components/github/description-drafter";
 import { RepoPicker, type PickableRepo } from "@/components/github/repo-picker";
-import { buttonClass, NotReadyButton } from "@/components/ui/button";
-import { Card, CardHeader } from "@/components/ui/card";
+import { ButtonLink, buttonClass, NotReadyButton } from "@/components/ui/button";
+import { Card, CardHeader, EmptyState } from "@/components/ui/card";
 import { Columns } from "@/components/ui/columns";
 import { ErrorBanner, SuccessBanner } from "@/components/ui/feedback";
 import { PageHeader } from "@/components/ui/page-header";
@@ -12,6 +12,8 @@ import { disconnectRepo } from "@/lib/github/actions";
 import { githubConfig, githubConfigured } from "@/lib/github/config";
 import { accessIsStale, canReadRepo } from "@/lib/github/installations";
 import { reposForInstallation } from "@/lib/github/service";
+import { projectSettingsHref } from "@/lib/projects/paths";
+import { PRODUCT_TYPE_DEFS, isDevProject, isProductType } from "@/lib/projects/product-types";
 import { getProject } from "@/lib/projects/queries";
 import { createClient } from "@/lib/supabase/server";
 
@@ -37,9 +39,29 @@ export default async function GithubPage(props: PageProps<"/projects/[id]/github
     <PageHeader
       title="GitHub をつなぐ"
       sub="任意"
-      help="アプリのリポジトリをつなぐと、AI がファイルを読んで、アプリの紹介文（どんなアプリか）を下書きします。紹介文は、アカウント設計の相談や投稿のネタを考えるときの材料になります。非公開のリポジトリも読めます。つながなくても、手で書けば先へ進めます。"
+      help="作っているアプリや Web のサービスのリポジトリをつなぐと、AI がファイルを読んで紹介文を下書きし、最近の開発（コミット）から投稿のネタを出せます。紹介文は、アカウント設計の相談や投稿のネタを考えるときの材料になります。非公開のリポジトリも読めます。つながなくても、手で書けば先へ進めます。"
     />
   );
+
+  // GitHub は開発しているもの（アプリ・Web のサービス）のときだけ（isDevProject）
+  if (!isDevProject(project)) {
+    return (
+      <div className="flex flex-col gap-5">
+        {intro}
+        <Card>
+          <EmptyState
+            title={`「${PRODUCT_TYPE_DEFS[isProductType(project.product_type) ? project.product_type : "app"].label}」では使いません`}
+            description="GitHub をつなぐのは、宣伝するものがアプリか Web のサービスのときです。種類が違っていたら、プロジェクトの設定で直せます。"
+            action={
+              <ButtonLink href={projectSettingsHref(id)} variant="secondary">
+                プロジェクトの設定へ
+              </ButtonLink>
+            }
+          />
+        </Card>
+      </div>
+    );
+  }
 
   if (!githubConfigured()) {
     return (

@@ -16,6 +16,7 @@ import { cycleInfo } from "@/lib/coach/pace";
 import { toYmd } from "@/lib/time";
 import { KPI_KEYS, KPIS, MAX_KPIS, recommendedKpis, type KpiKey } from "@/lib/metrics/kpis";
 import { SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
+import { PLAN_EXAMPLES, type PlanExamples } from "@/lib/ai/product-guide";
 import { ProfileFields, type ProfileContext } from "./profile-fields";
 
 // 見出しはボタンの中に置くので、用語解説（これもボタン）は説明文のほうに付ける
@@ -269,22 +270,27 @@ function SectionCard({
   );
 }
 
+// 記入例は宣伝するものの種類ごと（src/lib/ai/product-guide.ts の PLAN_EXAMPLES）
+function examplesOf(ctx: ProfileContext): PlanExamples {
+  return PLAN_EXAMPLES[ctx.productType ?? "app"];
+}
+
 function SectionFields({ sectionKey, plan, profileCtx }: { sectionKey: SectionKey; plan: PlanData; profileCtx: ProfileContext }) {
   switch (sectionKey) {
     case "goal":
       return <GoalFields v={plan.goal} productType={profileCtx.productType ?? "app"} />;
     case "audience":
-      return <AudienceFields v={plan.audience} />;
+      return <AudienceFields v={plan.audience} ex={examplesOf(profileCtx)} />;
     case "ownership":
-      return <OwnershipFields v={plan.ownership} />;
+      return <OwnershipFields v={plan.ownership} ex={examplesOf(profileCtx)} />;
     case "profile":
       return <ProfileFields v={plan.profile} roles={plan.cadence.roles} ctx={profileCtx} />;
     case "pillars":
-      return <PillarsFields v={plan.pillars} />;
+      return <PillarsFields v={plan.pillars} ex={examplesOf(profileCtx)} />;
     case "hashtags":
-      return <HashtagsFields v={plan.hashtags} />;
+      return <HashtagsFields v={plan.hashtags} ex={examplesOf(profileCtx)} />;
     case "cadence":
-      return <CadenceFields v={plan.cadence} />;
+      return <CadenceFields v={plan.cadence} ex={examplesOf(profileCtx)} />;
     case "first_month":
       return (
         <FirstMonthFields
@@ -366,23 +372,23 @@ function GoalFields({ v, productType }: { v: PlanData["goal"]; productType: Prod
   );
 }
 
-function AudienceFields({ v }: { v: PlanData["audience"] }) {
+function AudienceFields({ v, ex }: { v: PlanData["audience"]; ex: PlanExamples }) {
   return (
     <>
       <Field label="どんな人か" htmlFor="audience-who" hint="ここに書いた内容は、プロジェクトの「届けたい相手」と同じものです">
-        <Textarea id="audience-who" name="who" defaultValue={v.who} maxLength={1000} placeholder="例: 朝の通勤前にパンを買いたい、駅を使う 30 代の会社員" />
+        <Textarea id="audience-who" name="who" defaultValue={v.who} maxLength={1000} placeholder={`例: ${ex.who}`} />
       </Field>
       <Field label="その人の困りごと" htmlFor="audience-pain">
-        <Textarea id="audience-pain" name="pain" defaultValue={v.pain} maxLength={500} rows={2} placeholder="例: 毎月お金が残らないが、何に使ったのかわからない" />
+        <Textarea id="audience-pain" name="pain" defaultValue={v.pain} maxLength={500} rows={2} placeholder={`例: ${ex.pain}`} />
       </Field>
       <Field label="どこで・いつ SNS を見ているか" htmlFor="audience-where">
-        <Textarea id="audience-where" name="where" defaultValue={v.where} maxLength={500} rows={2} placeholder="例: 平日の夜 23 時ごろ、布団の中で X と Threads を眺めている" />
+        <Textarea id="audience-where" name="where" defaultValue={v.where} maxLength={500} rows={2} placeholder={`例: ${ex.where}`} />
       </Field>
     </>
   );
 }
 
-function OwnershipFields({ v }: { v: PlanData["ownership"] }) {
+function OwnershipFields({ v, ex }: { v: PlanData["ownership"]; ex: PlanExamples }) {
   return (
     <>
       <Choices
@@ -396,21 +402,14 @@ function OwnershipFields({ v }: { v: PlanData["ownership"] }) {
         ]}
       />
       <Field label="そう決めた理由" htmlFor="ownership-reason">
-        <Textarea id="ownership-reason" name="reason" defaultValue={v.reason} maxLength={500} rows={2} placeholder="例: 作っている様子と一緒に出したいので、個人のアカウントにする" />
+        <Textarea id="ownership-reason" name="reason" defaultValue={v.reason} maxLength={500} rows={2} placeholder={`例: ${ex.ownershipReason}`} />
       </Field>
     </>
   );
 }
 
-const PILLAR_EXAMPLES = [
-  { name: "季節のパン", share: "40", example: "今週から栗のデニッシュが並びます" },
-  { name: "作っている裏側", share: "30", example: "焼き色をそろえるために温度を 5 度下げた話" },
-  { name: "お店の紹介", share: "20", example: "営業日と焼き上がりの時間のご案内" },
-  { name: "お客さんの声", share: "10", example: "贈り物にしてくれた方の感想を紹介" },
-  { name: "", share: "", example: "" },
-];
 
-function PillarsFields({ v }: { v: PlanData["pillars"] }) {
+function PillarsFields({ v, ex: examples }: { v: PlanData["pillars"]; ex: PlanExamples }) {
   const [shares, setShares] = useState<string[]>(() =>
     Array.from({ length: MAX_PILLARS }, (_, i) => (v.items[i]?.share != null ? String(v.items[i].share) : "")),
   );
@@ -427,7 +426,7 @@ function PillarsFields({ v }: { v: PlanData["pillars"] }) {
         </div>
         {Array.from({ length: MAX_PILLARS }, (_, i) => {
           const item = v.items[i];
-          const ex = PILLAR_EXAMPLES[i];
+          const ex = examples.pillars[i] ?? { name: "", share: "", example: "" };
           return (
             <div key={i} className="grid grid-cols-[1fr_72px_1.4fr] gap-2 max-sm:grid-cols-[1fr_72px] max-sm:border-b max-sm:border-line max-sm:pb-3">
               <Input name={`pillar-${i}-name`} aria-label={`柱 ${i + 1} の名前`} defaultValue={item?.name ?? ""} maxLength={50} placeholder={ex.name && `例: ${ex.name}`} />
@@ -465,19 +464,17 @@ function PillarsFields({ v }: { v: PlanData["pillars"] }) {
         }
         htmlFor="pillars-tone"
       >
-        <Textarea id="pillars-tone" name="tone" defaultValue={v.tone} maxLength={300} rows={2} placeholder="例: です・ます調。親しみやすく、専門用語は使わない。絵文字は 1 投稿に 1 つまで" />
+        <Textarea id="pillars-tone" name="tone" defaultValue={v.tone} maxLength={300} rows={2} placeholder={`例: ${examples.tone}`} />
       </Field>
       <Field label="やらないこと" htmlFor="pillars-avoid" hint="決めておくと、迷ったときや炎上しそうなときの歯止めになります">
-        <Textarea id="pillars-avoid" name="avoid" defaultValue={v.avoid} maxLength={500} rows={2} placeholder="例: ほかのお店を悪く言わない。宣伝だけの投稿を続けない。政治の話はしない" />
+        <Textarea id="pillars-avoid" name="avoid" defaultValue={v.avoid} maxLength={500} rows={2} placeholder={`例: ${examples.avoid}`} />
       </Field>
     </>
   );
 }
 
-// 1 行目だけに例を出す（パン屋の例。作り手の言葉より、買う人の側の言葉）
-const HASHTAG_EXAMPLE = { tag: "パン屋巡り", why: "近くのパン屋を探している人が見ている。人が多すぎず、話題がはっきりしている", when: "「季節のパン」の柱のとき" };
 
-function HashtagsFields({ v }: { v: PlanData["hashtags"] }) {
+function HashtagsFields({ v, ex: examples }: { v: PlanData["hashtags"]; ex: PlanExamples }) {
   const [rows, setRows] = useState(() => Math.min(MAX_HASHTAGS, Math.max(3, v.items.length + 1)));
   return (
     <fieldset className="flex flex-col gap-3">
@@ -487,7 +484,7 @@ function HashtagsFields({ v }: { v: PlanData["hashtags"] }) {
       </p>
       {Array.from({ length: rows }, (_, i) => {
         const item = v.items[i];
-        const ex = i === 0 ? HASHTAG_EXAMPLE : null;
+        const ex = i === 0 ? examples.hashtag : null;
         return (
           <div key={i} className="grid grid-cols-[160px_1fr_1fr] gap-2 max-sm:grid-cols-1 max-sm:border-b max-sm:border-line max-sm:pb-3">
             <div className="flex items-center gap-1">
@@ -523,22 +520,12 @@ function HashtagsFields({ v }: { v: PlanData["hashtags"] }) {
   );
 }
 
-const ROLE_EXAMPLES: Record<string, string> = {
-  x: "その日に焼いたものと、作っている裏側を短く",
-  threads: "X と同じ内容を、少し丁寧な言葉で",
-  instagram: "パンの写真で、季節の新作を見せる",
-  facebook: "当面は使わない",
-  tiktok: "30 秒で焼き上がりまでを見せる動画",
-  youtube: "当面は使わない",
-  note: "月に 1 本、お店の振り返りを長文で（手で投稿）",
-  substack: "常連さんに、新作と営業日の予定をメールで（手で投稿）",
-};
 
-function CadenceFields({ v }: { v: PlanData["cadence"] }) {
+function CadenceFields({ v, ex }: { v: PlanData["cadence"]; ex: PlanExamples }) {
   return (
     <>
       <Field label="投稿の頻度" htmlFor="cadence-frequency">
-        <Input id="cadence-frequency" name="frequency" defaultValue={v.frequency} maxLength={200} placeholder="例: 週 3 回（月・水・金の 21 時）" />
+        <Input id="cadence-frequency" name="frequency" defaultValue={v.frequency} maxLength={200} placeholder={`例: ${ex.frequency}`} />
       </Field>
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-1.5 text-[14px] font-bold">SNS ごとの役割</legend>
@@ -548,7 +535,7 @@ function CadenceFields({ v }: { v: PlanData["cadence"] }) {
               {SNS[sns].label}
               {SNS[sns].delivery === "manual" && <span className="text-xs font-normal text-muted">手で投稿</span>}
             </span>
-            <Input name={`role-${sns}`} defaultValue={v.roles[sns] ?? ""} maxLength={200} placeholder={`例: ${ROLE_EXAMPLES[sns]}`} />
+            <Input name={`role-${sns}`} defaultValue={v.roles[sns] ?? ""} maxLength={200} placeholder={`例: ${ex.roles[sns]}`} />
           </label>
         ))}
         <p className="text-xs text-muted">使わない SNS は空欄で構いません。note と Substack は自動では送れず、手で投稿します（そのぶん手間がかかります）。</p>

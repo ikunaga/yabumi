@@ -169,7 +169,7 @@ export async function gatherConsultContext(
 
   // 選んだ KPI（なければ目的からのおすすめ）と、ロードマップの KPI の数字。4.22 の数字の画面と同じもの（数えていないものは null）
   const kpiValues = await loadKpiValues(user, projectId);
-  const kpis = (plan.first_month.kpis.length ? plan.first_month.kpis : recommendedKpis(plan.goal.goalType)).filter(isKpiKey);
+  const kpis = (plan.first_month.kpis.length ? plan.first_month.kpis : recommendedKpis(plan.goal.goalType, project.product_type)).filter(isKpiKey);
   const roadmapKpis = view.roadmap?.kpiTargets.map((t) => t.kpi) ?? [];
   const kpiNumbers = [...new Set([...kpis, ...roadmapKpis])].map((kpi) => ({
     kpi,

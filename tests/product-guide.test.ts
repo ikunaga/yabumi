@@ -6,9 +6,9 @@ import { CONSULT_SYSTEM, consultContextMessage, type ConsultContext } from "@/li
 import { IMAGE_BRIEF_SYSTEM } from "@/lib/ai/image-brief";
 import { PLAN_COACH_SYSTEM, coachContextMessage } from "@/lib/ai/plan-coach-prompt";
 import { POST_IDEAS_SYSTEM, buildNewsIdeasRequest, ideaSourcesFor, newsQuestionsFor, type IdeaContext } from "@/lib/ai/post-ideas";
-import { PRODUCT_GUIDES, productLines, productTypeOf, usesDevTalk } from "@/lib/ai/product-guide";
+import { PLAN_EXAMPLES, PRODUCT_GUIDES, productLines, productTypeOf, usesDevTalk, usesStoreTalk } from "@/lib/ai/product-guide";
 import { normalizePlan } from "@/lib/plan/schema";
-import { PRODUCT_TYPES } from "@/lib/projects/product-types";
+import { PRODUCT_TYPES, isDevProject } from "@/lib/projects/product-types";
 
 describe("種類ごとの手がかり", () => {
   it("どの種類にも、投稿の柱の例・最近のできごとの 3 つの質問（答えの例つき）・写真の例がある", () => {
@@ -29,8 +29,12 @@ describe("種類ごとの手がかり", () => {
     expect(PRODUCT_GUIDES.app.pillars).toEqual(expect.arrayContaining(["詰まった・直したこと", "なぜそう作ったか", "アプリの小さな更新"]));
   });
 
-  it("開発の話はアプリのときだけ。種類が読めない（前の版のプロジェクト）ときはアプリとして扱う", () => {
-    expect(PRODUCT_TYPES.filter(usesDevTalk)).toEqual(["app"]);
+  it("開発の話はアプリと Web のサービス、ストアの話はアプリだけ。種類が読めない（前の版のプロジェクト）ときはアプリとして扱う", () => {
+    expect(PRODUCT_TYPES.filter(usesDevTalk)).toEqual(["app", "web_service"]);
+    expect(PRODUCT_TYPES.filter(usesStoreTalk)).toEqual(["app"]);
+    expect(PRODUCT_TYPES.filter((t) => isDevProject({ product_type: t }))).toEqual(["app", "web_service"]);
+    expect(isDevProject({ product_type: null })).toBe(true);
+    expect(productLines({ productType: "web_service", desiredAction: null }).join("\n")).toContain("ストア・ダウンロードの話は前提にしない");
     expect(productTypeOf(undefined)).toBe("app");
     expect(productTypeOf("shop")).toBe("shop");
     expect(productTypeOf("unknown")).toBe("app");
@@ -50,10 +54,11 @@ describe("指示から「個人開発者のアプリ」の決めつけを外す"
 });
 
 describe("ネタを出す", () => {
-  it("材料の並びは「最近のできごと」が先頭。「最近の開発から（GitHub）」はアプリのときだけ", () => {
+  it("材料の並びは「最近のできごと」が先頭。「最近の開発から（GitHub）」はアプリと Web のサービスのときだけ", () => {
     expect(ideaSourcesFor("shop")).toEqual(["news", "notes", "plan"]);
     expect(ideaSourcesFor("creator")).not.toContain("commits");
     expect(ideaSourcesFor("app")).toEqual(["news", "notes", "plan", "commits"]);
+    expect(ideaSourcesFor("web_service")).toEqual(["news", "notes", "plan", "commits"]);
   });
 
   it("最近のできごとの 3 つの質問は種類ごと", () => {
@@ -102,3 +107,25 @@ describe("アカウント設計・相談・見直しの「いまの状況」", (
     expect(checkContextText({ projectName: "ヨガ教室", plan, productType: "service" })).toContain("お客さん・生徒の変化");
   });
 });
+
+describe("アカウント設計の画面の記入例", () => {
+  it("どの種類にも、相手・柱 4 本（割合の合計 100）・口調・ハッシュタグ・SNS ごとの役割・プロフィールの例がある", () => {
+    for (const t of PRODUCT_TYPES) {
+      const ex = PLAN_EXAMPLES[t];
+      for (const v of [ex.who, ex.pain, ex.where, ex.ownershipReason, ex.tone, ex.avoid, ex.frequency, ex.hashtag.tag, ex.hashtag.why, ex.hashtag.when, ex.profile.displayName, ex.profile.handle, ex.profile.bio, ex.profile.link]) expect(v).not.toBe("");
+      expect(ex.pillars).toHaveLength(4);
+      expect(ex.pillars.reduce((n, p) => n + Number(p.share), 0)).toBe(100);
+      expect(Object.keys(ex.roles).sort()).toEqual(["facebook", "instagram", "note", "substack", "threads", "tiktok", "x", "youtube"]);
+      // ハッシュタグの例は # なしで、空白や記号を入れない
+      expect(ex.hashtag.tag).toMatch(/^[^\s#]+$/);
+    }
+  });
+
+  it("アプリでない種類の例に、アプリ・ストア・開発の話を入れない", () => {
+    for (const t of PRODUCT_TYPES.filter((t) => t !== "app" && t !== "web_service")) {
+      expect(JSON.stringify(PLAN_EXAMPLES[t])).not.toMatch(/アプリ|App Store|ストア|開発/);
+    }
+    expect(PLAN_EXAMPLES.shop.pillars.map((p) => p.name)).toContain("仕込み・準備のようす");
+  });
+});
+

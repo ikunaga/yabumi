@@ -72,7 +72,7 @@ export const MAX_NEWS_QUESTIONS = 3;
 export function newsQuestionsFor(type: ProductType): IdeaQuestion[] {
   return guideFor(type).newsQuestions.slice(0, MAX_NEWS_QUESTIONS);
 }
-// 材料の既定（「最近の開発から（GitHub）」はアプリのときだけ。D34）
+// 選べる材料（「最近の開発から（GitHub）」は開発しているもの（アプリ・Web のサービス）のときだけ。D34）
 // 並びは選ぶ画面の順（いちばん手軽で実感のこもる「最近のできごと」を先頭に）
 const SOURCE_ORDER: IdeaSource[] = ["news", "notes", "plan", "commits"];
 export function ideaSourcesFor(type: ProductType): IdeaSource[] {
@@ -108,7 +108,7 @@ const DATA_RULES = `# 材料の扱い（重要）
 export const POST_IDEAS_SYSTEM = `あなたは「yabumi」の中で、宣伝したい商品・サービス・お店・作品を広めるための、SNS の投稿のネタを考えて下書きする係です。
 利用者はマーケティングの素人で、自分の話の何が投稿になるのかがわかっていません。作っている過程や仕事の裏側を見せる発信や、商品・サービスが解決する困りごとの話は、知ってもらう入り口になります。
 何を宣伝しているか（種類）と、見た人にしてほしいことは、利用者のメッセージの「# プロジェクト」に書いてあります。ネタと下書きは、必ずその種類に合わせます（アプリでなければ、開発・ストア・ダウンロードの話にしない）。
-材料は、利用者のメッセージの「# 材料」に書かれた 1 つです（最近のコミット（アプリのときだけ）、利用者が書いた最近のできごと、アカウント設計と紹介文だけ、ネタ帳のメモ、のどれか）。
+材料は、利用者のメッセージの「# 材料」に書かれた 1 つです（最近のコミット（アプリ・Web のサービスのときだけ）、利用者が書いた最近のできごと、アカウント設計と紹介文だけ、ネタ帳のメモ、のどれか）。
 
 ${DATA_RULES}
 
@@ -417,8 +417,8 @@ export async function generatePostIdeas(
   let news: IdeaAnswer[] = [];
   let notes: IdeaNoteMaterial[] = [];
   if (input.source === "commits") {
-    // 最近の開発（GitHub）は、宣伝するものがアプリのときだけ（D34）
-    if (!usesDevTalk(ctx.project.productType)) return { ok: false, message: "最近の開発（GitHub）からのネタは、宣伝するものがアプリのときだけ使えます。「最近のできごと」から出してください。" };
+    // 最近の開発（GitHub）は、開発しているもの（アプリ・Web のサービス）のときだけ（D34）
+    if (!usesDevTalk(ctx.project.productType)) return { ok: false, message: "最近の開発（GitHub）からのネタは、宣伝するものがアプリか Web のサービスのときだけ使えます。「最近のできごと」から出してください。" };
     // 読む直前に、本人がいまも読めるリポジトリかを確かめる
     link = await readableRepoLink(user, args.userId, args.projectId);
     if (!link) return { ok: false, message: "リポジトリがつながっていないか、読む権限が確かめられません。GitHub の画面で「GitHub をつなぎ直す」を押してから、もう一度お試しください。" };

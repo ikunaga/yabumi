@@ -1,5 +1,6 @@
 "use client";
 
+import { PLAN_EXAMPLES } from "@/lib/ai/product-guide";
 import type { ProductType } from "@/lib/projects/product-types";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -53,6 +54,8 @@ const HANDLE_CHECK_STEPS: { sns: string; how: string }[] = [
 const emptyOverride = (): ProfileOverride => ({ displayName: "", handle: "", bio: "", link: "" });
 
 export function ProfileFields({ v, roles, ctx }: { v: PlanData["profile"]; roles: PlanData["cadence"]["roles"]; ctx: ProfileContext }) {
+  // 記入例は宣伝するものの種類ごと（src/lib/ai/product-guide.ts）
+  const ex = PLAN_EXAMPLES[ctx.productType ?? "app"].profile;
   const [common, setCommon] = useState<Common>({ displayName: v.displayName, handle: v.handle, handleBackups: v.handleBackups, bio: v.bio, link: v.link });
   const [overrides, setOverrides] = useState<Overrides>(v.bySns);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -106,7 +109,7 @@ export function ProfileFields({ v, roles, ctx }: { v: PlanData["profile"]; roles
           value={common.displayName}
           onChange={(e) => setCommon({ ...common, displayName: e.target.value })}
           maxLength={50}
-          placeholder="例: まさ｜駅前で小さなパン屋をやっています"
+          placeholder={`例: ${ex.displayName}`}
         />
       </Field>
       <Field label="ユーザー名（第一候補）" htmlFor="profile-handle" hint="どの SNS でも同じ綴りにそろえると、見つけてもらいやすくなります。X は 15 字まで">
@@ -116,7 +119,7 @@ export function ProfileFields({ v, roles, ctx }: { v: PlanData["profile"]; roles
           value={common.handle}
           onChange={(e) => setCommon({ ...common, handle: e.target.value })}
           maxLength={30}
-          placeholder="例: kakeibo_biyori"
+          placeholder={`例: ${ex.handle}`}
           autoComplete="off"
           spellCheck={false}
         />
@@ -130,7 +133,7 @@ export function ProfileFields({ v, roles, ctx }: { v: PlanData["profile"]; roles
           maxLength={200}
           rows={3}
           spellCheck={false}
-          placeholder={"例: kakeibo_biyori_app\nkakeibobiyori\nmasa_kakeibo"}
+          placeholder={`例: ${ex.handleBackups}`}
         />
       </Field>
       <HandleCheckSteps />
@@ -152,11 +155,11 @@ export function ProfileFields({ v, roles, ctx }: { v: PlanData["profile"]; roles
           value={common.bio}
           onChange={(e) => setCommon({ ...common, bio: e.target.value })}
           maxLength={300}
-          placeholder="例: 家計簿が続かない人のためのアプリ「かけいぼ日和」を個人で開発中。お金が貯まる小さなコツと、開発の裏側を発信します。"
+          placeholder={`例: ${ex.bio}`}
         />
       </Field>
       <Field label="リンク先" htmlFor="profile-link" hint="プロフィールに置くリンク。迷ったらストアページ。SNS ごとの短縮リンクにすると、どの SNS から来たかがわかります">
-        <Input id="profile-link" name="link" value={common.link} onChange={(e) => setCommon({ ...common, link: e.target.value })} maxLength={300} placeholder="例: App Store のページの URL" />
+        <Input id="profile-link" name="link" value={common.link} onChange={(e) => setCommon({ ...common, link: e.target.value })} maxLength={300} placeholder={`例: ${ex.link}`} />
       </Field>
 
       <fieldset className="flex flex-col gap-2">

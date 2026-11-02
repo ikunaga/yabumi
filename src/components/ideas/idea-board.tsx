@@ -82,7 +82,7 @@ type Props = {
   newsQuestions: IdeaQuestion[];
   // 最近のできごとの答えの欄に薄く出す例（種類ごと）
   newsExample: string;
-  // 選べる材料（宣伝するものの種類で変わる。「最近の開発から（GitHub）」はアプリのときだけ）
+  // 選べる材料（宣伝するものの種類で変わる。「最近の開発から（GitHub）」はアプリ・Web のサービスのときだけ）
   sources: IdeaSource[];
   // ネタ帳のまだ使っていないメモ（新しい順）と、ネタ帳の画面で選んできたメモ
   notes: { id: string; body: string; hasImage: boolean; createdAt: string }[];

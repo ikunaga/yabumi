@@ -296,7 +296,7 @@ describe("アプリではないプロジェクト", () => {
     const call = caller();
     const read: ReadCommits = vi.fn(async () => ({ commits: [], truncated: false }));
     const r = await generatePostIdeas(alice, admin, deps({ callIdeas: call, readCommits: read }), { userId: aliceId, projectId: shop, sns: ["x"], input: { source: "commits", days: 7 } });
-    expect(r).toMatchObject({ ok: false, message: expect.stringContaining("アプリのときだけ") });
+    expect(r).toMatchObject({ ok: false, message: expect.stringContaining("アプリか Web のサービスのときだけ") });
     expect(call).not.toHaveBeenCalled();
     expect(read).not.toHaveBeenCalled();
 
@@ -306,5 +306,17 @@ describe("アプリではないプロジェクト", () => {
     const sent = JSON.stringify(vi.mocked(news).mock.calls[0][0].messages);
     expect(sent).toContain("宣伝するものの種類: お店（実店舗）（shop。");
     expect(sent).toContain("アプリではないので");
+  });
+});
+
+// Web のサービス（開発しているもの）は、「最近の開発から（GitHub）」を使える（2026-11-02 PM の決定。isDevProject）
+describe("Web のサービスのプロジェクト", () => {
+  it("コミットからの材料を断らず、リポジトリの確かめに進む", async () => {
+    const web = (await alice.from("projects").insert({ name: "よやくのおと", product_type: "web_service" }).select("id").single()).data!.id;
+    const call = caller();
+    const r = await generatePostIdeas(alice, admin, deps({ callIdeas: call }), { userId: aliceId, projectId: web, sns: ["x"], input: { source: "commits", days: 7 } });
+    // リポジトリをつないでいないので止まるが、種類では断らない
+    expect(r).toMatchObject({ ok: false, message: expect.stringContaining("リポジトリがつながっていない") });
+    expect(call).not.toHaveBeenCalled();
   });
 });

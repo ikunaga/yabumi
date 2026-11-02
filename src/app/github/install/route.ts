@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { authorizeUrl, GITHUB_PATHS, GITHUB_STATE_COOKIE, githubConfig, githubConfigured, installUrl } from "@/lib/github/config";
+import { isDevProject } from "@/lib/projects/product-types";
 import { getProject } from "@/lib/projects/queries";
 import { newOAuthState, OAUTH_STATE_MAX_AGE, serializeOAuthState } from "@/lib/sns/oauth-state";
 import { appUrl } from "@/lib/sns/threads/config";
@@ -27,7 +28,10 @@ export async function GET(request: NextRequest) {
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;
   if (!userId) return NextResponse.redirect(new URL("/login", request.url));
-  if (!(await getProject(projectId))) return NextResponse.redirect(new URL("/projects", request.url));
+  const project = await getProject(projectId);
+  if (!project) return NextResponse.redirect(new URL("/projects", request.url));
+  // 開発しているもの（アプリ・Web のサービス）でなければ始めない（GitHub の画面が理由を出す）
+  if (!isDevProject(project)) return NextResponse.redirect(back);
 
   const cfg = githubConfig();
   const state = newOAuthState(userId, projectId);

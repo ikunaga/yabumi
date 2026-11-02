@@ -7,10 +7,20 @@ import { aiConfigured, callAppDescriber, callFilePicker } from "@/lib/ai/anthrop
 import { appDescriptionSchema, composeDescription, draftAppDescription, refineAppDescription, type AppDescriptionDraft } from "@/lib/ai/app-description";
 import { aiLimitsFromEnv } from "@/lib/ai/limits";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isDevProject } from "@/lib/projects/product-types";
 import { createClient } from "@/lib/supabase/server";
 import { githubConfig, githubConfigured } from "./config";
 import { userCanReadRepo } from "./installations";
 import { repoAccess, reposForInstallation } from "./service";
+
+// GitHub は開発しているもの（アプリ・Web のサービス）のときだけ（isDevProject。2026-11-02 PM の決定）。
+// 画面に出さないだけでなく、サーバーでも断る。本人のプロジェクトでなければ（RLS で読めなければ）見つからないと返す
+const NOT_DEV = "GitHub は、宣伝するものがアプリか Web のサービスのときに使えます。プロジェクトの設定で種類を確かめてください。";
+async function devProjectError(supabase: Awaited<ReturnType<typeof createClient>>, projectId: string): Promise<string | null> {
+  const { data } = await supabase.from("projects").select("product_type").eq("id", projectId).maybeSingle();
+  if (!data) return "プロジェクトが見つかりません。";
+  return isDevProject(data) ? null : NOT_DEV;
+}
 
 async function currentUser() {
   const supabase = await createClient();
@@ -27,6 +37,8 @@ export async function connectRepo(projectId: string, installationId: number, rep
   if (!githubConfigured()) return { error: "GitHub をつなぐ機能は準備中です。" };
   const { supabase, userId } = await currentUser();
   if (!userId) return { error: "ログインし直してください。" };
+  const notDev = await devProjectError(supabase, projectId);
+  if (notDev) return { error: notDev };
 
   const { data: project } = await supabase.from("projects").select("id").eq("id", projectId).maybeSingle();
   const { data: inst } = await supabase.from("github_installations").select("installation_id").eq("installation_id", installationId).maybeSingle();
@@ -72,6 +84,8 @@ export async function draftDescription(projectId: string): Promise<DraftActionRe
   if (!aiConfigured()) return { error: "AI はまだ準備中です。" };
   const { supabase, userId } = await currentUser();
   if (!userId) return { error: "ログインし直してください。" };
+  const notDev = await devProjectError(supabase, projectId);
+  if (notDev) return { error: notDev };
 
   try {
     const cfg = githubConfig();
@@ -101,6 +115,8 @@ export async function refineDescription(projectId: string, draft: unknown, answe
   if (!aiConfigured()) return { error: "AI はまだ準備中です。" };
   const { supabase, userId } = await currentUser();
   if (!userId) return { error: "ログインし直してください。" };
+  const notDev = await devProjectError(supabase, projectId);
+  if (notDev) return { error: notDev };
   try {
     const result = await refineAppDescription(
       supabase,

@@ -10,6 +10,7 @@ import { postIdeasSchema, type CallIdeas } from "./post-ideas";
 import { aiCheckSchema, type CallCheck } from "./ai-check";
 import { imageBriefSchema, type CallBrief } from "./image-brief";
 import { shortenSchema, type CallShorten } from "./shorten";
+import { tidyDraftSchema, type CallTidy } from "./tidy-draft";
 import { PLAN_COACH_MODEL, type CallModel } from "./plan-coach";
 
 // Claude API のキー（ANTHROPIC_API_KEY）があるときだけ AI を使える。ないときは画面で「準備中」と出す
@@ -116,3 +117,5 @@ export const callAiCheck: CallCheck = structuredCaller(aiCheckSchema, 4000, "low
 export const callImageBrief: CallBrief = structuredCaller(imageBriefSchema, 4000, "low");
 // 上限を超えた下書きを縮める（docs/architecture.md の 4.15「文字数の上限」）。超えたときだけ呼ぶ。削るだけの軽い作業なので effort は low
 export const callShortenDrafts: CallShorten = structuredCaller(shortenSchema, 4000, "low");
+// AI で投稿に整える（docs/architecture.md の 4.34）。話し言葉を絞って書き分け、誇張や作り話をしない判断が要るので effort は medium
+export const callTidyDraft: CallTidy = structuredCaller(tidyDraftSchema, 8000, "medium");

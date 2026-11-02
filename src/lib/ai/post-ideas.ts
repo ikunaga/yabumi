@@ -356,7 +356,7 @@ async function recordUsage(admin: Db, userId: string, threadId: string | null, r
   });
 }
 
-async function loadContext(user: Db, projectId: string, sns: SnsKey[]): Promise<IdeaContext | null> {
+export async function loadContext(user: Db, projectId: string, sns: SnsKey[]): Promise<IdeaContext | null> {
   // 種類（product_type）も使うので、すべての列を読む
   const { data: project } = await user.from("projects").select("*").eq("id", projectId).maybeSingle();
   if (!project) return null;

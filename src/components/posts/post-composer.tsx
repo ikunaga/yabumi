@@ -15,6 +15,7 @@ import type { PostLinkPreview } from "@/lib/links/store";
 import { ImageAttachments, type AttachedImage } from "./image-attachments";
 import { applyFix } from "@/lib/ai/ai-check";
 import { AiCheckPanel } from "./ai-check-panel";
+import { TidyDraftPanel } from "./tidy-draft-panel";
 import { ComposeStart } from "./compose-start";
 import { NotePicker, type NoteInsertMode } from "./note-picker";
 import { noteImageForCompose } from "@/lib/notes/actions";
@@ -386,6 +387,17 @@ export function PostComposer({
               </div>
             </div>
             {fe.body && <p className="text-sm font-semibold text-danger">{fe.body}</p>}
+            <TidyDraftPanel
+              projectId={projectId}
+              aiEnabled={aiCheckEnabled}
+              current={{ body, overrides }}
+              sns={toSend}
+              onReplace={(next) => {
+                setBody(next.body);
+                setOverrides(next.overrides);
+                clearFieldError("body");
+              }}
+            />
             {noteIds.length > 0 && (
               <p className="text-[13px] text-muted">ネタ帳のメモ {noteIds.length} 件から。保存すると、ネタ帳でそのメモに「投稿にした」の印が付きます。</p>
             )}

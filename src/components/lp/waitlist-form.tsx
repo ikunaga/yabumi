@@ -34,8 +34,8 @@ export function WaitlistForm() {
       <Field label="メールアドレス" htmlFor={`${id}-email`} required hint="招待のメールをここに送ります。">
         <Input id={`${id}-email`} name="email" type="email" required autoComplete="email" inputMode="email" maxLength={254} defaultValue={values.email} placeholder="you@example.com" />
       </Field>
-      <Field label="作っているアプリ" htmlFor={`${id}-app`} optional hint="一言で大丈夫です。招待の順番の参考にします。">
-        <Input id={`${id}-app`} name="app_note" maxLength={MAX_NOTE_CHARS} defaultValue={values.appNote} placeholder="例: レシートを撮るだけの家計簿アプリ（iOS）" />
+      <Field label="宣伝したいもの" htmlFor={`${id}-app`} optional hint="一言で大丈夫です。招待の順番の参考にします。">
+        <Input id={`${id}-app`} name="app_note" maxLength={MAX_NOTE_CHARS} defaultValue={values.appNote} placeholder="例: 駅前の小さなパン教室／手作りアクセサリーのネットショップ／家計簿アプリ" />
       </Field>
       <Field label="使っている SNS" htmlFor={`${id}-sns`} optional>
         <Input id={`${id}-sns`} name="sns_note" maxLength={MAX_NOTE_CHARS} defaultValue={values.snsNote} placeholder="例: X をたまに。Instagram はこれから" />

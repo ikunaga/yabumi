@@ -90,7 +90,7 @@ writeFileSync("public/icons/maskable-512.png", await tile(512, { ratio: 0.5 }));
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630">
   <rect width="1200" height="630" fill="${BG}"/>
   ${wordmark({ x: 330, y: 230, height: 96, color: INK })}
-  <text x="600" y="450" text-anchor="middle" font-family="${FONT}" font-size="40" font-weight="600" fill="#606366">矢書（やぶみ）— 個人開発者のための SNS 運用ツール</text>
+  <text x="600" y="450" text-anchor="middle" font-family="${FONT}" font-size="40" font-weight="600" fill="#606366">矢書（やぶみ）— ひとりで売る人のための SNS 運用ツール</text>
 </svg>`;
   const og = await sharp(Buffer.from(svg)).png().toBuffer();
   writeFileSync("src/app/opengraph-image.png", og);

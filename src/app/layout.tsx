@@ -6,7 +6,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: { default: "矢書（やぶみ）", template: "%s | 矢書" },
-  description: "個人開発者のための、SNS 運用をまるごと任せられるツール",
+  description: "ひとりで売る人のための SNS 運用ツール。何を・いつ・どこに出すかを AI と決めて、複数の SNS にまとめて予約。",
   // OGP 画像などを絶対 URL で出すため。本番は APP_URL（https://yabumi.vercel.app）
   metadataBase: new URL(process.env.APP_URL ?? "https://localhost:3100"),
   openGraph: { siteName: "矢書（やぶみ）", locale: "ja_JP", type: "website" },

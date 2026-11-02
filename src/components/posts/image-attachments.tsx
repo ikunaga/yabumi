@@ -188,7 +188,7 @@ export function ImageAttachments({
                     const altText = e.target.value;
                     onChange((prev) => prev.map((p) => (p.id === image.id ? { ...p, altText } : p)));
                   }}
-                  placeholder="例: 家計簿アプリの月ごとのグラフの画面。食費が先月より 2 割減っている"
+                  placeholder="例: 焼きたてのクロワッサンが 6 個並んだトレー。店の入口の木の棚の上"
                   className="w-full rounded-md border border-input bg-surface px-2.5 py-1.5 text-sm outline-none focus:border-primary focus:shadow-[0_0_0_1px_var(--primary)] max-sm:text-[16px]"
                 />
               </div>

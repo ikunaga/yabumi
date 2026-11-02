@@ -106,7 +106,7 @@ export function ProfileFields({ v, roles, ctx }: { v: PlanData["profile"]; roles
           value={common.displayName}
           onChange={(e) => setCommon({ ...common, displayName: e.target.value })}
           maxLength={50}
-          placeholder="例: まさ｜家計簿アプリを作っています"
+          placeholder="例: まさ｜駅前で小さなパン屋をやっています"
         />
       </Field>
       <Field label="ユーザー名（第一候補）" htmlFor="profile-handle" hint="どの SNS でも同じ綴りにそろえると、見つけてもらいやすくなります。X は 15 字まで">

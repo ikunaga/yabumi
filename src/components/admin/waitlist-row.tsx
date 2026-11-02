@@ -36,7 +36,7 @@ export function WaitlistRow({ entry, createdAt }: { entry: WaitlistEntry; create
         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-muted">
           {entry.appNote && (
             <>
-              <dt>アプリ</dt>
+              <dt>宣伝したいもの</dt>
               <dd className="break-words text-fg">{entry.appNote}</dd>
             </>
           )}

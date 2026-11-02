@@ -279,15 +279,15 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
 
           {kind === "screen" && (
             <div className="flex flex-col gap-1.5">
-              <span className="text-[14px] font-bold">アプリの画面</span>
+              <span className="text-[14px] font-bold">写真</span>
               <div className="flex flex-wrap items-center gap-2">
                 <input ref={fileRef} type="file" accept="image/*" className="sr-only" onChange={(e) => void pickShot(e.target.files?.[0]).finally(() => (e.target.value = ""))} />
                 <Button type="button" variant="secondary" size="sm" onClick={() => fileRef.current?.click()}>
-                  {shot ? "画面の画像を選び直す" : "画面の画像を選ぶ"}
+                  {shot ? "写真を選び直す" : "写真を選ぶ"}
                 </Button>
                 {shot && <span className="text-xs text-muted">{shot.bitmap.width}×{shot.bitmap.height}</span>}
               </div>
-              <p className="text-xs leading-[1.7] text-muted">スクリーンショットは、この画面の中で重ねるだけで、AI には送りません。本物の画面を使ってください。</p>
+              <p className="text-xs leading-[1.7] text-muted">写真（商品・お店・アプリの画面など）は、この画面の中で重ねるだけで、AI には送りません。本物の写真を使ってください。</p>
             </div>
           )}
 
@@ -381,7 +381,7 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
             <span className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-sm ${paletteKey === "brand" ? "border-primary bg-primary-soft font-bold text-primary" : "border-border"}`}>
               <input
                 type="color"
-                aria-label="アプリの色を選ぶ"
+                aria-label="いつもの色を選ぶ"
                 value={brand}
                 onChange={(e) => {
                   setBrand(e.target.value);
@@ -390,7 +390,7 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
                 className="size-6 cursor-pointer rounded border-0 bg-transparent p-0"
               />
               <button type="button" aria-pressed={paletteKey === "brand"} onClick={() => setPaletteKey("brand")}>
-                アプリの色
+                いつもの色
               </button>
             </span>
           </Group>

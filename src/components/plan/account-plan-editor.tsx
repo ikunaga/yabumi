@@ -31,14 +31,14 @@ const META: Record<SectionKey, Meta> = {
     title: "届けたい相手",
     lead: (
       <>
-        アプリを届けたい人を 1 人に絞って思い浮かべます（<Term k="persona" />
+        届けたい人を 1 人に絞って思い浮かべます（<Term k="persona" />
         ）。広く狙うより、1 人に刺さる言葉のほうが、結果的に多くの人に届きます。
       </>
     ),
   },
   ownership: {
     title: "アカウントの持ち方",
-    lead: "あなた個人のアカウントで発信するか、アプリ専用のアカウントを作るかを決めます。個人開発では、作っている人の顔が見える個人のアカウントのほうが反応を得やすいこともあります。",
+    lead: "あなた個人のアカウントで発信するか、お店・商品・作品・アプリ専用のアカウントを作るかを決めます。ひとりで商売や制作をしている人は、作っている人・やっている人の顔が見える個人のアカウントのほうが反応を得やすいこともあります。",
   },
   profile: {
     title: "名前とプロフィール",
@@ -334,7 +334,7 @@ function GoalFields({ v, productType }: { v: PlanData["goal"]; productType: Prod
   const order = [...RECOMMENDED_ACTIONS[productType], ...DESIRED_ACTIONS.filter((a) => !RECOMMENDED_ACTIONS[productType].includes(a))];
   return (
     <>
-      <Field label="何を広めたいか" htmlFor="goal-what" hint="商品・サービスそのもの、それが解決する困りごと、作っているあなた自身など">
+      <Field label="何を広めたいか" htmlFor="goal-what" hint="お店・商品・サービス・作品・アプリそのもの、それが解決する困りごと、やっているあなた自身など">
         <Textarea id="goal-what" name="what" defaultValue={v.what} maxLength={500} placeholder="例: 駅前の小さなパン屋「こむぎ日和」の、朝 7 時に焼き上がる食パン" />
       </Field>
       <Choices
@@ -370,7 +370,7 @@ function AudienceFields({ v }: { v: PlanData["audience"] }) {
   return (
     <>
       <Field label="どんな人か" htmlFor="audience-who" hint="ここに書いた内容は、プロジェクトの「届けたい相手」と同じものです">
-        <Textarea id="audience-who" name="who" defaultValue={v.who} maxLength={1000} placeholder="例: 残業続きで家計簿が続かない 28 歳の会社員" />
+        <Textarea id="audience-who" name="who" defaultValue={v.who} maxLength={1000} placeholder="例: 朝の通勤前にパンを買いたい、駅を使う 30 代の会社員" />
       </Field>
       <Field label="その人の困りごと" htmlFor="audience-pain">
         <Textarea id="audience-pain" name="pain" defaultValue={v.pain} maxLength={500} rows={2} placeholder="例: 毎月お金が残らないが、何に使ったのかわからない" />
@@ -390,23 +390,23 @@ function OwnershipFields({ v }: { v: PlanData["ownership"] }) {
         legend="どちらで発信するか"
         value={v.mode}
         options={[
-          { value: "personal", label: "個人のアカウントを使う", description: "開発の裏側や人柄も含めて発信できる。アプリが増えても、まとめて育てられる" },
-          { value: "dedicated", label: "アプリ専用のアカウントを作る", description: "アプリの情報だけを届けられ、見る人に目的が伝わりやすい。フォロワー 0 から育てる必要がある" },
+          { value: "personal", label: "個人のアカウントを使う", description: "作る・営む裏側や人柄も含めて発信できる。宣伝するものが増えても、まとめて育てられる" },
+          { value: "dedicated", label: "専用のアカウントを作る", description: "お店・商品・作品などの情報だけを届けられ、見る人に目的が伝わりやすい。フォロワー 0 から育てる必要がある" },
           { value: "undecided", label: "まだ決めていない" },
         ]}
       />
       <Field label="そう決めた理由" htmlFor="ownership-reason">
-        <Textarea id="ownership-reason" name="reason" defaultValue={v.reason} maxLength={500} rows={2} placeholder="例: 開発日記と一緒に出したいので、個人のアカウントにする" />
+        <Textarea id="ownership-reason" name="reason" defaultValue={v.reason} maxLength={500} rows={2} placeholder="例: 作っている様子と一緒に出したいので、個人のアカウントにする" />
       </Field>
     </>
   );
 }
 
 const PILLAR_EXAMPLES = [
-  { name: "お金のちょっとしたコツ", share: "40", example: "コンビニに寄る回数を減らしたら、月 3,000 円浮いた話" },
-  { name: "開発の裏側", share: "30", example: "新しいグラフ機能を作るまでの試行錯誤" },
-  { name: "アプリの紹介", share: "20", example: "レシートの読み取りが速くなりました" },
-  { name: "利用者の声", share: "10", example: "使ってくれた方の感想を紹介" },
+  { name: "季節のパン", share: "40", example: "今週から栗のデニッシュが並びます" },
+  { name: "作っている裏側", share: "30", example: "焼き色をそろえるために温度を 5 度下げた話" },
+  { name: "お店の紹介", share: "20", example: "営業日と焼き上がりの時間のご案内" },
+  { name: "お客さんの声", share: "10", example: "贈り物にしてくれた方の感想を紹介" },
   { name: "", share: "", example: "" },
 ];
 
@@ -468,14 +468,14 @@ function PillarsFields({ v }: { v: PlanData["pillars"] }) {
         <Textarea id="pillars-tone" name="tone" defaultValue={v.tone} maxLength={300} rows={2} placeholder="例: です・ます調。親しみやすく、専門用語は使わない。絵文字は 1 投稿に 1 つまで" />
       </Field>
       <Field label="やらないこと" htmlFor="pillars-avoid" hint="決めておくと、迷ったときや炎上しそうなときの歯止めになります">
-        <Textarea id="pillars-avoid" name="avoid" defaultValue={v.avoid} maxLength={500} rows={2} placeholder="例: 他のアプリを悪く言わない。宣伝だけの投稿を続けない。政治の話はしない" />
+        <Textarea id="pillars-avoid" name="avoid" defaultValue={v.avoid} maxLength={500} rows={2} placeholder="例: ほかのお店を悪く言わない。宣伝だけの投稿を続けない。政治の話はしない" />
       </Field>
     </>
   );
 }
 
-// 1 行目だけに例を出す（作品好きの人に届けたい、読書記録のアプリの例）
-const HASHTAG_EXAMPLE = { tag: "読書記録", why: "本の感想を投稿している人が見ている。人が多すぎず、話題がはっきりしている", when: "「読んだ本とアプリ」の柱のとき" };
+// 1 行目だけに例を出す（パン屋の例。作り手の言葉より、買う人の側の言葉）
+const HASHTAG_EXAMPLE = { tag: "パン屋巡り", why: "近くのパン屋を探している人が見ている。人が多すぎず、話題がはっきりしている", when: "「季節のパン」の柱のとき" };
 
 function HashtagsFields({ v }: { v: PlanData["hashtags"] }) {
   const [rows, setRows] = useState(() => Math.min(MAX_HASHTAGS, Math.max(3, v.items.length + 1)));
@@ -524,14 +524,14 @@ function HashtagsFields({ v }: { v: PlanData["hashtags"] }) {
 }
 
 const ROLE_EXAMPLES: Record<string, string> = {
-  x: "開発の進み具合と、お金のコツを短く",
+  x: "その日に焼いたものと、作っている裏側を短く",
   threads: "X と同じ内容を、少し丁寧な言葉で",
-  instagram: "アプリの画面とグラフの画像で使い方を見せる",
+  instagram: "パンの写真で、季節の新作を見せる",
   facebook: "当面は使わない",
-  tiktok: "30 秒で使い方を見せる動画",
+  tiktok: "30 秒で焼き上がりまでを見せる動画",
   youtube: "当面は使わない",
-  note: "月に 1 本、開発の振り返りを長文で（手で投稿）",
-  substack: "海外の利用者に、更新のお知らせをメールで（手で投稿）",
+  note: "月に 1 本、お店の振り返りを長文で（手で投稿）",
+  substack: "常連さんに、新作と営業日の予定をメールで（手で投稿）",
 };
 
 function CadenceFields({ v }: { v: PlanData["cadence"] }) {

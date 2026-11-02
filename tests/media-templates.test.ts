@@ -93,7 +93,7 @@ describe("縦横比と色", () => {
     for (const p of PALETTES) expect(contrastRatio(p.fg, p.bg), p.label).toBeGreaterThanOrEqual(4.5);
   });
 
-  it("アプリの色から、白か黒の読みやすいほうの文字を選ぶ", () => {
+  it("いつもの色から、白か黒の読みやすいほうの文字を選ぶ", () => {
     expect(brandPalette("#1d4ed8").fg).toBe("#ffffff");
     expect(brandPalette("#fde047").fg).toBe("#111111");
     expect(contrastRatio(brandPalette("#e4572e").fg, brandPalette("#e4572e").bg)).toBeGreaterThanOrEqual(3);
@@ -134,7 +134,7 @@ describe("並べ方", () => {
     expect(c.ops.filter((o) => o.type === "tri")).toHaveLength(1);
   });
 
-  it("アプリの画面は、画像を選ぶまで見本の枠を出し、選ぶと画像を置く", () => {
+  it("写真に見出しは、画像を選ぶまで見本の枠を出し、選ぶと画像を置く", () => {
     const empty = layoutTemplate({ ...base, kind: "screen" }, measure);
     expect(empty.ops.some((o) => o.type === "placeholder")).toBe(true);
     const shot = layoutTemplate({ ...base, kind: "screen", screenshot: { w: 1170, h: 2532 } }, measure);
@@ -147,14 +147,14 @@ describe("並べ方", () => {
   it("添える前に、足りないものを知らせる", () => {
     expect(templateReady({ ...base, headline: " " })).toBe("見出しを書いてください");
     expect(templateReady({ ...base, kind: "diagram", items: [{ title: "", text: "" }] })).toBe("項目を 1 つ以上書いてください");
-    expect(templateReady({ ...base, kind: "screen" })).toBe("アプリの画面の画像を選んでください");
+    expect(templateReady({ ...base, kind: "screen" })).toBe("写真を選んでください");
     expect(templateReady(base)).toBeNull();
   });
 
   it("代わりの文を、描いた文字から作る", () => {
     expect(autoAlt(base)).toBe("「通知の時間を自分で決められるようになりました」と書かれた画像。新機能。朝と夜の 2 回だけ届くようにもできます");
     expect(autoAlt({ ...base, kind: "diagram", headline: "通知の使い方" })).toBe("「通知の使い方」の図解（ポイント）。1. 朝に届く：その日の予定を確かめられる。2. 夜に届く：使ったお金を振り返れる");
-    expect(autoAlt({ ...base, kind: "screen" })).toContain("アプリの画面に");
+    expect(autoAlt({ ...base, kind: "screen" })).toContain("写真に");
   });
 });
 

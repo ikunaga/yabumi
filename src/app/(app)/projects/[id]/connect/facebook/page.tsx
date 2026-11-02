@@ -38,7 +38,7 @@ export default async function ConnectFacebookPage(props: PageProps<"/projects/[i
             <p className="font-bold">ページがまだないとき</p>
             <ol className="list-decimal pl-5">
               <li>Facebook で「メニュー」→「ページ」→「新しいページを作成」</li>
-              <li>ページの名前は、アプリの名前にするのがおすすめ。カテゴリは「アプリページ」や「ソフトウェア」など</li>
+              <li>ページの名前は、お店・サービス・作品・アプリの名前にするのがおすすめ。カテゴリは、近いもの（「ベーカリー」「教室」「アプリページ」など）を選ぶ</li>
             </ol>
             <section className="flex flex-col gap-1">
               <h2 className="text-[16px] font-bold">気をつけること</h2>
@@ -46,7 +46,7 @@ export default async function ConnectFacebookPage(props: PageProps<"/projects/[i
                 <li>つなぐと、管理しているページの一覧が出るので、このプロジェクトで投稿するページを 1 つ選びます。別のページでつなぎ直すと、前のページは外れ、予約中の投稿は新しいページから送ります</li>
                 <li>ブラウザで今 Facebook にログインしている人が管理するページから選びます。別の人のアカウントにするときは、先に facebook.com で切り替えてください</li>
                 <li>投稿を作れる役割（管理者や編集者）を持っているページだけを選べます</li>
-                <li>日本の個人開発者には、Facebook の読者は少なめです。アカウント設計で、Facebook が目的に合うか確かめてから使うのがおすすめです</li>
+                <li>Facebook は、届けたい相手によって読者の多さが大きく違います（地域のお店や教室には向くことがあり、若い世代やアプリには少なめです）。アカウント設計で、Facebook が目的に合うか確かめてから使うのがおすすめです</li>
               </ul>
             </section>
           </Card>

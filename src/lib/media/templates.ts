@@ -2,7 +2,7 @@ import type { SnsKey } from "@/lib/sns";
 
 // テンプレートで画像を作る（F14 の段取り ①。docs/architecture.md の 4.25）。
 // ここは描く中身（どこに何をどの大きさで置くか）を決めるだけで、Canvas には触らない（単体テストできるように）。
-// 色は画像の中身の色で、矢書の画面の色（トークン）ではない。利用者のアプリらしさを出せるよう、選ぶだけで整う組み合わせにしぼる
+// 色は画像の中身の色で、矢書の画面の色（トークン）ではない。利用者のお店・作品・アプリらしさを出せるよう、選ぶだけで整う組み合わせにしぼる
 
 export const TEMPLATE_KINDS = ["card", "diagram", "screen", "note"] as const;
 export type TemplateKind = (typeof TEMPLATE_KINDS)[number];
@@ -10,14 +10,14 @@ export type TemplateKind = (typeof TEMPLATE_KINDS)[number];
 export const TEMPLATE_KIND_LABEL: Record<TemplateKind, string> = {
   card: "文字のカード",
   diagram: "図解",
-  screen: "アプリの画面",
+  screen: "写真に見出し",
   note: "note のヘッダー",
 };
 
 export const TEMPLATE_KIND_HINT: Record<TemplateKind, string> = {
   card: "お知らせ・リリース・ひとことを、大きな文字で",
   diagram: "ポイント・手順・使う前と後を、並べて見せる",
-  screen: "アプリの画面に見出しを添える（画面の画像はあなたが選ぶ）",
+  screen: "商品・お店・アプリの画面などの写真に見出しを添える（写真はあなたが選ぶ）",
   note: "note の記事の見出し画像（1280×670）",
 };
 
@@ -94,7 +94,7 @@ function mix(a: [number, number, number], b: [number, number, number], t: number
   return `#${c.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
 }
 
-// アプリの色（1 色）から組み合わせを作る。背景はその色、文字は白か黒の読みやすいほう
+// いつもの色（お店・作品・アプリの看板の色を 1 色）から組み合わせを作る。背景はその色、文字は白か黒の読みやすいほう
 export function brandPalette(hex: string): Palette {
   const bgRgb = parseHex(hex) ?? parseHex(DEFAULT_BRAND_COLOR)!;
   const bg = mix(bgRgb, bgRgb, 0);
@@ -103,7 +103,7 @@ export function brandPalette(hex: string): Palette {
   const sub = mix(parseHex(fg)!, bgRgb, 0.25);
   return {
     key: "brand",
-    label: "アプリの色",
+    label: "いつもの色",
     bg,
     fg,
     sub,
@@ -268,7 +268,7 @@ export type TemplateInput = {
   footer: string;
   diagramStyle: DiagramStyle;
   items: TemplateItem[];
-  // アプリの画面の画像の大きさ（選んでいなければ null）
+  // 写真（商品・お店・アプリの画面など）の大きさ（選んでいなければ null）
   screenshot: { w: number; h: number } | null;
 };
 
@@ -511,11 +511,11 @@ function layoutScreen(ctx: Ctx) {
 export function templateReady(input: Pick<TemplateInput, "kind" | "headline" | "items" | "screenshot">): string | null {
   if (!input.headline.trim()) return input.kind === "diagram" ? "図解のタイトルを書いてください" : "見出しを書いてください";
   if (input.kind === "diagram" && !input.items.some((it) => it.title.trim() || it.text.trim())) return "項目を 1 つ以上書いてください";
-  if (input.kind === "screen" && !input.screenshot) return "アプリの画面の画像を選んでください";
+  if (input.kind === "screen" && !input.screenshot) return "写真を選んでください";
   return null;
 }
 
-// 代わりの文（alt）を、描いた文字から作る。画面の画像の中身は読めないので、見出しと「アプリの画面」とだけ書く
+// 代わりの文（alt）を、描いた文字から作る。写真の中身は読めないので、見出しと「写真」とだけ書く
 export function autoAlt(input: Pick<TemplateInput, "kind" | "label" | "headline" | "subline" | "diagramStyle" | "items">): string {
   const join = (...xs: string[]) => xs.map((x) => x.trim()).filter(Boolean).join("。");
   const head = input.headline.trim() ? `「${input.headline.trim()}」` : "";
@@ -525,6 +525,6 @@ export function autoAlt(input: Pick<TemplateInput, "kind" | "label" | "headline"
       .map((it, i) => `${input.diagramStyle === "compare" ? "" : `${i + 1}. `}${[it.title.trim(), it.text.trim()].filter(Boolean).join("：")}`);
     return join(`${head}の図解（${DIAGRAM_STYLE_LABEL[input.diagramStyle]}）`, ...items).slice(0, 1000);
   }
-  if (input.kind === "screen") return join(`アプリの画面に${head || "見出し"}と添えた画像`, input.subline).slice(0, 1000);
+  if (input.kind === "screen") return join(`写真に${head || "見出し"}と添えた画像`, input.subline).slice(0, 1000);
   return join(`${head}と書かれた画像`, input.label, input.subline).slice(0, 1000);
 }

@@ -22,35 +22,35 @@ import { createClient } from "@/lib/supabase/server";
 const pains = [
   {
     pain: "ネタがない",
-    short: "思いついたらメモ。AI がメモや更新から案を出します",
+    short: "思いついたらメモ。AI がメモから案を出します",
     answer: "思いついたらネタ帳へ。AI と一緒に投稿にする",
-    body: "生活の中で思いついたことや、あったことを、どの画面からでも「＋ メモ」でさっと残せます。あとで AI が、メモやアプリの更新（GitHub）から投稿の案を出します。",
+    body: "生活の中で思いついたことや、あったことを、どの画面からでも「＋ メモ」でさっと残せます。あとで AI が、メモから投稿の案を出します（アプリなら GitHub の更新からも）。",
   },
   {
     pain: "時間がない",
     short: "X・Threads・Instagram・Facebook ページに一度に予約",
-    answer: "一度書けば、複数の SNS にまとめて予約",
+    answer: "一度書けば複数の SNS にまとめて予約",
     body: "1 つの文面を X・Threads・Instagram・Facebook ページに一度に予約。SNS ごとの字数や画像の決まりも確かめます。いつ何を出すかはカレンダーで一目でわかります。",
   },
   {
     pain: "何を見ればいいかわからない",
-    short: "閲覧からダウンロード・課金までを 1 枚で",
-    answer: "追いかける数字を決めて、週ごとに振り返る",
-    body: "投稿の閲覧から、ストアページ、ダウンロード、課金までをつなげて見られます。どの投稿から何人来たかは、SNS ごとの短縮リンクで数えます。",
+    short: "閲覧から行き先へのクリック・成果までを 1 枚で",
+    answer: "追いかける数字を決めて週ごとに振り返る",
+    body: "投稿の閲覧から、行き先（予約のページ・ネットショップ・申し込み・アプリのストアなど）へのクリック、その先の成果までをつなげて見られます。どの投稿から何人来たかは、SNS ごとの短縮リンクで数えます。",
   },
   {
     pain: "続かない",
     short: "遅れそうなときと毎週の振り返りでお知らせ",
-    answer: "矢書が伴走して、遅れそうなら声をかける",
+    answer: "矢書が伴走して遅れそうなら声をかける",
     body: "最初の 1 か月の目標を SNS ごとの週の回数にし、毎日ペースを見ます。遅れそうなときと毎週の振り返りを、画面・メール・スマホの通知でお知らせします。",
   },
 ];
 
 const steps = [
-  { title: "設計する", short: "AI と話して、誰に・何を発信するか決める", body: "AI と話しながら、誰に・何のために・どんな名前で・どんな投稿をするかを決めます。マーケティングの用語は、出てきたときに解説します。" },
+  { title: "設計する", short: "AI と話して誰に・何を発信するか決める", body: "AI と話しながら、誰に・何のために・どんな名前で・どんな投稿をするかを決めます。マーケティングの用語は、出てきたときに解説します。" },
   { title: "つなぐ", short: "使う SNS のアカウントをつなぐ", body: "使う SNS のアカウントをつなぎます。note・Substack は、文面を用意して手で投稿する形で使えます。" },
-  { title: "投稿する", short: "下書きをつくり、まとめて予約", body: "ネタ帳や AI の案から下書きをつくり、AI っぽさをチェックして、まとめて予約します。" },
-  { title: "振り返る", short: "数字を見て、次の週のやることを決める", body: "数字を見ながら AI と相談し、ロードマップと次の週のやることを決めます。" },
+  { title: "投稿する", short: "下書きをつくってまとめて予約", body: "ネタ帳や AI の案から下書きをつくり、AI っぽさをチェックして、まとめて予約します。" },
+  { title: "振り返る", short: "数字を見て次の週のやることを決める", body: "数字を見ながら AI と相談し、ロードマップと次の週のやることを決めます。" },
 ];
 
 type Feature = { name: string; title: string; body: string; shot?: { name: string; alt: string } };
@@ -58,24 +58,24 @@ type Feature = { name: string; title: string; body: string; shot?: { name: strin
 const features: Feature[] = [
   { name: "compose", title: "投稿をつくる・まとめて予約", body: "1 つの文面を、選んだ SNS にまとめて予約。SNS ごとの字数・画像の数を確かめ、文面を SNS ごとに少し変えることもできます。", shot: { name: "compose", alt: "投稿をつくる画面。下書きと、送り先の SNS ごとの字数と状態" } },
   { name: "calendar", title: "カレンダー", body: "週と月の表示で、予約・投稿済み・下書きを一目で。空いている日から投稿をつくれます。", shot: { name: "calendar", alt: "カレンダーの週の表示。予約と投稿済みの印" } },
-  { name: "notes", title: "ネタ帳と、AI とネタを出す", body: "思いついたことを写真 1 枚と一緒に残し、AI がメモやアプリの更新から投稿の案を出します。", shot: { name: "notes", alt: "ネタ帳の画面。まだ使っていないメモの一覧" } },
-  { name: "metrics", title: "分析と振り返り", body: "閲覧からダウンロード・課金までを 1 枚で。数字の読み方と次の一手を、やさしい言葉で添えます。", shot: { name: "metrics", alt: "分析の画面。閲覧、ストアページ、ダウンロード、課金の数字" } },
+  { name: "notes", title: "ネタ帳と AI のネタ出し", body: "思いついたことを写真 1 枚と一緒に残し、AI がメモから投稿の案を出します（アプリなら GitHub の更新からも）。", shot: { name: "notes", alt: "ネタ帳の画面。まだ使っていないメモの一覧" } },
+  { name: "metrics", title: "分析と振り返り", body: "閲覧から、行き先へのクリック・成果までを 1 枚で。数字の読み方と次の一手を、やさしい言葉で添えます。", shot: { name: "metrics", alt: "分析の画面。投稿の閲覧と、行き先へのクリックの数字" } },
   { name: "plan", title: "アカウント設計と AI と相談", body: "誰に向けて何を発信するかを、AI が質問しながら一緒に整理します。決めたことはロードマップの目標になります。", shot: { name: "plan", alt: "アカウント設計の画面。項目ごとの決めたこと" } },
   { name: "coach", title: "伴走", body: "今週あと何本出せば目標に届くかを、毎日見て声をかけます。", shot: { name: "coach", alt: "概要の画面。今週のペースと声かけ" } },
 ];
 
 const moreFeatures = [
   { title: "AI っぽさチェック", body: "AI が書いたような言い回しを見つけ、理由と直し方を出します。" },
-  { title: "画像をつくる", body: "文字のカード、図解、アプリの画面を使った画像を、テンプレートでつくれます。" },
+  { title: "画像をつくる", body: "文字のカード、図解、写真に見出しを添えた画像を、テンプレートでつくれます。" },
   { title: "短縮リンク", body: "SNS ごとのリンクで、どこから何人来たかを数えます。自分のドメインでも作れます。" },
   { title: "ロードマップ", body: "目標と、週ごとにやることを並べて、進み具合を見られます。" },
-  { title: "GitHub からの下書き", body: "リポジトリをつなぐと、アプリの紹介文や、更新を伝える投稿の案をつくります。" },
-  { title: "ストアの数字", body: "App Store・Google Play・RevenueCat の数字を取り込み、投稿の効果と並べて見られます。" },
+  { title: "GitHub からの下書き", body: "アプリを宣伝するときは、リポジトリをつなぐと、紹介文や更新を伝える投稿の案をつくります。" },
+  { title: "ストアの数字", body: "アプリを宣伝するときは、App Store・Google Play・RevenueCat の数字を取り込み、投稿の効果と並べて見られます。" },
 ];
 
 const sns: { group: string; items: SnsKey[]; ready: boolean }[] = [
   { group: "矢書から自動で投稿", items: ["x", "threads", "instagram", "facebook"], ready: true },
-  { group: "文面を用意して、手で投稿", items: ["note", "substack"], ready: true },
+  { group: "文面を用意して手で投稿", items: ["note", "substack"], ready: true },
   { group: "準備中", items: ["tiktok", "youtube"], ready: false },
 ];
 
@@ -96,7 +96,7 @@ const faqs: { q: string; a: ReactNode }[] = [
     q: "AI には何を送りますか？",
     a: (
       <>
-        AI（Anthropic の Claude）には、案や下書きをつくるのに要るものだけを送ります。たとえば、アプリの説明、アカウント設計の内容、投稿の下書き、ネタ帳で選んだメモの本文です。パスワードや SNS の鍵は送りません。Anthropic は、送られた内容を既定ではモデルの学習に使いません。くわしくは
+        AI（Anthropic の Claude）には、案や下書きをつくるのに要るものだけを送ります。たとえば、宣伝するものの説明、アカウント設計の内容、投稿の下書き、ネタ帳で選んだメモの本文です。パスワードや SNS の鍵は送りません。Anthropic は、送られた内容を既定ではモデルの学習に使いません。くわしくは
         <Link href="/privacy" className="underline">
           プライバシーポリシー
         </Link>
@@ -118,7 +118,7 @@ const faqs: { q: string; a: ReactNode }[] = [
   },
   {
     q: "マーケティングの知識がなくても使えますか？",
-    a: "はい。矢書は、マーケティングがはじめての個人開発者を前提にしています。空欄を自分で埋めるのではなく、AI が質問しながら一緒に整理し、案と理由を出すので、選んでいけば進みます。",
+    a: "はい。矢書は、マーケティングがはじめての方を前提にしています。ひとりでお店や教室をしている人、ネットで物を売る人、アプリを作る人、作品や発信をしている人も使えます。空欄を自分で埋めるのではなく、AI が質問しながら一緒に整理し、案と理由を出すので、選んでいけば進みます。",
   },
 ];
 
@@ -181,18 +181,18 @@ export default async function Home(props: PageProps<"/">) {
               <p className="flex flex-col gap-1">
                 {/* ロゴに添える一言（ONE ARROW, EVERY FEED）。LP の最初と下の帯だけに出す（docs/design/new_design/README.md の「ロゴ」） */}
                 <span className="text-[13px] font-bold tracking-[.25em] text-faint">ONE ARROW, EVERY FEED</span>
-                <span className="text-[15px] font-bold text-muted">個人開発者のための SNS 運用ツール</span>
+                <span className="text-[15px] font-bold text-muted">ひとりで売る人のための SNS 運用ツール</span>
               </p>
               <h1 className="text-[48px] leading-[1.35] font-bold text-pretty max-lg:text-[40px] max-sm:text-[30px] max-sm:leading-[1.45]">
                 {/* 行の途中で折れないように、1 行ずつまとめる */}
-                <span className="inline-block">アプリは作れる。</span>
+                <span className="inline-block">いいものはある。</span>
                 <br />
-                <span className="inline-block">でも、発信は苦手。</span>
+                <span className="inline-block">でも発信は苦手。</span>
               </h1>
               <div className="flex items-center gap-2 text-[17px] leading-[1.8] text-muted max-sm:text-[15px]">
                 <p>何を・いつ・どこに出すかを AI と決めて、複数の SNS にまとめて予約。</p>
                 <HelpTip label="矢書でできること">
-                  何を・いつ・どこに出すかを AI と一緒に決めて、複数の SNS にまとめて予約。数字を見て振り返り、続かないときは矢書が声をかけます。アプリづくりの時間を守りながら、届けたい人へ。
+                  何を・いつ・どこに出すかを AI と一緒に決めて、複数の SNS にまとめて予約。数字を見て振り返り、続かないときは矢書が声をかけます。お店・教室・ネットのお店・作品・アプリ、本業の時間を守りながら、届けたい人へ。作品や発信をしている人も使えます。
                 </HelpTip>
               </div>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2 max-sm:flex-col max-sm:items-stretch">
@@ -216,7 +216,7 @@ export default async function Home(props: PageProps<"/">) {
         {/* 悩みと解決 */}
         <section className={`${section} flex flex-col gap-6`} aria-labelledby="pains">
           <h2 id="pains" className={h2}>
-            こんなことで、止まっていませんか
+            こんなことで止まっていませんか
           </h2>
           <ul className="grid grid-cols-4 gap-4 max-xl:grid-cols-2 max-md:grid-cols-1">
             {pains.map((p) => (

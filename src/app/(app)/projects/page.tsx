@@ -31,7 +31,7 @@ export default async function ProjectsPage(props: PageProps<"/projects">) {
       <main className="flex flex-col gap-5 px-12 py-10 max-lg:px-8 max-sm:gap-4 max-sm:px-4 max-sm:py-5">
         <PageHeader
           title="プロジェクト"
-          help="広めたいアプリごとに 1 つ作ります。アプリ名だけで始められます。"
+          help="宣伝したいもの（お店・商品・サービス・作品・アプリなど）ごとに 1 つ作ります。名前だけで始められます。"
           sub={projects.length > 0 ? `${projects.length} 件` : undefined}
           actions={projects.length > 0 && <ButtonLink href="/projects/new">＋ 新しいプロジェクト</ButtonLink>}
         />
@@ -43,7 +43,7 @@ export default async function ProjectsPage(props: PageProps<"/projects">) {
           <Card className="overflow-hidden">
             <EmptyState
               title="まだプロジェクトがありません"
-              description="広めたいアプリごとに 1 つ作ります。アプリ名だけで始められます。"
+              description="宣伝したいもの（お店・商品・サービス・作品・アプリなど）ごとに 1 つ作ります。名前だけで始められます。"
               action={
                 <ButtonLink href="/projects/new" className="max-sm:h-13 max-sm:w-full">
                   プロジェクトを作る

@@ -3,8 +3,8 @@ import { Brand } from "@/components/brand";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { STEPS } from "@/lib/projects/next-step";
 
-// 概要の「いまやること」と同じ 4 段（src/lib/projects/next-step.ts）。最初の段の前に、アプリ（プロジェクト）を登録する
-const firstSteps = STEPS.map((s, i) => (i === 0 ? `アプリを登録して、${s.title}` : s.title));
+// 概要の「いまやること」と同じ 4 段（src/lib/projects/next-step.ts）。最初の段の前に、宣伝したいもの（プロジェクト）を登録する
+const firstSteps = STEPS.map((s, i) => (i === 0 ? `宣伝したいものを登録して、${s.title}` : s.title));
 
 export default function AuthLayout({ children }: LayoutProps<"/">) {
   return (

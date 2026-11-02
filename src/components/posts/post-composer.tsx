@@ -595,7 +595,7 @@ export function PostComposer({
                     value={titles[focus] ?? ""}
                     maxLength={MAX_TITLE_LENGTH}
                     onChange={(e) => setTitles((t) => ({ ...t, [focus]: e.target.value }))}
-                    placeholder="例: 個人開発で家計簿アプリを 3 か月作って気づいたこと"
+                    placeholder="例: ひとりでお店を 3 か月続けて気づいたこと"
                     className="w-full rounded-md border border-input bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:shadow-[0_0_0_1px_var(--primary)] max-sm:text-[16px]"
                   />
                 </div>

@@ -29,6 +29,9 @@ async function findUser() {
 async function remove() {
   const u = await findUser();
   if (!u) return console.log("見本用の利用者はいません");
+  // 撮るときに添えた画像（Storage の post-media）を先に消す（利用者を消しても、Storage のファイルは残るため）
+  const { data: files } = await admin.from("media_files").select("storage_path").eq("owner_id", u.id);
+  if (files?.length) await admin.storage.from("post-media").remove(files.map((f) => f.storage_path));
   await admin.from("ai_usage").delete().eq("owner_id", u.id);
   await admin.from("sns_api_usage").delete().eq("owner_id", u.id);
   await admin.auth.admin.deleteUser(u.id);
@@ -90,6 +93,18 @@ async function seed() {
     accounts[sns] = a.id;
     await must(admin.from("project_social_accounts").insert({ owner_id: uid, project_id: pid, social_account_id: a.id }));
   }
+  // X は画像を送る権限（media.write）つきでつないだことにする（「つなぎ直しが要ります」が見本に写らないように）。
+  // トークンは見本用の文字列で、送信には使わない（見本は予約するところまでで、送らない）
+  const { encryptToken } = await import("../src/lib/crypto/token-cipher.ts");
+  await must(
+    admin.from("social_account_tokens").insert({
+      social_account_id: accounts.x,
+      access_token_encrypted: encryptToken("lp-demo-not-a-real-token", accounts.x),
+      refresh_token_encrypted: null,
+      expires_at: "2099-01-01T00:00:00Z",
+      scopes: ["tweet.read", "tweet.write", "users.read", "offline.access", "media.write"],
+    }),
+  );
 
   await must(
     admin.from("account_plans").insert({

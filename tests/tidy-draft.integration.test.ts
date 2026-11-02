@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { runTidyDraft, type CallTidy } from "@/lib/ai/tidy-draft";
 import type { CallShorten } from "@/lib/ai/shorten";
 import type { AiLimits } from "@/lib/ai/limits";
+import { AI_UNAVAILABLE_MESSAGE, AiUnavailableError } from "@/lib/ai/provider-failure";
 import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
 
 const admin = adminClient();
@@ -87,6 +88,25 @@ describe("AI で投稿に整える", () => {
     expect((await run(alice, aliceId, "あ".repeat(3001), ["x"])).ok).toBe(false);
     expect((await run(alice, aliceId, text, ["note", "substack"])).ok).toBe(false);
     expect(call).not.toHaveBeenCalled();
+  });
+
+  it("AI の支払い・鍵の問題で使えないときは「AI はいま使えません（運営者に知らせました）」と返し、ほかの失敗は時間をおいてと返す", async () => {
+    const before = (await purposes()).length;
+    const unavailable: CallTidy = vi.fn(async () => {
+      throw new AiUnavailableError("anthropic", 402);
+    });
+    expect(await runTidyDraft(alice, admin, { callTidy: unavailable, limits: roomy }, { userId: aliceId, projectId, text, sns: ["x"] })).toEqual({
+      ok: false,
+      message: AI_UNAVAILABLE_MESSAGE.anthropic,
+    });
+    const broken: CallTidy = vi.fn(async () => {
+      throw new Error("network");
+    });
+    const r = await runTidyDraft(alice, admin, { callTidy: broken, limits: roomy }, { userId: aliceId, projectId, text, sns: ["x"] });
+    expect(r).toMatchObject({ ok: false });
+    expect(!r.ok && r.message).toContain("時間をおいて");
+    // 返事がなかったので、利用量は数えない
+    expect(await purposes()).toHaveLength(before);
   });
 
   it("形の合わない返事・断られたときはエラーにするが、使った分は数える", async () => {

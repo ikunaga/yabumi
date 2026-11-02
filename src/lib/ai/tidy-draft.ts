@@ -8,6 +8,7 @@ import { checkAiLimits, type AiLimits } from "./limits";
 import type { BetaMessageParam, BetaTextBlockParam } from "./plan-coach";
 import { IDEA_SNS, ideaContextText, loadContext, planTags, type IdeaContext } from "./post-ideas";
 import { estimateCostUsd } from "./pricing";
+import { aiFailureMessage } from "./provider-failure";
 import { LENGTH_RULES, shortenOverDrafts, type CallShorten } from "./shorten";
 import { findUrls, profileLinkLine, withProfileLink } from "@/lib/posts/profile-link";
 import type { TidyOption } from "./tidy-draft-apply";
@@ -199,7 +200,8 @@ export async function runTidyDraft(
     r = await deps.callTidy(buildTidyRequest(ctx, text, args.direction));
   } catch (e) {
     console.error("[tidy-draft] AI の呼び出しに失敗しました", e instanceof Error ? e.message : e);
-    return { ok: false, message: "AI とのやりとりがうまくいきませんでした。時間をおいてもう一度お試しください。" };
+    // 支払い・鍵の問題なら「AI はいま使えません（運営者に知らせました）」（知らせは呼び出しの側で済んでいる）
+    return { ok: false, message: aiFailureMessage(e, "AI とのやりとりがうまくいきませんでした。時間をおいてもう一度お試しください。") };
   }
   await recordUsage(admin, args.userId, r);
   if (r.stopReason === "refusal") return { ok: false, message: "AI がこの文には答えられませんでした。" };

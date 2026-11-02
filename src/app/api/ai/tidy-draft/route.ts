@@ -4,6 +4,7 @@ import { aiConfigured, callShortenDrafts, callTidyDraft } from "@/lib/ai/anthrop
 import { aiLimitsFromEnv } from "@/lib/ai/limits";
 import { MAX_TIDY_CHARS, runTidyDraft } from "@/lib/ai/tidy-draft";
 import { parseDirection } from "@/lib/ai/tidy-direction";
+import { aiFailureMessage } from "@/lib/ai/provider-failure";
 import type { TidyOption } from "@/lib/ai/tidy-draft-apply";
 import { isSameOriginJson } from "@/lib/http/same-origin";
 import { SNS_KEYS, type SnsKey } from "@/lib/sns";
@@ -45,6 +46,7 @@ export async function POST(req: Request) {
     return reply(r.ok ? { options: r.options } : { error: r.message });
   } catch (e) {
     console.error("[tidy-draft]", e);
-    return reply({ error: "うまくいきませんでした。時間をおいてもう一度お試しください。" }, 500);
+    // runTidyDraft の外で支払い・鍵の問題の失敗が投げられたときも、「AI はいま使えません」にそろえる
+    return reply({ error: aiFailureMessage(e, "うまくいきませんでした。時間をおいてもう一度お試しください。") }, 500);
   }
 }

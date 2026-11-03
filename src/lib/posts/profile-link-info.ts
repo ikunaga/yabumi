@@ -1,11 +1,11 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { listDestinations } from "@/lib/projects/destinations";
-import { isAppProject } from "@/lib/projects/product-types";
+import { DESTINATION_KIND_DEFS, isAppProject } from "@/lib/projects/product-types";
 import type { Database } from "@/lib/supabase/database.types";
 import type { ProfileLinkDestination, ProfileLinkInfo } from "./profile-link";
 
-// 作成画面の「Instagram では本文の URL は押せません」に使う（docs/architecture.md の 4.37）
+// 作成画面の「Instagram では本文の URL は押せません」（docs/architecture.md の 4.37）と「行き先の URL を入れる」（4.40）に使う
 
 export async function loadProfileLinkInfo(
   supabase: SupabaseClient<Database>,
@@ -18,8 +18,11 @@ export async function loadProfileLinkInfo(
   if (error) throw error;
   const destinations: ProfileLinkDestination[] = [];
   if (isAppProject(project)) {
-    for (const url of [project.app_store_url, project.play_store_url]) if (url) destinations.push({ kind: "store", url });
+    if (project.app_store_url) destinations.push({ kind: "store", url: project.app_store_url, label: "App Store" });
+    if (project.play_store_url) destinations.push({ kind: "store", url: project.play_store_url, label: "Google Play" });
   }
-  for (const d of registered) if (!destinations.some((x) => x.url === d.url)) destinations.push({ kind: d.kind, url: d.url });
+  for (const d of registered) {
+    if (!destinations.some((x) => x.url === d.url)) destinations.push({ kind: d.kind, url: d.url, label: d.label || DESTINATION_KIND_DEFS[d.kind].label });
+  }
   return { productType: project.product_type, destinations, hasInstagramLink: (count ?? 0) > 0 };
 }

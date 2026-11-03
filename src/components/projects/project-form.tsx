@@ -292,7 +292,7 @@ export function ProjectForm({
             </div>
           )}
 
-          <fieldset className="flex flex-col gap-2">
+          <fieldset id="destinations" className="flex scroll-mt-20 flex-col gap-2">
             <legend className="mb-1 flex items-center gap-2 text-sm font-bold">
               {isApp ? "ほかの行き先の URL（任意）" : "行き先の URL（任意）"}
               <HelpTip label="行き先の URL">

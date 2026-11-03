@@ -18,6 +18,7 @@ export function ShortLinkToggle({
   projectId,
   body,
   targets,
+  insert,
 }: {
   checked: boolean;
   onChange: (v: boolean) => void;
@@ -26,6 +27,8 @@ export function ShortLinkToggle({
   body: string;
   // これから送る SNS と、その文面（投稿済みの SNS は入れない）。選んでいなければ空
   targets: { sns: SnsKey; text: string }[];
+  // 本文に URL がないときに、行の中に出す「行き先の URL を入れる」（4.40）
+  insert?: ReactNode;
 }) {
   // 送り先を選んでいれば、その SNS で送る文面（SNS ごとに変えた文面か、共通の本文）を見る
   const hasUrl = (targets.length ? targets.map((t) => t.text) : [body]).some((t) => findLinkableUrls(t).length > 0);
@@ -46,11 +49,15 @@ export function ShortLinkToggle({
   );
 
   // 見本 B の「UTM を自動付与」の位置に置く 1 行（2026-10-30 の PM の回答）。説明は「?」に畳む
-  const row = (control: ReactNode, note: ReactNode, help: ReactNode) => (
+  const row = (control: ReactNode, note: ReactNode, help: ReactNode, extra?: ReactNode) => (
     <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[15px]">
       {control}
       <span className="text-[13px] text-faint">{note}</span>
-      <HelpTip label="短縮リンク">{help}</HelpTip>
+      <HelpTip label="短縮リンク">
+        {help}
+        <p className="mt-2">{KINDS_NOTE}</p>
+      </HelpTip>
+      {extra}
     </div>
   );
   const label = (
@@ -68,6 +75,7 @@ export function ShortLinkToggle({
         本文に https:// から始まる URL（サイト・予約・お店・ストアのページなど）を入れると、SNS ごとの短縮リンクに置き換えて、どの SNS から何人来たかを数えます。
         {profileHint}
       </>,
+      insert,
     );
   }
 
@@ -143,3 +151,6 @@ export function ShortLinkPreviewNote({ sns, text, enabled, preview }: { sns: Sns
     </div>
   );
 }
+
+// 短縮リンクの画面の 2 つの違い（投稿をつくるで迷わないように。4.40）
+const KINDS_NOTE = "短縮リンクの画面の「プロフィールに置くリンク」は、SNS のプロフィールに自分で貼るもの。「投稿の本文から作ったリンク」は、本文の URL を送るときに自動で置き換えたものです。";

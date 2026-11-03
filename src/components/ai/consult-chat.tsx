@@ -10,7 +10,7 @@ import { ErrorBanner } from "@/components/ui/feedback";
 import { Term } from "@/components/ui/term";
 import { sendConsultMessage } from "@/lib/ai/consult-actions";
 import type { ConsultAssistantContent, ConsultMessage, ConsultTopic } from "@/lib/ai/consult";
-import { ROADMAP_STEPS, roadmapStepOf, type ActionBody, type ActionKind, type ConsultOption, type LegacyConsultAction } from "@/lib/ai/consult-schema";
+import { ROADMAP_STEPS, reviewHeadingOf, roadmapStepOf, type ActionBody, type ActionKind, type ConsultOption, type LegacyConsultAction } from "@/lib/ai/consult-schema";
 import { CONSULT_TOPIC_META, listedConsultTopics } from "@/lib/ai/consult-topics";
 import { sectionLabel } from "@/lib/ai/plan-coach-prompt";
 import { KPIS } from "@/lib/metrics/kpis";
@@ -118,6 +118,9 @@ export function ConsultChat({
   }, [messages.length, pending]);
 
   const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
+  // 入口（案の見出しを出し分ける）。入口のボタンから始めた会話は最初の発言、まだ返事がないときは渡された入口
+  const first = messages[0];
+  const topic = first?.role === "user" && first.content.kind === "start" ? first.content.topic : initialTopic;
   // 最後の返事が AI の区切りなら、入力欄の代わりに「これで終わる」「もう少し相談する」を出す
   const last = messages[messages.length - 1];
   const wrapUp = !closed && !pending && last?.role === "assistant" && last.content.wrapUp && continuedId !== last.id ? last : null;
@@ -162,6 +165,7 @@ export function ConsultChat({
               key={m.id}
               message={m}
               isLatest={m.id === lastAssistant?.id}
+              topic={topic}
               readOnly={closed}
               disabled={pending || closer.pending}
               onChoice={(c) => send({ kind: "text", text: c })}
@@ -261,6 +265,7 @@ function UserBubble({ message }: { message: Extract<ConsultMessage, { role: "use
 function AssistantBubble({
   message,
   isLatest,
+  topic,
   readOnly,
   disabled,
   onChoice,
@@ -269,6 +274,7 @@ function AssistantBubble({
 }: {
   message: Extract<ConsultMessage, { role: "assistant" }>;
   isLatest: boolean;
+  topic: ConsultTopic | null;
   readOnly: boolean;
   disabled: boolean;
   onChoice: (choice: string) => void;
@@ -283,7 +289,7 @@ function AssistantBubble({
         <p className="mb-1 text-xs font-bold text-primary">AI</p>
         <p className="text-[14px] leading-[1.8] whitespace-pre-wrap">{c.message}</p>
       </div>
-      {c.proposal && <ProposalCard content={c} isLatest={isLatest} readOnly={readOnly} disabled={disabled} onAdopt={onAdopt} onRevise={onRevise} />}
+      {c.proposal && <ProposalCard content={c} isLatest={isLatest} topic={topic} readOnly={readOnly} disabled={disabled} onAdopt={onAdopt} onRevise={onRevise} />}
       {/* 前の形（2026-10-12 まで）の会話: 種類の違う提案が並び、それぞれ案は 1 つ */}
       {!c.proposal &&
         (c.actions ?? []).map((a, i) => <LegacyActionCard key={i} action={a} adopted={adopted.includes(i)} readOnly={readOnly} disabled={disabled} onAdopt={() => onAdopt(i)} />)}
@@ -316,6 +322,7 @@ function weekText(week: number): string {
 function ProposalCard({
   content,
   isLatest,
+  topic,
   readOnly,
   disabled,
   onAdopt,
@@ -323,6 +330,7 @@ function ProposalCard({
 }: {
   content: ConsultAssistantContent;
   isLatest: boolean;
+  topic: ConsultTopic | null;
   readOnly: boolean;
   disabled: boolean;
   onAdopt: (index: number) => void;
@@ -330,7 +338,8 @@ function ProposalCard({
 }) {
   const p = content.proposal!;
   const adopted = content.adopted?.[0] ?? null;
-  const step = roadmapStepOf(p);
+  const step = roadmapStepOf(p, topic);
+  const reviewHeading = reviewHeadingOf(p, topic);
   const stepIndex = step ? ROADMAP_STEPS.findIndex((s) => s.key === step) : -1;
   const isDraft = p.kind === "post_draft";
   return (
@@ -341,6 +350,8 @@ function ProposalCard({
           <b>
             ロードマップづくり {stepIndex + 1} / {ROADMAP_STEPS.length} {ROADMAP_STEPS[stepIndex].label}
           </b>
+        ) : reviewHeading ? (
+          <b>{reviewHeading}</b>
         ) : (
           <b>{p.kind === "plan_section" && p.options[0]?.kind === "plan_section" ? `アカウント設計: ${sectionLabel(p.options[0].section)}` : KIND_LABEL[p.kind]}</b>
         )}

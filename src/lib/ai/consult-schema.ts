@@ -233,9 +233,18 @@ export function roadmapStepState(r: { hasKgi: boolean; hasKpiTargets: boolean; i
   return { done, next: ROADMAP_STEPS.find((s) => !done[s.key])?.key ?? null };
 }
 
-// 案がロードマップづくりのどの段か（画面の「2 / 4 毎週の目標」）。ロードマップの案でなければ null
-export function roadmapStepOf(p: ConsultProposal): RoadmapStepKey | null {
+// 案がロードマップづくりのどの段か（画面の「2 / 4 毎週の目標」）。入口が「ロードマップ」の会話の、ロードマップの案だけ。ほかは null
+// （振り返りの次の一手が「ロードマップづくり 3 / 4」と出ていた。2026-11-03）
+export function roadmapStepOf(p: ConsultProposal, topic: string | null): RoadmapStepKey | null {
+  if (topic !== "roadmap") return null;
   if (p.kind === "kgi" || p.kind === "kpi_targets") return p.kind;
   if (p.kind === "roadmap_items") return p.options.every((o) => o.kind === "roadmap_items" && o.items.every((i) => i.week <= 1)) ? "near_items" : "later_items";
+  return null;
+}
+
+// 振り返りの会話のゴールの案の見出し。振り返りの次の一手は「来週のやること」、1 か月の振り返りの first_month は「次の 1 か月の週の回数」。ほかは null
+export function reviewHeadingOf(p: ConsultProposal, topic: string | null): string | null {
+  if (topic === "review" && p.kind === "roadmap_items") return "来週のやること";
+  if (topic === "month_review" && p.kind === "plan_section" && p.options.every((o) => o.kind === "plan_section" && o.section === "first_month")) return "次の 1 か月の週の回数";
   return null;
 }

@@ -2,7 +2,7 @@
 // AI は callModel をモックし、本物の Claude API は呼ばない
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { consultStep, type ConsultInput } from "@/lib/ai/consult";
-import { normalizeConsultTurn, roadmapStepOf, roadmapStepState } from "@/lib/ai/consult-schema";
+import { normalizeConsultTurn, reviewHeadingOf, roadmapStepOf, roadmapStepState } from "@/lib/ai/consult-schema";
 import { scopeAiBudget } from "./helpers/ai-budget";
 import type { CallModel, ModelResult } from "@/lib/ai/plan-coach";
 import { weekStartOf } from "@/lib/roadmap/schema";
@@ -307,9 +307,28 @@ describe("ロードマップづくりの段", () => {
     expect(roadmapStepState({ hasKgi: true, hasKpiTargets: true, itemWeeks: [3] }).next).toBe("near_items");
     expect(roadmapStepState({ hasKgi: true, hasKpiTargets: true, itemWeeks: [0, 2] }).next).toBeNull();
     const near = normalizeConsultTurn(proposalTurn("roadmap_items", [opt("a", items)]))!.proposal!;
-    expect(roadmapStepOf(near)).toBe("near_items");
+    expect(roadmapStepOf(near, "roadmap")).toBe("near_items");
     const later = normalizeConsultTurn(proposalTurn("roadmap_items", [opt("a", { items: [{ ...items.items[0], week: 3 }] })]))!.proposal!;
-    expect(roadmapStepOf(later)).toBe("later_items");
-    expect(roadmapStepOf(normalizeConsultTurn(kgiTurn)!.proposal!)).toBe("kgi");
+    expect(roadmapStepOf(later, "roadmap")).toBe("later_items");
+    expect(roadmapStepOf(normalizeConsultTurn(kgiTurn)!.proposal!, "roadmap")).toBe("kgi");
+    // ロードマップづくり以外の会話では段を出さない（振り返りの次の一手が「ロードマップづくり 3 / 4」と出ていた）
+    for (const topic of ["review", "month_review", "what_to_post", null]) {
+      expect(roadmapStepOf(near, topic)).toBeNull();
+      expect(roadmapStepOf(normalizeConsultTurn(kgiTurn)!.proposal!, topic)).toBeNull();
+    }
+  });
+
+  it("振り返りのゴールの案は、入口ごとの見出し（来週のやること・次の 1 か月の週の回数）", () => {
+    const near = normalizeConsultTurn(proposalTurn("roadmap_items", [opt("a", items)]))!.proposal!;
+    expect(reviewHeadingOf(near, "review")).toBe("来週のやること");
+    const firstMonth = (x: number) => opt(`週 ${x}`, { section: "first_month", value: { goal: `X に週 ${x} 本`, metrics: "", kpis: ["posts"], weekly: { x } } });
+    const month = normalizeConsultTurn(proposalTurn("plan_section", [firstMonth(2), firstMonth(3)]))!.proposal!;
+    expect(month.options).toHaveLength(2);
+    expect(reviewHeadingOf(month, "month_review")).toBe("次の 1 か月の週の回数");
+    // ほかの入口・ほかの項目は、今までの見出し
+    expect(reviewHeadingOf(near, "roadmap")).toBeNull();
+    expect(reviewHeadingOf(near, "month_review")).toBeNull();
+    expect(reviewHeadingOf(month, "review")).toBeNull();
+    expect(reviewHeadingOf(normalizeConsultTurn(kgiTurn)!.proposal!, "review")).toBeNull();
   });
 });

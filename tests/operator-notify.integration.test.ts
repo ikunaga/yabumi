@@ -135,7 +135,7 @@ describe("全体の上限の 80% の知らせ（X・AI）", () => {
   it("本文には額と上限と確かめ方だけを入れ、上限に達したときは件名で分かる", () => {
     const near = budgetAlertMail("ai", 8, 10);
     expect(near.subject).toContain("80%");
-    expect(near.text).toContain("AI_GLOBAL_MONTHLY_BUDGET_USD");
+    expect(near.text).toContain("reserve_ai_usage の c_global_monthly_usd");
     expect(budgetAlertMail("x", 3, 3).subject).toContain("上限に達しました");
   });
 });

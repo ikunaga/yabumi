@@ -1,6 +1,6 @@
 // Instagram の「プロフィールのリンクから」（4.37）
 import { describe, expect, it } from "vitest";
-import { findUrls, hasProfileLinkLine, profileLinkLine, withProfileLink } from "@/lib/posts/profile-link";
+import { findUrls, hasProfileLinkLine, profileLinkLine, withDestinationUrl, withProfileLink } from "@/lib/posts/profile-link";
 
 describe("入れる一言", () => {
   it("文面の URL が登録した行き先なら、その種類の言い方にする", () => {
@@ -62,5 +62,27 @@ describe("文面を「プロフィールのリンクから」にする", () => {
   it("http の URL も外す。URL の判定", () => {
     expect(findUrls("a http://a.example.com b https://b.example.com/x.")).toEqual(["http://a.example.com", "https://b.example.com/x"]);
     expect(hasProfileLinkLine(withProfileLink("a", line))).toBe(true);
+  });
+});
+
+describe("本文に行き先の URL を入れる（4.40）", () => {
+  const url = "https://yoyaku.example.com";
+  it("最後に URL だけの行を足す。本文が空なら URL だけ", () => {
+    expect(withDestinationUrl("金曜の朝だけ焼きます。\n", url)).toBe(`金曜の朝だけ焼きます。\n\n${url}`);
+    expect(withDestinationUrl("  ", url)).toBe(url);
+  });
+
+  it("最後の行がハッシュタグだけなら、その前に入れる", () => {
+    expect(withDestinationUrl("焼きました。\n#パン屋 #カンパーニュ", url)).toBe(`焼きました。\n\n${url}\n\n#パン屋 #カンパーニュ`);
+  });
+
+  it("同じ URL がもうあれば変えない（末尾の / の違いは同じとみなす）", () => {
+    const text = `ご予約は ${url}/ から`;
+    expect(withDestinationUrl(text, url)).toBe(text);
+  });
+
+  it("入れたあとに Instagram 用にすると、URL を外して一言にする", () => {
+    const line = profileLinkLine({ destinations: [{ kind: "booking", url }], url });
+    expect(withProfileLink(withDestinationUrl("焼きました。\n#パン屋", url), line)).toBe("焼きました。\n\n▶︎ ご予約はプロフィールのリンクから\n\n#パン屋");
   });
 });

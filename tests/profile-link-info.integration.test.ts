@@ -32,8 +32,9 @@ describe("プロフィールのリンクの有無", () => {
     expect(await loadProfileLinkInfo(alice, app)).toEqual({
       productType: "app",
       destinations: [
-        { kind: "store", url: STORE },
-        { kind: "site", url: "https://example.com" },
+        { kind: "store", url: STORE, label: "App Store" },
+        // 名前を付けていない行き先は、種類の名前（行き先の URL を入れるで選ぶとき）
+        { kind: "site", url: "https://example.com", label: "サイト" },
       ],
       hasInstagramLink: false,
     });

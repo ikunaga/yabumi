@@ -27,7 +27,8 @@ const TYPE_LEAD: Record<ProductType, string> = {
   other: "くわしく",
 };
 
-export type ProfileLinkDestination = { kind: DestinationKind; url: string };
+// label: 作成画面の「行き先の URL を入れる」で選ぶときの名前（登録した名前、なければ種類の名前。ストアは App Store・Google Play）
+export type ProfileLinkDestination = { kind: DestinationKind; url: string; label?: string };
 
 // 作成画面に渡すもの: 宣伝するものの種類、行き先の URL（アプリならストアの URL も）、Instagram のプロフィールに置く短縮リンクを作ってあるか
 export type ProfileLinkInfo = { productType: string | null; destinations: ProfileLinkDestination[]; hasInstagramLink: boolean };
@@ -41,7 +42,7 @@ export function profileLinkLine(opts: { productType?: string | null; destination
   return `▶︎ ${lead}はプロフィールのリンクから`;
 }
 
-const sameUrl = (a: string, b: string) => a.replace(/\/+$/, "") === b.replace(/\/+$/, "");
+export const sameUrl = (a: string, b: string) => a.replace(/\/+$/, "") === b.replace(/\/+$/, "");
 
 // http(s) の URL（短縮リンクの置き換えと同じ区切り。http も Instagram では押せないので外す）
 const ANY_URL = /https?:\/\/[^\s<>"'「」『』（）()、。，．！？]+/g;
@@ -87,4 +88,19 @@ export function withProfileLink(text: string, line: string): string {
     return `${before}\n\n${line}\n\n${last.trim()}`;
   }
   return `${body}\n\n${line}`;
+}
+
+// 本文に行き先の URL を入れる（作成画面の「行き先の URL を入れる」。docs/architecture.md の 4.40）。
+// 最後（最後の行がハッシュタグだけなら、その前）に URL だけの行を足す。もう同じ URL があれば変えない
+export function withDestinationUrl(text: string, url: string): string {
+  if (findUrls(text).some((u) => sameUrl(u, url))) return text;
+  const body = text.trim();
+  if (!body) return url;
+  const all = body.split("\n");
+  const last = all[all.length - 1];
+  if (all.length > 1 && /^(?:#\S+[\s　]*)+$/u.test(last.trim())) {
+    const before = all.slice(0, -1).join("\n").trim();
+    return `${before}\n\n${url}\n\n${last.trim()}`;
+  }
+  return `${body}\n\n${url}`;
 }

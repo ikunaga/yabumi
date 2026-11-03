@@ -19,6 +19,7 @@ import { clearSending, markSending, SendProgress } from "./send-progress";
 import type { SavePostResult } from "@/lib/posts/schema";
 import { ShortLinkPreviewNote, ShortLinkToggle } from "@/components/links/short-link-toggle";
 import type { PostLinkPreview } from "@/lib/links/store";
+import { planShortLinks } from "@/lib/links/rules";
 import { ImageAttachments, type AttachedImage } from "./image-attachments";
 import { applyFix } from "@/lib/ai/ai-check";
 import { AiCheckPanel } from "./ai-check-panel";
@@ -37,7 +38,8 @@ import { X_PRICE_USD, formatUsd } from "@/lib/sns/x/pricing";
 import { Term } from "@/components/ui/term";
 import { projectSettingsHref } from "@/lib/projects/paths";
 import { sendLabels, sendMode } from "@/lib/posts/send-mode";
-import { findUrls, hasProfileLinkLine, profileLinkLine, withProfileLink, type ProfileLinkInfo } from "@/lib/posts/profile-link";
+import { findUrls, hasProfileLinkLine, profileLinkLine, sameUrl, withDestinationUrl, withProfileLink, type ProfileLinkInfo } from "@/lib/posts/profile-link";
+import { DestinationInsert } from "./destination-insert";
 import { BAND_INFO, plannedAtFor, type TimeBand } from "@/lib/metrics/time-bands";
 import { composeChanges, type ComposeSnapshot } from "@/lib/posts/compose-reset";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -149,6 +151,8 @@ export function PostComposer({
   const [tidyAdopted, setTidyAdopted] = useState(false);
   // Instagram の文面を「プロフィールのリンクから」にした（したことを 1 行で知らせる）
   const [igLinked, setIgLinked] = useState(false);
+  // 「行き先の URL を入れる」で入れた URL（入れたことと、短縮リンクに置き換えることを 1 行で知らせる）
+  const [insertedUrl, setInsertedUrl] = useState<string | null>(null);
   const [result, setResult] = useState<SavePostResult>({});
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmSend, setConfirmSend] = useState(false);
@@ -345,6 +349,32 @@ export function PostComposer({
     setOverrides((o) => ({ ...o, instagram: withProfileLink(o.instagram ?? body, line) }));
     setIgLinked(true);
     if (isSideBySide()) setFocus("instagram");
+  }
+
+  // 行き先の URL を本文の最後に入れる（4.40）。SNS ごとの文面があれば、そちらにも入れる。
+  // Instagram は本文の URL を押せないので、Instagram の文面には入れずに「プロフィールのリンクから」の一言にする（4.37）。押された回数を数えるようにする
+  function insertDestination(url: string) {
+    const nextBody = withDestinationUrl(body, url);
+    const ig = selected.has("instagram") && !isLocked("instagram");
+    setBody(nextBody);
+    setOverrides((o) => {
+      const next = { ...o };
+      for (const s of SNS_KEYS) if (s !== "instagram" && next[s] !== undefined && !isLocked(s)) next[s] = withDestinationUrl(next[s]!, url);
+      if (ig) next.instagram = withProfileLink(o.instagram ?? nextBody, profileLinkLine({ productType: profileLink?.productType, destinations: profileLink?.destinations, url }));
+      return next;
+    });
+    if (ig) setIgLinked(true);
+    setShortLinks(true);
+    setInsertedUrl(url);
+    clearFieldError("body");
+  }
+
+  // X だけ URL を外す（X は本文に URL があると費用が上がる。D16）。外したあとは「プロフィールのリンクから」の一言にする
+  function removeXUrl() {
+    const current = overrides.x ?? body;
+    const line = profileLinkLine({ productType: profileLink?.productType, destinations: profileLink?.destinations, url: findUrls(current)[0] ?? null });
+    setOverrides((o) => ({ ...o, x: withProfileLink(o.x ?? body, line) }));
+    if (isSideBySide()) setFocus("x");
   }
 
   // 本文の欄へ行く（AI で整えた案を使ったあとの「本文を見る」）。カーソルはマウスで使う画面だけ置く（スマホで鍵盤が開かないように）
@@ -753,6 +783,7 @@ export function PostComposer({
                   setFocus("x");
                   setOverrides((o) => (o.x !== undefined ? o : { ...o, x: body }));
                 }}
+                onRemove={removeXUrl}
               />
             )}
 
@@ -798,7 +829,16 @@ export function PostComposer({
                 projectId={projectId}
                 body={body}
                 targets={toSend.map((sns) => ({ sns, text: textFor(sns) }))}
+                insert={<DestinationInsert projectId={projectId} destinations={profileLink?.destinations ?? []} onInsert={insertDestination} />}
               />
+            )}
+            {insertedUrl && shortLinks && (chosen.length === 0 ? findUrls(body) : toSend.filter((s) => planShortLinks([{ sns: s, text: textFor(s) }]).replaced.length > 0).flatMap((s) => findUrls(textFor(s)))).some((u) => sameUrl(u, insertedUrl)) && (
+              <p className="-mt-1.5 text-[13px] text-muted">
+                <span aria-hidden className="mr-1 font-bold text-success">
+                  ✓
+                </span>
+                行き先の URL を本文に入れました。送るとき、SNS ごとの短縮リンクに置き換えます。
+              </p>
             )}
 
             {/* 送る日時と送る */}
@@ -1068,7 +1108,7 @@ const TARGET_STATE: Partial<Record<TargetResult["status"], { text: string; tone:
 const TARGET_STATE_TEXTS = new Set(Object.values(TARGET_STATE).map((s) => s!.text));
 
 // X は本文に URL があると、API の料金が 13 倍になる（決定 D16）。費用の差は 1 行で出し、URL を外す代わりの案は「?」に畳む
-function XUrlCostNotice({ onEdit }: { onEdit: () => void }) {
+function XUrlCostNotice({ onEdit, onRemove }: { onEdit: () => void; onRemove: () => void }) {
   return (
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
       <span className="font-bold text-signal">● 費用</span>
@@ -1086,6 +1126,9 @@ function XUrlCostNotice({ onEdit }: { onEdit: () => void }) {
           <li>短縮リンクも URL なので、料金は同じです。X で押された回数は、プロフィールのリンクを短縮リンクにして数えるのがおすすめです</li>
         </ul>
       </HelpTip>
+      <button type="button" onClick={onRemove} className="font-semibold underline">
+        X だけ URL を外す
+      </button>
       <button type="button" onClick={onEdit} className="font-semibold underline">
         X 用に文面を変える
       </button>

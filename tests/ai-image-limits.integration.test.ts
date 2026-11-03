@@ -104,7 +104,7 @@ describe("登録 7 日以内の人たち全体の枠（全体の 3 分の 1）",
     const u = await newUser();
     const share = PHOTO_LIMITS.globalMonthlyUsd * PHOTO_LIMITS.newUsersGlobalShare;
     // 新しいうちに 3 分の 1 の手前まで使った（スコープはこの利用者だけ。共有 DB のほかの記録に左右されない）
-    await admin.from("ai_image_jobs").insert({ owner_id: u.userId, project_id: u.projectId, model: MODEL, images: 0, cost_usd: share - 0.02, status: "done" });
+    await admin.from("ai_image_jobs").insert({ owner_id: u.userId, project_id: u.projectId, model: MODEL, images: 0, cost_usd: share - 0.02, status: "done", by_new_user: true });
     const r = (await reserve(u, 1)).data?.[0];
     expect(r?.status).toBe("new_users_limit");
     expect((await photoStatus(admin, u.userId, MODEL, { scopeOwner: u.userId })).newUsersFull).toBe(true);
@@ -114,6 +114,31 @@ describe("登録 7 日以内の人たち全体の枠（全体の 3 分の 1）",
     // 8 日目からは、新しい人の枠は当てない（全体の $6.66 の中なら作れる）
     expect((await reserve(u, 1, OLD)).data?.[0]?.status).toBe("ok");
     expect((await photoStatus(admin, u.userId, MODEL, { asOf: OLD, scopeOwner: u.userId })).newUsersFull).toBe(false);
+  });
+});
+
+describe("退会しても、新しい人たちの枠は空き直さない", () => {
+  it("新しい人の予約には印（by_new_user）が付き、退会して持ち主が空になっても残る。数えるのは印で、auth.users とは結ばない", async () => {
+    const { client, userId } = await signUpNewUser();
+    const projectId = (await client.from("projects").insert({ name: "すぐ退会" }).select("id").single()).data!.id;
+    const { data } = await reserve({ userId, projectId }, 1);
+    const jobId = data?.[0]?.job_id;
+    expect(jobId).toBeTruthy();
+    // 8 日目の予約には印を付けない
+    const later = (await reserve({ userId, projectId }, 1, OLD)).data?.[0]?.job_id;
+    await deleteUser(userId);
+    const { data: rows } = await admin.from("ai_image_jobs").select("id, owner_id, by_new_user").in("id", [jobId!, later!]);
+    expect(rows).toEqual(expect.arrayContaining([{ id: jobId, owner_id: null, by_new_user: true }, { id: later, owner_id: null, by_new_user: false }]));
+    await admin.from("ai_image_jobs").delete().in("id", [jobId!, later!]);
+    const sql = readFileSync("supabase/migrations/20261103160100_ai_image_limits.sql", "utf8");
+    const quota = sql.slice(sql.indexOf("create function public.ai_image_quota"), sql.indexOf("create function public.reserve_ai_images"));
+    expect(quota).toContain("j.by_new_user");
+    expect(quota).not.toContain("join auth.users");
+  });
+
+  it("利用者は印を書けない（ai_image_jobs には書けない）", async () => {
+    const u = users[0];
+    expect((await u.client.from("ai_image_jobs").insert({ owner_id: u.userId, model: MODEL, images: 0, cost_usd: 0, by_new_user: false })).error).not.toBeNull();
   });
 });
 

@@ -1,11 +1,20 @@
 -- AI の画像の上限を、アカウントを作り直して使い切られないようにする（docs/security/2026-11-03_セキュリティ確認.md の M1・L6。オーナーの決定「新しい人は少なめ」）。
 -- ① 登録して 7 日まで（auth.users.created_at から 7 日。サーバーで決める）は、1 人 月 3 枚まで（ふだんは 20 枚）
--- ② 登録 7 日以内の人たち全体で使えるのは、全体の月の枠（$6.66）の 3 分の 1 まで。数えるのは「その人が登録 7 日以内のうちに予約した分」
+-- ② 登録 7 日以内の人たち全体で使えるのは、全体の月の枠（$6.66）の 3 分の 1 まで。数えるのは「新しい人が予約した分」（予約のときに行に by_new_user を書く。
+--    退会すると owner_id が空になるので、auth.users との join では数えない。退会して枠を空け直すことができないように）
 -- ③ 試みは 1 人 1 日（日本時間）20 回まで。作れなかった回（失敗・安全の決まりで断られた）も数える
 -- 上限はすべてこの関数の中で固定する（呼び出し側から渡さない）。画面に出す値は src/lib/ai/photo.ts の PHOTO_LIMITS（同じ値。テストで確かめる）。
 -- 文章の AI（Claude）の同じ直しと、数え方（7 日・3 分の 1）をそろえる（実装担当1。src/lib/ai/limits.ts）
 
+-- 当て直しに耐えるように（ローカルの共有 DB で、本番に出す前に直して当て直したため）
 drop function if exists public.reserve_ai_images(uuid, uuid, text, integer, numeric, uuid);
+drop function if exists public.reserve_ai_images(uuid, uuid, text, integer, numeric, uuid, timestamptz);
+drop function if exists public.ai_image_quota(uuid, timestamptz, uuid);
+
+-- 今ある行は false のまま（新しい人たちの枠に数えない）。この直しを出す月に新しい人は、運営者とテストの利用者だけのため（2026-11-03 PM の判断）。
+-- 新しい人（登録して 7 日まで）が予約した行か。予約の関数だけが書く（利用者は ai_image_jobs に書けない）。退会しても残る
+alter table public.ai_image_jobs add column if not exists by_new_user boolean not null default false;
+comment on column public.ai_image_jobs.by_new_user is '登録して 7 日までの人が予約した行か（新しい人たちの枠を数える。退会しても残す）';
 
 -- いまの使い方と上限（予約と画面の表示の両方が、これで数える）。
 -- p_as_of: 登録からの日数を数える時点（テストで「7 日あと」を試すため。アプリからは渡さない。月と日の区切りは、いつも now()）。
@@ -44,8 +53,8 @@ begin
     case when v_registered + c_new_user_days > coalesce(p_as_of, now()) then v_registered + c_new_user_days else null end,
     (select coalesce(sum(j.cost_usd), 0) from public.ai_image_jobs j
       where j.created_at >= v_month_start and j.status <> 'failed' and (p_scope_owner is null or j.owner_id = p_scope_owner)),
-    (select coalesce(sum(j.cost_usd), 0) from public.ai_image_jobs j join auth.users u on u.id = j.owner_id
-      where j.created_at >= v_month_start and j.status <> 'failed' and j.created_at < u.created_at + c_new_user_days
+    (select coalesce(sum(j.cost_usd), 0) from public.ai_image_jobs j
+      where j.created_at >= v_month_start and j.status <> 'failed' and j.by_new_user
         and (p_scope_owner is null or j.owner_id = p_scope_owner)),
     (select count(*)::integer from public.ai_image_jobs j where j.owner_id = p_owner_id and j.created_at >= v_day_start);
 end;
@@ -106,8 +115,8 @@ begin
     return query select null::uuid, 'user_limit'::text, q.user_month_images, q.user_monthly_limit, q.new_until, q.global_month_usd;
     return;
   end if;
-  insert into public.ai_image_jobs (owner_id, project_id, model, images, cost_usd)
-  values (p_owner_id, p_project_id, p_model, p_images, p_cost_usd)
+  insert into public.ai_image_jobs (owner_id, project_id, model, images, cost_usd, by_new_user)
+  values (p_owner_id, p_project_id, p_model, p_images, p_cost_usd, q.new_until is not null)
   returning id into v_id;
   return query select v_id, 'ok'::text, q.user_month_images + p_images, q.user_monthly_limit, q.new_until, q.global_month_usd + p_cost_usd;
 end;

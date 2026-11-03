@@ -109,6 +109,7 @@ export type Database = {
       }
       ai_image_jobs: {
         Row: {
+          by_new_user: boolean
           cost_usd: number
           created_at: string
           id: string
@@ -119,6 +120,7 @@ export type Database = {
           status: string
         }
         Insert: {
+          by_new_user?: boolean
           cost_usd?: number
           created_at?: string
           id?: string
@@ -129,6 +131,7 @@ export type Database = {
           status?: string
         }
         Update: {
+          by_new_user?: boolean
           cost_usd?: number
           created_at?: string
           id?: string

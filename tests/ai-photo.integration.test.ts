@@ -237,7 +237,7 @@ describe("退会したとき", () => {
     await removeStorage(daveId);
     await deleteUser(daveId);
     const { data: job } = await admin.from("ai_image_jobs").select("*").eq("id", r.jobId).single();
-    expect(Object.keys(job!).sort()).toEqual(["cost_usd", "created_at", "id", "images", "model", "owner_id", "project_id", "status"]);
+    expect(Object.keys(job!).sort()).toEqual(["by_new_user", "cost_usd", "created_at", "id", "images", "model", "owner_id", "project_id", "status"]);
     expect(job).toMatchObject({ owner_id: null, project_id: null, images: 1, status: "done" });
     expect(Number(job!.cost_usd)).toBeGreaterThan(0);
     // 注意を読んだ記録は消える

@@ -64,8 +64,11 @@ export function WeekGrid({
           {days.map((d, i) => {
             const list = cells.get(`${d}-${h}`) ?? [];
             return (
-              <div key={d} className={`group relative flex min-h-[52px] min-w-0 flex-col gap-1 p-1.5 ${i < 6 ? "border-r border-line" : ""} ${d === today ? "bg-surface2/60" : ""}`}>
-                {/* 空いているところを押すと、その日の投稿をつくる（札は、この上に重ねる） */}
+              <div
+                key={d}
+                className={`group relative flex min-h-[52px] min-w-0 flex-col gap-1 p-1.5 ${list.length > 0 ? "pb-5" : ""} ${i < 6 ? "border-r border-line" : ""} ${d === today ? "bg-surface2/60" : ""}`}
+              >
+                {/* 空いているところを押すと、その日の投稿をつくる（札は、この上に重ねる）。札のあるマスは下に余白を空け、「＋」を札の下に出す（4.39） */}
                 <Link href={`${base}/compose?date=${d}`} className="absolute inset-0 flex items-end justify-end p-1 text-[11px] text-faint hover:bg-primary-soft/60 hover:no-underline">
                   <span className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">＋</span>
                   <span className="sr-only">

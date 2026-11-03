@@ -1,16 +1,16 @@
 import Link from "next/link";
 import type { WeekBand } from "@/lib/calendar/roadmap-view";
+import { monthCellLines } from "@/lib/calendar/month-cell";
 import { monthOf } from "@/lib/time";
 import { TodoButton, WeekBandView } from "./roadmap-band";
 import type { MonthDay } from "./month-types";
 import { SnsLabel } from "./sns-label";
 
 const WEEKDAYS = ["月", "火", "水", "木", "金", "土", "日"];
-// 1 日のマスに出す件数。これより多い日は、1 つ減らして「ほか n 件」を出す（マスの高さをそろえる）
-const MAX_ITEMS = 3;
 
 // PC の月の表示: 月曜はじまりの 6 週のマス。前後の月の日は薄く。
-// 日付を押すとその日の週の表示へ、投稿を押すとその投稿へ、空いているところを押すとその日の投稿をつくる。
+// 日付を押すとその日の週の表示へ、投稿を押すとその投稿へ、空いているところか右上の「＋」を押すとその日の投稿をつくる。
+// やることと投稿の札は合わせて 3 行まで。多い日は「ほか n 件」でその日の週の表示へ（4.39）。
 // 各週の行の上に、ロードマップのやることと週の目標の帯を出す（bands は週の行の順）
 export function MonthGrid({ days, base, bands, today }: { days: MonthDay[]; base: string; bands: (WeekBand | undefined)[]; today: string }) {
   return (
@@ -28,34 +28,43 @@ export function MonthGrid({ days, base, bands, today }: { days: MonthDay[]; base
           <div className="grid grid-cols-7 border-t border-line first:border-t-0">
         {days.slice(row * 7, row * 7 + 7).map((d, col) => {
           const i = row * 7 + col;
-          const shown = d.count > MAX_ITEMS ? d.items.slice(0, MAX_ITEMS - 1) : d.items.slice(0, MAX_ITEMS);
-          const more = d.count - shown.length;
+          const { todos, items: shown, more } = monthCellLines(d.todos, d.items, d.count);
           return (
             <div
               key={d.ymd}
               className={`group relative flex min-h-[116px] min-w-0 flex-col gap-1 p-1.5 ${i % 7 < 6 ? "border-r" : ""} border-line ${d.isToday ? "bg-surface2" : ""}`}
             >
-              {/* 空いているところを押すと、その日の投稿をつくる（日付と投稿のリンクは、この上に重ねる） */}
+              {/* 空いているところを押すと、その日の投稿をつくる（日付と札は、この上に重ねる）。キーボードと読み上げは右上の「＋」から */}
               <Link
                 href={`${base}/compose?date=${d.ymd}`}
-                className="absolute inset-0 flex items-end justify-end p-1.5 text-xs text-muted hover:bg-primary-soft/50 hover:no-underline"
-              >
-                <span className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">＋ 投稿をつくる</span>
-                <span className="sr-only">
-                  {monthOf(d.ymd)} 月 {d.day} 日に投稿をつくる
-                </span>
-              </Link>
-              <Link
-                href={`${base}/calendar?view=week&week=${d.ymd}`}
-                title="この日の週を見る"
-                className={`relative z-10 grid size-6 place-items-center self-start rounded-full text-xs hover:no-underline ${
-                  d.isToday ? "bg-primary font-bold text-on-primary" : d.inMonth ? "text-fg hover:bg-primary-soft" : "text-muted opacity-60 hover:bg-primary-soft"
-                }`}
-              >
-                {d.day}
-                {d.isToday && <span className="sr-only">今日</span>}
-              </Link>
-              {d.todos.map((t) => (
+                tabIndex={-1}
+                aria-hidden
+                className="absolute inset-0 hover:bg-primary-soft/50 hover:no-underline"
+              />
+              {/* 日付の行。右上の「＋」は札と重ならないよう、日付と同じ行に置き、マスにマウスを乗せたときに出す */}
+              <div className="flex items-center justify-between">
+                <Link
+                  href={`${base}/calendar?view=week&week=${d.ymd}`}
+                  title="この日の週を見る"
+                  className={`relative z-10 grid size-6 place-items-center rounded-full text-xs hover:no-underline ${
+                    d.isToday ? "bg-primary font-bold text-on-primary" : d.inMonth ? "text-fg hover:bg-primary-soft" : "text-muted opacity-60 hover:bg-primary-soft"
+                  }`}
+                >
+                  {d.day}
+                  {d.isToday && <span className="sr-only">今日</span>}
+                </Link>
+                <Link
+                  href={`${base}/compose?date=${d.ymd}`}
+                  title="この日の投稿をつくる"
+                  className="relative z-10 grid size-6 place-items-center rounded-full text-sm text-muted opacity-0 transition-opacity group-hover:opacity-100 hover:bg-primary-soft hover:text-fg hover:no-underline focus-visible:opacity-100"
+                >
+                  <span aria-hidden>＋</span>
+                  <span className="sr-only">
+                    {monthOf(d.ymd)} 月 {d.day} 日に投稿をつくる
+                  </span>
+                </Link>
+              </div>
+              {todos.map((t) => (
                 <TodoButton key={t.id} todo={t} base={base} variant="day" />
               ))}
               {shown.map((it) => (

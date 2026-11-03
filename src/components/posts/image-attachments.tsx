@@ -207,7 +207,8 @@ export function ImageAttachments({
           </Button>
         )}
         <span className="num text-[13px] text-faint">
-          置いても添えられます・{MAX_IMAGES_PER_POST} 枚まで（X は 4 枚）
+          <span className="hidden sm:inline">この枠に画像をドラッグしても追加できます・</span>
+          {MAX_IMAGES_PER_POST} 枚まで（X は 4 枚）
         </span>
         <HelpTip label="画像の扱い" align="right">
           送る前に JPEG に縮め、撮った場所などの情報は消します。動画は準備中です。

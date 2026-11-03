@@ -1,5 +1,6 @@
 "use client";
 
+import type { SnsKey } from "@/lib/sns";
 import { useEffect, useState, useTransition } from "react";
 import { Button, NotReadyButton } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/feedback";
@@ -31,6 +32,7 @@ async function loadBitmap(url: string): Promise<ImageBitmap> {
 // 「テンプレート」のタブに切り替えても外さずに隠すだけなので、作った候補・選んだ候補・絵の説明は残る（visible は隠しているか）
 export function PhotoMaker({
   projectId,
+  targets,
   visible,
   text,
   size,
@@ -39,6 +41,8 @@ export function PhotoMaker({
   onUseInTemplate,
 }: {
   projectId: string;
+  // 送り先の SNS（絵の説明の案の材料にする投稿の柱を、この SNS に付いたものにする）
+  targets: SnsKey[];
   visible: boolean;
   text: string;
   size: TemplateSizeKey;
@@ -142,7 +146,7 @@ export function PhotoMaker({
   function draft() {
     startDraft(async () => {
       setError(null);
-      const r = await draftPhotoIdeas(projectId, text);
+      const r = await draftPhotoIdeas(projectId, text, targets);
       if (!r.ideas) {
         setError(r.error ?? "うまくいきませんでした。");
         return;

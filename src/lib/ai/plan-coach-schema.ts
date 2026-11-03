@@ -23,7 +23,8 @@ export const valueSchemas = {
   goal: z.object({ what: z.string(), goalType: z.enum(GOAL_TYPES).nullable(), note: z.string() }),
   audience: z.object({ who: z.string(), pain: z.string(), where: z.string() }),
   pillars: z.object({
-    items: z.array(z.object({ name: z.string(), share: z.number().int().nullable(), example: z.string() })),
+    // sns: その柱を使う SNS（空はすべての SNS。前の版の案（sns なし）も読めるように既定は空。知らない SNS は保存の形で捨てる）
+    items: z.array(z.object({ name: z.string(), share: z.number().int().nullable(), example: z.string(), sns: z.array(z.string()).default([]) })),
     tone: z.string(),
     avoid: z.string(),
   }),

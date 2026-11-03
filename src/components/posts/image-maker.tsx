@@ -167,7 +167,7 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
   function draft() {
     startDraft(async () => {
       setError(null);
-      const res = await draftImageText(projectId, text);
+      const res = await draftImageText(projectId, text, targets);
       if (res.error || !res.brief) {
         setError(res.error ?? "うまくいきませんでした。");
         return;
@@ -277,7 +277,7 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
       {photoOpened && (
         <div hidden={mode !== "photo"} className="flex flex-col gap-4">
           {mode === "photo" && error && <ErrorBanner>{error}</ErrorBanner>}
-          <PhotoMaker projectId={projectId} visible={mode === "photo"} text={text} size={size} onSize={setSize} onUseAsIs={addPhotoAsIs} onUseInTemplate={usePhotoInTemplate} />
+          <PhotoMaker projectId={projectId} targets={targets} visible={mode === "photo"} text={text} size={size} onSize={setSize} onUseAsIs={addPhotoAsIs} onUseInTemplate={usePhotoInTemplate} />
         </div>
       )}
       {mode === "template" && (

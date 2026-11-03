@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { SNS_KEYS, type SnsKey } from "@/lib/sns";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { TEMPLATE_SIZES, type TemplateSizeKey } from "@/lib/media/templates";
@@ -9,6 +10,8 @@ import { generateWithGemini, photoConfigured } from "./gemini-image";
 import { aiLimitsFromEnv } from "./limits";
 import { MAX_PHOTOS_PER_RUN, MAX_SCENE_CHARS, PHOTO_LIMITS, PHOTO_STYLES, photoModel, photoUnitYen, type PhotoIdea } from "./photo";
 import { acknowledgePhotoNotice, photoStatus, refreshCandidateUrls, runPhotoGeneration, runPhotoIdeas, type PhotoCandidate } from "./photo-gen";
+
+const snsListSchema = z.array(z.enum(SNS_KEYS as [SnsKey, ...SnsKey[]])).max(SNS_KEYS.length);
 
 // 画面から呼ぶ、AI で写真・絵をつくる操作（docs/architecture.md の 4.25 の ②、決定 D35）。
 // 利用者の ID は、ここでログインの情報（getClaims）から取る。画面から渡された値は使わない
@@ -58,14 +61,16 @@ export async function acknowledgePhoto(): Promise<{ error?: string }> {
   }
 }
 
-export async function draftPhotoIdeas(projectId: string, text: unknown): Promise<{ ideas?: PhotoIdea[]; error?: string }> {
+// sns: 送り先の SNS（投稿の柱は、この SNS に付いたものだけを材料にする）
+export async function draftPhotoIdeas(projectId: string, text: unknown, sns: unknown = []): Promise<{ ideas?: PhotoIdea[]; error?: string }> {
   const t = z.string().max(10000).safeParse(text);
-  if (!z.uuid().safeParse(projectId).success || !t.success) return { error: "入力の形式が正しくありません。" };
+  const s = snsListSchema.safeParse(sns);
+  if (!z.uuid().safeParse(projectId).success || !t.success || !s.success) return { error: "入力の形式が正しくありません。" };
   if (!aiConfigured() || !photoConfigured()) return { error: "AI の画像はまだ準備中です。" };
   const { supabase, userId } = await currentUser();
   if (!userId) return { error: "ログインし直してください。" };
   try {
-    const r = await runPhotoIdeas(supabase, createAdminClient(), { callIdeas: callPhotoIdeas, limits: aiLimitsFromEnv() }, { userId, projectId, text: t.data });
+    const r = await runPhotoIdeas(supabase, createAdminClient(), { callIdeas: callPhotoIdeas, limits: aiLimitsFromEnv() }, { userId, projectId, text: t.data, sns: s.data });
     return r.ok ? { ideas: r.ideas } : { error: r.message };
   } catch (e) {
     console.error("[draftPhotoIdeas]", e instanceof Error ? e.message : e);

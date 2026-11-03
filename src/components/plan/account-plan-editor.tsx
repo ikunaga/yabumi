@@ -9,7 +9,7 @@ import Link from "next/link";
 import { startTransition, useActionState, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Button, buttonClass, NotReadyButton } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
-import { Badge } from "@/components/ui/chip";
+import { Badge, chipClass } from "@/components/ui/chip";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { HelpTip } from "@/components/ui/help";
 import { Field, Input, Textarea } from "@/components/ui/field";
@@ -21,6 +21,7 @@ import { toYmd } from "@/lib/time";
 import { chosenKpis, kpiKeysFor, KPIS, MAX_KPIS, recommendedKpis, type KpiKey } from "@/lib/metrics/kpis";
 import { SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
 import { PLAN_EXAMPLES, type PlanExamples } from "@/lib/ai/product-guide";
+import { isSplitBySns, pillarsBySns, pillarViewSns, type Pillar } from "@/lib/plan/pillars";
 import { ProfileFields, type ProfileContext } from "./profile-fields";
 
 // 見出しはボタンの中に置くので、用語解説（これもボタン）は説明文のほうに付ける
@@ -327,7 +328,7 @@ function SectionFields({ sectionKey, plan, profileCtx }: { sectionKey: SectionKe
     case "profile":
       return <ProfileFields v={plan.profile} roles={plan.cadence.roles} ctx={profileCtx} />;
     case "pillars":
-      return <PillarsFields v={plan.pillars} ex={examplesOf(profileCtx)} />;
+      return <PillarsFields v={plan.pillars} ex={examplesOf(profileCtx)} inUse={snsInUse(plan, profileCtx)} />;
     case "hashtags":
       return <HashtagsFields v={plan.hashtags} ex={examplesOf(profileCtx)} />;
     case "cadence":
@@ -339,10 +340,50 @@ function SectionFields({ sectionKey, plan, profileCtx }: { sectionKey: SectionKe
           goalType={plan.goal.goalType}
           productType={profileCtx.productType ?? "app"}
           // 週の回数の欄を出す SNS: 役割を書いた SNS・つないだ SNS・もう回数を決めた SNS（ほかは折りたたむ）
-          mainSns={SNS_KEYS.filter((k) => plan.cadence.roles[k]?.trim() || profileCtx.accounts.some((a) => a.sns === k) || (plan.first_month.weekly[k] ?? 0) > 0)}
+          mainSns={snsInUse(plan, profileCtx)}
         />
       );
   }
+}
+
+// 使っている SNS: 役割を書いた SNS・つないだ SNS・週の回数を決めた SNS
+function snsInUse(plan: PlanData, ctx: ProfileContext): SnsKey[] {
+  return SNS_KEYS.filter((k) => plan.cadence.roles[k]?.trim() || ctx.accounts.some((a) => a.sns === k) || (plan.first_month.weekly[k] ?? 0) > 0);
+}
+
+// SNS ごとにまとめて見る: SNS ごとに、その SNS で使う柱と割合、割合の合計
+function PillarsBySnsView({ pillars, snsList }: { pillars: Pillar[]; snsList: SnsKey[] }) {
+  return (
+    <div className="mt-1 flex flex-col gap-2">
+      <p className="text-xs font-bold text-muted">SNS ごとの柱と割合</p>
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(13rem,1fr))] gap-2">
+        {pillarsBySns(pillars, snsList).map(({ sns, pillars: ps, total }) => (
+          <div key={sns} className="rounded-md border border-line bg-surface2 px-3 py-2.5 text-[13px]">
+            <p className="flex items-baseline gap-2 font-bold">
+              {SNS[sns].label}
+              <span className={`num ml-auto text-xs ${total > 100 ? "text-danger" : total === 100 ? "text-success" : "text-muted"}`}>
+                合計 {total}%
+              </span>
+            </p>
+            {ps.length ? (
+              <ul className="mt-1 flex flex-col gap-0.5">
+                {ps.map((p, j) => (
+                  <li key={j} className="flex gap-2">
+                    <span className="min-w-0 flex-1 truncate">{p.name}</span>
+                    <span className="num text-muted">{p.share !== null ? `${p.share}%` : "—"}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-1 text-muted">この SNS で使う柱がありません</p>
+            )}
+            {total > 100 && <p className="mt-1 text-xs font-semibold text-danger">100% を超えています</p>}
+            {total > 0 && total < 100 && <p className="mt-1 text-xs text-muted">100% にすると配分がはっきりします</p>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 // 選択肢（ラジオボタン）
@@ -453,11 +494,22 @@ function OwnershipFields({ v, ex }: { v: PlanData["ownership"]; ex: PlanExamples
 }
 
 
-function PillarsFields({ v, ex: examples }: { v: PlanData["pillars"]; ex: PlanExamples }) {
-  const [shares, setShares] = useState<string[]>(() =>
-    Array.from({ length: MAX_PILLARS }, (_, i) => (v.items[i]?.share != null ? String(v.items[i].share) : "")),
+// 柱ごとに「使う SNS」を選べる（2026-11-03 オーナーの要望。src/lib/plan/pillars.ts）。何も選ばなければすべての SNS。
+// 割合は SNS ごとに、その SNS に付いた柱の中で数え、SNS ごとの合計と中身を下にまとめて出す（どの SNS で何を出すかをひと目で確かめる）
+type PillarRow = { name: string; share: string; sns: SnsKey[] };
+
+function PillarsFields({ v, ex: examples, inUse }: { v: PlanData["pillars"]; ex: PlanExamples; inUse: SnsKey[] }) {
+  const [rows, setRows] = useState<PillarRow[]>(() =>
+    Array.from({ length: MAX_PILLARS }, (_, i) => ({ name: v.items[i]?.name ?? "", share: v.items[i]?.share != null ? String(v.items[i].share) : "", sns: v.items[i]?.sns ?? [] })),
   );
-  const total = shares.reduce((sum, s) => sum + (Number(s) || 0), 0);
+  const [allSns, setAllSns] = useState(false);
+  const update = (i: number, patch: Partial<PillarRow>) => setRows((r) => r.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+  const asPillars = rows.map((r) => ({ name: r.name, share: Number(r.share) || null, example: "", sns: r.sns }));
+  const split = isSplitBySns(asPillars);
+  // チップに出す SNS: 使っている SNS（役割・つないだ・週の回数）と、もう選んだ SNS。ほかは「ほかの SNS」で出す
+  const shown = pillarViewSns(asPillars, inUse.length ? inUse : SNS_KEYS);
+  const options = allSns ? SNS_KEYS : SNS_KEYS.filter((k) => shown.includes(k) || rows.some((r) => r.sns.includes(k)));
+  const total = rows.reduce((sum, r) => sum + (Number(r.share) || 0), 0);
 
   return (
     <>
@@ -470,35 +522,76 @@ function PillarsFields({ v, ex: examples }: { v: PlanData["pillars"]; ex: PlanEx
         </div>
         {Array.from({ length: MAX_PILLARS }, (_, i) => {
           const item = v.items[i];
+          const row = rows[i];
           const ex = examples.pillars[i] ?? { name: "", share: "", example: "" };
           return (
-            <div key={i} className="grid grid-cols-[1fr_72px_1.4fr] gap-2 max-sm:grid-cols-[1fr_72px] max-sm:border-b max-sm:border-line max-sm:pb-3">
-              <Input name={`pillar-${i}-name`} aria-label={`柱 ${i + 1} の名前`} defaultValue={item?.name ?? ""} maxLength={50} placeholder={ex.name && `例: ${ex.name}`} />
-              <Input
-                name={`pillar-${i}-share`}
-                aria-label={`柱 ${i + 1} の割合（%）`}
-                type="number"
-                min={0}
-                max={100}
-                inputMode="numeric"
-                value={shares[i]}
-                onChange={(e) => setShares((s) => s.map((x, j) => (j === i ? e.target.value : x)))}
-                placeholder={ex.share}
-              />
-              <Input
-                name={`pillar-${i}-example`}
-                aria-label={`柱 ${i + 1} の投稿の例`}
-                defaultValue={item?.example ?? ""}
-                maxLength={200}
-                placeholder={ex.example && `例: ${ex.example}`}
-                className="max-sm:col-span-2"
-              />
+            <div key={i} className="flex flex-col gap-2 border-b border-line pb-3 last:border-b-0">
+              <div className="grid grid-cols-[1fr_72px_1.4fr] gap-2 max-sm:grid-cols-[1fr_72px]">
+                <Input
+                  name={`pillar-${i}-name`}
+                  aria-label={`柱 ${i + 1} の名前`}
+                  value={row.name}
+                  onChange={(e) => update(i, { name: e.target.value })}
+                  maxLength={50}
+                  placeholder={ex.name && `例: ${ex.name}`}
+                />
+                <Input
+                  name={`pillar-${i}-share`}
+                  aria-label={`柱 ${i + 1} の割合（%）`}
+                  type="number"
+                  min={0}
+                  max={100}
+                  inputMode="numeric"
+                  value={row.share}
+                  onChange={(e) => update(i, { share: e.target.value })}
+                  placeholder={ex.share}
+                />
+                <Input
+                  name={`pillar-${i}-example`}
+                  aria-label={`柱 ${i + 1} の投稿の例`}
+                  defaultValue={item?.example ?? ""}
+                  maxLength={200}
+                  placeholder={ex.example && `例: ${ex.example}`}
+                  className="max-sm:col-span-2"
+                />
+              </div>
+              <div role="group" aria-label={`柱 ${i + 1} を使う SNS`} className="flex flex-wrap items-center gap-1.5">
+                <span className="mr-1 text-xs text-muted">使う SNS</span>
+                <button type="button" aria-pressed={row.sns.length === 0} onClick={() => update(i, { sns: [] })} className={chipClass({ on: row.sns.length === 0, className: "h-7 px-2.5 text-xs" })}>
+                  すべて
+                </button>
+                {options.map((k) => {
+                  const on = row.sns.includes(k);
+                  return (
+                    <label key={k} className={`cursor-pointer has-focus-visible:outline-2 has-focus-visible:outline-primary ${chipClass({ on, className: "h-7 px-2.5 text-xs" })}`}>
+                      <input
+                        type="checkbox"
+                        name={`pillar-${i}-sns`}
+                        value={k}
+                        checked={on}
+                        onChange={() => update(i, { sns: on ? row.sns.filter((x) => x !== k) : SNS_KEYS.filter((x) => x === k || row.sns.includes(x)) })}
+                        className="sr-only"
+                      />
+                      {SNS[k].label}
+                    </label>
+                  );
+                })}
+                {!allSns && options.length < SNS_KEYS.length && (
+                  <button type="button" onClick={() => setAllSns(true)} className="text-xs font-semibold text-primary hover:underline">
+                    ほかの SNS
+                  </button>
+                )}
+              </div>
             </div>
           );
         })}
-        <p className={`text-xs ${total > 100 ? "font-semibold text-danger" : "text-muted"}`}>
-          割合の合計: {total}%{total > 100 ? "（100% を超えています）" : total > 0 && total < 100 ? "（100% にすると配分がはっきりします）" : ""}
-        </p>
+        {split ? (
+          <PillarsBySnsView pillars={asPillars} snsList={pillarViewSns(asPillars, inUse)} />
+        ) : (
+          <p className={`text-xs ${total > 100 ? "font-semibold text-danger" : "text-muted"}`}>
+            割合の合計: {total}%{total > 100 ? "（100% を超えています）" : total > 0 && total < 100 ? "（100% にすると配分がはっきりします）" : ""}
+          </p>
+        )}
       </fieldset>
       <Field
         label={
@@ -721,6 +814,10 @@ function formEntries(form: HTMLFormElement): [string, string][] {
 function restoreEntries(form: HTMLFormElement, entries: [string, string][]) {
   const byName = new Map<string, string[]>();
   for (const [k, v] of entries) byName.set(k, [...(byName.get(k) ?? []), v]);
+  // 控えは欄の全部を写したものなので、控えに名前のないチェックの欄は、どれも選んでいなかったもの（柱の「使う SNS」を外した、など）
+  for (const el of form.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')) {
+    if (el.name && !byName.has(el.name) && el.checked) el.click();
+  }
   for (const [name, values] of byName) {
     const fields = [...form.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(`[name="${CSS.escape(name)}"]`)];
     let i = 0;

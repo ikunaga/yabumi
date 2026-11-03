@@ -9,12 +9,18 @@ import type { PlanData } from "./schema";
 
 export type Pillar = PlanData["pillars"]["items"][number];
 
+// 柱の「使う SNS」。前に保存した AI の案（会話に残っている）には sns がないので、ないときと知らない SNS は空として読む
+function snsOf(p: Pick<Pillar, "sns">): SnsKey[] {
+  return Array.isArray(p.sns) ? p.sns.filter((s) => (SNS_KEYS as readonly string[]).includes(s)) : [];
+}
+
 export function namedPillars(items: readonly Pillar[]): Pillar[] {
-  return items.filter((p) => p.name.trim());
+  return (items ?? []).filter((p) => (p.name ?? "").trim());
 }
 
 export function pillarAppliesTo(p: Pick<Pillar, "sns">, sns: SnsKey): boolean {
-  return p.sns.length === 0 || p.sns.includes(sns);
+  const own = snsOf(p);
+  return own.length === 0 || own.includes(sns);
 }
 
 // その SNS で使う柱（名前のあるものだけ）
@@ -24,17 +30,18 @@ export function pillarsFor(items: readonly Pillar[], sns: SnsKey): Pillar[] {
 
 // SNS ごとに分けているか（使う SNS を選んだ柱が 1 つでもあるか）
 export function isSplitBySns(items: readonly Pillar[]): boolean {
-  return namedPillars(items).some((p) => p.sns.length > 0);
+  return namedPillars(items).some((p) => snsOf(p).length > 0);
 }
 
 // 柱の「使う SNS」の呼び方（例: 「X・Threads」「すべての SNS」）
 export function pillarSnsLabel(p: Pick<Pillar, "sns">): string {
-  return p.sns.length === 0 ? "すべての SNS" : p.sns.map((s) => SNS[s].label).join("・");
+  const own = snsOf(p);
+  return own.length === 0 ? "すべての SNS" : own.map((s) => SNS[s].label).join("・");
 }
 
 // SNS ごとにまとめて見るときの SNS: 柱で選んだ SNS と、ほかで使っている SNS（役割を書いた・つないだ・週の回数を決めた）を SNS_KEYS の順に
 export function pillarViewSns(items: readonly Pillar[], inUse: readonly SnsKey[]): SnsKey[] {
-  const picked = new Set<SnsKey>([...inUse, ...namedPillars(items).flatMap((p) => p.sns)]);
+  const picked = new Set<SnsKey>([...inUse, ...namedPillars(items).flatMap((p) => snsOf(p))]);
   return SNS_KEYS.filter((k) => picked.has(k));
 }
 

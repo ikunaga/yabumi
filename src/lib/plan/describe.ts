@@ -35,8 +35,8 @@ export function describeSection(key: SectionKey, value: SectionValue<SectionKey>
       const split = isSplitBySns(v.items);
       add(
         "投稿の柱",
-        v.items
-          .map((i) => `・${i.name}${i.share !== null ? `（${i.share}%）` : ""}${split ? `［${pillarSnsLabel(i)}］` : ""}${i.example ? ` 例: ${i.example}` : ""}`)
+        (v.items ?? [])
+          .map((i) => `・${i.name}${i.share != null ? `（${i.share}%）` : ""}${split ? `［${pillarSnsLabel(i)}］` : ""}${i.example ? ` 例: ${i.example}` : ""}`)
           .join("\n"),
       );
       add("口調", v.tone);
@@ -46,7 +46,7 @@ export function describeSection(key: SectionKey, value: SectionValue<SectionKey>
     }
     case "hashtags": {
       const v = value as PlanData["hashtags"];
-      for (const i of v.items) add(`#${i.tag}`, [i.why.trim(), i.when.trim() && `付けるとき: ${i.when.trim()}`].filter(Boolean).join("\n") || "（説明なし）");
+      for (const i of v.items ?? []) add(`#${i.tag}`, [(i.why ?? "").trim(), (i.when ?? "").trim() && `付けるとき: ${(i.when ?? "").trim()}`].filter(Boolean).join("\n") || "（説明なし）");
       break;
     }
     case "ownership": {
@@ -66,10 +66,10 @@ export function describeSection(key: SectionKey, value: SectionValue<SectionKey>
         const o = v.bySns?.[sns];
         if (!o) continue;
         const parts = [
-          o.displayName.trim() && `表示名 ${o.displayName.trim()}`,
-          o.handle.trim() && `@${o.handle.trim().replace(/^@/, "")}`,
-          o.bio.trim() && `自己紹介文 ${o.bio.trim()}`,
-          o.link.trim() && `リンク先 ${o.link.trim()}`,
+          (o.displayName ?? "").trim() && `表示名 ${(o.displayName ?? "").trim()}`,
+          (o.handle ?? "").trim() && `@${(o.handle ?? "").trim().replace(/^@/, "")}`,
+          (o.bio ?? "").trim() && `自己紹介文 ${(o.bio ?? "").trim()}`,
+          (o.link ?? "").trim() && `リンク先 ${(o.link ?? "").trim()}`,
         ].filter(Boolean);
         add(`${SNS[sns].label} 用`, parts.join("\n"));
       }
@@ -80,7 +80,7 @@ export function describeSection(key: SectionKey, value: SectionValue<SectionKey>
       add("頻度", v.frequency);
       add(
         "SNS ごとの役割",
-        SNS_KEYS.filter((s) => v.roles[s])
+        SNS_KEYS.filter((s) => v.roles?.[s])
           .map((s) => `・${SNS[s]?.label ?? s}: ${v.roles[s]}`)
           .join("\n"),
       );

@@ -5,6 +5,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Badge, chipClass } from "@/components/ui/chip";
 import { Columns } from "@/components/ui/columns";
+import { ConsultClosedBanner } from "@/components/ai/consult-closed-banner";
 import { SuccessBanner } from "@/components/ui/feedback";
 import { PageHeader } from "@/components/ui/page-header";
 import { aiConfigured } from "@/lib/ai/anthropic";
@@ -49,6 +50,7 @@ export default async function ConsultListPage(props: PageProps<"/projects/[id]/c
         help="運用の悩みを相談できます。AI はアカウント設計・最近の投稿・数字・ロードマップを見たうえで、案を 2〜3 個出します。選んだ案だけが、設計やロードマップに入ります。"
         actions={<ButtonLink href={`${base}/new`}>自由に書いて相談する</ButtonLink>}
       />
+      <ConsultClosedBanner done={sp.done} items={sp.items} />
       {sp.done === "thread_deleted" && <SuccessBanner>会話を削除しました。採用した案（設計・ロードマップ・下書き）は残っています。</SuccessBanner>}
 
       <Columns
@@ -62,11 +64,16 @@ export default async function ConsultListPage(props: PageProps<"/projects/[id]/c
                   {threads.map((t) => (
                     <li key={t.id} className="border-t border-line first:border-t-0">
                       <Link href={`${base}/${t.id}`} className="flex items-center gap-3 px-6 py-3.5 text-[15px] hover:bg-surface2 hover:no-underline max-sm:flex-col max-sm:items-start max-sm:gap-1 max-sm:px-4">
-                        <span className="min-w-0 flex-1 truncate font-semibold text-fg max-sm:whitespace-normal">
-                          {t.topicTitle ?? t.title}
-                          {t.topicTitle && t.title && <span className="font-normal text-muted"> — {t.title}</span>}
+                        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                          <span className="truncate font-semibold text-fg max-sm:whitespace-normal">
+                            {t.topicTitle ?? t.title}
+                            {t.topicTitle && t.title && <span className="font-normal text-muted"> — {t.title}</span>}
+                          </span>
+                          {/* 済んだ相談: AI が区切ったときのまとめ（1 行） */}
+                          {t.closed && t.summary && <span className="truncate text-[13px] text-muted max-sm:whitespace-normal">まとめ: {t.summary}</span>}
                         </span>
                         <span className="num flex shrink-0 items-center gap-3 text-[13px] text-faint">
+                          {t.closed && <Badge>済み</Badge>}
                           {t.adopted > 0 && <Badge tone="success">採用した案 {t.adopted}</Badge>}
                           <span>{formatShort(t.updatedAt)}</span>
                         </span>

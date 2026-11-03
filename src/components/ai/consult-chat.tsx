@@ -4,7 +4,7 @@ import { callAction } from "@/lib/client-errors";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { AiThinking } from "@/components/ui/ai-thinking";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { VoiceInputButton } from "@/components/ui/voice-input";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { Term } from "@/components/ui/term";
@@ -17,6 +17,7 @@ import { KPIS } from "@/lib/metrics/kpis";
 import { describeSection } from "@/lib/plan/describe";
 import { formatValue, kpiLabel } from "@/lib/roadmap/schema";
 import { SNS, checkTarget, type SnsKey } from "@/lib/sns";
+import { useCloseThread } from "./close-thread";
 
 type Input = { kind: "start"; topic: ConsultTopic } | { kind: "text"; text: string } | { kind: "adopt"; messageId: string; actionIndex: number };
 
@@ -49,12 +50,15 @@ export function ConsultChat({
   threadId: initialThreadId,
   messages,
   initialTopic,
+  closed = false,
 }: {
   projectId: string;
   threadId: string | null;
   messages: ConsultMessage[];
   // ロードマップの「AI と作る」などから来たときの相談
   initialTopic: ConsultTopic | null;
+  // 済んだ会話: 読むだけ（送る・採用する・選ぶは出さない）
+  closed?: boolean;
 }) {
   const router = useRouter();
   const [threadId, setThreadId] = useState(initialThreadId);
@@ -65,6 +69,9 @@ export function ConsultChat({
   const started = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const closer = useCloseThread(projectId, threadId);
+  // AI が区切った返事で「もう少し相談する」を押したか（押した返事の id）
+  const [continuedId, setContinuedId] = useState<string | null>(null);
 
   function send(input: Input) {
     setError(null);
@@ -111,6 +118,13 @@ export function ConsultChat({
   }, [messages.length, pending]);
 
   const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
+  // 最後の返事が AI の区切りなら、入力欄の代わりに「これで終わる」「もう少し相談する」を出す
+  const last = messages[messages.length - 1];
+  const wrapUp = !closed && !pending && last?.role === "assistant" && last.content.wrapUp && continuedId !== last.id ? last : null;
+
+  useEffect(() => {
+    if (continuedId) inputRef.current?.focus();
+  }, [continuedId]);
 
   function submitText() {
     const t = text.trim();
@@ -148,7 +162,8 @@ export function ConsultChat({
               key={m.id}
               message={m}
               isLatest={m.id === lastAssistant?.id}
-              disabled={pending}
+              readOnly={closed}
+              disabled={pending || closer.pending}
               onChoice={(c) => send({ kind: "text", text: c })}
               onAdopt={(i) => send({ kind: "adopt", messageId: m.id, actionIndex: i })}
               onRevise={(title) => {
@@ -174,35 +189,58 @@ export function ConsultChat({
       <div ref={bottomRef} />
 
       {error && <ErrorBanner>{error}</ErrorBanner>}
+      {closer.error && <ErrorBanner>{closer.error}</ErrorBanner>}
 
-      <div className="sticky bottom-0 z-[5] flex flex-col gap-2 bg-bg pt-3 pb-5 max-sm:bottom-[72px] max-sm:-mx-4 max-sm:border-t max-sm:border-border max-sm:bg-surface max-sm:px-4 max-sm:py-3">
-        <label htmlFor="consult-input" className="sr-only">
-          AI への相談
-        </label>
-        <textarea
-          id="consult-input"
-          ref={inputRef}
-          rows={2}
-          value={text}
-          maxLength={2000}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            // 日本語の変換を確定する Enter と区別するため、送るのは ⌘/Ctrl + Enter
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-              e.preventDefault();
-              submitText();
-            }
-          }}
-          placeholder="悩みや、聞きたいことを書いてください（⌘ / Ctrl + Enter で送る）"
-          className="w-full resize-none rounded-md border border-input bg-surface px-3.5 py-2.5 text-[14px] outline-none focus:border-primary focus:shadow-[0_0_0_1px_var(--primary)] max-sm:text-[16px]"
-        />
-        <div className="flex items-start gap-3">
-          <VoiceInputButton className="flex-1" target={inputRef} label="相談" onChange={setText} />
-          <Button className="ml-auto" size="sm" disabled={pending || !text.trim()} onClick={submitText}>
-            送る
-          </Button>
+      {closed ? (
+        <div className="flex flex-col items-start gap-3 rounded-lg border border-border bg-surface px-6 py-5 max-sm:px-4">
+          <p className="text-[14px] leading-[1.8]">この相談は済みました。続けるなら、新しい相談を始めてください。</p>
+          <ButtonLink href={`/projects/${projectId}/consult/new`} size="sm">
+            新しい相談
+          </ButtonLink>
         </div>
-      </div>
+      ) : wrapUp ? (
+        <div className="sticky bottom-0 z-[5] flex flex-col gap-2.5 bg-bg pt-3 pb-5 max-sm:bottom-[72px] max-sm:-mx-4 max-sm:border-t max-sm:border-border max-sm:bg-surface max-sm:px-4 max-sm:py-3">
+          {/* 終えると一覧に残るまとめ */}
+          <p className="text-[13px] leading-[1.7] text-muted">まとめ: {wrapUp.content.wrapUp?.summary}</p>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Button size="sm" disabled={closer.pending} onClick={closer.close}>
+              これで終わる
+            </Button>
+            <Button size="sm" variant="secondary" disabled={closer.pending} onClick={() => setContinuedId(wrapUp.id)}>
+              もう少し相談する
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="sticky bottom-0 z-[5] flex flex-col gap-2 bg-bg pt-3 pb-5 max-sm:bottom-[72px] max-sm:-mx-4 max-sm:border-t max-sm:border-border max-sm:bg-surface max-sm:px-4 max-sm:py-3">
+          <label htmlFor="consult-input" className="sr-only">
+            AI への相談
+          </label>
+          <textarea
+            id="consult-input"
+            ref={inputRef}
+            rows={2}
+            value={text}
+            maxLength={2000}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              // 日本語の変換を確定する Enter と区別するため、送るのは ⌘/Ctrl + Enter
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                submitText();
+              }
+            }}
+            placeholder="悩みや、聞きたいことを書いてください（⌘ / Ctrl + Enter で送る）"
+            className="w-full resize-none rounded-md border border-input bg-surface px-3.5 py-2.5 text-[14px] outline-none focus:border-primary focus:shadow-[0_0_0_1px_var(--primary)] max-sm:text-[16px]"
+          />
+          <div className="flex items-start gap-3">
+            <VoiceInputButton className="flex-1" target={inputRef} label="相談" onChange={setText} />
+            <Button className="ml-auto" size="sm" disabled={pending || !text.trim()} onClick={submitText}>
+              送る
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -223,6 +261,7 @@ function UserBubble({ message }: { message: Extract<ConsultMessage, { role: "use
 function AssistantBubble({
   message,
   isLatest,
+  readOnly,
   disabled,
   onChoice,
   onAdopt,
@@ -230,6 +269,7 @@ function AssistantBubble({
 }: {
   message: Extract<ConsultMessage, { role: "assistant" }>;
   isLatest: boolean;
+  readOnly: boolean;
   disabled: boolean;
   onChoice: (choice: string) => void;
   onAdopt: (index: number) => void;
@@ -243,11 +283,11 @@ function AssistantBubble({
         <p className="mb-1 text-xs font-bold text-primary">AI</p>
         <p className="text-[14px] leading-[1.8] whitespace-pre-wrap">{c.message}</p>
       </div>
-      {c.proposal && <ProposalCard content={c} isLatest={isLatest} disabled={disabled} onAdopt={onAdopt} onRevise={onRevise} />}
+      {c.proposal && <ProposalCard content={c} isLatest={isLatest} readOnly={readOnly} disabled={disabled} onAdopt={onAdopt} onRevise={onRevise} />}
       {/* 前の形（2026-10-12 まで）の会話: 種類の違う提案が並び、それぞれ案は 1 つ */}
       {!c.proposal &&
-        (c.actions ?? []).map((a, i) => <LegacyActionCard key={i} action={a} adopted={adopted.includes(i)} disabled={disabled} onAdopt={() => onAdopt(i)} />)}
-      {isLatest && c.choices.length > 0 && (
+        (c.actions ?? []).map((a, i) => <LegacyActionCard key={i} action={a} adopted={adopted.includes(i)} readOnly={readOnly} disabled={disabled} onAdopt={() => onAdopt(i)} />)}
+      {isLatest && !readOnly && c.choices.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {c.choices.map((choice) => (
             <button
@@ -276,12 +316,14 @@ function weekText(week: number): string {
 function ProposalCard({
   content,
   isLatest,
+  readOnly,
   disabled,
   onAdopt,
   onRevise,
 }: {
   content: ConsultAssistantContent;
   isLatest: boolean;
+  readOnly: boolean;
   disabled: boolean;
   onAdopt: (index: number) => void;
   onRevise: (title: string) => void;
@@ -302,7 +344,7 @@ function ProposalCard({
         ) : (
           <b>{p.kind === "plan_section" && p.options[0]?.kind === "plan_section" ? `アカウント設計: ${sectionLabel(p.options[0].section)}` : KIND_LABEL[p.kind]}</b>
         )}
-        <span className="text-xs text-muted">{isDraft ? "選んだ案を下書きにします" : "選んだ案だけが保存されます"}</span>
+        {!readOnly && <span className="text-xs text-muted">{isDraft ? "選んだ案を下書きにします" : "選んだ案だけが保存されます"}</span>}
       </p>
       <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-3">
         {p.options.map((o, i) => {
@@ -322,7 +364,7 @@ function ProposalCard({
               <div className="mt-auto pt-1">
                 {isAdopted ? (
                   <p className="font-bold text-success">✓ 採用しました</p>
-                ) : adopted === null ? (
+                ) : adopted === null && !readOnly ? (
                   <Button size="sm" variant={isRec ? "primary" : "secondary"} disabled={disabled} onClick={() => onAdopt(i)} className="w-full">
                     {isDraft ? "この案を下書きにする" : "この案にする"}
                   </Button>
@@ -338,7 +380,7 @@ function ProposalCard({
           {p.reason}
         </p>
       )}
-      {adopted === null && isLatest && (
+      {adopted === null && isLatest && !readOnly && (
         <>
           <div className="flex flex-wrap gap-x-4 gap-y-1">
             {p.options.map((o) => (
@@ -451,7 +493,19 @@ function KpiTargetList({ targets }: { targets: { kpi: keyof typeof KPIS; per_wee
   );
 }
 
-function LegacyActionCard({ action: a, adopted, disabled, onAdopt }: { action: LegacyConsultAction; adopted: boolean; disabled: boolean; onAdopt: () => void }) {
+function LegacyActionCard({
+  action: a,
+  adopted,
+  readOnly,
+  disabled,
+  onAdopt,
+}: {
+  action: LegacyConsultAction;
+  adopted: boolean;
+  readOnly: boolean;
+  disabled: boolean;
+  onAdopt: () => void;
+}) {
   return (
     <section className="flex max-w-[88%] flex-col gap-2.5 rounded-lg border border-border bg-surface2 p-4 text-sm max-sm:max-w-full max-sm:p-3" aria-label={`AI の提案: ${a.title}`}>
       <p className="flex flex-wrap items-center gap-2">
@@ -467,7 +521,7 @@ function LegacyActionCard({ action: a, adopted, disabled, onAdopt }: { action: L
       <div>
         {adopted ? (
           <p className="font-bold text-success">✓ 採用しました</p>
-        ) : (
+        ) : readOnly ? null : (
           <Button size="sm" disabled={disabled} onClick={onAdopt}>
             {a.kind === "post_draft" ? "下書きにする" : "これにする"}
           </Button>

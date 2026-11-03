@@ -14,6 +14,8 @@ export const PROPOSAL_KINDS = ["plan_section", "kgi", "kpi_targets", "roadmap_it
 export type ProposalKind = (typeof PROPOSAL_KINDS)[number];
 export const MAX_OPTIONS = 3;
 export const MAX_DRAFT_LENGTH = 5000;
+// 会話を区切ったときのまとめ（相談の一覧に 1 行で出す）。DB の ai_threads.summary の上限（500）より短く
+export const MAX_SUMMARY_LENGTH = 200;
 
 export const consultTurnSchema = z.object({
   message: z.string().describe("利用者に話しかける文。結論と次の一手を先に、理由は短く。用語は使ったら一言で説明する"),
@@ -37,6 +39,10 @@ export const consultTurnSchema = z.object({
     })
     .nullable()
     .describe("採用できる提案。話の流れで本当に役立つときだけ。なければ null"),
+  wrap_up: z
+    .object({ summary: z.string().describe("この会話で決まったことの 1 行のまとめ（60 字くらいまで）。相談の一覧に出る") })
+    .nullable()
+    .describe("会話のゴールに着いて区切るときだけ。choices は空、proposal は null にする。区切らないときは null"),
 });
 
 // 案の中身（検証したあと）
@@ -60,7 +66,8 @@ export type ConsultProposal = { kind: ProposalKind; options: ConsultOption[]; re
 // 前の形（2026-10-12 まで）の提案。1 つの返事に種類の違う提案が 0〜3 個、それぞれ案は 1 つ。保存してある会話を読むためだけに残す
 export type LegacyConsultAction = ActionBody & { title: string; reason: string };
 
-export type ConsultTurn = { message: string; choices: string[]; proposal: ConsultProposal | null; actions?: LegacyConsultAction[] };
+// wrapUp: AI が会話を区切った（ゴールに着いた）ときのまとめ。2026-11-03 より前の返事にはない
+export type ConsultTurn = { message: string; choices: string[]; proposal: ConsultProposal | null; wrapUp?: { summary: string } | null; actions?: LegacyConsultAction[] };
 
 // 採用できる案（新しい形は proposal の案、前の形は actions）。index は採用のときに送る番号
 export function adoptableOptions(t: ConsultTurn): (ActionBody & { title: string })[] {
@@ -120,14 +127,17 @@ function parseBody(kind: ProposalKind, value_json: string): { body: ActionBody |
 
 // AI の返事を検証する。proposalProblem: 提案はあったのに、案が形に合わなかったときの理由（1 回だけ言い直させる）
 export function normalizeConsultTurn(raw: unknown): (ConsultTurn & { proposalProblem: string | null }) | null {
-  const parsed = consultTurnSchema.safeParse(raw);
+  // wrap_up がない返事（言い直しの前の形など）は、区切らない返事として読む
+  const parsed = consultTurnSchema.safeParse(raw && typeof raw === "object" && !("wrap_up" in raw) ? { ...raw, wrap_up: null } : raw);
   if (!parsed.success) return null;
   const base = {
     message: parsed.data.message.trim(),
     choices: parsed.data.choices.map((c) => c.trim()).filter(Boolean).slice(0, 4),
   };
   const p = parsed.data.proposal;
-  if (!p) return { ...base, proposal: null, proposalProblem: null };
+  // 区切るときは、新しい質問（choices）を出さない。案が出ているときは、まだ決めることが残っているので区切らない
+  const summary = parsed.data.wrap_up ? clipSummary(parsed.data.wrap_up.summary) : null;
+  if (!p) return summary !== null ? { ...base, choices: [], proposal: null, wrapUp: { summary }, proposalProblem: null } : { ...base, proposal: null, proposalProblem: null };
 
   const options: ConsultOption[] = [];
   const problems: string[] = [];
@@ -154,6 +164,11 @@ export function normalizeConsultTurn(raw: unknown): (ConsultTurn & { proposalPro
   };
 }
 
+function clipSummary(s: string): string {
+  const t = s.replace(/\s+/g, " ").trim();
+  return t.length > MAX_SUMMARY_LENGTH ? `${t.slice(0, MAX_SUMMARY_LENGTH - 1)}…` : t;
+}
+
 // 保存してある返事を、AI に履歴として渡す形（構造化出力と同じ形）に戻す。前の形の返事は、提案を文で添える
 export function toWireConsultTurn(t: ConsultTurn): unknown {
   if (!t.proposal) {
@@ -162,6 +177,7 @@ export function toWireConsultTurn(t: ConsultTurn): unknown {
       message: legacy.length ? `${t.message}\n（このときの提案: ${legacy.map((a) => `${a.title}（${a.kind}）`).join("、")}）` : t.message,
       choices: t.choices,
       proposal: null,
+      wrap_up: t.wrapUp ? { summary: t.wrapUp.summary } : null,
     };
   }
   const p = t.proposal;
@@ -174,6 +190,7 @@ export function toWireConsultTurn(t: ConsultTurn): unknown {
       recommended: p.recommended,
       reason: p.reason,
     },
+    wrap_up: null,
   };
 }
 

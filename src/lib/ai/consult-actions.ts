@@ -1,13 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { loadMetricsOverview } from "@/lib/metrics/queries";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { aiConfigured, callConsult, callShortenDrafts } from "./anthropic";
 import { MAX_OPTIONS } from "./consult-schema";
-import { consultStep, isConsultTopic, type ConsultInput } from "./consult";
+import { closeConsultThread, consultStep, isConsultTopic, type ConsultInput } from "./consult";
 import { MAX_USER_TEXT } from "./plan-coach";
 
 const inputSchema = z.discriminatedUnion("kind", [
@@ -68,4 +69,24 @@ export async function sendConsultMessage(projectId: string, threadId: string | n
     console.error("[sendConsultMessage]", e);
     return { ok: false, threadId, message: "うまくいきませんでした。時間をおいてもう一度お試しください。" };
   }
+}
+
+// 相談を終える（済みにして、元の画面に戻る）。AI は呼ばない。本人の会話だけ（closeConsultThread で RLS を使って確かめる）
+export async function closeConsultThreadAction(projectId: string, threadId: string): Promise<{ error?: string }> {
+  if (!z.array(z.uuid()).safeParse([projectId, threadId]).success) return { error: "入力の形式が正しくありません。" };
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  const userId = data?.claims?.sub;
+  if (!userId) return { error: "ログインし直してください。" };
+  let to: string;
+  try {
+    const r = await closeConsultThread(supabase, createAdminClient(), { userId, projectId, threadId });
+    if (!r.ok) return { error: r.message };
+    to = r.redirect;
+  } catch (e) {
+    console.error("[closeConsultThreadAction]", e);
+    return { error: "うまくいきませんでした。時間をおいてもう一度お試しください。" };
+  }
+  revalidatePath(`/projects/${projectId}`, "layout");
+  redirect(to);
 }

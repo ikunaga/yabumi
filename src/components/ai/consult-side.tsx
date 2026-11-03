@@ -1,9 +1,26 @@
 import Link from "next/link";
 import { buttonClass } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
+import { Badge } from "@/components/ui/chip";
+import { formatShort } from "@/lib/time";
+import { CloseThreadButton } from "./close-thread";
 
-// 相談の会話の右の列: この相談で採用した案の数と、一覧・新しい相談への入口（会話は読みやすい幅のまま左に置く）
-export function ConsultSide({ projectId, adopted, lead }: { projectId: string; adopted: number | null; lead?: string | null }) {
+// 相談の会話の右の列: この相談で採用した案の数、この相談を終える、一覧・新しい相談への入口（会話は読みやすい幅のまま左に置く）
+export function ConsultSide({
+  projectId,
+  adopted,
+  lead,
+  threadId = null,
+  closedAt = null,
+}: {
+  projectId: string;
+  adopted: number | null;
+  lead?: string | null;
+  // 会話を始めたあと（終えるボタンを出す）
+  threadId?: string | null;
+  // 済んだ日時（済んだ会話）
+  closedAt?: string | null;
+}) {
   const base = `/projects/${projectId}/consult`;
   return (
     <Card>
@@ -14,7 +31,14 @@ export function ConsultSide({ projectId, adopted, lead }: { projectId: string; a
             採用した案 <b className="text-metric leading-none text-fg">{adopted}</b> 件
           </p>
         )}
+        {closedAt && (
+          <p className="flex items-center gap-2 text-[14px] text-muted">
+            <Badge>済み</Badge>
+            <span className="num">{formatShort(closedAt)}</span>
+          </p>
+        )}
         <p className="text-[14px] leading-[1.75] text-muted">{lead ?? "AI はアカウント設計・最近の投稿・数字・ロードマップを見たうえで、案を 2〜3 個出します。選んだ案だけが、設計やロードマップに入ります。"}</p>
+        {threadId && !closedAt && <CloseThreadButton projectId={projectId} threadId={threadId} />}
         <div className="flex flex-wrap gap-2.5">
           <Link href={base} className={buttonClass({ variant: "secondary", size: "sm" })}>
             相談の一覧へ

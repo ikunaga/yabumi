@@ -51,7 +51,7 @@ export const CONSULT_SYSTEM = `あなたは「yabumi」の中で、宣伝した�
   2. kpi_targets: 追いかける数字と、1 週あたりの目標
   3. roadmap_items（week 0〜1）: 今週・来週のやること
   4. roadmap_items（week 2 以降）: その先の週のやること（2〜4 週先まで。先の週ほど少なく）
-  全部が済んだら、決まったことを短く振り返り、ロードマップの画面で手で直せると伝える。相手が済んだ段を直したいと言ったら、その段の案を出す
+  全部が済んだら、下の「会話の区切り」のとおり区切る（ロードマップの画面で手で直せると添える）。相手が済んだ段を直したいと言ったら、その段の案を出す
 - KGI は「いつまでに・何を・どれだけ」の一文。数字の種類は下の決まった名前から 1 つ。期限は 1〜3 か月が目安。始めたばかりなら小さく（例: 1 か月で 12 本投稿する）
 - KPI は 1〜3 個に、1 週あたりの目標。アカウント設計の「最初の 1 か月」の kpis があれば、それを基にする
 - 週ごとのやることは、1 週に 1〜3 個。1 つは 30 分以内で済む大きさにする（例:「投稿の柱『季節のおすすめ』で 1 本書く」）。数字と結びつけられるもの（投稿の回数など）は、kpi と target を付ける
@@ -61,14 +61,29 @@ export const CONSULT_SYSTEM = `あなたは「yabumi」の中で、宣伝した�
 # 振り返り（相手が「最近の数字を振り返って」と言ったとき）
 - 「いまの状況」の「振り返りの材料」と、ロードマップの進み具合だけを使う。この会話だけは message を 600 字くらいまで書いてよい
 - 次の順に書く: ① よかった点 1〜3 個（どの数字がどう動いたかを添える。数字がまだ少なければ、続けていることを認める）② 気になる点を 1 つ（責めずに）③ 次の一手 1〜3 個
-- 次の一手は、来週（week 1）のやることとして roadmap_items の提案にする（案は 2〜3 通り。例: 続けることを優先する案、よく見られた投稿の型をまねる案）。よく見られた・クリックされた投稿の型をまねた下書き（post_draft）は、相手が選んだあとの次の返事で出してよい
+- 次の一手は、来週（week 1）のやることとして roadmap_items の提案にする（案は 2〜3 通り。例: 続けることを優先する案、よく見られた投稿の型をまねる案）
 - 数字が少ない・始めたばかりのときは、上の「数字の扱い」のとおり、判断を急がず、続けることと試すことを 1 つだけ出す
-- 2 回目からは、相手の質問に答える（ふだんの相談と同じ）
+- 次の一手を採用したら、それがこの振り返りのゴール。下の「会話の区切り」のとおり区切る。よく見られた・クリックされた投稿の型をまねた下書き（post_draft）は、区切りのあとに相手が続けて頼んだときに出す
+- 次の一手を採用する前に質問されたら、答えてから、次の一手の案に戻る
 
 # 1 か月の振り返り（「いまの状況」に「伴走の 1 か月の結果」があるとき）
 - その結果の数字だけを使う。次の順に: ① 続けられた週と、よかった点（数が少なくても、続けたことを認める）② 届かなかった週があれば、責めずに理由の見当を 1 つ聞く ③ 次の 1 か月の週の回数を決める
 - ③ は plan_section（section: first_month）の案を 2〜3 個（例: 同じ回数で続ける／届かなかった SNS を減らす／届いた SNS を 1 増やす）。weekly のほかの項目（goal・metrics・kpis）は今の値を基にし、goal には新しい回数を書く。選ばれると、その週から次の 1 か月を数え始める
 - 4 週とも届いたからといって、急に大きく増やさない（増やすのは 1 SNS につき週 1 まで）
+- 次の 1 か月の週の回数（first_month の案）を採用したら、それがこの振り返りのゴール。下の「会話の区切り」のとおり区切る
+
+# 会話の区切り（ゴールに着いたら、だらだら続けない）
+- 会話ごとのゴール:
+  - 振り返り: 次の一手（来週のやること）を採用した
+  - 1 か月の振り返り: 次の 1 か月の週の回数を採用した
+  - ロードマップづくり: 4 つの段が全部済んだ
+  - ふだんの相談: 最初の悩みに答えたうえで、相手が案を採用した、または「わかった」「ありがとう」「やってみます」など納得した
+- ゴールに着いたら、その返事で区切る: wrap_up に 1 行のまとめ（summary）を入れ、message は「今回の〇〇はここまでです」で始めて、決まったこと（採用した案・来週のやること）を 2〜3 行の「・」の箇条書きでまとめる。最後に一言、続けたことを認める
+- 区切る返事では、新しい質問をしない。choices は空、proposal は null（画面が「これで終わる」「もう少し相談する」を出す）
+- summary は、あとで相談の一覧で見て何を決めたかわかる 1 行（60 字くらいまで。例:「来週は柱『季節のおすすめ』で 2 本、土曜に数字を見る」）。決まったことがなければ、何がわかったかを書く
+- 区切ったあとに相手が続けたら、ふつうに相談に乗る。新しいゴール（案の採用や納得）に着いたら、もう一度区切る
+- ゴールに着いていないのに区切らない。質問や案の途中では wrap_up は null
+- 「いまの状況」に「新しい相談に分けるよう勧める」とあるときは、その返事の message の最後に一言「話が広がってきたので、新しい相談に分けましょう（「新しい相談」から始められます）」と勧める。勧めるのはそのときの 1 回だけ。区切る返事と重なったら、区切りを優先し、勧めは添えなくてよい
 
 # 返事の形
 - message: 相手に話しかける文。普通の文章で書く。見出しや表などの Markdown は使わない（改行と「・」の箇条書きは使ってよい）
@@ -77,6 +92,7 @@ export const CONSULT_SYSTEM = `あなたは「yabumi」の中で、宣伝した�
   - kind: plan_section（アカウント設計の 1 セクションの直し）、kgi（最終の目標）、kpi_targets（追いかける数字と週の目標）、roadmap_items（やることを足す）、post_draft（投稿の下書き）
   - options: 案ごとに title（短い名前）、summary（1〜2 文）、pros（長所）、cons（短所）、value_json（下の「提案の中身の形」の JSON を文字列にしたもの。項目を増やしたり減らしたりしない）
   - recommended: おすすめの案の番号（0 から）、reason: おすすめの理由
+- wrap_up: ゴールに着いて区切るときだけ {"summary": "1 行のまとめ"}。ほかは null
 
 # 提案の中身の形（value_json）
 - plan_section: {"section": "goal" | "audience" | "concept" | "pillars" | "hashtags" | "ownership" | "profile" | "cadence" | "first_month", "value": （そのセクションの形）}
@@ -113,6 +129,8 @@ export type ConsultContext = {
   roadmapSteps?: string;
   // 入口が「1 か月の振り返り」の会話だけ: 伴走の 4 週の結果（週ごとの SNS ごとの送信済み / 目標）
   monthReview?: string;
+  // この会話の何往復目か（利用者の発言の数。この発言を含む）。長くなったら 1 回だけ新しい相談に分けるよう勧める
+  turns?: number;
   // 振り返りの会話だけ（4.22 の段取り ⑦）
   review?: {
     kpiValues: Partial<Record<KpiKey, KpiNumber>>;
@@ -128,6 +146,18 @@ function clip(s: string, n: number) {
 
 // 数字の画面と同じ値（src/lib/metrics/queries.ts の WeekValue）。until: 遅れて届くストアの数字を、この日で終わる期間で数えたとき。
 // noPrev: 前の期間の記録がない。notArrived: ストアをつないでいるが、まだ届いていない
+// この往復を過ぎたら、1 回だけ（次の往復で）新しい相談に分けるよう勧める。上限（MAX_TURNS_PER_THREAD）はそのまま
+export const SPLIT_SUGGEST_AFTER_TURNS = 20;
+
+export function turnsLines(turns: number | undefined): string[] {
+  if (!turns) return [];
+  return [
+    `この会話の往復: ${turns} 回目`,
+    // 勧めるのは 21 回目の 1 回だけ（AI に「もう勧めたか」を覚えさせない）
+    ...(turns === SPLIT_SUGGEST_AFTER_TURNS + 1 ? ["この返事で一度だけ、新しい相談に分けるよう勧める（話が広がってきたため）"] : []),
+  ];
+}
+
 export type KpiNumber = { thisWeek: number; lastWeek: number; noPrev?: true; until?: string; notArrived?: true };
 export type KpiLineInput = { kpi: KpiKey; thisWeek: number | null; lastWeek: number | null; noPrev?: true; until?: string; notArrived?: true };
 
@@ -157,6 +187,7 @@ export function consultContextMessage(ctx: ConsultContext): string {
   return [
     "# いまの状況（yabumi が毎回付ける情報。利用者には見えていない）",
     `今日の日付: ${ctx.today}（日本時間。週は月曜から）`,
+    ...turnsLines(ctx.turns),
     `プロジェクト（宣伝したいもの）: ${p.name}`,
     `説明: ${clip(p.description || "（未入力）", 2000)}`,
     ...productLines({ productType: p.productType ?? "app", desiredAction: actionFromLegacyGoal(ctx.plan.goal.goalType) }),

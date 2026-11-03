@@ -11,7 +11,7 @@ import { tidyDraftHashtags } from "@/lib/sns/hashtags";
 import type { Database } from "@/lib/supabase/database.types";
 import { addDays, toYmd } from "@/lib/time";
 import { budgeted, withAiBudget } from "./budget";
-import type { ConsultTopicKey } from "./consult-topics";
+import { consultTopicMeta, type ConsultTopicKey } from "./consult-topics";
 import { adoptableOptions, normalizeConsultTurn, roadmapStepState, ROADMAP_STEPS, toWireConsultTurn, type ActionBody, type ActionKind, type ConsultTurn } from "./consult-schema";
 import { CONSULT_SYSTEM, consultContextMessage, kpiLineInput, type ConsultContext, type KpiNumber } from "./consult-prompt";
 import { MAX_TURNS_PER_THREAD, MAX_USER_TEXT, type BetaMessageParam, type BetaTextBlockParam, type CallModel, type ModelRequest, type ModelResult } from "./plan-coach";
@@ -302,6 +302,7 @@ export type ConsultDeps = { callModel: CallModel; loadKpiValues: LoadKpiValues; 
 export type ConsultResult = { ok: true; threadId: string; redirect?: string } | { ok: false; threadId: string | null; message: string };
 
 const GENERIC_ERROR = "AI とのやりとりがうまくいきませんでした。時間をおいてもう一度お試しください。";
+export const CLOSED_THREAD_MESSAGE = "この相談は済みました。続けるなら、新しい相談を始めてください。";
 
 // user: 利用者の権限（状況の読み込みと、提案の採用。RLS で本人のものだけ）
 // admin: サーバーの権限（会話と利用量の書き込み）。呼ぶ前に userId がログイン中の利用者であることを確かめておく
@@ -325,8 +326,10 @@ export async function consultStep(
   let threadId = args.threadId;
   let createdThread = false;
   if (threadId) {
-    const { data: t } = await admin.from("ai_threads").select("id").eq("id", threadId).eq("owner_id", userId).eq("project_id", projectId).eq("purpose", "consult").maybeSingle();
+    const { data: t } = await admin.from("ai_threads").select("id, closed_at").eq("id", threadId).eq("owner_id", userId).eq("project_id", projectId).eq("purpose", "consult").maybeSingle();
     if (!t) return { ok: false, threadId: null, message: "会話が見つかりません。画面を読み込み直してください。" };
+    // 済んだ会話には送れない（採用も）。DB でも断る（ai_messages_reject_closed）
+    if (t.closed_at) return { ok: false, threadId, message: CLOSED_THREAD_MESSAGE };
   } else {
     if (input.kind === "adopt") return { ok: false, threadId: null, message: "提案が見つかりません。画面を読み込み直してください。" };
     const { data: t, error } = await admin.from("ai_threads").insert({ owner_id: userId, project_id: projectId, purpose: "consult" }).select("id").single();
@@ -390,6 +393,7 @@ export async function consultStep(
   const topic = threadTopic(history);
   const ctx = await gatherConsultContext(user, projectId, now, deps.loadKpiValues, isReviewThread(history) ? deps.loadReview : undefined, topic === "roadmap", topic === "month_review");
   if (!ctx) return fail("プロジェクトが見つかりません。");
+  ctx.turns = history.filter((m) => m.role === "user").length;
 
   // 呼ぶ前に上限の分を予約し、返事のあとで実際の額に直す（返事が使えなくても数える。budget.ts）
   const budget = { userId, purpose: "consult", call: "consult" as const, threadId, now };
@@ -463,6 +467,53 @@ export async function shortenConsultDrafts(call: CallShorten | undefined, turn: 
     turn: { ...turn, proposal: { ...turn.proposal, options: turn.proposal.options.map((o, i) => (o.kind === "post_draft" && texts.has(String(i)) ? { ...o, text: texts.get(String(i))! } : o)) } },
     result,
   };
+}
+
+// ===== 会話を終える（「これで終わる」「この相談を終える」） =====
+export type CloseResult = { ok: true; redirect: string } | { ok: false; message: string };
+
+// 済みにして、元の画面（入口の戻り先。入口がなければ相談の一覧）に戻る。AI は呼ばない。
+// まとめは、最後の返事が AI の区切り（wrapUp）のときだけ、その summary を保存する（区切ったあとに続けた会話や、区切る前に終えたときは空）。
+// user: 利用者の権限（本人の会話であることを RLS で確かめる）。admin: サーバーの権限（書き込み）
+export async function closeConsultThread(user: Db, admin: Db, args: { userId: string; projectId: string; threadId: string; now?: Date }): Promise<CloseResult> {
+  const { userId, projectId, threadId } = args;
+  const { data: t } = await user.from("ai_threads").select("id, closed_at").eq("id", threadId).eq("project_id", projectId).eq("purpose", "consult").maybeSingle();
+  if (!t) return { ok: false, message: "会話が見つかりません。画面を読み込み直してください。" };
+  if (t.closed_at) return { ok: false, message: "この相談はもう済んでいます。" };
+
+  const history = await loadConsultHistory(admin, threadId);
+  const last = history[history.length - 1];
+  const summary = last?.role === "assistant" && last.content.wrapUp?.summary ? last.content.wrapUp.summary : null;
+  const { data: closed, error } = await admin
+    .from("ai_threads")
+    .update({ closed_at: (args.now ?? new Date()).toISOString(), summary })
+    .eq("id", threadId)
+    .eq("owner_id", userId)
+    .eq("project_id", projectId)
+    .is("closed_at", null)
+    .select("id");
+  if (error) throw error;
+  if (!closed?.length) return { ok: false, message: "会話が見つかりません。画面を読み込み直してください。" };
+
+  const back = consultTopicMeta(threadTopic(history))?.entry?.back.path;
+  const base = `/projects/${projectId}`;
+  const path = back === undefined ? `${base}/consult` : back ? `${base}/${back}` : base;
+  const items = nextWeekItemsAdopted(history);
+  return { ok: true, redirect: `${path}?done=consult_closed${items > 0 ? `&items=${items}` : ""}` };
+}
+
+// この会話で採用した、来週（week 1）のやることの数（「来週のやることに n 件入れました」）
+export function nextWeekItemsAdopted(history: ConsultMessage[]): number {
+  let n = 0;
+  for (const m of history) {
+    if (m.role !== "assistant") continue;
+    const options = adoptableOptions(m.content);
+    for (const i of m.content.adopted ?? []) {
+      const o = options[i];
+      if (o?.kind === "roadmap_items") n += o.items.filter((item) => item.week === 1).length;
+    }
+  }
+  return n;
 }
 
 export async function loadConsultHistory(db: Db, threadId: string): Promise<ConsultMessage[]> {

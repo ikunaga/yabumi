@@ -203,27 +203,33 @@ export type Database = {
       }
       ai_threads: {
         Row: {
+          closed_at: string | null
           created_at: string
           id: string
           owner_id: string
           project_id: string
           purpose: string
+          summary: string | null
           updated_at: string
         }
         Insert: {
+          closed_at?: string | null
           created_at?: string
           id?: string
           owner_id: string
           project_id: string
           purpose: string
+          summary?: string | null
           updated_at?: string
         }
         Update: {
+          closed_at?: string | null
           created_at?: string
           id?: string
           owner_id?: string
           project_id?: string
           purpose?: string
+          summary?: string | null
           updated_at?: string
         }
         Relationships: [

@@ -8,7 +8,8 @@ import { summarizeConsultThread, type ThreadMessageDigest } from "./consult-topi
 // AI と相談の会話の読み込み（RLS で本人のものだけ）
 
 // topicTitle: 入口の名前（入口から始めたとき）。title: 中身がわかる題。adopted: 採用した案の数（summarizeConsultThread）
-export type ConsultThreadSummary = { id: string; updatedAt: string; topicTitle: string | null; title: string; adopted: number };
+// closed: 済んだ会話。summary: AI が区切ったときのまとめ（AI がまとめずに終えたときは null）
+export type ConsultThreadSummary = { id: string; updatedAt: string; topicTitle: string | null; title: string; adopted: number; closed: boolean; summary: string | null };
 
 // 過去の会話の一覧（新しい順に 20 件）
 export async function listConsultThreads(projectId: string): Promise<ConsultThreadSummary[]> {
@@ -16,7 +17,7 @@ export async function listConsultThreads(projectId: string): Promise<ConsultThre
   const { data, error } = await supabase
     .from("ai_threads")
     .select(
-      "id, updated_at, ai_messages(role, created_at, kind:content->>kind, text:content->>text, topic:content->>topic, title:content->>title, option:content->proposal->options->0->>title, legacy:content->actions->0->>title)",
+      "id, updated_at, closed_at, summary, ai_messages(role, created_at, kind:content->>kind, text:content->>text, topic:content->>topic, title:content->>title, option:content->proposal->options->0->>title, legacy:content->actions->0->>title)",
     )
     .eq("project_id", projectId)
     .eq("purpose", "consult")
@@ -27,17 +28,22 @@ export async function listConsultThreads(projectId: string): Promise<ConsultThre
   return (data ?? []).map((t) => ({
     id: t.id,
     updatedAt: t.updated_at,
+    closed: t.closed_at !== null,
+    summary: t.summary,
     ...summarizeConsultThread(t.ai_messages as unknown as ThreadMessageDigest[]),
   }));
 }
 
-export async function getConsultThread(projectId: string, threadId: string): Promise<{ id: string; messages: ConsultMessage[]; topic: string | null } | null> {
+export async function getConsultThread(
+  projectId: string,
+  threadId: string,
+): Promise<{ id: string; messages: ConsultMessage[]; topic: string | null; closedAt: string | null } | null> {
   const supabase = await createClient();
-  const { data } = await supabase.from("ai_threads").select("id").eq("id", threadId).eq("project_id", projectId).eq("purpose", "consult").maybeSingle();
+  const { data } = await supabase.from("ai_threads").select("id, closed_at").eq("id", threadId).eq("project_id", projectId).eq("purpose", "consult").maybeSingle();
   if (!data) return null;
   const messages = await loadConsultHistory(supabase, data.id);
   const first = messages[0];
-  return { id: data.id, messages, topic: first?.role === "user" && first.content.kind === "start" ? first.content.topic : null };
+  return { id: data.id, messages, topic: first?.role === "user" && first.content.kind === "start" ? first.content.topic : null, closedAt: data.closed_at };
 }
 
 // ロードマップづくりの会話の見出しの段取り（今のロードマップから、どこまで決まったか）

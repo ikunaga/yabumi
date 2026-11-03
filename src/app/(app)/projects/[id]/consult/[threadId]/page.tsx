@@ -32,8 +32,8 @@ export default async function ConsultThreadPage(props: PageProps<"/projects/[id]
     <div className="flex flex-col gap-5 max-sm:gap-4">
       <ConsultHeader projectId={id} topic={thread.topic} threadId={thread.id} roadmapSteps={thread.topic === "roadmap" ? await roadmapStepsFor(id) : null} firstText={firstText} />
       <Columns
-        main={<ConsultChat key={thread.id} projectId={id} threadId={thread.id} messages={thread.messages} initialTopic={null} />}
-        side={<ConsultSide projectId={id} adopted={adopted} lead={consultTopicMeta(thread.topic)?.entry?.lead} />}
+        main={<ConsultChat key={thread.id} projectId={id} threadId={thread.id} messages={thread.messages} initialTopic={null} closed={thread.closedAt !== null} />}
+        side={<ConsultSide projectId={id} adopted={adopted} lead={consultTopicMeta(thread.topic)?.entry?.lead} threadId={thread.id} closedAt={thread.closedAt} />}
       />
     </div>
   );

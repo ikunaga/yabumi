@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
+import { ConsultClosedBanner } from "@/components/ai/consult-closed-banner";
 import { notFound } from "next/navigation";
 import { ChartEmpty, DailyBars } from "@/components/overview/daily-chart";
 import { TodayTermBand } from "@/components/learning/today-term-band";
@@ -51,7 +52,7 @@ const STORE_NAME = { app_store: "App Store", google_play: "Google Play" } as con
 // → 数字のカード 4 枚 → 左に日ごとの棒グラフ、右に SNS ごとのストアへのクリックと次の予約。数字は直近 30 日と前の 30 日の比べ（docs/architecture.md の 4.31）
 export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
   const { id } = await props.params;
-  const { done } = await props.searchParams;
+  const { done, items } = await props.searchParams;
   const supabase = await createClient();
   // 待ち時間を縮めるため、id だけで読めるもの（プロジェクト・アカウント設計・お知らせの設定）は並べて読む
   const [project, plan, { data: prefs }] = await Promise.all([
@@ -141,6 +142,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
 
       <ConnectedSnsLine projectId={project.id} accounts={snsAccounts} manualChannels={manualChannels ?? []} />
 
+      <ConsultClosedBanner done={done} items={items} />
       {done === "description" && <SuccessBanner>紹介文（プロジェクトの説明）を保存しました。アカウント設計の AI にも伝わります。</SuccessBanner>}
 
       <NowBand

@@ -1,6 +1,6 @@
 import { KPIS } from "@/lib/metrics/kpis";
 import { SNS, SNS_KEYS } from "@/lib/sns";
-import { DESIRED_ACTION_DEFS } from "@/lib/projects/product-types";
+import { DESIRED_ACTION_DEFS, actionFromLegacyGoal, type DesiredAction } from "@/lib/projects/product-types";
 import type { PlanData, SectionKey, SectionValue } from "./schema";
 
 const OWNERSHIP_LABEL = { personal: "個人のアカウントを使う", dedicated: "専用のアカウントを作る", undecided: "まだ決めていない" } as const;
@@ -15,7 +15,9 @@ export function describeSection(key: SectionKey, value: SectionValue<SectionKey>
     case "goal": {
       const v = value as PlanData["goal"];
       add("何を広めたいか", v.what);
-      add("いちばんの目標（見た人にしてほしいこと）", v.goalType ? DESIRED_ACTION_DEFS[v.goalType].label : "");
+      // 前に保存した AI の案には、前の値（downloads・paid）が入っていることがある。読み替え、わからない値は出さない
+      const action = (DESIRED_ACTION_DEFS[v.goalType as DesiredAction] ? v.goalType : actionFromLegacyGoal(v.goalType)) as DesiredAction | null;
+      add("いちばんの目標（見た人にしてほしいこと）", action ? DESIRED_ACTION_DEFS[action]?.label : "");
       add("補足", v.note);
       break;
     }
@@ -73,7 +75,7 @@ export function describeSection(key: SectionKey, value: SectionValue<SectionKey>
       add(
         "SNS ごとの役割",
         SNS_KEYS.filter((s) => v.roles[s])
-          .map((s) => `・${SNS[s].label}: ${v.roles[s]}`)
+          .map((s) => `・${SNS[s]?.label ?? s}: ${v.roles[s]}`)
           .join("\n"),
       );
       break;
@@ -82,11 +84,11 @@ export function describeSection(key: SectionKey, value: SectionValue<SectionKey>
       const v = value as PlanData["first_month"];
       add("1 か月後の目標", v.goal);
       add("何を見て判断するか", v.metrics);
-      add("数字の画面で追う数字", (v.kpis ?? []).map((k) => KPIS[k].label).join("、"));
+      add("数字の画面で追う数字", (v.kpis ?? []).map((k) => KPIS[k]?.label).filter(Boolean).join("、"));
       add(
         "SNS ごとの週の回数",
         SNS_KEYS.filter((s) => (v.weekly?.[s] ?? 0) > 0)
-          .map((s) => `${SNS[s].label} 週 ${v.weekly[s]}`)
+          .map((s) => `${SNS[s]?.label ?? s} 週 ${v.weekly[s]}`)
           .join("・"),
       );
       break;

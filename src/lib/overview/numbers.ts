@@ -198,9 +198,12 @@ export function peakIndex(rows: Daily[]): number | null {
 }
 
 // 遅れて届く数字（ストアのダウンロード・ページの閲覧）の、すべてのストアから届いているいちばん新しい日。
-// ストアごとの届いたいちばん新しい日のうち早いほう（片方しか届いていない日は、まだ合計が決まらない）。どこからも届いていなければ null
-export function arrivedUntil(rows: { day: string; source: string }[], sources: readonly string[]): string | null {
-  const ends = sources.flatMap((s) => {
+// ストアごとの届いたいちばん新しい日のうち早いほう（片方しか届いていない日は、まだ合計が決まらない）。どこからも届いていなければ null。
+// connected: いまつないでいる取り込み元。渡せば、その中だけで決める（外したストアの最後の日に引っ張られないように）。
+// 数字の取り込み元をどれもつないでいなければ（すべて外したあと）、残っている数字のいちばん新しい日まで
+export function arrivedUntil(rows: { day: string; source: string }[], sources: readonly string[], connected?: readonly string[] | null): string | null {
+  const live = connected ? sources.filter((s) => connected.includes(s)) : [];
+  const ends = (live.length ? live : sources).flatMap((s) => {
     const days = rows.filter((r) => r.source === s).map((r) => r.day).sort();
     return days.length ? [days[days.length - 1]] : [];
   });
@@ -216,4 +219,15 @@ export function latestAside(rows: Daily[], arrived?: string | null): string {
   if (arrived >= last.day) return `最新 ${shortDay(last.day)}: ${last.value.toLocaleString("ja-JP")}`;
   const r = rows.find((x) => x.day === arrived);
   return r ? `最新 ${shortDay(r.day)}: ${r.value.toLocaleString("ja-JP")}` : `最新 ${shortDay(arrived)}`;
+}
+
+// 日ごとの棒の期間。遅れて届く数字（arrived を渡したとき）は、届いている日で終わる days 日にそろえる（大きな数字・カードの「10/30 までの 7 日」と同じ期間。
+// 今日で終わる期間にすると、届いた棒の合計と数字が合わない）。まだ届いていない日は棒にせず note に書く（「11/3 までの 4 日はまだ届いていません」）。
+// いつも届く数字（arrived が undefined）と、今日まで届いているときは今日で終わる。どこからも届いていなければ null
+export function chartWindow(series: Daily[], today: string, days: number, arrived?: string | null): { rows: Daily[]; until?: string; note?: string } | null {
+  if (arrived === null) return null;
+  if (arrived === undefined || arrived >= today) return { rows: dailySeries(series, today, days) };
+  let gap = 0;
+  while (addDays(arrived, gap) < today) gap++;
+  return { rows: dailySeries(series, arrived, days), until: arrived, note: `${shortDay(today)} までの ${gap} 日はまだ届いていません` };
 }

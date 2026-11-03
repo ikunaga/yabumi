@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { kpiLine } from "@/lib/ai/consult-prompt";
 import { utmEnd } from "@/lib/metrics/play-utm";
 import { compareLabel, periodLabel, storeEnd, storePrevKnown, storeWeekValue } from "@/lib/metrics/store-period";
-import { pickOverviewCards, type OverviewInput } from "@/lib/overview/numbers";
+import { arrivedUntil, chartWindow, pickOverviewCards, type OverviewInput } from "@/lib/overview/numbers";
 
 const today = "2026-11-03";
 const empty: OverviewInput = { today, downloads: null, clicks: null, published: [], scheduledCount: 0, draftCount: 0, kpis: [], kpiValues: {} };
@@ -97,5 +97,40 @@ describe("AI に渡す数字", () => {
     const noPrev = kpiLine({ kpi: "downloads", thisWeek: 40, lastWeek: 40, noPrev: true, until: "2026-10-30" });
     expect(noPrev).toContain("比べない");
     expect(noPrev).not.toContain("その前の 7 日 40");
+  });
+});
+
+describe("日ごとの棒の期間（chartWindow）", () => {
+  const series = [
+    { day: "2026-10-24", value: 1 },
+    { day: "2026-10-30", value: 221 },
+  ];
+
+  it("届いていない日があれば、届いている日で終わる期間の棒にし、まだ届いていない日数を書く", () => {
+    const w = chartWindow(series, today, 7, "2026-10-30")!;
+    expect(w.rows.map((r) => r.day)).toEqual(["2026-10-24", "2026-10-25", "2026-10-26", "2026-10-27", "2026-10-28", "2026-10-29", "2026-10-30"]);
+    expect(w.rows.reduce((n, r) => n + r.value, 0)).toBe(222);
+    expect(w).toMatchObject({ until: "2026-10-30", note: "11/3 までの 4 日はまだ届いていません" });
+  });
+
+  it("いつも届く数字と、今日まで届いているときは今日で終わる。どこからも届いていなければ null", () => {
+    expect(chartWindow(series, today, 7)).toEqual({ rows: expect.any(Array) });
+    expect(chartWindow(series, today, 7)!.rows.at(-1)!.day).toBe(today);
+    expect(chartWindow(series, today, 7, today)).not.toHaveProperty("note");
+    expect(chartWindow(series, today, 7, null)).toBeNull();
+  });
+});
+
+describe("届いた日は、いまつないでいるストアの中だけで決める（arrivedUntil）", () => {
+  const rows = [
+    { day: "2026-11-02", source: "app_store" },
+    { day: "2026-10-31", source: "google_play" },
+  ];
+  it("外したストアの最後の日に引っ張られない。どれもつないでいなければ、残っている数字で決める", () => {
+    expect(arrivedUntil(rows, ["app_store", "google_play"])).toBe("2026-10-31");
+    expect(arrivedUntil(rows, ["app_store", "google_play"], ["app_store"])).toBe("2026-11-02");
+    expect(arrivedUntil(rows, ["app_store", "google_play"], ["app_store", "google_play"])).toBe("2026-10-31");
+    expect(arrivedUntil(rows, ["app_store", "google_play"], [])).toBe("2026-10-31");
+    expect(arrivedUntil(rows, ["app_store_views", "google_play"], ["app_store"])).toBe("2026-10-31");
   });
 });

@@ -26,6 +26,7 @@ let aliceId: string;
 let bobId: string;
 let projectId: string;
 let emptyProjectId: string;
+let liveProjectId: string;
 
 beforeAll(async () => {
   ({ client: alice, userId: aliceId } = await signUpNewUser());
@@ -41,6 +42,14 @@ beforeAll(async () => {
   // 取り込んだことはあるが、直近 60 日には届いていない
   const old = await admin.from("store_daily").insert({ owner_id: aliceId, project_id: emptyProjectId, source: "app_store", day: ymdAgo(90), values: { downloads: 1 } });
   if (old.error) throw old.error;
+  // 同じ数字で、App Store だけをいまつないでいる（Google Play は外した。数字は 3 日前まで残っている）
+  liveProjectId = (await alice.from("projects").insert({ name: "Google Play を外した" }).select("id").single()).data!.id;
+  const live = await admin.from("store_daily").insert(rows.map((r) => ({ ...r, project_id: liveProjectId })));
+  if (live.error) throw live.error;
+  const cred = await admin.from("store_credentials").insert({ owner_id: aliceId, project_id: liveProjectId, provider: "app_store_connect", secret_sealed: "dummy-not-a-real-key" });
+  if (cred.error) throw cred.error;
+  const req = await admin.from("app_store_report_requests").insert({ owner_id: aliceId, project_id: liveProjectId, request_id: "req-test-1", app_apple_id: "123456789" });
+  if (req.error) throw req.error;
 });
 
 afterAll(async () => {
@@ -94,5 +103,41 @@ describe("DB の関数 store_period_totals", () => {
     // 先の日で終わる 30 日には、1〜9 日前（App Store 9 日・Google Play 7 日）が入る
     expect((await alice.rpc("store_period_totals", { p_project_id: projectId, p_end: future, p_days: 30 })).data![0]).toMatchObject({ downloads_now: 160 });
     expect((await bob.rpc("store_period_totals", { p_project_id: projectId, p_end: future, p_days: 30 })).data![0]).toMatchObject({ downloads_now: 0, downloads_prev: 0, page_views_now: 0, page_views_prev: 0 });
+  });
+});
+
+describe("いまつないでいるストアの中だけで届いた日を決める", () => {
+  it("connected_store_sources は本人のプロジェクトのつないでいる取り込み元の名前だけを返す。他人には返さず、ログインしていない人は呼べない", async () => {
+    expect((await alice.rpc("connected_store_sources", { p_project_id: liveProjectId })).data).toEqual(["app_store", "app_store_views"]);
+    expect((await alice.rpc("connected_store_sources", { p_project_id: projectId })).data).toEqual([]);
+    expect((await bob.rpc("connected_store_sources", { p_project_id: liveProjectId })).data).toBeNull();
+    expect((await anonClient().rpc("connected_store_sources", { p_project_id: liveProjectId })).error?.code).toBe("42501");
+  });
+
+  it("鍵が無効になった（status = error）ストアも、外していなければつないでいるとみなす。つなぎの行を消せば（外す・取り消す）つないでいない", async () => {
+    await admin.from("store_credentials").update({ status: "error", last_error: "鍵が無効" }).eq("project_id", liveProjectId);
+    expect((await alice.rpc("connected_store_sources", { p_project_id: liveProjectId })).data).toEqual(["app_store", "app_store_views"]);
+    await admin.from("store_credentials").update({ status: "ok", last_error: null }).eq("project_id", liveProjectId);
+    const other = (await alice.from("projects").insert({ name: "外した" }).select("id").single()).data!.id;
+    await admin.from("app_store_report_requests").insert({ owner_id: aliceId, project_id: other, request_id: "req-test-2", app_apple_id: "123456789" });
+    expect((await alice.rpc("connected_store_sources", { p_project_id: other })).data).toEqual(["app_store_views"]);
+    await admin.from("app_store_report_requests").delete().eq("project_id", other);
+    expect((await alice.rpc("connected_store_sources", { p_project_id: other })).data).toEqual([]);
+  });
+
+  it("外した Google Play の最後の日（3 日前）に引っ張られず、つないでいる App Store の 1 日前で終わる", async () => {
+    const { loadStoreTotals } = await import("@/lib/metrics/queries");
+    const v = await loadStoreTotals(alice, liveProjectId, today(), 7);
+    // 1 日前までの 7 日: App Store 7 日分と、残っている Google Play の 5 日分（3〜7 日前）
+    expect(v.downloads).toEqual({ thisWeek: 120, lastWeek: 140, until: ymdAgo(1) });
+    // ページの閲覧も、つないでいる App Store の依頼の中だけで決める（App Store の閲覧の行がないので、まだ届いていない）
+    expect(v.store_page_views).toEqual({ thisWeek: 0, lastWeek: 0, notArrived: true });
+  });
+
+  it("日ごとの数（loadDailyNumbers）の届いた日も同じ", async () => {
+    const { loadDailyNumbers } = await import("@/lib/metrics/daily");
+    const d = await loadDailyNumbers(alice, liveProjectId, today(), 60);
+    expect(d.arrived).toEqual({ downloads: ymdAgo(1), pageViews: null });
+    expect((await loadDailyNumbers(alice, projectId, today(), 60)).arrived).toEqual({ downloads: ymdAgo(3), pageViews: ymdAgo(3) });
   });
 });

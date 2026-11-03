@@ -24,7 +24,7 @@ import { chosenKpis, clickLabel, KPIS, KPI_KEYS, type KpiKey } from "@/lib/metri
 import { isAppProject, OUTCOME_ACTIONS } from "@/lib/projects/product-types";
 import { OutcomesBox } from "@/components/metrics/outcomes-box";
 import { listManualTargets, loadMetricsOverview, METRICS_PERIODS, snsNeedingInsightsReconnect, xMetricsOverLimit, type ClicksBySns, type MetricsPeriod, type WeekValue } from "@/lib/metrics/queries";
-import { CHART_DAYS, dailySeries, latestAside, pctChange, shortDay, type Daily } from "@/lib/overview/numbers";
+import { CHART_DAYS, chartWindow, dailySeries, latestAside, pctChange, shortDay, type Daily } from "@/lib/overview/numbers";
 import { connectedAccounts } from "@/lib/posts/queries";
 import { getAccountPlan } from "@/lib/plan/queries";
 import { getProject } from "@/lib/projects/queries";
@@ -206,10 +206,12 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
   const chartKeys = Object.keys(series) as ChartKey[];
   const fallback: ChartKey = series.downloads ? "downloads" : "clicks";
   const current: ChartKey = typeof chart === "string" && chart in series ? (chart as ChartKey) : fallback;
-  const rows = dailySeries(series[current] ?? [], today, chartDays);
-  // 遅れて届く数字は、届いている日まで（それより後は未確定。合計にも入れない）
+  // 遅れて届く数字の、届いているいちばん新しい日（ほかの数字は undefined）
   const arrived = current === "downloads" ? daily.arrived.downloads : current === "page_views" ? daily.arrived.pageViews : undefined;
-  const total = rows.reduce((n, r) => (arrived === undefined || (arrived !== null && r.day <= arrived) ? n + r.value : n), 0);
+  // 棒も届いている日で終わる期間にそろえる（カードの「10/30 までの 7 日」と同じ。まだ届いていない日は棒の下に 1 行で書く）
+  const win = chartWindow(series[current] ?? [], today, chartDays, arrived);
+  const rows = win?.rows ?? [];
+  const total = rows.reduce((n, r) => n + r.value, 0);
 
   return (
     <div className="flex flex-col gap-4 max-sm:gap-3">
@@ -286,7 +288,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
       <Columns
         main={
           <>
-            <Panel title="日ごとの数" aside={`直近 ${chartDays} 日 / 合計 ${formatCount(total)} / ${latestAside(rows, arrived)}`}>
+            <Panel title="日ごとの数" aside={win ? `${win.until ? "" : `直近 ${chartDays} 日 / `}合計 ${formatCount(total)} / ${latestAside(rows, arrived)}` : NOT_ARRIVED}>
               <nav className={`${tabListClass} mb-4`} aria-label="グラフの数字">
                 {chartKeys.map((k) => (
                   <Link key={k} href={`?chart=${k}${days === 30 ? "&days=30" : ""}`} scroll={false} replace aria-current={k === current ? "page" : undefined} className={`${tabClass(k === current)} hover:no-underline`}>
@@ -294,11 +296,13 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
                   </Link>
                 ))}
               </nav>
-              {total > 0 ? (
-                <DailyBars rows={rows} arrived={arrived} label={`${current === "clicks" ? clickLabel(project.product_type) : CHARTS[current].label}の日ごとの数（直近 ${chartDays} 日）`} />
+              {!win ? (
+                <ChartEmpty>{NOT_ARRIVED}</ChartEmpty>
+              ) : total > 0 ? (
+                <DailyBars rows={rows} note={win.note} label={`${current === "clicks" ? clickLabel(project.product_type) : CHARTS[current].label}の日ごとの数（${periodLabel(chartDays, win.until)}）`} />
               ) : (
                 <ChartEmpty>
-                  <p>直近 {chartDays} 日の{current === "clicks" ? clickLabel(project.product_type) : CHARTS[current].label}はまだありません。</p>
+                  <p>{periodLabel(chartDays, win.until)}の{current === "clicks" ? clickLabel(project.product_type) : CHARTS[current].label}はまだありません。</p>
                   {current === "clicks" && (
                     <Link href={`${base}/links`} className="font-bold text-fg underline">
                       短縮リンクを付けて投稿する

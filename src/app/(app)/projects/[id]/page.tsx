@@ -19,7 +19,7 @@ import type { WeekValue } from "@/lib/metrics/queries";
 import { compareLabel, NOT_ARRIVED, periodLabel } from "@/lib/metrics/store-period";
 import { isAppProject, isDevProject } from "@/lib/projects/product-types";
 import { loadOverviewNumbers } from "@/lib/overview/load";
-import { CHART_DAYS, CHART_DAYS_MOBILE, compareDays, dailySeries, latestAside, pctChange, shortDay, type Daily } from "@/lib/overview/numbers";
+import { CHART_DAYS, CHART_DAYS_MOBILE, chartWindow, compareDays, latestAside, pctChange, shortDay, type Daily } from "@/lib/overview/numbers";
 import { getAccountPlan } from "@/lib/plan/queries";
 import { listDueManualPosts, listOverduePosts, listPostsNeedingAttention, listUpcomingPosts } from "@/lib/posts/queries";
 import { currentStepIndex, STEPS } from "@/lib/projects/next-step";
@@ -81,11 +81,11 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
   const isApp = isAppProject(project);
   const clicks = clickLabel(project.product_type);
   const chartName = numbers.chart?.kind === "downloads" ? "ダウンロード" : clicks;
-  const chart14 = numbers.chart ? dailySeries(numbers.chart.rows, numbers.today, CHART_DAYS) : null;
-  const chart7 = numbers.chart ? dailySeries(numbers.chart.rows, numbers.today, CHART_DAYS_MOBILE) : null;
-  // 遅れて届くダウンロードは、届いている日までを足す（未確定の日は合計に入れない）
+  // 遅れて届くダウンロードは、届いている日で終わる期間の棒にする（大きな数字・カードと同じ期間。chartWindow）
   const arrived = numbers.chart?.arrived;
-  const total14 = chart14?.reduce((n, r) => (arrived === undefined || (arrived !== null && r.day <= arrived) ? n + r.value : n), 0) ?? 0;
+  const win14 = numbers.chart ? chartWindow(numbers.chart.rows, numbers.today, CHART_DAYS, arrived) : null;
+  const win7 = numbers.chart ? chartWindow(numbers.chart.rows, numbers.today, CHART_DAYS_MOBILE, arrived) : null;
+  const total14 = win14?.rows.reduce((n, r) => n + r.value, 0) ?? 0;
 
   const emptyChart = (
     <>
@@ -137,7 +137,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
 
       {/* スマホ（見本 D の右）: 大きな数字 1 つと 7 日の棒 */}
       <div className="sm:hidden">
-        <MobileHero name={chartName} rows={chart7} arrived={numbers.chart?.arrived} hero={numbers.hero7} today={numbers.today} source={numbers.chart?.rows ?? null} empty={emptyChart} />
+        <MobileHero name={chartName} win={win7} arrived={arrived} hero={numbers.hero7} today={numbers.today} source={numbers.chart?.rows ?? null} empty={emptyChart} />
       </div>
 
       <OverviewCards cards={numbers.cards} mobileHidden={numbers.chart?.kind} />
@@ -149,9 +149,13 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
             <Panel
               className="max-sm:hidden"
               title={numbers.chart ? `${chartName}の推移` : "日ごとの数"}
-              aside={chart14 ? `直近 ${CHART_DAYS} 日 / 合計 ${total14.toLocaleString("ja-JP")} / ${latestAside(chart14, numbers.chart?.arrived)}` : undefined}
+              aside={win14 ? `${win14.until ? "" : `直近 ${CHART_DAYS} 日 / `}合計 ${total14.toLocaleString("ja-JP")} / ${latestAside(win14.rows, arrived)}` : undefined}
             >
-              {chart14 ? <DailyBars rows={chart14} arrived={numbers.chart?.arrived} label={`${chartName}の日ごとの数（直近 ${CHART_DAYS} 日）`} /> : <ChartEmpty>{emptyChart}</ChartEmpty>}
+              {win14 ? (
+                <DailyBars rows={win14.rows} note={win14.note} label={`${chartName}の日ごとの数（${periodLabel(CHART_DAYS, win14.until)}）`} />
+              ) : (
+                <ChartEmpty>{numbers.chart ? NOT_ARRIVED : emptyChart}</ChartEmpty>
+              )}
             </Panel>
           </>
         }
@@ -216,8 +220,17 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
 
 // スマホの大きな数字（見本 D の右の「きょうの DL」）。その日だけだと 0 が多いので、直近 7 日の合計と、その前の 7 日との比べ。
 // ダウンロードは数日遅れて届くので、届いている日で終わる 7 日（hero。「10/30 までの 7 日・その前の 7 日比」）。どこからも届いていなければ数を出さない
-function MobileHero({ name, rows, arrived, hero, source, today, empty }: { name: string; rows: Daily[] | null; arrived?: string | null; hero?: WeekValue; source: Daily[] | null; today: string; empty: React.ReactNode }) {
-  if (!rows || !source) {
+// グラフも同じ期間（win。届いていない日があれば「10/24〜10/30」の 7 本と「11/3 までの 4 日はまだ届いていません」）
+function MobileHero({ name, win, arrived, hero, source, today, empty }: { name: string; win: ReturnType<typeof chartWindow>; arrived?: string | null; hero?: WeekValue; source: Daily[] | null; today: string; empty: React.ReactNode }) {
+  if (source && (!win || hero?.notArrived)) {
+    return (
+      <Panel title={name}>
+        <p className="num text-[40px] leading-none font-bold">—</p>
+        <p className="mt-2 text-sm text-faint">{NOT_ARRIVED}</p>
+      </Panel>
+    );
+  }
+  if (!win || !source) {
     return (
       <Panel title="日ごとの数">
         <ChartEmpty height="h-36">{empty}</ChartEmpty>
@@ -229,7 +242,7 @@ function MobileHero({ name, rows, arrived, hero, source, today, empty }: { name:
   const delta = v.noPrev || v.notArrived ? null : pctChange(v.thisWeek, v.lastWeek);
   const prefix = v.until ? `${periodLabel(CHART_DAYS_MOBILE, v.until)}・` : "";
   return (
-    <Panel title={name} aside={`直近 ${CHART_DAYS_MOBILE} 日 / ${latestAside(rows, arrived)}`}>
+    <Panel title={name} aside={`${win.until ? "" : `直近 ${CHART_DAYS_MOBILE} 日 / `}${latestAside(win.rows, arrived)}`}>
       <p className="num text-[40px] leading-none font-bold">{v.notArrived ? "—" : v.thisWeek.toLocaleString("ja-JP")}</p>
       <p className="mt-2 flex flex-wrap items-baseline gap-x-1.5 text-sm text-faint">
         {v.notArrived ? (
@@ -246,7 +259,7 @@ function MobileHero({ name, rows, arrived, hero, source, today, empty }: { name:
         )}
       </p>
       <div className="mt-3">
-        <DailyBars rows={rows} arrived={arrived} height="h-28" label={`${name}の日ごとの数（直近 ${CHART_DAYS_MOBILE} 日）`} />
+        <DailyBars rows={win.rows} note={win.note} height="h-28" label={`${name}の日ごとの数（${periodLabel(CHART_DAYS_MOBILE, win.until)}）`} />
       </div>
     </Panel>
   );

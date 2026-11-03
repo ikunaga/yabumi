@@ -1956,6 +1956,10 @@ export type Database = {
           storage_path: string
         }[]
       }
+      connected_store_sources: {
+        Args: { p_project_id: string }
+        Returns: string[]
+      }
       counted_post_targets: {
         Args: { p_from: string; p_project_id: string; p_to: string }
         Returns: {

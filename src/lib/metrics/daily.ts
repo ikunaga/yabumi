@@ -18,7 +18,7 @@ export type DailyNumbers = {
   stores: StoreSource[];
   // ストアごとの、取り込んだいちばん新しい日（確定した日だけで比べるため。post-effect.ts）
   lastStoreDay: Partial<Record<StoreSource, string>>;
-  // ダウンロード・ページの閲覧が、すべてのストアから届いているいちばん新しい日（それより後は未確定。グラフで 0 と分ける）
+  // ダウンロード・ページの閲覧が、いまつないでいるすべてのストアから届いているいちばん新しい日（それより後はまだ届いていない。グラフはこの日で終わる期間にする）
   arrived: { downloads: string | null; pageViews: string | null };
   // 数え始めた日（比べる範囲の始まり。それより前は数えていないので 0 と扱わない）。
   // ダウンロードは期間の中で取り込んだいちばん古い日、クリックはいちばん古い短縮リンクを作った日（日本時間）。なければ null
@@ -39,11 +39,12 @@ export type DailyNumbers = {
 // 概要と分析の日ごとの数（today を含む直近 days 日）。どれも本人だけが読める表と関数から読む（RLS）
 export async function loadDailyNumbers(supabase: SupabaseClient<Database>, projectId: string, today: string, days: number): Promise<DailyNumbers> {
   const from = addDays(today, -(days - 1));
-  const [totals, store, firstLink, outcomeRows] = await Promise.all([
+  const [totals, store, firstLink, outcomeRows, connected] = await Promise.all([
     supabase.rpc("roadmap_daily_totals", { p_project_id: projectId, p_from: from, p_to: today }),
     supabase.from("store_daily").select("day, source, values").eq("project_id", projectId).in("source", ["app_store", "google_play", "app_store_views", "app_store_campaigns"]).gte("day", from),
     supabase.from("short_links").select("created_at").eq("project_id", projectId).order("created_at").limit(1).maybeSingle(),
     supabase.from("project_outcomes_daily").select("day, count").eq("project_id", projectId).gte("day", from),
+    loadConnectedStoreSources(supabase, projectId),
   ]);
   if (outcomeRows.error) throw outcomeRows.error;
   if (firstLink.error) throw firstLink.error;
@@ -74,7 +75,7 @@ export async function loadDailyNumbers(supabase: SupabaseClient<Database>, proje
     playUtmUnreadable: rows.some((r) => r.source === "google_play" && Boolean((r.values as { utm_unreadable?: boolean } | null)?.utm_unreadable)),
     storeSince: rows.filter((r) => r.source === "app_store" || r.source === "google_play").map((r) => r.day).sort()[0] ?? null,
     linksSince: firstLink.data ? toYmd(new Date(firstLink.data.created_at)) : null,
-    arrived: { downloads: arrivedUntil(rows, ["app_store", "google_play"]), pageViews: arrivedUntil(rows, ["app_store_views", "google_play"]) },
+    arrived: { downloads: arrivedUntil(rows, ["app_store", "google_play"], connected), pageViews: arrivedUntil(rows, ["app_store_views", "google_play"], connected) },
     lastStoreDay: Object.fromEntries(
       (["app_store", "google_play"] as const).flatMap((s) => {
         const days = rows.filter((r) => r.source === s).map((r) => r.day).sort();
@@ -82,4 +83,11 @@ export async function loadDailyNumbers(supabase: SupabaseClient<Database>, proje
       }),
     ),
   };
+}
+
+// いまつないでいるストアの取り込み元（app_store・app_store_views・google_play。DB の関数 connected_store_sources。つなぎの表はサーバーだけが読めるので、名前だけ）
+export async function loadConnectedStoreSources(supabase: SupabaseClient<Database>, projectId: string): Promise<string[]> {
+  const { data, error } = await supabase.rpc("connected_store_sources", { p_project_id: projectId });
+  if (error) throw error;
+  return data ?? [];
 }

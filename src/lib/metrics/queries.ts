@@ -10,6 +10,7 @@ import { addDays, toYmd } from "@/lib/time";
 import type { KpiKey } from "./kpis";
 import { firstLine, postMeta, type PostMeta } from "./post-meta";
 import { arrivedUntil } from "@/lib/overview/numbers";
+import { loadConnectedStoreSources } from "./daily";
 import { storeEnd, storeWeekValue, type StoreSpan } from "./store-period";
 
 // 数字の画面（docs/architecture.md の 4.22）の読み込み。合計はすべて DB の関数で出す（行を読んで足さない）
@@ -130,21 +131,22 @@ const DOWNLOAD_SOURCES = ["app_store", "google_play"] as const;
 const PAGE_VIEW_SOURCES = ["app_store_views", "google_play"] as const;
 
 // 遅れて届く数字の、数え始めた日（取り込んだいちばん古い日）と、すべてのストアから届いているいちばん新しい日（直近 60 日の中で。
-// 日ごとの棒グラフの「未確定」と同じ決め方。src/lib/metrics/daily.ts）。取り込んだことがなければ since は null（StoreSpan）
+// いまつないでいるストアの中だけで。日ごとの棒グラフと同じ決め方。src/lib/metrics/daily.ts）。取り込んだことがなければ since は null（StoreSpan）
 export async function loadStoreSpans(supabase: SupabaseClient<Database>, projectId: string, today: string): Promise<{ downloads: StoreSpan; pageViews: StoreSpan }> {
   const first = (sources: readonly string[]) => supabase.from("store_daily").select("day").eq("project_id", projectId).in("source", sources).order("day").limit(1).maybeSingle();
-  const [recent, dl, pv] = await Promise.all([
+  const [recent, dl, pv, connected] = await Promise.all([
     supabase.from("store_daily").select("day, source").eq("project_id", projectId).in("source", ["app_store", "google_play", "app_store_views"]).gte("day", addDays(today, -59)),
     first(DOWNLOAD_SOURCES),
     first(PAGE_VIEW_SOURCES),
+    loadConnectedStoreSources(supabase, projectId),
   ]);
   if (recent.error) throw recent.error;
   if (dl.error) throw dl.error;
   if (pv.error) throw pv.error;
   const rows = recent.data ?? [];
   return {
-    downloads: { since: dl.data?.day ?? null, until: arrivedUntil(rows, DOWNLOAD_SOURCES) },
-    pageViews: { since: pv.data?.day ?? null, until: arrivedUntil(rows, PAGE_VIEW_SOURCES) },
+    downloads: { since: dl.data?.day ?? null, until: arrivedUntil(rows, DOWNLOAD_SOURCES, connected) },
+    pageViews: { since: pv.data?.day ?? null, until: arrivedUntil(rows, PAGE_VIEW_SOURCES, connected) },
   };
 }
 

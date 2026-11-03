@@ -1,6 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Daily } from "@/lib/overview/numbers";
+import { arrivedUntil, type Daily } from "@/lib/overview/numbers";
 import type { PlayUtmRow } from "./play-utm";
 import type { Database } from "@/lib/supabase/database.types";
 import { addDays, toYmd } from "@/lib/time";
@@ -18,6 +18,8 @@ export type DailyNumbers = {
   stores: StoreSource[];
   // ストアごとの、取り込んだいちばん新しい日（確定した日だけで比べるため。post-effect.ts）
   lastStoreDay: Partial<Record<StoreSource, string>>;
+  // ダウンロード・ページの閲覧が、すべてのストアから届いているいちばん新しい日（それより後は未確定。グラフで 0 と分ける）
+  arrived: { downloads: string | null; pageViews: string | null };
   // 数え始めた日（比べる範囲の始まり。それより前は数えていないので 0 と扱わない）。
   // ダウンロードは期間の中で取り込んだいちばん古い日、クリックはいちばん古い短縮リンクを作った日（日本時間）。なければ null
   storeSince: string | null;
@@ -72,6 +74,7 @@ export async function loadDailyNumbers(supabase: SupabaseClient<Database>, proje
     playUtmUnreadable: rows.some((r) => r.source === "google_play" && Boolean((r.values as { utm_unreadable?: boolean } | null)?.utm_unreadable)),
     storeSince: rows.filter((r) => r.source === "app_store" || r.source === "google_play").map((r) => r.day).sort()[0] ?? null,
     linksSince: firstLink.data ? toYmd(new Date(firstLink.data.created_at)) : null,
+    arrived: { downloads: arrivedUntil(rows, ["app_store", "google_play"]), pageViews: arrivedUntil(rows, ["app_store_views", "google_play"]) },
     lastStoreDay: Object.fromEntries(
       (["app_store", "google_play"] as const).flatMap((s) => {
         const days = rows.filter((r) => r.source === s).map((r) => r.day).sort();

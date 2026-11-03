@@ -17,12 +17,13 @@ import { dayOfMonth, formatShort, monthOf, weekdayLabel } from "@/lib/time";
 export function Panel({ title, help, aside, children, className = "" }: { title: ReactNode; help?: ReactNode; aside?: ReactNode; children: ReactNode; className?: string }) {
   return (
     <section className={`rounded-lg border border-border bg-surface px-5 py-4 max-sm:px-4 ${className}`}>
-      <div className="mb-3 flex items-baseline justify-between gap-3">
+      {/* 見出しと右の数が 1 行に入らないとき（分析のスマホの「直近 30 日 / 合計 / 最新」など）は、見出しを折らずに右の数を次の行へ */}
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <div className="flex items-center gap-2">
           <h2 className="text-[16px] font-bold max-sm:text-[15px]">{title}</h2>
           {help}
         </div>
-        {aside && <span className="num shrink-0 text-sm text-faint">{aside}</span>}
+        {aside && <span className="num text-sm text-faint">{aside}</span>}
       </div>
       {children}
     </section>

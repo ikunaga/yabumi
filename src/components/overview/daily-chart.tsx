@@ -3,12 +3,18 @@ import { chartTicks, peakIndex, shortDay, type Daily } from "@/lib/overview/numb
 import { weekdayLabel } from "@/lib/time";
 
 // 日ごとの棒グラフ（見本 A の「ダウンロード推移」）。左に縦の目盛り（いちばん大きい日・その半分・0）と横の線、棒の上にその日の数（0 の日は出さない）。
-// いちばん大きい日を濃くする（最後の日＝今日は 0 で棒がないことが多いため）。今日の数は見出しの右に文で出す（todayAside）
-export function DailyBars({ rows, height = "h-44", label }: { rows: Daily[]; height?: string; label: string }) {
-  const { top, ticks } = chartTicks(rows);
-  const peak = peakIndex(rows);
-  const last = rows.length - 1;
-  const days = rows.length > 7 ? [0, Math.floor(last / 2), last] : rows.map((_, i) => i);
+// いちばん大きい日を濃くする（最後の日＝今日は 0 で棒がないことが多いため）。いちばん新しい日の数は見出しの右に文で出す（latestAside）。
+// arrived: 遅れて届く数字（ストアのダウンロードなど）の届いているいちばん新しい日。それより後の日は 0 ではなく「未確定」の点線の枠にする
+export function DailyBars({ rows, height = "h-44", label, arrived }: { rows: Daily[]; height?: string; label: string; arrived?: string | null }) {
+  const pending = (day: string) => arrived !== undefined && (arrived === null || day > arrived);
+  const known = rows.map((r) => (pending(r.day) ? { ...r, value: 0 } : r));
+  const { top, ticks } = chartTicks(known);
+  const peak = peakIndex(known);
+  // 細い幅でも数を出す日: いちばん大きい日と、届いているいちばん新しい日
+  const last = known.findLastIndex((r) => !pending(r.day));
+  const anyPending = rows.some((r) => pending(r.day));
+  const end = rows.length - 1;
+  const days = rows.length > 7 ? [0, Math.floor(end / 2), end] : rows.map((_, i) => i);
   // 棒が細い幅では、いちばん大きい日と最後の日の数だけ出す（7 日を超えるとスマホで、15 日を超えると狭い PC でも重なる）
   const crowd = rows.length > 14 ? "max-lg:hidden" : rows.length > 7 ? "max-sm:hidden" : "";
   const pct = (v: number) => (v / top) * 100;
@@ -32,7 +38,13 @@ export function DailyBars({ rows, height = "h-44", label }: { rows: Daily[]; hei
             <div key={t} aria-hidden className={`absolute inset-x-0 border-t border-line ${t === 0 ? "" : "border-dashed"}`} style={{ bottom: `${pct(t)}%` }} />
           ))}
           <ol className="absolute inset-0 flex items-end gap-[2.5%] px-1">
-            {rows.map((r, i) => (
+            {rows.map((r, i) =>
+              pending(r.day) ? (
+                <li key={r.day} className="relative flex h-full flex-1 items-end" title={`${shortDay(r.day)}: 未確定（まだ届いていません）`}>
+                  <span className="block h-full w-full rounded-t-[3px] border border-b-0 border-dashed border-faint/35" />
+                  <span className="sr-only">{shortDay(r.day)} 未確定</span>
+                </li>
+              ) : (
               <li key={r.day} className="relative flex h-full flex-1 items-end" title={`${shortDay(r.day)}: ${r.value.toLocaleString("ja-JP")}`}>
                 {r.value > 0 && (
                   <span
@@ -51,7 +63,8 @@ export function DailyBars({ rows, height = "h-44", label }: { rows: Daily[]; hei
                   {shortDay(r.day)} {r.value}
                 </span>
               </li>
-            ))}
+              ),
+            )}
           </ol>
         </div>
       </div>
@@ -77,13 +90,17 @@ export function DailyBars({ rows, height = "h-44", label }: { rows: Daily[]; hei
           </span>
         )}
       </div>
+      {anyPending && (
+        <>
+          <div aria-hidden />
+          <p className="flex items-center gap-1.5 px-1 text-xs text-faint">
+            <span aria-hidden className="inline-block h-2.5 w-2.5 rounded-[2px] border border-dashed border-faint/35" />
+            未確定（まだ届いていない日）
+          </p>
+        </>
+      )}
     </figure>
   );
-}
-
-// 見出しの右の並びに足す「今日 N」（グラフの最後の日が今日）
-export function todayAside(rows: Daily[]): string {
-  return `今日 ${(rows.at(-1)?.value ?? 0).toLocaleString("ja-JP")}`;
 }
 
 // グラフの代わりの空の案内（グラフと同じ高さの枠の中に、小さく）

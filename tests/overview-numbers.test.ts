@@ -1,7 +1,7 @@
 // 概要の数字のカードの選び方と、30 日の比べ（src/lib/overview/numbers.ts。DB は触らない）
 import { describe, expect, it } from "vitest";
-import { chartTicks, compareDays, dailySeries, pctChange, peakIndex, pickOverviewCards, slotLabel, type Daily, type OverviewInput } from "@/lib/overview/numbers";
-import { addDays } from "@/lib/time";
+import { arrivedUntil, chartTicks, compareDays, dailySeries, latestAside, pctChange, peakIndex, pickOverviewCards, slotLabel, type Daily, type OverviewInput } from "@/lib/overview/numbers";
+import { addDays, toYmd } from "@/lib/time";
 
 const today = "2026-10-30";
 // 今日から n 日前に value
@@ -147,5 +147,46 @@ describe("日ごとの棒グラフの目盛りと強調", () => {
     expect(peakIndex(vals(0, 0))).toBeNull();
     expect(peakIndex(vals(5, 2, 5, 0))).toBe(2);
     expect(peakIndex(vals(1, 9, 0))).toBe(1);
+  });
+});
+
+describe("日ごとの棒グラフの日付と、遅れて届く数字", () => {
+  it("日付は日本時間で区切る（日本時間の 11/3 0:30 は 11/3。グラフの最後の日）", () => {
+    const today = toYmd(new Date("2026-11-02T15:30:00Z"));
+    expect(today).toBe("2026-11-03");
+    const rows = dailySeries([{ day: "2026-10-30", value: 3 }, { day: "2026-11-01", value: 4 }], today, 14);
+    expect(rows.at(-1)).toEqual({ day: "2026-11-03", value: 0 });
+    // 4 日前・2 日前は、最後から 5 本目・3 本目
+    expect(rows.at(-5)).toEqual({ day: "2026-10-30", value: 3 });
+    expect(rows.at(-3)).toEqual({ day: "2026-11-01", value: 4 });
+    // 日本時間の 11/2 23:59 はまだ 11/2
+    expect(toYmd(new Date("2026-11-02T14:59:00Z"))).toBe("2026-11-02");
+  });
+
+  it("届いている日は、ストアごとのいちばん新しい日のうち早いほう", () => {
+    const rows = [
+      { day: "2026-10-31", source: "app_store" },
+      { day: "2026-11-01", source: "app_store" },
+      { day: "2026-10-30", source: "google_play" },
+      { day: "2026-11-02", source: "app_store_views" },
+    ];
+    expect(arrivedUntil(rows, ["app_store", "google_play"])).toBe("2026-10-30");
+    expect(arrivedUntil(rows, ["app_store"])).toBe("2026-11-01");
+    expect(arrivedUntil(rows, ["app_store_views", "google_play"])).toBe("2026-10-30");
+    expect(arrivedUntil([], ["app_store"])).toBeNull();
+  });
+
+  it("見出しの右: いつも届く数字は「今日」、遅れて届く数字は届いている日まで「最新」", () => {
+    const rows = [
+      { day: "2026-10-31", value: 5 },
+      { day: "2026-11-01", value: 23 },
+      { day: "2026-11-02", value: 0 },
+      { day: "2026-11-03", value: 0 },
+    ];
+    expect(latestAside(rows)).toBe("今日 0");
+    expect(latestAside(rows, "2026-11-01")).toBe("最新 11/1: 23");
+    expect(latestAside(rows, "2026-11-03")).toBe("最新 11/3: 0");
+    expect(latestAside(rows, "2026-10-20")).toBe("最新 10/20");
+    expect(latestAside(rows, null)).toBe("まだ届いていません");
   });
 });

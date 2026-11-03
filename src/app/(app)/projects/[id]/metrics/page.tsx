@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { ManualMetricForm } from "@/components/metrics/manual-metric-form";
-import { ChartEmpty, DailyBars, todayAside } from "@/components/overview/daily-chart";
+import { ChartEmpty, DailyBars } from "@/components/overview/daily-chart";
 import { Panel } from "@/components/overview/overview-panels";
 import { ButtonLink, NotReadyButton } from "@/components/ui/button";
 import { Disclosure, HelpTip } from "@/components/ui/help";
@@ -23,7 +23,7 @@ import { chosenKpis, clickLabel, KPIS, KPI_KEYS, type KpiKey } from "@/lib/metri
 import { isAppProject, OUTCOME_ACTIONS } from "@/lib/projects/product-types";
 import { OutcomesBox } from "@/components/metrics/outcomes-box";
 import { listManualTargets, loadMetricsOverview, METRICS_PERIODS, snsNeedingInsightsReconnect, xMetricsOverLimit, type ClicksBySns, type MetricsPeriod, type WeekValue } from "@/lib/metrics/queries";
-import { CHART_DAYS, dailySeries, pctChange, shortDay, type Daily } from "@/lib/overview/numbers";
+import { CHART_DAYS, dailySeries, latestAside, pctChange, shortDay, type Daily } from "@/lib/overview/numbers";
 import { connectedAccounts } from "@/lib/posts/queries";
 import { getAccountPlan } from "@/lib/plan/queries";
 import { getProject } from "@/lib/projects/queries";
@@ -194,6 +194,8 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
   const current: ChartKey = typeof chart === "string" && chart in series ? (chart as ChartKey) : fallback;
   const rows = dailySeries(series[current] ?? [], today, chartDays);
   const total = rows.reduce((n, r) => n + r.value, 0);
+  // 遅れて届く数字は、届いている日まで（それより後は未確定）
+  const arrived = current === "downloads" ? daily.arrived.downloads : current === "page_views" ? daily.arrived.pageViews : undefined;
 
   return (
     <div className="flex flex-col gap-4 max-sm:gap-3">
@@ -270,7 +272,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
       <Columns
         main={
           <>
-            <Panel title="日ごとの数" aside={`直近 ${chartDays} 日 / 合計 ${formatCount(total)} / ${todayAside(rows)}`}>
+            <Panel title="日ごとの数" aside={`直近 ${chartDays} 日 / 合計 ${formatCount(total)} / ${latestAside(rows, arrived)}`}>
               <nav className={`${tabListClass} mb-4`} aria-label="グラフの数字">
                 {chartKeys.map((k) => (
                   <Link key={k} href={`?chart=${k}${days === 30 ? "&days=30" : ""}`} scroll={false} replace aria-current={k === current ? "page" : undefined} className={`${tabClass(k === current)} hover:no-underline`}>
@@ -279,7 +281,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
                 ))}
               </nav>
               {total > 0 ? (
-                <DailyBars rows={rows} label={`${current === "clicks" ? clickLabel(project.product_type) : CHARTS[current].label}の日ごとの数（直近 ${chartDays} 日）`} />
+                <DailyBars rows={rows} arrived={arrived} label={`${current === "clicks" ? clickLabel(project.product_type) : CHARTS[current].label}の日ごとの数（直近 ${chartDays} 日）`} />
               ) : (
                 <ChartEmpty>
                   <p>直近 {chartDays} 日の{current === "clicks" ? clickLabel(project.product_type) : CHARTS[current].label}はまだありません。</p>

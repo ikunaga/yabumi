@@ -171,3 +171,24 @@ export function peakIndex(rows: Daily[]): number | null {
   });
   return at;
 }
+
+// 遅れて届く数字（ストアのダウンロード・ページの閲覧）の、すべてのストアから届いているいちばん新しい日。
+// ストアごとの届いたいちばん新しい日のうち早いほう（片方しか届いていない日は、まだ合計が決まらない）。どこからも届いていなければ null
+export function arrivedUntil(rows: { day: string; source: string }[], sources: readonly string[]): string | null {
+  const ends = sources.flatMap((s) => {
+    const days = rows.filter((r) => r.source === s).map((r) => r.day).sort();
+    return days.length ? [days[days.length - 1]] : [];
+  });
+  return ends.sort()[0] ?? null;
+}
+
+// 見出しの右に足す、いちばん新しい日の数。いつも届く数字は「今日 N」、遅れて届く数字は届いている日まで「最新 11/1: N」
+export function latestAside(rows: Daily[], arrived?: string | null): string {
+  const last = rows.at(-1);
+  if (!last) return "";
+  if (arrived === undefined) return `今日 ${last.value.toLocaleString("ja-JP")}`;
+  if (arrived === null) return "まだ届いていません";
+  if (arrived >= last.day) return `最新 ${shortDay(last.day)}: ${last.value.toLocaleString("ja-JP")}`;
+  const r = rows.find((x) => x.day === arrived);
+  return r ? `最新 ${shortDay(r.day)}: ${r.value.toLocaleString("ja-JP")}` : `最新 ${shortDay(arrived)}`;
+}

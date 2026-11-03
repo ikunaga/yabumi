@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChartEmpty, DailyBars, todayAside } from "@/components/overview/daily-chart";
+import { ChartEmpty, DailyBars } from "@/components/overview/daily-chart";
 import { NowBand } from "@/components/overview/now-band";
 import { OverviewCards } from "@/components/overview/overview-cards";
 import { AttentionStrip, ConnectedSnsLine, NextScheduled, Panel, SnsClicks } from "@/components/overview/overview-panels";
@@ -17,7 +17,7 @@ import { githubConfigured } from "@/lib/github/config";
 import { chosenKpis, clickLabel } from "@/lib/metrics/kpis";
 import { isAppProject, isDevProject } from "@/lib/projects/product-types";
 import { loadOverviewNumbers } from "@/lib/overview/load";
-import { CHART_DAYS, CHART_DAYS_MOBILE, compareDays, dailySeries, pctChange, shortDay, type Daily } from "@/lib/overview/numbers";
+import { CHART_DAYS, CHART_DAYS_MOBILE, compareDays, dailySeries, latestAside, pctChange, shortDay, type Daily } from "@/lib/overview/numbers";
 import { getAccountPlan } from "@/lib/plan/queries";
 import { listDueManualPosts, listOverduePosts, listPostsNeedingAttention, listUpcomingPosts } from "@/lib/posts/queries";
 import { currentStepIndex, STEPS } from "@/lib/projects/next-step";
@@ -133,7 +133,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
 
       {/* スマホ（見本 D の右）: 大きな数字 1 つと 7 日の棒 */}
       <div className="sm:hidden">
-        <MobileHero name={chartName} rows={chart7} today={numbers.today} source={numbers.chart?.rows ?? null} empty={emptyChart} />
+        <MobileHero name={chartName} rows={chart7} arrived={numbers.chart?.arrived} today={numbers.today} source={numbers.chart?.rows ?? null} empty={emptyChart} />
       </div>
 
       <OverviewCards cards={numbers.cards} mobileHidden={numbers.chart?.kind} />
@@ -145,9 +145,9 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
             <Panel
               className="max-sm:hidden"
               title={numbers.chart ? `${chartName}の推移` : "日ごとの数"}
-              aside={chart14 ? `直近 ${CHART_DAYS} 日 / 合計 ${total14.toLocaleString("ja-JP")} / ${todayAside(chart14)}` : undefined}
+              aside={chart14 ? `直近 ${CHART_DAYS} 日 / 合計 ${total14.toLocaleString("ja-JP")} / ${latestAside(chart14, numbers.chart?.arrived)}` : undefined}
             >
-              {chart14 ? <DailyBars rows={chart14} label={`${chartName}の日ごとの数（直近 ${CHART_DAYS} 日）`} /> : <ChartEmpty>{emptyChart}</ChartEmpty>}
+              {chart14 ? <DailyBars rows={chart14} arrived={numbers.chart?.arrived} label={`${chartName}の日ごとの数（直近 ${CHART_DAYS} 日）`} /> : <ChartEmpty>{emptyChart}</ChartEmpty>}
             </Panel>
           </>
         }
@@ -211,7 +211,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
 }
 
 // スマホの大きな数字（見本 D の右の「きょうの DL」）。その日だけだと 0 が多いので、直近 7 日の合計と、その前の 7 日との比べ
-function MobileHero({ name, rows, source, today, empty }: { name: string; rows: Daily[] | null; source: Daily[] | null; today: string; empty: React.ReactNode }) {
+function MobileHero({ name, rows, arrived, source, today, empty }: { name: string; rows: Daily[] | null; arrived?: string | null; source: Daily[] | null; today: string; empty: React.ReactNode }) {
   if (!rows || !source) {
     return (
       <Panel title="日ごとの数">
@@ -222,7 +222,7 @@ function MobileHero({ name, rows, source, today, empty }: { name: string; rows: 
   const { now, before } = compareDays(source, today, CHART_DAYS_MOBILE);
   const delta = pctChange(now, before);
   return (
-    <Panel title={name} aside={`直近 ${CHART_DAYS_MOBILE} 日 / ${todayAside(rows)}`}>
+    <Panel title={name} aside={`直近 ${CHART_DAYS_MOBILE} 日 / ${latestAside(rows, arrived)}`}>
       <p className="num text-[40px] leading-none font-bold">{now.toLocaleString("ja-JP")}</p>
       <p className="mt-2 flex items-baseline gap-1.5 text-sm text-faint">
         {delta !== null ? (
@@ -234,7 +234,7 @@ function MobileHero({ name, rows, source, today, empty }: { name: string; rows: 
         )}
       </p>
       <div className="mt-3">
-        <DailyBars rows={rows} height="h-28" label={`${name}の日ごとの数（直近 ${CHART_DAYS_MOBILE} 日）`} />
+        <DailyBars rows={rows} arrived={arrived} height="h-28" label={`${name}の日ごとの数（直近 ${CHART_DAYS_MOBILE} 日）`} />
       </div>
     </Panel>
   );

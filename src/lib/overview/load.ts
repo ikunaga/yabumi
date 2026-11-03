@@ -11,8 +11,9 @@ import { OVERVIEW_DAYS, pickOverviewCards, type Daily, type OverviewCard } from 
 export type OverviewNumbers = {
   today: string;
   cards: OverviewCard[];
-  // 日ごとの棒グラフ（ダウンロード、なければストアへのクリック。どちらもなければ null）
-  chart: { kind: "downloads" | "link_clicks"; rows: Daily[] } | null;
+  // 日ごとの棒グラフ（ダウンロード、なければストアへのクリック。どちらもなければ null）。
+  // arrived: 遅れて届くダウンロードの、届いているいちばん新しい日（クリックはいつも届くので undefined）
+  chart: { kind: "downloads" | "link_clicks"; rows: Daily[]; arrived?: string | null } | null;
   hasStore: boolean;
   hasLinks: boolean;
   // 直近 60 日に数字を取り込んだストア（見出しの札に出す）
@@ -67,7 +68,7 @@ export async function loadOverviewNumbers(projectId: string, kpis: KpiKey[], pro
   return {
     today,
     cards,
-    chart: downloads ? { kind: "downloads", rows: downloads } : clicks ? { kind: "link_clicks", rows: clicks } : null,
+    chart: downloads ? { kind: "downloads", rows: downloads, arrived: daily.arrived.downloads } : clicks ? { kind: "link_clicks", rows: clicks } : null,
     hasStore,
     hasLinks,
     stores: isApp ? daily.stores : [],

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChartEmpty, DailyBars } from "@/components/overview/daily-chart";
+import { ChartEmpty, DailyBars, todayAside } from "@/components/overview/daily-chart";
 import { NowBand } from "@/components/overview/now-band";
 import { OverviewCards } from "@/components/overview/overview-cards";
 import { AttentionStrip, ConnectedSnsLine, NextScheduled, Panel, SnsClicks } from "@/components/overview/overview-panels";
@@ -145,7 +145,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
             <Panel
               className="max-sm:hidden"
               title={numbers.chart ? `${chartName}の推移` : "日ごとの数"}
-              aside={chart14 ? `直近 ${CHART_DAYS} 日 / 合計 ${total14.toLocaleString("ja-JP")}` : undefined}
+              aside={chart14 ? `直近 ${CHART_DAYS} 日 / 合計 ${total14.toLocaleString("ja-JP")} / ${todayAside(chart14)}` : undefined}
             >
               {chart14 ? <DailyBars rows={chart14} label={`${chartName}の日ごとの数（直近 ${CHART_DAYS} 日）`} /> : <ChartEmpty>{emptyChart}</ChartEmpty>}
             </Panel>
@@ -222,7 +222,7 @@ function MobileHero({ name, rows, source, today, empty }: { name: string; rows: 
   const { now, before } = compareDays(source, today, CHART_DAYS_MOBILE);
   const delta = pctChange(now, before);
   return (
-    <Panel title={name} aside={`直近 ${CHART_DAYS_MOBILE} 日`}>
+    <Panel title={name} aside={`直近 ${CHART_DAYS_MOBILE} 日 / ${todayAside(rows)}`}>
       <p className="num text-[40px] leading-none font-bold">{now.toLocaleString("ja-JP")}</p>
       <p className="mt-2 flex items-baseline gap-1.5 text-sm text-faint">
         {delta !== null ? (

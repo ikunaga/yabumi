@@ -155,3 +155,19 @@ export function shortDay(ymd: string): string {
   const [, m, d] = ymd.split("-");
   return `${Number(m)}/${Number(d)}`;
 }
+
+// 日ごとの棒グラフの縦の目盛り。上はいちばん大きい日の値、間はその半分（整数にならない 1 のときは出さない）、下は 0。値がすべて 0 なら上を 1 に
+export function chartTicks(rows: Daily[]): { top: number; ticks: number[] } {
+  const top = Math.max(1, ...rows.map((r) => r.value));
+  const half = Math.floor(top / 2);
+  return { top, ticks: half > 0 ? [top, half, 0] : [top, 0] };
+}
+
+// 強調して数を必ず出す日（いちばん大きい日のうち最後の日。0 しかなければなし）
+export function peakIndex(rows: Daily[]): number | null {
+  let at: number | null = null;
+  rows.forEach((r, i) => {
+    if (r.value > 0 && (at === null || r.value >= rows[at].value)) at = i;
+  });
+  return at;
+}

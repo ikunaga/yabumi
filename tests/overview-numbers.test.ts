@@ -1,6 +1,6 @@
 // 概要の数字のカードの選び方と、30 日の比べ（src/lib/overview/numbers.ts。DB は触らない）
 import { describe, expect, it } from "vitest";
-import { compareDays, dailySeries, pctChange, pickOverviewCards, slotLabel, type Daily, type OverviewInput } from "@/lib/overview/numbers";
+import { chartTicks, compareDays, dailySeries, pctChange, peakIndex, pickOverviewCards, slotLabel, type Daily, type OverviewInput } from "@/lib/overview/numbers";
 import { addDays } from "@/lib/time";
 
 const today = "2026-10-30";
@@ -128,5 +128,24 @@ describe("概要: 次の予約の時刻", () => {
     expect(slotLabel("2026-10-30T18:00:00+09:00", now)).toBe("18:00");
     expect(slotLabel("2026-10-31T12:00:00+09:00", now)).toBe("明日 12:00");
     expect(slotLabel("2026-11-01T09:00:00+09:00", now)).toBe("11/1 09:00");
+  });
+});
+
+describe("日ごとの棒グラフの目盛りと強調", () => {
+  const vals = (...v: number[]): Daily[] => v.map((value, i) => ({ day: addDays(today, i - v.length + 1), value }));
+
+  it("縦の目盛りはいちばん大きい日・その半分・0 で、小さい値でも整数", () => {
+    expect(chartTicks(vals(0, 0, 0))).toEqual({ top: 1, ticks: [1, 0] });
+    expect(chartTicks(vals(1, 0))).toEqual({ top: 1, ticks: [1, 0] });
+    expect(chartTicks(vals(2, 0))).toEqual({ top: 2, ticks: [2, 1, 0] });
+    expect(chartTicks(vals(3, 1, 0))).toEqual({ top: 3, ticks: [3, 1, 0] });
+    expect(chartTicks(vals(5, 120, 7))).toEqual({ top: 120, ticks: [120, 60, 0] });
+    for (const t of chartTicks(vals(7, 3)).ticks) expect(Number.isInteger(t)).toBe(true);
+  });
+
+  it("強調はいちばん大きい日（同じなら後の日）。すべて 0 なら強調しない", () => {
+    expect(peakIndex(vals(0, 0))).toBeNull();
+    expect(peakIndex(vals(5, 2, 5, 0))).toBe(2);
+    expect(peakIndex(vals(1, 9, 0))).toBe(1);
   });
 });

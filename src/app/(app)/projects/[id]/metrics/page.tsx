@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { ManualMetricForm } from "@/components/metrics/manual-metric-form";
-import { ChartEmpty, DailyBars } from "@/components/overview/daily-chart";
+import { ChartEmpty, DailyBars, todayAside } from "@/components/overview/daily-chart";
 import { Panel } from "@/components/overview/overview-panels";
 import { ButtonLink, NotReadyButton } from "@/components/ui/button";
 import { Disclosure, HelpTip } from "@/components/ui/help";
@@ -270,7 +270,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
       <Columns
         main={
           <>
-            <Panel title="日ごとの数" aside={`直近 ${chartDays} 日 / 合計 ${formatCount(total)}`}>
+            <Panel title="日ごとの数" aside={`直近 ${chartDays} 日 / 合計 ${formatCount(total)} / ${todayAside(rows)}`}>
               <nav className={`${tabListClass} mb-4`} aria-label="グラフの数字">
                 {chartKeys.map((k) => (
                   <Link key={k} href={`?chart=${k}${days === 30 ? "&days=30" : ""}`} scroll={false} replace aria-current={k === current ? "page" : undefined} className={`${tabClass(k === current)} hover:no-underline`}>

@@ -16,7 +16,8 @@ import { tabClass, tabListClass } from "@/components/ui/tabs";
 import { Term } from "@/components/ui/term";
 import { aiConfigured } from "@/lib/ai/anthropic";
 import { loadDailyNumbers } from "@/lib/metrics/daily";
-import { campaignTotal, sumPlayUtm, type PlayUtmTotals } from "@/lib/metrics/play-utm";
+import { campaignTotal, sumPlayUtm, utmEnd, type PlayUtmTotals } from "@/lib/metrics/play-utm";
+import { compareLabel, NOT_ARRIVED, periodLabel } from "@/lib/metrics/store-period";
 import { confirmedUntil, MIN_DAYS, POST_EFFECT_DAYS, postEffect, type PostEffect } from "@/lib/metrics/post-effect";
 import type { PostMeta } from "@/lib/metrics/post-meta";
 import { chosenKpis, clickLabel, KPIS, KPI_KEYS, type KpiKey } from "@/lib/metrics/kpis";
@@ -92,9 +93,19 @@ function KpiCard({ k, value, projectId, days, productType }: { k: KpiKey; value?
   const shown = value.unit ? (value.unit === "JPY" ? `¥${formatCount(Math.round(value.thisWeek))}` : `${formatCount(value.thisWeek)} ${value.unit}`) : formatCount(value.thisWeek);
   const delta = value.noPrev ? null : pctChange(value.thisWeek, value.lastWeek);
   // 売上は RevenueCat の 28 日の数字だけなので、期間を切り替えても 28 日のまま
-  const period = value.unit ? "直近 28 日" : `直近 ${days} 日`;
-  const before = value.unit ? "1 週間前比" : periodCompare(days);
-  const note = value.noPrev ? `${period}・前の記録はまだありません` : delta !== null ? `${period}・${before}` : value.lastWeek === 0 && value.thisWeek > 0 ? `${period}・${days === 7 && !value.unit ? "先週" : "前"}は 0` : period;
+  // ダウンロード・ストアのページの閲覧は、届いている日で終わる期間なら「10/30 までの 7 日・その前の 7 日比」
+  const period = value.unit ? "直近 28 日" : periodLabel(days, value.until);
+  const before = value.unit ? "1 週間前比" : compareLabel(days, value.until);
+  const zeroBefore = value.until ? `その前の ${days} 日` : days === 7 && !value.unit ? "先週" : "前";
+  const note = value.noPrev ? `${period}・前の記録はまだありません` : delta !== null ? `${period}・${before}` : value.lastWeek === 0 && value.thisWeek > 0 ? `${period}・${zeroBefore}は 0` : period;
+  if (value.notArrived) {
+    return frame(
+      <>
+        <p className="num mt-1.5 text-metric font-bold max-sm:text-[28px]">—</p>
+        <p className="mt-1.5 text-[14px] text-faint">{NOT_ARRIVED}</p>
+      </>,
+    );
+  }
   return frame(
     <>
       <p className="num mt-1.5 text-metric font-bold max-sm:text-[28px]">{shown}</p>
@@ -144,8 +155,10 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
   const playConnected = isApp && (daily.stores.includes("google_play") || daily.playUtm.length > 0);
   const appleConnected = isApp && daily.stores.includes("app_store");
   const hasDownloads = isApp && Boolean(overview.kpiValues.downloads);
-  const playUtm = sumPlayUtm(daily.playUtm, addDays(today, -(days - 1)), today);
-  const playUtm30 = sumPlayUtm(daily.playUtm, addDays(today, -29), today);
+  // Google Play・Apple の SNS ごとの DL は数日遅れて届くので、届いているいちばん新しい日で終わる期間で数える（「10/30 までの 7 日」）
+  const playEnd = utmEnd(daily.playUtm, today) ?? today;
+  const playUtm = sumPlayUtm(daily.playUtm, addDays(playEnd, -(days - 1)), playEnd);
+  const playUtm30 = sumPlayUtm(daily.playUtm, addDays(playEnd, -29), playEnd);
   const postIds = [...new Set([...overview.topPosts, ...overview.topViewed].map((p) => p.postId))];
   const postCodes = new Map<string, string[]>();
   if ((playConnected || appleConnected) && postIds.length) {
@@ -157,8 +170,9 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
   }
   const playDlOf = (postId: string) => (playConnected ? campaignTotal(playUtm30.byCampaign, postCodes.get(postId) ?? []) : undefined);
   // Apple が数えた、キャンペーンリンク（ct）ごとのはじめてのダウンロード（数字の段 5）。5 人未満は Apple が省き、少しの乱数が入る
-  const apple = sumPlayUtm(daily.appleCampaigns, addDays(today, -(days - 1)), today);
-  const apple30 = sumPlayUtm(daily.appleCampaigns, addDays(today, -29), today);
+  const appleEnd = utmEnd(daily.appleCampaigns, today) ?? today;
+  const apple = sumPlayUtm(daily.appleCampaigns, addDays(appleEnd, -(days - 1)), appleEnd);
+  const apple30 = sumPlayUtm(daily.appleCampaigns, addDays(appleEnd, -29), appleEnd);
   const appleDlOf = (postId: string) => (appleConnected ? campaignTotal(apple30.byCampaign, postCodes.get(postId) ?? []) : undefined);
   // 短縮リンクがある SNS（Apple の数がなければ「5 未満」と出す行）
   const linkedSns = overview.clicksBySns.map((c) => c.sns);
@@ -166,10 +180,10 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
   // 前の期間が、数え始める前（短縮リンクを作る前・ストアを取り込み始める前）にかかっていたら、比べない（数える前の日を 0 として比べない）
   const prevStart = addDays(today, -(2 * days - 1));
   const linksPrevKnown = Boolean(daily.linksSince && daily.linksSince <= prevStart);
-  const storePrevKnown = Boolean(daily.storeSince && daily.storeSince <= prevStart);
+  // ダウンロード・ストアのページの閲覧は、読み込み（loadStoreTotals）で届いている日で終わる期間にし、比べるかも決めてある
   const withPrevKnown = (k: KpiKey, v: WeekValue | undefined): WeekValue | undefined => {
     if (!v) return v;
-    const known = k === "link_clicks" ? linksPrevKnown : k === "downloads" || k === "store_page_views" ? storePrevKnown : true;
+    const known = k === "link_clicks" ? linksPrevKnown : true;
     return known ? v : { ...v, noPrev: true };
   };
 
@@ -193,9 +207,9 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
   const fallback: ChartKey = series.downloads ? "downloads" : "clicks";
   const current: ChartKey = typeof chart === "string" && chart in series ? (chart as ChartKey) : fallback;
   const rows = dailySeries(series[current] ?? [], today, chartDays);
-  const total = rows.reduce((n, r) => n + r.value, 0);
-  // 遅れて届く数字は、届いている日まで（それより後は未確定）
+  // 遅れて届く数字は、届いている日まで（それより後は未確定。合計にも入れない）
   const arrived = current === "downloads" ? daily.arrived.downloads : current === "page_views" ? daily.arrived.pageViews : undefined;
+  const total = rows.reduce((n, r) => (arrived === undefined || (arrived !== null && r.day <= arrived) ? n + r.value : n), 0);
 
   return (
     <div className="flex flex-col gap-4 max-sm:gap-3">
@@ -349,7 +363,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
             {playConnected && (
               <Panel
                 title="Google Play が数えた SNS ごとの DL"
-                aside={`直近 ${days} 日`}
+                aside={periodLabel(days, playEnd < today ? playEnd : undefined)}
                 help={
                   <HelpTip label="Google Play が数えた DL">
                    yabumi の短縮リンクから Google Play のページに来て、はじめてインストールした人の数です（Google Play の「ストアの掲載情報からの獲得」）。App Store の分は入っていません。3〜7 日遅れて届き、あとから直ることがあります。数が少ない流入元は、Google が「その他」にまとめるため、ここには出ません。
@@ -362,7 +376,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
             {appleConnected && (
               <Panel
                 title="Apple が数えた SNS ごとの DL"
-                aside={`直近 ${days} 日`}
+                aside={periodLabel(days, appleEnd < today ? appleEnd : undefined)}
                 help={
                   <HelpTip label="Apple が数えた DL">
                    yabumi の短縮リンク（App Store のキャンペーンリンク）から App Store に来て、はじめてダウンロードした人の数です（App Store Connect の Analytics Reports の App Store Downloads の Detailed）。Google Play の分は入っていません。Apple は 5 人未満の数を省き、少しの乱数を足すので（多くは ±2 ほど）、少しずれます。2 日ほど遅れて届きます。

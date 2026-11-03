@@ -4,6 +4,7 @@ import { KPIS } from "@/lib/metrics/kpis";
 import type { OverviewCard } from "@/lib/overview/numbers";
 
 export function formatCardValue(c: OverviewCard): string {
+  if (c.notArrived) return "—";
   if (c.currency) return c.currency === "JPY" ? `¥${Math.round(c.value).toLocaleString("ja-JP")}` : `${c.value.toLocaleString("ja-JP")} ${c.currency}`;
   return c.value.toLocaleString("ja-JP");
 }

@@ -97,7 +97,7 @@ export type ConsultContext = {
   connectedSns: string[];
   manualSns: string[];
   recentPosts: { date: string; sns: string[]; text: string; clicks: number }[];
-  kpiNumbers: { kpi: KpiKey; thisWeek: number | null; lastWeek: number | null }[];
+  kpiNumbers: KpiLineInput[];
   roadmap: {
     kgi: { statement: string; kpi: KpiKey; target: number; deadline: string; sns?: string | null } | null;
     kpiTargets: { kpi: KpiKey; perWeek: number; sns?: string | null }[];
@@ -111,7 +111,7 @@ export type ConsultContext = {
   monthReview?: string;
   // 振り返りの会話だけ（4.22 の段取り ⑦）
   review?: {
-    kpiValues: Partial<Record<KpiKey, { thisWeek: number; lastWeek: number }>>;
+    kpiValues: Partial<Record<KpiKey, KpiNumber>>;
     clicksBySns: { label: string; thisWeek: number; lastWeek: number; last30d: number }[];
     topClicked: { title: string; clicks: number }[];
     topViewed: { title: string; views: number }[];
@@ -122,17 +122,31 @@ function clip(s: string, n: number) {
   return s.length > n ? `${s.slice(0, n)}…` : s;
 }
 
+// 数字の画面と同じ値（src/lib/metrics/queries.ts の WeekValue）。until: 遅れて届くストアの数字を、この日で終わる期間で数えたとき。
+// noPrev: 前の期間の記録がない。notArrived: ストアをつないでいるが、まだ届いていない
+export type KpiNumber = { thisWeek: number; lastWeek: number; noPrev?: true; until?: string; notArrived?: true };
+export type KpiLineInput = { kpi: KpiKey; thisWeek: number | null; lastWeek: number | null; noPrev?: true; until?: string; notArrived?: true };
+
+export function kpiLineInput(kpi: KpiKey, v: KpiNumber | undefined): KpiLineInput {
+  return { kpi, thisWeek: v?.thisWeek ?? null, lastWeek: v?.lastWeek ?? null, ...(v?.noPrev ? { noPrev: true } : {}), ...(v?.until ? { until: v.until } : {}), ...(v?.notArrived ? { notArrived: true } : {}) };
+}
+
+// フォロワーと課金は「いまの値と 1 週間前の値」、ほかは「直近 7 日とその前の 7 日の合計」（4.22 の数字の画面と同じ）。
+// ストアの数字は数日遅れて届くので、届いている日で終わる 7 日のときは終わりの日を書く（AI が届いていない日を減ったと取り違えないように）
+export function kpiLine(k: KpiLineInput): string {
+  const name = `${KPIS[k.kpi].label}（${k.kpi}）`;
+  if (k.notArrived) return `${name}: ストアからまだ届いていない（ストアの数字は数日遅れて届く。0 ではないので、増減を語らない）`;
+  if (k.thisWeek === null) return `${name}: まだ数えていない`;
+  if (k.kpi === "followers" || k.kpi === "revenue") return `${name}: いま ${k.thisWeek}、1 週間前 ${k.noPrev ? "（記録がまだない）" : (k.lastWeek ?? k.thisWeek)}`;
+  const period = k.until ? `${k.until} までの 7 日（ストアの数字は数日遅れて届くため、届いている ${k.until} で終わる 7 日。それより後の日はまだ数えていない）` : "直近 7 日";
+  if (k.noPrev) return `${name}: ${period} ${k.thisWeek}、その前の 7 日はまだ数え始める前（比べない）`;
+  return `${name}: ${period} ${k.thisWeek}、その前の 7 日 ${k.lastWeek ?? 0}`;
+}
+
 // 毎回の会話の最後に、システムメッセージとして付ける「いまの状況」。字数の上限を守る（4.23 の表）
 export function consultContextMessage(ctx: ConsultContext): string {
   const p = ctx.project;
   const plan = SECTION_KEYS.map((k) => ({ section: k, label: sectionLabel(k), status: isSectionDone(k, ctx.plan[k]) ? "決定" : "未記入", value: ctx.plan[k] }));
-  // フォロワーと課金は「いまの値と 1 週間前の値」、ほかは「直近 7 日とその前の 7 日の合計」（4.22 の数字の画面と同じ）
-  const kpiLine = (k: { kpi: KpiKey; thisWeek: number | null; lastWeek: number | null }) => {
-    const name = `${KPIS[k.kpi].label}（${k.kpi}）`;
-    if (k.thisWeek === null) return `${name}: まだ数えていない`;
-    if (k.kpi === "followers" || k.kpi === "revenue") return `${name}: いま ${k.thisWeek}、1 週間前 ${k.lastWeek ?? k.thisWeek}`;
-    return `${name}: 直近 7 日 ${k.thisWeek}、その前の 7 日 ${k.lastWeek ?? 0}`;
-  };
   const r = ctx.roadmap;
   return [
     "# いまの状況（yabumi が毎回付ける情報。利用者には見えていない）",
@@ -165,14 +179,14 @@ export function consultContextMessage(ctx: ConsultContext): string {
 // アプリでなければストアの 3 つは渡さない（「まだ数えていない」と渡すと、AI がストアをつなぐよう勧めるため。決定 D34）
 function reviewLines(
   review: NonNullable<ConsultContext["review"]>,
-  kpiLine: (k: { kpi: KpiKey; thisWeek: number | null; lastWeek: number | null }) => string,
+  kpiLine: (k: KpiLineInput) => string,
   productType: ProductType,
 ): string[] {
   const titled = <T extends { title: string }>(rows: T[]) => rows.map((r) => ({ ...r, title: clip(r.title || "（本文なし）", 60) }));
   return [
     "# 振り返りの材料（分析の画面と同じ数字）",
     "すべての数字:",
-    kpiKeysFor(productType).map((kpi) => kpiLine({ kpi, thisWeek: review.kpiValues[kpi]?.thisWeek ?? null, lastWeek: review.kpiValues[kpi]?.lastWeek ?? null })).join("\n"),
+    kpiKeysFor(productType).map((kpi) => kpiLine(kpiLineInput(kpi, review.kpiValues[kpi]))).join("\n"),
     "SNS ごとの行き先へのクリック（直近 7 日・その前の 7 日・30 日）:",
     review.clicksBySns.length ? clip(JSON.stringify(review.clicksBySns.slice(0, 10)), 1500) : "まだない",
     "よく見られた投稿（30 日、多い順）:",

@@ -2228,6 +2228,15 @@ export type Database = {
           views_this_week: number
         }[]
       }
+      store_period_totals: {
+        Args: { p_days: number; p_end: string; p_project_id: string }
+        Returns: {
+          downloads_now: number
+          downloads_prev: number
+          page_views_now: number
+          page_views_prev: number
+        }[]
+      }
       store_weekly_totals: {
         Args: { p_project_id: string; p_today: string }
         Returns: {

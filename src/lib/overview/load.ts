@@ -1,9 +1,9 @@
 import "server-only";
 import type { KpiKey } from "@/lib/metrics/kpis";
-import { loadMetricsOverview, type ClicksBySns, type MetricsOverview } from "@/lib/metrics/queries";
+import { loadMetricsOverview, loadStoreTotals, type ClicksBySns, type MetricsOverview, type WeekValue } from "@/lib/metrics/queries";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, toYmd } from "@/lib/time";
-import { sumPlayUtm } from "@/lib/metrics/play-utm";
+import { sumPlayUtm, utmEnd } from "@/lib/metrics/play-utm";
 import { loadDailyNumbers, type StoreSource } from "@/lib/metrics/daily";
 import { isAppProject } from "@/lib/projects/product-types";
 import { OVERVIEW_DAYS, pickOverviewCards, type Daily, type OverviewCard } from "./numbers";
@@ -14,6 +14,8 @@ export type OverviewNumbers = {
   // 日ごとの棒グラフ（ダウンロード、なければストアへのクリック。どちらもなければ null）。
   // arrived: 遅れて届くダウンロードの、届いているいちばん新しい日（クリックはいつも届くので undefined）
   chart: { kind: "downloads" | "link_clicks"; rows: Daily[]; arrived?: string | null } | null;
+  // スマホの大きな数字に出す、ダウンロードの届いている日で終わる 7 日とその前の 7 日（グラフがダウンロードのときだけ。クリックは rows から数える）
+  hero7?: WeekValue;
   hasStore: boolean;
   hasLinks: boolean;
   // 直近 60 日に数字を取り込んだストア（見出しの札に出す）
@@ -28,8 +30,10 @@ export type OverviewNumbers = {
 export async function loadOverviewNumbers(projectId: string, kpis: KpiKey[], projectSince?: string, productType?: string): Promise<OverviewNumbers> {
   const supabase = await createClient();
   const today = toYmd(new Date());
-  const [overview, daily, links, scheduled, drafts] = await Promise.all([
+  const [overview, store30, daily, links, scheduled, drafts] = await Promise.all([
     loadMetricsOverview(projectId, supabase),
+    // ダウンロードのカードは、届いている日で終わる 30 日とその前の 30 日
+    loadStoreTotals(supabase, projectId, today, OVERVIEW_DAYS),
     // 直近 30 日と前の 30 日
     loadDailyNumbers(supabase, projectId, today, OVERVIEW_DAYS * 2),
     supabase.from("short_links").select("id", { count: "exact", head: true }).eq("project_id", projectId),
@@ -47,6 +51,9 @@ export async function loadOverviewNumbers(projectId: string, kpis: KpiKey[], pro
   const hasStore = isApp && Boolean(overview.kpiValues.downloads);
   const hasLinks = (links.count ?? 0) > 0;
   const downloads: Daily[] | null = hasStore ? daily.downloads : null;
+  // Google Play が数えた SNS からの DL も数日遅れて届くので、届いているいちばん新しい日で終わる 30 日
+  const playEnd = utmEnd(daily.playUtm, today);
+  const playConnected = isApp && (daily.stores.includes("google_play") || daily.playUtm.length > 0);
   const clicks: Daily[] | null = hasLinks ? daily.clicks : null;
   const published = daily.published;
   const draftCount = (drafts.data ?? []).filter((p) => p.post_targets.every((t) => t.status === "pending")).length;
@@ -54,21 +61,22 @@ export async function loadOverviewNumbers(projectId: string, kpis: KpiKey[], pro
   const cards = pickOverviewCards({
     today,
     productType,
-    downloads,
+    downloads: hasStore ? (store30.downloads ?? null) : null,
     clicks,
     published,
     scheduledCount: scheduled.count ?? 0,
     draftCount,
     kpis,
     kpiValues: overview.kpiValues,
-    since: { downloads: daily.storeSince, clicks: daily.linksSince, posts: projectSince },
-    playSnsDl: isApp && (daily.stores.includes("google_play") || daily.playUtm.length) ? sumPlayUtm(daily.playUtm, addDays(today, -(OVERVIEW_DAYS - 1)), today).total : null,
+    since: { clicks: daily.linksSince, posts: projectSince },
+    playSnsDl: playConnected ? (playEnd ? { value: sumPlayUtm(daily.playUtm, addDays(playEnd, -(OVERVIEW_DAYS - 1)), playEnd).total, ...(playEnd < today ? { until: playEnd } : {}) } : { value: 0, notArrived: true as const }) : null,
   });
 
   return {
     today,
     cards,
     chart: downloads ? { kind: "downloads", rows: downloads, arrived: daily.arrived.downloads } : clicks ? { kind: "link_clicks", rows: clicks } : null,
+    ...(downloads ? { hero7: overview.kpiValues.downloads } : {}),
     hasStore,
     hasLinks,
     stores: isApp ? daily.stores : [],

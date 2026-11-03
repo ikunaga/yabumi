@@ -40,3 +40,9 @@ export function sumPlayUtm(rows: PlayUtmRow[], from: string, to: string): PlayUt
 export function campaignTotal(byCampaign: Record<string, number>, codes: string[]): number {
   return codes.reduce((n, c) => n + (byCampaign[c] ?? 0), 0);
 }
+
+// 数える期間の終わり（Google Play・Apple の数は数日遅れて届くので、届いているいちばん新しい日。今日より後にはしない）。届いていなければ null
+export function utmEnd(rows: PlayUtmRow[], today: string): string | null {
+  const last = rows.reduce<string | null>((m, r) => (m === null || r.day > m ? r.day : m), null);
+  return last === null ? null : last < today ? last : today;
+}

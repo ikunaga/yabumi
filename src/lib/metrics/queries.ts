@@ -9,13 +9,17 @@ import { X_PRICE_USD } from "@/lib/sns/x/pricing";
 import { addDays, toYmd } from "@/lib/time";
 import type { KpiKey } from "./kpis";
 import { firstLine, postMeta, type PostMeta } from "./post-meta";
+import { arrivedUntil } from "@/lib/overview/numbers";
+import { storeEnd, storeWeekValue, type StoreSpan } from "./store-period";
 
 // 数字の画面（docs/architecture.md の 4.22）の読み込み。合計はすべて DB の関数で出す（行を読んで足さない）
 
 // thisWeek・lastWeek: 直近の期間と、その前の期間（既定は 7 日。loadMetricsOverview の days）。名前は前の版（週だけだった）のまま。
 // unit: 金額のときの通貨（JPY など）。数のときはなし
 // noPrev: 前の期間の記録がない（フォロワーを記録し始めて間もないなど）。画面では比べない（lastWeek は thisWeek と同じ値にしてある）
-export type WeekValue = { thisWeek: number; lastWeek: number; unit?: string; noPrev?: true };
+// until: 遅れて届く数字（ダウンロード・ストアのページの閲覧）を、今日ではなくこの日（届いているいちばん新しい日）で終わる期間で数えたとき。
+// notArrived: ストアをつないでいるが、どのストアからもまだ届いていない（数は出さない。thisWeek・lastWeek は 0）
+export type WeekValue = { thisWeek: number; lastWeek: number; unit?: string; noPrev?: true; until?: string; notArrived?: true };
 export type KpiValues = Partial<Record<KpiKey, WeekValue>>;
 
 export type ClicksBySns = { sns: SnsKey | null; label: string; thisWeek: number; lastWeek: number; last30d: number };
@@ -43,9 +47,8 @@ export async function loadMetricsOverview(projectId: string, db?: SupabaseClient
     { data: clicks, error: e2 },
     { data: top, error: e3 },
     { data: topViews, error: e6 },
-    { count: downloadDays },
+    store,
     { count: revenueCatDays },
-    { count: pageViewDays },
     { data: outcomeRows, error: e7 },
     { data: firstOutcome },
   ] = await Promise.all([
@@ -53,10 +56,10 @@ export async function loadMetricsOverview(projectId: string, db?: SupabaseClient
     supabase.rpc("link_clicks_by_sns_period", { p_project_id: projectId, p_today: today, p_days: days }),
     supabase.rpc("top_posts_by_clicks", { p_project_id: projectId, p_today: today, p_days: 30, p_limit: 5 }),
     supabase.rpc("top_posts_by_views", { p_project_id: projectId, p_today: today, p_days: 30, p_limit: 5 }),
-    // 取り込んだことがある取り込み元（つないでいなければ、ダウンロード・課金は「つなぐと出ます」）
-    supabase.from("store_daily").select("day", { count: "exact", head: true }).eq("project_id", projectId).in("source", ["app_store", "google_play"]),
+    // ダウンロード・ストアのページの閲覧（届いている日で終わる期間。取り込んだことがなければ出さず「つなぐと出ます」）
+    loadStoreTotals(supabase, projectId, today, days),
+    // 取り込んだことがある取り込み元（つないでいなければ、課金は「つなぐと出ます」）
     supabase.from("store_daily").select("day", { count: "exact", head: true }).eq("project_id", projectId).eq("source", "revenuecat"),
-    supabase.from("store_daily").select("day", { count: "exact", head: true }).eq("project_id", projectId).in("source", ["app_store_views", "google_play"]),
     // 手で記録した成果（決定 D34）。直近の期間とその前の期間の分
     supabase.from("project_outcomes_daily").select("day, count").eq("project_id", projectId).gte("day", addDays(today, -(days * 2 - 1))),
     supabase.from("project_outcomes_daily").select("day").eq("project_id", projectId).order("day").limit(1).maybeSingle(),
@@ -72,7 +75,7 @@ export async function loadMetricsOverview(projectId: string, db?: SupabaseClient
   const t = totals?.[0];
   // 閲覧数: SNS の数字（数字の権限つきでつないだもの）と、note・Substack で手で入れた数字の合計
   const hasViews = Boolean(t?.has_post_metrics) || Number(t?.manual_views_now ?? 0) + Number(t?.manual_views_prev ?? 0) > 0;
-  const sources = new Set([...(downloadDays ? ["downloads"] : []), ...(revenueCatDays ? ["revenuecat"] : []), ...(pageViewDays ? ["page_views"] : [])]);
+  const sources = new Set(revenueCatDays ? ["revenuecat"] : []);
 
   const clicksBySns: ClicksBySns[] = (clicks ?? [])
     .map((c) => {
@@ -106,8 +109,7 @@ export async function loadMetricsOverview(projectId: string, db?: SupabaseClient
       ...(t?.has_account_metrics && t.followers_now != null
         ? { followers: { thisWeek: Number(t.followers_now), lastWeek: Number(t.followers_ago ?? t.followers_now), ...(t.followers_ago == null ? { noPrev: true as const } : {}) } }
         : {}),
-      ...(sources.has("downloads") ? { downloads: { thisWeek: Number(t?.downloads_now ?? 0), lastWeek: Number(t?.downloads_prev ?? 0) } } : {}),
-      ...(sources.has("page_views") ? { store_page_views: { thisWeek: Number(t?.page_views_now ?? 0), lastWeek: Number(t?.page_views_prev ?? 0) } } : {}),
+      ...store,
       ...(outcomeRows?.length
         ? (() => {
             const known = Boolean(firstOutcome && firstOutcome.day <= addDays(today, -(days * 2 - 1)));
@@ -122,6 +124,52 @@ export async function loadMetricsOverview(projectId: string, db?: SupabaseClient
     topPosts,
     topViewed,
   };
+}
+
+const DOWNLOAD_SOURCES = ["app_store", "google_play"] as const;
+const PAGE_VIEW_SOURCES = ["app_store_views", "google_play"] as const;
+
+// 遅れて届く数字の、数え始めた日（取り込んだいちばん古い日）と、すべてのストアから届いているいちばん新しい日（直近 60 日の中で。
+// 日ごとの棒グラフの「未確定」と同じ決め方。src/lib/metrics/daily.ts）。取り込んだことがなければ since は null（StoreSpan）
+export async function loadStoreSpans(supabase: SupabaseClient<Database>, projectId: string, today: string): Promise<{ downloads: StoreSpan; pageViews: StoreSpan }> {
+  const first = (sources: readonly string[]) => supabase.from("store_daily").select("day").eq("project_id", projectId).in("source", sources).order("day").limit(1).maybeSingle();
+  const [recent, dl, pv] = await Promise.all([
+    supabase.from("store_daily").select("day, source").eq("project_id", projectId).in("source", ["app_store", "google_play", "app_store_views"]).gte("day", addDays(today, -59)),
+    first(DOWNLOAD_SOURCES),
+    first(PAGE_VIEW_SOURCES),
+  ]);
+  if (recent.error) throw recent.error;
+  if (dl.error) throw dl.error;
+  if (pv.error) throw pv.error;
+  const rows = recent.data ?? [];
+  return {
+    downloads: { since: dl.data?.day ?? null, until: arrivedUntil(rows, DOWNLOAD_SOURCES) },
+    pageViews: { since: pv.data?.day ?? null, until: arrivedUntil(rows, PAGE_VIEW_SOURCES) },
+  };
+}
+
+// ダウンロード・ストアのページの閲覧の、届いている日で終わる days 日とその前の days 日（DB の関数 store_period_totals。終わりの日より後の行は入れない）
+export async function loadStoreTotals(supabase: SupabaseClient<Database>, projectId: string, today: string, days: MetricsPeriod): Promise<Pick<KpiValues, "downloads" | "store_page_views">> {
+  const spans = await loadStoreSpans(supabase, projectId, today);
+  const ends = [...new Set([spans.downloads, spans.pageViews].filter((s) => s.since && s.until).map((s) => storeEnd(today, s.until)))];
+  const totals = new Map(
+    await Promise.all(
+      ends.map(async (end) => {
+        const { data, error } = await supabase.rpc("store_period_totals", { p_project_id: projectId, p_end: end, p_days: days });
+        if (error) throw error;
+        return [end, data?.[0]] as const;
+      }),
+    ),
+  );
+  const downloads = storeWeekValue(spans.downloads, today, days, (end) => {
+    const t = totals.get(end);
+    return t ? { now: Number(t.downloads_now ?? 0), prev: Number(t.downloads_prev ?? 0) } : null;
+  });
+  const pageViews = storeWeekValue(spans.pageViews, today, days, (end) => {
+    const t = totals.get(end);
+    return t ? { now: Number(t.page_views_now ?? 0), prev: Number(t.page_views_prev ?? 0) } : null;
+  });
+  return { ...(downloads ? { downloads } : {}), ...(pageViews ? { store_page_views: pageViews } : {}) };
 }
 
 export type ManualTargetRow = {

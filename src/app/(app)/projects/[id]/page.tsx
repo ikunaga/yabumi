@@ -15,6 +15,8 @@ import { loadCoachView } from "@/lib/coach/load";
 import { DEFAULT_BEHIND_WEEKDAY } from "@/lib/coach/pace";
 import { githubConfigured } from "@/lib/github/config";
 import { chosenKpis, clickLabel } from "@/lib/metrics/kpis";
+import type { WeekValue } from "@/lib/metrics/queries";
+import { compareLabel, NOT_ARRIVED, periodLabel } from "@/lib/metrics/store-period";
 import { isAppProject, isDevProject } from "@/lib/projects/product-types";
 import { loadOverviewNumbers } from "@/lib/overview/load";
 import { CHART_DAYS, CHART_DAYS_MOBILE, compareDays, dailySeries, latestAside, pctChange, shortDay, type Daily } from "@/lib/overview/numbers";
@@ -81,7 +83,9 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
   const chartName = numbers.chart?.kind === "downloads" ? "ダウンロード" : clicks;
   const chart14 = numbers.chart ? dailySeries(numbers.chart.rows, numbers.today, CHART_DAYS) : null;
   const chart7 = numbers.chart ? dailySeries(numbers.chart.rows, numbers.today, CHART_DAYS_MOBILE) : null;
-  const total14 = chart14?.reduce((n, r) => n + r.value, 0) ?? 0;
+  // 遅れて届くダウンロードは、届いている日までを足す（未確定の日は合計に入れない）
+  const arrived = numbers.chart?.arrived;
+  const total14 = chart14?.reduce((n, r) => (arrived === undefined || (arrived !== null && r.day <= arrived) ? n + r.value : n), 0) ?? 0;
 
   const emptyChart = (
     <>
@@ -133,7 +137,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
 
       {/* スマホ（見本 D の右）: 大きな数字 1 つと 7 日の棒 */}
       <div className="sm:hidden">
-        <MobileHero name={chartName} rows={chart7} arrived={numbers.chart?.arrived} today={numbers.today} source={numbers.chart?.rows ?? null} empty={emptyChart} />
+        <MobileHero name={chartName} rows={chart7} arrived={numbers.chart?.arrived} hero={numbers.hero7} today={numbers.today} source={numbers.chart?.rows ?? null} empty={emptyChart} />
       </div>
 
       <OverviewCards cards={numbers.cards} mobileHidden={numbers.chart?.kind} />
@@ -210,8 +214,9 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
   );
 }
 
-// スマホの大きな数字（見本 D の右の「きょうの DL」）。その日だけだと 0 が多いので、直近 7 日の合計と、その前の 7 日との比べ
-function MobileHero({ name, rows, arrived, source, today, empty }: { name: string; rows: Daily[] | null; arrived?: string | null; source: Daily[] | null; today: string; empty: React.ReactNode }) {
+// スマホの大きな数字（見本 D の右の「きょうの DL」）。その日だけだと 0 が多いので、直近 7 日の合計と、その前の 7 日との比べ。
+// ダウンロードは数日遅れて届くので、届いている日で終わる 7 日（hero。「10/30 までの 7 日・その前の 7 日比」）。どこからも届いていなければ数を出さない
+function MobileHero({ name, rows, arrived, hero, source, today, empty }: { name: string; rows: Daily[] | null; arrived?: string | null; hero?: WeekValue; source: Daily[] | null; today: string; empty: React.ReactNode }) {
   if (!rows || !source) {
     return (
       <Panel title="日ごとの数">
@@ -220,17 +225,24 @@ function MobileHero({ name, rows, arrived, source, today, empty }: { name: strin
     );
   }
   const { now, before } = compareDays(source, today, CHART_DAYS_MOBILE);
-  const delta = pctChange(now, before);
+  const v: WeekValue = hero ?? { thisWeek: now, lastWeek: before };
+  const delta = v.noPrev || v.notArrived ? null : pctChange(v.thisWeek, v.lastWeek);
+  const prefix = v.until ? `${periodLabel(CHART_DAYS_MOBILE, v.until)}・` : "";
   return (
     <Panel title={name} aside={`直近 ${CHART_DAYS_MOBILE} 日 / ${latestAside(rows, arrived)}`}>
-      <p className="num text-[40px] leading-none font-bold">{now.toLocaleString("ja-JP")}</p>
-      <p className="mt-2 flex items-baseline gap-1.5 text-sm text-faint">
-        {delta !== null ? (
+      <p className="num text-[40px] leading-none font-bold">{v.notArrived ? "—" : v.thisWeek.toLocaleString("ja-JP")}</p>
+      <p className="mt-2 flex flex-wrap items-baseline gap-x-1.5 text-sm text-faint">
+        {v.notArrived ? (
+          NOT_ARRIVED
+        ) : v.noPrev ? (
+          `${prefix}前の記録はまだありません`
+        ) : delta !== null ? (
           <>
-            <Delta value={delta} unit="%" /> 前の 7 日比
+            <Delta value={delta} unit="%" /> {prefix}
+            {v.until ? compareLabel(CHART_DAYS_MOBILE, v.until) : "前の 7 日比"}
           </>
         ) : (
-          "前の 7 日は 0"
+          `${prefix}${v.until ? "その" : ""}前の 7 日は 0`
         )}
       </p>
       <div className="mt-3">

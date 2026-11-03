@@ -13,7 +13,7 @@ import { addDays, toYmd } from "@/lib/time";
 import { checkAiLimits, type AiLimits } from "./limits";
 import type { ConsultTopicKey } from "./consult-topics";
 import { adoptableOptions, normalizeConsultTurn, roadmapStepState, ROADMAP_STEPS, toWireConsultTurn, type ActionBody, type ActionKind, type ConsultTurn } from "./consult-schema";
-import { CONSULT_SYSTEM, consultContextMessage, type ConsultContext } from "./consult-prompt";
+import { CONSULT_SYSTEM, consultContextMessage, kpiLineInput, type ConsultContext, type KpiNumber } from "./consult-prompt";
 import { MAX_TURNS_PER_THREAD, MAX_USER_TEXT, type BetaMessageParam, type BetaTextBlockParam, type CallModel, type ModelRequest, type ModelResult } from "./plan-coach";
 import { estimateCostUsd } from "./pricing";
 import { productTypeOf } from "./product-guide";
@@ -93,11 +93,11 @@ export function buildConsultRequest(history: ConsultMessage[], ctx: ConsultConte
 
 // ===== 「いまの状況」を集める（利用者の権限のクライアントで。RLS で本人のものだけ） =====
 // 選んだ KPI の今週・先週の数字（4.22 の数字の画面と同じもの。数えていないものは入れない）。サーバーでは loadMetricsOverview を渡す
-export type LoadKpiValues = (user: Db, projectId: string) => Promise<Partial<Record<KpiKey, { thisWeek: number; lastWeek: number }>>>;
+export type LoadKpiValues = (user: Db, projectId: string) => Promise<Partial<Record<KpiKey, KpiNumber>>>;
 
 // 振り返りの材料（4.22 の数字の画面と同じもの）。サーバーでは loadMetricsOverview から作って渡す
 export type ReviewNumbers = {
-  kpiValues: Partial<Record<KpiKey, { thisWeek: number; lastWeek: number }>>;
+  kpiValues: Partial<Record<KpiKey, KpiNumber>>;
   clicksBySns: { label: string; thisWeek: number; lastWeek: number; last30d: number }[];
   topClicked: { title: string; clicks: number }[];
   topViewed: { title: string; views: number }[];
@@ -172,11 +172,7 @@ export async function gatherConsultContext(
   const kpiValues = await loadKpiValues(user, projectId);
   const kpis = chosenKpis(plan.first_month.kpis.filter(isKpiKey), plan.goal.goalType, project.product_type);
   const roadmapKpis = (view.roadmap?.kpiTargets.map((t) => t.kpi) ?? []).filter((k) => kpiAllowed(k, project.product_type));
-  const kpiNumbers = [...new Set([...kpis, ...roadmapKpis])].map((kpi) => ({
-    kpi,
-    thisWeek: kpiValues[kpi]?.thisWeek ?? null,
-    lastWeek: kpiValues[kpi]?.lastWeek ?? null,
-  }));
+  const kpiNumbers = [...new Set([...kpis, ...roadmapKpis])].map((kpi) => kpiLineInput(kpi, kpiValues[kpi]));
 
   const nextWeek = addDays(view.thisWeek, 7);
   const r = view.roadmap;

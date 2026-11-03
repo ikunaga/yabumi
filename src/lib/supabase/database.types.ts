@@ -1939,6 +1939,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      ai_image_quota: {
+        Args: { p_as_of?: string; p_owner_id: string; p_scope_owner?: string }
+        Returns: {
+          attempts_today: number
+          global_month_usd: number
+          new_until: string
+          new_users_month_usd: number
+          user_month_images: number
+          user_monthly_limit: number
+        }[]
+      }
       ai_usage_totals: {
         Args: { p_day_start: string; p_month_start: string; p_owner_id: string }
         Returns: {
@@ -2189,6 +2200,7 @@ export type Database = {
       }
       reserve_ai_images: {
         Args: {
+          p_as_of?: string
           p_cost_usd: number
           p_images: number
           p_model: string
@@ -2199,8 +2211,10 @@ export type Database = {
         Returns: {
           global_month_usd: number
           job_id: string
+          new_until: string
           status: string
           user_month_images: number
+          user_monthly_limit: number
         }[]
       }
       reserve_sns_read: {

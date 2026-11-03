@@ -6,7 +6,7 @@ import { Button, NotReadyButton } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { Textarea } from "@/components/ui/field";
 import { acknowledgePhoto, draftPhotoIdeas, generatePhotos, photoPanelState, refreshPhotoCandidates, type PhotoPanelState } from "@/lib/ai/photo-actions";
-import { MAX_PHOTOS_PER_RUN, MAX_SCENE_CHARS, PHOTO_STYLES, PHOTO_STYLE_LABEL, type PhotoIdea, type PhotoStyle } from "@/lib/ai/photo";
+import { MAX_PHOTOS_PER_RUN, MAX_SCENE_CHARS, PHOTO_LIMITS, PHOTO_STYLES, PHOTO_STYLE_LABEL, type PhotoIdea, type PhotoStyle } from "@/lib/ai/photo";
 import type { PhotoCandidate } from "@/lib/ai/photo-gen";
 import { MAX_ALT_LENGTH, PREVIEW_URL_SECONDS } from "@/lib/media/rules";
 import { TEMPLATE_SIZES, type TemplateSizeKey } from "@/lib/media/templates";
@@ -139,7 +139,7 @@ export function PhotoMaker({
   }
 
   const hasText = text.trim().length > 0;
-  const canMake = state.enabled && !state.globalReached && state.remainingImages > 0;
+  const canMake = state.enabled && !state.globalReached && !state.newUsersFull && state.remainingImages > 0;
   const n = Math.min(count, Math.max(1, state.remainingImages));
   const pickedItem = candidates?.items.find((c) => c.path === picked) ?? null;
 
@@ -266,9 +266,15 @@ export function PhotoMaker({
         <span className="num text-sm text-muted">
           {state.globalReached
             ? "今月は yabumi 全体の上限に達しました。来月 1 日にまたつくれます"
-            : state.remainingImages > 0
-              ? `今月はあと ${state.remainingImages} 枚つくれます（1 人 月 ${state.monthlyImages} 枚まで）`
-              : `今月の上限（${state.monthlyImages} 枚）に達しました。来月 1 日にまたつくれます`}
+            : state.newUsersFull
+              ? `登録して ${PHOTO_LIMITS.newUserDays} 日までの方が使える今月の枠が、いっぱいになりました。${state.newUntil} からつくれます`
+              : state.remainingImages > 0
+                ? state.newUntil
+                  ? `今月はあと ${state.remainingImages} 枚つくれます（登録して ${PHOTO_LIMITS.newUserDays} 日までは月 ${state.monthlyImages} 枚です。${state.newUntil} から ${PHOTO_LIMITS.userMonthlyImages} 枚になります）`
+                  : `今月はあと ${state.remainingImages} 枚つくれます（1 人 月 ${state.monthlyImages} 枚まで）`
+                : state.newUntil
+                  ? `登録して ${PHOTO_LIMITS.newUserDays} 日までは月 ${state.monthlyImages} 枚です。${state.newUntil} から ${PHOTO_LIMITS.userMonthlyImages} 枚になります`
+                  : `今月の上限（${state.monthlyImages} 枚）に達しました。来月 1 日にまたつくれます`}
         </span>
       </div>
       {making && <p className="text-sm text-muted">画像の AI がつくっています。30 秒ほどかかることがあります。</p>}

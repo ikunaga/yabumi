@@ -10,7 +10,16 @@ import { estimateImageCostUsd } from "./pricing";
 // ここは画面とサーバーの両方から読む決まりと、指示文の組み立てだけ（呼び出しは gemini-image.ts と photo-gen.ts）
 
 // 上限（D35）。DB の reserve_ai_images の中で固定した値と同じ（テストで確かめる）。料金プランを始めるときに見直す
-export const PHOTO_LIMITS = { userMonthlyImages: 20, globalMonthlyUsd: 6.66 } as const;
+// 上限の正は DB の関数（ai_image_quota・reserve_ai_images）。ここは画面に出す値で、同じ値にそろえる（テストで確かめる）。
+// 登録して 7 日までは月 3 枚、登録 7 日以内の人たち全体で全体の枠の 3 分の 1 まで、試みは 1 人 1 日 20 回まで（作れなかった回も数える。M1・L6）
+export const PHOTO_LIMITS = {
+  userMonthlyImages: 20,
+  globalMonthlyUsd: 6.66,
+  newUserMonthlyImages: 3,
+  newUserDays: 7,
+  newUsersGlobalShare: 1 / 3,
+  dailyAttempts: 20,
+} as const;
 export const MAX_PHOTOS_PER_RUN = 2;
 export const MAX_SCENE_CHARS = 400;
 // 1 ドル = 150 円（docs/architecture.md の前提）

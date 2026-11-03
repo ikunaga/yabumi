@@ -1792,7 +1792,15 @@ Facebook ページ（graph.facebook.com）:
   6. 見出しを重ねたあとで、やっぱりそのまま添えたいとき（2026-11-02、オーナーの指摘）: 「写真に見出し」の上の帯に「← 候補に戻る」と「見出しなしで添える（AI の画像をそのまま）」を出す（敷いている写真が AI で作ったもののときだけ）。そのまま添えると、影も文字も重ねず、AI の印は「そのまま」（trainedAlgorithmicMedia）。「AI で写真・絵をつくる」の画面は、一度開いたらタブを切り替えても外さずに隠すだけなので、作った候補・選んだ候補・絵の説明・案は残る。候補の表示の URL（1 時間）が切れかけていれば、戻ったときと使う前に作り直す（refreshPhotoCandidates。その利用者の 1 日以内の記録の、その利用者の候補の置き場所だけ。候補のファイルは 1 日で消えるので、それより後は「もう一度つくってください」）
 - 画像の AI の呼び出し（src/lib/ai/gemini-image.ts）: Gemini API の Interactions API（POST /v1beta/interactions、x-goog-api-key）。`response_format` に `{ type: "image", mime_type: "image/jpeg", aspect_ratio, image_size: "1K" }`。返事の steps[].content[] の画像（考える途中の thought の画像は除く）を使う。SDK は足さず fetch で呼ぶ。2026-11-02 に公式で確かめたとき、前の generateContent の形は案内から消えていた。返事の細かい形（安全の決まりで断られたときの形など）は【未確認】なので、画像が見つからなければ失敗として数えない
 - 指示文（buildPhotoPrompt）: 利用者が見て直した絵の説明に、決まった注文（本物の写真のように／手描きのようなイラストで、画像の中に文字・数字・ロゴを入れない）を足すだけ。投稿の本文やプロジェクトの名前は Google に送らない
-- 上限（D35）: DB の reserve_ai_images（security invoker、service_role だけ実行できる）が、全体で 1 本のアドバイザリロックの中で数えてから予約する。値は関数の中の定数（1 人 月 20 枚、全体で月 $6.66 = 1,000 円）で、呼び出し側から渡さない。画面に出す値は src/lib/ai/photo.ts の PHOTO_LIMITS（同じ値）。予約のまま残ったものも数える（多めに数える）。ai_usage とは別に数えるので、画像を使ってもほかの AI 機能の上限は減らない。全体の 80% で運営者に知らせる（budget.ts の image）
+- 上限（D35）: DB の reserve_ai_images（security definer、service_role だけ実行できる）が、全体で 1 本のアドバイザリロックの中で数えてから予約する。値は関数の中の定数（1 人 月 20 枚、全体で月 $6.66 = 1,000 円）で、呼び出し側から渡さない。
+  - 2026-11-03 のセキュリティ確認（M1・L2・L6）で足した決まり。数え方は ai_image_quota にまとめ、予約と画面の表示（photoStatus）の両方がこれで数える
+    - 登録して 7 日まで（auth.users.created_at + 7 日 > now()）は、1 人 月 3 枚まで
+    - 登録 7 日以内の人たち全体では、全体の枠の 3 分の 1 まで。「その人が登録 7 日以内のうちに作った分」の費用で数えるので、人が入れ替わっても枠は空き直さない。文章の AI（ai_usage）と同じ数え方
+    - 試みは 1 人 1 日（日本時間）20 回まで。作れなかった回（失敗・安全の決まりで断られた）も数える
+    - 上限に届いたときは、いつ戻るかを書く（「登録して 7 日までは、AI の画像は月 3 枚までです。11/10 から月 20 枚になります。」。日付は日本時間の M/D）
+    - p_as_of（登録からの日数を数える時点）・p_scope_owner はテストのためだけの引数。どちらの関数も service_role だけが呼べ、画面から呼ぶ操作（photo-actions.ts）は渡さない
+  - 予約の見積もりは、指示文の入力を 1 枚 1,000 トークンとして枚数ぶん数える（実際の値を下回らないように。L2）
+  - 画面に出す値は src/lib/ai/photo.ts の PHOTO_LIMITS（同じ値）。予約のまま残ったものも数える（多めに数える）。ai_usage とは別に数えるので、画像を使ってもほかの AI 機能の上限は減らない。全体の 80% で運営者に知らせる（budget.ts の image）
 - 記録（ai_image_jobs）: 数・費用・モデル・状態・日時だけ（絵の説明・投稿の文・置き場所は持たない）。利用者は読めるだけで書けない。退会したら owner_id を空にして残し（全体の上限を数え直させない）、13 か月で消す（purge_expired_data）
 - 候補: 記録（media_files）を作らないので、4.18 の毎日の片付け（cleanup_media_candidates の「記録のないファイル」）が 1 日で消す。添えるときはブラウザが署名 URL から読み（fetch で読むので Canvas が汚れない）、描き直した JPEG を上げ直す
 - AI の印（D25 の I5）: 添えるときに jobId を渡し、サーバーがその利用者の 1 日以内の記録（done）かを確かめてから、jpeg.ts の sanitizeJpeg でメタデータを消したあとに XMP（APP1）で IPTC の DigitalSourceType を入れる（そのままなら trainedAlgorithmicMedia、見出しを重ねたら compositeWithTrainedAlgorithmicMedia）。media_files.ai_generated を true にし、画面の画像の一覧と候補に「AI で作った画像」の札を出す。利用者は media_files を書き換えられない（select だけ）。C2PA は署名の証明書が要るので付けない（Google の SynthID は画素に入っているので、描き直しても残る）。画像をダウンロードして別に上げ直すと印は付かない（止められないので、注意で SNS の AI の表示を頼む）

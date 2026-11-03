@@ -9,7 +9,7 @@ import type { Database } from "@/lib/supabase/database.types";
 import type { ModelOutput } from "./app-description";
 import { ImageBlockedError, type GenerateImage } from "./gemini-image";
 import { AiUnavailableError, aiFailureMessage } from "./provider-failure";
-import { checkAiLimits, jstPeriodStarts, type AiLimits } from "./limits";
+import { checkAiLimits, type AiLimits } from "./limits";
 import {
   MAX_PHOTOS_PER_RUN,
   MAX_SCENE_CHARS,
@@ -38,27 +38,67 @@ export function candidatePath(ownerId: string, id: string, ext: "jpg" | "png" | 
 
 // ── 今月の残りと、注意を読んだか ──
 
-export type PhotoStatus = { acknowledged: boolean; usedImages: number; remainingImages: number; globalReached: boolean };
+// monthlyImages: その人の月の枚数（登録して 7 日までは少なめ）。newUntil: 少なめが終わる時刻（新しい人だけ）。
+// globalReached: 全体の上限に届いた。newUsersFull: 登録 7 日以内の人たちの枠に届いた（新しい人だけ。どちらも、もう 1 枚も作れない）
+export type PhotoStatus = {
+  acknowledged: boolean;
+  usedImages: number;
+  remainingImages: number;
+  monthlyImages: number;
+  newUntil: string | null;
+  globalReached: boolean;
+  newUsersFull: boolean;
+};
 
-export async function photoStatus(admin: Db, userId: string, model: string, now = new Date()): Promise<PhotoStatus> {
-  const { monthStart } = jstPeriodStarts(now);
-  const [{ data: notice }, { data: mine, error }, { data: all, error: allError }] = await Promise.all([
+// 上限と数え方の正は DB の関数 ai_image_quota（予約の reserve_ai_images と同じ）。asOf・scopeOwner はテスト用（アプリからは渡さない）
+export async function photoStatus(admin: Db, userId: string, model: string, opts: { asOf?: Date; scopeOwner?: string } = {}): Promise<PhotoStatus> {
+  const [{ data: notice }, { data: quota, error }] = await Promise.all([
     admin.from("ai_image_notices").select("owner_id").eq("owner_id", userId).maybeSingle(),
-    admin.from("ai_image_jobs").select("images").eq("owner_id", userId).neq("status", "failed").gte("created_at", monthStart.toISOString()),
-    // 全体の費用は、上限に達したかどうかだけを見る（ほかの人の数は画面に出さない）。
-    // 上限（$6.66）までは 1 回 1〜2 枚で 200 行ほどなので、API の 1,000 行の上限に届かない
-    admin.from("ai_image_jobs").select("cost_usd").neq("status", "failed").gte("created_at", monthStart.toISOString()),
+    admin.rpc("ai_image_quota", {
+      p_owner_id: userId,
+      ...(opts.asOf ? { p_as_of: opts.asOf.toISOString() } : {}),
+      ...(opts.scopeOwner ? { p_scope_owner: opts.scopeOwner } : {}),
+    }),
   ]);
   if (error) throw error;
-  if (allError) throw allError;
-  const usedImages = (mine ?? []).reduce((n, r) => n + r.images, 0);
-  const globalUsd = (all ?? []).reduce((n, r) => n + Number(r.cost_usd), 0);
+  const q = quota?.[0];
+  if (!q) throw new Error("上限を数えられませんでした");
+  const one = estimateImageCostUsd(model, 1);
+  // 予約（reserve_ai_images）と同じく、新しい人だけに 3 分の 1 の枠を当てる
+  const newUsersFull = q.new_until !== null && Number(q.new_users_month_usd) + one > PHOTO_LIMITS.globalMonthlyUsd * PHOTO_LIMITS.newUsersGlobalShare;
   return {
     acknowledged: Boolean(notice),
-    usedImages,
-    remainingImages: Math.max(0, PHOTO_LIMITS.userMonthlyImages - usedImages),
-    globalReached: globalUsd + estimateImageCostUsd(model, 1) > PHOTO_LIMITS.globalMonthlyUsd,
+    usedImages: q.user_month_images,
+    remainingImages: Math.max(0, q.user_monthly_limit - q.user_month_images),
+    monthlyImages: q.user_monthly_limit,
+    newUntil: q.new_until,
+    globalReached: Number(q.global_month_usd) + one > PHOTO_LIMITS.globalMonthlyUsd,
+    newUsersFull,
   };
+}
+
+// 日本時間の「月/日」（登録して 7 日までの少なめが終わる日。文章の AI の文言とそろえる）
+export function jstMonthDay(iso: string): string {
+  const d = new Date(new Date(iso).getTime() + 9 * 3_600_000);
+  return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
+}
+
+// 上限に届いたときの文（status は reserve_ai_images の返す理由）
+export function photoLimitMessage(status: string, r: { newUntil: string | null }): string {
+  const rest = "テンプレートの画像と、手持ちの写真は使えます。";
+  const back = r.newUntil ? jstMonthDay(r.newUntil) : null;
+  switch (status) {
+    case "attempt_limit":
+      return `AI の画像は 1 日 ${PHOTO_LIMITS.dailyAttempts} 回まで試せます（作れなかった回も数えます）。明日またお試しください。${rest}`;
+    case "global_limit":
+      return `今月の AI の画像が、yabumi 全体の上限に達しました。来月 1 日にまたつくれます。${rest}`;
+    case "new_users_limit":
+      return `登録して ${PHOTO_LIMITS.newUserDays} 日までの方が使える今月の AI の画像の枠が、いっぱいになりました。${back} からつくれます（月 ${PHOTO_LIMITS.userMonthlyImages} 枚まで）。${rest}`;
+    default:
+      return back
+        ? `登録して ${PHOTO_LIMITS.newUserDays} 日までは、AI の画像は月 ${PHOTO_LIMITS.newUserMonthlyImages} 枚までです。${back} から月 ${PHOTO_LIMITS.userMonthlyImages} 枚になります。${rest}`
+        : `今月の AI の画像は上限（1 人 ${PHOTO_LIMITS.userMonthlyImages} 枚）に達しました。来月 1 日にまたつくれます。${rest}`;
+  }
 }
 
 export async function acknowledgePhotoNotice(admin: Db, userId: string): Promise<void> {
@@ -124,15 +164,11 @@ export type GenerateOutcome =
   | { ok: true; jobId: string; candidates: PhotoCandidate[]; remainingImages: number; partial: boolean }
   | { ok: false; message: string; remainingImages?: number };
 
-const LIMIT_MESSAGE = {
-  user_limit: `今月の AI の画像は上限（1 人 ${PHOTO_LIMITS.userMonthlyImages} 枚）に達しました。来月 1 日にまたつくれます。テンプレートの画像と、手持ちの写真は使えます。`,
-  global_limit: "今月の AI の画像が、yabumi 全体の上限に達しました。来月 1 日にまたつくれます。テンプレートの画像と、手持ちの写真は使えます。",
-} as const;
-
 export async function runPhotoGeneration(
   user: Db,
   admin: Db,
-  deps: { generate: GenerateImage; model: string; scopeOwner?: string },
+  // scopeOwner・asOf はテスト用（アプリからは渡さない）
+  deps: { generate: GenerateImage; model: string; scopeOwner?: string; asOf?: Date },
   args: { userId: string; projectId: string; scene: string; style: PhotoStyle; size: TemplateSizeKey; count: number },
 ): Promise<GenerateOutcome> {
   const scene = args.scene.trim();
@@ -156,16 +192,16 @@ export async function runPhotoGeneration(
     p_images: count,
     p_cost_usd: reserveUsd,
     ...(deps.scopeOwner ? { p_scope_owner: deps.scopeOwner } : {}),
+    ...(deps.asOf ? { p_as_of: deps.asOf.toISOString() } : {}),
   });
   if (reserveError) throw reserveError;
   const r = reserved?.[0];
   if (!r) throw new Error("予約の結果がありません");
   // 全体の上限の 80% に達したら運営者に知らせる（月に 1 回。失敗しても止めない）
   await alertIfNearBudgetSafely(admin, "image", Number(r.global_month_usd ?? 0), PHOTO_LIMITS.globalMonthlyUsd, { scope: deps.scopeOwner });
-  const remainingAfter = (used: number) => Math.max(0, PHOTO_LIMITS.userMonthlyImages - used);
+  const remainingAfter = (used: number) => Math.max(0, r.user_monthly_limit - used);
   if (r.status !== "ok" || !r.job_id) {
-    const key = r.status === "global_limit" ? "global_limit" : "user_limit";
-    return { ok: false, message: LIMIT_MESSAGE[key], remainingImages: remainingAfter(r.user_month_images ?? 0) };
+    return { ok: false, message: photoLimitMessage(r.status, { newUntil: r.new_until }), remainingImages: remainingAfter(r.user_month_images ?? 0) };
   }
   const jobId = r.job_id;
   const usedBefore = (r.user_month_images ?? count) - count;

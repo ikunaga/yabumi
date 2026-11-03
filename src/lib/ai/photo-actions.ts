@@ -8,8 +8,8 @@ import { TEMPLATE_SIZES, type TemplateSizeKey } from "@/lib/media/templates";
 import { aiConfigured, callPhotoIdeas } from "./anthropic";
 import { generateWithGemini, photoConfigured } from "./gemini-image";
 import { aiLimitsFromEnv } from "./limits";
-import { MAX_PHOTOS_PER_RUN, MAX_SCENE_CHARS, PHOTO_LIMITS, PHOTO_STYLES, photoModel, photoUnitYen, type PhotoIdea } from "./photo";
-import { acknowledgePhotoNotice, photoStatus, refreshCandidateUrls, runPhotoGeneration, runPhotoIdeas, type PhotoCandidate } from "./photo-gen";
+import { MAX_PHOTOS_PER_RUN, MAX_SCENE_CHARS, PHOTO_STYLES, photoModel, photoUnitYen, type PhotoIdea } from "./photo";
+import { acknowledgePhotoNotice, jstMonthDay, photoStatus, refreshCandidateUrls, runPhotoGeneration, runPhotoIdeas, type PhotoCandidate } from "./photo-gen";
 
 const snsListSchema = z.array(z.enum(SNS_KEYS as [SnsKey, ...SnsKey[]])).max(SNS_KEYS.length);
 
@@ -30,7 +30,10 @@ export type PhotoPanelState = {
   acknowledged: boolean;
   remainingImages: number;
   monthlyImages: number;
+  // 登録して 7 日までの少なめが終わる日（日本時間の M/D。新しい人だけ）
+  newUntil: string | null;
   globalReached: boolean;
+  newUsersFull: boolean;
   unitYen: number;
 };
 
@@ -38,10 +41,20 @@ export async function photoPanelState(): Promise<{ state?: PhotoPanelState; erro
   const { userId } = await currentUser();
   if (!userId) return { error: "ログインし直してください。" };
   const model = photoModel();
-  const base = { enabled: photoConfigured(), ideasEnabled: aiConfigured(), monthlyImages: PHOTO_LIMITS.userMonthlyImages, unitYen: photoUnitYen(model) };
+  const base = { enabled: photoConfigured(), ideasEnabled: aiConfigured(), unitYen: photoUnitYen(model) };
   try {
     const s = await photoStatus(createAdminClient(), userId, model);
-    return { state: { ...base, acknowledged: s.acknowledged, remainingImages: s.remainingImages, globalReached: s.globalReached } };
+    return {
+      state: {
+        ...base,
+        acknowledged: s.acknowledged,
+        remainingImages: s.remainingImages,
+        monthlyImages: s.monthlyImages,
+        newUntil: s.newUntil ? jstMonthDay(s.newUntil) : null,
+        globalReached: s.globalReached,
+        newUsersFull: s.newUsersFull,
+      },
+    };
   } catch (e) {
     console.error("[photoPanelState]", e instanceof Error ? e.message : e);
     return { error: "AI の画像の状態を読めませんでした。時間をおいてもう一度お試しください。" };

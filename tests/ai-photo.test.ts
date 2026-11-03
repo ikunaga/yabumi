@@ -1,4 +1,5 @@
 // AI で写真・絵をつくる（docs/architecture.md の 4.25 の ②、D35）の決まり: 指示文・案の検証・費用・AI の印・返事の読み取り・全面に敷くテンプレート
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
@@ -70,6 +71,23 @@ describe("費用と上限", () => {
   it("上限は D35 の値（1 人 月 20 枚、全体で 月 1,000 円）", () => {
     expect(PHOTO_LIMITS.userMonthlyImages).toBe(20);
     expect(Math.round(PHOTO_LIMITS.globalMonthlyUsd * 150)).toBe(999);
+  });
+
+  it("画面の値は、DB の関数で固定した上限と同じ（新しい人は月 3 枚・新しい人たちで 3 分の 1・1 日 20 回。M1・L6）", () => {
+    const sql = readFileSync("supabase/migrations/20261103160100_ai_image_limits.sql", "utf8");
+    expect(sql).toContain(`c_user_monthly_images constant integer := ${PHOTO_LIMITS.userMonthlyImages};`);
+    expect(sql).toContain(`c_new_user_monthly_images constant integer := ${PHOTO_LIMITS.newUserMonthlyImages};`);
+    expect(sql).toContain(`c_new_user_days constant interval := interval '${PHOTO_LIMITS.newUserDays} days';`);
+    expect(sql).toContain(`c_global_monthly_usd constant numeric := ${PHOTO_LIMITS.globalMonthlyUsd};`);
+    expect(sql).toContain("c_new_users_share constant numeric := 1.0 / 3;");
+    expect(PHOTO_LIMITS.newUsersGlobalShare).toBeCloseTo(1 / 3, 10);
+    expect(sql).toContain(`c_daily_attempts constant integer := ${PHOTO_LIMITS.dailyAttempts};`);
+  });
+
+  it("予約の見積もりは、指示文を 1 枚 1,000 トークンとして枚数ぶん数える（実際の値を下回らない。L2）", () => {
+    const p = { perImage: 0.0336, inputPerMillion: 1.5 };
+    expect(estimateImageCostUsd("gemini-nano-banana-2.1", 2)).toBeCloseTo(2 * p.perImage + (2000 * p.inputPerMillion) / 1_000_000, 6);
+    expect(estimateImageCostUsd("gemini-nano-banana-2.1", 1)).toBeCloseTo(p.perImage + (1000 * p.inputPerMillion) / 1_000_000, 6);
   });
 });
 

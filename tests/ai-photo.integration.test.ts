@@ -27,14 +27,17 @@ let aliceProject: string;
 let bobProject: string;
 let carolProject: string;
 
+// 登録して 8 日たったことにする時点（ふだんの上限 1 人 月 20 枚で確かめるテスト用。p_as_of。アプリからは渡さない）
+const OLD = new Date(Date.now() + 8 * 86_400_000);
+
 const fakeImage: GenerateImage = async () => ({ bytes: testJpeg({ width: 928, height: 1152 }), mimeType: "image/jpeg", inputTokens: 120 });
 
 function run(client: TestClient, userId: string, projectId: string, generate: GenerateImage, extra: Partial<{ scene: string; count: number }> = {}) {
-  return runPhotoGeneration(client, admin, { generate, model: MODEL, scopeOwner: userId }, { userId, projectId, scene: "朝の光が入るパン屋のカウンター", style: "photo", size: "portrait", count: 2, ...extra });
+  return runPhotoGeneration(client, admin, { generate, model: MODEL, scopeOwner: userId, asOf: OLD }, { userId, projectId, scene: "朝の光が入るパン屋のカウンター", style: "photo", size: "portrait", count: 2, ...extra });
 }
 
 function reserve(userId: string, projectId: string, images: number) {
-  return admin.rpc("reserve_ai_images", { p_owner_id: userId, p_project_id: projectId, p_model: MODEL, p_images: images, p_cost_usd: 0.0336 * images, p_scope_owner: userId });
+  return admin.rpc("reserve_ai_images", { p_owner_id: userId, p_project_id: projectId, p_model: MODEL, p_images: images, p_cost_usd: 0.0336 * images, p_scope_owner: userId, p_as_of: OLD.toISOString() });
 }
 
 async function removeStorage(owner: string) {
@@ -70,7 +73,7 @@ describe("注意を読むまでは作れない", () => {
     if (!r.ok) expect(r.message).toContain("注意");
     const { count } = await admin.from("ai_image_jobs").select("id", { count: "exact", head: true }).eq("owner_id", aliceId);
     expect(count).toBe(0);
-    expect((await photoStatus(admin, aliceId, MODEL)).acknowledged).toBe(false);
+    expect((await photoStatus(admin, aliceId, MODEL, { asOf: OLD, scopeOwner: aliceId })).acknowledged).toBe(false);
   });
 });
 
@@ -114,7 +117,7 @@ describe("つくる", () => {
       return fakeImage(a);
     });
     expect(r.ok && r.partial).toBe(true);
-    expect((await photoStatus(admin, aliceId, MODEL)).usedImages).toBe(3);
+    expect((await photoStatus(admin, aliceId, MODEL, { asOf: OLD, scopeOwner: aliceId })).usedImages).toBe(3);
   });
 
   it("安全の決まりで断られたら、理由を出して数えない", async () => {
@@ -126,7 +129,7 @@ describe("つくる", () => {
       expect(r.message).toContain("安全の決まり");
       expect(r.remainingImages).toBe(PHOTO_LIMITS.userMonthlyImages - 3);
     }
-    const s = await photoStatus(admin, aliceId, MODEL);
+    const s = await photoStatus(admin, aliceId, MODEL, { asOf: OLD, scopeOwner: aliceId });
     expect(s.usedImages).toBe(3);
   });
 
@@ -142,7 +145,7 @@ describe("つくる", () => {
         expect(r.remainingImages).toBe(PHOTO_LIMITS.userMonthlyImages - 3);
       }
     }
-    expect((await photoStatus(admin, aliceId, MODEL)).usedImages).toBe(3);
+    expect((await photoStatus(admin, aliceId, MODEL, { asOf: OLD, scopeOwner: aliceId })).usedImages).toBe(3);
   });
 
   it("他人のプロジェクトでは作れない", async () => {
@@ -202,7 +205,7 @@ describe("上限（DB の中で固定）", () => {
       expect(r.message).toContain("上限（1 人 20 枚）");
       expect(r.remainingImages).toBe(0);
     }
-    expect((await photoStatus(admin, bobId, MODEL)).remainingImages).toBe(0);
+    expect((await photoStatus(admin, bobId, MODEL, { asOf: OLD, scopeOwner: bobId })).remainingImages).toBe(0);
   });
 
   it("全体の月の費用（$6.66）を超える予約はしない", async () => {
@@ -217,7 +220,7 @@ describe("上限（DB の中で固定）", () => {
 
   it("枚数と費用の値がおかしい予約は受け付けない", async () => {
     for (const [images, cost] of [[0, 0.03], [5, 0.2], [1, 0], [1, -1]] as const) {
-      const { error } = await admin.rpc("reserve_ai_images", { p_owner_id: carolId, p_project_id: carolProject, p_model: MODEL, p_images: images, p_cost_usd: cost, p_scope_owner: carolId });
+      const { error } = await admin.rpc("reserve_ai_images", { p_owner_id: carolId, p_project_id: carolProject, p_model: MODEL, p_images: images, p_cost_usd: cost, p_scope_owner: carolId, p_as_of: OLD.toISOString() });
       expect(error?.code).toBe("22023");
     }
   });

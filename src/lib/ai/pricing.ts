@@ -34,14 +34,15 @@ const IMAGE_PRICES: Record<string, ImagePrice> = {
 };
 // 表にないモデルは高めに見積もる（上限を超えない側に倒す）
 const FALLBACK_IMAGE_PRICE: ImagePrice = { perImage: 0.134, inputPerMillion: 2 };
-// 予約のときの指示文の見込み（実際の値で直す）
-const RESERVE_INPUT_TOKENS = 1000;
+// 予約のときの指示文の見込み（1 枚あたり。実際の値で直す）。指示文は 1 枚ごとに送るので、枚数ぶん見込む
+// （予約が実際の値を下回らないように。docs/security/2026-11-03_セキュリティ確認.md の L2）
+export const RESERVE_INPUT_TOKENS_PER_IMAGE = 1000;
 
 export function imagePrice(model: string): ImagePrice {
   return IMAGE_PRICES[model] ?? FALLBACK_IMAGE_PRICE;
 }
 
-export function estimateImageCostUsd(model: string, images: number, inputTokens = RESERVE_INPUT_TOKENS): number {
+export function estimateImageCostUsd(model: string, images: number, inputTokens = RESERVE_INPUT_TOKENS_PER_IMAGE * images): number {
   const p = imagePrice(model);
   return Math.round((images * p.perImage + (inputTokens * p.inputPerMillion) / 1_000_000) * 1_000_000) / 1_000_000;
 }

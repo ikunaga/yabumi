@@ -21,6 +21,7 @@ import { loadTimeTrends } from "@/lib/metrics/time-trends";
 import { createClient } from "@/lib/supabase/server";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
+import { LearningTip } from "@/components/learning/learning-tip";
 import { SuccessBanner } from "@/components/ui/feedback";
 import { SnsMark, StatusMark } from "@/components/ui/marks";
 import { countPostsByDay, listPostsBetween, listUndatedDrafts, postTitle, type PostRow } from "@/lib/posts/queries";
@@ -89,6 +90,8 @@ export default async function CalendarPage(props: PageProps<"/projects/[id]/cale
       />
 
       {done && <SuccessBanner>{done}</SuccessBanner>}
+      {/* 予約したあとの「ひとこと」（4.47。1 日 1 回まで） */}
+      {done === DONE.scheduled && <LearningTip trigger="post_scheduled" />}
 
       <StatCards stats={stats} month={Number(ym.slice(5, 7))} />
 
@@ -295,6 +298,8 @@ async function MonthView({ projectId, base, ym, today, done }: { projectId: stri
       />
 
       {done && <SuccessBanner>{done}</SuccessBanner>}
+      {/* 予約したあとの「ひとこと」（4.47。1 日 1 回まで） */}
+      {done === DONE.scheduled && <LearningTip trigger="post_scheduled" />}
 
       <StatCards stats={stats} month={month} />
 

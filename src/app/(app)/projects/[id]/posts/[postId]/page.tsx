@@ -1,3 +1,4 @@
+import { LearningTip } from "@/components/learning/learning-tip";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { XSyncOnView } from "@/components/posts/x-sync-on-view";
@@ -90,6 +91,8 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
     ]),
   );
   const notice = NOTICES[String(searchParams.done)];
+  // 送ったあと（送信を始めた・送った・手で投稿したと記録した）の「ひとこと」（4.47。1 日 1 回まで）
+  const sentTip = ["sent", "sending", "preparing", "manual_posted"].includes(String(searchParams.done));
 
   // X に送った（または手で投稿して記録した）ものがあれば、画面を開いたあとに X にまだあるかを確かめる
   const hasPublishedX = post.targets.some((t) => t.sns === "x" && t.status === "published");
@@ -104,6 +107,7 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
       postId={post.id}
       connected={(Object.keys(accounts) as SnsKey[]).filter(canPublish)}
       planHints={planHints}
+      afterNotice={sentTip ? <LearningTip trigger="post_sent" /> : null}
       aiCheckEnabled={aiConfigured()}
       results={results}
       needImageReconnect={needImageReconnect}

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChartEmpty, DailyBars } from "@/components/overview/daily-chart";
+import { TodayTermBand } from "@/components/learning/today-term-band";
 import { NowBand } from "@/components/overview/now-band";
 import { OverviewCards } from "@/components/overview/overview-cards";
 import { AttentionStrip, ConnectedSnsLine, NextScheduled, Panel, SnsClicks } from "@/components/overview/overview-panels";
@@ -20,6 +21,7 @@ import { compareLabel, NOT_ARRIVED, periodLabel } from "@/lib/metrics/store-peri
 import { isAppProject, isDevProject } from "@/lib/projects/product-types";
 import { loadOverviewNumbers } from "@/lib/overview/load";
 import { CHART_DAYS, CHART_DAYS_MOBILE, chartWindow, compareDays, latestAside, pctChange, shortDay, type Daily } from "@/lib/overview/numbers";
+import { loadTodayTerm } from "@/lib/learning/today";
 import { getAccountPlan } from "@/lib/plan/queries";
 import { listDueManualPosts, listOverduePosts, listPostsNeedingAttention, listUpcomingPosts } from "@/lib/posts/queries";
 import { currentStepIndex, STEPS } from "@/lib/projects/next-step";
@@ -76,6 +78,20 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
   const todos = thisWeekTodos(roadmap);
   const now = new Date();
   const scheduled = upcoming.filter((p) => displayStatus(p) === "scheduled").slice(0, 3);
+  // 今日の用語（4.47）: その人の状況に合う語を、まだ読んでいない語から。読めなくても概要は出す
+  const todayTerm = await loadTodayTerm(
+    supabase,
+    {
+      planIncomplete: !stepState.planDone,
+      usedShortLink: numbers.hasLinks,
+      hasRoadmap: Boolean(roadmap.roadmap) || roadmap.items.length > 0,
+      connectedInstagram: snsAccounts.some((a) => a.sns === "instagram"),
+    },
+    roadmap.today,
+  ).catch((e) => {
+    console.error("[overview] 今日の用語", e instanceof Error ? e.message : e);
+    return null;
+  });
   const base = `/projects/${project.id}`;
 
   // アプリのときだけストアの入口、アプリと Web のサービスのときだけ GitHub の案内を出す（決定 D34）
@@ -133,6 +149,8 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
         doneCount={thisWeekCounts(roadmap).finished}
         aiEnabled={aiConfigured()}
       />
+
+      {todayTerm && <TodayTermBand projectId={project.id} term={todayTerm} />}
 
       <AttentionStrip projectId={project.id} failed={attention} overdue={overdue} manualDue={manualDue} overdueTodos={overdueItems(roadmap.items, roadmap.today, roadmap.daily)} />
 

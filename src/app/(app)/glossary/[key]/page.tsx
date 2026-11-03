@@ -7,6 +7,7 @@ import { Illustration } from "@/components/glossary/illustration";
 import { TermMiniCard } from "@/components/glossary/term-card";
 import { TopBar } from "@/components/nav/top-bar";
 import { requireUser } from "@/lib/auth/user";
+import { recordTermRead } from "@/lib/learning/read";
 import { categoryOf, GLOSSARY_KEYS, glossary, isGlossaryKey, neighbors, type GlossaryTerm } from "@/lib/glossary/terms";
 
 // 用語の詳細ページ（4.45）。挿絵・summary と例・図・くわしい説明（畳まずに全部）・関連・同じ分類の前と次。
@@ -26,6 +27,8 @@ export default async function GlossaryTermPage(props: PageProps<"/glossary/[key]
   const { key } = await props.params;
   if (!isGlossaryKey(key)) notFound();
   const user = await requireUser();
+  // 読んだと記録する（学びの記録。4.47）。記録できなくてもページは出す
+  await recordTermRead(key).catch(() => {});
   const term: GlossaryTerm = glossary[key];
   const category = categoryOf(key);
   const { prev, next } = neighbors(key);

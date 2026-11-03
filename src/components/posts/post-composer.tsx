@@ -30,6 +30,8 @@ import { noteImageForCompose } from "@/lib/notes/actions";
 import type { IdeaNote } from "@/lib/notes/rules";
 import { MAX_IMAGES_PER_POST } from "@/lib/media/rules";
 import { PlanHints, type PlanHintsData } from "./plan-hints";
+import { LearningTip } from "@/components/learning/learning-tip";
+import { hasUrl } from "@/lib/learning/tips";
 import { SendResults, type TargetResult } from "./send-results";
 import { SnsPreview } from "./sns-preview";
 import { PREVIEW, previewTabs } from "@/lib/sns/preview";
@@ -65,6 +67,8 @@ type Props = {
   // 配信先ごとの送信の状態（新しい投稿では空）
   results?: Partial<Record<SnsKey, TargetResult>>;
   notice?: string;
+  // 知らせのすぐ下に出すもの（送ったあとの「ひとこと」。4.47）
+  afterNotice?: ReactNode;
   noticeTone?: "success" | "error";
   // アカウント設計の投稿の柱と口調（書くときの手がかり）
   planHints?: PlanHintsData | null;
@@ -116,6 +120,7 @@ export function PostComposer({
   connected,
   results = {},
   notice,
+  afterNotice,
   noticeTone = "success",
   planHints = null,
   needImageReconnect = [],
@@ -274,6 +279,8 @@ export function PostComposer({
   // 1 つでも送った（送信中・取り消し済みを含む）投稿
   const sentAny = SNS_KEYS.some((s) => isLocked(s));
   const chosen = SNS_KEYS.filter((s) => selected.has(s));
+  // 書いている途中の「ひとこと」（4.47）のきっかけ: 開いたあとに Instagram を選んだ・URL を入れた（開いたときからそうなら出さない）
+  const [learnFrom] = useState(() => ({ instagram: initial.targets.some((t) => t.sns === "instagram"), url: hasUrl(initial.body) || initial.targets.some((t) => t.bodyOverride !== null && hasUrl(t.bodyOverride)) }));
   const { tabs: previewSns, active: focus } = previewTabs(chosen, picked);
 
   // AI っぽさチェックの直しを当てる。SNS ごとの文面があればそれを、なければ共通の本文を直す
@@ -552,6 +559,7 @@ export function PostComposer({
 
       {/* 保存・送信の知らせと、送信の結果（送ったあとはこの投稿の画面に移り、ここに結果が出る） */}
       {notice && (noticeTone === "error" ? <ErrorBanner>{notice}</ErrorBanner> : <SuccessBanner>{notice}</SuccessBanner>)}
+      {notice && afterNotice}
       {postId && <SendResults projectId={projectId} postId={postId} results={results} />}
 
       {notesOpen && !postId && (
@@ -776,6 +784,13 @@ export function PostComposer({
                 </p>
               )}
             </fieldset>
+
+            {mode !== "all_sent" && (
+              <>
+                <LearningTip trigger="instagram_selected" when={!learnFrom.instagram && chosen.includes("instagram")} />
+                <LearningTip trigger="url_in_body" when={!learnFrom.url && chosen.some((s) => hasUrl(textFor(s)))} />
+              </>
+            )}
 
             {selected.has("x") && !isLocked("x") && hasXUrl(textFor("x")) && (
               <XUrlCostNotice

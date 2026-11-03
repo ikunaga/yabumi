@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { TopBar } from "@/components/nav/top-bar";
 import { PushSettings } from "@/components/push/push-settings";
+import { LearningPrefsForm } from "@/components/settings/learning-prefs-form";
 import { NotificationPrefsForm } from "@/components/settings/notification-prefs-form";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Columns } from "@/components/ui/columns";
@@ -16,7 +17,7 @@ export const metadata: Metadata = { title: "お知らせの設定" };
 export default async function NotificationSettingsPage() {
   const user = await requireUser();
   const supabase = await createClient();
-  const { data } = await supabase.from("notification_prefs").select("email_mode, push_mode, behind_weekday").maybeSingle();
+  const { data } = await supabase.from("notification_prefs").select("email_mode, push_mode, behind_weekday, learning_enabled").maybeSingle();
   const prefs = { ...DEFAULT_PREFS, ...(data ?? {}) };
   return (
     <>
@@ -40,10 +41,16 @@ export default async function NotificationSettingsPage() {
         />
         <Columns
           main={
+            <>
             <Card className="overflow-hidden">
               <CardHeader title="伴走のお知らせ" />
               <NotificationPrefsForm emailMode={prefs.email_mode as never} pushMode={prefs.push_mode as never} behindWeekday={prefs.behind_weekday} />
             </Card>
+            <Card className="overflow-hidden">
+              <CardHeader title="学びの表示（今日の用語・ひとこと）" />
+              <LearningPrefsForm enabled={data?.learning_enabled ?? true} />
+            </Card>
+            </>
           }
           side={
             <>

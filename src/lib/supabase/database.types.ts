@@ -408,6 +408,45 @@ export type Database = {
           },
         ]
       }
+      learning_term_reads: {
+        Row: {
+          first_read_at: string
+          last_read_at: string
+          term_key: string
+          user_id: string
+        }
+        Insert: {
+          first_read_at?: string
+          last_read_at?: string
+          term_key: string
+          user_id?: string
+        }
+        Update: {
+          first_read_at?: string
+          last_read_at?: string
+          term_key?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      learning_tip_shows: {
+        Row: {
+          last_shown_at: string
+          tip_key: string
+          user_id: string
+        }
+        Insert: {
+          last_shown_at?: string
+          tip_key: string
+          user_id?: string
+        }
+        Update: {
+          last_shown_at?: string
+          tip_key?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       legal_consents: {
         Row: {
           accepted_at: string
@@ -841,6 +880,10 @@ export type Database = {
         Row: {
           behind_weekday: number
           email_mode: string
+          learning_enabled: boolean
+          learning_term_dismissed_on: string | null
+          learning_term_key: string | null
+          learning_term_on: string | null
           push_mode: string
           unsubscribe_token: string
           updated_at: string
@@ -849,6 +892,10 @@ export type Database = {
         Insert: {
           behind_weekday?: number
           email_mode?: string
+          learning_enabled?: boolean
+          learning_term_dismissed_on?: string | null
+          learning_term_key?: string | null
+          learning_term_on?: string | null
           push_mode?: string
           unsubscribe_token?: string
           updated_at?: string
@@ -857,6 +904,10 @@ export type Database = {
         Update: {
           behind_weekday?: number
           email_mode?: string
+          learning_enabled?: boolean
+          learning_term_dismissed_on?: string | null
+          learning_term_key?: string | null
+          learning_term_on?: string | null
           push_mode?: string
           unsubscribe_token?: string
           updated_at?: string
@@ -1918,6 +1969,7 @@ export type Database = {
           target_id: string
         }[]
       }
+      claim_learning_tip: { Args: { p_candidates: string[] }; Returns: string }
       claim_link_domain:
         | {
             Args: {
@@ -1973,6 +2025,7 @@ export type Database = {
           target_id: string
         }[]
       }
+      dismiss_learning_today_term: { Args: never; Returns: undefined }
       due_account_metric_accounts: {
         Args: {
           p_insights: Json
@@ -2020,6 +2073,8 @@ export type Database = {
         }
         Returns: string
       }
+      learning_today_jst: { Args: never; Returns: string }
+      learning_today_term: { Args: { p_term_key: string }; Returns: string }
       link_click_totals: {
         Args: { p_project_id: string; p_today: string }
         Returns: {
@@ -2111,6 +2166,10 @@ export type Database = {
           ai_usage_deleted: number
           sns_api_usage_deleted: number
         }[]
+      }
+      record_learning_term_read: {
+        Args: { p_term_key: string }
+        Returns: undefined
       }
       record_link_click: {
         Args: {

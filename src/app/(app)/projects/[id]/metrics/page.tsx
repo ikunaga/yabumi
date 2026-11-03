@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { LearningTip } from "@/components/learning/learning-tip";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { ManualMetricForm } from "@/components/metrics/manual-metric-form";
@@ -257,6 +258,8 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
           </>
         }
       />
+      {/* 分析を開いたときの「ひとこと」（4.47。1 日 1 回まで） */}
+      <LearningTip trigger="analytics_opened" />
 
       {needReconnect.length > 0 && (
         <Notice>

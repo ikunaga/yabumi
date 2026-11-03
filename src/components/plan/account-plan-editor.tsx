@@ -11,6 +11,7 @@ import { Button, buttonClass, NotReadyButton } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Badge, chipClass } from "@/components/ui/chip";
 import { ErrorBanner } from "@/components/ui/feedback";
+import { LearningTip } from "@/components/learning/learning-tip";
 import { HelpTip } from "@/components/ui/help";
 import { Field, Input, Textarea } from "@/components/ui/field";
 import { Term } from "@/components/ui/term";
@@ -292,6 +293,8 @@ function SectionCard({
         </div>
         {children}
         {state.error && <ErrorBanner>{state.error}</ErrorBanner>}
+        {/* 保存したあとの「ひとこと」（4.47。1 日 1 回まで） */}
+        <LearningTip trigger="plan_saved" when={Boolean(state.savedAt)} />
         <div className="flex flex-wrap items-center justify-end gap-3">
           {state.savedAt && !pending && (
             <span role="status" className="mr-auto text-sm font-semibold text-success">

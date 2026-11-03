@@ -7,7 +7,7 @@ import { Illustration } from "@/components/glossary/illustration";
 import { TermMiniCard } from "@/components/glossary/term-card";
 import { GlossaryFrame } from "@/components/glossary/frame";
 import { RecordTermRead } from "@/components/glossary/record-read";
-import { categoryOf, GLOSSARY_KEYS, glossary, isGlossaryKey, neighbors, type GlossaryTerm } from "@/lib/glossary/terms";
+import { categoryHref, categoryOf, GLOSSARY_KEYS, glossary, isGlossaryKey, neighbors, type GlossaryTerm } from "@/lib/glossary/terms";
 
 // 用語の詳細ページ（4.45）。挿絵・summary と例・図・くわしい説明（畳まずに全部）・関連・同じ分類の前と次。
 // 知らない key は 404（dynamicParams = false）
@@ -45,7 +45,7 @@ export default async function GlossaryTermPage(props: PageProps<"/glossary/[key]
           <span className="font-bold text-fg">{term.label}</span>
         </span>
       }
-      mobileBack={{ href: `/glossary#cat-${category.id}`, title: "用語集" }}
+      mobileBack={{ href: categoryHref(category.id), title: category.label }}
     >
       {/* 読んだと記録する（学びの記録。4.47）。画面を描いたあとにクライアントから送る（GET や先読みでは記録しない） */}
       <RecordTermRead termKey={key} />
@@ -57,7 +57,7 @@ export default async function GlossaryTermPage(props: PageProps<"/glossary/[key]
           <span aria-hidden className="mx-1.5 text-faint">
             ›
           </span>
-          <Link href={`/glossary#cat-${category.id}`} className="hover:text-fg">
+          <Link href={categoryHref(category.id)} className="hover:text-fg">
             {category.label}
           </Link>
         </nav>
@@ -98,8 +98,8 @@ export default async function GlossaryTermPage(props: PageProps<"/glossary/[key]
           <div>{next && <TermMiniCard k={next} note="次の言葉 →" />}</div>
         </nav>
 
-        <Link href={`/glossary#cat-${category.id}`} className="text-[15px] text-muted hover:text-fg hover:no-underline">
-          ← 用語集へ戻る
+        <Link href={categoryHref(category.id)} className="text-[15px] text-muted hover:text-fg hover:no-underline">
+          ← 「{category.label}」へ戻る
         </Link>
       </div>
     </GlossaryFrame>

@@ -50,7 +50,7 @@ describe("recordTermRead（L3）", () => {
     sub = "u1";
     await recordTermRead("persona");
     expect(rpc).toHaveBeenCalledWith("record_learning_term_read", { p_term_key: "persona" });
-    expect(revalidatePath).toHaveBeenCalledWith("/glossary");
+    expect(revalidatePath).toHaveBeenCalledWith("/glossary", "layout");
   });
 
   it("詳細ページを描く（GET・先読み）だけでは送らない。画面を描いたあとにクライアントから送る", async () => {

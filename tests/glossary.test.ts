@@ -3,13 +3,14 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
-import { GLOSSARY_CATEGORIES, GLOSSARY_KEYS, glossary, glossaryHref, illustrationSrc, isGlossaryKey, neighbors, type GlossaryTerm } from "@/lib/glossary/terms";
+import { categoryHref, GLOSSARY_CATEGORIES, GLOSSARY_CATEGORY_IDS, GLOSSARY_KEYS, glossary, glossaryHref, illustrationSrc, isGlossaryKey, legacyGlossaryHashTarget, neighbors, type GlossaryTerm } from "@/lib/glossary/terms";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/projects/p1", useSelectedLayoutSegment: () => null }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/components/nav/top-bar", () => ({ TopBar: () => null }));
 vi.mock("@/components/glossary/record-read", () => ({ RecordTermRead: () => null }));
 vi.mock("@/components/glossary/frame", () => ({ GlossaryFrame: () => null }));
+vi.mock("@/lib/supabase/server", () => ({ createClient: async () => ({}) }));
 vi.mock("@/lib/auth/actions", () => ({ logout: async () => {} }));
 vi.mock("@/lib/auth/user", () => ({ requireUser: async () => ({ email: "a@example.com" }) }));
 
@@ -124,5 +125,34 @@ describe("挿絵", () => {
       expect(existsSync(file), file).toBe(true);
       expect(statSync(file).size, file).toBeLessThanOrEqual(150 * 1024);
     }
+  });
+});
+
+describe("分類のページ（/glossary/c/<id>。4.49）", () => {
+  it("静的な引数は全分類ぶん。知らない分類は 404", async () => {
+    const { generateStaticParams, dynamicParams } = await import("@/app/(app)/glossary/c/[id]/page");
+    expect(generateStaticParams().map((p) => p.id)).toEqual([...GLOSSARY_CATEGORY_IDS]);
+    expect(dynamicParams).toBe(false);
+    expect(categoryHref("media")).toBe("/glossary/c/media");
+  });
+
+  it("どの語も、どれかの分類のページに出る。入口のカードの代表の語は、その分類の語。分類の id は語の key と重ならない", () => {
+    expect(GLOSSARY_CATEGORIES.map((c) => c.id)).toEqual([...GLOSSARY_CATEGORY_IDS]);
+    const shown = new Set(GLOSSARY_CATEGORIES.flatMap((c) => c.keys));
+    for (const k of GLOSSARY_KEYS) expect(shown.has(k), k).toBe(true);
+    for (const c of GLOSSARY_CATEGORIES) {
+      expect(c.keys).toContain(c.cover);
+      expect(c.note.length).toBeGreaterThan(5);
+      expect(isGlossaryKey(c.id)).toBe(false);
+    }
+  });
+
+  it("前の 1 ページの用語集のリンク（# のあと）を、新しいページに移す", () => {
+    expect(legacyGlossaryHashTarget("#ugc")).toBe("/glossary/ugc");
+    expect(legacyGlossaryHashTarget("#marketingFunnel")).toBe("/glossary/marketingFunnel");
+    expect(legacyGlossaryHashTarget("#cat-media")).toBe("/glossary/c/media");
+    expect(legacyGlossaryHashTarget("#sns")).toBe("/glossary/c/sns");
+    // 知らないもの・空・外への URL に見えるものは移さない
+    for (const h of ["", "#", "#nope", "#cat-nope", "#//evil.example", "#https://evil.example"]) expect(legacyGlossaryHashTarget(h), h).toBeNull();
   });
 });

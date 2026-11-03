@@ -40,8 +40,8 @@ export async function recordTermRead(key: unknown): Promise<void> {
     console.error("[recordTermRead]", error.message);
     return;
   }
-  // 一覧の「読んだ」の印を新しくする
-  revalidatePath("/glossary");
+  // 入口と分類のページの「読んだ」の印を新しくする（4.49。/glossary の下を全部）
+  revalidatePath("/glossary", "layout");
 }
 
 // 今日の用語を閉じる（その日は出さない）。ログインしていなければ何もしない（L4: 画面のキャッシュを消す前に確かめる）

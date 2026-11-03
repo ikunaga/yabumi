@@ -1,5 +1,5 @@
 // 用語解説（要求 F12、docs/architecture.md の 4.45）。画面に出てくるマーケティング用語と、運用しながら身につけたい基本の考え方を、素人にもわかる言葉で説明する。
-// key は <Term k="...">・/glossary/<key>（詳細ページ）・前からの /glossary#key のリンクが使うので変えない。将来は DB（glossary_terms）へ移し、AI による追加解説とつなげる。
+// key は <Term k="...">・/glossary/<key>（詳細ページ）・前からの /glossary#key のリンク（入口で /glossary/<key> へ移す）が使うので変えない。将来は DB（glossary_terms）へ移し、AI による追加解説とつなげる。
 
 // 「くわしく」を開くと出る中身。段落・箇条書き・比べる表（表はスマホでは行ごとのカードにする）
 export type GlossaryBlock =
@@ -351,14 +351,19 @@ export const glossary = {
 export type GlossaryKey = keyof typeof glossary;
 export const GLOSSARY_KEYS = Object.keys(glossary) as GlossaryKey[];
 
-// 用語集のページの分類（上の目次と見出し）。どの語もどれか 1 つに入れる（テストで確かめる）
-export const GLOSSARY_CATEGORIES: { id: string; label: string; keys: GlossaryKey[] }[] = [
-  { id: "goals", label: "目標と計画", keys: ["kgi", "kpi", "roadmap", "persona"] },
-  { id: "flow", label: "お客さんの流れと数字", keys: ["marketingFunnel", "awareness", "impression", "conversion", "correlation"] },
-  { id: "posting", label: "発信のしかた", keys: ["contentPillar", "toneAndManner", "hashtag", "buildInPublic", "ugc"] },
-  { id: "media", label: "メディアと広告", keys: ["tripleMedia", "ownedMedia", "earnedMedia", "paidMedia", "organicVsAds", "seoVsSns", "ownedAudience", "newsletter"] },
-  { id: "sns", label: "SNS ごと", keys: ["snsTraits", "proAccount", "facebookPage", "payPerUse"] },
-  { id: "tech", label: "リンクと技術", keys: ["shortLink", "campaignLink", "storeListing", "dns", "cname", "subdomain"] },
+// 用語集の分類（4.45・4.49）。分類ごとにページ（/glossary/c/<id>）を分け、入口（/glossary）に分類のカードを並べる。どの語もどれか 1 つに入れる（テストで確かめる）。
+// note: 入口のカードのひと言。cover: 入口のカードに小さく出す、代表の語の挿絵。id は語の key と重ねない（古い /glossary#<id> を見分けるため）
+export const GLOSSARY_CATEGORY_IDS = ["goals", "flow", "posting", "media", "sns", "tech"] as const;
+export type GlossaryCategoryId = (typeof GLOSSARY_CATEGORY_IDS)[number];
+export type GlossaryCategory = { id: GlossaryCategoryId; label: string; note: string; cover: GlossaryKey; keys: GlossaryKey[] };
+
+export const GLOSSARY_CATEGORIES: GlossaryCategory[] = [
+  { id: "goals", label: "目標と計画", note: "ゴールの決め方と、そこまでの道のり", cover: "kgi", keys: ["kgi", "kpi", "roadmap", "persona"] },
+  { id: "flow", label: "お客さんの流れと数字", note: "知ってもらってから行動するまでと、そこで見る数字", cover: "marketingFunnel", keys: ["marketingFunnel", "awareness", "impression", "conversion", "correlation"] },
+  { id: "posting", label: "発信のしかた", note: "何を、どんな口調で投稿するか", cover: "contentPillar", keys: ["contentPillar", "toneAndManner", "hashtag", "buildInPublic", "ugc"] },
+  { id: "media", label: "メディアと広告", note: "自分の場所・口コミ・広告の使い分け", cover: "tripleMedia", keys: ["tripleMedia", "ownedMedia", "earnedMedia", "paidMedia", "organicVsAds", "seoVsSns", "ownedAudience", "newsletter"] },
+  { id: "sns", label: "SNS ごと", note: "SNS ごとの特徴と、つなぐときの準備", cover: "snsTraits", keys: ["snsTraits", "proAccount", "facebookPage", "payPerUse"] },
+  { id: "tech", label: "リンクと技術", note: "短縮リンクと、自分のドメインの設定の言葉", cover: "shortLink", keys: ["shortLink", "campaignLink", "storeListing", "dns", "cname", "subdomain"] },
 ];
 
 export function isGlossaryKey(k: string): k is GlossaryKey {
@@ -392,4 +397,26 @@ export function illustrationSrc(k: GlossaryKey): string {
 
 export function illustrationAlt(term: GlossaryTerm): string {
   return `${term.label} のイメージのイラスト`;
+}
+
+export function isGlossaryCategoryId(id: string): id is GlossaryCategoryId {
+  return (GLOSSARY_CATEGORY_IDS as readonly string[]).includes(id);
+}
+
+export function categoryById(id: GlossaryCategoryId): GlossaryCategory {
+  return GLOSSARY_CATEGORIES.find((c) => c.id === id)!;
+}
+
+// 分類のページ（4.49）
+export function categoryHref(id: GlossaryCategoryId): string {
+  return `/glossary/c/${id}`;
+}
+
+// 前の 1 ページの用語集のリンク（/glossary#<key>・/glossary#cat-<id>・/glossary#<id>）を、新しいページに移す先。移さないものは null
+export function legacyGlossaryHashTarget(hash: string): string | null {
+  const h = decodeURIComponent(hash.replace(/^#/, ""));
+  if (!h) return null;
+  if (isGlossaryKey(h)) return glossaryHref(h);
+  const id = h.replace(/^cat-/, "");
+  return isGlossaryCategoryId(id) ? categoryHref(id) : null;
 }

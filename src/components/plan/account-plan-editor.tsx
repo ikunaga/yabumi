@@ -497,6 +497,7 @@ function OwnershipFields({ v, ex }: { v: PlanData["ownership"]; ex: PlanExamples
 // 柱ごとに「使う SNS」を選べる（2026-11-03 オーナーの要望。src/lib/plan/pillars.ts）。何も選ばなければすべての SNS。
 // 割合は SNS ごとに、その SNS に付いた柱の中で数え、SNS ごとの合計と中身を下にまとめて出す（どの SNS で何を出すかをひと目で確かめる）
 type PillarRow = { name: string; share: string; sns: SnsKey[] };
+const FIRST_PILLAR_SNS: SnsKey[] = ["x", "threads", "instagram", "facebook"];
 
 function PillarsFields({ v, ex: examples, inUse }: { v: PlanData["pillars"]; ex: PlanExamples; inUse: SnsKey[] }) {
   const [rows, setRows] = useState<PillarRow[]>(() =>
@@ -506,9 +507,9 @@ function PillarsFields({ v, ex: examples, inUse }: { v: PlanData["pillars"]; ex:
   const update = (i: number, patch: Partial<PillarRow>) => setRows((r) => r.map((x, j) => (j === i ? { ...x, ...patch } : x)));
   const asPillars = rows.map((r) => ({ name: r.name, share: Number(r.share) || null, example: "", sns: r.sns }));
   const split = isSplitBySns(asPillars);
-  // チップに出す SNS: 使っている SNS（役割・つないだ・週の回数）と、もう選んだ SNS。ほかは「ほかの SNS」で出す
-  const shown = pillarViewSns(asPillars, inUse.length ? inUse : SNS_KEYS);
-  const options = allSns ? SNS_KEYS : SNS_KEYS.filter((k) => shown.includes(k) || rows.some((r) => r.sns.includes(k)));
+  // チップに出す SNS: 使っている SNS（役割・つないだ・週の回数。まだなければ X・Threads・Instagram・Facebook）と、もう選んだ SNS。ほかは「ほかの SNS」で出す
+  const base = inUse.length ? inUse : FIRST_PILLAR_SNS;
+  const options = allSns ? SNS_KEYS : SNS_KEYS.filter((k) => base.includes(k) || rows.some((r) => r.sns.includes(k)));
   const total = rows.reduce((sum, r) => sum + (Number(r.share) || 0), 0);
 
   return (

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { HelpTip } from "@/components/ui/help";
 import Link from "next/link";
 import { deleteItem, setItemPlannedOn, setItemStatus } from "@/lib/roadmap/actions";
 import type { RoadmapItem } from "@/lib/roadmap/load";
@@ -34,7 +35,8 @@ export function RoadmapItemRow({
 
   return (
     <li className="flex flex-col gap-1 border-b border-line px-6 py-3 last:border-b-0 max-sm:px-4">
-      <div className="flex items-start gap-3">
+      {/* スマホはボタン（やらない・削除する）をタイトルの下の行に回す（横に並べるとタイトルが細くなるため） */}
+      <div className="flex items-start gap-3 max-sm:flex-wrap">
         <input
           type="checkbox"
           aria-label={`「${item.title}」を済みにする`}
@@ -84,11 +86,15 @@ export function RoadmapItemRow({
             )}
           </span>
         </div>
-        <span className="flex shrink-0 items-center gap-1">
+        <span className="flex shrink-0 items-center gap-1 max-sm:-mt-1 max-sm:w-full max-sm:pl-5">
           {item.status === "todo" && (
-            <Button type="button" variant="text" size="sm" disabled={pending} onClick={() => run(() => setItemStatus(projectId, item.id, "skipped"))}>
-              やらない
-            </Button>
+            <span className="inline-flex items-center">
+              <Button type="button" variant="text" size="sm" disabled={pending} onClick={() => run(() => setItemStatus(projectId, item.id, "skipped"))}>
+                やらない
+              </Button>
+              {/* 「削除する」との違いは押す前にはわからないので、説明を添える（2026-11-03 オーナーの決定） */}
+              <HelpTip label="「やらない」の説明">あとで戻せます。AI との相談にも、やらないと決めたことが伝わります。要らないものは削除してください。</HelpTip>
+            </span>
           )}
           {item.status === "skipped" && (
             <Button type="button" variant="text" size="sm" disabled={pending} onClick={() => run(() => setItemStatus(projectId, item.id, "todo"))}>
@@ -105,8 +111,9 @@ export function RoadmapItemRow({
               </Button>
             </>
           ) : (
+            // 「×」だと閉じるのか消すのかがわからないので、文字にする（2026-11-03 オーナーの決定）。押すと「削除する」「やめる」で確かめる
             <Button type="button" variant="text" size="sm" onClick={() => setConfirmDelete(true)} aria-label={`「${item.title}」を削除する`}>
-              ×
+              削除する
             </Button>
           )}
         </span>

@@ -39,6 +39,8 @@ import { projectSettingsHref } from "@/lib/projects/paths";
 import { sendLabels, sendMode } from "@/lib/posts/send-mode";
 import { findUrls, hasProfileLinkLine, profileLinkLine, withProfileLink, type ProfileLinkInfo } from "@/lib/posts/profile-link";
 import { BAND_INFO, plannedAtFor, type TimeBand } from "@/lib/metrics/time-bands";
+import { composeChanges, type ComposeSnapshot } from "@/lib/posts/compose-reset";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export type ComposerInitial = {
   body: string;
@@ -208,6 +210,52 @@ export function PostComposer({
     setRestorable(null);
   }
   const quiet = !touched;
+
+  // リセット（新しい投稿）・保存した内容に戻す（下書き）。開いたときの状態と比べて、戻すと消えるものを出す（4.38）
+  const [resetOpen, setResetOpen] = useState(false);
+  // 押すたびに、AI の案の欄・AI っぽさチェックの欄を作り直す
+  const [resetRound, setResetRound] = useState(0);
+  const justReset = useRef(false);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const initialSnapshot = useMemo<ComposeSnapshot>(
+    () => ({
+      ...initialDraft,
+      imageIds: (initial.images ?? []).map(imageKey),
+      plannedAt: initial.plannedAt,
+      targets: initial.targets.map((t) => t.sns),
+      shortLinks: initial.shortLinks ?? true,
+      noteIds: [],
+    }),
+    [initial, initialDraft],
+  );
+  const resetChanges = composeChanges(
+    initialSnapshot,
+    { body, overrides, titles, imageIds: images.map(imageKey), plannedAt, targets: [...selected], shortLinks, noteIds },
+    { saved: postId !== null },
+  );
+  function resetAll() {
+    setBody(initial.body);
+    setOverrides(initialDraft.overrides);
+    setTitles(initialDraft.titles);
+    // まだ保存していない画像は、外したときと同じく翌日の片付けで消える（4.18）
+    setImages(initial.images ?? []);
+    setPlannedAt(initial.plannedAt);
+    setSelected(new Set(initial.targets.map((t) => t.sns)));
+    setShortLinks(initial.shortLinks ?? true);
+    setNoteIds([]);
+    setTidyAdopted(false);
+    setIgLinked(false);
+    setResult({});
+    setConfirmSend(false);
+    setConfirmDelete(false);
+    setTouched(Boolean(postId) || initial.body.trim() !== "");
+    setResetRound((r) => r + 1);
+    // 書きかけの控えも消す（「戻す」の帯も閉じる）
+    clearFormDraft(draftKey);
+    setRestorable(null);
+    justReset.current = true;
+    setResetOpen(false);
+  }
 
   const textFor = (sns: SnsKey) => overrides[sns] ?? body;
   const checks = useMemo(
@@ -485,11 +533,49 @@ export function PostComposer({
         <div className="flex min-w-0 flex-col gap-3">
           <section aria-labelledby="draft-heading" className="flex flex-col gap-3.5 rounded-lg border border-border bg-surface px-6 py-5 max-sm:px-4 max-sm:py-4">
             <div className="flex items-baseline justify-between gap-3">
-              <h2 id="draft-heading" className="text-[18px] font-bold max-sm:text-[16px]">
+              <h2 id="draft-heading" ref={headingRef} tabIndex={-1} className="text-[18px] font-bold outline-none max-sm:text-[16px]">
                 本文
               </h2>
-              {plannedLabel && <span className="num text-[15px] text-faint">{plannedLabel} {sentAny ? "に送信" : "予約"}</span>}
+              <span className="flex items-baseline gap-3">
+                {plannedLabel && <span className="num text-[15px] text-faint">{plannedLabel} {sentAny ? "に送信" : "予約"}</span>}
+                {/* 送った投稿では出さない。何も変えていないときも出さない */}
+                {!sentAny && resetChanges.length > 0 && (
+                  <button
+                    type="button"
+                    aria-haspopup="dialog"
+                    onClick={() => setResetOpen(true)}
+                    className="text-[13px] text-muted underline-offset-2 hover:text-fg hover:underline"
+                  >
+                    {postId ? "保存した内容に戻す" : "リセット"}
+                  </button>
+                )}
+              </span>
             </div>
+            <p className="sr-only" role="status" aria-live="polite">
+              {resetRound > 0 ? (postId ? "保存した内容に戻しました。" : "書いた内容をリセットしました。") : ""}
+            </p>
+            <ConfirmDialog
+              open={resetOpen}
+              title={postId ? "保存した内容に戻しますか？" : "書いた内容をリセットしますか？"}
+              confirmLabel={postId ? "戻す" : "リセットする"}
+              onConfirm={resetAll}
+              onClose={() => {
+                setResetOpen(false);
+                // 押したボタンは消えるので、本文の見出しにフォーカスを置く（スマホで鍵盤が開かないよう、本文の欄には置かない）
+                if (justReset.current) {
+                  justReset.current = false;
+                  headingRef.current?.focus({ preventScroll: true });
+                }
+              }}
+            >
+              <p>{postId ? "この画面で変えた次のものが、保存したときの内容に戻ります。" : "次のものを消して、開いたときの状態に戻します。"}</p>
+              <ul className="list-disc pl-5">
+                {resetChanges.map((c) => (
+                  <li key={c}>{c}</li>
+                ))}
+              </ul>
+              <p className="text-[13px] text-muted">元には戻せません。</p>
+            </ConfirmDialog>
 
             {result.error && <ErrorBanner>{result.error}</ErrorBanner>}
             {restorable && <DraftRestoreBar at={restorable.at} what="本文の書きかけ" onRestore={restoreDraft} onDiscard={() => (clearFormDraft(draftKey), setRestorable(null))} />}
@@ -553,6 +639,7 @@ export function PostComposer({
             {/* 送り先をすべて送り終えた投稿では、整えても送れないので出さない */}
             {(!sentAny || toSend.length > 0) && (
               <TidyDraftPanel
+                key={resetRound}
                 projectId={projectId}
                 aiEnabled={aiCheckEnabled}
                 current={{ body, overrides }}
@@ -817,6 +904,7 @@ export function PostComposer({
           <section aria-label="書くときの手伝い（使わなくても送れます）" className="flex flex-col gap-2">
             <PlanHints projectId={projectId} hints={planHints} />
             <AiCheckPanel
+              key={resetRound}
               projectId={projectId}
               aiEnabled={aiCheckEnabled}
               texts={(chosen.length ? chosen : (["x"] as SnsKey[])).map((sns) => ({ sns, text: overrides[sns] ?? body }))}
@@ -1103,3 +1191,6 @@ function samePostDraft(a: PostDraft, b: PostDraft): boolean {
 }
 
 const noopSubscribe = () => () => {};
+
+// 添えた画像の見分け（差し替え・代わりの文の変更も「変えた」とみなす）
+const imageKey = (i: AttachedImage) => `${i.id}\u0000${i.altText ?? ""}`;

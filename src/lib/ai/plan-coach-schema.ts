@@ -26,6 +26,8 @@ export const valueSchemas = {
     // sns: その柱を使う SNS（空はすべての SNS。前の版の案（sns なし）も読めるように既定は空。知らない SNS は保存の形で捨てる）
     items: z.array(z.object({ name: z.string(), share: z.number().int().nullable(), example: z.string(), sns: z.array(z.string()).default([]) })),
     tone: z.string(),
+    // SNS ごとの口調（変える SNS だけ）。前の版の案（なし）も読めるように既定は空。知らない SNS は保存の形で捨てる
+    toneBySns: z.record(z.string(), z.string()).default({}),
     avoid: z.string(),
   }),
   hashtags: z.object({ items: z.array(z.object({ tag: z.string(), why: z.string().default(""), when: z.string().default("") })) }),

@@ -4,7 +4,7 @@ import type { CommitDigest, ReadCommitsResult } from "@/lib/github/commit-reader
 import { readableRepoLink } from "@/lib/github/installations";
 import { copyNoteImagesToPost, markNotesUsed } from "@/lib/notes/store";
 import { MAX_NOTES_FOR_IDEAS } from "@/lib/notes/rules";
-import { ideaPillarAllows, pillarPromptLines, type Pillar } from "@/lib/plan/pillars";
+import { ideaPillarAllows, pillarPromptLines, tonePromptLines, type Pillar } from "@/lib/plan/pillars";
 import { normalizePlan, type PlanData } from "@/lib/plan/schema";
 import { SNS, SNS_KEYS, isManualSns, type SnsKey } from "@/lib/sns";
 import { HASHTAG_RULES, tidyDraftHashtags } from "@/lib/sns/hashtags";
@@ -185,7 +185,8 @@ export function ideaContextText(ctx: IdeaContext): string {
   lines.push("", "# アカウント設計（投稿の柱・口調・やらないこと）");
   // 送り先の SNS に付いた柱だけ（SNS ごとに分けていれば SNS ごとに。src/lib/plan/pillars.ts）
   lines.push(...pillarPromptLines(plan.pillars.items, ctx.sns));
-  lines.push(`口調: ${plan.pillars.tone.trim() || "（未設定）"}`);
+  // 口調も送り先の SNS ごと（SNS ごとの口調がなければ共通）
+  lines.push(...tonePromptLines(plan.pillars, ctx.sns));
   lines.push(`やらないこと: ${plan.pillars.avoid.trim() || "（未設定）"}`);
   lines.push(...hashtagLines(plan));
   const roles = ctx.sns.map((s) => (plan.cadence.roles[s]?.trim() ? `- ${SNS[s].label}: ${plan.cadence.roles[s]!.trim()}` : null)).filter(Boolean);

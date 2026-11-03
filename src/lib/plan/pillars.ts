@@ -4,7 +4,8 @@ import type { PlanData } from "./schema";
 // 投稿の柱を SNS ごとに使い分ける（2026-11-03 オーナーの要望。docs/architecture.md の 4.41）。
 // 柱ごとに「使う SNS」を持ち、空は「すべての SNS」（前の版の設計はそのまま動く）。
 // 割合は SNS ごとに、その SNS に付いた柱の中で数える（例: X は 開発 50%・生き方 50%、Instagram は 映画 60%・音楽 40%）。
-// AI の材料（ネタ・整える・相談・見直し・画像の案）と「設計を見返す」は、送り先の SNS に付いた柱だけを使う
+// AI の材料（ネタ・整える・相談・見直し・画像の案）と「設計を見返す」は、送り先の SNS に付いた柱だけを使う。
+// 口調も SNS ごとに変えられる（toneBySns。ない SNS は共通の口調。docs/architecture.md の 4.43）
 
 export type Pillar = PlanData["pillars"]["items"][number];
 
@@ -73,4 +74,30 @@ export function pillarPromptLines(items: readonly Pillar[], targets: readonly Sn
 export function ideaPillarAllows(items: readonly Pillar[], pillarName: string, sns: SnsKey): boolean {
   const p = namedPillars(items).find((x) => x.name.trim() === pillarName.trim());
   return !p || pillarAppliesTo(p, sns);
+}
+
+// ── 口調（SNS ごとに変えられる。2026-11-03 オーナーの決定） ──
+
+type Tones = Pick<PlanData["pillars"], "tone" | "toneBySns">;
+
+// その SNS の口調。SNS ごとの口調がなければ共通の口調
+export function toneFor(p: Tones, sns: SnsKey): string {
+  return p.toneBySns[sns]?.trim() || p.tone.trim();
+}
+
+// SNS ごとに口調を変えているか（どれか 1 つでも入っているか）
+export function hasToneBySns(p: Pick<Tones, "toneBySns">): boolean {
+  return Object.values(p.toneBySns).some((t) => t?.trim());
+}
+
+// AI に渡す口調の行。targets は送り先の SNS（空ならわからない: 共通と、SNS ごとの口調を全部）。
+// 送り先のどれにも SNS ごとの口調がなければ、前と同じ 1 行（unset は決まっていないときの書き方）
+export function tonePromptLines(p: Tones, targets: readonly SnsKey[], unset = "（未設定）"): string[] {
+  const common = p.tone.trim() || unset;
+  const own = (targets.length ? targets : SNS_KEYS).filter((s) => p.toneBySns[s]?.trim());
+  if (own.length === 0) return [`口調: ${common}`];
+  if (targets.length === 0) {
+    return [`口調（共通）: ${common}`, "SNS ごとの口調（その SNS の文面は、こちらに従う）:", ...own.map((s) => `- ${SNS[s].label}（${s}）: ${p.toneBySns[s]!.trim()}`)];
+  }
+  return ["口調は SNS ごとに決まっています。その SNS の文面は、その SNS の口調で書きます:", ...targets.map((s) => `- ${SNS[s].label}（${s}）: ${p.toneBySns[s]?.trim() || common}`)];
 }

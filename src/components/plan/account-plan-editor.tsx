@@ -21,7 +21,7 @@ import { toYmd } from "@/lib/time";
 import { chosenKpis, kpiKeysFor, KPIS, MAX_KPIS, recommendedKpis, type KpiKey } from "@/lib/metrics/kpis";
 import { SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
 import { PLAN_EXAMPLES, type PlanExamples } from "@/lib/ai/product-guide";
-import { isSplitBySns, pillarsBySns, pillarViewSns, type Pillar } from "@/lib/plan/pillars";
+import { hasToneBySns, isSplitBySns, pillarsBySns, pillarViewSns, type Pillar } from "@/lib/plan/pillars";
 import { ProfileFields, type ProfileContext } from "./profile-fields";
 
 // 見出しはボタンの中に置くので、用語解説（これもボタン）は説明文のほうに付ける
@@ -346,6 +346,45 @@ function SectionFields({ sectionKey, plan, profileCtx }: { sectionKey: SectionKe
   }
 }
 
+// SNS ごとの口調（2026-11-03 オーナーの決定。名前とプロフィールの SNS ごとの上書きと同じ作り）。畳んで置き、もう書いた SNS があれば開いておく。
+// 空欄は共通の口調を使う（欄は tone-<SNS>）
+function ToneBySnsFields({ toneBySns, main }: { toneBySns: PlanData["pillars"]["toneBySns"]; main: SnsKey[] }) {
+  const others = SNS_KEYS.filter((k) => !main.includes(k));
+  const row = (sns: SnsKey) => (
+    <div key={sns} className="grid grid-cols-[96px_1fr] items-start gap-2 max-sm:grid-cols-1 max-sm:gap-1">
+      <label htmlFor={`pillars-tone-${sns}`} className="pt-2.5 text-[13px] font-bold max-sm:pt-0">
+        {SNS[sns].label}
+      </label>
+      <Textarea id={`pillars-tone-${sns}`} name={`tone-${sns}`} defaultValue={toneBySns[sns] ?? ""} maxLength={300} rows={2} placeholder="共通の口調を使います" />
+    </div>
+  );
+  return (
+    <details open={hasToneBySns({ toneBySns })} className="group/tone -mt-2 rounded-md border border-line text-sm">
+      <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-2.5 font-bold">
+        <span aria-hidden className="text-muted transition-transform group-open/tone:rotate-90">
+          ▸
+        </span>
+        口調を SNS ごとに変える（任意）
+      </summary>
+      <div className="flex flex-col gap-2.5 border-t border-line p-3">
+        <p className="text-xs leading-[1.7] text-muted">空欄の SNS は、上の共通の口調で書きます。</p>
+        {main.map(row)}
+        {others.length > 0 && (
+          <details className="group/others rounded-md border border-line">
+            <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-2.5 font-bold">
+              <span aria-hidden className="text-muted transition-transform group-open/others:rotate-90">
+                ▸
+              </span>
+              ほかの SNS（{others.length}）
+            </summary>
+            <div className="flex flex-col gap-2.5 border-t border-line p-3">{others.map(row)}</div>
+          </details>
+        )}
+      </div>
+    </details>
+  );
+}
+
 // 使っている SNS: 役割を書いた SNS・つないだ SNS・週の回数を決めた SNS
 function snsInUse(plan: PlanData, ctx: ProfileContext): SnsKey[] {
   return SNS_KEYS.filter((k) => plan.cadence.roles[k]?.trim() || ctx.accounts.some((a) => a.sns === k) || (plan.first_month.weekly[k] ?? 0) > 0);
@@ -604,6 +643,11 @@ function PillarsFields({ v, ex: examples, inUse }: { v: PlanData["pillars"]; ex:
       >
         <Textarea id="pillars-tone" name="tone" defaultValue={v.tone} maxLength={300} rows={2} placeholder={`例: ${examples.tone}`} />
       </Field>
+      <ToneBySnsFields
+        toneBySns={v.toneBySns}
+        // 欄を出す SNS: 使っている SNS（まだなければ X・Threads・Instagram・Facebook）・柱で選んだ SNS・もう口調を書いた SNS。ほかは「ほかの SNS」に
+        main={SNS_KEYS.filter((k) => base.includes(k) || rows.some((r) => r.sns.includes(k)) || v.toneBySns[k]?.trim())}
+      />
       <Field label="やらないこと" htmlFor="pillars-avoid" hint="決めておくと、迷ったときや炎上しそうなときの歯止めになります">
         <Textarea id="pillars-avoid" name="avoid" defaultValue={v.avoid} maxLength={500} rows={2} placeholder={`例: ${examples.avoid}`} />
       </Field>

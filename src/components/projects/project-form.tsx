@@ -80,9 +80,9 @@ const DESCRIPTION_PLACEHOLDER: Record<ProductType, string> = {
 const AUDIENCE_NOUN: Record<ProductType, string> = {
   app: "使う人",
   web_service: "使う人",
-  shop: "お客さん",
+  shop: "顧客",
   online_shop: "買ってくれる人",
-  service: "お客さん・生徒さん",
+  service: "顧客・生徒さん",
   creator: "見てくれる人・読者",
   other: "関わってほしい人",
 };

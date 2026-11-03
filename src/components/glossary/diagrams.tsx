@@ -21,7 +21,7 @@ const FUNNEL = [
   { stage: "興味を持つ", metric: "いいね・保存（各 SNS の画面）" },
   { stage: "比べる", metric: "短縮リンクのクリック" },
   { stage: "行動する", metric: "成果（予約・購入・ダウンロード）" },
-  { stage: "続ける", metric: "フォロワー・お客さんの投稿" },
+  { stage: "続ける", metric: "フォロワー・顧客の投稿" },
 ];
 
 export function FunnelDiagram() {
@@ -58,7 +58,7 @@ export function FunnelDiagram() {
 // トリプルメディア: 3 つの円が重なる図と、それぞれの例を一言
 const MEDIA = [
   { name: "オウンド", note: "自分で持つ場所", example: "お店のサイト・ニュースレター・SNS のアカウント", circle: "fill-info/15 stroke-info", cx: 120, cy: 95 },
-  { name: "アーンド", note: "人が広めてくれる", example: "お客さんの口コミ・レビュー・紹介の投稿", circle: "fill-success/15 stroke-success", cx: 200, cy: 95 },
+  { name: "アーンド", note: "人が広めてくれる", example: "顧客の口コミ・レビュー・紹介の投稿", circle: "fill-success/15 stroke-success", cx: 200, cy: 95 },
   { name: "ペイド", note: "お金を払って載せる", example: "SNS の広告・情報誌の広告", circle: "fill-signal/15 stroke-signal", cx: 160, cy: 165 },
 ];
 
@@ -128,7 +128,7 @@ const ROUTES = [
 
 export function SeoVsSnsDiagram() {
   return (
-    <Figure title="お客さんとの出会い方の、2 つの道" note="SNS で知ってもらい、くわしいことはサイトに書いて短縮リンクで案内すると、2 つの道がつながります。">
+    <Figure title="顧客との出会い方の、2 つの道" note="SNS で知ってもらい、くわしいことはサイトに書いて短縮リンクで案内すると、2 つの道がつながります。">
       <div className="flex flex-col gap-3">
         {ROUTES.map((r) => (
           <div key={r.title} className="flex flex-col gap-2 rounded-md border border-line bg-surface p-3">

@@ -54,7 +54,7 @@ describe("やることの種類（4.42）", () => {
         { title: "4週間の振り返り", detail: "投稿の回数とストアへのクリックを見る", week_start: "2026-10-19", kpi: null, target: null, sns: null },
         { title: "プロフィールの一文を直す", detail: "", week_start: "2026-10-19", kpi: null, target: null, sns: null },
         { title: "Instagram に 1 本", detail: "", week_start: "2026-10-19", kpi: "posts", target: 1, sns: "instagram" },
-        { title: "お客さんの声を集める", detail: "", week_start: "2026-10-19", kpi: null, target: null, sns: null, kind: "setup" },
+        { title: "顧客の声を集める", detail: "", week_start: "2026-10-19", kpi: null, target: null, sns: null, kind: "setup" },
       ],
       "ai",
     );
@@ -67,7 +67,7 @@ describe("やることの種類（4.42）", () => {
   });
 
   it("決まった種類のほかは DB で断る。自分のやることの種類は書き換えられる（行き先が変わるだけ）", async () => {
-    const { data: row } = await alice.from("roadmap_items").select("id").eq("project_id", projectId).eq("title", "お客さんの声を集める").single();
+    const { data: row } = await alice.from("roadmap_items").select("id").eq("project_id", projectId).eq("title", "顧客の声を集める").single();
     expect((await alice.from("roadmap_items").update({ kind: "publish" }).eq("id", row!.id)).error).not.toBeNull();
     expect((await alice.from("roadmap_items").insert({ project_id: projectId, title: "x", week_start: "2026-10-12", kind: "admin" })).error).not.toBeNull();
     expect((await alice.from("roadmap_items").update({ kind: "other" }).eq("id", row!.id)).error).toBeNull();

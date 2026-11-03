@@ -26,11 +26,11 @@ describe("種類を推す（種類のない前のやること）", () => {
 
   it("投稿の言葉があれば投稿、どれでもなければ other", () => {
     expect(inferTodoKind({ title: "新メニューの写真を載せる" })).toBe("post");
-    expect(inferTodoKind({ title: "お客さんの声を集める" })).toBe("other");
+    expect(inferTodoKind({ title: "顧客の声を集める" })).toBe("other");
   });
 
   it("保存した種類があればそれを使う。決まった値のほかは推す", () => {
-    expect(todoKindOf({ title: "お客さんの声を集める", kind: "setup" })).toBe("setup");
+    expect(todoKindOf({ title: "顧客の声を集める", kind: "setup" })).toBe("setup");
     expect(todoKindOf({ title: "先週の数字を見る", kind: "publish" })).toBe("review");
     expect(todoKindOf({ title: "先週の数字を見る", kind: null })).toBe("review");
   });
@@ -52,10 +52,10 @@ describe("押したときの行き先", () => {
     expect(todoAction(base, item("ストアのページを直す", "setup"), { aiEnabled: true }).href).toBe("/projects/p1/stores");
     expect(todoAction(base, item("短縮リンクを作る", "setup"), { aiEnabled: true }).href).toBe("/projects/p1/links");
     expect(todoAction(base, item("SNS をつなぐ", "setup"), { aiEnabled: true }).href).toBe("/projects/p1/edit#sns");
-    expect(todoAction(base, item("お客さんの声を集める", "setup"), { aiEnabled: true })).toEqual({ kind: "other", href: "/projects/p1/roadmap#item-i1", label: "ロードマップで見る" });
+    expect(todoAction(base, item("顧客の声を集める", "setup"), { aiEnabled: true })).toEqual({ kind: "other", href: "/projects/p1/roadmap#item-i1", label: "ロードマップで見る" });
   });
 
   it("ほかはロードマップのその行（済みにする・やらないができる所）", () => {
-    expect(todoAction(base, item("お客さんの声を集める", "other"), { aiEnabled: true }).href).toBe("/projects/p1/roadmap#item-i1");
+    expect(todoAction(base, item("顧客の声を集める", "other"), { aiEnabled: true }).href).toBe("/projects/p1/roadmap#item-i1");
   });
 });

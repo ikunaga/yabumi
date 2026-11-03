@@ -28,7 +28,7 @@ describe("その他（伝えたいことを書く）", () => {
       expect(ex.length).toBeGreaterThanOrEqual(3);
       expect(ex.length).toBeLessThanOrEqual(4);
     }
-    expect(PRODUCT_GUIDES.shop.topicExamples).toEqual(["新しいメニュー", "お休みのお知らせ", "季節の話題", "お客さんの声"]);
+    expect(PRODUCT_GUIDES.shop.topicExamples).toEqual(["新しいメニュー", "お休みのお知らせ", "季節の話題", "顧客の声"]);
     expect(PRODUCT_GUIDES.app.topicExamples.slice(0, 3)).toEqual(["新しい機能", "よくある質問", "作った理由"]);
   });
 

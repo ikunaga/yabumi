@@ -25,8 +25,8 @@ describe("種類ごとの手がかり", () => {
   });
 
   it("お店・教室・ネットショップ・作品の柱の例は、その仕事のもの（アプリは今のまま）", () => {
-    expect(PRODUCT_GUIDES.shop.pillars).toEqual(expect.arrayContaining(["仕込み・準備のようす", "季節のおすすめ・新しいもの", "お客さんの声", "店の裏側・人"]));
-    expect(PRODUCT_GUIDES.service.pillars).toEqual(expect.arrayContaining(["お客さん・生徒の変化", "よくある質問への答え", "先生・担当者の考え"]));
+    expect(PRODUCT_GUIDES.shop.pillars).toEqual(expect.arrayContaining(["仕込み・準備のようす", "季節のおすすめ・新しいもの", "顧客の声", "店の裏側・人"]));
+    expect(PRODUCT_GUIDES.service.pillars).toEqual(expect.arrayContaining(["顧客・生徒の変化", "よくある質問への答え", "先生・担当者の考え"]));
     expect(PRODUCT_GUIDES.online_shop.pillars).toEqual(expect.arrayContaining(["作る過程・材料", "使い方・合わせ方", "届いた人の声"]));
     expect(PRODUCT_GUIDES.creator.pillars).toEqual(expect.arrayContaining(["制作の過程", "作品に込めた考え", "見てくれた人の反応"]));
     expect(PRODUCT_GUIDES.app.pillars).toEqual(expect.arrayContaining(["詰まった・直したこと", "なぜそう作ったか", "アプリの小さな更新"]));
@@ -115,7 +115,7 @@ describe("アカウント設計・相談・見直しの「いまの状況」", (
     for (const k of ["store_page_views", "downloads", "revenue"]) expect(shopReview).not.toContain(`（${k}）`);
     const appReview = consultContextMessage({ ...ctx, project: { ...ctx.project, productType: "app" }, review });
     for (const k of ["store_page_views", "downloads", "revenue"]) expect(appReview).toContain(`（${k}）: まだ数えていない`);
-    expect(checkContextText({ projectName: "ヨガ教室", plan, productType: "service" })).toContain("お客さん・生徒の変化");
+    expect(checkContextText({ projectName: "ヨガ教室", plan, productType: "service" })).toContain("顧客・生徒の変化");
   });
 });
 

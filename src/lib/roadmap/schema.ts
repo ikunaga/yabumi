@@ -184,7 +184,7 @@ export function notCountedYet(kpi: KpiKey, productType?: string | null): string 
 const KGI_EXAMPLES: Record<ProductType, string> = {
   app: "3 か月で 100 ダウンロード",
   web_service: "3 か月で登録 50 人",
-  shop: "3 か月で SNS を見て来たお客さん 30 人",
+  shop: "3 か月で SNS を見て来た顧客 30 人",
   online_shop: "3 か月で 20 件売れる",
   service: "3 か月で体験の申し込み 15 件",
   creator: "3 か月でフォロワー 300 人",

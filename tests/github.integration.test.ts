@@ -2,12 +2,11 @@
 // GitHub と AI はモックし、本物は呼ばない
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { draftAppDescription, refineAppDescription, type CallDescriber, type RepoAccess } from "@/lib/ai/app-description";
-import type { AiLimits } from "@/lib/ai/limits";
+import { spendAi, unspendAi, scopeAiBudget } from "./helpers/ai-budget";
 import { canReadRepo, readableRepoLink, syncInstallations, userCanReadRepo, verifyInstallations, type VerifiedInstallation } from "@/lib/github/installations";
 import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
 
 const admin = adminClient();
-const roomy: AiLimits = { userMonthlyUsd: 1000, globalMonthlyUsd: 100000, userDailyTurns: 1000 };
 const APP_ID = "999";
 // テストごとにずらした、本物と重ならないインストール ID
 const base = 9_000_000_000 + Math.floor(Math.random() * 1_000_000) * 10;
@@ -36,7 +35,10 @@ const repo: RepoAccess = {
   listFiles: vi.fn(async () => tree),
   readFiles: vi.fn(async (_link, paths: string[]) => ({ files: paths.map((p) => ({ path: p, content: `中身 ${p}`, truncated: false })), skipped: [] })),
 };
-const deps = (over: Partial<Parameters<typeof draftAppDescription>[2]> = {}) => ({ callPicker: picker(), callDescriber: describer(), repo, limits: roomy, ...over });
+const deps = (over: Partial<Parameters<typeof draftAppDescription>[2]> = {}) => ({ callPicker: picker(), callDescriber: describer(), repo, ...over });
+
+// 文章の AI の上限は、全体の合計を本人の分だけで数え、普段の枠で試す（helpers/ai-budget.ts）
+scopeAiBudget();
 
 beforeAll(async () => {
   ({ client: alice, userId: aliceId } = await signUpNewUser());
@@ -205,7 +207,7 @@ describe("リポジトリのつなぎ", () => {
   it("質問への答えで書き直す（リポジトリは読み直さない）", async () => {
     vi.mocked(repo.listFiles).mockClear();
     const d = describer({ ...draft, audience: "会社員", questions: [] });
-    const r = await refineAppDescription(alice, admin, { callDescriber: d, limits: roomy }, { userId: aliceId, projectId, draft: draft as never, answers: [{ question: "誰に使ってほしいですか？", answer: "会社員" }] });
+    const r = await refineAppDescription(alice, admin, { callDescriber: d }, { userId: aliceId, projectId, draft: draft as never, answers: [{ question: "誰に使ってほしいですか？", answer: "会社員" }] });
     expect(r).toMatchObject({ ok: true, draft: { audience: "会社員", questions: [] } });
     expect(repo.listFiles).not.toHaveBeenCalled();
     expect(JSON.stringify(vi.mocked(d).mock.calls[0][0].messages)).toContain("会社員");
@@ -213,7 +215,9 @@ describe("リポジトリのつなぎ", () => {
 
   it("上限に達していたら、リポジトリも読まない", async () => {
     vi.mocked(repo.listFiles).mockClear();
-    const r = await draftAppDescription(alice, admin, deps({ limits: { ...roomy, userMonthlyUsd: 0.000001 } }), { userId: aliceId, projectId });
+    const filled = await spendAi(admin, aliceId, 3);
+    const r = await draftAppDescription(alice, admin, deps(), { userId: aliceId, projectId });
+    await unspendAi(admin, filled);
     expect(r.ok).toBe(false);
     expect(repo.listFiles).not.toHaveBeenCalled();
   });

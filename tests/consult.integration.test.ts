@@ -3,14 +3,13 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { consultStep, type ConsultInput } from "@/lib/ai/consult";
 import { normalizeConsultTurn, roadmapStepOf, roadmapStepState } from "@/lib/ai/consult-schema";
-import type { AiLimits } from "@/lib/ai/limits";
+import { scopeAiBudget } from "./helpers/ai-budget";
 import type { CallModel, ModelResult } from "@/lib/ai/plan-coach";
 import { weekStartOf } from "@/lib/roadmap/schema";
 import { addDays, toYmd } from "@/lib/time";
 import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
 
 const admin = adminClient();
-const roomy: AiLimits = { userMonthlyUsd: 1000, globalMonthlyUsd: 100000, userDailyTurns: 1000 };
 const usage = { inputTokens: 1000, cacheWriteTokens: 2000, cacheReadTokens: 3000, outputTokens: 500 };
 
 let alice: TestClient;
@@ -42,7 +41,10 @@ const lastAssistantId = async (threadId: string) =>
 const loadKpiValues = async () => ({ posts: { thisWeek: 2, lastWeek: 1 } });
 
 const step = (client: TestClient, userId: string, callModel: CallModel, threadId: string | null, input: ConsultInput) =>
-  consultStep(client, admin, { callModel, limits: roomy, loadKpiValues }, { userId, projectId, threadId, input });
+  consultStep(client, admin, { callModel, loadKpiValues }, { userId, projectId, threadId, input });
+
+// 文章の AI の上限は、全体の合計を本人の分だけで数え、普段の枠で試す（helpers/ai-budget.ts）
+scopeAiBudget();
 
 beforeAll(async () => {
   ({ client: alice, userId: aliceId } = await signUpNewUser());
@@ -143,7 +145,7 @@ describe("AI と相談: ロードマップづくり（1 回 1 項目、順番に
   });
 
   it("ほかの人は、その会話で採用も発言もできない", async () => {
-    const r = await consultStep(bob, admin, { callModel: reply(kgiTurn), limits: roomy, loadKpiValues }, { userId: bobId, projectId, threadId, input: { kind: "text", text: "x" } });
+    const r = await consultStep(bob, admin, { callModel: reply(kgiTurn), loadKpiValues }, { userId: bobId, projectId, threadId, input: { kind: "text", text: "x" } });
     expect(r.ok).toBe(false);
   });
 
@@ -214,7 +216,7 @@ describe("AI と振り返る（4.22 の段取り ⑦）", () => {
   it("振り返りの会話だけ、すべての数字・SNS ごとのクリック・よく見られた投稿を「いまの状況」に足す（相談と同じ purpose）", async () => {
     const loadReview = vi.fn(async () => review);
     const callModel = reply({ message: "閲覧数が増えました。", choices: [], proposal: null });
-    const r = await consultStep(alice, admin, { callModel, limits: roomy, loadKpiValues, loadReview }, { userId: aliceId, projectId, threadId: null, input: { kind: "start", topic: "review" } });
+    const r = await consultStep(alice, admin, { callModel, loadKpiValues, loadReview }, { userId: aliceId, projectId, threadId: null, input: { kind: "start", topic: "review" } });
     expect(r.ok).toBe(true);
     const { data: t } = await admin.from("ai_threads").select("purpose").eq("id", r.ok ? r.threadId : "").single();
     expect(t?.purpose).toBe("consult");
@@ -229,14 +231,14 @@ describe("AI と振り返る（4.22 の段取り ⑦）", () => {
 
     // 続けて話しても、振り返りの会話のあいだは材料を付ける
     const again = reply({ message: "はい。", choices: [], proposal: null });
-    await consultStep(alice, admin, { callModel: again, limits: roomy, loadKpiValues, loadReview }, { userId: aliceId, projectId, threadId: r.ok ? r.threadId : null, input: { kind: "text", text: "次は？" } });
+    await consultStep(alice, admin, { callModel: again, loadKpiValues, loadReview }, { userId: aliceId, projectId, threadId: r.ok ? r.threadId : null, input: { kind: "text", text: "次は？" } });
     expect(loadReview).toHaveBeenCalledTimes(2);
   });
 
   it("ふだんの相談では材料を読まない（費用を抑える）", async () => {
     const loadReview = vi.fn(async () => review);
     const callModel = reply({ message: "はい。", choices: [], proposal: null });
-    await consultStep(alice, admin, { callModel, limits: roomy, loadKpiValues, loadReview }, { userId: aliceId, projectId, threadId: null, input: { kind: "start", topic: "what_to_post" } });
+    await consultStep(alice, admin, { callModel, loadKpiValues, loadReview }, { userId: aliceId, projectId, threadId: null, input: { kind: "start", topic: "what_to_post" } });
     expect(loadReview).not.toHaveBeenCalled();
     expect(JSON.stringify(vi.mocked(callModel).mock.calls[0][0].messages)).not.toContain("振り返りの材料");
   });
@@ -246,7 +248,7 @@ describe("AI と相談: 下書きの文字数", () => {
   it("SNS の上限を超えた下書きの案は、1 回だけ縮めさせて保存し、その分の利用量も数える", async () => {
     const callModel = reply(proposalTurn("post_draft", [opt("長い", { sns: "x", text: "あ".repeat(150) }), opt("短い", { sns: "x", text: "短い" })]));
     const callShorten = vi.fn(async () => ({ output: { drafts: [{ id: "0", text: "あ".repeat(100) }] }, stopReason: "end_turn", model: "claude-opus-5-5", usage: { ...usage, outputTokens: 321 } }));
-    const r = await consultStep(alice, admin, { callModel, callShorten, limits: roomy, loadKpiValues }, { userId: aliceId, projectId, threadId: null, input: { kind: "start", topic: "what_to_post" } });
+    const r = await consultStep(alice, admin, { callModel, callShorten, loadKpiValues }, { userId: aliceId, projectId, threadId: null, input: { kind: "start", topic: "what_to_post" } });
     expect(r.ok).toBe(true);
     const threadId = r.ok ? r.threadId : "";
     expect(callShorten).toHaveBeenCalledTimes(1);

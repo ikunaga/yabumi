@@ -10,9 +10,8 @@ import { SNS, SNS_KEYS, isManualSns, type SnsKey } from "@/lib/sns";
 import { HASHTAG_RULES, tidyDraftHashtags } from "@/lib/sns/hashtags";
 import type { Database } from "@/lib/supabase/database.types";
 import type { ModelOutput, RepoLink } from "./app-description";
-import { checkAiLimits, type AiLimits } from "./limits";
+import { budgeted, linkAiUsage, reserveAi, withAiBudget } from "./budget";
 import type { BetaMessageParam, BetaTextBlockParam } from "./plan-coach";
-import { estimateCostUsd } from "./pricing";
 import { actionFromLegacyGoal, type ProductType } from "@/lib/projects/product-types";
 import { guideFor, productLines, productTypeOf, usesDevTalk } from "./product-guide";
 import { LENGTH_RULES, shortenOverDrafts, type CallShorten } from "./shorten";
@@ -362,20 +361,6 @@ export type IdeasOutcome = { ok: true; threadId: string } | { ok: false; message
 
 const AI_ERROR = "AI とのやりとりがうまくいきませんでした。時間をおいてもう一度お試しください。";
 
-async function recordUsage(admin: Db, userId: string, threadId: string | null, r: ModelOutput) {
-  await admin.from("ai_usage").insert({
-    owner_id: userId,
-    thread_id: threadId,
-    purpose: "post_ideas",
-    model: r.model,
-    input_tokens: r.usage.inputTokens,
-    cache_write_tokens: r.usage.cacheWriteTokens,
-    cache_read_tokens: r.usage.cacheReadTokens,
-    output_tokens: r.usage.outputTokens,
-    cost_usd: estimateCostUsd(r.model, r.usage),
-  });
-}
-
 export async function loadContext(user: Db, projectId: string, sns: SnsKey[]): Promise<IdeaContext | null> {
   // 種類（product_type）も使うので、すべての列を読む
   const { data: project } = await user.from("projects").select("*").eq("id", projectId).maybeSingle();
@@ -427,7 +412,7 @@ export function hasPlanMaterial(ctx: IdeaContext): boolean {
 export async function generatePostIdeas(
   user: Db,
   admin: Db,
-  deps: { callIdeas: CallIdeas; readCommits: ReadCommits; limits: AiLimits; callShorten?: CallShorten; now?: () => Date },
+  deps: { callIdeas: CallIdeas; readCommits: ReadCommits; callShorten?: CallShorten; now?: () => Date },
   args: { userId: string; projectId: string; sns: string[]; input: IdeasInput },
 ): Promise<IdeasOutcome> {
   const now = deps.now?.() ?? new Date();
@@ -461,9 +446,10 @@ export async function generatePostIdeas(
     return { ok: false, message: "アカウント設計か、プロジェクトの説明を先に書いてください。何もないところからだと、事実でないネタになりやすいためです。" };
   }
 
-  const limit = await checkAiLimits(admin, args.userId, deps.limits, now);
-  if (!limit.ok) return { ok: false, message: limit.message };
-
+  // 呼ぶ前に上限の分を予約する（上限に届いていたらコミットも読まない）。返事のあとで実際の額に直す（返事が使えなくても数える。
+  // 会話はあとで作るので、作ったら結びつける）。AI を呼ばずに終わるときは予約を消す（budget.ts）
+  const reservation = await reserveAi(admin, { userId: args.userId, purpose: "post_ideas", now });
+  if (!reservation.ok) return { ok: false, message: reservation.message };
   let req: IdeasRequest;
   let request: IdeasRequestContent;
   let knownShas: string[] = [];
@@ -472,10 +458,12 @@ export async function generatePostIdeas(
     try {
       read = await deps.readCommits(link!, new Date(now.getTime() - input.days * 86_400_000));
     } catch (e) {
+      await reservation.cancel();
       console.error("[post-ideas] コミットを読めませんでした", e instanceof Error ? e.message : e);
       return { ok: false, message: "コミットを読めませんでした。GitHub の設定で、このリポジトリを yabumi に読ませているか確かめてください。" };
     }
     if (read.commits.length === 0) {
+      await reservation.cancel();
       return { ok: false, message: `直近 ${input.days} 日のコミットが見つかりませんでした。期間を長くするか、「最近のできごとから」を試してください。` };
     }
     req = buildIdeasRequest(ctx, link!.fullName, input.days, read);
@@ -499,23 +487,25 @@ export async function generatePostIdeas(
   try {
     result = await deps.callIdeas(req);
   } catch (e) {
+    await reservation.cancel();
     console.error("[post-ideas] AI の呼び出しに失敗しました", e instanceof Error ? e.message : e);
     return { ok: false, message: aiFailureMessage(e, AI_ERROR) };
   }
+  await reservation.settle(result);
   const first = result.stopReason === "end_turn" ? normalizeIdeas(result.output, { knownShas, sns, noteCount: notes.length, hashtags: planTags(ctx.plan), pillars: ctx.plan.pillars.items }) : null;
-  const shortened = first ? await shortenIdeas(deps.callShorten, first, planTags(ctx.plan)) : null;
+  const shortenIds: string[] = [];
+  const shorten = deps.callShorten && budgeted(admin, { userId: args.userId, purpose: "post_ideas" }, deps.callShorten, shortenIds);
+  const shortened = first ? await shortenIdeas(shorten, first, planTags(ctx.plan)) : null;
   const normalized = shortened?.value ?? null;
   if (!normalized) {
-    // 使った分は、返事が使えなくても数える
-    await recordUsage(admin, args.userId, null, result);
     if (result.stopReason === "refusal") return { ok: false, message: "AI がこの内容には答えられませんでした。材料や期間を変えてお試しください。" };
     return { ok: false, message: "ネタをうまく出せませんでした。もう一度お試しください。" };
   }
 
   const { data: thread, error } = await admin.from("ai_threads").insert({ owner_id: args.userId, project_id: args.projectId, purpose: "post_ideas" }).select("id").single();
   if (error) throw error;
-  await recordUsage(admin, args.userId, thread.id, result);
-  if (shortened?.result) await recordUsage(admin, args.userId, thread.id, shortened.result);
+  await reservation.settle(result, { threadId: thread.id });
+  await linkAiUsage(admin, shortenIds, thread.id);
   const ideas: IdeasContent = { kind: "ideas", ...normalized, adopted: {} };
   const { error: e1 } = await admin.from("ai_messages").insert({ thread_id: thread.id, owner_id: args.userId, role: "user", content: request as never });
   if (e1) throw e1;
@@ -569,7 +559,7 @@ async function loadIdeasThread(db: Db, threadId: string): Promise<IdeasThread | 
 export async function refinePostIdeas(
   user: Db,
   admin: Db,
-  deps: { callIdeas: CallIdeas; limits: AiLimits; callShorten?: CallShorten; now?: () => Date },
+  deps: { callIdeas: CallIdeas; callShorten?: CallShorten; now?: () => Date },
   args: { userId: string; projectId: string; threadId: string; answers: IdeaAnswer[] },
 ): Promise<IdeasOutcome> {
   const answers = args.answers
@@ -585,21 +575,21 @@ export async function refinePostIdeas(
   const ctx = await loadContext(user, args.projectId, thread.request.sns);
   if (!ctx) return { ok: false, message: "プロジェクトが見つかりません。" };
 
-  const limit = await checkAiLimits(admin, args.userId, deps.limits, deps.now?.() ?? new Date());
-  if (!limit.ok) return { ok: false, message: limit.message };
-
+  const budget = { userId: args.userId, purpose: "post_ideas", threadId: args.threadId, now: deps.now?.() };
   let result: ModelOutput;
   try {
-    result = await deps.callIdeas(buildRefineIdeasRequest(ctx, thread.latest.content, answers, thread.request.news, thread.request.notes, thread.request.topic));
+    const b = await withAiBudget(admin, budget, () =>
+      deps.callIdeas(buildRefineIdeasRequest(ctx, thread.latest.content, answers, thread.request.news, thread.request.notes, thread.request.topic)),
+    );
+    if (!b.ok) return { ok: false, message: b.message };
+    result = b.result;
   } catch (e) {
     console.error("[post-ideas] 出し直しに失敗しました", e instanceof Error ? e.message : e);
     return { ok: false, message: aiFailureMessage(e, AI_ERROR) };
   }
-  await recordUsage(admin, args.userId, args.threadId, result);
   const knownShas = [...new Set(thread.latest.content.ideas.flatMap((i) => i.commits.map((c) => c.sha)))];
   const first = result.stopReason === "end_turn" ? normalizeIdeas(result.output, { knownShas, sns: thread.request.sns, noteCount: thread.request.notes?.length ?? 0, hashtags: planTags(ctx.plan), pillars: ctx.plan.pillars.items }) : null;
-  const shortened = first ? await shortenIdeas(deps.callShorten, first, planTags(ctx.plan)) : null;
-  if (shortened?.result) await recordUsage(admin, args.userId, args.threadId, shortened.result);
+  const shortened = first ? await shortenIdeas(deps.callShorten && budgeted(admin, budget, deps.callShorten), first, planTags(ctx.plan)) : null;
   const normalized = shortened?.value ?? null;
   if (!normalized) return { ok: false, message: "うまく出し直せませんでした。もう一度お試しください。" };
 

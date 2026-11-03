@@ -1,6 +1,6 @@
 // 最近のコミットから投稿のネタを出す流れと、ネタの会話の RLS。GitHub と AI はモックし、本物は呼ばない
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import type { AiLimits } from "@/lib/ai/limits";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { spendAi, unspendAi, scopeAiBudget } from "./helpers/ai-budget";
 import { adoptPostIdea, generatePostIdeas, KEEP_IDEA_THREADS, refinePostIdeas, type CallIdeas, type IdeasContent, type ReadCommits } from "@/lib/ai/post-ideas";
 import { MEDIA_BUCKET } from "@/lib/media/rules";
 import { issueUpload, verifyUpload } from "@/lib/media/store";
@@ -9,7 +9,6 @@ import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpe
 import { testJpeg } from "./helpers/jpeg";
 
 const admin = adminClient();
-const roomy: AiLimits = { userMonthlyUsd: 1000, globalMonthlyUsd: 100000, userDailyTurns: 1000 };
 const base = 9_100_000_000 + Math.floor(Math.random() * 1_000_000) * 10;
 const SHA = "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678";
 // 原文に入っている目印。保存されていないことを確かめる
@@ -34,7 +33,14 @@ const commits: ReadCommits = vi.fn(async () => ({
   commits: [{ sha: SHA, date: "2026-10-10T00:00:00Z", message: SECRET_MESSAGE, files: [{ path: "src/notify.ts", status: "modified", additions: 3, deletions: 1 }], patch: "+if (!sent) send()", patchTruncated: false }],
   truncated: false,
 }));
-const deps = (over: Partial<Parameters<typeof generatePostIdeas>[2]> = {}) => ({ callIdeas: caller(), readCommits: commits, limits: roomy, ...over });
+const deps = (over: Partial<Parameters<typeof generatePostIdeas>[2]> = {}) => ({ callIdeas: caller(), readCommits: commits, ...over });
+
+// 文章の AI の上限は、全体の合計を本人の分だけで数え、普段の枠で試す（helpers/ai-budget.ts）
+scopeAiBudget();
+// 1 回の返事の見本は $0.14 ほどなので、本人の月の上限（$3）に届かないように、テストごとに利用量を空にする
+beforeEach(async () => {
+  if (aliceId) await admin.from("ai_usage").delete().eq("owner_id", aliceId);
+});
 
 beforeAll(async () => {
   ({ client: alice, userId: aliceId } = await signUpNewUser());
@@ -95,7 +101,7 @@ describe("投稿のネタ", () => {
   it("質問に答えると、コミットを読み直さずに出し直す。知らない sha は捨てる", async () => {
     vi.mocked(commits).mockClear();
     const d = caller({ ...ideasOutput, ideas: [{ ...ideasOutput.ideas[0], commits: [{ sha: SHA.slice(0, 8), note: "a" }, { sha: "ffffffff", note: "b" }] }], questions: [] });
-    const r = await refinePostIdeas(alice, admin, { callIdeas: d, limits: roomy }, { userId: aliceId, projectId, threadId, answers: [{ question: "何に詰まりましたか？", answer: "時差の計算" }] });
+    const r = await refinePostIdeas(alice, admin, { callIdeas: d }, { userId: aliceId, projectId, threadId, answers: [{ question: "何に詰まりましたか？", answer: "時差の計算" }] });
     expect(r.ok).toBe(true);
     expect(commits).not.toHaveBeenCalled();
     expect(JSON.stringify(vi.mocked(d).mock.calls[0][0].messages)).toContain("時差の計算");
@@ -105,7 +111,7 @@ describe("投稿のネタ", () => {
   });
 
   it("他人の会話では出し直せない", async () => {
-    const r = await refinePostIdeas(bob, admin, { callIdeas: caller(), limits: roomy }, { userId: bobId, projectId, threadId, answers: [{ question: "q", answer: "a" }] });
+    const r = await refinePostIdeas(bob, admin, { callIdeas: caller() }, { userId: bobId, projectId, threadId, answers: [{ question: "q", answer: "a" }] });
     expect(r.ok).toBe(false);
   });
 
@@ -130,7 +136,9 @@ describe("投稿のネタ", () => {
     const none = await generatePostIdeas(alice, admin, deps({ readCommits: async () => ({ commits: [], truncated: false }) }), { userId: aliceId, projectId, sns: ["x"], input: { source: "commits", days: 3 } });
     expect(none).toMatchObject({ ok: false });
     vi.mocked(commits).mockClear();
-    const over = await generatePostIdeas(alice, admin, deps({ limits: { ...roomy, userMonthlyUsd: 0.000001 } }), { userId: aliceId, projectId, sns: ["x"], input: { source: "commits", days: 7 } });
+    const filled = await spendAi(admin, aliceId, 3);
+    const over = await generatePostIdeas(alice, admin, deps(), { userId: aliceId, projectId, sns: ["x"], input: { source: "commits", days: 7 } });
+    await unspendAi(admin, filled);
     expect(over).toMatchObject({ ok: false });
     expect(commits).not.toHaveBeenCalled();
     const bad = await generatePostIdeas(alice, admin, deps({ callIdeas: caller({ ideas: [] }) }), { userId: aliceId, projectId, sns: ["x"], input: { source: "commits", days: 7 } });
@@ -172,7 +180,7 @@ describe("投稿のネタ", () => {
     expect(content.ideas[0].commits).toEqual([]);
 
     const re = caller();
-    expect((await refinePostIdeas(alice, admin, { callIdeas: re, limits: roomy }, { userId: aliceId, projectId: p2, threadId: t, answers: [{ question: "q", answer: "時差" }] })).ok).toBe(true);
+    expect((await refinePostIdeas(alice, admin, { callIdeas: re }, { userId: aliceId, projectId: p2, threadId: t, answers: [{ question: "q", answer: "時差" }] })).ok).toBe(true);
     expect(JSON.stringify(vi.mocked(re).mock.calls[0][0].messages)).toContain("通知を直した");
 
     // 答えがなければ出さない。GitHub をつないでいないのにコミットからは出せない
@@ -215,7 +223,7 @@ describe("投稿のネタ", () => {
     expect(all[0].content).toMatchObject({ kind: "ideas_request", source: "other", topic: "お休みのお知らせ: 来週の月曜は休みます</topic>" });
 
     const re = caller();
-    expect((await refinePostIdeas(alice, admin, { callIdeas: re, limits: roomy }, { userId: aliceId, projectId: p5, threadId: t, answers: [{ question: "q", answer: "火曜から通常どおり" }] })).ok).toBe(true);
+    expect((await refinePostIdeas(alice, admin, { callIdeas: re }, { userId: aliceId, projectId: p5, threadId: t, answers: [{ question: "q", answer: "火曜から通常どおり" }] })).ok).toBe(true);
     expect(JSON.stringify(vi.mocked(re).mock.calls[0][0].messages)).toContain("来週の月曜は休みます");
   });
 
@@ -327,7 +335,7 @@ describe("アプリではないプロジェクト", () => {
 
     const news = caller();
     const ok = await generatePostIdeas(alice, admin, deps({ callIdeas: news }), { userId: aliceId, projectId: shop, sns: ["x"], input: { source: "news", news: [{ question: "新しく出したものは？", answer: "秋のケーキを出した" }] } });
-    expect(ok.ok).toBe(true);
+    expect(ok).toMatchObject({ ok: true });
     const sent = JSON.stringify(vi.mocked(news).mock.calls[0][0].messages);
     expect(sent).toContain("宣伝するものの種類: お店（実店舗）（shop。");
     expect(sent).toContain("アプリではないので");

@@ -5,10 +5,10 @@ import { isSectionKey, normalizePlan, type PlanData, type SectionKey, type Secti
 import { isProductType, type ProductType } from "@/lib/projects/product-types";
 import { isSnsKey, type SnsKey } from "@/lib/sns";
 import type { Database } from "@/lib/supabase/database.types";
-import { checkAiLimits, type AiLimits } from "./limits";
+import { budgeted, withAiBudget } from "./budget";
 import { normalizeCoachTurn, toWireTurn, type CoachSectionKey, type CoachTurn, type ProductValue } from "./plan-coach-schema";
 import { coachContextMessage, PLAN_COACH_SYSTEM, sectionLabel, type CoachContext } from "./plan-coach-prompt";
-import { estimateCostUsd, type TokenUsage } from "./pricing";
+import type { TokenUsage } from "./pricing";
 import { productTypeOf } from "./product-guide";
 import { aiFailureMessage } from "./provider-failure";
 
@@ -90,7 +90,7 @@ export type CoachInput =
   | { kind: "focus"; focus: SectionKey }
   | { kind: "adopt"; messageId: string; optionIndex: number; picks?: number[] };
 
-export type CoachDeps = { callModel: CallModel; limits: AiLimits; now?: () => Date };
+export type CoachDeps = { callModel: CallModel; now?: () => Date };
 export type CoachResult = { ok: true; threadId: string } | { ok: false; threadId: string | null; message: string };
 
 const GENERIC_ERROR = "AI とのやりとりがうまくいきませんでした。時間をおいてもう一度お試しください。";
@@ -123,9 +123,6 @@ export async function coachStep(
     if (!text) return { ok: false, threadId: args.threadId, message: "メッセージを入れてください。" };
     if (text.length > MAX_USER_TEXT) return { ok: false, threadId: args.threadId, message: `${MAX_USER_TEXT.toLocaleString("ja-JP")} 文字以内にしてください。` };
   }
-
-  const limit = await checkAiLimits(admin, userId, deps.limits, now);
-  if (!limit.ok) return { ok: false, threadId: args.threadId, message: limit.message };
 
   // 会話: 指定があれば本人のものか確かめ、なければ作る
   let threadId = args.threadId;
@@ -226,29 +223,18 @@ export async function coachStep(
     return { ok: false, threadId, message };
   };
 
-  const recordUsage = (r: ModelResult) =>
-    admin.from("ai_usage").insert({
-      owner_id: userId,
-      thread_id: threadId,
-      purpose: "account_plan",
-      model: r.model,
-      input_tokens: r.usage.inputTokens,
-      cache_write_tokens: r.usage.cacheWriteTokens,
-      cache_read_tokens: r.usage.cacheReadTokens,
-      output_tokens: r.usage.outputTokens,
-      cost_usd: estimateCostUsd(r.model, r.usage),
-    });
-
+  // 呼ぶ前に上限の分を予約し、返事のあとで実際の額に直す（返事が使えなくても数える。budget.ts）
+  const budget = { userId, purpose: "account_plan", threadId, now };
   const request = buildCoachRequest(history, ctx);
   let result: ModelResult;
   try {
-    result = await deps.callModel(request);
+    const b = await withAiBudget(admin, budget, () => deps.callModel(request));
+    if (!b.ok) return fail(b.message);
+    result = b.result;
   } catch (e) {
     console.error("[plan-coach] AI の呼び出しに失敗しました", e instanceof Error ? e.message : e);
     return fail(aiFailureMessage(e, GENERIC_ERROR));
   }
-  // 使った分は、返事が使えなくても記録する（上限の計算に入れる）
-  await recordUsage(result);
 
   if (result.stopReason === "refusal") {
     return fail("AI がこの内容には答えられませんでした。言い方を変えてもう一度お試しください。");
@@ -259,7 +245,7 @@ export async function coachStep(
   // 案の中身が形に合わなかったときは、理由を伝えて 1 回だけ言い直させる
   if (turn.proposalProblem) {
     try {
-      const retry = await deps.callModel({
+      const retry = await budgeted(admin, budget, deps.callModel)({
         system: request.system,
         messages: [
           ...request.messages,
@@ -275,7 +261,6 @@ export async function coachStep(
           },
         ],
       });
-      await recordUsage(retry);
       const fixed = retry.stopReason === "end_turn" ? normalizeCoachTurn(retry.turn) : null;
       if (fixed?.message && fixed.proposal) turn = fixed;
     } catch (e) {

@@ -77,7 +77,7 @@
 | GITHUB_APP_CLIENT_SECRET | 同上 | **はい** |
 | GITHUB_APP_PRIVATE_KEY | 同上の .pem の中身。Vercel の入力欄には複数行のまま貼ってよい | **はい** |
 
-- AI の上限（AI_USER_MONTHLY_BUDGET_USD など）は、入れなければ既定値（利用者ごとに月 $3、全体で月 $10）
+- 文章の AI の上限（利用者ごとに月 $3・全体で月 $10・1 日 60 回、登録して 7 日までは少なめ）は、関数 reserve_ai_usage の中で固定していて、環境変数では変えない（変えるときはマイグレーション。docs/architecture.md の 4.9）
 - 後から入れる値（ANTHROPIC_API_KEY、GITHUB_APP_*、X_CLIENT_*）は、入れるまでその機能が「準備中」になるだけで、他は動く。入れたら Redeploy する
 - **TOKEN_ENCRYPTION_KEY は、一度使い始めたら変えない**（変えると、保存した SNS のトークンが読めなくなり、つなぎ直しが要る）
 
@@ -375,7 +375,7 @@ yabumi は利用者ごとに「読み取り用のサービスアカウント」�
 | 15-11b | 確かめ | 伴走のお知らせのメール（利用者あて、architecture.md の 4.27）も同じ `RESEND_API_KEY` で送る。送信元を分けたいときだけ `NOTIFY_EMAIL_FROM`（なければ `OPERATOR_EMAIL_FROM`、それもなければ `yabumi <noreply@yabumi.app>`）。毎日のジョブ（日本時間 7:00、`/api/jobs/coach`）は、マイグレーション 20261012130000 で pg_cron に入る（`APP_URL` と `CRON_SECRET` は 5 のとおり）。キーがない環境では送らず、ログに `[user-mail] RESEND_API_KEY がないので送りません` と件名だけ出る |
 | 15-12 | 確かめ | キーがない環境（ローカルなど）では送らず、サーバーのログに `[operator] メールの設定がないので、ログにだけ残します` と出る。Vercel のログでこの文字が出ていたら、15-11 が済んでいない |
 
-- **費用の上限の 80% の知らせ**（2026-10-11）: X（`X_MONTHLY_BUDGET_USD`）と AI（`AI_GLOBAL_MONTHLY_BUDGET_USD`）の、yabumi 全体の今月の費用が上限の 80% に達したとき、それぞれ月に 1 回、同じ `OPERATOR_EMAIL` にメールが届く（件名は「【yabumi の運営】X の API の今月の費用が…」「【yabumi の運営】AI（Claude API）の今月の費用が…」）。本文は額・上限・確かめ方（費用の多い利用者を見る SQL）だけ。1 人に偏っていれば利用者ごとの上限（`X_POST_USER_MONTHLY_USD`・`X_METRICS_USER_MONTHLY_USD`・`AI_USER_MONTHLY_BUDGET_USD`）を下げるか悪用として止め、普通に人が増えたのなら全体の上限を上げる（docs/cost-review.md を確かめてから）
+- **費用の上限の 80% の知らせ**（2026-10-11）: X（`X_MONTHLY_BUDGET_USD`）と AI（関数 reserve_ai_usage の中で固定した全体の上限。環境変数では変えない）の、yabumi 全体の今月の費用が上限の 80% に達したとき、それぞれ月に 1 回、同じ `OPERATOR_EMAIL` にメールが届く（件名は「【yabumi の運営】X の API の今月の費用が…」「【yabumi の運営】AI（Claude API）の今月の費用が…」）。本文は額・上限・確かめ方（費用の多い利用者を見る SQL）だけ。1 人に偏っていれば利用者ごとの上限（`X_POST_USER_MONTHLY_USD`・`X_METRICS_USER_MONTHLY_USD`。AI は関数 reserve_ai_usage の中の値をマイグレーションで）を下げるか悪用として止め、普通に人が増えたのなら全体の上限を上げる（docs/cost-review.md を確かめてから。AI はマイグレーションで変える）
 
 - 管理用の鍵が漏れた疑いがあるときは、15-5 で新しい鍵を作って Vercel を入れ替え、古い鍵を「鍵」の画面で削除する（利用者ごとのアカウントは鍵を持たないので、そのまま使える）
 

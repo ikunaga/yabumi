@@ -6,7 +6,6 @@ import { isSectionKey } from "@/lib/plan/schema";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { aiConfigured, callPlanCoach } from "./anthropic";
-import { aiLimitsFromEnv } from "./limits";
 import { coachStep, MAX_USER_TEXT, type CoachInput } from "./plan-coach";
 
 const inputSchema = z.discriminatedUnion("kind", [
@@ -41,7 +40,7 @@ export async function sendCoachMessage(projectId: string, threadId: string | nul
   if (!userId) return { ok: false, threadId, message: "ログインし直してください。" };
 
   try {
-    const result = await coachStep(supabase, createAdminClient(), { callModel: callPlanCoach, limits: aiLimitsFromEnv() }, { userId, projectId, threadId, input });
+    const result = await coachStep(supabase, createAdminClient(), { callModel: callPlanCoach }, { userId, projectId, threadId, input });
     revalidatePath(`/projects/${projectId}`, "layout");
     return result.ok ? { ok: true, threadId: result.threadId } : { ok: false, threadId: result.threadId, message: result.message };
   } catch (e) {

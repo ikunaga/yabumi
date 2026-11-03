@@ -66,7 +66,7 @@ D17 により、他の利用者に必要な対応は先送りしない。どう�
 | Supabase を Pro にする。漏れたパスワードの拒否（Leaked password protection）を有効にする | オーナー（手順は Claude が deploy.md に書く） |
 | プライバシーポリシー・legal.md・architecture.md の 4.14 の「バックアップはない」を、Pro のバックアップ（毎日・7 日分）に直す | 実装 |
 | 招待した人だけ登録できるようにする（トップの申し込みから、運営者の画面 /admin/waitlist で招待する。招待した人は ALLOWED_SIGNUP_EMAILS に足さなくてよい。deploy.md の 19） | オーナー |
-| 上限を環境変数で変える: AI 利用者ごと $2（AI_USER_MONTHLY_BUDGET_USD）・全体 $40（AI_GLOBAL_MONTHLY_BUDGET_USD）、X の投稿 利用者ごと $1（X_POST_USER_MONTHLY_USD）・X 全体 $20（X_MONTHLY_BUDGET_USD） | オーナー（値は Claude が deploy.md に書く） |
+| 上限を変える: AI は、全体の上限を変えるときは、費用を docs/cost-review.md で確かめてから、マイグレーションで変える（環境変数は使わない。関数 reserve_ai_usage の中で固定。2026-11-03 のセキュリティ確認の M2）。X の投稿 利用者ごと $1（X_POST_USER_MONTHLY_USD）・X 全体 $20（X_MONTHLY_BUDGET_USD） | オーナー（値は Claude が deploy.md に書く） |
 | 招待の案内に「いまは無料。有料のプランを始めるときは前もって知らせ、申し込んだ人だけ払う」（規約の「料金」と同じ）を書く | オーナー・実装 |
 
 #### ③ に進むときに要る作業

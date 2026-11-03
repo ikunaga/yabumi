@@ -6,7 +6,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { MAX_CHECK_CHARS, runAiCheck, type AiCheckResult } from "./ai-check";
 import { aiConfigured, callAiCheck } from "./anthropic";
-import { aiLimitsFromEnv } from "./limits";
 
 const textsSchema = z
   .array(z.object({ sns: z.enum(SNS_KEYS as [SnsKey, ...SnsKey[]]), text: z.string().max(MAX_CHECK_CHARS) }))
@@ -25,7 +24,7 @@ export async function checkPostTexts(projectId: string, texts: unknown): Promise
   const userId = data?.claims?.sub;
   if (!userId) return { error: "ログインし直してください。" };
   try {
-    const r = await runAiCheck(supabase, createAdminClient(), { callCheck: callAiCheck, limits: aiLimitsFromEnv() }, { userId, projectId, texts: t.data });
+    const r = await runAiCheck(supabase, createAdminClient(), { callCheck: callAiCheck }, { userId, projectId, texts: t.data });
     return r.ok ? { result: r.result } : { error: r.message };
   } catch (e) {
     console.error("[checkPostTexts]", e);

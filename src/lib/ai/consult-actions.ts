@@ -8,7 +8,6 @@ import { createClient } from "@/lib/supabase/server";
 import { aiConfigured, callConsult, callShortenDrafts } from "./anthropic";
 import { MAX_OPTIONS } from "./consult-schema";
 import { consultStep, isConsultTopic, type ConsultInput } from "./consult";
-import { aiLimitsFromEnv } from "./limits";
 import { MAX_USER_TEXT } from "./plan-coach";
 
 const inputSchema = z.discriminatedUnion("kind", [
@@ -49,7 +48,6 @@ export async function sendConsultMessage(projectId: string, threadId: string | n
       {
         callModel: callConsult,
         callShorten: callShortenDrafts,
-        limits: aiLimitsFromEnv(),
         loadKpiValues: async (user, id) => (await loadOverview(user, id)).kpiValues,
         // 振り返り（分析の画面の「AI と振り返る」）のときだけ読む
         loadReview: async (user, id) => {

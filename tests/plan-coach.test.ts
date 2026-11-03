@@ -1,6 +1,5 @@
 // AI との会話の組み立て、費用の見積もり、上限の期間。本物の API は呼ばない
 import { describe, expect, it } from "vitest";
-import { aiLimitsFromEnv, jstPeriodStarts } from "@/lib/ai/limits";
 import { buildCoachRequest, userContentToText, type StoredMessage } from "@/lib/ai/plan-coach";
 import { coachContextMessage, PLAN_COACH_SYSTEM } from "@/lib/ai/plan-coach-prompt";
 import { estimateCostUsd } from "@/lib/ai/pricing";
@@ -68,17 +67,3 @@ describe("費用", () => {
   });
 });
 
-describe("上限", () => {
-  it("既定値と、環境変数での上書き", () => {
-    expect(aiLimitsFromEnv({})).toEqual({ userMonthlyUsd: 3, globalMonthlyUsd: 10, userDailyTurns: 60 });
-    expect(aiLimitsFromEnv({ AI_USER_MONTHLY_BUDGET_USD: "1.5", AI_USER_DAILY_TURNS: "abc" }).userMonthlyUsd).toBe(1.5);
-    expect(aiLimitsFromEnv({ AI_USER_DAILY_TURNS: "abc" }).userDailyTurns).toBe(60);
-  });
-
-  it("月と日の区切りは日本時間", () => {
-    // 日本時間 2026-11-01 05:00 は UTC では 10-31 20:00
-    const { monthStart, dayStart } = jstPeriodStarts(new Date("2026-10-31T20:00:00Z"));
-    expect(monthStart.toISOString()).toBe("2026-10-31T15:00:00.000Z");
-    expect(dayStart.toISOString()).toBe("2026-10-31T15:00:00.000Z");
-  });
-});

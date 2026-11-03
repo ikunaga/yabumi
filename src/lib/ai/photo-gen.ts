@@ -9,7 +9,7 @@ import type { Database } from "@/lib/supabase/database.types";
 import type { ModelOutput } from "./app-description";
 import { ImageBlockedError, type GenerateImage } from "./gemini-image";
 import { AiUnavailableError, aiFailureMessage } from "./provider-failure";
-import { checkAiLimits, type AiLimits } from "./limits";
+import { withAiBudget } from "./budget";
 import {
   MAX_PHOTOS_PER_RUN,
   MAX_SCENE_CHARS,
@@ -22,7 +22,7 @@ import {
   type PhotoIdea,
   type PhotoStyle,
 } from "./photo";
-import { estimateCostUsd, estimateImageCostUsd } from "./pricing";
+import { estimateImageCostUsd } from "./pricing";
 import { productTypeOf } from "./product-guide";
 
 // AI で写真・絵をつくる処理（docs/architecture.md の 4.25 の ②、決定 D35）。
@@ -114,7 +114,7 @@ export type IdeasOutcome = { ok: true; ideas: PhotoIdea[] } | { ok: false; messa
 export async function runPhotoIdeas(
   user: Db,
   admin: Db,
-  deps: { callIdeas: CallPhotoIdeas; limits: AiLimits; now?: () => Date },
+  deps: { callIdeas: CallPhotoIdeas; now?: () => Date },
   // sns: 送り先の SNS（投稿の柱は、この SNS に付いたものだけを材料にする）
   args: { userId: string; projectId: string; text: string; sns?: SnsKey[] },
 ): Promise<IdeasOutcome> {
@@ -125,32 +125,23 @@ export async function runPhotoIdeas(
   if (!project) return { ok: false, message: "プロジェクトが見つかりません。" };
   const { data: planRow } = await user.from("account_plans").select("data").eq("project_id", args.projectId).maybeSingle();
 
-  const limit = await checkAiLimits(admin, args.userId, deps.limits, deps.now?.() ?? new Date());
-  if (!limit.ok) return { ok: false, message: limit.message };
-
   let r: ModelOutput;
   try {
-    r = await deps.callIdeas(
+    // 呼ぶ前に上限の分を予約する（返事のあとで実際の額に直す。budget.ts）
+    const b = await withAiBudget(admin, { userId: args.userId, purpose: "image_photo_idea", now: deps.now?.() }, () =>
+      deps.callIdeas(
       buildPhotoIdeasRequest(
         { projectName: project.name, plan: normalizePlan(planRow?.data, project.target_audience ?? ""), productType: productTypeOf(project.product_type), sns: args.sns },
         text,
       ),
+    ),
     );
+    if (!b.ok) return { ok: false, message: b.message };
+    r = b.result;
   } catch (e) {
     console.error("[photo-ideas] AI の呼び出しに失敗しました", e instanceof Error ? e.message : e);
     return { ok: false, message: aiFailureMessage(e, "AI とのやりとりがうまくいきませんでした。時間をおいてもう一度お試しください。") + "説明は手で書くこともできます。" };
   }
-  await admin.from("ai_usage").insert({
-    owner_id: args.userId,
-    thread_id: null,
-    purpose: "image_photo_idea",
-    model: r.model,
-    input_tokens: r.usage.inputTokens,
-    cache_write_tokens: r.usage.cacheWriteTokens,
-    cache_read_tokens: r.usage.cacheReadTokens,
-    output_tokens: r.usage.outputTokens,
-    cost_usd: estimateCostUsd(r.model, r.usage),
-  });
   if (r.stopReason === "refusal") return { ok: false, message: "AI がこの投稿には答えられませんでした。説明は手で書けます。" };
   const ideas = r.stopReason === "end_turn" ? normalizePhotoIdeas(r.output) : null;
   if (!ideas) return { ok: false, message: "うまく案を出せませんでした。もう一度お試しください。" };

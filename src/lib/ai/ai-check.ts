@@ -7,9 +7,8 @@ import { normalizePlan, type PlanData } from "@/lib/plan/schema";
 import { SNS, SNS_KEYS, displayLength, isSnsKey, type SnsKey } from "@/lib/sns";
 import type { Database } from "@/lib/supabase/database.types";
 import type { ModelOutput } from "./app-description";
-import { checkAiLimits, type AiLimits } from "./limits";
+import { withAiBudget } from "./budget";
 import type { BetaMessageParam, BetaTextBlockParam } from "./plan-coach";
-import { estimateCostUsd } from "./pricing";
 import { LENGTH_RULES } from "./shorten";
 import { aiFailureMessage } from "./provider-failure";
 
@@ -165,7 +164,7 @@ export type CheckOutcome = { ok: true; result: AiCheckResult } | { ok: false; me
 export async function runAiCheck(
   user: Db,
   admin: Db,
-  deps: { callCheck: CallCheck; limits: AiLimits; now?: () => Date },
+  deps: { callCheck: CallCheck; now?: () => Date },
   args: { userId: string; projectId: string; texts: CheckText[] },
 ): Promise<CheckOutcome> {
   const texts = dedupeTexts(args.texts);
@@ -178,30 +177,21 @@ export async function runAiCheck(
   if (!project) return { ok: false, message: "プロジェクトが見つかりません。" };
   const { data: planRow } = await user.from("account_plans").select("data").eq("project_id", args.projectId).maybeSingle();
 
-  const limit = await checkAiLimits(admin, args.userId, deps.limits, deps.now?.() ?? new Date());
-  if (!limit.ok) return { ok: false, message: limit.message };
-
   let r: ModelOutput;
   try {
-    r = await deps.callCheck(buildAiCheckRequest(
+    // 呼ぶ前に上限の分を予約する（返事のあとで実際の額に直す。budget.ts）
+    const b = await withAiBudget(admin, { userId: args.userId, purpose: "ai_check", now: deps.now?.() }, () =>
+      deps.callCheck(buildAiCheckRequest(
         { projectName: project.name, plan: normalizePlan(planRow?.data, project.target_audience ?? ""), productType: productTypeOf(project.product_type), sns: texts.map((t) => t.sns) },
         texts,
-      ));
+      )),
+    );
+    if (!b.ok) return { ok: false, message: b.message };
+    r = b.result;
   } catch (e) {
     console.error("[ai-check] AI の呼び出しに失敗しました", e instanceof Error ? e.message : e);
     return { ok: false, message: aiFailureMessage(e, "AI とのやりとりがうまくいきませんでした。時間をおいてもう一度お試しください。") };
   }
-  await admin.from("ai_usage").insert({
-    owner_id: args.userId,
-    thread_id: null,
-    purpose: "ai_check",
-    model: r.model,
-    input_tokens: r.usage.inputTokens,
-    cache_write_tokens: r.usage.cacheWriteTokens,
-    cache_read_tokens: r.usage.cacheReadTokens,
-    output_tokens: r.usage.outputTokens,
-    cost_usd: estimateCostUsd(r.model, r.usage),
-  });
   if (r.stopReason === "refusal") return { ok: false, message: "AI がこの投稿には答えられませんでした。" };
   const result = r.stopReason === "end_turn" ? normalizeAiCheck(r.output, texts) : null;
   if (!result) return { ok: false, message: "うまく確かめられませんでした。もう一度お試しください。" };

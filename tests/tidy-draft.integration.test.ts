@@ -2,12 +2,11 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { runTidyDraft, type CallTidy } from "@/lib/ai/tidy-draft";
 import type { CallShorten } from "@/lib/ai/shorten";
-import type { AiLimits } from "@/lib/ai/limits";
+import { spendAi, unspendAi, scopeAiBudget } from "./helpers/ai-budget";
 import { AI_UNAVAILABLE_MESSAGE, AiUnavailableError } from "@/lib/ai/provider-failure";
 import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
 
 const admin = adminClient();
-const roomy: AiLimits = { userMonthlyUsd: 1000, globalMonthlyUsd: 1_000_000, userDailyTurns: 100_000 };
 let alice: TestClient;
 let bob: TestClient;
 let aliceId: string;
@@ -25,6 +24,9 @@ const good = {
 const text = "えーと、通知の時間を、なんか選べるようにしたんですよ";
 const purposes = async () => (await admin.from("ai_usage").select("purpose, thread_id").eq("owner_id", aliceId).order("created_at")).data!;
 
+// 文章の AI の上限は、全体の合計を本人の分だけで数え、普段の枠で試す（helpers/ai-budget.ts）
+scopeAiBudget();
+
 beforeAll(async () => {
   ({ client: alice, userId: aliceId } = await signUpNewUser());
   ({ client: bob, userId: bobId } = await signUpNewUser());
@@ -39,7 +41,7 @@ afterAll(async () => {
 describe("AI で投稿に整える", () => {
   it("案を返し、利用量を tidy_draft として記録する（案は保存しない）", async () => {
     const call = caller(good);
-    const r = await runTidyDraft(alice, admin, { callTidy: call, limits: roomy }, { userId: aliceId, projectId, text, sns: ["x", "note"] });
+    const r = await runTidyDraft(alice, admin, { callTidy: call }, { userId: aliceId, projectId, text, sns: ["x", "note"] });
     expect(r).toMatchObject({ ok: true, options: [{ label: "そのまままとめる", drafts: [{ sns: "x" }] }, { label: "問いかけで終える" }] });
     const sent = JSON.stringify(vi.mocked(call).mock.calls[0][0].messages);
     expect(sent).toContain("なんか選べるように");
@@ -52,7 +54,7 @@ describe("AI で投稿に整える", () => {
     const r = await runTidyDraft(
       alice,
       admin,
-      { callTidy: call, limits: roomy },
+      { callTidy: call },
       { userId: aliceId, projectId, text, sns: ["x"], direction: { tone: "calm", length: "short", aim: "empathy", emoji: "some", note: "専門用語を使わないで" } },
     );
     expect(r.ok).toBe(true);
@@ -65,7 +67,7 @@ describe("AI で投稿に整える", () => {
     const before = (await purposes()).length;
     const long = { options: [{ label: "a", why: "", drafts: [{ sns: "x", text: "あ".repeat(160) }] }] };
     const shorten: CallShorten = vi.fn(async () => ({ output: { drafts: [{ id: "0:x", text: "あ".repeat(120) }] }, stopReason: "end_turn", model: "claude-opus-5-5", usage }));
-    const r = await runTidyDraft(alice, admin, { callTidy: caller(long), callShorten: shorten, limits: roomy }, { userId: aliceId, projectId, text, sns: ["x"] });
+    const r = await runTidyDraft(alice, admin, { callTidy: caller(long), callShorten: shorten }, { userId: aliceId, projectId, text, sns: ["x"] });
     expect(r).toMatchObject({ ok: true, options: [{ drafts: [{ sns: "x", text: "あ".repeat(120) }] }] });
     expect(shorten).toHaveBeenCalledTimes(1);
     const after = await purposes();
@@ -75,14 +77,16 @@ describe("AI で投稿に整える", () => {
 
   it("上限に達していたら AI を呼ばない", async () => {
     const call = caller(good);
-    const r = await runTidyDraft(alice, admin, { callTidy: call, limits: { ...roomy, userMonthlyUsd: 0.000001 } }, { userId: aliceId, projectId, text, sns: ["x"] });
-    expect(r.ok).toBe(false);
+    const filled = await spendAi(admin, aliceId, 3);
+    const r = await runTidyDraft(alice, admin, { callTidy: call }, { userId: aliceId, projectId, text, sns: ["x"] });
+    await unspendAi(admin, filled);
+    expect(r).toMatchObject({ ok: false, message: expect.stringContaining("今月") });
     expect(call).not.toHaveBeenCalled();
   });
 
   it("他人のプロジェクト・空の本文・長すぎる本文・整えられる SNS がないときは AI を呼ばない", async () => {
     const call = caller(good);
-    const run = (client: TestClient, userId: string, t: string, sns: string[]) => runTidyDraft(client, admin, { callTidy: call, limits: roomy }, { userId, projectId, text: t, sns });
+    const run = (client: TestClient, userId: string, t: string, sns: string[]) => runTidyDraft(client, admin, { callTidy: call }, { userId, projectId, text: t, sns });
     expect((await run(bob, bobId, text, ["x"])).ok).toBe(false);
     expect((await run(alice, aliceId, "  ", ["x"])).ok).toBe(false);
     expect((await run(alice, aliceId, "あ".repeat(3001), ["x"])).ok).toBe(false);
@@ -95,14 +99,14 @@ describe("AI で投稿に整える", () => {
     const unavailable: CallTidy = vi.fn(async () => {
       throw new AiUnavailableError("anthropic", 402);
     });
-    expect(await runTidyDraft(alice, admin, { callTidy: unavailable, limits: roomy }, { userId: aliceId, projectId, text, sns: ["x"] })).toEqual({
+    expect(await runTidyDraft(alice, admin, { callTidy: unavailable }, { userId: aliceId, projectId, text, sns: ["x"] })).toEqual({
       ok: false,
       message: AI_UNAVAILABLE_MESSAGE.anthropic,
     });
     const broken: CallTidy = vi.fn(async () => {
       throw new Error("network");
     });
-    const r = await runTidyDraft(alice, admin, { callTidy: broken, limits: roomy }, { userId: aliceId, projectId, text, sns: ["x"] });
+    const r = await runTidyDraft(alice, admin, { callTidy: broken }, { userId: aliceId, projectId, text, sns: ["x"] });
     expect(r).toMatchObject({ ok: false });
     expect(!r.ok && r.message).toContain("時間をおいて");
     // 返事がなかったので、利用量は数えない
@@ -111,8 +115,8 @@ describe("AI で投稿に整える", () => {
 
   it("形の合わない返事・断られたときはエラーにするが、使った分は数える", async () => {
     const before = (await purposes()).length;
-    expect((await runTidyDraft(alice, admin, { callTidy: caller({ x: 1 }), limits: roomy }, { userId: aliceId, projectId, text, sns: ["x"] })).ok).toBe(false);
-    expect((await runTidyDraft(alice, admin, { callTidy: caller(null, "refusal"), limits: roomy }, { userId: aliceId, projectId, text, sns: ["x"] })).ok).toBe(false);
+    expect((await runTidyDraft(alice, admin, { callTidy: caller({ x: 1 }) }, { userId: aliceId, projectId, text, sns: ["x"] })).ok).toBe(false);
+    expect((await runTidyDraft(alice, admin, { callTidy: caller(null, "refusal") }, { userId: aliceId, projectId, text, sns: ["x"] })).ok).toBe(false);
     expect(await purposes()).toHaveLength(before + 2);
   });
 });

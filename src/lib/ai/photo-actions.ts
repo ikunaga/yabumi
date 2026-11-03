@@ -7,7 +7,6 @@ import { createClient } from "@/lib/supabase/server";
 import { TEMPLATE_SIZES, type TemplateSizeKey } from "@/lib/media/templates";
 import { aiConfigured, callPhotoIdeas } from "./anthropic";
 import { generateWithGemini, photoConfigured } from "./gemini-image";
-import { aiLimitsFromEnv } from "./limits";
 import { MAX_PHOTOS_PER_RUN, MAX_SCENE_CHARS, PHOTO_STYLES, photoModel, photoUnitYen, type PhotoIdea } from "./photo";
 import { acknowledgePhotoNotice, jstMonthDay, photoStatus, refreshCandidateUrls, runPhotoGeneration, runPhotoIdeas, type PhotoCandidate } from "./photo-gen";
 
@@ -83,7 +82,7 @@ export async function draftPhotoIdeas(projectId: string, text: unknown, sns: unk
   const { supabase, userId } = await currentUser();
   if (!userId) return { error: "ログインし直してください。" };
   try {
-    const r = await runPhotoIdeas(supabase, createAdminClient(), { callIdeas: callPhotoIdeas, limits: aiLimitsFromEnv() }, { userId, projectId, text: t.data, sns: s.data });
+    const r = await runPhotoIdeas(supabase, createAdminClient(), { callIdeas: callPhotoIdeas }, { userId, projectId, text: t.data, sns: s.data });
     return r.ok ? { ideas: r.ideas } : { error: r.message };
   } catch (e) {
     console.error("[draftPhotoIdeas]", e instanceof Error ? e.message : e);

@@ -4,9 +4,9 @@ import type { TreeEntry } from "@/lib/github/api";
 import { readableRepoLink } from "@/lib/github/installations";
 import { listCandidates, MAX_PICKED_FILES, selectFiles, validatePicks, type RepoFile } from "@/lib/github/repo-reader";
 import type { Database } from "@/lib/supabase/database.types";
-import { checkAiLimits, type AiLimits } from "./limits";
+import { reserveAi, withAiBudget } from "./budget";
 import type { BetaMessageParam, BetaTextBlockParam } from "./plan-coach";
-import { estimateCostUsd, type TokenUsage } from "./pricing";
+import type { TokenUsage } from "./pricing";
 import { aiFailureMessage } from "./provider-failure";
 
 // GitHub のリポジトリから、開発しているもの（アプリ・Web のサービス）の紹介文を AI が下書きする（要求 F16、決定 D14。docs/architecture.md の 4.10）
@@ -164,20 +164,6 @@ export type DraftOutcome = { ok: true; draft: AppDescriptionDraft; filesRead: st
 
 type Db = SupabaseClient<Database>;
 
-async function recordUsage(admin: Db, userId: string, r: ModelOutput) {
-  await admin.from("ai_usage").insert({
-    owner_id: userId,
-    thread_id: null,
-    purpose: "app_description",
-    model: r.model,
-    input_tokens: r.usage.inputTokens,
-    cache_write_tokens: r.usage.cacheWriteTokens,
-    cache_read_tokens: r.usage.cacheReadTokens,
-    output_tokens: r.usage.outputTokens,
-    cost_usd: estimateCostUsd(r.model, r.usage),
-  });
-}
-
 // 下書きを検証し、紹介文に「読み取れませんでした」のような文が入っていたら消す。質問は 3 つまで
 export function normalizeDraft(raw: unknown): AppDescriptionDraft | null {
   const parsed = appDescriptionSchema.safeParse(raw);
@@ -205,7 +191,7 @@ export function normalizeDraft(raw: unknown): AppDescriptionDraft | null {
 export async function draftAppDescription(
   user: Db,
   admin: Db,
-  deps: { callPicker: CallPicker; callDescriber: CallDescriber; repo: RepoAccess; limits: AiLimits; now?: () => Date },
+  deps: { callPicker: CallPicker; callDescriber: CallDescriber; repo: RepoAccess; now?: () => Date },
   args: { userId: string; projectId: string },
 ): Promise<DraftOutcome> {
   const now = deps.now?.() ?? new Date();
@@ -215,25 +201,36 @@ export async function draftAppDescription(
   const link: RepoLink | null = await readableRepoLink(user, args.userId, args.projectId);
   if (!link) return { ok: false, message: "リポジトリがつながっていないか、読む権限が確かめられません。GitHub の画面で「GitHub をつなぎ直す」を押してから、もう一度お試しください。" };
 
-  const limit = await checkAiLimits(admin, args.userId, deps.limits, now);
-  if (!limit.ok) return { ok: false, message: limit.message };
-
+  // ① の AI の分を先に予約する（上限に届いていたらリポジトリも読まない。読めなかったら予約を消す。budget.ts）
+  const budget = { userId: args.userId, purpose: "app_description", now };
+  const pickBudget = await reserveAi(admin, budget);
+  if (!pickBudget.ok) return { ok: false, message: pickBudget.message };
   const repoError = "リポジトリを読めませんでした。GitHub の設定で、このリポジトリを yabumi に読ませているか確かめてください。";
   let entries: TreeEntry[];
   try {
     entries = await deps.repo.listFiles(link);
   } catch (e) {
+    await pickBudget.cancel();
     console.error("[app-description] ファイル一覧を読めませんでした", e instanceof Error ? e.message : e);
     return { ok: false, message: repoError };
   }
   const candidates = listCandidates(entries);
-  if (candidates.files.length === 0) return { ok: false, message: "読めるファイルが見つかりませんでした。" };
+  if (candidates.files.length === 0) {
+    await pickBudget.cancel();
+    return { ok: false, message: "読めるファイルが見つかりませんでした。" };
+  }
 
   // ① 読むファイルを AI が選ぶ。選べなかったら、決まった名前のファイルで代わりにする
   let picks: string[] = [];
   try {
-    const r = await deps.callPicker(buildFilePickRequest(project.name, link.fullName, candidates.files, candidates.truncated));
-    await recordUsage(admin, args.userId, r);
+    let r: ModelOutput;
+    try {
+      r = await deps.callPicker(buildFilePickRequest(project.name, link.fullName, candidates.files, candidates.truncated));
+    } catch (e) {
+      await pickBudget.cancel();
+      throw e;
+    }
+    await pickBudget.settle(r);
     const parsed = filePickSchema.safeParse(r.output);
     if (r.stopReason === "end_turn" && parsed.success) picks = validatePicks(parsed.data.paths, entries);
   } catch (e) {
@@ -254,12 +251,13 @@ export async function draftAppDescription(
   // ② 読んだファイルから紹介文を書く
   let result: ModelOutput;
   try {
-    result = await deps.callDescriber(buildAppDescriptionRequest(project.name, link.fullName, files, candidates));
+    const b = await withAiBudget(admin, budget, () => deps.callDescriber(buildAppDescriptionRequest(project.name, link.fullName, files, candidates)));
+    if (!b.ok) return { ok: false, message: b.message };
+    result = b.result;
   } catch (e) {
     console.error("[app-description] AI の呼び出しに失敗しました", e instanceof Error ? e.message : e);
     return { ok: false, message: aiFailureMessage(e, "AI とのやりとりがうまくいきませんでした。時間をおいてもう一度お試しください。") };
   }
-  await recordUsage(admin, args.userId, result);
   await admin.from("project_github_repos").update({ last_read_at: now.toISOString() }).eq("project_id", args.projectId);
 
   if (result.stopReason === "refusal") return { ok: false, message: "AI がこのリポジトリの内容には答えられませんでした。" };
@@ -272,24 +270,22 @@ export async function draftAppDescription(
 export async function refineAppDescription(
   user: Db,
   admin: Db,
-  deps: { callDescriber: CallDescriber; limits: AiLimits; now?: () => Date },
+  deps: { callDescriber: CallDescriber; now?: () => Date },
   args: { userId: string; projectId: string; draft: AppDescriptionDraft; answers: QuestionAnswer[] },
 ): Promise<DraftOutcome> {
   const { data: project } = await user.from("projects").select("id, name").eq("id", args.projectId).maybeSingle();
   if (!project) return { ok: false, message: "プロジェクトが見つかりません。" };
   const answers = args.answers.filter((a) => a.answer.trim()).slice(0, MAX_QUESTIONS);
   if (answers.length === 0) return { ok: false, message: "質問に答えてから書き直してください。" };
-  const limit = await checkAiLimits(admin, args.userId, deps.limits, deps.now?.() ?? new Date());
-  if (!limit.ok) return { ok: false, message: limit.message };
-
   let result: ModelOutput;
   try {
-    result = await deps.callDescriber(buildRefineRequest(project.name, args.draft, answers));
+    const b = await withAiBudget(admin, { userId: args.userId, purpose: "app_description", now: deps.now?.() }, () => deps.callDescriber(buildRefineRequest(project.name, args.draft, answers)));
+    if (!b.ok) return { ok: false, message: b.message };
+    result = b.result;
   } catch (e) {
     console.error("[app-description] 書き直しに失敗しました", e instanceof Error ? e.message : e);
     return { ok: false, message: aiFailureMessage(e, "AI とのやりとりがうまくいきませんでした。時間をおいてもう一度お試しください。") };
   }
-  await recordUsage(admin, args.userId, result);
   const draft = result.stopReason === "end_turn" ? normalizeDraft(result.output) : null;
   if (!draft || !draft.what) return { ok: false, message: "うまく書き直せませんでした。もう一度お試しください。" };
   return { ok: true, draft, filesRead: [] };

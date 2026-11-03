@@ -17,7 +17,8 @@ const LABEL: Record<BudgetKind, { name: string; env: string; where: string }> = 
   },
   ai: {
     name: "AI（Claude API）",
-    env: "AI_GLOBAL_MONTHLY_BUDGET_USD",
+    // 文章の AI の上限は、DB の reserve_ai_usage の中で固定している（セキュリティ確認 2026-11-03 の M2）。上げるときはマイグレーションで変える
+    env: "reserve_ai_usage の c_global_monthly_usd",
     where: "select owner_id, sum(cost_usd) from ai_usage where created_at >= date_trunc('month', now() at time zone 'Asia/Tokyo') at time zone 'Asia/Tokyo' group by 1 order by 2 desc limit 10;",
   },
   // 画像の AI の上限は、DB の reserve_ai_images の中で固定している（D35）。上げるときはマイグレーションで変える

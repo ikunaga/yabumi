@@ -238,6 +238,7 @@ export type Database = {
       }
       ai_usage: {
         Row: {
+          by_new_user: boolean
           cache_read_tokens: number
           cache_write_tokens: number
           cost_usd: number
@@ -248,9 +249,11 @@ export type Database = {
           output_tokens: number
           owner_id: string | null
           purpose: string
+          status: string
           thread_id: string | null
         }
         Insert: {
+          by_new_user?: boolean
           cache_read_tokens?: number
           cache_write_tokens?: number
           cost_usd?: number
@@ -261,9 +264,11 @@ export type Database = {
           output_tokens?: number
           owner_id?: string | null
           purpose: string
+          status?: string
           thread_id?: string | null
         }
         Update: {
+          by_new_user?: boolean
           cache_read_tokens?: number
           cache_write_tokens?: number
           cost_usd?: number
@@ -274,6 +279,7 @@ export type Database = {
           output_tokens?: number
           owner_id?: string | null
           purpose?: string
+          status?: string
           thread_id?: string | null
         }
         Relationships: [
@@ -2218,6 +2224,22 @@ export type Database = {
           status: string
           user_month_images: number
           user_monthly_limit: number
+        }[]
+      }
+      reserve_ai_usage: {
+        Args: {
+          p_as_of?: string
+          p_cost_usd: number
+          p_owner_id: string
+          p_purpose: string
+          p_scope_owner?: string
+          p_thread_id?: string
+        }
+        Returns: {
+          global_month_usd: number
+          new_until: string
+          status: string
+          usage_id: string
         }[]
       }
       reserve_sns_read: {

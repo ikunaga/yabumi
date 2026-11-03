@@ -4,10 +4,9 @@ import { SNS, type SnsKey } from "@/lib/sns";
 import { tidyDraftHashtags } from "@/lib/sns/hashtags";
 import type { Database } from "@/lib/supabase/database.types";
 import type { ModelOutput } from "./app-description";
-import { checkAiLimits, type AiLimits } from "./limits";
+import { budgeted, withAiBudget } from "./budget";
 import type { BetaMessageParam, BetaTextBlockParam } from "./plan-coach";
 import { IDEA_SNS, ideaContextText, loadContext, planTags, type IdeaContext } from "./post-ideas";
-import { estimateCostUsd } from "./pricing";
 import { aiFailureMessage } from "./provider-failure";
 import { LENGTH_RULES, shortenOverDrafts, type CallShorten } from "./shorten";
 import { findUrls, profileLinkLine, withProfileLink } from "@/lib/posts/profile-link";
@@ -161,25 +160,11 @@ type Db = SupabaseClient<Database>;
 export type CallTidy = (req: ReturnType<typeof buildTidyRequest>) => Promise<ModelOutput>;
 export type TidyOutcome = { ok: true; options: TidyOption[] } | { ok: false; message: string };
 
-async function recordUsage(admin: Db, userId: string, r: ModelOutput) {
-  await admin.from("ai_usage").insert({
-    owner_id: userId,
-    thread_id: null,
-    purpose: "tidy_draft",
-    model: r.model,
-    input_tokens: r.usage.inputTokens,
-    cache_write_tokens: r.usage.cacheWriteTokens,
-    cache_read_tokens: r.usage.cacheReadTokens,
-    output_tokens: r.usage.outputTokens,
-    cost_usd: estimateCostUsd(r.model, r.usage),
-  });
-}
-
 // user: 利用者の権限（プロジェクトと設計を読む）、admin: 利用量の記録と上限の判定
 export async function runTidyDraft(
   user: Db,
   admin: Db,
-  deps: { callTidy: CallTidy; callShorten?: CallShorten; limits: AiLimits; now?: () => Date },
+  deps: { callTidy: CallTidy; callShorten?: CallShorten; now?: () => Date },
   args: { userId: string; projectId: string; text: string; sns: string[]; direction?: TidyDirection },
 ): Promise<TidyOutcome> {
   const text = args.text.trim();
@@ -192,24 +177,23 @@ export async function runTidyDraft(
   const ctx = await loadContext(user, args.projectId, sns);
   if (!ctx) return { ok: false, message: "プロジェクトが見つかりません。" };
 
-  const limit = await checkAiLimits(admin, args.userId, deps.limits, deps.now?.() ?? new Date());
-  if (!limit.ok) return { ok: false, message: limit.message };
-
+  // 呼ぶ前に上限の分を予約する（返事のあとで実際の額に直す。budget.ts）
   let r: ModelOutput;
   try {
-    r = await deps.callTidy(buildTidyRequest(ctx, text, args.direction));
+    const b = await withAiBudget(admin, { userId: args.userId, purpose: "tidy_draft", now: deps.now?.() }, () => deps.callTidy(buildTidyRequest(ctx, text, args.direction)));
+    if (!b.ok) return { ok: false, message: b.message };
+    r = b.result;
   } catch (e) {
     console.error("[tidy-draft] AI の呼び出しに失敗しました", e instanceof Error ? e.message : e);
     // 支払い・鍵の問題なら「AI はいま使えません（運営者に知らせました）」（知らせは呼び出しの側で済んでいる）
     return { ok: false, message: aiFailureMessage(e, "AI とのやりとりがうまくいきませんでした。時間をおいてもう一度お試しください。") };
   }
-  await recordUsage(admin, args.userId, r);
   if (r.stopReason === "refusal") return { ok: false, message: "AI がこの文には答えられませんでした。" };
   const hashtags = planTags(ctx.plan);
   const options = r.stopReason === "end_turn" ? normalizeTidy(r.output, sns, hashtags, ctx.project.productType) : null;
   if (!options) return { ok: false, message: "うまく整えられませんでした。もう一度お試しください。" };
 
-  const shortened = await shortenTidy(deps.callShorten, options, hashtags, ctx.project.productType);
-  if (shortened.result) await recordUsage(admin, args.userId, shortened.result);
+  const shorten = deps.callShorten && budgeted(admin, { userId: args.userId, purpose: "tidy_draft" }, deps.callShorten);
+  const shortened = await shortenTidy(shorten, options, hashtags, ctx.project.productType);
   return { ok: true, options: shortened.options };
 }

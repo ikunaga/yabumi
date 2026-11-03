@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { aiConfigured, callAppDescriber, callFilePicker } from "@/lib/ai/anthropic";
 import { appDescriptionSchema, composeDescription, draftAppDescription, refineAppDescription, type AppDescriptionDraft } from "@/lib/ai/app-description";
-import { aiLimitsFromEnv } from "@/lib/ai/limits";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isDevProject } from "@/lib/projects/product-types";
 import { createClient } from "@/lib/supabase/server";
@@ -92,7 +91,7 @@ export async function draftDescription(projectId: string): Promise<DraftActionRe
     const result = await draftAppDescription(
       supabase,
       createAdminClient(),
-      { callPicker: callFilePicker, callDescriber: callAppDescriber, repo: repoAccess(cfg), limits: aiLimitsFromEnv() },
+      { callPicker: callFilePicker, callDescriber: callAppDescriber, repo: repoAccess(cfg) },
       { userId, projectId },
     );
     revalidatePath(`/projects/${projectId}/github`);
@@ -121,7 +120,7 @@ export async function refineDescription(projectId: string, draft: unknown, answe
     const result = await refineAppDescription(
       supabase,
       createAdminClient(),
-      { callDescriber: callAppDescriber, limits: aiLimitsFromEnv() },
+      { callDescriber: callAppDescriber },
       { userId, projectId, draft: d.data, answers: a.data },
     );
     if (!result.ok) return { error: result.message };

@@ -7,9 +7,8 @@ import { DIAGRAM_STYLES, MAX_ITEMS, type DiagramStyle, type TemplateItem } from 
 import type { Database } from "@/lib/supabase/database.types";
 import type { ModelOutput } from "./app-description";
 import { checkContextText, type CheckContext } from "./ai-check";
-import { checkAiLimits, type AiLimits } from "./limits";
+import { withAiBudget } from "./budget";
 import type { BetaMessageParam, BetaTextBlockParam } from "./plan-coach";
-import { estimateCostUsd } from "./pricing";
 import { aiFailureMessage } from "./provider-failure";
 
 // 画像の文字の案（F14 の段取り ①。docs/architecture.md の 4.25）。
@@ -111,7 +110,7 @@ export type BriefOutcome = { ok: true; brief: ImageBrief } | { ok: false; messag
 export async function runImageBrief(
   user: Db,
   admin: Db,
-  deps: { callBrief: CallBrief; limits: AiLimits; now?: () => Date },
+  deps: { callBrief: CallBrief; now?: () => Date },
   // sns: 送り先の SNS（投稿の柱は、この SNS に付いたものだけを材料にする）
   args: { userId: string; projectId: string; text: string; sns?: SnsKey[] },
 ): Promise<BriefOutcome> {
@@ -123,30 +122,21 @@ export async function runImageBrief(
   if (!project) return { ok: false, message: "プロジェクトが見つかりません。" };
   const { data: planRow } = await user.from("account_plans").select("data").eq("project_id", args.projectId).maybeSingle();
 
-  const limit = await checkAiLimits(admin, args.userId, deps.limits, deps.now?.() ?? new Date());
-  if (!limit.ok) return { ok: false, message: limit.message };
-
   let r: ModelOutput;
   try {
-    r = await deps.callBrief(buildImageBriefRequest(
+    // 呼ぶ前に上限の分を予約する（返事のあとで実際の額に直す。budget.ts）
+    const b = await withAiBudget(admin, { userId: args.userId, purpose: "image_brief", now: deps.now?.() }, () =>
+      deps.callBrief(buildImageBriefRequest(
         { projectName: project.name, plan: normalizePlan(planRow?.data, project.target_audience ?? ""), productType: productTypeOf(project.product_type), sns: args.sns },
         text,
-      ));
+      )),
+    );
+    if (!b.ok) return { ok: false, message: b.message };
+    r = b.result;
   } catch (e) {
     console.error("[image-brief] AI の呼び出しに失敗しました", e instanceof Error ? e.message : e);
     return { ok: false, message: aiFailureMessage(e, "AI とのやりとりがうまくいきませんでした。時間をおいてもう一度お試しください。") + "文字は手で書くこともできます。" };
   }
-  await admin.from("ai_usage").insert({
-    owner_id: args.userId,
-    thread_id: null,
-    purpose: "image_brief",
-    model: r.model,
-    input_tokens: r.usage.inputTokens,
-    cache_write_tokens: r.usage.cacheWriteTokens,
-    cache_read_tokens: r.usage.cacheReadTokens,
-    output_tokens: r.usage.outputTokens,
-    cost_usd: estimateCostUsd(r.model, r.usage),
-  });
   if (r.stopReason === "refusal") return { ok: false, message: "AI がこの投稿には答えられませんでした。文字は手で書けます。" };
   const brief = r.stopReason === "end_turn" ? normalizeImageBrief(r.output) : null;
   if (!brief) return { ok: false, message: "うまく案を出せませんでした。もう一度お試しください。" };

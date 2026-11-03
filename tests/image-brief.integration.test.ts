@@ -1,11 +1,10 @@
 // 画像の文字の案の流れ（利用量の記録、上限、他人のプロジェクト）。本物の AI は呼ばない
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { runImageBrief, type CallBrief } from "@/lib/ai/image-brief";
-import type { AiLimits } from "@/lib/ai/limits";
+import { spendAi, unspendAi, scopeAiBudget } from "./helpers/ai-budget";
 import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
 
 const admin = adminClient();
-const roomy: AiLimits = { userMonthlyUsd: 1000, globalMonthlyUsd: 1_000_000, userDailyTurns: 100_000 };
 let alice: TestClient;
 let bob: TestClient;
 let aliceId: string;
@@ -24,6 +23,9 @@ const good = {
 };
 const text = "通知の時間を選べるようにしました。";
 
+// 文章の AI の上限は、全体の合計を本人の分だけで数え、普段の枠で試す（helpers/ai-budget.ts）
+scopeAiBudget();
+
 beforeAll(async () => {
   ({ client: alice, userId: aliceId } = await signUpNewUser());
   ({ client: bob, userId: bobId } = await signUpNewUser());
@@ -38,7 +40,7 @@ afterAll(async () => {
 describe("画像の文字の案", () => {
   it("案を返し、利用量を image_brief として記録する（案は保存しない）", async () => {
     const call = caller(good);
-    const r = await runImageBrief(alice, admin, { callBrief: call, limits: roomy }, { userId: aliceId, projectId, text });
+    const r = await runImageBrief(alice, admin, { callBrief: call }, { userId: aliceId, projectId, text });
     expect(r).toMatchObject({ ok: true, brief: { recommend: "card", headlines: ["通知の時間を選べます"] } });
     expect(JSON.stringify(vi.mocked(call).mock.calls[0][0].messages)).toContain("通知の時間を選べるように");
     const { data } = await admin.from("ai_usage").select("purpose, thread_id").eq("owner_id", aliceId);
@@ -47,23 +49,25 @@ describe("画像の文字の案", () => {
 
   it("上限に達していたら AI を呼ばない", async () => {
     const call = caller(good);
-    const r = await runImageBrief(alice, admin, { callBrief: call, limits: { ...roomy, userMonthlyUsd: 0.000001 } }, { userId: aliceId, projectId, text });
-    expect(r.ok).toBe(false);
+    const filled = await spendAi(admin, aliceId, 3);
+    const r = await runImageBrief(alice, admin, { callBrief: call }, { userId: aliceId, projectId, text });
+    await unspendAi(admin, filled);
+    expect(r).toMatchObject({ ok: false, message: expect.stringContaining("今月") });
     expect(call).not.toHaveBeenCalled();
   });
 
   it("他人のプロジェクト・空の本文・長すぎる本文では AI を呼ばない", async () => {
     const call = caller(good);
-    expect((await runImageBrief(bob, admin, { callBrief: call, limits: roomy }, { userId: bobId, projectId, text })).ok).toBe(false);
-    expect((await runImageBrief(alice, admin, { callBrief: call, limits: roomy }, { userId: aliceId, projectId, text: "  " })).ok).toBe(false);
-    expect((await runImageBrief(alice, admin, { callBrief: call, limits: roomy }, { userId: aliceId, projectId, text: "あ".repeat(5001) })).ok).toBe(false);
+    expect((await runImageBrief(bob, admin, { callBrief: call }, { userId: bobId, projectId, text })).ok).toBe(false);
+    expect((await runImageBrief(alice, admin, { callBrief: call }, { userId: aliceId, projectId, text: "  " })).ok).toBe(false);
+    expect((await runImageBrief(alice, admin, { callBrief: call }, { userId: aliceId, projectId, text: "あ".repeat(5001) })).ok).toBe(false);
     expect(call).not.toHaveBeenCalled();
   });
 
   it("形の合わない返事・断られたときはエラーにするが、使った分は数える", async () => {
     const before = (await admin.from("ai_usage").select("id").eq("owner_id", aliceId)).data!.length;
-    expect((await runImageBrief(alice, admin, { callBrief: caller({ x: 1 }), limits: roomy }, { userId: aliceId, projectId, text })).ok).toBe(false);
-    expect((await runImageBrief(alice, admin, { callBrief: caller(null, "refusal"), limits: roomy }, { userId: aliceId, projectId, text })).ok).toBe(false);
+    expect((await runImageBrief(alice, admin, { callBrief: caller({ x: 1 }) }, { userId: aliceId, projectId, text })).ok).toBe(false);
+    expect((await runImageBrief(alice, admin, { callBrief: caller(null, "refusal") }, { userId: aliceId, projectId, text })).ok).toBe(false);
     expect((await admin.from("ai_usage").select("id").eq("owner_id", aliceId)).data).toHaveLength(before + 2);
   });
 });

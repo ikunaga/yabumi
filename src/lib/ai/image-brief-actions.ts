@@ -6,7 +6,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { aiConfigured, callImageBrief } from "./anthropic";
 import { MAX_BRIEF_CHARS, runImageBrief, type ImageBrief } from "./image-brief";
-import { aiLimitsFromEnv } from "./limits";
 
 const snsListSchema = z.array(z.enum(SNS_KEYS as [SnsKey, ...SnsKey[]])).max(SNS_KEYS.length);
 
@@ -24,7 +23,7 @@ export async function draftImageText(projectId: string, text: unknown, sns: unkn
   const userId = data?.claims?.sub;
   if (!userId) return { error: "ログインし直してください。" };
   try {
-    const r = await runImageBrief(supabase, createAdminClient(), { callBrief: callImageBrief, limits: aiLimitsFromEnv() }, { userId, projectId, text: t.data, sns: s.data });
+    const r = await runImageBrief(supabase, createAdminClient(), { callBrief: callImageBrief }, { userId, projectId, text: t.data, sns: s.data });
     return r.ok ? { brief: r.brief } : { error: r.message };
   } catch (e) {
     console.error("[draftImageText]", e);

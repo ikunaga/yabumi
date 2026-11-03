@@ -1,12 +1,11 @@
 // AI と進めるアカウント設計（会話・案の採用・上限）と、AI まわりのテーブルの RLS。
 // AI は callModel をモックし、本物の Claude API は呼ばない
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import type { AiLimits } from "@/lib/ai/limits";
+import { spendAi, unspendAi, scopeAiBudget } from "./helpers/ai-budget";
 import { coachStep, type CallModel, type ModelResult } from "@/lib/ai/plan-coach";
 import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
 
 const admin = adminClient();
-const roomy: AiLimits = { userMonthlyUsd: 1000, globalMonthlyUsd: 100000, userDailyTurns: 1000 };
 const usage = { inputTokens: 1000, cacheWriteTokens: 2000, cacheReadTokens: 3000, outputTokens: 500 };
 
 let alice: TestClient;
@@ -33,8 +32,11 @@ const pillarsProposal = {
   },
 };
 
-const step = (client: TestClient, userId: string, callModel: CallModel, threadId: string | null, input: Parameters<typeof coachStep>[3]["input"], limits = roomy) =>
-  coachStep(client, admin, { callModel, limits }, { userId, projectId, threadId, input });
+const step = (client: TestClient, userId: string, callModel: CallModel, threadId: string | null, input: Parameters<typeof coachStep>[3]["input"]) =>
+  coachStep(client, admin, { callModel }, { userId, projectId, threadId, input });
+
+// 文章の AI の上限は、全体の合計を本人の分だけで数え、普段の枠で試す（helpers/ai-budget.ts）
+scopeAiBudget();
 
 beforeAll(async () => {
   ({ client: alice, userId: aliceId } = await signUpNewUser());
@@ -166,19 +168,26 @@ describe("AI と進めるアカウント設計", () => {
 
   it("今月の上限を超えたら AI を呼ばない（利用者ごと・全体）", async () => {
     const callModel = reply(question);
-    const r1 = await step(alice, aliceId, callModel, threadId, { kind: "text", text: "続き" }, { ...roomy, userMonthlyUsd: 0.000001 });
+    // 上限は DB の関数の中で固定（本人 月 $3・全体 月 $10・本人 1 日 60 回）。本人の利用を足して試す（全体は本人の分だけで数えている）
+    let filled = await spendAi(admin, aliceId, 3);
+    const r1 = await step(alice, aliceId, callModel, threadId, { kind: "text", text: "続き" });
+    await unspendAi(admin, filled);
     expect(r1).toMatchObject({ ok: false });
     expect((r1 as { message: string }).message).toContain("今月");
-    const r2 = await step(alice, aliceId, callModel, threadId, { kind: "text", text: "続き" }, { ...roomy, globalMonthlyUsd: 0.000001 });
+    filled = await spendAi(admin, aliceId, 10);
+    const r2 = await step(alice, aliceId, callModel, threadId, { kind: "text", text: "続き" });
+    await unspendAi(admin, filled);
     expect((r2 as { message: string }).message).toContain("全体");
-    const r3 = await step(alice, aliceId, callModel, threadId, { kind: "text", text: "続き" }, { ...roomy, userDailyTurns: 1 });
+    filled = await spendAi(admin, aliceId, 0.06, 60);
+    const r3 = await step(alice, aliceId, callModel, threadId, { kind: "text", text: "続き" });
+    await unspendAi(admin, filled);
     expect((r3 as { message: string }).message).toContain("今日");
     expect(callModel).not.toHaveBeenCalled();
   });
 
   it("他人は、人の会話を続けられない", async () => {
     const callModel = reply(question);
-    const r = await coachStep(bob, admin, { callModel, limits: roomy }, { userId: bobId, projectId, threadId, input: { kind: "text", text: "のぞき見" } });
+    const r = await coachStep(bob, admin, { callModel }, { userId: bobId, projectId, threadId, input: { kind: "text", text: "のぞき見" } });
     expect(r.ok).toBe(false);
     expect(callModel).not.toHaveBeenCalled();
   });

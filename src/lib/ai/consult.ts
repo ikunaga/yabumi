@@ -10,12 +10,11 @@ import { isManualSns, isSnsKey, SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
 import { tidyDraftHashtags } from "@/lib/sns/hashtags";
 import type { Database } from "@/lib/supabase/database.types";
 import { addDays, toYmd } from "@/lib/time";
-import { checkAiLimits, type AiLimits } from "./limits";
+import { budgeted, withAiBudget } from "./budget";
 import type { ConsultTopicKey } from "./consult-topics";
 import { adoptableOptions, normalizeConsultTurn, roadmapStepState, ROADMAP_STEPS, toWireConsultTurn, type ActionBody, type ActionKind, type ConsultTurn } from "./consult-schema";
 import { CONSULT_SYSTEM, consultContextMessage, kpiLineInput, type ConsultContext, type KpiNumber } from "./consult-prompt";
 import { MAX_TURNS_PER_THREAD, MAX_USER_TEXT, type BetaMessageParam, type BetaTextBlockParam, type CallModel, type ModelRequest, type ModelResult } from "./plan-coach";
-import { estimateCostUsd } from "./pricing";
 import { productTypeOf } from "./product-guide";
 import type { ModelOutput } from "./app-description";
 import { shortenOverDrafts, type CallShorten } from "./shorten";
@@ -299,7 +298,7 @@ export type ConsultInput =
   | { kind: "text"; text: string }
   | { kind: "adopt"; messageId: string; actionIndex: number };
 
-export type ConsultDeps = { callModel: CallModel; limits: AiLimits; loadKpiValues: LoadKpiValues; loadReview?: LoadReviewNumbers; callShorten?: CallShorten; now?: () => Date };
+export type ConsultDeps = { callModel: CallModel; loadKpiValues: LoadKpiValues; loadReview?: LoadReviewNumbers; callShorten?: CallShorten; now?: () => Date };
 export type ConsultResult = { ok: true; threadId: string; redirect?: string } | { ok: false; threadId: string | null; message: string };
 
 const GENERIC_ERROR = "AI とのやりとりがうまくいきませんでした。時間をおいてもう一度お試しください。";
@@ -322,9 +321,6 @@ export async function consultStep(
   }
   const { data: project } = await user.from("projects").select("id").eq("id", projectId).maybeSingle();
   if (!project) return { ok: false, threadId: args.threadId, message: "プロジェクトが見つかりません。" };
-
-  const limit = await checkAiLimits(admin, userId, deps.limits, now);
-  if (!limit.ok) return { ok: false, threadId: args.threadId, message: limit.message };
 
   let threadId = args.threadId;
   let createdThread = false;
@@ -395,29 +391,18 @@ export async function consultStep(
   const ctx = await gatherConsultContext(user, projectId, now, deps.loadKpiValues, isReviewThread(history) ? deps.loadReview : undefined, topic === "roadmap", topic === "month_review");
   if (!ctx) return fail("プロジェクトが見つかりません。");
 
-  const recordUsage = (r: ModelResult) =>
-    admin.from("ai_usage").insert({
-      owner_id: userId,
-      thread_id: threadId,
-      purpose: "consult",
-      model: r.model,
-      input_tokens: r.usage.inputTokens,
-      cache_write_tokens: r.usage.cacheWriteTokens,
-      cache_read_tokens: r.usage.cacheReadTokens,
-      output_tokens: r.usage.outputTokens,
-      cost_usd: estimateCostUsd(r.model, r.usage),
-    });
-
+  // 呼ぶ前に上限の分を予約し、返事のあとで実際の額に直す（返事が使えなくても数える。budget.ts）
+  const budget = { userId, purpose: "consult", threadId, now };
   const request = buildConsultRequest(history, ctx);
   let result: ModelResult;
   try {
-    result = await deps.callModel(request);
+    const b = await withAiBudget(admin, budget, () => deps.callModel(request));
+    if (!b.ok) return fail(b.message);
+    result = b.result;
   } catch (e) {
     console.error("[consult] AI の呼び出しに失敗しました", e instanceof Error ? e.message : e);
     return fail(aiFailureMessage(e, GENERIC_ERROR));
   }
-  // 使った分は、返事が使えなくても記録する（上限の計算に入れる）
-  await recordUsage(result);
   if (result.stopReason === "refusal") return fail("AI がこの内容には答えられませんでした。言い方を変えてもう一度お試しください。");
   let turn = result.stopReason === "max_tokens" ? null : normalizeConsultTurn(result.turn);
   if (!turn || !turn.message) return fail(GENERIC_ERROR);
@@ -425,7 +410,7 @@ export async function consultStep(
   // 提案の中身が形に合わなかったときは、理由を伝えて 1 回だけ言い直させる
   if (turn.proposalProblem) {
     try {
-      const retry = await deps.callModel({
+      const retry = await budgeted(admin, budget, deps.callModel)({
         system: request.system,
         messages: [
           ...request.messages,
@@ -436,7 +421,6 @@ export async function consultStep(
           },
         ],
       });
-      await recordUsage(retry);
       const fixed = retry.stopReason === "end_turn" ? normalizeConsultTurn(retry.turn) : null;
       // 言い直しで案が揃えば使う。揃わなくても、最初の返事より合った案が多ければそちらを使う
       if (fixed?.message && (!fixed.proposalProblem || (fixed.proposal?.options.length ?? 0) > (turn.proposal?.options.length ?? 0))) turn = fixed;
@@ -449,21 +433,7 @@ export async function consultStep(
   void _ignored;
   const tidied = tidyConsultDrafts(rest, ctx.plan.hashtags.items.map((i) => i.tag));
   // 下書きの案が SNS の上限を超えていたら、超えた案だけを 1 回だけ縮めさせる（縮めても超えていれば、画面で「上限を n 字超えています」）
-  const shortened = await shortenConsultDrafts(deps.callShorten, tidied);
-  if (shortened.result) {
-    const r = shortened.result;
-    await admin.from("ai_usage").insert({
-      owner_id: userId,
-      thread_id: threadId,
-      purpose: "consult",
-      model: r.model,
-      input_tokens: r.usage.inputTokens,
-      cache_write_tokens: r.usage.cacheWriteTokens,
-      cache_read_tokens: r.usage.cacheReadTokens,
-      output_tokens: r.usage.outputTokens,
-      cost_usd: estimateCostUsd(r.model, r.usage),
-    });
-  }
+  const shortened = await shortenConsultDrafts(deps.callShorten && budgeted(admin, budget, deps.callShorten), tidied);
   const toSave = shortened.turn;
   const { error } = await admin.from("ai_messages").insert({ thread_id: threadId, owner_id: userId, role: "assistant", content: { ...toSave, adopted: [] } as never });
   if (error) throw error;

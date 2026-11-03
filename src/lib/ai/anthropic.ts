@@ -14,7 +14,7 @@ import type { CallPhotoIdeas } from "./photo-gen";
 import { shortenSchema, type CallShorten } from "./shorten";
 import { tidyDraftSchema, type CallTidy } from "./tidy-draft";
 import { PLAN_COACH_MODEL, type CallModel } from "./plan-coach";
-import { AI_MAX_TOKENS } from "./budget";
+import { AI_MAX_TOKENS, countable, type CountTokens } from "./budget";
 import { AiRequestRejected, AiUnavailableError, isRejectedStatus, isUnavailableResponse } from "./provider-failure";
 import { reportAiUnavailable } from "./provider-failure-report";
 
@@ -64,10 +64,23 @@ function anthropic() {
   return { beta: { messages: { parse: ((params: Parameters<typeof c.beta.messages.parse>[0]) => guardUnavailable(() => c.beta.messages.parse(params))) as typeof c.beta.messages.parse } } };
 }
 
+// 送る前に入力のトークン数を数える（count_tokens。無料。予約の見込みに使う。budget.ts）。返事の形（スキーマ）と思考の設定も同じものを渡す。
+// 429 は呼び出しと同じく 2 回までやり直す（guardUnavailable）
+type Wire = Pick<Anthropic.Beta.Messages.MessageCountTokensParams, "system" | "messages">;
+function tokenCounter(schema: z.ZodType, effort: "low" | "medium"): CountTokens<Wire> {
+  return async ({ system, messages }) => {
+    const c = anthropicClient();
+    const r = await guardUnavailable(() =>
+      c.beta.messages.countTokens({ model: PLAN_COACH_MODEL, thinking: { type: "adaptive" }, output_config: { effort, format: betaZodOutputFormat(schema) }, system, messages }),
+    );
+    return r.input_tokens;
+  };
+}
+
 // アカウント設計の相棒を呼ぶ。返事は構造化出力で coachTurnSchema の形に固定する。
 // - effort は medium（このモデルの既定）。会話の質と費用のつり合いをとる
 // - 安全のための判定で断られたときは、fallbacks: "default" で Anthropic がすすめるモデルに自動で回す
-export const callPlanCoach: CallModel = async ({ system, messages }) => {
+export const callPlanCoach: CallModel = countable<CallModel>(async ({ system, messages }) => {
   const res = await anthropic().beta.messages.parse({
     model: PLAN_COACH_MODEL,
     max_tokens: AI_MAX_TOKENS.plan_coach,
@@ -90,10 +103,10 @@ export const callPlanCoach: CallModel = async ({ system, messages }) => {
       outputTokens: u.output_tokens ?? 0,
     },
   };
-};
+}, tokenCounter(coachTurnSchema, "medium"));
 
 // AI と相談（docs/architecture.md の 4.23）。設計の相棒と同じく、相手の状況をくみ取って次の一手を出すので effort は medium
-export const callConsult: CallModel = async ({ system, messages }) => {
+export const callConsult: CallModel = countable<CallModel>(async ({ system, messages }) => {
   const res = await anthropic().beta.messages.parse({
     model: PLAN_COACH_MODEL,
     max_tokens: AI_MAX_TOKENS.consult,
@@ -116,11 +129,11 @@ export const callConsult: CallModel = async ({ system, messages }) => {
       outputTokens: u.output_tokens ?? 0,
     },
   };
-};
+}, tokenCounter(consultTurnSchema, "medium"));
 
 // 構造化出力で 1 回呼ぶ。effort は用途ごとに決める
 function structuredCaller<T extends z.ZodType>(schema: T, maxTokens: number, effort: "low" | "medium" = "low"): CallDescriber {
-  return async ({ system, messages }) => {
+  return countable<CallDescriber>(async ({ system, messages }) => {
     const res = await anthropic().beta.messages.parse({
       model: PLAN_COACH_MODEL,
       max_tokens: maxTokens,
@@ -143,7 +156,7 @@ function structuredCaller<T extends z.ZodType>(schema: T, maxTokens: number, eff
         outputTokens: u.output_tokens ?? 0,
       },
     };
-  };
+  }, tokenCounter(schema, effort));
 }
 
 // アプリの紹介文の下書き（① 読むファイルを選ぶ、② ③ 紹介文を書く）。要約に近い作業なので effort は low にして費用を抑える

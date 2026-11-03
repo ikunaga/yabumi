@@ -17,7 +17,8 @@ vi.mock("@/lib/ai/provider-failure-report", async (importOriginal) => {
 });
 
 import { generateWithGemini, ImageBlockedError } from "@/lib/ai/gemini-image";
-import { guardUnavailable } from "@/lib/ai/anthropic";
+import { callConsult, guardUnavailable } from "@/lib/ai/anthropic";
+import { tokenCounterOf } from "@/lib/ai/budget";
 import { AI_UNAVAILABLE_MESSAGE, AiRequestRejected, AiUnavailableError, aiFailureMessage, isUnavailableResponse, notBilled } from "@/lib/ai/provider-failure";
 import { unavailableKey, unavailableMail } from "@/lib/ai/provider-failure-report";
 
@@ -173,5 +174,24 @@ describe("Claude（Anthropic）", () => {
       return Promise.reject(apiError(500, "server"));
     }, undefined, wait).catch(() => undefined);
     expect(calls500).toBe(1);
+  });
+
+  it("送る前に数える（count_tokens）ときも、429 は同じくやり直す。数えるのは count_tokens の URL だけ（生成は呼ばない）", async () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", SECRET);
+    const urls: string[] = [];
+    let n = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL | Request) => {
+        urls.push(String(url instanceof Request ? url.url : url));
+        n++;
+        if (n === 1) return new Response(JSON.stringify({ type: "error", error: { type: "rate_limit_error", message: "rate" } }), { status: 429, headers: { "content-type": "application/json", "retry-after": "0.01" } });
+        return new Response(JSON.stringify({ input_tokens: 1234 }), { status: 200, headers: { "content-type": "application/json" } });
+      }),
+    );
+    const count = tokenCounterOf(callConsult)!;
+    expect(await count({ system: [{ type: "text", text: "相談" }], messages: [{ role: "user", content: [{ type: "text", text: "こんにちは" }] }] })).toBe(1234);
+    expect(urls).toHaveLength(2);
+    for (const u of urls) expect(u).toMatch(/\/v1\/messages\/count_tokens/);
   });
 });

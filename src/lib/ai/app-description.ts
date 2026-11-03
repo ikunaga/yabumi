@@ -4,7 +4,7 @@ import type { TreeEntry } from "@/lib/github/api";
 import { readableRepoLink } from "@/lib/github/installations";
 import { listCandidates, MAX_PICKED_FILES, selectFiles, validatePicks, type RepoFile } from "@/lib/github/repo-reader";
 import type { Database } from "@/lib/supabase/database.types";
-import { reserveAi, withAiBudget } from "./budget";
+import { reserveAi, tokenCounterOf, withAiBudget } from "./budget";
 import type { BetaMessageParam, BetaTextBlockParam } from "./plan-coach";
 import type { TokenUsage } from "./pricing";
 import { aiFailureMessage } from "./provider-failure";
@@ -215,7 +215,7 @@ export async function draftAppDescription(
   // ① の AI の分を予約する（見込みは送る中身から決めるので、ファイルの一覧を読んでから。上限に届いていたらここで止める。budget.ts）
   const budget = { userId: args.userId, purpose: "app_description", now };
   const pickRequest = buildFilePickRequest(project.name, link.fullName, candidates.files, candidates.truncated);
-  const pickBudget = await reserveAi(admin, { ...budget, call: "file_pick", request: pickRequest });
+  const pickBudget = await reserveAi(admin, { ...budget, call: "file_pick", request: pickRequest, countTokens: tokenCounterOf(deps.callPicker) });
   if (!pickBudget.ok) return { ok: false, message: pickBudget.message };
 
   // ① 読むファイルを AI が選ぶ。選べなかったら、決まった名前のファイルで代わりにする

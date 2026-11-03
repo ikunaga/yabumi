@@ -1,8 +1,8 @@
 // 文章の AI の上限の予約（DB の関数 reserve_ai_usage と src/lib/ai/budget.ts。セキュリティ確認 2026-11-03 の M2・M1）。
 // 同時に送っても本人と全体の上限を超えない・断った分を数えない・新しい人の枠・呼べるのはサーバーだけ。本物の AI は呼ばない。
 // 全体の合計は p_scope_owner で、このテストの利用者の分だけに絞る（共有のローカル DB のほかのテストに左右されない）
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { AI_MAX_TOKENS, REQUEST_OVERHEAD_TOKENS, reserveEstimateUsd, setAiBudgetTestScope, withAiBudget } from "@/lib/ai/budget";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { AI_MAX_TOKENS, COUNTED_TOKENS_MARGIN, REQUEST_OVERHEAD_TOKENS, countable, reserveEstimateUsd, setAiBudgetTestScope, withAiBudget } from "@/lib/ai/budget";
 import { AiRequestRejected, AiUnavailableError } from "@/lib/ai/provider-failure";
 import { adminClient, anonClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
 
@@ -217,6 +217,40 @@ describe("入口（withAiBudget）", () => {
     // 起こりうる最大: 送る中身がすべてトークン（1 バイト 1 トークン）でキャッシュへの書き込み、出力は上限まで、知らないモデル（いちばん高い）
     const worst = { model: "unknown-fallback-model", usage: { inputTokens: 0, cacheWriteTokens: bytes + REQUEST_OVERHEAD_TOKENS, cacheReadTokens: 0, outputTokens: AI_MAX_TOKENS.consult } };
     const results = await Promise.all(Array.from({ length: 10 }, () => withAiBudget(admin, opts(), long, async () => worst)));
+    expect(results.filter((r) => r.ok).length).toBeGreaterThan(0);
+    expect(results.filter((r) => !r.ok).length).toBeGreaterThan(0);
+    const total = (await rowsOf(aliceId)).reduce((n, r) => n + Number(r.cost_usd), 0);
+    expect(total).toBeLessThanOrEqual(3);
+    setAiBudgetTestScope(null);
+  });
+
+  it("呼び出しに数える関数（count_tokens）が付いていれば、数えた値で予約する。数えられなければバイト数で予約する", async () => {
+    await clear(aliceId, bobId);
+    setAiBudgetTestScope({ scopeSelf: true, asOf: new Date(OLD) });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const long = { system: [{ type: "text", text: "相談の相棒です。".repeat(500) }], messages: [{ role: "user", content: [{ type: "text", text: "長い相談".repeat(1000) }] }] };
+    const seen: number[] = [];
+    const call = (count: () => Promise<number>) =>
+      countable(async (req: typeof long) => {
+        seen.push(Number((await rowsOf(aliceId)).find((r) => r.status === "reserved")?.cost_usd));
+        void req;
+        return { model: "claude-opus-5-5", usage };
+      }, count);
+    expect((await withAiBudget(admin, opts(), long, call(async () => 3000))).ok).toBe(true);
+    expect((await withAiBudget(admin, opts(), long, call(async () => Promise.reject(new Error("count failed"))))).ok).toBe(true);
+    expect(seen).toEqual([reserveEstimateUsd("consult", long, 3000), reserveEstimateUsd("consult", long)]);
+    expect(seen[0]).toBeLessThan(seen[1]);
+    vi.restoreAllMocks();
+    setAiBudgetTestScope(null);
+  });
+
+  it("数えた値で予約しても、残りが少ないときに同時に 10 回送り、どれも数えた値のゆとりの分まで入力・出力の上限まで使ったとしても、合計が上限を超えない", async () => {
+    await clear(aliceId, bobId);
+    setAiBudgetTestScope({ scopeSelf: true, asOf: new Date(OLD) });
+    await spend(aliceId, 2.2); // 残り $0.8
+    const counted = 5000;
+    const worst = { model: "unknown-fallback-model", usage: { inputTokens: 0, cacheWriteTokens: Math.ceil(counted * COUNTED_TOKENS_MARGIN), cacheReadTokens: 0, outputTokens: AI_MAX_TOKENS.consult } };
+    const results = await Promise.all(Array.from({ length: 10 }, () => withAiBudget(admin, opts(), request, countable(async (req: typeof request) => (void req, worst), async () => counted))));
     expect(results.filter((r) => r.ok).length).toBeGreaterThan(0);
     expect(results.filter((r) => !r.ok).length).toBeGreaterThan(0);
     const total = (await rowsOf(aliceId)).reduce((n, r) => n + Number(r.cost_usd), 0);

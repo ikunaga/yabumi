@@ -4,7 +4,8 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { AI_MAX_RESERVATION_USD, AI_MAX_TOKENS, REQUEST_OVERHEAD_TOKENS, limitMessage, reserveEstimateUsd, type AiCall } from "@/lib/ai/budget";
+import { AI_MAX_RESERVATION_USD, AI_MAX_TOKENS, COUNTED_TOKENS_MARGIN, REQUEST_OVERHEAD_TOKENS, estimateRequestUsd, limitMessage, reserveEstimateUsd, tokenCounterOf, type AiCall } from "@/lib/ai/budget";
+import * as calls from "@/lib/ai/anthropic";
 import { estimateCostUsd } from "@/lib/ai/pricing";
 import { coachTurnSchema } from "@/lib/ai/plan-coach-schema";
 import { consultTurnSchema } from "@/lib/ai/consult-schema";
@@ -44,7 +45,8 @@ describe("文章の AI の上限の入口", () => {
     for (const f of flows) {
       const lines = f.text.split("\n");
       lines.forEach((line, i) => {
-        if (!/deps\.call[A-Z]\w+/.test(line) || /^\s*(\/\/|\*)/.test(line) || /deps: \{/.test(line)) return;
+        // tokenCounterOf(deps.callX) は数える関数を取り出すだけ（呼ばない）
+        if (!/deps\.call[A-Z]\w+/.test(line.replace(/tokenCounterOf\(deps\.call[A-Z]\w+\)/g, "")) || /^\s*(\/\/|\*)/.test(line) || /deps: \{/.test(line)) return;
         // 同じ行か、直前 12 行に入口がある（withAiBudget の中・budgeted で包む）。reserveAi で予約したあとに呼ぶときは、すぐ下で失敗したら予約を消す
         const around = lines.slice(Math.max(0, i - 12), i + 5).join("\n");
         expect(around, `${f.path}:${i + 1} ${line.trim()}`).toMatch(/withAiBudget|budgeted\(|(pickBudget|reservation)\.fail\(/);
@@ -168,5 +170,47 @@ describe("予約の見込み（その呼び出しで起こりうる最大の額�
     ]).flat();
     const estimate = reserveEstimateUsd("consult", { system, messages: [...turns, { role: "system", content: "あ".repeat(3400) }] });
     expect(estimate).toBeLessThan(AI_MAX_RESERVATION_USD);
+  });
+});
+
+describe("count_tokens で数えた見込み", () => {
+  const request = { system: [{ type: "text", text: "相談の相棒です。".repeat(300) }], messages: [{ role: "user", content: [{ type: "text", text: "長い相談".repeat(500) }] }] };
+
+  it("数えたトークン数にゆとりを掛けたもの（バイト数の見積もりより大きくはしない）。そこまで使っても見込みを超えない", () => {
+    const counted = 4000;
+    const estimate = reserveEstimateUsd("consult", request, counted);
+    expect(estimate).toBeLessThan(reserveEstimateUsd("consult", request));
+    const worst = { inputTokens: 0, cacheWriteTokens: Math.ceil(counted * COUNTED_TOKENS_MARGIN), cacheReadTokens: 0, outputTokens: AI_MAX_TOKENS.consult };
+    expect(estimateCostUsd("unknown-fallback-model", worst)).toBeLessThanOrEqual(estimate);
+    // 数えた値がバイト数の見積もりより大きいときは、バイト数のほう
+    expect(reserveEstimateUsd("consult", request, 10_000_000)).toBe(reserveEstimateUsd("consult", request));
+  });
+
+  it("数えられれば数えた値で、失敗・0・数える関数がないときはバイト数で見積もる（上限を超えない側）", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    expect(await estimateRequestUsd("consult", request, async () => 4000)).toBe(reserveEstimateUsd("consult", request, 4000));
+    expect(await estimateRequestUsd("consult", request, async () => Promise.reject(new Error("overloaded")))).toBe(reserveEstimateUsd("consult", request));
+    expect(await estimateRequestUsd("consult", request, async () => 0)).toBe(reserveEstimateUsd("consult", request));
+    expect(await estimateRequestUsd("consult", request)).toBe(reserveEstimateUsd("consult", request));
+    vi.restoreAllMocks();
+  });
+
+  it("数えるのに 2 秒を超えたら知らせる（見込みは数えた値のまま）", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    let t = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => (t += 1500));
+    expect(await estimateRequestUsd("consult", request, async () => 4000)).toBe(reserveEstimateUsd("consult", request, 4000));
+    expect(warn).toHaveBeenCalledTimes(0);
+    t = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => (t += 2500));
+    await estimateRequestUsd("consult", request, async () => 4000);
+    expect(warn).toHaveBeenCalledTimes(1);
+    vi.restoreAllMocks();
+  });
+
+  it("anthropic.ts の呼び出しには、どれも数える関数が付いている", () => {
+    const exported = Object.entries(calls).filter(([k, v]) => /^call[A-Z]/.test(k) && typeof v === "function");
+    expect(exported.length).toBe(10);
+    for (const [k, v] of exported) expect(tokenCounterOf(v as never), k).toBeTypeOf("function");
   });
 });

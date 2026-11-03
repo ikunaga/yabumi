@@ -10,7 +10,7 @@ import { SNS, SNS_KEYS, isManualSns, type SnsKey } from "@/lib/sns";
 import { HASHTAG_RULES, tidyDraftHashtags } from "@/lib/sns/hashtags";
 import type { Database } from "@/lib/supabase/database.types";
 import type { ModelOutput, RepoLink } from "./app-description";
-import { budgeted, linkAiUsage, reserveAi, withAiBudget } from "./budget";
+import { budgeted, linkAiUsage, reserveAi, tokenCounterOf, withAiBudget } from "./budget";
 import type { BetaMessageParam, BetaTextBlockParam } from "./plan-coach";
 import { actionFromLegacyGoal, type ProductType } from "@/lib/projects/product-types";
 import { guideFor, productLines, productTypeOf, usesDevTalk } from "./product-guide";
@@ -479,7 +479,7 @@ export async function generatePostIdeas(
 
   // 呼ぶ前に上限の分を予約する（見込みは送る中身から決めるので、コミットを読んでから）。返事のあとで実際の額に直す（返事が使えなくても数える。
   // 会話はあとで作るので、作ったら結びつける）。失敗したときの扱いは budget.ts の fail
-  const reservation = await reserveAi(admin, { userId: args.userId, purpose: "post_ideas", call: "post_ideas", now, request: req });
+  const reservation = await reserveAi(admin, { userId: args.userId, purpose: "post_ideas", call: "post_ideas", now, request: req, countTokens: tokenCounterOf(deps.callIdeas) });
   if (!reservation.ok) return { ok: false, message: reservation.message };
   let result: ModelOutput;
   try {

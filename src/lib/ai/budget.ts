@@ -36,14 +36,51 @@ export const AI_MAX_RESERVATION_USD = 1;
 // 全体の月の上限（reserve_ai_usage の c_global_monthly_usd と同じ値。運営者に 80% で知らせるのに使う）
 export const AI_GLOBAL_MONTHLY_USD = 10;
 
+// count_tokens で数えたトークン数に掛けるゆとり。数えるのは呼ぶモデル（Opus 5.5）のトークン数だが、安全のための判定で別のモデルに回ったとき
+// （fallbacks）は、トークンの切り方が違って数が増えうる（モデルの世代でおよそ 1.35 倍まで違う）ため
+export const COUNTED_TOKENS_MARGIN = 1.35;
+
 // 1 回の呼び出しで起こりうる最大の費用（米ドル）。
-// - 入力: 送る中身（system と messages）の JSON の UTF-8 のバイト数を、トークン数の上限とみなす（Claude のトークンは 1 つが 1 バイト以上なので、
-//   これより多くはならない。JSON の記号の分だけ多めになる）。足される分（REQUEST_OVERHEAD_TOKENS）を加え、いちばん高い入力の単価（キャッシュへの書き込み）で数える
+// - 入力: 送る前に count_tokens で数えたトークン数（countedInputTokens）に COUNTED_TOKENS_MARGIN を掛けたもの。
+//   数えられなかったときは、送る中身（system と messages）の JSON の UTF-8 のバイト数をトークン数の上限とみなし（Claude のトークンは 1 つが 1 バイト以上なので、
+//   これより多くはならない。日本語は 1 字 3 バイトなので、実際のおよそ 3 倍になる）、足される分（REQUEST_OVERHEAD_TOKENS）を加える。
+//   両方わかるときは小さいほう。いちばん高い入力の単価（キャッシュへの書き込み）で数える
 // - 出力: 出力の上限（AI_MAX_TOKENS）を、いちばん高い出力の単価で数える
-export function reserveEstimateUsd(call: AiCall, request: unknown): number {
-  const inputTokens = Buffer.byteLength(JSON.stringify(request) ?? "", "utf8") + REQUEST_OVERHEAD_TOKENS;
+export function reserveEstimateUsd(call: AiCall, request: unknown, countedInputTokens?: number): number {
+  const byBytes = Buffer.byteLength(JSON.stringify(request) ?? "", "utf8") + REQUEST_OVERHEAD_TOKENS;
+  const inputTokens = countedInputTokens === undefined ? byBytes : Math.min(byBytes, Math.ceil(countedInputTokens * COUNTED_TOKENS_MARGIN));
   const p = maxTextPricePerMillion();
   return Math.ceil(((inputTokens * p.input + AI_MAX_TOKENS[call] * p.output) / 1_000_000) * 1_000_000) / 1_000_000;
+}
+
+// 送る前に入力のトークン数を数える関数（anthropic.ts の呼び出しに countTokens として付ける。count_tokens は無料）。
+// テストの偽の呼び出しには付いていないので、バイト数で見積もる
+export type CountTokens<Req> = (req: Req) => Promise<number>;
+export function countable<F extends (req: never) => Promise<unknown>>(call: F, countTokens: CountTokens<Parameters<F>[0]>): F & { countTokens: CountTokens<Parameters<F>[0]> } {
+  return Object.assign(call, { countTokens });
+}
+export function tokenCounterOf<Req>(call: (req: Req) => unknown): CountTokens<Req> | undefined {
+  const c = (call as { countTokens?: unknown }).countTokens;
+  return typeof c === "function" ? (c as CountTokens<Req>) : undefined;
+}
+
+// 数えるのに時間がかかったら知らせる（ミリ秒）
+const SLOW_COUNT_MS = 2000;
+
+// 見込みの額を出す。数えられれば数えた値で、数えられなければ（失敗・数える関数がない）バイト数で（上限を超えない側）
+export async function estimateRequestUsd<Req>(call: AiCall, request: Req, countTokens?: CountTokens<Req>): Promise<number> {
+  if (countTokens) {
+    const started = performance.now();
+    try {
+      const n = await countTokens(request);
+      const ms = performance.now() - started;
+      if (ms > SLOW_COUNT_MS) console.warn("[ai-budget] トークン数を数えるのに時間がかかりました", { call, ms: Math.round(ms) });
+      if (Number.isFinite(n) && n > 0) return reserveEstimateUsd(call, request, n);
+    } catch (e) {
+      console.error("[ai-budget] トークン数を数えられませんでした（バイト数で見積もります）", e instanceof Error ? e.message : e);
+    }
+  }
+  return reserveEstimateUsd(call, request);
 }
 
 // 見込みが 1 回の上限を超えたとき（会話が長くなりすぎたなど）の文言
@@ -103,9 +140,10 @@ function testArgs(userId: string): { p_scope_owner?: string; p_as_of?: string } 
   return { ...(testScope.scopeSelf ? { p_scope_owner: userId } : {}), ...(testScope.asOf ? { p_as_of: testScope.asOf.toISOString() } : {}) };
 }
 
-// 予約だけする（返事のあとに会話を作るなど、直すときに情報を足すとき）。ふつうは withAiBudget を使う。request は送る中身（見込みの額を決める）
-export async function reserveAi(admin: Db, opts: BudgetOpts & { request: unknown }): Promise<AiReservation | BudgetDenied> {
-  const estimate = reserveEstimateUsd(opts.call, opts.request);
+// 予約だけする（返事のあとに会話を作るなど、直すときに情報を足すとき）。ふつうは withAiBudget を使う。request は送る中身（見込みの額を決める）。
+// countTokens は呼び出しに付いている数える関数（tokenCounterOf(deps.callX)）
+export async function reserveAi<Req>(admin: Db, opts: BudgetOpts & { request: Req; countTokens?: CountTokens<Req> }): Promise<AiReservation | BudgetDenied> {
+  const estimate = await estimateRequestUsd(opts.call, opts.request, opts.countTokens);
   if (estimate > AI_MAX_RESERVATION_USD) return { ok: false, message: TOO_LARGE_MESSAGE };
   const { data, error } = await admin.rpc("reserve_ai_usage", {
     p_owner_id: opts.userId,
@@ -165,7 +203,7 @@ export async function withAiBudget<Req, T extends ModelLike>(
   request: Req,
   call: (req: Req) => Promise<T>,
 ): Promise<{ ok: true; result: T; usageId: string } | BudgetDenied> {
-  const r = await reserveAi(admin, { ...opts, request });
+  const r = await reserveAi(admin, { ...opts, request, countTokens: tokenCounterOf(call) });
   if (!r.ok) return r;
   let result: T;
   try {

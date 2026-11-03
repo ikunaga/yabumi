@@ -96,7 +96,7 @@ export function buildPhotoIdeasRequest(ctx: CheckContext, text: string): { syste
     messages: [
       {
         role: "user",
-        content: [{ type: "text", text: `${checkContextText(ctx)}\n\n# 投稿の文面\n<post>\n${escapeData(text)}\n</post>\n\nこの投稿に添える画像の場面の説明を考えてください。` }],
+        content: [{ type: "text", text: `${checkContextText(ctx, "image")}\n\n# 投稿の文面\n<post>\n${escapeData(text)}\n</post>\n\nこの投稿に添える画像の場面の説明を考えてください。` }],
       },
     ],
   };

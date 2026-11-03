@@ -43,10 +43,10 @@ export async function planProgressByProject(projects: { id: string; target_audie
   );
 }
 
-// 投稿の作成画面に出す、投稿の柱と口調
+// 投稿の作成画面に出す、コンセプトの 1 文と投稿の柱と口調
 export async function getPlanHints(projectId: string) {
   const p = await getAccountPlan(projectId);
   if (!p) return null;
   const { items, tone, toneBySns, avoid } = p.plan.pillars;
-  return { pillars: items.filter((i) => i.name.trim()), tone, toneBySns, avoid };
+  return { concept: p.plan.concept.statement.trim(), pillars: items.filter((i) => i.name.trim()), tone, toneBySns, avoid };
 }

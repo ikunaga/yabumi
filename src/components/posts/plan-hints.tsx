@@ -3,19 +3,22 @@ import { hasToneBySns, isSplitBySns, pillarsBySns, pillarSnsLabel, type Pillar }
 import { SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
 
 export type PlanHintsData = {
+  // コンセプトの 1 文（4.50。一番上に出す）。前の版のデータは空
+  concept?: string;
   pillars: Pillar[];
   tone: string;
   toneBySns: Partial<Record<SnsKey, string>>;
   avoid: string;
 };
 
-// 投稿を書くときの手がかり: アカウント設計の「投稿の柱」と「口調」を見返す。本文の欄を目立たせるため、閉じて置く（開けば見られる）。
+// 投稿を書くときの手がかり: アカウント設計の「コンセプト」「投稿の柱」「口調」を見返す（コンセプトの 1 文を一番上に）。本文の欄を目立たせるため、閉じて置く（開けば見られる）。
 // 柱を SNS ごとに分けているときは、送り先（sns）に選んだ SNS ごとに、その SNS に付いた柱を出す（選んでいなければ、柱ごとに使う SNS を添える）。
 // SNS ごとの口調があれば、その SNS の柱の下に出す（柱を分けていなければ、共通の口調の下に SNS ごとに）
 export function PlanHints({ projectId, hints, sns = [] }: { projectId: string; hints: PlanHintsData | null; sns?: SnsKey[] }) {
   const planHref = `/projects/${projectId}/plan`;
   const toneBySns = hints?.toneBySns ?? {};
-  const empty = !hints || (hints.pillars.length === 0 && !hints.tone && !hasToneBySns({ toneBySns }) && !hints.avoid);
+  const concept = hints?.concept?.trim() ?? "";
+  const empty = !hints || (!concept && hints.pillars.length === 0 && !hints.tone && !hasToneBySns({ toneBySns }) && !hints.avoid);
   const bySnsView = Boolean(hints && hints.pillars.length > 0 && isSplitBySns(hints.pillars) && sns.length > 0);
   // 共通の口調の下に出す SNS ごとの口調（SNS ごとにまとめて出すときは、そちらに出す）
   const toneRows = bySnsView ? [] : SNS_KEYS.filter((k) => (sns.length === 0 || sns.includes(k)) && toneBySns[k]?.trim());
@@ -26,8 +29,8 @@ export function PlanHints({ projectId, hints, sns = [] }: { projectId: string; h
         <span aria-hidden className="text-muted transition-transform group-open:rotate-90">
           ▸
         </span>
-        設計を見返す（投稿の柱と口調）
-        <Link href={planHref} className="ml-auto text-xs font-semibold text-primary hover:underline">
+        設計を見返す（コンセプト・投稿の柱と口調）
+        <Link href={planHref} className="ml-auto shrink-0 text-xs font-semibold whitespace-nowrap text-primary hover:underline">
           設計を直す
         </Link>
       </summary>
@@ -42,6 +45,12 @@ export function PlanHints({ projectId, hints, sns = [] }: { projectId: string; h
           </p>
         ) : (
           <>
+            {concept && (
+              <p className="rounded-md bg-surface2 px-3 py-2">
+                <span className="block text-xs font-bold text-muted">コンセプト</span>
+                {concept}
+              </p>
+            )}
             {hints.pillars.length > 0 &&
               (bySnsView ? (
                 <div className="flex flex-col gap-2">

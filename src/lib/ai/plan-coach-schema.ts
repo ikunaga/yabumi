@@ -2,7 +2,7 @@ import { KPI_KEYS } from "@/lib/metrics/kpis";
 import { z } from "zod";
 import { SNS_KEYS, type SnsKey } from "@/lib/sns";
 import { PRODUCT_TYPES, type ProductType } from "@/lib/projects/product-types";
-import { GOAL_TYPES, isValidHashtag, MAX_HASHTAGS, MAX_WEEKLY_PER_SNS, normalizeHashtag, OWNERSHIP_MODES, PROFILE_OVERRIDE_FIELDS, SECTION_KEYS, sectionSchemas, type ProfileOverrideField, type SectionKey, type SectionValue } from "@/lib/plan/schema";
+import { STORY_FIELDS, GOAL_TYPES, isValidHashtag, MAX_HASHTAGS, MAX_WEEKLY_PER_SNS, normalizeHashtag, OWNERSHIP_MODES, PROFILE_OVERRIDE_FIELDS, SECTION_KEYS, sectionSchemas, type ProfileOverrideField, type SectionKey, type SectionValue } from "@/lib/plan/schema";
 
 // AI（アカウント設計の相棒）の 1 回の返事の形。構造化出力（output_config.format）でこの形に固定する。
 // 構造化出力のスキーマは文法にコンパイルされ、大きすぎると 400（compiled grammar is too large）になる。
@@ -21,7 +21,17 @@ export type CoachValue = SectionValue<SectionKey> | ProductValue;
 export const valueSchemas = {
   product: z.object({ productType: z.enum(PRODUCT_TYPES) }),
   goal: z.object({ what: z.string(), goalType: z.enum(GOAL_TYPES).nullable(), note: z.string() }),
+  // あなたらしさ（4.50）。項目は平らな文字列で受け取り、「投稿に使わない」項目だけを notShareable に入れる（印をオンにはできない）
+  story: z.object({
+    why: z.string().default(""),
+    background: z.string().default(""),
+    struggle: z.string().default(""),
+    strength: z.string().default(""),
+    summary: z.string().default(""),
+    notShareable: z.array(z.string()).default([]),
+  }),
   audience: z.object({ who: z.string(), pain: z.string(), where: z.string() }),
+  concept: z.object({ how: z.string().default(""), statement: z.string().default("") }),
   pillars: z.object({
     // sns: その柱を使う SNS（空はすべての SNS。前の版の案（sns なし）も読めるように既定は空。知らない SNS は保存の形で捨てる）
     items: z.array(z.object({ name: z.string(), share: z.number().int().nullable(), example: z.string(), sns: z.array(z.string()).default([]) })),
@@ -178,6 +188,19 @@ export function toSectionValue(key: SectionKey, value: unknown): SectionValue<Se
     }
     v = { ...value, weekly, startedOn: null };
   }
+  if (key === "story" && value && typeof value === "object") {
+    // 平らな形（value_json）を保存する形にする。notShareable の項目は印をオフに（ほかはオン。採用するときに、保存してある印のオフは残す: mergeStoryShareable）
+    const raw = value as Record<string, unknown>;
+    const off = Array.isArray(raw.notShareable) ? raw.notShareable : [];
+    v = Object.fromEntries(
+      STORY_FIELDS.map((f) => {
+        const cur = raw[f];
+        // すでに保存する形（{ text, shareable }）のときは、そのまま読む（保存してある案を読み直すとき）
+        if (cur && typeof cur === "object") return [f, cur];
+        return [f, { text: typeof cur === "string" ? cur : "", shareable: !off.includes(f) }];
+      }),
+    );
+  }
   if (key === "profile" && value && typeof value === "object") {
     v = { ...value, bySns: cleanProfileOverrides((value as { bySns?: unknown }).bySns) };
   }
@@ -206,9 +229,26 @@ export function toWireTurn(t: CoachTurn): unknown {
 }
 
 export function toWireValue(key: SectionKey, value: SectionValue<SectionKey>): unknown {
+  if (key === "story") {
+    // 保存した形（{ text, shareable }）を、案の中身の形（平らな文字列と notShareable）に戻す。前の形の値（項目がない）は空として読む
+    const st = (value ?? {}) as Partial<SectionValue<"story">>;
+    return {
+      ...Object.fromEntries(STORY_FIELDS.map((f) => [f, st[f]?.text ?? ""])),
+      notShareable: STORY_FIELDS.filter((f) => st[f] && st[f].shareable === false),
+    };
+  }
   if (key !== "cadence") return value;
   const c = value as SectionValue<"cadence">;
   return { frequency: c.frequency, roles: Object.entries(c.roles).map(([sns, role]) => ({ sns, role })) };
+}
+
+// あなたらしさの案を採用するとき: 保存してある「投稿に使ってよい」のオフは残す（AI が印をオンに戻さない）。
+// 案のオフ（相手が「投稿に使わないで」と言った項目）も残す
+export function mergeStoryShareable(next: SectionValue<"story">, prev: SectionValue<"story"> | null | undefined): SectionValue<"story"> {
+  return Object.fromEntries(
+    // 保存してある会話の案は前の形のこともあるので、項目がなくても止まらないように読む
+    STORY_FIELDS.map((f) => [f, { text: next?.[f]?.text ?? "", shareable: (next?.[f]?.shareable ?? true) && (prev?.[f]?.shareable ?? true) }]),
+  ) as SectionValue<"story">;
 }
 
 // SNS ごとの上書きのうち、知らない SNS と、全部が空のものを外す

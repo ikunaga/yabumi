@@ -6,7 +6,7 @@ import { isProductType, type ProductType } from "@/lib/projects/product-types";
 import { isSnsKey, type SnsKey } from "@/lib/sns";
 import type { Database } from "@/lib/supabase/database.types";
 import { budgeted, withAiBudget } from "./budget";
-import { normalizeCoachTurn, toWireTurn, type CoachSectionKey, type CoachTurn, type ProductValue } from "./plan-coach-schema";
+import { mergeStoryShareable, normalizeCoachTurn, toWireTurn, type CoachSectionKey, type CoachTurn, type ProductValue } from "./plan-coach-schema";
 import { coachContextMessage, PLAN_COACH_SYSTEM, sectionLabel, type CoachContext } from "./plan-coach-prompt";
 import type { TokenUsage } from "./pricing";
 import { productTypeOf } from "./product-guide";
@@ -170,11 +170,17 @@ export async function coachStep(
       // ハッシュタグの案は、候補のうち利用者が選んだものだけを保存する
       const picked = proposal.section === "hashtags" && input.picks ? pickHashtags(option.value as PlanData["hashtags"], input.picks) : null;
       if (picked && picked.value.items.length === 0) return { ok: false, threadId, message: "使うハッシュタグを 1 つ以上選んでください。" };
+      // あなたらしさは、保存してある「投稿に使ってよい」のオフを残す（AI の案で印がオンに戻らないように）
+      let value = picked?.value ?? (option.value as SectionValue<SectionKey>);
+      if (proposal.section === "story") {
+        const { data: prevRow } = await user.from("account_plans").select("data").eq("project_id", projectId).maybeSingle();
+        value = mergeStoryShareable(value as PlanData["story"], normalizePlan(prevRow?.data, "").story);
+      }
       // 「何を宣伝するか」はプロジェクトの種類（projects.product_type）に、ほかはアカウント設計に保存する
       const saved =
         proposal.section === "product"
           ? await saveProductType(user, projectId, (option.value as ProductValue).productType)
-          : await saveSectionValue(user, projectId, proposal.section, picked?.value ?? (option.value as SectionValue<SectionKey>), "ai", { now });
+          : await saveSectionValue(user, projectId, proposal.section, value, "ai", { now });
       if (!saved.ok) return { ok: false, threadId, message: "案を保存できませんでした。時間をおいてもう一度お試しください。" };
       if (proposal.section === "product") productType = (option.value as ProductValue).productType;
       await admin

@@ -20,6 +20,9 @@ export type ProductGuide = {
   photo: string;
   // 作り手・同業者の側の言葉の例（届けたい相手が同業者のときだけ使う）
   insiderTags: string;
+  // あなたらしさ（4.50）を聞くときの「始めたきっかけ」の選択肢と、答えの例（設計の相棒だけが使う）
+  storyChoices: string[];
+  storyExample: string;
 };
 
 export const PRODUCT_GUIDES: Record<ProductType, ProductGuide> = {
@@ -35,6 +38,8 @@ export const PRODUCT_GUIDES: Record<ProductType, ProductGuide> = {
     topicExamples: ["新しい機能", "よくある質問", "作った理由", "使い方のコツ"],
     photo: "アプリの画面",
     insiderTags: "#個人開発 #indiedev",
+    storyChoices: ["自分が困って作った", "前の仕事で見た困りごとから", "好きなことを形にしたかった"],
+    storyExample: "例: 自分が家計簿を続けられず、困って作った",
   },
   web_service: {
     noun: "サービス",
@@ -48,6 +53,8 @@ export const PRODUCT_GUIDES: Record<ProductType, ProductGuide> = {
     topicExamples: ["新しい機能", "よくある質問", "作った理由", "お知らせ"],
     photo: "サービスの画面",
     insiderTags: "#個人開発 #SaaS",
+    storyChoices: ["身近な人の困りごとを見て", "前の仕事で感じた不便から", "自分が使いたくて"],
+    storyExample: "例: 家族のお店が電話の予約に困っているのを見て作った",
   },
   shop: {
     noun: "お店",
@@ -61,6 +68,8 @@ export const PRODUCT_GUIDES: Record<ProductType, ProductGuide> = {
     topicExamples: ["新しいメニュー", "お休みのお知らせ", "季節の話題", "お客さんの声"],
     photo: "お店・料理・商品の写真",
     insiderTags: "#飲食店経営 #個人店経営",
+    storyChoices: ["前は会社員で、思い切って始めた", "家業を継いだ", "好きが高じて始めた"],
+    storyExample: "例: 前は会社員で、30 歳でパン屋の修業を始めた",
   },
   online_shop: {
     noun: "商品",
@@ -74,6 +83,8 @@ export const PRODUCT_GUIDES: Record<ProductType, ProductGuide> = {
     topicExamples: ["新しい商品", "再入荷のお知らせ", "季節の話題", "届いた人の声"],
     photo: "商品の写真",
     insiderTags: "#ハンドメイド作家 #ネットショップ運営",
+    storyChoices: ["自分が欲しいものがなかった", "前の仕事の技術を生かして", "趣味から始めた"],
+    storyExample: "例: 子育てで、長く使える布小物が見つからなかった",
   },
   service: {
     noun: "サービス",
@@ -87,6 +98,8 @@ export const PRODUCT_GUIDES: Record<ProductType, ProductGuide> = {
     topicExamples: ["空き枠のお知らせ", "よくある質問", "季節の話題", "お客さんの声"],
     photo: "教室・施術・仕事のようすの写真",
     insiderTags: "#フリーランス #個人事業主",
+    storyChoices: ["自分も同じ悩みがあった", "前の仕事の経験から", "好きなことを仕事にした"],
+    storyExample: "例: 自分も体がかたくて、最初の教室をやめてしまった",
   },
   creator: {
     noun: "作品・発信",
@@ -100,6 +113,8 @@ export const PRODUCT_GUIDES: Record<ProductType, ProductGuide> = {
     topicExamples: ["新しい作品", "展示・イベントのお知らせ", "作品に込めた考え", "使っている道具"],
     photo: "作品の写真",
     insiderTags: "#絵描きさんと繋がりたい #創作",
+    storyChoices: ["ある日の体験がきっかけ", "子どものころから好きだった", "仕事の合間に始めた"],
+    storyExample: "例: 仕事帰りの夕焼けに救われた日から描き始めた",
   },
   other: {
     noun: "商品・サービス",
@@ -113,6 +128,8 @@ export const PRODUCT_GUIDES: Record<ProductType, ProductGuide> = {
     topicExamples: ["お知らせ", "季節の話題", "考えていること", "よくある質問"],
     photo: "写真",
     insiderTags: "#同業者 の言葉",
+    storyChoices: ["自分が助けられた経験から", "身近な困りごとを見て", "仲間と始めた"],
+    storyExample: "例: 引っ越してきて知り合いがいなかったときに、地域のイベントに救われた",
   },
 };
 
@@ -158,6 +175,12 @@ export function productLines(p: { productType: ProductType; desiredAction: Desir
   ];
 }
 
+// あなたらしさを聞くときの、種類ごとの選択肢と例（設計の相棒の「いまの状況」だけに付ける）
+export function storyGuideLines(type: ProductType): string[] {
+  const g = PRODUCT_GUIDES[type];
+  return [`この種類で「始めたきっかけ」を聞くときの選択肢の例: ${g.storyChoices.join("／")}`, `この種類の答えの例: ${g.storyExample.replace(/^例: /, "")}`];
+}
+
 // アカウント設計の画面の記入例（種類ごと。欄に薄く出す例）。AI には渡さない（画面だけ）
 export type PlanExamples = {
   who: string;
@@ -174,6 +197,9 @@ export type PlanExamples = {
   firstMonthMetrics: string;
   roles: Record<"x" | "threads" | "instagram" | "facebook" | "tiktok" | "youtube" | "note" | "substack", string>;
   profile: { displayName: string; handle: string; handleBackups: string; bio: string; link: string };
+  // あなたらしさ（4.50）とコンセプトの How・1 文
+  story: { why: string; background: string; struggle: string; strength: string; summary: string };
+  concept: { how: string; statement: string };
 };
 
 export const PLAN_EXAMPLES: Record<ProductType, PlanExamples> = {
@@ -205,6 +231,8 @@ export const PLAN_EXAMPLES: Record<ProductType, PlanExamples> = {
       substack: "使ってくれている人に、更新のお知らせをメールで（手で投稿）",
     },
     profile: { displayName: "まさ｜家計簿アプリ「かけいぼ日和」を作っています", handle: "kakeibo_biyori", handleBackups: "kakeibo_biyori_app\nkakeibobiyori\nmasa_kakeibo", bio: "家計簿が続かない人のためのアプリ「かけいぼ日和」をひとりで開発中。お金が貯まる小さなコツと、作っている裏側を発信します。", link: "App Store のページの URL" },
+    story: { why: "自分が家計簿を何度も挫折して、続けられるものが欲しくて作り始めた", background: "会社員として働きながら、夜と週末にひとりで開発している", struggle: "入力が面倒で、3 日で家計簿をやめるのを 5 回くり返した", strength: "続かなかった側の気持ちがわかる。入力の手間を減らすことだけを考えている", summary: "家計簿を 5 回挫折した会社員が、撮るだけで続く家計簿をひとりで作っています。続かなかった自分の気持ちを、そのまま形にしました。" },
+    concept: { how: "レシートを撮るだけで記録でき、使い道を週に 1 回まとめて知らせる", statement: "家計簿が続かない会社員の「何に使ったかわからない」を、撮るだけの記録と週 1 回のまとめで解決するアプリ" },
   },
   web_service: {
     who: "ひとりで美容室を営む、予約の電話に追われている 40 代の店主",
@@ -234,6 +262,8 @@ export const PLAN_EXAMPLES: Record<ProductType, PlanExamples> = {
       substack: "使っている人に、新しい機能をメールで（手で投稿）",
     },
     profile: { displayName: "よやくのおと｜小さなお店の予約サービス", handle: "yoyaku_note", handleBackups: "yoyakunote\nyoyaku_note_jp", bio: "ひとりで営むお店のための予約サービス「よやくのおと」。電話の予約を減らすコツと、使い方を発信します。", link: "サービスの紹介ページの URL" },
+    story: { why: "家族の美容室で、施術中に鳴る予約の電話に困っているのを見て作った", background: "前は Web 制作の会社で、お店のサイトを作っていた", struggle: "最初の版は機能が多すぎて、使ってもらえなかった", strength: "お店の現場を見てきたので、店主が迷わない画面にこだわれる", summary: "家族の美容室で、施術中に鳴り続ける電話を見て作った予約サービスです。機能を詰め込みすぎた失敗から、店主が迷わないことだけを大事にしています。" },
+    concept: { how: "お客さんが自分で予約でき、空きとキャンセル待ちを自動で案内する", statement: "ひとりで営む美容室の店主の「施術中の電話で予約を取りこぼす」を、自分で予約できる画面と自動の案内で解決するサービス" },
   },
   shop: {
     who: "朝の通勤前にパンを買いたい、駅を使う 30 代の会社員",
@@ -263,6 +293,8 @@ export const PLAN_EXAMPLES: Record<ProductType, PlanExamples> = {
       substack: "常連さんに、新作と営業日の予定をメールで（手で投稿）",
     },
     profile: { displayName: "こむぎ日和｜駅前の小さなパン屋", handle: "komugi_biyori", handleBackups: "komugibiyori\nkomugi_biyori_bakery", bio: "駅前の小さなパン屋「こむぎ日和」。朝 7 時に焼き上がる食パンと、季節のパンのお知らせをしています。火曜定休。", link: "お店の地図か予約のページの URL" },
+    story: { why: "朝ごはんに焼きたてのパンを食べてほしくて、駅前で開いた", background: "前は会社員で、30 歳でパン屋の修業を始めた", struggle: "開いた年は、朝の売り切れと夕方の売れ残りの差が大きく、仕込みの量に悩んだ", strength: "朝 7 時に焼き上がるよう、毎朝 4 時から仕込んでいる", summary: "会社員からパン職人になり、駅前に小さなパン屋を開きました。通勤前の人に焼きたてを届けたくて、毎朝 4 時から仕込んでいます。" },
+    concept: { how: "朝 7 時に焼き上がる食パンと、焼き上がりの時間のお知らせ", statement: "朝急いでいる駅を使う会社員の「開いているパン屋がわからない」を、朝 7 時の焼き上がりとそのお知らせで解決するパン屋" },
   },
   online_shop: {
     who: "長く使える布小物を探している、30 代で子育て中の人",
@@ -292,6 +324,8 @@ export const PLAN_EXAMPLES: Record<ProductType, PlanExamples> = {
       substack: "買ってくれた人に、新作の予定をメールで（手で投稿）",
     },
     profile: { displayName: "ぬのとこ｜リネンの布小物", handle: "nunotoko", handleBackups: "nunotoko_linen\nnuno_toko", bio: "リネンの布小物を、ひとつずつ縫っています。作る過程と、新作・再入荷のお知らせを発信します。", link: "ネットのお店（BASE・minne など）の URL" },
+    story: { why: "子どもが生まれて、長く使える布小物が見つからなかった", background: "洋裁の学校を出て、服を縫う仕事をしていた", struggle: "最初は安くしすぎて、作るほど赤字になった", strength: "1 つずつ水通しして縫うので、洗っても形がくずれにくい", summary: "子育てで、すぐ傷む布小物に困ったのがきっかけです。服を縫う仕事で身につけた技術で、洗っても長く使えるリネンの小物をひとつずつ縫っています。" },
+    concept: { how: "水通ししたリネンで縫い、使い方とお手入れを一緒に伝える", statement: "長く使える布小物を探す子育て中の人の「すぐ傷む」を、水通ししたリネンとお手入れの案内で解決するお店" },
   },
   service: {
     who: "体のかたさが気になる、デスクワークの 40 代の会社員",
@@ -321,6 +355,8 @@ export const PLAN_EXAMPLES: Record<ProductType, PlanExamples> = {
       substack: "生徒さんに、来月の予定をメールで（手で投稿）",
     },
     profile: { displayName: "ゆう｜体がかたい人のためのヨガ教室", handle: "yu_yoga_studio", handleBackups: "yuyoga_studio\nyu_yoga_class", bio: "体がかたい大人のためのヨガ教室をしています。よくある質問への答えと、体験クラスのご案内をしています。", link: "予約のページの URL" },
+    story: { why: "体がかたくてヨガ教室をやめた経験があり、かたい人でも通える教室を作りたかった", background: "前は事務の仕事で、肩こりと腰痛に悩んでヨガを始めた", struggle: "自分も体がかたく、最初の教室ではついていけずにやめた", strength: "かたい人の気持ちがわかるので、無理に伸ばさない教え方ができる", summary: "体がかたくて、最初のヨガ教室をやめてしまったのが始まりです。だからこそ、かたい人が無理なく続けられる教え方を大事にしています。" },
+    concept: { how: "1 クラス 6 人までで、ひとりずつ体に合わせたやり方を教える", statement: "体のかたさが気になるデスクワークの人の「ついていけるか不安」を、少人数とひとりずつ合わせる教え方で解決するヨガ教室" },
   },
   creator: {
     who: "夕方の空や街の風景が好きな、20 代の会社員",
@@ -350,6 +386,8 @@ export const PLAN_EXAMPLES: Record<ProductType, PlanExamples> = {
       substack: "見てくれている人に、展示や販売の予定をメールで（手で投稿）",
     },
     profile: { displayName: "ひより｜夕方の風景を描いています", handle: "hiyori_draws", handleBackups: "hiyoridraws\nhiyori_art", bio: "夕方の空と街の風景を描いています。新作と、描いている過程を発信しています。お仕事のご相談は DM で。", link: "作品のページの URL" },
+    story: { why: "仕事帰りの夕焼けに救われた日があり、その景色を残したくて描き始めた", background: "会社員をしながら、夜と週末に描いている", struggle: "何を描きたいのかわからず、1 年ほど描けなかった", strength: "夕方の光の色だけを、ずっと描き続けている", summary: "仕事で疲れた帰り道、夕焼けに救われた日から描き始めました。会社員を続けながら、夕方の光の色だけを描き続けています。" },
+    concept: { how: "夕方の空と街の風景を、見た人が自分の帰り道を思い出す色で描く", statement: "心に残る絵に出会えない会社員の「流れてくる絵が心に残らない」を、自分の帰り道を思い出す夕方の風景で解決する作家" },
   },
   other: {
     who: "地域のことに関わりたいが、きっかけがない 30 代の人",
@@ -379,5 +417,7 @@ export const PLAN_EXAMPLES: Record<ProductType, PlanExamples> = {
       substack: "参加した人に、次の予定をメールで（手で投稿）",
     },
     profile: { displayName: "まちのわ｜地域の小さなイベント", handle: "machinowa", handleBackups: "machi_no_wa\nmachinowa_event", bio: "地域の小さなイベントを開いています。次の予定と、準備のようすを発信しています。", link: "イベントの案内のページの URL" },
+    story: { why: "引っ越してきて知り合いがいなかったときに、地域のイベントに救われた", background: "会社員で、休みの日に仲間 3 人で活動している", struggle: "最初のイベントは、参加した人が 2 人だった", strength: "はじめての人が 1 人で来ても話せるよう、受付で必ず声をかけている", summary: "引っ越してきて知り合いがいなかったころ、地域のイベントに救われました。今度は自分たちが、はじめての人が 1 人でも来られる場を作っています。" },
+    concept: { how: "はじめての人が 1 人で来ても話せる、少人数のイベントを月に 1 回開く", statement: "地域に関わりたい人の「きっかけがない」を、1 人で来られる少人数のイベントで解決する活動" },
   },
 };

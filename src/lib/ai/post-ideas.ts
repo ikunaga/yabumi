@@ -5,6 +5,7 @@ import { readableRepoLink } from "@/lib/github/installations";
 import { copyNoteImagesToPost, markNotesUsed } from "@/lib/notes/store";
 import { MAX_NOTES_FOR_IDEAS } from "@/lib/notes/rules";
 import { ideaPillarAllows, pillarPromptLines, tonePromptLines, type Pillar } from "@/lib/plan/pillars";
+import { identityPromptLines } from "@/lib/plan/story";
 import { normalizePlan, type PlanData } from "@/lib/plan/schema";
 import { SNS, SNS_KEYS, isManualSns, type SnsKey } from "@/lib/sns";
 import { HASHTAG_RULES, tidyDraftHashtags } from "@/lib/sns/hashtags";
@@ -179,14 +180,16 @@ export type IdeaContext = {
   sns: SnsKey[];
 };
 
-// プロジェクトとアカウント設計のうち、ネタに要るところ
-export function ideaContextText(ctx: IdeaContext): string {
+// プロジェクトとアカウント設計のうち、ネタに要るところ（use: ネタ出しか、整える（tidy-draft.ts）か。あなたらしさは投稿に使ってよいものだけ）
+export function ideaContextText(ctx: IdeaContext, use: "ideas" | "tidy" = "ideas"): string {
   const { project, plan } = ctx;
   const lines = [`# プロジェクト`, `名前: ${project.name}`, ...productLines({ productType: project.productType, desiredAction: actionFromLegacyGoal(plan.goal.goalType) })];
   if (project.description.trim()) lines.push(`説明: ${project.description.trim()}`);
   if (project.targetAudience.trim()) lines.push(`届けたい相手: ${project.targetAudience.trim()}`);
   if (plan.audience.pain.trim()) lines.push(`相手の困りごと: ${plan.audience.pain.trim()}`);
   if (plan.goal.what.trim()) lines.push(`SNS で広めたいこと: ${plan.goal.what.trim()}`);
+  // コンセプトの 1 文と、投稿に使ってよいあなたらしさ（src/lib/plan/story.ts）
+  lines.push(...identityPromptLines(plan, use));
 
   lines.push("", "# アカウント設計（投稿の柱・口調・やらないこと）");
   // 送り先の SNS に付いた柱だけ（SNS ごとに分けていれば SNS ごとに。src/lib/plan/pillars.ts）
@@ -405,7 +408,7 @@ export function cleanNews(news: IdeaAnswer[]): IdeaAnswer[] {
 
 // 設計と紹介文だけでネタを出せるか（どれも空だと、作り話になりやすい）
 export function hasPlanMaterial(ctx: IdeaContext): boolean {
-  return Boolean(ctx.project.description.trim() || ctx.project.targetAudience.trim() || ctx.plan.goal.what.trim() || ctx.plan.pillars.items.some((p) => p.name.trim()));
+  return Boolean(ctx.project.description.trim() || ctx.project.targetAudience.trim() || ctx.plan.goal.what.trim() || ctx.plan.concept.statement.trim() || ctx.plan.pillars.items.some((p) => p.name.trim()));
 }
 
 // ① 材料からネタを出す。user: 利用者の権限（プロジェクト・つなぎ・設計を読む）、admin: 会話と利用量の書き込み

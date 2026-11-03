@@ -67,6 +67,35 @@ export const glossary = {
     example: "例（焼き菓子のネットショップ）:「季節のお菓子 40%・作っている裏側 30%・お店の紹介 20%・お客さんの声 10%」。",
     related: ["toneAndManner", "persona"],
   },
+  concept: {
+    label: "コンセプト",
+    summary:
+      "このアカウントが「誰の・どんな悩みを・どうやって解決するのか」を 1 文にまとめたもの。決めておくと、投稿やプロフィールで迷ったときの軸になり、見た人にも「自分のためのアカウントだ」と伝わります。",
+    example: "例:「子どもの習い事に迷う 30 代の親の『続くか不安』を、体験と月謝の見える化で解決する教室」。",
+    details: [
+      {
+        kind: "list",
+        items: [
+          "Who（誰の）: 届けたい相手。ペルソナで決めた人",
+          "What（どんな悩みを）: その人が困っていること",
+          "How（どうやって解決するか）: あなたの商品・サービスならではのやり方",
+        ],
+      },
+      { kind: "p", text: "3 つをつなげて 1 文にします。長くなったら、いちばん伝えたいところだけを残します。" },
+    ],
+    related: ["persona", "story", "contentPillar"],
+  },
+  story: {
+    label: "ストーリー（共感）",
+    summary:
+      "発信する人が、なぜ始めたのか・どんな経験をしてきたのか・どんな悩みを乗り越えたのかという話。似た商品やサービスが多い中で、「この人から買いたい」と思ってもらう理由になります。見た人が自分の経験と重ねやすく、覚えてもらいやすくなります。",
+    example: "例:「体がかたくて最初のヨガ教室をやめた先生が、かたい人のための教室を開いた」。",
+    details: [
+      { kind: "p", text: "大きな成功の話でなくてかまいません。小さな失敗や迷いのほうが、共感されやすいこともあります。" },
+      { kind: "p", text: "話を盛らず、本当のことだけを書きます。話したくないことは書かなくて大丈夫です。" },
+    ],
+    related: ["concept", "contentPillar", "buildInPublic"],
+  },
   hashtag: {
     label: "ハッシュタグ",
     summary:
@@ -360,7 +389,7 @@ export type GlossaryCategory = { id: GlossaryCategoryId; label: string; note: st
 export const GLOSSARY_CATEGORIES: GlossaryCategory[] = [
   { id: "goals", label: "目標と計画", note: "ゴールの決め方と、そこまでの道のり", cover: "kgi", keys: ["kgi", "kpi", "roadmap", "persona"] },
   { id: "flow", label: "お客さんの流れと数字", note: "知ってもらってから行動するまでと、そこで見る数字", cover: "marketingFunnel", keys: ["marketingFunnel", "awareness", "impression", "conversion", "correlation"] },
-  { id: "posting", label: "発信のしかた", note: "何を、どんな口調で投稿するか", cover: "contentPillar", keys: ["contentPillar", "toneAndManner", "hashtag", "buildInPublic", "ugc"] },
+  { id: "posting", label: "発信のしかた", note: "何を、どんな口調で投稿するか", cover: "contentPillar", keys: ["contentPillar", "concept", "story", "toneAndManner", "hashtag", "buildInPublic", "ugc"] },
   { id: "media", label: "メディアと広告", note: "自分の場所・口コミ・広告の使い分け", cover: "tripleMedia", keys: ["tripleMedia", "ownedMedia", "earnedMedia", "paidMedia", "organicVsAds", "seoVsSns", "ownedAudience", "newsletter"] },
   { id: "sns", label: "SNS ごと", note: "SNS ごとの特徴と、つなぐときの準備", cover: "snsTraits", keys: ["snsTraits", "proAccount", "facebookPage", "payPerUse"] },
   { id: "tech", label: "リンクと技術", note: "短縮リンクと、自分のドメインの設定の言葉", cover: "shortLink", keys: ["shortLink", "campaignLink", "storeListing", "dns", "cname", "subdomain"] },

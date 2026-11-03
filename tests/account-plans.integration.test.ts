@@ -48,6 +48,13 @@ describe("アカウント設計", () => {
     expect((data!.data as Record<string, Record<string, string>>).audience).toEqual({ pain: "お金が残らない", where: "" });
   });
 
+  it("あなたらしさとコンセプト（4.50）も保存でき、他のセクションは残る", async () => {
+    expect((await save(alice, aliceProject, "story", { why: { text: "自分が困った", shareable: true }, background: { text: "非公開", shareable: false } })).error).toBeNull();
+    expect((await save(alice, aliceProject, "concept", { how: "撮るだけ", statement: "1 文" })).error).toBeNull();
+    const { data } = await alice.from("account_plans").select("data").eq("project_id", aliceProject).single();
+    expect(data!.data).toMatchObject({ story: { background: { shareable: false } }, concept: { statement: "1 文" }, pillars: { tone: "です・ます" } });
+  });
+
   it("知らないセクションは保存できない", async () => {
     expect((await save(alice, aliceProject, "unknown", {})).error).not.toBeNull();
     expect((await save(alice, aliceProject, "goal", "text")).error).not.toBeNull();

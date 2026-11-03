@@ -1,5 +1,6 @@
 import { KPIS, kpiKeysFor, type KpiKey } from "@/lib/metrics/kpis";
 import { SECTION_KEYS, isSectionDone, type PlanData } from "@/lib/plan/schema";
+import { storyForAi } from "@/lib/plan/story";
 import { actionFromLegacyGoal, type ProductType } from "@/lib/projects/product-types";
 import { sectionLabel } from "./plan-coach-prompt";
 import { productLines } from "./product-guide";
@@ -77,9 +78,10 @@ export const CONSULT_SYSTEM = `あなたは「yabumi」の中で、宣伝した�
   - recommended: おすすめの案の番号（0 から）、reason: おすすめの理由
 
 # 提案の中身の形（value_json）
-- plan_section: {"section": "goal" | "audience" | "pillars" | "hashtags" | "ownership" | "profile" | "cadence" | "first_month", "value": （そのセクションの形）}
-  - セクションの形は、アカウント設計と同じ: goal {"what","goalType","note"}、audience {"who","pain","where"}、pillars {"items":[{"name","share","example","sns":[...]}],"tone","toneBySns":{"instagram":"..."},"avoid"}（sns はその柱を使う SNS。空ならすべての SNS。割合は SNS ごとに、その SNS に付いた柱の中で数える。toneBySns は SNS ごとの口調で、変える SNS だけ。ない SNS は tone を使う）、hashtags {"items":[{"tag","why","when"}]}（tag は # なしで空白や記号を入れない。why はどんな人が見ているか・なぜ使うか、when はどの柱・どんなネタのときに付けるか。3〜6 個。届けたい相手が見ている言葉にし、人が多すぎて埋もれるタグ・だれも見ていないタグ・宣伝のためだけのタグは避ける）、ownership {"mode","reason"}、profile {"displayName","handle","handleBackups","bio","link","bySns":{"x":{"displayName","handle","bio","link"}, ...}}（bySns は SNS ごとに変えるものだけ。空の項目は共通を使う。Threads の handle は、ふつう Instagram と同じなので入れない）、cadence {"frequency","roles":[{"sns","role"}]}、first_month {"goal","metrics","kpis":[...],"weekly":{"x":2,"instagram":1}}（weekly は SNS ごとの週の投稿の回数。伴走が見張る数字。直すときは今の値を基に）
+- plan_section: {"section": "goal" | "audience" | "concept" | "pillars" | "hashtags" | "ownership" | "profile" | "cadence" | "first_month", "value": （そのセクションの形）}
+  - セクションの形は、アカウント設計と同じ: goal {"what","goalType","note"}、audience {"who","pain","where"}、concept {"how","statement"}（how はこの商品・サービスで相手の困りごとをどう解決するか、statement は「誰の・どんな悩みを・どう解決するか」の 1 文。who と pain は audience のものを使う）、pillars {"items":[{"name","share","example","sns":[...]}],"tone","toneBySns":{"instagram":"..."},"avoid"}（sns はその柱を使う SNS。空ならすべての SNS。割合は SNS ごとに、その SNS に付いた柱の中で数える。toneBySns は SNS ごとの口調で、変える SNS だけ。ない SNS は tone を使う）、hashtags {"items":[{"tag","why","when"}]}（tag は # なしで空白や記号を入れない。why はどんな人が見ているか・なぜ使うか、when はどの柱・どんなネタのときに付けるか。3〜6 個。届けたい相手が見ている言葉にし、人が多すぎて埋もれるタグ・だれも見ていないタグ・宣伝のためだけのタグは避ける）、ownership {"mode","reason"}、profile {"displayName","handle","handleBackups","bio","link","bySns":{"x":{"displayName","handle","bio","link"}, ...}}（bySns は SNS ごとに変えるものだけ。空の項目は共通を使う。Threads の handle は、ふつう Instagram と同じなので入れない）、cadence {"frequency","roles":[{"sns","role"}]}、first_month {"goal","metrics","kpis":[...],"weekly":{"x":2,"instagram":1}}（weekly は SNS ごとの週の投稿の回数。伴走が見張る数字。直すときは今の値を基に）
   - 直すセクション全体を入れる（直さない項目は今の値のまま）。1 つの提案の案は、どれも同じセクション
+  - あなたらしさ（story）は直さない。pillars の案を出すとき、「いまの状況」のあなたらしさがあれば、それを材料に「ストーリー（始めたきっかけ・失敗談など）」の柱を案に入れてよい
 - kgi: {"kgi": {"statement": "一文の目標", "kpi": 数字の名前, "target": 目標の値（数）, "deadline": "YYYY-MM-DD", "sns": SNS の名前 または null}}
   - deadline は「いまの状況」の今日の日付から数えて決める
 - kpi_targets: {"kpi_targets": [{"kpi": 数字の名前, "per_week": 1 週あたりの目標（数）, "sns": SNS の名前 または null}]}（1〜6 個。同じ数字と SNS の組を 2 回入れない。SNS ごとに投稿の回数を決めるなら、posts を SNS ごとに並べる（例: x 週 2、instagram 週 1））
@@ -147,7 +149,9 @@ export function kpiLine(k: KpiLineInput): string {
 // 毎回の会話の最後に、システムメッセージとして付ける「いまの状況」。字数の上限を守る（4.23 の表）
 export function consultContextMessage(ctx: ConsultContext): string {
   const p = ctx.project;
-  const plan = SECTION_KEYS.map((k) => ({ section: k, label: sectionLabel(k), status: isSectionDone(k, ctx.plan[k]) ? "決定" : "未記入", value: ctx.plan[k] }));
+  // あなたらしさは JSON に入れず、投稿に使ってよい項目だけを別に書く（src/lib/plan/story.ts）
+  const plan = SECTION_KEYS.filter((k) => k !== "story").map((k) => ({ section: k, label: sectionLabel(k), status: isSectionDone(k, ctx.plan[k]) ? "決定" : "未記入", value: ctx.plan[k] }));
+  const story = storyForAi(ctx.plan.story, "consult");
   const r = ctx.roadmap;
   return [
     "# いまの状況（yabumi が毎回付ける情報。利用者には見えていない）",
@@ -160,6 +164,8 @@ export function consultContextMessage(ctx: ConsultContext): string {
     `手で投稿する SNS: ${ctx.manualSns.join("、")}（公式の投稿のしくみがないので、利用者が手で投稿する）`,
     "アカウント設計（JSON）:",
     clip(JSON.stringify(plan), 5000),
+    "あなたらしさ（発信する人の思いや経験。利用者が「投稿に使ってよい」としたものだけ。誇張しない・ここにない経験を足さない。このセクションは相談では直さない）:",
+    story.length ? clip(story.map((l) => `- ${l.label}: ${l.text}`).join("\n"), 2000) : "まだない（または投稿に使わない）",
     "最近送った投稿（新しい順、最大 10 件。clicks は短縮リンクのクリック）:",
     ctx.recentPosts.length ? clip(JSON.stringify(ctx.recentPosts), 3000) : "まだない",
     "選んだ数字（KPI）:",

@@ -5,7 +5,8 @@ import { SNS_KEYS, type SnsKey } from "@/lib/sns";
 import { isYmd } from "@/lib/time";
 
 // アカウント設計（要求 F15）のデータの形。DB の account_plans.data にセクションごとに入る。
-// セクションはここに書いた順に画面に並ぶ。名前は投稿の柱が決まらないと決めにくいので、柱 → ハッシュタグ → 持ち方 → 名前の順にしている
+// セクションはここに書いた順に画面に並ぶ。名前は投稿の柱が決まらないと決めにくいので、柱 → ハッシュタグ → 持ち方 → 名前の順にしている。
+// あなたらしさ（story）は目的のあと、コンセプト（concept）は届けたい相手のあと（2026-11-03 オーナーの了承。docs/architecture.md の 4.50）
 // AI 壁打ち（F09）が案を出すときも、この形（セクション単位）で出して保存する想定。
 
 const CHOICE = { message: "選択肢から選んでください" };
@@ -45,17 +46,45 @@ export type ProfileOverrideField = (typeof PROFILE_OVERRIDE_FIELDS)[number];
 const profileOverrideSchema = z.object({ displayName: text(50), handle: text(30), bio: text(300), link: text(300) });
 export type ProfileOverride = z.infer<typeof profileOverrideSchema>;
 
+// あなたらしさの 1 項目: 利用者が書いた文と「投稿に使ってよい」の印（初期はオン）。
+// 印がオフの項目は、設計の相棒（まとめるため）にしか渡さない（src/lib/plan/story.ts の storyForAi）
+const storyItem = (max: number) =>
+  z.preprocess(
+    // 前の形（文字列だけ）でも読めるようにする
+    (v) => (typeof v === "string" ? { text: v } : v),
+    z.object({ text: text(max), shareable: z.boolean().default(true) }),
+  ).default({ text: "", shareable: true });
+
 export const sectionSchemas = {
   goal: z.object({
     what: text(500),
     goalType: z.preprocess((v) => (typeof v === "string" ? (actionFromLegacyGoal(v) ?? v) : v), z.enum(GOAL_TYPES, CHOICE).nullable()).default(null),
     note: text(500),
   }),
+  // あなたらしさ（2026-11-03 オーナーの了承）。どれも任意。前の版で保存したもの（story なし）は空として読む
+  story: z.object({
+    // 始めた思い
+    why: storyItem(500),
+    // 背景・経験
+    background: storyItem(500),
+    // 自分も抱えて乗り越えた悩み
+    struggle: storyItem(500),
+    // ほかの人と違う強み
+    strength: storyItem(300),
+    // それらをまとめた短いストーリー（200 字くらい）
+    summary: storyItem(300),
+  }),
   // who は projects.target_audience に入る（DB の関数が振り分ける）
   audience: z.object({
     who: text(1000),
     pain: text(500),
     where: text(500),
+  }),
+  // コンセプト（2026-11-03 オーナーの了承）。Who は audience.who、What は audience.pain から読む（ここには持たない）。
+  // How（この商品・サービスでどう解決するか）と、まとめた 1 文（statement）。前の版で保存したもの（concept なし）は空として読む
+  concept: z.object({
+    how: text(500),
+    statement: text(200),
   }),
   pillars: z.object({
     items: z
@@ -139,6 +168,15 @@ export const SECTION_KEYS = Object.keys(sectionSchemas) as SectionKey[];
 export type SectionValue<K extends SectionKey> = z.infer<(typeof sectionSchemas)[K]>;
 export type PlanData = { [K in SectionKey]: SectionValue<K> };
 
+// あなたらしさの項目（画面・AI の材料に出す順）
+export const STORY_FIELDS = ["why", "background", "struggle", "strength", "summary"] as const;
+export type StoryField = (typeof STORY_FIELDS)[number];
+
+// 画面に出すセクションの番号（1 から）。ほかの画面から「設計の『8 名前とプロフィール』」のように案内するときも、これで数える
+export function sectionNumber(key: SectionKey): number {
+  return SECTION_KEYS.indexOf(key) + 1;
+}
+
 export function isSectionKey(v: unknown): v is SectionKey {
   return typeof v === "string" && (SECTION_KEYS as string[]).includes(v);
 }
@@ -164,8 +202,14 @@ export function isSectionDone<K extends SectionKey>(key: K, v: SectionValue<K>):
       const g = v as PlanData["goal"];
       return filled(g.what) || g.goalType !== null;
     }
+    case "story": {
+      const st = v as PlanData["story"];
+      return STORY_FIELDS.some((f) => filled(st[f].text));
+    }
     case "audience":
       return filled((v as PlanData["audience"]).who);
+    case "concept":
+      return filled((v as PlanData["concept"]).statement);
     case "ownership":
       return (v as PlanData["ownership"]).mode !== null;
     case "profile": {
@@ -187,8 +231,13 @@ export function isSectionDone<K extends SectionKey>(key: K, v: SectionValue<K>):
   }
 }
 
-// 設計の段階を「済み」とするのに要るセクション。投稿を書くのに欠かせない 3 つ
+// 設計の段階を「済み」とするのに要るセクション。投稿を書くのに欠かせない 3 つ。
+// あなたらしさ・コンセプト（2026-11-03 に足した）は入れない。入れると、もう設計を終えた人が「済んでいない」に戻り、
+// 「いまやること」が 1 段目に戻って伴走も止まるため（2026-11-03 PM の決定。docs/architecture.md の 4.50）。
+// コンセプトは「おすすめ」として未記入の並びの先頭に出し、4 段階が済んだあとに概要の小さな帯で促す
 export const REQUIRED_FOR_DONE: SectionKey[] = ["goal", "audience", "pillars"];
+// 済みの判定には入れないが、先に書くことをすすめるセクション
+export const RECOMMENDED_SECTIONS: SectionKey[] = ["concept"];
 
 export function isPlanDone(plan: PlanData): boolean {
   return REQUIRED_FOR_DONE.every((k) => isSectionDone(k, plan[k]));
@@ -205,8 +254,15 @@ function parseSectionFormAny(key: SectionKey, form: FormData) {
   switch (key) {
     case "goal":
       return sectionSchemas.goal.safeParse({ what: s("what"), goalType: nullable("goalType"), note: s("note") });
+    case "story": {
+      // 欄は <項目>（文）と <項目>-shareable（「投稿に使ってよい」のスイッチ。オフのときは送られない）
+      const item = (f: StoryField) => ({ text: s(f), shareable: form.get(`${f}-shareable`) === "on" });
+      return sectionSchemas.story.safeParse(Object.fromEntries(STORY_FIELDS.map((f) => [f, item(f)])));
+    }
     case "audience":
       return sectionSchemas.audience.safeParse({ who: s("who"), pain: s("pain"), where: s("where") });
+    case "concept":
+      return sectionSchemas.concept.safeParse({ how: s("how"), statement: s("statement") });
     case "ownership":
       return sectionSchemas.ownership.safeParse({ mode: nullable("mode"), reason: s("reason") });
     case "profile": {

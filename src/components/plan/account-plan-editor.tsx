@@ -16,7 +16,8 @@ import { HelpTip } from "@/components/ui/help";
 import { Field, Input, Textarea } from "@/components/ui/field";
 import { Term } from "@/components/ui/term";
 import { saveSection, type SectionFormState } from "@/lib/plan/actions";
-import { MAX_HASHTAGS, MAX_PILLARS, MAX_WEEKLY_PER_SNS, REQUIRED_FOR_DONE, SECTION_KEYS, isSectionDone, type PlanData, type SectionKey } from "@/lib/plan/schema";
+import { MAX_HASHTAGS, MAX_PILLARS, MAX_WEEKLY_PER_SNS, RECOMMENDED_SECTIONS, REQUIRED_FOR_DONE, SECTION_KEYS, STORY_FIELDS, isSectionDone, type PlanData, type SectionKey, type StoryField } from "@/lib/plan/schema";
+import { STORY_LABEL } from "@/lib/plan/story";
 import { cycleInfo } from "@/lib/coach/pace";
 import { toYmd } from "@/lib/time";
 import { chosenKpis, kpiKeysFor, KPIS, MAX_KPIS, recommendedKpis, type KpiKey } from "@/lib/metrics/kpis";
@@ -34,12 +35,30 @@ const META: Record<SectionKey, Meta> = {
     title: "目的",
     lead: "このアカウントで何を広めて、最終的にどうなってほしいかを決めます。投稿で迷ったときの判断の軸になります。",
   },
+  story: {
+    title: "あなたらしさ",
+    lead: (
+      <>
+        どんな思いで始めたか、どんな経験や悩みを乗り越えてきたかを書いておきます（<Term k="story" />
+        ）。似たお店や商品が多い中で、「この人から」と選ばれる理由になります。どれも任意で、話したくないことは書かなくて大丈夫です。
+      </>
+    ),
+  },
   audience: {
     title: "届けたい相手",
     lead: (
       <>
         届けたい人を 1 人に絞って思い浮かべます（<Term k="persona" />
         ）。広く狙うより、1 人に刺さる言葉のほうが、結果的に多くの人に届きます。
+      </>
+    ),
+  },
+  concept: {
+    title: "コンセプト",
+    lead: (
+      <>
+        誰の・どんな悩みを・どうやって解決するかを 1 文にまとめます（<Term k="concept" />
+        ）。投稿やプロフィールで迷ったときの軸になります。
       </>
     ),
   },
@@ -96,8 +115,9 @@ export function AccountPlanEditor({
   // 開いておくセクション（URL の ?open=）
   initialOpen?: SectionKey | null;
 }) {
-  // 最初に開くのは、指定があればそのセクション、なければまだ書いていない最初のセクション
-  const [open, setOpen] = useState<SectionKey | null>(() => initialOpen ?? SECTION_KEYS.find((k) => !isSectionDone(k, plan[k])) ?? null);
+  // 最初に開くのは、指定があればそのセクション、なければ「済み」に要るセクションのうちまだのもの、次におすすめ（コンセプト）、
+  // それも済んでいれば、まだ書いていない最初のセクション（4.50）
+  const [open, setOpen] = useState<SectionKey | null>(() => initialOpen ?? firstToWrite(plan));
 
   return (
     <div className="flex flex-col gap-3">
@@ -112,13 +132,23 @@ export function AccountPlanEditor({
           aiEnabled={aiEnabled}
           open={open === key}
           onToggle={() => setOpen(open === key ? null : key)}
+          recommended={RECOMMENDED_SECTIONS.includes(key)}
           onSavedNext={() => setOpen(SECTION_KEYS[i + 1] ?? null)}
         >
-          <SectionFields sectionKey={key} plan={plan} profileCtx={profileCtx} />
+          <SectionFields sectionKey={key} plan={plan} profileCtx={profileCtx} onOpenSection={(k) => {
+            setOpen(k);
+            requestAnimationFrame(() => document.getElementById(`plan-${k}-head`)?.scrollIntoView({ block: "start", behavior: "smooth" }));
+          }} />
         </SectionCard>
       ))}
     </div>
   );
+}
+
+// 次に書くとよいセクション: 「済み」に要るもの → おすすめ → ほかの順で、まだのもの
+function firstToWrite(plan: PlanData): SectionKey | null {
+  const undone = (k: SectionKey) => !isSectionDone(k, plan[k]);
+  return REQUIRED_FOR_DONE.find(undone) ?? RECOMMENDED_SECTIONS.find(undone) ?? SECTION_KEYS.find(undone) ?? null;
 }
 
 // 右の列の「進み具合」: 記入済みの数・横棒・セクションの一覧（押すとそのセクションへ）
@@ -132,7 +162,7 @@ export function PlanProgressCard({ plan, planHref }: { plan: PlanData; planHref?
           <span className="flex items-center gap-2">
             進み具合
             <HelpTip label="記入の進み具合">
-              {REQUIRED_FOR_DONE.map((k) => META[k].title).join("・")}の 3 つが書けたら、「いまやること」が次（SNS をつなぐ）に進みます。どれも任意で、あとからいつでも直せます。
+              {REQUIRED_FOR_DONE.map((k) => META[k].title).join("・")}の {REQUIRED_FOR_DONE.length} つが書けたら、「いまやること」が次（SNS をつなぐ）に進みます。{RECOMMENDED_SECTIONS.map((k) => META[k].title).join("・")}も書いておくのがおすすめです。どれもあとからいつでも直せます。
             </HelpTip>
           </span>
         }
@@ -151,6 +181,7 @@ export function PlanProgressCard({ plan, planHref }: { plan: PlanData; planHref?
               <a href={planHref ? `${planHref}?open=${k}#plan-${k}-head` : `#plan-${k}-head`} className="flex items-center gap-2.5 py-2 hover:no-underline">
                 <span className="num w-5 text-faint">{i + 1}</span>
                 <span className="flex-1 text-fg">{META[k].title}</span>
+                {!done.includes(k) && RECOMMENDED_SECTIONS.includes(k) && <Badge tone="info">おすすめ</Badge>}
                 {done.includes(k) ? <span className="text-sm font-bold text-success">✓</span> : <span className="text-sm text-faint">未記入</span>}
               </a>
             </li>
@@ -168,6 +199,7 @@ function SectionCard({
   done,
   fromAi,
   aiEnabled,
+  recommended,
   open,
   onToggle,
   onSavedNext,
@@ -179,6 +211,8 @@ function SectionCard({
   done: boolean;
   fromAi: boolean;
   aiEnabled: boolean;
+  // 済みの判定には入れないが、書くことをすすめるセクション（コンセプト）。まだなら「おすすめ」の印を出す
+  recommended: boolean;
   open: boolean;
   onToggle: () => void;
   onSavedNext: () => void;
@@ -242,6 +276,7 @@ function SectionCard({
               AI の案から
             </Badge>
           )}
+          {!done && recommended && <Badge tone="info">おすすめ</Badge>}
           {done ? <Badge tone="success">✓ 記入済み</Badge> : <Badge>未記入</Badge>}
           <svg aria-hidden viewBox="0 0 12 12" className={`size-3.5 shrink-0 text-muted transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
             <path d="M3 4.5 6 7.5 9 4.5" />
@@ -320,10 +355,14 @@ function examplesOf(ctx: ProfileContext): PlanExamples {
   return PLAN_EXAMPLES[ctx.productType ?? "app"];
 }
 
-function SectionFields({ sectionKey, plan, profileCtx }: { sectionKey: SectionKey; plan: PlanData; profileCtx: ProfileContext }) {
+function SectionFields({ sectionKey, plan, profileCtx, onOpenSection }: { sectionKey: SectionKey; plan: PlanData; profileCtx: ProfileContext; onOpenSection: (k: SectionKey) => void }) {
   switch (sectionKey) {
     case "goal":
       return <GoalFields v={plan.goal} productType={profileCtx.productType ?? "app"} />;
+    case "story":
+      return <StoryFields v={plan.story} ex={examplesOf(profileCtx)} />;
+    case "concept":
+      return <ConceptFields v={plan.concept} audience={plan.audience} ex={examplesOf(profileCtx)} onEditAudience={() => onOpenSection("audience")} />;
     case "audience":
       return <AudienceFields v={plan.audience} ex={examplesOf(profileCtx)} />;
     case "ownership":
@@ -510,6 +549,73 @@ function AudienceFields({ v, ex }: { v: PlanData["audience"]; ex: PlanExamples }
       </Field>
       <Field label="どこで・いつ SNS を見ているか" htmlFor="audience-where">
         <Textarea id="audience-where" name="where" defaultValue={v.where} maxLength={500} rows={2} placeholder={`例: ${ex.where}`} />
+      </Field>
+    </>
+  );
+}
+
+// あなたらしさ（4.50）。項目ごとに文と「投稿に使ってよい」のスイッチ（欄は <項目> と <項目>-shareable）。
+// スイッチは初期オン。オフの項目は設計の相棒（まとめるため）にしか渡さない（src/lib/plan/story.ts）
+const STORY_ROWS: Record<StoryField, { rows: number; max: number; hint?: string }> = {
+  why: { rows: 2, max: 500 },
+  background: { rows: 2, max: 500, hint: "前の仕事、修業、続けてきたことなど" },
+  struggle: { rows: 2, max: 500, hint: "届けたい相手と同じ悩みだと、共感されやすくなります" },
+  strength: { rows: 2, max: 300 },
+  summary: { rows: 4, max: 300, hint: "上の 4 つをまとめた、200 字くらいの話。迷ったら「AI と考える」で案を出せます" },
+};
+
+function StoryFields({ v, ex }: { v: PlanData["story"]; ex: PlanExamples }) {
+  return (
+    <>
+      <p className="-mb-1 text-xs leading-[1.7] text-muted">
+        どれも任意です。病気や家族のことなど、知られたくないことは書かなくて大丈夫です。「投稿に使ってよい」をオフにした項目は、ネタ出しや下書きの AI には渡さず、設計の相棒がまとめるときだけ使います。
+      </p>
+      {STORY_FIELDS.map((f) => (
+        <div key={f} className="flex flex-col gap-1.5">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <label htmlFor={`story-${f}`} className="flex-1 text-[14px] leading-normal font-bold">
+              {STORY_LABEL[f]}
+            </label>
+            <label className="flex cursor-pointer items-center gap-2 text-[13px] text-muted">
+              <input type="checkbox" name={`${f}-shareable`} defaultChecked={v[f].shareable} className="size-4 accent-[var(--primary)]" />
+              投稿に使ってよい
+            </label>
+          </div>
+          <Textarea id={`story-${f}`} name={f} defaultValue={v[f].text} maxLength={STORY_ROWS[f].max} rows={STORY_ROWS[f].rows} placeholder={`例: ${ex.story[f]}`} />
+          {STORY_ROWS[f].hint && <p className="text-xs text-muted">{STORY_ROWS[f].hint}</p>}
+        </div>
+      ))}
+    </>
+  );
+}
+
+// コンセプト（4.50）。Who と What は届けたい相手の値を見せるだけ（直すのは届けたい相手のセクションで）。How と 1 文は書ける
+function ConceptFields({ v, audience, ex, onEditAudience }: { v: PlanData["concept"]; audience: PlanData["audience"]; ex: PlanExamples; onEditAudience: () => void }) {
+  const row = (label: string, text: string) => (
+    <div className="grid grid-cols-[88px_1fr] gap-2 max-sm:grid-cols-1 max-sm:gap-0.5">
+      <dt className="text-[13px] font-bold text-muted">{label}</dt>
+      <dd className="whitespace-pre-wrap">{text.trim() || <span className="text-muted">まだ書いていません</span>}</dd>
+    </div>
+  );
+  return (
+    <>
+      <div className="flex flex-col gap-2 rounded-md border border-line bg-surface2 px-4 py-3 text-sm">
+        <dl className="flex flex-col gap-2">
+          {row("Who（誰の）", audience.who)}
+          {row("What（悩み）", audience.pain)}
+        </dl>
+        <p className="text-xs text-muted">
+          届けたい相手のセクションの値です。
+          <button type="button" onClick={onEditAudience} className="font-semibold text-primary hover:underline">
+            届けたい相手を直す
+          </button>
+        </p>
+      </div>
+      <Field label="How（どうやって解決するか）" htmlFor="concept-how" hint="あなたの商品・サービスならではのやり方">
+        <Textarea id="concept-how" name="how" defaultValue={v.how} maxLength={500} rows={2} placeholder={`例: ${ex.concept.how}`} />
+      </Field>
+      <Field label="1 文のコンセプト" htmlFor="concept-statement" hint="「〇〇な人の『△△』を、□□で解決する」の形が基本です">
+        <Textarea id="concept-statement" name="statement" defaultValue={v.statement} maxLength={200} rows={3} placeholder={`例: ${ex.concept.statement}`} />
       </Field>
     </>
   );

@@ -2455,6 +2455,33 @@ yabumi のコンセプトは、使って SNS を運用するうちに、マー�
 - 前の 1 ページの用語集へのリンク（/glossary#<key>・/glossary#cat-<id>・/glossary#<id>）は、入口が画面で # のあとを読み、/glossary/<key> か /glossary/c/<id> へ移す（legacyGlossaryHashTarget。知らないものは移さない）
 - 上の帯（4.48）は、入口・分類・詳細のどのページでも同じ（プロジェクトの中から開いたら、そのプロジェクトの帯）。「読んだ」を記録したときは、/glossary の下を全部描き直す（revalidatePath の layout）
 
+### 4.50 アカウント設計の「あなたらしさ」と「コンセプト」（2026-11-03、オーナーの了承。feat/plan-story-concept）
+
+- オーナーの言葉:「あなたらしさ、このアカウントの独自性: どんな思いでやっているのか、どういう人生の背景があるのか、どういう悩みがあって解決してきたのか」「このアカウントで、誰のどんな悩みをどうやって解決するのか（Who・What・How）」
+- **形**（src/lib/plan/schema.ts。計画は account_plans.data の jsonb なので、表は変えない）
+  - story（目的のあと）: why・background・struggle・strength・summary。項目ごとに { text, shareable }（shareable は「投稿に使ってよい」。初期はオン）。前の版の設計（story なし）と前の形（文字列だけ）は、オンの値として読む
+  - concept（届けたい相手のあと）: how と statement（1 文、200 字まで）。Who・What は audience.who・audience.pain を読む（持たない）
+  - セクションの名前は DB の関数 save_account_plan_section が決まったリストで確かめているので、'story'・'concept' を足した（20261103180000_plan_story_concept。本体はハッシュタグのとき（20261020100000）からリストを足しただけ。権限は revoke all ... from public, anon, authenticated, service_role と authenticated への grant を書き直した）
+  - 番号は SECTION_KEYS の並びで 1〜10（sectionNumber）。ほかの画面からの案内（短縮リンクの「8 名前とプロフィール」）もここから数える
+- **あなたらしさをどの AI に渡すか**（src/lib/plan/story.ts の storyForAi。ここだけで決め、tests/plan-story-concept.test.ts で AI ごとに確かめる）
+  - 設計の相棒（plan-coach）: 全部の項目を、印つきで渡す（まとめるため）。柱・自己紹介文の案には印のある項目だけを使うよう指示する
+  - ネタ出し・整える（ideaContextText）、見直し・画像の文字の案・AI の画像の絵の説明の案（checkContextText）、相談（consultContextMessage）: 印のある項目だけ。相談は設計の JSON から story を外し、印のある項目だけを別に書く
+  - 相談の AI は story を直す案を出せない（CONSULT_SECTION_KEYS）。案を採用するとセクション全体が置き換わり、渡していない項目が消えるため
+  - 相棒の案を採用するとき、保存してある印のオフは残す（mergeStoryShareable。AI が印をオンに戻せない）。案の中身では、利用者が「投稿に使わないで」と言った項目を notShareable に入れて印をオフにできる
+- **AI の材料に足すもの**（identityPromptLines。pillarPromptLines と同じ場所）: コンセプトの 1 文と、印のあるあなたらしさ。どちらもなければ何も足さない（前と同じ文）
+- **設計の相棒**（plan-coach-prompt.ts）
+  - あなたらしさ: 最初に「話したくないことは飛ばして大丈夫」と伝え、1 問ずつ聞く。選択肢と例は種類ごと（product-guide.ts の storyChoices・storyExample。「いまの状況」だけに付ける）。立ち入った話はこちらから聞かない。2〜3 項目そろったら summary と strength の案を 2〜3 個。誇張しない・聞いていないことを足さない
+  - コンセプト: who・pain が決まってから。目的・あなたらしさを材料に How を 1〜2 問聞き、1 文の案を 2〜3 個（長所・短所つき）
+  - 投稿の柱: 印のあるあなたらしさがあれば「ストーリー（始めたきっかけ・失敗談など）」の柱を案の 1 つに入れる。自己紹介文: コンセプトと印のあるあなたらしさを材料にする
+- **画面**（account-plan-editor.tsx）: あなたらしさは項目ごとに欄と「投稿に使ってよい」のチェック（欄は <項目>・<項目>-shareable）。コンセプトは Who・What を届けたい相手の値で見せ（「届けたい相手を直す」でそのセクションを開く）、How と 1 文を書ける。見出しの説明に用語（コンセプト・ストーリー（共感））
+- **済んだかの判定**: REQUIRED_FOR_DONE（目的・届けたい相手・投稿の柱）は変えない（PM の決定）。コンセプトを入れると、いま設計を終えている人が「済んでいない」に戻り、概要が「いまやること」の 1 段目に戻って伴走（coachReady）も止まるため。次の 3 か所は REQUIRED_FOR_DONE だけを見ていて、セクションの数や番号には頼っていない: 「いまやること」（next-step.ts）・伴走・プロジェクト一覧
+  - コンセプトは RECOMMENDED_SECTIONS。まだなら見出しと進み具合に「おすすめ」を出し、最初に開くセクションは「済み」に要るもの → コンセプト → ほかの順
+  - 概要: 4 段階が済んでコンセプトがまだなら「コンセプトを決める」の小さな帯（ConceptHintBand）。「×」で閉じると、その端末の cookie（yabumi_concept_hint_closed。閉じたプロジェクトの id だけ、50 件まで、1 年）に覚える。DB を変えないため端末ごと
+  - あなたらしさは任意で、判定にもおすすめにも入れない
+- **設計を見返す**（投稿をつくる。plan-hints.tsx）: コンセプトの 1 文を一番上に出す
+- **用語集**: concept（コンセプト）・story（ストーリー（共感））を「発信のしかた」に足した。挿絵は scripts/glossary-illustrations.mjs で 2 枚だけ作った（約 10 円）
+- **法務**: プライバシーポリシーの「アカウント設計の内容」に含まれる①として扱った（docs/legal.md）
+
 ## 5. データモデル（主要テーブル）
 
 | テーブル | 内容 |

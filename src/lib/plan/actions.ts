@@ -1,11 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { saveSectionValue } from "./save";
 import { isSectionKey, parseSectionForm } from "./schema";
+import { addConceptHintClosed, CONCEPT_HINT_COOKIE, CONCEPT_HINT_MAX_AGE } from "./concept-hint";
 
 export type SectionFormState = { error?: string; savedAt?: number };
 
@@ -40,4 +42,17 @@ export async function skipPlan(projectId: string): Promise<{ error?: string }> {
   revalidatePath(`/projects/${projectId}`, "layout");
   revalidatePath("/projects");
   redirect(`/projects/${projectId}`);
+}
+
+// 概要の「コンセプトを決める」の帯を閉じる（4.50）。この端末の cookie に、閉じたプロジェクトとして覚える
+export async function closeConceptHint(projectId: string): Promise<void> {
+  if (!z.uuid().safeParse(projectId).success) return;
+  const jar = await cookies();
+  jar.set(CONCEPT_HINT_COOKIE, addConceptHintClosed(jar.get(CONCEPT_HINT_COOKIE)?.value, projectId), {
+    path: "/",
+    maxAge: CONCEPT_HINT_MAX_AGE,
+    sameSite: "lax",
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+  });
 }

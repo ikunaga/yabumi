@@ -67,7 +67,9 @@ export function adoptableOptions(t: ConsultTurn): (ActionBody & { title: string 
   return t.proposal ? t.proposal.options : (t.actions ?? []);
 }
 
-const planSectionSchema = z.object({ section: z.enum(SECTION_KEYS as [SectionKey, ...SectionKey[]]), value: z.unknown() });
+// 相談の AI が直せるセクション。あなたらしさは、投稿に使ってよい項目しか渡していないので直させない（案を採用するとセクション全体が置き換わり、渡していない項目が消えるため。4.50）
+export const CONSULT_SECTION_KEYS = SECTION_KEYS.filter((k) => k !== "story") as [SectionKey, ...SectionKey[]];
+const planSectionSchema = z.object({ section: z.enum(CONSULT_SECTION_KEYS), value: z.unknown() });
 const postDraftSchema = z.object({
   sns: z.enum(SNS_KEYS as [SnsKey, ...SnsKey[]]).nullable().default(null),
   text: z.string().trim().min(1).max(MAX_DRAFT_LENGTH),

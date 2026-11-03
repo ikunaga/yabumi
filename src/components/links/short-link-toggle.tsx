@@ -8,6 +8,7 @@ import { Term } from "@/components/ui/term";
 import { findLinkableUrls, planShortLinks, substitutesBodyLinks, type ShortLinkPlan } from "@/lib/links/rules";
 import type { PostLinkPreview } from "@/lib/links/store";
 import { isManualSns, SNS, type SnsKey } from "@/lib/sns";
+import { sectionNumber } from "@/lib/plan/schema";
 
 // 作成画面の「本文の URL を短縮リンクにする」（docs/architecture.md の 4.22、決定 D20。初期値はオン）。
 // 本文に URL がないときはチェックを出さず、URL の入れ方と、X ならプロフィールのリンクで数えるのがよいことを案内する（チェックだけ出ていると、短縮リンクが付くと思ってしまうため）。
@@ -42,7 +43,7 @@ export function ShortLinkToggle({
     <>
       X は本文に URL があると 1 本ごとの費用が上がる（約 2 円 → 約 30 円）ので、X で数えるなら、プロフィールに置くリンクを短縮リンクにするのがおすすめです（
       <Link href={`/projects/${projectId}/plan?open=profile#plan-profile-head`} className="underline">
-        アカウント設計の「5 名前とプロフィール」
+        アカウント設計の「{sectionNumber("profile")} 名前とプロフィール」
       </Link>
       から作れます）。
     </>
@@ -87,7 +88,7 @@ export function ShortLinkToggle({
       <>
         選んだ送り先の {skippedText(plan.skipped)}では本文の URL を置き換えません。押された回数は、プロフィールに置くリンクを短縮リンクにすると数えられます（
         <Link href={`/projects/${projectId}/plan?open=profile#plan-profile-head`} className="underline">
-          アカウント設計の「5 名前とプロフィール」
+          アカウント設計の「{sectionNumber("profile")} 名前とプロフィール」
         </Link>
         から作れます）。
       </>,

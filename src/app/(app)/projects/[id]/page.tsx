@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChartEmpty, DailyBars } from "@/components/overview/daily-chart";
 import { TodayTermBand } from "@/components/learning/today-term-band";
+import { ConceptHintBand } from "@/components/plan/concept-hint-band";
 import { NowBand } from "@/components/overview/now-band";
 import { OverviewCards } from "@/components/overview/overview-cards";
 import { AttentionStrip, ConnectedSnsLine, NextScheduled, Panel, SnsClicks } from "@/components/overview/overview-panels";
@@ -22,7 +24,9 @@ import { isAppProject, isDevProject } from "@/lib/projects/product-types";
 import { loadOverviewNumbers } from "@/lib/overview/load";
 import { CHART_DAYS, CHART_DAYS_MOBILE, chartWindow, compareDays, latestAside, pctChange, shortDay, type Daily } from "@/lib/overview/numbers";
 import { loadTodayTerm } from "@/lib/learning/today";
+import { CONCEPT_HINT_COOKIE, parseConceptHintCookie } from "@/lib/plan/concept-hint";
 import { getAccountPlan } from "@/lib/plan/queries";
+import { isSectionDone } from "@/lib/plan/schema";
 import { listDueManualPosts, listOverduePosts, listPostsNeedingAttention, listUpcomingPosts } from "@/lib/posts/queries";
 import { currentStepIndex, STEPS } from "@/lib/projects/next-step";
 import { getProject } from "@/lib/projects/queries";
@@ -93,6 +97,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
     return null;
   });
   const base = `/projects/${project.id}`;
+  const conceptHintClosed = parseConceptHintCookie((await cookies()).get(CONCEPT_HINT_COOKIE)?.value).includes(project.id);
 
   // アプリのときだけストアの入口、アプリと Web のサービスのときだけ GitHub の案内を出す（決定 D34）
   const isApp = isAppProject(project);
@@ -149,6 +154,9 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
         doneCount={thisWeekCounts(roadmap).finished}
         aiEnabled={aiConfigured()}
       />
+
+      {/* コンセプトのおすすめ（4.50）: 4 段階が済んで、コンセプトがまだで、この端末で閉じていない人だけ */}
+      {stepIndex >= STEPS.length && plan && !isSectionDone("concept", plan.plan.concept) && !conceptHintClosed && <ConceptHintBand projectId={project.id} />}
 
       {todayTerm && <TodayTermBand projectId={project.id} term={todayTerm} />}
 

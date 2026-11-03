@@ -2,7 +2,8 @@ import { KPIS } from "@/lib/metrics/kpis";
 import { SNS, SNS_KEYS } from "@/lib/sns";
 import { DESIRED_ACTION_DEFS, actionFromLegacyGoal, type DesiredAction } from "@/lib/projects/product-types";
 import { isSplitBySns, pillarSnsLabel } from "./pillars";
-import type { PlanData, SectionKey, SectionValue } from "./schema";
+import { STORY_FIELDS, type PlanData, type SectionKey, type SectionValue } from "./schema";
+import { STORY_LABEL } from "./story";
 
 const OWNERSHIP_LABEL = { personal: "個人のアカウントを使う", dedicated: "専用のアカウントを作る", undecided: "まだ決めていない" } as const;
 
@@ -20,6 +21,23 @@ export function describeSection(key: SectionKey, value: SectionValue<SectionKey>
       const action = (DESIRED_ACTION_DEFS[v.goalType as DesiredAction] ? v.goalType : actionFromLegacyGoal(v.goalType)) as DesiredAction | null;
       add("いちばんの目標（見た人にしてほしいこと）", action ? DESIRED_ACTION_DEFS[action]?.label : "");
       add("補足", v.note);
+      break;
+    }
+    case "story": {
+      // 前の形の値（項目がない・文字列だけ）でも止まらないように読む
+      const v = (value ?? {}) as Partial<Record<(typeof STORY_FIELDS)[number], { text?: string; shareable?: boolean } | string>>;
+      for (const f of STORY_FIELDS) {
+        const item = v[f];
+        const text = typeof item === "string" ? item : (item?.text ?? "");
+        const off = typeof item === "object" && item?.shareable === false;
+        add(`${STORY_LABEL[f]}${off ? "（投稿に使わない）" : ""}`, text);
+      }
+      break;
+    }
+    case "concept": {
+      const v = (value ?? {}) as Partial<PlanData["concept"]>;
+      add("どうやって解決するか", v.how);
+      add("コンセプト", v.statement);
       break;
     }
     case "audience": {

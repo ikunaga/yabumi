@@ -91,7 +91,7 @@ export function buildTidyRequest(ctx: IdeaContext, text: string, direction: Tidy
   const how = directionText(direction);
   return {
     system: [{ type: "text", text: TIDY_DRAFT_SYSTEM }],
-    messages: [{ role: "user", content: [{ type: "text", text: `${ideaContextText(ctx)}${how ? `\n\n${how}` : ""}\n\n# 整える元の文\n<draft>\n${escapeData(text)}\n</draft>\n\nこの文を、投稿の案に整えてください。` }] }],
+    messages: [{ role: "user", content: [{ type: "text", text: `${ideaContextText(ctx, "tidy")}${how ? `\n\n${how}` : ""}\n\n# 整える元の文\n<draft>\n${escapeData(text)}\n</draft>\n\nこの文を、投稿の案に整えてください。` }] }],
   };
 }
 

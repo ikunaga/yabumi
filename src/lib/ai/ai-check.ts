@@ -3,6 +3,7 @@ import { productLines, productTypeOf } from "./product-guide";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { namedPillars, pillarPromptLines, tonePromptLines } from "@/lib/plan/pillars";
+import { identityPromptLines } from "@/lib/plan/story";
 import { normalizePlan, type PlanData } from "@/lib/plan/schema";
 import { SNS, SNS_KEYS, displayLength, isSnsKey, type SnsKey } from "@/lib/sns";
 import type { Database } from "@/lib/supabase/database.types";
@@ -90,8 +91,10 @@ const escapeData = (s: string) => s.replace(/<(\/?)(post)\b/gi, "<$1$2_");
 // sns: 送り先の SNS（投稿の柱は、この SNS に付いたものだけを出す。空・なしならすべての柱を、使う SNS を添えて）
 export type CheckContext = { projectName: string; plan: PlanData; productType?: ProductType; sns?: SnsKey[] };
 
-export function checkContextText(ctx: CheckContext): string {
+// use: 見直し（AI っぽさチェック）か、画像の案（photo.ts・image-brief.ts）か。あなたらしさは投稿に使ってよいものだけ
+export function checkContextText(ctx: CheckContext, use: "check" | "image" = "check"): string {
   const lines = [`# プロジェクト: ${ctx.projectName}`, ...productLines({ productType: ctx.productType ?? "app", desiredAction: actionFromLegacyGoal(ctx.plan.goal.goalType) }), "# アカウント設計"];
+  lines.push(...identityPromptLines(ctx.plan, use));
   if (namedPillars(ctx.plan.pillars.items).length) lines.push(...pillarPromptLines(ctx.plan.pillars.items, ctx.sns ?? []));
   lines.push(...tonePromptLines(ctx.plan.pillars, ctx.sns ?? [], "（未設定。です・ます調か、くだけた口調かの一方にそろっていればよい）"));
   lines.push(`やらないこと: ${ctx.plan.pillars.avoid.trim() || "（未設定）"}`);

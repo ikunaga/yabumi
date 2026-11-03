@@ -3,6 +3,7 @@
 import { callAction } from "@/lib/client-errors";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
+import { AiThinking } from "@/components/ui/ai-thinking";
 import { Button } from "@/components/ui/button";
 import { VoiceInputButton } from "@/components/ui/voice-input";
 import { ErrorBanner } from "@/components/ui/feedback";
@@ -125,8 +126,8 @@ export function PlanCoachChat({
           </li>
         )}
         {pending && (
-          <li role="status" className="text-sm text-muted">
-            AI が考えています…（10〜30 秒ほどかかることがあります）
+          <li>
+            <AiThinking kind="chat" variant="chat" note="10〜30 秒ほどかかることがあります" />
           </li>
         )}
       </ol>

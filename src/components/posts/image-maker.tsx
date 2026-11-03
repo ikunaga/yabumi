@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { AiThinking } from "@/components/ui/ai-thinking";
 import { Button, NotReadyButton } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { Input, Textarea } from "@/components/ui/field";
@@ -310,6 +311,7 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
               )}
               <span className="text-xs text-muted">{hasText ? "本文とアカウント設計から考えます（1 回 2 円ほど）" : "本文を書くと、AI が画像の文字を考えます"}</span>
             </div>
+            {drafting && <AiThinking kind="brief" note="10〜20 秒ほどかかります" />}
             {brief && (
               <p className="leading-[1.7]">
                 <span className="mr-2 rounded-full bg-primary-soft px-2 py-0.5 text-xs font-bold text-primary">AI のおすすめ</span>

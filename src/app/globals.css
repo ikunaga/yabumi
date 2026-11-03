@@ -289,6 +289,29 @@ h3 {
   }
 }
 
+/* AI を待っている間の印（ui/ai-thinking.tsx）。点が順に弾む・細いバーが左右に流れる。動きを減らす設定では止める（部品の側でも付けない） */
+@keyframes ai-dot {
+  0%,
+  70%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+  35% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+@keyframes ai-bar {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+
 /* fieldset は既定で中身の幅より狭くならず（min-width: min-content）、スマホで横にはみ出す。ほかの要素と同じく縮められるようにする */
 fieldset {
   min-width: 0;

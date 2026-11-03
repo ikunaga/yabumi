@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { AiThinking } from "@/components/ui/ai-thinking";
 import { Button, NotReadyButton } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { Field, Input, Textarea } from "@/components/ui/field";
@@ -59,7 +60,7 @@ export function DescriptionDrafter({ projectId, aiEnabled, hasAudience }: { proj
           ) : (
             <NotReadyButton>リポジトリを読んで、紹介文を下書きする</NotReadyButton>
           )}
-          {working === "draft" && <span role="status" className="text-sm text-muted">読むファイルを選んで、紹介文を書いています…（30〜90 秒ほど）</span>}
+          {working === "draft" && <AiThinking kind="description" note="30〜90 秒ほどかかります" className="w-full" />}
         </div>
       )}
       {error && <ErrorBanner>{error}</ErrorBanner>}
@@ -114,7 +115,11 @@ export function DescriptionDrafter({ projectId, aiEnabled, hasAudience }: { proj
                 >
                   答えて書き直す
                 </Button>
-                <span className="text-xs text-muted">{working === "refine" ? "書き直しています…" : "下の紹介文を手で直していた場合は、書き直した内容に置き換わります"}</span>
+                {working === "refine" ? (
+                  <AiThinking kind="redo" note="30〜60 秒ほどかかります" className="w-full" />
+                ) : (
+                  <span className="text-xs text-muted">下の紹介文を手で直していた場合は、書き直した内容に置き換わります</span>
+                )}
               </div>
             </section>
           )}

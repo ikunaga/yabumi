@@ -2,6 +2,7 @@
 
 import { callAction } from "@/lib/client-errors";
 import { useState, useTransition } from "react";
+import { AiThinking } from "@/components/ui/ai-thinking";
 import { Button, NotReadyButton } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { checkPostTexts } from "@/lib/ai/ai-check-actions";
@@ -67,6 +68,7 @@ export function AiCheckPanel({ projectId, aiEnabled, texts, onApply }: Props) {
             </NotReadyButton>
           )}
         </div>
+        {pending && <AiThinking kind="check" note="10〜20 秒ほどかかります" />}
         <p className="text-xs leading-[1.7] text-muted">
           決まり文句、大げさな言葉、書いた人しか知らない事実（本当かどうか）、ハッシュタグ（付けすぎ・ネタと関係ないもの・設計で決めたタグとのずれ）、設計の口調とのずれを見ます。直すかどうかはあなたが選べます。送るのは止めません（1 回 5 円ほど）。
         </p>

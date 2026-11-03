@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
+import { AiThinking } from "@/components/ui/ai-thinking";
 import { Button, NotReadyButton } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { HelpTip } from "@/components/ui/help";
@@ -445,33 +446,20 @@ function DraftEditor({
   );
 }
 
-// 案を待っている間。案のカードの形の骨組みと、スピナー、待つ時間の目安と経った秒数、やめる
+// 案を待っている間。案のカードの形の骨組みと、動く印・段階の文・経った秒数（ui/ai-thinking）、待つ時間の目安、やめる
 function TidyWaiting({ startedAt, cards, onCancel }: { startedAt: number | null; cards: number; onCancel: () => void }) {
   const box = useRef<HTMLDivElement>(null);
-  const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     // 出たら見える位置に（スマホで、ボタンの下が画面の外にあるとき）
     box.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
   }, []);
-  const seconds = startedAt ? Math.max(0, Math.floor((now - startedAt) / 1000)) : 0;
   return (
     <div ref={box} className="flex flex-col gap-3">
-      <div role="status" aria-live="polite" className="flex flex-col gap-2 rounded-lg border border-primary bg-primary-soft px-4 py-3.5">
-        <p className="flex items-start gap-2.5 text-[15px] font-bold text-fg">
-          <span aria-hidden className="mt-0.5 inline-block size-4.5 shrink-0 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          <span>AI が案を考えています</span>
-        </p>
-        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] leading-[1.7] text-muted">
-          <span>
-            {TIDY_WAIT}かかります。待っている間も本文は書けます（<span className="num">{seconds}</span> 秒）
-          </span>
-          <button type="button" onClick={onCancel} className="font-semibold text-fg underline-offset-2 hover:underline">
-            やめる
-          </button>
-        </p>
-      </div>
+      <AiThinking kind="tidy" startedAt={startedAt} note={`${TIDY_WAIT}かかります。待っている間も本文は書けます`} className="rounded-lg border border-primary bg-primary-soft px-4 py-3.5">
+        <button type="button" onClick={onCancel} className="font-semibold text-fg underline-offset-2 hover:underline">
+          やめる
+        </button>
+      </AiThinking>
       <ul aria-hidden className="flex flex-col gap-3">
         {Array.from({ length: cards }, (_, i) => (
           <li key={i} className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4">

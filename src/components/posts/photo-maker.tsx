@@ -2,6 +2,7 @@
 
 import type { SnsKey } from "@/lib/sns";
 import { useEffect, useState, useTransition } from "react";
+import { AiThinking } from "@/components/ui/ai-thinking";
 import { Button, NotReadyButton } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { Textarea } from "@/components/ui/field";
@@ -206,6 +207,7 @@ export function PhotoMaker({
           )}
           <span className="text-xs text-muted">{hasText ? "本文とアカウント設計から 2〜3 案（1 回 2 円ほど）" : "本文を書くと、AI が場面を考えます。手で書いても作れます"}</span>
         </div>
+        {drafting && <AiThinking kind="scene" note="10〜20 秒ほどかかります" />}
         {ideas.length > 0 && (
           <ul className="flex flex-col gap-2" aria-label="絵の説明の案">
             {ideas.map((idea) => (
@@ -277,7 +279,7 @@ export function PhotoMaker({
                   : `今月の上限（${state.monthlyImages} 枚）に達しました。来月 1 日にまたつくれます`}
         </span>
       </div>
-      {making && <p className="text-sm text-muted">画像の AI がつくっています。30 秒ほどかかることがあります。</p>}
+      {making && <AiThinking kind="photo" note="30 秒ほどかかることがあります" />}
       {notice && <p className="text-sm text-muted">{notice}</p>}
 
       {candidates && candidates.items.length > 0 && (

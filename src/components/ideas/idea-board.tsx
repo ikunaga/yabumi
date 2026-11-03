@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { DeleteThreadButton } from "@/components/ai/delete-thread-button";
+import { AiThinking } from "@/components/ui/ai-thinking";
 import { Button, ButtonLink, NotReadyButton } from "@/components/ui/button";
 import { Badge, chipClass } from "@/components/ui/chip";
 import { HelpTip } from "@/components/ui/help";
@@ -12,6 +13,7 @@ import { Input, Textarea } from "@/components/ui/field";
 import { Steps } from "@/components/ui/steps";
 import { adoptIdea, generateIdeas, refineIdeas } from "@/lib/ai/post-ideas-actions";
 import { MAX_NEWS_CHARS, MAX_TOPIC_CHARS, needsFillIn, type IdeaNoteMaterial, type IdeaQuestion, type IdeaSource, type IdeasThread, type PostIdea } from "@/lib/ai/post-ideas";
+import type { ThinkingKind } from "@/lib/ai/thinking";
 import { IDEA_PERIODS, type IdeaPeriod } from "@/lib/github/commit-reader";
 import { IDEA_STEPS, type IdeaStep, canGoIdeaStep, initialIdeaStep, visibleIdeaStep } from "@/lib/ideas/steps";
 import { MAX_NOTES_FOR_IDEAS } from "@/lib/notes/rules";
@@ -21,14 +23,14 @@ import { formatShort } from "@/lib/time";
 const PERIOD_LABEL: Record<IdeaPeriod, string> = { 3: "3 日", 7: "1 週間", 14: "2 週間", 30: "1 か月" };
 
 // 材料の選び方。素人が選びやすいよう、向いている人と気をつけることを添える
-const SOURCE_INFO: Record<IdeaSource, { title: string; summary: string; good: string; note: string; button: string; working: string; cost: string }> = {
+const SOURCE_INFO: Record<IdeaSource, { title: string; summary: string; good: string; note: string; button: string; working: { kind: ThinkingKind; wait: string }; cost: string }> = {
   commits: {
     title: "最近の開発から（GitHub）",
     summary: "GitHub に記録した変更（コミット）を AI が読みます。",
     good: "入力がいらない。作った・直したことが、そのまま話の種になる",
     note: "コミットの文だけでは苦労や理由がわからず、あとで質問が出ることがある",
     button: "コミットを読んで、ネタを出す",
-    working: "コミットを読んで、ネタを考えています…（30〜90 秒ほど）",
+    working: { kind: "ideasCommits", wait: "30〜90 秒ほどかかります" },
     cost: "1 回あたり 20〜40 円ほど",
   },
   news: {
@@ -37,7 +39,7 @@ const SOURCE_INFO: Record<IdeaSource, { title: string; summary: string; good: st
     good: "自分の言葉なので、いちばん実感のこもった投稿になる。答えの例を押すだけでも書ける",
     note: "どれか 1 つは答える必要がある（短くて大丈夫）",
     button: "このできごとからネタを出す",
-    working: "ネタを考えています…（20〜60 秒ほど）",
+    working: { kind: "ideas", wait: "20〜60 秒ほどかかります" },
     cost: "1 回あたり 10〜20 円ほど",
   },
   notes: {
@@ -46,7 +48,7 @@ const SOURCE_INFO: Record<IdeaSource, { title: string; summary: string; good: st
     good: "生活の中で気づいたことが、そのまま実感のこもった投稿になる",
     note: "メモに書いたことだけを使う。AI に送るのはメモの文だけで、写真は送らない（写真は下書きに添える）",
     button: "選んだメモからネタを出す",
-    working: "ネタを考えています…（20〜60 秒ほど）",
+    working: { kind: "ideas", wait: "20〜60 秒ほどかかります" },
     cost: "1 回あたり 10〜20 円ほど",
   },
   plan: {
@@ -55,7 +57,7 @@ const SOURCE_INFO: Record<IdeaSource, { title: string; summary: string; good: st
     good: "何も書かなくてよい。いつ出しても古くならないネタがそろう",
     note: "最近の話は入らないので、ほかの材料と交互に使うのがおすすめ",
     button: "アカウント設計からネタを出す",
-    working: "ネタを考えています…（20〜60 秒ほど）",
+    working: { kind: "ideas", wait: "20〜60 秒ほどかかります" },
     cost: "1 回あたり 10〜20 円ほど",
   },
   // どれにもあてはまらないとき（2026-11-03 オーナーの要望）
@@ -65,7 +67,7 @@ const SOURCE_INFO: Record<IdeaSource, { title: string; summary: string; good: st
     good: "お知らせや季節の話題など、ほかの材料にあてはまらないことでも投稿にできる",
     note: "書いたことだけを使う。日付や数字など書いていないことは作らず、【】で残すか質問する",
     button: "伝えたいことからネタを出す",
-    working: "ネタを考えています…（20〜60 秒ほど）",
+    working: { kind: "ideas", wait: "20〜60 秒ほどかかります" },
     cost: "1 回あたり 10〜20 円ほど",
   },
 };
@@ -243,11 +245,7 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
               <Button variant="secondary" size="sm" disabled={pending || answered.length === 0} onClick={() => run("refine", () => refineIdeas(projectId, thread.threadId, answered))}>
                 答えて、ネタを出し直す
               </Button>
-              {working === "refine" && (
-                <span role="status" className="text-[13px] text-muted">
-                  出し直しています…
-                </span>
-              )}
+              {working === "refine" && <AiThinking kind="redo" note="20〜60 秒ほどかかります" className="w-full" />}
             </div>
           </section>
         )}
@@ -585,9 +583,7 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
                   <NotReadyButton size="lg">{info.button}</NotReadyButton>
                 )}
                 {working === "generate" ? (
-                  <span role="status" className="text-[13px] text-muted">
-                    {info.working}
-                  </span>
+                  <AiThinking kind={info.working.kind} note={info.working.wait} />
                 ) : (
                   <span className="text-[13px] text-faint">{info.cost}（月の上限の中で数えます）</span>
                 )}

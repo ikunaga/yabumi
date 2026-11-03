@@ -12,11 +12,14 @@ export function ProjectShell({
   project,
   projects,
   email,
+  glossary = false,
   children,
 }: {
   project: { id: string; name: string };
   projects: { id: string; name: string }[];
   email: string;
+  // 用語集を、プロジェクトの中から開いた（このプロジェクトの帯のまま出し、More の Glossary を選んだ印にする。4.48）
+  glossary?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -27,7 +30,7 @@ export function ProjectShell({
           <Brand href="/projects" />
           <ProjectSwitcher current={project} projects={projects} variant="bar" />
           <nav aria-label="プロジェクトのメニュー" className="min-w-0">
-            <ProjectNavLinks projectId={project.id} variant="bar" />
+            <ProjectNavLinks projectId={project.id} variant="bar" glossary={glossary} />
           </nav>
           <div className="ml-auto flex shrink-0 items-center gap-3">
             <QuickNote projects={projects} projectId={project.id} variant="topbar" />
@@ -41,7 +44,7 @@ export function ProjectShell({
         <Brand href="/projects" size="sm" />
         <div className="flex min-w-0 items-center gap-4 max-[359px]:gap-3">
           <ProjectSwitcher current={project} projects={projects} variant="header" />
-          <ProjectMobileMenu projectId={project.id} email={email} projects={projects} />
+          <ProjectMobileMenu projectId={project.id} email={email} projects={projects} glossary={glossary} />
         </div>
       </header>
 
@@ -55,7 +58,7 @@ export function ProjectShell({
         aria-label="プロジェクトのメニュー"
         className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-nav pb-[env(safe-area-inset-bottom)] sm:hidden"
       >
-        <ProjectNavLinks projectId={project.id} variant="tabs" />
+        <ProjectNavLinks projectId={project.id} variant="tabs" glossary={glossary} />
       </nav>
     </div>
   );

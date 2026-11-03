@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { canonicalRedirect } from "@/lib/canonical-host";
 import { shortLinkRoute } from "@/lib/links/host";
+import { LAST_PROJECT_COOKIE, LAST_PROJECT_COOKIE_OPTIONS, lastProjectChange } from "@/lib/projects/last-project";
 import { updateSession } from "@/lib/supabase/proxy";
 
 export async function proxy(request: NextRequest) {
@@ -23,7 +24,12 @@ export async function proxy(request: NextRequest) {
   // 本番の vercel.app のアドレスで開かれたら、APP_URL（独自ドメイン）へ転送する
   const to = canonicalRedirect(request.nextUrl, { appUrl: process.env.APP_URL, vercelEnv: process.env.VERCEL_ENV });
   if (to) return NextResponse.redirect(to, 308);
-  return updateSession(request);
+  const response = await updateSession(request);
+  // 直前に開いていたプロジェクトを覚える・消す（用語集を、そのプロジェクトの上の帯のまま出すため。4.48）
+  const change = lastProjectChange(request.nextUrl.pathname, request.headers);
+  if (change === "clear") response.cookies.delete(LAST_PROJECT_COOKIE);
+  else if (change) response.cookies.set(LAST_PROJECT_COOKIE, change.set, { ...LAST_PROJECT_COOKIE_OPTIONS, secure: request.nextUrl.protocol === "https:" });
+  return response;
 }
 
 export const config = {

@@ -2426,6 +2426,15 @@ yabumi のコンセプトは、使って SNS を運用するうちに、マー�
   - 保存期間: 行が人ごとに増え続けないので purge_expired_data には入れず、退会まで（on delete cascade）
 - **プライバシーポリシー**: 「学びの記録」を預かる情報・使い道・保存期間に足した（② として扱った。docs/legal.md）
 
+### 4.48 用語集をプロジェクトの中から開いたときの上の帯（2026-11-03、オーナーの指摘。fix/glossary-header）
+
+プロジェクトの中から More の「Glossary」で用語集を開くと、上の帯がプロジェクトの外の形（yabumi・用語集・Glossary・＋メモ）に変わり、Overview などのメニューとプロジェクトの切り替えが消えて、元の画面に戻りにくかった
+
+- 直前に開いていたプロジェクトを cookie（yabumi_last_project。httpOnly・SameSite=Lax・path /・1 年。https では secure）に覚える。proxy（src/proxy.ts）が、/projects/<id>（とその下）を開いたら覚え、プロジェクトの一覧（/projects）と新しいプロジェクト（/projects/new）を開いたら消す。先読み（Next-Router-Prefetch・Sec-Purpose: prefetch）では変えない（一覧のカードの先読みで、開いていないプロジェクトを覚えないように）。ログアウトと退会でも消す（src/lib/projects/last-project.ts）
+- 用語集（/glossary と /glossary/<key>）の枠は GlossaryFrame（src/components/glossary/frame.tsx）。cookie の id は信用しない: id の形を確かめ、RLS の効くクライアントで projects を読む。本人のものなら、そのプロジェクトの上の帯（ProjectShell。PC は切り替え・Overview〜More、スマホは上の帯・メニュー・下のタブ）で出し、More とスマホのメニューの「Glossary 用語集」を選んだ印にする（ほかの項目は選ばない）。他人のもの・消えたもの・形が違う・cookie なしは、前と同じプロジェクトの外の帯（TopBar）。他人のプロジェクトの名前が出る経路はない
+- プロジェクトが 1 つもない人・プロジェクトの一覧から開いた人は、プロジェクトの外の帯のまま。今日の用語・ひとことの「くわしく →」から開いたときも、そのプロジェクトの帯
+- 一覧のカードの挿絵は、高さを横幅の 3 分の 1 にして（前の半分）、1 画面に多くの語が入るようにした。絵は切らずに縮め、余白は生成りの枠の色
+
 ## 5. データモデル（主要テーブル）
 
 | テーブル | 内容 |

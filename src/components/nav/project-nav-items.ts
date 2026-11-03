@@ -63,3 +63,6 @@ export function activeNavKey(segment: string | null): ProjectNavKey {
 // 用語集（4.45）。プロジェクトの外の画面だが、どの画面からも開けるように、PC の上の帯の「More」の下（区切りのあと）と、
 // スマホの「メニュー」、プロジェクトの外の上の帯に置く
 export const GLOSSARY_NAV = { href: "/glossary", barLabel: "Glossary", label: "用語集" } as const;
+
+// 選んでいる印を付ける先（プロジェクトの画面か、用語集。用語集はプロジェクトの中から開くと、そのプロジェクトの帯のまま出す。4.48）
+export type NavActive = ProjectNavKey | "glossary";

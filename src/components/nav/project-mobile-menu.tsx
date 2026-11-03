@@ -14,8 +14,20 @@ import { SubmitButton } from "@/components/ui/submit-button";
 // スマホのヘッダーの「メニュー」。下のタブに入らない画面（アカウント設計・リンク・ロードマップ）と、アカウント・ログアウトへの入口。
 // プロジェクトの切り替えとは役目が違うので分ける（切り替えはプロジェクト名、ここは画面の一覧）。
 // ライト・ダークの切り替えもここに入れる（320px の幅で、ロゴ・プロジェクト名・メニューを 1 行に収めるため）
-export function ProjectMobileMenu({ projectId, email, projects }: { projectId: string; email: string; projects: { id: string; name: string }[] }) {
-  const active = activeNavKey(useSelectedLayoutSegment());
+export function ProjectMobileMenu({
+  projectId,
+  email,
+  projects,
+  glossary = false,
+}: {
+  projectId: string;
+  email: string;
+  projects: { id: string; name: string }[];
+  // 用語集を開いている（4.48）
+  glossary?: boolean;
+}) {
+  const segment = useSelectedLayoutSegment();
+  const active = glossary ? "glossary" : activeNavKey(segment);
   const pathname = usePathname();
   const ref = useRef<HTMLDivElement>(null);
   const items = projectNavItems(projectId);
@@ -62,7 +74,11 @@ export function ProjectMobileMenu({ projectId, email, projects }: { projectId: s
         </nav>
         {/* プロジェクトの外の画面（用語集）。区切ってから置く */}
         <div className="mt-1 border-t border-line pt-1">
-          <Link href={GLOSSARY_NAV.href} className="block px-4 py-3 hover:bg-primary-soft hover:no-underline">
+          <Link
+            href={GLOSSARY_NAV.href}
+            aria-current={active === "glossary" ? "page" : undefined}
+            className="block px-4 py-3 hover:bg-primary-soft hover:no-underline aria-[current=page]:font-bold aria-[current=page]:text-primary"
+          >
             {GLOSSARY_NAV.label}
           </Link>
         </div>

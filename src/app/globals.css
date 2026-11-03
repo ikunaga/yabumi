@@ -41,7 +41,7 @@
   --info: #0f7fff;             /* 情報・グラフの主の色 */
   --info-soft: #ebf3fe;
   --rule: #f0f0f2;             /* 画像を置く欄の斜めの縞 */
-  --illust: #f6f0e4;           /* 用語集の挿絵の枠（生成り。4.45） */
+  --illust: #f6f0e4;           /* 用語集の挿絵の枠（生成り。挿絵の地と同じ色。ダークでも同じ色にし、枠ごと少し暗くする。4.45・4.48） */
   /* 上の帯（メニュー） */
   --nav: #e9e9eb;              /* 上の帯は灰（見本の bg-subtle を地より一段濃く） */
   --nav-fg: #606366;
@@ -96,7 +96,7 @@
     --info: #60a5fa;
     --info-soft: #172a45;
     --rule: #252627;
-    --illust: #2b2925;
+    --illust: #f6f0e4;
     --nav: #232425;
     --nav-fg: #b8bbbf;
     --nav-active: #303133;
@@ -147,7 +147,7 @@
   --info: #60a5fa;
   --info-soft: #172a45;
   --rule: #252627;
-  --illust: #2b2925;
+  --illust: #f6f0e4;
   --nav: #232425;
   --nav-fg: #b8bbbf;
   --nav-active: #303133;

@@ -1,10 +1,11 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { z } from "zod";
 import { consentVia, hasConsented, recordConsent } from "@/lib/legal/consent";
 import { currentLegalVersion } from "@/lib/legal/version";
+import { LAST_PROJECT_COOKIE } from "@/lib/projects/last-project";
 import { forgetPushDevice } from "@/lib/push/cookie";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -144,6 +145,8 @@ export async function logout() {
   const { data } = await supabase.auth.getClaims();
   await forgetPushDevice(data?.claims?.sub ?? null);
   await supabase.auth.signOut();
+  // 直前に開いていたプロジェクト（4.48）も消す
+  (await cookies()).delete(LAST_PROJECT_COOKIE);
   redirect("/login");
 }
 

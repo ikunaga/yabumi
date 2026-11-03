@@ -1,5 +1,6 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createAppJwt } from "@/lib/github/app-auth";
 import { deleteInstallation } from "@/lib/github/api";
@@ -8,6 +9,7 @@ import { defaultLinkDomainDeps } from "@/lib/links/domains";
 import { forgetPushDevice } from "@/lib/push/cookie";
 import { revokeDeps } from "@/lib/sns/adapters";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { LAST_PROJECT_COOKIE } from "@/lib/projects/last-project";
 import { createClient } from "@/lib/supabase/server";
 import { withdrawUser } from "./withdraw";
 
@@ -62,5 +64,7 @@ export async function withdraw(_prev: WithdrawState, formData: FormData): Promis
   // 利用者はもう消えているので、手元のログインの cookie だけを消す（通知の宛先は退会で消えている）
   await forgetPushDevice(null);
   await supabase.auth.signOut({ scope: "local" });
+  // 直前に開いていたプロジェクト（4.48）も消す
+  (await cookies()).delete(LAST_PROJECT_COOKIE);
   redirect("/?done=withdrawn");
 }

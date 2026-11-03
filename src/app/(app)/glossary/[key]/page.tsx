@@ -5,8 +5,7 @@ import { GlossaryBlocks } from "@/components/glossary/blocks";
 import { GLOSSARY_DIAGRAMS } from "@/components/glossary/diagrams";
 import { Illustration } from "@/components/glossary/illustration";
 import { TermMiniCard } from "@/components/glossary/term-card";
-import { TopBar } from "@/components/nav/top-bar";
-import { requireUser } from "@/lib/auth/user";
+import { GlossaryFrame } from "@/components/glossary/frame";
 import { RecordTermRead } from "@/components/glossary/record-read";
 import { categoryOf, GLOSSARY_KEYS, glossary, isGlossaryKey, neighbors, type GlossaryTerm } from "@/lib/glossary/terms";
 
@@ -26,7 +25,6 @@ export async function generateMetadata(props: PageProps<"/glossary/[key]">): Pro
 export default async function GlossaryTermPage(props: PageProps<"/glossary/[key]">) {
   const { key } = await props.params;
   if (!isGlossaryKey(key)) notFound();
-  const user = await requireUser();
   const term: GlossaryTerm = glossary[key];
   const category = categoryOf(key);
   const { prev, next } = neighbors(key);
@@ -34,26 +32,24 @@ export default async function GlossaryTermPage(props: PageProps<"/glossary/[key]
   const related = (term.related ?? []).filter(isGlossaryKey);
 
   return (
-    <>
+    // プロジェクトの中から開いたら、そのプロジェクトの上の帯のまま（4.48）
+    <GlossaryFrame
+      crumb={
+        <span className="flex items-center gap-2">
+          <Link href="/glossary" className="text-muted hover:text-fg hover:no-underline">
+            用語集
+          </Link>
+          <span aria-hidden className="text-faint">
+            ›
+          </span>
+          <span className="font-bold text-fg">{term.label}</span>
+        </span>
+      }
+      mobileBack={{ href: `/glossary#cat-${category.id}`, title: "用語集" }}
+    >
       {/* 読んだと記録する（学びの記録。4.47）。画面を描いたあとにクライアントから送る（GET や先読みでは記録しない） */}
       <RecordTermRead termKey={key} />
-      <TopBar
-        email={user.email}
-        crumb={
-          <span className="flex items-center gap-2">
-            <Link href="/glossary" className="text-muted hover:text-fg hover:no-underline">
-              用語集
-            </Link>
-            <span aria-hidden className="text-faint">
-              ›
-            </span>
-            <span className="font-bold text-fg">{term.label}</span>
-          </span>
-        }
-        mobileBack={{ href: `/glossary#cat-${category.id}`, title: "用語集" }}
-        glossary
-      />
-      <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-12 py-10 max-lg:px-8 max-sm:gap-5 max-sm:px-4 max-sm:py-5">
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 max-sm:gap-5">
         <nav aria-label="パンくず" className="text-[14px] text-muted">
           <Link href="/glossary" className="hover:text-fg">
             用語集
@@ -105,7 +101,7 @@ export default async function GlossaryTermPage(props: PageProps<"/glossary/[key]
         <Link href={`/glossary#cat-${category.id}`} className="text-[15px] text-muted hover:text-fg hover:no-underline">
           ← 用語集へ戻る
         </Link>
-      </main>
-    </>
+      </div>
+    </GlossaryFrame>
   );
 }

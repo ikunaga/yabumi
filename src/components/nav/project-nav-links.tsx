@@ -4,17 +4,19 @@ import Link from "next/link";
 import { usePathname, useSelectedLayoutSegment } from "next/navigation";
 import { type MouseEvent, useEffect, useRef, useState } from "react";
 import { DismissableDetails } from "@/components/ui/dismissable-details";
-import { activeNavKey, GLOSSARY_NAV, type ProjectNavItem, type ProjectNavKey, projectNavItems } from "./project-nav-items";
+import { activeNavKey, GLOSSARY_NAV, type NavActive, type ProjectNavItem, type ProjectNavKey, projectNavItems } from "./project-nav-items";
 
 // プロジェクト内のメニュー。開いている画面を URL から判定して選択中にする。
 // bar: PC の上の横並び（5 つ ＋「…」その他）。tabs: スマホの下のタブ（5 つ）
-export function ProjectNavLinks({ projectId, variant }: { projectId: string; variant: "bar" | "tabs" }) {
-  const current = activeNavKey(useSelectedLayoutSegment());
+// glossary: 用語集を開いている（プロジェクトの中から開いた用語集。More の中の Glossary を選んだ印にし、ほかは選ばない）
+export function ProjectNavLinks({ projectId, variant, glossary = false }: { projectId: string; variant: "bar" | "tabs"; glossary?: boolean }) {
+  const segment = useSelectedLayoutSegment();
+  const current: NavActive = glossary ? "glossary" : activeNavKey(segment);
   // 押した瞬間に選んでいる印を移す（次の画面ができるのを待たない。押した感覚を返すため）。URL が変わったら URL のほうに戻す
   const pathname = usePathname();
-  const [pending, setPending] = useState<{ key: ProjectNavKey; from: string } | null>(null);
+  const [pending, setPending] = useState<{ key: NavActive; from: string } | null>(null);
   const active = pending && pending.from === pathname ? pending.key : current;
-  const press = (key: ProjectNavKey) => (e: MouseEvent) => {
+  const press = (key: NavActive) => (e: MouseEvent) => {
     // 新しいタブで開く押し方（⌘・Ctrl・Shift・中ボタン）では、この画面は変わらないので印も動かさない
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
     setPending({ key, from: pathname });
@@ -78,7 +80,7 @@ export function ProjectNavLinks({ projectId, variant }: { projectId: string; var
 }
 
 // 「…」（その他）。5 つに入らない画面（アカウント設計・ネタ帳・短縮リンク・ロードマップ）
-function MoreMenu({ items, active, onPress }: { items: ProjectNavItem[]; active: ProjectNavKey; onPress: (key: ProjectNavKey) => (e: MouseEvent) => void }) {
+function MoreMenu({ items, active, onPress }: { items: ProjectNavItem[]; active: NavActive; onPress: (key: NavActive) => (e: MouseEvent) => void }) {
   const pathname = usePathname();
   const ref = useRef<HTMLDivElement>(null);
 
@@ -89,7 +91,7 @@ function MoreMenu({ items, active, onPress }: { items: ProjectNavItem[]; active:
   }, [pathname]);
 
   // その他の画面を開いているときは、「…」の代わりにその名前を出す（どこにいるか分かるように）
-  const current = items.find((i) => i.key === active);
+  const current = active === "glossary" ? GLOSSARY_NAV : items.find((i) => i.key === active);
   return (
     <DismissableDetails className="group relative">
       <summary
@@ -124,7 +126,12 @@ function MoreMenu({ items, active, onPress }: { items: ProjectNavItem[]; active:
         </ul>
         {/* プロジェクトの外の画面（用語集）。区切ってから置く */}
         <div className="mt-1 border-t border-line pt-1">
-          <Link href={GLOSSARY_NAV.href} className="flex items-baseline justify-between gap-3 px-4 py-2.5 hover:bg-subtle hover:no-underline">
+          <Link
+            href={GLOSSARY_NAV.href}
+            onClick={onPress("glossary")}
+            aria-current={active === "glossary" ? "page" : undefined}
+            className="flex items-baseline justify-between gap-3 px-4 py-2.5 hover:bg-subtle hover:no-underline aria-[current=page]:font-bold"
+          >
             {GLOSSARY_NAV.barLabel}
             <span className="text-[12px] font-normal text-muted">{GLOSSARY_NAV.label}</span>
           </Link>

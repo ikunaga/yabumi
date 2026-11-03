@@ -22,6 +22,13 @@ export function estimateCostUsd(model: string, u: TokenUsage): number {
   return Math.round(cost * 1_000_000) / 1_000_000;
 }
 
+// 予約の見込みに使う、いちばん高い単価（表のモデルと知らないモデルのうち。入力はキャッシュへの書き込みの 1.25 倍で数える）。
+// 安全のための判定で別のモデルに回ったとき（fallbacks）も、この単価を超えない
+export function maxTextPricePerMillion(): { input: number; output: number } {
+  const all = [...Object.values(PRICES), FALLBACK_PRICE];
+  return { input: Math.max(...all.map((p) => p.input)) * CACHE_WRITE_MULTIPLIER, output: Math.max(...all.map((p) => p.output)) };
+}
+
 // 画像の AI の料金（米ドル。docs/architecture.md の 4.25。Gemini API の料金表 2026-10-30 更新を 2026-11-02 に確かめた）。
 // 1K（約 100 万画素）1 枚の値段と、指示文（入力）の 100 万トークンの値段。モデルは環境変数 IMAGE_GEN_MODEL で差し替える。
 // 料金が変わったらここと docs/architecture.md の 4.25 を直す

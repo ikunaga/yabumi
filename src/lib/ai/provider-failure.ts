@@ -14,6 +14,28 @@ export class AiUnavailableError extends Error {
   }
 }
 
+// Claude が送った頼みを処理せずに断った（4xx。408 を除く。形の誤り・大きすぎる・回数の制限など）。請求されないことがはっきりしているので、
+// 上限の予約を消してよい（src/lib/ai/budget.ts）。5xx・タイムアウト・接続が切れたときは請求されたかわからないので、これにしない
+export class AiRequestRejected extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = "AiRequestRejected";
+  }
+}
+
+// 請求されないことがはっきりしている失敗か（支払い・鍵の問題も、処理の前に断られている）
+export function notBilled(e: unknown): boolean {
+  return e instanceof AiUnavailableError || e instanceof AiRequestRejected;
+}
+
+// 処理されずに断られたとみなす状態番号（408 はサーバー側の時間切れで、途中まで処理されたかわからない）
+export function isRejectedStatus(status: number): boolean {
+  return status >= 400 && status < 500 && status !== 408;
+}
+
 // 支払い・鍵の問題とみなす返事。Anthropic は残高が足りないとき 400 で「credit balance」と返す
 export function isUnavailableResponse(provider: AiProvider, status: number, message = ""): boolean {
   if (status === 401 || status === 402 || status === 403) return true;

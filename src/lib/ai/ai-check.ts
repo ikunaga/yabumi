@@ -180,11 +180,14 @@ export async function runAiCheck(
   let r: ModelOutput;
   try {
     // 呼ぶ前に上限の分を予約する（返事のあとで実際の額に直す。budget.ts）
-    const b = await withAiBudget(admin, { userId: args.userId, purpose: "ai_check", now: deps.now?.() }, () =>
-      deps.callCheck(buildAiCheckRequest(
+    const b = await withAiBudget(
+      admin,
+      { userId: args.userId, purpose: "ai_check", call: "ai_check", now: deps.now?.() },
+      buildAiCheckRequest(
         { projectName: project.name, plan: normalizePlan(planRow?.data, project.target_audience ?? ""), productType: productTypeOf(project.product_type), sns: texts.map((t) => t.sns) },
         texts,
-      )),
+      ),
+      deps.callCheck,
     );
     if (!b.ok) return { ok: false, message: b.message };
     r = b.result;

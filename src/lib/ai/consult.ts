@@ -392,11 +392,11 @@ export async function consultStep(
   if (!ctx) return fail("プロジェクトが見つかりません。");
 
   // 呼ぶ前に上限の分を予約し、返事のあとで実際の額に直す（返事が使えなくても数える。budget.ts）
-  const budget = { userId, purpose: "consult", threadId, now };
+  const budget = { userId, purpose: "consult", call: "consult" as const, threadId, now };
   const request = buildConsultRequest(history, ctx);
   let result: ModelResult;
   try {
-    const b = await withAiBudget(admin, budget, () => deps.callModel(request));
+    const b = await withAiBudget(admin, budget, request, deps.callModel);
     if (!b.ok) return fail(b.message);
     result = b.result;
   } catch (e) {
@@ -433,7 +433,7 @@ export async function consultStep(
   void _ignored;
   const tidied = tidyConsultDrafts(rest, ctx.plan.hashtags.items.map((i) => i.tag));
   // 下書きの案が SNS の上限を超えていたら、超えた案だけを 1 回だけ縮めさせる（縮めても超えていれば、画面で「上限を n 字超えています」）
-  const shortened = await shortenConsultDrafts(deps.callShorten && budgeted(admin, budget, deps.callShorten), tidied);
+  const shortened = await shortenConsultDrafts(deps.callShorten && budgeted(admin, { ...budget, call: "shorten" }, deps.callShorten), tidied);
   const toSave = shortened.turn;
   const { error } = await admin.from("ai_messages").insert({ thread_id: threadId, owner_id: userId, role: "assistant", content: { ...toSave, adopted: [] } as never });
   if (error) throw error;

@@ -125,11 +125,14 @@ export async function runImageBrief(
   let r: ModelOutput;
   try {
     // 呼ぶ前に上限の分を予約する（返事のあとで実際の額に直す。budget.ts）
-    const b = await withAiBudget(admin, { userId: args.userId, purpose: "image_brief", now: deps.now?.() }, () =>
-      deps.callBrief(buildImageBriefRequest(
+    const b = await withAiBudget(
+      admin,
+      { userId: args.userId, purpose: "image_brief", call: "image_brief", now: deps.now?.() },
+      buildImageBriefRequest(
         { projectName: project.name, plan: normalizePlan(planRow?.data, project.target_audience ?? ""), productType: productTypeOf(project.product_type), sns: args.sns },
         text,
-      )),
+      ),
+      deps.callBrief,
     );
     if (!b.ok) return { ok: false, message: b.message };
     r = b.result;

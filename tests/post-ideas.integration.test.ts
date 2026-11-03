@@ -139,8 +139,8 @@ describe("投稿のネタ", () => {
     const filled = await spendAi(admin, aliceId, 3);
     const over = await generatePostIdeas(alice, admin, deps(), { userId: aliceId, projectId, sns: ["x"], input: { source: "commits", days: 7 } });
     await unspendAi(admin, filled);
-    expect(over).toMatchObject({ ok: false });
-    expect(commits).not.toHaveBeenCalled();
+    // コミットは読む（見込みの額を送る中身から決めるため。GitHub の API は無料）が、AI は呼ばない（呼んでいれば下の「数える」が 2 件になる）
+    expect(over).toMatchObject({ ok: false, message: expect.stringContaining("今月") });
     const bad = await generatePostIdeas(alice, admin, deps({ callIdeas: caller({ ideas: [] }) }), { userId: aliceId, projectId, sns: ["x"], input: { source: "commits", days: 7 } });
     expect(bad).toMatchObject({ ok: false });
     expect((await alice.from("ai_threads").select("id")).data).toHaveLength(before);

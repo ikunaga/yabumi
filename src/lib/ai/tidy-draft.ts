@@ -180,7 +180,7 @@ export async function runTidyDraft(
   // 呼ぶ前に上限の分を予約する（返事のあとで実際の額に直す。budget.ts）
   let r: ModelOutput;
   try {
-    const b = await withAiBudget(admin, { userId: args.userId, purpose: "tidy_draft", now: deps.now?.() }, () => deps.callTidy(buildTidyRequest(ctx, text, args.direction)));
+    const b = await withAiBudget(admin, { userId: args.userId, purpose: "tidy_draft", call: "tidy_draft", now: deps.now?.() }, buildTidyRequest(ctx, text, args.direction), deps.callTidy);
     if (!b.ok) return { ok: false, message: b.message };
     r = b.result;
   } catch (e) {
@@ -193,7 +193,7 @@ export async function runTidyDraft(
   const options = r.stopReason === "end_turn" ? normalizeTidy(r.output, sns, hashtags, ctx.project.productType) : null;
   if (!options) return { ok: false, message: "うまく整えられませんでした。もう一度お試しください。" };
 
-  const shorten = deps.callShorten && budgeted(admin, { userId: args.userId, purpose: "tidy_draft" }, deps.callShorten);
+  const shorten = deps.callShorten && budgeted(admin, { userId: args.userId, purpose: "tidy_draft", call: "shorten" }, deps.callShorten);
   const shortened = await shortenTidy(shorten, options, hashtags, ctx.project.productType);
   return { ok: true, options: shortened.options };
 }

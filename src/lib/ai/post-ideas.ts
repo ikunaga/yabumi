@@ -446,10 +446,6 @@ export async function generatePostIdeas(
     return { ok: false, message: "アカウント設計か、プロジェクトの説明を先に書いてください。何もないところからだと、事実でないネタになりやすいためです。" };
   }
 
-  // 呼ぶ前に上限の分を予約する（上限に届いていたらコミットも読まない）。返事のあとで実際の額に直す（返事が使えなくても数える。
-  // 会話はあとで作るので、作ったら結びつける）。AI を呼ばずに終わるときは予約を消す（budget.ts）
-  const reservation = await reserveAi(admin, { userId: args.userId, purpose: "post_ideas", now });
-  if (!reservation.ok) return { ok: false, message: reservation.message };
   let req: IdeasRequest;
   let request: IdeasRequestContent;
   let knownShas: string[] = [];
@@ -458,12 +454,10 @@ export async function generatePostIdeas(
     try {
       read = await deps.readCommits(link!, new Date(now.getTime() - input.days * 86_400_000));
     } catch (e) {
-      await reservation.cancel();
       console.error("[post-ideas] コミットを読めませんでした", e instanceof Error ? e.message : e);
       return { ok: false, message: "コミットを読めませんでした。GitHub の設定で、このリポジトリを yabumi に読ませているか確かめてください。" };
     }
     if (read.commits.length === 0) {
-      await reservation.cancel();
       return { ok: false, message: `直近 ${input.days} 日のコミットが見つかりませんでした。期間を長くするか、「最近のできごとから」を試してください。` };
     }
     req = buildIdeasRequest(ctx, link!.fullName, input.days, read);
@@ -483,18 +477,22 @@ export async function generatePostIdeas(
     request = { kind: "ideas_request", source: "plan", sns };
   }
 
+  // 呼ぶ前に上限の分を予約する（見込みは送る中身から決めるので、コミットを読んでから）。返事のあとで実際の額に直す（返事が使えなくても数える。
+  // 会話はあとで作るので、作ったら結びつける）。失敗したときの扱いは budget.ts の fail
+  const reservation = await reserveAi(admin, { userId: args.userId, purpose: "post_ideas", call: "post_ideas", now, request: req });
+  if (!reservation.ok) return { ok: false, message: reservation.message };
   let result: ModelOutput;
   try {
     result = await deps.callIdeas(req);
   } catch (e) {
-    await reservation.cancel();
+    await reservation.fail(e);
     console.error("[post-ideas] AI の呼び出しに失敗しました", e instanceof Error ? e.message : e);
     return { ok: false, message: aiFailureMessage(e, AI_ERROR) };
   }
   await reservation.settle(result);
   const first = result.stopReason === "end_turn" ? normalizeIdeas(result.output, { knownShas, sns, noteCount: notes.length, hashtags: planTags(ctx.plan), pillars: ctx.plan.pillars.items }) : null;
   const shortenIds: string[] = [];
-  const shorten = deps.callShorten && budgeted(admin, { userId: args.userId, purpose: "post_ideas" }, deps.callShorten, shortenIds);
+  const shorten = deps.callShorten && budgeted(admin, { userId: args.userId, purpose: "post_ideas", call: "shorten" }, deps.callShorten, shortenIds);
   const shortened = first ? await shortenIdeas(shorten, first, planTags(ctx.plan)) : null;
   const normalized = shortened?.value ?? null;
   if (!normalized) {
@@ -575,12 +573,10 @@ export async function refinePostIdeas(
   const ctx = await loadContext(user, args.projectId, thread.request.sns);
   if (!ctx) return { ok: false, message: "プロジェクトが見つかりません。" };
 
-  const budget = { userId: args.userId, purpose: "post_ideas", threadId: args.threadId, now: deps.now?.() };
+  const budget = { userId: args.userId, purpose: "post_ideas", call: "post_ideas" as const, threadId: args.threadId, now: deps.now?.() };
   let result: ModelOutput;
   try {
-    const b = await withAiBudget(admin, budget, () =>
-      deps.callIdeas(buildRefineIdeasRequest(ctx, thread.latest.content, answers, thread.request.news, thread.request.notes, thread.request.topic)),
-    );
+    const b = await withAiBudget(admin, budget, buildRefineIdeasRequest(ctx, thread.latest.content, answers, thread.request.news, thread.request.notes, thread.request.topic), deps.callIdeas);
     if (!b.ok) return { ok: false, message: b.message };
     result = b.result;
   } catch (e) {
@@ -589,7 +585,7 @@ export async function refinePostIdeas(
   }
   const knownShas = [...new Set(thread.latest.content.ideas.flatMap((i) => i.commits.map((c) => c.sha)))];
   const first = result.stopReason === "end_turn" ? normalizeIdeas(result.output, { knownShas, sns: thread.request.sns, noteCount: thread.request.notes?.length ?? 0, hashtags: planTags(ctx.plan), pillars: ctx.plan.pillars.items }) : null;
-  const shortened = first ? await shortenIdeas(deps.callShorten && budgeted(admin, budget, deps.callShorten), first, planTags(ctx.plan)) : null;
+  const shortened = first ? await shortenIdeas(deps.callShorten && budgeted(admin, { ...budget, call: "shorten" }, deps.callShorten), first, planTags(ctx.plan)) : null;
   const normalized = shortened?.value ?? null;
   if (!normalized) return { ok: false, message: "うまく出し直せませんでした。もう一度お試しください。" };
 

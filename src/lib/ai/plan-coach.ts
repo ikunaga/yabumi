@@ -224,11 +224,11 @@ export async function coachStep(
   };
 
   // 呼ぶ前に上限の分を予約し、返事のあとで実際の額に直す（返事が使えなくても数える。budget.ts）
-  const budget = { userId, purpose: "account_plan", threadId, now };
+  const budget = { userId, purpose: "account_plan", call: "plan_coach" as const, threadId, now };
   const request = buildCoachRequest(history, ctx);
   let result: ModelResult;
   try {
-    const b = await withAiBudget(admin, budget, () => deps.callModel(request));
+    const b = await withAiBudget(admin, budget, request, deps.callModel);
     if (!b.ok) return fail(b.message);
     result = b.result;
   } catch (e) {

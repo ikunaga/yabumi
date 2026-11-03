@@ -18,7 +18,7 @@ vi.mock("@/lib/ai/provider-failure-report", async (importOriginal) => {
 
 import { generateWithGemini, ImageBlockedError } from "@/lib/ai/gemini-image";
 import { guardUnavailable } from "@/lib/ai/anthropic";
-import { AI_UNAVAILABLE_MESSAGE, AiUnavailableError, aiFailureMessage, isUnavailableResponse } from "@/lib/ai/provider-failure";
+import { AI_UNAVAILABLE_MESSAGE, AiRequestRejected, AiUnavailableError, aiFailureMessage, isUnavailableResponse, notBilled } from "@/lib/ai/provider-failure";
 import { unavailableKey, unavailableMail } from "@/lib/ai/provider-failure-report";
 
 const SECRET = "test-secret-key-do-not-mail";
@@ -117,13 +117,61 @@ describe("Claude（Anthropic）", () => {
     }
   });
 
-  it("429・500・ふつうの 400・つながらないときは、そのまま投げて知らせない（呼ぶ側で「時間をおいて」）", async () => {
-    for (const err of [apiError(429, "rate"), apiError(500, "server"), apiError(400, "max_tokens too large"), new Error("fetch failed")]) {
+  it("500・529・408・つながらない・返事を読めないときは、そのまま投げて知らせない（請求されたかわからないので、予約は見込みの額のまま数える。M3）", async () => {
+    for (const err of [apiError(500, "server"), apiError(529, "overloaded"), apiError(408, "timeout"), new Error("fetch failed")]) {
       const report = vi.fn(async () => "sent" as const);
       const e = await guardUnavailable(() => Promise.reject(err), report).catch((x: unknown) => x);
       expect(e).toBe(err);
+      expect(notBilled(e)).toBe(false);
       expect(report).not.toHaveBeenCalled();
     }
     expect(await guardUnavailable(async () => 42)).toBe(42);
+  });
+
+  it("ふつうの 4xx（400・404・413）は AiRequestRejected にする（処理されずに断られたので、予約を消してよい）。知らせない", async () => {
+    for (const status of [400, 404, 413]) {
+      const report = vi.fn(async () => "sent" as const);
+      const e = await guardUnavailable(() => Promise.reject(apiError(status, "bad")), report).catch((x: unknown) => x);
+      expect(e).toBeInstanceOf(AiRequestRejected);
+      expect(e).toMatchObject({ status });
+      expect(notBilled(e)).toBe(true);
+      expect(report).not.toHaveBeenCalled();
+    }
+    expect(notBilled(new AiUnavailableError("anthropic", 402))).toBe(true);
+  });
+
+  it("429 だけは 2 回までやり直す（retry-after を待つ）。3 回とも 429 なら AiRequestRejected", async () => {
+    const waits: number[] = [];
+    const wait = async (ms: number) => void waits.push(ms);
+    let n = 0;
+    const ok = await guardUnavailable(
+      async () => {
+        n++;
+        if (n < 3) throw Anthropic.APIError.generate(429, { type: "error", error: { type: "rate_limit_error", message: "rate" } }, "rate", new Headers(n === 1 ? { "retry-after": "3" } : {}));
+        return "done";
+      },
+      undefined,
+      wait,
+    );
+    expect(ok).toBe("done");
+    expect(waits).toEqual([3000, 2000]);
+    let calls = 0;
+    const e = await guardUnavailable(
+      () => {
+        calls++;
+        return Promise.reject(apiError(429, "rate"));
+      },
+      undefined,
+      wait,
+    ).catch((x: unknown) => x);
+    expect(calls).toBe(3);
+    expect(e).toBeInstanceOf(AiRequestRejected);
+    // 500 はやり直さない（1 回目が請求されていると、予約の見込みを超える）
+    let calls500 = 0;
+    await guardUnavailable(() => {
+      calls500++;
+      return Promise.reject(apiError(500, "server"));
+    }, undefined, wait).catch(() => undefined);
+    expect(calls500).toBe(1);
   });
 });

@@ -109,8 +109,8 @@ describe("AI で投稿に整える", () => {
     const r = await runTidyDraft(alice, admin, { callTidy: broken }, { userId: aliceId, projectId, text, sns: ["x"] });
     expect(r).toMatchObject({ ok: false });
     expect(!r.ok && r.message).toContain("時間をおいて");
-    // 返事がなかったので、利用量は数えない
-    expect(await purposes()).toHaveLength(before);
+    // 支払い・鍵の問題は請求されないので数えない。通信の失敗は請求されたかわからないので、見込みの額のまま数える（M3）
+    expect(await purposes()).toHaveLength(before + 1);
   });
 
   it("形の合わない返事・断られたときはエラーにするが、使った分は数える", async () => {

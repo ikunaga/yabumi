@@ -128,13 +128,14 @@ export async function runPhotoIdeas(
   let r: ModelOutput;
   try {
     // 呼ぶ前に上限の分を予約する（返事のあとで実際の額に直す。budget.ts）
-    const b = await withAiBudget(admin, { userId: args.userId, purpose: "image_photo_idea", now: deps.now?.() }, () =>
-      deps.callIdeas(
+    const b = await withAiBudget(
+      admin,
+      { userId: args.userId, purpose: "image_photo_idea", call: "photo_ideas", now: deps.now?.() },
       buildPhotoIdeasRequest(
         { projectName: project.name, plan: normalizePlan(planRow?.data, project.target_audience ?? ""), productType: productTypeOf(project.product_type), sns: args.sns },
         text,
       ),
-    ),
+      deps.callIdeas,
     );
     if (!b.ok) return { ok: false, message: b.message };
     r = b.result;

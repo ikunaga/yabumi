@@ -201,33 +201,31 @@ export async function draftAppDescription(
   const link: RepoLink | null = await readableRepoLink(user, args.userId, args.projectId);
   if (!link) return { ok: false, message: "リポジトリがつながっていないか、読む権限が確かめられません。GitHub の画面で「GitHub をつなぎ直す」を押してから、もう一度お試しください。" };
 
-  // ① の AI の分を先に予約する（上限に届いていたらリポジトリも読まない。読めなかったら予約を消す。budget.ts）
-  const budget = { userId: args.userId, purpose: "app_description", now };
-  const pickBudget = await reserveAi(admin, budget);
-  if (!pickBudget.ok) return { ok: false, message: pickBudget.message };
   const repoError = "リポジトリを読めませんでした。GitHub の設定で、このリポジトリを yabumi に読ませているか確かめてください。";
   let entries: TreeEntry[];
   try {
     entries = await deps.repo.listFiles(link);
   } catch (e) {
-    await pickBudget.cancel();
     console.error("[app-description] ファイル一覧を読めませんでした", e instanceof Error ? e.message : e);
     return { ok: false, message: repoError };
   }
   const candidates = listCandidates(entries);
-  if (candidates.files.length === 0) {
-    await pickBudget.cancel();
-    return { ok: false, message: "読めるファイルが見つかりませんでした。" };
-  }
+  if (candidates.files.length === 0) return { ok: false, message: "読めるファイルが見つかりませんでした。" };
+
+  // ① の AI の分を予約する（見込みは送る中身から決めるので、ファイルの一覧を読んでから。上限に届いていたらここで止める。budget.ts）
+  const budget = { userId: args.userId, purpose: "app_description", now };
+  const pickRequest = buildFilePickRequest(project.name, link.fullName, candidates.files, candidates.truncated);
+  const pickBudget = await reserveAi(admin, { ...budget, call: "file_pick", request: pickRequest });
+  if (!pickBudget.ok) return { ok: false, message: pickBudget.message };
 
   // ① 読むファイルを AI が選ぶ。選べなかったら、決まった名前のファイルで代わりにする
   let picks: string[] = [];
   try {
     let r: ModelOutput;
     try {
-      r = await deps.callPicker(buildFilePickRequest(project.name, link.fullName, candidates.files, candidates.truncated));
+      r = await deps.callPicker(pickRequest);
     } catch (e) {
-      await pickBudget.cancel();
+      await pickBudget.fail(e);
       throw e;
     }
     await pickBudget.settle(r);
@@ -251,7 +249,7 @@ export async function draftAppDescription(
   // ② 読んだファイルから紹介文を書く
   let result: ModelOutput;
   try {
-    const b = await withAiBudget(admin, budget, () => deps.callDescriber(buildAppDescriptionRequest(project.name, link.fullName, files, candidates)));
+    const b = await withAiBudget(admin, { ...budget, call: "app_description" }, buildAppDescriptionRequest(project.name, link.fullName, files, candidates), deps.callDescriber);
     if (!b.ok) return { ok: false, message: b.message };
     result = b.result;
   } catch (e) {
@@ -279,7 +277,7 @@ export async function refineAppDescription(
   if (answers.length === 0) return { ok: false, message: "質問に答えてから書き直してください。" };
   let result: ModelOutput;
   try {
-    const b = await withAiBudget(admin, { userId: args.userId, purpose: "app_description", now: deps.now?.() }, () => deps.callDescriber(buildRefineRequest(project.name, args.draft, answers)));
+    const b = await withAiBudget(admin, { userId: args.userId, purpose: "app_description", call: "app_description", now: deps.now?.() }, buildRefineRequest(project.name, args.draft, answers), deps.callDescriber);
     if (!b.ok) return { ok: false, message: b.message };
     result = b.result;
   } catch (e) {

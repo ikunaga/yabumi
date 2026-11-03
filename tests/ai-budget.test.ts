@@ -2,8 +2,21 @@
 // ソースを読んで、呼び忘れ・ai_usage への直接の書き込み・テスト用の切り替えの使い忘れがないことを確かめる
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
-import { limitMessage } from "@/lib/ai/budget";
+import { describe, expect, it, vi } from "vitest";
+import { z } from "zod";
+import { AI_MAX_RESERVATION_USD, AI_MAX_TOKENS, REQUEST_OVERHEAD_TOKENS, limitMessage, reserveEstimateUsd, type AiCall } from "@/lib/ai/budget";
+import { estimateCostUsd } from "@/lib/ai/pricing";
+import { coachTurnSchema } from "@/lib/ai/plan-coach-schema";
+import { consultTurnSchema } from "@/lib/ai/consult-schema";
+import { appDescriptionSchema, filePickSchema } from "@/lib/ai/app-description";
+import { postIdeasSchema } from "@/lib/ai/post-ideas";
+import { aiCheckSchema } from "@/lib/ai/ai-check";
+import { imageBriefSchema } from "@/lib/ai/image-brief";
+import { photoIdeasSchema } from "@/lib/ai/photo";
+import { shortenSchema } from "@/lib/ai/shorten";
+import { tidyDraftSchema } from "@/lib/ai/tidy-draft";
+
+vi.mock("server-only", () => ({}));
 
 function files(dir: string): string[] {
   return readdirSync(dir).flatMap((n) => {
@@ -34,7 +47,7 @@ describe("文章の AI の上限の入口", () => {
         if (!/deps\.call[A-Z]\w+/.test(line) || /^\s*(\/\/|\*)/.test(line) || /deps: \{/.test(line)) return;
         // 同じ行か、直前 12 行に入口がある（withAiBudget の中・budgeted で包む）。reserveAi で予約したあとに呼ぶときは、すぐ下で失敗したら予約を消す
         const around = lines.slice(Math.max(0, i - 12), i + 5).join("\n");
-        expect(around, `${f.path}:${i + 1} ${line.trim()}`).toMatch(/withAiBudget|budgeted\(|(pickBudget|reservation)\.cancel\(\)/);
+        expect(around, `${f.path}:${i + 1} ${line.trim()}`).toMatch(/withAiBudget|budgeted\(|(pickBudget|reservation)\.fail\(/);
       });
     }
   });
@@ -53,5 +66,107 @@ describe("上限に届いたときの文言", () => {
     expect(limitMessage("user_limit", null)).toContain("来月 1 日");
     expect(limitMessage("global_limit", null)).toContain("全体");
     expect(limitMessage("daily_limit", null)).toContain("明日");
+  });
+});
+
+// 用途（ai_usage.purpose）ごとに使う呼び出しの種類
+const PURPOSE_CALLS: Record<string, AiCall[]> = {
+  account_plan: ["plan_coach"],
+  consult: ["consult", "shorten"],
+  app_description: ["file_pick", "app_description"],
+  post_ideas: ["post_ideas", "shorten"],
+  ai_check: ["ai_check"],
+  image_brief: ["image_brief"],
+  image_photo_idea: ["photo_ideas"],
+  tidy_draft: ["tidy_draft", "shorten"],
+};
+const SCHEMAS: Record<AiCall, z.ZodType> = {
+  plan_coach: coachTurnSchema,
+  consult: consultTurnSchema,
+  file_pick: filePickSchema,
+  app_description: appDescriptionSchema,
+  post_ideas: postIdeasSchema,
+  ai_check: aiCheckSchema,
+  image_brief: imageBriefSchema,
+  photo_ideas: photoIdeasSchema,
+  shorten: shortenSchema,
+  tidy_draft: tidyDraftSchema,
+};
+
+// いちばん新しいマイグレーションの reserve_ai_usage の、用途ごとの下限の表
+function dbFloors(): Record<string, number> {
+  const dir = "supabase/migrations";
+  const latest = readdirSync(dir)
+    .filter((n) => n.endsWith(".sql"))
+    .sort()
+    .map((n) => readFileSync(join(dir, n), "utf8"))
+    .filter((t) => /function public\.reserve_ai_usage\(/.test(t))
+    .at(-1)!;
+  return Object.fromEntries([...latest.matchAll(/when '(\w+)' then ([\d.]+)/g)].map((m) => [m[1], Number(m[2])]));
+}
+
+describe("予約の見込み（その呼び出しで起こりうる最大の額。セキュリティ確認 2026-11-03 の M3）", () => {
+  const empty = { system: [], messages: [] };
+
+  it("送る中身をすべてトークンにし（1 トークン 1 バイト以上）、出力の上限まで出し、いちばん高いモデルで、入力がすべてキャッシュへの書き込みでも、見込みを超えない", () => {
+    const request = { system: [{ type: "text", text: "あなたは相棒です。🙂".repeat(200) }], messages: [{ role: "user", content: [{ type: "text", text: "こんにちは".repeat(300) }] }] };
+    for (const call of Object.keys(AI_MAX_TOKENS) as AiCall[]) {
+      const estimate = reserveEstimateUsd(call, request);
+      const bytes = Buffer.byteLength(JSON.stringify(request), "utf8");
+      for (const model of ["claude-opus-5-5", "claude-opus-5", "unknown-fallback-model"]) {
+        const worst = { inputTokens: 0, cacheWriteTokens: bytes + REQUEST_OVERHEAD_TOKENS, cacheReadTokens: 0, outputTokens: AI_MAX_TOKENS[call] };
+        expect(estimateCostUsd(model, worst), `${call} ${model}`).toBeLessThanOrEqual(estimate);
+        expect(estimateCostUsd(model, { ...worst, inputTokens: worst.cacheWriteTokens, cacheWriteTokens: 0 })).toBeLessThanOrEqual(estimate);
+      }
+    }
+    // 送る中身が大きいほど見込みも大きい
+    expect(reserveEstimateUsd("consult", { ...request, messages: [...request.messages, ...request.messages] })).toBeGreaterThan(reserveEstimateUsd("consult", request));
+  });
+
+  it("足される分（REQUEST_OVERHEAD_TOKENS）は、どの返事の形の JSON スキーマのバイト数より大きい", () => {
+    for (const [call, schema] of Object.entries(SCHEMAS)) {
+      expect(Buffer.byteLength(JSON.stringify(z.toJSONSchema(schema)), "utf8"), call).toBeLessThan(REQUEST_OVERHEAD_TOKENS / 2);
+    }
+  });
+
+  it("anthropic.ts の max_tokens は、見込みと同じ表（AI_MAX_TOKENS）から取る。SDK の自動のやり直しは使わない", () => {
+    const text = readFileSync("src/lib/ai/anthropic.ts", "utf8");
+    expect(text).not.toMatch(/max_tokens: \d/);
+    expect(text).not.toMatch(/structuredCaller\(\w+, \d/);
+    expect(text).toMatch(/maxRetries: 0/);
+    for (const call of Object.keys(AI_MAX_TOKENS)) expect(text, call).toContain(`AI_MAX_TOKENS.${call}`);
+  });
+
+  it("DB の関数の用途ごとの下限は、その用途のアプリの見込みの最小（送る中身が空のとき）と同じ（下限がアプリの見込みを持ち上げることはない）", () => {
+    const floors = dbFloors();
+    expect(Object.keys(floors).sort()).toEqual(Object.keys(PURPOSE_CALLS).sort());
+    for (const [purpose, calls] of Object.entries(PURPOSE_CALLS)) {
+      const min = Math.min(...calls.map((c) => reserveEstimateUsd(c, empty)));
+      expect(floors[purpose], purpose).toBeLessThanOrEqual(min);
+      expect(floors[purpose], purpose).toBeGreaterThan(min - 0.01);
+    }
+  });
+
+  it("ソースで予約に渡している用途（purpose）は、どれも DB の関数の表にある（知らない用途は断られる）", () => {
+    const floors = dbFloors();
+    const used = new Set(
+      src
+        .filter((f) => /from "(\.\/budget|@\/lib\/ai\/budget)"/.test(f.text))
+        .flatMap((f) => [...f.text.matchAll(/purpose: "(\w+)"/g)].map((m) => m[1])),
+    );
+    expect(used.size).toBeGreaterThanOrEqual(8);
+    for (const p of used) expect(Object.keys(floors), p).toContain(p);
+    expect([...used].sort()).toEqual(Object.keys(PURPOSE_CALLS).sort());
+  });
+
+  it("普段の長さの相談（20 往復）は、1 回の上限（$1）に届かない", () => {
+    // 相談の system（約 15KB）・いまの状況（10KB とみる）・利用者の発言 100 字・AI の返事の JSON 1,600 バイト（ローカルの会話の平均）
+    const system = [{ type: "text", text: "あ".repeat(5000) }];
+    const turns = Array.from({ length: 20 }, () => [
+      { role: "user", content: [{ type: "text", text: "あ".repeat(100) }] },
+      { role: "assistant", content: [{ type: "text", text: "a".repeat(1600) }] },
+    ]).flat();
+    const estimate = reserveEstimateUsd("consult", { system, messages: [...turns, { role: "system", content: "あ".repeat(3400) }] });
+    expect(estimate).toBeLessThan(AI_MAX_RESERVATION_USD);
   });
 });

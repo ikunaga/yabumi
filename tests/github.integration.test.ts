@@ -213,13 +213,13 @@ describe("リポジトリのつなぎ", () => {
     expect(JSON.stringify(vi.mocked(d).mock.calls[0][0].messages)).toContain("会社員");
   });
 
-  it("上限に達していたら、リポジトリも読まない", async () => {
-    vi.mocked(repo.listFiles).mockClear();
+  it("上限に達していたら、AI を呼ばず、ファイルの中身も読まない（一覧は、見込みの額を送る中身から決めるために読む）", async () => {
+    vi.mocked(repo.readFiles).mockClear();
     const filled = await spendAi(admin, aliceId, 3);
     const r = await draftAppDescription(alice, admin, deps(), { userId: aliceId, projectId });
     await unspendAi(admin, filled);
-    expect(r.ok).toBe(false);
-    expect(repo.listFiles).not.toHaveBeenCalled();
+    expect(r).toMatchObject({ ok: false, message: expect.stringContaining("今月") });
+    expect(repo.readFiles).not.toHaveBeenCalled();
   });
 
   it("形の合わない下書きはエラーにする", async () => {

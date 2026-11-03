@@ -1,4 +1,5 @@
 import "server-only";
+import { aiConfigured } from "@/lib/ai/anthropic";
 import { countsByWeek, parseTargets } from "@/lib/coach/load";
 import { computeWeekPace, hasTargets, mondayOf, type WeeklyTargets } from "@/lib/coach/pace";
 import { sectionSchemas } from "@/lib/plan/schema";
@@ -68,6 +69,7 @@ export async function loadCalendarRoadmap(projectId: string, weekStarts: string[
         : [];
     bands.set(w, { weekStart: w, todos: [], goals });
   }
-  for (const item of items) bands.get(item.weekStart)?.todos.push(toCalendarTodo(item, daily, today));
+  const ctx = { base: `/projects/${projectId}`, aiEnabled: aiConfigured() };
+  for (const item of items) bands.get(item.weekStart)?.todos.push(toCalendarTodo(item, daily, today, ctx));
   return bands;
 }

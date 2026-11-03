@@ -3,6 +3,7 @@ import { isKpiKey, type KpiKey } from "@/lib/metrics/kpis";
 import { isSnsKey, type SnsKey } from "@/lib/sns";
 import type { Database } from "@/lib/supabase/database.types";
 import { addDays, toYmd } from "@/lib/time";
+import { todoKindOf, type TodoKind } from "./todo-kind";
 import { kgiProgress, kgiSchema, kpiTargetsSchema, weekStartOf, type DailyTotal, type ItemPostCounts, type Kgi, type KgiProgress, type KpiTarget } from "./schema";
 
 // ロードマップの読み込み（docs/architecture.md の 4.23）。RLS で本人のものだけ。数字の合計は DB の関数で出す（行を読んで足さない）。
@@ -23,6 +24,8 @@ export type RoadmapItem = {
   sns: SnsKey | null;
   status: "todo" | "done" | "skipped";
   source: "ai" | "manual";
+  // 種類（押したときの行き先を決める。4.42）。保存していないもの（前に作ったもの）は推したもの
+  kind: TodoKind;
   // 数える投稿（DB の roadmap_item_progress）。読み込んでいなければ null
   posts: ItemPostCounts | null;
 };
@@ -54,8 +57,20 @@ function toRoadmap(row: { kgi: unknown; kpi_targets: unknown; started_on: string
   };
 }
 
-export type ItemRow = { id: string; title: string; detail: string; week_start: string; planned_on: string | null; kpi: string | null; target: number | null; sns: string | null; status: string; source: string };
-export const ITEM_COLUMNS = "id, title, detail, week_start, planned_on, kpi, target, sns, status, source";
+export type ItemRow = {
+  id: string;
+  title: string;
+  detail: string;
+  week_start: string;
+  planned_on: string | null;
+  kpi: string | null;
+  target: number | null;
+  sns: string | null;
+  status: string;
+  source: string;
+  kind: string | null;
+};
+export const ITEM_COLUMNS = "id, title, detail, week_start, planned_on, kpi, target, sns, status, source, kind";
 
 export function toItem(r: ItemRow, posts: ItemPostCounts | null = null): RoadmapItem {
   return {
@@ -69,6 +84,7 @@ export function toItem(r: ItemRow, posts: ItemPostCounts | null = null): Roadmap
     sns: isSnsKey(r.sns) ? r.sns : null,
     status: r.status === "done" || r.status === "skipped" ? r.status : "todo",
     source: r.source === "ai" ? "ai" : "manual",
+    kind: todoKindOf(r),
     posts,
   };
 }
@@ -85,9 +101,9 @@ export async function loadItemPostCounts(db: Db, projectId: string, from: string
   );
 }
 
-// 予定日を過ぎたのに、まだ投稿をつくっていない（結びついた投稿がない）済んでいないやること（伴走の声かけに使う）
+// 予定日を過ぎたのに、まだ投稿をつくっていない（結びついた投稿がない）済んでいないやること（伴走の声かけに使う）。投稿するやることだけ（4.42）
 export function overdueItems(items: RoadmapItem[], today: string): RoadmapItem[] {
-  return items.filter((i) => i.status === "todo" && i.plannedOn !== null && i.plannedOn < today && (i.posts?.linkedPublished ?? 0) + (i.posts?.linkedScheduled ?? 0) === 0);
+  return items.filter((i) => i.kind === "post" && i.status === "todo" && i.plannedOn !== null && i.plannedOn < today && (i.posts?.linkedPublished ?? 0) + (i.posts?.linkedScheduled ?? 0) === 0);
 }
 
 export async function loadRoadmapWith(supabase: Db, projectId: string, now = new Date()): Promise<RoadmapView> {

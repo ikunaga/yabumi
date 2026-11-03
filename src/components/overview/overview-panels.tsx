@@ -8,6 +8,7 @@ import { slotLabel } from "@/lib/overview/numbers";
 import { postTitle, type PostRow } from "@/lib/posts/queries";
 import { projectSettingsHref } from "@/lib/projects/paths";
 import type { RoadmapItem } from "@/lib/roadmap/load";
+import { todoAction } from "@/lib/roadmap/todo-kind";
 import { isManualSns, SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
 import type { ProjectSnsAccount } from "@/lib/sns/queries";
 import { dayOfMonth, formatShort, monthOf, weekdayLabel } from "@/lib/time";
@@ -190,7 +191,8 @@ export function AttentionStrip({
                     {monthOf(i.plannedOn!)}/{dayOfMonth(i.plannedOn!)}（{weekdayLabel(i.plannedOn!)}）
                   </span>
                   <b>{i.title}</b>
-                  <Link href={`${base}/compose?item=${i.id}`} className="text-sm underline">
+                  {/* 予定日を過ぎたやることは、投稿するやることだけ（overdueItems。4.42） */}
+                  <Link href={todoAction(base, i, { aiEnabled: false }).href} className="text-sm underline">
                     この内容で投稿をつくる
                   </Link>
                 </li>

@@ -12,6 +12,7 @@ import { DismissableDetails } from "@/components/ui/dismissable-details";
 import { nowBandKind, STEPS, stepHref } from "@/lib/projects/next-step";
 import type { RoadmapItem } from "@/lib/roadmap/load";
 import { formatValue, kpiLabel } from "@/lib/roadmap/schema";
+import { todoAction } from "@/lib/roadmap/todo-kind";
 
 // 概要の「いまやること」（1 行とボタンの小さな帯。2026-10-30 オーナーの決定）。いつも 1 つ出す（next-step.ts の nowBandKind）:
 // 最初の 4 段階 → 1 か月の区切り → 今週のやること（ロードマップ）。GitHub をつなぐ（任意）は帯の下の小さな 1 行。
@@ -143,6 +144,9 @@ function MainBand({
     );
   }
   const [first, ...others] = todos;
+  // 押したときの行き先は、やることの種類ごと（投稿をつくる・振り返る・プロフィールを開く・ロードマップで見る。4.42）
+  const actionOf = (t: RoadmapItem) => todoAction(base, t, { aiEnabled });
+  const main = actionOf(first);
   return (
     <div className="flex flex-col gap-2">
       <ActionBar
@@ -150,8 +154,8 @@ function MainBand({
         title={<TodoText item={first} progress={progress[first.id]} />}
         help={pace ?? setup}
         action={
-          <ButtonLink href={`${base}/compose?item=${first.id}`} size="sm">
-            投稿をつくる
+          <ButtonLink href={main.href} size="sm">
+            {main.label}
           </ButtonLink>
         }
       />
@@ -160,9 +164,10 @@ function MainBand({
           <ul className="flex flex-col gap-1">
             {others.map((t) => (
               <li key={t.id} className="flex flex-wrap items-baseline gap-x-3">
-                <Link href={`${base}/compose?item=${t.id}`} className="font-bold text-fg hover:underline">
+                <Link href={actionOf(t).href} className="font-bold text-fg hover:underline">
                   {t.title}
                 </Link>
+                {actionOf(t).kind !== "post" && <span className="text-xs text-muted">{actionOf(t).label}</span>}
                 <TodoText item={t} progress={progress[t.id]} only="progress" />
               </li>
             ))}

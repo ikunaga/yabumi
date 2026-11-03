@@ -2,6 +2,7 @@ import type { PaceStatus } from "@/lib/coach/pace";
 import { KPIS } from "@/lib/metrics/kpis";
 import type { RoadmapItem } from "@/lib/roadmap/load";
 import { itemProgress, type DailyTotal } from "@/lib/roadmap/schema";
+import { todoAction, type TodoAction } from "@/lib/roadmap/todo-kind";
 import { SNS } from "@/lib/sns";
 
 // カレンダーに出すロードマップのやることの形と、画面に出す文（F06・F10。docs/architecture.md の 4.23）。サーバーと画面の両方から読む
@@ -18,8 +19,10 @@ export type CalendarTodo = {
   progress: string | null;
   // やることから作った投稿（「投稿 送信済み 1・予約 1」）。なければ null
   linked: string | null;
-  // 予定日を過ぎたのに、まだ投稿をつくっていない
+  // 予定日を過ぎたのに、まだ投稿をつくっていない（投稿するやることだけ）
   overdue: boolean;
+  // 押したときの行き先とボタンの名前（種類ごと。4.42）
+  action: TodoAction;
 };
 
 export type WeekGoal = { sns: string; published: number; scheduled: number; target: number; status: PaceStatus };
@@ -42,7 +45,7 @@ function linkedText(item: RoadmapItem): string | null {
   return `ここから作った投稿: ${parts.join("・")}`;
 }
 
-export function toCalendarTodo(item: RoadmapItem, daily: DailyTotal[], today: string): CalendarTodo {
+export function toCalendarTodo(item: RoadmapItem, daily: DailyTotal[], today: string, ctx: { base: string; aiEnabled: boolean } = { base: "", aiEnabled: false }): CalendarTodo {
   const linked = (item.posts?.linkedPublished ?? 0) + (item.posts?.linkedScheduled ?? 0);
   return {
     id: item.id,
@@ -53,7 +56,8 @@ export function toCalendarTodo(item: RoadmapItem, daily: DailyTotal[], today: st
     status: item.status,
     progress: progressText(item, daily),
     linked: linkedText(item),
-    overdue: item.status === "todo" && item.plannedOn !== null && item.plannedOn < today && linked === 0,
+    overdue: item.kind === "post" && item.status === "todo" && item.plannedOn !== null && item.plannedOn < today && linked === 0,
+    action: todoAction(ctx.base, item, ctx),
   };
 }
 

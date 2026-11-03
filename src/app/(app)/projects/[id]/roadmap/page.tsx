@@ -109,6 +109,7 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
                           key={item.id}
                           projectId={id}
                           item={item}
+                          aiEnabled={ai}
                           progress={itemProgress(item, daily)}
                           notCounted={item.kpi ? notCountedYet(item.kpi, project.product_type) : null}
                         />
@@ -125,7 +126,7 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
                   <summary className="cursor-pointer text-[14px] font-semibold text-primary">済んだこと・やらないことにしたこと（{past.length} 件）</summary>
                   <ul>
                     {past.map((item) => (
-                      <RoadmapItemRow key={item.id} projectId={id} item={item} progress={itemProgress(item, daily)} notCounted={item.kpi ? notCountedYet(item.kpi, project.product_type) : null} />
+                      <RoadmapItemRow key={item.id} projectId={id} item={item} aiEnabled={ai} progress={itemProgress(item, daily)} notCounted={item.kpi ? notCountedYet(item.kpi, project.product_type) : null} />
                     ))}
                   </ul>
                 </DismissableDetails>

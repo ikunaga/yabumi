@@ -260,7 +260,7 @@ export async function applyConsultAction(user: Db, projectId: string, action: Ac
         await addItems(
           user,
           projectId,
-          action.items.map((i) => ({ title: i.title, detail: i.detail, week_start: addDays(weekStart, i.week * 7), kpi: i.kpi, target: i.target, sns: i.sns ?? null })),
+          action.items.map((i) => ({ title: i.title, detail: i.detail, week_start: addDays(weekStart, i.week * 7), kpi: i.kpi, target: i.target, sns: i.sns ?? null, kind: i.kind ?? null })),
           "ai",
         );
         return { ok: true };

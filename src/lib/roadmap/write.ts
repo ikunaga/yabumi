@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { syncWeeklyFromRoadmap } from "@/lib/plan/save";
 import { toYmd } from "@/lib/time";
+import { inferTodoKind } from "./todo-kind";
 import { MAX_ITEMS_PER_PROJECT, type ItemInput, type Kgi, type KpiTarget } from "./schema";
 
 // ロードマップの書き込み（docs/architecture.md の 4.23）。手で直すときも、AI の提案を採用するときも、利用者の権限のクライアントで書く（RLS で本人のものだけ）
@@ -46,6 +47,8 @@ export async function addItems(db: Db, projectId: string, items: ItemInput[], so
       kpi: i.kpi,
       target: i.target,
       sns: i.kpi === "posts" ? i.sns : null,
+      // 種類がなければ（手で足した・AI が出さなかった）、数字と題名・説明から推して残す（4.42）
+      kind: i.kind ?? inferTodoKind(i),
       position: base + n,
       source,
     })),

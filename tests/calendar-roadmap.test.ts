@@ -7,6 +7,7 @@ import { itemProgress } from "@/lib/roadmap/schema";
 const base: RoadmapItem = {
   id: "i1",
   title: "Instagram に 2 本",
+  kind: "post",
   detail: "",
   weekStart: "2026-10-12",
   plannedOn: null,
@@ -49,5 +50,9 @@ describe("予定日を過ぎたやること", () => {
     expect(overdueItems(items, today).map((i) => i.id)).toEqual(["late"]);
     expect(toCalendarTodo(items[0], [], today).overdue).toBe(true);
     expect(toCalendarTodo(items[4], [], today).overdue).toBe(false);
+    // 投稿しないやること（振り返りなど）は、投稿をつくっていなくても「過ぎた」にしない（4.42）
+    const review: RoadmapItem = { ...base, id: "review", kind: "review", kpi: null, target: null, sns: null, plannedOn: "2026-10-13" };
+    expect(overdueItems([review], today)).toEqual([]);
+    expect(toCalendarTodo(review, [], today).overdue).toBe(false);
   });
 });

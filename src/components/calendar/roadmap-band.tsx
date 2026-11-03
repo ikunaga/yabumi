@@ -174,9 +174,12 @@ function TodoDetail({ todo, base, titleId, onClose }: { todo: CalendarTodo; base
       )}
 
       <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3">
-        <ButtonLink href={`${base}/compose?item=${todo.id}`} size="sm">
-          この内容で投稿をつくる
-        </ButtonLink>
+        {/* 種類ごとの行き先（4.42）。ほかのやることは下の「ロードマップで見る」だけ */}
+        {todo.action.kind !== "other" && (
+          <ButtonLink href={todo.action.href} size="sm">
+            {todo.action.kind === "post" ? "この内容で投稿をつくる" : todo.action.label}
+          </ButtonLink>
+        )}
         {todo.status === "done" ? (
           <Button type="button" variant="secondary" size="sm" disabled={pending} onClick={() => run(() => setItemStatus(projectId, todo.id, "todo"))}>
             まだに戻す
@@ -186,7 +189,7 @@ function TodoDetail({ todo, base, titleId, onClose }: { todo: CalendarTodo; base
             済みにする
           </Button>
         )}
-        <a href={`${base}/roadmap`} className="ml-auto text-sm font-semibold text-primary hover:underline">
+        <a href={`${base}/roadmap#item-${todo.id}`} className="ml-auto text-sm font-semibold text-primary hover:underline">
           ロードマップで見る
         </a>
       </div>

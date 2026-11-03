@@ -7,18 +7,22 @@ import Link from "next/link";
 import { deleteItem, setItemPlannedOn, setItemStatus } from "@/lib/roadmap/actions";
 import type { RoadmapItem } from "@/lib/roadmap/load";
 import { formatValue, kpiLabel } from "@/lib/roadmap/schema";
+import { todoAction } from "@/lib/roadmap/todo-kind";
 import { addDays, dayOfMonth, monthOf, weekdayLabel } from "@/lib/time";
 
 // やること 1 つ。チェックで済みにする。数字と結びついていれば、数字から進み具合を出す（済みにするのは利用者）。
-// 予定日（任意。その週の中の日）を選べ、カレンダーのその日に出る。「この内容で投稿をつくる」で、作った投稿をこのやることに結びつける
+// 予定日（任意。その週の中の日）を選べ、カレンダーのその日に出る。「この内容で投稿をつくる」で、作った投稿をこのやることに結びつける。
+// 投稿しないやることは、種類に合う画面へのリンク（振り返る・プロフィールを開くなど。4.42）。ほかの画面の「ロードマップで見る」は、この行（#item-<id>）に来る
 export function RoadmapItemRow({
   projectId,
   item,
+  aiEnabled,
   progress,
   notCounted,
 }: {
   projectId: string;
   item: RoadmapItem;
+  aiEnabled: boolean;
   progress: { actual: number; target: number } | null;
   notCounted: string | null;
 }) {
@@ -32,9 +36,10 @@ export function RoadmapItemRow({
       if (res.error) setError(res.error);
     });
   const reached = progress !== null && progress.actual >= progress.target;
+  const action = todoAction(`/projects/${projectId}`, item, { aiEnabled });
 
   return (
-    <li className="flex flex-col gap-1 border-b border-line px-6 py-3 last:border-b-0 max-sm:px-4">
+    <li id={`item-${item.id}`} className="flex scroll-mt-24 flex-col gap-1 border-b border-line px-6 py-3 last:border-b-0 target:bg-primary-soft/50 max-sm:px-4">
       {/* スマホはボタン（やらない・削除する）をタイトルの下の行に回す（横に並べるとタイトルが細くなるため） */}
       <div className="flex items-start gap-3 max-sm:flex-wrap">
         <input
@@ -79,9 +84,9 @@ export function RoadmapItemRow({
                 ))}
               </select>
             </label>
-            {item.status === "todo" && (
-              <Link href={`/projects/${projectId}/compose?item=${item.id}`} className="font-semibold text-primary hover:underline">
-                この内容で投稿をつくる
+            {item.status === "todo" && action.kind !== "other" && (
+              <Link href={action.href} className="font-semibold text-primary hover:underline">
+                {action.kind === "post" ? "この内容で投稿をつくる" : action.label}
               </Link>
             )}
           </span>

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { SECTION_KEYS, type SectionKey, type SectionValue } from "@/lib/plan/schema";
 import { kgiSchema, kpiTargetsSchema, itemsProposalSchema, type Kgi, type KpiTarget } from "@/lib/roadmap/schema";
+import type { TodoKind } from "@/lib/roadmap/todo-kind";
 import { SNS_KEYS, type SnsKey } from "@/lib/sns";
 import { toSectionValue, toWireValue, valueSchemas } from "./plan-coach-schema";
 
@@ -47,8 +48,8 @@ export type ActionBody =
   | { kind: "goal"; kgi: Kgi; kpiTargets: KpiTarget[] }
   | {
       kind: "roadmap_items";
-      // sns: 前の形で保存した提案にはない（すべての SNS として読む）
-      items: { title: string; detail: string; week: number; kpi: KpiTarget["kpi"] | null; target: number | null; sns?: SnsKey | null }[];
+      // sns: 前の形で保存した提案にはない（すべての SNS として読む）。kind も 2026-11-03 より前の提案にはない（保存するときに推す）
+      items: { title: string; detail: string; week: number; kpi: KpiTarget["kpi"] | null; target: number | null; sns?: SnsKey | null; kind?: TodoKind | null }[];
     }
   | { kind: "post_draft"; sns: SnsKey | null; text: string };
 export type ActionKind = ActionBody["kind"];

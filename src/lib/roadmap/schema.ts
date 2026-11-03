@@ -3,6 +3,7 @@ import { KPI_KEYS, KPIS, kpiAllowed, kpiKeysFor, type KpiKey } from "@/lib/metri
 import { isProductType, type ProductType } from "@/lib/projects/product-types";
 import { SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
 import { addDays, isYmd, weekdayOf } from "@/lib/time";
+import { TODO_KINDS, type TodoKind } from "./todo-kind";
 
 // ロードマップ（F10、docs/architecture.md の 4.23）の形と、進み具合の計算。画面とサーバーの両方から読む
 
@@ -58,10 +59,13 @@ export const itemSchema = z
     kpi: z.enum(KPI_KEYS).nullable().default(null),
     target: z.number().positive().max(1_000_000).nullable().default(null),
     sns: snsField,
+    // 種類（4.42）。null なら保存するときに推す
+    kind: z.enum(TODO_KINDS).nullable().default(null),
   })
   .refine((v) => (v.kpi === null) === (v.target === null), { message: "数字と目標の値は両方決めるか、両方空にしてください", path: ["target"] })
   .refine(snsOnlyPosts, { message: SNS_ONLY_POSTS, path: ["sns"] });
-export type ItemInput = z.infer<typeof itemSchema>;
+// kind は任意（手で足すときは画面で選ばない。保存するときに推す）
+export type ItemInput = Omit<z.infer<typeof itemSchema>, "kind"> & { kind?: TodoKind | null };
 
 // ===== AI の提案の中身（value_json）。サーバーで検証する =====
 
@@ -80,6 +84,8 @@ export const itemsProposalSchema = z.object({
         target: z.number().positive().max(1_000_000).nullable().default(null),
         // 「Instagram に 1 本」のような SNS を決めた投稿は、その SNS（posts のときだけ）
         sns: snsField,
+        // 種類（押したときの行き先。4.42）。出さなかった・形が違うときは、保存するときに推す
+        kind: z.enum(TODO_KINDS).nullable().catch(null).default(null),
       }).refine(snsOnlyPosts, { message: SNS_ONLY_POSTS, path: ["sns"] }),
     )
     .min(1)

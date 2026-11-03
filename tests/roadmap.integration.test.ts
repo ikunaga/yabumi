@@ -45,6 +45,36 @@ describe("目標とやることの書き込み", () => {
   });
 });
 
+describe("やることの種類（4.42）", () => {
+  it("種類を付けて足せる。付けなければ数字と題名・説明から推して残す", async () => {
+    await addItems(
+      alice,
+      projectId,
+      [
+        { title: "4週間の振り返り", detail: "投稿の回数とストアへのクリックを見る", week_start: "2026-10-19", kpi: null, target: null, sns: null },
+        { title: "プロフィールの一文を直す", detail: "", week_start: "2026-10-19", kpi: null, target: null, sns: null },
+        { title: "Instagram に 1 本", detail: "", week_start: "2026-10-19", kpi: "posts", target: 1, sns: "instagram" },
+        { title: "お客さんの声を集める", detail: "", week_start: "2026-10-19", kpi: null, target: null, sns: null, kind: "setup" },
+      ],
+      "ai",
+    );
+    const { data } = await alice.from("roadmap_items").select("title, kind").eq("project_id", projectId).eq("week_start", "2026-10-19").order("position");
+    expect(data!.map((r) => r.kind)).toEqual(["review", "setup", "post", "setup"]);
+    // 種類のない前の行は、読むときに推す
+    const { data: old } = await admin.from("roadmap_items").insert({ project_id: projectId, owner_id: aliceId, title: "数字を見直す", week_start: "2026-10-19" }).select("id").single();
+    const view = await loadRoadmapWith(alice, projectId);
+    expect(view.items.find((i) => i.id === old!.id)!.kind).toBe("review");
+  });
+
+  it("決まった種類のほかは DB で断る。自分のやることの種類は書き換えられる（行き先が変わるだけ）", async () => {
+    const { data: row } = await alice.from("roadmap_items").select("id").eq("project_id", projectId).eq("title", "お客さんの声を集める").single();
+    expect((await alice.from("roadmap_items").update({ kind: "publish" }).eq("id", row!.id)).error).not.toBeNull();
+    expect((await alice.from("roadmap_items").insert({ project_id: projectId, title: "x", week_start: "2026-10-12", kind: "admin" })).error).not.toBeNull();
+    expect((await alice.from("roadmap_items").update({ kind: "other" }).eq("id", row!.id)).error).toBeNull();
+    expect((await alice.from("roadmap_items").select("kind").eq("id", row!.id).single()).data!.kind).toBe("other");
+  });
+});
+
 describe("RLS と権限", () => {
   it("ほかの人のロードマップは読めない・書けない・消せない", async () => {
     expect((await bob.from("roadmaps").select("project_id").eq("project_id", projectId)).data).toEqual([]);

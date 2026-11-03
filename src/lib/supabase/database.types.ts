@@ -1487,6 +1487,7 @@ export type Database = {
           detail: string
           done_at: string | null
           id: string
+          kind: string | null
           kpi: string | null
           owner_id: string
           planned_on: string | null
@@ -1505,6 +1506,7 @@ export type Database = {
           detail?: string
           done_at?: string | null
           id?: string
+          kind?: string | null
           kpi?: string | null
           owner_id?: string
           planned_on?: string | null
@@ -1523,6 +1525,7 @@ export type Database = {
           detail?: string
           done_at?: string | null
           id?: string
+          kind?: string | null
           kpi?: string | null
           owner_id?: string
           planned_on?: string | null

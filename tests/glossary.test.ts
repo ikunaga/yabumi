@@ -8,6 +8,7 @@ import { GLOSSARY_CATEGORIES, GLOSSARY_KEYS, glossary, glossaryHref, illustratio
 vi.mock("next/navigation", () => ({ usePathname: () => "/projects/p1", useSelectedLayoutSegment: () => null }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/components/nav/top-bar", () => ({ TopBar: () => null }));
+vi.mock("@/components/glossary/record-read", () => ({ RecordTermRead: () => null }));
 vi.mock("@/lib/auth/actions", () => ({ logout: async () => {} }));
 vi.mock("@/lib/auth/user", () => ({ requireUser: async () => ({ email: "a@example.com" }) }));
 

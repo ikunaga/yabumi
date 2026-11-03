@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { sharedText } from "@/lib/notes/rules";
-import { mergeShared, readDraft, writeDraft, writePendingDraft } from "@/lib/notes/draft";
-import { SHARE_CACHE, SHARE_CACHE_IMAGE, SHARE_CACHE_TEXT, textFromHash, type SharedPayload } from "@/lib/notes/share";
+import { getDraftOwner, mergeShared, readDraft, shareImageDecision, writeDraft, writePendingDraft } from "@/lib/notes/draft";
+import { SHARE_CACHE, SHARE_CACHE_IMAGE, SHARE_CACHE_TEXT, SHARE_IMAGE_OWNER_HEADER, textFromHash, type SharedPayload } from "@/lib/notes/share";
 import { NoteForm } from "./note-form";
 
 // 前にメモを残したプロジェクト（次に共有したときの最初の選択）
@@ -56,15 +56,24 @@ async function collect(fromServer: SharedPayload | null): Promise<Received> {
       }
       const img = await cache.match(SHARE_CACHE_IMAGE);
       if (img) {
-        // 受けた時刻は画像にも付ける（本文を控えに移して消したあとも、保存するまで画像を戻せるように）。付いていない古い形は本文の時刻で見る
-        const imgAt = Number(img.headers.get("X-At")) || textAt;
-        if (fresh(imgAt)) {
+        // 受けた時刻は画像にも付ける（本文を控えに移して消したあとも、保存するまで画像を戻せるように）。付いていない古い形は本文の時刻で見る。
+        // 持ち主（X-Owner）がいまの人のときと、持ち主なしで受けてから 1 時間以内のときだけ使い、ほかは消す（L5。本文の控えと同じ条件）
+        const imgAt = Number(img.headers.get("X-At")) || textAt || null;
+        const decision = shareImageDecision({ owner: img.headers.get(SHARE_IMAGE_OWNER_HEADER) || null, at: imgAt }, getDraftOwner());
+        if (decision === "discard") {
+          await cache.delete(SHARE_CACHE_IMAGE);
+        } else {
           const blob = await img.blob();
           const name = decodeURIComponent(img.headers.get("X-File-Name") ?? "image");
+          // 持ち主なしで受けたものは、いまの人のものにして置き直す（保存しないまま閉じても、次に開いたときにこの人にだけ戻る）
+          if (decision === "claim") {
+            const headers = new Headers(img.headers);
+            headers.set(SHARE_IMAGE_OWNER_HEADER, getDraftOwner()!);
+            headers.set("X-At", String(imgAt));
+            await cache.put(SHARE_CACHE_IMAGE, new Response(blob, { headers }));
+          }
           // 大きい画像は、上げる前に JPEG に縮める（4.18）。service worker が 20MB を超えるものは受けない
           file = new File([blob], name, { type: blob.type });
-        } else {
-          await cache.delete(SHARE_CACHE_IMAGE);
         }
       }
       if (text) {

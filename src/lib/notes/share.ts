@@ -16,6 +16,10 @@ export const SHARE_CACHE_IMAGE = "/share/pending/image";
 
 export type SharedPayload = { text: string; hadFile: boolean };
 
+// 共有で受け取った画像に付ける持ち主（Cache Storage の画像の X-Owner）。service worker は人を知らないので、受けたときは持ち主なし
+export const SHARE_IMAGE_OWNER_HEADER = "X-Owner";
+
+
 // cookie の値（JSON）。URL エンコードは cookie に置くときに付き、読むときに外れる
 export function encodeShareCookie(p: SharedPayload): string {
   return JSON.stringify({ t: p.text.slice(0, SHARE_COOKIE_CHARS), f: p.hadFile ? 1 : 0 });

@@ -1,6 +1,6 @@
 // 書きかけのメモの控え（src/lib/notes/draft.ts）。保存するまで端末に残し、黙って捨てない
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { clearDraft, clearNoteDraftsOnDevice, mergeShared, ownDraft, PENDING_DRAFT_MS, writePendingDraft, NOTE_DRAFT_DAYS, NOTE_DRAFT_KEY, parseDraft, readDraft, saveFailureMessage, setDraftOwner, writeDraft } from "@/lib/notes/draft";
+import { clearDraft, clearNoteDraftsOnDevice, mergeShared, ownDraft, PENDING_DRAFT_MS, SHARE_IMAGE_KEEP_MS, shareImageDecision, writePendingDraft, NOTE_DRAFT_DAYS, NOTE_DRAFT_KEY, parseDraft, readDraft, saveFailureMessage, setDraftOwner, writeDraft } from "@/lib/notes/draft";
 import { SHARE_CACHE } from "@/lib/notes/share";
 
 class MemoryStorage {
@@ -167,5 +167,24 @@ describe("持ち主のない控えを作らない・長く引き継がない", (
     const pending = { body: "前の人が残した共有", projectId: null, at: now - PENDING_DRAFT_MS - 1000, owner: null };
     expect(ownDraft(pending, BOB, now)).toBeNull();
     expect(ownDraft({ ...pending, at: now - 1000 }, BOB, now)).toMatchObject({ owner: BOB });
+  });
+});
+
+describe("共有で受け取った画像の持ち主（セキュリティ確認 2026-11-03 の L5）", () => {
+  const now = 1_800_000_000_000;
+  it("持ち主がいまの人なら使う（1 日まで）", () => {
+    expect(shareImageDecision({ owner: ALICE, at: now - 1000 }, ALICE, now)).toBe("use");
+    expect(shareImageDecision({ owner: ALICE, at: now - SHARE_IMAGE_KEEP_MS }, ALICE, now)).toBe("discard");
+  });
+
+  it("持ち主なしは、受けてから 1 時間以内ならいまの人のものにする。過ぎたら消す", () => {
+    expect(shareImageDecision({ owner: null, at: now - 1000 }, BOB, now)).toBe("claim");
+    expect(shareImageDecision({ owner: null, at: now - PENDING_DRAFT_MS - 1 }, BOB, now)).toBe("discard");
+  });
+
+  it("ほかの人の画像・ログインしていないとき・時刻のないものは使わずに消す", () => {
+    expect(shareImageDecision({ owner: ALICE, at: now - 1000 }, BOB, now)).toBe("discard");
+    expect(shareImageDecision({ owner: null, at: now - 1000 }, null, now)).toBe("discard");
+    expect(shareImageDecision({ owner: null, at: null }, BOB, now)).toBe("discard");
   });
 });

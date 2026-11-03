@@ -28,9 +28,27 @@ export async function claimTip(trigger: unknown): Promise<ShownTip | null> {
   return { text: tip.text, term: { key: tip.term, label: glossary[tip.term].label } };
 }
 
-// 今日の用語を閉じる（その日は出さない）
+// 用語集の詳細ページを読んだと記録する。用語集にある key だけ。本人は DB の関数が auth.uid() から取る。
+// ページを描くとき（GET）ではなく、画面を描いたあとにクライアントから呼ぶ（セキュリティ確認 2026-11-03 の L3: ほかのサイトの img や先読みで記録されないように）
+export async function recordTermRead(key: unknown): Promise<void> {
+  if (typeof key !== "string" || !isGlossaryKey(key)) return;
+  const supabase = await createClient();
+  const { data: claims } = await supabase.auth.getClaims();
+  if (!claims?.claims?.sub) return;
+  const { error } = await supabase.rpc("record_learning_term_read", { p_term_key: key });
+  if (error) {
+    console.error("[recordTermRead]", error.message);
+    return;
+  }
+  // 一覧の「読んだ」の印を新しくする
+  revalidatePath("/glossary");
+}
+
+// 今日の用語を閉じる（その日は出さない）。ログインしていなければ何もしない（L4: 画面のキャッシュを消す前に確かめる）
 export async function dismissTodayTerm(projectId: string): Promise<void> {
   const supabase = await createClient();
+  const { data: claims } = await supabase.auth.getClaims();
+  if (!claims?.claims?.sub) return;
   const { error } = await supabase.rpc("dismiss_learning_today_term");
   if (error) console.error("[dismissTodayTerm]", error.message);
   if (typeof projectId === "string" && isUuid(projectId)) revalidatePath(`/projects/${projectId}`);

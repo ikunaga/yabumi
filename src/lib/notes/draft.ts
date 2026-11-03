@@ -79,6 +79,20 @@ export function readDraft(): NoteDraft | null {
   return draft ? ownDraft(draft, getDraftOwner()) : null;
 }
 
+// 持ち主の人の画像でも、受けてから 1 日より前のものは使わない
+export const SHARE_IMAGE_KEEP_MS = 86_400_000;
+
+// 受け取った画像を、いまの人に見せてよいか（セキュリティ確認 2026-11-03 の L5）。本文の書きかけの控え（ownDraft）と同じ条件:
+// 持ち主がいまの人なら使う。持ち主なしで受けてから 1 時間以内なら、いまの人のものにして使う（claim）。ほかは消す
+// （同じ端末でセッションが切れて別の人がログインし /share を開いたときに、前の人の画像を出さないように）
+export function shareImageDecision(image: { owner: string | null; at: number | null }, current: string | null, now: number = Date.now()): "use" | "claim" | "discard" {
+  if (!current || !image.at) return "discard";
+  const age = now - image.at;
+  if (image.owner === current) return age < SHARE_IMAGE_KEEP_MS ? "use" : "discard";
+  if (image.owner === null && age <= PENDING_DRAFT_MS) return "claim";
+  return "discard";
+}
+
 // 控えを、いまの人に見せてよいか。ログインの前の控え（持ち主 null）は、ログインした人のものにする
 export function ownDraft(draft: NoteDraft, owner: string | null, now: number = Date.now()): NoteDraft | null {
   if (draft.owner === owner) return draft;

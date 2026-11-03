@@ -60,6 +60,15 @@ describe("読んだ用語", () => {
     await admin.from("learning_term_reads").delete().eq("user_id", carolId);
   });
 
+  it("同時に呼んでも、1 人 64 語を超えない（人ごとの advisory lock。セキュリティ確認 2026-11-03 の L1）", async () => {
+    for (let i = 0; i < 62; i++) await carol.rpc("record_learning_term_read", { p_term_key: `c_${i}` });
+    // 残り 2 語のところに、違う語を 12 個まとめて送る
+    const results = await Promise.all(Array.from({ length: 12 }, (_, i) => carol.rpc("record_learning_term_read", { p_term_key: `burst_${i}` })));
+    for (const r of results) expect(r.error).toBeNull();
+    expect((await admin.from("learning_term_reads").select("term_key").eq("user_id", carolId)).data).toHaveLength(64);
+    await admin.from("learning_term_reads").delete().eq("user_id", carolId);
+  });
+
   it("ログインしていない人は呼べない", async () => {
     expect((await anonClient().rpc("record_learning_term_read", { p_term_key: "persona" })).error).not.toBeNull();
     expect((await anonClient().rpc("claim_learning_tip", { p_candidates: ["a"] })).error).not.toBeNull();

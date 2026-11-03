@@ -82,6 +82,7 @@ export default async function IdeasPage(props: PageProps<"/projects/[id]/ideas">
         defaultSource={defaultSource}
         newsQuestions={newsQuestionsFor(productType)}
         newsExample={guideFor(productType).newsExample}
+        topicExamples={guideFor(productType).topicExamples}
         sources={sources}
         notes={notes.map((n) => ({ id: n.id, body: n.body, hasImage: Boolean(n.image), createdAt: n.createdAt }))}
         defaultNoteIds={defaultNoteIds}

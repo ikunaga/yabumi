@@ -14,6 +14,8 @@ export type ProductGuide = {
   newsQuestions: IdeaQuestionDef[];
   // 答えの欄に薄く出す例
   newsExample: string;
+  // ネタを出すの「その他（伝えたいことを書く）」で、押すと欄に入る書き出しの例（3〜4 個）
+  topicExamples: string[];
   // 画像の「写真に見出し」（screen）で使う写真の例
   photo: string;
   // 作り手・同業者の側の言葉の例（届けたい相手が同業者のときだけ使う）
@@ -30,6 +32,7 @@ export const PRODUCT_GUIDES: Record<ProductType, ProductGuide> = {
       { question: "使ってくれた人の声や、自分で使ってみて気づいたことは？", choices: ["感想や要望をもらった", "自分で毎日使っている", "まだ誰にも使われていない"] },
     ],
     newsExample: "例: 通知が 2 回届く不具合を直した。原因は時差の計算だった",
+    topicExamples: ["新しい機能", "よくある質問", "作った理由", "使い方のコツ"],
     photo: "アプリの画面",
     insiderTags: "#個人開発 #indiedev",
   },
@@ -42,6 +45,7 @@ export const PRODUCT_GUIDES: Record<ProductType, ProductGuide> = {
       { question: "うまくいったこと、迷ったこと、気づいたことは？", choices: ["登録が増えた", "どちらにするか迷った", "数字を見て気づいたことがある"] },
     ],
     newsExample: "例: 予約の画面で迷う人が多かったので、ボタンの文言を変えた",
+    topicExamples: ["新しい機能", "よくある質問", "作った理由", "お知らせ"],
     photo: "サービスの画面",
     insiderTags: "#個人開発 #SaaS",
   },
@@ -54,6 +58,7 @@ export const PRODUCT_GUIDES: Record<ProductType, ProductGuide> = {
       { question: "仕込みや準備で、こだわっていること・手間をかけたことは？", choices: ["材料や仕入れ", "時間のかかる作業", "見えないところの準備"] },
     ],
     newsExample: "例: 秋のケーキを 2 種類出した。栗は近くの農家さんから",
+    topicExamples: ["新しいメニュー", "お休みのお知らせ", "季節の話題", "お客さんの声"],
     photo: "お店・料理・商品の写真",
     insiderTags: "#飲食店経営 #個人店経営",
   },
@@ -66,6 +71,7 @@ export const PRODUCT_GUIDES: Record<ProductType, ProductGuide> = {
       { question: "買ってくれた人・見てくれた人から言われたことは？", choices: ["届いた感想をもらった", "よく聞かれることがある", "まだ感想はない"] },
     ],
     newsExample: "例: 冬向けのマフラーを 3 色作った。毛糸選びに 1 週間かかった",
+    topicExamples: ["新しい商品", "再入荷のお知らせ", "季節の話題", "届いた人の声"],
     photo: "商品の写真",
     insiderTags: "#ハンドメイド作家 #ネットショップ運営",
   },
@@ -78,6 +84,7 @@ export const PRODUCT_GUIDES: Record<ProductType, ProductGuide> = {
       { question: "仕事のやり方で、こだわっていること・変えたことは？", choices: ["進め方を変えた", "新しいメニューを作った", "道具や場所を変えた"] },
     ],
     newsExample: "例: 3 か月通っている生徒さんが、はじめて前屈で床に手がついた",
+    topicExamples: ["空き枠のお知らせ", "よくある質問", "季節の話題", "お客さんの声"],
     photo: "教室・施術・仕事のようすの写真",
     insiderTags: "#フリーランス #個人事業主",
   },
@@ -90,6 +97,7 @@ export const PRODUCT_GUIDES: Record<ProductType, ProductGuide> = {
       { question: "見てくれた人の反応や、自分で気づいたことは？", choices: ["感想をもらった", "思ったより見られた", "まだ反応は少ない"] },
     ],
     newsExample: "例: 新しいイラストを描いた。夕方の光の色を出すのに迷った",
+    topicExamples: ["新しい作品", "展示・イベントのお知らせ", "作品に込めた考え", "使っている道具"],
     photo: "作品の写真",
     insiderTags: "#絵描きさんと繋がりたい #創作",
   },
@@ -102,6 +110,7 @@ export const PRODUCT_GUIDES: Record<ProductType, ProductGuide> = {
       { question: "関わった人の声や、自分で気づいたことは？", choices: ["感想をもらった", "よく聞かれることがある", "まだ反応はない"] },
     ],
     newsExample: "例: 来月のイベントの会場が決まった",
+    topicExamples: ["お知らせ", "季節の話題", "考えていること", "よくある質問"],
     photo: "写真",
     insiderTags: "#同業者 の言葉",
   },

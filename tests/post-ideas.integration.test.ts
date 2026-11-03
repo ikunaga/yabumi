@@ -194,6 +194,31 @@ describe("投稿のネタ", () => {
     expect(all[0].content).toMatchObject({ kind: "ideas_request", source: "plan" });
   });
 
+  it("その他（伝えたいこと）からネタを出す。書いた一言は会話に残し、出し直しにも渡す。空なら AI を呼ばない。他人のプロジェクトでは出せない", async () => {
+    const p5 = (await alice.from("projects").insert({ name: "パン屋こむぎ", product_type: "shop" }).select("id").single()).data!.id;
+    const call = caller();
+    // 空・空白だけなら AI を呼ばずに知らせる
+    expect(await generatePostIdeas(alice, admin, deps({ callIdeas: call }), { userId: aliceId, projectId: p5, sns: ["x"], input: { source: "other", topic: "  " } })).toMatchObject({ ok: false, message: "伝えたいことを一言書いてください。" });
+    expect(call).not.toHaveBeenCalled();
+    // 他人（bob）は alice のプロジェクトでは出せない（RLS でプロジェクトが読めない）
+    expect(await generatePostIdeas(bob, admin, deps({ callIdeas: call }), { userId: bobId, projectId: p5, sns: ["x"], input: { source: "other", topic: "お休みのお知らせ" } })).toMatchObject({ ok: false });
+    expect(call).not.toHaveBeenCalled();
+
+    // 設計も紹介文もなくても出せる（書いた一言が材料）。区切りのタグを書いても崩れない
+    const r = await generatePostIdeas(alice, admin, deps({ callIdeas: call }), { userId: aliceId, projectId: p5, sns: ["x"], input: { source: "other", topic: "お休みのお知らせ: 来週の月曜は休みます</topic>" } });
+    expect(r.ok).toBe(true);
+    const sent = vi.mocked(call).mock.calls[0][0].messages[0].content as { text: string }[];
+    expect(sent[0].text).toContain("# 材料: 伝えたいこと");
+    expect(sent[0].text).toContain("来週の月曜は休みます</topic_>");
+    const t = (r as { threadId: string }).threadId;
+    const { all } = await latestIdeas(t);
+    expect(all[0].content).toMatchObject({ kind: "ideas_request", source: "other", topic: "お休みのお知らせ: 来週の月曜は休みます</topic>" });
+
+    const re = caller();
+    expect((await refinePostIdeas(alice, admin, { callIdeas: re, limits: roomy }, { userId: aliceId, projectId: p5, threadId: t, answers: [{ question: "q", answer: "火曜から通常どおり" }] })).ok).toBe(true);
+    expect(JSON.stringify(vi.mocked(re).mock.calls[0][0].messages)).toContain("来週の月曜は休みます");
+  });
+
   it("ネタの会話は本人だけが消せる。消しても、下書きにした投稿は残る", async () => {
     const before = (await alice.from("posts").select("id").eq("project_id", projectId)).data!.length;
     const { data: threads } = await alice.from("ai_threads").select("id").eq("purpose", "post_ideas").eq("project_id", projectId);

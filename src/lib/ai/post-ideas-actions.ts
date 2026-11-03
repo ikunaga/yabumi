@@ -12,7 +12,7 @@ import { createClient } from "@/lib/supabase/server";
 import { aiConfigured, callPostIdeas, callShortenDrafts } from "./anthropic";
 import { MAX_NOTES_FOR_IDEAS } from "@/lib/notes/rules";
 import { aiLimitsFromEnv } from "./limits";
-import { adoptPostIdea, generatePostIdeas, MAX_ANSWER_CHARS, MAX_IDEA_QUESTIONS, MAX_IDEAS, MAX_NEWS_CHARS, MAX_NEWS_QUESTIONS, refinePostIdeas } from "./post-ideas";
+import { adoptPostIdea, generatePostIdeas, MAX_ANSWER_CHARS, MAX_IDEA_QUESTIONS, MAX_IDEAS, MAX_NEWS_CHARS, MAX_NEWS_QUESTIONS, MAX_TOPIC_CHARS, refinePostIdeas } from "./post-ideas";
 
 async function currentUser() {
   const supabase = await createClient();
@@ -30,9 +30,11 @@ const inputSchema = z.discriminatedUnion("source", [
   z.object({ source: z.literal("news"), news: z.array(z.object({ question: z.string().max(500), answer: z.string().max(MAX_NEWS_CHARS) })).max(MAX_NEWS_QUESTIONS) }),
   z.object({ source: z.literal("plan") }),
   z.object({ source: z.literal("notes"), noteIds: z.array(z.uuid()).min(1).max(MAX_NOTES_FOR_IDEAS) }),
+  z.object({ source: z.literal("other"), topic: z.string().max(MAX_TOPIC_CHARS) }),
 ]);
 
-// 材料（最近のコミット・最近のできごと・アカウント設計）から、AI が投稿のネタを出す（30〜90 秒ほどかかる）
+// 材料（最近のコミット・最近のできごと・アカウント設計・ネタ帳・その他の伝えたいこと）から、AI が投稿のネタを出す（30〜90 秒ほどかかる）。
+// 本人はログインで、プロジェクトは generatePostIdeas が利用者の権限（RLS）で読んで確かめる
 export async function generateIdeas(projectId: string, input: unknown, sns: unknown): Promise<IdeasActionResult> {
   const snsList = z.array(z.string()).max(10).safeParse(sns);
   const parsed = inputSchema.safeParse(input);

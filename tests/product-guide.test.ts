@@ -57,11 +57,11 @@ describe("指示から「個人開発者のアプリ」の決めつけを外す"
 });
 
 describe("ネタを出す", () => {
-  it("材料の並びは「最近のできごと」が先頭。「最近の開発から（GitHub）」はアプリと Web のサービスのときだけ", () => {
-    expect(ideaSourcesFor("shop")).toEqual(["news", "notes", "plan"]);
+  it("材料の並びは「最近のできごと」が先頭、「その他」がいちばん下。「最近の開発から（GitHub）」はアプリと Web のサービスのときだけ", () => {
+    expect(ideaSourcesFor("shop")).toEqual(["news", "notes", "plan", "other"]);
     expect(ideaSourcesFor("creator")).not.toContain("commits");
-    expect(ideaSourcesFor("app")).toEqual(["news", "notes", "plan", "commits"]);
-    expect(ideaSourcesFor("web_service")).toEqual(["news", "notes", "plan", "commits"]);
+    expect(ideaSourcesFor("app")).toEqual(["news", "notes", "plan", "commits", "other"]);
+    expect(ideaSourcesFor("web_service")).toEqual(["news", "notes", "plan", "commits", "other"]);
   });
 
   it("最近のできごとの 3 つの質問は種類ごと", () => {

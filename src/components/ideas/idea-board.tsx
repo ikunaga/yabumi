@@ -11,7 +11,7 @@ import { ErrorBanner } from "@/components/ui/feedback";
 import { Input, Textarea } from "@/components/ui/field";
 import { Steps } from "@/components/ui/steps";
 import { adoptIdea, generateIdeas, refineIdeas } from "@/lib/ai/post-ideas-actions";
-import { MAX_NEWS_CHARS, needsFillIn, type IdeaNoteMaterial, type IdeaQuestion, type IdeaSource, type IdeasThread, type PostIdea } from "@/lib/ai/post-ideas";
+import { MAX_NEWS_CHARS, MAX_TOPIC_CHARS, needsFillIn, type IdeaNoteMaterial, type IdeaQuestion, type IdeaSource, type IdeasThread, type PostIdea } from "@/lib/ai/post-ideas";
 import { IDEA_PERIODS, type IdeaPeriod } from "@/lib/github/commit-reader";
 import { IDEA_STEPS, type IdeaStep, canGoIdeaStep, initialIdeaStep, visibleIdeaStep } from "@/lib/ideas/steps";
 import { MAX_NOTES_FOR_IDEAS } from "@/lib/notes/rules";
@@ -58,6 +58,16 @@ const SOURCE_INFO: Record<IdeaSource, { title: string; summary: string; good: st
     working: "ネタを考えています…（20〜60 秒ほど）",
     cost: "1 回あたり 10〜20 円ほど",
   },
+  // どれにもあてはまらないとき（2026-11-03 オーナーの要望）
+  other: {
+    title: "その他（伝えたいことを書く）",
+    summary: "伝えたいことを一言書くと、それを投稿の形に広げます。",
+    good: "お知らせや季節の話題など、ほかの材料にあてはまらないことでも投稿にできる",
+    note: "書いたことだけを使う。日付や数字など書いていないことは作らず、【】で残すか質問する",
+    button: "伝えたいことからネタを出す",
+    working: "ネタを考えています…（20〜60 秒ほど）",
+    cost: "1 回あたり 10〜20 円ほど",
+  },
 };
 
 // ② の見出し（材料ごとに、何を入れるか）
@@ -66,6 +76,7 @@ const STEP2_TITLE: Record<IdeaSource, string> = {
   news: "最近のできごとを書いて、SNS を選ぶ",
   notes: "使うメモと、SNS を選ぶ",
   plan: "SNS を選ぶ",
+  other: "伝えたいことを書いて、SNS を選ぶ",
 };
 
 type Props = {
@@ -82,6 +93,8 @@ type Props = {
   newsQuestions: IdeaQuestion[];
   // 最近のできごとの答えの欄に薄く出す例（種類ごと）
   newsExample: string;
+  // 「その他」の、押すと欄に入る書き出しの例（種類ごと）
+  topicExamples: string[];
   // 選べる材料（宣伝するものの種類で変わる。「最近の開発から（GitHub）」はアプリ・Web のサービスのときだけ）
   sources: IdeaSource[];
   // ネタ帳のまだ使っていないメモ（新しい順）と、ネタ帳の画面で選んできたメモ
@@ -94,11 +107,13 @@ type Props = {
 
 // 材料（最近のコミット・最近のできごと・ネタ帳・アカウント設計）から AI がネタを出し、利用者が質問に答えたり、ネタを選んで下書きにしたりする。
 // ① 材料を選ぶ → ② 中身を入れる → ③ ネタを選んで下書きにする の 3 つのステップに分け、いまいるステップの項目だけを出す（入れたものはステップを移っても残る）
-export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, snsOptions, maxSns, defaultSns, defaultDays, defaultSource, newsQuestions, newsExample, sources, notes, defaultNoteIds, thread, noPillars }: Props) {
+export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, snsOptions, maxSns, defaultSns, defaultDays, defaultSource, newsQuestions, newsExample, topicExamples, sources, notes, defaultNoteIds, thread, noPillars }: Props) {
   const [step, setStep] = useState<IdeaStep>(() => initialIdeaStep({ hasThread: Boolean(thread), fromNotes: defaultNoteIds.length > 0 }));
   const [source, setSource] = useState<IdeaSource>(defaultSource);
   const [days, setDays] = useState<IdeaPeriod>(defaultDays);
   const [news, setNews] = useState<string[]>(() => newsQuestions.map(() => ""));
+  const [topic, setTopic] = useState("");
+  const topicRef = useRef<HTMLTextAreaElement>(null);
   const [sns, setSns] = useState<SnsKey[]>(defaultSns);
   const [noteIds, setNoteIds] = useState<string[]>(defaultNoteIds);
   const [answers, setAnswers] = useState<string[]>([]);
@@ -149,9 +164,28 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
   const newsAnswered = newsQuestions.map((q, i) => ({ question: q.question, answer: news[i] ?? "" })).filter((a) => a.answer.trim());
   const commitsBlocked = source === "commits" && !repoFullName;
   const pickedNotes = noteIds.filter((id) => notes.some((n) => n.id === id && n.body.trim()));
-  const canGenerate = sns.length > 0 && !commitsBlocked && (source !== "news" || newsAnswered.length > 0) && (source !== "notes" || pickedNotes.length > 0);
+  const canGenerate =
+    sns.length > 0 && !commitsBlocked && (source !== "news" || newsAnswered.length > 0) && (source !== "notes" || pickedNotes.length > 0) && (source !== "other" || topic.trim() !== "");
   const input =
-    source === "commits" ? { source, days } : source === "news" ? { source, news: newsAnswered } : source === "notes" ? { source, noteIds: pickedNotes } : { source };
+    source === "commits"
+      ? { source, days }
+      : source === "news"
+        ? { source, news: newsAnswered }
+        : source === "notes"
+          ? { source, noteIds: pickedNotes }
+          : source === "other"
+            ? { source, topic }
+            : { source };
+
+  // 書き出しの例を欄に入れる（書いてあれば次の行に）。続けて書けるよう、欄に戻る
+  function addTopicStarter(c: string) {
+    setTopic((cur) => (cur.trim() ? `${cur.trimEnd()}\n${c}: ` : `${c}: `).slice(0, MAX_TOPIC_CHARS));
+    requestAnimationFrame(() => {
+      const el = topicRef.current;
+      el?.focus();
+      el?.setSelectionRange(el.value.length, el.value.length);
+    });
+  }
 
   function toggleNote(id: string) {
     setNoteIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : cur.length >= MAX_NOTES_FOR_IDEAS ? cur : [...cur, id]));
@@ -245,6 +279,12 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
               <>
                 <dt className="text-muted">メモ</dt>
                 <dd className="num">{pickedNotes.length} 件</dd>
+              </>
+            )}
+            {source === "other" && (
+              <>
+                <dt className="text-muted">内容</dt>
+                <dd className={topic.trim() ? "" : "text-faint"}>{topic.trim() ? "書きました" : "まだ書いていません"}</dd>
               </>
             )}
             {source === "news" && (
@@ -467,6 +507,39 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
                   </div>
                 ))}
 
+              {source === "other" && (
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="idea-topic" className="text-[15px] font-bold">
+                    伝えたいこと
+                  </label>
+                  <div className="flex flex-wrap gap-2" role="group" aria-label="書き出しの例（押すと欄に入ります）">
+                    {topicExamples.map((c) => (
+                      <button key={c} type="button" onClick={() => addTopicStarter(c)} className={pill(false)}>
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                  <Textarea
+                    id="idea-topic"
+                    ref={topicRef}
+                    rows={3}
+                    maxLength={MAX_TOPIC_CHARS}
+                    value={topic}
+                    onChange={(e) => setTopic(e.target.value)}
+                    placeholder="伝えたいことを一言（短くて大丈夫です）"
+                  />
+                  {sources.includes("plan") && (
+                    <p className="text-[13px] text-faint">
+                      思いつかないときは
+                      <button type="button" onClick={() => setSource("plan")} className="mx-0.5 text-muted underline hover:text-fg">
+                        「アカウント設計から」
+                      </button>
+                      を選ぶと、柱ごとに AI が出します。
+                    </p>
+                  )}
+                </div>
+              )}
+
               {source === "plan" && (
                 <p className="flex flex-wrap items-center gap-2 rounded-md border border-line bg-surface2 px-4 py-3 text-[15px]">
                   入力はいりません
@@ -563,6 +636,7 @@ function sourceLabel(thread: IdeasThread): string {
   if (r.source === "news") return "最近のできごとから";
   if (r.source === "plan") return "アカウント設計から";
   if (r.source === "notes") return `ネタ帳のメモ ${r.notes?.length ?? 0} 件から`;
+  if (r.source === "other") return "伝えたいことから";
   const days = r.days ?? 0;
   return `直近 ${PERIOD_LABEL[days as IdeaPeriod] ?? `${days} 日`}のコミット ${r.commitCount ?? 0} 件から`;
 }

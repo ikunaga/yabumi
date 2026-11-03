@@ -6,7 +6,7 @@ import { HelpTip } from "@/components/ui/help";
 import Link from "next/link";
 import { deleteItem, setItemPlannedOn, setItemStatus } from "@/lib/roadmap/actions";
 import type { RoadmapItem } from "@/lib/roadmap/load";
-import { formatValue, kpiLabel } from "@/lib/roadmap/schema";
+import { effectiveStatus, formatValue, kpiLabel } from "@/lib/roadmap/schema";
 import { todoAction } from "@/lib/roadmap/todo-kind";
 import { addDays, dayOfMonth, monthOf, weekdayLabel } from "@/lib/time";
 
@@ -35,7 +35,8 @@ export function RoadmapItemRow({
       const res = await fn();
       if (res.error) setError(res.error);
     });
-  const reached = progress !== null && progress.actual >= progress.target;
+  // 数字が目標に届いた（まだのやることでも「達成」。済みのチェックは手で付けられるまま）
+  const state = effectiveStatus(item, progress);
   const action = todoAction(`/projects/${projectId}`, item, { aiEnabled });
 
   return (
@@ -51,15 +52,15 @@ export function RoadmapItemRow({
           className="mt-1 size-4 shrink-0 accent-[var(--primary)]"
         />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className={`text-[14px] ${item.status === "done" ? "text-muted line-through" : item.status === "skipped" ? "text-muted" : "font-bold"}`}>
+          <span className={`text-[14px] ${state === "done" ? "text-muted line-through" : state === "skipped" || state === "achieved" ? "text-muted" : "font-bold"}`}>
             {item.title}
             {item.status === "skipped" && <span className="ml-2 text-xs font-normal">（やらない）</span>}
+            {state === "achieved" && <span className="ml-2 text-xs font-bold whitespace-nowrap text-success">✓ 達成</span>}
           </span>
           {item.detail && <span className="text-xs leading-6 text-muted">{item.detail}</span>}
           {item.kpi && item.target !== null && (
             <span className="text-xs text-muted">
               {kpiLabel(item.kpi, item.sns)}: {progress ? `${formatValue(item.kpi, progress.actual)} / ${formatValue(item.kpi, progress.target)}` : `目標 ${formatValue(item.kpi, item.target)}（${notCounted}）`}
-              {reached && item.status === "todo" && <span className="ml-2 font-bold text-success">目標に届きました。済みにしますか？</span>}
             </span>
           )}
           {item.posts && item.posts.linkedPublished + item.posts.linkedScheduled > 0 && (
@@ -84,7 +85,7 @@ export function RoadmapItemRow({
                 ))}
               </select>
             </label>
-            {item.status === "todo" && action.kind !== "other" && (
+            {state === "todo" && action.kind !== "other" && (
               <Link href={action.href} className="font-semibold text-primary hover:underline">
                 {action.kind === "post" ? "この内容で投稿をつくる" : action.label}
               </Link>
@@ -92,7 +93,7 @@ export function RoadmapItemRow({
           </span>
         </div>
         <span className="flex shrink-0 items-center gap-1 max-sm:-mt-1 max-sm:w-full max-sm:pl-5">
-          {item.status === "todo" && (
+          {state === "todo" && (
             <span className="inline-flex items-center">
               <Button type="button" variant="text" size="sm" disabled={pending} onClick={() => run(() => setItemStatus(projectId, item.id, "skipped"))}>
                 やらない

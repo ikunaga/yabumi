@@ -1,7 +1,7 @@
 import type { PaceStatus } from "@/lib/coach/pace";
 import { KPIS } from "@/lib/metrics/kpis";
 import type { RoadmapItem } from "@/lib/roadmap/load";
-import { itemProgress, type DailyTotal } from "@/lib/roadmap/schema";
+import { effectiveStatus, itemProgress, type DailyTotal, type ItemState } from "@/lib/roadmap/schema";
 import { todoAction, type TodoAction } from "@/lib/roadmap/todo-kind";
 import { SNS } from "@/lib/sns";
 
@@ -14,7 +14,8 @@ export type CalendarTodo = {
   detail: string;
   weekStart: string;
   plannedOn: string | null;
-  status: "todo" | "done" | "skipped";
+  // 読むときの状態（数字で目標に届いたまだのやることは achieved。schema.ts の effectiveStatus）
+  status: ItemState;
   // 「Instagram 0 / 1」のような進み具合。自動で数えられない数字・数字のないやることは null
   progress: string | null;
   // やることから作った投稿（「投稿 送信済み 1・予約 1」）。なければ null
@@ -47,16 +48,17 @@ function linkedText(item: RoadmapItem): string | null {
 
 export function toCalendarTodo(item: RoadmapItem, daily: DailyTotal[], today: string, ctx: { base: string; aiEnabled: boolean } = { base: "", aiEnabled: false }): CalendarTodo {
   const linked = (item.posts?.linkedPublished ?? 0) + (item.posts?.linkedScheduled ?? 0);
+  const status = effectiveStatus(item, itemProgress(item, daily));
   return {
     id: item.id,
     title: item.title,
     detail: item.detail,
     weekStart: item.weekStart,
     plannedOn: item.plannedOn,
-    status: item.status,
+    status,
     progress: progressText(item, daily),
     linked: linkedText(item),
-    overdue: item.kind === "post" && item.status === "todo" && item.plannedOn !== null && item.plannedOn < today && linked === 0,
+    overdue: item.kind === "post" && status === "todo" && item.plannedOn !== null && item.plannedOn < today && linked === 0,
     action: todoAction(ctx.base, item, ctx),
   };
 }

@@ -17,7 +17,7 @@ import { aiConfigured } from "@/lib/ai/anthropic";
 import { chosenKpis } from "@/lib/metrics/kpis";
 import { getAccountPlan } from "@/lib/plan/queries";
 import { getProject } from "@/lib/projects/queries";
-import { loadRoadmap, type RoadmapItem } from "@/lib/roadmap/queries";
+import { itemState, loadRoadmap, thisWeekCounts, type RoadmapItem } from "@/lib/roadmap/queries";
 import { formatValue, isAutoKpi, itemProgress, kpiLabel, notCountedYet, weekValue } from "@/lib/roadmap/schema";
 import { addDays, dayOfMonth, monthOf } from "@/lib/time";
 
@@ -43,10 +43,12 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
   const consultHref = `/projects/${id}/consult/new?start=roadmap`;
   const ai = aiConfigured();
 
+  // 読むときの状態（数字で目標に届いたまだのやることは「達成」。済みと同じに数える）
+  const stateOf = (item: RoadmapItem) => itemState(item, daily);
   const groups: { key: string; label: string; items: RoadmapItem[] }[] = [];
   for (const item of items) {
-    // 済んだ・やらないことにした過去の週は、折りたたみに回す
-    if (item.weekStart < thisWeek && item.status !== "todo") continue;
+    // 済んだ（数字で達成した）・やらないことにした過去の週は、折りたたみに回す
+    if (item.weekStart < thisWeek && stateOf(item) !== "todo") continue;
     const key = item.weekStart < thisWeek ? "overdue" : item.weekStart;
     let g = groups.find((x) => x.key === key);
     if (!g) {
@@ -56,9 +58,8 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
     g.items.push(item);
   }
   groups.sort((a, b) => (a.key === "overdue" ? -1 : b.key === "overdue" ? 1 : a.key.localeCompare(b.key)));
-  const past = items.filter((i) => i.weekStart < thisWeek && i.status !== "todo");
-  const thisWeekTodo = items.filter((i) => i.weekStart === thisWeek && i.status === "todo").length;
-  const thisWeekDone = items.filter((i) => i.weekStart === thisWeek && i.status === "done").length;
+  const past = items.filter((i) => i.weekStart < thisWeek && stateOf(i) !== "todo");
+  const { open: thisWeekTodo, finished: thisWeekDone } = thisWeekCounts(view);
   const weeks = Array.from({ length: 9 }, (_, n) => addDays(thisWeek, n * 7)).map((w) => ({ value: w, label: weekLabel(w, thisWeek) }));
 
   return (

@@ -4,7 +4,7 @@ import { isSnsKey, type SnsKey } from "@/lib/sns";
 import type { Database } from "@/lib/supabase/database.types";
 import { addDays, toYmd } from "@/lib/time";
 import { todoKindOf, type TodoKind } from "./todo-kind";
-import { kgiProgress, kgiSchema, kpiTargetsSchema, weekStartOf, type DailyTotal, type ItemPostCounts, type Kgi, type KgiProgress, type KpiTarget } from "./schema";
+import { effectiveStatus, isFinished, itemProgress, kgiProgress, kgiSchema, kpiTargetsSchema, weekStartOf, type DailyTotal, type ItemPostCounts, type ItemState, type Kgi, type KgiProgress, type KpiTarget } from "./schema";
 
 // ロードマップの読み込み（docs/architecture.md の 4.23）。RLS で本人のものだけ。数字の合計は DB の関数で出す（行を読んで足さない）。
 // クライアントは呼ぶ側が渡す（画面は queries.ts、AI と相談は利用者の権限のクライアント）
@@ -101,9 +101,10 @@ export async function loadItemPostCounts(db: Db, projectId: string, from: string
   );
 }
 
-// 予定日を過ぎたのに、まだ投稿をつくっていない（結びついた投稿がない）済んでいないやること（伴走の声かけに使う）。投稿するやることだけ（4.42）
-export function overdueItems(items: RoadmapItem[], today: string): RoadmapItem[] {
-  return items.filter((i) => i.kind === "post" && i.status === "todo" && i.plannedOn !== null && i.plannedOn < today && (i.posts?.linkedPublished ?? 0) + (i.posts?.linkedScheduled ?? 0) === 0);
+// 予定日を過ぎたのに、まだ投稿をつくっていない（結びついた投稿がない）済んでいないやること（伴走の声かけに使う）。投稿するやることだけ（4.42）。
+// 数字で達成したやることは入れない（投稿した回数は読み込んだ posts で数える。クリックの数のやることは daily を渡したときだけ）
+export function overdueItems(items: RoadmapItem[], today: string, daily: DailyTotal[] = []): RoadmapItem[] {
+  return items.filter((i) => i.kind === "post" && itemState(i, daily) === "todo" && i.plannedOn !== null && i.plannedOn < today && (i.posts?.linkedPublished ?? 0) + (i.posts?.linkedScheduled ?? 0) === 0);
 }
 
 export async function loadRoadmapWith(supabase: Db, projectId: string, now = new Date()): Promise<RoadmapView> {
@@ -155,7 +156,18 @@ export async function loadRoadmapWith(supabase: Db, projectId: string, now = new
   };
 }
 
-// 概要の「今週のやること」: 今週の済んでいないもの（3 件まで）
-export function thisWeekTodos(view: RoadmapView, limit = 3): RoadmapItem[] {
-  return view.items.filter((i) => i.weekStart === view.thisWeek && i.status === "todo").slice(0, limit);
+// やることの読むときの状態（数字で達成したら achieved。schema.ts の effectiveStatus）
+export function itemState(item: RoadmapItem, daily: DailyTotal[]): ItemState {
+  return effectiveStatus(item, itemProgress(item, daily));
+}
+
+// 概要の「今週のやること」: 今週の済んでいない（手で済みにしていない・数字で達成していない）もの。limit を渡せばその件数まで
+export function thisWeekTodos(view: RoadmapView, limit = Infinity): RoadmapItem[] {
+  return view.items.filter((i) => i.weekStart === view.thisWeek && itemState(i, view.daily) === "todo").slice(0, limit);
+}
+
+// 今週のやることの件数（まだ・済み（手で済みにした＋数字で達成した））。やらないことにしたものは数えない
+export function thisWeekCounts(view: RoadmapView): { open: number; finished: number } {
+  const states = view.items.filter((i) => i.weekStart === view.thisWeek).map((i) => itemState(i, view.daily));
+  return { open: states.filter((s) => s === "todo").length, finished: states.filter(isFinished).length };
 }

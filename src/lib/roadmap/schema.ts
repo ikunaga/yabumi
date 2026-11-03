@@ -123,6 +123,21 @@ export function itemProgress(
   return { actual: sumBetween(daily, item.kpi, item.weekStart, addDays(item.weekStart, 6), item.sns ?? null), target: item.target };
 }
 
+// やることの、読むときの状態。自動で数える数字（AUTO_KPIS）が付いたまだのやることは、その週の数字が目標に届いたら「達成」（achieved）。
+// DB の status は書き換えない（数字があとで減ったら「まだ」に戻る）。済み（done）・やらない（skipped）は手で決めたまま。
+// 達成は「済み」と同じに数える（今週の件数・概要の帯の先頭・プロジェクトの一覧・カレンダー・予定日を過ぎたやること。オーナーの指摘 2026-11-03）。
+// DB で数えるプロジェクトの一覧（project_step_flags）も同じ決め方
+export type ItemState = "todo" | "done" | "skipped" | "achieved";
+export function effectiveStatus(item: { status: "todo" | "done" | "skipped" }, progress: { actual: number; target: number } | null): ItemState {
+  if (item.status === "todo" && progress && progress.actual >= progress.target) return "achieved";
+  return item.status;
+}
+
+// 済んだか（手で済みにした・数字で達成した）
+export function isFinished(state: ItemState): boolean {
+  return state === "done" || state === "achieved";
+}
+
 // 週の数字（KPI の週の目標と比べる）
 export function weekValue(kpi: KpiKey, weekStart: string, daily: DailyTotal[], sns: SnsKey | null = null): number | null {
   return isAutoKpi(kpi) ? sumBetween(daily, kpi, weekStart, addDays(weekStart, 6), sns) : null;

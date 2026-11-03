@@ -4,7 +4,7 @@ import { saveSectionValue } from "@/lib/plan/save";
 import { chosenKpis, isKpiKey, kpiAllowed, type KpiKey } from "@/lib/metrics/kpis";
 import { normalizePlan } from "@/lib/plan/schema";
 import { loadRoadmapWith } from "@/lib/roadmap/load";
-import { formatValue, itemProgress, weekStartOf, kpiLabel } from "@/lib/roadmap/schema";
+import { effectiveStatus, formatValue, itemProgress, weekStartOf, kpiLabel } from "@/lib/roadmap/schema";
 import { addItems, saveGoal, RoadmapError } from "@/lib/roadmap/write";
 import { isManualSns, isSnsKey, SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
 import { tidyDraftHashtags } from "@/lib/sns/hashtags";
@@ -204,7 +204,9 @@ export async function gatherConsultContext(
         .filter((i) => i.weekStart === view.thisWeek || i.weekStart === nextWeek)
         .map((i) => {
           const p = itemProgress(i, view.daily);
-          return { week: i.weekStart === view.thisWeek ? "今週" : "来週", title: i.title, status: i.status, progress: p && i.kpi ? `${kpiLabel(i.kpi, i.sns)} ${formatValue(i.kpi, p.actual)} / ${formatValue(i.kpi, p.target)}` : null };
+          // 数字が目標に届いたまだのやることは「済み（数字で達成）」と渡す（AI が「まだ」と取り違えて促さないように）
+          const status = effectiveStatus(i, p) === "achieved" ? "済み（数字で達成）" : i.status;
+          return { week: i.weekStart === view.thisWeek ? "今週" : "来週", title: i.title, status, progress: p && i.kpi ? `${kpiLabel(i.kpi, i.sns)} ${formatValue(i.kpi, p.actual)} / ${formatValue(i.kpi, p.target)}` : null };
         }),
       kgiProgress: view.kgi && r?.kgi ? `${formatValue(r.kgi.kpi, view.kgi.actual)} / ${formatValue(r.kgi.kpi, view.kgi.target)}、残り ${view.kgi.daysLeft} 日` : null,
     },

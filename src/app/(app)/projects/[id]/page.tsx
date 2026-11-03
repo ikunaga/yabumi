@@ -26,7 +26,7 @@ import { currentStepIndex, STEPS } from "@/lib/projects/next-step";
 import { getProject } from "@/lib/projects/queries";
 import { loadStepStates } from "@/lib/projects/step-state";
 import { overdueItems } from "@/lib/roadmap/load";
-import { loadRoadmap, thisWeekTodos } from "@/lib/roadmap/queries";
+import { loadRoadmap, thisWeekCounts, thisWeekTodos } from "@/lib/roadmap/queries";
 import { itemProgress } from "@/lib/roadmap/schema";
 import { listProjectSnsAccounts } from "@/lib/sns/queries";
 import { createClient } from "@/lib/supabase/server";
@@ -72,6 +72,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
   ]);
   const stepState = stepStates[project.id];
   const stepIndex = currentStepIndex(stepState);
+  // 今週のまだのやること（数字で達成したものは済みと同じに数える。帯の先頭・件数・残りの一覧はどれもこれから）
   const todos = thisWeekTodos(roadmap);
   const now = new Date();
   const scheduled = upcoming.filter((p) => displayStatus(p) === "scheduled").slice(0, 3);
@@ -129,11 +130,11 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
         coachReady={stepState.planDone && stepIndex >= STEPS.length}
         todos={todos}
         progress={Object.fromEntries(todos.map((t) => [t.id, itemProgress(t, roadmap.daily)]))}
-        doneCount={roadmap.items.filter((i) => i.weekStart === roadmap.thisWeek && i.status === "done").length}
+        doneCount={thisWeekCounts(roadmap).finished}
         aiEnabled={aiConfigured()}
       />
 
-      <AttentionStrip projectId={project.id} failed={attention} overdue={overdue} manualDue={manualDue} overdueTodos={overdueItems(roadmap.items, roadmap.today)} />
+      <AttentionStrip projectId={project.id} failed={attention} overdue={overdue} manualDue={manualDue} overdueTodos={overdueItems(roadmap.items, roadmap.today, roadmap.daily)} />
 
       {/* スマホ（見本 D の右）: 大きな数字 1 つと 7 日の棒 */}
       <div className="sm:hidden">

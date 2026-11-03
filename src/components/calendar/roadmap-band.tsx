@@ -21,7 +21,7 @@ const GOAL_STATUS: Record<PaceStatus, { mark: string; className: string; label: 
 
 const noopSubscribe = () => () => {};
 
-const TODO_MARK: Record<CalendarTodo["status"], string> = { todo: "□", done: "✓", skipped: "–" };
+const TODO_MARK: Record<CalendarTodo["status"], string> = { todo: "□", done: "✓", achieved: "✓", skipped: "–" };
 
 // 週の目標（伴走の週の回数）: 「X 1 / 2・Instagram 0 / 1」
 function Goals({ goals, isThisWeek }: { goals: WeekGoal[]; isThisWeek: boolean }) {
@@ -84,10 +84,10 @@ export function TodoButton({ todo, base, variant = "band" }: { todo: CalendarTod
           variant === "day" ? "relative z-10 w-full px-1" : "px-1.5 py-px"
         } ${finished ? "border-line bg-surface2 text-muted" : "border-primary/30 bg-primary-soft text-primary hover:border-primary"}`}
       >
-        <span aria-hidden className={todo.status === "done" ? "font-bold text-success" : ""}>
+        <span aria-hidden className={todo.status === "done" || todo.status === "achieved" ? "font-bold text-success" : ""}>
           {TODO_MARK[todo.status]}
         </span>
-        <span className="sr-only">{todo.status === "done" ? "済み" : todo.status === "skipped" ? "やらない" : "やること"}:</span>
+        <span className="sr-only">{todo.status === "done" ? "済み" : todo.status === "achieved" ? "数字で達成" : todo.status === "skipped" ? "やらない" : "やること"}:</span>
         <span className={`truncate ${todo.status === "done" ? "line-through" : ""}`}>{todo.title}</span>
         {variant === "band" && todo.progress && <span className="shrink-0 text-muted">{todo.progress.replace(/（予約 \d+）/, "")}</span>}
         {todo.overdue && (

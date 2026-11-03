@@ -47,6 +47,6 @@ export async function planProgressByProject(projects: { id: string; target_audie
 export async function getPlanHints(projectId: string) {
   const p = await getAccountPlan(projectId);
   if (!p) return null;
-  const { items, tone, avoid } = p.plan.pillars;
-  return { pillars: items.filter((i) => i.name.trim()), tone, avoid };
+  const { items, tone, toneBySns, avoid } = p.plan.pillars;
+  return { pillars: items.filter((i) => i.name.trim()), tone, toneBySns, avoid };
 }

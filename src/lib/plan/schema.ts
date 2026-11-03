@@ -75,6 +75,14 @@ export const sectionSchemas = {
       .max(MAX_PILLARS, `柱は ${MAX_PILLARS} つまでです`)
       .default([]),
     tone: text(300),
+    // SNS ごとの口調（2026-11-03 オーナーの決定）。ない SNS・空の SNS は共通の口調（tone）を使う。前の版で保存したものは空。
+    // 知らない SNS と空の口調は読むときに捨てる（1 つの値のために柱のセクション全体を空にしない）
+    toneBySns: z
+      .preprocess(
+        (v) => (v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).filter(([k, t]) => (SNS_KEYS as string[]).includes(k) && typeof t === "string" && t.trim())) : v),
+        z.partialRecord(snsKeyEnum, text(300)),
+      )
+      .default({}),
     avoid: text(500),
   }),
   // ハッシュタグ（2026-10-20）。タグ（# なし）・どんな人が見ているか・なぜ使うか（why）・どの柱やネタのときに付けるか（when）。
@@ -229,7 +237,10 @@ function parseSectionFormAny(key: SectionKey, form: FormData) {
         // 使う SNS は pillar-<n>-sns（チップ。何も選ばなければすべての SNS）
         items.push({ name, share, example, sns: form.getAll(`pillar-${i}-sns`).map(String) });
       }
-      return sectionSchemas.pillars.safeParse({ items, tone: s("tone"), avoid: s("avoid") });
+      // SNS ごとの口調は tone-<SNS>。空欄は共通の口調を使う（保存しない）
+      const toneBySns: Partial<Record<SnsKey, string>> = {};
+      for (const sns of SNS_KEYS) if (s(`tone-${sns}`).trim()) toneBySns[sns] = s(`tone-${sns}`);
+      return sectionSchemas.pillars.safeParse({ items, tone: s("tone"), toneBySns, avoid: s("avoid") });
     }
     case "hashtags": {
       // 欄は hashtag-<n>-tag / why / when。タグが空の行は捨てる（理由だけ書いた行も、タグがなければ使えないため）

@@ -40,6 +40,7 @@ export function describeSection(key: SectionKey, value: SectionValue<SectionKey>
           .join("\n"),
       );
       add("口調", v.tone);
+      for (const sns of SNS_KEYS) add(`${SNS[sns].label} の口調`, v.toneBySns?.[sns]);
       add("やらないこと", v.avoid);
       break;
     }

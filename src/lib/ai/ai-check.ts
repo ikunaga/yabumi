@@ -2,7 +2,7 @@ import { actionFromLegacyGoal, type ProductType } from "@/lib/projects/product-t
 import { productLines, productTypeOf } from "./product-guide";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import { namedPillars, pillarPromptLines } from "@/lib/plan/pillars";
+import { namedPillars, pillarPromptLines, tonePromptLines } from "@/lib/plan/pillars";
 import { normalizePlan, type PlanData } from "@/lib/plan/schema";
 import { SNS, SNS_KEYS, displayLength, isSnsKey, type SnsKey } from "@/lib/sns";
 import type { Database } from "@/lib/supabase/database.types";
@@ -94,7 +94,7 @@ export type CheckContext = { projectName: string; plan: PlanData; productType?: 
 export function checkContextText(ctx: CheckContext): string {
   const lines = [`# プロジェクト: ${ctx.projectName}`, ...productLines({ productType: ctx.productType ?? "app", desiredAction: actionFromLegacyGoal(ctx.plan.goal.goalType) }), "# アカウント設計"];
   if (namedPillars(ctx.plan.pillars.items).length) lines.push(...pillarPromptLines(ctx.plan.pillars.items, ctx.sns ?? []));
-  lines.push(`口調: ${ctx.plan.pillars.tone.trim() || "（未設定。です・ます調か、くだけた口調かの一方にそろっていればよい）"}`);
+  lines.push(...tonePromptLines(ctx.plan.pillars, ctx.sns ?? [], "（未設定。です・ます調か、くだけた口調かの一方にそろっていればよい）"));
   lines.push(`やらないこと: ${ctx.plan.pillars.avoid.trim() || "（未設定）"}`);
   const tags = ctx.plan.hashtags.items;
   lines.push(

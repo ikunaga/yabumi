@@ -1,18 +1,24 @@
 import Link from "next/link";
-import { isSplitBySns, pillarsBySns, pillarSnsLabel, type Pillar } from "@/lib/plan/pillars";
-import { SNS, type SnsKey } from "@/lib/sns";
+import { hasToneBySns, isSplitBySns, pillarsBySns, pillarSnsLabel, type Pillar } from "@/lib/plan/pillars";
+import { SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
 
 export type PlanHintsData = {
   pillars: Pillar[];
   tone: string;
+  toneBySns: Partial<Record<SnsKey, string>>;
   avoid: string;
 };
 
 // 投稿を書くときの手がかり: アカウント設計の「投稿の柱」と「口調」を見返す。本文の欄を目立たせるため、閉じて置く（開けば見られる）。
-// 柱を SNS ごとに分けているときは、送り先（sns）に選んだ SNS ごとに、その SNS に付いた柱を出す（選んでいなければ、柱ごとに使う SNS を添える）
+// 柱を SNS ごとに分けているときは、送り先（sns）に選んだ SNS ごとに、その SNS に付いた柱を出す（選んでいなければ、柱ごとに使う SNS を添える）。
+// SNS ごとの口調があれば、その SNS の柱の下に出す（柱を分けていなければ、共通の口調の下に SNS ごとに）
 export function PlanHints({ projectId, hints, sns = [] }: { projectId: string; hints: PlanHintsData | null; sns?: SnsKey[] }) {
   const planHref = `/projects/${projectId}/plan`;
-  const empty = !hints || (hints.pillars.length === 0 && !hints.tone && !hints.avoid);
+  const toneBySns = hints?.toneBySns ?? {};
+  const empty = !hints || (hints.pillars.length === 0 && !hints.tone && !hasToneBySns({ toneBySns }) && !hints.avoid);
+  const bySnsView = Boolean(hints && hints.pillars.length > 0 && isSplitBySns(hints.pillars) && sns.length > 0);
+  // 共通の口調の下に出す SNS ごとの口調（SNS ごとにまとめて出すときは、そちらに出す）
+  const toneRows = bySnsView ? [] : SNS_KEYS.filter((k) => (sns.length === 0 || sns.includes(k)) && toneBySns[k]?.trim());
 
   return (
     <details className="group rounded-lg border border-border bg-surface text-sm">
@@ -37,12 +43,18 @@ export function PlanHints({ projectId, hints, sns = [] }: { projectId: string; h
         ) : (
           <>
             {hints.pillars.length > 0 &&
-              (isSplitBySns(hints.pillars) && sns.length > 0 ? (
+              (bySnsView ? (
                 <div className="flex flex-col gap-2">
                   {pillarsBySns(hints.pillars, sns).map(({ sns: k, pillars }) => (
                     <div key={k}>
                       <p className="text-xs font-bold text-muted">{SNS[k].label} の柱</p>
                       {pillars.length ? <PillarList pillars={pillars} /> : <p className="text-muted">この SNS に付いた柱はありません。</p>}
+                      {toneBySns[k]?.trim() && (
+                        <p>
+                          <span className="text-muted">口調: </span>
+                          {toneBySns[k]}
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -51,10 +63,16 @@ export function PlanHints({ projectId, hints, sns = [] }: { projectId: string; h
               ))}
             {hints.tone && (
               <p>
-                <span className="text-muted">口調: </span>
+                <span className="text-muted">{hasToneBySns({ toneBySns }) ? "口調（共通）: " : "口調: "}</span>
                 {hints.tone}
               </p>
             )}
+            {toneRows.map((k) => (
+              <p key={k}>
+                <span className="text-muted">{SNS[k].label} の口調: </span>
+                {toneBySns[k]}
+              </p>
+            ))}
             {hints.avoid && (
               <p>
                 <span className="text-muted">やらないこと: </span>

@@ -1,6 +1,7 @@
 import { KPIS } from "@/lib/metrics/kpis";
 import { SNS, SNS_KEYS } from "@/lib/sns";
 import { DESIRED_ACTION_DEFS, actionFromLegacyGoal, type DesiredAction } from "@/lib/projects/product-types";
+import { isSplitBySns, pillarSnsLabel } from "./pillars";
 import type { PlanData, SectionKey, SectionValue } from "./schema";
 
 const OWNERSHIP_LABEL = { personal: "個人のアカウントを使う", dedicated: "専用のアカウントを作る", undecided: "まだ決めていない" } as const;
@@ -30,9 +31,13 @@ export function describeSection(key: SectionKey, value: SectionValue<SectionKey>
     }
     case "pillars": {
       const v = value as PlanData["pillars"];
+      // SNS ごとに分けているときは、柱ごとに使う SNS を添える
+      const split = isSplitBySns(v.items);
       add(
         "投稿の柱",
-        v.items.map((i) => `・${i.name}${i.share !== null ? `（${i.share}%）` : ""}${i.example ? ` 例: ${i.example}` : ""}`).join("\n"),
+        v.items
+          .map((i) => `・${i.name}${i.share !== null ? `（${i.share}%）` : ""}${split ? `［${pillarSnsLabel(i)}］` : ""}${i.example ? ` 例: ${i.example}` : ""}`)
+          .join("\n"),
       );
       add("口調", v.tone);
       add("やらないこと", v.avoid);

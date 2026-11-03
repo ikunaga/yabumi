@@ -4,6 +4,7 @@ import type { CommitDigest, ReadCommitsResult } from "@/lib/github/commit-reader
 import { readableRepoLink } from "@/lib/github/installations";
 import { copyNoteImagesToPost, markNotesUsed } from "@/lib/notes/store";
 import { MAX_NOTES_FOR_IDEAS } from "@/lib/notes/rules";
+import { ideaPillarAllows, pillarPromptLines, type Pillar } from "@/lib/plan/pillars";
 import { normalizePlan, type PlanData } from "@/lib/plan/schema";
 import { SNS, SNS_KEYS, isManualSns, type SnsKey } from "@/lib/sns";
 import { HASHTAG_RULES, tidyDraftHashtags } from "@/lib/sns/hashtags";
@@ -116,6 +117,7 @@ ${DATA_RULES}
 # ネタの出し方
 - ネタは 3〜${MAX_IDEAS} 個。似たネタを並べず、できるだけ別々の投稿の柱から選ぶ
 - 投稿の柱は、アカウント設計の柱の名前をそのまま pillar に書く。柱の割合が決まっていれば、割合の大きい柱を多めにする。柱が決まっていなければ、「# プロジェクト」の「この種類の投稿の柱の例」から短い名前を付ける
+- 柱が SNS ごとに決まっているときは、そのネタの柱が付いた SNS にだけ下書きを書く（付いていない SNS の下書きは書かない）。ネタは、下書きを書く SNS のどれかに付いた柱から選ぶ
 - angle には、なぜこのネタがよいか（届けたい相手に何が伝わるか）を、素人にもわかる言葉で書く
 - 材料がコミットのとき: 関係するコミットはまとめて 1 つのネタにしてよい。誤字の修正、依存の更新、書式の整理のような小さなコミットは、それだけではネタにしない。commits には、元にしたコミットの sha と、どんな変更かを素人にもわかる言葉で 1 文。<commits> にない sha は書かない
 - 材料が最近のできごとのとき: 利用者が書いたことを、投稿になる形に広げる。書かれていないできごとは足さない。commits は空にする
@@ -181,12 +183,8 @@ export function ideaContextText(ctx: IdeaContext): string {
   if (plan.goal.what.trim()) lines.push(`SNS で広めたいこと: ${plan.goal.what.trim()}`);
 
   lines.push("", "# アカウント設計（投稿の柱・口調・やらないこと）");
-  const pillars = plan.pillars.items.filter((p) => p.name.trim());
-  if (pillars.length) {
-    for (const p of pillars) lines.push(`- 柱「${p.name.trim()}」${p.share !== null ? `（${p.share}%）` : ""}${p.example.trim() ? ` 例: ${p.example.trim()}` : ""}`);
-  } else {
-    lines.push("投稿の柱はまだ決まっていません。");
-  }
+  // 送り先の SNS に付いた柱だけ（SNS ごとに分けていれば SNS ごとに。src/lib/plan/pillars.ts）
+  lines.push(...pillarPromptLines(plan.pillars.items, ctx.sns));
   lines.push(`口調: ${plan.pillars.tone.trim() || "（未設定）"}`);
   lines.push(`やらないこと: ${plan.pillars.avoid.trim() || "（未設定）"}`);
   lines.push(...hashtagLines(plan));
@@ -290,7 +288,7 @@ const cap = (s: string, n: number) => {
 // hashtags: アカウント設計で選んだタグ（# なし）。下書きのタグはこの中のもの・SNS の上限までにする（AI が指示を守らなかったとき用）
 export function normalizeIdeas(
   raw: unknown,
-  opts: { knownShas: string[]; sns: SnsKey[]; noteCount?: number; hashtags?: string[] },
+  opts: { knownShas: string[]; sns: SnsKey[]; noteCount?: number; hashtags?: string[]; pillars?: readonly Pillar[] },
 ): { ideas: PostIdea[]; questions: IdeaQuestion[] } | null {
   // notes は材料がネタ帳のときのために足した欄。なくても読む（前の版の返事と、ほかの材料）
   const withNotes =
@@ -310,6 +308,8 @@ export function normalizeIdeas(
     const drafts: PostIdea["drafts"] = [];
     for (const sns of SNS_KEYS) {
       if (!opts.sns.includes(sns)) continue;
+      // 柱が SNS ごとに決まっていれば、その柱が付いていない SNS の下書きは捨てる（AI が指示を守らなかったとき用）
+      if (opts.pillars && !ideaPillarAllows(opts.pillars, i.pillar, sns)) continue;
       const d = i.drafts.find((x) => x.sns === sns && x.text.trim());
       const text = d ? cap(tidyDraftHashtags(d.text, opts.hashtags ?? [], sns), 3000) : "";
       if (text) drafts.push({ sns, text });
@@ -471,7 +471,7 @@ export async function generatePostIdeas(
     console.error("[post-ideas] AI の呼び出しに失敗しました", e instanceof Error ? e.message : e);
     return { ok: false, message: aiFailureMessage(e, AI_ERROR) };
   }
-  const first = result.stopReason === "end_turn" ? normalizeIdeas(result.output, { knownShas, sns, noteCount: notes.length, hashtags: planTags(ctx.plan) }) : null;
+  const first = result.stopReason === "end_turn" ? normalizeIdeas(result.output, { knownShas, sns, noteCount: notes.length, hashtags: planTags(ctx.plan), pillars: ctx.plan.pillars.items }) : null;
   const shortened = first ? await shortenIdeas(deps.callShorten, first, planTags(ctx.plan)) : null;
   const normalized = shortened?.value ?? null;
   if (!normalized) {
@@ -566,7 +566,7 @@ export async function refinePostIdeas(
   }
   await recordUsage(admin, args.userId, args.threadId, result);
   const knownShas = [...new Set(thread.latest.content.ideas.flatMap((i) => i.commits.map((c) => c.sha)))];
-  const first = result.stopReason === "end_turn" ? normalizeIdeas(result.output, { knownShas, sns: thread.request.sns, noteCount: thread.request.notes?.length ?? 0, hashtags: planTags(ctx.plan) }) : null;
+  const first = result.stopReason === "end_turn" ? normalizeIdeas(result.output, { knownShas, sns: thread.request.sns, noteCount: thread.request.notes?.length ?? 0, hashtags: planTags(ctx.plan), pillars: ctx.plan.pillars.items }) : null;
   const shortened = first ? await shortenIdeas(deps.callShorten, first, planTags(ctx.plan)) : null;
   if (shortened?.result) await recordUsage(admin, args.userId, args.threadId, shortened.result);
   const normalized = shortened?.value ?? null;

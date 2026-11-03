@@ -33,8 +33,8 @@ describe("アカウント設計のデータ", () => {
       form({ "pillar-0-name": "お金のコツ", "pillar-0-share": "40", "pillar-2-name": "開発の裏側", tone: "です・ます" }),
     );
     expect(r.success && r.data.items).toEqual([
-      { name: "お金のコツ", share: 40, example: "" },
-      { name: "開発の裏側", share: null, example: "" },
+      { name: "お金のコツ", share: 40, example: "", sns: [] },
+      { name: "開発の裏側", share: null, example: "", sns: [] },
     ]);
   });
 

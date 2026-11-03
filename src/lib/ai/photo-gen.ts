@@ -1,3 +1,4 @@
+import type { SnsKey } from "@/lib/sns";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizePlan } from "@/lib/plan/schema";
 import { InvalidImageError, sanitizeJpeg } from "@/lib/media/jpeg";
@@ -74,7 +75,8 @@ export async function runPhotoIdeas(
   user: Db,
   admin: Db,
   deps: { callIdeas: CallPhotoIdeas; limits: AiLimits; now?: () => Date },
-  args: { userId: string; projectId: string; text: string },
+  // sns: 送り先の SNS（投稿の柱は、この SNS に付いたものだけを材料にする）
+  args: { userId: string; projectId: string; text: string; sns?: SnsKey[] },
 ): Promise<IdeasOutcome> {
   const text = args.text.trim();
   if (!text) return { ok: false, message: "投稿の本文を書いてから押してください。絵の説明は本文から考えます。" };
@@ -89,7 +91,10 @@ export async function runPhotoIdeas(
   let r: ModelOutput;
   try {
     r = await deps.callIdeas(
-      buildPhotoIdeasRequest({ projectName: project.name, plan: normalizePlan(planRow?.data, project.target_audience ?? ""), productType: productTypeOf(project.product_type) }, text),
+      buildPhotoIdeasRequest(
+        { projectName: project.name, plan: normalizePlan(planRow?.data, project.target_audience ?? ""), productType: productTypeOf(project.product_type), sns: args.sns },
+        text,
+      ),
     );
   } catch (e) {
     console.error("[photo-ideas] AI の呼び出しに失敗しました", e instanceof Error ? e.message : e);

@@ -902,7 +902,7 @@ export function PostComposer({
 
           {/* 書くときの手伝い。使わなくても送れるので、閉じて控えめに置く */}
           <section aria-label="書くときの手伝い（使わなくても送れます）" className="flex flex-col gap-2">
-            <PlanHints projectId={projectId} hints={planHints} />
+            <PlanHints projectId={projectId} hints={planHints} sns={chosen} />
             <AiCheckPanel
               key={resetRound}
               projectId={projectId}

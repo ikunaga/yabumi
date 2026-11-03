@@ -77,7 +77,7 @@ export const CONSULT_SYSTEM = `あなたは「yabumi」の中で、宣伝した�
 
 # 提案の中身の形（value_json）
 - plan_section: {"section": "goal" | "audience" | "pillars" | "hashtags" | "ownership" | "profile" | "cadence" | "first_month", "value": （そのセクションの形）}
-  - セクションの形は、アカウント設計と同じ: goal {"what","goalType","note"}、audience {"who","pain","where"}、pillars {"items":[{"name","share","example"}],"tone","avoid"}、hashtags {"items":[{"tag","why","when"}]}（tag は # なしで空白や記号を入れない。why はどんな人が見ているか・なぜ使うか、when はどの柱・どんなネタのときに付けるか。3〜6 個。届けたい相手が見ている言葉にし、人が多すぎて埋もれるタグ・だれも見ていないタグ・宣伝のためだけのタグは避ける）、ownership {"mode","reason"}、profile {"displayName","handle","handleBackups","bio","link","bySns":{"x":{"displayName","handle","bio","link"}, ...}}（bySns は SNS ごとに変えるものだけ。空の項目は共通を使う。Threads の handle は、ふつう Instagram と同じなので入れない）、cadence {"frequency","roles":[{"sns","role"}]}、first_month {"goal","metrics","kpis":[...],"weekly":{"x":2,"instagram":1}}（weekly は SNS ごとの週の投稿の回数。伴走が見張る数字。直すときは今の値を基に）
+  - セクションの形は、アカウント設計と同じ: goal {"what","goalType","note"}、audience {"who","pain","where"}、pillars {"items":[{"name","share","example","sns":[...]}],"tone","avoid"}（sns はその柱を使う SNS。空ならすべての SNS。割合は SNS ごとに、その SNS に付いた柱の中で数える）、hashtags {"items":[{"tag","why","when"}]}（tag は # なしで空白や記号を入れない。why はどんな人が見ているか・なぜ使うか、when はどの柱・どんなネタのときに付けるか。3〜6 個。届けたい相手が見ている言葉にし、人が多すぎて埋もれるタグ・だれも見ていないタグ・宣伝のためだけのタグは避ける）、ownership {"mode","reason"}、profile {"displayName","handle","handleBackups","bio","link","bySns":{"x":{"displayName","handle","bio","link"}, ...}}（bySns は SNS ごとに変えるものだけ。空の項目は共通を使う。Threads の handle は、ふつう Instagram と同じなので入れない）、cadence {"frequency","roles":[{"sns","role"}]}、first_month {"goal","metrics","kpis":[...],"weekly":{"x":2,"instagram":1}}（weekly は SNS ごとの週の投稿の回数。伴走が見張る数字。直すときは今の値を基に）
   - 直すセクション全体を入れる（直さない項目は今の値のまま）。1 つの提案の案は、どれも同じセクション
 - kgi: {"kgi": {"statement": "一文の目標", "kpi": 数字の名前, "target": 目標の値（数）, "deadline": "YYYY-MM-DD", "sns": SNS の名前 または null}}
   - deadline は「いまの状況」の今日の日付から数えて決める
@@ -86,7 +86,7 @@ export const CONSULT_SYSTEM = `あなたは「yabumi」の中で、宣伝した�
 - sns（kgi・kpi_targets・roadmap_items）: 数える SNS。kpi が posts のときだけ入れられる（ほかの数字は null）。「Instagram に 1 本」のように SNS を決めた投稿は、その SNS（例: "instagram"）。null は、すべての SNS の合計で数える。SNS の名前: x、threads、instagram、facebook、tiktok、youtube、note、substack
 - post_draft: {"sns": "x" | "threads" | "instagram" | "facebook" | "note" | "substack" | null, "text": "投稿の本文"}
   - ハッシュタグは、アカウント設計の hashtags の中から、そのネタに合うもの（when に当てはまるもの）だけを本文の最後に付ける。合うものがなければ付けない。毎回同じタグを決まりのように付けない。設計にないタグを作らない。設計でハッシュタグが決まっていなければ付けない。1 投稿の数は X 1〜2 個、Threads 1 つ、Instagram 5 個まで、Facebook 1〜2 個まで
-  - 本文は相手の口調と投稿の柱に合わせる。相手しか知らない事実（数字、できごと、商品やメニュー・機能の名前など）は作らず、【何を作ったか】のように【】で囲んで、相手が書き換える印にする
+  - 本文は相手の口調と投稿の柱に合わせる。柱を SNS ごとに使い分けている（pillars の items に sns がある）ときは、その SNS に付いた柱だけに合わせる。相手しか知らない事実（数字、できごと、商品やメニュー・機能の名前など）は作らず、【何を作ったか】のように【】で囲んで、相手が書き換える印にする
 - 数字の名前: posts=投稿した回数、link_clicks=短縮リンクから行き先（予約・お店・ストアのページなど）へのクリック、views=投稿の閲覧数、followers=フォロワーの増え方、store_page_views=アプリのストアのページの閲覧、downloads=アプリのダウンロード、revenue=アプリの課金（売上。円）。store_page_views・downloads・revenue は、種類がアプリのときだけ使う
 `;
 

@@ -59,7 +59,19 @@ export const sectionSchemas = {
   }),
   pillars: z.object({
     items: z
-      .array(z.object({ name: text(50), share: z.number(SHARE).int(SHARE).min(0, SHARE).max(100, SHARE).nullable().default(null), example: text(200) }))
+      .array(
+        z.object({
+          name: text(50),
+          share: z.number(SHARE).int(SHARE).min(0, SHARE).max(100, SHARE).nullable().default(null),
+          example: text(200),
+          // この柱を使う SNS（2026-11-03 オーナーの要望）。空は「すべての SNS」。前の版で保存したもの（sns なし）も空として読む。
+          // 割合は SNS ごとに、その SNS に付いた柱の中で数える（src/lib/plan/pillars.ts）
+          // 知らない SNS は捨てて読む（1 つの値のために柱のセクション全体を空にしない）。並びは SNS_KEYS の順にそろえる
+          sns: z
+            .preprocess((v) => (Array.isArray(v) ? SNS_KEYS.filter((k) => v.includes(k)) : v), z.array(snsKeyEnum, CHOICE))
+            .default([]),
+        }),
+      )
       .max(MAX_PILLARS, `柱は ${MAX_PILLARS} つまでです`)
       .default([]),
     tone: text(300),
@@ -214,7 +226,8 @@ function parseSectionFormAny(key: SectionKey, form: FormData) {
         if (!name.trim() && !shareRaw && !example.trim()) continue;
         // 数として読めない割合は -1 にして、検証で弾く
         const share = shareRaw === "" ? null : Number.isFinite(Number(shareRaw)) ? Number(shareRaw) : -1;
-        items.push({ name, share, example });
+        // 使う SNS は pillar-<n>-sns（チップ。何も選ばなければすべての SNS）
+        items.push({ name, share, example, sns: form.getAll(`pillar-${i}-sns`).map(String) });
       }
       return sectionSchemas.pillars.safeParse({ items, tone: s("tone"), avoid: s("avoid") });
     }

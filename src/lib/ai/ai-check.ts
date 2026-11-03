@@ -2,6 +2,7 @@ import { actionFromLegacyGoal, type ProductType } from "@/lib/projects/product-t
 import { productLines, productTypeOf } from "./product-guide";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import { namedPillars, pillarPromptLines } from "@/lib/plan/pillars";
 import { normalizePlan, type PlanData } from "@/lib/plan/schema";
 import { SNS, SNS_KEYS, displayLength, isSnsKey, type SnsKey } from "@/lib/sns";
 import type { Database } from "@/lib/supabase/database.types";
@@ -87,12 +88,12 @@ ${LENGTH_RULES}`;
 
 const escapeData = (s: string) => s.replace(/<(\/?)(post)\b/gi, "<$1$2_");
 
-export type CheckContext = { projectName: string; plan: PlanData; productType?: ProductType };
+// sns: 送り先の SNS（投稿の柱は、この SNS に付いたものだけを出す。空・なしならすべての柱を、使う SNS を添えて）
+export type CheckContext = { projectName: string; plan: PlanData; productType?: ProductType; sns?: SnsKey[] };
 
 export function checkContextText(ctx: CheckContext): string {
   const lines = [`# プロジェクト: ${ctx.projectName}`, ...productLines({ productType: ctx.productType ?? "app", desiredAction: actionFromLegacyGoal(ctx.plan.goal.goalType) }), "# アカウント設計"];
-  const pillars = ctx.plan.pillars.items.filter((p) => p.name.trim());
-  if (pillars.length) lines.push(`投稿の柱: ${pillars.map((p) => p.name.trim()).join("、")}`);
+  if (namedPillars(ctx.plan.pillars.items).length) lines.push(...pillarPromptLines(ctx.plan.pillars.items, ctx.sns ?? []));
   lines.push(`口調: ${ctx.plan.pillars.tone.trim() || "（未設定。です・ます調か、くだけた口調かの一方にそろっていればよい）"}`);
   lines.push(`やらないこと: ${ctx.plan.pillars.avoid.trim() || "（未設定）"}`);
   const tags = ctx.plan.hashtags.items;
@@ -182,7 +183,10 @@ export async function runAiCheck(
 
   let r: ModelOutput;
   try {
-    r = await deps.callCheck(buildAiCheckRequest({ projectName: project.name, plan: normalizePlan(planRow?.data, project.target_audience ?? ""), productType: productTypeOf(project.product_type) }, texts));
+    r = await deps.callCheck(buildAiCheckRequest(
+        { projectName: project.name, plan: normalizePlan(planRow?.data, project.target_audience ?? ""), productType: productTypeOf(project.product_type), sns: texts.map((t) => t.sns) },
+        texts,
+      ));
   } catch (e) {
     console.error("[ai-check] AI の呼び出しに失敗しました", e instanceof Error ? e.message : e);
     return { ok: false, message: aiFailureMessage(e, "AI とのやりとりがうまくいきませんでした。時間をおいてもう一度お試しください。") };

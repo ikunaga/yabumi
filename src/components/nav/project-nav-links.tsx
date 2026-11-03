@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useSelectedLayoutSegment } from "next/navigation";
 import { type MouseEvent, useEffect, useRef, useState } from "react";
 import { DismissableDetails } from "@/components/ui/dismissable-details";
-import { activeNavKey, type ProjectNavItem, type ProjectNavKey, projectNavItems } from "./project-nav-items";
+import { activeNavKey, GLOSSARY_NAV, type ProjectNavItem, type ProjectNavKey, projectNavItems } from "./project-nav-items";
 
 // プロジェクト内のメニュー。開いている画面を URL から判定して選択中にする。
 // bar: PC の上の横並び（5 つ ＋「…」その他）。tabs: スマホの下のタブ（5 つ）
@@ -122,6 +122,13 @@ function MoreMenu({ items, active, onPress }: { items: ProjectNavItem[]; active:
             </li>
           ))}
         </ul>
+        {/* プロジェクトの外の画面（用語集）。区切ってから置く */}
+        <div className="mt-1 border-t border-line pt-1">
+          <Link href={GLOSSARY_NAV.href} className="flex items-baseline justify-between gap-3 px-4 py-2.5 hover:bg-subtle hover:no-underline">
+            {GLOSSARY_NAV.barLabel}
+            <span className="text-[12px] font-normal text-muted">{GLOSSARY_NAV.label}</span>
+          </Link>
+        </div>
       </div>
     </DismissableDetails>
   );

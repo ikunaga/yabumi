@@ -3,8 +3,9 @@ import { DismissableDetails } from "@/components/ui/dismissable-details";
 import { logout } from "@/lib/auth/actions";
 import { LogoutForm } from "@/components/notes/draft-owner";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { GLOSSARY_NAV } from "./project-nav-items";
 
-// プロジェクトの外の上部バー（TopBar）の、スマホの「メニュー」。ログインと退会・ログアウトをまとめる
+// プロジェクトの外の上部バー（TopBar）の、スマホの「メニュー」。用語集・ログインと退会・ログアウトをまとめる
 // （320px の幅で、ロゴ・ダーク・メニューを 1 行に収めるため。PC ではメールアドレスとログアウトを並べる）
 export function TopBarMenu({ email }: { email: string }) {
   return (
@@ -14,6 +15,9 @@ export function TopBarMenu({ email }: { email: string }) {
         メニュー
       </summary>
       <div className="absolute right-0 z-20 mt-2 w-64 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-border bg-surface py-1 text-sm text-fg shadow-pop">
+        <Link href={GLOSSARY_NAV.href} className="block border-b border-line px-4 py-3 hover:bg-primary-soft hover:no-underline">
+          {GLOSSARY_NAV.label}
+        </Link>
         <Link href="/settings" className="block px-4 py-3 hover:bg-primary-soft hover:no-underline">
           ログインと退会
           <span className="block truncate text-xs text-muted">{email}</span>

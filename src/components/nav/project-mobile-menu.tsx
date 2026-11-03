@@ -8,7 +8,7 @@ import { DismissableDetails } from "@/components/ui/dismissable-details";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { logout } from "@/lib/auth/actions";
 import { LogoutForm } from "@/components/notes/draft-owner";
-import { activeNavKey, projectNavItems } from "./project-nav-items";
+import { activeNavKey, GLOSSARY_NAV, projectNavItems } from "./project-nav-items";
 import { SubmitButton } from "@/components/ui/submit-button";
 
 // スマホのヘッダーの「メニュー」。下のタブに入らない画面（アカウント設計・リンク・ロードマップ）と、アカウント・ログアウトへの入口。
@@ -60,6 +60,12 @@ export function ProjectMobileMenu({ projectId, email, projects }: { projectId: s
             )}
           </ul>
         </nav>
+        {/* プロジェクトの外の画面（用語集）。区切ってから置く */}
+        <div className="mt-1 border-t border-line pt-1">
+          <Link href={GLOSSARY_NAV.href} className="block px-4 py-3 hover:bg-primary-soft hover:no-underline">
+            {GLOSSARY_NAV.label}
+          </Link>
+        </div>
         <div className="mt-1 border-t border-line pt-1">
           <ThemeToggle tone="menu" />
           <Link href="/settings" className="block px-4 py-3 hover:bg-primary-soft hover:no-underline">

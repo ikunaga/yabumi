@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { glossary, termTitle, type GlossaryKey, type GlossaryTerm } from "@/lib/glossary/terms";
+import { glossary, glossaryHref, termTitle, type GlossaryKey, type GlossaryTerm } from "@/lib/glossary/terms";
 
 const POP_WIDTH = 320;
 const GAP = 8;
@@ -119,10 +119,10 @@ function TermBody({ k, term, popoverId }: { k: GlossaryKey; term: GlossaryTerm; 
       </span>
       <span className="text-sm leading-[1.8] max-sm:text-base">{body}</span>
       <Link
-        href={`/glossary#${k}`}
+        href={glossaryHref(k)}
         className="text-xs text-pop-link hover:underline max-sm:mt-1 max-sm:flex max-sm:h-12 max-sm:items-center max-sm:justify-center max-sm:rounded-md max-sm:border max-sm:border-primary max-sm:text-base max-sm:font-semibold max-sm:text-primary max-sm:hover:no-underline"
       >
-        用語集で見る<span className="max-sm:hidden"> →</span>
+        用語集でくわしく見る<span className="max-sm:hidden"> →</span>
       </Link>
     </div>
   );

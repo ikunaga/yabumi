@@ -41,6 +41,7 @@
   --info: #0f7fff;             /* 情報・グラフの主の色 */
   --info-soft: #ebf3fe;
   --rule: #f0f0f2;             /* 画像を置く欄の斜めの縞 */
+  --illust: #f6f0e4;           /* 用語集の挿絵の枠（生成り。4.45） */
   /* 上の帯（メニュー） */
   --nav: #e9e9eb;              /* 上の帯は灰（見本の bg-subtle を地より一段濃く） */
   --nav-fg: #606366;
@@ -95,6 +96,7 @@
     --info: #60a5fa;
     --info-soft: #172a45;
     --rule: #252627;
+    --illust: #2b2925;
     --nav: #232425;
     --nav-fg: #b8bbbf;
     --nav-active: #303133;
@@ -145,6 +147,7 @@
   --info: #60a5fa;
   --info-soft: #172a45;
   --rule: #252627;
+  --illust: #2b2925;
   --nav: #232425;
   --nav-fg: #b8bbbf;
   --nav-active: #303133;
@@ -194,6 +197,7 @@
   --color-info: var(--info);
   --color-info-soft: var(--info-soft);
   --color-rule: var(--rule);
+  --color-illust: var(--illust);
   --color-nav: var(--nav);
   --color-nav-fg: var(--nav-fg);
   --color-nav-active: var(--nav-active);

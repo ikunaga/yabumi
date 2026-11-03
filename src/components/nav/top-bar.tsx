@@ -4,6 +4,7 @@ import { Brand } from "@/components/brand";
 import { QuickNoteEntry } from "@/components/notes/quick-note-entry";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { AccountMenu } from "./account-menu";
+import { GLOSSARY_NAV } from "./project-nav-items";
 import { TopBarMenu } from "./top-bar-menu";
 
 // プロジェクト一覧・作成画面の上部バー（高さ 56、白地。プロジェクトの中の上の帯と揃える）
@@ -12,6 +13,7 @@ export function TopBar({
   crumb,
   mobileBack,
   quickNote = true,
+  glossary = false,
 }: {
   email: string;
   crumb?: ReactNode;
@@ -19,6 +21,8 @@ export function TopBar({
   mobileBack?: { href: string; title: string };
   // ネタ帳の「＋ メモ」を出すか（メモを書く画面そのものでは出さない）
   quickNote?: boolean;
+  // 用語集を開いているか（上の帯の「Glossary」を選んだ印にする）
+  glossary?: boolean;
 }) {
   return (
     <header className="border-b border-border bg-nav">
@@ -32,6 +36,15 @@ export function TopBar({
           )}
         </nav>
         <div className="ml-auto flex min-w-0 items-center gap-3 text-sm text-muted max-sm:gap-4">
+          {/* 用語集（4.45）。スマホは「メニュー」の中 */}
+          <Link
+            href={GLOSSARY_NAV.href}
+            aria-current={glossary ? "page" : undefined}
+            title={GLOSSARY_NAV.label}
+            className="rounded-md px-3 py-1.5 text-[15px] font-semibold whitespace-nowrap text-muted hover:bg-nav-active hover:text-fg hover:no-underline aria-[current=page]:font-bold aria-[current=page]:text-fg max-sm:hidden"
+          >
+            {GLOSSARY_NAV.barLabel}
+          </Link>
           {quickNote && <QuickNoteEntry />}
           <span className="max-sm:hidden">
             <AccountMenu email={email} />

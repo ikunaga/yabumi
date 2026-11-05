@@ -2,6 +2,10 @@
 import { describe, expect, it } from "vitest";
 import {
   ASPECT_PRESETS,
+  aspectWarnings,
+  bulkRatio,
+  bulkTargets,
+  canMatchFirst,
   carouselMismatches,
   cropAxis,
   cropOutput,
@@ -15,7 +19,9 @@ import {
   phoneScreenRatio,
   presetRatio,
   ratioLabel,
+  sameRatio,
   suggestAspect,
+  defaultBulkAspect,
 } from "@/lib/media/aspect";
 import { TEMPLATE_SIZES, type DrawOp } from "@/lib/media/templates";
 import { phoneFrameOps } from "@/lib/media/phone-frame";
@@ -195,5 +201,80 @@ describe("カルーセル（2 枚目からは 1 枚目の比率で切られる�
         { width: 1600, height: 900 },
       ]),
     ).toEqual([2, 3]);
+  });
+});
+
+describe("まとめて整える（合わない画像だけを同じ枠に）", () => {
+  const FEED = { width: 1080, height: 1350 }; // 4:5
+  const SQUARE = { width: 1080, height: 1080 };
+  const WIDE = { width: 1600, height: 900 }; // 16:9（範囲の中）
+  const SHOT = { width: IPHONE.w, height: IPHONE.h }; // 範囲の外
+  const PANO = { width: PANORAMA.w, height: PANORAMA.h }; // 範囲の外
+
+  it("注意の出る画像は、範囲の外と、1 枚目と違うものを合わせたもの（重ねて数えない）", () => {
+    expect(aspectWarnings([FEED])).toEqual([]);
+    expect(aspectWarnings([SHOT])).toEqual([0]);
+    expect(aspectWarnings([FEED, SHOT, FEED, PANO])).toEqual([1, 3]);
+    expect(aspectWarnings([SHOT, SHOT])).toEqual([0, 1]);
+    expect(aspectWarnings([FEED, SQUARE, WIDE])).toEqual([1, 2]);
+  });
+
+  it("1 枚目に合わせられるのは、2 枚以上で 1 枚目が範囲の中のとき。だめなら初めは 4:5", () => {
+    expect(canMatchFirst([FEED])).toBe(false);
+    expect(canMatchFirst([SQUARE, SHOT])).toBe(true);
+    expect(canMatchFirst([SHOT, FEED])).toBe(false);
+    expect(defaultBulkAspect([SQUARE, SHOT])).toBe("first");
+    expect(defaultBulkAspect([SHOT, SQUARE])).toBe("4:5");
+    expect(bulkRatio("first", [SQUARE, SHOT])).toBe(1);
+    expect(bulkRatio("first", [SHOT, SQUARE])).toBeNull();
+    expect(bulkRatio("1.91:1", [SHOT, SQUARE])).toBe(presetRatio("1.91:1"));
+  });
+
+  it("対象は、選んだ枠に合っていない画像だけ", () => {
+    const sizes = [FEED, SHOT, { width: 2160, height: 2700 }, PANO, SQUARE];
+    expect(bulkTargets(sizes, bulkRatio("first", sizes)!)).toEqual([1, 3, 4]);
+    // 1 枚目と違う枠を選んだら、1 枚目も整える（そうしないとカルーセルの注意が残る）
+    expect(bulkTargets(sizes, presetRatio("1:1"))).toEqual([0, 1, 2, 3]);
+  });
+
+  it("端数の丸めは同じ比率とみなす（1% まで）", () => {
+    expect(sameRatio({ width: 1637, height: 2048 }, 4 / 5)).toBe(true);
+    expect(sameRatio({ width: 1080, height: 1080 }, 4 / 5)).toBe(false);
+  });
+
+  // 整えたあとの大きさは aspect-render.ts と同じ計算（切り取る＝cropOutput、余白＝padLayout、スマホの枠＝phoneFrameLayout）
+  const after = {
+    crop: (s: { width: number; height: number }, r: number) => {
+      const o = cropOutput(s.width, s.height, r);
+      return { width: o.w, height: o.h };
+    },
+    pad: (s: { width: number; height: number }, r: number) => {
+      const o = padLayout(s.width, s.height, r);
+      return { width: o.w, height: o.h };
+    },
+    phone: (s: { width: number; height: number }, r: number) => {
+      const o = phoneFrameLayout(s.width, s.height, r, phoneOrientation(s.width, s.height));
+      return { width: o.w, height: o.h };
+    },
+  };
+
+  it("どの枠・整え方でも、整えたあとは注意が消える", () => {
+    const cases = [
+      [FEED, SHOT, PANO, SQUARE],
+      [SHOT, PANO, WIDE],
+      [SQUARE, { width: 3000, height: 4000 }, { width: 4032, height: 3024 }],
+    ];
+    for (const sizes of cases) {
+      for (const choice of ["first", ...ASPECT_PRESETS.map((p) => p.key)] as const) {
+        const ratio = bulkRatio(choice, sizes);
+        if (ratio === null) continue;
+        for (const mode of ["crop", "pad", "phone"] as const) {
+          const targets = bulkTargets(sizes, ratio);
+          const fixed = sizes.map((s, i) => (targets.includes(i) ? after[mode](s, ratio) : s));
+          expect(aspectWarnings(fixed), `${choice} ${mode}`).toEqual([]);
+          expect(bulkTargets(fixed, ratio)).toEqual([]);
+        }
+      }
+    }
   });
 });

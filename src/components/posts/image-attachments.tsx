@@ -8,9 +8,11 @@ import { Term } from "@/components/ui/term";
 import { discardImage } from "@/lib/media/actions";
 import { uploadImageFile, uploadJpeg } from "@/lib/media/client-upload";
 import { MAX_ALT_LENGTH, MAX_IMAGES_PER_POST, formatBytes } from "@/lib/media/rules";
-import { carouselMismatches, instagramRatioOk, ratioLabel } from "@/lib/media/aspect";
-import { renderCrop } from "@/lib/media/aspect-render";
+import { aspectWarnings, carouselMismatches, instagramRatioOk, phoneOrientation, ratioLabel } from "@/lib/media/aspect";
+import { renderAspect } from "@/lib/media/aspect-render";
 import { canvasToJpeg } from "@/lib/media/template-render";
+import { ImageNumbers, loadBitmap } from "./aspect-options";
+import type { BulkAspectOptions } from "./image-aspect-bulk";
 
 import type { ImageMakerProps } from "./image-maker";
 import { AiBadge } from "./ai-badge";
@@ -19,6 +21,11 @@ import { AiBadge } from "./ai-badge";
 const ImageAspectEditor = dynamic(() => import("./image-aspect-editor").then((m) => m.ImageAspectEditor), {
   ssr: false,
   loading: () => <p className="text-sm text-muted">縦横を整える画面を開いています…</p>,
+});
+
+const ImageAspectBulk = dynamic(() => import("./image-aspect-bulk").then((m) => m.ImageAspectBulk), {
+  ssr: false,
+  loading: () => <p className="text-sm text-muted">まとめて整える欄を開いています…</p>,
 });
 
 // 画像をつくる画面は、開いたときに読み込む（書体とテンプレートの処理を、作成画面の最初の読み込みに入れない）
@@ -65,7 +72,12 @@ export function ImageAttachments({
   const [dragging, setDragging] = useState(false);
   // 縦横を整えている画像の ID
   const [adjusting, setAdjusting] = useState<string | null>(null);
-  const [aligning, setAligning] = useState(false);
+  // まとめて整える: 欄を開いているか・進み具合・終わったあと（整えた画像の新しい ID と、整えられなかった画像の ID）
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
+  const [bulkResult, setBulkResult] = useState<{ fixedIds: string[]; failedIds: string[] } | null>(null);
+  // まとめて整えている間は、並べ替え・外す・1 枚ずつ整えるを止める（番号がずれないように）
+  const locked = disabled || bulkProgress !== null;
   const room = MAX_IMAGES_PER_POST - images.length - busy;
 
   async function addFiles(files: File[]) {
@@ -106,15 +118,20 @@ export function ImageAttachments({
     }
   }
 
-  // 整えた画像を上げて、元の画像と差し替える（元の画像は original に持ち、元に戻せる）
+  // 整えた画像を上げて、元の画像と差し替える（元の画像は original に持ち、元に戻せる）。差し替えた画像の新しい ID を返す
+  async function swap(image: AttachedImage, jpeg: Blob): Promise<string> {
+    const base = image.original ?? image;
+    const uploaded = await uploadJpeg(jpeg, "整えた画像", base.aiGenerated ? { fromMediaId: base.id } : undefined);
+    // 前に整えた画像（元ではないもの）は要らなくなる
+    if (image.original) void discardImage(image.id);
+    onChange((prev) => prev.map((p) => (p.id === image.id ? { ...uploaded, altText: p.altText, original: base } : p)));
+    return uploaded.id;
+  }
+
   async function replaceWith(image: AttachedImage, jpeg: Blob): Promise<boolean> {
     setError(null);
-    const base = image.original ?? image;
     try {
-      const uploaded = await uploadJpeg(jpeg, "整えた画像", base.aiGenerated ? { fromMediaId: base.id } : undefined);
-      // 前に整えた画像（元ではないもの）は要らなくなる
-      if (image.original) void discardImage(image.id);
-      onChange((prev) => prev.map((p) => (p.id === image.id ? { ...uploaded, altText: image.altText, original: base } : p)));
+      await swap(image, jpeg);
       return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : "画像を差し替えられませんでした。");
@@ -129,31 +146,44 @@ export function ImageAttachments({
     void discardImage(image.id);
   }
 
-  // Instagram のカルーセルは 1 枚目の比率で切られるので、2 枚目からを 1 枚目の比率に切ってそろえる（真ん中を残す。あとで 1 枚ずつ直せる）
-  async function alignToFirst() {
-    const first = images[0];
-    if (!first) return;
-    const ratio = first.width / first.height;
-    setAligning(true);
+  // 選んだ画像をまとめて同じ枠に整える。1 枚ずつ元の画像から描き直して差し替え、整えられなかった画像は飛ばして続ける（整えた画像はそのまま）
+  async function bulkAdjust(options: BulkAspectOptions, targets: number[]) {
+    const list = targets.flatMap((i) => (images[i] ? [images[i]] : []));
+    if (list.length === 0) return;
     setError(null);
-    try {
-      for (const i of carouselMismatches(images)) {
-        const image = images[i];
+    // 前にまとめて整えた画像も、続けて「まとめて元に戻す」で戻せるようにする（今回また整える画像は、新しい ID に入れ替わる）
+    const kept = (bulkResult?.fixedIds ?? []).filter((id) => images.some((im) => im.id === id) && !list.some((im) => im.id === id));
+    setBulkResult(null);
+    setBulkProgress({ done: 0, total: list.length });
+    const fixedIds: string[] = [];
+    const failedIds: string[] = [];
+    for (const image of list) {
+      try {
         const src = image.original ?? image;
-        if (!src.previewUrl) continue;
-        const res = await fetch(src.previewUrl);
-        if (!res.ok) throw new Error(`${i + 1} 枚目を読めませんでした。画面を読み込み直してください。`);
-        const bitmap = await createImageBitmap(await res.blob());
+        if (!src.previewUrl) throw new Error("no preview");
+        const bitmap = await loadBitmap(src.previewUrl);
         const c = document.createElement("canvas");
-        renderCrop(c, bitmap, ratio, 0.5);
-        bitmap.close();
-        if (!(await replaceWith(image, await canvasToJpeg(c)))) break;
+        try {
+          renderAspect(c, bitmap, { ...options, orientation: phoneOrientation(bitmap.width, bitmap.height) });
+        } finally {
+          bitmap.close();
+        }
+        fixedIds.push(await swap(image, await canvasToJpeg(c)));
+      } catch {
+        failedIds.push(image.id);
       }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "そろえられませんでした。");
-    } finally {
-      setAligning(false);
+      setBulkProgress({ done: fixedIds.length + failedIds.length, total: list.length });
     }
+    setBulkProgress(null);
+    setBulkResult({ fixedIds: [...kept, ...fixedIds], failedIds });
+    if (failedIds.length === 0) setBulkOpen(false);
+  }
+
+  // まとめて整えた画像を、まとめて元に戻す（1 枚ずつの「元に戻す」と同じ。1 枚ずつ整え直した画像は戻さない）
+  function revertBulk() {
+    if (!bulkResult) return;
+    for (const image of images) if (bulkResult.fixedIds.includes(image.id)) revert(image);
+    setBulkResult(null);
   }
 
   function move(index: number, delta: -1 | 1) {
@@ -171,6 +201,17 @@ export function ImageAttachments({
     // まだ投稿に添えていない画像なら、すぐに消える。添えた画像は投稿を保存したときに消える
     void discardImage(image.id);
   }
+
+  // 縦横の注意（送り先に Instagram があるときだけ）
+  const outOfRange = instagram ? images.flatMap((im, i) => (instagramRatioOk(im.width, im.height) ? [] : [i])) : [];
+  const mismatches = instagram ? carouselMismatches(images) : [];
+  const warnings = instagram ? aspectWarnings(images) : [];
+  // 帯は、カルーセルで 1 枚目と違うか、合わない画像が 2 枚以上のとき（1 枚だけなら、その画像の印と「縦横を整える」で足りる）
+  const showBand = mismatches.length > 0 || warnings.length >= 2;
+  const failedIdx = bulkResult ? images.flatMap((im, i) => (bulkResult.failedIds.includes(im.id) ? [i] : [])) : [];
+  const failedCount = failedIdx.length;
+  // 整えた画像のうち、まだそのまま並んでいるもの（1 枚ずつ戻したり整え直したりしたものは数えない）
+  const fixedCount = bulkResult ? images.filter((im) => bulkResult.fixedIds.includes(im.id)).length : 0;
 
   return (
     <div className="flex flex-col gap-3">
@@ -224,22 +265,68 @@ export function ImageAttachments({
       )}
       {busy > 0 && <p className="text-sm text-muted">画像を上げています（{busy} 枚）…</p>}
 
-      {instagram && images.length > 1 && carouselMismatches(images).length > 0 && (
+      {showBand && (
         <div className="flex flex-col items-start gap-2 rounded-md bg-surface2 px-3 py-2.5 text-[13px] sm:flex-row sm:items-center sm:gap-3">
-          <p className="min-w-0 flex-1 leading-[1.7]">
-            <span className="mr-1.5 font-bold text-signal">● 要確認</span>
-            Instagram では、2 枚目からは 1 枚目の縦横（{ratioLabel(images[0].width, images[0].height)}）に合わせて切られます。
-            {carouselMismatches(images)
-              .map((n) => `${n + 1} 枚目`)
-              .join("・")}
-            が違います。
-          </p>
-          {instagramRatioOk(images[0].width, images[0].height) ? (
-            <Button type="button" variant="secondary" size="sm" className="shrink-0" disabled={disabled || aligning || busy > 0} onClick={() => void alignToFirst()}>
-              {aligning ? "そろえています…" : "全部を 1 枚目の縦横にそろえる"}
+          <div className="min-w-0 flex-1 leading-[1.7]">
+            {outOfRange.length > 0 && (
+              <p>
+                <span className="mr-1.5 font-bold text-signal">● Instagram には縦横比が合いません</span>
+                <ImageNumbers indexes={outOfRange} />
+              </p>
+            )}
+            {mismatches.length > 0 && (
+              <p>
+                <span className="mr-1.5 font-bold text-signal">● 要確認</span>
+                Instagram では、2 枚目からは 1 枚目の縦横（{ratioLabel(images[0].width, images[0].height)}）に合わせて切られます。
+                <ImageNumbers indexes={mismatches} />
+                が違います。
+              </p>
+            )}
+          </div>
+          {/* まとめて整える欄を開いている間は、欄のボタンだけにする */}
+          {bulkOpen ? null : warnings.length >= 2 ? (
+            <Button type="button" variant="secondary" size="sm" className="shrink-0" disabled={locked || busy > 0} onClick={() => setBulkOpen(true)}>
+              まとめて整える
             </Button>
           ) : (
-            <span className="shrink-0 text-muted">先に 1 枚目の縦横を整えてください</span>
+            // 合わない画像が 1 枚だけ（1 枚目は範囲の中）なら、その場で 1 枚目にそろえる
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="shrink-0"
+              disabled={locked || busy > 0}
+              onClick={() => void bulkAdjust({ mode: "crop", ratio: images[0].width / images[0].height, pos: 0.5, fill: { kind: "blur" }, frame: "black" }, mismatches)}
+            >
+              {bulkProgress ? "そろえています…" : `${mismatches[0] + 1} 枚目を 1 枚目の縦横にそろえる`}
+            </Button>
+          )}
+        </div>
+      )}
+
+      {bulkOpen && (
+        <ImageAspectBulk
+          sizes={images}
+          progress={bulkProgress}
+          disabled={disabled || busy > 0}
+          onRun={(options, targets) => void bulkAdjust(options, targets)}
+          onClose={() => setBulkOpen(false)}
+        />
+      )}
+
+      {bulkResult && (fixedCount > 0 || failedCount > 0) && (
+        <div role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+          {fixedCount > 0 && <span className="num text-muted">{fixedCount} 枚の縦横を整えました。</span>}
+          {failedCount > 0 && (
+            <span className="num font-semibold text-danger">
+              <ImageNumbers indexes={failedIdx} />
+              は直せませんでした。もう一度お試しいただくか、1 枚ずつ整えてください。
+            </span>
+          )}
+          {fixedCount > 0 && (
+            <button type="button" disabled={locked} onClick={revertBulk} className="text-muted hover:text-fg hover:underline">
+              まとめて元に戻す
+            </button>
           )}
         </div>
       )}
@@ -264,18 +351,19 @@ export function ImageAttachments({
                     {image.width}×{image.height}・{formatBytes(image.sizeBytes)}
                   </span>
                   <span className="ml-auto flex gap-3">
-                    <button type="button" disabled={disabled || i === 0} onClick={() => move(i, -1)} className="font-semibold text-primary hover:underline disabled:text-muted disabled:no-underline" aria-label={`${i + 1} 枚目を前へ`}>
+                    <button type="button" disabled={locked || i === 0} onClick={() => move(i, -1)} className="font-semibold text-primary hover:underline disabled:text-muted disabled:no-underline" aria-label={`${i + 1} 枚目を前へ`}>
                       ↑ 前へ
                     </button>
-                    <button type="button" disabled={disabled || i === images.length - 1} onClick={() => move(i, 1)} className="font-semibold text-primary hover:underline disabled:text-muted disabled:no-underline" aria-label={`${i + 1} 枚目を後ろへ`}>
+                    <button type="button" disabled={locked || i === images.length - 1} onClick={() => move(i, 1)} className="font-semibold text-primary hover:underline disabled:text-muted disabled:no-underline" aria-label={`${i + 1} 枚目を後ろへ`}>
                       ↓ 後ろへ
                     </button>
-                    <button type="button" disabled={disabled} onClick={() => remove(image)} className="text-muted hover:text-fg hover:underline">
+                    <button type="button" disabled={locked} onClick={() => remove(image)} className="text-muted hover:text-fg hover:underline">
                       外す
                     </button>
                   </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                  {bulkResult?.failedIds.includes(image.id) && <span className="font-bold text-danger">直せませんでした</span>}
                   {instagram && !instagramRatioOk(image.width, image.height) && (
                     <span className="font-bold text-signal">● Instagram には縦横比が合いません（{ratioLabel(image.width, image.height)}）</span>
                   )}
@@ -286,7 +374,7 @@ export function ImageAttachments({
                   )}
                   <button
                     type="button"
-                    disabled={disabled || !(image.original ?? image).previewUrl}
+                    disabled={locked || !(image.original ?? image).previewUrl}
                     aria-expanded={adjusting === image.id}
                     onClick={() => setAdjusting((a) => (a === image.id ? null : image.id))}
                     className="font-semibold text-primary hover:underline disabled:text-muted disabled:no-underline"
@@ -294,7 +382,7 @@ export function ImageAttachments({
                     縦横を整える
                   </button>
                   {image.original && (
-                    <button type="button" disabled={disabled} onClick={() => revert(image)} className="text-muted hover:text-fg hover:underline">
+                    <button type="button" disabled={locked} onClick={() => revert(image)} className="text-muted hover:text-fg hover:underline">
                       元に戻す
                     </button>
                   )}

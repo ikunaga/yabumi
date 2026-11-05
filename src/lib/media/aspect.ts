@@ -175,10 +175,49 @@ export function phoneFrameLayout(srcW: number, srcH: number, ratio: number, orie
 
 // Instagram のカルーセルは、2 枚目からが 1 枚目の比率で切られる（公式: "Carousel images are all cropped based on the first image"）。
 // 1 枚目と比率が違う画像の番号（0 始まり）
-export function carouselMismatches(sizes: { width: number; height: number }[]): number[] {
+export function carouselMismatches(sizes: Size[]): number[] {
   if (sizes.length < 2) return [];
   const first = sizes[0].width / sizes[0].height;
-  return sizes.flatMap((s, i) => (i > 0 && Math.abs(s.width / s.height - first) / first > 0.01 ? [i] : []));
+  return sizes.flatMap((s, i) => (i > 0 && !sameRatio(s, first) ? [i] : []));
+}
+
+type Size = { width: number; height: number };
+
+// その比率と同じとみなせるか（1% まで。整えたときの端数の丸めは収まる）
+export function sameRatio(size: Size, ratio: number): boolean {
+  return Math.abs(size.width / size.height - ratio) / ratio <= 0.01;
+}
+
+// ── まとめて整える（2026-11-05、オーナーの指摘。docs/architecture.md の 4.18）──
+
+// 縦横の注意が出ている画像の番号: Instagram の範囲の外か、カルーセルで 1 枚目と違うもの
+export function aspectWarnings(sizes: Size[]): number[] {
+  const bad = new Set([...sizes.flatMap((s, i) => (instagramRatioOk(s.width, s.height) ? [] : [i])), ...carouselMismatches(sizes)]);
+  return [...bad].sort((a, b) => a - b);
+}
+
+// まとめて整えるときの枠: 1 枚目に合わせるか、決まった枠
+export type BulkAspect = "first" | AspectKey;
+
+// 1 枚目に合わせられるのは、2 枚以上あって 1 枚目が Instagram の範囲の中のとき
+export function canMatchFirst(sizes: Size[]): boolean {
+  return sizes.length > 1 && instagramRatioOk(sizes[0].width, sizes[0].height);
+}
+
+// 初めに選んでおく枠: 1 枚目に合わせられればそれ、だめなら Instagram のおすすめの 4:5
+export function defaultBulkAspect(sizes: Size[]): BulkAspect {
+  return canMatchFirst(sizes) ? "first" : "4:5";
+}
+
+// 選んだ枠の比率（1 枚目に合わせられないときは null）
+export function bulkRatio(choice: BulkAspect, sizes: Size[]): number | null {
+  if (choice !== "first") return presetRatio(choice);
+  return canMatchFirst(sizes) ? sizes[0].width / sizes[0].height : null;
+}
+
+// まとめて整える画像の番号: その比率に合っていない画像だけ（合っている画像は描き直さない）
+export function bulkTargets(sizes: Size[], ratio: number): number[] {
+  return sizes.flatMap((s, i) => (sameRatio(s, ratio) ? [] : [i]));
 }
 
 export { instagramRatioOk };

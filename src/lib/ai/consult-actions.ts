@@ -12,7 +12,7 @@ import { closeConsultThread, consultStep, isConsultTopic, type ConsultInput } fr
 import { MAX_USER_TEXT } from "./plan-coach";
 
 const inputSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("start"), topic: z.string() }),
+  z.object({ kind: z.literal("start"), topic: z.string(), itemId: z.uuid().optional() }),
   z.object({ kind: z.literal("text"), text: z.string().max(MAX_USER_TEXT * 2) }),
   z.object({ kind: z.literal("adopt"), messageId: z.uuid(), actionIndex: z.number().int().min(0).max(MAX_OPTIONS - 1) }),
 ]);
@@ -29,7 +29,7 @@ export async function sendConsultMessage(projectId: string, threadId: string | n
   let input: ConsultInput;
   if (parsed.data.kind === "start") {
     if (!isConsultTopic(parsed.data.topic)) return { ok: false, threadId, message: "入力の形式が正しくありません。" };
-    input = { kind: "start", topic: parsed.data.topic };
+    input = { kind: "start", topic: parsed.data.topic, ...(parsed.data.itemId ? { itemId: parsed.data.itemId } : {}) };
   } else input = parsed.data;
 
   if (!aiConfigured()) return { ok: false, threadId, message: "AI はまだ準備中です。" };

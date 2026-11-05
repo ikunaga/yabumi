@@ -9,6 +9,7 @@ import { isConsultTopic } from "@/lib/ai/consult";
 import { roadmapStepsFor } from "@/lib/ai/consult-queries";
 import { consultTopicMeta } from "@/lib/ai/consult-topics";
 import { getProject } from "@/lib/projects/queries";
+import { isUuid } from "@/lib/uuid";
 
 export async function generateMetadata(props: PageProps<"/projects/[id]/consult/new">): Promise<Metadata> {
   const sp = await props.searchParams;
@@ -22,11 +23,13 @@ export default async function ConsultNewPage(props: PageProps<"/projects/[id]/co
   const project = await getProject(id);
   if (!project) notFound();
   const topic = isConsultTopic(sp.start) ? sp.start : null;
+  // 振り返りのやることから来たとき（?item=）。本人の今週・来週の振り返りのやることかは、送るときにサーバーが確かめる
+  const itemId = topic === "review" && typeof sp.item === "string" && isUuid(sp.item) ? sp.item : null;
   return (
     <div className="flex flex-col gap-5 max-sm:gap-4">
       <ConsultHeader projectId={id} topic={topic} threadId={null} roadmapSteps={topic === "roadmap" ? await roadmapStepsFor(id) : null} />
       <Columns
-        main={<ConsultChat key={`new-${topic ?? ""}`} projectId={id} threadId={null} messages={[]} initialTopic={topic} />}
+        main={<ConsultChat key={`new-${topic ?? ""}-${itemId ?? ""}`} projectId={id} threadId={null} messages={[]} initialTopic={topic} initialItemId={itemId} />}
         side={<ConsultSide projectId={id} adopted={null} lead={consultTopicMeta(topic)?.entry?.lead} />}
       />
     </div>

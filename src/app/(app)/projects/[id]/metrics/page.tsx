@@ -123,7 +123,7 @@ function KpiCard({ k, value, projectId, days, productType }: { k: KpiKey; value?
 // よく見られた投稿・クリックの多い投稿 → note・Substack の数字。説明は「?」と開く欄に畳む
 export default async function MetricsPage(props: PageProps<"/projects/[id]/metrics">) {
   const { id } = await props.params;
-  const { chart, days: daysParam, done, items } = await props.searchParams;
+  const { chart, days: daysParam, done, items, reviewed } = await props.searchParams;
   // 期間（数字の段 2）。7 日（既定）か 30 日
   const days: MetricsPeriod = daysParam === "30" ? 30 : 7;
   const chartDays = days === 30 ? 30 : CHART_DAYS;
@@ -259,7 +259,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
           </>
         }
       />
-      <ConsultClosedBanner done={done} items={items} />
+      <ConsultClosedBanner projectId={project.id} done={done} items={items} reviewed={reviewed} />
       {/* 分析を開いたときの「ひとこと」（4.47。1 日 1 回まで） */}
       <LearningTip trigger="analytics_opened" />
 

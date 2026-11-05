@@ -50,7 +50,7 @@ export default async function ConsultListPage(props: PageProps<"/projects/[id]/c
         help="運用の悩みを相談できます。AI はアカウント設計・最近の投稿・数字・ロードマップを見たうえで、案を 2〜3 個出します。選んだ案だけが、設計やロードマップに入ります。"
         actions={<ButtonLink href={`${base}/new`}>自由に書いて相談する</ButtonLink>}
       />
-      <ConsultClosedBanner done={sp.done} items={sp.items} />
+      <ConsultClosedBanner projectId={id} done={sp.done} items={sp.items} reviewed={sp.reviewed} />
       {sp.done === "thread_deleted" && <SuccessBanner>会話を削除しました。採用した案（設計・ロードマップ・下書き）は残っています。</SuccessBanner>}
 
       <Columns

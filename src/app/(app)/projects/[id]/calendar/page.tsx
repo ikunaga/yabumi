@@ -271,7 +271,7 @@ async function MonthView({ projectId, base, ym, today, done }: { projectId: stri
       snsKeys: p.targets.map((t) => t.sns),
       title: postTitle(p.body, 28),
       status,
-      warning: status === "draft" ? null : postWarning(p),
+      warning: postWarning(p),
     });
   }
   const days: MonthDay[] = grid.map((d) => {
@@ -324,7 +324,7 @@ async function MonthView({ projectId, base, ym, today, done }: { projectId: stri
 
 function MobilePostCard({ post, projectId, highlight }: { post: PostRow; projectId: string; highlight: boolean }) {
   const status = displayStatus(post);
-  const warning = status === "draft" ? null : postWarning(post);
+  const warning = postWarning(post);
   return (
     <Link
       href={`/projects/${projectId}/posts/${post.id}`}

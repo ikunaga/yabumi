@@ -22,10 +22,13 @@ export function snsSummary(post: PostRow, short = false): string {
   return post.targets.map((t) => (short && t.sns === "instagram" ? "IG" : short && t.sns === "facebook" ? "FB" : SNS[t.sns].label)).join(short ? " / " : " ・ ");
 }
 
-// 予約・下書きの注意（例: Instagram は画像が未設定です）
+// 予約・下書きの注意（例: Instagram は画像が未設定です）。投稿済み・失敗の投稿と、送った・送っている・取り消した SNS には出さない
 export function postWarning(post: PostRow): string | null {
+  const status = displayStatus(post);
+  if (status !== "scheduled" && status !== "draft") return null;
   for (const t of post.targets) {
-    const issue = checkTarget(t.sns, t.body_override ?? post.body).issues[0];
+    if (t.status !== "pending") continue;
+    const issue = checkTarget(t.sns, t.body_override ?? post.body, { images: post.images, videos: 0 }).issues[0];
     if (issue === "needs_image") return `${SNS[t.sns].label} は画像が未設定です`;
     if (issue === "needs_video") return `${SNS[t.sns].label} は動画が未設定です`;
     if (issue === "too_long") return `${SNS[t.sns].label} は文字数オーバーです`;

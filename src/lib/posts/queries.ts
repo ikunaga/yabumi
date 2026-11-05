@@ -24,11 +24,13 @@ export type PostRow = {
   planned_at: string | null;
   status: "draft" | "scheduled";
   targets: PostTargetRow[];
+  // 添えた画像の枚数（カレンダーの注意「Instagram は画像が未設定です」に使う）
+  images: number;
 };
 
 const TARGET_FIELDS = "id, sns, status, title, body_override, external_post_id, external_url, sns_removed_at, error_message, published_at, next_attempt_at";
-const POST_SELECT = `id, body, planned_at, status, post_targets(${TARGET_FIELDS})` as const;
-const POST_SELECT_FAILED_ONLY = `id, body, planned_at, status, post_targets!inner(${TARGET_FIELDS})` as const;
+const POST_SELECT = `id, body, planned_at, status, post_targets(${TARGET_FIELDS}), media_files(count)` as const;
+const POST_SELECT_FAILED_ONLY = `id, body, planned_at, status, post_targets!inner(${TARGET_FIELDS}), media_files(count)` as const;
 
 
 type RawPost = {
@@ -37,6 +39,7 @@ type RawPost = {
   planned_at: string | null;
   status: string;
   post_targets: (Omit<PostTargetRow, "sns" | "status"> & { sns: string; status: string })[];
+  media_files?: { count: number }[];
 };
 
 function normalize(p: RawPost): PostRow {
@@ -49,6 +52,7 @@ function normalize(p: RawPost): PostRow {
       .filter((t) => isSnsKey(t.sns))
       .map((t) => ({ ...t, sns: t.sns as SnsKey, status: t.status as TargetStatus }))
       .sort((a, b) => SNS_KEYS.indexOf(a.sns) - SNS_KEYS.indexOf(b.sns)),
+    images: p.media_files?.[0]?.count ?? 0,
   };
 }
 

@@ -82,3 +82,13 @@ export function renderPhoneFrame(
   for (const op of f.front) drawOp(ctx, op, null);
   ctx.setTransform(1, 0, 0, 1, 0, 0);
 }
+
+// 整え方ごとに描き分ける（1 枚ずつの画面と、まとめて整えるときで同じ描き方にする）
+export type AspectMode = "crop" | "pad" | "phone";
+export type AspectRenderOptions = { mode: AspectMode; ratio: number; pos: number; fill: PadFill; orientation: PhoneOrientation; frame: PhoneFrameColor };
+
+export function renderAspect(canvas: HTMLCanvasElement, src: ImageBitmap, o: AspectRenderOptions, maxW?: number): void {
+  if (o.mode === "crop") renderCrop(canvas, src, o.ratio, o.pos, maxW);
+  else if (o.mode === "pad") renderPad(canvas, src, o.ratio, o.fill, maxW);
+  else renderPhoneFrame(canvas, src, o.ratio, { orientation: o.orientation, frame: o.frame, fill: o.fill }, maxW);
+}

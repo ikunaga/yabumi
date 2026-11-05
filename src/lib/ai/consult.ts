@@ -5,6 +5,7 @@ import { chosenKpis, isKpiKey, kpiAllowed, type KpiKey } from "@/lib/metrics/kpi
 import { normalizePlan } from "@/lib/plan/schema";
 import { loadRoadmapWith } from "@/lib/roadmap/load";
 import { effectiveStatus, formatValue, itemProgress, weekStartOf, kpiLabel } from "@/lib/roadmap/schema";
+import { todoKindOf } from "@/lib/roadmap/todo-kind";
 import { addItems, saveGoal, RoadmapError } from "@/lib/roadmap/write";
 import { isManualSns, isSnsKey, SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
 import { tidyDraftHashtags } from "@/lib/sns/hashtags";
@@ -44,7 +45,8 @@ export function isConsultTopic(v: unknown): v is ConsultTopic {
 }
 
 export type ConsultUserContent =
-  | { kind: "start"; topic: ConsultTopic }
+  // itemId: 振り返りのやることから始めたときの、そのやること（終えたら済みにする）
+  | { kind: "start"; topic: ConsultTopic; itemId?: string }
   | { kind: "text"; text: string }
   | { kind: "adopt"; messageId: string; actionIndex: number; actionKind: ActionKind; title: string };
 
@@ -294,7 +296,7 @@ export async function applyConsultAction(user: Db, projectId: string, action: Ac
 
 // ===== 会話を 1 往復進める =====
 export type ConsultInput =
-  | { kind: "start"; topic: ConsultTopic }
+  | { kind: "start"; topic: ConsultTopic; itemId?: string }
   | { kind: "text"; text: string }
   | { kind: "adopt"; messageId: string; actionIndex: number };
 
@@ -303,6 +305,15 @@ export type ConsultResult = { ok: true; threadId: string; redirect?: string } | 
 
 const GENERIC_ERROR = "AI とのやりとりがうまくいきませんでした。時間をおいてもう一度お試しください。";
 export const CLOSED_THREAD_MESSAGE = "この相談は済みました。続けるなら、新しい相談を始めてください。";
+export const REVIEW_ITEM_NOT_FOUND = "振り返りのやることが見つかりません。ロードマップから開き直してください。";
+
+// 振り返りの相談に結びつけてよいやることか（本人の、このプロジェクトの、今週か来週の振り返りのやること）。user: 利用者の権限（RLS で本人のものだけ読める）
+async function reviewItemAllowed(user: Db, projectId: string, itemId: string, now: Date): Promise<boolean> {
+  const { data: item } = await user.from("roadmap_items").select("id, title, detail, kpi, kind, week_start").eq("id", itemId).eq("project_id", projectId).maybeSingle();
+  if (!item) return false;
+  const thisWeek = weekStartOf(toYmd(now));
+  return (item.week_start === thisWeek || item.week_start === addDays(thisWeek, 7)) && todoKindOf(item) === "review";
+}
 
 // user: 利用者の権限（状況の読み込みと、提案の採用。RLS で本人のものだけ）
 // admin: サーバーの権限（会話と利用量の書き込み）。呼ぶ前に userId がログイン中の利用者であることを確かめておく
@@ -322,6 +333,12 @@ export async function consultStep(
   }
   const { data: project } = await user.from("projects").select("id").eq("id", projectId).maybeSingle();
   if (!project) return { ok: false, threadId: args.threadId, message: "プロジェクトが見つかりません。" };
+  // やることを結びつけるのは、振り返りの始まりだけ。他人のもの・ほかの週のもの・振り返りでないものは断る
+  if (input.kind === "start" && input.itemId !== undefined) {
+    if (input.topic !== "review" || args.threadId || !(await reviewItemAllowed(user, projectId, input.itemId, now))) {
+      return { ok: false, threadId: args.threadId, message: REVIEW_ITEM_NOT_FOUND };
+    }
+  }
 
   let threadId = args.threadId;
   let createdThread = false;
@@ -346,7 +363,7 @@ export async function consultStep(
   // 利用者の発言を決める。採用のときは、ここで設計・ロードマップ・下書きに入れる
   let userContent: ConsultUserContent;
   let redirect: string | undefined;
-  if (input.kind === "start") userContent = { kind: "start", topic: input.topic };
+  if (input.kind === "start") userContent = { kind: "start", topic: input.topic, ...(input.itemId ? { itemId: input.itemId } : {}) };
   else if (input.kind === "text") userContent = { kind: "text", text: input.text.trim() };
   else {
     const target = history.find((m) => m.id === input.messageId);
@@ -474,6 +491,7 @@ export type CloseResult = { ok: true; redirect: string } | { ok: false; message:
 
 // 済みにして、元の画面（入口の戻り先。入口がなければ相談の一覧）に戻る。AI は呼ばない。
 // まとめは、最後の返事が AI の区切り（wrapUp）のときだけ、その summary を保存する（区切ったあとに続けた会話や、区切る前に終えたときは空）。
+// 振り返りの相談なら、まとめの有無にかかわらず振り返りのやることも済みにする（closeReviewItem）。
 // user: 利用者の権限（本人の会話であることを RLS で確かめる）。admin: サーバーの権限（書き込み）
 export async function closeConsultThread(user: Db, admin: Db, args: { userId: string; projectId: string; threadId: string; now?: Date }): Promise<CloseResult> {
   const { userId, projectId, threadId } = args;
@@ -499,7 +517,54 @@ export async function closeConsultThread(user: Db, admin: Db, args: { userId: st
   const base = `/projects/${projectId}`;
   const path = back === undefined ? `${base}/consult` : back ? `${base}/${back}` : base;
   const items = nextWeekItemsAdopted(history);
-  return { ok: true, redirect: `${path}?done=consult_closed${items > 0 ? `&items=${items}` : ""}` };
+  let reviewed: ReviewClosed = null;
+  if (threadTopic(history) === "review") {
+    // 会話はもう済んでいるので、ここで失敗しても終えたことは取り消さない（やることは手で済みにできる）
+    try {
+      reviewed = await closeReviewItem(user, projectId, startItemId(history), args.now ?? new Date());
+    } catch (e) {
+      console.error("[closeConsultThread] 振り返りのやることを済みにできませんでした", e instanceof Error ? e.message : e);
+    }
+  }
+  const query = [`done=consult_closed`, items > 0 ? `items=${items}` : null, reviewed ? `reviewed=${reviewed === "many" ? "many" : reviewed.itemId}` : null];
+  return { ok: true, redirect: `${path}?${query.filter(Boolean).join("&")}` };
+}
+
+function startItemId(history: ConsultMessage[]): string | null {
+  const first = history[0];
+  return first?.role === "user" && first.content.kind === "start" ? (first.content.itemId ?? null) : null;
+}
+
+// 振り返りのやることを済みにした結果。itemId: 済みにしたやること / many: 今週の振り返りのやることが 2 つ以上あって、どれか決められない / null: 何もしていない
+export type ReviewClosed = { itemId: string } | "many" | null;
+
+// 振り返りの相談を終えたときに、やることを済みにする（利用者の権限。RLS で本人のものだけ書ける）。
+// 結びつけたやることがあればそれ。なければ（分析の画面の「AI と振り返る」）今週のまだの振り返りのやることが 1 つだけのときにそれ
+export async function closeReviewItem(user: Db, projectId: string, itemId: string | null, now: Date): Promise<ReviewClosed> {
+  let target = itemId;
+  if (!target) {
+    const { data, error } = await user
+      .from("roadmap_items")
+      .select("id, title, detail, kpi, kind")
+      .eq("project_id", projectId)
+      .eq("week_start", weekStartOf(toYmd(now)))
+      .eq("status", "todo");
+    if (error) throw error;
+    const reviews = (data ?? []).filter((i) => todoKindOf(i) === "review");
+    if (reviews.length > 1) return "many";
+    target = reviews[0]?.id ?? null;
+    if (!target) return null;
+  }
+  // まだのものだけ（自分で済み・やらないにしたものは変えない）
+  const { data: done, error } = await user
+    .from("roadmap_items")
+    .update({ status: "done", done_at: now.toISOString() })
+    .eq("id", target)
+    .eq("project_id", projectId)
+    .eq("status", "todo")
+    .select("id");
+  if (error) throw error;
+  return done?.length ? { itemId: target } : null;
 }
 
 // この会話で採用した、来週（week 1）のやることの数（「来週のやることに n 件入れました」）

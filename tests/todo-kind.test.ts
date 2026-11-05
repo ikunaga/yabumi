@@ -42,7 +42,7 @@ describe("押したときの行き先", () => {
   });
 
   it("振り返りは AI と振り返る。AI が使えなければ分析（4 週・1 か月なら 30 日）", () => {
-    expect(todoAction(base, item("4週間の振り返り", "review"), { aiEnabled: true })).toEqual({ kind: "review", href: "/projects/p1/consult/new?start=review", label: "AI と振り返る" });
+    expect(todoAction(base, item("4週間の振り返り", "review"), { aiEnabled: true })).toEqual({ kind: "review", href: "/projects/p1/consult/new?start=review&item=i1", label: "AI と振り返る" });
     expect(todoAction(base, item("4週間の振り返り", "review"), { aiEnabled: false }).href).toBe("/projects/p1/metrics?days=30");
     expect(todoAction(base, item("先週の数字を見る", "review"), { aiEnabled: false })).toEqual({ kind: "review", href: "/projects/p1/metrics", label: "分析を見る" });
   });

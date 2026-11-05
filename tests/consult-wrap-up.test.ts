@@ -70,6 +70,10 @@ describe("終えたあとの知らせ", () => {
     expect(consultClosedText("consult_closed", "<b>")).toBe("相談を終えました。");
     expect(consultClosedText("consult_closed", "100")).toBe("相談を終えました。");
     expect(consultClosedText("saved", "3")).toBeNull();
+    // 振り返りのやることを済みにしたとき（名前はサーバーが DB から読んだもの）・済みにできなかったとき
+    expect(consultClosedText("consult_closed", "2", { title: "4 週間の振り返り" })).toBe("相談を終えました。『4 週間の振り返り』を済みにしました。来週のやることに 2 件入れました。");
+    expect(consultClosedText("consult_closed", undefined, { title: "数字を見る" })).toBe("相談を終えました。『数字を見る』を済みにしました。");
+    expect(consultClosedText("consult_closed", "1", "many")).toBe("相談を終えました。来週のやることに 1 件入れました。今週の振り返りのやることが 2 つ以上あるので、ロードマップで済みにしてください。");
   });
 
   it("来週のやることの数は、採用した案の week 1 のやることだけを数える", () => {

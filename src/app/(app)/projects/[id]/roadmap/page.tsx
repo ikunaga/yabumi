@@ -35,7 +35,7 @@ function weekLabel(weekStart: string, thisWeek: string): string {
 
 // ロードマップ（F10、docs/architecture.md の 4.23）: 最終の目標（KGI）、追いかける数字（KPI）、週ごとのやること
 export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadmap">) {
-  const [{ id }, { done, items: doneItems }] = await Promise.all([props.params, props.searchParams]);
+  const [{ id }, { done, items: doneItems, reviewed }] = await Promise.all([props.params, props.searchParams]);
   // id だけで読めるので、プロジェクトと並べて読む（待ち時間を縮める）
   const [project, view, plan] = await Promise.all([getProject(id), loadRoadmap(id), getAccountPlan(id)]);
   if (!project) notFound();
@@ -74,7 +74,7 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
         }
         actions={ai ? <ButtonLink href={consultHref}>{roadmap?.kgi ? "AI と見直す" : "AI と作る"}</ButtonLink> : <NotReadyButton>AI と作る</NotReadyButton>}
       />
-      <ConsultClosedBanner done={done} items={doneItems} />
+      <ConsultClosedBanner projectId={id} done={done} items={doneItems} reviewed={reviewed} roadmapLink={false} />
 
       {/* 数字の段（見本 A の上の 4 つ） */}
       <div className="grid grid-cols-4 gap-4 max-lg:grid-cols-2 max-sm:gap-3">

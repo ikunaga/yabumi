@@ -63,9 +63,10 @@ export function todoAction(
     case "post":
       return { kind: "post", href: `${base}/compose?item=${item.id}`, label: "投稿をつくる" };
     case "review":
-      // 分析の期間は 7 日と 30 日。4 週・1 か月の振り返りなら 30 日
+      // 分析の期間は 7 日と 30 日。4 週・1 か月の振り返りなら 30 日。
+      // AI と振り返るときは、どのやることから来たかを渡す（相談を終えたら、そのやることを済みにする。4.23）
       return aiEnabled
-        ? { kind: "review", href: `${base}/consult/new?start=review`, label: "AI と振り返る" }
+        ? { kind: "review", href: `${base}/consult/new?start=review&item=${item.id}`, label: "AI と振り返る" }
         : { kind: "review", href: `${base}/metrics${/[4４]\s*週|1\s*か月|ひと月|1\s*ヶ月|月の/.test(text) ? "?days=30" : ""}`, label: "分析を見る" };
     case "setup": {
       const t = setupTarget(text);

@@ -19,7 +19,7 @@ import { formatValue, kpiLabel } from "@/lib/roadmap/schema";
 import { SNS, checkTarget, type SnsKey } from "@/lib/sns";
 import { useCloseThread } from "./close-thread";
 
-type Input = { kind: "start"; topic: ConsultTopic } | { kind: "text"; text: string } | { kind: "adopt"; messageId: string; actionIndex: number };
+type Input = { kind: "start"; topic: ConsultTopic; itemId?: string } | { kind: "text"; text: string } | { kind: "adopt"; messageId: string; actionIndex: number };
 
 const TOPIC_BUTTONS = listedConsultTopics().map((topic) => ({ topic, label: CONSULT_TOPIC_META[topic].button }));
 
@@ -50,6 +50,7 @@ export function ConsultChat({
   threadId: initialThreadId,
   messages,
   initialTopic,
+  initialItemId = null,
   closed = false,
 }: {
   projectId: string;
@@ -57,6 +58,8 @@ export function ConsultChat({
   messages: ConsultMessage[];
   // ロードマップの「AI と作る」などから来たときの相談
   initialTopic: ConsultTopic | null;
+  // 振り返りのやることから来たときの、そのやること（相談を終えたら済みにする）
+  initialItemId?: string | null;
   // 済んだ会話: 読むだけ（送る・採用する・選ぶは出さない）
   closed?: boolean;
 }) {
@@ -108,7 +111,7 @@ export function ConsultChat({
   useEffect(() => {
     if (!initialTopic || started.current) return;
     started.current = true;
-    send({ kind: "start", topic: initialTopic });
+    send({ kind: "start", topic: initialTopic, ...(initialItemId ? { itemId: initialItemId } : {}) });
     // 最初の 1 回だけ動かす
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

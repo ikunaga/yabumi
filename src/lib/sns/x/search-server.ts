@@ -7,7 +7,9 @@ import type { Database } from "@/lib/supabase/database.types";
 import { parseXSearch, xSearchCostUsd, xSearchParams, X_SEARCH_MAX_RESULTS, type XBuzzPost, type XSearchQuota } from "./search";
 
 // X の人気の投稿を yabumi の中で探す（4.52）。予約 → 呼ぶ → 実際の額に直す。上限は DB の関数（reserve_x_search）の中で固定。
-// 他人の投稿は返すだけで保存しない。検索の言葉も記録に残さない
+// 探した結果の一覧（他人の投稿）は返すだけで保存しない。検索の言葉も記録に残さない。
+// ただし利用者が「この投稿を元にする」で選んだ投稿の文は、ネタを出すとネタ出しの会話の控え（ai_messages の xPost.text）に残る。
+// それは X の決まり（保存した X Content を今の状態に保つ）に合わせ、1 日ほどで DB が消す（purge_expired_data。20261106190000_x_post_text_purge）
 
 type Db = SupabaseClient<Database>;
 

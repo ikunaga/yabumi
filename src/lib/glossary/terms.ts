@@ -448,8 +448,14 @@ export function categoryHref(id: GlossaryCategoryId): string {
 }
 
 // 前の 1 ページの用語集のリンク（/glossary#<key>・/glossary#cat-<id>・/glossary#<id>）を、新しいページに移す先。移さないものは null
+// 壊れた %（%E3 だけ・%ZZ など）は読めないので、移さない（decodeURIComponent が投げて画面が落ちないように。セキュリティ確認 2026-11-06 の L5）
 export function legacyGlossaryHashTarget(hash: string): string | null {
-  const h = decodeURIComponent(hash.replace(/^#/, ""));
+  let h: string;
+  try {
+    h = decodeURIComponent(hash.replace(/^#/, ""));
+  } catch {
+    return null;
+  }
   if (!h) return null;
   if (isGlossaryKey(h)) return glossaryHref(h);
   const id = h.replace(/^cat-/, "");

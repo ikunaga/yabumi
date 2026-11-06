@@ -639,6 +639,7 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
                   {thread.answered && "・答えを反映"}
                 </span>
               </div>
+              {(latest.copiesDropped ?? 0) > 0 && <p className="text-[13px] text-muted">元の投稿に近すぎた案を外しました（{latest.copiesDropped} 件。他の人の文を写さないため）</p>}
               <ol className="flex flex-col gap-4">
                 {latest.ideas.map((idea, i) => (
                   <IdeaCard

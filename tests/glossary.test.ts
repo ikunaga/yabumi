@@ -155,4 +155,9 @@ describe("分類のページ（/glossary/c/<id>。4.49）", () => {
     // 知らないもの・空・外への URL に見えるものは移さない
     for (const h of ["", "#", "#nope", "#cat-nope", "#//evil.example", "#https://evil.example"]) expect(legacyGlossaryHashTarget(h), h).toBeNull();
   });
+
+  it("壊れた %（読めない）は、落ちずに移さない。読める % はほどいてから確かめる（セキュリティ確認 2026-11-06 の L5）", () => {
+    for (const h of ["#%", "#%E3", "#%ZZ", "#ugc%", "#cat-%E3%81"]) expect(legacyGlossaryHashTarget(h), h).toBeNull();
+    expect(legacyGlossaryHashTarget("#%75gc")).toBe("/glossary/ugc");
+  });
 });

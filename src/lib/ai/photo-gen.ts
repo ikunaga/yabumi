@@ -8,7 +8,7 @@ import { alertIfNearBudgetSafely } from "@/lib/notify/budget";
 import type { Database } from "@/lib/supabase/database.types";
 import type { ModelOutput } from "./app-description";
 import { ImageBlockedError, type GenerateImage } from "./gemini-image";
-import { AiUnavailableError, aiFailureMessage } from "./provider-failure";
+import { AiUnavailableError, aiFailureMessage, notBilled } from "./provider-failure";
 import { withAiBudget } from "./budget";
 import {
   MAX_PHOTOS_PER_RUN,
@@ -151,6 +151,11 @@ export async function runPhotoIdeas(
 
 // ── ② 画像をつくる（Gemini。画像だけの上限 D35） ──
 
+// 請求されないとはっきりしている失敗か（安全の決まりで断られた・処理の前に断られた 4xx・支払いや鍵の問題）
+export function imageNotBilled(e: unknown): boolean {
+  return e instanceof ImageBlockedError || notBilled(e);
+}
+
 export type PhotoCandidate = { path: string; url: string; width: number; height: number };
 export type GenerateOutcome =
   | { ok: true; jobId: string; candidates: PhotoCandidate[]; remainingImages: number; partial: boolean }
@@ -224,14 +229,19 @@ export async function runPhotoGeneration(
     }
   }
 
-  // 実際にできた枚数と費用に直す（作られなかった分は数えない）。Google の料金は、できた画像の枚数で決まる
+  // 実際にできた枚数と費用に直す。Google の料金は、できた画像の枚数で決まる。
+  // 作られなかった分は、請求されないとはっきりしている失敗（安全の決まりで断られた・4xx・支払いや鍵の問題）だけ 0 にし、
+  // それ以外（タイムアウト・5xx・形の合わない返事）は請求されたかわからないので、見込みの額のまま数える（セキュリティ確認 2026-11-06 の L2）。
+  // 枚数（利用者の月の枚数）には、できた分だけを数える
   const made = results.filter((x) => x.status === "fulfilled").length;
+  const unclear = results.filter((x) => x.status === "rejected" && !imageNotBilled(x.reason)).length;
+  const unclearUsd = unclear ? estimateImageCostUsd(deps.model, unclear) : 0;
   const { error: settleError } = await admin
     .from("ai_image_jobs")
     .update(
       made
-        ? { status: "done", images: made, cost_usd: estimateImageCostUsd(deps.model, made, inputTokens) }
-        : { status: "failed", images: 0, cost_usd: 0 },
+        ? { status: "done", images: made, cost_usd: estimateImageCostUsd(deps.model, made, inputTokens) + unclearUsd }
+        : { status: "failed", images: 0, cost_usd: unclearUsd },
     )
     .eq("id", jobId);
   if (settleError) console.error("[photo-gen] 予約を直せませんでした", settleError.message);

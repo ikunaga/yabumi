@@ -90,11 +90,21 @@ describe("Gemini の画像", () => {
     ]);
   });
 
-  it("500 は今までどおりのふつうの失敗、安全の決まりは ImageBlockedError。どちらも知らせない", async () => {
+  it("500・408 は請求されたかわからない失敗、ほかの 4xx は請求されない失敗（AiRequestRejected）、安全の決まりは ImageBlockedError。どれも知らせない", async () => {
     reply(500, { error: { message: "internal" } });
     const e500 = await generateWithGemini({ prompt: "p", aspectRatio: "4:5" }).catch((x: unknown) => x);
     expect(e500).not.toBeInstanceOf(AiUnavailableError);
     expect(String(e500)).toContain("Gemini API 500");
+    // 500 は請求されたかわからない（予約の額のまま数える）。ふつうの 400・429 は処理されずに断られた（請求されない）
+    expect(notBilled(e500)).toBe(false);
+    for (const status of [400, 429]) {
+      reply(status, { error: { message: "bad request" } });
+      const e = await generateWithGemini({ prompt: "p", aspectRatio: "4:5" }).catch((x: unknown) => x);
+      expect(e).toBeInstanceOf(AiRequestRejected);
+      expect(notBilled(e)).toBe(true);
+    }
+    reply(408, { error: { message: "timeout" } });
+    expect(notBilled(await generateWithGemini({ prompt: "p", aspectRatio: "4:5" }).catch((x: unknown) => x))).toBe(false);
     reply(400, { error: { message: "blocked by safety policy" } });
     await expect(generateWithGemini({ prompt: "p", aspectRatio: "4:5" })).rejects.toBeInstanceOf(ImageBlockedError);
     expect(reported).toEqual([]);

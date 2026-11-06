@@ -21,7 +21,7 @@ export function xSearchConfigured(): boolean {
 type QuotaRow = { status: string; used: number; limit_count: number; resets_on: string | null };
 
 function toQuota(r: QuotaRow): XSearchQuota {
-  const reason = r.status === "user_limit" || r.status === "new_user_limit" || r.status === "global_limit" ? r.status : "ok";
+  const reason = r.status === "user_limit" || r.status === "new_user_limit" || r.status === "global_limit" || r.status === "new_global_limit" ? r.status : "ok";
   return { remaining: Math.max(0, r.limit_count - r.used), limit: r.limit_count, reason, resetsOn: r.resets_on };
 }
 

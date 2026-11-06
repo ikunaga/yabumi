@@ -1,4 +1,4 @@
-// X の人気の投稿を探す（4.52）: 予約の関数（月 3 回・新しい人は 1 回・全体 $1・同時に押しても超えない・断った分を数えない）、
+// X の人気の投稿を探す（4.52）: 予約の関数（月 3 回・新しい人は 1 回・全体 $1・新しい人たち全体は 3 分の 1・同時に押しても超えない・断った分を数えない）、
 // 権限、退会・保存期間、呼び出しの失敗の扱い。X は偽の fetch で、本物の API は呼ばない。
 // 全体の上限は p_scope_owner で、このテストの利用者の記録だけを数える（共有のローカル DB のほかの記録に左右されない）
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -96,6 +96,26 @@ describe("予約の関数", () => {
     const { data: two } = await admin.from("x_search_usage").select("id").eq("owner_id", bobId).limit(2);
     await admin.from("x_search_usage").update({ cost_usd: 0.1 }).in("id", two!.map((x) => x.id));
     expect((await reserve(aliceId, projectId, later, bobId)).status).toBe("ok");
+    await clear(aliceId);
+    await clear(bobId);
+  });
+
+  it("登録して 7 日までの人たち全体は、全体の 3 分の 1（$0.33）まで。印は予約のときにサーバーが付け、7 日たてば全体の枠で探せる", async () => {
+    // 新しい人の予約には印が付く
+    expect((await reserve(aliceId, projectId)).status).toBe("ok");
+    expect((await admin.from("x_search_usage").select("by_new_user").eq("owner_id", aliceId)).data).toEqual([{ by_new_user: true }]);
+    await clear(aliceId);
+    // ほかの新しい人が今月 2 回分（$0.30）使った（印の付いた行で数える。いまのその人が新しいかどうかは見ない）
+    await admin.from("x_search_usage").insert(Array.from({ length: 2 }, () => ({ owner_id: bobId, cost_usd: 0.15, status: "done", by_new_user: true })));
+    const r = await reserve(aliceId, projectId, undefined, bobId);
+    expect(r).toMatchObject({ usage_id: null, status: "new_global_limit", used: 0, limit_count: 1 });
+    expect(r.resets_on).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(await rows(aliceId)).toHaveLength(0);
+    expect(await loadXSearchQuota(admin, aliceId, { scopeOwner: bobId })).toMatchObject({ remaining: 1, reason: "new_global_limit" });
+    // 7 日を過ぎた人は全体の枠（$1）で数えるので探せる。その行には印が付かない
+    const ok = await reserve(aliceId, projectId, later, bobId);
+    expect(ok.status).toBe("ok");
+    expect((await admin.from("x_search_usage").select("by_new_user").eq("owner_id", aliceId)).data).toEqual([{ by_new_user: false }]);
     await clear(aliceId);
     await clear(bobId);
   });

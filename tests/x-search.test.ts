@@ -101,6 +101,7 @@ describe("費用と残りの回数の文", () => {
     expect(xSearchQuotaText({ remaining: 2, limit: 3, reason: "ok", resetsOn: null })).toBe("今月はあと 2 回探せます");
     expect(xSearchQuotaText({ remaining: 0, limit: 3, reason: "user_limit", resetsOn: "2026-12-01" })).toBe("今月の分は使い切りました（12/1 から 3 回）");
     expect(xSearchQuotaText({ remaining: 0, limit: 1, reason: "new_user_limit", resetsOn: "2026-11-12" })).toBe("登録して 7 日までは月 1 回です（11/12 から月 3 回）");
+    expect(xSearchQuotaText({ remaining: 1, limit: 1, reason: "new_global_limit", resetsOn: "2026-11-12" })).toBe("登録して 7 日までの方が探せる今月の分は、いっぱいになりました（11/12 から探せます）");
     expect(xSearchQuotaText({ remaining: 1, limit: 3, reason: "global_limit", resetsOn: "2026-12-01" })).toBe("yabumi 全体の今月の分は使い切りました（12/1 から）");
   });
 });

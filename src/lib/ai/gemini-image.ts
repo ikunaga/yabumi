@@ -1,7 +1,7 @@
 import "server-only";
 import { envReady } from "@/lib/env-check";
 import { photoModel } from "./photo";
-import { AiUnavailableError, isUnavailableResponse } from "./provider-failure";
+import { AiRequestRejected, AiUnavailableError, isRejectedStatus, isUnavailableResponse } from "./provider-failure";
 import { reportAiUnavailable } from "./provider-failure-report";
 
 // Google の Gemini API で画像を 1 枚作る（docs/architecture.md の 4.25 の ②）。
@@ -68,6 +68,8 @@ export const generateWithGemini: GenerateImage = async ({ prompt, aspectRatio })
       await reportAiUnavailable(err);
       throw err;
     }
+    // ほかの 4xx（408 を除く）は処理されずに断られた（請求されない）。5xx は請求されたかわからない
+    if (isRejectedStatus(res.status)) throw new AiRequestRejected(res.status, `Gemini API ${res.status}`);
     throw new Error(`Gemini API ${res.status}`);
   }
   const image = extractImage(json);

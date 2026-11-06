@@ -147,7 +147,7 @@ export function xSearchCostUsd(postCount: number, userCount: number): number {
 export type XSearchQuota = {
   remaining: number;
   limit: number;
-  reason: "ok" | "user_limit" | "new_user_limit" | "global_limit" | "not_ready";
+  reason: "ok" | "user_limit" | "new_user_limit" | "global_limit" | "new_global_limit" | "not_ready";
   resetsOn: string | null;
 };
 
@@ -164,6 +164,8 @@ export function xSearchQuotaText(q: XSearchQuota): string {
       return q.resetsOn ? `今月の分は使い切りました（${md(q.resetsOn)} から 3 回）` : "今月の分は使い切りました";
     case "global_limit":
       return q.resetsOn ? `yabumi 全体の今月の分は使い切りました（${md(q.resetsOn)} から）` : "yabumi 全体の今月の分は使い切りました";
+    case "new_global_limit":
+      return q.resetsOn ? `登録して 7 日までの方が探せる今月の分は、いっぱいになりました（${md(q.resetsOn)} から探せます）` : "登録して 7 日までの方が探せる今月の分は、いっぱいになりました";
     case "not_ready":
       return "yabumi の中で探すのは準備中です";
   }

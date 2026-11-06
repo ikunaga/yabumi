@@ -2355,6 +2355,10 @@ export type Database = {
       }
       learning_today_jst: { Args: never; Returns: string }
       learning_today_term: { Args: { p_term_key: string }; Returns: string }
+      legacy_kpi_targets_part: {
+        Args: { p_posts: boolean; p_targets: Json }
+        Returns: Json
+      }
       link_click_totals: {
         Args: { p_project_id: string; p_today: string }
         Returns: {
@@ -2679,6 +2683,16 @@ export type Database = {
         }[]
       }
       sync_goal_from_legacy: { Args: { p_project_id: string }; Returns: string }
+      sync_goal_from_legacy_parts: {
+        Args: {
+          p_actions: string
+          p_kgi: boolean
+          p_kpis: boolean
+          p_milestone: boolean
+          p_project_id: string
+        }
+        Returns: string
+      }
       time_band_of: { Args: { p_at: string }; Returns: string }
       top_posts_by_clicks: {
         Args: {

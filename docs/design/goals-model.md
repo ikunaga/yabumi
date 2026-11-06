@@ -269,3 +269,15 @@ drop function if exists public.goal_metric_valid(text, text, text, public.sns_ke
 - **roadmap_items.goal_id は、goals を消す前に列ごと消す**（on delete cascade なので、先に goals を消すとやることが消える）
 - roadmaps と account_plans は ① で変えていないので、戻す SQL はない。ローカルの控えは scratchpad/gm-backup/before-goals-20261106.sql（2026-11-06、当てる前に pg_dump --data-only）
 - 本番で ① を当てる前にも、同じ 3 つの表を控える（Supabase Free にはバックアップがない）
+
+### 10.4 橋渡しは前のコードの書き込みだけを写す・start_goal の決め方（2026-11-06、fix/goals-bridge。20261106160000_goals_bridge_parts）
+
+- 実装担当3 の指摘: ① の橋渡しは、アカウント設計の保存のたびに全部を写し直していたので、新しいコードが goals に書いた KGI・KPI を古い値で戻していた
+- 直し: トリガーで OLD と NEW を比べ、前のコードが変えた部分だけを写す（sync_goal_from_legacy_parts。全部を写す sync_goal_from_legacy は写し替えと運営の手当て用）
+  - roadmaps: kgi か started_on → KGI。kpi_targets の posts 以外 → KPI。posts → 行動の目標（アカウント設計に週の回数がないときだけ）。insert のときは中身のある部分だけ
+  - account_plans: first_month.weekly → 行動の目標。startedOn → 区切り。KGI・KPI には触らない
+- 新しいコードの決まり（② ③）: roadmaps に書かない（saveGoal を呼ばない）。account_plans の first_month.weekly と startedOn は前の値のまま書き換えない（週の回数は setGoalActions、「次の 1 か月を始める」は startMilestone）。そうすれば橋渡しは前のコードの書き込みだけで動く
+- start_goal（PM の方針）
+  - KGI まだの目標で初めて KGI を決めるときは、新しい行を作らず同じ行に書き入れる（中身のない replaced を残さない）。数え始めは今週の月曜。今週より前に始まった区切りは先週の日曜で終え、今週から 4 週ごとに並べ直す。返す id は同じ
+  - KGI まだのまま（goal なし）で呼んだときは、何も閉じない（settle_goal も同じ）
+  - 別の目標に替えたときは、今週以降のまだのやること（todo、week_start ≥ 今週の月曜）を新しい目標に付け替える。済み・やらない・先週より前のものは前の目標に残る

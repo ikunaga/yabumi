@@ -668,3 +668,20 @@ Next.js の server action の ID は、ビルドごとの暗号の鍵から作�
 | 25-3 | AI の画像を 1 枚だけ作り（約 5 円）、「AI で作った画像」の札・IPTC の印・「今月はあと 19 枚」を確かめる。24-1〜24-8（鍵・規約の施行日・マイグレーション）が済んでからにする | 24-9 | まだ |
 
 - 25-2 と 25-3 は本物の AI を呼ぶ（費用がかかる）ので、オーナーのアカウントで 1 回ずつにする
+
+## 27. 目標の作り直し（段階 ①）を本番に当てる前に、3 つの表を控える（2026-11-06、feat/goals-model。docs/design/goals-model.md の 10.3）
+
+マイグレーション 20261106150000_goals と 20261106150100_goals_sns_key は、roadmaps・roadmap_items・account_plans を変えずに goals へ写すだけだが、Supabase Free にはバックアップがないので、当てる前にこの 3 つを控える。PM の環境からは本番のデータを読めないので、**オーナーが行う**。控えたファイルには利用者のアカウント設計が入るので、パスワード管理アプリと同じくらい大事に扱い、チャットやリポジトリに貼らない（PM には「控えた」とだけ伝える）。
+
+| 段 | 誰が | すること | 状態 |
+|---|---|---|---|
+| 27-1 | オーナー | Supabase のダッシュボード（supabase.com/dashboard）で本番のプロジェクトを開き、左の「Table Editor」で `roadmaps` を選ぶ。右上の「Export」（または表の名前の横の「…」）→「Export table as CSV」で保存する。`roadmap_items`・`account_plans` も同じように保存する（3 つのファイル）【画面の名前は未確認。違っていたら直す】 | まだ |
+| 27-2 | オーナー | 3 つのファイルを開き、行があること（roadmaps は 1 行以上、ddy のやることが roadmap_items にあること）を確かめて、日付の入った名前（例 `before-goals-2026-11-xx-roadmaps.csv`）にしてパソコンの安全な場所に置く | まだ |
+| 27-3 | PM | オーナーから「控えた」と聞いてから、20261106150000 → 20261106150100 の順に本番に当てる（`supabase db push`） | まだ |
+
+- 1 行のコマンドで控える場合（Docker が入っていて、本番の接続文字列がわかるとき）: ダッシュボードの「Connect」の「Session pooler」の接続文字列（パスワード入り）を、画面に出さずに環境変数に入れてから流す
+  ```sh
+  read -s PROD_DB_URL && export PROD_DB_URL   # 接続文字列を貼って Enter（画面には出ない）
+  docker run --rm -e PROD_DB_URL postgres:17 sh -c 'pg_dump "$PROD_DB_URL" --data-only -t public.roadmaps -t public.roadmap_items -t public.account_plans' > before-goals-$(date +%Y%m%d).sql
+  ```
+- 戻すとき（① を取り消して、控えから戻す）は、docs/design/goals-model.md の 10.3 の SQL を PM が流す。① は 3 つの表を変えないので、ふつうは控えから書き戻す必要はない（控えは、万一のときのため）

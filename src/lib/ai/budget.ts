@@ -141,20 +141,60 @@ function testArgs(userId: string): { p_scope_owner?: string; p_as_of?: string } 
 }
 
 // 予約だけする（返事のあとに会話を作るなど、直すときに情報を足すとき）。ふつうは withAiBudget を使う。request は送る中身（見込みの額を決める）。
-// countTokens は呼び出しに付いている数える関数（tokenCounterOf(deps.callX)）
+// countTokens は呼び出しに付いている数える関数（tokenCounterOf(deps.callX)）。
+// 順番（2026-11-06 のセキュリティ確認の L4）: ① 数えずにバイト数の見込み（大きめ）で予約する → ② 通ったら count_tokens で数え直し、予約の額を下げる。
+// 上限に届いた人の呼び出しでは count_tokens を呼ばない。① で断られても、いちばん小さい見込みなら通るとき（上限の近く）だけ、数えてから予約し直す
 export async function reserveAi<Req>(admin: Db, opts: BudgetOpts & { request: Req; countTokens?: CountTokens<Req> }): Promise<AiReservation | BudgetDenied> {
-  const estimate = await estimateRequestUsd(opts.call, opts.request, opts.countTokens);
-  if (estimate > AI_MAX_RESERVATION_USD) return { ok: false, message: TOO_LARGE_MESSAGE };
-  const { data, error } = await admin.rpc("reserve_ai_usage", {
-    p_owner_id: opts.userId,
-    p_purpose: opts.purpose,
-    p_cost_usd: estimate,
-    p_thread_id: opts.threadId ?? undefined,
-    ...testArgs(opts.userId),
-  });
-  if (error) throw error;
-  const row = data?.[0];
-  if (!row) throw new Error("reserve_ai_usage returned no row");
+  const byBytes = reserveEstimateUsd(opts.call, opts.request);
+  if (!opts.countTokens && byBytes > AI_MAX_RESERVATION_USD) return { ok: false, message: TOO_LARGE_MESSAGE };
+  const reserve = async (cost: number) => {
+    const { data, error } = await admin.rpc("reserve_ai_usage", {
+      p_owner_id: opts.userId,
+      p_purpose: opts.purpose,
+      p_cost_usd: cost,
+      p_thread_id: opts.threadId ?? undefined,
+      ...testArgs(opts.userId),
+    });
+    if (error) throw error;
+    const r = data?.[0];
+    if (!r) throw new Error("reserve_ai_usage returned no row");
+    return r;
+  };
+  const drop = async (usageId: string) => {
+    const { error: e } = await admin.from("ai_usage").delete().eq("id", usageId).eq("status", "reserved");
+    if (e) console.error("[ai-budget] 予約を消せませんでした", e.message);
+  };
+  const first = Math.min(byBytes, AI_MAX_RESERVATION_USD);
+  let row = await reserve(first);
+  let estimate = first;
+  if (row.status === "ok" && row.usage_id) {
+    if (opts.countTokens) {
+      // ② 数え直す（count_tokens は無料。数えられなければバイト数のまま）。予約の額は下げるだけ
+      const counted = await estimateRequestUsd(opts.call, opts.request, opts.countTokens);
+      if (counted > AI_MAX_RESERVATION_USD) {
+        await drop(row.usage_id);
+        return { ok: false, message: TOO_LARGE_MESSAGE };
+      }
+      if (counted < estimate) {
+        const { error: e } = await admin.from("ai_usage").update({ cost_usd: counted }).eq("id", row.usage_id).eq("status", "reserved");
+        if (e) console.error("[ai-budget] 予約の額を直せませんでした（大きめの見込みのまま）", e.message);
+        else estimate = counted;
+      }
+    }
+  } else if (opts.countTokens && row.status !== "daily_limit") {
+    // バイト数の見込みが大きすぎて断られたのかもしれない。いちばん小さい見込み（入力 1 トークン）でも断られるなら、数えずに断る
+    const floor = reserveEstimateUsd(opts.call, opts.request, 1);
+    if (floor < first) {
+      const probe = await reserve(floor);
+      if (probe.status === "ok" && probe.usage_id) {
+        await drop(probe.usage_id);
+        const counted = await estimateRequestUsd(opts.call, opts.request, opts.countTokens);
+        if (counted > AI_MAX_RESERVATION_USD) return { ok: false, message: TOO_LARGE_MESSAGE };
+        row = await reserve(counted);
+        estimate = counted;
+      } else row = probe;
+    }
+  }
   // yabumi 全体の上限の 80% に達したら、運営者に知らせる（月に 1 回。知らせに失敗しても AI は止めない）
   await alertIfNearBudgetSafely(admin, "ai", Number(row.global_month_usd ?? 0), AI_GLOBAL_MONTHLY_USD, { now: opts.now ?? new Date() });
   if (row.status !== "ok" || !row.usage_id) return { ok: false, message: limitMessage(row.status as Exclude<ReserveStatus, "ok">, row.new_until) };

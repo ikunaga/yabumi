@@ -244,6 +244,58 @@ describe("入口（withAiBudget）", () => {
     setAiBudgetTestScope(null);
   });
 
+  it("上限に届いた人の呼び出しでは、count_tokens を呼ばずに断る（セキュリティ確認 2026-11-06 の L4）", async () => {
+    await clear(aliceId, bobId);
+    setAiBudgetTestScope({ scopeSelf: true, asOf: new Date(OLD) });
+    await spend(aliceId, 3);
+    const count = vi.fn(async () => 3000);
+    const callModel = vi.fn(async (req: typeof request) => (void req, { model: "claude-opus-5-5", usage }));
+    const r = await withAiBudget(admin, opts(), request, countable(callModel, count));
+    expect(r.ok).toBe(false);
+    expect(count).not.toHaveBeenCalled();
+    expect(callModel).not.toHaveBeenCalled();
+    expect((await rowsOf(aliceId)).filter((x) => x.status === "reserved")).toEqual([]);
+    setAiBudgetTestScope(null);
+  });
+
+  it("バイト数の見込みでは残りに足りないが、数えた値なら足りるとき（上限の近く）は、数えてから予約する。試しの予約は残さない", async () => {
+    await clear(aliceId, bobId);
+    setAiBudgetTestScope({ scopeSelf: true, asOf: new Date(OLD) });
+    const long = { system: [{ type: "text", text: "相談の相棒です。".repeat(500) }], messages: [{ role: "user", content: [{ type: "text", text: "長い相談".repeat(1000) }] }] };
+    const byBytes = reserveEstimateUsd("consult", long);
+    const counted = reserveEstimateUsd("consult", long, 3000);
+    expect(counted).toBeLessThan(byBytes);
+    // 残りを、数えた値とバイト数の見込みの間にする
+    await spend(aliceId, 3 - (counted + byBytes) / 2);
+    const count = vi.fn(async () => 3000);
+    const seen: number[] = [];
+    const r = await withAiBudget(admin, opts(), long, countable(async (req: typeof long) => {
+      void req;
+      seen.push(...(await rowsOf(aliceId)).filter((x) => x.status === "reserved").map((x) => Number(x.cost_usd)));
+      return { model: "claude-opus-5-5", usage };
+    }, count));
+    expect(r.ok).toBe(true);
+    expect(count).toHaveBeenCalledTimes(1);
+    expect(seen).toEqual([counted]);
+    setAiBudgetTestScope(null);
+  });
+
+  it("バイト数の見込みが 1 回の上限（$1）を超えても、数えた値が上限の中なら予約できる（数える関数がなければ断る）", async () => {
+    await clear(aliceId, bobId);
+    setAiBudgetTestScope({ scopeSelf: true, asOf: new Date(OLD) });
+    const huge = { system: [], messages: [{ role: "user", content: [{ type: "text", text: "あ".repeat(120_000) }] }] };
+    expect(reserveEstimateUsd("consult", huge)).toBeGreaterThan(1);
+    // countable は渡した関数に数える関数を足すので、呼び出しごとに別の関数を作る
+    const callModel = () => async (req: typeof huge) => (void req, { model: "claude-opus-5-5", usage });
+    expect((await withAiBudget(admin, opts(), huge, countable(callModel(), async () => 2000))).ok).toBe(true);
+    const r = await withAiBudget(admin, opts(), huge, callModel());
+    expect(r).toMatchObject({ ok: false });
+    // 数えても上限を超えるなら、予約を残さずに断る
+    expect((await withAiBudget(admin, opts(), huge, countable(callModel(), async () => 400_000))).ok).toBe(false);
+    expect((await rowsOf(aliceId)).filter((x) => x.status === "reserved")).toEqual([]);
+    setAiBudgetTestScope(null);
+  });
+
   it("数えた値で予約しても、残りが少ないときに同時に 10 回送り、どれも数えた値のゆとりの分まで入力・出力の上限まで使ったとしても、合計が上限を超えない", async () => {
     await clear(aliceId, bobId);
     setAiBudgetTestScope({ scopeSelf: true, asOf: new Date(OLD) });

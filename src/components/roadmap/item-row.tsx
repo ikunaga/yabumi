@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { HelpTip } from "@/components/ui/help";
 import Link from "next/link";
-import { deleteItem, setItemPlannedOn, setItemStatus } from "@/lib/roadmap/actions";
+import { setItemPlannedOn, setItemStatus } from "@/lib/roadmap/actions";
 import type { RoadmapItem } from "@/lib/roadmap/load";
 import { effectiveStatus, formatValue, kpiLabel } from "@/lib/roadmap/schema";
 import { todoAction } from "@/lib/roadmap/todo-kind";
@@ -28,7 +28,6 @@ export function RoadmapItemRow({
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const run = (fn: () => Promise<{ error?: string }>) =>
     startTransition(async () => {
       setError(null);
@@ -95,31 +94,16 @@ export function RoadmapItemRow({
         <span className="flex shrink-0 items-center gap-1 max-sm:-mt-1 max-sm:w-full max-sm:pl-5">
           {state === "todo" && (
             <span className="inline-flex items-center">
-              <Button type="button" variant="text" size="sm" disabled={pending} onClick={() => run(() => setItemStatus(projectId, item.id, "skipped"))}>
+              <Button type="button" variant="secondary" size="sm" disabled={pending} onClick={() => run(() => setItemStatus(projectId, item.id, "skipped"))}>
                 やらない
               </Button>
-              {/* 「削除する」との違いは押す前にはわからないので、説明を添える（2026-11-03 オーナーの決定） */}
-              <HelpTip label="「やらない」の説明">あとで戻せます。AI との相談にも、やらないと決めたことが伝わります。要らないものは削除してください。</HelpTip>
+              {/* 削除はなくし、やらないだけにする（2026-11-06 オーナーの決定）。押したあとに起きることを添える */}
+              <HelpTip label="「やらない」の説明">あとで「戻す」で戻せます。AI との相談にも、やらないと決めたことが伝わります。</HelpTip>
             </span>
           )}
           {item.status === "skipped" && (
-            <Button type="button" variant="text" size="sm" disabled={pending} onClick={() => run(() => setItemStatus(projectId, item.id, "todo"))}>
+            <Button type="button" variant="secondary" size="sm" disabled={pending} onClick={() => run(() => setItemStatus(projectId, item.id, "todo"))}>
               戻す
-            </Button>
-          )}
-          {confirmDelete ? (
-            <>
-              <Button type="button" variant="danger" size="sm" disabled={pending} onClick={() => run(() => deleteItem(projectId, item.id))}>
-                削除する
-              </Button>
-              <Button type="button" variant="text" size="sm" disabled={pending} onClick={() => setConfirmDelete(false)}>
-                やめる
-              </Button>
-            </>
-          ) : (
-            // 「×」だと閉じるのか消すのかがわからないので、文字にする（2026-11-03 オーナーの決定）。押すと「削除する」「やめる」で確かめる
-            <Button type="button" variant="text" size="sm" onClick={() => setConfirmDelete(true)} aria-label={`「${item.title}」を削除する`}>
-              削除する
             </Button>
           )}
         </span>

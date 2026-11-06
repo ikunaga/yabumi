@@ -20,6 +20,8 @@ import { MAX_NOTES_FOR_IDEAS } from "@/lib/notes/rules";
 import { SNS, checkTarget, type SnsKey } from "@/lib/sns";
 import { formatShort } from "@/lib/time";
 import { XPostSource, xPostReady, type XPostValue } from "./x-post-source";
+import { XBuzzSearch } from "./x-buzz-search";
+import type { XSearchQuota } from "@/lib/sns/x/search";
 
 const PERIOD_LABEL: Record<IdeaPeriod, string> = { 3: "3 日", 7: "1 週間", 14: "2 週間", 30: "1 か月" };
 
@@ -119,11 +121,13 @@ type Props = {
   noPillars: boolean;
   // 「X で人気の投稿から」の検索の言葉（アカウント設計から作ったもの。src/lib/ideas/x-post.ts）
   xSearchWords: string[];
+  // 「yabumi の中で探す」（A 案、4.52）の残りの回数（サーバーが読んだもの。鍵がなければ not_ready）
+  xSearchQuota: XSearchQuota;
 };
 
 // 材料（最近のコミット・最近のできごと・ネタ帳・アカウント設計）から AI がネタを出し、利用者が質問に答えたり、ネタを選んで下書きにしたりする。
 // ① 材料を選ぶ → ② 中身を入れる → ③ ネタを選んで下書きにする の 3 つのステップに分け、いまいるステップの項目だけを出す（入れたものはステップを移っても残る）
-export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, snsOptions, maxSns, defaultSns, defaultDays, defaultSource, newsQuestions, newsExample, topicExamples, sources, notes, defaultNoteIds, thread, noPillars, xSearchWords }: Props) {
+export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, snsOptions, maxSns, defaultSns, defaultDays, defaultSource, newsQuestions, newsExample, topicExamples, sources, notes, defaultNoteIds, thread, noPillars, xSearchWords, xSearchQuota }: Props) {
   const [step, setStep] = useState<IdeaStep>(() => initialIdeaStep({ hasThread: Boolean(thread), fromNotes: defaultNoteIds.length > 0 }));
   const [source, setSource] = useState<IdeaSource>(defaultSource);
   const [days, setDays] = useState<IdeaPeriod>(defaultDays);
@@ -561,7 +565,15 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
                 </div>
               )}
 
-              {source === "x_post" && <XPostSource projectId={projectId} words={xSearchWords} value={xPost} onChange={setXPost} />}
+              {source === "x_post" && (
+                <XPostSource
+                  projectId={projectId}
+                  words={xSearchWords}
+                  value={xPost}
+                  onChange={setXPost}
+                  renderSearch={(ctx) => <XBuzzSearch projectId={ctx.projectId} query={ctx.query} quota={xSearchQuota} onPick={ctx.onPick} />}
+                />
+              )}
 
               {source === "plan" && (
                 <p className="flex flex-wrap items-center gap-2 rounded-md border border-line bg-surface2 px-4 py-3 text-[15px]">

@@ -17,6 +17,7 @@ import { MAX_NOTES_FOR_IDEAS } from "@/lib/notes/rules";
 import { getAccountPlan } from "@/lib/plan/queries";
 import { normalizePlan } from "@/lib/plan/schema";
 import { xSearchWords } from "@/lib/ideas/x-post";
+import { currentXSearchQuota } from "@/lib/sns/x/search-server";
 import { connectedAccounts } from "@/lib/posts/queries";
 import { getProject } from "@/lib/projects/queries";
 import type { SnsKey } from "@/lib/sns";
@@ -31,12 +32,14 @@ export default async function IdeasPage(props: PageProps<"/projects/[id]/ideas">
   if (!project) notFound();
   const supabase = await createClient();
   const githubReady = githubConfigured();
-  const [{ data: link }, plan, accounts, thread, notes] = await Promise.all([
+  const [{ data: link }, plan, accounts, thread, notes, xSearchQuota] = await Promise.all([
     supabase.from("project_github_repos").select("full_name").eq("project_id", id).maybeSingle(),
     getAccountPlan(id),
     connectedAccounts(id),
     getLatestIdeasThread(id),
     listNotes(id, { unusedOnly: true }),
+    // 「yabumi の中で探す」の残りの回数（4.52）
+    currentXSearchQuota(),
   ]);
   const repoFullName = githubReady ? (link?.full_name ?? null) : null;
 
@@ -96,6 +99,7 @@ export default async function IdeasPage(props: PageProps<"/projects/[id]/ideas">
         thread={thread}
         noPillars={noPillars}
         xSearchWords={searchWords}
+        xSearchQuota={xSearchQuota}
       />
     </div>
   );

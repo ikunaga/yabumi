@@ -2578,7 +2578,7 @@ yabumi のコンセプトは、使って SNS を運用するうちに、マー�
   - 取り方: 直近 7 日を sort_order=relevancy で 10 件（API の最小。増やすと費用が増える）。expansions=author_id で、書いた人の名前・@・アイコンも一緒に取る。長い投稿は note_tweet の全文
 - 並べ方: X の検索は人気の順に絞れないので、返ってきた public_metrics で並べ直す
   - 点数: いいね ＋ (リポスト ＋ 引用) × 2 ＋ 返信。広げてくれた数を重く見る。同じなら新しい順（xBuzzScore）
-- 上限（DB の関数 reserve_x_search・x_search_quota の中で固定。マイグレーション 20261106120000）
+- 上限（DB の関数 reserve_x_search・x_search_quota の中で固定。マイグレーション 20261106140000）
   - 1 人 月 3 回。登録して 7 日までは月 1 回
   - yabumi 全体で月 $1（約 150 円。月 6 回ほど）
   - X の投稿の上限（sns_api_usage、$3）とは別の表（x_search_usage）で数えるので、探しすぎても自動投稿は止まらない

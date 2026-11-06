@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { callAction } from "@/lib/client-errors";
+import type { XPostPick } from "@/lib/ideas/x-post";
 import { searchXBuzz } from "@/lib/sns/x/search-actions";
 import { xSearchQuotaText, type XBuzzPost, type XSearchQuota } from "@/lib/sns/x/search";
 import { formatShort } from "@/lib/time";
@@ -20,7 +21,7 @@ export function XBuzzSearch({
   // いま選んでいる検索の言葉（演算子なし）
   query: string;
   quota: XSearchQuota;
-  onPick: (pick: { url: string; text: string }) => void;
+  onPick: (pick: XPostPick) => void;
 }) {
   const [quota, setQuota] = useState(initialQuota);
   const [posts, setPosts] = useState<XBuzzPost[] | null>(null);

@@ -185,7 +185,7 @@ export async function gatherConsultContext(
         itemWeeks: view.items.filter((i) => i.weekStart >= view.thisWeek).map((i) => weeksBetween(view.thisWeek, i.weekStart)),
       })
     : null;
-  const coach = monthReview ? await loadCoachView(user, projectId, { now, firstMonth: plan.first_month }) : null;
+  const coach = monthReview ? await loadCoachView(user, projectId, { now }) : null;
   return {
     ...(review ? { review } : {}),
     ...(coach ? { monthReview: coachSummaryLines(coach) } : {}),

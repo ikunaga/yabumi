@@ -6,6 +6,7 @@ import { ButtonLink, NotReadyButton } from "@/components/ui/button";
 import { Disclosure, HelpTip } from "@/components/ui/help";
 import { dismissGithubPrompt } from "@/lib/github/actions";
 import type { CoachView } from "@/lib/coach/load";
+import type { GoalReview } from "@/lib/goals/review";
 import { CYCLE_WEEKS, remainingText, type PaceStatus } from "@/lib/coach/pace";
 import { SNS } from "@/lib/sns";
 import { DismissableDetails } from "@/components/ui/dismissable-details";
@@ -15,7 +16,7 @@ import { formatValue, kpiLabel } from "@/lib/roadmap/schema";
 import { todoAction } from "@/lib/roadmap/todo-kind";
 
 // 概要の「いまやること」（1 行とボタンの小さな帯。2026-10-30 オーナーの決定）。いつも 1 つ出す（next-step.ts の nowBandKind）:
-// 最初の 4 段階 → 1 か月の区切り → 今週のやること（ロードマップ）。GitHub をつなぐ（任意）は帯の下の小さな 1 行。
+// 最初の 4 段階 → 目標の振り返り（KGI の期限・届いた）→ 1 か月の区切り → 今週のやること（ロードマップ）。GitHub をつなぐ（任意）は帯の下の小さな 1 行。
 // 伴走（今週の回数）は帯の右に小さく出す。説明は「?」に畳む
 // いまやることの帯（いつも出す）と、その下の GitHub をつなぐ（任意。つないでいない・飛ばしていないときだけの小さな 1 行）
 export function NowBand(props: Parameters<typeof MainBand>[0]) {
@@ -61,6 +62,8 @@ function MainBand({
   progress,
   doneCount,
   aiEnabled,
+  goalReview,
+  cycleMerged,
 }: {
   projectId: string;
   stepIndex: number;
@@ -73,11 +76,15 @@ function MainBand({
   progress: Record<string, { actual: number; target: number } | null>;
   doneCount: number;
   aiEnabled: boolean;
+  // 目標の振り返り（期限が来た・届いた。lib/goals/review.ts）
+  goalReview: GoalReview | null;
+  // 1 か月の区切りを目標の振り返りにまとめるか（目標の期限が区切りから 7 日以内）
+  cycleMerged: boolean;
 }) {
   const base = `/projects/${projectId}`;
   const pace = coach ? <PaceChip projectId={projectId} view={coach} /> : null;
 
-  const kind = nowBandKind({ stepIndex, cycleEnded: Boolean(coach?.cycle?.ended) });
+  const kind = nowBandKind({ stepIndex, cycleEnded: Boolean(coach?.cycle?.ended), goalReview: Boolean(goalReview), cycleMerged });
   if (kind === "step") {
     const step = STEPS[stepIndex];
     const rest = STEPS.slice(stepIndex + 1);
@@ -107,12 +114,30 @@ function MainBand({
     );
   }
 
-  // 最初の 1 か月が終わった: 振り返りと次の 1 か月へ
+  // 目標（KGI）の期限が来た・届いた: AI と振り返って次の目標へ（AI が使えなければ、ロードマップで終える）
+  if (kind === "goal_review" && goalReview) {
+    const name = goalReview.goal.statement ?? "";
+    return (
+      <ActionBar
+        label="いまやること"
+        title={goalReview.kind === "reached" ? `目標「${name}」に届きました` : `目標「${name}」の期限が来ました`}
+        wrap
+        help={pace}
+        action={
+          <ButtonLink href={aiEnabled ? `${base}/consult/new?start=goal_review&goal=${goalReview.goal.id}` : `${base}/roadmap`} size="sm">
+            {aiEnabled ? "AI と振り返る" : "ロードマップで終える"}
+          </ButtonLink>
+        }
+      />
+    );
+  }
+
+  // 1 か月（中間の目標の区切り）が終わった: 振り返りと次の 1 か月へ
   if (kind === "cycle_ended") {
     return (
       <ActionBar
         label="いまやること"
-        title="最初の 1 か月が終わりました。振り返って、次の 1 か月の回数を決めましょう"
+        title="この 1 か月が終わりました。振り返って、次の 1 か月の目標と回数を決めましょう"
         help={pace}
         action={
           <ButtonLink href={aiEnabled ? `${base}/consult/new?start=month_review` : `${base}/plan?open=first_month`} size="sm">
@@ -231,7 +256,7 @@ function PaceChip({ projectId, view }: { projectId: string; view: CoachView }) {
         {state && <span className={`font-bold ${state.cls}`}>{state.text}</span>}
       </summary>
       <div className="absolute right-0 z-30 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-lg bg-pop px-4 py-3 text-[13px] leading-[1.7] text-on-pop shadow-pop">
-        <p className="font-bold">今週の投稿のペース{cycle && !cycle.ended && `（最初の 1 か月の ${cycle.weekIndex}/${CYCLE_WEEKS} 週目）`}</p>
+        <p className="font-bold">今週の投稿のペース{cycle && !cycle.ended && `（この 1 か月の ${cycle.weekIndex}/${CYCLE_WEEKS} 週目）`}</p>
         {!week.achieved && !week.covered && <p>今週あと {remainingText(week)}</p>}
         <ul className="mt-1">
           {week.rows.map((r) => (

@@ -2,24 +2,27 @@ import { ConsultClosedBanner } from "@/components/ai/consult-closed-banner";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AddItemForm } from "@/components/roadmap/add-item-form";
+import { ActionsCard, KgiCard, KpisCard, MilestonesCard, PastGoals } from "@/components/roadmap/goal-cards";
 import { GoalForm } from "@/components/roadmap/goal-form";
 import { RoadmapItemRow } from "@/components/roadmap/item-row";
+import { SettleGoalButton } from "@/components/roadmap/settle-goal-button";
+import { ActionBar } from "@/components/ui/action-bar";
 import { ButtonLink, NotReadyButton } from "@/components/ui/button";
 import { Card, CardHeader, EmptyState } from "@/components/ui/card";
 import { Columns } from "@/components/ui/columns";
-import { Badge } from "@/components/ui/chip";
 import { DismissableDetails } from "@/components/ui/dismissable-details";
-import { HelpTip } from "@/components/ui/help";
-import { SNS_COLOR } from "@/components/ui/marks";
-import { BarRow, Metric } from "@/components/ui/metric";
+import { Metric } from "@/components/ui/metric";
 import { PageHeader } from "@/components/ui/page-header";
 import { Term } from "@/components/ui/term";
 import { aiConfigured } from "@/lib/ai/anthropic";
-import { chosenKpis } from "@/lib/metrics/kpis";
+import { getGoals, kpiWeekTotals } from "@/lib/goals/queries";
+import { isLegacyActionGoal, kgiMetricFor } from "@/lib/goals/schema";
+import { formatMetric, md } from "@/lib/goals/view";
 import { getAccountPlan } from "@/lib/plan/queries";
 import { getProject } from "@/lib/projects/queries";
 import { itemState, loadRoadmap, thisWeekCounts, type RoadmapItem } from "@/lib/roadmap/queries";
-import { formatValue, isAutoKpi, itemProgress, kpiLabel, notCountedYet, weekValue } from "@/lib/roadmap/schema";
+import { itemProgress, notCountedYet, weekValue } from "@/lib/roadmap/schema";
+import { SNS_KEYS } from "@/lib/sns";
 import { addDays, dayOfMonth, monthOf } from "@/lib/time";
 
 export const metadata: Metadata = { title: "ロードマップ" };
@@ -33,18 +36,25 @@ function weekLabel(weekStart: string, thisWeek: string): string {
   return `${diff} 週後（${range}）`;
 }
 
-// ロードマップ（F10、docs/architecture.md の 4.23）: 最終の目標（KGI）、追いかける数字（KPI）、週ごとのやること
+// ロードマップ（F10、docs/architecture.md の 4.23・docs/design/goals-model.md の 5.）: いまの目標（KGI）・中間の目標・KPI・週の投稿の本数、
+// 週ごとのやること、これまでの目標
 export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadmap">) {
   const [{ id }, { done, items: doneItems, reviewed }] = await Promise.all([props.params, props.searchParams]);
   // id だけで読めるので、プロジェクトと並べて読む（待ち時間を縮める）
-  const [project, view, plan] = await Promise.all([getProject(id), loadRoadmap(id), getAccountPlan(id)]);
+  const [project, view, plan, goals] = await Promise.all([getProject(id), loadRoadmap(id), getAccountPlan(id), getGoals(id)]);
   if (!project) notFound();
-  const { roadmap, items, thisWeek, daily, kgi } = view;
-  const suggested = chosenKpis(plan?.plan.first_month.kpis, plan?.plan.goal.goalType, project.product_type);
+  const { items: allItems, thisWeek, daily } = view;
+  const active = goals.active;
+  const goal = active?.goal ?? null;
+  const kpiWeek = await kpiWeekTotals(id, active?.kpis ?? [], thisWeek, addDays(thisWeek, 6));
   const consultHref = `/projects/${id}/consult/new?start=roadmap`;
   const ai = aiConfigured();
+  const legacy = goal ? isLegacyActionGoal(goal) : false;
+  const hasKgi = Boolean(goal?.metric && goal.target !== null) && !legacy;
+  const p = hasKgi ? (active?.progress ?? null) : null;
 
-  // 読むときの状態（数字で目標に届いたまだのやることは「達成」。済みと同じに数える）
+  // いまの目標のやること（目標を替えたとき、今週以降のまだのものは新しい目標に移る）。前の目標のものは「これまでの目標」に
+  const items = allItems.filter((i) => !goal || i.goalId === null || i.goalId === goal.id);
   const stateOf = (item: RoadmapItem) => itemState(item, daily);
   const groups: { key: string; label: string; items: RoadmapItem[] }[] = [];
   for (const item of items) {
@@ -62,6 +72,10 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
   const past = items.filter((i) => i.weekStart < thisWeek && stateOf(i) !== "todo");
   const { open: thisWeekTodo, finished: thisWeekDone } = thisWeekCounts(view);
   const weeks = Array.from({ length: 9 }, (_, n) => addDays(thisWeek, n * 7)).map((w) => ({ value: w, label: weekLabel(w, thisWeek) }));
+  const row = (item: RoadmapItem) => (
+    <RoadmapItemRow key={item.id} projectId={id} item={item} aiEnabled={ai} progress={itemProgress(item, daily)} notCounted={item.kpi ? notCountedYet(item.kpi, project.product_type) : null} />
+  );
+  const postsThisWeek = Object.fromEntries(SNS_KEYS.map((s) => [s, weekValue("posts", thisWeek, daily, s) ?? 0]));
 
   return (
     <div className="flex flex-col gap-5 max-sm:gap-4">
@@ -69,26 +83,54 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
         title={<Term k="roadmap">ロードマップ</Term>}
         help={
           <>
-              <Term k="kgi">最終の目標</Term>と、そこへ向かう週ごとのやること。追いかける数字（<Term k="kpi" />）は、数えられるものから自動で進み具合を出します。
+            3 か月の成果の目標（<Term k="kgi" />）と 4 週ごとの<Term k="milestone">中間の目標</Term>、そこへ向かう週ごとのやること。途中の数字（<Term k="kpi" />）は、数えられるものから自動で進み具合を出します。
           </>
         }
-        actions={ai ? <ButtonLink href={consultHref}>{roadmap?.kgi ? "AI と見直す" : "AI と作る"}</ButtonLink> : <NotReadyButton>AI と作る</NotReadyButton>}
+        actions={ai ? <ButtonLink href={consultHref}>{hasKgi ? "AI と見直す" : "AI と作る"}</ButtonLink> : <NotReadyButton>AI と作る</NotReadyButton>}
       />
       <ConsultClosedBanner projectId={id} done={done} items={doneItems} reviewed={reviewed} roadmapLink={false} />
+
+      {/* 前の KGI（投稿の本数）は、成果の目標に変えてもらう（オーナーの決定 Q2。自動では変えない） */}
+      {legacy && (
+        <ActionBar
+          label={<span className="text-signal">● 要確認</span>}
+          title="いまの目標は投稿の本数です。成果の目標に変えましょう"
+          wrap
+          action={
+            ai ? (
+              <ButtonLink href={consultHref} size="sm">
+                AI と変える
+              </ButtonLink>
+            ) : (
+              <ButtonLink href="#goal-form" size="sm">
+                手で決める
+              </ButtonLink>
+            )
+          }
+        />
+      )}
 
       {/* 数字の段（見本 A の上の 4 つ） */}
       <div className="grid grid-cols-4 gap-4 max-lg:grid-cols-2 max-sm:gap-3">
         <Metric
           label="目標の進み具合"
-          value={kgi && roadmap?.kgi ? formatValue(roadmap.kgi.kpi, kgi.actual) : "—"}
-          note={kgi && roadmap?.kgi ? `/ ${formatValue(roadmap.kgi.kpi, kgi.target)}` : roadmap?.kgi ? "準備中" : "まだ決めていません"}
+          value={p?.available && goal?.metric ? formatMetric(goal.metric, p.value) : "—"}
+          note={!hasKgi ? "まだ決めていません" : p?.available && goal?.metric ? `/ ${formatMetric(goal.metric, p.target)}` : "数えていません"}
         />
-        <Metric label="期限まで" value={kgi ? kgi.daysLeft : "—"} unit={kgi ? "日" : undefined} note={roadmap?.kgi ? roadmap.kgi.deadline : undefined} />
+        <Metric label="期限まで" value={p ? p.daysLeft : "—"} unit={p ? "日" : undefined} note={hasKgi && goal?.endsOn ? md(goal.endsOn) : undefined} />
         <Metric label="今週のやること" value={thisWeekTodo} unit="件" note={`済み ${thisWeekDone} 件`} />
         <Metric
           label="期限の見込み"
-          value={kgi?.projected != null && roadmap?.kgi ? formatValue(roadmap.kgi.kpi, kgi.projected) : "—"}
-          note={kgi?.onTrack === true ? <span className="font-bold text-success">届きそう</span> : kgi?.onTrack === false ? <span className="font-bold text-signal">届かない見込み</span> : "続けてから見ます"}
+          value={p?.projected != null && goal?.metric ? formatMetric(goal.metric, p.projected) : "—"}
+          note={
+            p?.projected == null ? (
+              "続けてから見ます"
+            ) : p.projected >= p.target ? (
+              <span className="font-bold text-success">届きそう</span>
+            ) : (
+              <span className="font-bold text-signal">届かない見込み</span>
+            )
+          }
         />
       </div>
 
@@ -106,18 +148,7 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
                 groups.map((g) => (
                   <section key={g.key} aria-label={g.label}>
                     <h3 className="border-b border-line bg-surface2 px-6 py-2 text-[13px] font-bold text-muted max-sm:px-4">{g.label}</h3>
-                    <ul>
-                      {g.items.map((item) => (
-                        <RoadmapItemRow
-                          key={item.id}
-                          projectId={id}
-                          item={item}
-                          aiEnabled={ai}
-                          progress={itemProgress(item, daily)}
-                          notCounted={item.kpi ? notCountedYet(item.kpi, project.product_type) : null}
-                        />
-                      ))}
-                    </ul>
+                    <ul>{g.items.map(row)}</ul>
                   </section>
                 ))
               )}
@@ -127,11 +158,7 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
               {past.length > 0 && (
                 <DismissableDetails className="border-t border-line px-6 py-3 max-sm:px-4">
                   <summary className="cursor-pointer text-[14px] font-semibold text-primary">済んだこと・やらないことにしたこと（{past.length} 件）</summary>
-                  <ul>
-                    {past.map((item) => (
-                      <RoadmapItemRow key={item.id} projectId={id} item={item} aiEnabled={ai} progress={itemProgress(item, daily)} notCounted={item.kpi ? notCountedYet(item.kpi, project.product_type) : null} />
-                    ))}
-                  </ul>
+                  <ul>{past.map(row)}</ul>
                 </DismissableDetails>
               )}
             </Card>
@@ -139,99 +166,59 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
         }
         side={
           <>
-            <Card className="overflow-hidden">
-              <CardHeader title="最終の目標（KGI）" action={roadmap?.kgi ? <span className="num">数え始め {roadmap.startedOn}</span> : undefined} />
-              <div className="flex flex-col gap-3 px-6 pt-1 pb-5 max-sm:px-4">
-                {roadmap?.kgi ? (
-                  <>
-                    <p className="text-[19px] font-bold">{roadmap.kgi.statement}</p>
-                    <p className="text-[15px] text-muted">
-                      {kpiLabel(roadmap.kgi.kpi, roadmap.kgi.sns)}を {formatValue(roadmap.kgi.kpi, roadmap.kgi.target)}、期限 {roadmap.kgi.deadline}
-                    </p>
-                    {kgi ? (
-                      <BarRow
-                        label="いま"
-                        value={kgi.actual}
-                        max={kgi.target}
-                        display={`${formatValue(roadmap.kgi.kpi, kgi.actual)} / ${formatValue(roadmap.kgi.kpi, kgi.target)}`}
-                      />
-                    ) : (
-                      <p className="flex items-center gap-2 text-[15px] text-muted">
-                        <Badge>準備中</Badge>
-                        {notCountedYet(roadmap.kgi.kpi, project.product_type)}
-                      </p>
-                    )}
-                    {kgi?.onTrack === false && <p className="text-[15px] text-signal">このままの調子だと届かない見込みです。やることを見直すか、目標を調整しましょう。</p>}
-                  </>
-                ) : (
-                  <p className="text-[15px] text-muted">まだ決めていません。「{ai ? "AI と作る" : "目標を手で決める"}」から決められます。</p>
-                )}
-              </div>
-            </Card>
-
-            <Card className="overflow-hidden">
-              <CardHeader
-                title={
-                  <span className="flex items-center gap-2">
-                    追いかける数字と 1 週の目標
-                    <HelpTip label="追いかける数字">
-                      SNS ごとの「投稿した回数」は、アカウント設計の「最初の 1 か月」の週の回数と同じ数字です（どちらで変えても揃います）。伴走が、この回数でペースを見守ります（概要の「いまやること」の帯）。
-                    </HelpTip>
-                  </span>
-                }
-                action="今週"
-              />
-              {roadmap?.kpiTargets.length ? (
-                <ul className="flex flex-col gap-4 px-6 pt-2 pb-5 max-sm:px-4">
-                  {roadmap.kpiTargets.map((t) => {
-                    const now = weekValue(t.kpi, thisWeek, daily, t.sns);
-                    const last = weekValue(t.kpi, addDays(thisWeek, -7), daily, t.sns);
-                    return (
-                      <li key={`${t.kpi}:${t.sns ?? ""}`} className="flex flex-col gap-1.5">
-                        {/* 名前が長い（「投稿した回数（Instagram）」など）ので、名前と数字の行の下に横棒を引く */}
-                        <div className="flex items-baseline gap-3 text-[16px]">
-                          <span className="min-w-0 flex-1 text-muted">{kpiLabel(t.kpi, t.sns)}</span>
-                          {isAutoKpi(t.kpi) && now !== null ? (
-                            <>
-                              {last !== null && <span className="num text-[13px] text-faint">先週 {formatValue(t.kpi, last)}</span>}
-                              <span className="num text-[18px] font-bold">
-                                {formatValue(t.kpi, now)} <span className="text-[15px] font-normal text-faint">/ {formatValue(t.kpi, t.per_week)}</span>
-                              </span>
-                            </>
-                          ) : (
-                            <span className="flex items-center gap-2">
-                              <Badge>準備中</Badge>
-                              <HelpTip label="準備中の数字" align="right">
-                                {notCountedYet(t.kpi, project.product_type)}
-                              </HelpTip>
-                            </span>
-                          )}
-                        </div>
-                        {isAutoKpi(t.kpi) && now !== null && (
-                          <span className="h-2.5 overflow-hidden rounded-full bg-subtle" aria-hidden>
-                            <span
-                              className={`block h-full rounded-full ${now >= t.per_week ? "bg-success" : t.sns ? SNS_COLOR[t.sns].bg : "bg-info"}`}
-                              style={{ width: `${Math.min(100, (now / t.per_week) * 100)}%` }}
-                            />
-                          </span>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : (
-                <p className="px-6 pb-5 text-[15px] text-muted max-sm:px-4">まだ決めていません。</p>
-              )}
-              <DismissableDetails className="border-t border-line px-6 py-3 max-sm:px-4">
-                <summary className="cursor-pointer text-[14px] font-semibold text-primary">目標と数字を手で決める・直す</summary>
-                <div className="pt-3" />
-                <GoalForm projectId={id} kgi={roadmap?.kgi ?? null} kpiTargets={roadmap?.kpiTargets ?? []} suggested={suggested} productType={project.product_type} />
-              </DismissableDetails>
-            </Card>
-
+            <KgiCard
+              view={hasKgi ? active : null}
+              productType={project.product_type}
+              today={goals.today}
+              empty={
+                <div className="flex flex-col items-start gap-3">
+                  <p className="text-[15px] text-muted">
+                    {legacy ? `前の目標「${goal?.statement ?? ""}」は投稿の本数です。` : "まだ決めていません。"}
+                    見た人にしてほしいことに合わせた、3 か月の成果の数字にしましょう。
+                  </p>
+                  {ai && (
+                    <ButtonLink href={consultHref} size="sm">
+                      AI と目標を決める
+                    </ButtonLink>
+                  )}
+                </div>
+              }
+              footer={
+                hasKgi && goal ? (
+                  <div className="border-t border-line px-6 py-3 max-sm:px-4">
+                    <SettleGoalButton projectId={id} goalId={goal.id} statement={goal.statement ?? ""} />
+                  </div>
+                ) : null
+              }
+            />
+            {active && hasKgi && <MilestonesCard view={active} productType={project.product_type} today={goals.today} />}
+            <KpisCard
+              kpis={active?.kpis ?? []}
+              week={kpiWeek}
+              productType={project.product_type}
+              today={goals.today}
+              footer={
+                <DismissableDetails id="goal-form" className="border-t border-line px-6 py-3 max-sm:px-4">
+                  <summary className="cursor-pointer text-[14px] font-semibold text-primary">目標と数字を手で決める・直す</summary>
+                  <div className="pt-3" />
+                  <GoalForm
+                    projectId={id}
+                    goal={goal}
+                    milestones={active?.milestones ?? []}
+                    kpis={active?.kpis ?? []}
+                    suggested={kgiMetricFor(plan?.plan.goal.goalType ?? null)}
+                    productType={project.product_type}
+                    today={goals.today}
+                  />
+                </DismissableDetails>
+              }
+            />
+            <ActionsCard actions={active?.actions ?? []} thisWeek={postsThisWeek} projectId={id} />
           </>
         }
       />
+      {/* これまでの目標（いちばん下。スマホでも、いまの目標とやることのあと） */}
+      <PastGoals past={goals.past} items={allItems} productType={project.product_type} renderItems={(list) => list.map(row)} />
     </div>
   );
 }

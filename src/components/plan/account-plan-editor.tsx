@@ -18,9 +18,8 @@ import { Term } from "@/components/ui/term";
 import { saveSection, type SectionFormState } from "@/lib/plan/actions";
 import { MAX_HASHTAGS, MAX_PILLARS, MAX_WEEKLY_PER_SNS, RECOMMENDED_SECTIONS, REQUIRED_FOR_DONE, SECTION_KEYS, STORY_FIELDS, isSectionDone, type PlanData, type SectionKey, type StoryField } from "@/lib/plan/schema";
 import { STORY_LABEL } from "@/lib/plan/story";
-import { cycleInfo } from "@/lib/coach/pace";
-import { toYmd } from "@/lib/time";
-import { chosenKpis, kpiKeysFor, KPIS, MAX_KPIS, recommendedKpis, type KpiKey } from "@/lib/metrics/kpis";
+import type { CycleInfo } from "@/lib/coach/pace";
+import { md } from "@/lib/goals/view";
 import { SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
 import { PLAN_EXAMPLES, type PlanExamples } from "@/lib/ai/product-guide";
 import { hasToneBySns, isSplitBySns, pillarsBySns, pillarViewSns, type Pillar } from "@/lib/plan/pillars";
@@ -92,8 +91,8 @@ const META: Record<SectionKey, Meta> = {
     lead: "無理なく続けられる頻度を決めます。毎日より、続けられる週 3 回のほうが成果につながります。SNS ごとに向いている内容も違うので、役割を分けておきます。",
   },
   first_month: {
-    title: "最初の 1 か月",
-    lead: "最初の 1 か月で目指すことと、うまくいっているかを何で判断するかを決めます。最初は数字が小さくて当たり前なので、「続けられたか」も立派な目標です。",
+    title: "週の回数",
+    lead: "SNS ごとに、1 週に何本投稿するかを決めます。続けることが成果への近道なので、無理なく続けられる本数にしましょう。",
   },
 };
 
@@ -104,9 +103,12 @@ export function AccountPlanEditor({
   aiEnabled,
   profileCtx,
   initialOpen = null,
+  cycle = null,
 }: {
   projectId: string;
   plan: PlanData;
+  // いまの 1 か月（中間の目標の区切り。週の回数の欄に出す）
+  cycle?: CycleInfo | null;
   // 名前とプロフィールの SNS ごとの欄に使う（つないだアカウント、短縮リンク）
   profileCtx: ProfileContext;
   sources: Partial<Record<SectionKey, "ai" | "manual">>;
@@ -135,7 +137,7 @@ export function AccountPlanEditor({
           recommended={RECOMMENDED_SECTIONS.includes(key)}
           onSavedNext={() => setOpen(SECTION_KEYS[i + 1] ?? null)}
         >
-          <SectionFields sectionKey={key} plan={plan} profileCtx={profileCtx} onOpenSection={(k) => {
+          <SectionFields sectionKey={key} plan={plan} profileCtx={profileCtx} cycle={cycle} onOpenSection={(k) => {
             setOpen(k);
             requestAnimationFrame(() => document.getElementById(`plan-${k}-head`)?.scrollIntoView({ block: "start", behavior: "smooth" }));
           }} />
@@ -355,7 +357,19 @@ function examplesOf(ctx: ProfileContext): PlanExamples {
   return PLAN_EXAMPLES[ctx.productType ?? "app"];
 }
 
-function SectionFields({ sectionKey, plan, profileCtx, onOpenSection }: { sectionKey: SectionKey; plan: PlanData; profileCtx: ProfileContext; onOpenSection: (k: SectionKey) => void }) {
+function SectionFields({
+  sectionKey,
+  plan,
+  profileCtx,
+  cycle,
+  onOpenSection,
+}: {
+  sectionKey: SectionKey;
+  plan: PlanData;
+  profileCtx: ProfileContext;
+  cycle: CycleInfo | null;
+  onOpenSection: (k: SectionKey) => void;
+}) {
   switch (sectionKey) {
     case "goal":
       return <GoalFields v={plan.goal} productType={profileCtx.productType ?? "app"} />;
@@ -379,8 +393,8 @@ function SectionFields({ sectionKey, plan, profileCtx, onOpenSection }: { sectio
       return (
         <FirstMonthFields
           v={plan.first_month}
-          goalType={plan.goal.goalType}
-          productType={profileCtx.productType ?? "app"}
+          projectId={profileCtx.projectId}
+          cycle={cycle}
           // 週の回数の欄を出す SNS: 役割を書いた SNS・つないだ SNS・もう回数を決めた SNS（ほかは折りたたむ）
           mainSns={snsInUse(plan, profileCtx)}
         />
@@ -516,7 +530,7 @@ function GoalFields({ v, productType }: { v: PlanData["goal"]; productType: Prod
             見た人にいちばんしてほしいこと（<Term k="kgi" /> の方向）
           </>
         }
-        hint={`「${PRODUCT_TYPE_DEFS[productType].label}」のおすすめを先に並べています。迷ったら「まず知ってもらう」。具体的な数字は「最初の 1 か月」で決めます。`}
+        hint={`「${PRODUCT_TYPE_DEFS[productType].label}」のおすすめを先に並べています。迷ったら「まず知ってもらう」。これが 3 か月の目標（KGI）の数字になります。具体的な数字はロードマップで決めます。`}
         value={v.goalType}
         options={order.map((a) => ({
           value: a,
@@ -835,40 +849,16 @@ function CadenceFields({ v, ex }: { v: PlanData["cadence"]; ex: PlanExamples }) 
   );
 }
 
-function FirstMonthFields({ v, goalType, productType, mainSns }: { v: PlanData["first_month"]; goalType: PlanData["goal"]["goalType"]; productType: ProductType; mainSns: SnsKey[] }) {
-  const recommended = recommendedKpis(goalType, productType);
-  const cycle = v.startedOn ? cycleInfo(v.startedOn, toYmd(new Date())) : null;
+// 週の回数（段階 ② から。前は「最初の 1 か月」）: SNS ごとの週の投稿の本数だけ。いまの目標の行動の目標（goal_kpis の action）に書く。
+// 3 か月の目標（KGI）・中間の目標・KPI はロードマップで決める（docs/design/goals-model.md の 5.）
+function FirstMonthFields({ v, projectId, cycle, mainSns }: { v: PlanData["first_month"]; projectId: string; cycle: CycleInfo | null; mainSns: SnsKey[] }) {
   const otherSns = SNS_KEYS.filter((k) => !mainSns.includes(k));
-  // まだ選んでいなければ、目的からのおすすめを入れておく（保存するまでは決まらない）。
-  // アプリでなければストアの 3 つは選べない。種類をアプリから変えた人が前に選んだものは外して見せる（決定 D34）
-  const [kpis, setKpis] = useState<KpiKey[]>(() => chosenKpis(v.kpis, goalType, productType).slice(0, MAX_KPIS));
   return (
     <>
-      <Field
-        label={
-          <>
-            1 か月後の目標（<Term k="kpi" />）
-          </>
-        }
-        htmlFor="first-month-goal"
-        hint="続けられたかどうか（投稿の回数）も立派な目標です"
-      >
-        <Textarea id="first-month-goal" name="goal" defaultValue={v.goal} maxLength={300} rows={2} placeholder={`例: ${PLAN_EXAMPLES[productType].firstMonthGoal}`} />
-      </Field>
-      <Field label="何を見て判断するか" htmlFor="first-month-metrics">
-        <Textarea
-          id="first-month-metrics"
-          name="metrics"
-          defaultValue={v.metrics}
-          maxLength={500}
-          rows={2}
-          placeholder={`例: ${PLAN_EXAMPLES[productType].firstMonthMetrics}`}
-        />
-      </Field>
       <fieldset className="flex flex-col gap-2">
-        <legend className="text-[14px] font-bold">SNS ごとの週の投稿の回数（伴走）</legend>
+        <legend className="text-[14px] font-bold">SNS ごとの週の投稿の本数（伴走）</legend>
         <p className="text-xs leading-[1.7] text-muted">
-          決めると、yabumi が週ごとのペース（送った投稿と予約した投稿）を見守り、概要の「いまやること」の帯と、遅れそうなとき・毎週月曜のメールで声をかけます。続けられる回数にしましょう（迷ったら、メインの SNS に週 2、ほかは週 1）。使わない SNS は空欄で構いません。
+          決めると、yabumi が週ごとのペース（送った投稿と予約した投稿）を見守り、概要の「いまやること」の帯と、遅れそうなとき・毎週月曜のメールで声をかけます。迷ったら、メインの SNS に週 2、ほかは週 1。使わない SNS は空欄で構いません。
         </p>
         <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2">
           {mainSns.map((sns) => (
@@ -889,8 +879,8 @@ function FirstMonthFields({ v, goalType, productType, mainSns }: { v: PlanData["
           <div className="flex flex-col gap-1 rounded-md border border-line bg-surface2 px-3 py-2 text-xs leading-[1.7]">
             <p>
               {cycle.ended
-                ? `前の 1 か月（${cycle.startedOn.slice(5).replace("-", "/")}〜${cycle.endsOn.slice(5).replace("-", "/")}）は終わりました。保存すると、今週から次の 1 か月を数え始めます。`
-                : `いまの 1 か月: ${cycle.startedOn.slice(5).replace("-", "/")}〜${cycle.endsOn.slice(5).replace("-", "/")}（${cycle.weekIndex} 週目）。回数を変えても、数え始めの日は変わりません。`}
+                ? `前の 1 か月（${md(cycle.startedOn)}〜${md(cycle.endsOn)}）は終わりました。保存すると、今週から次の 1 か月を数え始めます。`
+                : `いまの 1 か月: ${md(cycle.startedOn)}〜${md(cycle.endsOn)}（${cycle.weekIndex} 週目）。回数を変えても、数え始めの日は変わりません。`}
             </p>
             {!cycle.ended && (
               <label className="flex items-center gap-2">
@@ -901,45 +891,12 @@ function FirstMonthFields({ v, goalType, productType, mainSns }: { v: PlanData["
           </div>
         )}
       </fieldset>
-      <fieldset className="flex flex-col gap-1.5">
-        <legend className="text-[14px] font-bold">
-         yabumi の「分析」の画面で追いかける数字（<Term k="kpi" />。{MAX_KPIS} つまで）
-        </legend>
-        <p className="text-xs text-muted">目的に合わせたおすすめに印を付けています。迷ったらそのままで大丈夫です。</p>
-        <ul className="flex flex-col gap-1">
-          {kpiKeysFor(productType).map((k) => {
-            const on = kpis.includes(k);
-            return (
-              <li key={k}>
-                <label className="flex items-start gap-2 text-sm leading-[1.7]">
-                  <input
-                    type="checkbox"
-                    name="kpis"
-                    value={k}
-                    checked={on}
-                    disabled={!on && kpis.length >= MAX_KPIS}
-                    onChange={() => setKpis((prev) => (on ? prev.filter((x) => x !== k) : [...prev, k]))}
-                    className="mt-1 size-4 accent-[var(--primary)]"
-                  />
-                  <span>
-                    <b>{KPIS[k].label}</b>
-                    {recommended.includes(k) && <span className="ml-1.5 text-xs text-primary">おすすめ</span>}
-                    {KPIS[k].availability === "connect" && (
-                      <span className="ml-1.5 text-xs text-muted">（{KPIS[k].connectTo === "stores" ? "ストアや課金をつなぐと出ます" : "SNS をつなぐと出ます"}）</span>
-                    )}
-                    {KPIS[k].availability === "later" && <span className="ml-1.5 text-xs text-muted">（いまは準備中）</span>}
-                    {KPIS[k].availability === "partial" && <span className="ml-1.5 text-xs text-muted">（分析の画面で手で入れると出ます）</span>}
-                    <span className="block text-xs text-muted">{KPIS[k].meaning}</span>
-                  </span>
-                </label>
-              </li>
-            );
-          })}
-        </ul>
-      </fieldset>
-      <p className="text-xs text-muted">
-        投稿の閲覧数（表示回数）は <Term k="impression" />
-        とも呼ばれます。
+      <p className="text-xs leading-[1.7] text-muted">
+        3 か月の目標（<Term k="kgi" />）と、途中で追いかける数字（<Term k="kpi" />）は、
+        <Link href={`/projects/${projectId}/roadmap`} className="font-bold text-primary underline">
+          ロードマップ
+        </Link>
+        で決めます。
       </p>
     </>
   );

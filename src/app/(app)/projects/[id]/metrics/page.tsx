@@ -23,6 +23,9 @@ import { compareLabel, NOT_ARRIVED, periodLabel } from "@/lib/metrics/store-peri
 import { confirmedUntil, MIN_DAYS, POST_EFFECT_DAYS, postEffect, type PostEffect } from "@/lib/metrics/post-effect";
 import type { PostMeta } from "@/lib/metrics/post-meta";
 import { chosenKpis, clickLabel, KPIS, KPI_KEYS, type KpiKey } from "@/lib/metrics/kpis";
+import { loadGoals, type GoalsView } from "@/lib/goals/load";
+import { isLegacyActionGoal } from "@/lib/goals/schema";
+import { formatMetric, kpiCardKeys, md, milestoneName } from "@/lib/goals/view";
 import { isAppProject, OUTCOME_ACTIONS } from "@/lib/projects/product-types";
 import { OutcomesBox } from "@/components/metrics/outcomes-box";
 import { listManualTargets, loadMetricsOverview, METRICS_PERIODS, snsNeedingInsightsReconnect, xMetricsOverLimit, type ClicksBySns, type MetricsPeriod, type WeekValue } from "@/lib/metrics/queries";
@@ -121,6 +124,35 @@ function KpiCard({ k, value, projectId, days, productType }: { k: KpiKey; value?
 
 // 分析（F07。docs/architecture.md の 4.22・4.31）。見本 A の作り: 見出し → 追いかける数字のカード → 日ごとの棒と SNS ごとのクリック →
 // よく見られた投稿・クリックの多い投稿 → note・Substack の数字。説明は「?」と開く欄に畳む
+// 上の 1 行: いまの目標（KGI）の文と進み具合、いまの中間の目標（数えた最後の日を添える。数えていなければ数を出さない）
+function GoalLine({ goals, href }: { goals: GoalsView; href: string }) {
+  const a = goals.active;
+  const g = a?.goal;
+  const link = (label: string) => (
+    <Link href={href} className="ml-2 text-muted underline hover:text-fg">
+      {label}
+    </Link>
+  );
+  if (!a || !g?.metric || g.target === null) return <>3 か月の目標（KGI）は、まだ決めていません{link("ロードマップで決める")}</>;
+  if (isLegacyActionGoal(g)) return <>目標: {g.statement}（投稿の本数。成果の目標に変えましょう）{link("ロードマップで変える")}</>;
+  const metric = g.metric;
+  const p = a.progress;
+  const m = a.current;
+  return (
+    <>
+      目標: {g.statement}
+      {p?.available ? <span className="num ml-2">{formatMetric(metric, p.value)} / {formatMetric(metric, p.target)}{p.countedThrough && p.countedThrough < goals.today ? `（${md(p.countedThrough)} まで）` : ""}</span> : <span className="ml-2">数えていません</span>}
+      {m && m.target !== null && (
+        <span className="num ml-2">
+          ・{milestoneName(m.seq)}の目標 {a.currentProgress?.available ? `${formatMetric(metric, a.currentProgress.value)} / ` : ""}
+          {formatMetric(metric, m.target)}
+        </span>
+      )}
+      {link("ロードマップで見る")}
+    </>
+  );
+}
+
 export default async function MetricsPage(props: PageProps<"/projects/[id]/metrics">) {
   const { id } = await props.params;
   const { chart, days: daysParam, done, items, reviewed } = await props.searchParams;
@@ -131,12 +163,13 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
   if (!project) notFound();
   const supabase = await createClient();
   const today = toYmd(new Date());
-  const [account, overview, manual, accounts, daily] = await Promise.all([
+  const [account, overview, manual, accounts, daily, goals] = await Promise.all([
     getAccountPlan(project.id),
     loadMetricsOverview(project.id, undefined, days),
     listManualTargets(project.id),
     connectedAccounts(project.id),
     loadDailyNumbers(supabase, project.id, today, POST_EFFECT_DAYS),
+    loadGoals(supabase, project.id),
   ]);
   const [needReconnect, xOver] = await Promise.all([snsNeedingInsightsReconnect(accounts), xMetricsOverLimit(accounts, xMetricsUserMonthlyUsd())]);
   const plan = account?.plan ?? null;
@@ -146,8 +179,8 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
   // 成果を手で記録する箱: アプリでないとき、または目標が成果（買う・申し込み・予約・問い合わせ・来店）のとき、または記録があるとき
   const showOutcomes = !isApp || (plan?.goal.goalType != null && (OUTCOME_ACTIONS as readonly string[]).includes(plan.goal.goalType)) || daily.outcomes.length > 0;
 
-  const kpis = chosenKpis(plan?.first_month.kpis, plan?.goal.goalType, project.product_type);
-  const goal = plan?.first_month.goal.trim() ?? "";
+  // 数字のカード: いまの目標の KPI（なければアカウント設計の数字・目的からのおすすめ）
+  const kpis = kpiCardKeys(goals.active?.kpis ?? [], project.product_type, chosenKpis(plan?.first_month.kpis, plan?.goal.goalType, project.product_type));
   // 閲覧数を自動で読める SNS を 1 つでもつないでいるか（よく見られた投稿の空のときの案内を変える）
   const hasAutoSns = (["threads", "instagram", "facebook", "x"] as const).some((s) => accounts[s]);
   const later = KPI_KEYS.filter((k) => KPIS[k].availability === "later" && !kpis.includes(k));
@@ -219,14 +252,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
     <div className="flex flex-col gap-4 max-sm:gap-3">
       <PageHeader
         title="分析"
-        sub={
-          <>
-            {goal ? `目標: ${goal}` : "最初の 1 か月の目標は、まだ決めていません"}
-            <Link href={`${base}/plan?open=first_month`} className="ml-2 text-muted underline hover:text-fg">
-              {goal ? "設計で直す" : "設計で決める"}
-            </Link>
-          </>
-        }
+        sub={<GoalLine goals={goals} href={`${base}/roadmap`} />}
         actions={
           <>
             {/* 期間の切り替え（見本 A の「直近30日」の札）。グラフのタブは残す */}

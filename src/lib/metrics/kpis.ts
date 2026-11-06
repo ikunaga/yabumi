@@ -35,7 +35,7 @@ export const KPIS: Record<KpiKey, KpiDef> = {
   },
   posts: {
     label: "投稿した回数",
-    meaning: "続けられているかの数字。最初の 1 か月は、数字が小さくても続けることがいちばん大事です。",
+    meaning: "続けられているかの数字。始めたばかりのうちは、数字が小さくても続けることがいちばん大事です。",
     availability: "ready",
   },
   link_clicks: {

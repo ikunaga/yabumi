@@ -21,7 +21,7 @@ export async function saveSection(projectId: string, section: string, _prev: Sec
   }
 
   const supabase = await createClient();
-  // 最初の 1 か月の「次の 1 か月を始める」（restart）は、数え始めを今週にする
+  // 週の回数の「次の 1 か月を始める」（restart）は、中間の目標の区切りを今週から始める
   const saved = await saveSectionValue(supabase, projectId, section, parsed.data, "manual", { restart: formData.get("restart") === "1" });
   if (!saved.ok) return { error: "保存できませんでした。時間をおいてもう一度お試しください。" };
 

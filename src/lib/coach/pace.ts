@@ -1,6 +1,7 @@
 import { SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
 import { addDays, weekdayOf } from "@/lib/time";
 import type { PlanData } from "@/lib/plan/schema";
+import type { Milestone } from "@/lib/goals/schema";
 
 // 伴走（F18、決定 D29。docs/architecture.md の 4.27）のペースの計算。画面・毎日のジョブ・メールが同じ計算を使う。
 // 数は DB の counted_post_targets（送信済みは送った日、予約済みは予約の日。日本時間）。週は日本時間の月曜から
@@ -93,6 +94,18 @@ export function cycleInfo(startedOn: string, today: string): CycleInfo {
   const endsOn = addDays(startedOn, CYCLE_WEEKS * 7 - 1);
   const days = Math.round((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${startedOn}T00:00:00Z`)) / 86_400_000);
   return { startedOn, endsOn, weekIndex: Math.min(CYCLE_WEEKS, Math.max(1, Math.floor(days / 7) + 1)), ended: today > endsOn };
+}
+
+// 中間の目標の区切り（goal_milestones）から、伴走の 1 か月を出す。
+// 過ぎたのにまだ振り返っていない区切り（settled_at が null）があれば、それを「終わった」として返す（次の区切りが始まっていても、振り返るまで帯で知らせる）。
+// なければ今日を含む区切り。どちらもなければ null
+export function cycleFromMilestones(milestones: Pick<Milestone, "startsOn" | "endsOn" | "settledAt">[], today: string): CycleInfo | null {
+  const pending = milestones.filter((m) => m.endsOn < today && m.settledAt === null).sort((a, b) => b.startsOn.localeCompare(a.startsOn))[0];
+  const m = pending ?? milestones.find((x) => x.startsOn <= today && today <= x.endsOn);
+  if (!m) return null;
+  const days = Math.round((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${m.startsOn}T00:00:00Z`)) / 86_400_000);
+  const weeks = Math.max(1, Math.ceil((Math.round((Date.parse(`${m.endsOn}T00:00:00Z`) - Date.parse(`${m.startsOn}T00:00:00Z`)) / 86_400_000) + 1) / 7));
+  return { startedOn: m.startsOn, endsOn: m.endsOn, weekIndex: Math.min(weeks, Math.max(1, Math.floor(days / 7) + 1)), ended: Boolean(pending) };
 }
 
 // その日を含む週の月曜

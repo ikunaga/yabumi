@@ -16,6 +16,9 @@ import { Delta } from "@/components/ui/metric";
 import { SuccessBanner } from "@/components/ui/feedback";
 import { aiConfigured } from "@/lib/ai/anthropic";
 import { loadCoachView } from "@/lib/coach/load";
+import { loadGoals } from "@/lib/goals/load";
+import { loadGoalReview } from "@/lib/goals/review";
+import { cycleMergedIntoGoal, kpiCardKeys } from "@/lib/goals/view";
 import { DEFAULT_BEHIND_WEEKDAY } from "@/lib/coach/pace";
 import { githubConfigured } from "@/lib/github/config";
 import { chosenKpis, clickLabel } from "@/lib/metrics/kpis";
@@ -55,14 +58,16 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
   const { done, items, reviewed } = await props.searchParams;
   const supabase = await createClient();
   // 待ち時間を縮めるため、id だけで読めるもの（プロジェクト・アカウント設計・お知らせの設定）は並べて読む
-  const [project, plan, { data: prefs }] = await Promise.all([
+  const [project, plan, { data: prefs }, goals] = await Promise.all([
     getProject(id),
     getAccountPlan(id),
     supabase.from("notification_prefs").select("behind_weekday").maybeSingle(),
+    loadGoals(supabase, id),
   ]);
   if (!project) notFound();
-  const kpis = chosenKpis(plan?.plan.first_month.kpis, plan?.plan.goal.goalType, project.product_type);
-  const [numbers, upcoming, snsAccounts, attention, overdue, manualDue, { data: repoLink }, { data: manualChannels }, roadmap, stepStates, coach] = await Promise.all([
+  // 数字のカード: いまの目標の KPI（なければアカウント設計の数字・目的からのおすすめ）
+  const kpis = kpiCardKeys(goals.active?.kpis ?? [], project.product_type, chosenKpis(plan?.plan.first_month.kpis, plan?.plan.goal.goalType, project.product_type));
+  const [numbers, upcoming, snsAccounts, attention, overdue, manualDue, { data: repoLink }, { data: manualChannels }, roadmap, stepStates, coach, goalReview] = await Promise.all([
     loadOverviewNumbers(project.id, kpis, toYmd(new Date(project.created_at)), project.product_type),
     listUpcomingPosts(project.id, 8),
     listProjectSnsAccounts(project.id),
@@ -74,8 +79,10 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
     loadRoadmap(project.id),
     // いまやることの判定（一覧と同じ値。src/lib/projects/step-state.ts）
     loadStepStates([project]),
-    // 伴走（4.27）: 最初の 1 か月の SNS ごとの週の回数とペース
-    plan ? loadCoachView(supabase, project.id, { firstMonth: plan.plan.first_month, behindWeekday: prefs?.behind_weekday ?? DEFAULT_BEHIND_WEEKDAY }) : null,
+    // 伴走（4.27）: いまの目標の SNS ごとの週の本数とペース、1 か月の区切り（中間の目標）
+    loadCoachView(supabase, project.id, { goals, behindWeekday: prefs?.behind_weekday ?? DEFAULT_BEHIND_WEEKDAY }),
+    // 目標の振り返り（KGI の期限が来た・届いた）
+    loadGoalReview(supabase, goals),
   ]);
   const stepState = stepStates[project.id];
   const stepIndex = currentStepIndex(stepState);
@@ -89,7 +96,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
     {
       planIncomplete: !stepState.planDone,
       usedShortLink: numbers.hasLinks,
-      hasRoadmap: Boolean(roadmap.roadmap) || roadmap.items.length > 0,
+      hasRoadmap: Boolean(goals.active?.goal.metric) || roadmap.items.length > 0,
       connectedInstagram: snsAccounts.some((a) => a.sns === "instagram"),
     },
     roadmap.today,
@@ -155,6 +162,8 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
         progress={Object.fromEntries(todos.map((t) => [t.id, itemProgress(t, roadmap.daily)]))}
         doneCount={thisWeekCounts(roadmap).finished}
         aiEnabled={aiConfigured()}
+        goalReview={goalReview}
+        cycleMerged={cycleMergedIntoGoal(goals.active?.goal ?? null, coach?.cycle?.ended ? coach.cycle.endsOn : null)}
       />
 
       {/* コンセプトのおすすめ（4.50）: 4 段階が済んで、コンセプトがまだで、この端末で閉じていない人だけ */}

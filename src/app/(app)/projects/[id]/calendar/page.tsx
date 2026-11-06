@@ -8,7 +8,7 @@ import { MonthMobile } from "@/components/calendar/month-mobile";
 import type { MonthDay } from "@/components/calendar/month-types";
 import { TodoButton, WeekBandView } from "@/components/calendar/roadmap-band";
 import { CalendarViewSwitch } from "@/components/calendar/view-switch";
-import { loadCalendarRoadmap, type CalendarTodo } from "@/lib/calendar/roadmap";
+import { loadCalendarRoadmap, type CalendarTodo, type MilestoneNote } from "@/lib/calendar/roadmap";
 import { displayStatus, postWarning, snsSummary } from "@/components/posts/post-chip";
 import { CalendarSide } from "@/components/calendar/calendar-side";
 import { TimeTrendsCard } from "@/components/calendar/time-trends-card";
@@ -54,17 +54,17 @@ export default async function CalendarPage(props: PageProps<"/projects/[id]/cale
   const view = resolveCalendarView(searchParams, (await cookies()).get(CALENDAR_VIEW_COOKIE)?.value);
   if (view === "month") {
     const ym = isYm(searchParams.month) ? searchParams.month : ymOf(today);
-    return <MonthView projectId={project.id} base={base} ym={ym} today={today} done={done} />;
+    return <MonthView projectId={project.id} productType={project.product_type} base={base} ym={ym} today={today} done={done} />;
   }
 
   const days = weekOf(isYmd(searchParams.week) ? searchParams.week : today);
   const isThisWeek = days.includes(today);
   // 数字と右の列は、今週なら今月、ほかの週はその週の木曜の月（週の多くの日がある月）
   const ym = ymOf(isThisWeek ? today : days[3]);
-  const [posts, undated, bands, stats, upcoming, side] = await Promise.all([
+  const [posts, undated, { bands, milestones }, stats, upcoming, side] = await Promise.all([
     listPostsBetween(project.id, startOfYmd(days[0]).toISOString(), startOfYmd(addDays(days[6], 1)).toISOString()),
     listUndatedDrafts(project.id),
-    loadCalendarRoadmap(project.id, [days[0]], today),
+    loadCalendarRoadmap(project.id, [days[0]], today, project.product_type),
     loadCalendarStats(project.id, ym),
     listUpcoming(project.id),
     loadSide(project.id),
@@ -81,6 +81,7 @@ export default async function CalendarPage(props: PageProps<"/projects/[id]/cale
       <Header
         switcher={<CalendarViewSwitch current="week" weekHref={`${base}/calendar?view=week&week=${days[0]}`} monthHref={monthHref} />}
         label={rangeLabel(days)}
+        milestones={milestones}
         nav={[
           { href: `${base}/calendar?view=week&week=${addDays(days[0], -7)}`, label: "← 前の週" },
           ...(isThisWeek ? [] : [{ href: `${base}/calendar?view=week`, label: "今週" }]),
@@ -144,12 +145,18 @@ export default async function CalendarPage(props: PageProps<"/projects/[id]/cale
 }
 
 // 見出しの行: 見出し・週と月の切り替え・期間・前後への移動・凡例
-function Header({ switcher, label, nav, navLabel }: { switcher: ReactNode; label: string; nav: { href: string; label: string }[]; navLabel: string }) {
+function Header({ switcher, label, milestones, nav, navLabel }: { switcher: ReactNode; label: string; milestones: MilestoneNote[]; nav: { href: string; label: string }[]; navLabel: string }) {
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
       <h1 className="text-[26px] font-bold max-sm:text-[22px]">カレンダー</h1>
       {switcher}
       <span className="num text-[16px] text-muted">{label}</span>
+      {/* その期間の中間の目標（小さく） */}
+      {milestones.map((m) => (
+        <span key={m.key} className="num text-[13px] text-faint max-sm:basis-full">
+          {m.text}
+        </span>
+      ))}
       <nav aria-label={navLabel} className="flex items-center gap-1.5">
         {nav.map((n) => (
           <Link key={n.href} href={n.href} className={`${chipClass()} hover:no-underline`}>
@@ -244,15 +251,15 @@ function MobileComposeButton({ base }: { base: string }) {
 // 月の表示（F06）。6 週分の投稿を一度に読み、日ごとの数は DB で数える（読む行には上限があるので、行を数えない）
 const MONTH_POST_LIMIT = 500;
 
-async function MonthView({ projectId, base, ym, today, done }: { projectId: string; base: string; ym: string; today: string; done?: string }) {
+async function MonthView({ projectId, productType, base, ym, today, done }: { projectId: string; productType: string | null; base: string; ym: string; today: string; done?: string }) {
   const grid = monthGrid(ym);
   const [from, to] = [startOfYmd(grid[0]).toISOString(), startOfYmd(addDays(grid[41], 1)).toISOString()];
   const weekStarts = Array.from({ length: grid.length / 7 }, (_, i) => grid[i * 7]);
-  const [posts, counts, undated, bandMap, stats, upcoming, side] = await Promise.all([
+  const [posts, counts, undated, { bands: bandMap, milestones }, stats, upcoming, side] = await Promise.all([
     listPostsBetween(projectId, from, to, MONTH_POST_LIMIT),
     countPostsByDay(projectId, from, to),
     listUndatedDrafts(projectId),
-    loadCalendarRoadmap(projectId, weekStarts, today),
+    loadCalendarRoadmap(projectId, weekStarts, today, productType),
     loadCalendarStats(projectId, ym),
     listUpcoming(projectId),
     loadSide(projectId),
@@ -289,6 +296,7 @@ async function MonthView({ projectId, base, ym, today, done }: { projectId: stri
       <Header
         switcher={<CalendarViewSwitch current="month" weekHref={weekHref} monthHref={monthLink(ym)} />}
         label={`${ym.slice(0, 4)} 年 ${month} 月`}
+        milestones={milestones}
         nav={[
           { href: monthLink(addMonths(ym, -1)), label: "← 前の月" },
           ...(isThisMonth ? [] : [{ href: monthLink(ymOf(today)), label: "今月" }]),

@@ -124,7 +124,7 @@ export function weeklyMessage(
   if (args.lastWeekOverdue) lines.push(`■ 先週、予定日を過ぎたやること: ${args.lastWeekOverdue} 件（投稿をつくるか、予定を見直す: ${base}/roadmap）`, "");
   if (args.justEnded && args.cycle) {
     lines.push(
-      `■ 最初の 1 か月が終わりました（${md(args.cycle.startedOn)}〜${md(args.cycle.endsOn)}）: ${CYCLE_WEEKS} 週のうち ${args.cycle.achievedWeeks} 週で目標に届きました。`,
+      `■ この 1 か月が終わりました（${md(args.cycle.startedOn)}〜${md(args.cycle.endsOn)}）: ${CYCLE_WEEKS} 週のうち ${args.cycle.achievedWeeks} 週で目標に届きました。`,
       `AI と振り返って、次の 1 か月の週の回数を決めましょう: ${base}/consult/new?start=month_review`,
       "",
     );
@@ -132,9 +132,9 @@ export function weeklyMessage(
   if (Object.keys(args.thisWeekTargets).length) lines.push(`■ 今週の目標: ${targetsText(args.thisWeekTargets)}`);
   lines.push(`今週の予定を立てる: ${base}`, "", mailFooter(c));
   return {
-    email: { subject: args.justEnded ? `最初の 1 か月の振り返りと、次の 1 か月（${c.projectName}）` : `先週の振り返りと今週の目標（${c.projectName}）`, text: lines.join("\n") },
+    email: { subject: args.justEnded ? `この 1 か月の振り返りと、次の 1 か月（${c.projectName}）` : `先週の振り返りと今週の目標（${c.projectName}）`, text: lines.join("\n") },
     push: {
-      title: args.justEnded ? "最初の 1 か月が終わりました" : lw?.achieved ? "先週は目標達成です" : "今週の投稿の目標です",
+      title: args.justEnded ? "この 1 か月が終わりました" : lw?.achieved ? "先週は目標達成です" : "今週の投稿の目標です",
       body: `${c.projectName}: ${args.streak > 0 ? `続けた週 ${args.streak} 週。` : ""}今週は ${targetsText(args.thisWeekTargets)}`,
       url: args.justEnded ? `/projects/${c.projectId}/consult/new?start=month_review` : `/projects/${c.projectId}`,
       tag: `weekly:${c.projectId}`,

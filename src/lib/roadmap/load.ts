@@ -28,6 +28,8 @@ export type RoadmapItem = {
   kind: TodoKind;
   // 数える投稿（DB の roadmap_item_progress）。読み込んでいなければ null
   posts: ItemPostCounts | null;
+  // どの目標のためのやることか（goals。段階 ④ までは null もある）
+  goalId: string | null;
 };
 
 export type Roadmap = {
@@ -40,6 +42,7 @@ export type Roadmap = {
 export type RoadmapView = {
   today: string;
   thisWeek: string;
+  // 前の作り（roadmaps）の目標。AI と相談（consult.ts・consult-queries.ts）だけが読む。段階 ③ で goals に替えたら消す。画面は goals（lib/goals）を読む
   roadmap: Roadmap | null;
   items: RoadmapItem[];
   daily: DailyTotal[];
@@ -69,8 +72,9 @@ export type ItemRow = {
   status: string;
   source: string;
   kind: string | null;
+  goal_id?: string | null;
 };
-export const ITEM_COLUMNS = "id, title, detail, week_start, planned_on, kpi, target, sns, status, source, kind";
+export const ITEM_COLUMNS = "id, title, detail, week_start, planned_on, kpi, target, sns, status, source, kind, goal_id";
 
 export function toItem(r: ItemRow, posts: ItemPostCounts | null = null): RoadmapItem {
   return {
@@ -86,6 +90,7 @@ export function toItem(r: ItemRow, posts: ItemPostCounts | null = null): Roadmap
     source: r.source === "ai" ? "ai" : "manual",
     kind: todoKindOf(r),
     posts,
+    goalId: r.goal_id ?? null,
   };
 }
 

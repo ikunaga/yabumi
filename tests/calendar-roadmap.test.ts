@@ -8,6 +8,7 @@ const base: RoadmapItem = {
   id: "i1",
   title: "Instagram に 2 本",
   kind: "post",
+  goalId: null,
   detail: "",
   weekStart: "2026-10-12",
   plannedOn: null,

@@ -1,5 +1,5 @@
 // 伴走（F18、決定 D29。docs/architecture.md の 4.27）: RLS と権限、毎日のジョブ（ペース・声かけ・二重に送らない）、
-// 配信の停止、最初の 1 か月とロードマップの週の目標のつながり。メールとスマホの通知は偽物を渡し、外には送らない
+// 配信の停止、週の回数（いまの目標の行動の目標）と 1 か月の区切り（中間の目標）。メールとスマホの通知は偽物を渡し、外には送らない
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { runCoachJob } from "@/lib/coach/job";
 import { loadCoachView } from "@/lib/coach/load";
@@ -51,27 +51,57 @@ afterAll(async () => {
   await deleteUser(bobId);
 });
 
-describe("最初の 1 か月の週の回数", () => {
-  it("初めて決めると今週の月曜から数え始める。ロードマップがあれば、毎週の目標の SNS ごとの投稿した回数に写す", async () => {
-    await saveGoal(alice, projectId, { kgi: null, kpiTargets: [{ kpi: "link_clicks", per_week: 2, sns: null }] }, "manual", new Date("2026-10-12T03:00:00Z"));
-    const r = await saveSectionValue(alice, projectId, "first_month", firstMonth({ x: 2, instagram: 1 }), "manual", { now: new Date("2026-10-12T03:00:00Z") });
+// 週の回数はいまの目標の行動の目標（goal_kpis の action）、1 か月の区切りは中間の目標（goal_milestones）。
+// 区切りの日付は DB が今日から決めるので、決まった日で確かめるために、作った区切りをテストの日（2026-10-12 の週）に動かす
+async function moveCycleTo(startsOn: string) {
+  const { data: g } = await admin.from("goals").select("id").eq("project_id", projectId).eq("status", "active").single();
+  await admin.from("goals").update({ starts_on: startsOn }).eq("id", g!.id);
+  const ends = new Date(Date.parse(`${startsOn}T00:00:00Z`) + 27 * 86_400_000).toISOString().slice(0, 10);
+  const { error } = await admin.from("goal_milestones").update({ starts_on: startsOn, ends_on: ends }).eq("goal_id", g!.id);
+  if (error) throw error;
+}
+
+describe("週の回数", () => {
+  it("決めると行動の目標に書き、今週から 1 か月の区切りを始める。アカウント設計の JSON の週の回数と roadmaps は書き換えない", async () => {
+    const r = await saveSectionValue(alice, projectId, "first_month", firstMonth({ x: 2, instagram: 1 }), "manual");
     expect(r.ok).toBe(true);
-    const { data } = await alice.from("account_plans").select("data").eq("project_id", projectId).single();
-    expect((data!.data as { first_month: unknown }).first_month).toMatchObject({ weekly: { x: 2, instagram: 1 }, startedOn: "2026-10-12" });
-    const { data: rm } = await alice.from("roadmaps").select("kpi_targets").eq("project_id", projectId).single();
-    expect(rm!.kpi_targets).toEqual([
-      { kpi: "posts", per_week: 2, sns: "x" },
-      { kpi: "posts", per_week: 1, sns: "instagram" },
-      { kpi: "link_clicks", per_week: 2, sns: null },
+    const { data: g } = await alice.from("goals").select("id").eq("project_id", projectId).eq("status", "active").single();
+    const { data: ks } = await alice.from("goal_kpis").select("role, sns, per_week").eq("goal_id", g!.id).order("position");
+    expect(ks).toEqual([
+      { role: "action", sns: "x", per_week: 2 },
+      { role: "action", sns: "instagram", per_week: 1 },
     ]);
+    const { data: ms } = await alice.from("goal_milestones").select("seq, settled_at").eq("goal_id", g!.id);
+    expect(ms).toEqual([{ seq: 1, settled_at: null }]);
+    const { data } = await alice.from("account_plans").select("data").eq("project_id", projectId).single();
+    expect((data!.data as { first_month: unknown }).first_month).toMatchObject({ goal: "4 週間続ける", weekly: {}, startedOn: null });
+    expect((await alice.from("roadmaps").select("project_id").eq("project_id", projectId)).data).toEqual([]);
   });
 
-  it("ロードマップで SNS ごとの投稿した回数を変えると、最初の 1 か月の週の回数も揃う（数え始めは変えない）", async () => {
+  it("回数を変えても区切りは変えない。「次の 1 か月を始める」で今週から数え直し、前の区切りは振り返り済みになる", async () => {
+    await saveSectionValue(alice, projectId, "first_month", firstMonth({ x: 3 }), "manual");
+    const { data: g } = await alice.from("goals").select("id").eq("project_id", projectId).eq("status", "active").single();
+    expect((await alice.from("goal_milestones").select("seq").eq("goal_id", g!.id)).data).toHaveLength(1);
+    await moveCycleTo("2026-10-12");
+    await saveSectionValue(alice, projectId, "first_month", firstMonth({ x: 2, instagram: 1 }), "manual", { restart: true });
+    const { data: ms } = await alice.from("goal_milestones").select("seq, starts_on, settled_at").eq("goal_id", g!.id).order("seq");
+    expect(ms!.map((m) => [m.seq, m.starts_on === "2026-10-12", m.settled_at !== null])).toEqual([
+      [1, true, true],
+      [2, false, false],
+    ]);
+    // 以下のテストは区切り 1 つ（2026-10-12 から）
+    await admin.from("goal_milestones").delete().eq("goal_id", g!.id).eq("seq", 2);
+    await admin.from("goal_milestones").update({ settled_at: null, result_value: null }).eq("goal_id", g!.id);
+    await moveCycleTo("2026-10-12");
+  });
+
+  it("前の作りの書き方（AI と相談の saveGoal）で SNS ごとの投稿した回数を変えても、橋渡しで週の回数がそろう", async () => {
     await saveGoal(alice, projectId, { kgi: null, kpiTargets: [{ kpi: "posts", per_week: 3, sns: "x" }, { kpi: "posts", per_week: 1, sns: "instagram" }] }, "manual", new Date("2026-10-13T03:00:00Z"));
-    const { data } = await alice.from("account_plans").select("data").eq("project_id", projectId).single();
-    expect((data!.data as { first_month: unknown }).first_month).toMatchObject({ weekly: { x: 3, instagram: 1 }, startedOn: "2026-10-12" });
+    const view = await loadCoachView(alice, projectId, { now: WED });
+    expect(view!.targets).toEqual({ x: 3, instagram: 1 });
     // 元に戻す（以下のテストは X 2・Instagram 1）
-    await saveSectionValue(alice, projectId, "first_month", firstMonth({ x: 2, instagram: 1 }), "manual", { now: new Date("2026-10-13T03:00:00Z") });
+    await saveSectionValue(alice, projectId, "first_month", firstMonth({ x: 2, instagram: 1 }), "manual");
+    expect((await loadCoachView(alice, projectId, { now: WED }))!.targets).toEqual({ x: 2, instagram: 1 });
   });
 });
 
@@ -129,6 +159,15 @@ describe("毎日のジョブと声かけ", () => {
       { week_start: "2026-10-12", achieved: false },
       { week_start: "2026-10-19", achieved: false },
     ]);
+  });
+  it("先週で 1 か月（中間の目標の区切り）が終わったら、月曜の振り返りに「この 1 か月が終わりました」と次の 1 か月へのさそいを入れる", async () => {
+    await admin.from("notification_log").delete().eq("user_id", aliceId);
+    // 区切りを 2026-09-21〜10-18（昨日まで）にする
+    await moveCycleTo("2026-09-21");
+    const out = await runCoachJob(admin, { now: NEXT_MON, appUrl: "https://yabumi.test", deps, ownerId: aliceId });
+    expect(out[0].weekly).toEqual({ email: "sent", push: "sent" });
+    expect(mails.at(-1)!.subject).toBe("この 1 か月の振り返りと、次の 1 か月（伴走のテスト）");
+    expect(pushes.at(-1)).toMatchObject({ title: "この 1 か月が終わりました" });
   });
 });
 

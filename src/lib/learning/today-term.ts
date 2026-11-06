@@ -19,7 +19,7 @@ export type LearningSignals = {
 export const SITUATION_TERMS: { signal: keyof LearningSignals; keys: string[] }[] = [
   { signal: "planIncomplete", keys: ["persona", "contentPillar", "toneAndManner"] },
   { signal: "usedShortLink", keys: ["marketingFunnel", "conversion"] },
-  { signal: "hasRoadmap", keys: ["kgi", "kpi"] },
+  { signal: "hasRoadmap", keys: ["kgi", "milestone", "kpi"] },
   { signal: "connectedInstagram", keys: ["snsTraits"] },
 ];
 

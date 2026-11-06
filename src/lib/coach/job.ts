@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { sectionSchemas } from "@/lib/plan/schema";
+import { loadActiveActions, type ActiveActions } from "@/lib/goals/load";
+import { weeklyTargetsOf } from "@/lib/goals/schema";
 import { SNS_KEYS, type SnsKey } from "@/lib/sns";
 import type { Database } from "@/lib/supabase/database.types";
 import { addDays, toYmd } from "@/lib/time";
@@ -11,7 +12,7 @@ import { deliverCoachMessage, ensurePrefs, unsentOverdue, wants, type DeliverDep
 import { computeWeekPace, cycleInfo, CYCLE_WEEKS, hasTargets, isoWeekday, mondayOf, shouldNudgeBehind, streakWeeks, type SnsCounts, type WeeklyTargets } from "./pace";
 
 // 伴走の毎日のジョブ（4.27。pg_cron が日本時間 7:00 に /api/jobs/coach を呼ぶ）:
-// 最初の 1 か月の週の回数を決めたプロジェクトごとに、① 今週と先週の結果を pace_weeks に書き（続けた週を数えるため）、
+// 週の回数（いまの目標の行動の目標。goal_kpis の action）を決めたプロジェクトごとに、① 今週と先週の結果を pace_weeks に書き（続けた週を数えるため）、
 // ② 決めた曜日に遅れそうなら声をかけ、③ 月曜に先週の振り返りを送る。数は counted_post_targets（4.23 の 1 か所の数え方）
 type Db = SupabaseClient<Database>;
 
@@ -59,17 +60,23 @@ export async function runCoachJob(
   const dow = isoWeekday(today);
   const appUrl = (opts.appUrl ?? process.env.APP_URL ?? "https://localhost:3100").replace(/\/$/, "");
 
-  // 週の回数を決めたプロジェクト（ownerId: テストで利用者に絞る）
-  const plans = await allRows((from, to) => {
-    let q = admin.from("account_plans").select("project_id, data, projects!inner(owner_id, name)").order("project_id").range(from, to);
+  // 週の回数を決めたプロジェクト（いまの目標の行動の目標。ownerId: テストで利用者に絞る）
+  const activeGoals = await allRows((from, to) => {
+    let q = admin.from("goals").select("project_id, projects!inner(owner_id, name)").eq("status", "active").order("project_id").range(from, to);
     if (opts.ownerId) q = q.eq("projects.owner_id", opts.ownerId);
     return q;
   });
-  const withTargets = plans
-    .map((p) => {
-      const fm = sectionSchemas.first_month.safeParse((p.data as Record<string, unknown> | null)?.first_month ?? {});
-      const project = p.projects as unknown as { owner_id: string; name: string };
-      return fm.success && hasTargets(fm.data.weekly) ? { projectId: p.project_id, ownerId: project.owner_id, name: project.name, fm: fm.data } : null;
+  const actionsByProject = new Map<string, ActiveActions>();
+  for (let i = 0; i < activeGoals.length; i += PAGE) {
+    for (const a of await loadActiveActions(admin, activeGoals.slice(i, i + PAGE).map((g) => g.project_id), opts.now)) actionsByProject.set(a.projectId, a);
+  }
+  const withTargets = activeGoals
+    .map((g) => {
+      const a = actionsByProject.get(g.project_id);
+      const project = g.projects as unknown as { owner_id: string; name: string };
+      const weekly = weeklyTargetsOf(a?.actions ?? []);
+      // 数え始め: 昨日で終わった区切りがあればその始まり（月曜に先週の結果を書くため）、なければいまの区切りの始まり
+      return a && hasTargets(weekly) ? { projectId: g.project_id, ownerId: project.owner_id, name: project.name, fm: { weekly, startedOn: a.cycles.at(-1)?.startsOn ?? null, cycles: a.cycles } } : null;
     })
     .filter((x): x is NonNullable<typeof x> => x !== null);
 
@@ -152,9 +159,11 @@ export async function runCoachJob(
       if (dow === 1 && lastWeek >= startWeek) {
         const past = rows.filter((r) => r.week_start < lastWeek).map((r) => ({ weekStart: r.week_start, achieved: r.achieved }));
         past.push({ weekStart: lastWeek, achieved: lastAchieved });
-        const info = fm.startedOn ? cycleInfo(fm.startedOn, addDays(today, -1)) : null;
-        // 先週で 1 か月が終わった（昨日が 1 か月の最後の日）
-        const justEnded = Boolean(info && info.endsOn === addDays(today, -1));
+        // 先週で 1 か月（中間の目標の区切り）が終わった（昨日が区切りの最後の日）。なければ、いまの区切り
+        const ended = fm.cycles.find((c) => c.endsOn === addDays(today, -1));
+        const cur = ended ?? fm.cycles.find((c) => c.startsOn <= today && today <= c.endsOn);
+        const info = cur ? { ...cycleInfo(cur.startsOn, addDays(today, -1)), endsOn: cur.endsOn } : null;
+        const justEnded = Boolean(ended);
         const cycleWeeks = info
           ? Array.from({ length: CYCLE_WEEKS }, (_, i) => addDays(mondayOf(info.startedOn), i * 7)).map((w) => (w === lastWeek ? lastAchieved : (rows.find((r) => r.week_start === w)?.achieved ?? false)))
           : [];

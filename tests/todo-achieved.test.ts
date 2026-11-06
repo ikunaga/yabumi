@@ -9,6 +9,7 @@ const item = (over: Partial<RoadmapItem>): RoadmapItem => ({
   id: "i",
   title: "やること",
   kind: "post",
+  goalId: null,
   detail: "",
   weekStart: WEEK,
   plannedOn: null,

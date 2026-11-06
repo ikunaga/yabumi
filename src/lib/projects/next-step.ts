@@ -86,10 +86,13 @@ export function listNextStep(state: StepState & { thisWeekTodo: number }): { lab
 
 // 概要の「いまやること」の帯に出すもの（いつも 1 つ出す。上から順に）。GitHub をつなぐ（任意）は帯の代わりにはせず、帯の下の小さな 1 行にする
 // （2026-10-30 通し確認: 新しい利用者に「GitHub をつなぐ」だけが出て、「アカウントを設計する」が見えなかった）
-export type NowBandKind = "step" | "cycle_ended" | "this_week";
+// 目標の振り返り（goal_review: KGI の期限が来た・届いた）は 1 か月の区切り（cycle_ended）より先。
+// 区切りと目標の期限が 7 日以内に重なるときは、目標の振り返りにまとめる（cycleMergedIntoGoal。docs/design/goals-model.md の 5.）
+export type NowBandKind = "step" | "goal_review" | "cycle_ended" | "this_week";
 
-export function nowBandKind(state: { stepIndex: number; cycleEnded: boolean }): NowBandKind {
+export function nowBandKind(state: { stepIndex: number; cycleEnded: boolean; goalReview?: boolean; cycleMerged?: boolean }): NowBandKind {
   if (state.stepIndex < STEPS.length) return "step";
-  if (state.cycleEnded) return "cycle_ended";
+  if (state.goalReview) return "goal_review";
+  if (state.cycleEnded && !state.cycleMerged) return "cycle_ended";
   return "this_week";
 }

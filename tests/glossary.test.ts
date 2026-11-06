@@ -19,7 +19,7 @@ const EARLIER_KEYS = [
   "persona", "conversion", "kgi", "kpi", "impression", "awareness", "contentPillar", "hashtag", "toneAndManner", "roadmap", "proAccount", "facebookPage",
   "newsletter", "ownedAudience", "payPerUse", "buildInPublic", "storeListing", "shortLink", "correlation", "campaignLink", "dns", "cname", "subdomain",
 ];
-const ADDED_KEYS = ["marketingFunnel", "tripleMedia", "ownedMedia", "earnedMedia", "paidMedia", "ugc", "organicVsAds", "seoVsSns", "snsTraits", "concept", "story"];
+const ADDED_KEYS = ["marketingFunnel", "tripleMedia", "ownedMedia", "earnedMedia", "paidMedia", "ugc", "organicVsAds", "seoVsSns", "snsTraits", "concept", "story", "milestone"];
 
 describe("用語", () => {
   it("前からの key は残し、足した語もそろっている", () => {

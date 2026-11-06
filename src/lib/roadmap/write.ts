@@ -15,7 +15,8 @@ export class RoadmapError extends Error {
   }
 }
 
-// 目標（KGI）と KPI の週の目標を置き換える。初めて作るときは、今日から数え始める
+// 目標（KGI）と KPI の週の目標を置き換える。初めて作るときは、今日から数え始める。
+// 前の作り（roadmaps）への書き方で、AI と相談の採用だけが使う（橋渡しのトリガーが goals に写す）。段階 ③ で goals の startGoal に替えたら消す
 export async function saveGoal(db: Db, projectId: string, goal: { kgi: Kgi | null; kpiTargets: KpiTarget[] }, source: "ai" | "manual", now = new Date()): Promise<void> {
   const { data: existing } = await db.from("roadmaps").select("project_id").eq("project_id", projectId).maybeSingle();
   const row = { kgi: goal.kgi as never, kpi_targets: goal.kpiTargets as never, source };
@@ -36,8 +37,6 @@ export async function addItems(db: Db, projectId: string, items: ItemInput[], so
   }
   const { data: last } = await db.from("roadmap_items").select("position").eq("project_id", projectId).order("position", { ascending: false }).limit(1).maybeSingle();
   const base = (last?.position ?? 0) + 1;
-  // ロードマップの行がなければ作る（目標はまだ空。数え始めの日を決めるため）
-  await ensureRoadmap(db, projectId, source);
   const { error } = await db.from("roadmap_items").insert(
     items.map((i, n) => ({
       project_id: projectId,
@@ -51,13 +50,9 @@ export async function addItems(db: Db, projectId: string, items: ItemInput[], so
       kind: i.kind ?? inferTodoKind(i),
       position: base + n,
       source,
+      // goal_id は入れない（DB のトリガーが、いまの目標に入れる。目標がなければ KGI まだの目標を作る）
     })),
   );
   if (error) throw new RoadmapError("やることを保存できませんでした。時間をおいてもう一度お試しください。");
   return items.length;
-}
-
-async function ensureRoadmap(db: Db, projectId: string, source: "ai" | "manual") {
-  const { data } = await db.from("roadmaps").select("project_id").eq("project_id", projectId).maybeSingle();
-  if (!data) await db.from("roadmaps").insert({ project_id: projectId, source });
 }

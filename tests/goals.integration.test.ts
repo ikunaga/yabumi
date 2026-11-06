@@ -6,8 +6,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { loadGoals, metricTotal } from "@/lib/goals/load";
 import { weeklyTargetsOf, isLegacyActionGoal } from "@/lib/goals/schema";
 import { GoalError, reviseGoal, setGoalActions, setGoalKpis, settleGoal, startGoal, startMilestone } from "@/lib/goals/write";
-import { saveSectionValue } from "@/lib/plan/save";
-import { sectionSchemas } from "@/lib/plan/schema";
+import { withFirstMonthCycle } from "@/lib/coach/pace";
+import { sectionSchemas, type PlanData, type SectionKey } from "@/lib/plan/schema";
 import { addItems, saveGoal } from "@/lib/roadmap/write";
 import { addDays, toYmd } from "@/lib/time";
 import { weekStartOf } from "@/lib/roadmap/schema";
@@ -27,6 +27,19 @@ const newProject = async (client: TestClient, name = "季節の器") => (await c
 const goalsOf = async (projectId: string) => (await admin.from("goals").select("*").eq("project_id", projectId).order("created_at")).data!;
 const kpisOf = async (goalId: string) => (await admin.from("goal_kpis").select("role, metric, action, sns, per_week").eq("goal_id", goalId).order("role").order("position")).data!;
 const milestonesOf = async (goalId: string) => (await admin.from("goal_milestones").select("seq, starts_on, ends_on, target, result_value").eq("goal_id", goalId).order("seq")).data!;
+
+// 前のコード（段階 ② より前）の書き方: セクションを JSON に保存する。最初の 1 か月は数え始めの日を決めてから（withFirstMonthCycle）。
+// 段階 ② から画面は週の回数を goals に書く（lib/plan/save.ts）ので、橋渡しと写し替えはこの書き方で確かめる
+async function saveSectionValue(client: TestClient, projectId: string, key: SectionKey, value: unknown, source: "ai" | "manual", opts: { now?: Date } = {}) {
+  let v = value;
+  if (key === "first_month") {
+    const { data } = await client.from("account_plans").select("data").eq("project_id", projectId).maybeSingle();
+    const prev = sectionSchemas.first_month.safeParse((data?.data as Record<string, unknown> | null)?.first_month ?? {});
+    v = withFirstMonthCycle(value as PlanData["first_month"], prev.success ? prev.data : null, toYmd(opts.now ?? new Date()));
+  }
+  const { error } = await client.rpc("save_account_plan_section", { p_project_id: projectId, p_section: key, p_value: v as never, p_source: source });
+  return { ok: !error };
+}
 
 beforeAll(async () => {
   ({ client: alice, userId: aliceId } = await signUpNewUser());

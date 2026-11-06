@@ -281,3 +281,65 @@ drop function if exists public.goal_metric_valid(text, text, text, public.sns_ke
   - KGI まだの目標で初めて KGI を決めるときは、新しい行を作らず同じ行に書き入れる（中身のない replaced を残さない）。数え始めは今週の月曜。今週より前に始まった区切りは先週の日曜で終え、今週から 4 週ごとに並べ直す。返す id は同じ
   - KGI まだのまま（goal なし）で呼んだときは、何も閉じない（settle_goal も同じ）
   - 別の目標に替えたときは、今週以降のまだのやること（todo、week_start ≥ 今週の月曜）を新しい目標に付け替える。済み・やらない・先週より前のものは前の目標に残る
+
+## 11. 段階 ② で作ったもの（2026-11-06、feat/goals-ui。画面と伴走を goals に切り替えた）
+
+マイグレーションは足していない（10.4 の決まりどおり、roadmaps と first_month.weekly・startedOn には書かない）。
+
+### 11.1 画面
+
+| 画面 | 読み書き | 中身 |
+|---|---|---|
+| ロードマップ | loadGoals・kpiWeekTotals（goal_metric_total）・saveManualGoal・settleGoal | 上に 4 つの数字（進み具合・期限まで・今週のやること・期限の見込み）。右に「いまの目標（KGI）」（文・数字・横棒・残りの日・このままの見込み・数えた最後の日・「この目標を終える」）、「中間の目標」（4 週ごと。過ぎた区切りは結果、いまの区切りは今日までの数、先は目標だけ）、「KPI と週の目標」（今週の数。数えていない数字は「数えていません」と案内）と「目標と数字を手で決める・直す」、「週の投稿の本数」（行動の目標。今週の送った本数）。左に週ごとのやること（いまの目標のもの）と「これまでの目標」（新しい順。文・期間・結果 / 目標・達成／期限切れ／見直し、開くとその目標のやること）。前の KGI が投稿の本数なら、上に「● 要確認 いまの目標は投稿の本数です。成果の目標に変えましょう」と「AI と変える」（AI がなければ「手で決める」） |
+| 手で決める・直す | lib/goals/manual.ts の saveManualGoal | 同じ数字（成果の種類・SNS も同じ）のまま直すと revise_goal（文・目標の値・期間、まだ始まっていない区切りの目標）。KGI まだ・前の KGI（投稿の本数）・数字の種類を変えたときは start_goal（前の目標は結果を数えて「これまでの目標」に残る。KGI まだの目標は同じ行に書き入れる）。KGI の文が空なら KPI だけ（set_goal_kpis）。選べる数字に投稿の本数はない。期間は 4・8・12（既定）・16・24 週 |
+| 概要の帯 | loadGoals・loadGoalReview（lib/goals/review.ts）・loadCoachView | 帯の種類は 段階 → **goal_review** → cycle_ended → 今週のやること。goal_review は goalNeedsReview が reached・ended のとき「目標『…』に届きました」「目標『…』の期限が来ました」と「AI と振り返る」（`consult/new?start=goal_review&goal=<id>`。AI がなければ「ロードマップで終える」）。届いたあと、その目標の goal_review の会話（ai_messages の最初の発言 `{kind: "start", topic: "goal_review", goalId}`、③ の決まり）が閉じていれば、期限が来るまで出さない。cycle_ended は「過ぎたのにまだ振り返っていない区切り（settled_at が null）」で、目標の期限がその区切りの最後の日から 7 日以内なら goal_review にまとめる（cycleMergedIntoGoal）。文は「この 1 か月が終わりました。振り返って、次の 1 か月の目標と回数を決めましょう」 |
+| アカウント設計 | saveSectionValue（lib/plan/save.ts）の saveWeekly | セクションの名前を「週の回数」にし、SNS ごとの週の投稿の本数だけにした。保存すると setGoalActions。区切りがない・過ぎた・「次の 1 か月を始める」のときは startMilestone（次の区切りの目標の値は、KGI を決めたときに作った区切りのものを引き継ぐ）。JSON の first_month は goal・metrics・kpis を前の値のまま、weekly・startedOn を前の値のまま残す。欄に出す値は goals から（withGoalWeekly）。KGI と KPI はロードマップへのリンク。AI の案（plan-coach・consult の plan_section）も同じ入口を通る |
+| 分析 | loadGoals | 上の 1 行を「目標: 文 12 / 30（11/4 まで）・2 か月目の目標 3 / 10」と「ロードマップで見る」に。KPI のカードは goal_kpis の kpi（なければ前の chosenKpis）。概要の数字のカードも同じ（kpiCardKeys） |
+| カレンダー | loadCalendarRoadmap | 週の目標は行動の目標から（過ぎた週は pace_weeks）。目標の数え始めより前の週には出さない。見出しの横に、その期間に重なる中間の目標（「2 か月目の目標 成果（予約） 10（11/30〜12/27）」）を小さく |
+| 伴走のジョブとメール | loadActiveActions・weeklyTargetsOf | 週の回数を決めたプロジェクトは active な目標の行動の目標から。「先週で 1 か月が終わった」は昨日で終わる区切りがあるか。メールの文の「最初の 1 か月」を「この 1 か月」に |
+
+- 1 か月の区切り（伴走）は cycleFromMilestones（coach/pace.ts）: 過ぎてまだ振り返っていない区切りがあればそれ（ended）、なければ今日を含む区切り
+- 用語集に「中間の目標」（milestone）を足した（挿絵は Gemini で 1 枚、約 5 円。2026-11-06 PM の了承）。KPI と ロードマップの例を、投稿の本数ではなく成果の数字に直した
+- AI と相談（consult.ts・consult-queries.ts）は、③ で goals に替えるまで RoadmapView.roadmap・kgi（roadmaps）を読み、採用は saveGoal（roadmaps に書き、橋渡しで写る）のまま
+
+### 11.2 書き戻しの SQL（② から ④ の間に、前のコードへ戻すとき。PM の了承のうえで流す）
+
+いまの目標（active）を、前の作りの roadmaps と account_plans の first_month に書き戻す。書き戻しを goals に写し返さないよう、橋渡しのトリガーを止めてから書く。
+前の作りに形がない数字（成果の種類・中間の目標・閉じた目標）は書き戻せない（goals に残るので、もう一度 ② に進めば戻る）。
+
+```sql
+begin;
+alter table public.roadmaps disable trigger roadmaps_bridge_to_goals;
+alter table public.account_plans disable trigger account_plans_bridge_to_goals;
+
+-- KGI と KPI・SNS ごとの行動の目標 → roadmaps（kpi_targets は 6 つまで。行動の目標を先に）
+insert into public.roadmaps (project_id, owner_id, kgi, kpi_targets, started_on, source)
+select g.project_id, g.owner_id,
+       case when g.metric is null then null else jsonb_build_object('statement', g.statement, 'kpi', g.metric, 'target', g.target, 'deadline', g.ends_on, 'sns', case when g.metric = 'posts' then g.sns end) end,
+       coalesce((select jsonb_agg(t.v order by t.o) from (
+         select jsonb_build_object('kpi', k.metric, 'per_week', k.per_week, 'sns', case when k.metric = 'posts' then k.sns end) v,
+                row_number() over (order by k.role, k.position) o
+           from public.goal_kpis k where k.goal_id = g.id
+       ) t where t.o <= 6), '[]'::jsonb),
+       g.starts_on, g.source
+  from public.goals g
+ where g.status = 'active'
+on conflict (project_id) do update set kgi = excluded.kgi, kpi_targets = excluded.kpi_targets, started_on = excluded.started_on, source = excluded.source;
+
+-- 週の回数と区切りの始まり → account_plans の first_month.weekly・startedOn（設計の行があるプロジェクトだけ）
+update public.account_plans a
+   set data = jsonb_set(jsonb_set(coalesce(a.data, '{}'::jsonb), '{first_month}', coalesce(a.data -> 'first_month', '{}'::jsonb), true),
+                        '{first_month}',
+                        coalesce(a.data -> 'first_month', '{}'::jsonb)
+                          || jsonb_build_object('weekly', coalesce((select jsonb_object_agg(k.sns, k.per_week::integer) from public.goal_kpis k where k.goal_id = g.id and k.role = 'action' and k.sns is not null), '{}'::jsonb))
+                          || jsonb_build_object('startedOn', (select max(m.starts_on) from public.goal_milestones m where m.goal_id = g.id and m.starts_on <= (now() at time zone 'Asia/Tokyo')::date)))
+  from public.goals g
+ where g.project_id = a.project_id and g.status = 'active';
+
+alter table public.roadmaps enable trigger roadmaps_bridge_to_goals;
+alter table public.account_plans enable trigger account_plans_bridge_to_goals;
+commit;
+```
+
+- 流す前に、roadmaps・account_plans を控える（deploy.md の 27 と同じ手順）
+- 前のコードの KGI に outcomes を書き戻すと、成果の種類（action）が抜ける。前のコードの画面は「成果（手で記録）」の合計として数える

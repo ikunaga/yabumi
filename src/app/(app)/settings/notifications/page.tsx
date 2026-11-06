@@ -37,7 +37,7 @@ export default async function NotificationSettingsPage() {
       <main className="flex flex-col gap-5 px-12 py-10 max-lg:px-8 max-sm:gap-4 max-sm:px-4 max-sm:py-5">
         <PageHeader
           title="お知らせの設定"
-          help="アカウント設計の「最初の 1 か月」で SNS ごとの週の投稿の回数を決めると、yabumi が週ごとのペースを見守ります（伴走）。概要の「いまやること」の帯に今週の回数を出し、ここで選んだ方法でお知らせします。"
+          help="アカウント設計の「週の回数」で SNS ごとの週の投稿の本数を決めると、yabumi が週ごとのペースを見守ります（伴走）。概要の「いまやること」の帯に今週の回数を出し、ここで選んだ方法でお知らせします。"
         />
         <Columns
           main={

@@ -38,14 +38,20 @@ export const glossary = {
     label: "KGI",
     reading: "ケージーアイ",
     summary: "最終的にたどり着きたいゴールの数字。例:「3 か月で体験の申し込み 30 件」「3 か月で 1,000 ダウンロード」。日々追う小さな数字は KPI と呼びます。",
-    related: ["kpi", "roadmap"],
+    related: ["kpi", "milestone", "roadmap"],
   },
   kpi: {
     label: "KPI",
     reading: "ケーピーアイ",
     summary: "KGI に向かう途中で、日々追いかける小さな目標の数字。",
-    example: "例:「週 5 回投稿する」「投稿から予約のページへの訪問を月 300 回」。",
-    related: ["kgi", "roadmap", "marketingFunnel"],
+    example: "例:「投稿から予約のページへのクリックを週 15 回」「投稿の閲覧数を週 2,000 回」。yabumi では 1〜3 個にします。投稿の本数は KPI ではなく、週の回数（続けるための目標）として別に決めます。",
+    related: ["kgi", "milestone", "roadmap", "marketingFunnel"],
+  },
+  milestone: {
+    label: "中間の目標",
+    summary: "KGI（3 か月の目標）を 4 週ごとに分けた、途中の目標の数字。4 週ごとに結果と比べて、次の 4 週の目標と投稿の本数を決め直します。",
+    example: "例: KGI「3 か月で予約 30 件」→ 1 か月目 6 件・2 か月目 10 件・3 か月目 14 件（慣れるほど増えるので、後ろほど多めにします）。",
+    related: ["kgi", "kpi", "roadmap"],
   },
   impression: {
     label: "インプレッション",
@@ -115,8 +121,8 @@ export const glossary = {
     label: "ロードマップ",
     summary:
       "最終の目標（KGI）までの道のりを、週ごとのやることに分けて並べたもの。「今週は何をすればいいか」が見えるので、迷わずに続けられます。やってみて合わなければ、いつでも直します。",
-    example: "例: 目標「1 か月で 12 本投稿する」→ 1 週目「投稿の柱ごとに 1 本ずつ書く」、2 週目「反応のよかった柱でもう 1 本」。",
-    related: ["kgi", "kpi"],
+    example: "例: 目標「3 か月で予約 30 件」→ 1 週目「投稿の柱ごとに 1 本ずつ書く」、2 週目「反応のよかった柱でもう 1 本と、予約のページへの短縮リンク」。",
+    related: ["kgi", "kpi", "milestone"],
   },
   proAccount: {
     label: "プロアカウント",
@@ -387,7 +393,7 @@ export type GlossaryCategoryId = (typeof GLOSSARY_CATEGORY_IDS)[number];
 export type GlossaryCategory = { id: GlossaryCategoryId; label: string; note: string; cover: GlossaryKey; keys: GlossaryKey[] };
 
 export const GLOSSARY_CATEGORIES: GlossaryCategory[] = [
-  { id: "goals", label: "目標と計画", note: "ゴールの決め方と、そこまでの道のり", cover: "kgi", keys: ["kgi", "kpi", "roadmap", "persona"] },
+  { id: "goals", label: "目標と計画", note: "ゴールの決め方と、そこまでの道のり", cover: "kgi", keys: ["kgi", "milestone", "kpi", "roadmap", "persona"] },
   { id: "flow", label: "顧客の流れと数字", note: "知ってもらってから行動するまでと、そこで見る数字", cover: "marketingFunnel", keys: ["marketingFunnel", "awareness", "impression", "conversion", "correlation"] },
   { id: "posting", label: "発信のしかた", note: "何を、どんな口調で投稿するか", cover: "contentPillar", keys: ["contentPillar", "concept", "story", "toneAndManner", "hashtag", "buildInPublic", "ugc"] },
   { id: "media", label: "メディアと広告", note: "自分の場所・口コミ・広告の使い分け", cover: "tripleMedia", keys: ["tripleMedia", "ownedMedia", "earnedMedia", "paidMedia", "organicVsAds", "seoVsSns", "ownedAudience", "newsletter"] },

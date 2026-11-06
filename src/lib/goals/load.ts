@@ -153,7 +153,8 @@ export async function loadGoals(db: Db, projectId: string, now: Date = new Date(
 }
 
 // 伴走のジョブ（サーバーの権限）: 行動の目標のある active な目標を、プロジェクトごとに（いまの区切りの始まりと一緒に）
-export type ActiveActions = { projectId: string; goalId: string; actions: GoalKpi[]; cycleStartedOn: string | null };
+// cycles: 今日を含むか昨日で終わった区切り（月曜の振り返りのメールで「先週で 1 か月が終わった」を見る）
+export type ActiveActions = { projectId: string; goalId: string; actions: GoalKpi[]; cycleStartedOn: string | null; cycles: { startsOn: string; endsOn: string }[] };
 
 export async function loadActiveActions(admin: Db, projectIds: string[], now: Date = new Date()): Promise<ActiveActions[]> {
   if (projectIds.length === 0) return [];
@@ -168,10 +169,14 @@ export async function loadActiveActions(admin: Db, projectIds: string[], now: Da
   ]);
   if (kErr) throw kErr;
   if (mErr) throw mErr;
-  return (goals ?? []).map((g) => ({
-    projectId: g.project_id,
-    goalId: g.id,
-    actions: (ks ?? []).filter((k) => k.goal_id === g.id).map(toKpi).filter((k): k is GoalKpi => k !== null),
-    cycleStartedOn: (ms ?? []).filter((m) => m.goal_id === g.id).sort((a, b) => b.starts_on.localeCompare(a.starts_on))[0]?.starts_on ?? null,
-  }));
+  return (goals ?? []).map((g) => {
+    const cycles = (ms ?? []).filter((m) => m.goal_id === g.id).sort((a, b) => b.starts_on.localeCompare(a.starts_on));
+    return {
+      projectId: g.project_id,
+      goalId: g.id,
+      actions: (ks ?? []).filter((k) => k.goal_id === g.id).map(toKpi).filter((k): k is GoalKpi => k !== null),
+      cycleStartedOn: cycles[0]?.starts_on ?? null,
+      cycles: cycles.map((m) => ({ startsOn: m.starts_on, endsOn: m.ends_on })),
+    };
+  });
 }

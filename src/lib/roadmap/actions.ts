@@ -4,10 +4,10 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, isYmd } from "@/lib/time";
-import { itemSchema, kgiSchema, kpiTargetsSchema, parseKpiChoice } from "./schema";
-import { addItems, RoadmapError, saveGoal } from "./write";
+import { itemSchema, parseKpiChoice } from "./schema";
+import { addItems, RoadmapError } from "./write";
 
-// ロードマップを手で直す（docs/architecture.md の 4.23）。RLS で本人のものだけ書ける
+// ロードマップのやることを手で直す（docs/architecture.md の 4.23）。RLS で本人のものだけ書ける。目標（KGI）・KPI は lib/goals/actions.ts
 
 export type RoadmapFormState = { error?: string; ok?: boolean };
 
@@ -22,36 +22,6 @@ function num(v: FormDataEntryValue | null): number | null {
   if (typeof v !== "string" || v.trim() === "") return null;
   const n = Number(v);
   return Number.isFinite(n) ? n : NaN;
-}
-
-// 目標（KGI）と KPI の週の目標
-export async function saveGoalForm(projectId: string, _prev: RoadmapFormState, formData: FormData): Promise<RoadmapFormState> {
-  if (!projectIdSchema.safeParse(projectId).success) return { error: "入力の形式が正しくありません。" };
-  const statement = String(formData.get("statement") ?? "").trim();
-  let kgi = null;
-  if (statement) {
-    const choice = parseKpiChoice(formData.get("kgi_kpi"));
-    const parsed = kgiSchema.safeParse({
-      statement,
-      kpi: choice.kpi,
-      sns: choice.sns,
-      target: num(formData.get("kgi_target")),
-      deadline: formData.get("kgi_deadline"),
-    });
-    if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "目標の形が正しくありません。" };
-    kgi = parsed.data;
-  }
-  const kpis = formData.getAll("kpi").map(String);
-  const perWeek = formData.getAll("per_week").map((v) => num(v));
-  const targets = kpis.map((v, i) => ({ ...parseKpiChoice(v), per_week: perWeek[i] })).filter((t) => t.kpi && t.per_week !== null);
-  const parsedTargets = kpiTargetsSchema.safeParse(targets);
-  if (!parsedTargets.success) return { error: parsedTargets.error.issues[0]?.message ?? "週の目標の形が正しくありません。" };
-  try {
-    await saveGoal(await createClient(), projectId, { kgi, kpiTargets: parsedTargets.data }, "manual");
-  } catch (e) {
-    return { error: e instanceof RoadmapError ? e.userMessage : "保存できませんでした。" };
-  }
-  return done(projectId);
 }
 
 // やることを 1 つ足す

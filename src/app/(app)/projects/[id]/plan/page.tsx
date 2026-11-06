@@ -11,6 +11,9 @@ import { aiConfigured } from "@/lib/ai/anthropic";
 import { listLinks } from "@/lib/links/queries";
 import { getAccountPlan } from "@/lib/plan/queries";
 import { isSectionKey } from "@/lib/plan/schema";
+import { cycleFromMilestones } from "@/lib/coach/pace";
+import { loadGoals } from "@/lib/goals/load";
+import { withGoalWeekly } from "@/lib/goals/view";
 import { getProject } from "@/lib/projects/queries";
 import type { SnsKey } from "@/lib/sns";
 import { listProjectSnsAccounts } from "@/lib/sns/queries";
@@ -24,8 +27,18 @@ export default async function PlanPage(props: PageProps<"/projects/[id]/plan">) 
   const { open } = await props.searchParams;
   // id だけで読めるので、まとめて並べて読む（待ち時間を縮める）
   const supabase = await createClient();
-  const [plan, project, accounts, links, registered] = await Promise.all([getAccountPlan(id), getProject(id), listProjectSnsAccounts(id), listLinks(id), listDestinations(supabase, id)]);
-  if (!plan || !project) notFound();
+  const [stored, project, accounts, links, registered, goals] = await Promise.all([
+    getAccountPlan(id),
+    getProject(id),
+    listProjectSnsAccounts(id),
+    listLinks(id),
+    listDestinations(supabase, id),
+    loadGoals(supabase, id),
+  ]);
+  if (!stored || !project) notFound();
+  // 週の回数と 1 か月の区切りは、いまの目標（goals）が正。JSON の first_month の値は前の作りのまま残っている
+  const cycle = cycleFromMilestones(goals.active?.milestones ?? [], goals.today);
+  const plan = { ...stored, plan: { ...stored.plan, first_month: withGoalWeekly(stored.plan.first_month, goals.active?.actions ?? [], cycle?.startedOn ?? null) } };
   const profileLinks: Partial<Record<SnsKey, string>> = {};
   for (const l of links) if (l.kind === "profile" && !l.disabled && l.sns && !profileLinks[l.sns]) profileLinks[l.sns] = l.url;
 
@@ -38,6 +51,7 @@ export default async function PlanPage(props: PageProps<"/projects/[id]/plan">) 
       sources={plan.sources}
       aiEnabled={aiEnabled}
       initialOpen={isSectionKey(open) ? open : null}
+      cycle={cycle}
       profileCtx={{
         projectId: id,
         accounts: accounts.map((a) => ({ sns: a.sns, handle: a.handle })),

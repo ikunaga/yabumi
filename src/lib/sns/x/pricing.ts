@@ -11,6 +11,10 @@ export const X_PRICE_USD = {
   // 数字を読む（docs/architecture.md の 4.22）。投稿の数字は投稿 1 件、フォロワー数はユーザー 1 件の読み取り
   metrics_read: 0.005,
   followers_read: 0.01,
+  // X の人気の投稿を探す（recent search。4.52、2026-11-06 に料金表で確かめた）。返ってきた投稿 1 件ごとと、
+  // 一緒に取る書いた人（expansions=author_id）1 人ごとに数える。X の投稿の上限とは別の表（x_search_usage）で数える
+  x_search_read: 0.005,
+  x_search_user_read: 0.01,
 } as const;
 
 export type XOperation = keyof typeof X_PRICE_USD;

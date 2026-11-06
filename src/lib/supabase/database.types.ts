@@ -1952,6 +1952,50 @@ export type Database = {
         }
         Relationships: []
       }
+      x_search_usage: {
+        Row: {
+          cost_usd: number
+          created_at: string
+          id: string
+          owner_id: string | null
+          post_count: number | null
+          project_id: string | null
+          settled_at: string | null
+          status: string
+          user_count: number | null
+        }
+        Insert: {
+          cost_usd: number
+          created_at?: string
+          id?: string
+          owner_id?: string | null
+          post_count?: number | null
+          project_id?: string | null
+          settled_at?: string | null
+          status?: string
+          user_count?: number | null
+        }
+        Update: {
+          cost_usd?: number
+          created_at?: string
+          id?: string
+          owner_id?: string | null
+          post_count?: number | null
+          project_id?: string | null
+          settled_at?: string | null
+          status?: string
+          user_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "x_search_usage_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -2289,6 +2333,21 @@ export type Database = {
         }
         Returns: string
       }
+      reserve_x_search: {
+        Args: {
+          p_as_of?: string
+          p_owner_id: string
+          p_project_id: string
+          p_scope_owner?: string
+        }
+        Returns: {
+          limit_count: number
+          resets_on: string
+          status: string
+          usage_id: string
+          used: number
+        }[]
+      }
       roadmap_daily_totals: {
         Args: { p_from: string; p_project_id: string; p_to: string }
         Returns: {
@@ -2418,6 +2477,15 @@ export type Database = {
         Returns: boolean
       }
       x_post_spend_this_month: { Args: { p_owner_id: string }; Returns: number }
+      x_search_quota: {
+        Args: { p_as_of?: string; p_owner_id: string; p_scope_owner?: string }
+        Returns: {
+          limit_count: number
+          resets_on: string
+          status: string
+          used: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

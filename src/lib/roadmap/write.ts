@@ -16,7 +16,8 @@ export class RoadmapError extends Error {
 }
 
 // 目標（KGI）と KPI の週の目標を置き換える。初めて作るときは、今日から数え始める。
-// 前の作り（roadmaps）への書き方で、AI と相談の採用だけが使う（橋渡しのトリガーが goals に写す）。段階 ③ で goals の startGoal に替えたら消す
+// 前の作り（roadmaps）への書き方。アプリはもう使わない（相談も goals の startGoal に替えた。段階 ③）。
+// 本番に出すときの数分間に前のコードが書く形を、橋渡しのテスト（goals.integration・goals-ui.integration）で再現するためだけに残す。段階 ④ で roadmaps と一緒に消す
 export async function saveGoal(db: Db, projectId: string, goal: { kgi: Kgi | null; kpiTargets: KpiTarget[] }, source: "ai" | "manual", now = new Date()): Promise<void> {
   const { data: existing } = await db.from("roadmaps").select("project_id").eq("project_id", projectId).maybeSingle();
   const row = { kgi: goal.kgi as never, kpi_targets: goal.kpiTargets as never, source };

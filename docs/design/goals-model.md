@@ -386,5 +386,5 @@ commit;
 
 ### 12.5 残っていること
 
-- roadmap/load.ts の RoadmapView.roadmap と kgi（roadmaps から読むもの）は、相談がもう使っていない。② が main に入ったら外す（② は残す約束。2026-11-06 実装担当2 と）
+- roadmap/load.ts の RoadmapView.roadmap と kgi（roadmaps から読むもの）は、② が main に入ったあとに外した（2026-11-06）。saveGoal と syncWeeklyFromRoadmap は橋渡しのテストのためだけに残し、段階 ④ で消す
 - 入れる順番: fix/goals-bridge → ② → ③（PM）。③ が先に入ると、画面（② の前は roadmaps を読む）に目標が出ない

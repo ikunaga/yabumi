@@ -73,7 +73,7 @@ export async function loadFirstMonth(user: Db, projectId: string): Promise<PlanD
 type Target = { kpi: string; per_week: number; sns?: string | null };
 
 // ロードマップの毎週の目標に SNS ごとの投稿した回数があれば → 最初の 1 か月の週の回数（伴走が見張る数字）。なければ何もしない。
-// 前の作りの書き方（AI と相談の saveGoal だけが使う。JSON に書き、橋渡しのトリガーが行動の目標に写す）。段階 ③ で AI が goals に書くようになったら消す
+// 前の作りの書き方（saveGoal だけが使う。JSON に書き、橋渡しのトリガーが行動の目標に写す）。アプリはもう使わない（段階 ③）。橋渡しのテストのために残し、段階 ④ で消す
 export async function syncWeeklyFromRoadmap(user: Db, projectId: string, kpiTargets: Target[], source: "ai" | "manual", now = new Date()): Promise<void> {
   const weekly: WeeklyTargets = {};
   for (const t of kpiTargets) {

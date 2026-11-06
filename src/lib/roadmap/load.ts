@@ -4,7 +4,7 @@ import { isSnsKey, type SnsKey } from "@/lib/sns";
 import type { Database } from "@/lib/supabase/database.types";
 import { addDays, toYmd } from "@/lib/time";
 import { todoKindOf, type TodoKind } from "./todo-kind";
-import { effectiveStatus, isFinished, itemProgress, kgiProgress, kgiSchema, kpiTargetsSchema, weekStartOf, type DailyTotal, type ItemPostCounts, type ItemState, type Kgi, type KgiProgress, type KpiTarget } from "./schema";
+import { effectiveStatus, isFinished, itemProgress, weekStartOf, type DailyTotal, type ItemPostCounts, type ItemState } from "./schema";
 
 // ロードマップの読み込み（docs/architecture.md の 4.23）。RLS で本人のものだけ。数字の合計は DB の関数で出す（行を読んで足さない）。
 // クライアントは呼ぶ側が渡す（画面は queries.ts、AI と相談は利用者の権限のクライアント）
@@ -32,33 +32,12 @@ export type RoadmapItem = {
   goalId: string | null;
 };
 
-export type Roadmap = {
-  kgi: Kgi | null;
-  kpiTargets: KpiTarget[];
-  startedOn: string;
-  source: "ai" | "manual";
-};
-
 export type RoadmapView = {
   today: string;
   thisWeek: string;
-  // 前の作り（roadmaps）の目標。AI と相談（consult.ts・consult-queries.ts）だけが読む。段階 ③ で goals に替えたら消す。画面は goals（lib/goals）を読む
-  roadmap: Roadmap | null;
   items: RoadmapItem[];
   daily: DailyTotal[];
-  kgi: KgiProgress | null;
 };
-
-function toRoadmap(row: { kgi: unknown; kpi_targets: unknown; started_on: string; source: string }): Roadmap {
-  const kgi = kgiSchema.safeParse(row.kgi);
-  const targets = kpiTargetsSchema.safeParse(row.kpi_targets);
-  return {
-    kgi: kgi.success ? kgi.data : null,
-    kpiTargets: targets.success ? targets.data : [],
-    startedOn: row.started_on,
-    source: row.source === "ai" ? "ai" : "manual",
-  };
-}
 
 export type ItemRow = {
   id: string;
@@ -115,26 +94,22 @@ export function overdueItems(items: RoadmapItem[], today: string, daily: DailyTo
 export async function loadRoadmapWith(supabase: Db, projectId: string, now = new Date()): Promise<RoadmapView> {
   const today = toYmd(now);
   const thisWeek = weekStartOf(today);
-  const [{ data: row, error: e1 }, { data: rows, error: e2 }] = await Promise.all([
-    supabase.from("roadmaps").select("kgi, kpi_targets, started_on, source").eq("project_id", projectId).maybeSingle(),
-    supabase
-      .from("roadmap_items")
-      .select(ITEM_COLUMNS)
-      .eq("project_id", projectId)
-      .order("week_start")
-      .order("position")
-      .order("created_at")
-      .limit(500),
-  ]);
-  if (e1) throw e1;
+  // 目標（KGI・KPI）は goals から読む（lib/goals。docs/design/goals-model.md）。ここはやることと、やることの週の数字だけ
+  const { data: rows, error: e2 } = await supabase
+    .from("roadmap_items")
+    .select(ITEM_COLUMNS)
+    .eq("project_id", projectId)
+    .order("week_start")
+    .order("position")
+    .order("created_at")
+    .limit(500);
   if (e2) throw e2;
-  const roadmap = row ? toRoadmap(row) : null;
   const weeks = (rows ?? []).map((r) => r.week_start);
   const counts = weeks.length ? await loadItemPostCounts(supabase, projectId, weeks[0], weeks[weeks.length - 1]) : new Map<string, ItemPostCounts>();
   const items = (rows ?? []).map((r) => toItem(r, counts.get(r.id) ?? { published: 0, scheduled: 0, linkedPublished: 0, linkedScheduled: 0 }));
 
-  // 数字は、数え始めの日（なければ 8 週前）から来週の終わりまで（やることの週の数字と、KGI の合計に使う）
-  const from = [roadmap?.startedOn, items[0]?.weekStart, addDays(thisWeek, -56)].filter(Boolean).sort()[0] as string;
+  // 数字は、いちばん古いやることの週（なければ 8 週前）から来週の終わりまで（やることの週の数字に使う）
+  const from = [items[0]?.weekStart, addDays(thisWeek, -56)].filter(Boolean).sort()[0] as string;
   const to = addDays(thisWeek, 13);
   const [{ data: totals, error: e3 }, { data: bySns, error: e4 }] = await Promise.all([
     supabase.rpc("roadmap_daily_totals", { p_project_id: projectId, p_from: from, p_to: to }),
@@ -154,10 +129,8 @@ export async function loadRoadmapWith(supabase: Db, projectId: string, now = new
   return {
     today,
     thisWeek,
-    roadmap,
     items,
     daily,
-    kgi: roadmap?.kgi ? kgiProgress(roadmap.kgi, roadmap.startedOn, today, daily) : null,
   };
 }
 

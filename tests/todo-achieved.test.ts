@@ -52,8 +52,6 @@ describe("今週のやること（概要の帯・残りの一覧・件数）", (
   const view: RoadmapView = {
     today: "2026-11-03",
     thisWeek: WEEK,
-    roadmap: null,
-    kgi: null,
     daily: [],
     items: [
       item({ id: "a", title: "XとInstagramに合わせて3本投稿", kpi: "posts", target: 3, posts: posts(5) }),

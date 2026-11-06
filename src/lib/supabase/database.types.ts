@@ -375,6 +375,168 @@ export type Database = {
         }
         Relationships: []
       }
+      goal_kpis: {
+        Row: {
+          action: string | null
+          created_at: string
+          goal_id: string
+          id: string
+          metric: string
+          owner_id: string
+          per_week: number
+          position: number
+          role: string
+          sns: string | null
+        }
+        Insert: {
+          action?: string | null
+          created_at?: string
+          goal_id: string
+          id?: string
+          metric: string
+          owner_id: string
+          per_week: number
+          position?: number
+          role: string
+          sns?: string | null
+        }
+        Update: {
+          action?: string | null
+          created_at?: string
+          goal_id?: string
+          id?: string
+          metric?: string
+          owner_id?: string
+          per_week?: number
+          position?: number
+          role?: string
+          sns?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goal_kpis_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      goal_milestones: {
+        Row: {
+          created_at: string
+          ends_on: string
+          goal_id: string
+          id: string
+          owner_id: string
+          result_value: number | null
+          seq: number
+          settled_at: string | null
+          starts_on: string
+          target: number | null
+        }
+        Insert: {
+          created_at?: string
+          ends_on: string
+          goal_id: string
+          id?: string
+          owner_id: string
+          result_value?: number | null
+          seq: number
+          settled_at?: string | null
+          starts_on: string
+          target?: number | null
+        }
+        Update: {
+          created_at?: string
+          ends_on?: string
+          goal_id?: string
+          id?: string
+          owner_id?: string
+          result_value?: number | null
+          seq?: number
+          settled_at?: string | null
+          starts_on?: string
+          target?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goal_milestones_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      goals: {
+        Row: {
+          action: string | null
+          closed_at: string | null
+          created_at: string
+          ends_on: string | null
+          id: string
+          metric: string | null
+          owner_id: string
+          project_id: string
+          provisional: boolean
+          result_value: number | null
+          sns: string | null
+          source: string
+          starts_on: string
+          statement: string | null
+          status: string
+          target: number | null
+          updated_at: string
+        }
+        Insert: {
+          action?: string | null
+          closed_at?: string | null
+          created_at?: string
+          ends_on?: string | null
+          id?: string
+          metric?: string | null
+          owner_id: string
+          project_id: string
+          provisional?: boolean
+          result_value?: number | null
+          sns?: string | null
+          source?: string
+          starts_on: string
+          statement?: string | null
+          status?: string
+          target?: number | null
+          updated_at?: string
+        }
+        Update: {
+          action?: string | null
+          closed_at?: string | null
+          created_at?: string
+          ends_on?: string | null
+          id?: string
+          metric?: string | null
+          owner_id?: string
+          project_id?: string
+          provisional?: boolean
+          result_value?: number | null
+          sns?: string | null
+          source?: string
+          starts_on?: string
+          statement?: string | null
+          status?: string
+          target?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goals_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       idea_notes: {
         Row: {
           body: string
@@ -1552,9 +1714,11 @@ export type Database = {
       }
       roadmap_items: {
         Row: {
+          action: string | null
           created_at: string
           detail: string
           done_at: string | null
+          goal_id: string | null
           id: string
           kind: string | null
           kpi: string | null
@@ -1571,9 +1735,11 @@ export type Database = {
           week_start: string
         }
         Insert: {
+          action?: string | null
           created_at?: string
           detail?: string
           done_at?: string | null
+          goal_id?: string | null
           id?: string
           kind?: string | null
           kpi?: string | null
@@ -1590,9 +1756,11 @@ export type Database = {
           week_start: string
         }
         Update: {
+          action?: string | null
           created_at?: string
           detail?: string
           done_at?: string | null
+          goal_id?: string | null
           id?: string
           kind?: string | null
           kpi?: string | null
@@ -1609,6 +1777,13 @@ export type Database = {
           week_start?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "roadmap_items_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "roadmap_items_project_id_fkey"
             columns: ["project_id"]
@@ -2084,6 +2259,10 @@ export type Database = {
           storage_path: string
         }[]
       }
+      close_goal_internal: {
+        Args: { p_goal_id: string; p_replacing: boolean }
+        Returns: undefined
+      }
       connected_store_sources: {
         Args: { p_project_id: string }
         Returns: string[]
@@ -2132,7 +2311,35 @@ export type Database = {
           social_account_id: string
         }[]
       }
+      ensure_active_goal: {
+        Args: { p_owner_id: string; p_project_id: string; p_starts_on: string }
+        Returns: string
+      }
       expire_link_domains: { Args: never; Returns: number }
+      goal_metric_total: {
+        Args: {
+          p_action: string
+          p_from: string
+          p_metric: string
+          p_project_id: string
+          p_sns: unknown
+          p_to: string
+        }
+        Returns: {
+          available: boolean
+          counted_through: string
+          value: number
+        }[]
+      }
+      goal_metric_valid: {
+        Args: {
+          p_action: string
+          p_metric: string
+          p_role: string
+          p_sns: unknown
+        }
+        Returns: boolean
+      }
       invoke_job: { Args: { p_path: string }; Returns: number }
       is_manual_sns: { Args: { p_sns: string }; Returns: boolean }
       issue_media_upload_ticket: {
@@ -2256,6 +2463,15 @@ export type Database = {
         }
         Returns: string
       }
+      replace_goal_kpis_internal: {
+        Args: {
+          p_goal_id: string
+          p_kpis: Json
+          p_owner_id: string
+          p_role: string
+        }
+        Returns: undefined
+      }
       requeue_failed_targets: {
         Args: { p_post_id: string; p_sns: string[] }
         Returns: number
@@ -2348,6 +2564,16 @@ export type Database = {
           used: number
         }[]
       }
+      revise_goal: {
+        Args: {
+          p_ends_on: string
+          p_goal_id: string
+          p_milestones: Json
+          p_statement: string
+          p_target: number
+        }
+        Returns: undefined
+      }
       roadmap_daily_totals: {
         Args: { p_from: string; p_project_id: string; p_to: string }
         Returns: {
@@ -2386,6 +2612,11 @@ export type Database = {
         }
         Returns: string
       }
+      set_goal_kpis: {
+        Args: { p_kpis: Json; p_project_id: string; p_role: string }
+        Returns: string
+      }
+      settle_goal: { Args: { p_goal_id: string }; Returns: string }
       sns_spend_this_month: {
         Args: { p_owner_id?: string; p_sns: unknown }
         Returns: number
@@ -2400,6 +2631,21 @@ export type Database = {
           views_last_week: number
           views_this_week: number
         }[]
+      }
+      start_goal: {
+        Args: {
+          p_actions: Json
+          p_goal: Json
+          p_kpis: Json
+          p_milestones: Json
+          p_project_id: string
+          p_source: string
+        }
+        Returns: string
+      }
+      start_milestone: {
+        Args: { p_project_id: string; p_target: number }
+        Returns: string
       }
       store_period_totals: {
         Args: { p_days: number; p_end: string; p_project_id: string }
@@ -2432,6 +2678,7 @@ export type Database = {
           still_used: boolean
         }[]
       }
+      sync_goal_from_legacy: { Args: { p_project_id: string }; Returns: string }
       time_band_of: { Args: { p_at: string }; Returns: string }
       top_posts_by_clicks: {
         Args: {

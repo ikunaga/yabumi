@@ -219,9 +219,53 @@ download → downloads、purchase・signup・booking・inquiry・visit → outco
 - ② と ③ は並べて進められる。ぶつかりそうなのは consult.ts の「いまの状況」と、概要の帯の種類（nowBandKind）。帯は ② が作り、③ は入口（start=goal_review）を作る、と分ける
 - 法務: 新しく預かる情報はない（目標と数字は今もある。結果の値が残るだけ）ので ① の書き足しの見込み。「これまでの目標」を残す期間はプロジェクトと同じ（消すまで）
 
-## 9. 決めてほしいこと
+## 9. 決めてほしいこと（2026-11-06 オーナーが Q1〜Q4 とも「おすすめ通り」で了承）
 
 - **Q1**: 「月」を 4 週にしてよいか（KGI の基本は 12 週、伴走の区切り ＝ 中間の目標の区切り）。暦の月にすると、伴走の 4 週と区切りがずれ、毎月の振り返りが 2 つになる
 - **Q2**: 前の KGI（投稿の本数）を、移すときに goal のまま残して「成果の目標に変えましょう」と知らせる形でよいか（自動で別の数字に変えない）
 - **Q3**: 期限前に KGI を見直したとき、前の目標は replaced として「これまでの目標」に残す（消さない）でよいか
 - **Q4**: 目標に届いたとき、期限まで続けるか、すぐ次の KGI に移るかは、goal_review で AI が 2 つの案として出す形でよいか
+
+## 10. 段階 ① で作ったもの（2026-11-06。② ③ はこれを使う）
+
+マイグレーション: 20261106150000_goals（表・関数・橋渡し・写し替え）と 20261106150100_goals_sns_key（写し替えの関数の直し。sns_key は enum ではなく text のドメインなので、SNS の名前は `pg_input_is_valid(値, 'public.sns_key')` で確かめ、合わないものは写さない。150000 の中も同じに直したので、続けて当てても同じ）。
+
+### 10.1 決め直したこと（設計からの差）
+
+- 写し替えと橋渡しは、同じ関数 `sync_goal_from_legacy(project_id)` にした（マイグレーションはすべてのプロジェクトにこれを流す。前のコードが roadmaps か account_plans に書くと、トリガーがこれを流す）。何度流しても同じ結果になる（KGI・KPI・行動の目標は前の作りの今の値で置き換え、区切りは同じ始まりの日がなければ足す）。結合テストは、ddy と同じ形を前のコードの書き方で作り、この関数をそのプロジェクトに流して確かめる（tests/goals.integration.test.ts）。サーバー（service_role）だけが呼べる
+- 行動の目標の SNS は null（すべての SNS）も許す（前の kpi_targets の「すべての SNS の投稿」を写すため。伴走は SNS ごとの行だけを使う）
+- KGI まだの目標の区切りは、結果を数えない（result_value は null のまま settled_at だけ入る）
+
+### 10.2 src/lib/goals の形
+
+| ファイル | 関数・型 | 使うところ |
+|---|---|---|
+| schema.ts | `Goal`・`Milestone`・`GoalKpi`（role: kpi / action）・`MetricRef`・`MetricTotal`、`GOAL_METRICS`・`KGI_METRICS`（posts なし）・`METRIC_COUNTING`（auto / connect / manual）、`goalInputSchema`・`kpiListSchema`・`actionListSchema`（AI の案と手の入力を確かめる）、`kgiMetricFor(goalType)`（見た人にしてほしいこと → KGI の数字の既定）、`weeklyTargetsOf(kpis)`・`actionsFromWeekly(weekly)`（伴走の週の回数との変換）、`goalNeedsReview(goal, progress, today)`（"reached" / "ended" / null。概要の帯）、`isLegacyActionGoal(goal)`（「成果の目標に変えましょう」）、`currentMilestone(ms, today)`、`milestoneCount(weeks)` | ② ③ |
+| load.ts | `loadGoals(db, projectId)` → `{ today, active: { goal, milestones, current, kpis, actions, progress, currentProgress } \| null, past: Goal[] }`（past は新しい順、50 件まで）。`metricTotal(db, projectId, ref, from, to)`（DB の goal_metric_total）。`progressOf(goal, total, today)` → `{ value, countedThrough, available, target, ratio, daysLeft, projected }`。`loadActiveActions(admin, projectIds)`（伴走のジョブ: 行動の目標といまの区切りの始まり） | ② ③（伴走のジョブは ②） |
+| write.ts | `startGoal(db, projectId, { goal \| null, milestones?, kpis?, actions? }, source)`（いまの目標は結果を数えて閉じる）、`reviseGoal(db, goalId, { statement?, target?, endsOn?, milestones?: {seq: 値} })`、`setGoalKpis(db, projectId, kpis)`、`setGoalActions(db, projectId, actions)`（アカウント設計の週の回数。目標がなければ KGI まだの目標を作る）、`startMilestone(db, projectId, target \| null)`（毎月の振り返り・「次の 1 か月を始める」）、`settleGoal(db, goalId)`（AI なしで終える）。失敗は `GoalError`（userMessage を画面に出す） | ② ③ |
+
+- 書く関数には、利用者の権限のクライアント（auth.uid() が本人）を渡す。サーバーの権限では呼べない（関数が本人を auth.uid() で確かめるため）
+- 数字は、画面で計算しない。`loadGoals` の progress と `metricTotal` を使い、`available` が false なら数字の代わりに案内、`countedThrough` を「〇日まで」と添える
+
+### 10.3 戻し方（段階 ① を取り消すとき。PM の了承のうえで、この順に）
+
+```sql
+drop trigger if exists roadmap_items_check_goal on public.roadmap_items;
+drop trigger if exists roadmaps_bridge_to_goals on public.roadmaps;
+drop trigger if exists account_plans_bridge_to_goals on public.account_plans;
+-- project_step_flags は 20261103140000 の定義を当て直す（has_roadmap を roadmaps から読む形）
+alter table public.roadmap_items drop constraint if exists roadmap_items_action_only_outcomes, drop constraint if exists roadmap_items_action_valid;
+alter table public.roadmap_items drop constraint roadmap_items_kpi_check;
+alter table public.roadmap_items add constraint roadmap_items_kpi_check check (kpi is null or kpi in ('posts', 'link_clicks', 'views', 'followers', 'store_page_views', 'downloads', 'revenue'));
+alter table public.roadmap_items drop column if exists goal_id, drop column if exists action;  -- goals を消す前に（cascade でやることが消えないように）
+drop function if exists public.legacy_bridge_to_goals(), public.sync_goal_from_legacy(uuid), public.roadmap_items_check_goal(),
+  public.settle_goal(uuid), public.start_milestone(uuid, numeric), public.set_goal_kpis(uuid, text, jsonb), public.revise_goal(uuid, text, numeric, date, jsonb),
+  public.start_goal(uuid, jsonb, jsonb, jsonb, jsonb, text), public.replace_goal_kpis_internal(uuid, uuid, text, jsonb), public.close_goal_internal(uuid, boolean),
+  public.goal_metric_total(uuid, text, text, public.sns_key, date, date), public.ensure_active_goal(uuid, uuid, date), public.goal_child_check_owner();
+drop table if exists public.goal_kpis, public.goal_milestones, public.goals;
+drop function if exists public.goal_metric_valid(text, text, text, public.sns_key);
+```
+
+- **roadmap_items.goal_id は、goals を消す前に列ごと消す**（on delete cascade なので、先に goals を消すとやることが消える）
+- roadmaps と account_plans は ① で変えていないので、戻す SQL はない。ローカルの控えは scratchpad/gm-backup/before-goals-20261106.sql（2026-11-06、当てる前に pg_dump --data-only）
+- 本番で ① を当てる前にも、同じ 3 つの表を控える（Supabase Free にはバックアップがない）

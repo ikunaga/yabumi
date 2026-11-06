@@ -11,6 +11,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { aiConfigured, callPostIdeas, callShortenDrafts } from "./anthropic";
 import { MAX_NOTES_FOR_IDEAS } from "@/lib/notes/rules";
+import { MAX_X_POST_INTEREST, MAX_X_POST_TEXT } from "@/lib/ideas/x-post";
 import { adoptPostIdea, generatePostIdeas, MAX_ANSWER_CHARS, MAX_IDEA_QUESTIONS, MAX_IDEAS, MAX_NEWS_CHARS, MAX_NEWS_QUESTIONS, MAX_TOPIC_CHARS, refinePostIdeas } from "./post-ideas";
 
 async function currentUser() {
@@ -30,9 +31,11 @@ const inputSchema = z.discriminatedUnion("source", [
   z.object({ source: z.literal("plan") }),
   z.object({ source: z.literal("notes"), noteIds: z.array(z.uuid()).min(1).max(MAX_NOTES_FOR_IDEAS) }),
   z.object({ source: z.literal("other"), topic: z.string().max(MAX_TOPIC_CHARS) }),
+  // URL の形（x.com・twitter.com の投稿だけ）は generatePostIdeas が確かめる
+  z.object({ source: z.literal("x_post"), url: z.string().max(500), text: z.string().max(MAX_X_POST_TEXT), interest: z.string().max(MAX_X_POST_INTEREST) }),
 ]);
 
-// 材料（最近のコミット・最近のできごと・アカウント設計・ネタ帳・その他の伝えたいこと）から、AI が投稿のネタを出す（30〜90 秒ほどかかる）。
+// 材料（最近のコミット・最近のできごと・アカウント設計・ネタ帳・X で人気の投稿・その他の伝えたいこと）から、AI が投稿のネタを出す（30〜90 秒ほどかかる）。
 // 本人はログインで、プロジェクトは generatePostIdeas が利用者の権限（RLS）で読んで確かめる
 export async function generateIdeas(projectId: string, input: unknown, sns: unknown): Promise<IdeasActionResult> {
   const snsList = z.array(z.string()).max(10).safeParse(sns);
@@ -79,15 +82,17 @@ export async function refineIdeas(projectId: string, threadId: string, answers: 
   return {};
 }
 
-// 選んだネタを「投稿をつくる」の下書きとして保存し、投稿の画面を開く
-export async function adoptIdea(projectId: string, messageId: string, index: number): Promise<IdeasActionResult> {
+// 選んだネタを「投稿をつくる」の下書きとして保存し、投稿の画面を開く。
+// mode = "quote": 材料が X の人気の投稿のとき、その投稿を引用する X だけの下書きにする（X の画面で送る。4.52）
+export async function adoptIdea(projectId: string, messageId: string, index: number, mode?: "quote"): Promise<IdeasActionResult> {
   if (!z.uuid().safeParse(projectId).success || !z.uuid().safeParse(messageId).success || !Number.isInteger(index) || index < 0 || index >= MAX_IDEAS) return BAD_INPUT;
+  if (mode !== undefined && mode !== "quote") return BAD_INPUT;
   const { supabase, userId } = await currentUser();
   if (!userId) return { error: "ログインし直してください。" };
   let postId: string;
   let done = "idea";
   try {
-    const r = await adoptPostIdea(supabase, createAdminClient(), { userId, projectId, messageId, index, accounts: await connectedAccounts(projectId) });
+    const r = await adoptPostIdea(supabase, createAdminClient(), { userId, projectId, messageId, index, accounts: await connectedAccounts(projectId), quote: mode === "quote" });
     if (!r.ok) return { error: r.message };
     postId = r.postId;
     if (r.skippedImages) done = "idea_images_skipped";

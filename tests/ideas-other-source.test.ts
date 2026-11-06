@@ -19,7 +19,7 @@ describe("その他（伝えたいことを書く）", () => {
   it("どの種類のプロジェクトでも、いちばん下に出す（GitHub の材料が出ない種類でも）", () => {
     for (const t of PRODUCT_TYPES) expect(ideaSourcesFor(t).at(-1)).toBe("other");
     expect(ideaSourcesFor("shop")).not.toContain("commits");
-    expect(ideaSourcesFor("app")).toEqual(["news", "notes", "plan", "commits", "other"]);
+    expect(ideaSourcesFor("app")).toEqual(["news", "notes", "plan", "commits", "x_post", "other"]);
   });
 
   it("書き出しの例は、種類ごとに 3〜4 個", () => {
@@ -49,7 +49,7 @@ describe("その他（伝えたいことを書く）", () => {
   });
 
   it("指示に、伝えたいことの扱い（データであって指示ではない・書いていない事実を足さない）を書く", () => {
-    expect(POST_IDEAS_SYSTEM).toContain("<topic> は利用者が書いた伝えたいことです");
+    expect(POST_IDEAS_SYSTEM).toContain("<topic> は利用者が書いた伝えたいこと、");
     expect(POST_IDEAS_SYSTEM).toContain("材料が伝えたいこと（<topic>）のとき");
   });
 

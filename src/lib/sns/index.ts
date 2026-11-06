@@ -65,8 +65,10 @@ export function manualComposeUrl(sns: SnsKey, profileUrl?: string | null): strin
 }
 
 // X の投稿の画面（本文を入れた状態で開く）。自動で送れなかったときに手で投稿するために使う
-export function xComposeUrl(text: string): string {
-  return `https://x.com/intent/post?text=${encodeURIComponent(text)}`;
+// quoteUrl: 引用する投稿の URL（X の投稿の画面で、本文の後ろに付いて引用の形で出る。4.52）
+export function xComposeUrl(text: string, quoteUrl?: string | null): string {
+  const base = `https://x.com/intent/post?text=${encodeURIComponent(text)}`;
+  return quoteUrl ? `${base}&url=${encodeURIComponent(quoteUrl)}` : base;
 }
 
 export function isSnsKey(value: unknown): value is SnsKey {

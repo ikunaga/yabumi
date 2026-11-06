@@ -66,6 +66,7 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
   // 短縮リンクのチェックの状態: 本文に URL があるのに、送る前の配信先に短縮リンクがなければ、オフで保存したもの
   const hasUrl = [post.body, ...post.targets.map((t) => t.body_override ?? "")].some((t) => findLinkableUrls(t).length > 0);
   const shortLinks = !hasUrl || Object.keys(linkPreview).length > 0 || !post.targets.some((t) => t.status === "pending");
+  const quoting = (t: (typeof post.targets)[number]) => t.sns === "x" && t.status === "pending" && Boolean(t.quote_post_id);
   const profileUrl = (sns: SnsKey) => channels?.find((c) => c.sns === sns)?.profile_url ?? null;
   const results: Partial<Record<SnsKey, TargetResult>> = Object.fromEntries(
     post.targets.map((t) => [
@@ -79,7 +80,11 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
         nextAttemptAt: t.next_attempt_at,
         manual: isManualSns(t.sns)
           ? { title: t.title, text: t.body_override ?? post.body, composeUrl: manualComposeUrl(t.sns, profileUrl(t.sns)) }
-          : undefined,
+          : quoting(t)
+            ? { title: null, text: t.body_override ?? post.body, composeUrl: xComposeUrl(t.body_override ?? post.body, `https://x.com/i/web/status/${t.quote_post_id}`) }
+            : undefined,
+        // 引用の X（X の API では引用を送れないので、X の画面で送って記録する。4.52）
+        quote: quoting(t),
         // 送れなかった X は、手で投稿して記録できる（月の上限・クレジット切れのとき。決定 D16）
         fallback:
           t.sns === "x" && t.status === "failed"
@@ -123,6 +128,7 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
         plannedAt: toInputValue(post.planned_at),
         images,
         shortLinks,
+        quotePostId: post.targets.find((t) => t.sns === "x" && t.status === "pending")?.quote_post_id ?? null,
       }}
     />
     </>

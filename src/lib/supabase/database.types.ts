@@ -1139,6 +1139,7 @@ export type Database = {
           post_id: string
           preparing_since: string | null
           published_at: string | null
+          quote_post_id: string | null
           sns: string
           sns_checked_at: string | null
           sns_container: Json | null
@@ -1162,6 +1163,7 @@ export type Database = {
           post_id: string
           preparing_since?: string | null
           published_at?: string | null
+          quote_post_id?: string | null
           sns: string
           sns_checked_at?: string | null
           sns_container?: Json | null
@@ -1185,6 +1187,7 @@ export type Database = {
           post_id?: string
           preparing_since?: string | null
           published_at?: string | null
+          quote_post_id?: string | null
           sns?: string
           sns_checked_at?: string | null
           sns_container?: Json | null

@@ -55,6 +55,8 @@ export type ComposerInitial = {
   shortLinks?: boolean;
   // ロードマップのやることから作るとき（4.23）。題と説明を、本文の下書きの手がかりとして出す
   roadmapItem?: { id: string; title: string; detail: string } | null;
+  // 引用する X の投稿の id（X で人気の投稿から作った下書き。4.52）。X の画面で利用者が送る
+  quotePostId?: string | null;
 };
 
 type Props = {
@@ -99,6 +101,9 @@ const ISSUE_TONE: Record<TargetIssue, string> = {
   needs_title: "text-signal",
   too_many_images: "text-danger",
 };
+
+// 引用の投稿の、送れない理由（X の画面で送る。4.52）
+const QUOTE_BLOCKER = "引用は X の画面で送ります（yabumi からは予約・送信できません）";
 
 // まだ何も書いていないときの、送れない理由（朱にしない）
 const QUIET_BLOCKER = "本文を書くと、予約・送信できます";
@@ -152,6 +157,8 @@ export function PostComposer({
     Object.fromEntries(initial.targets.filter((t) => t.title).map((t) => [t.sns, t.title!])),
   );
   const [plannedAt, setPlannedAt] = useState(initial.plannedAt);
+  // 引用する X の投稿（外すと、ふつうの X の投稿として予約・送信できる）
+  const [quote, setQuote] = useState<string | null>(initial.quotePostId ?? null);
   // AI で整えた案を使った知らせが出ているか（出ている間は、SNS ごとの文面の 1 行をその知らせにまとめる）
   const [tidyAdopted, setTidyAdopted] = useState(false);
   // Instagram の文面を「プロフィールのリンクから」にした（したことを 1 行で知らせる）
@@ -251,6 +258,7 @@ export function PostComposer({
     setPlannedAt(initial.plannedAt);
     setSelected(new Set(initial.targets.map((t) => t.sns)));
     setShortLinks(initial.shortLinks ?? true);
+    setQuote(initial.quotePostId ?? null);
     setNoteIds([]);
     setTidyAdopted(false);
     setIgLinked(false);
@@ -295,11 +303,15 @@ export function PostComposer({
   // これから送る SNS（投稿済みなどを除く）
   const toSend = chosen.filter((s) => !isLocked(s));
   // つないでいない SNS（手で投稿する SNS は、つながなくてよい）。送れない理由のときは、つなぐ画面へのリンクも出す
-  const missingConnect = toSend.filter((s) => !isManualSns(s) && !connected.includes(s));
+  const missingConnect = toSend.filter((s) => !isManualSns(s) && !connected.includes(s) && !(s === "x" && quote !== null));
   const missingConnectMessage = `${missingConnect.map((s) => SNS[s].label).join("・")} をつなぐと送れます`;
   // 送れない理由（最初の 1 つ）。日時は予約のときだけ要る
+  // 引用は X だけで、X の画面で送る（X の API の引用は、使った分だけ払う方式では使えない。4.52）
+  const quoting = quote !== null && selected.has("x") && !isLocked("x");
   const sendBlocker = (() => {
     if (chosen.length === 0) return "送り先の SNS を選んでください";
+    if (quoting && chosen.some((s) => s !== "x")) return "引用の投稿は X だけに送れます。ほかの SNS を外すか、引用を外してください";
+    if (quoting) return QUOTE_BLOCKER;
     if (toSend.length === 0) return "選んだ SNS にはすべて投稿済みです";
     if (quiet) return QUIET_BLOCKER;
     for (const s of toSend) {
@@ -420,6 +432,7 @@ export function PostComposer({
         shortLinks,
         roadmapItemId: initial.roadmapItem?.id ?? null,
         noteIds,
+        quotePostId: quoting ? quote : null,
         targets: chosen.map((sns) => ({ sns, bodyOverride: overrides[sns] ?? null, title: SNS[sns].needsTitle ? (titles[sns] ?? null) : null })),
       }), "書いた内容は残しています。");
       const sendPostId = out.ok ? out.value?.sendPostId : undefined;
@@ -489,6 +502,8 @@ export function PostComposer({
     if (on && sent?.status === "pending" && sent.errorMessage) return { text: "送り直し待ち", tone: "font-bold text-signal" };
     if (!on) return { text: isManualSns(sns) ? "手で投稿" : "オフ", tone: "text-faint" };
     if (quiet) return null;
+    // 引用の X は X の画面で送るので、つないでいなくてよい（4.52）
+    if (sns === "x" && quoting && !checks.x.issues[0]) return { text: "X の画面で送る", tone: "text-muted" };
     if (issue) return { text: ISSUE_LABEL[issue], tone: `font-bold ${ISSUE_TONE[issue]}` };
     if (isManualSns(sns)) return { text: "手で投稿", tone: "text-muted" };
     if (connected.includes(sns)) return { text: "OK", tone: "font-bold text-success" };
@@ -769,6 +784,15 @@ export function PostComposer({
                     </li>
                   ))}
                 </ul>
+              )}
+              {quoting && (
+                <QuoteTag
+                  id={quote!}
+                  onRemove={() => {
+                    setQuote(null);
+                    clearFieldError("targets");
+                  }}
+                />
               )}
               {fe.targets && (
                 <p role="alert" className="text-sm font-semibold text-danger">
@@ -1252,3 +1276,19 @@ const noopSubscribe = () => () => {};
 
 // 添えた画像の見分け（差し替え・代わりの文の変更も「変えた」とみなす）
 const imageKey = (i: AttachedImage) => `${i.id}\u0000${i.altText ?? ""}`;
+
+// 引用する X の投稿の札（4.52）。外すと、ふつうの X の投稿になる
+function QuoteTag({ id, onRemove }: { id: string; onRemove: () => void }) {
+  const url = `https://x.com/i/web/status/${id}`;
+  return (
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border border-line bg-surface2 px-3.5 py-2 text-[13px]">
+      <span className="font-bold">引用:</span>
+      <a href={url} target="_blank" rel="noopener noreferrer" className="num min-w-0 break-all text-primary hover:underline">
+        x.com/i/web/status/{id}
+      </a>
+      <Button type="button" variant="text" size="sm" onClick={onRemove} className="ml-auto">
+        引用を外す
+      </Button>
+    </div>
+  );
+}

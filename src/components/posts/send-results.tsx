@@ -18,6 +18,8 @@ export type TargetResult = {
   manual?: ManualInfo;
   // 自動で送れなかった X を、手で投稿して記録するための情報
   fallback?: ManualInfo;
+  // 引用の X（manual に X の投稿の画面の URL が入る。X の画面で送って記録する。4.52）
+  quote?: boolean;
   // 手で投稿して記録したもの（SNS 上の投稿の ID がないので、yabumi からは取り消せない）
   postedByHand?: boolean;
   // yabumi の外（SNS の画面など）で消されていた。yabumi から取り消したときは false
@@ -32,7 +34,7 @@ export function SendResults({ projectId, postId, results }: { projectId: string;
     const r = results[sns];
     if (!r) return [];
     // 手で投稿する SNS は、投稿するまでの手順をいつも出す
-    if (isManualSns(sns) && r.manual) return [{ sns, r }];
+    if ((isManualSns(sns) || r.quote) && r.manual) return [{ sns, r }];
     if (r.status === "pending" && !r.errorMessage) return [];
     return [{ sns, r }];
   });
@@ -45,7 +47,7 @@ export function SendResults({ projectId, postId, results }: { projectId: string;
       </h2>
       <ul className="divide-y divide-line text-sm">
         {rows.map(({ sns, r }) =>
-          isManualSns(sns) && r.manual ? (
+          (isManualSns(sns) || r.quote) && r.manual ? (
             <ManualRow key={sns} sns={sns} r={r} projectId={projectId} postId={postId} />
           ) : (
             <ResultRow key={sns} sns={sns} r={r} projectId={projectId} postId={postId} />
@@ -228,9 +230,11 @@ function ManualRow({ sns, r, projectId, postId }: { sns: SnsKey; r: TargetResult
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <b>{label}</b>
         <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">手で投稿</span>
-        <span className="text-muted">{label} には公式の投稿のしくみがないので、ここから手で投稿します</span>
+        <span className="text-muted">
+          {r.quote ? "X の仕組みで、引用は yabumi から予約できません。X の画面で送ってください" : `${label} には公式の投稿のしくみがないので、ここから手で投稿します`}
+        </span>
       </div>
-      <ManualSteps sns={sns} info={r.manual!} targetId={r.id} projectId={projectId} postId={postId} />
+      <ManualSteps sns={sns} info={r.manual!} targetId={r.id} projectId={projectId} postId={postId} quote={r.quote} />
     </li>
   );
 }
@@ -242,12 +246,14 @@ function ManualSteps({
   targetId,
   projectId,
   postId,
+  quote = false,
 }: {
   sns: SnsKey;
   info: ManualInfo;
   targetId: string;
   projectId: string;
   postId: string;
+  quote?: boolean;
 }) {
   const [url, setUrl] = useState("");
   const [copied, setCopied] = useState<"title" | "body" | null>(null);
@@ -290,7 +296,7 @@ function ManualSteps({
           ) : (
             <span className="text-muted">{label} を開いて、新しい記事を作る</span>
           )}
-          <span className="text-xs text-muted">{sns === "x" ? "（本文が入った状態で開きます）" : "（貼り付けて投稿します）"}</span>
+          <span className="text-xs text-muted">{sns === "x" ? (quote ? "（本文と引用する投稿が入った状態で開きます）" : "（本文が入った状態で開きます）") : "（貼り付けて投稿します）"}</span>
         </li>
         <li className="flex flex-col gap-1.5">
           <span>

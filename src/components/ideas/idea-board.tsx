@@ -19,6 +19,7 @@ import { IDEA_STEPS, type IdeaStep, canGoIdeaStep, initialIdeaStep, visibleIdeaS
 import { MAX_NOTES_FOR_IDEAS } from "@/lib/notes/rules";
 import { SNS, checkTarget, type SnsKey } from "@/lib/sns";
 import { formatShort } from "@/lib/time";
+import { XPostSource, xPostReady, type XPostValue } from "./x-post-source";
 
 const PERIOD_LABEL: Record<IdeaPeriod, string> = { 3: "3 日", 7: "1 週間", 14: "2 週間", 30: "1 か月" };
 
@@ -60,6 +61,16 @@ const SOURCE_INFO: Record<IdeaSource, { title: string; summary: string; good: st
     working: { kind: "ideas", wait: "20〜60 秒ほどかかります" },
     cost: "1 回あたり 10〜20 円ほど",
   },
+  // X の画面で探した人気の投稿（2026-11-06 オーナーと決めた B 案。4.52）
+  x_post: {
+    title: "X で人気の投稿から",
+    summary: "X で見つけた人気の投稿の切り口を借りて、自分の立場で書きます。",
+    good: "反応の多い話題や書き出しを、自分の商品・サービスに当てはめられる。探すのは X の画面なので費用はかからない",
+    note: "借りるのは切り口だけで、文は写さない。投稿の中身は yabumi からは読まないので、気になった文は写して貼る",
+    button: "この投稿からネタを出す",
+    working: { kind: "ideas", wait: "20〜60 秒ほどかかります" },
+    cost: "1 回あたり 10〜20 円ほど",
+  },
   // どれにもあてはまらないとき（2026-11-03 オーナーの要望）
   other: {
     title: "その他（伝えたいことを書く）",
@@ -78,6 +89,7 @@ const STEP2_TITLE: Record<IdeaSource, string> = {
   news: "最近のできごとを書いて、SNS を選ぶ",
   notes: "使うメモと、SNS を選ぶ",
   plan: "SNS を選ぶ",
+  x_post: "参考にする投稿を貼って、SNS を選ぶ",
   other: "伝えたいことを書いて、SNS を選ぶ",
 };
 
@@ -105,22 +117,25 @@ type Props = {
   thread: IdeasThread | null;
   // 投稿の柱がまだ決まっていない（② に一言添える）
   noPillars: boolean;
+  // 「X で人気の投稿から」の検索の言葉（アカウント設計から作ったもの。src/lib/ideas/x-post.ts）
+  xSearchWords: string[];
 };
 
 // 材料（最近のコミット・最近のできごと・ネタ帳・アカウント設計）から AI がネタを出し、利用者が質問に答えたり、ネタを選んで下書きにしたりする。
 // ① 材料を選ぶ → ② 中身を入れる → ③ ネタを選んで下書きにする の 3 つのステップに分け、いまいるステップの項目だけを出す（入れたものはステップを移っても残る）
-export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, snsOptions, maxSns, defaultSns, defaultDays, defaultSource, newsQuestions, newsExample, topicExamples, sources, notes, defaultNoteIds, thread, noPillars }: Props) {
+export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, snsOptions, maxSns, defaultSns, defaultDays, defaultSource, newsQuestions, newsExample, topicExamples, sources, notes, defaultNoteIds, thread, noPillars, xSearchWords }: Props) {
   const [step, setStep] = useState<IdeaStep>(() => initialIdeaStep({ hasThread: Boolean(thread), fromNotes: defaultNoteIds.length > 0 }));
   const [source, setSource] = useState<IdeaSource>(defaultSource);
   const [days, setDays] = useState<IdeaPeriod>(defaultDays);
   const [news, setNews] = useState<string[]>(() => newsQuestions.map(() => ""));
   const [topic, setTopic] = useState("");
+  const [xPost, setXPost] = useState<XPostValue>({ url: "", text: "", interest: "" });
   const topicRef = useRef<HTMLTextAreaElement>(null);
   const [sns, setSns] = useState<SnsKey[]>(defaultSns);
   const [noteIds, setNoteIds] = useState<string[]>(defaultNoteIds);
   const [answers, setAnswers] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [working, setWorking] = useState<"generate" | "refine" | `adopt-${number}` | null>(null);
+  const [working, setWorking] = useState<"generate" | "refine" | `adopt-${number}` | `quote-${number}` | null>(null);
   const [pending, startTransition] = useTransition();
   const shown = visibleIdeaStep(step, Boolean(thread));
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -167,7 +182,7 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
   const commitsBlocked = source === "commits" && !repoFullName;
   const pickedNotes = noteIds.filter((id) => notes.some((n) => n.id === id && n.body.trim()));
   const canGenerate =
-    sns.length > 0 && !commitsBlocked && (source !== "news" || newsAnswered.length > 0) && (source !== "notes" || pickedNotes.length > 0) && (source !== "other" || topic.trim() !== "");
+    sns.length > 0 && !commitsBlocked && (source !== "news" || newsAnswered.length > 0) && (source !== "notes" || pickedNotes.length > 0) && (source !== "other" || topic.trim() !== "") && (source !== "x_post" || xPostReady(xPost));
   const input =
     source === "commits"
       ? { source, days }
@@ -177,7 +192,9 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
           ? { source, noteIds: pickedNotes }
           : source === "other"
             ? { source, topic }
-            : { source };
+            : source === "x_post"
+              ? { source, ...xPost }
+              : { source };
 
   // 書き出しの例を欄に入れる（書いてあれば次の行に）。続けて書けるよう、欄に戻る
   function addTopicStarter(c: string) {
@@ -277,6 +294,12 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
               <>
                 <dt className="text-muted">メモ</dt>
                 <dd className="num">{pickedNotes.length} 件</dd>
+              </>
+            )}
+            {source === "x_post" && (
+              <>
+                <dt className="text-muted">投稿</dt>
+                <dd className={xPostReady(xPost) ? "" : "text-faint"}>{xPostReady(xPost) ? "貼りました" : "まだ貼っていません"}</dd>
               </>
             )}
             {source === "other" && (
@@ -538,6 +561,8 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
                 </div>
               )}
 
+              {source === "x_post" && <XPostSource projectId={projectId} words={xSearchWords} value={xPost} onChange={setXPost} />}
+
               {source === "plan" && (
                 <p className="flex flex-wrap items-center gap-2 rounded-md border border-line bg-surface2 px-4 py-3 text-[15px]">
                   入力はいりません
@@ -614,6 +639,16 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
                     disabled={pending}
                     saving={working === `adopt-${i}`}
                     onAdopt={() => run(`adopt-${i}`, () => adoptIdea(projectId, thread.latest.messageId, i))}
+                    quote={
+                      thread.request.source === "x_post" && thread.request.xPost
+                        ? {
+                            url: thread.request.xPost.url,
+                            postId: latest.adopted?.[`q${i}`] ?? null,
+                            saving: working === `quote-${i}`,
+                            onAdopt: () => run(`quote-${i}`, () => adoptIdea(projectId, thread.latest.messageId, i, "quote")),
+                          }
+                        : null
+                    }
                   />
                 ))}
               </ol>
@@ -633,6 +668,7 @@ function sourceLabel(thread: IdeasThread): string {
   if (r.source === "plan") return "アカウント設計から";
   if (r.source === "notes") return `ネタ帳のメモ ${r.notes?.length ?? 0} 件から`;
   if (r.source === "other") return "伝えたいことから";
+  if (r.source === "x_post") return "X で人気の投稿から";
   const days = r.days ?? 0;
   return `直近 ${PERIOD_LABEL[days as IdeaPeriod] ?? `${days} 日`}のコミット ${r.commitCount ?? 0} 件から`;
 }
@@ -646,6 +682,7 @@ function IdeaCard({
   disabled,
   saving,
   onAdopt,
+  quote,
 }: {
   idea: PostIdea;
   repoFullName: string;
@@ -655,6 +692,8 @@ function IdeaCard({
   disabled: boolean;
   saving: boolean;
   onAdopt: () => void;
+  // 材料が X の人気の投稿のとき: 元の投稿の URL と、引用して X の下書きにする（4.52）
+  quote: { url: string; postId: string | null; saving: boolean; onAdopt: () => void } | null;
 }) {
   return (
     <li className="flex flex-col gap-3.5 rounded-lg border border-border bg-surface px-6 py-5 max-sm:px-4 max-sm:py-4">
@@ -725,6 +764,15 @@ function IdeaCard({
         </details>
       )}
 
+      {quote && (
+        <p className="text-[13px] text-muted">
+          元にした投稿:{" "}
+          <a href={quote.url} target="_blank" rel="noopener noreferrer" className="break-all underline hover:text-fg">
+            {quote.url.replace(/^https:\/\//, "")}
+          </a>
+        </p>
+      )}
+
       <div className="flex flex-wrap items-center gap-3">
         {adoptedPostId ? (
           <>
@@ -738,6 +786,16 @@ function IdeaCard({
             {saving ? "下書きにしています…" : "このネタで下書きをつくる"}
           </Button>
         )}
+        {quote &&
+          (quote.postId ? (
+            <Link href={`/projects/${projectId}/posts/${quote.postId}`} className="text-sm font-semibold underline">
+              引用の下書きを開く
+            </Link>
+          ) : (
+            <Button variant="secondary" size="sm" disabled={disabled} onClick={quote.onAdopt}>
+              {quote.saving ? "下書きにしています…" : "この投稿を引用して X に投稿をつくる"}
+            </Button>
+          ))}
       </div>
     </li>
   );

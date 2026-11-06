@@ -34,6 +34,8 @@ export const savePostInputSchema = z.object({
   roadmapItemId: z.uuid().nullable().optional(),
   // 「ネタ帳から」で本文に入れたメモ。保存したら「投稿にした」の印を付ける（同じプロジェクトの、まだ使っていないメモだけ）
   noteIds: z.array(z.uuid()).max(MAX_NOTES_PER_POST).default([]),
+  // 引用する X の投稿の id（X の配信先だけに付く。X の API では引用を送れないので、予約・今すぐ送るにはできない。4.52）
+  quotePostId: z.string().regex(/^[1-9][0-9]{0,18}$/).nullable().optional(),
 });
 
 export type SavePostInput = z.input<typeof savePostInputSchema>;

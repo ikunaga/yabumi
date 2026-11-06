@@ -15,6 +15,8 @@ import { githubConfigured } from "@/lib/github/config";
 import { listNotes } from "@/lib/notes/queries";
 import { MAX_NOTES_FOR_IDEAS } from "@/lib/notes/rules";
 import { getAccountPlan } from "@/lib/plan/queries";
+import { normalizePlan } from "@/lib/plan/schema";
+import { xSearchWords } from "@/lib/ideas/x-post";
 import { connectedAccounts } from "@/lib/posts/queries";
 import { getProject } from "@/lib/projects/queries";
 import type { SnsKey } from "@/lib/sns";
@@ -22,7 +24,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "投稿のネタを出す" };
 
-// 投稿のネタを AI が出す。材料は最近のコミット・最近のできごと・アカウント設計から選ぶ（要求 F04 の一部。docs/architecture.md の 4.15）
+// 投稿のネタを AI が出す。材料は最近のコミット・最近のできごと・アカウント設計・ネタ帳・X で人気の投稿・その他から選ぶ（要求 F04 の一部。docs/architecture.md の 4.15）
 export default async function IdeasPage(props: PageProps<"/projects/[id]/ideas">) {
   const [{ id }, { done, source, notes: noteParam }] = await Promise.all([props.params, props.searchParams]);
   const project = await getProject(id);
@@ -52,6 +54,11 @@ export default async function IdeasPage(props: PageProps<"/projects/[id]/ideas">
   const defaultSource: IdeaSource =
     source === "notes" || defaultNoteIds.length ? "notes" : lastSource && sources.includes(lastSource) && (lastSource !== "commits" || repoFullName) ? lastSource : "news";
   const noPillars = !plan || plan.plan.pillars.items.every((p) => !p.name.trim());
+  // 「X で人気の投稿から」の検索の言葉（AI は使わず、設計から決まった組み立て方で作る。設計が空なら説明から）
+  const searchWords = xSearchWords({
+    project: { description: project.description ?? "", targetAudience: project.target_audience ?? "" },
+    plan: plan?.plan ?? normalizePlan(null, project.target_audience ?? ""),
+  });
 
   return (
     <div className="flex flex-col gap-4">
@@ -88,6 +95,7 @@ export default async function IdeasPage(props: PageProps<"/projects/[id]/ideas">
         defaultNoteIds={defaultNoteIds}
         thread={thread}
         noPillars={noPillars}
+        xSearchWords={searchWords}
       />
     </div>
   );

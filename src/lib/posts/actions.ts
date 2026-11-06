@@ -18,6 +18,10 @@ import { connectedAccounts } from "./queries";
 import { savePostInputSchema, type SavePostInput, type SavePostResult } from "./schema";
 import { isSendNowPost } from "./send-now";
 
+// 引用の投稿（4.52）。X の画面で利用者が送る
+const QUOTE_X_ONLY = "引用の投稿は X だけに送れます。ほかの SNS を外すか、引用を外してください";
+const QUOTE_NOT_SCHEDULABLE = "X の仕組みで、引用は yabumi から予約できません。下書きに保存して、X の画面で送ってください";
+
 // 予約は少なくとも 5 分後から（送信ジョブの間隔より余裕を持たせる）
 const MIN_LEAD_MS = 5 * 60 * 1000;
 
@@ -25,6 +29,7 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
   const parsed = savePostInputSchema.safeParse(input);
   if (!parsed.success) return { error: "入力の形式が正しくありません。画面を読み込み直してください。" };
   const { projectId, postId, body, targets, plannedAt, intent, media, shortLinks, roadmapItemId, noteIds } = parsed.data;
+  const quotePostId = parsed.data.quotePostId ?? null;
 
   const fieldErrors: NonNullable<SavePostResult["fieldErrors"]> = {};
   if (body.trim() === "") fieldErrors.body = "本文を入れてください";
@@ -56,6 +61,9 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
   }
   const toSend = targets.filter((t) => !locked.has(t.sns));
 
+  // 引用は X だけ（下書きでも。X の画面で送るため）
+  if (quotePostId && targets.some((t) => t.sns !== "x")) fieldErrors.targets = QUOTE_X_ONLY;
+
   if (intent !== "draft") {
     if (intent === "schedule") {
       if (!plannedIso && !fieldErrors.plannedAt) fieldErrors.plannedAt = "送る日時を決めてください";
@@ -63,7 +71,12 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
         fieldErrors.plannedAt = "5 分以上先の日時にしてください";
       }
     }
-    if (targets.length === 0) {
+    if (fieldErrors.targets) {
+      // 引用は X だけ（上で決めた）
+    } else if (quotePostId) {
+      // X の API の引用は、使った分だけ払う方式では使えない（2026-04-20 から。docs/architecture.md の 4.52）
+      fieldErrors.targets = QUOTE_NOT_SCHEDULABLE;
+    } else if (targets.length === 0) {
       fieldErrors.targets = "送り先の SNS を 1 つ以上選んでください";
     } else if (toSend.length === 0) {
       fieldErrors.targets = "選んだ SNS にはすべて投稿済みです";
@@ -121,6 +134,7 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
       title: SNS[t.sns].needsTitle ? (t.title ?? null) : null,
       body_override: t.bodyOverride,
       social_account_id: isManualSns(t.sns) ? null : (accounts[t.sns] ?? null),
+      quote_post_id: t.sns === "x" ? quotePostId : null,
     })),
   });
   if (error || !savedId) {

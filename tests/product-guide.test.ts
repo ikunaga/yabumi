@@ -104,7 +104,8 @@ describe("アカウント設計・相談・見直しの「いまの状況」", (
       manualSns: [],
       recentPosts: [],
       kpiNumbers: [],
-      roadmap: { kgi: null, kpiTargets: [], startedOn: null, items: [], kgiProgress: null },
+      goals: { active: null, past: [], candidates: [] },
+      roadmap: { items: [] },
     };
     expect(consultContextMessage(ctx)).toContain("宣伝するものの種類: サービス（教室・サロン・フリーランス）");
     // 振り返り: アプリでなければ、ストアの 3 つを「まだ数えていない」と渡さない（AI がストアをつなぐよう勧めないように）

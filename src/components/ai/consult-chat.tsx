@@ -17,14 +17,33 @@ import { KPIS } from "@/lib/metrics/kpis";
 import { describeSection } from "@/lib/plan/describe";
 import { formatValue, kpiLabel } from "@/lib/roadmap/schema";
 import { SNS, checkTarget, type SnsKey } from "@/lib/sns";
+import { formatGoalValue, goalMetricLabel } from "@/lib/ai/consult-goals";
+import type { ProposalKind } from "@/lib/ai/consult-schema";
 import { useCloseThread } from "./close-thread";
 
-type Input = { kind: "start"; topic: ConsultTopic; itemId?: string } | { kind: "text"; text: string } | { kind: "adopt"; messageId: string; actionIndex: number };
+type Input = { kind: "start"; topic: ConsultTopic; itemId?: string; goalId?: string } | { kind: "text"; text: string } | { kind: "adopt"; messageId: string; actionIndex: number };
 
 const TOPIC_BUTTONS = listedConsultTopics().map((topic) => ({ topic, label: CONSULT_TOPIC_META[topic].button }));
 
-const KIND_LABEL: Record<ActionKind, ReactNode> = {
+const KIND_LABEL: Record<ActionKind | ProposalKind, ReactNode> = {
   plan_section: "アカウント設計の直し",
+  goal_plan: (
+    <>
+      最終の目標（<Term k="kgi" />）と中間の目標
+    </>
+  ),
+  goal_keep: "いまの目標を続ける",
+  goal_kpis: (
+    <>
+      毎週の目標（<Term k="kpi" />）
+    </>
+  ),
+  goal_actions: "投稿の週の本数",
+  action_targets: "投稿の週の本数",
+  next_milestone: "次の 1 か月の目標と週の本数",
+  milestone: "次の 1 か月の目標と週の本数",
+  goal_revise: "目標の見直し",
+  revise_goal: "目標の見直し",
   kgi: (
     <>
       最終の目標（<Term k="kgi" />）
@@ -51,6 +70,7 @@ export function ConsultChat({
   messages,
   initialTopic,
   initialItemId = null,
+  initialGoalId = null,
   closed = false,
 }: {
   projectId: string;
@@ -60,6 +80,8 @@ export function ConsultChat({
   initialTopic: ConsultTopic | null;
   // 振り返りのやることから来たときの、そのやること（相談を終えたら済みにする）
   initialItemId?: string | null;
+  // 目標の振り返り（概要の帯から）の、その目標。本人の active で期限が来た・届いたかは、送るときにサーバーが確かめる
+  initialGoalId?: string | null;
   // 済んだ会話: 読むだけ（送る・採用する・選ぶは出さない）
   closed?: boolean;
 }) {
@@ -111,7 +133,7 @@ export function ConsultChat({
   useEffect(() => {
     if (!initialTopic || started.current) return;
     started.current = true;
-    send({ kind: "start", topic: initialTopic, ...(initialItemId ? { itemId: initialItemId } : {}) });
+    send({ kind: "start", topic: initialTopic, ...(initialItemId ? { itemId: initialItemId } : {}), ...(initialGoalId ? { goalId: initialGoalId } : {}) });
     // 最初の 1 回だけ動かす
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -460,6 +482,65 @@ function ActionBodyView({ body: a }: { body: ActionBody }) {
       );
     case "kpi_targets":
       return <KpiTargetList targets={a.kpiTargets} />;
+    case "goal_plan":
+      return (
+        <div className="flex flex-col gap-1.5">
+          <p className="font-bold">{a.goal.statement}</p>
+          <p className="text-xs text-muted">
+            {goalMetricLabel({ metric: a.goal.metric, action: a.goal.action, sns: a.goal.sns })}を {formatGoalValue(a.goal.metric, a.goal.target)}、{a.goal.weeks} 週
+            {a.goal.provisional && "（仮の目標）"}
+          </p>
+          {a.milestones.some((m) => m !== null) && (
+            <table className="text-xs">
+              <caption className="sr-only">中間の目標（4 週ごと）</caption>
+              <tbody>
+                {a.milestones.map((m, i) => (
+                  <tr key={i}>
+                    <th scope="row" className="pr-3 text-left font-normal text-muted">
+                      {i * 4 + 1}〜{Math.min((i + 1) * 4, a.goal.weeks)} 週目
+                    </th>
+                    <td className="num">{m === null ? "目標なし" : formatGoalValue(a.goal.metric, m)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {a.weekly && <WeeklyList actions={a.weekly} />}
+        </div>
+      );
+    case "goal_keep":
+      return <p>いまの目標を、期限まで続けます（何も書き換えません）。</p>;
+    case "goal_kpis":
+      return (
+        <ul className="text-xs">
+          {a.kpis.map((k) => (
+            <li key={`${k.metric}:${k.action ?? ""}:${k.sns ?? ""}`}>
+              ・{goalMetricLabel(k)}: 1 週に {formatGoalValue(k.metric, k.per_week)}
+            </li>
+          ))}
+        </ul>
+      );
+    case "goal_actions":
+      return <WeeklyList actions={a.actions} />;
+    case "next_milestone":
+      return (
+        <div className="flex flex-col gap-1 text-xs">
+          <p>次の 4 週の目標: {a.target === null ? "なし" : <span className="num">{a.target.toLocaleString("ja-JP")}</span>}</p>
+          {a.actions ? <WeeklyList actions={a.actions} /> : <p className="text-muted">週の本数は今のまま</p>}
+        </div>
+      );
+    case "goal_revise":
+      return (
+        <ul className="text-xs">
+          {a.statement && <li>・目標の文: {a.statement}</li>}
+          {a.target !== null && (
+            <li>
+              ・目標の値: <span className="num">{a.target.toLocaleString("ja-JP")}</span>
+            </li>
+          )}
+          {a.extendWeeks > 0 && <li>・期限を {a.extendWeeks} 週のばす</li>}
+        </ul>
+      );
     case "roadmap_items":
       return (
         <ul className="flex flex-col gap-1">
@@ -492,6 +573,18 @@ function DraftLength({ sns, text }: { sns: SnsKey; text: string }) {
       {maxLength !== null && ` / ${maxLength.toLocaleString("ja-JP")}`} 字
       {over > 0 && <span className="font-bold text-danger">（上限を {over.toLocaleString("ja-JP")} 字超えています。下書きにしたあと、投稿の画面で縮めてください）</span>}
     </p>
+  );
+}
+
+function WeeklyList({ actions }: { actions: { sns: SnsKey | null; per_week: number }[] }) {
+  return (
+    <ul className="text-xs">
+      {actions.map((x) => (
+        <li key={x.sns ?? "all"}>
+          ・{x.sns ? SNS[x.sns].label : "すべての SNS"}: 週 {x.per_week} 本
+        </li>
+      ))}
+    </ul>
   );
 }
 

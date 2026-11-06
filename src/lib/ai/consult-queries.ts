@@ -1,8 +1,9 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
-import { loadConsultHistory, type ConsultMessage } from "./consult";
+import { goalStepState, loadConsultHistory, type ConsultMessage } from "./consult";
+import { loadGoals } from "@/lib/goals/load";
 import { loadRoadmap } from "@/lib/roadmap/queries";
-import { roadmapStepState, type RoadmapStepState } from "./consult-schema";
+import type { RoadmapStepState } from "./consult-schema";
 import { summarizeConsultThread, type ThreadMessageDigest } from "./consult-topics";
 
 // AI と相談の会話の読み込み（RLS で本人のものだけ）
@@ -46,13 +47,11 @@ export async function getConsultThread(
   return { id: data.id, messages, topic: first?.role === "user" && first.content.kind === "start" ? first.content.topic : null, closedAt: data.closed_at };
 }
 
-// ロードマップづくりの会話の見出しの段取り（今のロードマップから、どこまで決まったか）
+// ロードマップづくりの会話の見出しの段取り（いまの目標とやることから、どこまで決まったか）
 export async function roadmapStepsFor(projectId: string): Promise<RoadmapStepState> {
-  const view = await loadRoadmap(projectId);
-  const r = view.roadmap;
-  return roadmapStepState({
-    hasKgi: Boolean(r?.kgi),
-    hasKpiTargets: (r?.kpiTargets.length ?? 0) > 0,
-    itemWeeks: view.items.filter((i) => i.weekStart >= view.thisWeek).map((i) => Math.round((Date.parse(i.weekStart) - Date.parse(view.thisWeek)) / (7 * 86_400_000))),
-  });
+  const [view, goals] = await Promise.all([loadRoadmap(projectId), createClient().then((db) => loadGoals(db, projectId))]);
+  return goalStepState(
+    goals,
+    view.items.filter((i) => i.weekStart >= view.thisWeek).map((i) => Math.round((Date.parse(i.weekStart) - Date.parse(view.thisWeek)) / (7 * 86_400_000))),
+  );
 }

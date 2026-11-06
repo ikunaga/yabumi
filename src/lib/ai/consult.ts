@@ -6,7 +6,11 @@ import { normalizePlan } from "@/lib/plan/schema";
 import { loadRoadmapWith } from "@/lib/roadmap/load";
 import { effectiveStatus, formatValue, itemProgress, weekStartOf, kpiLabel } from "@/lib/roadmap/schema";
 import { todoKindOf } from "@/lib/roadmap/todo-kind";
-import { addItems, saveGoal, RoadmapError } from "@/lib/roadmap/write";
+import { addItems, RoadmapError } from "@/lib/roadmap/write";
+import { loadGoals, metricTotal } from "@/lib/goals/load";
+import { kgiMetricFor, goalNeedsReview, isLegacyActionGoal, type MetricRef } from "@/lib/goals/schema";
+import { GoalError, reviseGoal, setGoalActions, setGoalKpis, startGoal, startMilestone } from "@/lib/goals/write";
+import { goalMetricLabel, type GoalContext } from "./consult-goals";
 import { isManualSns, isSnsKey, SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
 import { tidyDraftHashtags } from "@/lib/sns/hashtags";
 import type { Database } from "@/lib/supabase/database.types";
@@ -17,6 +21,7 @@ import { adoptableOptions, normalizeConsultTurn, roadmapStepState, ROADMAP_STEPS
 import { CONSULT_SYSTEM, consultContextMessage, kpiLineInput, type ConsultContext, type KpiNumber } from "./consult-prompt";
 import { MAX_TURNS_PER_THREAD, MAX_USER_TEXT, type BetaMessageParam, type BetaTextBlockParam, type CallModel, type ModelRequest, type ModelResult } from "./plan-coach";
 import { productTypeOf } from "./product-guide";
+import { actionFromLegacyGoal } from "@/lib/projects/product-types";
 import type { ModelOutput } from "./app-description";
 import { shortenOverDrafts, type CallShorten } from "./shorten";
 import { aiFailureMessage } from "./provider-failure";
@@ -34,8 +39,10 @@ export const CONSULT_TOPICS = {
   roadmap: "最終の目標（KGI）と、週ごとのやること（ロードマップ）を一緒に決めたいです。",
   // 分析の画面の「AI と振り返る」から（4.22 の段取り ⑦）。この会話だけ、数字をくわしく「いまの状況」に足す
   review: "最近の数字を振り返って、よかった点と次の一手を教えてください。",
-  // 伴走（4.27）の 1 か月が終わったとき（概要の「AI と振り返る」）。この会話だけ、4 週の結果を「いまの状況」に足す
-  month_review: "最初の 1 か月が終わりました。結果を一緒に振り返って、次の 1 か月の週の回数を決めたいです。",
+  // 伴走（4.27）の 4 週（中間の目標の区切り）が終わったとき（概要の「AI と振り返る」）。この会話だけ、4 週の結果を「いまの状況」に足す
+  month_review: "1 か月が終わりました。結果を一緒に振り返って、次の 1 か月の目標と週の本数を決めたいです。",
+  // 目標（KGI）の期限が来た・届いたとき（概要の帯の「AI と振り返る」。docs/design/goals-model.md の 6.）
+  goal_review: "目標の期限が来た（または届いた）ので、結果を一緒に振り返って、次の目標を決めたいです。",
   // 入口ごとの名前と見出しは consult-topics.ts（同じ入口が両方にあることを型で確かめる）
 } as const satisfies Record<ConsultTopicKey, string>;
 export type ConsultTopic = keyof typeof CONSULT_TOPICS;
@@ -45,8 +52,8 @@ export function isConsultTopic(v: unknown): v is ConsultTopic {
 }
 
 export type ConsultUserContent =
-  // itemId: 振り返りのやることから始めたときの、そのやること（終えたら済みにする）
-  | { kind: "start"; topic: ConsultTopic; itemId?: string }
+  // itemId: 振り返りのやることから始めたときの、そのやること（終えたら済みにする）。goalId: 目標の振り返りの、その目標（概要の帯が読む）
+  | { kind: "start"; topic: ConsultTopic; itemId?: string; goalId?: string }
   | { kind: "text"; text: string }
   | { kind: "adopt"; messageId: string; actionIndex: number; actionKind: ActionKind; title: string };
 
@@ -59,6 +66,12 @@ export type ConsultMessage =
 
 const ADOPTED_TEXT: Record<ActionKind, string> = {
   plan_section: "アカウント設計を直しました",
+  goal_plan: "新しい目標を始めました",
+  goal_keep: "いまの目標を期限まで続けます",
+  goal_kpis: "KPI の週の目標を入れました",
+  goal_actions: "投稿の週の本数を入れました",
+  next_milestone: "次の 1 か月の目標と週の本数を入れました",
+  goal_revise: "目標を見直しました",
   kgi: "最終の目標をロードマップに入れました",
   kpi_targets: "毎週の目標をロードマップに入れました",
   goal: "目標をロードマップに入れました",
@@ -124,6 +137,8 @@ export async function gatherConsultContext(
   roadmapSteps = false,
   // 入口が「1 か月の振り返り」の会話: 伴走の 4 週の結果を足す
   monthReview = false,
+  // 入口が「目標の振り返り」の会話: 期限が来たか届いたか（と、次の 1 か月もまとめるか）を足す
+  goalReview = false,
 ): Promise<ConsultContext | null> {
   const { data: project } = await user
     .from("projects")
@@ -169,38 +184,32 @@ export async function gatherConsultContext(
     posts.set(t.post_id, { date: t.published_at.slice(0, 10), sns: [label], text: (t.body_override ?? t.posts.body).slice(0, 140), clicks: clicks.get(t.post_id) ?? 0 });
   }
 
-  // 選んだ KPI（なければ目的からのおすすめ）と、ロードマップの KPI の数字。4.22 の数字の画面と同じもの（数えていないものは null）
+  // 選んだ KPI（なければ目的からのおすすめ）と、目標の KPI の数字。4.22 の数字の画面と同じもの（数えていないものは null）
   const kpiValues = await loadKpiValues(user, projectId);
   const kpis = chosenKpis(plan.first_month.kpis.filter(isKpiKey), plan.goal.goalType, project.product_type);
-  const roadmapKpis = (view.roadmap?.kpiTargets.map((t) => t.kpi) ?? []).filter((k) => kpiAllowed(k, project.product_type));
-  const kpiNumbers = [...new Set([...kpis, ...roadmapKpis])].map((kpi) => kpiLineInput(kpi, kpiValues[kpi]));
+  const productType = productTypeOf(project.product_type);
+  const { goals, goalsView } = await loadGoalContext(user, projectId, actionFromLegacyGoal(plan.goal.goalType), now);
+  const goalKpis = (goalsView.active?.kpis ?? []).map((k) => k.metric).filter((k): k is KpiKey => isKpiKey(k) && kpiAllowed(k, project.product_type));
+  const kpiNumbers = [...new Set([...kpis, ...goalKpis])].map((kpi) => kpiLineInput(kpi, kpiValues[kpi]));
 
   const nextWeek = addDays(view.thisWeek, 7);
-  const r = view.roadmap;
   const review = loadReview ? await loadReview(user, projectId) : undefined;
-  const steps = roadmapSteps
-    ? roadmapStepState({
-        hasKgi: Boolean(r?.kgi),
-        hasKpiTargets: (r?.kpiTargets.length ?? 0) > 0,
-        itemWeeks: view.items.filter((i) => i.weekStart >= view.thisWeek).map((i) => weeksBetween(view.thisWeek, i.weekStart)),
-      })
-    : null;
+  const steps = roadmapSteps ? goalStepState(goalsView, view.items.filter((i) => i.weekStart >= view.thisWeek).map((i) => weeksBetween(view.thisWeek, i.weekStart))) : null;
   const coach = monthReview ? await loadCoachView(user, projectId, { now }) : null;
   return {
     ...(review ? { review } : {}),
     ...(coach ? { monthReview: coachSummaryLines(coach) } : {}),
+    ...(goalReview ? { goalReview: goalReviewLines(goalsView, today) } : {}),
     ...(steps ? { roadmapSteps: ROADMAP_STEPS.map((s, i) => `${i + 1}. ${s.label}（${s.key}）: ${steps.done[s.key] ? "済み" : s.key === steps.next ? "次に決める" : "まだ"}`).join("\n") } : {}),
     today,
-    project: { name: project.name, description: project.description, appStoreUrl: project.app_store_url, playStoreUrl: project.play_store_url, productType: productTypeOf(project.product_type) },
+    project: { name: project.name, description: project.description, appStoreUrl: project.app_store_url, playStoreUrl: project.play_store_url, productType },
     plan,
     connectedSns: [...connected].map((s) => SNS[s].label),
     manualSns: SNS_KEYS.filter(isManualSns).map((s) => SNS[s].label),
     recentPosts: [...posts.values()],
     kpiNumbers,
+    goals,
     roadmap: {
-      kgi: r?.kgi ?? null,
-      kpiTargets: (r?.kpiTargets ?? []).map((t) => ({ kpi: t.kpi, perWeek: t.per_week, sns: t.sns })),
-      startedOn: r?.startedOn ?? null,
       items: view.items
         .filter((i) => i.weekStart === view.thisWeek || i.weekStart === nextWeek)
         .map((i) => {
@@ -209,9 +218,79 @@ export async function gatherConsultContext(
           const status = effectiveStatus(i, p) === "achieved" ? "済み（数字で達成）" : i.status;
           return { week: i.weekStart === view.thisWeek ? "今週" : "来週", title: i.title, status, progress: p && i.kpi ? `${kpiLabel(i.kpi, i.sns)} ${formatValue(i.kpi, p.actual)} / ${formatValue(i.kpi, p.target)}` : null };
         }),
-      kgiProgress: view.kgi && r?.kgi ? `${formatValue(r.kgi.kpi, view.kgi.actual)} / ${formatValue(r.kgi.kpi, view.kgi.target)}、残り ${view.kgi.daysLeft} 日` : null,
     },
   };
+}
+
+// ===== 目標（docs/design/goals-model.md。利用者の権限で、RLS で本人のものだけ） =====
+type GoalsView = Awaited<ReturnType<typeof loadGoals>>;
+
+// KGI の数字を、成果が取れるか見るために数える期間（直近 12 週）
+const CANDIDATE_DAYS = 84;
+
+export async function loadGoalContext(user: Db, projectId: string, goalType: ReturnType<typeof actionFromLegacyGoal>, now: Date): Promise<{ goals: GoalContext; goalsView: GoalsView }> {
+  const goalsView = await loadGoals(user, projectId, now);
+  const today = goalsView.today;
+  const a = goalsView.active;
+  const refs: MetricRef[] = [kgiMetricFor(goalType)];
+  if (refs[0].metric !== "link_clicks") refs.push({ metric: "link_clicks", action: null, sns: null });
+  const candidates = await Promise.all(
+    refs.map(async (ref) => {
+      const t = await metricTotal(user, projectId, ref, addDays(today, -(CANDIDATE_DAYS - 1)), today);
+      return { metric: ref.metric, action: ref.action, label: goalMetricLabel(ref), available: t.available, hasData: t.available && t.value > 0 };
+    }),
+  );
+  const goals: GoalContext = {
+    active: a
+      ? {
+          statement: a.goal.statement,
+          metric: a.goal.metric,
+          label: goalMetricLabel(a.goal),
+          target: a.goal.target,
+          startsOn: a.goal.startsOn,
+          endsOn: a.goal.endsOn,
+          provisional: a.goal.provisional,
+          legacyPosts: isLegacyActionGoal(a.goal),
+          progress: a.progress ? { value: a.progress.value, countedThrough: a.progress.countedThrough, available: a.progress.available, projected: a.progress.projected, daysLeft: a.progress.daysLeft } : null,
+          milestones: a.milestones.map((m) => ({ seq: m.seq, startsOn: m.startsOn, endsOn: m.endsOn, target: m.target, result: m.resultValue, current: a.current?.id === m.id })),
+          current: a.currentProgress,
+          kpis: a.kpis.map((k) => ({ label: goalMetricLabel(k), perWeek: k.perWeek })),
+          actions: a.actions.map((k) => ({ sns: k.sns, perWeek: k.perWeek })),
+          review: goalNeedsReview(a.goal, a.progress, today),
+        }
+      : null,
+    past: goalsView.past.slice(0, 3).map((g) => ({ statement: g.statement, label: goalMetricLabel(g), metric: g.metric, target: g.target, result: g.resultValue, status: g.status, startsOn: g.startsOn, endsOn: g.endsOn })),
+    candidates,
+  };
+  return { goals, goalsView };
+}
+
+// ロードマップづくりの段のどこまで決まったか（いまの目標から）。投稿の本数の KGI（前の作りから移したもの）は、まだ決めていない扱い
+export function goalStepState(v: GoalsView, itemWeeks: number[]) {
+  const a = v.active;
+  return roadmapStepState({
+    hasKgi: Boolean(a && a.goal.metric !== null && !isLegacyActionGoal(a.goal)),
+    hasKpiTargets: (a?.kpis.length ?? 0) > 0,
+    hasActions: (a?.actions.length ?? 0) > 0,
+    itemWeeks,
+  });
+}
+
+// 伴走の区切りと KGI の期限が 7 日以内に重なるとき、目標の振り返りの中で次の 1 か月もまとめて決める
+const OVERLAP_DAYS = 7;
+
+export function goalReviewLines(v: GoalsView, today: string): string {
+  const a = v.active;
+  if (!a) return "いまの目標がない";
+  const state = goalNeedsReview(a.goal, a.progress, today);
+  const lines = [state === "reached" ? "KGI に届いた（期限の前）。「期限まで続ける」と「次の目標に移る」の両方の案を出す" : "KGI の期限が来た。次の目標の案を出す（keep は出さない）"];
+  const last = a.milestones[a.milestones.length - 1];
+  const endsOn = a.goal.endsOn;
+  const boundary = a.current?.endsOn ?? last?.endsOn ?? null;
+  if (state === "ended" || (endsOn && boundary && Math.abs(Date.parse(endsOn) - Date.parse(boundary)) <= OVERLAP_DAYS * 86_400_000 && Date.parse(boundary) - Date.parse(today) <= OVERLAP_DAYS * 86_400_000)) {
+    lines.push("次の 1 か月もこの中で決める（伴走の区切りと KGI の期限が重なるため。次の目標の案の weekly に週の本数も入れる）");
+  }
+  return lines.join("\n");
 }
 
 // 伴走の 1 か月の結果（週ごとの SNS ごとの送信済み / 目標、続けた週）を「いまの状況」の文にする
@@ -244,19 +323,36 @@ export async function applyConsultAction(user: Db, projectId: string, action: Ac
         if (!saved.ok) return { ok: false, message: "アカウント設計を保存できませんでした。時間をおいてもう一度お試しください。" };
         return { ok: true };
       }
+      // 前の形（roadmaps の KGI・KPI。2026-11-06 まで）の案は、目標の形が違うので採用しない
       case "goal":
-        await saveGoal(user, projectId, { kgi: action.kgi, kpiTargets: action.kpiTargets }, "ai");
-        return { ok: true };
-      // KGI と週の目標は別々に決める（1 回 1 項目）。もう片方は今の値を残す
       case "kgi":
-      case "kpi_targets": {
-        const current = (await loadRoadmapWith(user, projectId)).roadmap;
-        await saveGoal(
-          user,
-          projectId,
-          action.kind === "kgi" ? { kgi: action.kgi, kpiTargets: current?.kpiTargets ?? [] } : { kgi: current?.kgi ?? null, kpiTargets: action.kpiTargets },
-          "ai",
-        );
+      case "kpi_targets":
+        return { ok: false, message: LEGACY_GOAL_PROPOSAL };
+      // 目標（docs/design/goals-model.md）。書くのは DB の関数だけ（利用者の権限。状態・区切りの日付・結果は DB が決める）
+      case "goal_plan":
+        // いまの目標は結果を数えて閉じる（KGI まだの目標なら、その目標に KGI を書き入れる）。KPI は持ち越さない（次の段で決め直す）。週の本数は渡したときだけ替える
+        await startGoal(user, projectId, { goal: action.goal, milestones: action.milestones, actions: action.weekly }, "ai");
+        return { ok: true };
+      case "goal_keep":
+        return { ok: true };
+      case "goal_kpis":
+        await setGoalKpis(user, projectId, action.kpis);
+        return { ok: true };
+      case "goal_actions":
+        await setGoalActions(user, projectId, action.actions);
+        return { ok: true };
+      case "next_milestone":
+        await startMilestone(user, projectId, action.target);
+        if (action.actions) await setGoalActions(user, projectId, action.actions);
+        return { ok: true };
+      case "goal_revise": {
+        const active = (await loadGoals(user, projectId)).active;
+        if (!active || active.goal.metric === null || !active.goal.endsOn) return { ok: false, message: "見直す目標が見つかりません。画面を読み込み直してください。" };
+        await reviseGoal(user, active.goal.id, {
+          ...(action.statement ? { statement: action.statement } : {}),
+          ...(action.target ? { target: action.target } : {}),
+          ...(action.extendWeeks > 0 ? { endsOn: addDays(active.goal.endsOn, action.extendWeeks * 7) } : {}),
+        });
         return { ok: true };
       }
       case "roadmap_items":
@@ -289,14 +385,23 @@ export async function applyConsultAction(user: Db, projectId: string, action: Ac
       }
     }
   } catch (e) {
-    if (e instanceof RoadmapError) return { ok: false, message: e.userMessage };
+    if (e instanceof RoadmapError || e instanceof GoalError) return { ok: false, message: e.userMessage };
     throw e;
   }
 }
 
+export const LEGACY_GOAL_PROPOSAL = "この案は前の形の目標のため、いまは採用できません。もう一度、目標の案を出してもらってください。";
+export const GOAL_REVIEW_NOT_FOUND = "振り返る目標が見つかりません。概要から開き直してください。";
+
+// 目標の振り返りを始めてよい目標か（本人の、このプロジェクトの active な目標で、期限が来たか届いたか）
+async function goalReviewAllowed(user: Db, projectId: string, goalId: string, now: Date): Promise<boolean> {
+  const a = (await loadGoals(user, projectId, now)).active;
+  return Boolean(a && a.goal.id === goalId && goalNeedsReview(a.goal, a.progress, toYmd(now)) !== null);
+}
+
 // ===== 会話を 1 往復進める =====
 export type ConsultInput =
-  | { kind: "start"; topic: ConsultTopic; itemId?: string }
+  | { kind: "start"; topic: ConsultTopic; itemId?: string; goalId?: string }
   | { kind: "text"; text: string }
   | { kind: "adopt"; messageId: string; actionIndex: number };
 
@@ -339,6 +444,12 @@ export async function consultStep(
       return { ok: false, threadId: args.threadId, message: REVIEW_ITEM_NOT_FOUND };
     }
   }
+  // 目標の振り返りは、その目標（本人の active で、期限が来たか届いた）があるときだけ始める
+  if (input.kind === "start" && (input.topic === "goal_review" || input.goalId !== undefined)) {
+    if (input.topic !== "goal_review" || !input.goalId || args.threadId || !(await goalReviewAllowed(user, projectId, input.goalId, now))) {
+      return { ok: false, threadId: args.threadId, message: GOAL_REVIEW_NOT_FOUND };
+    }
+  }
 
   let threadId = args.threadId;
   let createdThread = false;
@@ -363,7 +474,7 @@ export async function consultStep(
   // 利用者の発言を決める。採用のときは、ここで設計・ロードマップ・下書きに入れる
   let userContent: ConsultUserContent;
   let redirect: string | undefined;
-  if (input.kind === "start") userContent = { kind: "start", topic: input.topic, ...(input.itemId ? { itemId: input.itemId } : {}) };
+  if (input.kind === "start") userContent = { kind: "start", topic: input.topic, ...(input.itemId ? { itemId: input.itemId } : {}), ...(input.goalId ? { goalId: input.goalId } : {}) };
   else if (input.kind === "text") userContent = { kind: "text", text: input.text.trim() };
   else {
     const target = history.find((m) => m.id === input.messageId);
@@ -408,7 +519,7 @@ export async function consultStep(
 
   // 振り返りの会話だけ、数字をくわしく足す（ふだんの相談は短く保ち、費用を抑える）
   const topic = threadTopic(history);
-  const ctx = await gatherConsultContext(user, projectId, now, deps.loadKpiValues, isReviewThread(history) ? deps.loadReview : undefined, topic === "roadmap", topic === "month_review");
+  const ctx = await gatherConsultContext(user, projectId, now, deps.loadKpiValues, isReviewThread(history) ? deps.loadReview : undefined, topic === "roadmap", topic === "month_review", topic === "goal_review");
   if (!ctx) return fail("プロジェクトが見つかりません。");
   ctx.turns = history.filter((m) => m.role === "user").length;
 
@@ -526,7 +637,8 @@ export async function closeConsultThread(user: Db, admin: Db, args: { userId: st
       console.error("[closeConsultThread] 振り返りのやることを済みにできませんでした", e instanceof Error ? e.message : e);
     }
   }
-  const query = [`done=consult_closed`, items > 0 ? `items=${items}` : null, reviewed ? `reviewed=${reviewed === "many" ? "many" : reviewed.itemId}` : null];
+  const goal = threadTopic(history) === "goal_review" ? goalReviewOutcome(history) : null;
+  const query = [`done=consult_closed`, items > 0 ? `items=${items}` : null, reviewed ? `reviewed=${reviewed === "many" ? "many" : reviewed.itemId}` : null, goal ? `goal=${goal}` : null];
   return { ok: true, redirect: `${path}?${query.filter(Boolean).join("&")}` };
 }
 
@@ -565,6 +677,21 @@ export async function closeReviewItem(user: Db, projectId: string, itemId: strin
     .select("id");
   if (error) throw error;
   return done?.length ? { itemId: target } : null;
+}
+
+// 目標の振り返りで、最後に採用したもの（次の目標を始めた / 期限まで続ける）。どちらもなければ null
+export function goalReviewOutcome(history: ConsultMessage[]): "started" | "kept" | null {
+  let out: "started" | "kept" | null = null;
+  for (const m of history) {
+    if (m.role !== "assistant") continue;
+    const options = adoptableOptions(m.content);
+    for (const i of m.content.adopted ?? []) {
+      const o = options[i];
+      if (o?.kind === "goal_plan") out = "started";
+      else if (o?.kind === "goal_keep") out = "kept";
+    }
+  }
+  return out;
 }
 
 // この会話で採用した、来週（week 1）のやることの数（「来週のやることに n 件入れました」）

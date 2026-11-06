@@ -343,3 +343,48 @@ commit;
 
 - 流す前に、roadmaps・account_plans を控える（deploy.md の 27 と同じ手順）
 - 前のコードの KGI に outcomes を書き戻すと、成果の種類（action）が抜ける。前のコードの画面は「成果（手で記録）」の合計として数える
+
+## 12. 段階 ③ で作ったもの（2026-11-06、feat/goals-ai。実装担当3）
+
+相談（consult）とアカウント設計の相棒（plan-coach）を goals に切り替えた。書くのは src/lib/goals/write.ts の関数だけで、saveGoal（roadmaps）は呼ばない（10.4）。
+
+### 12.1 案の種類と書き込み（src/lib/ai/consult-goals.ts、consult-schema.ts、consult.ts の applyConsultAction）
+
+| proposal.kind | value_json | 採用したとき |
+|---|---|---|
+| kgi | `{"kgi":{statement, metric, action, sns, target, weeks, provisional}, "milestones":[{target}...], "weekly"?:{"x":2}}`。milestones は weeks を 4 週ごとに分けた数だけ。posts は断る（言い直させる） | startGoal（いまの目標は結果を数えて閉じる。KGI まだの目標なら同じ行に書き入れる。KPI は持ち越さない。weekly を渡したときだけ行動の目標を替える） |
+| kgi（`{"keep": true}`） | 届いたときの「期限まで続ける」。1 つの提案に 1 つだけ | 何も書かない |
+| kpi_targets | `{"kpis":[{metric, action, sns, per_week}]}`（1〜3 個。posts は断る） | setGoalKpis |
+| action_targets | `{"weekly":{"x":2,"instagram":1}}`（1〜14 の整数） | setGoalActions |
+| milestone | `{"target": 値 または null, "weekly": {...} または null}` | startMilestone（今週から次の 4 週）。weekly があれば setGoalActions |
+| revise_goal | `{"statement", "target", "extend_weeks"(0〜12)}`（変えないものは null・0） | reviseGoal（期限は今の期限 + extend_weeks × 7 日） |
+
+- 前の形の案（roadmaps の kgi・kpi_targets・goal）は、保存してある会話の表示のためだけに残し、採用は断る（「この案は前の形の目標のため…」）
+- ロードマップづくりの段は 5 つ: kgi → kpi_targets → action_targets → 今週・来週のやること → その先のやること（goalStepState。前の作りから移した posts の KGI は「まだ」）
+
+### 12.2 いまの状況（consult-prompt.ts の goalContextLines）
+
+- KGI（文・数字の名前・目標の値・期間・仮かどうか）、進み具合（数えた最後の日・数えていない数字は「推測で語らない」・このままの見込み・残りの日）、期限が来た / 届いた
+- 中間の目標（4 週ごとの目標と結果、いまの区切りといまの数）、KPI、行動の目標、これまでの目標（新しい順に 3 つ。結果 / 目標と状態）
+- KGI に使える数字の候補: 見た人にしてほしいことの既定（kgiMetricFor）と行き先へのクリック。直近 12 週を metricTotal で数え、「数えられない」「記録がない」「数えている」を添える（仮の KGI と成果を取る案内の判断に使う）
+
+### 12.3 入口
+
+| topic | URL | 確かめること | ゴール |
+|---|---|---|---|
+| goal_review（目標の振り返り） | `consult/new?start=goal_review&goal=<id>`（概要の帯。②） | 本人の active な目標で、goalNeedsReview が null でない。違えば会話を作らずに断る | 次の目標（kgi）か「期限まで続ける」を採用 |
+| month_review（毎月の振り返り） | `consult/new?start=month_review`（今のまま） | — | 次の 1 か月の目標と週の本数（milestone）を採用。KGI に届きそうにないときは、その前に打ち手（roadmap_items）か見直し（revise_goal） |
+
+- goal_review の最初の発言に `goalId` を残す（ai_messages の content）。② の概要の帯は、その目標の goal_review の会話が閉じていれば reached を出さない（ended でもう一度出す）
+- 期限が来たとき、またはいまの区切りの終わりと期限が 7 日以内で重なるときは、「次の 1 か月もこの中で決める」を渡し、次の目標の案の weekly で週の本数も決める（毎月の振り返りを別にしない）
+- 終えると概要に戻り `?done=consult_closed&goal=started|kept`。started の知らせの目標の名前は、URL ではなく DB（いまの目標の文）から読む
+
+### 12.4 アカウント設計の相棒（plan-coach-prompt.ts）
+
+- first_month は週の本数（weekly）だけを決める。goal・metrics は空、kpis は今の値のまま。「4 週間で X に 8 回」を目標の文に書く決まりは消した
+- goal（見た人にしてほしいこと）で「これが 3 か月の目標（KGI）の数字になる」と添える。KGI と KPI はロードマップ（相談）で決めると案内する
+
+### 12.5 残っていること
+
+- roadmap/load.ts の RoadmapView.roadmap と kgi（roadmaps から読むもの）は、相談がもう使っていない。② が main に入ったら外す（② は残す約束。2026-11-06 実装担当2 と）
+- 入れる順番: fix/goals-bridge → ② → ③（PM）。③ が先に入ると、画面（② の前は roadmaps を読む）に目標が出ない

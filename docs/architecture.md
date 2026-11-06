@@ -1355,6 +1355,8 @@ Facebook ページ（graph.facebook.com）:
 
 ### 4.23 AI と相談（F09）とロードマップ（F10）（2026-10-11 に設計・実装）
 
+- **2026-11-06 から、目標（KGI・中間の目標・KPI・行動の目標）は goals の表に持つ**（docs/design/goals-model.md）。相談の目標の案・目標の振り返り（goal_review）・毎月の振り返り（month_review）の作りは、その 12.（段階 ③）。下の roadmaps の KGI と kpi_targets の説明は、前の作り（段階 ④ で消す）
+
 > **2026-11-06 から作り直し中**（docs/design/goals-model.md。オーナーの了承）。目標（KGI）は roadmaps の 1 行から goals（プロジェクトに複数、active は 1 つ）に、中間の目標は goal_milestones（4 週ごと ＝ 伴走の区切り）に、KPI と投稿の週の本数は goal_kpis にそろえ、やることは goal_id で目標につなぐ。段階 ①（表・写し替え・橋渡し・src/lib/goals）は 20261106150000_goals で済んだ。段階 ②（画面と伴走。2026-11-06）で、ロードマップ・概要の帯（目標の振り返り goal_review）・アカウント設計の「週の回数」・分析・カレンダー・伴走のジョブとメールは goals を読み書きする（goals-model.md の 11.）。AI と区切り（③）が済むまで、AI と相談は下の roadmaps の説明のままで、その書き込みはトリガーが goals に写す。roadmaps は ④ で消す
 
 アカウント設計の AI（4.9、F09 の前倒し）の続き。設計が済んで投稿を始めたあとの「運用の相談」と、目標までの段取り（ロードマップ）を作る。どちらも、利用者はマーケティングの素人という前提（CLAUDE.md）。

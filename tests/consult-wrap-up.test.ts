@@ -44,7 +44,8 @@ describe("区切り（wrap_up）の読み取り", () => {
   it("指示に、会話ごとのゴールと区切り方がある", () => {
     expect(CONSULT_SYSTEM).toContain("# 会話の区切り");
     expect(CONSULT_SYSTEM).toContain("振り返り: 次の一手（来週のやること）を採用した");
-    expect(CONSULT_SYSTEM).toContain("1 か月の振り返り: 次の 1 か月の週の回数を採用した");
+    expect(CONSULT_SYSTEM).toContain("1 か月の振り返り: 次の 1 か月の目標と週の本数（milestone）を採用した");
+    expect(CONSULT_SYSTEM).toContain("目標の振り返り: 次の目標（kgi）か「期限まで続ける」を採用した");
     expect(CONSULT_SYSTEM).toContain("「わかった」「ありがとう」");
     expect(CONSULT_SYSTEM).toContain("今回の〇〇はここまでです");
     expect(CONSULT_SYSTEM).toContain("choices は空、proposal は null");

@@ -35,13 +35,25 @@ export const CONSULT_TOPIC_META = {
       back: { path: "metrics", label: "分析に戻る" },
     },
   },
+  // 伴走の 4 週の区切り ＝ 中間の目標の区切り（docs/design/goals-model.md の 1.）
   month_review: {
     button: "1 か月を振り返って、次の目標を決めたい",
     listTitle: "1 か月の振り返り",
     entryOnly: true,
     entry: {
       title: "1 か月を AI と振り返る",
-      lead: "AI が最初の 1 か月の結果（週ごとの投稿の回数）を読み、よかった点と、次の 1 か月の週の回数の案を出します。選んだ案だけが、アカウント設計に入ります。",
+      lead: "AI がこの 1 か月の結果（中間の目標と、週ごとの投稿の本数）を読み、よかった点と、次の 1 か月の目標と週の本数の案を出します。選んだ案だけが、目標に入ります。",
+      back: { path: "", label: "概要に戻る" },
+    },
+  },
+  // 目標（KGI）の期限が来た・届いたとき（概要の帯の「AI と振り返る」。?start=goal_review&goal=<id>）
+  goal_review: {
+    button: "目標を振り返って、次の目標を決めたい",
+    listTitle: "目標の振り返り",
+    entryOnly: true,
+    entry: {
+      title: "目標を AI と振り返る",
+      lead: "AI が目標の結果を読み、届いたか・よかった点・次に変えることをまとめて、次の目標の案を出します。選んだ案だけが、目標に入ります。",
       back: { path: "", label: "概要に戻る" },
     },
   },

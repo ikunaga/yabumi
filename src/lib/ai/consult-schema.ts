@@ -1,16 +1,18 @@
 import { z } from "zod";
 import { SECTION_KEYS, type SectionKey, type SectionValue } from "@/lib/plan/schema";
-import { kgiSchema, kpiTargetsSchema, itemsProposalSchema, type Kgi, type KpiTarget } from "@/lib/roadmap/schema";
+import { itemsProposalSchema, type Kgi, type KpiTarget } from "@/lib/roadmap/schema";
 import type { TodoKind } from "@/lib/roadmap/todo-kind";
 import { SNS_KEYS, type SnsKey } from "@/lib/sns";
 import { toSectionValue, toWireValue, valueSchemas } from "./plan-coach-schema";
+import { goalWireValue, parseGoalProposal, type GoalActionBody } from "./consult-goals";
 
 // AI と相談（F09、docs/architecture.md の 4.23）の 1 回の返事の形。構造化出力でこの形に固定する。
 // 1 回の返事で出す提案は 1 つの項目（kind）だけで、その中に案を 2〜3 個（長所・短所・おすすめと理由）。アカウント設計の相棒（4.9）と同じ考え方
 // （オーナーの指摘、2026-10-12: 種類の違う提案が 1 つの返事に並ぶと、1 つを採用したところで次の話に進み、残りが流れた）。
 // 案の中身は種類ごとに形が違うので、スキーマに並べず JSON 文字列（value_json）で受け取り、サーバーで検証する（4.9 と同じ理由。スキーマが大きいと 400 になる）
 
-export const PROPOSAL_KINDS = ["plan_section", "kgi", "kpi_targets", "roadmap_items", "post_draft"] as const;
+// kgi・kpi_targets・action_targets・milestone・revise_goal は目標（docs/design/goals-model.md の 6.。案の中身は consult-goals.ts）
+export const PROPOSAL_KINDS = ["plan_section", "kgi", "kpi_targets", "action_targets", "milestone", "revise_goal", "roadmap_items", "post_draft"] as const;
 export type ProposalKind = (typeof PROPOSAL_KINDS)[number];
 export const MAX_OPTIONS = 3;
 export const MAX_DRAFT_LENGTH = 5000;
@@ -48,6 +50,8 @@ export const consultTurnSchema = z.object({
 // 案の中身（検証したあと）
 export type ActionBody =
   | { kind: "plan_section"; section: SectionKey; value: SectionValue<SectionKey> }
+  | GoalActionBody
+  // 前の形（2026-11-06 まで。roadmaps の KGI と KPI の週の目標）。保存してある会話を読むためだけに残す（採用はできない）
   | { kind: "kgi"; kgi: Kgi }
   | { kind: "kpi_targets"; kpiTargets: KpiTarget[] }
   // 前の形（2026-10-12 まで）: KGI と KPI の週の目標を 1 つの提案で
@@ -90,6 +94,8 @@ function parseBody(kind: ProposalKind, value_json: string): { body: ActionBody |
     return { body: null, problem: "value_json が JSON として読めません" };
   }
   const issues = (e: z.ZodError) => e.issues.map((x) => `${x.path.join(".")}: ${x.message}`).join("、");
+  const goal = parseGoalProposal(kind, json);
+  if (goal) return goal;
   switch (kind) {
     case "plan_section": {
       const p = planSectionSchema.safeParse(json);
@@ -99,16 +105,6 @@ function parseBody(kind: ProposalKind, value_json: string): { body: ActionBody |
       const value = toSectionValue(p.data.section, v.data);
       if (!value) return { body: null, problem: "値が長すぎるか、範囲外です" };
       return { body: { kind, section: p.data.section, value }, problem: null };
-    }
-    case "kgi": {
-      const p = z.object({ kgi: kgiSchema }).safeParse(json);
-      if (!p.success) return { body: null, problem: `形が正しくありません（${issues(p.error)}）` };
-      return { body: { kind, kgi: p.data.kgi }, problem: null };
-    }
-    case "kpi_targets": {
-      const p = z.object({ kpi_targets: kpiTargetsSchema.refine((l) => l.length > 0, "1 つ以上入れてください") }).safeParse(json);
-      if (!p.success) return { body: null, problem: `形が正しくありません（${issues(p.error)}）` };
-      return { body: { kind, kpiTargets: p.data.kpi_targets }, problem: null };
     }
     case "roadmap_items": {
       const p = itemsProposalSchema.safeParse(json);
@@ -122,6 +118,8 @@ function parseBody(kind: ProposalKind, value_json: string): { body: ActionBody |
       if (!p.success) return { body: null, problem: `形が正しくありません（${issues(p.error)}）` };
       return { body: { kind, sns: p.data.sns, text: p.data.text }, problem: null };
     }
+    default:
+      return { body: null, problem: `知らない種類です（${kind}）` };
   }
 }
 
@@ -151,6 +149,11 @@ export function normalizeConsultTurn(raw: unknown): (ConsultTurn & { proposalPro
     const first = options[0];
     if (body.kind === "plan_section" && first?.kind === "plan_section" && first.section !== body.section) {
       problems.push(`案 ${i + 1}: 1 回の提案は 1 つのセクションだけです（${first.section} と ${body.section} が混ざっています）`);
+      continue;
+    }
+    // 「期限まで続ける」は、ほかの案（次の目標）と並べて 1 つだけ
+    if (body.kind === "goal_keep" && options.some((o) => o.kind === "goal_keep")) {
+      problems.push(`案 ${i + 1}: 「期限まで続ける」（keep）は 1 つだけにしてください`);
       continue;
     }
     options.push({ ...body, title: o.title.trim() || `案 ${i + 1}`, summary: o.summary.trim(), pros: o.pros, cons: o.cons });
@@ -208,14 +211,18 @@ function wireValue(a: ActionBody): unknown {
       return { items: a.items };
     case "post_draft":
       return { sns: a.sns, text: a.text };
+    default:
+      return goalWireValue(a);
   }
 }
 
 // ===== ロードマップづくりの順番（入口が「ロードマップ」の会話） =====
-// ① KGI → ② KPI と週の目標 → ③ 今週・来週のやること → ④ その先の週。済んだ項目は飛ばす（今のロードマップを読んで決める）
+// ① KGI と中間の目標 → ② KPI と週の目標 → ③ 投稿の週の本数（行動の目標）→ ④ 今週・来週のやること → ⑤ その先の週。
+// 済んだ項目は飛ばす（いまの目標を読んで決める。docs/design/goals-model.md の 6.）
 export const ROADMAP_STEPS = [
   { key: "kgi", label: "最終の目標" },
   { key: "kpi_targets", label: "毎週の目標" },
+  { key: "action_targets", label: "投稿の週の本数" },
   { key: "near_items", label: "今週・来週のやること" },
   { key: "later_items", label: "その先のやること" },
 ] as const;
@@ -223,10 +230,11 @@ export type RoadmapStepKey = (typeof ROADMAP_STEPS)[number]["key"];
 
 export type RoadmapStepState = { done: Record<RoadmapStepKey, boolean>; next: RoadmapStepKey | null };
 
-export function roadmapStepState(r: { hasKgi: boolean; hasKpiTargets: boolean; itemWeeks: number[] }): RoadmapStepState {
+export function roadmapStepState(r: { hasKgi: boolean; hasKpiTargets: boolean; hasActions: boolean; itemWeeks: number[] }): RoadmapStepState {
   const done: Record<RoadmapStepKey, boolean> = {
     kgi: r.hasKgi,
     kpi_targets: r.hasKpiTargets,
+    action_targets: r.hasActions,
     near_items: r.itemWeeks.some((w) => w === 0 || w === 1),
     later_items: r.itemWeeks.some((w) => w >= 2),
   };
@@ -237,14 +245,18 @@ export function roadmapStepState(r: { hasKgi: boolean; hasKpiTargets: boolean; i
 // （振り返りの次の一手が「ロードマップづくり 3 / 4」と出ていた。2026-11-03）
 export function roadmapStepOf(p: ConsultProposal, topic: string | null): RoadmapStepKey | null {
   if (topic !== "roadmap") return null;
-  if (p.kind === "kgi" || p.kind === "kpi_targets") return p.kind;
+  if (p.kind === "kgi" || p.kind === "kpi_targets" || p.kind === "action_targets") return p.kind;
   if (p.kind === "roadmap_items") return p.options.every((o) => o.kind === "roadmap_items" && o.items.every((i) => i.week <= 1)) ? "near_items" : "later_items";
   return null;
 }
 
-// 振り返りの会話のゴールの案の見出し。振り返りの次の一手は「来週のやること」、1 か月の振り返りの first_month は「次の 1 か月の週の回数」。ほかは null
+// 振り返りの会話のゴールの案の見出し。振り返りの次の一手は「来週のやること」、毎月の振り返りは「次の 1 か月の目標と週の本数」、
+// 目標の振り返りは「次の目標」。前の形（1 か月の振り返りの first_month）は「次の 1 か月の週の回数」。ほかは null
 export function reviewHeadingOf(p: ConsultProposal, topic: string | null): string | null {
   if (topic === "review" && p.kind === "roadmap_items") return "来週のやること";
+  if (topic === "month_review" && p.kind === "milestone") return "次の 1 か月の目標と週の本数";
+  if (topic === "month_review" && p.kind === "revise_goal") return "目標の見直し";
+  if (topic === "goal_review" && p.kind === "kgi") return "次の目標";
   if (topic === "month_review" && p.kind === "plan_section" && p.options.every((o) => o.kind === "plan_section" && o.section === "first_month")) return "次の 1 か月の週の回数";
   return null;
 }

@@ -25,11 +25,13 @@ export default async function ConsultNewPage(props: PageProps<"/projects/[id]/co
   const topic = isConsultTopic(sp.start) ? sp.start : null;
   // 振り返りのやることから来たとき（?item=）。本人の今週・来週の振り返りのやることかは、送るときにサーバーが確かめる
   const itemId = topic === "review" && typeof sp.item === "string" && isUuid(sp.item) ? sp.item : null;
+  // 目標の振り返り（概要の帯から。?goal=）。本人の active で期限が来た・届いた目標かは、送るときにサーバーが確かめる
+  const goalId = topic === "goal_review" && typeof sp.goal === "string" && isUuid(sp.goal) ? sp.goal : null;
   return (
     <div className="flex flex-col gap-5 max-sm:gap-4">
       <ConsultHeader projectId={id} topic={topic} threadId={null} roadmapSteps={topic === "roadmap" ? await roadmapStepsFor(id) : null} />
       <Columns
-        main={<ConsultChat key={`new-${topic ?? ""}-${itemId ?? ""}`} projectId={id} threadId={null} messages={[]} initialTopic={topic} initialItemId={itemId} />}
+        main={<ConsultChat key={`new-${topic ?? ""}-${itemId ?? ""}-${goalId ?? ""}`} projectId={id} threadId={null} messages={[]} initialTopic={topic} initialItemId={itemId} initialGoalId={goalId} />}
         side={<ConsultSide projectId={id} adopted={null} lead={consultTopicMeta(topic)?.entry?.lead} />}
       />
     </div>

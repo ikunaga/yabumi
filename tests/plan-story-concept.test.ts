@@ -136,7 +136,8 @@ describe("あなたらしさを AI に渡す範囲（storyForAi）", () => {
     manualSns: [],
     recentPosts: [],
     kpiNumbers: [],
-    roadmap: { kgi: null, kpiTargets: [], startedOn: null, items: [], kgiProgress: null },
+    goals: { active: null, past: [], candidates: [] },
+    roadmap: { items: [] },
   };
   const sent: [string, string][] = [
     ["ネタ出し（設計から）", textOf(buildPlanIdeasRequest(ideaCtx))],

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, addMonths, formatShort, fromInputValue, isYm, monthGrid, toInputValue, toYmd, weekOf, weekdayLabel, ymOf } from "@/lib/time";
+import { addDays, addMonths, formatShort, fromInputValue, isYm, isYmd, monthGrid, toInputValue, toYmd, weekOf, weekdayLabel, ymOf } from "@/lib/time";
 
 describe("日本時間の扱い", () => {
   it("入力値を日本時間として ISO にし、戻せる", () => {
@@ -75,5 +75,20 @@ describe("日本時間の扱い", () => {
       expect(ymOf(toYmd(new Date("2026-09-30T15:00:00Z")))).toBe("2026-10");
       expect(ymOf(toYmd(new Date("2026-09-30T14:59:59Z")))).toBe("2026-09");
     });
+  });
+});
+
+describe("isYmd（ありえる日付だけ）", () => {
+  it("形が合っていても、ない日は通さない（2026-11-06 のセキュリティ確認の M1）", () => {
+    expect(isYmd("2026-11-30")).toBe(true);
+    expect(isYmd("2028-02-29")).toBe(true);
+    expect(isYmd("2026-11-31")).toBe(false);
+    expect(isYmd("2026-02-30")).toBe(false);
+    expect(isYmd("2026-02-29")).toBe(false);
+    expect(isYmd("2026-13-01")).toBe(false);
+    expect(isYmd("2026-00-10")).toBe(false);
+    expect(isYmd("2026-11-00")).toBe(false);
+    expect(isYmd("2026-1-01")).toBe(false);
+    expect(isYmd(20261130)).toBe(false);
   });
 });

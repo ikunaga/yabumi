@@ -2355,10 +2355,12 @@ export type Database = {
       }
       learning_today_jst: { Args: never; Returns: string }
       learning_today_term: { Args: { p_term_key: string }; Returns: string }
+      legacy_date: { Args: { p: string }; Returns: string }
       legacy_kpi_targets_part: {
         Args: { p_posts: boolean; p_targets: Json }
         Returns: Json
       }
+      legacy_number: { Args: { p: string }; Returns: number }
       link_click_totals: {
         Args: { p_project_id: string; p_today: string }
         Returns: {

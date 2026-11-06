@@ -168,6 +168,8 @@ as $$
 declare
   v_id uuid;
 begin
+  -- start_goal と同じロック（目標を替えている最中に、閉じる前の目標を拾わない。同じトランザクションの中なら取り直しても待たない）
+  perform pg_advisory_xact_lock(hashtext('goals:' || p_project_id::text));
   select g.id into v_id from public.goals g where g.project_id = p_project_id and g.status = 'active';
   if v_id is not null then
     return v_id;
@@ -197,6 +199,8 @@ security definer
 set search_path = ''
 as $$
 begin
+  -- start_goal と同じロック（替えている最中の目標に、やることをつながない）
+  perform pg_advisory_xact_lock(hashtext('goals:' || new.project_id::text));
   if new.goal_id is null then
     new.goal_id := public.ensure_active_goal(new.project_id, new.owner_id, new.week_start);
   end if;
@@ -587,6 +591,28 @@ $$;
 revoke all on function public.settle_goal(uuid) from public, anon, authenticated, service_role;
 grant execute on function public.settle_goal(uuid) to authenticated;
 
+-- 前のデータ（jsonb の文字列）を、ありえる日付・数のときだけ読む（形の合わない値は null。写し替えと橋渡しを落とさない。2026-11-06 のセキュリティ確認の M1）
+create function public.legacy_date(p text)
+returns date
+language sql
+immutable
+set search_path = ''
+as $$
+  select case when p ~ '^\d{4}-\d{2}-\d{2}$' and pg_catalog.pg_input_is_valid(p, 'date') then p::date end;
+$$;
+
+create function public.legacy_number(p text)
+returns numeric
+language sql
+immutable
+set search_path = ''
+as $$
+  select case when p ~ '^\d{1,9}(\.\d{1,6})?$' then p::numeric end;
+$$;
+
+revoke all on function public.legacy_date(text) from public, anon, authenticated, service_role;
+revoke all on function public.legacy_number(text) from public, anon, authenticated, service_role;
+
 -- ===== 前の作り（roadmaps と first_month）→ goals（写し替えと橋渡しで同じものを使う。段階 ④ で消す） =====
 -- そのプロジェクトの roadmaps と account_plans の first_month を読み、active な goal に写す（なければ作る）。
 -- - KGI: roadmaps.kgi が形の合うものなら、その文・数字・目標・期限（数え始めは started_on）。前の作りは上書きの考え方なので、新しい目標は始めずに同じ行を書き換える
@@ -617,7 +643,11 @@ begin
   select * into r from public.roadmaps where project_id = p_project_id;
   select a.data -> 'first_month' into v_fm from public.account_plans a where a.project_id = p_project_id;
   v_weekly := case when jsonb_typeof(v_fm -> 'weekly') = 'object' and v_fm -> 'weekly' <> '{}'::jsonb then v_fm -> 'weekly' end;
-  v_started := case when (v_fm ->> 'startedOn') ~ '^\d{4}-\d{2}-\d{2}$' and extract(isodow from (v_fm ->> 'startedOn')::date) = 1 then (v_fm ->> 'startedOn')::date end;
+  -- 日付は形だけでなく、ありえる日か（2026-02-30 などは写さない）。合わない値で写し替え全体を落とさない
+  v_started := public.legacy_date(v_fm ->> 'startedOn');
+  if v_started is not null and extract(isodow from v_started) <> 1 then
+    v_started := null;
+  end if;
   if r.project_id is null and v_weekly is null and not exists (select 1 from public.roadmap_items i where i.project_id = p_project_id) then
     return null;
   end if;
@@ -627,17 +657,17 @@ begin
   if r.project_id is not null then
     v_kgi_ok := r.kgi is not null and jsonb_typeof(r.kgi) = 'object'
       and coalesce(r.kgi ->> 'kpi', '') in ('posts', 'link_clicks', 'downloads', 'store_page_views', 'revenue', 'followers', 'views')
-      and coalesce(r.kgi ->> 'target', '') ~ '^\d+(\.\d+)?$' and (r.kgi ->> 'target')::numeric > 0 and (r.kgi ->> 'target')::numeric <= 10000000
-      and coalesce(r.kgi ->> 'deadline', '') ~ '^\d{4}-\d{2}-\d{2}$' and (r.kgi ->> 'deadline')::date > r.started_on;
+      and coalesce(public.legacy_number(r.kgi ->> 'target') between 0.000001 and 10000000, false)
+      and coalesce(public.legacy_date(r.kgi ->> 'deadline') > r.started_on, false);
     if v_kgi_ok then
       update public.goals
          set statement = left(coalesce(nullif(r.kgi ->> 'statement', ''), '目標'), 120),
              metric = r.kgi ->> 'kpi',
              action = null,
              sns = case when r.kgi ->> 'kpi' = 'posts' and pg_catalog.pg_input_is_valid(r.kgi ->> 'sns', 'public.sns_key') then (r.kgi ->> 'sns')::public.sns_key end,
-             target = (r.kgi ->> 'target')::numeric,
+             target = public.legacy_number(r.kgi ->> 'target'),
              starts_on = r.started_on,
-             ends_on = least((r.kgi ->> 'deadline')::date, r.started_on + 371),
+             ends_on = least(public.legacy_date(r.kgi ->> 'deadline'), r.started_on + 371),
              source = r.source
        where id = v_id;
     end if;
@@ -645,28 +675,28 @@ begin
     insert into public.goal_kpis (goal_id, owner_id, role, metric, sns, per_week, position)
     select v_id, v_owner, 'kpi', t.value ->> 'kpi',
            case when t.value ->> 'kpi' in ('followers', 'views') and pg_catalog.pg_input_is_valid(t.value ->> 'sns', 'public.sns_key') then (t.value ->> 'sns')::public.sns_key end,
-           (t.value ->> 'per_week')::numeric, (t.ordinality - 1)::integer
+           public.legacy_number(t.value ->> 'per_week'), (t.ordinality - 1)::integer
       from jsonb_array_elements(case when jsonb_typeof(r.kpi_targets) = 'array' then r.kpi_targets else '[]'::jsonb end) with ordinality t
      where t.value ->> 'kpi' in ('link_clicks', 'downloads', 'store_page_views', 'revenue', 'followers', 'views')
-       and coalesce(t.value ->> 'per_week', '') ~ '^\d+(\.\d+)?$' and (t.value ->> 'per_week')::numeric > 0
+       and coalesce(public.legacy_number(t.value ->> 'per_week') > 0, false)
     on conflict do nothing;
   end if;
 
   if v_weekly is not null then
     delete from public.goal_kpis where goal_id = v_id and role = 'action';
     insert into public.goal_kpis (goal_id, owner_id, role, metric, sns, per_week, position)
-    select v_id, v_owner, 'action', 'posts', w.key::public.sns_key, least(14, greatest(1, round(w.value::text::numeric))), (w.ordinality - 1)::integer
+    select v_id, v_owner, 'action', 'posts', w.key::public.sns_key, least(14, greatest(1, round(public.legacy_number(w.value::text)))), (w.ordinality - 1)::integer
       from jsonb_each(v_weekly) with ordinality w
      where pg_catalog.pg_input_is_valid(w.key, 'public.sns_key')
-       and w.value::text ~ '^\d+$' and w.value::text::numeric >= 1;
+       and coalesce(public.legacy_number(w.value::text) >= 1, false);
   elsif r.project_id is not null then
     delete from public.goal_kpis where goal_id = v_id and role = 'action';
     insert into public.goal_kpis (goal_id, owner_id, role, metric, sns, per_week, position)
     select v_id, v_owner, 'action', 'posts', case when pg_catalog.pg_input_is_valid(t.value ->> 'sns', 'public.sns_key') then (t.value ->> 'sns')::public.sns_key end,
-           least(14, greatest(1, round((t.value ->> 'per_week')::numeric))), (t.ordinality - 1)::integer
+           least(14, greatest(1, round(public.legacy_number(t.value ->> 'per_week')))), (t.ordinality - 1)::integer
       from jsonb_array_elements(case when jsonb_typeof(r.kpi_targets) = 'array' then r.kpi_targets else '[]'::jsonb end) with ordinality t
      where t.value ->> 'kpi' = 'posts'
-       and coalesce(t.value ->> 'per_week', '') ~ '^\d+(\.\d+)?$' and (t.value ->> 'per_week')::numeric > 0
+       and coalesce(public.legacy_number(t.value ->> 'per_week') > 0, false)
     on conflict do nothing;
   end if;
 

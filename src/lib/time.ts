@@ -38,8 +38,15 @@ export function fromInputValue(value: string): string | null {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
+// ありえる日付の "YYYY-MM-DD" か。Date に直すと 2026-02-30 は 3/2 に繰り上がるので、年・月・日に戻して元と一致するかで確かめる
+// （2026-11-06 のセキュリティ確認の M1。ありえない日を DB に入れると、目標の写し替えが落ちた）
 export function isYmd(value: unknown): value is string {
-  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(new Date(`${value}T00:00:00${OFFSET}`).getTime());
+  if (typeof value !== "string") return false;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!m) return false;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const date = new Date(Date.UTC(y, mo - 1, d));
+  return date.getUTCFullYear() === y && date.getUTCMonth() === mo - 1 && date.getUTCDate() === d;
 }
 
 // "YYYY-MM-DD"（日本時間）の 0 時を表す Date

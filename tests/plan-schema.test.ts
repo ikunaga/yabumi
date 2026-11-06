@@ -74,3 +74,10 @@ describe("アカウント設計のデータ", () => {
     expect(isSectionDone("profile", normalizePlan({ profile: { handle: "x" } }, "").profile)).toBe(true);
   });
 });
+
+describe("最初の 1 か月の数え始め（2026-11-06 のセキュリティ確認の M1）", () => {
+  it("ない日（2026-02-30）は読まない", () => {
+    const plan = normalizePlan({ first_month: { goal: "", metrics: "", kpis: [], weekly: { x: 2 }, startedOn: "2026-02-30" } }, "30 代");
+    expect(plan.first_month.startedOn).not.toBe("2026-02-30");
+  });
+});

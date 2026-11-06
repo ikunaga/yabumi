@@ -143,3 +143,12 @@ describe("目標と数字の欄を種類で絞る（決定 D34）", () => {
     for (const t of ["web_service", "shop", "online_shop", "service", "creator", "other"]) expect(kgiExample(t)).not.toMatch(/ダウンロード|ストア/);
   });
 });
+
+describe("ありえない日付（2026-11-06 のセキュリティ確認の M1）", () => {
+  it("KGI の期限・やることの週に、ない日は入れられない", () => {
+    const kgi = { statement: "x", kpi: "link_clicks", target: 10, deadline: "2026-11-31", sns: null };
+    expect(goalProposalSchema.safeParse({ kgi, kpi_targets: [] }).success).toBe(false);
+    expect(goalProposalSchema.safeParse({ kgi: { ...kgi, deadline: "2026-11-30" }, kpi_targets: [] }).success).toBe(true);
+    expect(itemSchema.safeParse({ title: "x", detail: "", week_start: "2026-02-30", kpi: null, target: null }).success).toBe(false);
+  });
+});

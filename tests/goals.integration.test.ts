@@ -131,6 +131,24 @@ describe("前の作りからの写し替え（ddy と同じ形）", () => {
     expect((await kpisOf(g.id)).filter((k) => k.role === "action")).toEqual([{ role: "action", metric: "posts", action: null, sns: "x", per_week: 1 }]);
   });
 
+  it("ありえない日付（deadline が 2026-11-31、startedOn が 2026-02-30）があっても写し替えは通り、その値は写らない（セキュリティ確認の M1）", async () => {
+    const p = await newProject(alice, "ありえない日付");
+    const started = addDays(monday, -7);
+    // アプリを通さずに書く（本人も roadmaps・account_plans に直接書ける）
+    await admin.from("roadmaps").insert({ project_id: p, owner_id: aliceId, started_on: started, kgi: { statement: "ない日まで", kpi: "link_clicks", target: 10, deadline: "2026-11-31" } as never, kpi_targets: [{ kpi: "link_clicks", per_week: "1e9" }, { kpi: "views", per_week: 5 }] as never });
+    await admin.from("account_plans").insert({ project_id: p, owner_id: aliceId, data: { first_month: { weekly: { x: 2, threads: "abc" }, startedOn: "2026-02-30" } } as never });
+    expect((await admin.rpc("sync_goal_from_legacy", { p_project_id: p })).error).toBeNull();
+    const goals = await goalsOf(p);
+    expect(goals).toHaveLength(1);
+    // 期限がありえない KGI は写さない（KGI まだ）。区切りも作らない。数の形が合わない KPI・週の回数も写さない
+    expect(goals[0]).toMatchObject({ status: "active", metric: null, ends_on: null });
+    expect(await milestonesOf(goals[0].id)).toEqual([]);
+    expect(await kpisOf(goals[0].id)).toEqual([
+      { role: "action", metric: "posts", action: null, sns: "x", per_week: 2 },
+      { role: "kpi", metric: "views", action: null, sns: null, per_week: 5 },
+    ]);
+  });
+
   it("20261106150100 は 150000 と同じ写し替えの関数を作り直すだけ（続けて当てても結果が同じ）", () => {
     const dir = path.join(process.cwd(), "supabase/migrations");
     const body = (file: string) => {

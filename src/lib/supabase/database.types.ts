@@ -2129,6 +2129,7 @@ export type Database = {
       }
       x_search_usage: {
         Row: {
+          by_new_user: boolean
           cost_usd: number
           created_at: string
           id: string
@@ -2140,6 +2141,7 @@ export type Database = {
           user_count: number | null
         }
         Insert: {
+          by_new_user?: boolean
           cost_usd: number
           created_at?: string
           id?: string
@@ -2151,6 +2153,7 @@ export type Database = {
           user_count?: number | null
         }
         Update: {
+          by_new_user?: boolean
           cost_usd?: number
           created_at?: string
           id?: string

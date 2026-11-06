@@ -6,7 +6,8 @@ vi.mock("server-only", () => ({}));
 
 import { ImageBlockedError, type GenerateImage } from "@/lib/ai/gemini-image";
 import { PHOTO_LIMITS } from "@/lib/ai/photo";
-import { AiUnavailableError } from "@/lib/ai/provider-failure";
+import { AiRequestRejected, AiUnavailableError } from "@/lib/ai/provider-failure";
+import { estimateImageCostUsd } from "@/lib/ai/pricing";
 import { acknowledgePhotoNotice, ownRecentPhotoJob, photoStatus, refreshCandidateUrls, runPhotoGeneration } from "@/lib/ai/photo-gen";
 import { readAiMark } from "@/lib/media/jpeg";
 import { MEDIA_BUCKET } from "@/lib/media/rules";
@@ -146,6 +147,32 @@ describe("つくる", () => {
       }
     }
     expect((await photoStatus(admin, aliceId, MODEL, { asOf: OLD, scopeOwner: aliceId })).usedImages).toBe(3);
+  });
+
+  it("費用: 請求されないとはっきりしている失敗（安全の決まり・4xx・支払いと鍵）だけ 0 にし、タイムアウト・5xx は見込みの額のまま残す。枚数はできた分だけ", async () => {
+    // その回の記録（created_at はテストの時刻で同じになるので、前からある id を除いて探す）
+    const jobOf = async (generate: GenerateImage) => {
+      const before = new Set(((await admin.from("ai_image_jobs").select("id").eq("owner_id", aliceId)).data ?? []).map((j) => j.id));
+      await run(alice, aliceId, aliceProject, generate);
+      const { data } = await admin.from("ai_image_jobs").select("id, status, images, cost_usd").eq("owner_id", aliceId);
+      const job = data!.find((j) => !before.has(j.id))!;
+      return { status: job.status, images: job.images, cost: Number(job.cost_usd) };
+    };
+    const one = estimateImageCostUsd(MODEL, 1);
+    expect(await jobOf(async () => { throw new ImageBlockedError("blocked"); })).toEqual({ status: "failed", images: 0, cost: 0 });
+    expect(await jobOf(async () => { throw new AiRequestRejected(400, "Gemini API 400"); })).toEqual({ status: "failed", images: 0, cost: 0 });
+    expect(await jobOf(async () => { throw new AiUnavailableError("gemini", 402); })).toEqual({ status: "failed", images: 0, cost: 0 });
+    // タイムアウト・5xx は請求されたかわからない（2 枚とも）
+    expect(await jobOf(async () => { throw new Error("Gemini API 503"); })).toEqual({ status: "failed", images: 0, cost: estimateImageCostUsd(MODEL, 2) });
+    // 1 枚できて 1 枚がタイムアウトなら、できた 1 枚の額と、タイムアウトの 1 枚の見込みの額
+    let n = 0;
+    const partial = await jobOf(async (a) => {
+      if (n++ === 0) throw new Error("timeout");
+      return fakeImage(a);
+    });
+    expect(partial.status).toBe("done");
+    expect(partial.images).toBe(1);
+    expect(partial.cost).toBeCloseTo(estimateImageCostUsd(MODEL, 1, 120) + one, 6);
   });
 
   it("他人のプロジェクトでは作れない", async () => {

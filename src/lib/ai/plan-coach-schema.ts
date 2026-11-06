@@ -243,12 +243,27 @@ export function toWireValue(key: SectionKey, value: SectionValue<SectionKey>): u
 }
 
 // あなたらしさの案を採用するとき: 保存してある「投稿に使ってよい」のオフは残す（AI が印をオンに戻さない）。
-// 案のオフ（相手が「投稿に使わないで」と言った項目）も残す
+// 案のオフ（相手が「投稿に使わないで」と言った項目）も残す。
+// 「投稿に使わない」項目があるのに、短いストーリー（summary）が新しい文に変わったら、その文にオフの項目が混ざっているかもしれないので
+// summary もオフにする（セキュリティ確認 2026-11-06 の L1。画面で「確かめてからオンに」と出す。storySummaryNeedsCheck）
 export function mergeStoryShareable(next: SectionValue<"story">, prev: SectionValue<"story"> | null | undefined): SectionValue<"story"> {
-  return Object.fromEntries(
+  const merged = Object.fromEntries(
     // 保存してある会話の案は前の形のこともあるので、項目がなくても止まらないように読む
     STORY_FIELDS.map((f) => [f, { text: next?.[f]?.text ?? "", shareable: (next?.[f]?.shareable ?? true) && (prev?.[f]?.shareable ?? true) }]),
   ) as SectionValue<"story">;
+  const summaryChanged = merged.summary.text.trim() !== "" && merged.summary.text !== (prev?.summary?.text ?? "");
+  if (summaryChanged && hasNotShareable(merged)) merged.summary = { ...merged.summary, shareable: false };
+  return merged;
+}
+
+// 短いストーリーの材料（ほかの 4 項目）に、中身のある「投稿に使わない」項目があるか
+function hasNotShareable(story: SectionValue<"story">): boolean {
+  return STORY_FIELDS.some((f) => f !== "summary" && story[f].text.trim() !== "" && !story[f].shareable);
+}
+
+// 画面で「投稿に使ってよいか確かめてください」と出すか: 短いストーリーがオフで、ほかに「投稿に使わない」項目があるとき
+export function storySummaryNeedsCheck(story: SectionValue<"story">): boolean {
+  return story.summary.text.trim() !== "" && !story.summary.shareable && hasNotShareable(story);
 }
 
 // SNS ごとの上書きのうち、知らない SNS と、全部が空のものを外す

@@ -6,7 +6,7 @@ import { normalizeConsultTurn } from "@/lib/ai/consult-schema";
 import { buildImageBriefRequest } from "@/lib/ai/image-brief";
 import { buildPhotoIdeasRequest } from "@/lib/ai/photo";
 import { coachContextMessage, PLAN_COACH_SYSTEM } from "@/lib/ai/plan-coach-prompt";
-import { mergeStoryShareable, normalizeCoachTurn, toSectionValue, toWireTurn, toWireValue } from "@/lib/ai/plan-coach-schema";
+import { mergeStoryShareable, normalizeCoachTurn, storySummaryNeedsCheck, toSectionValue, toWireTurn, toWireValue } from "@/lib/ai/plan-coach-schema";
 import { buildNewsIdeasRequest, buildPlanIdeasRequest, hasPlanMaterial, type IdeaContext } from "@/lib/ai/post-ideas";
 import { PLAN_EXAMPLES, PRODUCT_GUIDES } from "@/lib/ai/product-guide";
 import { buildTidyRequest } from "@/lib/ai/tidy-draft";
@@ -228,6 +228,23 @@ describe("設計の相棒の案", () => {
     expect(merged.why.shareable).toBe(true);
     // 前の形の案（項目がない）でも止まらない
     expect(() => mergeStoryShareable({} as PlanData["story"], undefined)).not.toThrow();
+  });
+
+  it("「投稿に使わない」項目があるのに短いストーリーが新しい文に変わったら、短いストーリーもオフにして確かめてもらう（L1）", () => {
+    const next = toSectionValue("story", { why: "a", background: "b", summary: "背景をまとめた新しい文" }) as PlanData["story"];
+    const merged = mergeStoryShareable(next, plan.story);
+    expect(merged.summary).toEqual({ text: "背景をまとめた新しい文", shareable: false });
+    expect(storySummaryNeedsCheck(merged)).toBe(true);
+    // 案のほうで「投稿に使わない」とした項目（notShareable）があっても同じ
+    const fromAi = toSectionValue("story", { why: "a", struggle: "話したくない", summary: "まとめ", notShareable: ["struggle"] }) as PlanData["story"];
+    expect(mergeStoryShareable(fromAi, undefined).summary.shareable).toBe(false);
+    // AI が summary を自分で notShareable に入れたときもオフ
+    expect((toSectionValue("story", { why: "a", summary: "まとめ", notShareable: ["summary"] }) as PlanData["story"]).summary.shareable).toBe(false);
+    // オフの項目がなければ、オンのまま。前と同じ文（利用者が確かめた文）なら、前の印のまま
+    expect(mergeStoryShareable(toSectionValue("story", { why: "a", summary: "まとめ" }) as PlanData["story"], undefined).summary.shareable).toBe(true);
+    const checked = { ...merged, summary: { text: merged.summary.text, shareable: true } };
+    expect(mergeStoryShareable(next, checked).summary.shareable).toBe(true);
+    expect(storySummaryNeedsCheck(checked)).toBe(false);
   });
 
   it("保存してある会話の案は、前の形（項目がない・文字列だけ・値がない）でも表示で止まらない", () => {

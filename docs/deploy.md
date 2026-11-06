@@ -67,6 +67,7 @@
 | X_CLIENT_SECRET | 同じく Client Secret | **はい** |
 | X_MONTHLY_BUDGET_USD | 入れなければ $3（決定 D16）。変えるときだけ入れる。80% に達すると運営者にメールで知らせる（15-11 の RESEND_API_KEY・OPERATOR_EMAIL） | いいえ |
 | X_POST_USER_MONTHLY_USD | 入れなければ $1（利用者 1 人の、X の投稿まわりの月の上限。docs/architecture.md の 4.13）。料金プランが決まったら変える | いいえ |
+| X_BEARER_TOKEN | 26-2 の X のアプリの Bearer Token（X の人気の投稿を yabumi の中で探す。入れなければ「準備中」） | **はい** |
 | NEXT_PUBLIC_TURNSTILE_SITE_KEY | 5-8 の Turnstile の Site Key（登録の受付を開く前に入れる） | いいえ（画面にも出る値） |
 | META_APP_ID / FACEBOOK_LOGIN_CONFIG_ID / INSTAGRAM_APP_ID | 12 の Instagram・Facebook 用の Meta アプリの値 | いいえ |
 | VERCEL_API_TOKEN | 17 の Vercel のトークン（利用者のドメインで短縮リンクを作るとき。なければ画面は「準備中」） | **はい** |
@@ -639,6 +640,22 @@ Next.js の server action の ID は、ビルドごとの暗号の鍵から作�
 - 「AI の画像（Gemini API）が 402（403・401）を返して使えません」のメールが届いたら（1 時間に 1 回まで）: 402 は 24-2 の請求先と支払いの状態（前払いなら残高）、403 は 24-4 の API の有効化と 24-5 の鍵の制限、401 は 24-6 の鍵の値を確かめる。直れば、利用者はそのまま作れる（使えなかった分は数えていない）。「AI（Claude API）が…」のメールは、Claude Console の Billing（402・残高）・鍵の権限（403）・Vercel の ANTHROPIC_API_KEY（401）を確かめる
 - 鍵が漏れたとき: 24-5 でキーを消して作り直し、24-6 を入れ替える。24-3・24-4 の上限があるので、漏れても 1 日 200 枚・月の予算で止まる
 - モデルが終わるとき（Google はモデルの入れ替えが速い）: 新しいモデルの名前を `IMAGE_GEN_MODEL` に入れ、src/lib/ai/pricing.ts の IMAGE_PRICES に値段を足す（表にないモデルは高めに見積もるので、足すまでは上限に早く届く）
+
+## 26. X の人気の投稿を yabumi の中で探す（X のアプリの Bearer Token。2026-11-06、feat/x-buzz-search。architecture.md の 4.52）
+
+ネタ出しの材料「X で人気の投稿から」の「yabumi の中で探す」は、X の recent search を yabumi のアプリの鍵（Bearer Token）で呼ぶ。鍵（X_BEARER_TOKEN）を入れるまでは「準備中」のままで、X の画面で探す方法（B）とほかの機能には影響しない。回数と費用の上限（1 人 月 3 回・登録 7 日までは月 1 回、全体で月 $1）は DB の関数 reserve_x_search の中で固定してある。
+
+| 段 | 誰が | すること | 状態 |
+|---|---|---|---|
+| 26-1 | オーナー | 規約・ポリシーの ② の変更（[legal.md](legal.md) の「X の人気の投稿をネタの元にする（A・B）」の案）を了承し、施行日を決める。**施行日より前に、本番で 26-3 の鍵を入れない**（鍵がなければ「準備中」で、X には何も送られない） | まだ |
+| 26-2 | オーナー | X の開発者の画面（console.x.com）で、6-4 で作った yabumi のアプリを開き、「Keys and tokens」の「Bearer Token」で **Generate**（作り直すときは Regenerate）を押す。表示された値は一度しか出ないので、その場でパスワード管理アプリに控える。**値はチャット・リポジトリ・メモに貼らない**（PM や実装担当にも送らない。入れたことだけを伝える）【画面の名前は未確認。違っていたら直す】 | まだ |
+| 26-3 | オーナー | Vercel → Settings → Environment Variables に `X_BEARER_TOKEN`（値は 26-2、Production と Preview、**Sensitive**）を足して、Redeploy。ローカルで試すときだけ、.env.local にも同じ名前で入れる（.env.local はリポジトリに入らない） | まだ |
+| 26-4 | PM | マイグレーション 20261106120000_x_search_usage を、時刻の順に本番に当てる（表と関数を足し、purge_expired_data に 1 行足すだけ。既存の行は変えない） | まだ |
+| 26-5 | PM | 本番で、オーナーのアカウントで 1 回だけ探し（最大 $0.15、約 22.5 円）、結果の一覧（アイコン・名前・@・本文・日時のリンク）が出ること、「この投稿を元にする」で URL と本文が欄に入ること、残りの回数が 1 つ減ることを確かめる | まだ |
+
+- 費用: 1 回 最大 $0.15（投稿 10 件 × $0.005 ＋ 書いた人 10 人 × $0.010）。返ってきた件数と人数で数え直す。X の投稿の上限（X_MONTHLY_BUDGET_USD）とは別に数えるので、探しても自動投稿は止まらない
+- X の側の支払いは、投稿と同じ X の開発者アカウントのクレジットから引かれる。クレジットが尽きると、探す（と投稿）が X に断られる（4xx なので、利用者の回数は減らない）
+- 鍵が漏れたとき: 26-2 で Regenerate して古い値を使えなくし、26-3 を入れ替えて Redeploy する。Bearer Token はアプリだけの鍵で、利用者の X のアカウント（OAuth のトークン）には影響しない
 
 ## 25. 次に本番に出したあとに確かめること（2026-11-02 に書いた）
 

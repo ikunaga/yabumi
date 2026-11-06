@@ -6,7 +6,7 @@ import { normalizeConsultTurn } from "@/lib/ai/consult-schema";
 import { buildImageBriefRequest } from "@/lib/ai/image-brief";
 import { buildPhotoIdeasRequest } from "@/lib/ai/photo";
 import { coachContextMessage, PLAN_COACH_SYSTEM } from "@/lib/ai/plan-coach-prompt";
-import { mergeStoryShareable, normalizeCoachTurn, storySummaryNeedsCheck, toSectionValue, toWireTurn, toWireValue } from "@/lib/ai/plan-coach-schema";
+import { mergeStoryShareable, normalizeCoachTurn, storyNeedsCheck, toSectionValue, toWireTurn, toWireValue } from "@/lib/ai/plan-coach-schema";
 import { buildNewsIdeasRequest, buildPlanIdeasRequest, hasPlanMaterial, type IdeaContext } from "@/lib/ai/post-ideas";
 import { PLAN_EXAMPLES, PRODUCT_GUIDES } from "@/lib/ai/product-guide";
 import { buildTidyRequest } from "@/lib/ai/tidy-draft";
@@ -234,7 +234,7 @@ describe("設計の相棒の案", () => {
     const next = toSectionValue("story", { why: "a", background: "b", summary: "背景をまとめた新しい文" }) as PlanData["story"];
     const merged = mergeStoryShareable(next, plan.story);
     expect(merged.summary).toEqual({ text: "背景をまとめた新しい文", shareable: false });
-    expect(storySummaryNeedsCheck(merged)).toBe(true);
+    expect(storyNeedsCheck(merged, "summary")).toBe(true);
     // 案のほうで「投稿に使わない」とした項目（notShareable）があっても同じ
     const fromAi = toSectionValue("story", { why: "a", struggle: "話したくない", summary: "まとめ", notShareable: ["struggle"] }) as PlanData["story"];
     expect(mergeStoryShareable(fromAi, undefined).summary.shareable).toBe(false);
@@ -244,7 +244,21 @@ describe("設計の相棒の案", () => {
     expect(mergeStoryShareable(toSectionValue("story", { why: "a", summary: "まとめ" }) as PlanData["story"], undefined).summary.shareable).toBe(true);
     const checked = { ...merged, summary: { text: merged.summary.text, shareable: true } };
     expect(mergeStoryShareable(next, checked).summary.shareable).toBe(true);
-    expect(storySummaryNeedsCheck(checked)).toBe(false);
+    expect(storyNeedsCheck(checked, "summary")).toBe(false);
+  });
+
+  it("強み（strength）も同じ: 材料（思い・背景・悩み）に「投稿に使わない」項目があるのに新しい文に変わったらオフ。強みがオフなら、それをまとめた短いストーリーもオフ", () => {
+    const next = toSectionValue("story", { why: "a", background: "b", strength: "背景から来た強み", summary: "" }) as PlanData["story"];
+    const merged = mergeStoryShareable(next, plan.story);
+    expect(merged.strength).toEqual({ text: "背景から来た強み", shareable: false });
+    expect(storyNeedsCheck(merged, "strength")).toBe(true);
+    // 思い・背景・悩みがどれもオンでも、強みがオフ（利用者が決めた）なら、新しい短いストーリーはオフ
+    const own = toSectionValue("story", { why: "a", strength: "強み", summary: "強みをまとめた文", notShareable: ["strength"] }) as PlanData["story"];
+    const m2 = mergeStoryShareable(own, undefined);
+    expect([m2.strength.shareable, m2.summary.shareable]).toEqual([false, false]);
+    expect(storyNeedsCheck(m2, "summary")).toBe(true);
+    // 材料ではない項目（思いなど）には、確かめての印を出さない
+    expect(storyNeedsCheck(m2, "why")).toBe(false);
   });
 
   it("保存してある会話の案は、前の形（項目がない・文字列だけ・値がない）でも表示で止まらない", () => {

@@ -17,8 +17,7 @@ import { Field, Input, Textarea } from "@/components/ui/field";
 import { Term } from "@/components/ui/term";
 import { saveSection, type SectionFormState } from "@/lib/plan/actions";
 import { MAX_HASHTAGS, MAX_PILLARS, MAX_WEEKLY_PER_SNS, RECOMMENDED_SECTIONS, REQUIRED_FOR_DONE, SECTION_KEYS, STORY_FIELDS, isSectionDone, type PlanData, type SectionKey, type StoryField } from "@/lib/plan/schema";
-import { STORY_LABEL } from "@/lib/plan/story";
-import { storySummaryNeedsCheck } from "@/lib/ai/plan-coach-schema";
+import { STORY_LABEL, storyNeedsCheck } from "@/lib/plan/story";
 import type { CycleInfo } from "@/lib/coach/pace";
 import { md } from "@/lib/goals/view";
 import { SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
@@ -598,7 +597,7 @@ function StoryFields({ v, ex }: { v: PlanData["story"]; ex: PlanExamples }) {
           </div>
           <Textarea id={`story-${f}`} name={f} defaultValue={v[f].text} maxLength={STORY_ROWS[f].max} rows={STORY_ROWS[f].rows} placeholder={`例: ${ex.story[f]}`} />
           {STORY_ROWS[f].hint && <p className="text-xs text-muted">{STORY_ROWS[f].hint}</p>}
-          {f === "summary" && storySummaryNeedsCheck(v) && (
+          {storyNeedsCheck(v, f) && (
             <p className="text-xs font-bold text-signal">● 「投稿に使わない」項目が入っていないか確かめてから、「投稿に使ってよい」をオンにしてください</p>
           )}
         </div>

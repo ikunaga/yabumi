@@ -6,6 +6,7 @@ import { GoalError, setGoalActions, startMilestone } from "@/lib/goals/write";
 import type { Database } from "@/lib/supabase/database.types";
 import { isSnsKey, SNS_KEYS } from "@/lib/sns";
 import { toYmd } from "@/lib/time";
+import { mergeStoryShareable } from "./story";
 import { MAX_WEEKLY_PER_SNS, sectionSchemas, type PlanData, type SectionKey, type SectionValue } from "./schema";
 
 // アカウント設計の 1 セクションを保存する（画面・AI と考える・AI と相談の共通の入口。利用者の権限のクライアントで、RLS で本人のものだけ）。
@@ -23,6 +24,9 @@ export async function saveSectionValue(
   opts: { restart?: boolean; now?: Date } = {},
 ): Promise<{ ok: true } | { ok: false }> {
   let v = value;
+  // AI からのあなたらしさは、保存してある印のオフを残し、まとめた文の印を決めてから保存する（設計の相棒・相談のどちらから来ても。APP-L1）。
+  // 利用者が画面で保存したときは、利用者が選んだ印のまま
+  if (key === "story" && source === "ai") v = mergeStoryShareable(value as PlanData["story"], await loadStory(user, projectId));
   if (key === "first_month") {
     const prev = await loadFirstMonth(user, projectId);
     // 1 か月後の目標の文・判断の仕方・数字（前の作り）は、画面から送らなくなったので前の値を残す（KGI・KPI はロードマップの goals）
@@ -61,6 +65,12 @@ export async function saveWeekly(user: Db, projectId: string, weekly: WeeklyTarg
   const monday = mondayOf(today);
   const next = milestones.filter((m) => m.startsOn >= monday).sort((a, b) => a.startsOn.localeCompare(b.startsOn))[0] ?? milestones.find((m) => m.startsOn <= today && today <= m.endsOn);
   await startMilestone(user, projectId, next?.target ?? null);
+}
+
+async function loadStory(user: Db, projectId: string): Promise<PlanData["story"] | null> {
+  const { data } = await user.from("account_plans").select("data").eq("project_id", projectId).maybeSingle();
+  const parsed = sectionSchemas.story.safeParse((data?.data as Record<string, unknown> | null)?.story ?? {});
+  return parsed.success ? parsed.data : null;
 }
 
 export async function loadFirstMonth(user: Db, projectId: string): Promise<PlanData["first_month"] | null> {

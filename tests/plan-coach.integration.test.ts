@@ -316,3 +316,39 @@ describe("何を宣伝するかを一緒に決める", () => {
     expect(sent).toContain("visit（来てもらう）");
   });
 });
+
+// あなたらしさの案の採用（セキュリティ確認 2026-11-06 の APP-L1）: 印は保存の共通の入口（saveSectionValue）が決める
+describe("あなたらしさの案を採用するときの「投稿に使ってよい」", () => {
+  it("保存してある「投稿に使わない」は残り、その項目を材料にしうる強み・短いストーリーの新しい文もオフになる", async () => {
+    const p = (await alice.from("projects").insert({ name: "器の店", description: "器", target_audience: "30 代" }).select("id").single()).data!.id;
+    const item = (text: string, shareable = true) => ({ text, shareable });
+    expect(
+      (await alice.rpc("save_account_plan_section", {
+        p_project_id: p,
+        p_section: "story",
+        p_value: { why: item("器が好き"), background: item("病気で仕事を辞めた", false), struggle: item(""), strength: item(""), summary: item("") } as never,
+        p_source: "manual",
+      })).error,
+    ).toBeNull();
+    const storyProposal = {
+      message: "あなたらしさの案です。",
+      choices: [],
+      proposal: {
+        section: "story",
+        options: [{ title: "まとめ", summary: "s", pros: ["p"], cons: ["c"], value_json: JSON.stringify({ why: "器が好き", background: "病気で仕事を辞めた", struggle: "", strength: "休んだ時間で器を見る目が育った", summary: "仕事を辞めて器の店を始めた話", notShareable: [] }) }],
+        recommended: 0,
+        reason: "r",
+      },
+    };
+    const run = (client: TestClient, userId: string, callModel: CallModel, threadId: string | null, input: Parameters<typeof coachStep>[3]["input"]) =>
+      coachStep(client, admin, { callModel }, { userId, projectId: p, threadId, input });
+    const started = await run(alice, aliceId, reply(storyProposal), null, { kind: "start", focus: "story" });
+    expect(started.ok).toBe(true);
+    const { data: msgs } = await alice.from("ai_messages").select("id").eq("thread_id", started.threadId!).eq("role", "assistant").order("created_at");
+    const r = await run(alice, aliceId, reply(question), started.threadId!, { kind: "adopt", messageId: msgs![msgs!.length - 1].id, optionIndex: 0 });
+    expect(r.ok).toBe(true);
+    const { data: plan } = await alice.from("account_plans").select("data").eq("project_id", p).single();
+    const story = (plan!.data as { story: Record<string, { text: string; shareable: boolean }> }).story;
+    expect(Object.fromEntries(Object.entries(story).map(([k, v]) => [k, v.shareable]))).toEqual({ why: true, background: false, struggle: true, strength: false, summary: false });
+  });
+});

@@ -62,3 +62,39 @@ export function identityPromptLines(plan: PlanData, use: Exclude<AiUse, "coach">
   }
   return lines;
 }
+
+// ===== AI の案を保存するときの「投稿に使ってよい」の印（セキュリティ確認 2026-11-06 の APP-L1） =====
+// - 保存してある印のオフは残す（AI が印をオンに戻さない）。案のオフ（相手が「投稿に使わないで」と言った項目・AI が自分で入れた notShareable）も残す
+// - 強み（strength）と短いストーリー（summary）は、ほかの項目をまとめた文なので、材料の中に「投稿に使わない」項目があるのに
+//   新しい文に変わったら、オフの項目が混ざっているかもしれないので印をオフにする（画面で確かめてからオンにしてもらう。storyNeedsCheck）。
+//   前と同じ文（利用者が確かめた文）なら、前の印のまま
+// - 保存の共通の入口（lib/plan/save.ts の saveSectionValue）が、AI からの story に必ずかける（設計の相棒・相談のどちらから来ても）
+
+// まとめた文と、その材料（strength は 3 項目、summary は strength も含めた 4 項目をまとめる）
+const DERIVED_SOURCES: Partial<Record<StoryField, StoryField[]>> = {
+  strength: ["why", "background", "struggle"],
+  summary: ["why", "background", "struggle", "strength"],
+};
+
+function hasNotShareable(story: Story, fields: StoryField[]): boolean {
+  return fields.some((f) => story[f].text.trim() !== "" && !story[f].shareable);
+}
+
+export function mergeStoryShareable(next: Story, prev: Story | null | undefined): Story {
+  const merged = Object.fromEntries(
+    // 保存してある会話の案は前の形のこともあるので、項目がなくても止まらないように読む
+    STORY_FIELDS.map((f) => [f, { text: next?.[f]?.text ?? "", shareable: (next?.[f]?.shareable ?? true) && (prev?.[f]?.shareable ?? true) }]),
+  ) as Story;
+  // strength を先に決める（summary の材料に strength が入るため）
+  for (const f of ["strength", "summary"] as const) {
+    const changed = merged[f].text.trim() !== "" && merged[f].text !== (prev?.[f]?.text ?? "");
+    if (changed && hasNotShareable(merged, DERIVED_SOURCES[f]!)) merged[f] = { ...merged[f], shareable: false };
+  }
+  return merged;
+}
+
+// 画面で「投稿に使ってよいか確かめてください」と出すか: まとめた文（strength・summary）がオフで、その材料に「投稿に使わない」項目があるとき
+export function storyNeedsCheck(story: Story, field: StoryField): boolean {
+  const sources = DERIVED_SOURCES[field];
+  return Boolean(sources) && story[field].text.trim() !== "" && !story[field].shareable && hasNotShareable(story, sources!);
+}

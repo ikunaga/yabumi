@@ -149,7 +149,7 @@ describe("つくる", () => {
     expect((await photoStatus(admin, aliceId, MODEL, { asOf: OLD, scopeOwner: aliceId })).usedImages).toBe(3);
   });
 
-  it("費用: 請求されないとはっきりしている失敗（安全の決まり・4xx・支払いと鍵）だけ 0 にし、タイムアウト・5xx は見込みの額のまま残す。枚数はできた分だけ", async () => {
+  it("費用: 請求されないとはっきりしている失敗（408 を除く HTTP の 4xx・支払いと鍵）だけ 0 にし、タイムアウト・5xx・200 の中の安全の決まりの断りは見込みの額のまま残す。枚数はできた分だけ", async () => {
     // その回の記録（created_at はテストの時刻で同じになるので、前からある id を除いて探す）
     const jobOf = async (generate: GenerateImage) => {
       const before = new Set(((await admin.from("ai_image_jobs").select("id").eq("owner_id", aliceId)).data ?? []).map((j) => j.id));
@@ -159,7 +159,9 @@ describe("つくる", () => {
       return { status: job.status, images: job.images, cost: Number(job.cost_usd) };
     };
     const one = estimateImageCostUsd(MODEL, 1);
-    expect(await jobOf(async () => { throw new ImageBlockedError("blocked"); })).toEqual({ status: "failed", images: 0, cost: 0 });
+    // 安全の決まりの断り: HTTP の 400 で断られたら請求されない。200 の返事の中で断られたら、請求されたかわからないので見込みの額
+    expect(await jobOf(async () => { throw new ImageBlockedError("blocked", 400); })).toEqual({ status: "failed", images: 0, cost: 0 });
+    expect(await jobOf(async () => { throw new ImageBlockedError("failed"); })).toEqual({ status: "failed", images: 0, cost: estimateImageCostUsd(MODEL, 2) });
     expect(await jobOf(async () => { throw new AiRequestRejected(400, "Gemini API 400"); })).toEqual({ status: "failed", images: 0, cost: 0 });
     expect(await jobOf(async () => { throw new AiUnavailableError("gemini", 402); })).toEqual({ status: "failed", images: 0, cost: 0 });
     // タイムアウト・5xx は請求されたかわからない（2 枚とも）

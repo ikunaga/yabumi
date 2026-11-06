@@ -15,9 +15,13 @@ export function photoConfigured(): boolean {
 export type GeneratedImage = { bytes: Uint8Array; mimeType: string; inputTokens: number };
 export type GenerateImage = (args: { prompt: string; aspectRatio: string }) => Promise<GeneratedImage>;
 
-// 安全の決まりで断られた（作られなかった）とき。画面にはそのことだけを出す
+// 安全の決まりで断られた（作られなかった）とき。画面にはそのことだけを出す。
+// httpStatus: HTTP の 4xx で断られたときの状態番号（処理の前に断られたので請求されない）。200 の返事の中で断られたときは null（請求されたかわからない）
 export class ImageBlockedError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    readonly httpStatus: number | null = null,
+  ) {
     super(message);
     this.name = "ImageBlockedError";
   }
@@ -61,7 +65,7 @@ export const generateWithGemini: GenerateImage = async ({ prompt, aspectRatio })
   if (!res.ok) {
     // 400 で安全の決まりに当たったときも、ここに来る。中身（指示文）はログに出さない
     const msg = json?.errors?.[0]?.message ?? (json as { error?: { message?: string } } | null)?.error?.message ?? "";
-    if (/safety|blocked|policy|prohibited/i.test(msg)) throw new ImageBlockedError(msg);
+    if (/safety|blocked|policy|prohibited/i.test(msg)) throw new ImageBlockedError(msg, res.status);
     // 402（支払いの準備ができていない）・403（API が有効でない・鍵の制限）・401（鍵が違う）は、時間をおいても直らない。運営者に知らせる
     if (isUnavailableResponse("gemini", res.status)) {
       const err = new AiUnavailableError("gemini", res.status);

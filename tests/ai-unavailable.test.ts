@@ -106,7 +106,10 @@ describe("Gemini の画像", () => {
     reply(408, { error: { message: "timeout" } });
     expect(notBilled(await generateWithGemini({ prompt: "p", aspectRatio: "4:5" }).catch((x: unknown) => x))).toBe(false);
     reply(400, { error: { message: "blocked by safety policy" } });
-    await expect(generateWithGemini({ prompt: "p", aspectRatio: "4:5" })).rejects.toBeInstanceOf(ImageBlockedError);
+    const blocked = await generateWithGemini({ prompt: "p", aspectRatio: "4:5" }).catch((x: unknown) => x);
+    expect(blocked).toBeInstanceOf(ImageBlockedError);
+    // HTTP の 400 で断られたことを持つ（請求されない。200 の返事の中の断りは null）
+    expect((blocked as ImageBlockedError).httpStatus).toBe(400);
     expect(reported).toEqual([]);
   });
 });

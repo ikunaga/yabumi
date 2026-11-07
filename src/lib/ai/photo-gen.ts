@@ -22,7 +22,7 @@ import {
   type PhotoIdea,
   type PhotoStyle,
 } from "./photo";
-import { estimateImageCostUsd } from "./pricing";
+import { estimateImageCostUsd, imageInputTokensBound } from "./pricing";
 import { productTypeOf } from "./product-guide";
 
 // AI で写真・絵をつくる処理（docs/architecture.md の 4.25 の ②、決定 D35）。
@@ -182,8 +182,10 @@ export async function runPhotoGeneration(
   const { data: notice } = await admin.from("ai_image_notices").select("owner_id").eq("owner_id", args.userId).maybeSingle();
   if (!notice) return { ok: false, message: "先に、AI の画像の注意を読んで「わかりました」を押してください。" };
 
-  // 押す前に、見込みの費用で予約する（同時に押されても上限を超えない）
-  const reserveUsd = estimateImageCostUsd(deps.model, count);
+  // 押す前に、見込みの費用で予約する（同時に押されても上限を超えない）。見込みは、実際の額がそれを超えない最大の額（指示文の長さから）
+  const prompt = buildPhotoPrompt(scene, args.style);
+  const tokensPerImage = imageInputTokensBound(prompt);
+  const reserveUsd = estimateImageCostUsd(deps.model, count, tokensPerImage * count);
   const { data: reserved, error: reserveError } = await admin.rpc("reserve_ai_images", {
     p_owner_id: args.userId,
     p_project_id: args.projectId,
@@ -205,7 +207,6 @@ export async function runPhotoGeneration(
   const jobId = r.job_id;
   const usedBefore = (r.user_month_images ?? count) - count;
 
-  const prompt = buildPhotoPrompt(scene, args.style);
   const results = await Promise.allSettled(Array.from({ length: count }, () => deps.generate({ prompt, aspectRatio: PHOTO_ASPECT[args.size] })));
 
   const stored: PhotoCandidate[] = [];
@@ -237,13 +238,16 @@ export async function runPhotoGeneration(
   // 枚数（利用者の月の枚数）には、できた分だけを数える
   const made = results.filter((x) => x.status === "fulfilled").length;
   const unclear = results.filter((x) => x.status === "rejected" && !imageNotBilled(x.reason)).length;
-  const unclearUsd = unclear ? estimateImageCostUsd(deps.model, unclear) : 0;
+  const unclearUsd = unclear ? estimateImageCostUsd(deps.model, unclear, tokensPerImage * unclear) : 0;
+  const settledUsd = made ? estimateImageCostUsd(deps.model, made, inputTokens) + unclearUsd : unclearUsd;
+  // 記録は実際の額のまま。見込みを超えたら（指示文のトークンが見込みより多かった）、上限を少しはみ出したので知らせる
+  if (settledUsd > reserveUsd + 1e-9) console.error("[photo-gen] 実際の額が予約の見込みを超えました", { reserveUsd, settledUsd, inputTokens, count });
   const { error: settleError } = await admin
     .from("ai_image_jobs")
     .update(
       made
-        ? { status: "done", images: made, cost_usd: estimateImageCostUsd(deps.model, made, inputTokens) + unclearUsd }
-        : { status: "failed", images: 0, cost_usd: unclearUsd },
+        ? { status: "done", images: made, cost_usd: settledUsd }
+        : { status: "failed", images: 0, cost_usd: settledUsd },
     )
     .eq("id", jobId);
   if (settleError) console.error("[photo-gen] 予約を直せませんでした", settleError.message);

@@ -70,14 +70,32 @@ export function identityPromptLines(plan: PlanData, use: Exclude<AiUse, "coach">
 //   前と同じ文（利用者が確かめた文）なら、前の印のまま
 // - 保存の共通の入口（lib/plan/save.ts の saveSectionValue）が、AI からの story に必ずかける（設計の相棒・相談のどちらから来ても）
 
+// 保存してあるあなたらしさを、印のために項目ごとに読む。前の形（文字列だけ）は印のない前の版としてオン、項目がなければ空。
+// 形に合わない項目があっても、ほかの項目の印（とくにオフ）は落とさない（normalizePlan はセクション全体が合わないと既定の値に戻すため、ここでは使わない）
+export function storyFlagsOf(raw: unknown): Story {
+  const src = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  return Object.fromEntries(
+    STORY_FIELDS.map((f) => {
+      const v = src[f];
+      if (typeof v === "string") return [f, { text: v, shareable: true }];
+      if (v && typeof v === "object") {
+        const o = v as { text?: unknown; shareable?: unknown };
+        return [f, { text: typeof o.text === "string" ? o.text : "", shareable: o.shareable !== false }];
+      }
+      return [f, { text: "", shareable: true }];
+    }),
+  ) as Story;
+}
+
 // まとめた文と、その材料（strength は 3 項目、summary は strength も含めた 4 項目をまとめる）
 const DERIVED_SOURCES: Partial<Record<StoryField, StoryField[]>> = {
   strength: ["why", "background", "struggle"],
   summary: ["why", "background", "struggle", "strength"],
 };
 
-function hasNotShareable(story: Story, fields: StoryField[]): boolean {
-  return fields.some((f) => story[f].text.trim() !== "" && !story[f].shareable);
+function hasNotShareable(story: Story, fields: StoryField[], prev?: Story | null): boolean {
+  // 保存してある前の値の、中身のあるオフの項目も材料として数える（AI の案がオフの項目を空にして送っても、まとめた文に中身が残りうるため）
+  return fields.some((f) => (story[f].text.trim() !== "" && !story[f].shareable) || (prev?.[f] && prev[f].text.trim() !== "" && !prev[f].shareable));
 }
 
 export function mergeStoryShareable(next: Story, prev: Story | null | undefined): Story {
@@ -88,7 +106,7 @@ export function mergeStoryShareable(next: Story, prev: Story | null | undefined)
   // strength を先に決める（summary の材料に strength が入るため）
   for (const f of ["strength", "summary"] as const) {
     const changed = merged[f].text.trim() !== "" && merged[f].text !== (prev?.[f]?.text ?? "");
-    if (changed && hasNotShareable(merged, DERIVED_SOURCES[f]!)) merged[f] = { ...merged[f], shareable: false };
+    if (changed && hasNotShareable(merged, DERIVED_SOURCES[f]!, prev)) merged[f] = { ...merged[f], shareable: false };
   }
   return merged;
 }

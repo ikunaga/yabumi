@@ -6,6 +6,7 @@ import { normalizeConsultTurn } from "@/lib/ai/consult-schema";
 import { buildImageBriefRequest } from "@/lib/ai/image-brief";
 import { buildPhotoIdeasRequest } from "@/lib/ai/photo";
 import { coachContextMessage, PLAN_COACH_SYSTEM } from "@/lib/ai/plan-coach-prompt";
+import { storyFlagsOf } from "@/lib/plan/story";
 import { mergeStoryShareable, normalizeCoachTurn, storyNeedsCheck, toSectionValue, toWireTurn, toWireValue } from "@/lib/ai/plan-coach-schema";
 import { buildNewsIdeasRequest, buildPlanIdeasRequest, hasPlanMaterial, type IdeaContext } from "@/lib/ai/post-ideas";
 import { PLAN_EXAMPLES, PRODUCT_GUIDES } from "@/lib/ai/product-guide";
@@ -259,6 +260,15 @@ describe("設計の相棒の案", () => {
     expect(storyNeedsCheck(m2, "summary")).toBe(true);
     // 材料ではない項目（思いなど）には、確かめての印を出さない
     expect(storyNeedsCheck(m2, "why")).toBe(false);
+  });
+
+  it("前の値のオフの項目も材料に数える。保存してある値は項目ごとに読み、形に合わない項目があってもオフを落とさない", () => {
+    const prev = storyFlagsOf({ why: "器が好き", background: { text: "病気で辞めた", shareable: false }, summary: { text: "あ".repeat(400) } });
+    expect([prev.why, prev.background.shareable, prev.struggle]).toEqual([{ text: "器が好き", shareable: true }, false, { text: "", shareable: true }]);
+    expect(storyFlagsOf(null).summary).toEqual({ text: "", shareable: true });
+    const next = toSectionValue("story", { why: "器が好き", background: "", strength: "目が育った", summary: "まとめ" }) as PlanData["story"];
+    const merged = mergeStoryShareable(next, prev);
+    expect([merged.background.shareable, merged.strength.shareable, merged.summary.shareable]).toEqual([false, false, false]);
   });
 
   it("保存してある会話の案は、前の形（項目がない・文字列だけ・値がない）でも表示で止まらない", () => {

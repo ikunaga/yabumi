@@ -7,7 +7,8 @@ vi.mock("server-only", () => ({}));
 import { ImageBlockedError, type GenerateImage } from "@/lib/ai/gemini-image";
 import { PHOTO_LIMITS } from "@/lib/ai/photo";
 import { AiRequestRejected, AiUnavailableError } from "@/lib/ai/provider-failure";
-import { estimateImageCostUsd } from "@/lib/ai/pricing";
+import { estimateImageCostUsd, imageInputTokensBound } from "@/lib/ai/pricing";
+import { buildPhotoPrompt } from "@/lib/ai/photo";
 import { acknowledgePhotoNotice, ownRecentPhotoJob, photoStatus, refreshCandidateUrls, runPhotoGeneration } from "@/lib/ai/photo-gen";
 import { readAiMark } from "@/lib/media/jpeg";
 import { MEDIA_BUCKET } from "@/lib/media/rules";
@@ -158,14 +159,17 @@ describe("つくる", () => {
       const job = data!.find((j) => !before.has(j.id))!;
       return { status: job.status, images: job.images, cost: Number(job.cost_usd) };
     };
-    const one = estimateImageCostUsd(MODEL, 1);
+    // 請求されたかわからない分は、予約と同じ見込み（指示文の長さからのトークンの上限）で数える
+    const bound = imageInputTokensBound(buildPhotoPrompt("朝の光が入るパン屋のカウンター", "photo"));
+    const unclear = (n: number) => estimateImageCostUsd(MODEL, n, bound * n);
+    const one = unclear(1);
     // 安全の決まりの断り: HTTP の 400 で断られたら請求されない。200 の返事の中で断られたら、請求されたかわからないので見込みの額
     expect(await jobOf(async () => { throw new ImageBlockedError("blocked", 400); })).toEqual({ status: "failed", images: 0, cost: 0 });
-    expect(await jobOf(async () => { throw new ImageBlockedError("failed"); })).toEqual({ status: "failed", images: 0, cost: estimateImageCostUsd(MODEL, 2) });
+    expect(await jobOf(async () => { throw new ImageBlockedError("failed"); })).toEqual({ status: "failed", images: 0, cost: unclear(2) });
     expect(await jobOf(async () => { throw new AiRequestRejected(400, "Gemini API 400"); })).toEqual({ status: "failed", images: 0, cost: 0 });
     expect(await jobOf(async () => { throw new AiUnavailableError("gemini", 402); })).toEqual({ status: "failed", images: 0, cost: 0 });
     // タイムアウト・5xx は請求されたかわからない（2 枚とも）
-    expect(await jobOf(async () => { throw new Error("Gemini API 503"); })).toEqual({ status: "failed", images: 0, cost: estimateImageCostUsd(MODEL, 2) });
+    expect(await jobOf(async () => { throw new Error("Gemini API 503"); })).toEqual({ status: "failed", images: 0, cost: unclear(2) });
     // 1 枚できて 1 枚がタイムアウトなら、できた 1 枚の額と、タイムアウトの 1 枚の見込みの額
     let n = 0;
     const partial = await jobOf(async (a) => {
@@ -175,6 +179,36 @@ describe("つくる", () => {
     expect(partial.status).toBe("done");
     expect(partial.images).toBe(1);
     expect(partial.cost).toBeCloseTo(estimateImageCostUsd(MODEL, 1, 120) + one, 6);
+  });
+
+  it("予約の見込みは、実際に直した額が超えない最大の額（指示文の長さから）。それでも超えたら知らせ、記録は実際の額のまま", async () => {
+    const reserved: number[] = [];
+    const spy = vi.spyOn(admin, "rpc");
+    const err = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const bound = imageInputTokensBound(buildPhotoPrompt("朝の光が入るパン屋のカウンター", "photo"));
+      // 1 枚はでき（指示文のトークンは上限まで）、1 枚は請求されたかわからない失敗
+      let n = 0;
+      const r = await run(alice, aliceId, aliceProject, async (a) => {
+        if (n++ === 0) throw new Error("timeout");
+        return { ...(await fakeImage(a)), inputTokens: bound };
+      });
+      expect(r.ok).toBe(true);
+      for (const c of spy.mock.calls) if (c[0] === "reserve_ai_images") reserved.push(Number((c[1] as { p_cost_usd: number }).p_cost_usd));
+      expect(reserved.at(-1)).toBeCloseTo(estimateImageCostUsd(MODEL, 2, bound * 2), 6);
+      const { data: job } = await admin.from("ai_image_jobs").select("cost_usd").eq("id", r.ok ? r.jobId : "").single();
+      expect(Number(job!.cost_usd)).toBeLessThanOrEqual(reserved.at(-1)! + 1e-9);
+      expect(err.mock.calls.some((c) => String(c[0]).includes("予約の見込みを超えました"))).toBe(false);
+      // 指示文のトークンが見込みより多く返ってきたら（あってはならないが）、知らせる。記録は実際の額
+      const big = await run(alice, aliceId, aliceProject, async (a) => ({ ...(await fakeImage(a)), inputTokens: bound * 10 }));
+      expect(big.ok).toBe(true);
+      expect(err.mock.calls.some((c) => String(c[0]).includes("予約の見込みを超えました"))).toBe(true);
+      const { data: bigJob } = await admin.from("ai_image_jobs").select("cost_usd").eq("id", big.ok ? big.jobId : "").single();
+      expect(Number(bigJob!.cost_usd)).toBeCloseTo(estimateImageCostUsd(MODEL, 2, bound * 20), 6);
+    } finally {
+      spy.mockRestore();
+      err.mockRestore();
+    }
   });
 
   it("他人のプロジェクトでは作れない", async () => {

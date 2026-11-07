@@ -49,6 +49,12 @@ export function imagePrice(model: string): ImagePrice {
   return IMAGE_PRICES[model] ?? FALLBACK_IMAGE_PRICE;
 }
 
+// 1 枚あたりの指示文のトークンの上限の見込み: 指示文の UTF-8 のバイト数（トークンはバイト数を超えない）と、決まった見込みの大きいほう。
+// 予約はこれで見込むので、実際に直した額（できた分は実際のトークン、請求されたかわからない分はこの見込み）が予約を超えない（文章の AI の M3 と同じ考え）
+export function imageInputTokensBound(prompt: string): number {
+  return Math.max(RESERVE_INPUT_TOKENS_PER_IMAGE, new TextEncoder().encode(prompt).length);
+}
+
 export function estimateImageCostUsd(model: string, images: number, inputTokens = RESERVE_INPUT_TOKENS_PER_IMAGE * images): number {
   const p = imagePrice(model);
   return Math.round((images * p.perImage + (inputTokens * p.inputPerMillion) / 1_000_000) * 1_000_000) / 1_000_000;

@@ -6,7 +6,7 @@ import { GoalError, setGoalActions, startMilestone } from "@/lib/goals/write";
 import type { Database } from "@/lib/supabase/database.types";
 import { isSnsKey, SNS_KEYS } from "@/lib/sns";
 import { toYmd } from "@/lib/time";
-import { mergeStoryShareable } from "./story";
+import { mergeStoryShareable, storyFlagsOf } from "./story";
 import { MAX_WEEKLY_PER_SNS, sectionSchemas, type PlanData, type SectionKey, type SectionValue } from "./schema";
 
 // アカウント設計の 1 セクションを保存する（画面・AI と考える・AI と相談の共通の入口。利用者の権限のクライアントで、RLS で本人のものだけ）。
@@ -67,10 +67,13 @@ export async function saveWeekly(user: Db, projectId: string, weekly: WeeklyTarg
   await startMilestone(user, projectId, next?.target ?? null);
 }
 
+// 保存してあるあなたらしさ（印のオフを残すために読む）。読めなかったら保存しない（前の印がない扱いにして、オフを消さない）。
+// 前の形（文字列だけ・項目が欠けている）も、項目ごとに読む（storyFlagsOf。セクション全体が形に合わなくても、オフの印は落とさない）
 async function loadStory(user: Db, projectId: string): Promise<PlanData["story"] | null> {
-  const { data } = await user.from("account_plans").select("data").eq("project_id", projectId).maybeSingle();
-  const parsed = sectionSchemas.story.safeParse((data?.data as Record<string, unknown> | null)?.story ?? {});
-  return parsed.success ? parsed.data : null;
+  const { data, error } = await user.from("account_plans").select("data").eq("project_id", projectId).maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return storyFlagsOf((data.data as Record<string, unknown> | null)?.story);
 }
 
 export async function loadFirstMonth(user: Db, projectId: string): Promise<PlanData["first_month"] | null> {

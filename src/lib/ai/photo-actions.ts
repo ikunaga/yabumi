@@ -74,15 +74,17 @@ export async function acknowledgePhoto(): Promise<{ error?: string }> {
 }
 
 // sns: 送り先の SNS（投稿の柱は、この SNS に付いたものだけを材料にする）
-export async function draftPhotoIdeas(projectId: string, text: unknown, sns: unknown = []): Promise<{ ideas?: PhotoIdea[]; error?: string }> {
+// templateId: 選んだ絵の説明のフォーマット（null はフォーマットなし。画面は「いつも使う」をはじめから選んでおく）
+export async function draftPhotoIdeas(projectId: string, text: unknown, sns: unknown = [], templateId: unknown = null): Promise<{ ideas?: PhotoIdea[]; error?: string }> {
   const t = z.string().max(10000).safeParse(text);
   const s = snsListSchema.safeParse(sns);
-  if (!z.uuid().safeParse(projectId).success || !t.success || !s.success) return { error: "入力の形式が正しくありません。" };
+  const tid = z.uuid().nullable().safeParse(templateId);
+  if (!z.uuid().safeParse(projectId).success || !t.success || !s.success || !tid.success) return { error: "入力の形式が正しくありません。" };
   if (!aiConfigured() || !photoConfigured()) return { error: "AI の画像はまだ準備中です。" };
   const { supabase, userId } = await currentUser();
   if (!userId) return { error: "ログインし直してください。" };
   try {
-    const r = await runPhotoIdeas(supabase, createAdminClient(), { callIdeas: callPhotoIdeas }, { userId, projectId, text: t.data, sns: s.data });
+    const r = await runPhotoIdeas(supabase, createAdminClient(), { callIdeas: callPhotoIdeas }, { userId, projectId, text: t.data, sns: s.data, templateId: tid.data });
     return r.ok ? { ideas: r.ideas } : { error: r.message };
   } catch (e) {
     console.error("[draftPhotoIdeas]", e instanceof Error ? e.message : e);

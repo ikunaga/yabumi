@@ -1,4 +1,5 @@
 import type { SnsKey } from "@/lib/sns";
+import { getTemplate } from "@/lib/photo-templates/store";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizePlan } from "@/lib/plan/schema";
 import { InvalidImageError, sanitizeJpeg } from "@/lib/media/jpeg";
@@ -116,7 +117,8 @@ export async function runPhotoIdeas(
   admin: Db,
   deps: { callIdeas: CallPhotoIdeas; now?: () => Date },
   // sns: 送り先の SNS（投稿の柱は、この SNS に付いたものだけを材料にする）
-  args: { userId: string; projectId: string; text: string; sns?: SnsKey[] },
+  // templateId: 選んだ絵の説明のフォーマット（null はフォーマットなし）
+  args: { userId: string; projectId: string; text: string; sns?: SnsKey[]; templateId?: string | null },
 ): Promise<IdeasOutcome> {
   const text = args.text.trim();
   if (!text) return { ok: false, message: "投稿の本文を書いてから押してください。絵の説明は本文から考えます。" };
@@ -124,6 +126,9 @@ export async function runPhotoIdeas(
   const { data: project } = await user.from("projects").select("*").eq("id", args.projectId).maybeSingle();
   if (!project) return { ok: false, message: "プロジェクトが見つかりません。" };
   const { data: planRow } = await user.from("account_plans").select("data").eq("project_id", args.projectId).maybeSingle();
+  // フォーマットは本人の、このプロジェクトのものだけ（RLS）。画面は「いつも使う」をはじめから選んでおき、「なし」を選んだら null を送る
+  const format = args.templateId ? await getTemplate(user, args.projectId, args.templateId) : null;
+  if (args.templateId && !format) return { ok: false, message: "フォーマットが見つかりません。画面を読み込み直してください。" };
 
   let r: ModelOutput;
   try {
@@ -134,6 +139,7 @@ export async function runPhotoIdeas(
       buildPhotoIdeasRequest(
         { projectName: project.name, plan: normalizePlan(planRow?.data, project.target_audience ?? ""), productType: productTypeOf(project.product_type), sns: args.sns },
         text,
+        format?.body,
       ),
       deps.callIdeas,
     );

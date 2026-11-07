@@ -13,6 +13,9 @@ import { MAX_ALT_LENGTH, PREVIEW_URL_SECONDS } from "@/lib/media/rules";
 import { TEMPLATE_SIZES, type TemplateSizeKey } from "@/lib/media/templates";
 import { AiBadge } from "./ai-badge";
 import { Choice, Group } from "./maker-parts";
+import { PhotoTemplatePicker, SaveAsTemplate } from "./photo-templates";
+import { listPhotoTemplates, type TemplatesResult } from "@/lib/photo-templates/actions";
+import { SCENE_SLOT, fillTemplate, hasSceneSlot, type PhotoTemplate } from "@/lib/photo-templates/schema";
 
 export type PickedPhoto = { jobId: string; bitmap: ImageBitmap; scene: string };
 
@@ -64,6 +67,11 @@ export function PhotoMaker({
   const [drafting, startDraft] = useTransition();
   const [making, startMake] = useTransition();
   const [acking, startAck] = useTransition();
+  // 絵の説明のフォーマット（「いつも使う」をはじめから選ぶ）。lastIdea: 最後に選んだ AI の案の場面（フォーマットを替えたときに差し込み直す）
+  const [templates, setTemplates] = useState<PhotoTemplate[]>([]);
+  const [examples, setExamples] = useState<{ name: string; body: string }[]>([]);
+  const [templateId, setTemplateId] = useState<string | null>(null);
+  const [lastIdea, setLastIdea] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -72,10 +80,43 @@ export function PhotoMaker({
       if (r.state) setState(r.state);
       else setError(r.error ?? "読み込めませんでした。");
     });
+    void listPhotoTemplates(projectId).then((r) => {
+      if (!alive || !r.templates) return;
+      setTemplates(r.templates);
+      setExamples(r.examples ?? []);
+      setTemplateId(r.templates.find((t) => t.isDefault)?.id ?? null);
+    });
     return () => {
       alive = false;
     };
-  }, []);
+  }, [projectId]);
+
+  const template = templates.find((t) => t.id === templateId) ?? null;
+
+  // 操作のあとの一覧に入れ替える（選んでいたものが消えたら「なし」に）
+  function onTemplates(r: TemplatesResult) {
+    if (r.error) {
+      setError(r.error);
+      return;
+    }
+    setError(null);
+    setTemplates(r.templates ?? []);
+    if (r.examples) setExamples(r.examples);
+    if (templateId && !r.templates?.some((t) => t.id === templateId)) setTemplateId(null);
+  }
+
+  // フォーマットを選ぶと、その本文を絵の説明に入れる（{場面} には、最後に選んだ AI の案の場面を差し込む）
+  function selectTemplate(t: PhotoTemplate | null) {
+    setTemplateId(t?.id ?? null);
+    // 案をまだ選んでいなければ、{場面} は穴のまま入れる（書き換えるまで作れない）
+    if (t) setScene(lastIdea || !hasSceneSlot(t.body) ? fillTemplate(t.body, lastIdea) : t.body);
+    else if (lastIdea) setScene(lastIdea);
+  }
+
+  function pickIdea(ideaScene: string) {
+    setLastIdea(ideaScene);
+    setScene(template ? fillTemplate(template.body, ideaScene) : ideaScene);
+  }
 
   // 候補に戻ってきたとき、表示の URL が切れかけていれば作り直す
   useEffect(() => {
@@ -147,13 +188,13 @@ export function PhotoMaker({
   function draft() {
     startDraft(async () => {
       setError(null);
-      const r = await draftPhotoIdeas(projectId, text, targets);
+      const r = await draftPhotoIdeas(projectId, text, targets, templateId);
       if (!r.ideas) {
         setError(r.error ?? "うまくいきませんでした。");
         return;
       }
       setIdeas(r.ideas);
-      setScene(r.ideas[0].scene);
+      pickIdea(r.ideas[0].scene);
     });
   }
 
@@ -192,8 +233,13 @@ export function PhotoMaker({
     }
   }
 
+  // {場面} を書き換えないまま作らない（画像の AI に穴のまま送らない）
+  const slotLeft = hasSceneSlot(scene);
+
   return (
     <div className="flex flex-col gap-4">
+      <PhotoTemplatePicker projectId={projectId} templates={templates} examples={examples} selectedId={templateId} onSelect={selectTemplate} onChange={onTemplates} />
+
       <div className="flex flex-col gap-2 rounded-md bg-surface2 px-3.5 py-3 text-sm">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           {state.ideasEnabled ? (
@@ -205,7 +251,9 @@ export function PhotoMaker({
               AI に絵の説明の案を出してもらう
             </NotReadyButton>
           )}
-          <span className="text-xs text-muted">{hasText ? "本文とアカウント設計から 2〜3 案（1 回 2 円ほど）" : "本文を書くと、AI が場面を考えます。手で書いても作れます"}</span>
+          <span className="text-xs text-muted">
+            {hasText ? `本文とアカウント設計${template ? "・フォーマット" : ""}から 2〜3 案（1 回 2 円ほど）` : "本文を書くと、AI が場面を考えます。手で書いても作れます"}
+          </span>
         </div>
         {drafting && <AiThinking kind="scene" note="10〜20 秒ほどかかります" />}
         {ideas.length > 0 && (
@@ -214,9 +262,9 @@ export function PhotoMaker({
               <li key={idea.scene}>
                 <button
                   type="button"
-                  aria-pressed={scene === idea.scene}
-                  onClick={() => setScene(idea.scene)}
-                  className={`flex w-full flex-col gap-0.5 rounded-md border px-3 py-2 text-left transition-colors ${scene === idea.scene ? "border-primary bg-primary-soft" : "border-border bg-surface hover:border-primary"}`}
+                  aria-pressed={lastIdea === idea.scene}
+                  onClick={() => pickIdea(idea.scene)}
+                  className={`flex w-full flex-col gap-0.5 rounded-md border px-3 py-2 text-left transition-colors ${lastIdea === idea.scene ? "border-primary bg-primary-soft" : "border-border bg-surface hover:border-primary"}`}
                 >
                   <span className="font-bold">{idea.title}</span>
                   <span className="text-xs leading-[1.7] text-muted">{idea.why}</span>
@@ -232,8 +280,11 @@ export function PhotoMaker({
       <label className="flex flex-col gap-1.5">
         <span className="text-[14px] font-bold">絵の説明</span>
         <Textarea value={scene} rows={4} maxLength={MAX_SCENE_CHARS} onChange={(e) => setScene(e.target.value)} placeholder="例: 朝の光が入る木のカウンターに、焼きたてのパンが並んでいる。近くから少し斜めに" className="py-2 text-sm" />
-        <span className="text-xs text-muted">何が・どこで・どんな光と雰囲気か。文字は入れずに作り、見出しはあとで重ねられます</span>
+        <span className={`text-xs ${slotLeft ? "font-bold text-signal" : "text-muted"}`}>
+          {slotLeft ? `${SCENE_SLOT} を、写したいもの（例: 焼きたてのパンが並んだカウンター）に書き換えてください` : "何が・どこで・どんな光と雰囲気か。文字は入れずに作り、見出しはあとで重ねられます"}
+        </span>
       </label>
+      <SaveAsTemplate projectId={projectId} body={scene} disabled={!scene.trim()} onSaved={onTemplates} />
 
       <Group label="描き方">
         {PHOTO_STYLES.map((s) => (
@@ -259,7 +310,7 @@ export function PhotoMaker({
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         {state.enabled ? (
-          <Button type="button" disabled={!canMake || making || !scene.trim()} onClick={make}>
+          <Button type="button" disabled={!canMake || making || !scene.trim() || slotLeft} onClick={make}>
             {making ? "つくっています…" : `つくる（${n} 枚・約 ${n * state.unitYen} 円）`}
           </Button>
         ) : (

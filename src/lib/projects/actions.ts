@@ -9,6 +9,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { parseDestinationsForm, saveDestinations } from "./destinations";
 import { parseProjectForm, toFieldErrors, type ProjectFieldErrors } from "./schema";
+import { isProjectLimitError, PROJECT_LIMIT_TEXT, projectLimitReached } from "./limits";
 
 export type ProjectFormState = {
   error?: string;
@@ -34,9 +35,13 @@ export async function createProject(_prev: ProjectFormState, formData: FormData)
   }
 
   const supabase = await createClient();
+  // 1 人 10 個まで（DB のトリガーでも断る。ここは先に分かりやすい文で返すため。RLS で自分のものだけ数える）
+  const { count } = await supabase.from("projects").select("id", { count: "exact", head: true });
+  if (projectLimitReached(count ?? 0)) return { error: `${PROJECT_LIMIT_TEXT}。使っていないプロジェクトを消してから作ってください。`, values: echoValues(formData) };
   // アプリでなければ、ストアの URL は入れない（欄も出していない）
   const row = parsed.data.product_type === "app" ? parsed.data : { ...parsed.data, app_store_url: null, play_store_url: null };
   const { data, error } = await supabase.from("projects").insert(row).select("id").single();
+  if (isProjectLimitError(error)) return { error: `${PROJECT_LIMIT_TEXT}。使っていないプロジェクトを消してから作ってください。`, values: echoValues(formData) };
   if (error) {
     return { error: "プロジェクトを作成できませんでした。時間をおいてもう一度お試しください。", values: echoValues(formData) };
   }

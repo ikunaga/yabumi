@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { DismissableDetails } from "@/components/ui/dismissable-details";
+import { PROJECT_LIMIT_TEXT, projectLimitReached } from "@/lib/projects/limits";
 
 // プロジェクト切替。details で開閉し、外側クリックと Esc で閉じる
 export function ProjectSwitcher({
@@ -44,9 +45,13 @@ export function ProjectSwitcher({
           <Link href="/projects" className="block px-4 py-2.5 hover:bg-subtle">
             すべてのプロジェクト
           </Link>
-          <Link href="/projects/new" className="block px-4 py-2.5 hover:bg-subtle">
-            ＋ 新しいプロジェクト
-          </Link>
+          {projectLimitReached(projects.length) ? (
+            <p className="px-4 py-2.5 text-muted">{PROJECT_LIMIT_TEXT}</p>
+          ) : (
+            <Link href="/projects/new" className="block px-4 py-2.5 hover:bg-subtle">
+              ＋ 新しいプロジェクト
+            </Link>
+          )}
         </div>
       </div>
     </DismissableDetails>

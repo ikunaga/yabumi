@@ -3,13 +3,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { TopBar } from "@/components/nav/top-bar";
 import { SnsResultBanner } from "@/components/projects/sns-result-banner";
-import { ButtonLink } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { SnsMark } from "@/components/ui/marks";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, EmptyState } from "@/components/ui/card";
 import { SuccessBanner } from "@/components/ui/feedback";
 import { requireUser } from "@/lib/auth/user";
 import { listNextStep } from "@/lib/projects/next-step";
+import { PROJECT_LIMIT_TEXT, projectLimitReached } from "@/lib/projects/limits";
 import { listProjects } from "@/lib/projects/queries";
 import { loadStepStates } from "@/lib/projects/step-state";
 
@@ -35,7 +36,17 @@ export default async function ProjectsPage(props: PageProps<"/projects">) {
         <PageHeader
           title="プロジェクト"
           sub={projects.length > 0 ? `${projects.length} 件` : undefined}
-          actions={projects.length > 0 && <ButtonLink href="/projects/new">＋ 新しいプロジェクト</ButtonLink>}
+          actions={
+            projects.length > 0 &&
+            (projectLimitReached(projects.length) ? (
+              <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span className="text-sm text-muted">{PROJECT_LIMIT_TEXT}</span>
+                <Button disabled>＋ 新しいプロジェクト</Button>
+              </span>
+            ) : (
+              <ButtonLink href="/projects/new">＋ 新しいプロジェクト</ButtonLink>
+            ))
+          }
         />
 
         <SnsResultBanner error={sns_error} />

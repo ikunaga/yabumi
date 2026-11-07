@@ -3,7 +3,7 @@ import { STORY_FIELDS, sectionSchemas, type PlanData, type StoryField } from "./
 // あなたらしさ（story）とコンセプト（concept）を AI に渡す形（2026-11-03 オーナーの了承。docs/architecture.md の 4.50）。
 // あなたらしさは、人生の背景や悩みなど個人的な内容なので、どの AI に何を渡すかをここだけで決める（storyForAi）。
 // - 設計の相棒（coach）: まとめる（summary・strength の案を出す）ために、印のない項目も渡す。案の材料（柱・自己紹介文）には印のある項目だけを使うよう指示する
-// - ネタ出し・整える・見直し・画像の案・相談: 「投稿に使ってよい」（shareable）の項目だけ
+// - ネタ出し・整える・見直し・画像の案・相談: 「投稿に使ってよい」（shareable）の項目だけ。確かめの印（check）のある項目は、確かめるまで渡さない
 
 export type Story = PlanData["story"];
 
@@ -30,9 +30,11 @@ function storyOf(raw: unknown): Story {
 // その AI に渡してよい、あなたらしさの項目（中身のあるものだけ）
 export function storyForAi(raw: unknown, use: AiUse): StoryLine[] {
   const story = storyOf(raw);
-  return STORY_FIELDS.map((f) => ({ field: f, label: STORY_LABEL[f], text: story[f].text.trim(), shareable: story[f].shareable }))
-    .filter((l) => l.text)
-    .filter((l) => use === "coach" || l.shareable);
+  // 確かめの印（check。「投稿に使わない」項目があるときに AI が文を変えた項目）のある項目は、利用者が確かめる（画面で保存して印が消える）まで、
+  // 設計の相棒のほかには渡さない（確かめずにオフの中身が漏れないように。セキュリティ確認 2026-11-06 の APP-L1-b）
+  return STORY_FIELDS.filter((f) => use === "coach" || (story[f].shareable && story[f].check !== true))
+    .map((f) => ({ field: f, label: STORY_LABEL[f], text: story[f].text.trim(), shareable: story[f].shareable }))
+    .filter((l) => l.text);
 }
 
 // 設計をそのまま JSON で渡す AI（相談）向け: あなたらしさを、その AI に渡してよい項目だけにした設計

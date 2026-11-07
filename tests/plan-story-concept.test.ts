@@ -109,6 +109,18 @@ describe("画面の欄", () => {
 });
 
 describe("あなたらしさを AI に渡す範囲（storyForAi）", () => {
+  it("確かめの印（check）のある項目は、確かめる（画面で保存して印が消える）まで、設計の相棒のほかには渡さない", () => {
+    const st = { ...plan.story, why: { text: "病気で辞めたのがきっかけ", shareable: true, check: true } };
+    expect(storyForAi(st, "coach").map((l) => l.field)).toContain("why");
+    for (const use of AI_USES.filter((u) => u !== "coach")) {
+      expect(storyForAi(st, use).map((l) => l.field), use).not.toContain("why");
+      expect(planForAi({ ...plan, story: st }, use).story.why.text, use).toBe("");
+    }
+    // 画面で保存し直すと印が消え、渡る
+    const confirmed = { ...st, why: { text: "病気で辞めたのがきっかけ", shareable: true } };
+    expect(storyForAi(confirmed, "ideas").map((l) => l.field)).toContain("why");
+  });
+
   it("設計の相棒には全部、ほかの AI には「投稿に使ってよい」ものだけ", () => {
     expect(storyForAi(plan.story, "coach").map((l) => l.field)).toEqual(["why", "background", "summary"]);
     for (const use of AI_USES.filter((u) => u !== "coach")) {

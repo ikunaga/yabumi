@@ -600,7 +600,7 @@ function StoryFields({ v, ex }: { v: PlanData["story"]; ex: PlanExamples }) {
           {storyNeedsCheck(v, f) === "turn_on" && (
             <p className="text-xs font-bold text-signal">● 「投稿に使わない」項目が入っていないか確かめてから、「投稿に使ってよい」をオンにしてください</p>
           )}
-          {storyNeedsCheck(v, f) === "content" && <p className="text-xs font-bold text-signal">● 確かめてください（投稿に使わない項目の中身が入っていないか）</p>}
+          {storyNeedsCheck(v, f) === "content" && <p className="text-xs font-bold text-signal">● 確かめてください（投稿に使わない項目の中身が入っていないか）。確かめて保存するまで、投稿をつくる AI には渡しません</p>}
         </div>
       ))}
     </>

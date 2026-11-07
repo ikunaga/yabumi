@@ -2,7 +2,7 @@
 // 一覧で、プロジェクトの数にかかわらず 1 回で取れること、ほかの人のプロジェクトは返さないこと、ログインしていない人は呼べないこと
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { listNextStep } from "@/lib/projects/next-step";
-import { adminClient, anonClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
+import { adminClient, anonClient, deleteUser, signUpNewUser, type TestClient, goalLess } from "./helpers/supabase";
 
 const admin = adminClient();
 const WEEK = "2026-10-19";
@@ -50,14 +50,14 @@ describe("project_step_flags", () => {
   });
 
   it("目標かやることがあればロードマップあり。今週のまだのやることだけを数える", async () => {
-    const { error: itemsError } = await admin.from("roadmap_items").insert([
+    const { error: itemsError } = await admin.from("roadmap_items").insert(goalLess([
       { project_id: posted, owner_id: aliceId, title: "今週 1", week_start: WEEK, status: "todo" },
       { project_id: posted, owner_id: aliceId, title: "今週 2", week_start: WEEK, status: "todo" },
       { project_id: posted, owner_id: aliceId, title: "今週 済み", week_start: WEEK, status: "done" },
       { project_id: posted, owner_id: aliceId, title: "来週", week_start: "2026-10-26", status: "todo" },
-    ]);
+    ]));
     expect(itemsError).toBeNull();
-    await admin.from("roadmaps").insert({ project_id: fresh, owner_id: aliceId, kgi: { statement: "12 本", kpi: "posts", target: 12, deadline: "2026-12-31", sns: null } });
+    await admin.from("goals").insert({ project_id: fresh, owner_id: aliceId, statement: "SNS から 30 クリック", metric: "link_clicks", target: 30, starts_on: WEEK, ends_on: "2026-12-31" });
     const f = await flags(alice);
     expect(f.get(posted)).toMatchObject({ has_published: true, has_roadmap: true, this_week_todo: 2 });
     expect(f.get(fresh)).toMatchObject({ has_published: false, has_roadmap: true, this_week_todo: 0 });

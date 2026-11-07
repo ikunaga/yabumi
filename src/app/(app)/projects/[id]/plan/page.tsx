@@ -36,9 +36,9 @@ export default async function PlanPage(props: PageProps<"/projects/[id]/plan">) 
     loadGoals(supabase, id),
   ]);
   if (!stored || !project) notFound();
-  // 週の回数と 1 か月の区切りは、いまの目標（goals）が正。JSON の first_month の値は前の作りのまま残っている
+  // 週の回数と 1 か月の区切りは、いまの目標（goals）が正（JSON の first_month には持たない）
   const cycle = cycleFromMilestones(goals.active?.milestones ?? [], goals.today);
-  const plan = { ...stored, plan: { ...stored.plan, first_month: withGoalWeekly(stored.plan.first_month, goals.active?.actions ?? [], cycle?.startedOn ?? null) } };
+  const plan = { ...stored, plan: { ...stored.plan, first_month: withGoalWeekly(stored.plan.first_month, goals.active?.actions ?? []) } };
   const profileLinks: Partial<Record<SnsKey, string>> = {};
   for (const l of links) if (l.kind === "profile" && !l.disabled && l.sns && !profileLinks[l.sns]) profileLinks[l.sns] = l.url;
 

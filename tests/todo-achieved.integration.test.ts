@@ -3,7 +3,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { listNextStep } from "@/lib/projects/next-step";
 import { loadRoadmapWith, thisWeekCounts, thisWeekTodos } from "@/lib/roadmap/load";
-import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
+import { adminClient, deleteUser, signUpNewUser, type TestClient, goalLess } from "./helpers/supabase";
 
 const admin = adminClient();
 const WEEK = "2026-10-19";
@@ -40,12 +40,12 @@ beforeAll(async () => {
   ({ client: alice, userId: aliceId } = await signUpNewUser());
   ({ client: bob, userId: bobId } = await signUpNewUser());
   projectId = (await alice.from("projects").insert({ name: "達成" }).select("id").single()).data!.id;
-  const items = await admin.from("roadmap_items").insert([
+  const items = await admin.from("roadmap_items").insert(goalLess([
     { project_id: projectId, owner_id: aliceId, title: "2 本投稿", week_start: WEEK, status: "todo", kpi: "posts", target: 2, position: 0 },
     { project_id: projectId, owner_id: aliceId, title: "3 本投稿", week_start: WEEK, status: "todo", kpi: "posts", target: 3, position: 1 },
     { project_id: projectId, owner_id: aliceId, title: "クリック 5 回", week_start: WEEK, status: "todo", kpi: "link_clicks", target: 5, position: 2 },
     { project_id: projectId, owner_id: aliceId, title: "フォロワー 10", week_start: WEEK, status: "todo", kpi: "followers", target: 10, position: 3 },
-  ]);
+  ]));
   if (items.error) throw items.error;
   const link = await admin
     .from("short_links")

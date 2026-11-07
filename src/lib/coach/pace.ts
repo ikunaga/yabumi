@@ -1,6 +1,5 @@
 import { SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
 import { addDays, weekdayOf } from "@/lib/time";
-import type { PlanData } from "@/lib/plan/schema";
 import type { Milestone } from "@/lib/goals/schema";
 
 // 伴走（F18、決定 D29。docs/architecture.md の 4.27）のペースの計算。画面・毎日のジョブ・メールが同じ計算を使う。
@@ -111,13 +110,4 @@ export function cycleFromMilestones(milestones: Pick<Milestone, "startsOn" | "en
 // その日を含む週の月曜
 export function mondayOf(ymd: string): string {
   return addDays(ymd, 1 - isoWeekday(ymd));
-}
-
-// 最初の 1 か月を保存するときの数え始めの日: 週の回数を初めて決めたとき、1 か月が終わったあと、または「次の 1 か月を始める」のとき、今週の月曜から。
-// ほかは前の日のまま（画面や AI の案は数え始めの日を送らない）
-export function withFirstMonthCycle(next: PlanData["first_month"], prev: PlanData["first_month"] | null, today: string, restart = false): PlanData["first_month"] {
-  if (!hasTargets(next.weekly)) return { ...next, startedOn: prev?.startedOn ?? null };
-  const started = prev?.startedOn ?? null;
-  const fresh = !started || restart || cycleInfo(started, today).ended;
-  return { ...next, startedOn: fresh ? mondayOf(today) : started };
 }

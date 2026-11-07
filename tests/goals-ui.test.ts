@@ -89,14 +89,14 @@ describe("数字のカードと週の回数の欄", () => {
     expect(kpiCardKeys([], "app", ["views"])).toEqual(["views"]);
   });
 
-  it("週の回数と数え始めは、行動の目標と区切りで置き換える（JSON の前の値は使わない）", () => {
-    const fm = { goal: "前の文", metrics: "", kpis: [], weekly: { x: 9 }, startedOn: "2026-09-07" };
+  it("週の回数は、行動の目標で置き換える（JSON の前の値は使わない）", () => {
+    const fm = { goal: "前の文", metrics: "", kpis: [], weekly: { x: 9 } };
     const actions = [
       { role: "action" as const, sns: "x" as const, perWeek: 3 },
       { role: "action" as const, sns: null, perWeek: 5 },
       { role: "action" as const, sns: "instagram" as const, perWeek: 2 },
     ];
-    expect(withGoalWeekly(fm, actions, "2026-11-02")).toEqual({ goal: "前の文", metrics: "", kpis: [], weekly: { x: 3, instagram: 2 }, startedOn: "2026-11-02" });
-    expect(withGoalWeekly(fm, [], null)).toMatchObject({ weekly: {}, startedOn: null });
+    expect(withGoalWeekly(fm, actions)).toEqual({ goal: "前の文", metrics: "", kpis: [], weekly: { x: 3, instagram: 2 } });
+    expect(withGoalWeekly(fm, [])).toMatchObject({ weekly: {} });
   });
 });

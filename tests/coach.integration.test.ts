@@ -5,8 +5,7 @@ import { runCoachJob } from "@/lib/coach/job";
 import { loadCoachView } from "@/lib/coach/load";
 import { saveSectionValue } from "@/lib/plan/save";
 import { sectionSchemas } from "@/lib/plan/schema";
-import { saveGoal } from "@/lib/roadmap/write";
-import { adminClient, anonClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
+import { adminClient, anonClient, deleteUser, signUpNewUser, type TestClient, goalLess } from "./helpers/supabase";
 
 vi.mock("server-only", () => ({}));
 
@@ -62,7 +61,7 @@ async function moveCycleTo(startsOn: string) {
 }
 
 describe("週の回数", () => {
-  it("決めると行動の目標に書き、今週から 1 か月の区切りを始める。アカウント設計の JSON の週の回数と roadmaps は書き換えない", async () => {
+  it("決めると行動の目標に書き、今週から 1 か月の区切りを始める。アカウント設計の JSON には週の回数と区切りを書かない", async () => {
     const r = await saveSectionValue(alice, projectId, "first_month", firstMonth({ x: 2, instagram: 1 }), "manual");
     expect(r.ok).toBe(true);
     const { data: g } = await alice.from("goals").select("id").eq("project_id", projectId).eq("status", "active").single();
@@ -74,8 +73,10 @@ describe("週の回数", () => {
     const { data: ms } = await alice.from("goal_milestones").select("seq, settled_at").eq("goal_id", g!.id);
     expect(ms).toEqual([{ seq: 1, settled_at: null }]);
     const { data } = await alice.from("account_plans").select("data").eq("project_id", projectId).single();
-    expect((data!.data as { first_month: unknown }).first_month).toMatchObject({ goal: "4 週間続ける", weekly: {}, startedOn: null });
-    expect((await alice.from("roadmaps").select("project_id").eq("project_id", projectId)).data).toEqual([]);
+    const fm = (data!.data as { first_month: Record<string, unknown> }).first_month;
+    expect(fm).toMatchObject({ goal: "4 週間続ける" });
+    expect(fm).not.toHaveProperty("weekly");
+    expect(fm).not.toHaveProperty("startedOn");
   });
 
   it("回数を変えても区切りは変えない。「次の 1 か月を始める」で今週から数え直し、前の区切りは振り返り済みになる", async () => {
@@ -93,15 +94,6 @@ describe("週の回数", () => {
     await admin.from("goal_milestones").delete().eq("goal_id", g!.id).eq("seq", 2);
     await admin.from("goal_milestones").update({ settled_at: null, result_value: null }).eq("goal_id", g!.id);
     await moveCycleTo("2026-10-12");
-  });
-
-  it("前の作りの書き方（AI と相談の saveGoal）で SNS ごとの投稿した回数を変えても、橋渡しで週の回数がそろう", async () => {
-    await saveGoal(alice, projectId, { kgi: null, kpiTargets: [{ kpi: "posts", per_week: 3, sns: "x" }, { kpi: "posts", per_week: 1, sns: "instagram" }] }, "manual", new Date("2026-10-13T03:00:00Z"));
-    const view = await loadCoachView(alice, projectId, { now: WED });
-    expect(view!.targets).toEqual({ x: 3, instagram: 1 });
-    // 元に戻す（以下のテストは X 2・Instagram 1）
-    await saveSectionValue(alice, projectId, "first_month", firstMonth({ x: 2, instagram: 1 }), "manual");
-    expect((await loadCoachView(alice, projectId, { now: WED }))!.targets).toEqual({ x: 2, instagram: 1 });
   });
 });
 
@@ -207,7 +199,7 @@ describe("予定日を過ぎたやること（ロードマップ）", () => {
     p3 = (await carol.from("projects").insert({ name: "予定日のテスト" }).select("id").single()).data!.id;
     const { data, error: insertError } = await carol
       .from("roadmap_items")
-      .insert([
+      .insert(goalLess([
         { project_id: p3, title: "Instagram に作品の感想を 1 本", week_start: "2026-10-12", planned_on: "2026-10-13", kpi: "posts", target: 1, sns: "instagram", status: "todo" },
         // 予約した投稿を結びつけたもの（過ぎたことにしない）
         { project_id: p3, title: "X に開発の話", week_start: "2026-10-12", planned_on: "2026-10-13", kpi: null, target: null, sns: null, status: "todo" },
@@ -215,7 +207,7 @@ describe("予定日を過ぎたやること（ロードマップ）", () => {
         { project_id: p3, title: "済んだ", week_start: "2026-10-12", planned_on: "2026-10-12", kpi: null, target: null, sns: null, status: "done" },
         { project_id: p3, title: "まだ先", week_start: "2026-10-12", planned_on: "2026-10-16", kpi: null, target: null, sns: null, status: "todo" },
         { project_id: p3, title: "ずっと前", week_start: "2026-09-28", planned_on: "2026-09-30", kpi: null, target: null, sns: null, status: "todo" },
-      ])
+      ]))
       .select("id, title");
     if (!data) throw new Error(JSON.stringify(insertError));
     itemId = data!.find((r) => r.title.startsWith("Instagram"))!.id;

@@ -7,7 +7,7 @@ import type { CallModel } from "@/lib/ai/plan-coach";
 import { weekStartOf } from "@/lib/roadmap/schema";
 import { addDays, toYmd } from "@/lib/time";
 import { scopeAiBudget } from "./helpers/ai-budget";
-import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
+import { adminClient, deleteUser, signUpNewUser, type TestClient, goalLess } from "./helpers/supabase";
 
 const admin = adminClient();
 const usage = { inputTokens: 1000, cacheWriteTokens: 0, cacheReadTokens: 0, outputTokens: 500 };
@@ -26,7 +26,7 @@ const close = (projectId: string, threadId: string) => closeConsultThread(alice,
 
 const newProject = async (client: TestClient, name = "季節の器") => (await client.from("projects").insert({ name, description: "器の店", target_audience: "30 代" }).select("id").single()).data!.id;
 const addItem = async (client: TestClient, projectId: string, title: string, kind: string | null, weekStart = thisWeek) =>
-  (await client.from("roadmap_items").insert({ project_id: projectId, title, kind, week_start: weekStart }).select("id").single()).data!.id;
+  (await client.from("roadmap_items").insert(goalLess({ project_id: projectId, title, kind, week_start: weekStart })).select("id").single()).data!.id;
 const statusOf = async (id: string) => (await admin.from("roadmap_items").select("status, done_at").eq("id", id).single()).data!;
 const threadCount = async (projectId: string) => (await admin.from("ai_threads").select("id", { count: "exact", head: true }).eq("project_id", projectId)).count;
 

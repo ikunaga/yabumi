@@ -89,10 +89,9 @@ export function kpiCardKeys(kpis: Pick<GoalKpi, "metric">[], productType: string
   return keys.length ? keys : fallback;
 }
 
-// アカウント設計の「週の回数」の欄に出す値: JSON の first_month の週の回数と数え始めを、いまの目標の行動の目標と区切りで置き換える
-// （段階 ② から JSON の weekly・startedOn は前の作りの値のまま残り、正は goals）
-export function withGoalWeekly<T extends { weekly: Partial<Record<SnsKey, number>>; startedOn: string | null }>(fm: T, actions: Pick<GoalKpi, "role" | "sns" | "perWeek">[], cycleStartedOn: string | null): T {
+// アカウント設計の「週の回数」の欄に出す値: いまの目標の行動の目標（goals が正。JSON の first_month には週の回数を持たない。段階 ④）
+export function withGoalWeekly<T extends { weekly: Partial<Record<SnsKey, number>> }>(fm: T, actions: Pick<GoalKpi, "role" | "sns" | "perWeek">[]): T {
   const weekly: Partial<Record<SnsKey, number>> = {};
   for (const a of actions) if (a.role === "action" && a.sns) weekly[a.sns] = a.perWeek;
-  return { ...fm, weekly, startedOn: cycleStartedOn };
+  return { ...fm, weekly };
 }

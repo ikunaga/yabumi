@@ -75,9 +75,9 @@ describe("アカウント設計のデータ", () => {
   });
 });
 
-describe("最初の 1 か月の数え始め（2026-11-06 のセキュリティ確認の M1）", () => {
-  it("ない日（2026-02-30）は読まない", () => {
-    const plan = normalizePlan({ first_month: { goal: "", metrics: "", kpis: [], weekly: { x: 2 }, startedOn: "2026-02-30" } }, "30 代");
-    expect(plan.first_month.startedOn).not.toBe("2026-02-30");
+describe("最初の 1 か月の週の回数・区切りの始まり（段階 ④。セキュリティ確認の DB-L1）", () => {
+  it("JSON に前の作りの値（週の回数・区切りの始まり）が残っていても読まない（goals が正）", () => {
+    const plan = normalizePlan({ first_month: { goal: "続ける", metrics: "", kpis: [], weekly: { x: 2 }, startedOn: "2026-02-30" } }, "30 代");
+    expect(plan.first_month).toEqual({ goal: "続ける", metrics: "", kpis: [], weekly: {} });
   });
 });

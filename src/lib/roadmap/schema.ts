@@ -69,9 +69,6 @@ export type ItemInput = Omit<z.infer<typeof itemSchema>, "kind"> & { kind?: Todo
 
 // ===== AI の提案の中身（value_json）。サーバーで検証する =====
 
-// goal: KGI と KPI の週の目標
-export const goalProposalSchema = z.object({ kgi: kgiSchema, kpi_targets: kpiTargetsSchema });
-
 // roadmap_items: 今週を 0 とした何週目かで受け取り、採用するときに日付にする（AI に日付の計算をさせない）
 export const itemsProposalSchema = z.object({
   items: z
@@ -141,36 +138,6 @@ export function isFinished(state: ItemState): boolean {
 // 週の数字（KPI の週の目標と比べる）
 export function weekValue(kpi: KpiKey, weekStart: string, daily: DailyTotal[], sns: SnsKey | null = null): number | null {
   return isAutoKpi(kpi) ? sumBetween(daily, kpi, weekStart, addDays(weekStart, 6), sns) : null;
-}
-
-export type KgiProgress = {
-  actual: number;
-  target: number;
-  ratio: number;
-  daysLeft: number;
-  // このままの調子（直近 14 日の平均）で期限までに届きそうか。数字が少なすぎて判断できなければ null
-  onTrack: boolean | null;
-  projected: number | null;
-};
-
-// KGI の進み具合: 始めた日から今日までの合計 ÷ 目標の値（自動で数えられる数字のときだけ）
-export function kgiProgress(kgi: Kgi, startedOn: string, today: string, daily: DailyTotal[]): KgiProgress | null {
-  if (!isAutoKpi(kgi.kpi)) return null;
-  const actual = sumBetween(daily, kgi.kpi, startedOn, today, kgi.sns);
-  const daysLeft = Math.max(0, Math.round((new Date(`${kgi.deadline}T00:00:00Z`).getTime() - new Date(`${today}T00:00:00Z`).getTime()) / 86_400_000));
-  const recentFrom = addDays(today, -13) > startedOn ? addDays(today, -13) : startedOn;
-  const recentDays = Math.round((new Date(`${today}T00:00:00Z`).getTime() - new Date(`${recentFrom}T00:00:00Z`).getTime()) / 86_400_000) + 1;
-  const recent = sumBetween(daily, kgi.kpi, recentFrom, today, kgi.sns);
-  // 始めて 1 週もたっていなければ、調子は判断しない
-  const projected = recentDays >= 7 ? Math.round(actual + (recent / recentDays) * daysLeft) : null;
-  return {
-    actual,
-    target: kgi.target,
-    ratio: Math.min(1, actual / kgi.target),
-    daysLeft,
-    projected,
-    onTrack: projected === null ? null : projected >= kgi.target,
-  };
 }
 
 // 自動で数えられない数字の、「何をすると出るか」の説明（4.22 の KPIS）。

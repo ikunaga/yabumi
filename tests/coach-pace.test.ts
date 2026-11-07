@@ -1,7 +1,7 @@
 // 伴走（F18、決定 D29。docs/architecture.md の 4.27）のペースの計算と、知らせの中身
 import { describe, expect, it } from "vitest";
 import { behindMessage, mailFooter, overdueMessage, unsubscribeHeaders, weeklyMessage } from "@/lib/coach/messages";
-import { computeWeekPace, cycleInfo, isoWeekday, mondayOf, remainingText, shouldNudgeBehind, snsStatus, streakWeeks, withFirstMonthCycle } from "@/lib/coach/pace";
+import { computeWeekPace, cycleInfo, isoWeekday, mondayOf, remainingText, shouldNudgeBehind, snsStatus, streakWeeks } from "@/lib/coach/pace";
 import { toSectionValue } from "@/lib/ai/plan-coach-schema";
 import { parseSectionForm, sectionSchemas } from "@/lib/plan/schema";
 
@@ -68,17 +68,6 @@ describe("続けた週と 1 か月", () => {
     expect(isoWeekday("2026-10-18")).toBe(7);
     expect(mondayOf("2026-10-18")).toBe(MON);
   });
-
-  it("数え始めの日: 初めて決めたとき・1 か月が終わったあと・次の 1 か月を始めるとき今週の月曜。ほかは前のまま", () => {
-    const empty = sectionSchemas.first_month.parse({});
-    const next = { ...empty, weekly: { x: 2 } };
-    expect(withFirstMonthCycle(next, empty, "2026-10-14").startedOn).toBe(MON);
-    expect(withFirstMonthCycle(next, { ...empty, startedOn: "2026-10-05" }, "2026-10-14").startedOn).toBe("2026-10-05");
-    expect(withFirstMonthCycle(next, { ...empty, startedOn: "2026-10-05" }, "2026-10-14", true).startedOn).toBe(MON);
-    expect(withFirstMonthCycle(next, { ...empty, startedOn: "2026-09-07" }, "2026-10-14").startedOn).toBe(MON);
-    // 週の回数がなければ数え始めない
-    expect(withFirstMonthCycle(empty, null, "2026-10-14").startedOn).toBeNull();
-  });
 });
 
 describe("最初の 1 か月の週の回数の形", () => {
@@ -93,12 +82,14 @@ describe("最初の 1 か月の週の回数の形", () => {
     const bad = new FormData();
     bad.set("weekly-x", "15");
     expect(parseSectionForm("first_month", bad).success).toBe(false);
-    expect(sectionSchemas.first_month.parse({ goal: "x", metrics: "", kpis: [] })).toMatchObject({ weekly: {}, startedOn: null });
+    expect(sectionSchemas.first_month.parse({ goal: "x", metrics: "", kpis: [] })).toEqual({ goal: "x", metrics: "", kpis: [], weekly: {} });
   });
 
-  it("AI の案の weekly は、知らない SNS と範囲外を外し、数え始めは決めない", () => {
+  it("AI の案の weekly は、知らない SNS と範囲外を外し、区切りの始まりは持たない", () => {
     const v = toSectionValue("first_month", { goal: "g", metrics: "", kpis: ["posts"], weekly: { x: 2.4, mastodon: 3, instagram: 0, threads: 30 }, startedOn: "2020-01-06" });
-    expect(v).toMatchObject({ weekly: { x: 2, threads: 14 }, startedOn: null });
+    expect(v).toMatchObject({ weekly: { x: 2, threads: 14 } });
+    // 区切りの始まりは持たない（goal_milestones にある。段階 ④）
+    expect(v).not.toHaveProperty("startedOn");
   });
 });
 

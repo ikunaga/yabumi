@@ -1718,7 +1718,7 @@ export type Database = {
           created_at: string
           detail: string
           done_at: string | null
-          goal_id: string | null
+          goal_id: string
           id: string
           kind: string | null
           kpi: string | null
@@ -1739,7 +1739,7 @@ export type Database = {
           created_at?: string
           detail?: string
           done_at?: string | null
-          goal_id?: string | null
+          goal_id: string
           id?: string
           kind?: string | null
           kpi?: string | null
@@ -1760,7 +1760,7 @@ export type Database = {
           created_at?: string
           detail?: string
           done_at?: string | null
-          goal_id?: string | null
+          goal_id?: string
           id?: string
           kind?: string | null
           kpi?: string | null
@@ -1788,47 +1788,6 @@ export type Database = {
             foreignKeyName: "roadmap_items_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      roadmaps: {
-        Row: {
-          created_at: string
-          kgi: Json | null
-          kpi_targets: Json
-          owner_id: string
-          project_id: string
-          source: string
-          started_on: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          kgi?: Json | null
-          kpi_targets?: Json
-          owner_id?: string
-          project_id: string
-          source?: string
-          started_on?: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          kgi?: Json | null
-          kpi_targets?: Json
-          owner_id?: string
-          project_id?: string
-          source?: string
-          started_on?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "roadmaps_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: true
             referencedRelation: "projects"
             referencedColumns: ["id"]
           },
@@ -2358,12 +2317,6 @@ export type Database = {
       }
       learning_today_jst: { Args: never; Returns: string }
       learning_today_term: { Args: { p_term_key: string }; Returns: string }
-      legacy_date: { Args: { p: string }; Returns: string }
-      legacy_kpi_targets_part: {
-        Args: { p_posts: boolean; p_targets: Json }
-        Returns: Json
-      }
-      legacy_number: { Args: { p: string }; Returns: number }
       link_click_totals: {
         Args: { p_project_id: string; p_today: string }
         Returns: {
@@ -2686,17 +2639,6 @@ export type Database = {
           old_handle: string
           still_used: boolean
         }[]
-      }
-      sync_goal_from_legacy: { Args: { p_project_id: string }; Returns: string }
-      sync_goal_from_legacy_parts: {
-        Args: {
-          p_actions: string
-          p_kgi: boolean
-          p_kpis: boolean
-          p_milestone: boolean
-          p_project_id: string
-        }
-        Returns: string
       }
       time_band_of: { Args: { p_at: string }; Returns: string }
       top_posts_by_clicks: {

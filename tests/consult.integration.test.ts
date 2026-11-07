@@ -108,8 +108,6 @@ describe("AI と相談: ロードマップづくり（1 回 1 項目、順番に
     const g = await activeGoal();
     expect(g).toMatchObject({ statement: "3 か月で 150 ダウンロード", metric: "downloads", target: 150 });
     expect(g.goal_milestones.map((m) => Number(m.target)).sort((a, b) => a - b)).toEqual([30, 50, 70]);
-    // 前の作り（roadmaps）には書かない
-    expect((await alice.from("roadmaps").select("project_id").eq("project_id", projectId)).data).toEqual([]);
     // AI には「採用した、次の項目へ」と伝え、段取りは ① 済み・② 次
     const req = vi.mocked(callModel).mock.calls[0][0];
     expect(JSON.stringify(req.messages)).toContain("案「150 ダウンロード」を採用しました");

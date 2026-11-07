@@ -1,7 +1,7 @@
 // ロードマップのやることをカレンダーに出す（F06・F10。docs/architecture.md の 4.23）。ローカルの Supabase を使う。
 // 予定日（その週の中だけ）、投稿とやることの結びつき（同じプロジェクトのやることだけ）、やることの進み具合（週の投稿と結びついた投稿を重ならないように数える）
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
+import { adminClient, deleteUser, signUpNewUser, type TestClient, goalLess } from "./helpers/supabase";
 
 const admin = adminClient();
 // 2026-09-07 は月曜
@@ -31,7 +31,7 @@ afterAll(async () => {
 async function item(fields: { title: string; week_start?: string; kpi?: string | null; target?: number | null; sns?: string | null; project?: string }) {
   const { data, error } = await alice
     .from("roadmap_items")
-    .insert({ project_id: fields.project ?? projectId, title: fields.title, week_start: fields.week_start ?? WEEK, kpi: fields.kpi ?? null, target: fields.target ?? null, sns: (fields.sns ?? null) as never })
+    .insert(goalLess({ project_id: fields.project ?? projectId, title: fields.title, week_start: fields.week_start ?? WEEK, kpi: fields.kpi ?? null, target: fields.target ?? null, sns: (fields.sns ?? null) as never }))
     .select("id")
     .single();
   if (error) throw error;

@@ -3,8 +3,8 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { loadRoadmapWith } from "@/lib/roadmap/load";
 import { itemProgress } from "@/lib/roadmap/schema";
-import { addItems, saveGoal } from "@/lib/roadmap/write";
-import { adminClient, anonClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
+import { addItems } from "@/lib/roadmap/write";
+import { adminClient, anonClient, deleteUser, signUpNewUser, type TestClient, goalLess } from "./helpers/supabase";
 
 const admin = adminClient();
 
@@ -28,20 +28,15 @@ afterAll(async () => {
 });
 
 describe("目標とやることの書き込み", () => {
-  it("目標を作ると、今日から数え始める。やることは週ごとに足せる", async () => {
-    await saveGoal(alice, projectId, { kgi: { statement: "1 か月で 12 本", kpi: "posts", target: 12, deadline: "2026-11-30", sns: null }, kpiTargets: [{ kpi: "posts", per_week: 3, sns: null }] }, "ai");
-    const { data: r } = await alice.from("roadmaps").select("*").eq("project_id", projectId).single();
-    expect(r).toMatchObject({ source: "ai", kgi: { kpi: "posts", target: 12 }, kpi_targets: [{ kpi: "posts", per_week: 3 }] });
-    expect(r!.started_on).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-
+  it("やることは週ごとに足せる（目標がなければ KGI まだの目標を作って、そこにつなぐ）", async () => {
     expect(await addItems(alice, projectId, [{ title: "1 本書く", detail: "", week_start: "2026-10-12", kpi: "posts", target: 1, sns: null }], "manual")).toBe(1);
-    const { data: items } = await alice.from("roadmap_items").select("title, week_start, kpi, target, status").eq("project_id", projectId);
-    expect(items).toEqual([{ title: "1 本書く", week_start: "2026-10-12", kpi: "posts", target: 1, status: "todo" }]);
+    const { data: items } = await alice.from("roadmap_items").select("title, week_start, kpi, target, status, goal_id").eq("project_id", projectId);
+    expect(items).toEqual([{ title: "1 本書く", week_start: "2026-10-12", kpi: "posts", target: 1, status: "todo", goal_id: expect.any(String) }]);
   });
 
   it("週の始まりが月曜でないもの、数字と目標の値の片方だけのものは、DB でも断る", async () => {
-    expect((await alice.from("roadmap_items").insert({ project_id: projectId, title: "x", week_start: "2026-10-13" })).error).not.toBeNull();
-    expect((await alice.from("roadmap_items").insert({ project_id: projectId, title: "x", week_start: "2026-10-12", kpi: "posts" })).error).not.toBeNull();
+    expect((await alice.from("roadmap_items").insert(goalLess({ project_id: projectId, title: "x", week_start: "2026-10-13" }))).error).not.toBeNull();
+    expect((await alice.from("roadmap_items").insert(goalLess({ project_id: projectId, title: "x", week_start: "2026-10-12", kpi: "posts" }))).error).not.toBeNull();
   });
 });
 
@@ -61,7 +56,7 @@ describe("やることの種類（4.42）", () => {
     const { data } = await alice.from("roadmap_items").select("title, kind").eq("project_id", projectId).eq("week_start", "2026-10-19").order("position");
     expect(data!.map((r) => r.kind)).toEqual(["review", "setup", "post", "setup"]);
     // 種類のない前の行は、読むときに推す
-    const { data: old } = await admin.from("roadmap_items").insert({ project_id: projectId, owner_id: aliceId, title: "数字を見直す", week_start: "2026-10-19" }).select("id").single();
+    const { data: old } = await admin.from("roadmap_items").insert(goalLess({ project_id: projectId, owner_id: aliceId, title: "数字を見直す", week_start: "2026-10-19" })).select("id").single();
     const view = await loadRoadmapWith(alice, projectId);
     expect(view.items.find((i) => i.id === old!.id)!.kind).toBe("review");
   });
@@ -69,7 +64,7 @@ describe("やることの種類（4.42）", () => {
   it("決まった種類のほかは DB で断る。自分のやることの種類は書き換えられる（行き先が変わるだけ）", async () => {
     const { data: row } = await alice.from("roadmap_items").select("id").eq("project_id", projectId).eq("title", "顧客の声を集める").single();
     expect((await alice.from("roadmap_items").update({ kind: "publish" }).eq("id", row!.id)).error).not.toBeNull();
-    expect((await alice.from("roadmap_items").insert({ project_id: projectId, title: "x", week_start: "2026-10-12", kind: "admin" })).error).not.toBeNull();
+    expect((await alice.from("roadmap_items").insert(goalLess({ project_id: projectId, title: "x", week_start: "2026-10-12", kind: "admin" }))).error).not.toBeNull();
     expect((await alice.from("roadmap_items").update({ kind: "other" }).eq("id", row!.id)).error).toBeNull();
     expect((await alice.from("roadmap_items").select("kind").eq("id", row!.id).single()).data!.kind).toBe("other");
   });
@@ -77,13 +72,11 @@ describe("やることの種類（4.42）", () => {
 
 describe("RLS と権限", () => {
   it("ほかの人のロードマップは読めない・書けない・消せない", async () => {
-    expect((await bob.from("roadmaps").select("project_id").eq("project_id", projectId)).data).toEqual([]);
     expect((await bob.from("roadmap_items").select("id").eq("project_id", projectId)).data).toEqual([]);
     // 他人のプロジェクトには作れない
-    expect((await bob.from("roadmap_items").insert({ project_id: projectId, title: "x", week_start: "2026-10-12" })).error).not.toBeNull();
-    expect((await bob.from("roadmaps").insert({ project_id: projectId })).error).not.toBeNull();
+    expect((await bob.from("roadmap_items").insert(goalLess({ project_id: projectId, title: "x", week_start: "2026-10-12" }))).error).not.toBeNull();
     // 自分のものとして作っても、他人のプロジェクトにはつけられない
-    expect((await bob.from("roadmap_items").insert({ project_id: projectId, owner_id: bobId, title: "x", week_start: "2026-10-12" })).error).not.toBeNull();
+    expect((await bob.from("roadmap_items").insert(goalLess({ project_id: projectId, owner_id: bobId, title: "x", week_start: "2026-10-12" }))).error).not.toBeNull();
     // 書き換え・削除は、見えないので何も起きない
     await bob.from("roadmap_items").update({ status: "done" }).eq("project_id", projectId);
     await bob.from("roadmap_items").delete().eq("project_id", projectId);
@@ -98,8 +91,7 @@ describe("RLS と権限", () => {
     expect(error).not.toBeNull();
   });
 
-  it("ログインしていない人は、どちらの表も関数も使えない", async () => {
-    expect((await anonClient().from("roadmaps").select("*").limit(1)).error?.code).toBe("42501");
+  it("ログインしていない人は、やることの表も関数も使えない", async () => {
     expect((await anonClient().from("roadmap_items").select("*").limit(1)).error?.code).toBe("42501");
     const r = await anonClient().rpc("roadmap_daily_totals", { p_project_id: projectId, p_from: "2026-10-01", p_to: "2026-10-31" });
     expect(r.error?.code).toBe("42501");
@@ -195,7 +187,7 @@ describe("SNS ごとの数（post_counts_by_day。指標・ロードマップ・
   });
 
   it("SNS を持てるのは投稿した回数のやることだけ（DB でも断る）", async () => {
-    const { error } = await alice.from("roadmap_items").insert({ project_id: p2, title: "x", week_start: "2026-10-19", kpi: "link_clicks", target: 1, sns: "x" });
+    const { error } = await alice.from("roadmap_items").insert(goalLess({ project_id: p2, title: "x", week_start: "2026-10-19", kpi: "link_clicks", target: 1, sns: "x" }));
     expect(error).not.toBeNull();
   });
 });

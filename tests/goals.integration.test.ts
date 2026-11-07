@@ -1,17 +1,13 @@
-// 目標（KGI）・中間の目標・KPI の作り直し（段階 ①。docs/design/goals-model.md）: 前の作りからの写し替え（ddy と同じ形）、橋渡し、権限、
-// 書く関数（状態と結果はサーバーが決める）、数える関数、やることのつながり
-import fs from "node:fs";
-import path from "node:path";
+// 目標（KGI）・中間の目標・KPI（docs/design/goals-model.md）: 前の作りが goals に入らないこと（段階 ④。セキュリティ確認の DB-L1）、権限、
+// 書く関数（状態と結果はサーバーが決める）、数える関数、やることのつながり。
+// 前の作り（roadmaps・first_month.weekly）からの写し替えと橋渡しは、段階 ④（20261107110000）で消した（写し替えは本番で確かめた。2026-11-07）
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { loadGoals, metricTotal } from "@/lib/goals/load";
-import { weeklyTargetsOf, isLegacyActionGoal } from "@/lib/goals/schema";
 import { GoalError, reviseGoal, setGoalActions, setGoalKpis, settleGoal, startGoal, startMilestone } from "@/lib/goals/write";
-import { withFirstMonthCycle } from "@/lib/coach/pace";
-import { sectionSchemas, type PlanData, type SectionKey } from "@/lib/plan/schema";
-import { addItems, saveGoal } from "@/lib/roadmap/write";
+import { normalizePlan } from "@/lib/plan/schema";
 import { addDays, toYmd } from "@/lib/time";
 import { weekStartOf } from "@/lib/roadmap/schema";
-import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
+import { adminClient, deleteUser, signUpNewUser, type TestClient, goalLess } from "./helpers/supabase";
 
 vi.mock("server-only", () => ({}));
 
@@ -28,19 +24,6 @@ const goalsOf = async (projectId: string) => (await admin.from("goals").select("
 const kpisOf = async (goalId: string) => (await admin.from("goal_kpis").select("role, metric, action, sns, per_week").eq("goal_id", goalId).order("role").order("position")).data!;
 const milestonesOf = async (goalId: string) => (await admin.from("goal_milestones").select("seq, starts_on, ends_on, target, result_value").eq("goal_id", goalId).order("seq")).data!;
 
-// 前のコード（段階 ② より前）の書き方: セクションを JSON に保存する。最初の 1 か月は数え始めの日を決めてから（withFirstMonthCycle）。
-// 段階 ② から画面は週の回数を goals に書く（lib/plan/save.ts）ので、橋渡しと写し替えはこの書き方で確かめる
-async function saveSectionValue(client: TestClient, projectId: string, key: SectionKey, value: unknown, source: "ai" | "manual", opts: { now?: Date } = {}) {
-  let v = value;
-  if (key === "first_month") {
-    const { data } = await client.from("account_plans").select("data").eq("project_id", projectId).maybeSingle();
-    const prev = sectionSchemas.first_month.safeParse((data?.data as Record<string, unknown> | null)?.first_month ?? {});
-    v = withFirstMonthCycle(value as PlanData["first_month"], prev.success ? prev.data : null, toYmd(opts.now ?? new Date()));
-  }
-  const { error } = await client.rpc("save_account_plan_section", { p_project_id: projectId, p_section: key, p_value: v as never, p_source: source });
-  return { ok: !error };
-}
-
 beforeAll(async () => {
   ({ client: alice, userId: aliceId } = await signUpNewUser());
   ({ client: bob, userId: bobId } = await signUpNewUser());
@@ -51,114 +34,39 @@ afterAll(async () => {
   await deleteUser(bobId);
 });
 
-describe("前の作りからの写し替え（ddy と同じ形）", () => {
-  let projectId: string;
-
-  it("前のコードで書いた KGI（投稿の本数）・SNS ごとの毎週の目標・週の回数・区切り・やることが、active な目標に写る", async () => {
-    projectId = await newProject(alice, "ddy と同じ形");
-    const started = addDays(monday, -14);
-    // ロードマップ（前のコード）: KGI は投稿の本数、毎週の目標は SNS ごとの投稿とクリック
-    await saveGoal(
-      alice,
-      projectId,
-      {
-        kgi: { statement: "4 週間で 12 回投稿する", kpi: "posts", target: 12, deadline: addDays(started, 27), sns: null },
-        kpiTargets: [
-          { kpi: "posts", per_week: 2, sns: "x" },
-          { kpi: "posts", per_week: 1, sns: "threads" },
-          { kpi: "posts", per_week: 1, sns: "instagram" },
-          { kpi: "link_clicks", per_week: 5, sns: null },
-        ],
-      },
-      "ai",
-      new Date(`${started}T03:00:00Z`),
-    );
-    // アカウント設計の最初の 1 か月（前のコード）: 週の回数と区切りの始まり
-    const fm = { ...sectionSchemas.first_month.parse({}), goal: "4 週間で 12 回投稿する", weekly: { x: 3, threads: 1, instagram: 2 } };
-    expect((await saveSectionValue(alice, projectId, "first_month", fm, "manual", { now: new Date(`${started}T03:00:00Z`) })).ok).toBe(true);
-    // やることが複数
-    await addItems(alice, projectId, [
-      { title: "柱「季節の器」で 1 本書く", detail: "", week_start: monday, kpi: "posts", target: 1, sns: "x", kind: "post" },
-      { title: "土曜に数字を見る", detail: "", week_start: monday, kpi: null, target: null, sns: null, kind: "review" },
-      { title: "来週の 1 本", detail: "", week_start: addDays(monday, 7), kpi: null, target: null, sns: null, kind: "post" },
-    ], "ai");
-    // 形の合わない SNS の名前（前のデータに混じっていたら写さない。アプリを通さずに書く）
-    const { data: plan } = await admin.from("account_plans").select("data").eq("project_id", projectId).single();
-    const data = plan!.data as { first_month: Record<string, unknown> };
-    await admin.from("account_plans").update({ data: { ...data, first_month: { ...data.first_month, weekly: { x: 3, threads: 1, instagram: 2, myspace: 4, mastodon: "2" } } } as never }).eq("project_id", projectId);
-    const { data: rm } = await admin.from("roadmaps").select("kpi_targets").eq("project_id", projectId).single();
-    await admin.from("roadmaps").update({ kpi_targets: [...(rm!.kpi_targets as object[]), { kpi: "views", per_week: 100, sns: "unknown_sns" }] as never }).eq("project_id", projectId);
-
-    // マイグレーションの写し替えと同じ関数を、このプロジェクトに流す（何度流しても同じ）
-    for (let i = 0; i < 2; i++) expect((await admin.rpc("sync_goal_from_legacy", { p_project_id: projectId })).error).toBeNull();
-
-    const goals = await goalsOf(projectId);
-    expect(goals).toHaveLength(1);
-    expect(goals[0]).toMatchObject({ status: "active", statement: "4 週間で 12 回投稿する", metric: "posts", target: 12, starts_on: started, ends_on: addDays(started, 27), source: "ai", owner_id: aliceId });
-    // 行動の目標は、伴走が読んでいる週の回数（形の合わない SNS は写さない）。KPI はクリックと閲覧（SNS の名前が合わないので、すべての SNS）
-    expect(await kpisOf(goals[0].id)).toEqual([
-      { role: "action", metric: "posts", action: null, sns: "x", per_week: 3 },
-      { role: "action", metric: "posts", action: null, sns: "threads", per_week: 1 },
-      { role: "action", metric: "posts", action: null, sns: "instagram", per_week: 2 },
-      { role: "kpi", metric: "link_clicks", action: null, sns: null, per_week: 5 },
-      { role: "kpi", metric: "views", action: null, sns: null, per_week: 100 },
-    ]);
-    // 区切りの始まり（first_month.startedOn）が 1 つ目の区切り
-    const { data: plan2 } = await admin.from("account_plans").select("data").eq("project_id", projectId).single();
-    const startedOn = (plan2!.data as { first_month: { startedOn: string } }).first_month.startedOn;
-    expect(await milestonesOf(goals[0].id)).toEqual([{ seq: 1, starts_on: startedOn, ends_on: addDays(startedOn, 27), target: null, result_value: null }]);
-    // やることは、すべてその目標につながる
-    const { data: items } = await admin.from("roadmap_items").select("goal_id").eq("project_id", projectId);
-    expect(items).toHaveLength(3);
-    expect(items!.every((i) => i.goal_id === goals[0].id)).toBe(true);
-    // roadmaps と account_plans は変わらない（写すだけ）
-    expect((await admin.from("roadmaps").select("kgi").eq("project_id", projectId).single()).data!.kgi).toMatchObject({ kpi: "posts", target: 12 });
+describe("段階 ④ のあと: 前の作りは goals に入らない（セキュリティ確認の DB-L1）", () => {
+  it("roadmaps はなく、写し替え・橋渡しの関数もない", async () => {
+    expect((await alice.from("roadmaps" as never).select("*").limit(1)).error).not.toBeNull();
+    for (const fn of ["sync_goal_from_legacy", "sync_goal_from_legacy_parts", "legacy_date", "legacy_number"]) {
+      expect((await admin.rpc(fn as never, {} as never)).error?.code).toBe("PGRST202");
+    }
   });
 
-  it("読み込み: 前の KGI（投稿の本数）だと分かり、伴走の週の回数が行動の目標から読める", async () => {
-    const view = await loadGoals(alice, projectId);
-    expect(view.active).not.toBeNull();
-    expect(isLegacyActionGoal(view.active!.goal)).toBe(true);
-    expect(weeklyTargetsOf(view.active!.actions)).toEqual({ x: 3, threads: 1, instagram: 2 });
-    expect(view.active!.kpis.map((k) => k.metric)).toEqual(["link_clicks", "views"]);
-    expect(view.past).toEqual([]);
+  it("本人がアカウント設計の JSON に週の回数・区切りの始まりを直接書いても、目標の行動の目標と区切りは変わらず、アプリも読まない", async () => {
+    const p = await newProject(alice, "直接書く");
+    const id = await setGoalActions(alice, p, [{ sns: "x", per_week: 2 }]);
+    const before = { kpis: await kpisOf(id), milestones: await milestonesOf(id) };
+    const { error } = await alice.rpc("save_account_plan_section", {
+      p_project_id: p,
+      p_section: "first_month",
+      p_value: { goal: "", metrics: "", kpis: [], weekly: { x: 14, threads: 9 }, startedOn: "2020-01-06" } as never,
+      p_source: "manual",
+    });
+    expect(error).toBeNull();
+    expect(await kpisOf(id)).toEqual(before.kpis);
+    expect(await milestonesOf(id)).toEqual(before.milestones);
+    // JSON に残っていても読まない
+    const { data } = await alice.from("account_plans").select("data").eq("project_id", p).single();
+    expect(normalizePlan(data!.data, "").first_month.weekly).toEqual({});
   });
 
-  it("橋渡し: 前のコードで週の回数を変えると、行動の目標もそろう", async () => {
-    const fm = { ...sectionSchemas.first_month.parse({}), goal: "続ける", weekly: { x: 1 } };
-    expect((await saveSectionValue(alice, projectId, "first_month", fm, "manual")).ok).toBe(true);
-    const [g] = await goalsOf(projectId);
-    expect((await kpisOf(g.id)).filter((k) => k.role === "action")).toEqual([{ role: "action", metric: "posts", action: null, sns: "x", per_week: 1 }]);
-  });
-
-  it("ありえない日付（deadline が 2026-11-31、startedOn が 2026-02-30）があっても写し替えは通り、その値は写らない（セキュリティ確認の M1）", async () => {
-    const p = await newProject(alice, "ありえない日付");
-    const started = addDays(monday, -7);
-    // アプリを通さずに書く（本人も roadmaps・account_plans に直接書ける）
-    await admin.from("roadmaps").insert({ project_id: p, owner_id: aliceId, started_on: started, kgi: { statement: "ない日まで", kpi: "link_clicks", target: 10, deadline: "2026-11-31" } as never, kpi_targets: [{ kpi: "link_clicks", per_week: "1e9" }, { kpi: "views", per_week: 5 }] as never });
-    await admin.from("account_plans").insert({ project_id: p, owner_id: aliceId, data: { first_month: { weekly: { x: 2, threads: "abc" }, startedOn: "2026-02-30" } } as never });
-    expect((await admin.rpc("sync_goal_from_legacy", { p_project_id: p })).error).toBeNull();
-    const goals = await goalsOf(p);
-    expect(goals).toHaveLength(1);
-    // 期限がありえない KGI は写さない（KGI まだ）。区切りも作らない。数の形が合わない KPI・週の回数も写さない
-    expect(goals[0]).toMatchObject({ status: "active", metric: null, ends_on: null });
-    expect(await milestonesOf(goals[0].id)).toEqual([]);
-    expect(await kpisOf(goals[0].id)).toEqual([
-      { role: "action", metric: "posts", action: null, sns: "x", per_week: 2 },
-      { role: "kpi", metric: "views", action: null, sns: null, per_week: 5 },
-    ]);
-  });
-
-  it("20261106150100 は 150000 と同じ写し替えの関数を作り直すだけ（続けて当てても結果が同じ）", () => {
-    const dir = path.join(process.cwd(), "supabase/migrations");
-    const body = (file: string) => {
-      const s = fs.readFileSync(path.join(dir, file), "utf8");
-      const a = s.search(/create (or replace )?function public\.sync_goal_from_legacy/);
-      const b = s.indexOf("revoke all on function public.sync_goal_from_legacy(uuid)", a);
-      return s.slice(a, b).replace(/^create (or replace )?function/, "create function");
-    };
-    expect(body("20261106150100_goals_sns_key.sql")).toBe(body("20261106150000_goals.sql"));
-    expect(body("20261106150000_goals.sql")).not.toContain("enum_range");
+  it("やることは必ず目標につながる（足すときに省いても、空にしても、いまの目標に入る）", async () => {
+    const p = await newProject(alice, "やること");
+    const { data: item } = await alice.from("roadmap_items").insert(goalLess({ project_id: p, title: "1 本", week_start: monday })).select("id, goal_id").single();
+    expect(item!.goal_id).toEqual(expect.any(String));
+    // 空にしても、トリガーがいまの目標に入れ直す（null のまま残らない）
+    await admin.from("roadmap_items").update({ goal_id: null as never }).eq("id", item!.id);
+    expect((await admin.from("roadmap_items").select("goal_id").eq("id", item!.id).single()).data!.goal_id).toBe(item!.goal_id);
   });
 });
 
@@ -189,7 +97,6 @@ describe("権限", () => {
   it("中で使う関数は呼べない。ほかの人のプロジェクトに目標を作れない", async () => {
     expect((await alice.rpc("ensure_active_goal", { p_project_id: projectId, p_owner_id: aliceId, p_starts_on: monday })).error?.code).toBe("42501");
     expect((await alice.rpc("close_goal_internal", { p_goal_id: goalId, p_replacing: true })).error?.code).toBe("42501");
-    expect((await alice.rpc("sync_goal_from_legacy", { p_project_id: projectId })).error?.code).toBe("42501");
     await expect(startGoal(bob, projectId, { goal: null }, "manual")).rejects.toBeInstanceOf(GoalError);
     await expect(settleGoal(bob, goalId)).rejects.toBeInstanceOf(GoalError);
     await expect(reviseGoal(bob, goalId, { target: 1 })).rejects.toBeInstanceOf(GoalError);
@@ -200,7 +107,7 @@ describe("権限", () => {
     const bobGoal = await startGoal(bob, bobProject, { goal: null }, "manual");
     expect((await alice.from("roadmap_items").insert({ project_id: projectId, title: "x", week_start: monday, goal_id: bobGoal })).error).not.toBeNull();
     // goal_id なし（段階 ② より前のコード）は active な目標に入る
-    const { data } = await alice.from("roadmap_items").insert({ project_id: projectId, title: "y", week_start: monday }).select("goal_id").single();
+    const { data } = await alice.from("roadmap_items").insert(goalLess({ project_id: projectId, title: "y", week_start: monday })).select("goal_id").single();
     expect(data!.goal_id).toBe(goalId);
   });
 });
@@ -322,36 +229,6 @@ describe("書く関数", () => {
     expect(gs.filter((g) => g.status === "active")).toHaveLength(1);
     // 1 回目は書き入れ、残りの 3 回はそれぞれ前を閉じて作る
     expect(gs).toHaveLength(4);
-  });
-
-  it("橋渡しは前のコードが変えた部分だけを写す（新しいコードが書いた KGI・KPI を、アカウント設計の保存で戻さない）", async () => {
-    const p = await newProject(alice, "橋渡し");
-    // 前のコードの作り: ロードマップと週の回数
-    await saveGoal(alice, p, { kgi: { statement: "4 週間で 8 回投稿する", kpi: "posts", target: 8, deadline: addDays(monday, 27), sns: null }, kpiTargets: [{ kpi: "posts", per_week: 2, sns: "x" }, { kpi: "link_clicks", per_week: 3, sns: null }] }, "ai");
-    const fm = { ...sectionSchemas.first_month.parse({}), goal: "続ける", weekly: { x: 2 } };
-    expect((await saveSectionValue(alice, p, "first_month", fm, "manual")).ok).toBe(true);
-    // 新しいコード（③）が KGI と KPI を書く
-    const id = await startGoal(alice, p, { goal: { statement: "3 か月で予約 20 件", metric: "outcomes", action: "booking", sns: null, target: 20, weeks: 12, provisional: false }, kpis: [{ metric: "followers", action: null, sns: null, per_week: 10 }] }, "ai");
-    // 前のコードでアカウント設計を保存する（週の回数は変えない・柱や文だけ）
-    expect((await saveSectionValue(alice, p, "first_month", { ...fm, goal: "文だけ直す" }, "manual")).ok).toBe(true);
-    expect((await saveSectionValue(alice, p, "pillars", { ...sectionSchemas.pillars.parse({}), items: [{ name: "季節の器", share: null, example: "", sns: [] }] }, "manual")).ok).toBe(true);
-    // addItems が作る空のロードマップの行（insert）でも、KPI は消えない
-    await admin.from("roadmaps").delete().eq("project_id", p);
-    await addItems(alice, p, [{ title: "1 本", detail: "", week_start: monday, kpi: null, target: null, sns: null, kind: "post" }], "manual");
-    const goal = (await goalsOf(p)).find((g) => g.status === "active")!;
-    expect(goal).toMatchObject({ id, metric: "outcomes", action: "booking", target: 20 });
-    expect(await kpisOf(id)).toEqual([
-      { role: "action", metric: "posts", action: null, sns: "x", per_week: 2 },
-      { role: "kpi", metric: "followers", action: null, sns: null, per_week: 10 },
-    ]);
-    // 週の回数を変えたときだけ、行動の目標がそろう（KGI・KPI は変わらない）
-    expect((await saveSectionValue(alice, p, "first_month", { ...fm, weekly: { x: 4, threads: 1 } }, "manual")).ok).toBe(true);
-    expect(await kpisOf(id)).toEqual([
-      { role: "action", metric: "posts", action: null, sns: "x", per_week: 4 },
-      { role: "action", metric: "posts", action: null, sns: "threads", per_week: 1 },
-      { role: "kpi", metric: "followers", action: null, sns: null, per_week: 10 },
-    ]);
-    expect((await goalsOf(p)).find((g) => g.status === "active")).toMatchObject({ id, metric: "outcomes", target: 20 });
   });
 
   it("閉じた目標には、やることを新しく足せない（つなぎ直しも同じプロジェクトの目標だけ）", async () => {

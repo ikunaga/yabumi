@@ -1,6 +1,6 @@
 // ロードマップの形と進み具合の計算（docs/architecture.md の 4.23）
 import { describe, expect, it } from "vitest";
-import { goalKpiKeys, kgiExample, notCountedYet, goalProposalSchema, itemProgress, itemSchema, itemsProposalSchema, kgiProgress, kpiChoiceValue, kpiLabel, kpiTargetsSchema, parseKpiChoice, weekStartOf, weekValue, type DailyTotal } from "@/lib/roadmap/schema";
+import { goalKpiKeys, kgiExample, kgiSchema, notCountedYet, itemProgress, itemSchema, itemsProposalSchema, kpiChoiceValue, kpiLabel, kpiTargetsSchema, parseKpiChoice, weekStartOf, weekValue, type DailyTotal } from "@/lib/roadmap/schema";
 
 // 2026-10-12 は月曜
 const days = (from: string, n: number, f: (i: number) => Partial<DailyTotal>): DailyTotal[] =>
@@ -34,31 +34,6 @@ describe("やることと週の数字", () => {
   });
 });
 
-describe("KGI の進み具合", () => {
-  const kgi = { statement: "1 か月で 12 本", kpi: "posts" as const, target: 12, deadline: "2026-11-11", sns: null };
-
-  it("始めた日から今日までの合計と、このままの調子で届きそうかを出す", () => {
-    // 14 日で 7 本（1 日 0.5 本）。残り 14 日で 7 本 → 見込み 14 本で届く
-    const daily = days("2026-10-01", 28, (i) => ({ posts: i < 14 && i % 2 === 0 ? 1 : 0 }));
-    const p = kgiProgress({ ...kgi, deadline: "2026-10-28" }, "2026-10-01", "2026-10-14", daily)!;
-    expect(p.actual).toBe(7);
-    expect(p.daysLeft).toBe(14);
-    expect(p.projected).toBe(14);
-    expect(p.onTrack).toBe(true);
-  });
-
-  it("始めて 1 週もたっていなければ、調子は判断しない", () => {
-    const daily = days("2026-10-10", 3, () => ({ posts: 1 }));
-    const p = kgiProgress(kgi, "2026-10-10", "2026-10-12", daily)!;
-    expect(p.actual).toBe(3);
-    expect(p.onTrack).toBeNull();
-  });
-
-  it("自動で数えられない数字の KGI は、進み具合を出さない", () => {
-    expect(kgiProgress({ ...kgi, kpi: "downloads" }, "2026-10-01", "2026-10-14", [])).toBeNull();
-  });
-});
-
 describe("形の確かめ", () => {
   it("やることの週は月曜だけ。数字と目標の値は両方か、両方空", () => {
     expect(itemSchema.safeParse({ title: "1 本書く", week_start: "2026-10-12" }).success).toBe(true);
@@ -84,10 +59,7 @@ describe("形の確かめ", () => {
     expect(itemsProposalSchema.safeParse({ items: [{ title: "1 本", week: 0 }] }).data?.items[0].sns).toBeNull();
   });
 
-  it("AI の提案: 目標とやること（何週目かで受け取る）", () => {
-    expect(
-      goalProposalSchema.safeParse({ kgi: { statement: "x", kpi: "posts", target: 12, deadline: "2026-11-30" }, kpi_targets: [{ kpi: "posts", per_week: 3 }] }).success,
-    ).toBe(true);
+  it("AI の提案: やること（何週目かで受け取る）", () => {
     expect(itemsProposalSchema.safeParse({ items: [{ title: "1 本書く", week: 0 }] }).success).toBe(true);
     expect(itemsProposalSchema.safeParse({ items: [{ title: "1 本書く", week: 53 }] }).success).toBe(false);
     expect(itemsProposalSchema.safeParse({ items: [] }).success).toBe(false);
@@ -103,11 +75,6 @@ describe("SNS ごとに数える（2026-10-12 の不具合: Instagram に送っ�
     expect(itemProgress({ weekStart: "2026-10-12", kpi: "posts", target: 1, sns: "x" }, daily)).toEqual({ actual: 1, target: 1 });
     expect(itemProgress({ weekStart: "2026-10-12", kpi: "posts", target: 1, sns: null }, daily)).toEqual({ actual: 2, target: 1 });
     expect(weekValue("posts", "2026-10-12", daily, "threads")).toBe(1);
-  });
-
-  it("KGI も SNS ごとに", () => {
-    const p = kgiProgress({ statement: "Instagram に 4 本", kpi: "posts", target: 4, deadline: "2026-11-08", sns: "instagram" }, "2026-10-12", "2026-10-18", daily)!;
-    expect(p.actual).toBe(0);
   });
 
   it("画面の名前と選択肢の値", () => {
@@ -147,8 +114,9 @@ describe("目標と数字の欄を種類で絞る（決定 D34）", () => {
 describe("ありえない日付（2026-11-06 のセキュリティ確認の M1）", () => {
   it("KGI の期限・やることの週に、ない日は入れられない", () => {
     const kgi = { statement: "x", kpi: "link_clicks", target: 10, deadline: "2026-11-31", sns: null };
-    expect(goalProposalSchema.safeParse({ kgi, kpi_targets: [] }).success).toBe(false);
-    expect(goalProposalSchema.safeParse({ kgi: { ...kgi, deadline: "2026-11-30" }, kpi_targets: [] }).success).toBe(true);
+    // 前の形の KGI（保存してある会話を読むときの形）
+    expect(kgiSchema.safeParse(kgi).success).toBe(false);
+    expect(kgiSchema.safeParse({ ...kgi, deadline: "2026-11-30" }).success).toBe(true);
     expect(itemSchema.safeParse({ title: "x", detail: "", week_start: "2026-02-30", kpi: null, target: null }).success).toBe(false);
   });
 });

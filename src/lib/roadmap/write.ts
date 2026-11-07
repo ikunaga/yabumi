@@ -1,9 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
-import { syncWeeklyFromRoadmap } from "@/lib/plan/save";
-import { toYmd } from "@/lib/time";
+import { GoalError, startGoal } from "@/lib/goals/write";
 import { inferTodoKind } from "./todo-kind";
-import { MAX_ITEMS_PER_PROJECT, type ItemInput, type Kgi, type KpiTarget } from "./schema";
+import { MAX_ITEMS_PER_PROJECT, type ItemInput } from "./schema";
 
 // ロードマップの書き込み（docs/architecture.md の 4.23）。手で直すときも、AI の提案を採用するときも、利用者の権限のクライアントで書く（RLS で本人のものだけ）
 type Db = SupabaseClient<Database>;
@@ -15,20 +14,6 @@ export class RoadmapError extends Error {
   }
 }
 
-// 目標（KGI）と KPI の週の目標を置き換える。初めて作るときは、今日から数え始める。
-// 前の作り（roadmaps）への書き方。アプリはもう使わない（相談も goals の startGoal に替えた。段階 ③）。
-// 本番に出すときの数分間に前のコードが書く形を、橋渡しのテスト（goals.integration・goals-ui.integration）で再現するためだけに残す。段階 ④ で roadmaps と一緒に消す
-export async function saveGoal(db: Db, projectId: string, goal: { kgi: Kgi | null; kpiTargets: KpiTarget[] }, source: "ai" | "manual", now = new Date()): Promise<void> {
-  const { data: existing } = await db.from("roadmaps").select("project_id").eq("project_id", projectId).maybeSingle();
-  const row = { kgi: goal.kgi as never, kpi_targets: goal.kpiTargets as never, source };
-  const { error } = existing
-    ? await db.from("roadmaps").update(row).eq("project_id", projectId)
-    : await db.from("roadmaps").insert({ project_id: projectId, ...row, started_on: toYmd(now) });
-  if (error) throw new RoadmapError("目標を保存できませんでした。時間をおいてもう一度お試しください。");
-  // SNS ごとの投稿した回数の目標は、最初の 1 か月の週の回数（伴走が見張る数字）にも写す（4.27）
-  await syncWeeklyFromRoadmap(db, projectId, goal.kpiTargets, source, now);
-}
-
 // やることを足す（すでにあるものは残す）。その週の最後に並べる
 export async function addItems(db: Db, projectId: string, items: ItemInput[], source: "ai" | "manual"): Promise<number> {
   if (items.length === 0) return 0;
@@ -38,6 +23,17 @@ export async function addItems(db: Db, projectId: string, items: ItemInput[], so
   }
   const { data: last } = await db.from("roadmap_items").select("position").eq("project_id", projectId).order("position", { ascending: false }).limit(1).maybeSingle();
   const base = (last?.position ?? 0) + 1;
+  // いまの目標につなぐ（目標がなければ、KGI まだの目標を作る。DB のトリガーも同じ目標を確かめる）
+  const { data: active } = await db.from("goals").select("id").eq("project_id", projectId).eq("status", "active").maybeSingle();
+  let goalId = active?.id ?? null;
+  if (!goalId) {
+    try {
+      goalId = await startGoal(db, projectId, { goal: null }, source);
+    } catch (e) {
+      if (e instanceof GoalError) throw new RoadmapError(e.userMessage);
+      throw e;
+    }
+  }
   const { error } = await db.from("roadmap_items").insert(
     items.map((i, n) => ({
       project_id: projectId,
@@ -51,7 +47,7 @@ export async function addItems(db: Db, projectId: string, items: ItemInput[], so
       kind: i.kind ?? inferTodoKind(i),
       position: base + n,
       source,
-      // goal_id は入れない（DB のトリガーが、いまの目標に入れる。目標がなければ KGI まだの目標を作る）
+      goal_id: goalId,
     })),
   );
   if (error) throw new RoadmapError("やることを保存できませんでした。時間をおいてもう一度お試しください。");

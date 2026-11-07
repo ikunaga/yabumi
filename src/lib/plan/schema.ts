@@ -2,7 +2,6 @@ import { z } from "zod";
 import { actionFromLegacyGoal, DESIRED_ACTIONS } from "@/lib/projects/product-types";
 import { KPI_KEYS, MAX_KPIS } from "@/lib/metrics/kpis";
 import { SNS_KEYS, type SnsKey } from "@/lib/sns";
-import { isYmd } from "@/lib/time";
 
 // アカウント設計（要求 F15）のデータの形。DB の account_plans.data にセクションごとに入る。
 // セクションはここに書いた順に画面に並ぶ。名前は投稿の柱が決まらないと決めにくいので、柱 → ハッシュタグ → 持ち方 → 名前の順にしている。
@@ -157,10 +156,10 @@ export const sectionSchemas = {
     metrics: text(500),
     // 数字の画面で先頭に出す数字（決まった名前から 1〜3 個。docs/architecture.md の 4.22）。前の版で保存したものは空
     kpis: z.array(z.enum(KPI_KEYS)).max(MAX_KPIS, `数字は ${MAX_KPIS} つまでにしてください`).default([]),
-    // SNS ごとの週の回数（伴走 F18・D29。例 { x: 2, instagram: 1 }）。伴走がこの数字とペースを比べて声をかける。前の版は空
+    // SNS ごとの週の回数（伴走 F18・D29。例 { x: 2, instagram: 1 }）。画面の入力と AI の案で受け取り、いまの目標の行動の目標（goal_kpis の action）に書く。
+    // JSON には保存しないし、JSON に残っている前の値も読まない（normalizePlan が空にする。画面は goals の値を withGoalWeekly で入れる）。
+    // 1 か月の区切りの始まり（前の startedOn）は、goal_milestones にある（2026-11-07 段階 ④。docs/design/goals-model.md）
     weekly: z.partialRecord(snsKeyEnum, z.number(WEEKLY).int(WEEKLY).min(1, WEEKLY).max(MAX_WEEKLY_PER_SNS, WEEKLY)).default({}),
-    // 1 か月（4 週）を数え始めた週の月曜。週の回数を初めて決めたとき・次の 1 か月を始めたときにサーバーが入れる（withFirstMonthCycle）
-    startedOn: z.string().refine(isYmd).nullable().default(null),
   }),
 } as const;
 
@@ -191,6 +190,8 @@ export function normalizePlan(raw: unknown, targetAudience: string): PlanData {
     out[k] = parsed.success ? parsed.data : sectionSchemas[k].parse({});
   }
   (out.audience as PlanData["audience"]).who = targetAudience;
+  // 週の回数は goals が正。JSON に残っている前の作りの値（first_month.weekly・startedOn）は読まない（セキュリティ確認の DB-L1）
+  (out.first_month as PlanData["first_month"]).weekly = {};
   return out as PlanData;
 }
 
@@ -318,14 +319,14 @@ function parseSectionFormAny(key: SectionKey, form: FormData) {
       return sectionSchemas.cadence.safeParse({ frequency: s("frequency"), roles });
     }
     case "first_month": {
-      // 週の回数は weekly-<SNS>。空欄・0 は「決めない」。数え始めの日はサーバーが決める（withFirstMonthCycle）
+      // 週の回数は weekly-<SNS>。空欄・0 は「決めない」。1 か月の区切りはサーバーが決める（goal_milestones）
       const weekly: Partial<Record<SnsKey, number>> = {};
       for (const sns of SNS_KEYS) {
         const raw = s(`weekly-${sns}`).trim();
         if (!raw || raw === "0") continue;
         weekly[sns] = Number.isFinite(Number(raw)) ? Number(raw) : -1;
       }
-      return sectionSchemas.first_month.safeParse({ goal: s("goal"), metrics: s("metrics"), kpis: form.getAll("kpis").map(String), weekly, startedOn: null });
+      return sectionSchemas.first_month.safeParse({ goal: s("goal"), metrics: s("metrics"), kpis: form.getAll("kpis").map(String), weekly });
     }
   }
 }

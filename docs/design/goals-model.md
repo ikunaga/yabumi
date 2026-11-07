@@ -388,3 +388,11 @@ commit;
 
 - roadmap/load.ts の RoadmapView.roadmap と kgi（roadmaps から読むもの）は、② が main に入ったあとに外した（2026-11-06）。saveGoal と syncWeeklyFromRoadmap は橋渡しのテストのためだけに残し、段階 ④ で消す
 - 入れる順番: fix/goals-bridge → ② → ③（PM）。③ が先に入ると、画面（② の前は roadmaps を読む）に目標が出ない
+
+### 10.5 段階 ④（2026-11-07、feat/goals-cleanup。20261107110000_goals_cleanup）
+
+- 段階 ①〜③ が本番に出て（e5a5bed）、オーナーが ddy の写し替えを確かめた。本番の 3 つの表の控え（CSV）はオーナーが取ってある
+- マイグレーション: roadmap_items の goal_id が null の行が 0 件であることを確かめ（0 でなければ raise）、橋渡しのトリガーと前の作りの関数（sync_goal_from_legacy・sync_goal_from_legacy_parts・legacy_date・legacy_number など）を消し、goal_id を not null にし、roadmaps を消した。アプリ（addItems）は goal_id をいまの目標の id で渡す（目標がなければ startGoal で KGI まだの目標を作る）。DB では、goal_id を省いたり空にしたりしても、これまでどおり roadmap_items_check_goal がいまの目標に入れる（テストは、生成した型では必須の goal_id を省くために tests/helpers の goalLess を使う）
+- アプリ: saveGoal・syncWeeklyFromRoadmap・withFirstMonthCycle・kgiProgress・goalProposalSchema を消した。アカウント設計の first_month から startedOn を外し、weekly は画面の入力と AI の案の受け口としてだけ残す（JSON には保存しない。JSON に残っている前の値は normalizePlan が空にする。画面は withGoalWeekly で goals の値を入れる）
+- セキュリティ確認の DB-L1 を閉じた: roadmaps はなく、account_plans の first_month.weekly・startedOn は誰も読まず goals にも写らないので、本人が直接書いても goals には入らない（tests/goals.integration.test.ts）
+- 前の形の KGI の型（Kgi・KpiTarget・kgiSchema・kpiTargetsSchema）は、保存してある相談の会話（2026-11-06 までの案）を読むためだけに残す

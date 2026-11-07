@@ -7,7 +7,6 @@ import { loadGoalReview } from "@/lib/goals/review";
 import { isLegacyActionGoal } from "@/lib/goals/schema";
 import { setGoalActions } from "@/lib/goals/write";
 import { saveWeekly } from "@/lib/plan/save";
-import { saveGoal } from "@/lib/roadmap/write";
 import { weekStartOf } from "@/lib/roadmap/schema";
 import { addDays, toYmd } from "@/lib/time";
 import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
@@ -93,9 +92,15 @@ describe("手で目標を決める・直す", () => {
 });
 
 describe("前の KGI（投稿の本数）", () => {
-  it("前のコードで作った投稿の本数の KGI は「成果の目標に変えましょう」の印が付き、成果の目標を決めると、前の目標はこれまでの目標に残る", async () => {
+  it("前の作りから写した投稿の本数の KGI は「成果の目標に変えましょう」の印が付き、成果の目標を決めると、前の目標はこれまでの目標に残る", async () => {
     const projectId = await newProject("ddy と同じ形の KGI");
-    await saveGoal(alice, projectId, { kgi: { statement: "4 週間で 12 回投稿する", kpi: "posts", target: 12, deadline: addDays(monday, 27), sns: null }, kpiTargets: [{ kpi: "posts", per_week: 3, sns: "x" }] }, "ai");
+    // 写し替え（段階 ①）で入った形（段階 ④ で写し替えの関数は消したので、サーバーの権限で同じ行を作る）
+    const { data: legacy } = await admin
+      .from("goals")
+      .insert({ project_id: projectId, owner_id: aliceId, statement: "4 週間で 12 回投稿する", metric: "posts", target: 12, starts_on: monday, ends_on: addDays(monday, 27), source: "ai" })
+      .select("id")
+      .single();
+    await admin.from("goal_kpis").insert({ goal_id: legacy!.id, owner_id: aliceId, role: "action", metric: "posts", sns: "x", per_week: 3 });
     const before = await loadGoals(alice, projectId);
     expect(isLegacyActionGoal(before.active!.goal)).toBe(true);
     expect(await saveManualGoal(alice, projectId, { goal: booking(10, "3 か月で予約 10 件"), milestones: {}, kpis: [] })).toBe("started");

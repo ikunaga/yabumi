@@ -1,17 +1,16 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { cycleFromMilestones, hasTargets, mondayOf, withFirstMonthCycle, type WeeklyTargets } from "@/lib/coach/pace";
+import { cycleFromMilestones, hasTargets, mondayOf, type WeeklyTargets } from "@/lib/coach/pace";
 import { loadGoals } from "@/lib/goals/load";
 import { actionsFromWeekly } from "@/lib/goals/schema";
 import { GoalError, setGoalActions, startMilestone } from "@/lib/goals/write";
 import type { Database } from "@/lib/supabase/database.types";
-import { isSnsKey, SNS_KEYS } from "@/lib/sns";
 import { toYmd } from "@/lib/time";
 import { mergeStoryShareable, storyFlagsOf } from "./story";
-import { MAX_WEEKLY_PER_SNS, sectionSchemas, type PlanData, type SectionKey, type SectionValue } from "./schema";
+import { sectionSchemas, type PlanData, type SectionKey, type SectionValue } from "./schema";
 
 // アカウント設計の 1 セクションを保存する（画面・AI と考える・AI と相談の共通の入口。利用者の権限のクライアントで、RLS で本人のものだけ）。
 // 最初の 1 か月（週の回数）の SNS ごとの週の回数は、いまの目標の行動の目標（goal_kpis の action）に書く（docs/design/goals-model.md の 5.）。
-// JSON の first_month.weekly と startedOn は前の値のまま残す（変えると前の作りからの橋渡しのトリガーが動くため。段階 ④ で JSON から外す）。
+// JSON の first_month には週の回数と区切りの始まりを書かない（goals が正。段階 ④ で JSON から外した。前に保存した値が残っていても読まない）。
 // 1 か月の区切り（中間の目標）は、週の回数を初めて決めたとき・区切りが過ぎたとき・「次の 1 か月を始める」のときに、今週から始める
 type Db = SupabaseClient<Database>;
 
@@ -35,9 +34,7 @@ export async function saveSectionValue(
       goal: next.goal || prev?.goal || "",
       metrics: next.metrics || prev?.metrics || "",
       kpis: next.kpis.length ? next.kpis : (prev?.kpis ?? []),
-      weekly: prev?.weekly ?? {},
-      startedOn: prev?.startedOn ?? null,
-    };
+    } as PlanData["first_month"];
   }
   const { error } = await user.rpc("save_account_plan_section", { p_project_id: projectId, p_section: key, p_value: v as never, p_source: source });
   if (error) return { ok: false };
@@ -83,25 +80,3 @@ export async function loadFirstMonth(user: Db, projectId: string): Promise<PlanD
   return parsed.success ? parsed.data : null;
 }
 
-type Target = { kpi: string; per_week: number; sns?: string | null };
-
-// ロードマップの毎週の目標に SNS ごとの投稿した回数があれば → 最初の 1 か月の週の回数（伴走が見張る数字）。なければ何もしない。
-// 前の作りの書き方（saveGoal だけが使う。JSON に書き、橋渡しのトリガーが行動の目標に写す）。アプリはもう使わない（段階 ③）。橋渡しのテストのために残し、段階 ④ で消す
-export async function syncWeeklyFromRoadmap(user: Db, projectId: string, kpiTargets: Target[], source: "ai" | "manual", now = new Date()): Promise<void> {
-  const weekly: WeeklyTargets = {};
-  for (const t of kpiTargets) {
-    if (t.kpi !== "posts" || !isSnsKey(t.sns)) continue;
-    const n = Math.min(MAX_WEEKLY_PER_SNS, Math.round(t.per_week));
-    if (n >= 1) weekly[t.sns] = n;
-  }
-  if (!hasTargets(weekly)) return;
-  const prev = await loadFirstMonth(user, projectId);
-  if (prev && sameWeekly(prev.weekly, weekly)) return;
-  const base = prev ?? sectionSchemas.first_month.parse({});
-  const v = withFirstMonthCycle({ ...base, weekly }, prev, toYmd(now));
-  await user.rpc("save_account_plan_section", { p_project_id: projectId, p_section: "first_month", p_value: v as never, p_source: source });
-}
-
-function sameWeekly(a: WeeklyTargets, b: WeeklyTargets): boolean {
-  return SNS_KEYS.every((s) => (a[s] ?? 0) === (b[s] ?? 0));
-}

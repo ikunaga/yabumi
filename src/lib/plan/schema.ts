@@ -52,7 +52,8 @@ const storyItem = (max: number) =>
   z.preprocess(
     // 前の形（文字列だけ）でも読めるようにする
     (v) => (typeof v === "string" ? { text: v } : v),
-    z.object({ text: text(max), shareable: z.boolean().default(true) }),
+    // check: 「投稿に使わない」項目があるときに AI が文を変えた、オンの項目（画面で「確かめてください」と出す。利用者が画面で保存すると消える。APP-L1）
+    z.object({ text: text(max), shareable: z.boolean().default(true), check: z.boolean().optional() }),
   ).default({ text: "", shareable: true });
 
 export const sectionSchemas = {

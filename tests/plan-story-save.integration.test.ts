@@ -77,6 +77,15 @@ describe("保存の共通の入口", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
+  it("AI が文を変えたオンの項目の確かめの印は保存され、利用者が画面で保存すると消える", async () => {
+    await saveSectionValue(alice, projectId, "story", story({ why: item("器が好き"), background: item("病気で辞めた", false) }), "manual");
+    await saveSectionValue(alice, projectId, "story", story({ why: item("病気で仕事を辞めたのがきっかけ"), background: item("病気で辞めた") }), "ai");
+    expect((await saved()).why).toEqual({ text: "病気で仕事を辞めたのがきっかけ", shareable: true, check: true });
+    // 画面の保存は、確かめの印を送らない（parseSectionForm）
+    await saveSectionValue(alice, projectId, "story", story({ why: item("病気で仕事を辞めたのがきっかけ"), background: item("病気で辞めた", false) }), "manual");
+    expect((await saved()).why).toEqual({ text: "病気で仕事を辞めたのがきっかけ", shareable: true });
+  });
+
   it("AI と相談の案は、あなたらしさを出さない（相談の案の形でも断る）", () => {
     expect(CONSULT_SECTION_KEYS).not.toContain("story");
   });

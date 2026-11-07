@@ -235,7 +235,7 @@ describe("設計の相棒の案", () => {
     const next = toSectionValue("story", { why: "a", background: "b", summary: "背景をまとめた新しい文" }) as PlanData["story"];
     const merged = mergeStoryShareable(next, plan.story);
     expect(merged.summary).toEqual({ text: "背景をまとめた新しい文", shareable: false });
-    expect(storyNeedsCheck(merged, "summary")).toBe(true);
+    expect(storyNeedsCheck(merged, "summary")).toBe("turn_on");
     // 案のほうで「投稿に使わない」とした項目（notShareable）があっても同じ
     const fromAi = toSectionValue("story", { why: "a", struggle: "話したくない", summary: "まとめ", notShareable: ["struggle"] }) as PlanData["story"];
     expect(mergeStoryShareable(fromAi, undefined).summary.shareable).toBe(false);
@@ -245,21 +245,21 @@ describe("設計の相棒の案", () => {
     expect(mergeStoryShareable(toSectionValue("story", { why: "a", summary: "まとめ" }) as PlanData["story"], undefined).summary.shareable).toBe(true);
     const checked = { ...merged, summary: { text: merged.summary.text, shareable: true } };
     expect(mergeStoryShareable(next, checked).summary.shareable).toBe(true);
-    expect(storyNeedsCheck(checked, "summary")).toBe(false);
+    expect(storyNeedsCheck(checked, "summary")).toBeNull();
   });
 
   it("強み（strength）も同じ: 材料（思い・背景・悩み）に「投稿に使わない」項目があるのに新しい文に変わったらオフ。強みがオフなら、それをまとめた短いストーリーもオフ", () => {
     const next = toSectionValue("story", { why: "a", background: "b", strength: "背景から来た強み", summary: "" }) as PlanData["story"];
     const merged = mergeStoryShareable(next, plan.story);
     expect(merged.strength).toEqual({ text: "背景から来た強み", shareable: false });
-    expect(storyNeedsCheck(merged, "strength")).toBe(true);
+    expect(storyNeedsCheck(merged, "strength")).toBe("turn_on");
     // 思い・背景・悩みがどれもオンでも、強みがオフ（利用者が決めた）なら、新しい短いストーリーはオフ
     const own = toSectionValue("story", { why: "a", strength: "強み", summary: "強みをまとめた文", notShareable: ["strength"] }) as PlanData["story"];
     const m2 = mergeStoryShareable(own, undefined);
     expect([m2.strength.shareable, m2.summary.shareable]).toEqual([false, false]);
-    expect(storyNeedsCheck(m2, "summary")).toBe(true);
-    // 材料ではない項目（思いなど）には、確かめての印を出さない
-    expect(storyNeedsCheck(m2, "why")).toBe(false);
+    expect(storyNeedsCheck(m2, "summary")).toBe("turn_on");
+    // 思いは文を変えていない（前の値がない新しい案だが、オフの強みがあるので、AI が書いた思いには確かめの印が付く）
+    expect(storyNeedsCheck(m2, "why")).toBe("content");
   });
 
   it("前の値のオフの項目も材料に数える。保存してある値は項目ごとに読み、形に合わない項目があってもオフを落とさない", () => {
@@ -269,6 +269,22 @@ describe("設計の相棒の案", () => {
     const next = toSectionValue("story", { why: "器が好き", background: "", strength: "目が育った", summary: "まとめ" }) as PlanData["story"];
     const merged = mergeStoryShareable(next, prev);
     expect([merged.background.shareable, merged.strength.shareable, merged.summary.shareable]).toEqual([false, false, false]);
+  });
+
+  it("「投稿に使わない」項目があるときに AI が文を変えたオンの項目は、印はオンのまま確かめの印を付ける（受け入れた形。機械で完全には防がない）", () => {
+    const prev = storyFlagsOf({ why: "器が好き", background: { text: "病気で辞めた", shareable: false } });
+    // AI が背景の中身を思いに書き写した案
+    const next = toSectionValue("story", { why: "病気で仕事を辞めたのがきっかけ", background: "病気で辞めた" }) as PlanData["story"];
+    const merged = mergeStoryShareable(next, prev);
+    expect(merged.why).toEqual({ text: "病気で仕事を辞めたのがきっかけ", shareable: true, check: true });
+    expect(storyNeedsCheck(merged, "why")).toBe("content");
+    // オフの項目そのものには付けない
+    expect(merged.background.check).toBeUndefined();
+    // 文を変えていなければ付けない。前に付いた印は、同じ文のあいだ残る
+    expect(mergeStoryShareable(toSectionValue("story", { why: "器が好き", background: "病気で辞めた" }) as PlanData["story"], prev).why.check).toBeUndefined();
+    expect(mergeStoryShareable(next, merged).why.check).toBe(true);
+    // オフの項目がなければ付けない
+    expect(mergeStoryShareable(next, storyFlagsOf({ why: "器が好き" })).why.check).toBeUndefined();
   });
 
   it("保存してある会話の案は、前の形（項目がない・文字列だけ・値がない）でも表示で止まらない", () => {

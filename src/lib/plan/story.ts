@@ -79,8 +79,8 @@ export function storyFlagsOf(raw: unknown): Story {
       const v = src[f];
       if (typeof v === "string") return [f, { text: v, shareable: true }];
       if (v && typeof v === "object") {
-        const o = v as { text?: unknown; shareable?: unknown };
-        return [f, { text: typeof o.text === "string" ? o.text : "", shareable: o.shareable !== false }];
+        const o = v as { text?: unknown; shareable?: unknown; check?: unknown };
+        return [f, { text: typeof o.text === "string" ? o.text : "", shareable: o.shareable !== false, ...(o.check === true ? { check: true } : {}) }];
       }
       return [f, { text: "", shareable: true }];
     }),
@@ -103,16 +103,32 @@ export function mergeStoryShareable(next: Story, prev: Story | null | undefined)
     // 保存してある会話の案は前の形のこともあるので、項目がなくても止まらないように読む
     STORY_FIELDS.map((f) => [f, { text: next?.[f]?.text ?? "", shareable: (next?.[f]?.shareable ?? true) && (prev?.[f]?.shareable ?? true) }]),
   ) as Story;
+  const changed = (f: StoryField) => merged[f].text.trim() !== "" && merged[f].text !== (prev?.[f]?.text ?? "");
   // strength を先に決める（summary の材料に strength が入るため）
   for (const f of ["strength", "summary"] as const) {
-    const changed = merged[f].text.trim() !== "" && merged[f].text !== (prev?.[f]?.text ?? "");
-    if (changed && hasNotShareable(merged, DERIVED_SOURCES[f]!, prev)) merged[f] = { ...merged[f], shareable: false };
+    if (changed(f) && hasNotShareable(merged, DERIVED_SOURCES[f]!, prev)) merged[f] = { ...merged[f], shareable: false };
+  }
+  // ほかのオンの項目: 「投稿に使わない」項目があるのに AI が文を変えたら、オフの項目の中身を書き写したかもしれないので、
+  // 印はオンのまま「確かめてください」の印（check）を付ける（機械で完全には防がない。オフにすると、オフが 1 つあるだけで
+  // 相棒の案のほとんどがオフになり、利用者が毎回オンにし直すことになるため。指示でも、オフの中身をほかの項目に書かないよう縛る）。
+  // 文を変えていなければ、前の確かめの印のまま
+  for (const f of STORY_FIELDS) {
+    if (!merged[f].shareable) continue;
+    const others = STORY_FIELDS.filter((x) => x !== f);
+    const check = changed(f) ? hasNotShareable(merged, others, prev) : merged[f].text === (prev?.[f]?.text ?? "") && prev?.[f]?.check === true;
+    if (check) merged[f] = { ...merged[f], check: true };
   }
   return merged;
 }
 
-// 画面で「投稿に使ってよいか確かめてください」と出すか: まとめた文（strength・summary）がオフで、その材料に「投稿に使わない」項目があるとき
-export function storyNeedsCheck(story: Story, field: StoryField): boolean {
+// 画面で確かめてもらうか:
+// - "turn_on": まとめた文（strength・summary）がオフで、その材料に「投稿に使わない」項目があるとき（確かめてからオンに）
+// - "content": オンの項目に、AI が文を変えたときの確かめの印（check）があるとき（投稿に使わない項目の中身が入っていないか）
+export function storyNeedsCheck(story: Story, field: StoryField): "turn_on" | "content" | null {
+  const item = story[field];
+  if (!item || item.text.trim() === "") return null;
   const sources = DERIVED_SOURCES[field];
-  return Boolean(sources) && story[field].text.trim() !== "" && !story[field].shareable && hasNotShareable(story, sources!);
+  if (sources && !item.shareable && hasNotShareable(story, sources)) return "turn_on";
+  if (item.shareable && item.check === true) return "content";
+  return null;
 }

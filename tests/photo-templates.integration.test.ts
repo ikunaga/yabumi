@@ -1,4 +1,4 @@
-// 絵の説明のフォーマット（20261107100000_photo_prompt_templates）: 本人だけが読み書きできる・20 個まで（同時でも）・いつも使うは 1 つ・
+// 絵の説明のフォーマット（20261107120000_photo_prompt_templates）: 本人だけが読み書きできる・20 個まで（同時でも）・いつも使うは 1 つ・
 // 別のプロジェクトへ動かせない・AI の案に選んだフォーマットだけを渡す。本物の AI は呼ばない
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 

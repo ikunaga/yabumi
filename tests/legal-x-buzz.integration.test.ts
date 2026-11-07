@@ -16,7 +16,8 @@ afterAll(async () => {
 
 describe("2026-11-06 の版の再同意", () => {
   it.runIf(todayJst() >= "2026-11-06")("前の版に同意していても、新しい版には同意していないので帯が出る。同意すると出なくなる（記録は再同意 change）", async () => {
-    expect(currentLegalVersion()).toBe("2026-11-06");
+    // あとの版（2026-11-07 など）が足されていても、前の版の同意では帯が出る
+    expect(currentLegalVersion() >= "2026-11-06").toBe(true);
     await recordConsent(alice, "2026-11-03", "login");
     expect(await hasConsented(alice, currentLegalVersion())).toBe(false);
     expect(await consentVia(alice, false)).toBe("change");

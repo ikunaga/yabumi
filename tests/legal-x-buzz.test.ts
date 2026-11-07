@@ -9,8 +9,9 @@ const at = (iso: string) => new Date(iso);
 describe("2026-11-06 の版", () => {
   const rev = LEGAL_VERSIONS.find((r) => r.version === "2026-11-06")!;
 
-  it("LEGAL_VERSIONS の最後に、利用規約とプライバシーポリシーの両方の版として足し、決まりを守っている", () => {
-    expect(LEGAL_VERSIONS.at(-1)).toBe(rev);
+  it("LEGAL_VERSIONS に、利用規約とプライバシーポリシーの両方の版として 2026-11-03 の次に足し、決まりを守っている", () => {
+    // あとの版（2026-11-07 など）が足されても通るよう、最後ではなく 2026-11-03 の次であることを確かめる
+    expect(LEGAL_VERSIONS[LEGAL_VERSIONS.findIndex((r) => r.version === "2026-11-03") + 1]).toBe(rev);
     expect(rev.docs).toEqual(["terms", "privacy"]);
     expect(rev.adverse).toBe(false);
     expect(rev.noticeFrom).toBeNull();

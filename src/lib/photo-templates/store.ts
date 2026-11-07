@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { MAX_PHOTO_TEMPLATES, MAX_PHOTO_TEMPLATES_PER_USER, templateInputSchema, type PhotoTemplate } from "./schema";
 
-// 絵の説明のフォーマットの読み書き（利用者の権限のクライアントで。RLS で本人のものだけ。20261107100000_photo_prompt_templates）
+// 絵の説明のフォーマットの読み書き（利用者の権限のクライアントで。RLS で本人のものだけ。20261107120000_photo_prompt_templates）
 
 type Db = SupabaseClient<Database>;
 

@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { ProductType } from "@/lib/projects/product-types";
 
 // AI で画像をつくるときの「絵の説明のフォーマット」（docs/architecture.md の 4.25 の ②、2026-11-07）。画面とサーバーの両方から読む。
-// 上限と字数の正は DB（20261107100000_photo_prompt_templates の check とトリガー）。ここはその写し
+// 上限と字数の正は DB（20261107120000_photo_prompt_templates の check とトリガー）。ここはその写し
 
 export const MAX_PHOTO_TEMPLATES = 20;
 // 1 人の合計（プロジェクトはいくつも作れるので。DB のトリガーで同じ値）

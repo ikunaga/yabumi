@@ -1875,7 +1875,7 @@ Facebook ページ（graph.facebook.com）:
 - 本文に {場面} を置くと、そこに AI の案の場面か、書いた場面が入る（src/lib/photo-templates/schema.ts の fillTemplate）。案をまだ選んでいなければ {場面} は穴のまま入り、書き換えるまで「つくる」は押せない（画像の AI に穴のまま送らない）
 - 「AI に絵の説明の案を出してもらう」は、選んだフォーマットの本文を <format> で区切って Claude に渡し（区切りのタグは崩す）、雰囲気・光・撮り方をそれに合わせて、場面だけを変えた案を出させる。{場面} があれば、案の scene は穴に入る部分だけ。「なし」を選べば渡さない。フォーマットは本人の、このプロジェクトのものだけ読む（RLS。他人の id は AI を呼ばずに断る）
 - 「フォーマットとして保存」で、いまの絵の説明に名前を付けて足す。畳んだ「フォーマットを管理」で、例から追加（種類ごとに 2〜3 個。TEMPLATE_EXAMPLES）・名前を変える・いつも使う・削除する
-- 表 photo_prompt_templates（20261107100000）: RLS は本人だけ。grant は select・delete と、insert（project_id・owner_id・name・body・is_default・position）・update（name・body・is_default・position）だけで、別のプロジェクトへ動かせない。20 個は before insert のトリガーで、プロジェクトの行を押さえてから数える（同時に足しても超えない。行き先の URL と同じ）。「いつも使う」は部分ユニーク（project_id where is_default）。付け替えは前を外してから付けるので、途中で失敗しても 0 個になるだけ（画面は「なし」のまま選べる）
+- 表 photo_prompt_templates（20261107100000）: RLS は本人だけ。grant は select・delete と、insert（project_id・owner_id・name・body・is_default・position）・update（name・body・is_default・position）だけで、別のプロジェクトへ動かせない。20 個は before insert のトリガーで、プロジェクトの行を押さえてから数える（同時に足しても超えない。行き先の URL と同じ）。プロジェクトはいくつも作れるので、1 人の合計 100 個も同じトリガーで、利用者ごとの advisory lock を取ってから数える（2026-11-07 のコミットのセキュリティレビューの指摘。行き先の URL は、1 人が作れるプロジェクトの数の上限としてオーナーに相談中（PM））。「いつも使う」は部分ユニーク（project_id where is_default）。付け替えは前を外してから付けるので、途中で失敗しても 0 個になるだけ（画面は「なし」のまま選べる）
 - Google（Gemini）に送るのは、これまでと同じく利用者が直した絵の説明だけ（フォーマットを入れたあとの文）。Anthropic には、案を出すときに選んだフォーマットの本文が加わる。フォーマットを保存すること自体が新しく預かる情報なので、プライバシーポリシーの ②（docs/legal.md の「絵の説明のフォーマット」）
 - 費用は増えない（案の入力が 600 字ほど増えるだけ）
 

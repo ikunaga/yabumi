@@ -14,7 +14,7 @@ create table public.photo_prompt_templates (
   updated_at timestamptz not null default now()
 );
 
-comment on table public.photo_prompt_templates is 'AI で画像をつくるときの絵の説明のフォーマット（プロジェクトに 20 まで。is_default は 1 つだけ）';
+comment on table public.photo_prompt_templates is 'AI で画像をつくるときの絵の説明のフォーマット（プロジェクトに 20 まで、1 人 100 まで。is_default は 1 つだけ）';
 
 create index photo_prompt_templates_project_idx on public.photo_prompt_templates (project_id, position);
 create index photo_prompt_templates_owner_idx on public.photo_prompt_templates (owner_id);
@@ -25,8 +25,9 @@ create trigger photo_prompt_templates_set_updated_at
   before update on public.photo_prompt_templates
   for each row execute function public.set_updated_at();
 
--- 1 つのプロジェクトに 20 まで。同時に足されても超えないよう、数える前にそのプロジェクトの行を押さえる（行き先の URL と同じ作り。20261102210000）。
--- security invoker なので、押さえられるのは本人が更新できる自分のプロジェクトだけ（他人のものは RLS の with check で断られる）
+-- 1 つのプロジェクトに 20 まで、1 人の合計で 100 まで（プロジェクトはいくつも作れるので、プロジェクトごとの上限だけでは表をふくらませられる。
+-- 2026-11-07 のコミットのセキュリティレビューの指摘）。同時に足されても超えないよう、数える前にそのプロジェクトの行を押さえ（行き先の URL と同じ作り。20261102210000）、
+-- 利用者ごとの advisory lock を取る。security invoker なので、押さえられるのは本人が更新できる自分のプロジェクトだけ（他人のものは RLS の with check で断られる）
 create function public.photo_prompt_templates_limit()
 returns trigger
 language plpgsql
@@ -37,6 +38,10 @@ begin
   perform 1 from public.projects where id = new.project_id for update;
   if (select count(*) from public.photo_prompt_templates t where t.project_id = new.project_id) >= 20 then
     raise exception '絵の説明のフォーマットは 1 つのプロジェクトに 20 までです' using errcode = '23514';
+  end if;
+  perform pg_advisory_xact_lock(hashtext('photo_prompt_templates:' || new.owner_id::text));
+  if (select count(*) from public.photo_prompt_templates t where t.owner_id = new.owner_id) >= 100 then
+    raise exception '絵の説明のフォーマットは 1 人 100 までです' using errcode = '23514';
   end if;
   return new;
 end;

@@ -84,7 +84,10 @@ export function PhotoMaker({
       if (!alive || !r.templates) return;
       setTemplates(r.templates);
       setExamples(r.examples ?? []);
-      setTemplateId(r.templates.find((t) => t.isDefault)?.id ?? null);
+      // 「いつも使う」をはじめから選び、まだ何も書いていなければ、その本文を絵の説明に入れる（{場面} は穴のまま）
+      const d = r.templates.find((t) => t.isDefault) ?? null;
+      setTemplateId(d?.id ?? null);
+      if (d) setScene((cur) => (cur.trim() ? cur : d.body));
     });
     return () => {
       alive = false;

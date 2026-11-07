@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 import { runPhotoIdeas } from "@/lib/ai/photo-gen";
-import { MAX_PHOTO_TEMPLATES } from "@/lib/photo-templates/schema";
+import { MAX_PHOTO_TEMPLATES, MAX_PHOTO_TEMPLATES_PER_USER } from "@/lib/photo-templates/schema";
 import { TemplateError, addTemplate, deleteTemplate, listTemplates, setDefaultTemplate, updateTemplate } from "@/lib/photo-templates/store";
 import { scopeAiBudget } from "./helpers/ai-budget";
 import { adminClient, anonClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
@@ -106,6 +106,26 @@ describe("絵の説明のフォーマット", () => {
     const r = await runPhotoIdeas(bob, admin, { callIdeas: other }, { userId: bobId, projectId: bobProject, text: "本文", templateId: id });
     expect(r).toMatchObject({ ok: false });
     expect(other).not.toHaveBeenCalled();
+  });
+
+  it(`1 人の合計は ${MAX_PHOTO_TEMPLATES_PER_USER} 個まで（プロジェクトを増やしてもすり抜けられない。同時でも）`, async () => {
+    const { userId: carolId, client: carol } = await signUpNewUser();
+    try {
+      const projects: string[] = [];
+      for (let i = 0; i < 6; i++) projects.push((await carol.from("projects").insert({ name: `お店 ${i}` }).select("id").single()).data!.id);
+      // 5 つのプロジェクトに 20 個ずつ（合計 100）
+      for (const p of projects.slice(0, 5)) {
+        const { error } = await carol.from("photo_prompt_templates").insert(Array.from({ length: 20 }, (_, i) => ({ project_id: p, name: `f${i}`, body: "{場面}。光" })));
+        expect(error).toBeNull();
+      }
+      // 6 つ目のプロジェクトには、同時に足しても 1 つも入らない
+      const results = await Promise.allSettled(Array.from({ length: 5 }, (_, i) => addTemplate(carol, projects[5], t(`越え ${i}`))));
+      expect(results.every((r) => r.status === "rejected")).toBe(true);
+      expect(((results[0] as PromiseRejectedResult).reason as TemplateError).userMessage).toContain(`1 人 ${MAX_PHOTO_TEMPLATES_PER_USER} 個まで`);
+      expect((await admin.from("photo_prompt_templates").select("id", { count: "exact", head: true }).eq("owner_id", carolId)).count).toBe(MAX_PHOTO_TEMPLATES_PER_USER);
+    } finally {
+      await deleteUser(carolId);
+    }
   });
 
   it("プロジェクトを消すとフォーマットも消える", async () => {

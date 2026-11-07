@@ -5,6 +5,8 @@ import type { ProductType } from "@/lib/projects/product-types";
 // 上限と字数の正は DB（20261107100000_photo_prompt_templates の check とトリガー）。ここはその写し
 
 export const MAX_PHOTO_TEMPLATES = 20;
+// 1 人の合計（プロジェクトはいくつも作れるので。DB のトリガーで同じ値）
+export const MAX_PHOTO_TEMPLATES_PER_USER = 100;
 export const MAX_TEMPLATE_NAME = 40;
 export const MAX_TEMPLATE_BODY = 600;
 // 場面を差し込む穴（AI の案か、書いた場面が入る）
@@ -21,11 +23,11 @@ export function hasSceneSlot(body: string): boolean {
   return body.includes(SCENE_SLOT);
 }
 
-// フォーマットに場面を入れて、絵の説明にする。穴がなければフォーマットの文のまま（場面は前に置く）。穴があって場面が空なら、穴を消す
+// フォーマットに場面を入れて、絵の説明にする。穴がなければ、場面のあとに「。」でつないでフォーマットの文を続ける。穴があって場面が空なら、穴を消す
 export function fillTemplate(body: string, scene: string): string {
   const s = scene.trim();
   if (hasSceneSlot(body)) return body.split(SCENE_SLOT).join(s).replace(/\s+/g, " ").replace(/^[、。,\s]+/, "").trim();
-  return s ? `${s} ${body}`.trim() : body.trim();
+  return s ? `${s.replace(/[。、,.\s]+$/, "")}。${body.trim()}` : body.trim();
 }
 
 // はじめから出す例（「例から追加」）。宣伝するものの種類ごとに 2〜3 個。雰囲気・光・撮り方を決め、何を写すかは {場面} に入れる

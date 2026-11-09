@@ -10,6 +10,8 @@ import { uploadImageFile, uploadJpeg } from "@/lib/media/client-upload";
 import { MAX_ALT_LENGTH, MAX_IMAGES_PER_POST, formatBytes } from "@/lib/media/rules";
 import { aspectWarnings, carouselMismatches, instagramRatioOk, phoneOrientation, ratioLabel } from "@/lib/media/aspect";
 import { renderAspect } from "@/lib/media/aspect-render";
+import type { Adjustments } from "@/lib/media/adjust";
+import { editSource, editedIds, staleAfterEdit, type EditKind } from "@/lib/media/image-edit";
 import { canvasToJpeg } from "@/lib/media/template-render";
 import { ImageNumbers, loadBitmap } from "./aspect-options";
 import type { BulkAspectOptions } from "./image-aspect-bulk";
@@ -21,6 +23,12 @@ import { AiBadge } from "./ai-badge";
 const ImageAspectEditor = dynamic(() => import("./image-aspect-editor").then((m) => m.ImageAspectEditor), {
   ssr: false,
   loading: () => <p className="text-sm text-muted">縦横を整える画面を開いています…</p>,
+});
+
+// 調整する画面（明るさ・回転・切り取りなど。4.53）も、開いたときに読み込む
+const ImageAdjustEditor = dynamic(() => import("./image-adjust-editor").then((m) => m.ImageAdjustEditor), {
+  ssr: false,
+  loading: () => <p className="text-sm text-muted">調整する画面を開いています…</p>,
 });
 
 const ImageAspectBulk = dynamic(() => import("./image-aspect-bulk").then((m) => m.ImageAspectBulk), {
@@ -37,7 +45,9 @@ const ImageMaker = dynamic(() => import("./image-maker").then((m) => m.ImageMake
 export type ImageMakerContext = Omit<ImageMakerProps, "onAdd" | "onClose" | "nextIndex" | "first" | "instagram">;
 
 // aiGenerated: AI で作った画像（「AI で作った画像」の札を出す）。
-// original: 縦横を整えたときの元の画像（この画面の中だけで持ち、元に戻すときと、整え直すときの元にする。保存はしない）
+// original: 縦横を整えた・調整したときの元の画像（この画面の中だけで持ち、元に戻すときの元にする。保存はしない）。
+// edit: 最後の整え方（縦横を整える・調整する）と、そのとき描き直した元（base。たどり方は src/lib/media/image-edit.ts）。
+// 調整したときは、その値（adjust）も持ち、開き直したときにスライダーを戻す
 export type AttachedImage = {
   id: string;
   previewUrl: string | null;
@@ -47,7 +57,15 @@ export type AttachedImage = {
   sizeBytes: number;
   aiGenerated?: boolean;
   original?: AttachedImage;
+  edit?: { kind: EditKind; base: AttachedImage; adjust?: Adjustments };
 };
+
+// 描き直す元として持つときは、その先の元や整え方を持たない（いまの画像の original と edit で足りる）
+function strip(image: AttachedImage): AttachedImage {
+  return { ...image, original: undefined, edit: undefined };
+}
+
+const sourceOf = (image: AttachedImage) => ({ previewUrl: image.previewUrl!, width: image.width, height: image.height });
 
 // 投稿に添える画像。並べ替え・外す・代わりの文（alt）。保存は投稿の保存と一緒に行う（images を savePost に渡す）
 export function ImageAttachments({
@@ -80,6 +98,8 @@ export function ImageAttachments({
   const [dragging, setDragging] = useState(false);
   // 縦横を整えている画像の ID
   const [adjusting, setAdjusting] = useState<string | null>(null);
+  // 調整する画面を開いている画像の ID（縦横を整える画面とは、どちらか 1 つだけ開く）
+  const [tuning, setTuning] = useState<string | null>(null);
   // まとめて整える: 欄を開いているか・進み具合・終わったあと（整えた画像の新しい ID と、整えられなかった画像の ID）
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
@@ -133,20 +153,21 @@ export function ImageAttachments({
     setMaking(true);
   }
 
-  // 整えた画像を上げて、元の画像と差し替える（元の画像は original に持ち、元に戻せる）。差し替えた画像の新しい ID を返す
-  async function swap(image: AttachedImage, jpeg: Blob): Promise<string> {
-    const base = image.original ?? image;
-    const uploaded = await uploadJpeg(jpeg, "整えた画像", base.aiGenerated ? { fromMediaId: base.id } : undefined);
-    // 前に整えた画像（元ではないもの）は要らなくなる
-    if (image.original) void discardImage(image.id);
-    onChange((prev) => prev.map((p) => (p.id === image.id ? { ...uploaded, altText: p.altText, original: base } : p)));
+  // 整えた画像を上げて、いまの画像と差し替える（元の画像は original に持ち、元に戻せる）。差し替えた画像の新しい ID を返す
+  async function swap(image: AttachedImage, jpeg: Blob, kind: EditKind, adjust?: Adjustments): Promise<string> {
+    const original = image.original ?? image;
+    const base = strip(editSource(image, kind));
+    const uploaded = await uploadJpeg(jpeg, "整えた画像", original.aiGenerated ? { fromMediaId: original.id } : undefined);
+    // 前に整えた画像のうち、元にも、今回描き直した元にもならないものは要らなくなる
+    for (const id of staleAfterEdit(image, kind, uploaded.id)) void discardImage(id);
+    onChange((prev) => prev.map((p) => (p.id === image.id ? { ...uploaded, altText: p.altText, original, edit: { kind, base, adjust } } : p)));
     return uploaded.id;
   }
 
-  async function replaceWith(image: AttachedImage, jpeg: Blob): Promise<boolean> {
+  async function replaceWith(image: AttachedImage, jpeg: Blob, kind: EditKind, adjust?: Adjustments): Promise<boolean> {
     setError(null);
     try {
-      await swap(image, jpeg);
+      await swap(image, jpeg, kind, adjust);
       return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : "画像を差し替えられませんでした。");
@@ -158,7 +179,7 @@ export function ImageAttachments({
     if (!image.original) return;
     const original = { ...image.original, altText: image.altText };
     onChange((prev) => prev.map((p) => (p.id === image.id ? original : p)));
-    void discardImage(image.id);
+    for (const id of editedIds(image)) void discardImage(id);
   }
 
   // 選んだ画像をまとめて同じ枠に整える。1 枚ずつ元の画像から描き直して差し替え、整えられなかった画像は飛ばして続ける（整えた画像はそのまま）
@@ -174,7 +195,7 @@ export function ImageAttachments({
     const failedIds: string[] = [];
     for (const image of list) {
       try {
-        const src = image.original ?? image;
+        const src = editSource(image, "aspect");
         if (!src.previewUrl) throw new Error("no preview");
         const bitmap = await loadBitmap(src.previewUrl);
         const c = document.createElement("canvas");
@@ -183,7 +204,7 @@ export function ImageAttachments({
         } finally {
           bitmap.close();
         }
-        fixedIds.push(await swap(image, await canvasToJpeg(c)));
+        fixedIds.push(await swap(image, await canvasToJpeg(c), "aspect"));
       } catch {
         failedIds.push(image.id);
       }
@@ -214,7 +235,7 @@ export function ImageAttachments({
     onChange((prev) => prev.filter((i) => i.id !== image.id));
     if (image.original) void discardImage(image.original.id);
     // まだ投稿に添えていない画像なら、すぐに消える。添えた画像は投稿を保存したときに消える
-    void discardImage(image.id);
+    for (const id of editedIds(image)) void discardImage(id);
   }
 
   // 縦横の注意（送り先に Instagram があるときだけ）
@@ -396,17 +417,32 @@ export function ImageAttachments({
                   )}
                   {image.original && (
                     <span className="num text-muted">
-                      縦横を整えました（元 {image.original.width}×{image.original.height}）
+                      整えました（元 {image.original.width}×{image.original.height}）
                     </span>
                   )}
                   <button
                     type="button"
-                    disabled={locked || !(image.original ?? image).previewUrl}
+                    disabled={locked || !editSource(image, "aspect").previewUrl}
                     aria-expanded={adjusting === image.id}
-                    onClick={() => setAdjusting((a) => (a === image.id ? null : image.id))}
+                    onClick={() => {
+                      setTuning(null);
+                      setAdjusting((a) => (a === image.id ? null : image.id));
+                    }}
                     className="font-semibold text-primary hover:underline disabled:text-muted disabled:no-underline"
                   >
                     縦横を整える
+                  </button>
+                  <button
+                    type="button"
+                    disabled={locked || !editSource(image, "adjust").previewUrl}
+                    aria-expanded={tuning === image.id}
+                    onClick={() => {
+                      setAdjusting(null);
+                      setTuning((a) => (a === image.id ? null : image.id));
+                    }}
+                    className="font-semibold text-primary hover:underline disabled:text-muted disabled:no-underline"
+                  >
+                    調整する
                   </button>
                   {image.original && (
                     <button type="button" disabled={locked} onClick={() => revert(image)} className="text-muted hover:text-fg hover:underline">
@@ -431,13 +467,26 @@ export function ImageAttachments({
                   className="w-full rounded-md border border-input bg-surface px-2.5 py-1.5 text-sm outline-none focus:border-primary focus:shadow-[0_0_0_1px_var(--primary)] max-sm:text-[16px]"
                 />
               </div>
-              {adjusting === image.id && (image.original ?? image).previewUrl && (
+              {adjusting === image.id && editSource(image, "aspect").previewUrl && (
                 <div className="col-span-2">
                   <ImageAspectEditor
-                    source={{ previewUrl: (image.original ?? image).previewUrl!, width: (image.original ?? image).width, height: (image.original ?? image).height }}
+                    source={sourceOf(editSource(image, "aspect"))}
                     index={i}
-                    onApply={(jpeg) => replaceWith(image, jpeg)}
+                    onApply={(jpeg) => replaceWith(image, jpeg, "aspect")}
                     onClose={() => setAdjusting(null)}
+                  />
+                </div>
+              )}
+              {tuning === image.id && editSource(image, "adjust").previewUrl && (
+                <div className="col-span-2">
+                  <ImageAdjustEditor
+                    // 元が変わったら（差し替えたあとに縦横を整えたなど）、前の値を持ち越さずに開き直す
+                    key={editSource(image, "adjust").id}
+                    source={sourceOf(editSource(image, "adjust"))}
+                    initial={image.edit?.kind === "adjust" ? image.edit.adjust : undefined}
+                    index={i}
+                    onApply={(jpeg, adjust) => replaceWith(image, jpeg, "adjust", adjust)}
+                    onClose={() => setTuning(null)}
                   />
                 </div>
               )}

@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { HelpTip } from "@/components/ui/help";
 import { Term } from "@/components/ui/term";
@@ -34,7 +34,7 @@ const ImageMaker = dynamic(() => import("./image-maker").then((m) => m.ImageMake
   loading: () => <p className="text-sm text-muted">画像をつくる画面を開いています…</p>,
 });
 
-export type ImageMakerContext = Omit<ImageMakerProps, "onAdd" | "onClose">;
+export type ImageMakerContext = Omit<ImageMakerProps, "onAdd" | "onClose" | "nextIndex" | "first" | "instagram">;
 
 // aiGenerated: AI で作った画像（「AI で作った画像」の札を出す）。
 // original: 縦横を整えたときの元の画像（この画面の中だけで持ち、元に戻すときと、整え直すときの元にする。保存はしない）
@@ -66,7 +66,15 @@ export function ImageAttachments({
   instagram?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  // 画像をつくる画面: 開いているか（making）と、一度開いたか（makerMounted）。閉じても外さずに隠すので、
+  // 作った候補・絵の説明・フォーマットが残り、続けて 2 枚目をつくれる（オーナーの Notion の項目「1 枚目、2 枚目の作成の手順」）
   const [making, setMaking] = useState(false);
+  const [makerMounted, setMakerMounted] = useState(false);
+  // 続けて添えるとき（候補をまとめて添えるなど）に、まだ画面に出ていない分も数える
+  const countRef = useRef(images.length);
+  useEffect(() => {
+    countRef.current = images.length;
+  }, [images.length]);
   const [busy, setBusy] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -98,24 +106,31 @@ export function ImageAttachments({
     }
   }
 
-  // テンプレートで作った画像を添える。添えられたら true（画面を閉じる）
+  // つくった画像を添える。添えられたら true（画面は閉じずに、続けて次の画像をつくれる）
   async function addMade(jpeg: Blob, altText: string, ai?: { jobId: string; source: "generated" | "composite" }): Promise<boolean> {
     setError(null);
-    if (room <= 0) {
+    if (countRef.current >= MAX_IMAGES_PER_POST) {
       setError(`画像は 1 つの投稿に ${MAX_IMAGES_PER_POST} 枚までです。`);
       return false;
     }
+    countRef.current += 1;
     setBusy((n) => n + 1);
     try {
       const image = await uploadJpeg(jpeg, "作った画像", ai);
       onChange((prev) => [...prev, { ...image, altText }]);
       return true;
     } catch (e) {
+      countRef.current -= 1;
       setError(e instanceof Error ? e.message : "画像を追加できませんでした。");
       return false;
     } finally {
       setBusy((n) => n - 1);
     }
+  }
+
+  function openMaker() {
+    setMakerMounted(true);
+    setMaking(true);
   }
 
   // 整えた画像を上げて、元の画像と差し替える（元の画像は original に持ち、元に戻せる）。差し替えた画像の新しい ID を返す
@@ -243,11 +258,12 @@ export function ImageAttachments({
           画像を選ぶ
         </Button>
         {maker && (
-          <Button type="button" variant="secondary" size="sm" disabled={disabled || room <= 0 || making} onClick={() => setMaking(true)}>
-            画像をつくる
+          <Button type="button" variant="secondary" size="sm" disabled={disabled || room <= 0 || making} onClick={openMaker}>
+            {images.length > 0 ? `次の画像（${images.length + 1} 枚目）をつくる` : "画像をつくる"}
           </Button>
         )}
         <span className="num text-[13px] text-faint">
+          {images.length > 0 && <span className="mr-1 font-bold text-muted">{images.length} 枚</span>}
           <span className="hidden sm:inline">この枠に画像をドラッグしても追加できます・</span>
           {MAX_IMAGES_PER_POST} 枚まで（X は 4 枚）
         </span>
@@ -256,7 +272,18 @@ export function ImageAttachments({
         </HelpTip>
       </div>
 
-      {maker && making && <ImageMaker {...maker} onAdd={addMade} onClose={() => setMaking(false)} />}
+      {maker && makerMounted && (
+        <div hidden={!making}>
+          <ImageMaker
+            {...maker}
+            nextIndex={images.length + busy + 1}
+            first={images[0] ? { width: images[0].width, height: images[0].height } : null}
+            instagram={instagram}
+            onAdd={addMade}
+            onClose={() => setMaking(false)}
+          />
+        </div>
+      )}
 
       {error && (
         <p role="alert" className="text-sm font-semibold text-danger">

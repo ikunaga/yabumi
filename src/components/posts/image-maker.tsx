@@ -26,6 +26,7 @@ import {
   TEMPLATE_SIZES,
   autoAlt,
   brandPalette,
+  closestSize,
   defaultSizeFor,
   templateReady,
   type DiagramStyle,
@@ -52,6 +53,10 @@ export type ImageMakerProps = {
   // ai: AI で作った画像から作ったとき（サーバーが確かめて AI の印を付ける）
   onAdd: (jpeg: Blob, altText: string, ai?: { jobId: string; source: "generated" | "composite" }) => Promise<boolean>;
   onClose: () => void;
+  // 次に添えるのは何枚目か（1 からの番号）。1 枚目の画像の縦横（2 枚目から、それにそろえる）。送り先に Instagram があるか
+  nextIndex: number;
+  first: { width: number; height: number } | null;
+  instagram: boolean;
 };
 
 type Saved = { palette: string; brand: string; font: FontKey };
@@ -68,10 +73,20 @@ function loadSaved(projectId: string): Saved | null {
 
 // テンプレートで画像をつくる（F14 の段取り ①。docs/architecture.md の 4.25）。
 // ブラウザの Canvas で描き、できた JPEG を画像の添付（4.18）と同じ流れで上げる。画面の画像（スクリーンショット）はどこにも送らない
-export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, onAdd, onClose }: ImageMakerProps) {
+// 添えても閉じずに、続けて次の画像をつくれる（絵の説明・フォーマット・候補は残る）。2 枚目からは 1 枚目の縦横にそろえる
+export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, onAdd, onClose, nextIndex, first, instagram }: ImageMakerProps) {
   const suggested = useMemo(() => defaultSizeFor(targets), [targets]);
+  const firstSize = first ? closestSize(first.width, first.height) : null;
   const [kind, setKind] = useState<TemplateKind>(targets.length === 1 && targets[0] === "note" ? "note" : "card");
-  const [size, setSize] = useState<TemplateSizeKey>(suggested.size);
+  const [size, setSize] = useState<TemplateSizeKey>(firstSize ?? suggested.size);
+  // 1 枚目が決まったら（添えた・選んだ）、縦横をそれにそろえる（あとから変えることもできる）
+  const [alignedTo, setAlignedTo] = useState<TemplateSizeKey | null>(firstSize);
+  if (firstSize !== alignedTo) {
+    setAlignedTo(firstSize);
+    if (firstSize) setSize(firstSize);
+  }
+  // この画面で添えたか（「✓ 添えました（画像は n 枚）」。まとめて添えたときも、いまの枚数で出す）
+  const [added, setAdded] = useState(false);
   // 色と書体は、プロジェクトごとに前回のものを覚えておく（この端末だけ。この画面はブラウザでだけ描くので、最初から読める）
   const [saved] = useState(() => loadSaved(projectId));
   const [paletteKey, setPaletteKey] = useState(saved?.palette ?? PALETTES[0].key);
@@ -196,7 +211,7 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
     try {
       const jpeg = await canvasToJpeg(canvas);
       const ai = kind === "screen" && shot?.aiJobId ? { jobId: shot.aiJobId, source: "composite" as const } : undefined;
-      if (await onAdd(jpeg, altText.slice(0, MAX_ALT_LENGTH), ai)) onClose();
+      if (await onAdd(jpeg, altText.slice(0, MAX_ALT_LENGTH), ai)) setAdded(true);
     } catch {
       setError("画像を作れませんでした。もう一度お試しください。");
     } finally {
@@ -217,13 +232,13 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
     c.getContext("2d")?.drawImage(bitmap, 0, 0);
     const jpeg = await canvasToJpeg(c);
     const ok = await onAdd(jpeg, altText, { jobId, source: "generated" });
-    if (ok) onClose();
+    if (ok) setAdded(true);
     return ok;
   }
 
-  async function addPhotoAsIs(photo: PickedPhoto, altText: string) {
+  async function addPhotoAsIs(photo: PickedPhoto, altText: string): Promise<boolean> {
     try {
-      await addAsIs(photo.bitmap, photo.jobId, altText);
+      return await addAsIs(photo.bitmap, photo.jobId, altText);
     } finally {
       photo.bitmap.close();
     }
@@ -258,13 +273,31 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
     <section aria-labelledby="image-maker-heading" className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4 max-sm:p-3">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <h3 id="image-maker-heading" className="text-[15px] font-bold">
-          画像をつくる
+          {nextIndex > 1 ? `${nextIndex} 枚目をつくる` : "画像をつくる"}
         </h3>
-        <span className="text-xs text-muted">{mode === "template" ? "テンプレートに文字を入れて作ります。画像の費用はかかりません" : "絵の説明から、AI が写真や絵をつくります（1 枚 5 円ほど）"}</span>
+        <span className="text-xs text-muted">
+          {nextIndex > 1 && instagram && first
+            ? `Instagram のカルーセルなら、1 枚目と同じ縦横（${TEMPLATE_SIZES[closestSize(first.width, first.height)].label}）にそろえます`
+            : mode === "template"
+              ? "テンプレートに文字を入れて作ります。画像の費用はかかりません"
+              : "絵の説明から、AI が写真や絵をつくります（1 枚 5 円ほど）"}
+        </span>
         <Button type="button" variant="text" size="sm" className="ml-auto" onClick={onClose}>
-          やめる
+          {added ? "閉じる" : "やめる"}
         </Button>
       </div>
+
+      {added && (
+        <p role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md bg-surface2 px-3.5 py-2 text-sm">
+          <span>
+            <span aria-hidden className="mr-1 font-bold text-success">
+              ✓
+            </span>
+            添えました（画像は {nextIndex - 1} 枚）。続けて {nextIndex} 枚目をつくれます
+          </span>
+          {mode === "photo" && <span className="text-xs text-muted">絵の説明とフォーマットはそのまま。場面だけ変えると、同じ雰囲気でそろいます</span>}
+        </p>
+      )}
 
       <div role="group" aria-label="つくり方" className="flex flex-wrap gap-2">
         <Choice on={mode === "template"} onClick={() => setMode("template")}>
@@ -278,7 +311,7 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
       {photoOpened && (
         <div hidden={mode !== "photo"} className="flex flex-col gap-4">
           {mode === "photo" && error && <ErrorBanner>{error}</ErrorBanner>}
-          <PhotoMaker projectId={projectId} targets={targets} visible={mode === "photo"} text={text} size={size} onSize={setSize} onUseAsIs={addPhotoAsIs} onUseInTemplate={usePhotoInTemplate} />
+          <PhotoMaker projectId={projectId} targets={targets} visible={mode === "photo"} text={text} size={size} onSize={setSize} nextIndex={nextIndex} onUseAsIs={addPhotoAsIs} onUseInTemplate={usePhotoInTemplate} />
         </div>
       )}
       {mode === "template" && (
@@ -512,10 +545,10 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
 
           <div className="flex flex-wrap items-center gap-3 border-t border-line pt-3">
             <Button type="button" disabled={Boolean(notReady) || adding || renderError} onClick={() => void add()}>
-              {adding ? "添えています…" : "この画像を添える"}
+              {adding ? "添えています…" : `${nextIndex} 枚目として添える`}
             </Button>
             <Button type="button" variant="text" onClick={onClose}>
-              やめる
+              {added ? "閉じる" : "やめる"}
             </Button>
             {notReady && <span className="text-sm text-muted">{notReady}</span>}
           </div>

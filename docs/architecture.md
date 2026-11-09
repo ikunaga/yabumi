@@ -1869,6 +1869,17 @@ Facebook ページ（graph.facebook.com）:
 
 出典（2026-10-11 に確認。② の料金・モデル・規約は 2026-11-02 に確かめ直した。料金表は 2026-10-30 更新で同じ値）: Gemini API の料金（ai.google.dev/gemini-api/docs/pricing、2026-10-09 更新）、画像の生成（ai.google.dev/gemini-api/docs/image-generation）、Gemini API の追加の利用規約（ai.google.dev/gemini-api/terms、2026-04-28 更新）、OpenAI の料金（developers.openai.com/api/docs/pricing）、画像の生成（developers.openai.com/api/docs/guides/image-generation）、データの扱い（developers.openai.com/api/docs/guides/your-data）、Black Forest Labs の料金（docs.bfl.ai/quick_start/pricing）、Recraft の料金（recraft.ai/pricing）、Stability AI の料金（platform.stability.ai/pricing）、Next.js の ImageResponse（node_modules/next/dist/docs）。日本語の文字の比較は第三者の記事（mihata.jp、note.com の検証）で、条件はそろっていない。
 
+#### 続けて 2 枚目からをつくる（2026-11-09、オーナーの Notion の項目「画像をつくるのが 1 枚しかできない。1 枚目、2 枚目の作成の手順をわかりやすくしたい」。feat/photo-multi）
+
+- 前の動き: 候補から 1 枚を添えると、画像をつくる画面が閉じて外れ、もう 1 枚の候補・絵の説明・フォーマットが消えた。もう一度「画像をつくる」を押すと、最初（テンプレートのタブ・空の絵の説明）からだった。候補は 1 枚しか選べなかった
+- いまの動き（DB は変えていない）
+  - 画像の欄に「n 枚」と、画像があれば「次の画像（n+1 枚目）をつくる」を出す。画像をつくる画面は、閉じても外さずに隠すので、開き直すと前の状態から続く
+  - 添えても閉じない。「✓ 添えました（画像は n 枚）。続けて n+1 枚目をつくれます」と、見出し「n+1 枚目をつくる」を出す。テンプレートの「n 枚目として添える」も同じ
+  - 2 枚目からは、縦横を 1 枚目にいちばん近い枠にそろえる（src/lib/media/templates.ts の closestSize。変えることもできる）。送り先に Instagram があれば、見出しに「Instagram のカルーセルなら、1 枚目と同じ縦横（縦 4:5）にそろえます」
+  - AI の写真: 絵の説明とフォーマットを引き継ぐ。{場面} のあるフォーマットなら「場面だけ変える」の欄で、同じ雰囲気のまま場面だけを変えられる。候補はいくつでも選べ、「選んだ 2 枚を添える（2〜3 枚目）」でまとめて添える。添えた候補には「✓ 添えました」を出し、2 度は添えない。見出しを重ねるのは 1 枚のときだけ
+  - 投稿の画像は 10 枚まで。まとめて添えるときも、まだ画面に出ていない分を数えて超えない（image-attachments.tsx の countRef）
+- 上限（1 人 月 20 枚・新しい人 3 枚・1 日 20 回）は変えていない。「今月はあと n 枚」は「つくる」の横に出る
+
 #### 絵の説明のフォーマット（2026-11-07、オーナーの Notion の項目「画像をつくるときの絵の説明プロンプトについて、定型フォーマットを管理できる機能を追加」。feat/photo-prompt-templates）
 
 - プロジェクトごとに、絵の説明のフォーマット（名前 40 字・本文 600 字）を 20 個まで登録し、画像をつくる画面（photo-maker.tsx の ①）で選んで使い回す。1 つを「いつも使う」にでき、画面を開くとはじめから選ばれる

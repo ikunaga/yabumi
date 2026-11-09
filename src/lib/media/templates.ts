@@ -43,6 +43,14 @@ export function defaultSizeFor(targets: readonly SnsKey[]): { size: TemplateSize
   return { size: "portrait", reason: "多くの SNS で大きく見える縦長です" };
 }
 
+// 1 枚目の画像にいちばん近い縦横（2 枚目からを 1 枚目にそろえる。Instagram のカルーセルは 2 枚目から 1 枚目の縦横で切られる）
+export function closestSize(width: number, height: number): TemplateSizeKey {
+  const r = width / height;
+  return (Object.keys(TEMPLATE_SIZES) as TemplateSizeKey[]).reduce((best, k) =>
+    Math.abs(Math.log(TEMPLATE_SIZES[k].w / TEMPLATE_SIZES[k].h / r)) < Math.abs(Math.log(TEMPLATE_SIZES[best].w / TEMPLATE_SIZES[best].h / r)) ? k : best,
+  );
+}
+
 function snsName(s: SnsKey): string {
   return { instagram: "Instagram", facebook: "Facebook", threads: "Threads" }[s as "instagram"] ?? s;
 }

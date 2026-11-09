@@ -5,7 +5,7 @@ import { useEffect, useState, useTransition } from "react";
 import { AiThinking } from "@/components/ui/ai-thinking";
 import { Button, NotReadyButton } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/feedback";
-import { Textarea } from "@/components/ui/field";
+import { Input, Textarea } from "@/components/ui/field";
 import { acknowledgePhoto, draftPhotoIdeas, generatePhotos, photoPanelState, refreshPhotoCandidates, type PhotoPanelState } from "@/lib/ai/photo-actions";
 import { MAX_PHOTOS_PER_RUN, MAX_SCENE_CHARS, PHOTO_LIMITS, PHOTO_STYLES, PHOTO_STYLE_LABEL, type PhotoIdea, type PhotoStyle } from "@/lib/ai/photo";
 import type { PhotoCandidate } from "@/lib/ai/photo-gen";
@@ -41,6 +41,7 @@ export function PhotoMaker({
   text,
   size,
   onSize,
+  nextIndex,
   onUseAsIs,
   onUseInTemplate,
 }: {
@@ -51,7 +52,10 @@ export function PhotoMaker({
   text: string;
   size: TemplateSizeKey;
   onSize: (s: TemplateSizeKey) => void;
-  onUseAsIs: (photo: PickedPhoto, altText: string) => Promise<void>;
+  // 次に添えるのは何枚目か（ボタンの「2 枚目として添える」）
+  nextIndex: number;
+  // 添えられたら true
+  onUseAsIs: (photo: PickedPhoto, altText: string) => Promise<boolean>;
   onUseInTemplate: (photo: PickedPhoto) => void;
 }) {
   const [state, setState] = useState<PhotoPanelState | null>(null);
@@ -61,7 +65,9 @@ export function PhotoMaker({
   const [style, setStyle] = useState<PhotoStyle>("photo");
   const [count, setCount] = useState(2);
   const [candidates, setCandidates] = useState<Candidates | null>(null);
-  const [picked, setPicked] = useState<string | null>(null);
+  // 選んだ候補（まとめて添えられる）と、もう添えた候補（同じ候補を 2 回添えない）
+  const [picked, setPicked] = useState<string[]>([]);
+  const [usedPaths, setUsedPaths] = useState<string[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [using, setUsing] = useState(false);
   const [drafting, startDraft] = useTransition();
@@ -136,7 +142,7 @@ export function PhotoMaker({
     const r = await refreshPhotoCandidates({ jobId: candidates.jobId, paths: candidates.items.map((c) => c.path) });
     if (!r.urls) {
       setCandidates(null);
-      setPicked(null);
+      setPicked([]);
       setError(r.error ?? "候補を読み直せませんでした。");
       return null;
     }
@@ -186,7 +192,10 @@ export function PhotoMaker({
   const hasText = text.trim().length > 0;
   const canMake = state.enabled && !state.globalReached && !state.newUsersFull && state.remainingImages > 0;
   const n = Math.min(count, Math.max(1, state.remainingImages));
-  const pickedItem = candidates?.items.find((c) => c.path === picked) ?? null;
+  const pickedItems = candidates?.items.filter((c) => picked.includes(c.path)) ?? [];
+  const remainingCandidates = candidates?.items.filter((c) => !usedPaths.includes(c.path)) ?? [];
+  // {場面} のあるフォーマットを選んでいれば、場面だけを書き換える欄を出す（2 枚目から、同じ雰囲気で場面だけ変える）
+  const slotTemplate = template && hasSceneSlot(template.body) ? template : null;
 
   function draft() {
     startDraft(async () => {
@@ -212,28 +221,41 @@ export function PhotoMaker({
         return;
       }
       setCandidates({ jobId: r.jobId, items: r.candidates, scene, signedAt: Date.now() });
-      setPicked(r.candidates[0]?.path ?? null);
+      setPicked(r.candidates[0] ? [r.candidates[0].path] : []);
+      setUsedPaths([]);
       if (r.partial) setNotice("頼んだうちの一部だけできました（できなかった分は数えません）。");
     });
   }
 
+  // asIs: 選んだ候補を、選んだ順にそのまま添える（何枚でも）。見出しを重ねるのは 1 枚だけ
   async function use(asIs: boolean) {
-    if (!pickedItem || !candidates) return;
+    if (pickedItems.length === 0 || !candidates) return;
     setUsing(true);
     setError(null);
     try {
       const items = await freshItems();
-      const item = items?.find((c) => c.path === pickedItem.path);
-      if (!item) return;
-      const bitmap = await loadBitmap(item.url);
-      const photo = { jobId: candidates.jobId, bitmap, scene: candidates.scene };
-      if (asIs) await onUseAsIs(photo, `AI で作った画像。${candidates.scene}`.slice(0, MAX_ALT_LENGTH));
-      else onUseInTemplate(photo);
+      for (const path of picked) {
+        const item = items?.find((c) => c.path === path);
+        if (!item) continue;
+        const bitmap = await loadBitmap(item.url);
+        const photo = { jobId: candidates.jobId, bitmap, scene: candidates.scene };
+        if (!asIs) {
+          onUseInTemplate(photo);
+          return;
+        }
+        if (!(await onUseAsIs(photo, `AI で作った画像。${candidates.scene}`.slice(0, MAX_ALT_LENGTH)))) break;
+        setUsedPaths((u) => [...u, path]);
+        setPicked((p) => p.filter((x) => x !== path));
+      }
     } catch {
       setError("画像を読めませんでした。候補は 1 時間で見られなくなります。もう一度つくってください。");
     } finally {
       setUsing(false);
     }
+  }
+
+  function togglePick(path: string) {
+    setPicked((p) => (p.includes(path) ? p.filter((x) => x !== path) : [...p, path]));
   }
 
   // {場面} を書き換えないまま作らない（画像の AI に穴のまま送らない）
@@ -287,6 +309,23 @@ export function PhotoMaker({
           {slotLeft ? `${SCENE_SLOT} を、写したいもの（例: 焼きたてのパンが並んだカウンター）に書き換えてください` : "何が・どこで・どんな光と雰囲気か。文字は入れずに作り、見出しはあとで重ねられます"}
         </span>
       </label>
+      {slotTemplate && (
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[14px] font-bold">
+            場面だけ変える<span className="ml-1.5 text-xs font-normal text-muted">フォーマット「{slotTemplate.name}」の {SCENE_SLOT} に入ります</span>
+          </span>
+          <Input
+            value={lastIdea}
+            maxLength={MAX_SCENE_CHARS}
+            onChange={(e) => {
+              setLastIdea(e.target.value);
+              setScene(fillTemplate(slotTemplate.body, e.target.value) || slotTemplate.body);
+            }}
+            placeholder="例: 紙袋からのぞくカンパーニュ"
+            className="py-2 text-sm"
+          />
+        </label>
+      )}
       <SaveAsTemplate projectId={projectId} body={scene} disabled={!scene.trim()} onSaved={onTemplates} />
 
       <Group label="描き方">
@@ -338,33 +377,50 @@ export function PhotoMaker({
 
       {candidates && candidates.items.length > 0 && (
         <div className="flex flex-col gap-3 border-t border-line pt-3">
-          <span className="text-[14px] font-bold">できた画像から選ぶ</span>
+          <span className="text-[14px] font-bold">
+            できた画像から選ぶ<span className="ml-1.5 text-xs font-normal text-muted">いくつでも選べます</span>
+          </span>
           <ul className="grid grid-cols-2 gap-3 max-sm:gap-2">
-            {candidates.items.map((c, i) => (
-              <li key={c.path}>
-                <button
-                  type="button"
-                  aria-pressed={picked === c.path}
-                  aria-label={`${i + 1} 枚目を選ぶ`}
-                  onClick={() => setPicked(c.path)}
-                  className={`relative block w-full overflow-hidden rounded-md border-2 ${picked === c.path ? "border-primary" : "border-transparent"}`}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element -- 署名つきの URL は期限があり、next/image の最適化を通さない */}
-                  <img src={c.url} alt={`AI で作った画像の候補 ${i + 1}`} onError={() => candidates && Date.now() - candidates.signedAt > 30_000 && void freshItems(true)} className="block h-auto w-full bg-surface2" />
-                  <AiBadge className="absolute left-2 top-2" />
-                </button>
-              </li>
-            ))}
+            {candidates.items.map((c, i) => {
+              const used = usedPaths.includes(c.path);
+              const on = picked.includes(c.path);
+              return (
+                <li key={c.path}>
+                  <button
+                    type="button"
+                    aria-pressed={on}
+                    disabled={used}
+                    aria-label={used ? `${i + 1} 枚目の候補（添えました）` : `${i + 1} 枚目の候補を選ぶ`}
+                    onClick={() => togglePick(c.path)}
+                    className={`relative block w-full overflow-hidden rounded-md border-2 ${on ? "border-primary" : "border-transparent"} ${used ? "opacity-50" : ""}`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element -- 署名つきの URL は期限があり、next/image の最適化を通さない */}
+                    <img src={c.url} alt={`AI で作った画像の候補 ${i + 1}`} onError={() => candidates && Date.now() - candidates.signedAt > 30_000 && void freshItems(true)} className="block h-auto w-full bg-surface2" />
+                    <AiBadge className="absolute left-2 top-2" />
+                    {(on || used) && (
+                      <span className="absolute right-2 top-2 rounded-full bg-primary px-2 py-0.5 text-xs font-bold text-on-primary">{used ? "✓ 添えました" : "✓ 選択"}</span>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
           </ul>
           <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" disabled={!pickedItem || using} onClick={() => void use(false)}>
+            <Button type="button" disabled={pickedItems.length !== 1 || using} onClick={() => void use(false)}>
               見出しを重ねる
             </Button>
-            <Button type="button" variant="secondary" disabled={!pickedItem || using} onClick={() => void use(true)}>
-              {using ? "添えています…" : "このまま添える"}
+            <Button type="button" variant="secondary" disabled={pickedItems.length === 0 || using} onClick={() => void use(true)}>
+              {using
+                ? "添えています…"
+                : pickedItems.length > 1
+                  ? `選んだ ${pickedItems.length} 枚を添える（${nextIndex}〜${nextIndex + pickedItems.length - 1} 枚目）`
+                  : `このまま添える（${nextIndex} 枚目）`}
             </Button>
           </div>
-          <p className="text-xs leading-[1.7] text-muted">選ばなかった画像は 1 日で消えます。</p>
+          <p className="text-xs leading-[1.7] text-muted">
+            {pickedItems.length > 1 ? "見出しを重ねるのは 1 枚ずつです。" : ""}
+            {remainingCandidates.length > 0 ? "選ばなかった画像は 1 日で消えます。" : "候補はすべて添えました。続けてつくるときは、場面を変えて「つくる」を押してください。"}
+          </p>
         </div>
       )}
     </div>

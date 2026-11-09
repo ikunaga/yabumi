@@ -12,6 +12,7 @@ import { connectedAccounts, getPost, postTitle } from "@/lib/posts/queries";
 import { getProject } from "@/lib/projects/queries";
 import { loadProfileLinkInfo } from "@/lib/posts/profile-link-info";
 import { isManualSns, manualComposeUrl, xComposeUrl, type SnsKey } from "@/lib/sns";
+import { countSelfWrittenPosts } from "@/lib/plan/voice";
 import { createClient } from "@/lib/supabase/server";
 import { canPublish } from "@/lib/sns/adapters";
 import { getPlanHints } from "@/lib/plan/queries";
@@ -61,6 +62,8 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
   ]);
   const timeHint = timeHintOf(await loadTimeTrends(project.id));
   const profileLink = await loadProfileLinkInfo(supabase, project);
+  // 「最初は自分で書く」のすすめに使う（docs/design/voice-from-posts.md の 3.4）
+  const selfWrittenPosts = await countSelfWrittenPosts(supabase, project.id);
   // 画像はあとから足すこともあるので、画像がなくても調べる
   const needImageReconnect = await snsNeedingImageReconnect(accounts);
   // 短縮リンクのチェックの状態: 本文に URL があるのに、送る前の配信先に短縮リンクがなければ、オフで保存したもの
@@ -120,6 +123,7 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
       numbers={numbers && <PostNumbersBand projectId={project.id} numbers={numbers} />}
       timeHint={timeHint}
       profileLink={profileLink}
+      selfWrittenPosts={selfWrittenPosts}
       notice={notice?.text}
       noticeTone={notice?.tone}
       initial={{
@@ -129,6 +133,7 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
         images,
         shortLinks,
         quotePostId: post.targets.find((t) => t.sns === "x" && t.status === "pending")?.quote_post_id ?? null,
+        textOrigin: post.textOrigin,
       }}
     />
     </>

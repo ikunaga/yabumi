@@ -36,6 +36,9 @@ export const savePostInputSchema = z.object({
   noteIds: z.array(z.uuid()).max(MAX_NOTES_PER_POST).default([]),
   // 引用する X の投稿の id（X の配信先だけに付く。X の API では引用を送れないので、予約・今すぐ送るにはできない。4.52）
   quotePostId: z.string().regex(/^[1-9][0-9]{0,18}$/).nullable().optional(),
+  // 本文を書いたのは誰か（self: 本人 / ai: AI の文をもとにした）。文調のメモの材料と例を選ぶのに使う（docs/design/voice-from-posts.md の 2.3）。
+  // 省くと、新しい投稿は self、前からある投稿は変えない
+  textOrigin: z.enum(["self", "ai"]).nullable().optional(),
 });
 
 export type SavePostInput = z.input<typeof savePostInputSchema>;

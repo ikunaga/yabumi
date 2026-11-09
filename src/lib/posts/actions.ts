@@ -136,6 +136,7 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
       social_account_id: isManualSns(t.sns) ? null : (accounts[t.sns] ?? null),
       quote_post_id: t.sns === "x" ? quotePostId : null,
     })),
+    p_text_origin: (parsed.data.textOrigin ?? null) as string,
   });
   if (error || !savedId) {
     return { error: "保存できませんでした。時間をおいてもう一度お試しください。" };

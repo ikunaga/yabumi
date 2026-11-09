@@ -1430,6 +1430,7 @@ export type Database = {
           project_id: string
           roadmap_item_id: string | null
           status: string
+          text_origin: string | null
           updated_at: string
         }
         Insert: {
@@ -1441,6 +1442,7 @@ export type Database = {
           project_id: string
           roadmap_item_id?: string | null
           status?: string
+          text_origin?: string | null
           updated_at?: string
         }
         Update: {
@@ -1452,6 +1454,7 @@ export type Database = {
           project_id?: string
           roadmap_item_id?: string | null
           status?: string
+          text_origin?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -2615,6 +2618,7 @@ export type Database = {
           p_project_id: string
           p_status: string
           p_targets: Json
+          p_text_origin?: string
         }
         Returns: string
       }

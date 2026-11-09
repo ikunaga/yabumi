@@ -380,6 +380,8 @@ export async function applyConsultAction(user: Db, projectId: string, action: Ac
           p_planned_at: null as unknown as string,
           p_status: "draft",
           p_targets: action.sns ? [{ sns: action.sns, title: null, body_override: null, social_account_id: accountId }] : [],
+          // 本文は AI の文（文調のメモの材料と例から外す）
+          p_text_origin: "ai",
         });
         if (error || !postId) return { ok: false, message: "下書きを保存できませんでした。時間をおいてもう一度お試しください。" };
         return { ok: true, redirect: `/projects/${projectId}/posts/${postId}?done=idea` };

@@ -11,6 +11,7 @@ import { flushSync } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { chipClass } from "@/components/ui/chip";
 import { HelpTip } from "@/components/ui/help";
+import { SELF_WRITTEN_ENOUGH } from "@/lib/plan/voice-rules";
 import { VoiceInputButton } from "@/components/ui/voice-input";
 import { tabClass, tabListClass } from "@/components/ui/tabs";
 import { ErrorBanner, SuccessBanner } from "@/components/ui/feedback";
@@ -58,6 +59,8 @@ export type ComposerInitial = {
   roadmapItem?: { id: string; title: string; detail: string } | null;
   // 引用する X の投稿の id（X で人気の投稿から作った下書き。4.52）。X の画面で利用者が送る
   quotePostId?: string | null;
+  // 本文を書いたのは誰か（前からある投稿は null。docs/design/voice-from-posts.md の 2.3）
+  textOrigin?: "self" | "ai" | null;
 };
 
 type Props = {
@@ -87,6 +90,8 @@ type Props = {
   timeHint?: { band: TimeBand; kind: "views" | "clicks" } | null;
   // Instagram の「プロフィールのリンクから」に使う（行き先の URL と、プロフィールに置く短縮リンクがあるか。4.37）
   profileLink?: ProfileLinkInfo | null;
+  // 自分で書いて送った投稿の本数（「最初は自分で書く」のすすめに使う。わからなければ null で出さない）
+  selfWrittenPosts?: number | null;
 };
 
 // 送信済み・送信中・取り消し済みの配信先は、選び直しも送り直しもできない
@@ -135,6 +140,7 @@ export function PostComposer({
   numbers = null,
   timeHint = null,
   profileLink = null,
+  selfWrittenPosts = null,
 }: Props) {
   const [images, setImages] = useState<AttachedImage[]>(initial.images ?? []);
   const [shortLinks, setShortLinks] = useState(initial.shortLinks ?? true);
@@ -162,6 +168,8 @@ export function PostComposer({
   const [quote, setQuote] = useState<string | null>(initial.quotePostId ?? null);
   // AI で整えた案を使った知らせが出ているか（出ている間は、SNS ごとの文面の 1 行をその知らせにまとめる）
   const [tidyAdopted, setTidyAdopted] = useState(false);
+  // 本文を書いたのは誰か。「AI で整える」の案を採用したら ai にする（戻しても自動では self に戻さない。利用者が切り替えられる）
+  const [textOrigin, setTextOrigin] = useState<"self" | "ai">(initial.textOrigin ?? "self");
   // Instagram の文面を「プロフィールのリンクから」にした（したことを 1 行で知らせる）
   const [igLinked, setIgLinked] = useState(false);
   // 「行き先の URL を入れる」で入れた URL（入れたことと、短縮リンクに置き換えることを 1 行で知らせる）
@@ -271,6 +279,7 @@ export function PostComposer({
     setQuote(initial.quotePostId ?? null);
     setNoteIds([]);
     setTidyAdopted(false);
+    setTextOrigin(initial.textOrigin ?? "self");
     setIgLinked(false);
     setResult({});
     setConfirmSend(false);
@@ -444,6 +453,7 @@ export function PostComposer({
         roadmapItemId: initial.roadmapItem?.id ?? null,
         noteIds,
         quotePostId: quoting ? quote : null,
+        textOrigin,
         targets: chosen.map((sns) => ({ sns, bodyOverride: overrides[sns] ?? null, title: SNS[sns].needsTitle ? (titles[sns] ?? null) : null })),
       }), "書いた内容は残しています。");
       const sendPostId = out.ok ? out.value?.sendPostId : undefined;
@@ -703,6 +713,8 @@ export function PostComposer({
               </p>
             )}
             {/* 送り先をすべて送り終えた投稿では、整えても送れないので出さない */}
+            {/* 最初の数本は自分の言葉で（文調のメモの材料。押しつけない。説明は畳む） */}
+            {selfWrittenPosts !== null && selfWrittenPosts < SELF_WRITTEN_ENOUGH && <SelfWrittenHint count={selfWrittenPosts} />}
             {(!sentAny || toSend.length > 0) && (
               <TidyDraftPanel
                 key={resetRound}
@@ -720,9 +732,13 @@ export function PostComposer({
                 }}
                 onShowBody={showBody}
                 onEditOverride={editOverride}
-                onAdoptedChange={setTidyAdopted}
+                onAdoptedChange={(adopted) => {
+                  setTidyAdopted(adopted);
+                  if (adopted) setTextOrigin("ai");
+                }}
               />
             )}
+            <TextOriginChoice value={textOrigin} onChange={setTextOrigin} />
             {noteIds.length > 0 && (
               <p className="text-[13px] text-muted">ネタ帳のメモ {noteIds.length} 件から。保存すると、ネタ帳でそのメモに「投稿にした」の印が付きます。</p>
             )}
@@ -1302,6 +1318,37 @@ function QuoteTag({ id, onRemove }: { id: string; onRemove: () => void }) {
       <Button type="button" variant="text" size="sm" onClick={onRemove} className="ml-auto">
         引用を外す
       </Button>
+    </div>
+  );
+}
+
+// 「最初は自分で書く」のすすめ（自分で書いて送った投稿が 5 本未満のとき。docs/design/voice-from-posts.md の 3.4）
+function SelfWrittenHint({ count }: { count: number }) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted">
+      <span>
+        最初の数本は、自分の言葉で書くのがおすすめです（いま <span className="num">{count}/{SELF_WRITTEN_ENOUGH}</span> 本）
+      </span>
+      <HelpTip label="自分の言葉で書く理由">
+        AI まかせの投稿は、どうしても人間らしさが出にくくなります。自分で書いて送った投稿が {SELF_WRITTEN_ENOUGH} 本たまると、AI があなたの書き方（文の長さ・語尾・絵文字・改行など）を読み取り、ネタ出しや「AI で整える」の文をあなたの書き方に寄せられるようになります。AI で整える・ネタ出しは、いつでも使えます。
+      </HelpTip>
+    </div>
+  );
+}
+
+// 本文を書いたのは誰か。自分で書いた投稿だけを、あとで AI が書き方を読み取る材料にする
+function TextOriginChoice({ value, onChange }: { value: "self" | "ai"; onChange: (v: "self" | "ai") => void }) {
+  return (
+    <div role="radiogroup" aria-label="この本文を書いたのは" className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted">
+      <span>この本文は</span>
+      {(["self", "ai"] as const).map((v) => (
+        <button key={v} type="button" role="radio" aria-checked={value === v} onClick={() => onChange(v)} className={chipClass({ on: value === v, className: "h-7 px-2.5 text-[12px]" })}>
+          {v === "self" ? "自分で書いた" : "AI の文をもとにした"}
+        </button>
+      ))}
+      <HelpTip label="この本文を書いたのは">
+        自分で書いた投稿だけを、あとで AI があなたの書き方を読み取る材料にします。「AI で整える」の案を使うと、「AI の文をもとにした」になります。大きく自分で直したときは「自分で書いた」に戻して構いません。
+      </HelpTip>
     </div>
   );
 }

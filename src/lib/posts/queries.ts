@@ -28,11 +28,13 @@ export type PostRow = {
   targets: PostTargetRow[];
   // 添えた画像の枚数（カレンダーの注意「Instagram は画像が未設定です」に使う）
   images: number;
+  // 本文を書いたのは誰か（null は列を足す前からある投稿。docs/design/voice-from-posts.md の 2.3）
+  textOrigin: "self" | "ai" | null;
 };
 
 const TARGET_FIELDS = "id, sns, status, title, body_override, external_post_id, external_url, sns_removed_at, error_message, published_at, next_attempt_at, quote_post_id";
-const POST_SELECT = `id, body, planned_at, status, post_targets(${TARGET_FIELDS}), media_files(count)` as const;
-const POST_SELECT_FAILED_ONLY = `id, body, planned_at, status, post_targets!inner(${TARGET_FIELDS}), media_files(count)` as const;
+const POST_SELECT = `id, body, planned_at, status, text_origin, post_targets(${TARGET_FIELDS}), media_files(count)` as const;
+const POST_SELECT_FAILED_ONLY = `id, body, planned_at, status, text_origin, post_targets!inner(${TARGET_FIELDS}), media_files(count)` as const;
 
 
 type RawPost = {
@@ -40,6 +42,7 @@ type RawPost = {
   body: string;
   planned_at: string | null;
   status: string;
+  text_origin?: string | null;
   post_targets: (Omit<PostTargetRow, "sns" | "status"> & { sns: string; status: string })[];
   media_files?: { count: number }[];
 };
@@ -50,6 +53,7 @@ function normalize(p: RawPost): PostRow {
     body: p.body,
     planned_at: p.planned_at,
     status: p.status === "scheduled" ? "scheduled" : "draft",
+    textOrigin: p.text_origin === "ai" || p.text_origin === "self" ? p.text_origin : null,
     targets: p.post_targets
       .filter((t) => isSnsKey(t.sns))
       .map((t) => ({ ...t, sns: t.sns as SnsKey, status: t.status as TargetStatus }))

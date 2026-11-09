@@ -204,6 +204,8 @@ export async function noteToDraft(
     p_planned_at: null as unknown as string,
     p_status: "draft",
     p_targets: targets,
+    // メモの本文をそのまま使う（本人が書いた文）
+    p_text_origin: "self",
   });
   if (error || !postId) return { ok: false, message: "下書きを保存できませんでした。時間をおいてもう一度お試しください。" };
   const { skipped } = await copyNoteImagesToPost(admin, args.userId, postId, [note.id]);

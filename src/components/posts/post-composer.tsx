@@ -2,7 +2,8 @@
 
 import { callAction } from "@/lib/client-errors";
 import { DraftRestoreBar } from "@/components/ui/draft-restore";
-import { clearFormDraft, parseFormDraft, rawFormDraft, writeFormDraft, type FormDraft } from "@/lib/form-draft";
+import { draftStep, postDraftBase, samePostDraft, type PostDraft } from "@/lib/posts/post-draft";
+import { clearFormDraft, parseFormDraft, rawFormDraft, usableFormDraft, writeFormDraft, type FormDraft } from "@/lib/form-draft";
 import { getDraftOwner } from "@/lib/notes/draft";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition, type ReactNode } from "react";
@@ -197,12 +198,20 @@ export function PostComposer({
     }),
     [initial],
   );
+  // 書き始めたときの保存してある値（控えに添え、次に開いたときに保存し直されていないかを見る）
+  const draftBase = useMemo(() => postDraftBase(initialDraft), [initialDraft]);
+  // 利用者が欄に書いた（キーボード・音声）か。ボタンで入れた値（行き先の URL・プロフィールのリンクの一言・SNS ごとの文面を作る・AI で整えた案・
+  // やることやネタ帳から入れる）だけなら控えない（2026-11-09 オーナーの指摘「下書きとかした記憶ないのに、しょっちゅう残っている」）
+  const typed = useRef(false);
+  const markTyped = () => {
+    typed.current = true;
+  };
   // 開いたときに見つけた控え（戻すか捨てるかを選ぶまで、新しく書き込まない）。サーバーで描くときは undefined（まだ見ていない）
   const rawDraft = useSyncExternalStore(noopSubscribe, () => rawFormDraft(draftKey), () => undefined);
   const [found, setFound] = useState<{ draft: FormDraft<PostDraft> | null } | undefined>(undefined);
   if (found === undefined && rawDraft !== undefined) {
     const d = notice ? null : parseFormDraft<PostDraft>(rawDraft, getDraftOwner());
-    setFound({ draft: d && !samePostDraft(d.value, initialDraft) ? d : null });
+    setFound({ draft: usableFormDraft(d, draftBase, (v) => samePostDraft(v, initialDraft)) });
   }
   const restorable = found?.draft ?? null;
   const setRestorable = (d: null) => setFound({ draft: d });
@@ -214,9 +223,10 @@ export function PostComposer({
   useEffect(() => {
     if (!found || found.draft) return;
     const now: PostDraft = { body, overrides, titles };
-    if (samePostDraft(now, initialDraft)) clearFormDraft(draftKey);
-    else writeFormDraft(draftKey, now);
-  }, [body, overrides, titles, found, draftKey, initialDraft]);
+    const step = draftStep({ same: samePostDraft(now, initialDraft), typed: typed.current });
+    if (step === "clear") clearFormDraft(draftKey);
+    else if (step === "write") writeFormDraft(draftKey, now, draftBase);
+  }, [body, overrides, titles, found, draftKey, initialDraft, draftBase]);
   function restoreDraft() {
     if (!restorable) return;
     const v = restorable.value;
@@ -267,6 +277,7 @@ export function PostComposer({
     setConfirmDelete(false);
     setTouched(Boolean(postId) || initial.body.trim() !== "");
     setResetRound((r) => r + 1);
+    typed.current = false;
     // 書きかけの控えも消す（「戻す」の帯も閉じる）
     clearFormDraft(draftKey);
     setRestorable(null);
@@ -654,6 +665,7 @@ export function PostComposer({
                 ref={bodyRef}
                 value={body}
                 onChange={(e) => {
+                  markTyped();
                   setBody(e.target.value);
                   clearFieldError("body");
                 }}
@@ -666,6 +678,7 @@ export function PostComposer({
                   target={bodyRef}
                   label="本文"
                   onChange={(v) => {
+                    markTyped();
                     setBody(v);
                     clearFieldError("body");
                   }}
@@ -1023,7 +1036,10 @@ export function PostComposer({
                     id="target-title"
                     value={titles[focus] ?? ""}
                     maxLength={MAX_TITLE_LENGTH}
-                    onChange={(e) => setTitles((t) => ({ ...t, [focus]: e.target.value }))}
+                    onChange={(e) => {
+                      markTyped();
+                      setTitles((t) => ({ ...t, [focus]: e.target.value }));
+                    }}
                     placeholder="例: ひとりでお店を 3 か月続けて気づいたこと"
                     className="w-full rounded-md border border-input bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:shadow-[0_0_0_1px_var(--primary)] max-sm:text-[16px]"
                   />
@@ -1064,10 +1080,17 @@ export function PostComposer({
                     ref={overrideRef}
                     rows={SNS[focus].needsTitle ? 12 : 4}
                     value={overrides[focus]}
-                    onChange={(e) => setOverrides((o) => ({ ...o, [focus]: e.target.value }))}
+                    onChange={(e) => {
+                      markTyped();
+                      setOverrides((o) => ({ ...o, [focus]: e.target.value }));
+                    }}
                     className="w-full rounded-md border border-input bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:shadow-[0_0_0_1px_var(--primary)] max-sm:text-[16px]"
                   />
-                  <VoiceInputButton key={focus} target={overrideRef} label={`${focusLabel} 用の文面`} onChange={(v) => setOverrides((o) => ({ ...o, [focus]: v }))} />
+                  <VoiceInputButton key={focus} target={overrideRef} label={`${focusLabel} 用の文面`} onChange={(v) => {
+                      markTyped();
+                      setOverrides((o) => ({ ...o, [focus]: v }));
+                    }}
+                  />
                   <button
                     type="button"
                     onClick={() =>
@@ -1262,16 +1285,6 @@ function RoadmapItemHint({ item, onInsert }: { item: { title: string; detail: st
 }
 
 // 投稿をつくるの書きかけの控え（4.35）
-type PostDraft = { body: string; overrides: Partial<Record<SnsKey, string>>; titles: Partial<Record<SnsKey, string>> };
-
-function samePostDraft(a: PostDraft, b: PostDraft): boolean {
-  const same = (x: Partial<Record<string, string>> = {}, y: Partial<Record<string, string>> = {}) => {
-    const keys = new Set([...Object.keys(x), ...Object.keys(y)]);
-    return [...keys].every((k) => (x[k] ?? "") === (y[k] ?? ""));
-  };
-  return a.body === b.body && same(a.overrides, b.overrides) && same(a.titles, b.titles);
-}
-
 const noopSubscribe = () => () => {};
 
 // 添えた画像の見分け（差し替え・代わりの文の変更も「変えた」とみなす）

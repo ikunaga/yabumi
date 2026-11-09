@@ -1,7 +1,7 @@
 "use client";
 
 import { DraftRestoreBar } from "@/components/ui/draft-restore";
-import { clearFormDraft, parseFormDraft, rawFormDraft, writeFormDraft, type FormDraft } from "@/lib/form-draft";
+import { clearFormDraft, parseFormDraft, rawFormDraft, usableFormDraft, writeFormDraft, type FormDraft } from "@/lib/form-draft";
 import { getDraftOwner } from "@/lib/notes/draft";
 import { guardAction } from "@/lib/client-errors";
 import { DESIRED_ACTION_DEFS, DESIRED_ACTIONS, PRODUCT_TYPE_DEFS, RECOMMENDED_ACTIONS, isDevProject, type ProductType } from "@/lib/projects/product-types";
@@ -231,19 +231,27 @@ function SectionCard({
   const draftKey = `plan:${projectId}:${sectionKey}`;
   const rawDraft = useSyncExternalStore(noopSubscribe, () => rawFormDraft(draftKey), () => undefined);
   const [found, setFound] = useState<{ draft: FormDraft<[string, string][]> | null } | undefined>(undefined);
-  if (found === undefined && rawDraft !== undefined) setFound({ draft: parseFormDraft<[string, string][]>(rawDraft, getDraftOwner()) });
   const restorable = found?.draft ?? null;
-  // 開いたときの欄の値（これと同じなら控えない）
+  // 開いたときの欄の値（これと同じなら控えない。控えに base として添え、次に開いたときに、そのあと保存し直されていないかを見る）。
+  // 開いた直後に読み、そのときに見つけた控えを出すか決める（保存し直されたもの・いまの値と同じものは出さずに消す。2026-11-09 オーナーの指摘）
   const initialEntries = useRef<string | null>(null);
   useEffect(() => {
-    if (formRef.current) initialEntries.current = JSON.stringify(formEntries(formRef.current));
-  }, []);
+    if (!formRef.current || rawDraft === undefined || found !== undefined) return;
+    const now = JSON.stringify(formEntries(formRef.current));
+    initialEntries.current = now;
+    const d = usableFormDraft(parseFormDraft<[string, string][]>(rawDraft, getDraftOwner()), now, (v) => JSON.stringify(v) === now);
+    if (!d && rawDraft) clearFormDraft(draftKey);
+    setFound({ draft: d });
+  }, [rawDraft, found, draftKey]);
+  // 保存した値（保存できたら、これを開いたときの値に置き換える）
+  const submitted = useRef<string | null>(null);
+  // 欄を直したとき（input・change は利用者が書いた・選んだときだけ起きる）
   function keepDraft() {
     const form = formRef.current;
-    if (!form || restorable) return;
+    if (!form || !found || restorable || initialEntries.current === null) return;
     const entries = formEntries(form);
     if (JSON.stringify(entries) === initialEntries.current) clearFormDraft(draftKey);
-    else writeFormDraft(draftKey, entries);
+    else writeFormDraft(draftKey, entries, initialEntries.current);
   }
 
   useEffect(() => {
@@ -251,6 +259,8 @@ function SectionCard({
     if (state.savedAt) {
       formRef.current?.reset();
       clearFormDraft(draftKey);
+      // 保存した値が、これからの「開いたときの値」（保存のあとに直して元に戻したら、控えない）
+      if (submitted.current !== null) initialEntries.current = submitted.current;
     }
     if (state.savedAt && goNext.current) {
       goNext.current = false;
@@ -293,6 +303,7 @@ function SectionCard({
         onSubmit={(e) => {
           e.preventDefault();
           const data = new FormData(e.currentTarget);
+          submitted.current = JSON.stringify(formEntries(e.currentTarget));
           startTransition(() => formAction(data));
         }}
         onInput={keepDraft}

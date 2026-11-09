@@ -8,7 +8,10 @@ import { getDraftOwner } from "@/lib/notes/draft";
 export const FORM_DRAFT_PREFIX = "yabumi-form-draft:";
 export const FORM_DRAFT_DAYS = 30;
 
-export type FormDraft<T> = { value: T; at: number; owner: string };
+// base: 書き始めたときの保存してある値（画面を開いたときの値を文字にしたもの）。次に開いたときの値と違えば、
+// そのあとにどこかで保存し直した（AI の案の採用・ほかの端末・別の入口から開いた新しい投稿など）ので、古い書きかけとして戻さない
+// （2026-11-09 オーナーの指摘「下書きとかした記憶ないのに、しょっちゅう残っている」。base のない前の控えも戻さない）
+export type FormDraft<T> = { value: T; at: number; owner: string; base?: string };
 
 function storage(): Storage | null {
   try {
@@ -24,7 +27,7 @@ export function parseFormDraft<T>(raw: string | null, owner: string | null, now:
     const v = JSON.parse(raw) as Partial<FormDraft<T>>;
     if (typeof v.at !== "number" || typeof v.owner !== "string" || v.value === undefined) return null;
     if (v.owner !== owner || now - v.at > FORM_DRAFT_DAYS * 86_400_000) return null;
-    return { value: v.value as T, at: v.at, owner: v.owner };
+    return { value: v.value as T, at: v.at, owner: v.owner, ...(typeof v.base === "string" ? { base: v.base } : {}) };
   } catch {
     return null;
   }
@@ -51,11 +54,11 @@ export function readFormDraft<T>(key: string): FormDraft<T> | null {
   return draft;
 }
 
-export function writeFormDraft<T>(key: string, value: T): void {
+export function writeFormDraft<T>(key: string, value: T, base?: string): void {
   const owner = getDraftOwner();
   if (!owner) return;
   try {
-    storage()?.setItem(FORM_DRAFT_PREFIX + key, JSON.stringify({ value, at: Date.now(), owner } satisfies FormDraft<T>));
+    storage()?.setItem(FORM_DRAFT_PREFIX + key, JSON.stringify({ value, at: Date.now(), owner, ...(base !== undefined ? { base } : {}) } satisfies FormDraft<T>));
   } catch {
     // 容量が足りないなど。控えられなくても書く・保存するは続けられる
   }
@@ -67,6 +70,12 @@ export function clearFormDraft(key: string): void {
   } catch {
     // 消せなくても、次に開いたときに出るだけ
   }
+}
+
+// 開いた画面に出してよい控えか: 書き始めたときの保存してある値（base）が、いま開いた画面の値と同じで、中身がいまの値と違うもの
+export function usableFormDraft<T>(draft: FormDraft<T> | null, base: string, sameAsNow: (value: T) => boolean): FormDraft<T> | null {
+  if (!draft || draft.base !== base || sameAsNow(draft.value)) return null;
+  return draft;
 }
 
 // ログアウト・退会のとき: この端末の画面の書きかけをすべて消す

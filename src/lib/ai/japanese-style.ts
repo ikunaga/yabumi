@@ -17,7 +17,7 @@ export const JAPANESE_STYLE_RULES = `# 日本語の書き方（どの投稿に�
 - 決まりきった型を使わない: 「〜な方必見」「〜な人へ」で始める、「実は」「なんと」で引っぱる、「ポイントは 3 つ」「〜の秘訣」、「いかがでしたか」「〜してみた結果…！」「皆さん、こんにちは」、締めの「ぜひ〜してみてください！」、「ワクワクが止まらない」「間違いなし」
 - 読む人は 1 人の相手として書く。「皆さん」「私たちは」を主語に並べない。主語は日本語として要るときだけ書く
 - カタカナ語や英語の直訳のような言い回し（「〜をシェアします」「〜をアップデートしました」「エモい体験」）は、届けたい相手がふだん使う言葉に言い換える
-- 改行は話の区切り（段落）だけに使い、1 文ごとに改行しない。段落の間の空行は 1 つまで。X の短い投稿は改行を 0〜1 回にする
+- 改行は話の区切り（段落）だけに使い、長い投稿で 1 文ごとに改行しない。段落の間の空行は 1 つまで。X の短い投稿は 3 行まで（1 文ずつ分けてもよい）
 - 箇条書き（「・」「①」「- 」で始まる行）を並べない。要るときは文でつなぐ
 - 読点は読みやすさに要るところだけに打つ（1 文に 3 つまで）。見出し・キャッチコピー・画像の文字の見出しには読点（、）を入れない
 - 投稿の本文では「顧客」と書かない（来てくれた方・買ってくれた方・使ってくれている方など、読む人に向けた呼び方にする）`;
@@ -144,9 +144,12 @@ function detect(text: string, opts: StyleOptions): Map<string, StyleProblem> {
   const bare = lineEnds.filter((l) => l && !/[。！？!?」』）)】…]$/.test(l)).length;
   if (withPeriod > 0 && bare > 0) add("period_mix", "period_mix", "文の終わりの「。」が、ある文とない文で混ざっています");
 
-  const lines = textLines(text).length;
-  const maxLines = opts.sns === "x" ? 2 : 4;
-  if (lines > maxLines) add("line_breaks", "line_breaks", `改行が多めです（${lines} 行。話の区切りだけで改行する）`);
+  // X は 3 行に分けるくらいなら人もふつうにするので、4 行からにする（2026-11-09 PM の指摘）。
+  // ほかの SNS は段落に分けるのがふつうなので、5 行以上で、ほとんどの行が 1 文だけ（1 文ごとの改行）のときだけ
+  const ls = textLines(text);
+  const oneSentence = ls.filter((l) => sentences(l).length <= 1).length;
+  const tooMany = opts.sns === "x" ? ls.length > 3 : ls.length > 4 && oneSentence / ls.length >= 0.8;
+  if (tooMany) add("line_breaks", "line_breaks", opts.sns === "x" ? `改行が多めです（${ls.length} 行。X は 3 行まで）` : `1 文ごとに改行しています（${ls.length} 行。話の区切りだけで改行する）`);
   const bullets = textLines(text).filter((l) => /^\s*([・•●■□◆▪\-–]|[①-⑩]|\d+[.．)）])/.test(l)).length;
   if (bullets >= 2) add("bullets", "bullets", `箇条書きが ${bullets} 行あります`);
 

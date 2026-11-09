@@ -82,9 +82,12 @@ describe("避けたい言い回しの確かめ", () => {
     expect(keys("こだわりの一杯。焼き上がりは 9 時です。")).not.toContain("noun_ending");
     expect(keys("金曜に焼きます。\n朝 9 時から並びます")).toContain("period_mix");
     expect(keys("あ。\nい。\nう。\nえ。\nお。")).toContain("line_breaks");
-    // X は 2 行まで
-    expect(keys("金曜に焼きます。\n9 時からです。\n売り切れたら終わりです。", { sns: "x" })).toContain("line_breaks");
-    expect(keys("金曜に焼きます。\n9 時からです。\n売り切れたら終わりです。", { sns: "threads" })).not.toContain("line_breaks");
+    // 段落ごとに 2 文以上あれば、5 段落でも 1 文ごとの改行ではない
+    expect(keys("あ。い。\n\nう。え。\n\nお。か。\n\nき。く。\n\nけ。こ。")).not.toContain("line_breaks");
+    // X は 3 行まで（3 行に分けるのは人もふつうにする）、ほかは 4 行まで
+    expect(keys("金曜に焼きます。\n9 時からです。\n売り切れたら終わりです。", { sns: "x" })).not.toContain("line_breaks");
+    expect(keys("金曜に焼きます。\n9 時からです。\n20 個です。\n売り切れたら終わりです。", { sns: "x" })).toContain("line_breaks");
+    expect(keys("金曜に焼きます。\n9 時からです。\n20 個です。\n売り切れたら終わりです。", { sns: "threads" })).not.toContain("line_breaks");
     expect(keys("・朝 7 時から\n・予約はいりません")).toContain("bullets");
     expect(keys("朝は、早めに、店を開けて、焼きたてを、並べます。")).toContain("commas");
   });

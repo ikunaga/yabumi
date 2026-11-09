@@ -1,4 +1,4 @@
-import { loadVoiceContext, voicePromptLines, type VoiceContext } from "@/lib/plan/voice";
+import { loadVoiceContext, voiceExampleTexts, voicePromptLines, type VoiceContext } from "@/lib/plan/voice";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { CommitDigest, ReadCommitsResult } from "@/lib/github/commit-reader";
@@ -722,9 +722,9 @@ export async function shortenIdeas(
   return { value: { ...value, ideas }, result };
 }
 
-// 下書きの言い回しの確かめ。本人が書いた材料（最近のできごと・メモ・伝えたいこと）にある言い回しは、本人の書き方として指摘しない
+// 下書きの言い回しの確かめ。本人が書いた材料（最近のできごと・メモ・伝えたいこと）と書き方の例の投稿にある言い回しは、本人の書き方として指摘しない
 export function ideasStyleChecker(ctx: IdeaContext, request: Pick<IdeasRequestContent, "news" | "notes" | "topic">): (sns: SnsKey, text: string) => StyleProblem[] {
-  const allow = [...(request.news ?? []).map((a) => a.answer), ...(request.notes ?? []).map((n) => n.body), request.topic ?? ""].filter(Boolean);
+  const allow = [...(request.news ?? []).map((a) => a.answer), ...(request.notes ?? []).map((n) => n.body), request.topic ?? "", ...voiceExampleTexts(ctx.voice)].filter(Boolean);
   return draftStyleChecker(ctx.plan.pillars, { allow });
 }
 

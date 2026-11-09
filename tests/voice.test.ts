@@ -1,11 +1,12 @@
 // 書き方（文調のメモ。docs/design/voice-from-posts.md）: AI に渡す形（# この人の書き方）、数えた値、返事の整え方、欄の読み方
 import { describe, expect, it } from "vitest";
 import { buildAiCheckRequest } from "@/lib/ai/ai-check";
-import { consultContextMessage, type ConsultContext } from "@/lib/ai/consult-prompt";
+import { CONSULT_SYSTEM, consultContextMessage, type ConsultContext } from "@/lib/ai/consult-prompt";
+import { JAPANESE_STYLE_RULES, VOICE_HEADING } from "@/lib/ai/japanese-style";
 import { buildImageBriefRequest } from "@/lib/ai/image-brief";
 import { buildPhotoIdeasRequest } from "@/lib/ai/photo";
-import { buildPlanIdeasRequest, type IdeaContext } from "@/lib/ai/post-ideas";
-import { buildTidyRequest } from "@/lib/ai/tidy-draft";
+import { buildPlanIdeasRequest, ideasStyleChecker, type IdeaContext } from "@/lib/ai/post-ideas";
+import { buildTidyRequest, tidyStyleChecker } from "@/lib/ai/tidy-draft";
 import { buildVoiceMemoRequest, normalizeVoiceMemo } from "@/lib/ai/voice-memo";
 import { normalizePlan, parseSectionForm, sectionSchemas } from "@/lib/plan/schema";
 import { countVoiceStats, voiceExampleTexts, voiceHead, voiceForUse, voicePromptLines, type VoiceMaterial } from "@/lib/plan/voice";
@@ -98,6 +99,36 @@ describe("書き方を渡す AI（A-3）", () => {
   ])("%s には「# この人の書き方」と例の投稿を渡す", (_, text) => {
     expect(text).toContain("# この人の書き方");
     expect(text).toContain("焼きたてです");
+  });
+
+  // 日本語の決まり（実装担当3。指示の system）は、細部を「SNS ごとの口調 → # この人の書き方 → この決まり」の順に先にする。
+  // 見出しがずれると決まりが書き方を指さなくなるので、同じ見出しで渡っていることと、優先の順を確かめる
+  it("書き方の見出しは、日本語の決まりの優先の行が指す見出しと同じで、決まりより先にする順になっている", () => {
+    expect(voicePromptLines(voice)[0].startsWith(VOICE_HEADING)).toBe(true);
+    const priority = JAPANESE_STYLE_RULES.split("\n").find((l) => l.startsWith("- 優先の順"))!;
+    expect(priority).toMatch(new RegExp(`SNS ごとの口調 → 利用者のメッセージの「${VOICE_HEADING}」 → この決まり`));
+  });
+  it.each([
+    ["ネタ出し", buildPlanIdeasRequest(ideaCtx)],
+    ["整える", buildTidyRequest(ideaCtx, "下書き")],
+    ["見直し", buildAiCheckRequest(checkCtx, [{ sns: "x", text: "本文" }])],
+  ])("%s: 指示に日本語の決まりがあり、利用者のメッセージに同じ見出しで書き方が渡る", (_, req) => {
+    expect(JSON.stringify(req.system)).toContain(JSON.stringify(JAPANESE_STYLE_RULES).slice(1, -1));
+    expect(textOf(req)).toContain(VOICE_HEADING);
+  });
+  it("相談: 指示に日本語の決まりがあり、材料に同じ見出しで書き方が渡る", () => {
+    expect(CONSULT_SYSTEM).toContain(JAPANESE_STYLE_RULES);
+    expect(consultContextMessage(consultCtx)).toContain(VOICE_HEADING);
+  });
+
+  it("例の投稿にある言い回しは、本人の書き方として言い回しの確かめで指摘しない（ネタ出し・整える）", () => {
+    const draft = "皆さん、こんにちは。今日も焼きたてです。";
+    const withVoice = { ...ideaCtx, voice: { ...voice, examples: [{ sns: "x" as const, text: "皆さん、こんにちは。新しいパンです。" }] } };
+    const cliche = (ps: { key: string }[]) => ps.filter((p) => p.key === "cliche");
+    expect(cliche(tidyStyleChecker({ ...ideaCtx, voice: null }, "下書き")("x", draft))).not.toHaveLength(0);
+    expect(cliche(tidyStyleChecker(withVoice, "下書き")("x", draft))).toHaveLength(0);
+    expect(cliche(ideasStyleChecker({ ...ideaCtx, voice: null }, {})("x", draft))).not.toHaveLength(0);
+    expect(cliche(ideasStyleChecker(withVoice, {})("x", draft))).toHaveLength(0);
   });
 
   it("絵の説明の案には渡さない。書き方がなければ、どの AI にも何も足さない", () => {

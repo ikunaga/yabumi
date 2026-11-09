@@ -1,4 +1,4 @@
-import { loadVoiceContext } from "@/lib/plan/voice";
+import { loadVoiceContext, voiceExampleTexts } from "@/lib/plan/voice";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadCoachView, type CoachView } from "@/lib/coach/load";
 import { saveSectionValue } from "@/lib/plan/save";
@@ -570,8 +570,8 @@ export async function consultStep(
   void _ignored;
   const tidied = tidyConsultDrafts(rest, ctx.plan.hashtags.items.map((i) => i.tag));
   // 下書きの案が SNS の上限を超えていたら、超えた案だけを 1 回だけ縮めさせる（縮めても超えていれば、画面で「上限を n 字超えています」）
-  // 日本語の決まりに反する言い回し（japanese-style.ts）のある案も、同じ 1 回で直させる（直しても残れば、画面に出す）
-  const shortened = await shortenConsultDrafts(deps.callShorten && budgeted(admin, { ...budget, call: "shorten" }, deps.callShorten), tidied, draftStyleChecker(ctx.plan.pillars));
+  // 日本語の決まりに反する言い回し（japanese-style.ts）のある案も、同じ 1 回で直させる（直しても残れば、画面に出す）。書き方の例の投稿にある言い回しは指摘しない
+  const shortened = await shortenConsultDrafts(deps.callShorten && budgeted(admin, { ...budget, call: "shorten" }, deps.callShorten), tidied, draftStyleChecker(ctx.plan.pillars, { allow: voiceExampleTexts(ctx.voice) }));
   const toSave = shortened.turn;
   const { error } = await admin.from("ai_messages").insert({ thread_id: threadId, owner_id: userId, role: "assistant", content: { ...toSave, adopted: [] } as never });
   if (error) throw error;

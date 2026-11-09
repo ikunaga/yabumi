@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import { voiceExampleTexts } from "@/lib/plan/voice";
 import { SNS, type SnsKey } from "@/lib/sns";
 import { tidyDraftHashtags } from "@/lib/sns/hashtags";
 import type { Database } from "@/lib/supabase/database.types";
@@ -164,9 +165,9 @@ export async function shortenTidy(
   };
 }
 
-// 文面の言い回しの確かめ。元の文（本人の言葉）にある言い回しは指摘しない。整え方の問いかけ・絵文字に合わせる
+// 文面の言い回しの確かめ。元の文（本人の言葉）と書き方の例の投稿にある言い回しは指摘しない。整え方の問いかけ・絵文字に合わせる
 export function tidyStyleChecker(ctx: IdeaContext, text: string, direction: TidyDirection = DEFAULT_DIRECTION): (sns: SnsKey, t: string) => StyleProblem[] {
-  return draftStyleChecker(ctx.plan.pillars, { allow: [text], question: direction.aim === "question", emoji: direction.emoji });
+  return draftStyleChecker(ctx.plan.pillars, { allow: [text, ...voiceExampleTexts(ctx.voice)], question: direction.aim === "question", emoji: direction.emoji });
 }
 
 type Db = SupabaseClient<Database>;

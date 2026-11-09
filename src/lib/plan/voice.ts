@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { VOICE_HEADING } from "@/lib/ai/japanese-style";
 import { isSnsKey, SNS, type SnsKey } from "@/lib/sns";
 import type { Database } from "@/lib/supabase/database.types";
 import type { PlanData } from "./schema";
@@ -118,13 +119,13 @@ export function voiceForUse(use: AiUse | "image_text"): boolean {
 
 export type VoiceContext = { voice: PlanData["voice"]; examples: { sns: SnsKey; text: string }[] };
 
-// AI の材料に足す「# この人の書き方」（実装担当3 の日本語の決まりと見出しの名前をそろえた。書き方の細部はここに寄せ、中身の決まりはどの文調でも守る）。
+// AI の材料に足す「# この人の書き方」（見出しは実装担当3 の日本語の決まりが指す VOICE_HEADING。書き方の細部はここに寄せ、中身の決まりはどの文調でも守る）。
 // 文調のメモも例もなければ空
 export function voicePromptLines(ctx: VoiceContext | null | undefined): string[] {
   if (!ctx) return [];
   const memo = VOICE_MEMO_FIELDS.flatMap((f) => (ctx.voice.memo[f].trim() ? [`- ${VOICE_MEMO_LABEL[f]}: ${ctx.voice.memo[f].trim()}`] : []));
   if (memo.length === 0 && ctx.examples.length === 0) return [];
-  const lines = ["# この人の書き方（本人の投稿から読み取ったもの。語尾・絵文字・記号・改行・ハッシュタグの付け方などの書き方の細部は、これに寄せる。SNS ごとの口調があるときは、その SNS ではそちらを先にする）"];
+  const lines = [`${VOICE_HEADING}（本人の投稿から読み取ったもの。語尾・絵文字・記号・改行・ハッシュタグの付け方などの書き方の細部は、これに寄せる。SNS ごとの口調があるときは、その SNS ではそちらを先にする）`];
   if (memo.length) lines.push("文調のメモ:", ...memo);
   if (ctx.examples.length) {
     lines.push("例の投稿（本人が書いたもの。言い回しや中身は写さず、書き方だけを寄せる）:");

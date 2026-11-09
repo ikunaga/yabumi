@@ -125,13 +125,34 @@ export function brandPalette(hex: string): Palette {
 
 // ── 文字の形 ──
 
-export const FONT_KEYS = ["gothic", "rounded", "mincho", "pop"] as const;
+// 2026-11-09 オーナーの指摘「フォントがいかにも AI くさい」で見直した。太く重い見出しの書体（Dela Gothic One の「力強い」）をやめ、
+// 手書きふうを 2 つ足し、明朝をすっきりしたもの（しっぽり明朝）に替えた。どれも Google Fonts の OFL（商用に使える）
+export const FONT_KEYS = ["gothic", "rounded", "mincho", "hand", "pen"] as const;
 export type FontKey = (typeof FONT_KEYS)[number];
-export const FONT_LABEL: Record<FontKey, string> = { gothic: "すっきり", rounded: "やわらか", mincho: "落ち着き", pop: "力強い" };
+export const FONT_LABEL: Record<FontKey, string> = { gothic: "すっきり", rounded: "やわらか", mincho: "明朝", hand: "手書き", pen: "ゆるい手書き" };
+
+// 前に選んでいた書体（この端末に覚えている名前）を、いまの書体に読み替える。やめた「力強い」（pop）は「すっきり」に
+export function fontKeyOf(v: unknown): FontKey | null {
+  if (v === "pop") return "gothic";
+  return typeof v === "string" && (FONT_KEYS as readonly string[]).includes(v) ? (v as FontKey) : null;
+}
+
+// ── 文字の置き方（文字のカード・note のヘッダー・写真を全面に敷く） ──
+// 「AI くさい」の多くは書体より置き方（真ん中に大きな太字・写真の下の濃い影・どれも同じ型）から来ているので、型を選べるようにする。
+// 既定は quiet（左に控えめ。影や縁取りなし）。big は前の型（大きな太字）
+export const TEXT_STYLES = ["quiet", "bottom", "band", "center", "big"] as const;
+export type TextStyle = (typeof TEXT_STYLES)[number];
+export const TEXT_STYLE_LABEL: Record<TextStyle, string> = { quiet: "左に控えめ", bottom: "下に小さく", band: "帯の上", center: "真ん中", big: "大きく" };
+export const DEFAULT_TEXT_STYLE: TextStyle = "quiet";
+
+export function textStyleOf(v: unknown): TextStyle {
+  return typeof v === "string" && (TEXT_STYLES as readonly string[]).includes(v) ? (v as TextStyle) : DEFAULT_TEXT_STYLE;
+}
 
 // 描くときの書体。family は画面で読み込んだフォントの名前（template-fonts.ts）を入れる
 export type FontFace = { family: string; weight: number };
-export type FontSet = { heading: FontFace; body: FontFace; bodyBold: FontFace };
+// calm: 置き方を選べる型（big のほか）の見出しの太さ。一段細くして、太字の見出しの「いかにも」な感じを抑える（なければ heading）
+export type FontSet = { heading: FontFace; body: FontFace; bodyBold: FontFace; calm?: FontFace };
 
 // ── 文字の折り返しと大きさ合わせ ──
 
@@ -142,9 +163,9 @@ const NO_START = new Set([..."、。，．,.・：；:;？！?!ー〜…‥）)�
 const BREAK_AFTER = new Set([..."、。，．！？!? 　"]);
 const NO_END = new Set([..."（(［[｛{「『【〈《〔‘“"]);
 
-// 英数字のつながり（単語・数字・URL の一部）は途中で折らない
+// 英数字のつながり（単語・数字・URL の一部）と、カタカナの言葉（「カンパーニュ」）は途中で折らない（1 行に入らない長さなら字で折る）
 function tokenize(text: string): string[] {
-  return text.match(/[A-Za-z0-9][A-Za-z0-9_.,%'’\-/:+#&@]*|\s+|./gu) ?? [];
+  return text.match(/[A-Za-z0-9][A-Za-z0-9_.,%'’\-/:+#&@]*|[ァ-ヺー]{2,}|\s+|./gu) ?? [];
 }
 
 export function wrapLines(text: string, maxWidth: number, font: FontFace, size: number, measure: Measure): string[] {
@@ -284,6 +305,8 @@ export type TemplateInput = {
   screenshot: { w: number; h: number } | null;
   // 写真に見出しの置き方。frame: 端末の枠に入れる（アプリの画面など）、cover: 写真を全面に敷いて下に見出し（AI で作った写真など）
   photoFit?: PhotoFit;
+  // 文字の置き方（文字のカード・note のヘッダー・写真を全面に敷く）。省くと quiet
+  textStyle?: TextStyle;
 };
 
 export const PHOTO_FITS = ["frame", "cover"] as const;
@@ -299,9 +322,12 @@ export function layoutTemplate(input: TemplateInput, measure: Measure): Layout {
   const ops: DrawOp[] = [{ type: "rect", x: 0, y: 0, w, h, r: 0, fill: input.palette.bg }];
   // 文字の大きさの基準。note のヘッダーは横に長く低いので、幅から決める
   const ctx: Ctx = { input, measure, w, h, u: input.kind === "note" ? w / 1500 : Math.min(w, h) / 1080, ops };
-  if (input.kind === "card") layoutCard(ctx, "left");
+  const style = textStyleOf(input.textStyle);
+  if ((input.kind === "card" || input.kind === "note") && style !== "big") layoutCardStyled(ctx, style);
+  else if (input.kind === "card") layoutCard(ctx, "left");
   else if (input.kind === "note") layoutCard(ctx, "center");
   else if (input.kind === "diagram") layoutDiagram(ctx);
+  else if (input.photoFit === "cover" && style !== "big") layoutPhotoStyled(ctx, style);
   else if (input.photoFit === "cover") layoutPhotoCover(ctx);
   else layoutScreen(ctx);
   return { w, h, ops };
@@ -360,6 +386,108 @@ function layoutCard(ctx: Ctx, align: "left" | "center") {
     const fx = note ? w - m : m;
     ctx.ops.push({ type: "text", x: fx, y: h - m + footer.size * 0.2, text: footer.lines[0], font: input.fonts.bodyBold, size: footer.size, color: p.sub, align: note ? "right" : "left" });
   }
+}
+
+// 置き方を選べるカード（big のほか）。見出しは前より小さく（大きくても 84 くらい）、太さは書体の見出しの太さのまま。影・縁取り・グラデーションは使わない
+function layoutCardStyled(ctx: Ctx, style: Exclude<TextStyle, "big">) {
+  const { input, w, h, u, ops, measure } = ctx;
+  const p = input.palette;
+  const headFont = input.fonts.calm ?? input.fonts.heading;
+  const note = input.kind === "note";
+  const landscape = w > h;
+  const m = (note ? 72 : 96) * u;
+  const align: "left" | "center" = style === "center" ? "center" : "left";
+  const band = style === "band";
+  // 帯の上: 下の帯（色はアクセント）に文字を置く。帯の上の文字の色は背景の色
+  const bandH = band ? (note ? h * 0.58 : h * 0.46) : 0;
+  const innerW = w - m * 2;
+  const x = align === "center" ? w / 2 : m;
+  const small = style === "bottom";
+  const headMax = (note ? (small ? 56 : 68) : small ? 60 : landscape ? 76 : 84) * u;
+  const label = fitText(input.label, { maxWidth: innerW, maxLines: 1, maxSize: 28 * u, minSize: 22 * u, font: input.fonts.bodyBold }, measure);
+  const headline = fitText(
+    input.headline,
+    { maxWidth: innerW, maxLines: note ? 2 : landscape ? 3 : 4, maxSize: headMax, minSize: 40 * u, font: headFont, lineHeight: 1.45, balance: true },
+    measure,
+  );
+  const sub = fitText(input.subline, { maxWidth: innerW, maxLines: note ? 1 : 3, maxSize: 32 * u, minSize: 22 * u, font: input.fonts.body, lineHeight: 1.7 }, measure);
+  const footer = fitText(input.footer, { maxWidth: innerW, maxLines: 1, maxSize: 26 * u, minSize: 20 * u, font: input.fonts.body }, measure);
+  const gap = 26 * u;
+  const total = (label.lines.length ? blockHeight(label) + gap : 0) + blockHeight(headline) + (sub.lines.length ? gap * 1.2 + blockHeight(sub) : 0);
+
+  const fg = band ? p.bg : p.fg;
+  const subC = band ? p.bg : p.sub;
+  const labelC = band ? p.bg : p.accent;
+  if (band) ops.push({ type: "rect", x: 0, y: h - bandH, w, h: bandH, r: 0, fill: p.accent });
+
+  // 名前は、文字が下にあるとき（下に小さく・帯の上）は左上、ほかは左下（note は右下）
+  const footerTop = small || band;
+  let y: number;
+  if (band) y = h - bandH + Math.max(m * 0.8, (bandH - total) / 2);
+  else if (small) y = h - m - total;
+  else if (style === "center" || note) y = Math.max(m, (h - total) / 2);
+  else y = m + (footer.lines.length ? 40 * u : 0) + h * 0.06;
+
+  if (label.lines.length) y += pushLines(ctx, label, x, y, input.fonts.bodyBold, labelC, align) + gap;
+  y += pushLines(ctx, headline, x, y, headFont, fg, align);
+  if (sub.lines.length) pushLines(ctx, sub, x, y + gap * 1.2, input.fonts.body, subC, align);
+
+  if (footer.lines.length) {
+    const fx = note && !footerTop ? w - m : align === "center" && !footerTop ? w / 2 : m;
+    const fy = footerTop ? m + footer.size * 0.88 : h - m + footer.size * 0.2;
+    ops.push({ type: "text", x: fx, y: fy, text: footer.lines[0], font: input.fonts.body, size: footer.size, color: p.sub, align: note && !footerTop ? "right" : align === "center" && !footerTop ? "center" : "left" });
+  }
+}
+
+// 置き方を選べる「写真を全面に敷く」（big のほか）。写真の色に左右されずに読めるよう、文字の後ろだけを薄く暗くする（前の 0.72 より薄く、範囲も狭く）。
+// 帯の上は、白い帯に濃い文字（雑誌の写真の説明のように）
+function layoutPhotoStyled(ctx: Ctx, style: Exclude<TextStyle, "big">) {
+  const { input, w, h, u, ops, measure } = ctx;
+  const headFont = input.fonts.calm ?? input.fonts.heading;
+  const m = 72 * u;
+  const align: "left" | "center" = style === "center" ? "center" : "left";
+  const band = style === "band";
+  const padB = band ? 40 * u : 0;
+  const textW = w - m * 2 - padB * 2;
+  const landscape = w > h;
+  const headMax = (style === "bottom" ? 52 : landscape ? 64 : 68) * u;
+  const label = fitText(input.label, { maxWidth: textW, maxLines: 1, maxSize: 26 * u, minSize: 20 * u, font: input.fonts.bodyBold }, measure);
+  const headline = fitText(input.headline, { maxWidth: textW, maxLines: landscape ? 2 : 3, maxSize: headMax, minSize: 36 * u, font: headFont, lineHeight: 1.45, balance: true }, measure);
+  const sub = fitText(input.subline, { maxWidth: textW, maxLines: 2, maxSize: 30 * u, minSize: 20 * u, font: input.fonts.body, lineHeight: 1.7 }, measure);
+  const gap = 20 * u;
+  const textH = (label.lines.length ? blockHeight(label) + gap : 0) + blockHeight(headline) + (sub.lines.length ? gap + blockHeight(sub) : 0);
+
+  if (input.screenshot) ops.push({ type: "image", x: 0, y: 0, w, h, r: 0, fit: "center" });
+  else ops.push({ type: "placeholder", x: m, y: m, w: w - m * 2, h: h - m * 2, r: 24 * u, text: "写真を選んでください", font: input.fonts.body, size: 30 * u, color: "#d4d4d4", stroke: "#3a3a3a" });
+
+  let fg = "#ffffff";
+  let subC = "rgba(255,255,255,0.9)";
+  let labelC = "rgba(255,255,255,0.9)";
+  let y: number;
+  if (band) {
+    const bh = textH + padB * 2;
+    const by = h - m - bh;
+    ops.push({ type: "rect", x: m, y: by, w: w - m * 2, h: bh, r: 0, fill: "rgba(255,255,255,0.94)" });
+    fg = "#1f1f1f";
+    subC = "#4a4a4a";
+    labelC = "#4a4a4a";
+    y = by + padB;
+  } else if (style === "quiet") {
+    // 左上に置き、上だけを薄く暗くする
+    y = m;
+    ops.push({ type: "shade", x: 0, y: 0, w, h: Math.min(h, y + textH + 200 * u), from: "rgba(0,0,0,0.42)", to: "rgba(0,0,0,0)" });
+  } else if (style === "center") {
+    y = (h - textH) / 2;
+    ops.push({ type: "rect", x: 0, y: 0, w, h, r: 0, fill: "rgba(0,0,0,0.28)" });
+  } else {
+    y = h - m - textH;
+    const top = Math.max(0, y - 160 * u);
+    ops.push({ type: "shade", x: 0, y: top, w, h: h - top, from: "rgba(0,0,0,0)", to: "rgba(0,0,0,0.45)" });
+  }
+  const x = align === "center" ? w / 2 : m + padB;
+  if (label.lines.length) y += pushLines(ctx, label, x, y, input.fonts.bodyBold, labelC, align) + gap;
+  y += pushLines(ctx, headline, x, y, headFont, fg, align);
+  if (sub.lines.length) pushLines(ctx, sub, x, y + gap, input.fonts.body, subC, align);
 }
 
 function layoutDiagram(ctx: Ctx) {
@@ -481,7 +609,7 @@ function layoutScreen(ctx: Ctx) {
   const label = fitText(input.label, { maxWidth: textW, maxLines: 1, maxSize: 34 * u, minSize: 24 * u, font: input.fonts.bodyBold }, measure);
   const headline = fitText(
     input.headline,
-    { maxWidth: textW, maxLines: landscape ? 4 : input.size === "square" ? 2 : 3, maxSize: (landscape ? 84 : 88) * u, minSize: 48 * u, font: input.fonts.heading, lineHeight: 1.3, balance: true },
+    { maxWidth: textW, maxLines: landscape ? 4 : input.size === "square" ? 2 : 3, maxSize: (landscape ? 72 : 76) * u, minSize: 44 * u, font: input.fonts.heading, lineHeight: 1.4, balance: true },
     measure,
   );
   const sub = fitText(input.subline, { maxWidth: textW, maxLines: landscape ? 3 : 2, maxSize: 36 * u, minSize: 24 * u, font: input.fonts.body, lineHeight: 1.55 }, measure);

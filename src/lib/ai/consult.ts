@@ -24,6 +24,7 @@ import { productTypeOf } from "./product-guide";
 import { actionFromLegacyGoal } from "@/lib/projects/product-types";
 import type { ModelOutput } from "./app-description";
 import { shortenOverDrafts, type CallShorten } from "./shorten";
+import { draftStyleChecker, styleLabels, type StyleProblem } from "./japanese-style";
 import { aiFailureMessage } from "./provider-failure";
 
 // AI と相談（F09、docs/architecture.md の 4.23）の会話の 1 往復。作りはアカウント設計の相棒（plan-coach.ts、4.9）と同じ。
@@ -565,7 +566,8 @@ export async function consultStep(
   void _ignored;
   const tidied = tidyConsultDrafts(rest, ctx.plan.hashtags.items.map((i) => i.tag));
   // 下書きの案が SNS の上限を超えていたら、超えた案だけを 1 回だけ縮めさせる（縮めても超えていれば、画面で「上限を n 字超えています」）
-  const shortened = await shortenConsultDrafts(deps.callShorten && budgeted(admin, { ...budget, call: "shorten" }, deps.callShorten), tidied);
+  // 日本語の決まりに反する言い回し（japanese-style.ts）のある案も、同じ 1 回で直させる（直しても残れば、画面に出す）
+  const shortened = await shortenConsultDrafts(deps.callShorten && budgeted(admin, { ...budget, call: "shorten" }, deps.callShorten), tidied, draftStyleChecker(ctx.plan.pillars));
   const toSave = shortened.turn;
   const { error } = await admin.from("ai_messages").insert({ thread_id: threadId, owner_id: userId, role: "assistant", content: { ...toSave, adopted: [] } as never });
   if (error) throw error;
@@ -586,13 +588,28 @@ export function tidyConsultDrafts(turn: ConsultTurn, tags: string[]): ConsultTur
 }
 
 // 下書きの案（SNS を決めたもの）のうち、上限を超えたものを縮めさせる。SNS を決めていない下書きは、どの SNS に送るか決まっていないので数えない
-export async function shortenConsultDrafts(call: CallShorten | undefined, turn: ConsultTurn): Promise<{ turn: ConsultTurn; result: ModelOutput | null }> {
+// check: 言い回しの確かめ（SNS を決めていない下書きは、直させずに残った言い回しだけを出す）
+export async function shortenConsultDrafts(
+  call: CallShorten | undefined,
+  turn: ConsultTurn,
+  check?: (sns: string, text: string) => StyleProblem[],
+): Promise<{ turn: ConsultTurn; result: ModelOutput | null }> {
   if (turn.proposal?.kind !== "post_draft") return { turn, result: null };
   const drafts = turn.proposal.options.flatMap((o, i) => (o.kind === "post_draft" && o.sns ? [{ id: String(i), sns: o.sns, text: o.text }] : []));
-  const { texts, result } = await shortenOverDrafts(call, drafts);
-  if (texts.size === 0) return { turn, result };
+  const { texts, result } = await shortenOverDrafts(call, drafts, check && ((d, t) => check(d.sns, t)));
   return {
-    turn: { ...turn, proposal: { ...turn.proposal, options: turn.proposal.options.map((o, i) => (o.kind === "post_draft" && texts.has(String(i)) ? { ...o, text: texts.get(String(i))! } : o)) } },
+    turn: {
+      ...turn,
+      proposal: {
+        ...turn.proposal,
+        options: turn.proposal.options.map((o, i) => {
+          if (o.kind !== "post_draft") return o;
+          const text = texts.get(String(i)) ?? o.text;
+          const style = check && styleLabels(check(o.sns ?? "", text));
+          return { ...o, text, ...(style ? { style } : {}) };
+        }),
+      },
+    },
     result,
   };
 }

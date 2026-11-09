@@ -61,7 +61,8 @@ export type ActionBody =
       // sns: 前の形で保存した提案にはない（すべての SNS として読む）。kind も 2026-11-03 より前の提案にはない（保存するときに推す）
       items: { title: string; detail: string; week: number; kpi: KpiTarget["kpi"] | null; target: number | null; sns?: SnsKey | null; kind?: TodoKind | null }[];
     }
-  | { kind: "post_draft"; sns: SnsKey | null; text: string };
+  // style: 直しても残った、日本語の決まりに反する言い回し（japanese-style.ts。画面に出す）
+  | { kind: "post_draft"; sns: SnsKey | null; text: string; style?: string[] };
 export type ActionKind = ActionBody["kind"];
 
 export type ConsultOption = ActionBody & { title: string; summary: string; pros: string[]; cons: string[] };

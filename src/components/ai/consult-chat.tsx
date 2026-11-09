@@ -20,6 +20,7 @@ import { SNS, checkTarget, type SnsKey } from "@/lib/sns";
 import { formatGoalValue, goalMetricLabel } from "@/lib/ai/consult-goals";
 import type { ProposalKind } from "@/lib/ai/consult-schema";
 import { useCloseThread } from "./close-thread";
+import { StyleNotice } from "@/components/posts/style-notice";
 
 type Input = { kind: "start"; topic: ConsultTopic; itemId?: string; goalId?: string } | { kind: "text"; text: string } | { kind: "adopt"; messageId: string; actionIndex: number };
 
@@ -558,6 +559,7 @@ function ActionBodyView({ body: a }: { body: ActionBody }) {
         <div className="flex flex-col gap-1">
           {a.sns && <DraftLength sns={a.sns} text={a.text} />}
           <p className="line-clamp-8 whitespace-pre-wrap">{a.text}</p>
+          <StyleNotice style={a.style} />
         </div>
       );
   }

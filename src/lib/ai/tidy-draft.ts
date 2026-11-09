@@ -12,6 +12,7 @@ import { LENGTH_RULES, shortenOverDrafts, type CallShorten } from "./shorten";
 import { findUrls, profileLinkLine, withProfileLink } from "@/lib/posts/profile-link";
 import type { TidyOption } from "./tidy-draft-apply";
 import { DEFAULT_DIRECTION, directionText, type TidyDirection } from "./tidy-direction";
+import { JAPANESE_STYLE_RULES, draftStyleChecker, styleLabels, type StyleProblem } from "./japanese-style";
 
 // AI で投稿に整える（docs/architecture.md の 4.34）。
 // 声で入れた話し言葉や、思いつくままに書いた本文を、言いたいことを 1 つに絞って、選んだ SNS ごとの字数に収めた案にする。
@@ -25,7 +26,7 @@ export const tidyDraftSchema = z.object({
   options: z
     .array(
       z.object({
-        label: z.string().describe("案の形の短い名前（例: そのまままとめる、最初の 1 行で引きつける、問いかけで終える）。15 字まで"),
+        label: z.string().describe("案の形の短い名前（例: そのまままとめる、伝えたいことを先に、きっかけから話す）。15 字まで"),
         why: z.string().describe("なぜこの形にしたか。読む人にどう届くかを、素人にもわかる言葉で 1〜2 文"),
         drafts: z.array(z.object({ sns: z.enum(IDEA_SNS as [SnsKey, ...SnsKey[]]), text: z.string().describe("その SNS の投稿の文面") })),
       }),
@@ -54,16 +55,16 @@ ${DATA_RULES}
 - 言い直し、「えーと」「なんか」「まあ」などのつなぎの言葉、同じことのくり返しは削る
 
 # 届きやすくする工夫（使ってよいもの）
-- 最初の 1 行で、読む人が「自分のことだ」「続きが気になる」と思う一言を置く（元の文の中身から作る。中身にないことで釣らない）
+- 最初の 1 文で、何の話かがわかるようにする（読む人に関係のあることを先に。元の文の中身から作り、「〜な人へ」「実は」のような型や、中身にないことで釣らない）
 - 届けたい相手がふだん使う言葉で書く。専門の言葉（技術・材料・業界の言葉）は、相手が同業者でなければ言い換えるか省く
 - 投稿の本文では「顧客」と書かない。来てくれた方・買ってくれた方・使ってくれている方など、読む人に向けた呼び方にする
-- スマホで読みやすいように、意味のまとまりごとに改行する（X の短い投稿では 1〜2 回まで）
+- 改行は話の区切り（段落）だけにする。1 文ごとに改行しない（X の短い投稿では 0〜1 回）
 - ハッシュタグは、アカウント設計の「ハッシュタグ」の中から、その投稿に合うもの（「付けるとき」に当てはまるもの）だけを、本文の最後に付ける。合うものがなければ付けない。設計にないタグを作らない。設計でハッシュタグが決まっていなければ付けない。数は下の「下書きを書く SNS」に書いた数まで
 
 # してはいけないこと
 - アカウント設計の口調とやらないことを破る（口調が決まっていなければ、元の文の口調に合わせる）
-- 誇張（「革命的」「最強」「神〇〇」「絶対」「誰でも簡単に」など）、釣りの見出し（「【必見】」「〜した結果…！」「衝撃の」など）、感嘆符や絵文字の重ねすぎ（絵文字は口調で決まっていなければ使わない）
-- 「いかがでしたか」「ぜひ使ってみてください！」のような、ありきたりで AI っぽい言い回し
+- 誇張（「革命的」「最強」「神〇〇」「絶対」「誰でも簡単に」など）、釣りの見出し（「【必見】」「〜した結果…！」「衝撃の」など）
+- 下の「日本語の書き方」に反する言い回し（呼びかけの多用、感嘆符や絵文字、決まりきった型、体言止めの連続など）
 - はやりの言葉・ハッシュタグ・話題に合わせる（あなたはいまはやっていることを知りません。設計と元の文だけを使う）
 - URL を足す（元の文にあれば残してよい。Instagram は下の決まり）。見た人にしてほしいこと（予約・購入など）を、元の文になければ押しつけない（整え方のねらいが「やってもらう」のときは、最後に促す一言を添えてよい）
 
@@ -78,13 +79,16 @@ ${DATA_RULES}
 
 # 案の出し方
 - 案は 2〜${MAX_TIDY_OPTIONS} 個。同じ中身で、形を変える。例:
-  - そのまままとめる: 言いたいことを素直に短くまとめる
-  - 最初の 1 行で引きつける: 相手の困りごとや、意外なところを 1 行目に置く
-  - 問いかけで終える: 最後を、読む人が答えたくなる問いにする（返事が来やすい）
-- 元の文の中身に合わない形は出さない（問いかけにすると不自然なら、ほかの形にする）
+  - そのまままとめる: 言いたいことを、元の文の順のまま素直に短くまとめる
+  - 伝えたいことを先に: いちばん伝えたいこと（新しく始めたこと、相手に関係のあること）を最初の文に置く
+  - きっかけから話す: そうしようと思ったきっかけや、気づいたことから順に話す
+- 問いかけで終える形は、元の文が問いかけているか、整え方のねらいが「問いかけて反応をもらう」のときだけにする
+- 元の文の中身に合わない形は出さない
 - label は案の形の短い名前、why はなぜこの形にしたかを 1〜2 文
 - drafts には、指定された SNS ごとに 1 つずつ書く。SNS が変われば長さと書き方を変える。上限は必ず守り、目安の字数に収める（上限を超えた文面は、yabumi が数えて縮め直させる）
-- ${LENGTH_RULES.replace(/\n/g, "\n  ")}`;
+- ${LENGTH_RULES.replace(/\n/g, "\n  ")}
+
+${JAPANESE_STYLE_RULES}`;
 
 const escapeData = (s: string) => s.replace(/<(\/?)(draft)\b/gi, "<$1$2_");
 
@@ -136,25 +140,33 @@ function instagramText(text: string, sns: SnsKey, productType: string | null): s
 }
 
 // 上限を超えた文面だけを、AI に 1 回だけ縮めさせる（shorten.ts）。縮めても超えていれば、そのまま残す（画面で「上限を n 字超えています」）
+// 日本語の決まりに反する言い回し（check。japanese-style.ts）のある文面も、同じ 1 回で直させ、直しても残ったものを style に入れる
 export async function shortenTidy(
   call: CallShorten | undefined,
   options: TidyOption[],
   hashtags: string[],
   productType: string | null = null,
+  check?: (sns: SnsKey, text: string) => StyleProblem[],
 ): Promise<{ options: TidyOption[]; result: ModelOutput | null }> {
   const drafts = options.flatMap((o, i) => o.drafts.map((d) => ({ id: `${i}:${d.sns}`, sns: d.sns, text: d.text })));
-  const { texts, result } = await shortenOverDrafts(call, drafts);
-  if (texts.size === 0) return { options, result };
+  const { texts, result } = await shortenOverDrafts(call, drafts, check && ((d, t) => check(d.sns, t)));
   return {
     options: options.map((o, i) => ({
       ...o,
       drafts: o.drafts.map((d) => {
         const t = texts.get(`${i}:${d.sns}`);
-        return t ? { sns: d.sns, text: instagramText(tidyDraftHashtags(t, hashtags, d.sns), d.sns, productType) } : d;
+        const text = t ? instagramText(tidyDraftHashtags(t, hashtags, d.sns), d.sns, productType) : d.text;
+        const style = check && styleLabels(check(d.sns, text));
+        return { sns: d.sns, text, ...(style ? { style } : {}) };
       }),
     })),
     result,
   };
+}
+
+// 文面の言い回しの確かめ。元の文（本人の言葉）にある言い回しは指摘しない。整え方の問いかけ・絵文字に合わせる
+export function tidyStyleChecker(ctx: IdeaContext, text: string, direction: TidyDirection = DEFAULT_DIRECTION): (sns: SnsKey, t: string) => StyleProblem[] {
+  return draftStyleChecker(ctx.plan.pillars, { allow: [text], question: direction.aim === "question", emoji: direction.emoji });
 }
 
 type Db = SupabaseClient<Database>;
@@ -195,6 +207,6 @@ export async function runTidyDraft(
   if (!options) return { ok: false, message: "うまく整えられませんでした。もう一度お試しください。" };
 
   const shorten = deps.callShorten && budgeted(admin, { userId: args.userId, purpose: "tidy_draft", call: "shorten" }, deps.callShorten);
-  const shortened = await shortenTidy(shorten, options, hashtags, ctx.project.productType);
+  const shortened = await shortenTidy(shorten, options, hashtags, ctx.project.productType, tidyStyleChecker(ctx, text, args.direction));
   return { ok: true, options: shortened.options };
 }

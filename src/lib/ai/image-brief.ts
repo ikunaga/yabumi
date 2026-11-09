@@ -10,6 +10,7 @@ import { checkContextText, type CheckContext } from "./ai-check";
 import { withAiBudget } from "./budget";
 import type { BetaMessageParam, BetaTextBlockParam } from "./plan-coach";
 import { aiFailureMessage } from "./provider-failure";
+import { HEADLINE_RULE, stripHeadlineCommas } from "./japanese-style";
 
 // 画像の文字の案（F14 の段取り ①。docs/architecture.md の 4.25）。
 // 投稿の文面とアカウント設計から、テンプレートに入れる見出し・補足・図解の項目を AI が下書きする（代わりの文は、描いた文字から画面で作る）。
@@ -58,7 +59,10 @@ export const IMAGE_BRIEF_SYSTEM = `あなたは「yabumi」の中で、宣伝し
 # 書き方
 - 文字はすべて投稿の文面とアカウント設計から取る。投稿に書かれていない事実・数字・商品・機能・顧客の声を足さない
 - 画像の文字は、スクロール中にひと目で読める短さにする。見出しは 22 字まで
-- 誇張（革命的・最強・誰でも簡単に・神〇〇）、決まり文句（【必見】・〜してみた結果…！）、感嘆符の重ね、絵文字、ハッシュタグ、URL は入れない
+- 誇張（革命的・最強・誰でも簡単に・神〇〇）、決まり文句（【必見】・〜してみた結果…！・〜な人へ・〜の秘訣）、感嘆符、絵文字、飾りの記号（✨ など）、ハッシュタグ、URL は入れない
+- ${HEADLINE_RULE}
+- 「顧客」と書かない（来てくれた方・使ってくれている方など、見る人に向けた呼び方にする）
+- 補足と図解の説明は、人が話すような短い文にする。名詞で終わる文（体言止め）を並べない
 - アカウント設計の口調に合わせる。「やらないこと」に当たる文字は入れない
 - 図解は、投稿に複数のポイントや手順がないときも、投稿の中身から無理のない範囲で 2〜3 つにまとめる。それも難しければ、短い 2 つでよい`;
 
@@ -86,19 +90,20 @@ export function normalizeImageBrief(raw: unknown): ImageBrief | null {
   const parsed = imageBriefSchema.safeParse(raw);
   if (!parsed.success) return null;
   const d = parsed.data;
-  const headlines = [...new Set(d.headlines.map((x) => cap(x, 40)).filter(Boolean))].slice(0, 3);
+  // 見出し・ラベル・図解のタイトルには読点を入れない（AI が守らなかったとき用。2026-11-02 オーナーの指摘）
+  const headlines = [...new Set(d.headlines.map((x) => cap(stripHeadlineCommas(x), 40)).filter(Boolean))].slice(0, 3);
   if (headlines.length === 0) return null;
   const items = d.diagram.items
-    .map((it) => ({ title: cap(it.title, 24), text: cap(it.text, 60) }))
+    .map((it) => ({ title: cap(stripHeadlineCommas(it.title), 24), text: cap(it.text, 60) }))
     .filter((it) => it.title || it.text)
     .slice(0, d.diagram.style === "compare" ? 2 : MAX_ITEMS);
   return {
     recommend: d.recommend,
     reason: cap(d.reason, 120),
-    label: cap(d.label, 12),
+    label: cap(stripHeadlineCommas(d.label), 12),
     headlines,
     subline: cap(d.subline, 60),
-    diagram: { title: cap(d.diagram.title, 40) || headlines[0], style: d.diagram.style, items },
+    diagram: { title: cap(stripHeadlineCommas(d.diagram.title), 40) || headlines[0], style: d.diagram.style, items },
   };
 }
 

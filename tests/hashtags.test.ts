@@ -93,7 +93,7 @@ describe("ハッシュタグ: 下書きへの付け方", () => {
     const withTags = normalizePlan({ hashtags }, "本が好きな人");
     const text = (buildPlanIdeasRequest(ctx(withTags)).messages[0].content as { text: string }[])[0].text;
     expect(text).toContain("- #読書記録: 本の感想を投稿している人が見ている（付けるとき: 読んだ本の柱のとき）");
-    expect(text).toContain("threads（Threads）: 500 字まで。話しかけるように。150〜300 字を目安に。ハッシュタグは 1 つまで");
+    expect(text).toContain("threads（Threads）: 500 字まで。知り合いに近況を伝えるくらいの、落ち着いた書き方で。150〜300 字を目安に。ハッシュタグは 1 つまで");
     const none = (buildPlanIdeasRequest(ctx(normalizePlan({}, ""))).messages[0].content as { text: string }[])[0].text;
     expect(none).toContain("ハッシュタグ: まだ決まっていません（下書きにハッシュタグは付けない）");
     expect(POST_IDEAS_SYSTEM).toContain("どのネタ・どの下書きにも同じタグを決まりのように付けない");

@@ -23,6 +23,7 @@ import {
 } from "@/lib/ai/tidy-direction";
 import { isOnline } from "@/lib/client-errors";
 import { displayLength, isManualSns, SNS, type SnsKey } from "@/lib/sns";
+import { StyleNotice } from "./style-notice";
 
 type Composer = { body: string; overrides: Partial<Record<SnsKey, string>> };
 
@@ -160,7 +161,8 @@ export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace, 
   }
 
   function editDraft(i: number, sns: SnsKey, text: string) {
-    setOptions((prev) => prev && prev.map((o, n) => (n === i ? { ...o, drafts: o.drafts.map((d) => (d.sns === sns ? { ...d, text } : d)) } : o)));
+    // 直したら、残った言い回しの知らせは消す（直した文は確かめ直さない）
+    setOptions((prev) => prev && prev.map((o, n) => (n === i ? { ...o, drafts: o.drafts.map((d) => (d.sns === sns ? { sns: d.sns, text } : d)) } : o)));
   }
 
   const showSns = (options?.[0]?.drafts.length ?? 0) > 1;
@@ -278,6 +280,7 @@ export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace, 
                   id={`tidy-${i}-${d.sns}`}
                   sns={d.sns}
                   text={d.text}
+                  style={d.style}
                   showSns={showSns}
                   // 使っている案は、本文と SNS ごとの文面の側で直す（直す場所を二重にしない）
                   readOnly={adopted?.index === i}
@@ -397,6 +400,7 @@ function DraftEditor({
   id,
   sns,
   text,
+  style,
   showSns,
   readOnly,
   onChange,
@@ -404,6 +408,7 @@ function DraftEditor({
   id: string;
   sns: SnsKey;
   text: string;
+  style?: string[];
   showSns: boolean;
   readOnly: boolean;
   onChange: (text: string) => void;
@@ -442,6 +447,7 @@ function DraftEditor({
           {label} の上限を {length - max!} 字超えています。{readOnly ? "本文か SNS ごとの文面で縮めてください。" : "ここで縮めてから使えます。"}
         </p>
       )}
+      <StyleNotice style={style} />
     </div>
   );
 }

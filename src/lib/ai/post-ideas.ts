@@ -16,6 +16,7 @@ import type { BetaMessageParam, BetaTextBlockParam } from "./plan-coach";
 import { actionFromLegacyGoal, type ProductType } from "@/lib/projects/product-types";
 import { guideFor, productLines, productTypeOf, usesDevTalk } from "./product-guide";
 import { LENGTH_RULES, shortenOverDrafts, type CallShorten } from "./shorten";
+import { JAPANESE_STYLE_RULES, draftStyleChecker, styleLabels, type StyleProblem } from "./japanese-style";
 import { aiFailureMessage } from "./provider-failure";
 import { MAX_X_POST_INTEREST, MAX_X_POST_TEXT, X_POST_INTEREST_QUESTION, parseXPostUrl } from "@/lib/ideas/x-post";
 
@@ -63,7 +64,8 @@ export type PostIdea = {
   commits: { sha: string; note: string }[];
   // 元にしたメモの番号（1 から。材料がネタ帳のときだけ。前の版の会話にはない）
   notes?: number[];
-  drafts: { sns: SnsKey; text: string }[];
+  // style: 直しても残った、日本語の決まりに反する言い回し（japanese-style.ts。画面に出す）
+  drafts: { sns: SnsKey; text: string; style?: string[] }[];
 };
 export type IdeaQuestion = { question: string; choices: string[] };
 export type IdeaAnswer = { question: string; answer: string };
@@ -137,7 +139,7 @@ ${DATA_RULES}
 - 材料が最近のできごとのとき: 利用者が書いたことを、投稿になる形に広げる。書かれていないできごとは足さない。commits は空にする
 - 材料がネタ帳のメモでなければ、notes は空にする
 - 材料がネタ帳のメモのとき: 利用者が生活の中で書き留めたことを、投稿になる形に広げる。メモに書かれていないできごと・感想・数字は足さない。関係するメモはまとめて 1 つのネタにしてよく、ネタにならないメモは使わなくてよい。notes には元にしたメモの番号（<note n="..."> の n）を書く。写真のあるメモ（photo="あり"）は、その写真を下書きに添える。写真の中身は見えていないので、写真に何が写っているかは書かない。commits は空にする
-- 材料がアカウント設計と紹介文だけのとき: 柱ごとに 1 つずつ、いつ出しても古くならないネタにする（なぜこれを始めたか、届けたい相手の困りごと、使い方や選び方のコツ、問いかけなど）。紹介文と設計に書かれていない商品・機能・実績は書かない。commits は空にする
+- 材料がアカウント設計と紹介文だけのとき: 柱ごとに 1 つずつ、いつ出しても古くならないネタにする（なぜこれを始めたか、届けたい相手の困りごと、使い方や選び方のコツ、よく聞かれることなど）。紹介文と設計に書かれていない商品・機能・実績は書かない。commits は空にする
 - 材料が X の人気の投稿（<reference_post>）のとき: 他の人が書いた投稿を、利用者が「参考にしたい」と選んだもの。借りるのは切り口（話題の選び方・書き出し・組み立て・問いかけ方）だけで、文は写さない（同じ言い回し・同じ言葉の並びを使わない）。<interest> があれば、そこを借りる。下書きは利用者の立場（プロジェクト・投稿の柱・口調・あなたらしさ・コンセプト）から書き、元の投稿の話題を利用者の商品・サービス・お店・作品の話に置きかえる。元の投稿を書いた人や、その中身（数字・できごと・主張）を、事実として言い切らない。書いた人の名前・@・元の投稿の URL は、ネタの説明にも下書きにも書かない。<reference_post> に文がなく URL だけのときは、中身がわからないので推測せず、<interest> に書かれた気になったところだけを手がかりにする。angle には、元の投稿の何を借りたかを一言添える。commits と notes は空にする
 - 材料が伝えたいこと（<topic>）のとき: 利用者が書いた一言を、投稿になる形に広げる。ほかの材料にあてはまらない話（お知らせ・季節の話題・考えていることなど）が多い。角度の違うネタを出し、それぞれ柱に沿わせる。書かれていないできごと・日付・数字・商品名は足さず、要るところは【】で示すか、質問で聞く。commits と notes は空にする
 
@@ -146,6 +148,7 @@ ${DATA_RULES}
 - 上限は必ず守る。上限ぎりぎりまで書かず、目安の字数に収める（上限を超えた下書きは、yabumi が数えて縮め直させる）
 - ${LENGTH_RULES.replace(/\n/g, "\n  ")}
 - 口調とやらないことは、アカウント設計に従う。決まっていなければ、です・ます調で、親しみやすく、控えめに
+- 投稿の柱の「例」は、どんな話題かを示すもの。例の文や言い回しはまねない
 - 材料と利用者の答えに書かれていることだけを書く。書かれていない苦労話、数字（時間、回数、人数など）、利用者の反応を作らない
 - 利用者にしか書けないところ（商品名・作品名、自分の感想、具体的な数字など）は作らずに、【作品名】のように【】で囲んで示す。【】は利用者が書き換えるまで投稿しない印になる。それ以外では【】を使わない
 - 専門の言葉（技術・材料・業界の言葉）は、届けたい相手が同業者でなければ、言い換えるか省く。「何ができるようになったか」「顧客・使う人にとって何が変わるか」を先に書く
@@ -154,7 +157,7 @@ ${DATA_RULES}
 - URL は入れない（X では URL があると送る費用が上がる。リンクは利用者が必要なら足す）。絵文字は口調で決まっていなければ使わない
 - ハッシュタグは、アカウント設計の「ハッシュタグ」の中から、そのネタに合うもの（「付けるとき」に当てはまるもの）だけを、本文の最後に付ける。合うものがなければ付けない。どのネタ・どの下書きにも同じタグを決まりのように付けない。設計にないタグを作らない。設計でハッシュタグが決まっていなければ、どの下書きにも付けない
 - 1 投稿に付けるハッシュタグの数は、下の「下書きを書く SNS」に書いた数まで（SNS ごとに違う）
-- 「いかがでしたか」「〜してみた結果…！」のような、ありきたりで AI っぽい言い回しは使わない。誇張しない
+- 下書きの日本語は、下の「日本語の書き方」に従う。誇張しない
 
 # 質問（questions）
 - 材料だけでは「何に困っていて、どうしたか」「なぜそうしたか」「顧客・使う人にとって何が変わるか」がわからず、それがわかればネタがよくなるときだけ、利用者に ${MAX_IDEA_QUESTIONS} つまで質問する。大事なものから
@@ -164,12 +167,14 @@ ${DATA_RULES}
 - 質問は「# プロジェクト」の種類に合わせる（お店なら顧客・仕込み、教室なら生徒さん、アプリなら使う人・作り方）
 
 # 答えを受けて出し直すとき
-- 利用者の答えを反映して、ネタと下書きを出し直す。答えに書かれたことは使ってよい。答えられた質問は消し、まだ聞きたいことがあれば残す`;
+- 利用者の答えを反映して、ネタと下書きを出し直す。答えに書かれたことは使ってよい。答えられた質問は消し、まだ聞きたいことがあれば残す
+
+${JAPANESE_STYLE_RULES}`;
 
 // SNS ごとの書き方の目安（上限は src/lib/sns の値）
 const SNS_WRITING: Record<SnsKey, string> = {
   x: "1 つのことだけを短く。全角 100〜120 字を目安に",
-  threads: "話しかけるように。150〜300 字を目安に",
+  threads: "知り合いに近況を伝えるくらいの、落ち着いた書き方で。150〜300 字を目安に",
   facebook: "少し丁寧に、経緯も添えて。200〜400 字を目安に",
   instagram: "画像や動画に添えるキャプション（画像は利用者があとで用意する）。150〜300 字を目安に",
   tiktok: "短い動画に添える説明文（動画は利用者があとで作る）。100 字までを目安に",
@@ -310,7 +315,8 @@ export function buildPlanIdeasRequest(ctx: IdeaContext): IdeasRequest {
 
 // 出し直し: いまのネタと答え（材料が最近のできごとなら、それも）を渡す。コミットは読み直さない
 export function buildRefineIdeasRequest(ctx: IdeaContext, current: IdeasContent, answers: IdeaAnswer[], news?: IdeaAnswer[], notes?: IdeaNoteMaterial[], topic?: string, xPost?: IdeaXPostMaterial): IdeasRequest {
-  const wire = { ideas: current.ideas, questions: current.questions };
+  // 画面に出す印（直しても残った言い回し）は渡さない
+  const wire = { ideas: current.ideas.map((i) => ({ ...i, drafts: i.drafts.map((d) => ({ sns: d.sns, text: d.text })) })), questions: current.questions };
   const qa = answers.map((a) => `質問: ${a.question}\n答え: ${a.answer}`).join("\n\n");
   const material = news?.length
     ? `# 材料: 最近のできごと（利用者が質問に答えて書いたもの）\n${newsBlock(news)}\n\n`
@@ -573,7 +579,7 @@ export async function generatePostIdeas(
   const first = result.stopReason === "end_turn" ? normalizeIdeas(result.output, { knownShas, sns, noteCount: notes.length, hashtags: planTags(ctx.plan), pillars: ctx.plan.pillars.items }) : null;
   const shortenIds: string[] = [];
   const shorten = deps.callShorten && budgeted(admin, { userId: args.userId, purpose: "post_ideas", call: "shorten" }, deps.callShorten, shortenIds);
-  const shortened = first ? await shortenIdeas(shorten, first, planTags(ctx.plan)) : null;
+  const shortened = first ? await shortenIdeas(shorten, first, planTags(ctx.plan), ideasStyleChecker(ctx, request)) : null;
   const checked = shortened ? (xPost ? dropCopiedDrafts(shortened.value, xPost.text) : { value: shortened.value, dropped: 0 }) : null;
   const normalized = checked?.value ?? null;
   if (!normalized) {
@@ -669,7 +675,9 @@ export async function refinePostIdeas(
   }
   const knownShas = [...new Set(thread.latest.content.ideas.flatMap((i) => i.commits.map((c) => c.sha)))];
   const first = result.stopReason === "end_turn" ? normalizeIdeas(result.output, { knownShas, sns: thread.request.sns, noteCount: thread.request.notes?.length ?? 0, hashtags: planTags(ctx.plan), pillars: ctx.plan.pillars.items }) : null;
-  const shortened = first ? await shortenIdeas(deps.callShorten && budgeted(admin, { ...budget, call: "shorten" }, deps.callShorten), first, planTags(ctx.plan)) : null;
+  const shortened = first
+    ? await shortenIdeas(deps.callShorten && budgeted(admin, { ...budget, call: "shorten" }, deps.callShorten), first, planTags(ctx.plan), ideasStyleChecker(ctx, thread.request))
+    : null;
   const checked = shortened ? (thread.request.xPost ? dropCopiedDrafts(shortened.value, thread.request.xPost.text) : { value: shortened.value, dropped: 0 }) : null;
   if (checked && !checked.value && checked.dropped) return { ok: false, message: COPIED_ALL_MESSAGE };
   const normalized = checked?.value ?? null;
@@ -686,22 +694,31 @@ export async function refinePostIdeas(
 }
 
 // 上限を超えた下書きだけを、AI に 1 回だけ縮めさせる（shorten.ts）。縮めても超えていれば、そのまま残す（画面で「上限を n 字超えています」）
+// 日本語の決まりに反する言い回し（check。japanese-style.ts）のある下書きも、同じ 1 回で直させ、直しても残ったものを style に入れる
 export async function shortenIdeas(
   call: CallShorten | undefined,
   value: { ideas: PostIdea[]; questions: IdeaQuestion[] },
   hashtags: string[],
+  check?: (sns: SnsKey, text: string) => StyleProblem[],
 ): Promise<{ value: { ideas: PostIdea[]; questions: IdeaQuestion[] }; result: ModelOutput | null }> {
   const drafts = value.ideas.flatMap((idea, i) => idea.drafts.map((d) => ({ id: `${i}:${d.sns}`, sns: d.sns, text: d.text })));
-  const { texts, result } = await shortenOverDrafts(call, drafts);
-  if (texts.size === 0) return { value, result };
+  const { texts, result } = await shortenOverDrafts(call, drafts, check && ((d, t) => check(d.sns, t)));
   const ideas = value.ideas.map((idea, i) => ({
     ...idea,
     drafts: idea.drafts.map((d) => {
       const t = texts.get(`${i}:${d.sns}`);
-      return t ? { sns: d.sns, text: tidyDraftHashtags(t, hashtags, d.sns) } : d;
+      const text = t ? tidyDraftHashtags(t, hashtags, d.sns) : d.text;
+      const style = check && styleLabels(check(d.sns, text));
+      return { sns: d.sns, text, ...(style ? { style } : {}) };
     }),
   }));
   return { value: { ...value, ideas }, result };
+}
+
+// 下書きの言い回しの確かめ。本人が書いた材料（最近のできごと・メモ・伝えたいこと）にある言い回しは、本人の書き方として指摘しない
+export function ideasStyleChecker(ctx: IdeaContext, request: Pick<IdeasRequestContent, "news" | "notes" | "topic">): (sns: SnsKey, text: string) => StyleProblem[] {
+  const allow = [...(request.news ?? []).map((a) => a.answer), ...(request.notes ?? []).map((n) => n.body), request.topic ?? ""].filter(Boolean);
+  return draftStyleChecker(ctx.plan.pillars, { allow });
 }
 
 // 利用者が書き換える必要のあるところ（【作品名】など）

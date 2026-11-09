@@ -1,7 +1,8 @@
 import { SNS, type SnsKey } from "@/lib/sns";
 
 // AI で投稿に整えた案（tidy-draft.ts）。画面でも使うので、サーバーのものは読み込まない
-export type TidyOption = { label: string; why: string; drafts: { sns: SnsKey; text: string }[] };
+// style: 直しても残った、日本語の決まりに反する言い回し（japanese-style.ts。画面に出し、文面を直したら消す）
+export type TidyOption = { label: string; why: string; drafts: { sns: SnsKey; text: string; style?: string[] }[] };
 
 type Composer = { body: string; overrides: Partial<Record<SnsKey, string>> };
 

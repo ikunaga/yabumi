@@ -22,6 +22,7 @@ import { formatShort } from "@/lib/time";
 import { XPostSource, xPostReady, type XPostValue } from "./x-post-source";
 import { XBuzzSearch } from "./x-buzz-search";
 import type { XSearchQuota } from "@/lib/sns/x/search";
+import { StyleNotice } from "@/components/posts/style-notice";
 
 const PERIOD_LABEL: Record<IdeaPeriod, string> = { 3: "3 日", 7: "1 週間", 14: "2 週間", 30: "1 か月" };
 
@@ -740,6 +741,7 @@ function IdeaCard({
                 </span>
               </div>
               <p className="text-[15px] leading-[1.75] whitespace-pre-wrap">{d.text}</p>
+              <StyleNotice style={d.style} />
             </div>
           );
         })}

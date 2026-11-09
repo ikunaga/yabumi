@@ -1,12 +1,12 @@
-// 2026-11-07 の版（絵の説明のフォーマットを預かる。docs/legal.md の ② の案）: 版の並び・1 日 1 版・本文の新しい文
+// 2026-11-09 の版（了承は 2026-11-07。本番に出す日に付け直した。絵の説明のフォーマットを預かる。docs/legal.md の ② の案）: 版の並び・1 日 1 版・本文の新しい文
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { LEGAL_VERSIONS, currentLegalVersion, effectiveDateLabel, historyProblems } from "@/lib/legal/version";
 
 const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 
-describe("2026-11-07 の版", () => {
-  const rev = LEGAL_VERSIONS.find((r) => r.version === "2026-11-07")!;
+describe("2026-11-09 の版", () => {
+  const rev = LEGAL_VERSIONS.find((r) => r.version === "2026-11-09")!;
 
   it("最後に、利用規約とプライバシーポリシーの両方の版として足し、前もって知らせない理由があり、決まりを守っている（1 日 1 版）", () => {
     expect(LEGAL_VERSIONS.at(-1)).toBe(rev);
@@ -17,15 +17,15 @@ describe("2026-11-07 の版", () => {
     expect(rev.noticeFrom).toBeNull();
     expect(rev.noticeWaived).toContain("運営者だけ");
     expect(historyProblems()).toEqual([]);
-    expect(LEGAL_VERSIONS.filter((r) => r.version === "2026-11-07")).toHaveLength(1);
+    expect(LEGAL_VERSIONS.filter((r) => r.version === "2026-11-09")).toHaveLength(1);
   });
 
-  it("施行日から今の版になり、利用規約とプライバシーポリシーの施行日が 2026年11月7日 になる", () => {
-    const at = new Date("2026-11-06T15:00:00Z");
-    expect(currentLegalVersion(at)).toBe("2026-11-07");
-    expect(effectiveDateLabel(at, "privacy")).toBe("2026年11月7日");
-    expect(effectiveDateLabel(at, "terms")).toBe("2026年11月7日");
-    expect(effectiveDateLabel(new Date("2026-11-06T14:59:00Z"), "terms")).toBe("2026年11月6日");
+  it("施行日から今の版になり、利用規約とプライバシーポリシーの施行日が 2026年11月9日 になる", () => {
+    const at = new Date("2026-11-08T15:00:00Z");
+    expect(currentLegalVersion(at)).toBe("2026-11-09");
+    expect(effectiveDateLabel(at, "privacy")).toBe("2026年11月9日");
+    expect(effectiveDateLabel(at, "terms")).toBe("2026年11月9日");
+    expect(effectiveDateLabel(new Date("2026-11-08T14:59:00Z"), "terms")).toBe("2026年11月6日");
   });
 
   it("利用規約の「料金と上限」に、プロジェクトの数の上限の文があり、値は DB とアプリの上限と同じ 10", () => {

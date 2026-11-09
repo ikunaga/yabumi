@@ -12,6 +12,7 @@ import { FONT_CLASS, TEMPLATE_FONTS } from "@/lib/media/template-fonts";
 import { canvasToJpeg, renderTemplate } from "@/lib/media/template-render";
 import {
   DEFAULT_BRAND_COLOR,
+  DEFAULT_TEXT_STYLE,
   DIAGRAM_STYLES,
   DIAGRAM_STYLE_LABEL,
   FONT_KEYS,
@@ -24,10 +25,14 @@ import {
   TEMPLATE_KIND_HINT,
   TEMPLATE_KIND_LABEL,
   TEMPLATE_SIZES,
+  TEXT_STYLES,
+  TEXT_STYLE_LABEL,
   autoAlt,
   brandPalette,
   defaultSizeFor,
+  fontKeyOf,
   templateReady,
+  textStyleOf,
   type DiagramStyle,
   type FontKey,
   type PhotoFit,
@@ -35,6 +40,7 @@ import {
   type TemplateItem,
   type TemplateKind,
   type TemplateSizeKey,
+  type TextStyle,
 } from "@/lib/media/templates";
 import type { SnsKey } from "@/lib/sns";
 import { Choice, Group } from "./maker-parts";
@@ -54,13 +60,16 @@ export type ImageMakerProps = {
   onClose: () => void;
 };
 
-type Saved = { palette: string; brand: string; font: FontKey };
+type Saved = { palette: string; brand: string; font: FontKey; textStyle: TextStyle };
 const storageKey = (projectId: string) => `yabumi-template:${projectId}`;
 
+// 前に覚えた書体がやめた書体（力強い）なら、近い書体に読み替える。置き方を覚えていなければ（前の版）既定の置き方
 function loadSaved(projectId: string): Saved | null {
   try {
     const v = JSON.parse(localStorage.getItem(storageKey(projectId)) ?? "null");
-    return v && typeof v.palette === "string" && typeof v.brand === "string" && FONT_KEYS.includes(v.font) ? v : null;
+    const font = fontKeyOf(v?.font);
+    if (!v || typeof v.palette !== "string" || typeof v.brand !== "string" || !font) return null;
+    return { palette: v.palette, brand: v.brand, font, textStyle: textStyleOf(v.textStyle) };
   } catch {
     return null;
   }
@@ -77,6 +86,7 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
   const [paletteKey, setPaletteKey] = useState(saved?.palette ?? PALETTES[0].key);
   const [brand, setBrand] = useState(saved?.brand ?? DEFAULT_BRAND_COLOR);
   const [font, setFont] = useState<FontKey>(saved?.font ?? "gothic");
+  const [textStyle, setTextStyle] = useState<TextStyle>(saved?.textStyle ?? DEFAULT_TEXT_STYLE);
   const [label, setLabel] = useState("");
   const [headline, setHeadline] = useState("");
   const [subline, setSubline] = useState("");
@@ -106,11 +116,11 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
 
   useEffect(() => {
     try {
-      localStorage.setItem(storageKey(projectId), JSON.stringify({ palette: paletteKey, brand, font } satisfies Saved));
+      localStorage.setItem(storageKey(projectId), JSON.stringify({ palette: paletteKey, brand, font, textStyle } satisfies Saved));
     } catch {
       // 保存できなくても描くのは続ける
     }
-  }, [projectId, paletteKey, brand, font]);
+  }, [projectId, paletteKey, brand, font, textStyle]);
 
   // 閉じたら画面の画像を手放す
   useEffect(() => () => shot?.bitmap.close(), [shot]);
@@ -129,6 +139,7 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
     items,
     screenshot: shot ? { w: shot.bitmap.width, h: shot.bitmap.height } : null,
     photoFit,
+    textStyle,
   };
   const notReady = templateReady(input);
   const altText = altTouched ? alt : autoAlt(input);
@@ -484,6 +495,17 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
                   </button>
                 </span>
               </Group>
+
+              {/* 文字の置き方（文字のカード・note のヘッダー・写真を全面に敷く）。図解と端末の枠は、置き方が決まっている */}
+              {(kind === "card" || kind === "note" || (kind === "screen" && photoFit === "cover")) && (
+                <Group label="文字の置き方">
+                  {TEXT_STYLES.map((t) => (
+                    <Choice key={t} on={textStyle === t} onClick={() => setTextStyle(t)}>
+                      {TEXT_STYLE_LABEL[t]}
+                    </Choice>
+                  ))}
+                </Group>
+              )}
 
               <Group label="文字の形" hint="日本語の書体は、使う字のぶんだけ読み込みます">
                 {FONT_KEYS.map((f) => (

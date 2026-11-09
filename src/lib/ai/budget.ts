@@ -1,3 +1,4 @@
+import { VOICE_MEMO_DAILY_RUNS } from "@/lib/plan/voice-rules";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { alertIfNearBudgetSafely } from "@/lib/notify/budget";
 import type { Database } from "@/lib/supabase/database.types";
@@ -91,7 +92,7 @@ export const TOO_LARGE_MESSAGE = "AI に送る内容が長すぎます。会話�
 export type ModelLike = { model: string; usage: TokenUsage };
 export type BudgetDenied = { ok: false; message: string };
 
-type ReserveStatus = "ok" | "global_limit" | "new_global_limit" | "user_limit" | "new_user_limit" | "daily_limit";
+type ReserveStatus = "ok" | "global_limit" | "new_global_limit" | "user_limit" | "new_user_limit" | "daily_limit" | "voice_memo_limit";
 
 // 「11/10」（日本時間の月/日）
 function monthDay(ymd: string): string {
@@ -113,6 +114,8 @@ export function limitMessage(status: Exclude<ReserveStatus, "ok">, newUntil: str
       return `今月の AI の利用が上限に達しました。来月 1 日にまた使えます。${manual}`;
     case "daily_limit":
       return "今日の AI とのやりとりが上限に達しました。明日また続きができます。";
+    case "voice_memo_limit":
+      return `書き方の読み取りは、1 日 ${VOICE_MEMO_DAILY_RUNS} 回までです。明日またお試しください。`;
   }
 }
 

@@ -1,4 +1,5 @@
 import { JAPANESE_STYLE_RULES } from "./japanese-style";
+import { voicePromptLines, type VoiceContext } from "@/lib/plan/voice";
 import { KPIS, kpiKeysFor, type KpiKey } from "@/lib/metrics/kpis";
 import { AI_PLAN_SECTION_KEYS, isSectionDone, type PlanData } from "@/lib/plan/schema";
 import { storyForAi } from "@/lib/plan/story";
@@ -159,6 +160,8 @@ export type ConsultContext = {
   monthReview?: string;
   // 入口が「目標の振り返り」の会話だけ: 期限が来たか届いたか、次の 1 か月もまとめて決めるか
   goalReview?: string;
+  // この人の書き方（文調のメモと例の投稿。docs/design/voice-from-posts.md の 3.3）。下書き（post_draft）を書くときに寄せる
+  voice?: VoiceContext | null;
   // この会話の何往復目か（利用者の発言の数。この発言を含む）。長くなったら 1 回だけ新しい相談に分けるよう勧める
   turns?: number;
   // 振り返りの会話だけ（4.22 の段取り ⑦）
@@ -228,6 +231,7 @@ export function consultContextMessage(ctx: ConsultContext): string {
     clip(JSON.stringify(plan), 5000),
     "あなたらしさ（発信する人の思いや経験。利用者が「投稿に使ってよい」としたものだけ。誇張しない・ここにない経験を足さない。このセクションは相談では直さない）:",
     story.length ? clip(story.map((l) => `- ${l.label}: ${l.text}`).join("\n"), 2000) : "まだない（または投稿に使わない）",
+    ...(voicePromptLines(ctx.voice).length ? [clip(voicePromptLines(ctx.voice).join("\n"), 2500)] : []),
     "最近送った投稿（新しい順、最大 10 件。clicks は短縮リンクのクリック）:",
     ctx.recentPosts.length ? clip(JSON.stringify(ctx.recentPosts), 3000) : "まだない",
     "選んだ数字（KPI）:",

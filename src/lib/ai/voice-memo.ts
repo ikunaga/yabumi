@@ -102,7 +102,8 @@ export async function runVoiceMemo(
   if (material.length < SELF_WRITTEN_ENOUGH) return { ok: false, message: `自分で書いて送った投稿が ${SELF_WRITTEN_ENOUGH} 本たまると、書き方を読み取れます（いま ${material.length} 本）。` };
 
   // 1 日 3 回まで（日本時間の今日の、この利用者の書き方の読み取りの利用量の記録。利用者が消せない ai_usage で数える。上限で断った分は記録がないので数えない）。
-  // ai_usage はプロジェクトを持たないので、利用者ごとに数える（プロジェクトごとの 3 回より厳しい側。2026-11-09 PM の了承）
+  // ai_usage はプロジェクトを持たないので、利用者ごとに数える（プロジェクトごとの 3 回より厳しい側。2026-11-09 PM の了承）。
+  // ここは先に断って材料を読まずに済ませるため。同時に押されても超えないよう、本当の判定は予約（reserve_ai_usage）の lock の中で行う
   const dayStart = new Date(`${toYmd(now)}T00:00:00+09:00`).toISOString();
   const { count, error: countError } = await admin
     .from("ai_usage")

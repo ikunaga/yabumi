@@ -1,3 +1,4 @@
+import { loadVoiceContext, voicePromptLines, type VoiceContext } from "@/lib/plan/voice";
 import { actionFromLegacyGoal, type ProductType } from "@/lib/projects/product-types";
 import { productLines, productTypeOf } from "./product-guide";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -93,7 +94,8 @@ ${JAPANESE_STYLE_RULES}`;
 const escapeData = (s: string) => s.replace(/<(\/?)(post)\b/gi, "<$1$2_");
 
 // sns: 送り先の SNS（投稿の柱は、この SNS に付いたものだけを出す。空・なしならすべての柱を、使う SNS を添えて）
-export type CheckContext = { projectName: string; plan: PlanData; productType?: ProductType; sns?: SnsKey[] };
+// voice: この人の書き方（docs/design/voice-from-posts.md の 3.3）。見直し・画像の文字の案に渡し、絵の説明（photo.ts）には渡さない
+export type CheckContext = { projectName: string; plan: PlanData; productType?: ProductType; sns?: SnsKey[]; voice?: VoiceContext | null };
 
 // use: 見直し（AI っぽさチェック）か、画像の案（photo.ts・image-brief.ts）か。あなたらしさは投稿に使ってよいものだけ
 export function checkContextText(ctx: CheckContext, use: "check" | "image" = "check"): string {
@@ -108,6 +110,8 @@ export function checkContextText(ctx: CheckContext, use: "check" | "image" = "ch
       ? `ハッシュタグ（設計で決めたもの）: ${tags.map((t) => `#${t.tag}${t.when.trim() ? `（付けるとき: ${t.when.trim()}）` : ""}`).join("、")}`
       : "ハッシュタグ: （未設定）",
   );
+  const voice = voicePromptLines(ctx.voice);
+  if (voice.length) lines.push(...voice);
   return lines.join("\n");
 }
 
@@ -183,6 +187,7 @@ export async function runAiCheck(
   const { data: project } = await user.from("projects").select("*").eq("id", args.projectId).maybeSingle();
   if (!project) return { ok: false, message: "プロジェクトが見つかりません。" };
   const { data: planRow } = await user.from("account_plans").select("data").eq("project_id", args.projectId).maybeSingle();
+  const plan = normalizePlan(planRow?.data, project.target_audience ?? "");
 
   let r: ModelOutput;
   try {
@@ -191,7 +196,7 @@ export async function runAiCheck(
       admin,
       { userId: args.userId, purpose: "ai_check", call: "ai_check", now: deps.now?.() },
       buildAiCheckRequest(
-        { projectName: project.name, plan: normalizePlan(planRow?.data, project.target_audience ?? ""), productType: productTypeOf(project.product_type), sns: texts.map((t) => t.sns) },
+        { projectName: project.name, plan, productType: productTypeOf(project.product_type), sns: texts.map((t) => t.sns), voice: await loadVoiceContext(user, args.projectId, plan.voice) },
         texts,
       ),
       deps.callCheck,

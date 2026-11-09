@@ -1,10 +1,10 @@
 -- 過去の自分の投稿から文調をそろえる（段階 A-2。docs/design/voice-from-posts.md の 3・4。2026-11-09 PM の了承）。
 -- 1. アカウント設計に「書き方」（voice。文調のメモと例の投稿）のセクションを足す。中身の形はアプリ側（src/lib/plan/schema.ts）で確かめ、
 --    例の投稿は保存の前にアプリが「このプロジェクトの、送った、本人が書いた投稿」に絞る（src/lib/plan/save.ts）
--- 2. 文調のメモをつくる AI の用途 voice_memo を、予約の用途に足す（下限 $0.15。出力の上限 4,000 から。ほかの用途と同じ数え方）
--- 文調のメモをつくる回数（1 日 3 回）は、利用者が消せない利用量の記録（ai_usage の purpose = voice_memo）で、サーバーが数える（アプリ。src/lib/ai/voice-memo.ts）
+-- 2. 文調のメモをつくる AI の用途 voice_memo を、予約の用途に足す（下限 $0.15。出力の上限 4,000 から。ほかの用途と同じ数え方）。
+--    1 人 1 日 3 回までも、予約の lock の中で数える（同時に押しても超えない。断るときは voice_memo_limit）
 
--- 2. 予約の用途（いちばん新しい定義 20261103170000 に、voice_memo の 1 行だけを足す）
+-- 2. 予約の用途（いちばん新しい定義 20261103170000 に、voice_memo の下限の 1 行と、1 日 3 回の判定を足す）
 create or replace function public.reserve_ai_usage(
   p_owner_id uuid,
   p_purpose text,
@@ -22,6 +22,7 @@ declare
   c_user_monthly_usd constant numeric := 3;
   c_global_monthly_usd constant numeric := 10;
   c_user_daily_turns constant integer := 60;
+  c_voice_memo_daily_runs constant integer := 3;
   c_new_days constant interval := interval '7 days';
   -- 1 回の呼び出しで予約できる見込みの上限（src/lib/ai/budget.ts の AI_MAX_RESERVATION_USD と同じ値）
   c_max_reservation_usd constant numeric := 1;
@@ -102,6 +103,14 @@ begin
   end if;
   if v_today >= c_user_daily_turns then
     return query select null::uuid, 'daily_limit'::text, v_global, null::date;
+    return;
+  end if;
+  -- 書き方の読み取り（voice_memo）は 1 人 1 日 3 回まで。予約と同じ lock の中で数えるので、同時に押しても超えない
+  -- （利用者が消せない ai_usage で数える。src/lib/plan/voice-rules.ts の VOICE_MEMO_DAILY_RUNS と同じ値）
+  if p_purpose = 'voice_memo' and (
+    select count(*) from public.ai_usage a where a.owner_id = p_owner_id and a.purpose = 'voice_memo' and a.created_at >= v_day_start
+  ) >= c_voice_memo_daily_runs then
+    return query select null::uuid, 'voice_memo_limit'::text, v_global, null::date;
     return;
   end if;
 

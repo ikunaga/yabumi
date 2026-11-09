@@ -1,3 +1,4 @@
+import { loadVoiceContext } from "@/lib/plan/voice";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadCoachView, type CoachView } from "@/lib/coach/load";
 import { saveSectionValue } from "@/lib/plan/save";
@@ -205,6 +206,7 @@ export async function gatherConsultContext(
     today,
     project: { name: project.name, description: project.description, appStoreUrl: project.app_store_url, playStoreUrl: project.play_store_url, productType },
     plan,
+    voice: await loadVoiceContext(user, projectId, plan.voice),
     connectedSns: [...connected].map((s) => SNS[s].label),
     manualSns: SNS_KEYS.filter(isManualSns).map((s) => SNS[s].label),
     recentPosts: [...posts.values()],

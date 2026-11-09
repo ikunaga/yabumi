@@ -114,6 +114,20 @@ describe("書き方を読み取る AI", () => {
     expect((await runVoiceMemo(alice, admin, { callVoiceMemo: call }, { userId: aliceId, projectId })).ok).toBe(false);
   });
 
+  it("同時に 5 回予約しても、1 日 3 回までしか通らない（判定は予約の lock の中）", async () => {
+    const { userId: carolId } = await signUpNewUser();
+    try {
+      const reserve = () =>
+        admin.rpc("reserve_ai_usage", { p_owner_id: carolId, p_purpose: "voice_memo", p_cost_usd: 0.15, p_scope_owner: carolId, p_as_of: "2100-01-01T00:00:00Z" }).then((r) => r.data?.[0]?.status);
+      const statuses = await Promise.all(Array.from({ length: 5 }, reserve));
+      expect(statuses.filter((x) => x === "ok")).toHaveLength(3);
+      expect(statuses.filter((x) => x === "voice_memo_limit")).toHaveLength(2);
+    } finally {
+      await admin.from("ai_usage").delete().eq("owner_id", carolId);
+      await deleteUser(carolId);
+    }
+  });
+
   it("ほかの人のプロジェクトでは読めない", async () => {
     expect((await runVoiceMemo(bob, admin, { callVoiceMemo: caller() }, { userId: bobId, projectId })).ok).toBe(false);
   });

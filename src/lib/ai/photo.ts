@@ -104,7 +104,8 @@ export function buildPhotoIdeasRequest(ctx: CheckContext, text: string, format?:
     messages: [
       {
         role: "user",
-        content: [{ type: "text", text: `${checkContextText(ctx, "image")}\n\n# 投稿の文面\n<post>\n${escapeData(text)}\n</post>${formatBlock}\n\nこの投稿に添える画像の場面の説明を考えてください。` }],
+        // 絵の説明には書き方を渡さない（文を書かないため。docs/design/voice-from-posts.md の 3.3）
+        content: [{ type: "text", text: `${checkContextText({ ...ctx, voice: null }, "image")}\n\n# 投稿の文面\n<post>\n${escapeData(text)}\n</post>${formatBlock}\n\nこの投稿に添える画像の場面の説明を考えてください。` }],
       },
     ],
   };

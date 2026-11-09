@@ -1,3 +1,4 @@
+import { loadVoiceContext, voicePromptLines, type VoiceContext } from "@/lib/plan/voice";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { CommitDigest, ReadCommitsResult } from "@/lib/github/commit-reader";
@@ -193,6 +194,8 @@ export type IdeaContext = {
   project: { name: string; description: string; targetAudience: string; productType: ProductType };
   plan: PlanData;
   sns: SnsKey[];
+  // この人の書き方（文調のメモと例の投稿。docs/design/voice-from-posts.md の 3.3）。なければ null
+  voice?: VoiceContext | null;
 };
 
 // プロジェクトとアカウント設計のうち、ネタに要るところ（use: ネタ出しか、整える（tidy-draft.ts）か。あなたらしさは投稿に使ってよいものだけ）
@@ -215,6 +218,8 @@ export function ideaContextText(ctx: IdeaContext, use: "ideas" | "tidy" = "ideas
   lines.push(...hashtagLines(plan));
   const roles = ctx.sns.map((s) => (plan.cadence.roles[s]?.trim() ? `- ${SNS[s].label}: ${plan.cadence.roles[s]!.trim()}` : null)).filter(Boolean);
   if (roles.length) lines.push("SNS ごとの役割:", ...(roles as string[]));
+  const voice = voicePromptLines(ctx.voice);
+  if (voice.length) lines.push("", ...voice);
 
   lines.push("", "# 下書きを書く SNS（drafts の sns にはこの名前を使う）", ...ctx.sns.map(snsRule));
   return lines.join("\n");
@@ -403,10 +408,12 @@ export async function loadContext(user: Db, projectId: string, sns: SnsKey[]): P
   const { data: project } = await user.from("projects").select("*").eq("id", projectId).maybeSingle();
   if (!project) return null;
   const { data: planRow } = await user.from("account_plans").select("data").eq("project_id", projectId).maybeSingle();
+  const plan = normalizePlan(planRow?.data, project.target_audience ?? "");
   return {
     project: { name: project.name, description: project.description ?? "", targetAudience: project.target_audience ?? "", productType: productTypeOf(project.product_type) },
-    plan: normalizePlan(planRow?.data, project.target_audience ?? ""),
+    plan,
     sns,
+    voice: await loadVoiceContext(user, projectId, plan.voice),
   };
 }
 

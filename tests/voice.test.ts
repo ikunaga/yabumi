@@ -1,5 +1,11 @@
 // 書き方（文調のメモ。docs/design/voice-from-posts.md）: AI に渡す形（# この人の書き方）、数えた値、返事の整え方、欄の読み方
 import { describe, expect, it } from "vitest";
+import { buildAiCheckRequest } from "@/lib/ai/ai-check";
+import { consultContextMessage, type ConsultContext } from "@/lib/ai/consult-prompt";
+import { buildImageBriefRequest } from "@/lib/ai/image-brief";
+import { buildPhotoIdeasRequest } from "@/lib/ai/photo";
+import { buildPlanIdeasRequest, type IdeaContext } from "@/lib/ai/post-ideas";
+import { buildTidyRequest } from "@/lib/ai/tidy-draft";
 import { buildVoiceMemoRequest, normalizeVoiceMemo } from "@/lib/ai/voice-memo";
 import { normalizePlan, parseSectionForm, sectionSchemas } from "@/lib/plan/schema";
 import { countVoiceStats, voiceExampleTexts, voiceForUse, voicePromptLines, type VoiceMaterial } from "@/lib/plan/voice";
@@ -62,5 +68,41 @@ describe("欄の読み方", () => {
     const many = new FormData();
     for (let i = 0; i < 4; i++) many.append("example", `1111111${i}-1111-4111-8111-111111111111`);
     expect(parseSectionForm("voice", many).success).toBe(false);
+  });
+});
+
+describe("書き方を渡す AI（A-3）", () => {
+  const plan = normalizePlan({}, "");
+  const voice = { voice: { ...empty, memo: { ...empty.memo, endings: "です・ます" } }, examples: [{ sns: "x" as const, text: "焼きたてです" }] };
+  const textOf = (req: { messages: { content: unknown }[] }) => JSON.stringify(req.messages);
+  const ideaCtx: IdeaContext = { project: { name: "こむぎ日和", description: "", targetAudience: "", productType: "shop" }, plan, sns: ["x"], voice };
+  const checkCtx = { projectName: "こむぎ日和", plan, productType: "shop" as const, sns: ["x" as const], voice };
+  const consultCtx: ConsultContext = {
+    today: "2026-11-09",
+    project: { name: "こむぎ日和", description: "", appStoreUrl: null, playStoreUrl: null, productType: "shop" },
+    plan,
+    voice,
+    connectedSns: [],
+    manualSns: [],
+    recentPosts: [],
+    kpiNumbers: [],
+    goals: { active: null, past: [], candidates: [] },
+    roadmap: { items: [] },
+  };
+  it.each([
+    ["ネタ出し", textOf(buildPlanIdeasRequest(ideaCtx))],
+    ["整える", textOf(buildTidyRequest(ideaCtx, "下書き"))],
+    ["見直し", textOf(buildAiCheckRequest(checkCtx, [{ sns: "x", text: "本文" }]))],
+    ["画像の文字の案", textOf(buildImageBriefRequest(checkCtx, "本文"))],
+    ["相談", consultContextMessage(consultCtx)],
+  ])("%s には「# この人の書き方」と例の投稿を渡す", (_, text) => {
+    expect(text).toContain("# この人の書き方");
+    expect(text).toContain("焼きたてです");
+  });
+
+  it("絵の説明の案には渡さない。書き方がなければ、どの AI にも何も足さない", () => {
+    expect(textOf(buildPhotoIdeasRequest(checkCtx, "本文"))).not.toContain("この人の書き方");
+    expect(textOf(buildPlanIdeasRequest({ ...ideaCtx, voice: null }))).not.toContain("この人の書き方");
+    expect(consultContextMessage({ ...consultCtx, voice: undefined })).not.toContain("この人の書き方");
   });
 });

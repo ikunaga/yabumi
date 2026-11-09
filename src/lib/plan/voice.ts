@@ -90,6 +90,13 @@ export async function loadVoiceExamples(db: Db, projectId: string, ids: string[]
   });
 }
 
+// AI に渡す書き方（文調のメモと例の投稿の本文）。どちらもなければ null（AI の材料に何も足さない）。例は利用者の権限で読む
+export async function loadVoiceContext(db: Db, projectId: string, voice: PlanData["voice"]): Promise<VoiceContext | null> {
+  const hasMemo = VOICE_MEMO_FIELDS.some((f) => voice.memo[f].trim());
+  const examples = await loadVoiceExamples(db, projectId, voice.examples);
+  return hasMemo || examples.length ? { voice, examples } : null;
+}
+
 // 書き方（文調のメモと例）を渡す AI（docs/design/voice-from-posts.md の 3.3）。絵の説明（image）と設計の相棒（coach）には渡さない
 const VOICE_USES: readonly AiUse[] = ["ideas", "tidy", "check", "consult"];
 export function voiceForUse(use: AiUse | "image_text"): boolean {

@@ -187,3 +187,17 @@
 - 保存の 4 か所: 投稿をつくる（画面の切り替え。「AI で整える」の案を採用すると ai）、ネタ出しの下書き（ai）、相談の下書き（ai）、ネタ帳のメモから（self）
 - 投稿をつくるの本文の下に「最初の数本は、自分の言葉で書くのがおすすめです（いま 2/5 本）」と「?」（自分で書いて送った投稿が 5 本未満のとき。countSelfWrittenPosts）と、「この本文は［自分で書いた］［AI の文をもとにした］」の切り替え
 - 法務: docs/legal.md に ① として記録し、/privacy の預かる情報の「投稿」に印を書き足した
+
+### A-2（2026-11-09）
+
+- アカウント設計に「書き方」のセクション（voice）を足した。**いちばん後ろ**に置いた（設計の相棒への指示の番号 1〜10 を変えないため。3.2 の「投稿の柱のすぐ後ろ」から変えた）。設計の相棒と相談の AI は、書き方の案を出さない（AI_PLAN_SECTION_KEYS）
+- 書き方を読み取る AI（voice_memo。src/lib/ai/voice-memo.ts）: 材料の一覧（チェックで外せる。「例」を 3 本まで選べる）→「AI に読み取ってもらう」→ 欄に入れて、利用者が直して保存する
+- 回数は **1 人 1 日 3 回**（プロジェクトごとではなく利用者ごと。2026-11-09 PM の了承）。利用者が消せない ai_usage（purpose = voice_memo）で、予約（reserve_ai_usage）の lock の中で数える（自動のセキュリティ確認の指摘で、アプリで数えてから予約する形から直した。同時に押しても超えない）。断るときは voice_memo_limit
+- 例の投稿は、保存の前にサーバーで「材料に入る投稿」に絞る（allowedVoiceExamples）
+- マイグレーション 20261109130000_voice_memo: reserve_ai_usage（voice_memo の下限 $0.15 と 1 日 3 回）、save_account_plan_section（voice）
+
+### A-3（2026-11-09）
+
+- 「# この人の書き方」（voicePromptLines。文調のメモの中身のある欄と、例の投稿 3 本・1 本 400 字まで）を、ネタ出し・整える（ideaContextText）、見直し・画像の文字の案（checkContextText）、相談（consultContextMessage）に足した。絵の説明の案（photo.ts）と設計の相棒には渡さない
+- 例の投稿は、AI に渡すたびに利用者の権限で読む（消した・AI の文になった投稿は外れる。loadVoiceContext）
+- 法務: /privacy の預かる情報と Anthropic の送るものに書き足し、docs/legal.md に ① として記録した

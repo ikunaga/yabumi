@@ -3,6 +3,7 @@ import { productTypeOf } from "./product-guide";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { normalizePlan } from "@/lib/plan/schema";
+import { loadVoiceContext } from "@/lib/plan/voice";
 import { DIAGRAM_STYLES, MAX_ITEMS, type DiagramStyle, type TemplateItem } from "@/lib/media/templates";
 import type { Database } from "@/lib/supabase/database.types";
 import type { ModelOutput } from "./app-description";
@@ -126,6 +127,7 @@ export async function runImageBrief(
   const { data: project } = await user.from("projects").select("*").eq("id", args.projectId).maybeSingle();
   if (!project) return { ok: false, message: "プロジェクトが見つかりません。" };
   const { data: planRow } = await user.from("account_plans").select("data").eq("project_id", args.projectId).maybeSingle();
+  const plan = normalizePlan(planRow?.data, project.target_audience ?? "");
 
   let r: ModelOutput;
   try {
@@ -134,7 +136,8 @@ export async function runImageBrief(
       admin,
       { userId: args.userId, purpose: "image_brief", call: "image_brief", now: deps.now?.() },
       buildImageBriefRequest(
-        { projectName: project.name, plan: normalizePlan(planRow?.data, project.target_audience ?? ""), productType: productTypeOf(project.product_type), sns: args.sns },
+        // 画像の文字の案には、この人の書き方を渡す（絵の説明の案（photo.ts）には渡さない）
+        { projectName: project.name, plan, productType: productTypeOf(project.product_type), sns: args.sns, voice: await loadVoiceContext(user, args.projectId, plan.voice) },
         text,
       ),
       deps.callBrief,

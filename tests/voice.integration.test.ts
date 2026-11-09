@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { runVoiceMemo, type CallVoiceMemo } from "@/lib/ai/voice-memo";
 import { saveSectionValue } from "@/lib/plan/save";
 import { sectionSchemas } from "@/lib/plan/schema";
-import { allowedVoiceExamples, loadVoiceExamples, loadVoiceMaterial } from "@/lib/plan/voice";
+import { allowedVoiceExamples, loadVoiceExampleHeads, loadVoiceExamples, loadVoiceMaterial } from "@/lib/plan/voice";
 import { scopeAiBudget } from "./helpers/ai-budget";
 import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
 
@@ -72,6 +72,10 @@ describe("材料と例の投稿", () => {
     expect((data!.data as { voice: { examples: string[] } }).voice.examples).toEqual([ids.self1]);
     // AI に渡すときも本人の権限で読むので、ほかの人の投稿は読めない
     expect(await loadVoiceExamples(alice, projectId, [ids.bob, ids.self1])).toEqual([{ sns: "x", text: expect.stringContaining("1 本目") }]);
+    // 書き方の欄に出す例の頭も、本人が書いて送った投稿だけ
+    const heads = await loadVoiceExampleHeads(alice, projectId, [ids.bob, ids.ai, ids.self1]);
+    expect(Object.keys(heads)).toEqual([ids.self1]);
+    expect(heads[ids.self1]).toContain("1 本目");
   });
 });
 

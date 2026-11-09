@@ -110,6 +110,7 @@ export function AccountPlanEditor({
   initialOpen = null,
   cycle = null,
   selfWritten = 0,
+  voiceExampleHeads = {},
 }: {
   projectId: string;
   plan: PlanData;
@@ -117,6 +118,8 @@ export function AccountPlanEditor({
   cycle?: CycleInfo | null;
   // 自分で書いて送った投稿の本数（書き方を読み取れるか）
   selfWritten?: number;
+  // 書き方の例に選んだ投稿の頭（配信先の id ごと）
+  voiceExampleHeads?: Record<string, string>;
   // 名前とプロフィールの SNS ごとの欄に使う（つないだアカウント、短縮リンク）
   profileCtx: ProfileContext;
   sources: Partial<Record<SectionKey, "ai" | "manual">>;
@@ -145,7 +148,7 @@ export function AccountPlanEditor({
           recommended={RECOMMENDED_SECTIONS.includes(key)}
           onSavedNext={() => setOpen(SECTION_KEYS[i + 1] ?? null)}
         >
-          <SectionFields sectionKey={key} plan={plan} profileCtx={profileCtx} cycle={cycle} aiEnabled={aiEnabled} selfWritten={selfWritten} onOpenSection={(k) => {
+          <SectionFields sectionKey={key} plan={plan} profileCtx={profileCtx} cycle={cycle} aiEnabled={aiEnabled} selfWritten={selfWritten} voiceExampleHeads={voiceExampleHeads} onOpenSection={(k) => {
             setOpen(k);
             requestAnimationFrame(() => document.getElementById(`plan-${k}-head`)?.scrollIntoView({ block: "start", behavior: "smooth" }));
           }} />
@@ -392,6 +395,7 @@ function SectionFields({
   cycle,
   aiEnabled,
   selfWritten,
+  voiceExampleHeads,
   onOpenSection,
 }: {
   sectionKey: SectionKey;
@@ -400,6 +404,7 @@ function SectionFields({
   cycle: CycleInfo | null;
   aiEnabled: boolean;
   selfWritten: number;
+  voiceExampleHeads: Record<string, string>;
   onOpenSection: (k: SectionKey) => void;
 }) {
   switch (sectionKey) {
@@ -422,7 +427,7 @@ function SectionFields({
     case "cadence":
       return <CadenceFields v={plan.cadence} ex={examplesOf(profileCtx)} />;
     case "voice":
-      return <VoiceFields v={plan.voice} projectId={profileCtx.projectId} aiEnabled={aiEnabled} selfWritten={selfWritten} />;
+      return <VoiceFields v={plan.voice} projectId={profileCtx.projectId} aiEnabled={aiEnabled} selfWritten={selfWritten} exampleHeads={voiceExampleHeads} />;
     case "first_month":
       return (
         <FirstMonthFields

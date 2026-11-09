@@ -90,6 +90,19 @@ export async function loadVoiceExamples(db: Db, projectId: string, ids: string[]
   });
 }
 
+// 一覧に出す投稿の頭（最初の空でない行の 60 字まで）
+export function voiceHead(t: string): string {
+  const line = t.split("\n").find((l) => l.trim()) ?? "";
+  return [...line].length > 60 ? [...line].slice(0, 60).join("") + "…" : line;
+}
+
+// 書き方の欄に出す、例に選んだ投稿の頭（配信先の id ごと）。消した・送り終えていない・AI の文になった投稿は入らない
+export async function loadVoiceExampleHeads(db: Db, projectId: string, ids: string[]): Promise<Record<string, string>> {
+  if (ids.length === 0) return {};
+  const material = await loadVoiceMaterial(db, projectId, 200);
+  return Object.fromEntries(material.filter((m) => ids.includes(m.targetId)).map((m) => [m.targetId, voiceHead(m.text)]));
+}
+
 // AI に渡す書き方（文調のメモと例の投稿の本文）。どちらもなければ null（AI の材料に何も足さない）。例は利用者の権限で読む
 export async function loadVoiceContext(db: Db, projectId: string, voice: PlanData["voice"]): Promise<VoiceContext | null> {
   const hasMemo = VOICE_MEMO_FIELDS.some((f) => voice.memo[f].trim());

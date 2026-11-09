@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { loadVoiceMaterial } from "@/lib/plan/voice";
+import { loadVoiceMaterial, voiceHead } from "@/lib/plan/voice";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { aiConfigured, callVoiceMemo } from "./anthropic";
@@ -11,16 +11,11 @@ import { runVoiceMemo, type VoiceMemoDraft } from "./voice-memo";
 
 export type VoiceMaterialItem = { targetId: string; sns: string; head: string; publishedAt: string };
 
-const head = (t: string) => {
-  const line = t.split("\n").find((l) => l.trim()) ?? "";
-  return [...line].length > 60 ? [...line].slice(0, 60).join("") + "…" : line;
-};
-
 export async function listVoiceMaterial(projectId: string): Promise<{ error?: string; items?: VoiceMaterialItem[] }> {
   if (!z.uuid().safeParse(projectId).success) return { error: "入力の形式が正しくありません。" };
   try {
     const items = await loadVoiceMaterial(await createClient(), projectId);
-    return { items: items.map((m) => ({ targetId: m.targetId, sns: m.sns, head: head(m.text), publishedAt: m.publishedAt })) };
+    return { items: items.map((m) => ({ targetId: m.targetId, sns: m.sns, head: voiceHead(m.text), publishedAt: m.publishedAt })) };
   } catch (e) {
     console.error("[listVoiceMaterial]", e);
     return { error: "投稿を読み込めませんでした。時間をおいてもう一度お試しください。" };

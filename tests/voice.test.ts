@@ -8,7 +8,7 @@ import { buildPlanIdeasRequest, type IdeaContext } from "@/lib/ai/post-ideas";
 import { buildTidyRequest } from "@/lib/ai/tidy-draft";
 import { buildVoiceMemoRequest, normalizeVoiceMemo } from "@/lib/ai/voice-memo";
 import { normalizePlan, parseSectionForm, sectionSchemas } from "@/lib/plan/schema";
-import { countVoiceStats, voiceExampleTexts, voiceForUse, voicePromptLines, type VoiceMaterial } from "@/lib/plan/voice";
+import { countVoiceStats, voiceExampleTexts, voiceHead, voiceForUse, voicePromptLines, type VoiceMaterial } from "@/lib/plan/voice";
 
 const empty = sectionSchemas.voice.parse({});
 const material: VoiceMaterial[] = [1, 2, 3].map((i) => ({ targetId: `t${i}`, postId: `p${i}`, sns: "x", text: `投稿 ${i}`, publishedAt: "" }));
@@ -104,5 +104,12 @@ describe("書き方を渡す AI（A-3）", () => {
     expect(textOf(buildPhotoIdeasRequest(checkCtx, "本文"))).not.toContain("この人の書き方");
     expect(textOf(buildPlanIdeasRequest({ ...ideaCtx, voice: null }))).not.toContain("この人の書き方");
     expect(consultContextMessage({ ...consultCtx, voice: undefined })).not.toContain("この人の書き方");
+  });
+});
+
+describe("一覧に出す投稿の頭", () => {
+  it("最初の空でない行の 60 字までで、長いときは … を付ける", () => {
+    expect(voiceHead("\n  \n今朝はカンパーニュが焼けました\n2 行目")).toBe("今朝はカンパーニュが焼けました");
+    expect(voiceHead("あ".repeat(61))).toBe("あ".repeat(60) + "…");
   });
 });

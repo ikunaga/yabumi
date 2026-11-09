@@ -1338,13 +1338,17 @@ function SelfWrittenHint({ projectId, count }: { projectId: string; count: numbe
     );
   }
   return (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted">
-      <span>
-        最初の数本は、自分の言葉で書くのがおすすめです（いま <span className="num">{count}/{SELF_WRITTEN_ENOUGH}</span> 本）
+    <div className="text-[13px] text-muted">
+      最初の数本は、自分の言葉で書くのがおすすめです
+      {/* 「?」が行の頭に 1 つだけ回らないよう、本数と「?」をひとまとまりにする */}
+      <span className="ml-0.5 inline-flex items-center gap-2 whitespace-nowrap align-middle">
+        <span>
+          （いま <span className="num">{count}/{SELF_WRITTEN_ENOUGH}</span> 本）
+        </span>
+        <HelpTip label="自分の言葉で書く理由">
+          AI まかせの投稿は、どうしても人間らしさが出にくくなります。自分で書いて送った投稿が {SELF_WRITTEN_ENOUGH} 本たまると、AI があなたの書き方（文の長さ・語尾・絵文字・改行など）を読み取り、ネタ出しや「AI で整える」の文をあなたの書き方に寄せられるようになります。AI で整える・ネタ出しは、いつでも使えます。
+        </HelpTip>
       </span>
-      <HelpTip label="自分の言葉で書く理由">
-        AI まかせの投稿は、どうしても人間らしさが出にくくなります。自分で書いて送った投稿が {SELF_WRITTEN_ENOUGH} 本たまると、AI があなたの書き方（文の長さ・語尾・絵文字・改行など）を読み取り、ネタ出しや「AI で整える」の文をあなたの書き方に寄せられるようになります。AI で整える・ネタ出しは、いつでも使えます。
-      </HelpTip>
     </div>
   );
 }

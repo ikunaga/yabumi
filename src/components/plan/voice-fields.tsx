@@ -15,7 +15,7 @@ import { SNS, isSnsKey } from "@/lib/sns";
 
 // 書き方（文調のメモ。docs/design/voice-from-posts.md の 3.2）。本人が書いて送った投稿から AI が書き方を読み取り、利用者が直して保存する。
 // 欄は memo-<項目>・example（例の投稿の配信先の id）・conflict（口調と違うところ）・builtAt・sourceCount
-export function VoiceFields({ v, projectId, aiEnabled, selfWritten }: { v: PlanData["voice"]; projectId: string; aiEnabled: boolean; selfWritten: number }) {
+export function VoiceFields({ v, projectId, aiEnabled, selfWritten, exampleHeads }: { v: PlanData["voice"]; projectId: string; aiEnabled: boolean; selfWritten: number; exampleHeads: Record<string, string> }) {
   const [memo, setMemo] = useState<Record<VoiceMemoField, string>>(v.memo);
   const [examples, setExamples] = useState<string[]>(v.examples);
   const [conflicts, setConflicts] = useState<string[]>(v.conflicts);
@@ -180,7 +180,7 @@ export function VoiceFields({ v, projectId, aiEnabled, selfWritten }: { v: PlanD
               const it = items?.find((i) => i.targetId === id);
               return (
                 <li key={id} className="flex items-center gap-2">
-                  <span className="min-w-0 flex-1 truncate">{it ? it.head : "選んだ投稿"}</span>
+                  <span className="min-w-0 flex-1 truncate">{it?.head ?? exampleHeads[id] ?? "選んだ投稿"}</span>
                   <button type="button" onClick={() => setExamples((xs) => xs.filter((x) => x !== id))} className="text-xs text-muted underline hover:text-fg">
                     外す
                   </button>

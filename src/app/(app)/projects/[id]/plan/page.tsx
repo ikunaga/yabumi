@@ -14,7 +14,7 @@ import { isSectionKey } from "@/lib/plan/schema";
 import { cycleFromMilestones } from "@/lib/coach/pace";
 import { loadGoals } from "@/lib/goals/load";
 import { withGoalWeekly } from "@/lib/goals/view";
-import { countSelfWrittenPosts } from "@/lib/plan/voice";
+import { countSelfWrittenPosts, loadVoiceExampleHeads } from "@/lib/plan/voice";
 import { getProject } from "@/lib/projects/queries";
 import type { SnsKey } from "@/lib/sns";
 import { listProjectSnsAccounts } from "@/lib/sns/queries";
@@ -38,6 +38,7 @@ export default async function PlanPage(props: PageProps<"/projects/[id]/plan">) 
     countSelfWrittenPosts(supabase, id),
   ]);
   if (!stored || !project) notFound();
+  const voiceExampleHeads = await loadVoiceExampleHeads(supabase, id, stored.plan.voice.examples);
   // 週の回数と 1 か月の区切りは、いまの目標（goals）が正（JSON の first_month には持たない）
   const cycle = cycleFromMilestones(goals.active?.milestones ?? [], goals.today);
   const plan = { ...stored, plan: { ...stored.plan, first_month: withGoalWeekly(stored.plan.first_month, goals.active?.actions ?? []) } };
@@ -55,6 +56,7 @@ export default async function PlanPage(props: PageProps<"/projects/[id]/plan">) 
       initialOpen={isSectionKey(open) ? open : null}
       cycle={cycle}
       selfWritten={selfWritten}
+      voiceExampleHeads={voiceExampleHeads}
       profileCtx={{
         projectId: id,
         accounts: accounts.map((a) => ({ sns: a.sns, handle: a.handle })),

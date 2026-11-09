@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { SECTION_KEYS, type SectionKey, type SectionValue } from "@/lib/plan/schema";
+import { AI_PLAN_SECTION_KEYS, type AiPlanSectionKey, type SectionKey, type SectionValue } from "@/lib/plan/schema";
 import { itemsProposalSchema, type Kgi, type KpiTarget } from "@/lib/roadmap/schema";
 import type { TodoKind } from "@/lib/roadmap/todo-kind";
 import { SNS_KEYS, type SnsKey } from "@/lib/sns";
@@ -80,7 +80,7 @@ export function adoptableOptions(t: ConsultTurn): (ActionBody & { title: string 
 }
 
 // 相談の AI が直せるセクション。あなたらしさは、投稿に使ってよい項目しか渡していないので直させない（案を採用するとセクション全体が置き換わり、渡していない項目が消えるため。4.50）
-export const CONSULT_SECTION_KEYS = SECTION_KEYS.filter((k) => k !== "story") as [SectionKey, ...SectionKey[]];
+export const CONSULT_SECTION_KEYS = AI_PLAN_SECTION_KEYS.filter((k) => k !== "story") as [AiPlanSectionKey, ...AiPlanSectionKey[]];
 const planSectionSchema = z.object({ section: z.enum(CONSULT_SECTION_KEYS), value: z.unknown() });
 const postDraftSchema = z.object({
   sns: z.enum(SNS_KEYS as [SnsKey, ...SnsKey[]]).nullable().default(null),

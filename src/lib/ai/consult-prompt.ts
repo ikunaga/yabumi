@@ -1,6 +1,6 @@
 import { JAPANESE_STYLE_RULES } from "./japanese-style";
 import { KPIS, kpiKeysFor, type KpiKey } from "@/lib/metrics/kpis";
-import { SECTION_KEYS, isSectionDone, type PlanData } from "@/lib/plan/schema";
+import { AI_PLAN_SECTION_KEYS, isSectionDone, type PlanData } from "@/lib/plan/schema";
 import { storyForAi } from "@/lib/plan/story";
 import { actionFromLegacyGoal, type ProductType } from "@/lib/projects/product-types";
 import { sectionLabel } from "./plan-coach-prompt";
@@ -211,7 +211,7 @@ export function kpiLine(k: KpiLineInput): string {
 export function consultContextMessage(ctx: ConsultContext): string {
   const p = ctx.project;
   // あなたらしさは JSON に入れず、投稿に使ってよい項目だけを別に書く（src/lib/plan/story.ts）
-  const plan = SECTION_KEYS.filter((k) => k !== "story").map((k) => ({ section: k, label: sectionLabel(k), status: isSectionDone(k, ctx.plan[k]) ? "決定" : "未記入", value: ctx.plan[k] }));
+  const plan = AI_PLAN_SECTION_KEYS.filter((k) => k !== "story").map((k) => ({ section: k, label: sectionLabel(k), status: isSectionDone(k, ctx.plan[k]) ? "決定" : "未記入", value: ctx.plan[k] }));
   const story = storyForAi(ctx.plan.story, "consult");
   const r = ctx.roadmap;
   return [

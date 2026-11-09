@@ -2,6 +2,7 @@ import { z } from "zod";
 import { actionFromLegacyGoal, DESIRED_ACTIONS } from "@/lib/projects/product-types";
 import { KPI_KEYS, MAX_KPIS } from "@/lib/metrics/kpis";
 import { SNS_KEYS, type SnsKey } from "@/lib/sns";
+import { isYmd } from "@/lib/time";
 
 // アカウント設計（要求 F15）のデータの形。DB の account_plans.data にセクションごとに入る。
 // セクションはここに書いた順に画面に並ぶ。名前は投稿の柱が決まらないと決めにくいので、柱 → ハッシュタグ → 持ち方 → 名前の順にしている。
@@ -20,6 +21,8 @@ export const OWNERSHIP_MODES = ["personal", "dedicated", "undecided"] as const;
 export const MAX_PILLARS = 5;
 // 設計に置けるハッシュタグの数（AI は 3〜6 個を出す。どの投稿にも全部を付けるのではなく、ネタに合うものだけを付ける）
 export const MAX_HASHTAGS = 10;
+// 書き方（文調のメモ）で AI に見せる例の投稿の本数（docs/design/voice-from-posts.md の 3.1）
+export const MAX_VOICE_EXAMPLES = 3;
 const HASHTAG = "ハッシュタグの中に空白や記号（句読点など）は入れられません。先頭の # はあってもなくても大丈夫です";
 // 最初の 1 か月の SNS ごとの週の回数の上限（1 日 2 本まで）
 export const MAX_WEEKLY_PER_SNS = 14;
@@ -161,10 +164,35 @@ export const sectionSchemas = {
     // 1 か月の区切りの始まり（前の startedOn）は、goal_milestones にある（2026-11-07 段階 ④。docs/design/goals-model.md）
     weekly: z.partialRecord(snsKeyEnum, z.number(WEEKLY).int(WEEKLY).min(1, WEEKLY).max(MAX_WEEKLY_PER_SNS, WEEKLY)).default({}),
   }),
+  // 書き方（文調のメモ。いちばん後ろ。設計の相棒への指示の番号（1〜10）を変えないため。docs/design/voice-from-posts.md の 3.1）。本人が書いて送った投稿から AI が読み取った、実際の書き方の観察と、
+  // AI に見せる例の投稿（投稿の配信先の id。3 本まで）。口調（pillars.tone）は「こう書きたい」という方針で、こちらは「実際にこう書いている」
+  voice: z.object({
+    memo: z
+      .object({
+        length: text(200),
+        endings: text(200),
+        emoji: text(200),
+        phrases: text(200),
+        linebreaks: text(200),
+        hashtags: text(200),
+        other: text(200),
+      })
+      .prefault({}),
+    // 口調（方針）と食い違うところ（AI が見つけたもの。どちらに合わせるかは利用者が決める）
+    conflicts: z.array(z.string().trim().max(200)).max(3).default([]),
+    // 例の投稿（post_targets の id）。このプロジェクトの、送った、本人が書いた投稿だけ（保存するときにサーバーで確かめる）
+    examples: z.array(z.uuid()).max(MAX_VOICE_EXAMPLES).default([]),
+    // 文調のメモをつくった日と、そのときの材料の本数（画面に出すだけ）
+    builtAt: z.string().refine(isYmd).nullable().default(null),
+    sourceCount: z.number().int().min(0).max(1000).nullable().default(null),
+  }),
 } as const;
 
 export type SectionKey = keyof typeof sectionSchemas;
 export const SECTION_KEYS = Object.keys(sectionSchemas) as SectionKey[];
+// 設計の相棒と相談の AI が案を出すセクション。書き方（voice）は、本人の投稿から読み取る別の AI（voice_memo）だけがつくる
+export type AiPlanSectionKey = Exclude<SectionKey, "voice">;
+export const AI_PLAN_SECTION_KEYS = SECTION_KEYS.filter((k): k is AiPlanSectionKey => k !== "voice");
 export type SectionValue<K extends SectionKey> = z.infer<(typeof sectionSchemas)[K]>;
 export type PlanData = { [K in SectionKey]: SectionValue<K> };
 
@@ -227,6 +255,10 @@ export function isSectionDone<K extends SectionKey>(key: K, v: SectionValue<K>):
     case "first_month": {
       const f = v as PlanData["first_month"];
       return filled(f.goal) || Object.keys(f.weekly).length > 0;
+    }
+    case "voice": {
+      const m = (v as PlanData["voice"]).memo;
+      return Object.values(m).some(filled);
     }
     default:
       return false;
@@ -317,6 +349,19 @@ function parseSectionFormAny(key: SectionKey, form: FormData) {
         if (v.trim()) roles[sns] = v;
       }
       return sectionSchemas.cadence.safeParse({ frequency: s("frequency"), roles });
+    }
+    case "voice": {
+      // 書き方（docs/design/voice-from-posts.md の 3.1）。文調のメモは memo-<項目>、例の投稿は example（3 本まで）、
+      // 口調と違うところは conflict、つくった日と材料の本数は builtAt・sourceCount（画面が持っている値をそのまま返す）
+      const memo = Object.fromEntries(["length", "endings", "emoji", "phrases", "linebreaks", "hashtags", "other"].map((f) => [f, s(`memo-${f}`)]));
+      const count = s("sourceCount").trim();
+      return sectionSchemas.voice.safeParse({
+        memo,
+        conflicts: form.getAll("conflict").map(String).filter((c) => c.trim()),
+        examples: form.getAll("example").map(String),
+        builtAt: s("builtAt").trim() || null,
+        sourceCount: count === "" ? null : Number(count),
+      });
     }
     case "first_month": {
       // 週の回数は weekly-<SNS>。空欄・0 は「決めない」。1 か月の区切りはサーバーが決める（goal_milestones）

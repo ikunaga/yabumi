@@ -59,8 +59,8 @@ describe("アカウント設計のデータ", () => {
     expect(parseSectionForm("profile", form({ bio: "あ".repeat(301) })).success).toBe(false);
   });
 
-  it("セクションは 目的 → あなたらしさ → 届けたい相手 → コンセプト → 投稿の柱 → ハッシュタグ → 持ち方 → 名前 → 頻度 → 最初の 1 か月 の順", () => {
-    expect(SECTION_KEYS).toEqual(["goal", "story", "audience", "concept", "pillars", "hashtags", "ownership", "profile", "cadence", "first_month"]);
+  it("セクションは 目的 → あなたらしさ → 届けたい相手 → コンセプト → 投稿の柱 → ハッシュタグ → 持ち方 → 名前 → 頻度 → 週の回数 → 書き方 の順", () => {
+    expect(SECTION_KEYS).toEqual(["goal", "story", "audience", "concept", "pillars", "hashtags", "ownership", "profile", "cadence", "first_month", "voice"]);
   });
 
   it("ユーザー名は第一候補と予備に分けて保存する", () => {

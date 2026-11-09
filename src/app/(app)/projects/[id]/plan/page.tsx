@@ -14,6 +14,7 @@ import { isSectionKey } from "@/lib/plan/schema";
 import { cycleFromMilestones } from "@/lib/coach/pace";
 import { loadGoals } from "@/lib/goals/load";
 import { withGoalWeekly } from "@/lib/goals/view";
+import { countSelfWrittenPosts } from "@/lib/plan/voice";
 import { getProject } from "@/lib/projects/queries";
 import type { SnsKey } from "@/lib/sns";
 import { listProjectSnsAccounts } from "@/lib/sns/queries";
@@ -27,13 +28,14 @@ export default async function PlanPage(props: PageProps<"/projects/[id]/plan">) 
   const { open } = await props.searchParams;
   // id だけで読めるので、まとめて並べて読む（待ち時間を縮める）
   const supabase = await createClient();
-  const [stored, project, accounts, links, registered, goals] = await Promise.all([
+  const [stored, project, accounts, links, registered, goals, selfWritten] = await Promise.all([
     getAccountPlan(id),
     getProject(id),
     listProjectSnsAccounts(id),
     listLinks(id),
     listDestinations(supabase, id),
     loadGoals(supabase, id),
+    countSelfWrittenPosts(supabase, id),
   ]);
   if (!stored || !project) notFound();
   // 週の回数と 1 か月の区切りは、いまの目標（goals）が正（JSON の first_month には持たない）
@@ -52,6 +54,7 @@ export default async function PlanPage(props: PageProps<"/projects/[id]/plan">) 
       aiEnabled={aiEnabled}
       initialOpen={isSectionKey(open) ? open : null}
       cycle={cycle}
+      selfWritten={selfWritten}
       profileCtx={{
         projectId: id,
         accounts: accounts.map((a) => ({ sns: a.sns, handle: a.handle })),

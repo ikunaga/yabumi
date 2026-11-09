@@ -13,7 +13,7 @@ import { PLAN_EXAMPLES, PRODUCT_GUIDES } from "@/lib/ai/product-guide";
 import { buildTidyRequest } from "@/lib/ai/tidy-draft";
 import { addConceptHintClosed, parseConceptHintCookie } from "@/lib/plan/concept-hint";
 import { describeSection } from "@/lib/plan/describe";
-import { REQUIRED_FOR_DONE, SECTION_KEYS, isPlanDone, isSectionDone, normalizePlan, parseSectionForm, sectionNumber, sectionSchemas, type PlanData } from "@/lib/plan/schema";
+import { AI_PLAN_SECTION_KEYS, REQUIRED_FOR_DONE, SECTION_KEYS, isPlanDone, isSectionDone, normalizePlan, parseSectionForm, sectionNumber, sectionSchemas, type PlanData } from "@/lib/plan/schema";
 import { AI_USES, identityPromptLines, planForAi, storyForAi } from "@/lib/plan/story";
 import { PRODUCT_TYPES } from "@/lib/projects/product-types";
 
@@ -70,8 +70,8 @@ describe("項目の番号と並び", () => {
     expect(sectionNumber("first_month")).toBe(10);
   });
 
-  it("相棒への指示の番号も、画面と同じ並び", () => {
-    for (const k of SECTION_KEYS) expect(PLAN_COACH_SYSTEM, k).toContain(`${sectionNumber(k)}. ${k} `);
+  it("相棒への指示の番号も、画面と同じ並び（書き方は相棒が案を出さないので、指示には載せない）", () => {
+    for (const k of AI_PLAN_SECTION_KEYS) expect(PLAN_COACH_SYSTEM, k).toContain(`${sectionNumber(k)}. ${k} `);
   });
 });
 

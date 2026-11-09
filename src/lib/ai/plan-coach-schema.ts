@@ -2,7 +2,7 @@ import { KPI_KEYS } from "@/lib/metrics/kpis";
 import { z } from "zod";
 import { SNS_KEYS, type SnsKey } from "@/lib/sns";
 import { PRODUCT_TYPES, type ProductType } from "@/lib/projects/product-types";
-import { STORY_FIELDS, GOAL_TYPES, isValidHashtag, MAX_HASHTAGS, MAX_WEEKLY_PER_SNS, normalizeHashtag, OWNERSHIP_MODES, PROFILE_OVERRIDE_FIELDS, SECTION_KEYS, sectionSchemas, type ProfileOverrideField, type SectionKey, type SectionValue } from "@/lib/plan/schema";
+import { STORY_FIELDS, GOAL_TYPES, isValidHashtag, MAX_HASHTAGS, MAX_WEEKLY_PER_SNS, normalizeHashtag, OWNERSHIP_MODES, PROFILE_OVERRIDE_FIELDS, AI_PLAN_SECTION_KEYS, SECTION_KEYS, sectionSchemas, type ProfileOverrideField, type SectionKey, type SectionValue } from "@/lib/plan/schema";
 
 // AI（アカウント設計の相棒）の 1 回の返事の形。構造化出力（output_config.format）でこの形に固定する。
 // 構造化出力のスキーマは文法にコンパイルされ、大きすぎると 400（compiled grammar is too large）になる。
@@ -13,6 +13,8 @@ const snsEnum = z.enum(SNS_KEYS as [SnsKey, ...SnsKey[]]);
 
 // AI と考えるで決めるもの: アカウント設計のセクションに、最初の「何を宣伝するか」（projects.product_type。D34）を足したもの
 export const COACH_SECTION_KEYS = ["product", ...SECTION_KEYS] as const;
+// 相棒が案を出せるセクション（書き方（voice）は、本人の投稿から読み取る別の AI だけがつくる）
+const COACH_PROPOSAL_KEYS = ["product", ...AI_PLAN_SECTION_KEYS] as const;
 export type CoachSectionKey = (typeof COACH_SECTION_KEYS)[number];
 export type ProductValue = { productType: ProductType };
 export type CoachValue = SectionValue<SectionKey> | ProductValue;
@@ -64,10 +66,12 @@ export const valueSchemas = {
     kpis: z.array(z.enum(KPI_KEYS)).max(3).default([]),
     weekly: z.record(z.string(), z.number()).default({}),
   }),
+  // 書き方は相棒の案には出さない（proposalSchema の section で断る）。採用済みの値を読むときの形だけ
+  voice: sectionSchemas.voice,
 } satisfies Record<CoachSectionKey, z.ZodType>;
 
 const proposalSchema = z.object({
-  section: z.enum(COACH_SECTION_KEYS),
+  section: z.enum(COACH_PROPOSAL_KEYS),
   options: z
     .array(
       z.object({

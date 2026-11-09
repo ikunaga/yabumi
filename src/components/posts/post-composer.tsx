@@ -92,6 +92,8 @@ type Props = {
   profileLink?: ProfileLinkInfo | null;
   // 自分で書いて送った投稿の本数（「最初は自分で書く」のすすめに使う。わからなければ null で出さない）
   selfWrittenPosts?: number | null;
+  // 書き方（文調のメモ）がもうあるか（あれば、すすめも案内も出さない）
+  hasVoiceMemo?: boolean;
 };
 
 // 送信済み・送信中・取り消し済みの配信先は、選び直しも送り直しもできない
@@ -141,6 +143,7 @@ export function PostComposer({
   timeHint = null,
   profileLink = null,
   selfWrittenPosts = null,
+  hasVoiceMemo = false,
 }: Props) {
   const [images, setImages] = useState<AttachedImage[]>(initial.images ?? []);
   const [shortLinks, setShortLinks] = useState(initial.shortLinks ?? true);
@@ -714,7 +717,7 @@ export function PostComposer({
             )}
             {/* 送り先をすべて送り終えた投稿では、整えても送れないので出さない */}
             {/* 最初の数本は自分の言葉で（文調のメモの材料。押しつけない。説明は畳む） */}
-            {selfWrittenPosts !== null && selfWrittenPosts < SELF_WRITTEN_ENOUGH && <SelfWrittenHint count={selfWrittenPosts} />}
+            {selfWrittenPosts !== null && !hasVoiceMemo && <SelfWrittenHint projectId={projectId} count={selfWrittenPosts} />}
             {(!sentAny || toSend.length > 0) && (
               <TidyDraftPanel
                 key={resetRound}
@@ -1322,8 +1325,18 @@ function QuoteTag({ id, onRemove }: { id: string; onRemove: () => void }) {
   );
 }
 
-// 「最初は自分で書く」のすすめ（自分で書いて送った投稿が 5 本未満のとき。docs/design/voice-from-posts.md の 3.4）
-function SelfWrittenHint({ count }: { count: number }) {
+// 「最初は自分で書く」のすすめ（自分で書いて送った投稿が 5 本未満のとき）と、5 本たまったら書き方を読み取る案内（docs/design/voice-from-posts.md の 3.4）
+function SelfWrittenHint({ projectId, count }: { projectId: string; count: number }) {
+  if (count >= SELF_WRITTEN_ENOUGH) {
+    return (
+      <p className="text-[13px] text-muted">
+        自分で書いて送った投稿が {SELF_WRITTEN_ENOUGH} 本たまりました。AI があなたの書き方を読み取れます。
+        <Link href={`/projects/${projectId}/plan?open=voice`} className="ml-1 font-semibold text-fg underline underline-offset-2">
+          書き方を読み取る
+        </Link>
+      </p>
+    );
+  }
   return (
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted">
       <span>

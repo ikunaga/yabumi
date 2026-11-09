@@ -6,6 +6,7 @@ import { GoalError, setGoalActions, startMilestone } from "@/lib/goals/write";
 import type { Database } from "@/lib/supabase/database.types";
 import { toYmd } from "@/lib/time";
 import { mergeStoryShareable, storyFlagsOf } from "./story";
+import { allowedVoiceExamples } from "./voice";
 import { sectionSchemas, type PlanData, type SectionKey, type SectionValue } from "./schema";
 
 // アカウント設計の 1 セクションを保存する（画面・AI と考える・AI と相談の共通の入口。利用者の権限のクライアントで、RLS で本人のものだけ）。
@@ -26,6 +27,11 @@ export async function saveSectionValue(
   // AI からのあなたらしさは、保存してある印のオフを残し、まとめた文の印を決めてから保存する（設計の相棒・相談のどちらから来ても。APP-L1）。
   // 利用者が画面で保存したときは、利用者が選んだ印のまま
   if (key === "story" && source === "ai") v = mergeStoryShareable(value as PlanData["story"], await loadStory(user, projectId));
+  // 書き方の例の投稿は、このプロジェクトの、送った、本人が書いた投稿だけ（id を差し替えられても、ほかの投稿を例にしない）
+  if (key === "voice") {
+    const vv = value as PlanData["voice"];
+    v = { ...vv, examples: await allowedVoiceExamples(user, projectId, vv.examples) };
+  }
   if (key === "first_month") {
     const prev = await loadFirstMonth(user, projectId);
     // 1 か月後の目標の文・判断の仕方・数字（前の作り）は、画面から送らなくなったので前の値を残す（KGI・KPI はロードマップの goals）

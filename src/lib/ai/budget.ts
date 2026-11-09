@@ -25,6 +25,8 @@ export const AI_MAX_TOKENS = {
   photo_ideas: 4000,
   shorten: 4000,
   tidy_draft: 8000,
+  // 書き方（文調のメモ）を読み取る（docs/design/voice-from-posts.md の 4）
+  voice_memo: 4000,
 } as const;
 export type AiCall = keyof typeof AI_MAX_TOKENS;
 

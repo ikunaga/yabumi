@@ -1,7 +1,7 @@
 import { DESIRED_ACTION_DEFS, RECOMMENDED_ACTIONS, actionFromLegacyGoal, type ProductType } from "@/lib/projects/product-types";
 import { SNS, type SnsKey } from "@/lib/sns";
 import { productLines, storyGuideLines } from "./product-guide";
-import { SECTION_KEYS, isSectionDone, type PlanData, type SectionKey } from "@/lib/plan/schema";
+import { AI_PLAN_SECTION_KEYS, isSectionDone, type PlanData, type SectionKey } from "@/lib/plan/schema";
 import type { CoachSectionKey } from "./plan-coach-schema";
 
 // アカウント設計の相棒（AI）への指示。毎回同じ文字列にして、プロンプトキャッシュが効くようにする（日付などの変わる値を入れない）。
@@ -133,6 +133,7 @@ const SECTION_LABEL: Record<CoachSectionKey, string> = {
   profile: "名前とプロフィール",
   cadence: "頻度と SNS ごとの役割",
   first_month: "最初の 1 か月",
+  voice: "書き方",
 };
 
 export function sectionLabel(key: CoachSectionKey) {
@@ -151,7 +152,7 @@ export type CoachContext = {
 // 毎回の会話の最後に、システムメッセージとして付ける「いまの状況」。
 // 履歴より後ろに置くので、内容が変わっても履歴のキャッシュは崩れない
 export function coachContextMessage(ctx: CoachContext): string {
-  const sections = SECTION_KEYS.map((k) => ({
+  const sections = AI_PLAN_SECTION_KEYS.map((k) => ({
     section: k,
     label: SECTION_LABEL[k],
     status: isSectionDone(k, ctx.plan[k]) ? (ctx.sources[k] === "ai" ? "決定（AI の案を採用）" : "決定（手で入力）") : "未決定",

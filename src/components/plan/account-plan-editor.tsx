@@ -24,6 +24,7 @@ import { SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
 import { PLAN_EXAMPLES, type PlanExamples } from "@/lib/ai/product-guide";
 import { hasToneBySns, isSplitBySns, pillarsBySns, pillarViewSns, type Pillar } from "@/lib/plan/pillars";
 import { ProfileFields, type ProfileContext } from "./profile-fields";
+import { VoiceFields } from "./voice-fields";
 
 // 見出しはボタンの中に置くので、用語解説（これもボタン）は説明文のほうに付ける
 type Meta = { title: string; lead: ReactNode };
@@ -90,6 +91,10 @@ const META: Record<SectionKey, Meta> = {
     title: "頻度と SNS ごとの役割",
     lead: "無理なく続けられる頻度を決めます。毎日より、続けられる週 3 回のほうが成果につながります。SNS ごとに向いている内容も違うので、役割を分けておきます。",
   },
+  voice: {
+    title: "書き方",
+    lead: "自分で書いて送った投稿から、AI があなたの書き方（文の長さ・語尾・絵文字・改行など）を読み取ったメモです。投稿の柱の「口調」は「こう書きたい」という方針で、こちらは「実際にこう書いている」という観察です。AI が投稿の案を出すとき、書き方の細部はこちらに寄せ、何を書くかは口調に従います。",
+  },
   first_month: {
     title: "週の回数",
     lead: "SNS ごとに、1 週に何本投稿するかを決めます。続けることが成果への近道なので、無理なく続けられる本数にしましょう。",
@@ -104,11 +109,14 @@ export function AccountPlanEditor({
   profileCtx,
   initialOpen = null,
   cycle = null,
+  selfWritten = 0,
 }: {
   projectId: string;
   plan: PlanData;
   // いまの 1 か月（中間の目標の区切り。週の回数の欄に出す）
   cycle?: CycleInfo | null;
+  // 自分で書いて送った投稿の本数（書き方を読み取れるか）
+  selfWritten?: number;
   // 名前とプロフィールの SNS ごとの欄に使う（つないだアカウント、短縮リンク）
   profileCtx: ProfileContext;
   sources: Partial<Record<SectionKey, "ai" | "manual">>;
@@ -137,7 +145,7 @@ export function AccountPlanEditor({
           recommended={RECOMMENDED_SECTIONS.includes(key)}
           onSavedNext={() => setOpen(SECTION_KEYS[i + 1] ?? null)}
         >
-          <SectionFields sectionKey={key} plan={plan} profileCtx={profileCtx} cycle={cycle} onOpenSection={(k) => {
+          <SectionFields sectionKey={key} plan={plan} profileCtx={profileCtx} cycle={cycle} aiEnabled={aiEnabled} selfWritten={selfWritten} onOpenSection={(k) => {
             setOpen(k);
             requestAnimationFrame(() => document.getElementById(`plan-${k}-head`)?.scrollIntoView({ block: "start", behavior: "smooth" }));
           }} />
@@ -150,7 +158,8 @@ export function AccountPlanEditor({
 // 次に書くとよいセクション: 「済み」に要るもの → おすすめ → ほかの順で、まだのもの
 function firstToWrite(plan: PlanData): SectionKey | null {
   const undone = (k: SectionKey) => !isSectionDone(k, plan[k]);
-  return REQUIRED_FOR_DONE.find(undone) ?? RECOMMENDED_SECTIONS.find(undone) ?? SECTION_KEYS.find(undone) ?? null;
+  // 書き方（voice）は、自分で書いた投稿がたまってから AI が読み取るので、最初に開くものにはしない
+  return REQUIRED_FOR_DONE.find(undone) ?? RECOMMENDED_SECTIONS.find(undone) ?? SECTION_KEYS.find((k) => k !== "voice" && undone(k)) ?? null;
 }
 
 // 右の列の「進み具合」: 記入済みの数・横棒・セクションの一覧（押すとそのセクションへ）
@@ -323,7 +332,14 @@ function SectionCard({
             }}
           />
         )}
-        {/* 説明は畳む（2026-10-30 オーナーの決定）。空欄を前に考え込ませないよう、このセクションを AI と考える入口を先に置く */}
+        {/* 説明は畳む（2026-10-30 オーナーの決定）。空欄を前に考え込ませないよう、このセクションを AI と考える入口を先に置く。
+            書き方は相棒ではなく、本人の投稿から読み取る（入口はセクションの中） */}
+        {sectionKey === "voice" ? (
+          <p className="flex items-center gap-2 text-sm text-muted">
+            あなたの投稿から読み取った書き方です。
+            <HelpTip label={`${meta.title}の説明`}>{meta.lead}</HelpTip>
+          </p>
+        ) : (
         <div className="flex flex-wrap items-center gap-3 rounded-md bg-surface2 px-4 py-3 text-sm">
           <span className="flex min-w-[14rem] flex-1 items-center gap-2">
             {fromAi ? "AI の案から採用した内容です。下の欄で直せます。" : "迷ったら、AI が質問しながら案を出します。"}
@@ -339,6 +355,7 @@ function SectionCard({
             </NotReadyButton>
           )}
         </div>
+        )}
         {children}
         {state.error && <ErrorBanner>{state.error}</ErrorBanner>}
         {/* 保存したあとの「ひとこと」（4.47。1 日 1 回まで） */}
@@ -373,12 +390,16 @@ function SectionFields({
   plan,
   profileCtx,
   cycle,
+  aiEnabled,
+  selfWritten,
   onOpenSection,
 }: {
   sectionKey: SectionKey;
   plan: PlanData;
   profileCtx: ProfileContext;
   cycle: CycleInfo | null;
+  aiEnabled: boolean;
+  selfWritten: number;
   onOpenSection: (k: SectionKey) => void;
 }) {
   switch (sectionKey) {
@@ -400,6 +421,8 @@ function SectionFields({
       return <HashtagsFields v={plan.hashtags} ex={examplesOf(profileCtx)} />;
     case "cadence":
       return <CadenceFields v={plan.cadence} ex={examplesOf(profileCtx)} />;
+    case "voice":
+      return <VoiceFields v={plan.voice} projectId={profileCtx.projectId} aiEnabled={aiEnabled} selfWritten={selfWritten} />;
     case "first_month":
       return (
         <FirstMonthFields

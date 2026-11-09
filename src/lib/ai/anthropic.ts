@@ -13,6 +13,7 @@ import { photoIdeasSchema } from "./photo";
 import type { CallPhotoIdeas } from "./photo-gen";
 import { shortenSchema, type CallShorten } from "./shorten";
 import { tidyDraftSchema, type CallTidy } from "./tidy-draft";
+import { voiceMemoSchema, type CallVoiceMemo } from "./voice-memo";
 import { PLAN_COACH_MODEL, type CallModel } from "./plan-coach";
 import { AI_MAX_TOKENS, countable, type CountTokens } from "./budget";
 import { AiRequestRejected, AiUnavailableError, isRejectedStatus, isUnavailableResponse } from "./provider-failure";
@@ -174,3 +175,5 @@ export const callPhotoIdeas: CallPhotoIdeas = structuredCaller(photoIdeasSchema,
 export const callShortenDrafts: CallShorten = structuredCaller(shortenSchema, AI_MAX_TOKENS.shorten, "low");
 // AI で投稿に整える（docs/architecture.md の 4.34）。話し言葉を絞って書き分け、誇張や作り話をしない判断が要るので effort は medium
 export const callTidyDraft: CallTidy = structuredCaller(tidyDraftSchema, AI_MAX_TOKENS.tidy_draft, "medium");
+// 書き方（文調のメモ）を、本人の投稿から読み取る（docs/design/voice-from-posts.md の 4）。数えた値を渡して観察を書くだけなので effort は low
+export const callVoiceMemo: CallVoiceMemo = structuredCaller(voiceMemoSchema, AI_MAX_TOKENS.voice_memo, "low");

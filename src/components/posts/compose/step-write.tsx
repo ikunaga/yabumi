@@ -64,7 +64,8 @@ export function ComposeStepWrite({ c }: { c: Composer }) {
       {/* 投稿のフォーマット（docs/design/post-formats.md の 4）。穴を埋めて本文に入れる。穴の言葉は利用者が打ったものなので、書きかけの控えに乗せる */}
       {!sentAny && (
         <PostFormatPicker
-          key={resetRound}
+          // 同じ並びの TidyDraftPanel も resetRound を key にしているので、かぶらないように分ける（かぶると React が部品を重ねて描く）
+          key={`format-${resetRound}`}
           projectId={projectId}
           bodyHasText={body.trim() !== ""}
           pillars={(planHints?.pillars ?? []).map((p) => p.name).filter(Boolean)}

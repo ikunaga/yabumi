@@ -207,7 +207,7 @@ export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace, 
             </span>
           </button>
         )}
-        <span className="text-xs text-muted">{!hasText ? (format ? "本文を書くか、フォーマットの穴を埋めると押せます" : "本文を話すか書くと押せます") : !hasSns ? "送り先の SNS（note・Substack 以外）を選ぶと押せます" : format ? `「${format.format.name}」に沿って整えます（1 回 5〜15 円ほど）` : "1 回 5〜15 円ほど"}</span>
+        <span className="text-xs text-muted">{!hasText ? (format ? "本文を書くか、フォーマットの穴を埋めると押せます" : "本文を話すか書くと押せます") : !hasSns ? "送り先の SNS（note・Substack 以外）を選ぶと押せます" : format ? "フォーマットに沿って・1 回 5〜15 円ほど" : "1 回 5〜15 円ほど"}</span>
         <HelpTip label="AI で投稿に整える">
           話した言葉や思いつくままに書いた文から、言いたいことを 1 つに絞り、選んだ SNS ごとの字数に収めた案を 2〜3 個出します。最初の 1 行で引きつける・問いかけで終えるなど、形の違う案から選べます。案はその場で直してから使えます。あなたが言っていないこと（数字・できごと・感想）は足しません。口調とやらないこと、ハッシュタグはアカウント設計に合わせます（口調・長さ・ねらい・絵文字は「整え方を選ぶ」で変えられます。やらないことはどの整え方でも守ります）。AI はいまはやっている言葉や話題を知らない（その時々のデータを見ていない）ので、はやりには合わせません。1 回 5〜15 円ほどかかります。
         </HelpTip>

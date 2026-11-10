@@ -463,7 +463,7 @@ function FormatAiMaker({ projectId, kinds, onPick, onCancel }: { projectId: stri
             ))}
           </ul>
           <div className="flex flex-wrap items-center gap-2">
-            <Input aria-label="案への希望" value={refine} maxLength={MAX_FORMAT_REFINE} onChange={(e) => setRefine(e.target.value)} placeholder="もう少しこうしたい（例: もっと短く）" className="min-w-0 flex-1 py-2 text-sm" />
+            <Input aria-label="案への希望" value={refine} maxLength={MAX_FORMAT_REFINE} onChange={(e) => setRefine(e.target.value)} placeholder="もう少しこうしたい（例: もっと短く）" className="min-w-0 flex-1 py-2 text-sm max-sm:basis-full" />
             <Button size="sm" variant="secondary" disabled={pending || !refine.trim() || !chosen} onClick={() => ask(true)}>
               この希望で出し直す
             </Button>

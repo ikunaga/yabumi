@@ -168,9 +168,13 @@ function RemovedOnSns({ label, onConfirm }: { label: string; onConfirm: () => Pr
   const [pending, startTransition] = useTransition();
   if (!open) {
     return (
-      <button type="button" onClick={() => setOpen(true)} className="self-start text-xs text-muted hover:text-fg hover:underline">
-        {label} の画面でこの投稿を消した場合
-      </button>
+      // 説明（いつ使うか）と、押すもの（記録する）を分けて、押せるものだとひと目でわかるようにする（2026-11-10 PM の指摘）
+      <p className="text-xs text-muted">
+        {label} の画面で消したときは{" "}
+        <button type="button" onClick={() => setOpen(true)} className="font-semibold text-fg underline underline-offset-2 hover:text-primary">
+          ここで記録する
+        </button>
+      </p>
     );
   }
   return (

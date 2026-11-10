@@ -38,9 +38,12 @@ export function ComposeSentView({ c, onExtend }: { c: Composer; onExtend: () => 
       <p className="text-[14px] leading-[1.7] text-muted">送った投稿です。直すときは各 SNS で、取り消すときは上の「送信の結果」から。</p>
       <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3.5">
         {more && (
-          <Button type="button" variant="secondary" size="sm" onClick={onExtend}>
-            ほかの SNS にも送る
-          </Button>
+          <>
+            <Button type="button" variant="secondary" size="sm" onClick={onExtend}>
+              ほかの SNS にも送る
+            </Button>
+            <span className="text-xs text-muted">送った SNS には送り直しません</span>
+          </>
         )}
         {deleteRow(true)}
       </div>

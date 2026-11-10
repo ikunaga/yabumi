@@ -76,7 +76,8 @@ export function PostComposer(props: ComposerProps) {
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <h1 className="text-[26px] font-bold max-sm:text-[22px]">{postId ? (sentAny ? "送った投稿" : "下書き") : "投稿をつくる"}</h1>
         {!steps && start}
-        {postId && <span className="text-[15px] text-faint">{sentAny ? "送った SNS は選び直せません" : "保存済み"}</span>}
+        {/* 送った投稿の「送った SNS には送り直さない」は、読むだけの画面の「ほかの SNS にも送る」の横に出す（2026-11-10 PM の指摘） */}
+        {postId && !sentAny && <span className="text-[15px] text-faint">保存済み</span>}
         {steps && (
           <span className="ml-auto flex items-center gap-3">
             <ComposeResetControl c={c} />

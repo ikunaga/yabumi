@@ -1,5 +1,6 @@
 "use client";
 
+import type { FormatUse } from "../post-format-picker";
 import { callAction } from "@/lib/client-errors";
 import { draftStep, postDraftBase, samePostDraft, type PostDraft } from "@/lib/posts/post-draft";
 import { clearFormDraft, parseFormDraft, rawFormDraft, usableFormDraft, writeFormDraft, type FormDraft } from "@/lib/form-draft";
@@ -129,6 +130,8 @@ export function useComposer({
   const [images, setImages] = useState<AttachedImage[]>(initial.images ?? []);
   const [shortLinks, setShortLinks] = useState(initial.shortLinks ?? true);
   const [body, setBody] = useState(initial.body);
+  // 選んでいる投稿のフォーマットと穴の言葉（整えるに渡す。docs/design/post-formats.md の 4）
+  const [formatUse, setFormatUse] = useState<FormatUse | null>(null);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const overrideRef = useRef<HTMLTextAreaElement>(null);
   const [selected, setSelected] = useState<Set<SnsKey>>(() => new Set(initial.targets.map((t) => t.sns)));
@@ -263,6 +266,7 @@ export function useComposer({
     setQuote(initial.quotePostId ?? null);
     setNoteIds([]);
     setTidyAdopted(false);
+    setFormatUse(null);
     setTextOrigin(initial.textOrigin ?? "self");
     setIgLinked(false);
     setResult({});
@@ -594,6 +598,8 @@ export function useComposer({
     setShortLinks,
     body,
     setBody,
+    formatUse,
+    setFormatUse,
     bodyRef,
     overrideRef,
     selected,

@@ -9,13 +9,15 @@ import { SELF_WRITTEN_ENOUGH } from "@/lib/plan/voice-rules";
 import { VoiceInputButton } from "@/components/ui/voice-input";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { TidyDraftPanel } from "../tidy-draft-panel";
+import { PostFormatPicker } from "../post-format-picker";
+import { insertFormatted } from "@/lib/post-formats/schema";
 import { SNS } from "@/lib/sns";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { isSideBySide, type Composer } from "./use-composer";
 
 // ① 書く: 本文・AI で整える・書いたのは誰（docs/design/compose-steps.md。段階 A では、いままでと同じ並びのまま切り出しただけ）
 export function ComposeStepWrite({ c }: { c: Composer }) {
-  const { projectId, postId, initial, aiCheckEnabled, selfWrittenPosts, hasVoiceMemo, body, setBody, bodyRef, overrides, setOverrides, setFocus, tidyAdopted, setTidyAdopted, textOrigin, setTextOrigin, result, noteIds, draftKey, markTyped, restorable, setRestorable, restoreDraft, resetOpen, setResetOpen, resetRound, headingRef, resetChanges, resetAll, checks, sentAny, chosen, focus, toSend, clearFieldError, showBody, editOverride, fe, focusLabel, splitSns, bodySns, plannedLabel, countText, closeReset } = c;
+  const { formatUse, setFormatUse, planHints, projectId, postId, initial, aiCheckEnabled, selfWrittenPosts, hasVoiceMemo, body, setBody, bodyRef, overrides, setOverrides, setFocus, tidyAdopted, setTidyAdopted, textOrigin, setTextOrigin, result, noteIds, draftKey, markTyped, restorable, setRestorable, restoreDraft, resetOpen, setResetOpen, resetRound, headingRef, resetChanges, resetAll, checks, sentAny, chosen, focus, toSend, clearFieldError, showBody, editOverride, fe, focusLabel, splitSns, bodySns, plannedLabel, countText, closeReset } = c;
   return (
     <>
       <div className="flex items-baseline justify-between gap-3">
@@ -58,6 +60,23 @@ export function ComposeStepWrite({ c }: { c: Composer }) {
 
       {result.error && <ErrorBanner>{result.error}</ErrorBanner>}
       {restorable && <DraftRestoreBar at={restorable.at} what="本文の書きかけ" onRestore={restoreDraft} onDiscard={() => (clearFormDraft(draftKey), setRestorable(null))} />}
+
+      {/* 投稿のフォーマット（docs/design/post-formats.md の 4）。穴を埋めて本文に入れる。穴の言葉は利用者が打ったものなので、書きかけの控えに乗せる */}
+      {!sentAny && (
+        <PostFormatPicker
+          key={resetRound}
+          projectId={projectId}
+          bodyHasText={body.trim() !== ""}
+          pillars={(planHints?.pillars ?? []).map((p) => p.name).filter(Boolean)}
+          aiEnabled={aiCheckEnabled}
+          onInsert={(text, how) => {
+            markTyped();
+            setBody((b) => insertFormatted(b, text, how));
+            clearFieldError("body");
+          }}
+          onUseChange={setFormatUse}
+        />
+      )}
 
       {initial.roadmapItem && (
         <RoadmapItemHint
@@ -141,6 +160,7 @@ export function ComposeStepWrite({ c }: { c: Composer }) {
             setTidyAdopted(adopted);
             if (adopted) setTextOrigin("ai");
           }}
+          format={formatUse}
         />
       )}
       <TextOriginChoice value={textOrigin} onChange={setTextOrigin} />

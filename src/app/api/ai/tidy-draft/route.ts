@@ -16,6 +16,8 @@ const inputSchema = z.object({
   sns: z.array(z.enum(SNS_KEYS as [SnsKey, ...SnsKey[]])).max(SNS_KEYS.length),
   // 整え方（形が合わない項目は「おまかせ」にする。ほかに一言は 100 字まで）
   direction: z.unknown().optional(),
+  // 投稿のフォーマット（docs/design/post-formats.md の 4）。中身はサーバーが利用者の権限で読み直し、穴の言葉は 1 つ 200 字までに整える
+  format: z.object({ id: z.uuid(), values: z.record(z.string().max(40), z.string().max(400)) }).nullish(),
 });
 
 export type TidyDraftResponse = { error?: string; options?: TidyOption[] };
@@ -55,7 +57,7 @@ export async function POST(req: Request) {
       supabase,
       createAdminClient(),
       { callTidy: callTidyDraft, callShorten: callShortenDrafts },
-      { userId, projectId: t.data.projectId, text: t.data.text, sns: t.data.sns, direction: parseDirection(t.data.direction) },
+      { userId, projectId: t.data.projectId, text: t.data.text, sns: t.data.sns, direction: parseDirection(t.data.direction), format: t.data.format ?? null },
     );
     return reply(r.ok ? { options: r.options } : { error: r.message });
   } catch (e) {

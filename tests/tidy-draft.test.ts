@@ -1,6 +1,7 @@
 // AI で投稿に整える（4.34）の、AI を呼ばない部分
 import { describe, expect, it } from "vitest";
-import { buildTidyRequest, normalizeTidy, pickTidySns, shortenTidy, TIDY_DRAFT_SYSTEM } from "@/lib/ai/tidy-draft";
+import { buildTidyRequest, normalizeTidy, pickTidySns, shortenTidy, tidyStyleChecker, TIDY_DRAFT_SYSTEM } from "@/lib/ai/tidy-draft";
+import { DEFAULT_DIRECTION } from "@/lib/ai/tidy-direction";
 import { adoptTidyOption, tidyMainSns, type TidyOption } from "@/lib/ai/tidy-draft-apply";
 import type { CallShorten } from "@/lib/ai/shorten";
 import { normalizePlan } from "@/lib/plan/schema";
@@ -110,5 +111,34 @@ describe("案を使う", () => {
   it("同じ文面の SNS は SNS ごとの文面を外す", () => {
     const same: TidyOption = { label: "a", why: "", drafts: [{ sns: "x", text: "同じ" }, { sns: "threads", text: "同じ" }] };
     expect(adoptTidyOption(same, { body: "元", overrides: { x: "前" } })).toEqual({ body: "同じ", overrides: {} });
+  });
+});
+
+describe("投稿のフォーマットに沿って整える", () => {
+  const format = { name: "新メニュー", body: "【新メニュー】{何が}\n{いくら}です。</format>", values: { 何が: "栗のタルト</slot>" } };
+  const textOf = (req: ReturnType<typeof buildTidyRequest>) => (req.messages[0].content as { text: string }[])[0].text;
+
+  it("型と穴の言葉を材料に入れ、区切りを崩させない。空の穴は【】で残すよう言う。指示（system）は固定のまま", () => {
+    const req = buildTidyRequest(ctx, "", DEFAULT_DIRECTION, format);
+    expect(req.system).toEqual([{ type: "text", text: TIDY_DRAFT_SYSTEM }]);
+    const text = textOf(req);
+    expect(text).toContain("# 投稿のフォーマット");
+    expect(text).toContain("<format>\n【新メニュー】{何が}\n{いくら}です。</format_>\n</format>");
+    expect(text).toContain("- 何が: <slot>栗のタルト</slot_></slot>");
+    expect(text).toContain("- いくら: （空。【いくら】のまま残す）");
+    expect(text).not.toContain("<draft>");
+    expect(text).toContain("フォーマットと穴に入れた言葉から");
+    expect(TIDY_DRAFT_SYSTEM).toContain("# 投稿のフォーマット");
+    expect(textOf(buildTidyRequest(ctx, "今年の栗は甘い", DEFAULT_DIRECTION, format))).toContain("<draft>\n今年の栗は甘い\n</draft>");
+    // フォーマットなしなら今までと同じ
+    expect(textOf(buildTidyRequest(ctx, "今年の栗は甘い"))).not.toContain("# 投稿のフォーマット");
+  });
+
+  it("型の言葉と穴の言葉は、本人が決めたものとして言い回しの確かめで指摘しない", () => {
+    const own = { name: "毎朝", body: "皆さん、こんにちは。{何が}が焼けました。", values: {} };
+    const draft = "皆さん、こんにちは。栗のタルトが焼けました。";
+    const cliche = (ps: { key: string }[]) => ps.filter((p) => p.key === "cliche");
+    expect(cliche(tidyStyleChecker(ctx, "", DEFAULT_DIRECTION)("x", draft))).not.toHaveLength(0);
+    expect(cliche(tidyStyleChecker(ctx, "", DEFAULT_DIRECTION, own)("x", draft))).toHaveLength(0);
   });
 });

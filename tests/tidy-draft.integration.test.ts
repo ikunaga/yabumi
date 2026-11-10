@@ -1,6 +1,7 @@
 // AI で投稿に整える流れ（利用量の記録、上限、他人のプロジェクト、縮め直し）。本物の AI は呼ばない
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { runTidyDraft, type CallTidy } from "@/lib/ai/tidy-draft";
+import { addFormat } from "@/lib/post-formats/store";
 import type { CallShorten } from "@/lib/ai/shorten";
 import { spendAi, unspendAi, scopeAiBudget } from "./helpers/ai-budget";
 import { AI_UNAVAILABLE_MESSAGE, AiUnavailableError } from "@/lib/ai/provider-failure";
@@ -118,5 +119,28 @@ describe("AI で投稿に整える", () => {
     expect((await runTidyDraft(alice, admin, { callTidy: caller({ x: 1 }) }, { userId: aliceId, projectId, text, sns: ["x"] })).ok).toBe(false);
     expect((await runTidyDraft(alice, admin, { callTidy: caller(null, "refusal") }, { userId: aliceId, projectId, text, sns: ["x"] })).ok).toBe(false);
     expect(await purposes()).toHaveLength(before + 2);
+  });
+
+  it("投稿のフォーマット: 本人の型を読み直して、型と穴の言葉を渡す。本文が空でも穴を埋めていれば整える。他人の型は断り、AI を呼ばない", async () => {
+    const id = await addFormat(alice, projectId, { name: "アップデートのお知らせ", body: "{版}で{変わったこと}。\n{ひとこと}" });
+    const call = caller(good);
+    const r = await runTidyDraft(alice, admin, { callTidy: call }, { userId: aliceId, projectId, text: "", sns: ["x"], format: { id, values: { 版: "1.2", 変わったこと: "通知の時間を選べる", ほか: "x" } } });
+    expect(r.ok).toBe(true);
+    const sent = JSON.stringify(vi.mocked(call).mock.calls[0][0].messages);
+    expect(sent).toContain("# 投稿のフォーマット");
+    expect(sent).toContain("{版}で{変わったこと}");
+    expect(sent).toContain("<slot>通知の時間を選べる</slot>");
+    expect(sent).toContain("ひとこと: （空。【ひとこと】のまま残す）");
+    expect(sent).not.toContain("ほか");
+    expect(sent).not.toContain("# 整える元の文");
+    // 穴が空で本文も空なら、AI を呼ばずに断る
+    const none = caller(good);
+    expect(await runTidyDraft(alice, admin, { callTidy: none }, { userId: aliceId, projectId, text: " ", sns: ["x"], format: { id, values: {} } })).toMatchObject({ ok: false });
+    // 他人は、型の id を知っていても使えない
+    const bobProject = (await bob.from("projects").insert({ name: "ことばの教室" }).select("id").single()).data!.id;
+    const other = caller(good);
+    expect(await runTidyDraft(bob, admin, { callTidy: other }, { userId: bobId, projectId: bobProject, text, sns: ["x"], format: { id, values: {} } })).toMatchObject({ ok: false, message: expect.stringContaining("フォーマットが見つかりません") });
+    expect(none).not.toHaveBeenCalled();
+    expect(other).not.toHaveBeenCalled();
   });
 });

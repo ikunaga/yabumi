@@ -8,8 +8,8 @@ const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "u
 describe("2026-11-09 の版", () => {
   const rev = LEGAL_VERSIONS.find((r) => r.version === "2026-11-09")!;
 
-  it("最後に、利用規約とプライバシーポリシーの両方の版として足し、前もって知らせない理由があり、決まりを守っている（1 日 1 版）", () => {
-    expect(LEGAL_VERSIONS.at(-1)).toBe(rev);
+  it("利用規約とプライバシーポリシーの両方の版として足し、前もって知らせない理由があり、決まりを守っている（1 日 1 版）", () => {
+    expect(rev).toBeDefined();
     expect(rev.docs).toEqual(["terms", "privacy"]);
     // プロジェクトの数を縛るので、利用者に不利な変更
     expect(rev.adverse).toBe(true);

@@ -1298,6 +1298,56 @@ export type Database = {
           },
         ]
       }
+      post_formats: {
+        Row: {
+          body: string
+          created_at: string
+          example: string
+          id: string
+          name: string
+          owner_id: string
+          pillar: string
+          position: number
+          project_id: string
+          purpose: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          example?: string
+          id?: string
+          name: string
+          owner_id?: string
+          pillar?: string
+          position?: number
+          project_id: string
+          purpose?: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          example?: string
+          id?: string
+          name?: string
+          owner_id?: string
+          pillar?: string
+          position?: number
+          project_id?: string
+          purpose?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_formats_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       post_metrics: {
         Row: {
           captured_at: string

@@ -14,6 +14,7 @@ import type { CallPhotoIdeas } from "./photo-gen";
 import { shortenSchema, type CallShorten } from "./shorten";
 import { tidyDraftSchema, type CallTidy } from "./tidy-draft";
 import { voiceMemoSchema, type CallVoiceMemo } from "./voice-memo";
+import { postFormatProposalsSchema, type CallPostFormat } from "./post-format-ai";
 import { PLAN_COACH_MODEL, type CallModel } from "./plan-coach";
 import { AI_MAX_TOKENS, countable, type CountTokens } from "./budget";
 import { AiRequestRejected, AiUnavailableError, isRejectedStatus, isUnavailableResponse } from "./provider-failure";
@@ -177,3 +178,5 @@ export const callShortenDrafts: CallShorten = structuredCaller(shortenSchema, AI
 export const callTidyDraft: CallTidy = structuredCaller(tidyDraftSchema, AI_MAX_TOKENS.tidy_draft, "medium");
 // 書き方（文調のメモ）を、本人の投稿から読み取る（docs/design/voice-from-posts.md の 4）。数えた値を渡して観察を書くだけなので effort は low
 export const callVoiceMemo: CallVoiceMemo = structuredCaller(voiceMemoSchema, AI_MAX_TOKENS.voice_memo, "low");
+// 投稿のフォーマットの案（docs/design/post-formats.md の 3）。組み立ての違う型を 3 つ考え、作り話をさせない穴にする判断が要るので effort は medium
+export const callPostFormat: CallPostFormat = structuredCaller(postFormatProposalsSchema, AI_MAX_TOKENS.post_format, "medium");

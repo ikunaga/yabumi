@@ -24,6 +24,8 @@ import {
 import { isOnline } from "@/lib/client-errors";
 import { displayLength, isManualSns, SNS, type SnsKey } from "@/lib/sns";
 import { StyleNotice } from "./style-notice";
+import type { FormatUse } from "./post-format-picker";
+import { formatSlots } from "@/lib/post-formats/schema";
 
 type Composer = { body: string; overrides: Partial<Record<SnsKey, string>> };
 
@@ -41,6 +43,8 @@ type Props = {
   onEditOverride: (sns: SnsKey) => void;
   // 案を使った知らせを出しているか（出している間は、SNS ごとの文面の 1 行をこちらにまとめる）
   onAdoptedChange: (adopted: boolean) => void;
+  // 選んでいる投稿のフォーマットと穴の言葉（docs/design/post-formats.md の 4）。あれば、その型に沿って整える
+  format?: FormatUse | null;
 };
 
 // 待つ時間の目安（画面に出す）。effort medium で、案 2〜3 個 × SNS ごとの文面を書く（docs/architecture.md の 4.34）
@@ -48,7 +52,7 @@ export const TIDY_WAIT = "20〜40 秒ほど";
 
 // AI で投稿に整える（docs/architecture.md の 4.34）: 声で入れた話し言葉などを、言いたいことを 1 つに絞って SNS ごとの字数に収めた案にする。
 // 案はカードの中でそのまま直せ、選ぶと本文と SNS ごとの文面に入る（入れたあとも直せる）。「元に戻す」で整える前の文に戻せる
-export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace, onShowBody, onEditOverride, onAdoptedChange }: Props) {
+export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace, onShowBody, onEditOverride, onAdoptedChange, format = null }: Props) {
   const [options, setOptions] = useState<TidyOption[] | null>(null);
   // 整え方。このプロジェクトで前に選んだものを、この端末に覚えておいて次も同じから始める（サーバーには保存しない）
   const storageKey = `yabumi:tidy-direction:${projectId}`;
@@ -70,7 +74,9 @@ export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace, 
   const waiting = startedAt !== null;
   // 案を使ったあとに整え直すときは、整える前の文から
   const source = original?.body ?? current.body;
-  const hasText = source.trim() !== "";
+  // フォーマットを選んでいれば、穴を 1 つでも埋めれば（穴のない型ならそのままで）本文が空でも押せる
+  const formatReady = format !== null && (Object.values(format.values).some((v) => v.trim()) || formatSlots(format.format.body).length === 0);
+  const hasText = source.trim() !== "" || formatReady;
   // note・Substack（長い記事）は整えない
   const hasSns = sns.some((s) => !isManualSns(s));
 
@@ -90,7 +96,7 @@ export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace, 
       const res = await fetch("/api/ai/tidy-draft", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId, text: source, sns, direction }),
+        body: JSON.stringify({ projectId, text: source, sns, direction, format: format && { id: format.format.id, values: format.values } }),
         signal: controller.signal,
       });
       const body = (await res.json().catch(() => ({}))) as TidyDraftResponse;
@@ -201,7 +207,7 @@ export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace, 
             </span>
           </button>
         )}
-        <span className="text-xs text-muted">{!hasText ? "本文を話すか書くと押せます" : !hasSns ? "送り先の SNS（note・Substack 以外）を選ぶと押せます" : "1 回 5〜15 円ほど"}</span>
+        <span className="text-xs text-muted">{!hasText ? (format ? "本文を書くか、フォーマットの穴を埋めると押せます" : "本文を話すか書くと押せます") : !hasSns ? "送り先の SNS（note・Substack 以外）を選ぶと押せます" : format ? `「${format.format.name}」に沿って整えます（1 回 5〜15 円ほど）` : "1 回 5〜15 円ほど"}</span>
         <HelpTip label="AI で投稿に整える">
           話した言葉や思いつくままに書いた文から、言いたいことを 1 つに絞り、選んだ SNS ごとの字数に収めた案を 2〜3 個出します。最初の 1 行で引きつける・問いかけで終えるなど、形の違う案から選べます。案はその場で直してから使えます。あなたが言っていないこと（数字・できごと・感想）は足しません。口調とやらないこと、ハッシュタグはアカウント設計に合わせます（口調・長さ・ねらい・絵文字は「整え方を選ぶ」で変えられます。やらないことはどの整え方でも守ります）。AI はいまはやっている言葉や話題を知らない（その時々のデータを見ていない）ので、はやりには合わせません。1 回 5〜15 円ほどかかります。
         </HelpTip>

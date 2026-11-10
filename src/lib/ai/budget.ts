@@ -1,4 +1,5 @@
 import { VOICE_MEMO_DAILY_RUNS } from "@/lib/plan/voice-rules";
+import { POST_FORMAT_DAILY_RUNS } from "@/lib/post-formats/schema";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { alertIfNearBudgetSafely } from "@/lib/notify/budget";
 import type { Database } from "@/lib/supabase/database.types";
@@ -28,6 +29,8 @@ export const AI_MAX_TOKENS = {
   tidy_draft: 8000,
   // 書き方（文調のメモ）を読み取る（docs/design/voice-from-posts.md の 4）
   voice_memo: 4000,
+  // 投稿のフォーマットの案を AI とつくる（docs/design/post-formats.md の 3）
+  post_format: 3000,
 } as const;
 export type AiCall = keyof typeof AI_MAX_TOKENS;
 
@@ -92,7 +95,7 @@ export const TOO_LARGE_MESSAGE = "AI に送る内容が長すぎます。会話�
 export type ModelLike = { model: string; usage: TokenUsage };
 export type BudgetDenied = { ok: false; message: string };
 
-type ReserveStatus = "ok" | "global_limit" | "new_global_limit" | "user_limit" | "new_user_limit" | "daily_limit" | "voice_memo_limit";
+type ReserveStatus = "ok" | "global_limit" | "new_global_limit" | "user_limit" | "new_user_limit" | "daily_limit" | "voice_memo_limit" | "post_format_limit";
 
 // 「11/10」（日本時間の月/日）
 function monthDay(ymd: string): string {
@@ -116,6 +119,8 @@ export function limitMessage(status: Exclude<ReserveStatus, "ok">, newUntil: str
       return "今日の AI とのやりとりが上限に達しました。明日また続きができます。";
     case "voice_memo_limit":
       return `書き方の読み取りは、1 日 ${VOICE_MEMO_DAILY_RUNS} 回までです。明日またお試しください。`;
+    case "post_format_limit":
+      return `フォーマットを AI とつくるのは、1 日 ${POST_FORMAT_DAILY_RUNS} 回までです。明日またお試しください。`;
   }
 }
 

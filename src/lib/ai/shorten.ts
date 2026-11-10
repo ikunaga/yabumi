@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { displayLength, SNS, type SnsKey } from "@/lib/sns";
 import type { ModelOutput } from "./app-description";
+import { CONTENT_RULES } from "./content-rules";
 import { JAPANESE_STYLE_RULES, type StyleProblem } from "./japanese-style";
 import type { BetaMessageParam, BetaTextBlockParam } from "./plan-coach";
 
@@ -49,13 +50,15 @@ export const SHORTEN_SYSTEM = `あなたは「yabumi」の中で、SNS の投稿
 
 # 言い回しの直し方（「直すところ」が書かれた下書き）
 - 書かれた「直すところ」だけを、下の「日本語の書き方」に合うように直す。ほかのところは変えない
-- 言いたいこと・中身・口調・【】・最後のハッシュタグ・「▶︎」で始まる行は変えない。書かれていない事実を足さない
+- 言いたいこと・中身・口調・【】・最後のハッシュタグ・「▶︎」で始まる行は変えない。書かれていない事実・様子・気持ちを足さない（言い回しを自然にするために、材料にない話を足さない）
 - 直しても、その SNS の上限（max）を超えない
 
 # 返し方
 - id は <draft id="..."> の値をそのまま返す。頼まれた下書きはすべて、全文を返す
 
 ${LENGTH_RULES}
+
+${CONTENT_RULES}
 
 ${JAPANESE_STYLE_RULES}`;
 

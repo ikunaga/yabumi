@@ -7,6 +7,7 @@ import type { Database } from "@/lib/supabase/database.types";
 import { reserveAi, tokenCounterOf, withAiBudget } from "./budget";
 import type { BetaMessageParam, BetaTextBlockParam } from "./plan-coach";
 import type { TokenUsage } from "./pricing";
+import { CONTENT_RULES } from "./content-rules";
 import { aiFailureMessage } from "./provider-failure";
 
 // GitHub のリポジトリから、開発しているもの（アプリ・Web のサービス）の紹介文を AI が下書きする（要求 F16、決定 D14。docs/architecture.md の 4.10）
@@ -84,7 +85,7 @@ ${DATA_RULES}
 - audience: 誰向けか。はっきりわからなければ空文字にして、質問にする
 - platforms: 設定ファイルや README から判断する
 - stage: ストアの URL、バージョン、README の記述から判断する。わからなければ unknown
-- 書かれていないことを作らない
+- 書かれていないことを作らない（下の「書く中身の決まり」。リポジトリのファイルと利用者の答えにない機能・実績・利用者の数は書かない）。紹介文には【】を使わず、わからないことは質問にする
 
 # 質問（questions）
 - 紹介文をよくするために、利用者に聞きたいことがあれば、答えやすい質問にして ${MAX_QUESTIONS} つまで書く。いちばん大事なものから
@@ -93,7 +94,9 @@ ${DATA_RULES}
 - 十分にわかっていれば空にする
 
 # 答えを受けて書き直すとき
-- 利用者の答えを反映して紹介文を書き直す。答えられた質問は消し、まだ聞きたいことがあれば残す`;
+- 利用者の答えを反映して紹介文を書き直す。答えられた質問は消し、まだ聞きたいことがあれば残す
+
+${CONTENT_RULES}`;
 
 export type FileCandidate = { path: string; size: number };
 

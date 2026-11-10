@@ -15,6 +15,7 @@ import { LENGTH_RULES, shortenOverDrafts, type CallShorten } from "./shorten";
 import { findUrls, profileLinkLine, withProfileLink } from "@/lib/posts/profile-link";
 import type { TidyOption } from "./tidy-draft-apply";
 import { DEFAULT_DIRECTION, directionText, type TidyDirection } from "./tidy-direction";
+import { CONTENT_RULES } from "./content-rules";
 import { JAPANESE_STYLE_RULES, draftStyleChecker, styleLabels, type StyleProblem } from "./japanese-style";
 
 // AI で投稿に整える（docs/architecture.md の 4.34）。
@@ -52,7 +53,7 @@ export const TIDY_DRAFT_SYSTEM = `あなたは「yabumi」の中で、宣伝し�
 ${DATA_RULES}
 
 # いちばん大事な決まり（中身）
-- 元の文に書かれていることだけを使う。書かれていない事実・できごと・数字（時間、回数、人数、お金など）・顧客や使う人の反応・苦労話・感想を足さない。意味を変えない
+- 元の文に書かれていることだけを使う（下の「書く中身の決まり」）。書かれていない事実・できごと・様子・数字（時間、回数、人数、お金など）・顧客や使う人の反応・苦労話・感想や気持ちを足さない。意味を変えない
 - 元の文の、本人の考え・体験・感想・言い回しを残す。一般論や、どこにでも書けるまとめに置き換えない
 - 言いたいことを 1 つに絞る。元の文に話が 2 つ以上あれば、いちばん伝わりやすいもの（届けたい相手に関係のあるもの）を選び、ほかは入れない
 - 利用者にしか書けないところで、元の文にないもの（商品名・作品名、具体的な数字など）が投稿に要るときは、作らずに【作品名】のように【】で囲んで示す。【】は利用者が書き換えるまで投稿しない印になる。それ以外では【】を使わない。元の文に【】があれば、そのまま残す
@@ -97,6 +98,8 @@ ${DATA_RULES}
 - label は案の形の短い名前、why はなぜこの形にしたかを 1〜2 文
 - drafts には、指定された SNS ごとに 1 つずつ書く。SNS が変われば長さと書き方を変える。上限は必ず守り、目安の字数に収める（上限を超えた文面は、yabumi が数えて縮め直させる）
 - ${LENGTH_RULES.replace(/\n/g, "\n  ")}
+
+${CONTENT_RULES}
 
 ${JAPANESE_STYLE_RULES}`;
 

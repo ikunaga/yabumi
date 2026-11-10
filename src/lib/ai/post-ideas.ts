@@ -17,6 +17,7 @@ import type { BetaMessageParam, BetaTextBlockParam } from "./plan-coach";
 import { actionFromLegacyGoal, type ProductType } from "@/lib/projects/product-types";
 import { guideFor, productLines, productTypeOf, usesDevTalk } from "./product-guide";
 import { LENGTH_RULES, shortenOverDrafts, type CallShorten } from "./shorten";
+import { CONTENT_RULES } from "./content-rules";
 import { JAPANESE_STYLE_RULES, draftStyleChecker, styleLabels, type StyleProblem } from "./japanese-style";
 import { aiFailureMessage } from "./provider-failure";
 import { MAX_X_POST_INTEREST, MAX_X_POST_TEXT, X_POST_INTEREST_QUESTION, parseXPostUrl } from "@/lib/ideas/x-post";
@@ -150,7 +151,7 @@ ${DATA_RULES}
 - ${LENGTH_RULES.replace(/\n/g, "\n  ")}
 - 口調とやらないことは、アカウント設計に従う。決まっていなければ、です・ます調で、親しみやすく、控えめに
 - 投稿の柱の「例」は、どんな話題かを示すもの。例の文や言い回しはまねない
-- 材料と利用者の答えに書かれていることだけを書く。書かれていない苦労話、数字（時間、回数、人数など）、利用者の反応を作らない
+- 材料と利用者の答えに書かれていることだけを書く（下の「書く中身の決まり」）。書かれていない苦労話、様子、気持ち、数字（時間、回数、人数など）、利用者や顧客の反応を作らない
 - 利用者にしか書けないところ（商品名・作品名、自分の感想、具体的な数字など）は作らずに、【作品名】のように【】で囲んで示す。【】は利用者が書き換えるまで投稿しない印になる。それ以外では【】を使わない
 - 専門の言葉（技術・材料・業界の言葉）は、届けたい相手が同業者でなければ、言い換えるか省く。「何ができるようになったか」「顧客・使う人にとって何が変わるか」を先に書く
 - 下書きの本文では「顧客」と書かない。来てくれた方・買ってくれた方・使ってくれている方など、読む人に向けた呼び方にする（「顧客」は、ネタの説明や質問で利用者に話すときの言葉）
@@ -158,7 +159,7 @@ ${DATA_RULES}
 - URL は入れない（X では URL があると送る費用が上がる。リンクは利用者が必要なら足す）。絵文字は口調で決まっていなければ使わない
 - ハッシュタグは、アカウント設計の「ハッシュタグ」の中から、そのネタに合うもの（「付けるとき」に当てはまるもの）だけを、本文の最後に付ける。合うものがなければ付けない。どのネタ・どの下書きにも同じタグを決まりのように付けない。設計にないタグを作らない。設計でハッシュタグが決まっていなければ、どの下書きにも付けない
 - 1 投稿に付けるハッシュタグの数は、下の「下書きを書く SNS」に書いた数まで（SNS ごとに違う）
-- 下書きの日本語は、下の「日本語の書き方」に従う。誇張しない
+- 下書きの中身は下の「書く中身の決まり」、日本語は「日本語の書き方」に従う。誇張しない
 
 # 質問（questions）
 - 材料だけでは「何に困っていて、どうしたか」「なぜそうしたか」「顧客・使う人にとって何が変わるか」がわからず、それがわかればネタがよくなるときだけ、利用者に ${MAX_IDEA_QUESTIONS} つまで質問する。大事なものから
@@ -169,6 +170,8 @@ ${DATA_RULES}
 
 # 答えを受けて出し直すとき
 - 利用者の答えを反映して、ネタと下書きを出し直す。答えに書かれたことは使ってよい。答えられた質問は消し、まだ聞きたいことがあれば残す
+
+${CONTENT_RULES}
 
 ${JAPANESE_STYLE_RULES}`;
 

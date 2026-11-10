@@ -8,6 +8,7 @@ import type { Database } from "@/lib/supabase/database.types";
 import { toYmd } from "@/lib/time";
 import type { ModelOutput } from "./app-description";
 import { withAiBudget } from "./budget";
+import { CONTENT_RULES } from "./content-rules";
 import { JAPANESE_STYLE_RULES } from "./japanese-style";
 import type { BetaMessageParam, BetaTextBlockParam } from "./plan-coach";
 import { productTypeOf } from "./product-guide";
@@ -46,12 +47,15 @@ export const POST_FORMAT_SYSTEM = `あなたは「yabumi」の中で、宣伝し
 - 型は、何を・どの順に書くかを決めるもの。穴（{穴の名前}）には、毎回変わる中身（何が・いつ・いくら・どんな方が など）を置く。穴は 2〜6 個
 - 穴の名前は、素人が見て何を書けばいいかわかる短い言葉にする（「{何が}」「{いつから}」「{言われたこと}」）。「{フック}」「{CTA}」のような専門の言葉は使わない
 - 穴の外の言葉は、毎回そのまま入れる決まった言葉。少なめにする（1 行の見出しと、最後の 1 文くらい）。「決まって入れたいこと」があれば、型に入れる
+- 穴の外の言葉は、その型で書くすべての投稿にそのまま入る。材料にない事実（「毎朝焼きたてをお届けしています」「創業〇年」「たくさんの方に選ばれています」）や気持ちを書かない（下の「書く中身の決まり」。材料は「# プロジェクト」「# アカウント設計」と利用者の答え）
 - 書いていないことを足させる穴（「{実績の数字}」「{使った人の感想}」を作らせる）にはしない。本人が知っていることだけを書く穴にする
 - 3 つの案は、組み立てを変える（例: 先に何かを言い切る／きっかけから話す／短く 3 行）。同じ型の言い回し違いを出さない
 - 「# 登録しているフォーマット」と同じものは出さない
 - 宣伝するものの種類と、アカウント設計の口調・投稿の柱に合わせる。口調で決まった語尾（です・ます など）で型の言葉を書く
 - 埋めた例（example）は、アカウント設計とプロジェクトの説明にあることだけで書く。書いていない値段・日付・人の名前・感想は作らず、【穴の名前】のまま残す
 - 誇張（「最強」「絶対」「誰でも簡単に」）、釣りの見出し（「【必見】」「〜した結果…！」）を型に入れない
+
+${CONTENT_RULES}
 
 ${JAPANESE_STYLE_RULES}`;
 

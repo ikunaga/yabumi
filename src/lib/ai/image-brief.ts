@@ -11,6 +11,7 @@ import { checkContextText, type CheckContext } from "./ai-check";
 import { withAiBudget } from "./budget";
 import type { BetaMessageParam, BetaTextBlockParam } from "./plan-coach";
 import { aiFailureMessage } from "./provider-failure";
+import { CONTENT_RULES } from "./content-rules";
 import { HEADLINE_RULE, stripHeadlineCommas } from "./japanese-style";
 
 // 画像の文字の案（F14 の段取り ①。docs/architecture.md の 4.25）。
@@ -58,14 +59,16 @@ export const IMAGE_BRIEF_SYSTEM = `あなたは「yabumi」の中で、宣伝し
 - screen: 写真や画面を見せたい投稿（「# プロジェクト」の「画像に使う写真の例」のもの。商品・料理・作品・お店・アプリの画面など。写真は利用者が選ぶ）
 
 # 書き方
-- 文字はすべて投稿の文面とアカウント設計から取る。投稿に書かれていない事実・数字・商品・機能・顧客の声を足さない
+- 文字はすべて投稿の文面とアカウント設計から取る。投稿に書かれていない事実・数字・商品・機能・顧客の声・様子・気持ちを足さない（下の「書く中身の決まり」。材料は投稿の文面とアカウント設計）。画像の文字には【】を使わない（画像にそのまま入るため）。材料にないことは書かない
 - 画像の文字は、スクロール中にひと目で読める短さにする。見出しは 22 字まで
 - 誇張（革命的・最強・誰でも簡単に・神〇〇）、決まり文句（【必見】・〜してみた結果…！・〜な人へ・〜の秘訣）、感嘆符、絵文字、飾りの記号（✨ など）、ハッシュタグ、URL は入れない
 - ${HEADLINE_RULE}
 - 「顧客」と書かない（来てくれた方・使ってくれている方など、見る人に向けた呼び方にする）
 - 補足と図解の説明は、人が話すような短い文にする。名詞で終わる文（体言止め）を並べない
 - アカウント設計の口調に合わせる。「やらないこと」に当たる文字は入れない
-- 図解は、投稿に複数のポイントや手順がないときも、投稿の中身から無理のない範囲で 2〜3 つにまとめる。それも難しければ、短い 2 つでよい`;
+- 図解は、投稿に複数のポイントや手順がないときも、投稿の中身から無理のない範囲で 2〜3 つにまとめる。それも難しければ、短い 2 つでよい
+
+${CONTENT_RULES}`;
 
 const escapeData = (s: string) => s.replace(/<(\/?)(post)\b/gi, "<$1$2_");
 

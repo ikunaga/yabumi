@@ -1,5 +1,6 @@
 import { DESIRED_ACTION_DEFS, RECOMMENDED_ACTIONS, actionFromLegacyGoal, type ProductType } from "@/lib/projects/product-types";
 import { SNS, type SnsKey } from "@/lib/sns";
+import { CONTENT_RULES } from "./content-rules";
 import { productLines, storyGuideLines } from "./product-guide";
 import { AI_PLAN_SECTION_KEYS, isSectionDone, type PlanData, type SectionKey } from "@/lib/plan/schema";
 import type { CoachSectionKey } from "./plan-coach-schema";
@@ -64,6 +65,7 @@ export const PLAN_COACH_SYSTEM = `あなたは「yabumi」の中で、宣伝し�
 - あなたらしさ（「いまの状況」の story）に、shareable が true の項目があれば、柱の案の 1 つに「ストーリー（始めたきっかけ・失敗談など）」の柱を入れる（割合は 10〜20 くらい）。材料にしてよいのは shareable が true の項目だけ。false の項目は、柱の名前・例・理由のどこにも使わない
 - 自己紹介文（bio）の案は、コンセプトの 1 文と、shareable が true のあなたらしさを材料にする（例: 強みや始めたきっかけを短く添える）。false の項目は使わない
   - 自己紹介文は、本人が書いたような落ち着いた文にする。「〜な人へ」「〜を発信中✨」のような型、飾りの記号（✨ 👉 など）、感嘆符、「｜」で区切った言葉の羅列にしない。読点は少なめに。「顧客」と書かない
+  - 自己紹介文の中身は、下の「書く中身の決まり」に従う（材料は「いまの状況」と、この会話で相手が答えたこと。実績・人数・年数などを作らない）。自己紹介文には【】を使わず、要るのに材料にないことは相手に聞く
 - 名前とプロフィールは、まず共通の案を出す。「SNS ごとの役割」（cadence の roles）で SNS によって発信する内容や相手が違うときは、その SNS 用の表示名と自己紹介文を bySns に入れた案も出す（例: X は「店主として仕込みや考えの話」、Instagram は「料理の写真を、近くに住む人に」なら、Instagram の自己紹介文を近くの人向けに）。役割がまだ決まっていなければ、共通だけでよい
 - ユーザー名は、どの SNS でも同じ綴りにそろえるのが基本（見つけてもらいやすい）。SNS ごとに変えるのは、その SNS で取れなかったときや字数の決まりに合わないときだけ。つないだアカウントの実際のユーザー名が「いまの状況」にあれば、それを使う
 - 字数の決まり（2026-10）: ユーザー名は X 4〜15 字（英数字と _）、Instagram 30 字まで（英数字と . _）、TikTok 2〜24 字、YouTube のハンドル 3〜30 字。Threads のユーザー名は、Instagram とつないだ Threads なら Instagram と同じになるので、ふつうは bySns の threads に handle を入れない（Instagram から切り離した Threads だけ別にできる）。自己紹介文は X 160 字、Instagram・Threads 150 字、note 140 字、TikTok 80 字、YouTube 1,000 字。共通の自己紹介文が、使う SNS の上限を超えるときは、その SNS 用の短い自己紹介文を bySns に入れる
@@ -119,6 +121,8 @@ export const PLAN_COACH_SYSTEM = `あなたは「yabumi」の中で、宣伝し�
   - 決めるのは weekly だけ。goal と metrics は空文字、kpis は「いまの状況」の今の値をそのまま入れる（3 か月の目標と追いかける数字は、ロードマップで決める）
   - weekly: SNS ごとの 1 週の投稿の回数（1〜14 の整数）。cadence の頻度と roles の SNS に合わせ、合計が頻度と食い違わないようにする（例: 頻度「週 3 回」で X と Instagram なら X 2・Instagram 1）。続けられる少なめの回数をすすめる。使わない SNS は入れない
   - 案の理由では、続けられる回数にした理由を一言で書く。案を採用したあとの返事で、「3 か月の目標（KGI）は、ロードマップで AI と決められます」と一言添える
+
+${CONTENT_RULES}
 `;
 
 const SECTION_LABEL: Record<CoachSectionKey, string> = {

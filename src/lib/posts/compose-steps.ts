@@ -93,3 +93,9 @@ export function fieldErrorStep(fe: { body?: string; targets?: string; media?: st
   if (fe.plannedAt) return 5;
   return null;
 }
+
+// 送れない理由（いまの blocker の文）を、どのステップで直すか。同じ文の問題があれば、そのステップ（引用の投稿など、ステップで直すものでなければ null）
+export function blockerStep(blocker: string | null, problems: StepProblem[]): StepNo | null {
+  if (!blocker) return null;
+  return problems.find((p) => p.text === blocker)?.step ?? null;
+}

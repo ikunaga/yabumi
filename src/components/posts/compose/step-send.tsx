@@ -6,11 +6,13 @@ import { chipClass } from "@/components/ui/chip";
 import { HelpTip } from "@/components/ui/help";
 import { SendProgress } from "../send-progress";
 import { BAND_INFO, plannedAtFor } from "@/lib/metrics/time-bands";
+import { COMPOSE_STEPS, blockerStep } from "@/lib/posts/compose-steps";
 import { QUIET_BLOCKER, type Composer } from "./use-composer";
 
 // ⑤ 送る: 日時・予約・今すぐ・下書き・削除（compose-steps.md）
-export function ComposeStepSend({ c }: { c: Composer }) {
-  const { timeHint, images, plannedAt, setPlannedAt, confirmSend, setConfirmSend, pending, busy, sending, missingConnectMessage, blocker, nowBlocker, clearFieldError, submit, fe, connectHref, mode, labels, sentLabels, deleteRow } = c;
+export function ComposeStepSend({ c, steps = false }: { c: Composer; steps?: boolean }) {
+  const { composeStep, goStep, stepProblems, timeHint, images, plannedAt, setPlannedAt, confirmSend, setConfirmSend, pending, busy, sending, missingConnectMessage, blocker, nowBlocker, clearFieldError, submit, fe, connectHref, mode, labels, sentLabels, deleteRow } = c;
+  const fixAt = blockerStep(blocker, stepProblems);
   return (
     <>
       {/* 送る日時と送る */}
@@ -54,7 +56,7 @@ export function ComposeStepSend({ c }: { c: Composer }) {
       {mode === "all_sent" ? (
         <div className="flex flex-col gap-2 border-t border-line pt-3.5">
           <p className="text-[14px] leading-[1.7] text-muted">
-            送った投稿です。直すときは各 SNS で、取り消すときは上の「送信の結果」から。ほかの SNS にも送るときは、送り先のチップで選んでください。
+            {steps ? "まだ送る SNS を選んでいません。「2 送り先」で、ほかの SNS を選んでください。" : "送った投稿です。直すときは各 SNS で、取り消すときは上の「送信の結果」から。ほかの SNS にも送るときは、送り先のチップで選んでください。"}
           </p>
           {deleteRow(true)}
         </div>
@@ -77,6 +79,15 @@ export function ComposeStepSend({ c }: { c: Composer }) {
                 <Link href={connectHref} className="font-semibold text-fg underline">
                   つなぐ →
                 </Link>
+              </>
+            )}
+            {/* どのステップで直すかを添える（ステップの画面のとき。いまのステップで直すものと、つなぐものは除く） */}
+            {steps && !fe.plannedAt && fixAt !== null && fixAt !== composeStep && blocker !== missingConnectMessage && (
+              <>
+                {" "}
+                <button type="button" onClick={() => goStep(fixAt)} className="font-semibold text-fg underline">
+                  直す（{fixAt} {COMPOSE_STEPS[fixAt - 1].label}）→
+                </button>
               </>
             )}
           </p>

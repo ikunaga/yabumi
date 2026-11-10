@@ -15,9 +15,10 @@ import { ComposeAlerts, ComposeResetControl } from "./compose/compose-top";
 import { ComposeStepNav } from "./compose/step-nav";
 import { ComposeStepBar } from "./compose/step-bar";
 import { ComposeSummary } from "./compose/summary";
+import { ComposeSentView } from "./compose/sent-view";
 import { Button } from "@/components/ui/button";
 import { COMPOSE_STEPS, type StepNo } from "@/lib/posts/compose-steps";
-import { useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { ComposePreview } from "./compose/preview";
 import { useComposer, type ComposerProps } from "./compose/use-composer";
 
@@ -26,7 +27,7 @@ export type { ComposerInitial } from "./compose/use-composer";
 // 投稿をつくる（新しい投稿と、保存した投稿の画面）。状態と操作は useComposer（compose/use-composer.tsx）に 1 つだけ持ち、
 // 画面はステップごとの部品（compose/）に分けて描く（docs/design/compose-steps.md）。
 // 1 画面に 1 ステップだけを出す。ほかのステップは外さずに隠す（AI の案・画像をつくる画面・フォーマットの穴など、部品の中の値を消さない）。
-// すべて送った投稿は、決めることが残っていないので、ステップに分けずに 1 ページで出す（段階 C で読むだけの画面にする）
+// すべて送った投稿は、決めることが残っていないので、送った文面を読むだけの画面にする（compose/sent-view.tsx）
 
 // 左右が横に並ぶ幅か（並ぶときは、見え方を右の列に。並ばないときは ② と ⑤ の中に出す）。サーバーで描くときは並ぶものとする
 const WIDE = "(min-width: 64rem)";
@@ -41,9 +42,11 @@ function useWide(): boolean {
 
 export function PostComposer(props: ComposerProps) {
   const c = useComposer(props);
-  const { projectId, postId, results, notice, afterNotice, noticeTone, aiCheckEnabled, numbers, body, busy, notesOpen, setNotesOpen, noteIds, sentAny, pickNote, mode, composeStep, headingRef, pending, submit } = c;
+  const { projectId, postId, results, notice, afterNotice, noticeTone, aiCheckEnabled, numbers, body, busy, notesOpen, setNotesOpen, noteIds, sentAny, pickNote, mode, composeStep, headingRef, pending, submit, goStep } = c;
   const wide = useWide();
-  const steps = mode !== "all_sent";
+  // すべて送った投稿は読むだけ。「ほかの SNS にも送る」を押したら、ステップの画面にして ② から
+  const [extending, setExtending] = useState(false);
+  const steps = mode !== "all_sent" || extending;
 
   // ステップを移ったら、そのステップの見出しへ（読み上げにも、どこに来たかがわかるように）。開いたときは動かさない
   const shownStep = useRef(composeStep);
@@ -92,7 +95,17 @@ export function PostComposer(props: ComposerProps) {
       {postId && <SendResults projectId={projectId} postId={postId} results={results} />}
       <ComposeAlerts c={c} />
 
-      {steps ? <StepsLayout c={c} wide={wide} start={start} notePicker={notePicker} headingRef={headingRef} /> : <SinglePage c={c} notePicker={notePicker} headingRef={headingRef} />}
+      {steps ? (
+        <StepsLayout c={c} wide={wide} start={start} notePicker={notePicker} headingRef={headingRef} />
+      ) : (
+        <ComposeSentView
+          c={c}
+          onExtend={() => {
+            setExtending(true);
+            goStep(2);
+          }}
+        />
+      )}
 
       {numbers}
       </div>
@@ -136,7 +149,7 @@ function StepsLayout({ c, wide, start, notePicker, headingRef }: { c: ReturnType
             <div hidden={!at(5)} className="flex flex-col gap-3.5">
               <ComposeSummary c={c} />
               <ComposeAiCheck c={c} />
-              <ComposeStepSend c={c} />
+              <ComposeStepSend c={c} steps />
             </div>
           </section>
           {inlinePreview && <ComposePreview c={c} />}
@@ -155,37 +168,6 @@ function StepsLayout({ c, wide, start, notePicker, headingRef }: { c: ReturnType
             <ComposePreview c={c} />
           </div>
         )}
-      </div>
-    </>
-  );
-}
-
-// すべて送った投稿（ステップに分けない。いままでの 1 ページ）
-function SinglePage({ c, notePicker, headingRef }: { c: ReturnType<typeof useComposer>; notePicker: ReactNode; headingRef: ReturnType<typeof useComposer>["headingRef"] }) {
-  return (
-    <>
-      {notePicker}
-      <div className="grid grid-cols-[minmax(0,1.03fr)_minmax(0,1fr)] gap-4 max-lg:grid-cols-1">
-        <div className="flex min-w-0 flex-col gap-3">
-          <section aria-labelledby="draft-heading" className="flex flex-col gap-3.5 rounded-lg border border-border bg-surface px-6 py-5 max-sm:px-4 max-sm:py-4">
-            <h2 id="draft-heading" ref={headingRef} tabIndex={-1} className="text-[18px] font-bold outline-none max-sm:text-[16px]">
-              本文
-            </h2>
-            <ComposeStepWrite c={c} />
-            <ComposeStepTargets c={c} />
-            <ComposeLinkNotices c={c} />
-            <ComposeStepImages c={c} />
-            <ComposeShortLinks c={c} />
-            <ComposeStepSend c={c} />
-          </section>
-          <section aria-label="書くときの手伝い（使わなくても送れます）" className="flex flex-col gap-2">
-            <ComposePlanHints c={c} />
-            <ComposeAiCheck c={c} />
-          </section>
-        </div>
-        <div className="flex min-w-0 flex-col gap-3">
-          <ComposePreview c={c} />
-        </div>
       </div>
     </>
   );

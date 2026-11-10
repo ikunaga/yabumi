@@ -1,7 +1,7 @@
 // 投稿をつくるのステップ（docs/design/compose-steps.md）: 開いたときのステップ・?step・次へ進める条件・問題のあるステップ・進みの印・欄のエラーのステップ、
 // 書きかけの控えにステップを足しても、控えを残す・出す決まり（書いたときだけ残す・保存し直されたら出さない）が変わらないこと
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { COMPOSE_STEPS, canGoNext, fieldErrorStep, parseStep, problemsByStep, startStep, stepMarks, stepNo, type StepNo } from "@/lib/posts/compose-steps";
+import { COMPOSE_STEPS, blockerStep, canGoNext, fieldErrorStep, parseStep, problemsByStep, startStep, stepMarks, stepNo, type StepNo } from "@/lib/posts/compose-steps";
 import { parseFormDraft, rawFormDraft, usableFormDraft, writeFormDraft } from "@/lib/form-draft";
 import { draftStep, postDraftBase, samePostDraft, type PostDraft } from "@/lib/posts/post-draft";
 import { setDraftOwner } from "@/lib/notes/draft";
@@ -75,6 +75,14 @@ describe("問題のあるステップ", () => {
     // 下書きを ⑤ から開いたとき: 前のステップの問題も、中身のあるステップの ✓ も出す
     const draft = stepMarks({ current: 5, visited: new Set([5]), problems, filled: { 1: true, 3: true } });
     expect(draft).toEqual({ 1: "done", 2: "problem", 3: "done", 4: "todo", 5: "todo" });
+  });
+
+  it("送れない理由は、同じ文の問題のステップで直す（引用など、ステップで直すものでなければ null）", () => {
+    const problems = problemsByStep({ ...base, needsTime: true, issues: [{ sns: "x", label: "X", issues: ["too_long"], override: true, issueLabel }] });
+    expect(blockerStep(`X: ${ISSUE_LABEL.too_long}`, problems)).toBe(2);
+    expect(blockerStep("送る日時を決めてください", problems)).toBe(5);
+    expect(blockerStep("引用は X の画面で送ります（yabumi からは予約・送信できません）", problems)).toBeNull();
+    expect(blockerStep(null, problems)).toBeNull();
   });
 
   it("保存で返ってきた欄のエラーは、いちばん前の欄のステップへ", () => {

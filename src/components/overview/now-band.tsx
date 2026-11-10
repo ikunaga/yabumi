@@ -121,7 +121,6 @@ function MainBand({
       <ActionBar
         label="いまやること"
         title={goalReview.kind === "reached" ? `目標「${name}」に届きました` : `目標「${name}」の期限が来ました`}
-        wrap
         help={pace}
         action={
           <ButtonLink href={aiEnabled ? `${base}/consult/new?start=goal_review&goal=${goalReview.goal.id}` : `${base}/roadmap`} size="sm">

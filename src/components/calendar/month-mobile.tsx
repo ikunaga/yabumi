@@ -91,7 +91,7 @@ export function MonthMobile({ days, base, initial, bands, today }: { days: Month
           {m}/{d}（{weekday}）{day.isToday && " 今日"}
         </h2>
         {day.todos.map((t) => (
-          <TodoButton key={t.id} todo={t} base={base} variant="day" />
+          <TodoButton key={t.id} todo={t} base={base} variant="list" />
         ))}
         {day.items.map((it) => (
           <Link key={it.id} href={it.href} className="flex flex-col gap-1.5 rounded-lg border border-border bg-surface px-3.5 py-3 hover:no-underline">

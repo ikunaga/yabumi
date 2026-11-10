@@ -119,7 +119,7 @@ export default async function CalendarPage(props: PageProps<"/projects/[id]/cale
                     {monthOf(d)}/{dayOfMonth(d)}（{weekdayLabel(d)}）{isToday && " 今日"}
                   </p>
                   {(todosByDay.get(d) ?? []).map((t) => (
-                    <TodoButton key={t.id} todo={t} base={base} variant="day" />
+                    <TodoButton key={t.id} todo={t} base={base} variant="list" />
                   ))}
                   {list.length === 0 ? (
                     <Link href={`${base}/compose?date=${d}`} className="rounded-md border border-dashed border-input px-3.5 py-2.5 text-[13px] text-faint hover:no-underline">

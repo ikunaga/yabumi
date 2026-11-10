@@ -95,7 +95,6 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
         <ActionBar
           label={<span className="text-signal">● 要確認</span>}
           title="いまの目標は投稿の本数です。成果の目標に変えましょう"
-          wrap
           action={
             ai ? (
               <ButtonLink href={consultHref} size="sm">

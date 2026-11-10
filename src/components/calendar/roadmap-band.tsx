@@ -61,8 +61,9 @@ export function WeekBandView({ band, base, today, compact = false }: { band: Wee
   );
 }
 
-// やること 1 つ。押すと中身と「この内容で投稿をつくる」を出す
-export function TodoButton({ todo, base, variant = "band" }: { todo: CalendarTodo; base: string; variant?: "band" | "day" }) {
+// やること 1 つ。押すと中身と「この内容で投稿をつくる」を出す。
+// 題名は、PC の月・週のマス（day）だけ 1 行で切り、週の帯（band）は 2 行、スマホの日ごとの一覧（list）は 3 行まで折り返す
+export function TodoButton({ todo, base, variant = "band" }: { todo: CalendarTodo; base: string; variant?: "band" | "day" | "list" }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   // 中身は body 直下に出す（月のマスの overflow で切れないように）。サーバーで描くときは出さない
   const mounted = useSyncExternalStore(
@@ -80,15 +81,17 @@ export function TodoButton({ todo, base, variant = "band" }: { todo: CalendarTod
         aria-haspopup="dialog"
         onClick={() => dialogRef.current?.showModal()}
         title={todo.title}
-        className={`inline-flex max-w-full min-w-0 items-center gap-1 rounded-sm border text-left text-xs leading-5 ${
-          variant === "day" ? "relative z-10 w-full px-1" : "px-1.5 py-px"
+        className={`inline-flex max-w-full min-w-0 gap-1 rounded-sm border text-left text-xs leading-5 ${
+          variant === "day" ? "relative z-10 w-full items-center px-1" : variant === "list" ? "w-full items-start px-2 py-1" : "items-start px-1.5 py-px"
         } ${finished ? "border-line bg-surface2 text-muted" : "border-primary/30 bg-primary-soft text-primary hover:border-primary"}`}
       >
         <span aria-hidden className={todo.status === "done" || todo.status === "achieved" ? "font-bold text-success" : ""}>
           {TODO_MARK[todo.status]}
         </span>
         <span className="sr-only">{todo.status === "done" ? "済み" : todo.status === "achieved" ? "数字で達成" : todo.status === "skipped" ? "やらない" : "やること"}:</span>
-        <span className={`truncate ${todo.status === "done" ? "line-through" : ""}`}>{todo.title}</span>
+        <span className={`min-w-0 ${variant === "day" ? "truncate" : variant === "list" ? "line-clamp-3 break-words" : "line-clamp-2 break-words"} ${todo.status === "done" ? "line-through" : ""}`}>
+          {todo.title}
+        </span>
         {variant === "band" && todo.progress && <span className="shrink-0 text-muted">{todo.progress.replace(/（予約 \d+）/, "")}</span>}
         {todo.overdue && (
           <span className="shrink-0 font-bold text-signal" title="予定日を過ぎています">

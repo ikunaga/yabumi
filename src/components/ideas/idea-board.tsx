@@ -338,7 +338,7 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
             <ul className="flex flex-col">
               {latest.ideas.slice(0, 4).map((idea, i) => (
                 <li key={i} className="flex items-center gap-2 border-t border-line py-2 text-[15px] first:border-t-0">
-                  <span className="min-w-0 flex-1 truncate">{idea.title}</span>
+                  <span className="line-clamp-2 min-w-0 flex-1 break-words">{idea.title}</span>
                   {latest.adopted?.[String(i)] && <span className="shrink-0 text-[13px] font-bold text-success">✓ 下書き</span>}
                 </li>
               ))}

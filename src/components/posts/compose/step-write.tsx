@@ -1,66 +1,21 @@
 "use client";
 
-import { DraftRestoreBar } from "@/components/ui/draft-restore";
-import { clearFormDraft } from "@/lib/form-draft";
 import Link from "next/link";
 import { chipClass } from "@/components/ui/chip";
 import { HelpTip } from "@/components/ui/help";
 import { SELF_WRITTEN_ENOUGH } from "@/lib/plan/voice-rules";
 import { VoiceInputButton } from "@/components/ui/voice-input";
-import { ErrorBanner } from "@/components/ui/feedback";
 import { TidyDraftPanel } from "../tidy-draft-panel";
 import { PostFormatPicker } from "../post-format-picker";
 import { insertFormatted } from "@/lib/post-formats/schema";
 import { SNS } from "@/lib/sns";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { isSideBySide, type Composer } from "./use-composer";
 
-// ① 書く: 本文・AI で整える・書いたのは誰（docs/design/compose-steps.md。段階 A では、いままでと同じ並びのまま切り出しただけ）
-export function ComposeStepWrite({ c }: { c: Composer }) {
-  const { formatUse, setFormatUse, planHints, projectId, postId, initial, aiCheckEnabled, selfWrittenPosts, hasVoiceMemo, body, setBody, bodyRef, overrides, setOverrides, setFocus, tidyAdopted, setTidyAdopted, textOrigin, setTextOrigin, result, noteIds, draftKey, markTyped, restorable, setRestorable, restoreDraft, resetOpen, setResetOpen, resetRound, headingRef, resetChanges, resetAll, checks, sentAny, chosen, focus, toSend, clearFieldError, showBody, editOverride, fe, focusLabel, splitSns, bodySns, plannedLabel, countText, closeReset } = c;
+// ① 書く: 本文・AI で整える・書いたのは誰（docs/design/compose-steps.md）。見出し・リセット・保存のエラー・書きかけの帯は、どのステップでも見えるよう上の帯（compose-top.tsx）に置く
+export function ComposeStepWrite({ c, steps = false }: { c: Composer; steps?: boolean }) {
+  const { goStep, formatUse, setFormatUse, planHints, projectId, initial, aiCheckEnabled, selfWrittenPosts, hasVoiceMemo, body, setBody, bodyRef, overrides, setOverrides, setFocus, tidyAdopted, setTidyAdopted, textOrigin, setTextOrigin, noteIds, markTyped, resetRound, checks, sentAny, chosen, focus, toSend, clearFieldError, showBody, editOverride, fe, focusLabel, splitSns, bodySns, countText } = c;
   return (
     <>
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 id="draft-heading" ref={headingRef} tabIndex={-1} className="text-[18px] font-bold outline-none max-sm:text-[16px]">
-          本文
-        </h2>
-        <span className="flex items-baseline gap-3">
-          {plannedLabel && <span className="num text-[15px] text-faint">{plannedLabel} {sentAny ? "に送信" : "予約"}</span>}
-          {/* 送った投稿では出さない。何も変えていないときも出さない */}
-          {!sentAny && resetChanges.length > 0 && (
-            <button
-              type="button"
-              aria-haspopup="dialog"
-              onClick={() => setResetOpen(true)}
-              className="text-[13px] text-muted underline-offset-2 hover:text-fg hover:underline"
-            >
-              {postId ? "保存した内容に戻す" : "リセット"}
-            </button>
-          )}
-        </span>
-      </div>
-      <p className="sr-only" role="status" aria-live="polite">
-        {resetRound > 0 ? (postId ? "保存した内容に戻しました。" : "書いた内容をリセットしました。") : ""}
-      </p>
-      <ConfirmDialog
-        open={resetOpen}
-        title={postId ? "保存した内容に戻しますか？" : "書いた内容をリセットしますか？"}
-        confirmLabel={postId ? "戻す" : "リセットする"}
-        onConfirm={resetAll}
-        onClose={closeReset}
-      >
-        <p>{postId ? "この画面で変えた次のものが、保存したときの内容に戻ります。" : "次のものを消して、開いたときの状態に戻します。"}</p>
-        <ul className="list-disc pl-5">
-          {resetChanges.map((c) => (
-            <li key={c}>{c}</li>
-          ))}
-        </ul>
-        <p className="text-[13px] text-muted">元には戻せません。</p>
-      </ConfirmDialog>
-
-      {result.error && <ErrorBanner>{result.error}</ErrorBanner>}
-      {restorable && <DraftRestoreBar at={restorable.at} what="本文の書きかけ" onRestore={restoreDraft} onDiscard={() => (clearFormDraft(draftKey), setRestorable(null))} />}
-
       {/* 投稿のフォーマット（docs/design/post-formats.md の 4）。穴を埋めて本文に入れる。穴の言葉は利用者が打ったものなので、書きかけの控えに乗せる */}
       {!sentAny && (
         <PostFormatPicker
@@ -157,12 +112,17 @@ export function ComposeStepWrite({ c }: { c: Composer }) {
           }}
           onShowBody={showBody}
           onEditOverride={editOverride}
+          onPickSns={steps ? () => goStep(2) : undefined}
           onAdoptedChange={(adopted) => {
             setTidyAdopted(adopted);
             if (adopted) setTextOrigin("ai");
           }}
           format={formatUse}
         />
+      )}
+      {/* ステップの画面では、整える SNS（いまの送り先）を 1 行で添える（送り先は ② で選ぶ。compose-steps.md の 2.） */}
+      {steps && aiCheckEnabled && toSend.length > 0 && (!sentAny || toSend.length > 0) && (
+        <p className="-mt-1.5 text-[13px] text-muted">{toSend.map((s) => SNS[s].label).join("・")} 向けに整えます（送り先は次のステップで変えられます）</p>
       )}
       <TextOriginChoice value={textOrigin} onChange={setTextOrigin} />
       {noteIds.length > 0 && (

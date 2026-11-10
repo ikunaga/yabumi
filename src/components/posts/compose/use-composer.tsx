@@ -9,7 +9,8 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransiti
 import { flushSync } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { deletePost, savePost, sendSavedPost } from "@/lib/posts/actions";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { canGoNext, fieldErrorStep, parseStep, problemsByStep, startStep, stepMarks, type StepNo } from "@/lib/posts/compose-steps";
 import { clearSending, markSending } from "../send-progress";
 import type { SavePostResult } from "@/lib/posts/schema";
 import type { PostLinkPreview } from "@/lib/links/store";
@@ -166,6 +167,20 @@ export function useComposer({
   const [confirmSend, setConfirmSend] = useState(false);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  // いまのステップ（docs/design/compose-steps.md）。URL の ?step に持つ（ブラウザの戻るで前のステップへ。読み込み直しても同じステップ）
+  const searchParams = useSearchParams();
+  const [firstStep] = useState(() => startStep({ saved: postId !== null, body: initial.body }));
+  const composeStep = parseStep(searchParams.get("step"), firstStep);
+  // 一度開いたステップ（上の進みの ✓ と、問題の ● を出すかに使う）
+  const [visited, setVisited] = useState<ReadonlySet<StepNo>>(() => new Set([firstStep]));
+  // ステップを移る。replace: 履歴に足さない（書きかけを戻したとき・保存のエラーで移るとき）
+  function goStep(n: StepNo, opts: { replace?: boolean } = {}) {
+    setVisited((v) => new Set([...v, composeStep, n]));
+    const url = new URL(window.location.href);
+    url.searchParams.set("step", String(n));
+    if (opts.replace) window.history.replaceState(null, "", url);
+    else window.history.pushState(null, "", url);
+  }
   // 押したボタン（押した瞬間から、そのボタンを「〜しています…」にし、ほかの操作を止める）。
   // 今すぐ送るでは、保存できたら sending に投稿の id と送る SNS を入れ、投稿の画面に移るまで進み具合を出す（4.36）
   const [busy, setBusy] = useState<"draft" | "schedule" | "now" | null>(null);
@@ -220,8 +235,8 @@ export function useComposer({
     const now: PostDraft = { body, overrides, titles };
     const step = draftStep({ same: samePostDraft(now, initialDraft), typed: typed.current });
     if (step === "clear") clearFormDraft(draftKey);
-    else if (step === "write") writeFormDraft(draftKey, now, draftBase);
-  }, [body, overrides, titles, found, draftKey, initialDraft, draftBase]);
+    else if (step === "write") writeFormDraft(draftKey, { ...now, step: composeStep }, draftBase);
+  }, [body, overrides, titles, found, draftKey, initialDraft, draftBase, composeStep]);
   function restoreDraft() {
     if (!restorable) return;
     const v = restorable.value;
@@ -229,6 +244,8 @@ export function useComposer({
     setOverrides(v.overrides ?? {});
     setTitles(v.titles ?? {});
     setRestorable(null);
+    // 控えたときのステップに戻す（前の版の控えにはない）
+    if (typeof v.step === "number") goStep(parseStep(String(v.step), composeStep), { replace: true });
   }
   const quiet = !touched;
 
@@ -465,7 +482,12 @@ export function useComposer({
       }
       // 成功時はサーバーで画面を移るので、ここに来るのは失敗したときだけ。古い画面・通信が切れているときも、書いた内容は消さずに理由を出す（4.35）
       if (!out.ok) setResult({ error: out.failure.message });
-      else if (out.value) setResult(out.value);
+      else if (out.value) {
+        setResult(out.value);
+        // 欄のエラーは、その欄のあるステップに移って見せる
+        const at = fieldErrorStep(out.value.fieldErrors ?? {});
+        if (at && at !== composeStep) goStep(at, { replace: true });
+      }
     });
   }
 
@@ -573,7 +595,26 @@ export function useComposer({
       </Button>
     );
   };
+  // ステップごとの問題（まだ何も書いていない新しい投稿では出さない）
+  const stepProblems = quiet
+    ? []
+    : problemsByStep({
+        issues: toSend.map((sns) => ({ sns, label: SNS[sns].label, issues: checks[sns].issues, override: overrides[sns] !== undefined, issueLabel: (i) => ISSUE_LABEL[i] })),
+        noTargets: chosen.length === 0,
+        missingConnect: missingConnect.map((s) => SNS[s].label),
+        reconnect: images.length > 0 ? toSend.filter((s) => needImageReconnect.includes(s)).map((s) => SNS[s].label) : [],
+        needsTime: !plannedAt,
+      });
+  const marks = stepMarks({ current: composeStep, visited, problems: stepProblems, filled: { 1: body.trim() !== "", 2: chosen.length > 0, 3: images.length > 0 } });
+  const nextOk = canGoNext(composeStep, { body, chosen: chosen.length });
+
   return {
+    composeStep,
+    goStep,
+    visited,
+    stepProblems,
+    marks,
+    nextOk,
     projectId,
     projectName,
     postId,

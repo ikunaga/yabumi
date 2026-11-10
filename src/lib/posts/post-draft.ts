@@ -1,7 +1,8 @@
 import type { SnsKey } from "@/lib/sns";
 
 // 投稿をつくるの書きかけの控え（src/lib/form-draft.ts。docs/architecture.md の 4.35）で比べる中身: 本文・SNS ごとの文面・タイトル
-export type PostDraft = { body: string; overrides: Partial<Record<SnsKey, string>>; titles: Partial<Record<SnsKey, string>> };
+// step: 控えたときのステップ（docs/design/compose-steps.md の 4.。戻すと同じステップから。比べる中身には入れない）
+export type PostDraft = { body: string; overrides: Partial<Record<SnsKey, string>>; titles: Partial<Record<SnsKey, string>>; step?: number };
 
 // 書き始めたときの値を、比べられる形の文字にする（空の文面・タイトルは無いのと同じ。並びもそろえる）
 export function postDraftBase(d: PostDraft): string {

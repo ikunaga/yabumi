@@ -34,7 +34,7 @@ describe("概要: 30 日の比べ", () => {
 });
 
 describe("概要: 数字のカード 4 枚（出せるものから。準備中で埋めない）", () => {
-  it("何もつないでいない人は、投稿数・予約中・下書きの本当の数だけ（ダウンロードやクリックは出さない）", () => {
+  it("何もつないでいない人は、SNS への投稿・予約中・下書きの本当の数だけ（ダウンロードやクリックは出さない）", () => {
     const cards = pickOverviewCards({ ...empty, scheduledCount: 2, draftCount: 5 });
     expect(cards.map((c) => [c.key, c.value])).toEqual([
       ["posts", 0],
@@ -46,7 +46,7 @@ describe("概要: 数字のカード 4 枚（出せるものから。準備中�
     expect(cards.some((c) => /SNS 経由|DL 率/.test(c.label))).toBe(false);
   });
 
-  it("ストアと短縮リンクがあれば a ダウンロード・b クリック・c 投稿数（うち予約）・d 追いかける数字", () => {
+  it("ストアと短縮リンクがあれば a ダウンロード・b クリック・c SNS への投稿（予約中の投稿）・d 追いかける数字", () => {
     const cards = pickOverviewCards({
       ...empty,
       downloads: { thisWeek: 112, lastWeek: 100 },
@@ -56,17 +56,17 @@ describe("概要: 数字のカード 4 枚（出せるものから。準備中�
       kpis: ["posts", "followers", "views"],
       kpiValues: { followers: { thisWeek: 120, lastWeek: 100 }, views: { thisWeek: 900, lastWeek: 0 } },
     });
-    expect(cards.map((c) => c.label)).toEqual(["ダウンロード", "ストアへのクリック", "投稿数", "フォロワーの増え方"]);
+    expect(cards.map((c) => c.label)).toEqual(["ダウンロード", "ストアへのクリック", "SNS への投稿", "フォロワーの増え方"]);
     expect(cards[0]).toMatchObject({ value: 112, deltaPct: 12, note: "前の 30 日比" });
     expect(cards[1]).toMatchObject({ value: 30, deltaPct: null, note: "前の 30 日は 0" });
-    expect(cards[2]).toMatchObject({ value: 4, deltaPct: 100, note: "うち予約 3 件" });
+    expect(cards[2]).toMatchObject({ value: 4, deltaPct: 100, note: "予約中の投稿 3 件", unit: "本" });
     expect(cards[3]).toMatchObject({ kpi: "followers", value: 120, deltaPct: 20, note: "直近 7 日・先週比" });
   });
 
   it("追いかける数字に値がなければ飛ばし、予約中・下書きで埋める", () => {
     const cards = pickOverviewCards({ ...empty, clicks: [], kpis: ["views", "revenue"], kpiValues: {}, scheduledCount: 1, draftCount: 0 });
     expect(cards.map((c) => c.key)).toEqual(["link_clicks", "posts", "scheduled", "drafts"]);
-    // 予約中のカードがあるので、投稿数には「うち予約」を添えない
+    // 予約中のカードがあるので、SNS への投稿には予約中の投稿の数を添えない
     expect(cards[1].note).toBeUndefined();
   });
 

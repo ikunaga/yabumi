@@ -40,9 +40,13 @@ function PaceLine({ projectId, coach }: { projectId: string; coach: CoachView | 
       {coach ? (
         <PaceChip projectId={projectId} view={coach} />
       ) : (
-        <Link href={`/projects/${projectId}/plan?open=first_month`} className="hover:text-fg hover:underline">
-          投稿のペース: 週の回数を決める
-        </Link>
+        // 押せるものは下線つき（前は灰色の地の文に見え、押せるとわからなかった。2026-11-12 PMO のローカルでの確かめ）
+        <span>
+          投稿のペース:{" "}
+          <Link href={`/projects/${projectId}/plan?open=first_month`} className="font-bold text-fg underline">
+            週の回数を決める
+          </Link>
+        </span>
       )}
     </div>
   );

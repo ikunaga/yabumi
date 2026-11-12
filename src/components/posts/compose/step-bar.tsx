@@ -7,7 +7,7 @@ import { findUrls } from "@/lib/posts/profile-link";
 import { type Composer } from "./use-composer";
 
 // 鍵盤が開いているか（スマホ。見えている高さが画面より大きく減ったとき）。開いている間は下の帯を隠し、書いている欄に重ねない
-export function useKeyboardOpen(): boolean {
+function useKeyboardOpen(): boolean {
   const [open, setOpen] = useState(false);
   useEffect(() => {
     const vv = window.visualViewport;

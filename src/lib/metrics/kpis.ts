@@ -35,7 +35,8 @@ export const KPIS: Record<KpiKey, KpiDef> = {
   },
   posts: {
     label: "投稿した回数",
-    meaning: "続けられているかの数字。始めたばかりのうちは、数字が小さくても続けることがいちばん大事です。",
+    // SNS ごとに数える（概要・分析の「SNS への投稿」と同じ。2026-11-12 PMO のローカルでの確かめ）
+    meaning: "続けられているかの数字。SNS ごとに数えます（1 本の投稿を 2 つの SNS に出すと 2 回）。始めたばかりのうちは、数字が小さくても続けることがいちばん大事です。",
     availability: "ready",
   },
   link_clicks: {

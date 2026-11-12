@@ -10,6 +10,7 @@ import { projectSettingsHref } from "@/lib/projects/paths";
 import type { RoadmapItem } from "@/lib/roadmap/load";
 import { todoAction } from "@/lib/roadmap/todo-kind";
 import { isManualSns, SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
+import { isXByHand } from "@/lib/sns/x/send-rules";
 import type { ProjectSnsAccount } from "@/lib/sns/queries";
 import { dayOfMonth, formatShort, monthOf, weekdayLabel } from "@/lib/time";
 
@@ -139,7 +140,7 @@ export function AttentionStrip({
           {failed.length > 0 && (
             <Group title="送れなかった投稿">
               {failed.map((p) => {
-                const f = p.targets.find((t) => t.status === "failed");
+                const f = p.targets.find((t) => t.status === "failed" && !isXByHand(t));
                 return (
                   <li key={p.id}>
                     <Link href={`${base}/posts/${p.id}`} className="font-bold hover:underline">

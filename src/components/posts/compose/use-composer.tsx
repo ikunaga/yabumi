@@ -530,7 +530,8 @@ export function useComposer({
     setConfirmSend(false);
     setBusy(intent);
     // 自動で送る SNS（note・Substack は手で投稿するので、ここでは送らない）
-    const autoSns = toSend.filter((s) => !isManualSns(s));
+    // X を手で投稿するときは、送る進み具合に X を出さない（送らないので）
+    const autoSns = toSend.filter((s) => !isManualSns(s) && !(xByHand && s === "x"));
     if (intent === "now") setSending({ postId: null, sns: autoSns });
     startTransition(async () => {
       const out = await callAction(() => savePost({

@@ -13,6 +13,10 @@ import { xPostCostUsd } from "@/lib/sns/x/pricing";
 import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
 
 vi.mock("server-only", () => ({}));
+let current: TestClient;
+vi.mock("@/lib/supabase/server", () => ({ createClient: async () => current }));
+const { listPostsNeedingAttention } = await import("@/lib/posts/queries");
+const { loadCalendarStats } = await import("@/lib/calendar/stats");
 
 const admin = adminClient();
 const key = randomBytes(32);
@@ -30,6 +34,7 @@ beforeAll(async () => {
   projectId = (await alice.from("projects").insert({ name: "ねむり日和" }).select("id").single()).data!.id;
   const account = (sns: "x" | "threads") =>
     saveConnectedAccount(admin, { ownerId: aliceId, sns, externalId: `${sns}-${randomUUID()}`, displayName: "", handle: "nemuri", accessToken: "tok", refreshToken: "r", expiresAt: new Date("2099-01-01"), scopes: sns === "x" ? ["media.write"] : [] }, key);
+  current = alice;
   xAccountId = await account("x");
   threadsAccountId = await account("threads");
 });
@@ -111,5 +116,18 @@ describe("「X は手で投稿する」を選んだ X の配信先", () => {
     await admin.from("post_targets").update({ status: "published", external_post_id: "1", published_at: new Date().toISOString() }).eq("post_id", postId!);
     await markXByHand(admin, postId!, aliceId);
     expect((await admin.from("post_targets").select("status").eq("post_id", postId!).single()).data!.status).toBe("published");
+  });
+
+  it("概要の「送れなかった投稿」とカレンダーの失敗の数に、手で投稿の X だけの投稿は入らない。ほかの失敗は入る", async () => {
+    const save = async () =>
+      (await alice.rpc("save_post", { p_post_id: null as unknown as string, p_project_id: projectId, p_body: "数える", p_planned_at: "2099-01-15T00:00:00Z", p_status: "scheduled", p_targets: [{ sns: "x", social_account_id: xAccountId }, { sns: "threads", social_account_id: threadsAccountId }] })).data!;
+    const hand = await save();
+    await markXByHand(admin, hand, aliceId);
+    const broken = await save();
+    await admin.from("post_targets").update({ status: "failed", error_message: "Threads に送れませんでした" }).eq("post_id", broken).eq("sns", "threads");
+    const ids = (await listPostsNeedingAttention(projectId, 50)).map((p) => p.id);
+    expect(ids).toContain(broken);
+    expect(ids).not.toContain(hand);
+    expect((await loadCalendarStats(projectId, "2099-01", alice)).failed).toBe(1);
   });
 });

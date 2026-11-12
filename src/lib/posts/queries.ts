@@ -3,6 +3,7 @@ import { cache } from "react";
 import { SNS_KEYS, isSnsKey, type SnsKey } from "@/lib/sns";
 import { createClient } from "@/lib/supabase/server";
 import { dueManualPostIds, overduePostIds } from "./overdue";
+import { NOT_X_BY_HAND_FILTER } from "@/lib/sns/x/send-rules";
 
 export type TargetStatus = "pending" | "preparing" | "publishing" | "published" | "failed" | "deleted";
 export type PostTargetRow = {
@@ -166,6 +167,8 @@ export async function listPostsNeedingAttention(projectId: string, limit = 5) {
     .select(POST_SELECT_FAILED_ONLY)
     .eq("project_id", projectId)
     .eq("post_targets.status", "failed")
+    // 「X は手で投稿する」を選んだ X は、送れなかったものに数えない
+    .or(NOT_X_BY_HAND_FILTER, { referencedTable: "post_targets" })
     .order("planned_at", { ascending: false })
     .limit(limit);
   if (error) throw error;

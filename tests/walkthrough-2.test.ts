@@ -1,11 +1,16 @@
 // PMO の通しテストで見つかった 4 件（fix/walkthrough-2）: X の月の上限を送る前に出す・Threads のトピック・AI のチェックが利用者のタグや仕掛けの言葉を消させない・AI の案で共通の本文を残す
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { AI_CHECK_SYSTEM } from "@/lib/ai/ai-check";
 import { adoptTidyOption, type TidyOption } from "@/lib/ai/tidy-draft-apply";
 import { problemsByStep } from "@/lib/posts/compose-steps";
 import { PREVIEW, threadsTopic } from "@/lib/sns/preview";
 import { X_PRICE_USD } from "@/lib/sns/x/pricing";
-import { X_BY_HAND_MESSAGE, inLaterJstMonth, jstMonth, judgeXSend, xOverMessage, xSendCostUsd } from "@/lib/sns/x/send-rules";
+import { X_BY_HAND_MESSAGE, inLaterJstMonth, isXByHand, jstMonth, judgeXSend, xOverMessage, xSendCostUsd } from "@/lib/sns/x/send-rules";
+import type { PostRow, PostTargetRow } from "@/lib/posts/queries";
+
+vi.mock("server-only", () => ({}));
+vi.mock("@/lib/supabase/server", () => ({ createClient: async () => ({}) }));
+const { displayStatus } = await import("@/components/posts/post-chip");
 
 describe("X の月の上限（送信ジョブの reserve_sns_spend と同じ比べ方）", () => {
   const base = { userSpentUsd: 0, totalSpentUsd: 0, costUsd: X_PRICE_USD.post_with_url, userBudgetUsd: 1, budgetUsd: 3 };
@@ -85,5 +90,20 @@ describe("AI の案を使っても、共通の本文は残す", () => {
     const next = adoptTidyOption(option, { body: "利用者の本文", overrides: {} });
     expect(next.body).toBe("利用者の本文");
     expect(next.overrides).toEqual({ x: "連想映画クイズ\n答えはリプで", instagram: "連想映画クイズ\n答えはコメントで\n#映画クイズ" });
+  });
+});
+
+describe("「X は手で投稿する」は失敗に数えない（判定は isXByHand の 1 か所）", () => {
+  const t = (over: Partial<PostTargetRow>): PostTargetRow => ({ id: "t", sns: "x", status: "failed", body_override: null, title: null, external_post_id: null, external_url: null, sns_removed_at: null, error_message: X_BY_HAND_MESSAGE, published_at: null, next_attempt_at: null, quote_post_id: null, hashtags: [], ...over });
+  const post = (targets: PostTargetRow[]): PostRow => ({ id: "p", body: "本文", planned_at: "2026-11-12T12:00:00Z", status: "scheduled", targets, images: 0, textOrigin: null });
+  it("X の失敗で、決まった文のときだけ手で投稿", () => {
+    expect(isXByHand(t({}))).toBe(true);
+    expect(isXByHand(t({ error_message: "今月の X の自動投稿の上限（1 人 $1）に達しました。" }))).toBe(false);
+    expect(isXByHand(t({ sns: "threads" }))).toBe(false);
+    expect(isXByHand(t({ status: "published" }))).toBe(false);
+  });
+  it("投稿の札（カレンダー・一覧）は、手で投稿の X だけなら「失敗あり」にしない（手で投稿する SNS と同じく、記録するまで予約のまま）。ほかが失敗なら失敗あり", () => {
+    expect(displayStatus(post([t({}), t({ id: "t2", sns: "threads", status: "published", error_message: null, published_at: "2026-11-12T12:00:00Z" })]))).toBe("scheduled");
+    expect(displayStatus(post([t({}), t({ id: "t2", sns: "threads", error_message: "送れませんでした" })]))).toBe("failed");
   });
 });

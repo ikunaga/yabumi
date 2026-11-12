@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
 import { SNS_KEYS, type SnsKey } from "@/lib/sns";
+import { NOT_X_BY_HAND_FILTER } from "@/lib/sns/x/send-rules";
 import { addMonths, startOfYmd } from "@/lib/time";
 
 // カレンダーの上の数字と右の列（見本 C）。いまあるデータだけで出す（DL・相関・空き枠は出さない。2026-10-30 の PM の回答）。
@@ -44,7 +45,13 @@ export async function loadCalendarStats(projectId: string, ym: string, db?: Supa
       .gte("post_targets.published_at", from)
       .lt("post_targets.published_at", to),
     supabase.from("posts").select("id", head).eq("project_id", projectId).eq("status", "draft"),
-    supabase.from("posts").select("id, post_targets!inner(id)", head).eq("project_id", projectId).eq("post_targets.status", "failed"),
+    supabase
+      .from("posts")
+      .select("id, post_targets!inner(id)", head)
+      .eq("project_id", projectId)
+      .eq("post_targets.status", "failed")
+      // 「X は手で投稿する」を選んだ X は、失敗に数えない
+      .or(NOT_X_BY_HAND_FILTER, { referencedTable: "post_targets" }),
     ...SNS_KEYS.map((sns) =>
       supabase
         .from("post_targets")

@@ -208,19 +208,17 @@ function MainBand({
           <ul className="flex flex-col gap-1">
             {others.map((t) => (
               <li key={t.id} className="flex flex-wrap items-baseline gap-x-3">
-                <Link href={actionOf(t).href} className="font-bold text-fg hover:underline">
-                  {t.title}
-                </Link>
-                {actionOf(t).kind !== "post" && <span className="text-xs text-muted">{actionOf(t).label}</span>}
+                {/* 題名は地の文（押せるものは右の下線つきのリンクだけ）。行き先と「済みにする」は同じ見た目の小さなリンクにそろえる。
+                    前は題名が太字のリンク（押せるように見えない）で、行き先の名前は押せない灰色の文字だった。下の「ロードマップを見る」は
+                    行の「ロードマップで見る」とかぶるのでなくした（ロードマップはメニューからも開ける）（2026-11-12 PM の指摘） */}
+                <span className="font-bold text-fg">{t.title}</span>
                 <TodoText item={t} progress={progress[t.id]} only="progress" />
+                <Link href={actionOf(t).href} className="text-xs text-muted underline hover:text-fg">
+                  {actionOf(t).label}
+                </Link>
                 {!progress[t.id] && <MarkDoneButton projectId={projectId} itemId={t.id} title={t.title} variant="link" />}
               </li>
             ))}
-            <li>
-              <Link href={roadmapHref} className="text-sm hover:underline">
-                ロードマップを見る
-              </Link>
-            </li>
           </ul>
         </Disclosure>
       )}

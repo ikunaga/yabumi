@@ -15,7 +15,11 @@ type TodoText = { kpi?: string | null; title: string; detail?: string | null };
 // 設定・準備のやることの行き先（題名と説明の言葉から決める）。決まらなければ null
 type SetupTarget = { path: (base: string, projectId: string) => string; label: string };
 const SETUP_TARGETS: { re: RegExp; target: SetupTarget }[] = [
-  { re: /プロフィール|自己紹介|アイコン|表示名|ユーザー名|ハンドル/, target: { path: (b) => `${b}/plan?open=profile#plan-profile-head`, label: "プロフィールを開く" } },
+  // プロフィールのやることの行き先は、yabumi のアカウント設計の「名前とプロフィール」（SNS ごとの案と、プロフィールに置く短縮リンク）。
+  // 名前は「〜の案」「置くリンク」にして、SNS（Instagram など）のプロフィールが開くと読めないようにする
+  // （2026-11-12 PMO の本番での通しテスト: 「…短縮リンクを、Instagram のプロフィールに置く」の横の「プロフィールを開く」が、Instagram が開くと読めた）
+  { re: /(?:プロフィール|自己紹介)[^\n]*(?:リンク|URL)|(?:リンク|URL)[^\n]*(?:プロフィール|自己紹介)/i, target: { path: (b) => `${b}/plan?open=profile#plan-profile-head`, label: "置くリンクを見る" } },
+  { re: /プロフィール|自己紹介|アイコン|表示名|ユーザー名|ハンドル/, target: { path: (b) => `${b}/plan?open=profile#plan-profile-head`, label: "プロフィールの案を見る" } },
   { re: /短縮リンク/, target: { path: (b) => `${b}/links`, label: "短縮リンクを開く" } },
   { re: /ハッシュタグ/, target: { path: (b) => `${b}/plan?open=hashtags#plan-hashtags-head`, label: "設計を開く" } },
   { re: /投稿の柱|口調/, target: { path: (b) => `${b}/plan?open=pillars#plan-pillars-head`, label: "設計を開く" } },

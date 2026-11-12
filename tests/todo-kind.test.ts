@@ -48,11 +48,23 @@ describe("押したときの行き先", () => {
   });
 
   it("設定は中身に合う画面。決まらなければロードマップのその行", () => {
-    expect(todoAction(base, item("プロフィールを整える", "setup"), { aiEnabled: true })).toEqual({ kind: "setup", href: "/projects/p1/plan?open=profile#plan-profile-head", label: "プロフィールを開く" });
+    expect(todoAction(base, item("プロフィールを整える", "setup"), { aiEnabled: true })).toEqual({ kind: "setup", href: "/projects/p1/plan?open=profile#plan-profile-head", label: "プロフィールの案を見る" });
     expect(todoAction(base, item("ストアのページを直す", "setup"), { aiEnabled: true }).href).toBe("/projects/p1/stores");
     expect(todoAction(base, item("短縮リンクを作る", "setup"), { aiEnabled: true }).href).toBe("/projects/p1/links");
     expect(todoAction(base, item("SNS をつなぐ", "setup"), { aiEnabled: true }).href).toBe("/projects/p1/edit#sns");
     expect(todoAction(base, item("顧客の声を集める", "setup"), { aiEnabled: true })).toEqual({ kind: "other", href: "/projects/p1/roadmap#item-i1", label: "ロードマップで見る" });
+  });
+
+  // 2026-11-12 PMO の本番での通しテスト: 「Instagram のプロフィールに置く」の横の「プロフィールを開く」が、Instagram が開くと読めた
+  it("プロフィールに置くリンクのやることは、設計の「名前とプロフィール」の「置くリンクを見る」。SNS が開くと読める名前にしない", () => {
+    const a = todoAction(base, item("ddy の App Store ページの短縮リンクを、Instagram のプロフィールに置く", "setup"), { aiEnabled: true });
+    expect(a).toEqual({ kind: "setup", href: "/projects/p1/plan?open=profile#plan-profile-head", label: "置くリンクを見る" });
+    expect(todoAction(base, item("自己紹介に予約ページの URL を入れる", "setup"), { aiEnabled: true }).label).toBe("置くリンクを見る");
+    // プロフィールでない短縮リンクのやることは、短縮リンクの画面のまま
+    expect(todoAction(base, item("短縮リンクを作る", "setup"), { aiEnabled: true }).label).toBe("短縮リンクを開く");
+    for (const t of ["プロフィールを整える", "Instagram のプロフィールに置く", "アイコンを変える"]) {
+      expect(todoAction(base, item(t, "setup"), { aiEnabled: true }).label).not.toMatch(/Instagram|X|Threads|を開く$/);
+    }
   });
 
   it("ほかはロードマップのその行（済みにする・やらないができる所）", () => {

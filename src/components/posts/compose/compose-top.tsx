@@ -1,6 +1,7 @@
 "use client";
 
 import { DraftRestoreBar } from "@/components/ui/draft-restore";
+import { useKeyboardOpen } from "./step-bar";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { clearFormDraft } from "@/lib/form-draft";
@@ -41,13 +42,28 @@ export function ComposeResetControl({ c }: { c: Composer }) {
   );
 }
 
-// 保存のエラーと、書きかけの帯
+// 保存のエラーと、書きかけの帯。
+// 書きかけの帯は、画面が動き出したとき（この端末の控えを読んだとき）に出るので、本文の欄より上に差し込むと欄が下にずれ、
+// 押した所が別のものに変わって打った文字が入らなかった（2026-11-12 PMO の本番での通しテスト）。欄を動かさないよう、画面の下に浮かせて出す
+// （PC は下の中央、スマホは画面の上）。戻すか捨てるかを選ぶと消える。
+// スマホを下にしないのは、背の低い画面（375×667 など）で「戻る・次へ」の帯の上に置くと本文の欄に重なるため。上は見出しと進みの点で、打つ欄はない。
+// PC は浮いた帯の分、画面の下に余白を足す（ComposeDraftSpace）ので、下のボタンも帯の上までスクロールできる。鍵盤が開いている間は隠す（書いている欄に重ねない）
 export function ComposeAlerts({ c }: { c: Composer }) {
   const { result, restorable, restoreDraft, setRestorable, draftKey } = c;
+  const keyboard = useKeyboardOpen();
   return (
     <>
       {result.error && <ErrorBanner>{result.error}</ErrorBanner>}
-      {restorable && <DraftRestoreBar at={restorable.at} what="本文の書きかけ" onRestore={restoreDraft} onDiscard={() => (clearFormDraft(draftKey), setRestorable(null))} />}
+      {restorable && !keyboard && (
+        <div className="fixed inset-x-0 bottom-6 z-30 mx-auto w-[min(44rem,calc(100%-2rem))] rounded-md shadow-pop max-sm:top-[calc(env(safe-area-inset-top)+0.5rem)] max-sm:bottom-auto">
+          <DraftRestoreBar compact at={restorable.at} what="本文の書きかけ" onRestore={restoreDraft} onDiscard={() => (clearFormDraft(draftKey), setRestorable(null))} />
+        </div>
+      )}
     </>
   );
+}
+
+// 浮いた書きかけの帯の分の余白（PC だけ。画面のいちばん下に置く。上の欄は動かさない）
+export function ComposeDraftSpace({ c }: { c: Composer }) {
+  return c.restorable ? <div aria-hidden className="h-28 max-sm:hidden" /> : null;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { currentStepIndex, listNextStep, nowBandKind, STEPS, stepHref, type StepState } from "@/lib/projects/next-step";
+import { currentStepIndex, listNextStep, nowBandKind, STEPS, stepHref, weekTodoPhase, type StepState, type WeekTodoCounts } from "@/lib/projects/next-step";
 
 const none: StepState = { planDone: false, connectedSnsCount: 0, hasPublished: false, hasRoadmap: false };
 const step = (planDone: boolean, connectedSnsCount: number) => STEPS[currentStepIndex({ ...none, planDone, connectedSnsCount })].key;
@@ -35,7 +35,7 @@ describe("いまやること", () => {
 
 // プロジェクト一覧の「次にやること」（2026-10-22 の不具合: 投稿済みでも、いつも「最初の投稿をつくる」になっていた）
 describe("一覧の次にやること", () => {
-  const label = (over: Partial<StepState & { thisWeekTodo: number }>) => listNextStep({ ...none, thisWeekTodo: 0, ...over }).label;
+  const label = (over: Partial<StepState & { thisWeek: WeekTodoCounts }>) => listNextStep({ ...none, thisWeek: { open: 0, finished: 0 }, ...over }).label;
   const done = { planDone: true, connectedSnsCount: 1, hasPublished: true, hasRoadmap: true };
 
   it("済んだ段階ごとに変わる", () => {
@@ -46,13 +46,26 @@ describe("一覧の次にやること", () => {
   });
 
   it("投稿済みでロードマップもあれば、最初の投稿ではなく今週のやること（まだのものの数）", () => {
-    expect(label({ ...done, thisWeekTodo: 2 })).toBe("今週のやること あと 2 件");
-    expect(label({ ...done, thisWeekTodo: 0 })).toBe("今週のやることを見る");
-    expect(listNextStep({ ...done, thisWeekTodo: 0 }).stepIndex).toBe(STEPS.length);
+    expect(label({ ...done, thisWeek: { open: 2, finished: 1 } })).toBe("今週のやること あと 2 件");
+    expect(listNextStep({ ...done, thisWeek: { open: 0, finished: 0 } }).stepIndex).toBe(STEPS.length);
+  });
+
+  // 2026-11-12 オーナーの指摘「今週のやることおわってるのにプロジェクト一覧に反映されない」: 済んだ週も、決めていない週と同じ「今週のやることを見る」だった
+  it("今週のやることが全部済んだら「済みました」、まだ決めていなければ「決める」（概要の帯と同じ分け方）", () => {
+    expect(label({ ...done, thisWeek: { open: 0, finished: 3 } })).toBe("✓ 今週のやることは済みました");
+    expect(label({ ...done, thisWeek: { open: 0, finished: 0 } })).toBe("今週のやることを決める");
   });
 
   it("ロードマップを先に作っていても、投稿していなければ最初の投稿", () => {
-    expect(label({ planDone: true, connectedSnsCount: 1, hasRoadmap: true, thisWeekTodo: 3 })).toBe("最初の投稿をつくる");
+    expect(label({ planDone: true, connectedSnsCount: 1, hasRoadmap: true, thisWeek: { open: 3, finished: 0 } })).toBe("最初の投稿をつくる");
+  });
+});
+
+describe("今週のやることの段階（一覧と概要の帯で同じ）", () => {
+  it("まだのものがあれば open、全部済んだら done、ひとつもなければ none", () => {
+    expect(weekTodoPhase({ open: 1, finished: 4 })).toBe("open");
+    expect(weekTodoPhase({ open: 0, finished: 1 })).toBe("done");
+    expect(weekTodoPhase({ open: 0, finished: 0 })).toBe("none");
   });
 });
 

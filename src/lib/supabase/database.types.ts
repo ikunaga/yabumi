@@ -2495,6 +2495,7 @@ export type Database = {
           has_published: boolean
           has_roadmap: boolean
           project_id: string
+          this_week_done: number
           this_week_todo: number
         }[]
       }

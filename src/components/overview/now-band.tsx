@@ -10,7 +10,7 @@ import type { GoalReview } from "@/lib/goals/review";
 import { CYCLE_WEEKS, remainingText, type PaceStatus } from "@/lib/coach/pace";
 import { SNS } from "@/lib/sns";
 import { DismissableDetails } from "@/components/ui/dismissable-details";
-import { nowBandKind, STEPS, stepHref } from "@/lib/projects/next-step";
+import { nowBandKind, STEPS, stepHref, weekTodoPhase } from "@/lib/projects/next-step";
 import type { RoadmapItem } from "@/lib/roadmap/load";
 import { formatValue, kpiLabel } from "@/lib/roadmap/schema";
 import { todoAction } from "@/lib/roadmap/todo-kind";
@@ -153,15 +153,17 @@ function MainBand({
       週の回数を決める
     </Link>
   ) : null;
-  if (todos.length === 0) {
+  // 済んだ・まだ決めていないの分け方は、プロジェクトの一覧の「次にやること」と同じ（weekTodoPhase）
+  const phase = weekTodoPhase({ open: todos.length, finished: doneCount });
+  if (phase !== "open") {
     return (
       <ActionBar
         label="今週のやること"
-        title={doneCount > 0 ? `今週のやることは済みました（${doneCount} 件）` : "今週のやることを決めましょう"}
+        title={phase === "done" ? `今週のやることは済みました（${doneCount} 件）` : "今週のやることを決めましょう"}
         help={pace ?? setup}
         action={
-          <ButtonLink href={roadmapHref} size="sm" variant={doneCount > 0 ? "secondary" : "primary"}>
-            {doneCount > 0 ? "来週を見る" : "決める"}
+          <ButtonLink href={roadmapHref} size="sm" variant={phase === "done" ? "secondary" : "primary"}>
+            {phase === "done" ? "来週を見る" : "決める"}
           </ButtonLink>
         }
       />

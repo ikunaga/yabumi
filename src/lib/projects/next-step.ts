@@ -76,12 +76,25 @@ export function stepHref(key: StepKey, projectId: string): string {
   }
 }
 
-// プロジェクト一覧の「次にやること」。4 段階のうちまだのものがあればその段階、すべて済んだら今週のやること（まだのものの数）。
+// 今週のやることの数（まだ・済み）。一覧は DB の project_step_flags、概要は roadmap/load.ts の thisWeekCounts から。
+// 決め方は同じ（tests/todo-achieved.integration.test.ts で突き合わせる）。済みは手で済みにしたもの＋数字で達成したもの。やらないは数えない
+export type WeekTodoCounts = { open: number; finished: number };
+
+// 今週のやることの段階。まだのものがある（open）・全部済んだ（done）・まだ決めていない（none）。一覧と概要の帯はどちらもここで分ける
+// （2026-11-12 オーナーの指摘「今週のやることおわってるのにプロジェクト一覧に反映されない」: 一覧は済んだ週も「今週のやることを見る」だった）
+export type WeekTodoPhase = "open" | "done" | "none";
+export function weekTodoPhase(c: WeekTodoCounts): WeekTodoPhase {
+  if (c.open > 0) return "open";
+  return c.finished > 0 ? "done" : "none";
+}
+
+// プロジェクト一覧の「次にやること」。4 段階のうちまだのものがあればその段階、すべて済んだら今週のやること（まだの数・済み・決める）。
 // どれも概要（いまやること・今週のやること）へ
-export function listNextStep(state: StepState & { thisWeekTodo: number }): { label: string; stepIndex: number } {
+export function listNextStep(state: StepState & { thisWeek: WeekTodoCounts }): { label: string; stepIndex: number } {
   const stepIndex = currentStepIndex(state);
   if (stepIndex < STEPS.length) return { label: STEPS[stepIndex].shortTitle, stepIndex };
-  return { label: state.thisWeekTodo > 0 ? `今週のやること あと ${state.thisWeekTodo} 件` : "今週のやることを見る", stepIndex };
+  const label = { open: `今週のやること あと ${state.thisWeek.open} 件`, done: "✓ 今週のやることは済みました", none: "今週のやることを決める" }[weekTodoPhase(state.thisWeek)];
+  return { label, stepIndex };
 }
 
 // 概要の「いまやること」の帯に出すもの（いつも 1 つ出す。上から順に）。GitHub をつなぐ（任意）は帯の代わりにはせず、帯の下の小さな 1 行にする

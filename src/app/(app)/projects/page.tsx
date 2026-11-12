@@ -69,7 +69,7 @@ export default async function ProjectsPage(props: PageProps<"/projects">) {
             {projects.map((p) => {
               const state = states[p.id];
               const sns = state?.connectedSns ?? [];
-              const next = listNextStep(state ?? { planDone: false, connectedSnsCount: 0, hasPublished: false, hasRoadmap: false, thisWeekTodo: 0 });
+              const next = listNextStep(state ?? { planDone: false, connectedSnsCount: 0, hasPublished: false, hasRoadmap: false, thisWeek: { open: 0, finished: 0 } });
               const store = storeLabel(p);
               return (
                 <li key={p.id} className="flex min-w-0 flex-col rounded-lg border border-border bg-surface">
@@ -97,7 +97,7 @@ export default async function ProjectsPage(props: PageProps<"/projects">) {
                     className="flex items-center gap-2 border-t border-line px-6 py-3 text-[15px] hover:bg-surface2 hover:no-underline max-sm:px-4"
                   >
                     <span className="shrink-0 rounded-full bg-subtle px-2.5 py-0.5 text-xs font-bold text-muted">次にやること</span>
-                    <b className="min-w-0 truncate">{next.label}</b>
+                    <b className="line-clamp-2 min-w-0 break-words [word-break:auto-phrase]">{next.label}</b>
                     <span aria-hidden className="ml-auto text-faint">
                       →
                     </span>

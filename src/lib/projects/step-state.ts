@@ -5,9 +5,9 @@ import type { SnsKey } from "@/lib/sns";
 import { activeSnsByProject } from "@/lib/sns/queries";
 import { createClient } from "@/lib/supabase/server";
 import { toYmd } from "@/lib/time";
-import type { StepState } from "./next-step";
+import type { StepState, WeekTodoCounts } from "./next-step";
 
-export type ProjectStepState = StepState & { connectedSns: SnsKey[]; thisWeekTodo: number };
+export type ProjectStepState = StepState & { connectedSns: SnsKey[]; thisWeek: WeekTodoCounts };
 
 // 「いまやること」（next-step.ts）の判定に使う値を、プロジェクトごとにまとめて取る。一覧と概要はどちらもここから取る
 // （2026-10-22 の不具合: 一覧が投稿済みかとロードマップの有無を渡しておらず、いつも「最初の投稿をつくる」になった）。
@@ -36,7 +36,7 @@ export async function loadStepStates(projects: { id: string; target_audience: st
           connectedSns,
           hasPublished: f?.has_published ?? false,
           hasRoadmap: f?.has_roadmap ?? false,
-          thisWeekTodo: Number(f?.this_week_todo ?? 0),
+          thisWeek: { open: Number(f?.this_week_todo ?? 0), finished: Number(f?.this_week_done ?? 0) },
         },
       ];
     }),

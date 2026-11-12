@@ -38,7 +38,7 @@ async function flags(client: TestClient, projectId: string | null = null) {
 describe("project_step_flags", () => {
   it("投稿もロードマップもなければ、どれも false・0", async () => {
     const f = await flags(alice);
-    expect(f.get(fresh)).toEqual({ project_id: fresh, has_published: false, has_roadmap: false, this_week_todo: 0 });
+    expect(f.get(fresh)).toEqual({ project_id: fresh, has_published: false, has_roadmap: false, this_week_todo: 0, this_week_done: 0 });
   });
 
   it("送信済みの配信先があれば投稿済み（失敗・予約だけでは済みにしない）", async () => {
@@ -59,13 +59,13 @@ describe("project_step_flags", () => {
     expect(itemsError).toBeNull();
     await admin.from("goals").insert({ project_id: fresh, owner_id: aliceId, statement: "SNS から 30 クリック", metric: "link_clicks", target: 30, starts_on: WEEK, ends_on: "2026-12-31" });
     const f = await flags(alice);
-    expect(f.get(posted)).toMatchObject({ has_published: true, has_roadmap: true, this_week_todo: 2 });
-    expect(f.get(fresh)).toMatchObject({ has_published: false, has_roadmap: true, this_week_todo: 0 });
+    expect(f.get(posted)).toMatchObject({ has_published: true, has_roadmap: true, this_week_todo: 2, this_week_done: 1 });
+    expect(f.get(fresh)).toMatchObject({ has_published: false, has_roadmap: true, this_week_todo: 0, this_week_done: 0 });
   });
 
   it("一覧の次にやること: 投稿済みでロードマップもあれば、最初の投稿ではなく今週のやること", async () => {
     const f = (await flags(alice)).get(posted)!;
-    const next = listNextStep({ planDone: true, connectedSnsCount: 1, hasPublished: f.has_published, hasRoadmap: f.has_roadmap, thisWeekTodo: Number(f.this_week_todo) });
+    const next = listNextStep({ planDone: true, connectedSnsCount: 1, hasPublished: f.has_published, hasRoadmap: f.has_roadmap, thisWeek: { open: Number(f.this_week_todo), finished: Number(f.this_week_done) } });
     expect(next.label).toBe("今週のやること あと 2 件");
   });
 

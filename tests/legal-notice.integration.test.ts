@@ -1,6 +1,7 @@
 // 利用規約・プライバシーポリシーの変更の知らせを全員に送る（決定 D31。docs/architecture.md の 4.30）。
 // 二重に送らない、1 日の上限で日を分ける、送れなかった人に送り直す、送り始める前・知らせる前は送らない、権限。
 // メールは送らない（送る部品を差し替える）。送る相手はテストの利用者に絞る（共有のローカル DB のほかの利用者に送らない）
+import { randomInt } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { MAX_ATTEMPTS, noticeMail, noticeProgress, sendLegalNoticeBatch, startLegalNotice } from "@/lib/legal/notice-mail";
 import type { LegalRevision } from "@/lib/legal/version";
@@ -10,11 +11,15 @@ const admin = adminClient();
 const users: { id: string; client: Awaited<ReturnType<typeof signUpNewUser>>["client"] }[] = [];
 const versions: string[] = [];
 
-// テストごとに別の版（遠い先の施行日）。知らせ始める日は過去
+// テストごとに別の版（遠い先の施行日）。知らせ始める日は過去。
+// 版（送る記録のまとまり）は全員で 1 つなので、同じマシンで同時に流れたほかの回（ほかの担当の `pnpm test`）と同じ版にならないよう、
+// 年を回ごとにばらばらにする（前は月だけで 9 通りしかなく、ほかの回が先に終えた版を「送り終えた」と見て 0 通になった。2026-11-12）
+const RUN_YEAR = 2100 + randomInt(7800);
+const RUN_MONTH = 1 + randomInt(12);
 let seq = 0;
 function change(over: Partial<LegalRevision> = {}): LegalRevision {
   seq += 1;
-  const version = `2099-${String((Date.now() % 9) + 1).padStart(2, "0")}-${String(seq + 10).padStart(2, "0")}`;
+  const version = `${RUN_YEAR}-${String(RUN_MONTH).padStart(2, "0")}-${String(seq + 10).padStart(2, "0")}`;
   versions.push(version);
   return { version, docs: ["terms", "privacy"], summary: ["送り先に Google を足す"], adverse: false, noticeFrom: "2026-01-01", ...over };
 }
@@ -74,7 +79,9 @@ describe("送る", () => {
     expect(await sendLegalNoticeBatch(admin, deps, c)).toMatchObject({ sent: 0 });
     // 同時に 2 つ動いても、1 人に 1 通
     const c2 = change();
-    await admin.from("legal_notice_campaigns").insert({ version: c2.version });
+    // ほかの回と版がぶつかったら、ここで止める（黙って続けると送った数がずれて、原因がわかりにくい）
+    const { error } = await admin.from("legal_notice_campaigns").insert({ version: c2.version });
+    if (error) throw error;
     const [a, b] = await Promise.all([sendLegalNoticeBatch(admin, deps, c2), sendLegalNoticeBatch(admin, deps, c2)]);
     expect(a.sent + b.sent).toBe(3);
     expect(sendMail).toHaveBeenCalledTimes(6);

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { COMPOSE_STEPS, type StepNo } from "@/lib/posts/compose-steps";
 import { findUrls } from "@/lib/posts/profile-link";
 import { SNS } from "@/lib/sns";
@@ -10,15 +11,33 @@ import { type Composer } from "./use-composer";
 export function ComposeSummary({ c }: { c: Composer }) {
   const { body, chosen, images, shortLinks, textFor, tagsFor, stepProblems, goStep, isLocked } = c;
   // SNS ごとのタグ（同じタグの SNS はまとめる。4.59）
-  const tagGroups = new Map<string, string[]>();
+  const tagGroups = new Map<string, { labels: string[]; tags: string[] }>();
   for (const s of chosen) {
-    const line = hashtagLine(tagsFor(s));
-    if (line) tagGroups.set(line, [...(tagGroups.get(line) ?? []), SNS[s].label]);
+    const tags = tagsFor(s);
+    const line = hashtagLine(tags);
+    if (!line) continue;
+    const g = tagGroups.get(line) ?? { labels: [], tags };
+    g.labels.push(SNS[s].label);
+    tagGroups.set(line, g);
   }
-  const tagLines = [...tagGroups].map(([line, labels]) => `タグ ${labels.join("・")}: ${line}`);
+  // タグの途中（# と言葉の間）で折り返さないよう、タグを 1 つずつ折り返さない塊にする
+  const tagLines = [...tagGroups].map(([line, g]) => ({
+    key: line,
+    node: (
+      <>
+        タグ {g.labels.join("・")}:{" "}
+        {g.tags.map((t, i) => (
+          <span key={t} className="whitespace-nowrap">
+            #{t}
+            {i < g.tags.length - 1 ? " " : ""}
+          </span>
+        ))}
+      </>
+    ),
+  }));
   const firstLine = body.trim().split("\n")[0] ?? "";
   const hasLink = findUrls(body).length > 0 || chosen.some((s) => findUrls(textFor(s)).length > 0);
-  const rows: { n: StepNo; text: string; sub?: string[] }[] = [
+  const rows: { n: StepNo; text: string; sub?: { key: string; node: ReactNode }[] }[] = [
     { n: 1, text: firstLine ? (firstLine.length > 40 ? `${firstLine.slice(0, 40)}…` : firstLine) : "まだ書いていません" },
     { n: 2, text: chosen.length ? chosen.map((s) => `${SNS[s].label}${isLocked(s) ? "（投稿済み）" : ""}`).join("・") : "まだ選んでいません", sub: tagLines },
     { n: 3, text: images.length ? `画像 ${images.length} 枚` : "画像なし" },
@@ -39,8 +58,8 @@ export function ComposeSummary({ c }: { c: Composer }) {
                 <span className="text-[13px] text-muted">{COMPOSE_STEPS[r.n - 1].label}</span>
                 <span className="text-[15px] break-words">{r.text}</span>
                 {r.sub?.map((t) => (
-                  <span key={t} className="text-[13px] break-words text-muted">
-                    {t}
+                  <span key={t.key} className="text-[13px] text-muted">
+                    {t.node}
                   </span>
                 ))}
                 {problems.map((p) => (

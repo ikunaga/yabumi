@@ -47,6 +47,33 @@ describe("達成の決め方（effectiveStatus）", () => {
   });
 });
 
+// 2026-11-12 PMO の本番での通しテスト: 数字のない投稿のやることは、ここから投稿をつくって送っても「まだ」に残った
+describe("数字で数えないやることは、ここから作った投稿を送ったら達成", () => {
+  const linked = (linkedPublished: number, linkedScheduled = 0) => ({ published: linkedPublished, scheduled: linkedScheduled, linkedPublished, linkedScheduled });
+
+  it("結びついた投稿の配信先が 1 つ以上送信済みなら達成。予約だけ・なしはまだ", () => {
+    expect(effectiveStatus(item({ posts: linked(1) }), null)).toBe("achieved");
+    expect(effectiveStatus(item({ posts: linked(0, 2) }), null)).toBe("todo");
+    expect(effectiveStatus(item({ posts: linked(0) }), null)).toBe("todo");
+    expect(effectiveStatus(item({ posts: null }), null)).toBe("todo");
+  });
+
+  it("手で数える数字（フォロワーなど）のやることも、ここから作った投稿を送れば達成", () => {
+    const manual = item({ kind: "other", kpi: "followers", target: 10, posts: linked(1) });
+    expect(effectiveStatus(manual, itemProgress(manual, []))).toBe("achieved");
+  });
+
+  it("自動で数える数字があるやることは、その数字で決める（結びついた投稿を送っても、目標に届かなければまだ）", () => {
+    const three = item({ kpi: "posts", target: 3, posts: linked(1) });
+    expect(effectiveStatus(three, itemProgress(three, []))).toBe("todo");
+  });
+
+  it("済み・やらないは手で決めたまま", () => {
+    expect(effectiveStatus(item({ status: "skipped", posts: linked(1) }), null)).toBe("skipped");
+    expect(effectiveStatus(item({ status: "done" }), null)).toBe("done");
+  });
+});
+
 describe("今週のやること（概要の帯・残りの一覧・件数）", () => {
   // オーナーの ddy: 「X と Instagram に合わせて 3 本投稿」は 5 / 3 で達成。ほかに 2 件まだ、1 件済み、1 件やらない
   const view: RoadmapView = {

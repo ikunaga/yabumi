@@ -217,8 +217,8 @@ export async function gatherConsultContext(
         .filter((i) => i.weekStart === view.thisWeek || i.weekStart === nextWeek)
         .map((i) => {
           const p = itemProgress(i, view.daily);
-          // 数字が目標に届いたまだのやることは「済み（数字で達成）」と渡す（AI が「まだ」と取り違えて促さないように）
-          const status = effectiveStatus(i, p) === "achieved" ? "済み（数字で達成）" : i.status;
+          // 数字が目標に届いた・ここから作った投稿を送ったまだのやることは「済み」と渡す（AI が「まだ」と取り違えて促さないように）
+          const status = effectiveStatus(i, p) === "achieved" ? (p ? "済み（数字で達成）" : "済み（ここから作った投稿を送った）") : i.status;
           return { week: i.weekStart === view.thisWeek ? "今週" : "来週", title: i.title, status, progress: p && i.kpi ? `${kpiLabel(i.kpi, i.sns)} ${formatValue(i.kpi, p.actual)} / ${formatValue(i.kpi, p.target)}` : null };
         }),
     },

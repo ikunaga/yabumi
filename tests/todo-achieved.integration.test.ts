@@ -2,6 +2,7 @@
 // 週の区切り（日本時間の月曜 0 時）とクリックの数え方（roadmap_daily_totals のその週）が、DB とアプリで食い違わないこと。
 // まだの数に加えて済んだ数も突き合わせる（一覧の「✓ 今週のやることは済みました」。2026-11-12 オーナーの指摘）。予約だけ・一部の SNS だけ送れた・手で済み・やらないも
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { toCalendarTodo } from "@/lib/calendar/roadmap-view";
 import { listNextStep } from "@/lib/projects/next-step";
 import { loadRoadmapWith, thisWeekCounts, thisWeekTodos } from "@/lib/roadmap/load";
 import { adminClient, deleteUser, signUpNewUser, type TestClient, goalLess } from "./helpers/supabase";
@@ -138,5 +139,92 @@ describe("数字で達成したやることを、一覧と概要で同じに数�
   it("他人のプロジェクトは数えない", async () => {
     const { data } = await bob.rpc("project_step_flags", { p_project_id: projectId, p_week_start: WEEK });
     expect(data).toEqual([]);
+  });
+});
+
+// 2026-11-12 PMO の本番での通しテスト: 数字で数えないやることは、そのやることから作った投稿（roadmap_item_id）を送っても「まだ」に残った。
+// 結びついた投稿の配信先が 1 つ以上送信済みなら済み。予約だけ・失敗だけでは済みにしない。一覧（DB）・概要とロードマップ（thisWeekCounts）・カレンダーで同じ
+describe("数字で数えないやることは、ここから作った投稿を送ったら済み（一覧・概要・カレンダーで同じ）", () => {
+  let pid: string;
+  let profileId: string;
+  let writeId: string;
+
+  async function linkedPost(itemId: string, targets: { sns: "x" | "threads"; status: "pending" | "published" | "failed"; published_at?: string }[]) {
+    const { data, error } = await admin
+      .from("posts")
+      .insert({ project_id: pid, owner_id: aliceId, body: "x", status: "scheduled", planned_at: "2026-10-22T03:00:00Z", roadmap_item_id: itemId })
+      .select("id")
+      .single();
+    if (error) throw error;
+    const t = await admin.from("post_targets").insert(targets.map((x) => ({ post_id: data.id, owner_id: aliceId, ...x })));
+    if (t.error) throw t.error;
+  }
+
+  async function compareAll() {
+    const view = await loadRoadmapWith(alice, pid, NOW);
+    const { data, error } = await alice.rpc("project_step_flags", { p_project_id: pid, p_week_start: view.thisWeek });
+    if (error) throw error;
+    const app = thisWeekCounts(view);
+    const calendar = view.items.filter((i) => i.weekStart === view.thisWeek).map((i) => toCalendarTodo(i, view.daily, view.today));
+    return {
+      db: [Number(data[0].this_week_todo), Number(data[0].this_week_done)],
+      app: [app.open, app.finished],
+      calendarOpen: calendar.filter((t) => t.status === "todo").map((t) => t.title),
+      overviewOpen: thisWeekTodos(view).map((t) => t.title),
+    };
+  }
+
+  beforeAll(async () => {
+    pid = (await alice.from("projects").insert({ name: "結びついた投稿" }).select("id").single()).data!.id;
+    const { data, error } = await admin
+      .from("roadmap_items")
+      .insert(
+        goalLess([
+          { project_id: pid, owner_id: aliceId, title: "季節のおすすめで 1 本書く", week_start: WEEK, status: "todo", kind: "post", position: 0 },
+          { project_id: pid, owner_id: aliceId, title: "プロフィールに短縮リンクを置く", week_start: WEEK, status: "todo", kind: "setup", position: 1 },
+        ]),
+      )
+      .select("id, title");
+    if (error) throw error;
+    writeId = data.find((r) => r.title.startsWith("季節"))!.id;
+    profileId = data.find((r) => r.title.startsWith("プロフィール"))!.id;
+  });
+
+  it("予約しただけ・失敗しただけの投稿では済みにしない", async () => {
+    await linkedPost(writeId, [{ sns: "x", status: "pending" }]);
+    await linkedPost(writeId, [{ sns: "threads", status: "failed" }]);
+    const r = await compareAll();
+    expect(r.db).toEqual([2, 0]);
+    expect(r.app).toEqual([2, 0]);
+    expect(r.calendarOpen).toEqual(["季節のおすすめで 1 本書く", "プロフィールに短縮リンクを置く"]);
+  });
+
+  it("結びついた投稿の配信先が 1 つ送信済みなら済み（一部の SNS だけ送れた投稿も）", async () => {
+    await linkedPost(writeId, [
+      { sns: "x", status: "published", published_at: "2026-10-22T03:00:00Z" },
+      { sns: "threads", status: "failed" },
+    ]);
+    const r = await compareAll();
+    expect(r.db).toEqual([1, 1]);
+    expect(r.app).toEqual([1, 1]);
+    expect(r.calendarOpen).toEqual(["プロフィールに短縮リンクを置く"]);
+    expect(r.overviewOpen).toEqual(["プロフィールに短縮リンクを置く"]);
+    // DB の status は書き換えない
+    const { data } = await admin.from("roadmap_items").select("status").eq("id", writeId).single();
+    expect(data!.status).toBe("todo");
+  });
+
+  it("結びついていない投稿は数えない。手で済みにすれば、どこでも済み", async () => {
+    // このプロジェクトの、やることと結びついていない送った投稿
+    const { data: free, error } = await admin.from("posts").insert({ project_id: pid, owner_id: aliceId, body: "x", status: "draft" }).select("id").single();
+    if (error) throw error;
+    await admin.from("post_targets").insert({ post_id: free.id, owner_id: aliceId, sns: "x", status: "published", published_at: "2026-10-23T03:00:00Z" });
+    expect((await compareAll()).db).toEqual([1, 1]);
+    expect((await compareAll()).app).toEqual([1, 1]);
+    await admin.from("roadmap_items").update({ status: "done" }).eq("id", profileId);
+    const r = await compareAll();
+    expect(r.db).toEqual([0, 2]);
+    expect(r.app).toEqual([0, 2]);
+    expect(r.calendarOpen).toEqual([]);
   });
 });

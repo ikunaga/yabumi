@@ -123,11 +123,15 @@ export function itemProgress(
 // やることの、読むときの状態。自動で数える数字（AUTO_KPIS）が付いたまだのやることは、その週の数字が目標に届いたら「達成」（achieved）。
 // DB の status は書き換えない（数字があとで減ったら「まだ」に戻る）。済み（done）・やらない（skipped）は手で決めたまま。
 // 達成は「済み」と同じに数える（今週の件数・概要の帯の先頭・プロジェクトの一覧・カレンダー・予定日を過ぎたやること。オーナーの指摘 2026-11-03）。
+// 数字で数えないやること（自動で数える数字がない・目標の値がない。progress が null）は、そのやることから作った投稿（posts.roadmap_item_id で
+// 結びついた投稿）の配信先が 1 つ以上送信済み（published）になったら「達成」。予約だけ・失敗だけでは達成にしない
+// （2026-11-12 PMO の本番での通しテスト: 数字のない投稿のやることは、ここから投稿をつくって送っても、手でチェックするまで「まだ」に残った）。
 // DB で数えるプロジェクトの一覧（project_step_flags）も同じ決め方
 export type ItemState = "todo" | "done" | "skipped" | "achieved";
-export function effectiveStatus(item: { status: "todo" | "done" | "skipped" }, progress: { actual: number; target: number } | null): ItemState {
-  if (item.status === "todo" && progress && progress.actual >= progress.target) return "achieved";
-  return item.status;
+export function effectiveStatus(item: { status: "todo" | "done" | "skipped"; posts?: ItemPostCounts | null }, progress: { actual: number; target: number } | null): ItemState {
+  if (item.status !== "todo") return item.status;
+  if (progress) return progress.actual >= progress.target ? "achieved" : "todo";
+  return (item.posts?.linkedPublished ?? 0) >= 1 ? "achieved" : "todo";
 }
 
 // 済んだか（手で済みにした・数字で達成した）

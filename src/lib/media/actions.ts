@@ -4,8 +4,9 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { ownRecentPhotoJob } from "@/lib/ai/photo-gen";
-import { PREVIEW_URL_SECONDS } from "./rules";
-import { MediaError, discardUnattached, issueUpload, ownAiMedia, signedUrls, verifyUpload, type MediaFile, type UploadTicket } from "./store";
+import { MAX_IMAGES_PER_POST, PREVIEW_URL_SECONDS } from "./rules";
+import { requireUser } from "@/lib/auth/user";
+import { MediaError, discardUnattached, restoreImages, issueUpload, ownAiMedia, signedUrls, verifyUpload, type MediaFile, type UploadTicket } from "./store";
 
 // 画面から呼ぶ、画像の添付の操作（docs/architecture.md の 4.18）。画像そのものは Vercel の関数を通さず、
 // ブラウザが署名つきの URL で Storage に直接上げる。ここでは URL の発行と、上げたあとの確かめだけを行う
@@ -72,4 +73,22 @@ export async function discardImage(id: string): Promise<void> {
   const userId = await currentUserId();
   if (!userId) return;
   await discardUnattached(createAdminClient(), userId, id);
+}
+
+// 書きかけの控えの画像を戻す（docs/architecture.md の 4.62）。控えにあるのは id と説明文だけなので、ここで本人のものか確かめて読み直す。
+// 読むのは利用者の権限（RLS が本人の行に絞る）。戻すのは、この投稿の画像と、まだどこにも添えていない新しい画像だけ（restorableRows）。
+// 消えた画像・ほかの人の画像・別の投稿やメモの画像は返さない（画面で、戻せなかった枚数を知らせる）。
+// プレビューの URL は、確かめた行の分だけサーバーの権限で作る（Storage は本人でも直接読めないようにしてある。loadPostImages と同じ）
+export type RestoredImage = Awaited<ReturnType<typeof restoreImages>>[number];
+export async function restoreDraftImages(postId: unknown, ids: unknown): Promise<{ images: RestoredImage[]; error?: string }> {
+  const p = z.uuid().nullable().safeParse(postId);
+  const list = z.array(z.uuid()).max(MAX_IMAGES_PER_POST).safeParse(ids);
+  if (!p.success || !list.success) return { images: [], error: "入力の形式が正しくありません。" };
+  await requireUser();
+  try {
+    const images = await restoreImages(await createClient(), (paths) => signedUrls(createAdminClient(), paths, PREVIEW_URL_SECONDS), p.data, list.data, new Date());
+    return { images };
+  } catch (e) {
+    return { images: [], ...failure(e, "画像を戻せませんでした。") };
+  }
 }

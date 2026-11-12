@@ -6,11 +6,30 @@ import { FORM_DRAFT_DAYS, draftTimeLabel } from "@/lib/form-draft";
 
 // 「保存していない書きかけがあります」の帯（docs/architecture.md の 4.35）。戻すか捨てるかを選んでもらう（黙って上書きも捨てもしない）
 // compact: 画面の下に浮かせる短い形（「この端末に残っていたもの」は「?」に畳む。投稿をつくる）
-export function DraftRestoreBar({ at, onRestore, onDiscard, what = "書きかけ", compact = false }: { at: number; onRestore: () => void; onDiscard: () => void; what?: string; compact?: boolean }) {
+// note: 時刻のあとに添える一言（画像を戻せないことがある、など）
+export function DraftRestoreBar({
+  at,
+  onRestore,
+  onDiscard,
+  what = "書きかけ",
+  note,
+  compact = false,
+}: {
+  at: number;
+  onRestore: () => void;
+  onDiscard: () => void;
+  what?: string;
+  note?: string;
+  compact?: boolean;
+}) {
   return (
     <div role="status" className={`flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-line bg-surface2 text-sm leading-[1.7] ${compact ? "px-4 py-2" : "px-4 py-3"}`}>
       <span className={`min-w-0 ${compact ? "flex-[1_1_12rem]" : "flex-[1_1_16rem]"}`}>
-        <b>保存していない{what}があります</b>（{draftTimeLabel(at)}）{compact ? "" : "。この端末に残っていたものです。"}
+        <b>保存していない{what}があります</b>
+        {/* 一言を添えるときは、スマホの幅では時刻を省く（帯が 3 行になって、下の欄に重ならないように） */}
+        <span className={note ? "max-sm:hidden" : ""}>（{draftTimeLabel(at)}）</span>
+        {compact ? "" : "。この端末に残っていたものです。"}
+        {note && <span className="text-muted max-sm:ml-1">{note}</span>}
         {/* いつ消えるかを添える（2026-11-09 オーナーの指摘「端末に残ってる書きかけのやついつ消える」） */}
         <HelpTip label="書きかけはいつ消えるか" align="right">
           {compact && "この端末に残っていたものです。"}

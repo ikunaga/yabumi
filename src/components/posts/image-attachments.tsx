@@ -425,7 +425,7 @@ export function ImageAttachments({
               <div className="flex aspect-square items-center justify-center overflow-hidden rounded-md bg-surface2">
                 {image.previewUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element -- 署名つきの URL は期限があり、next/image の最適化を通さない
-                  <img src={image.previewUrl} alt={image.altText || `${i + 1} 枚目の画像`} className="size-full object-cover" />
+                  <img src={image.previewUrl} alt={image.altText || `${i + 1} 枚目の画像`} className="size-full object-contain" />
                 ) : (
                   <span className="text-xs text-muted">{i + 1}</span>
                 )}

@@ -8,6 +8,7 @@ import {
   MAX_IMAGES_PER_POST,
   MAX_UNATTACHED,
   MEDIA_BUCKET,
+  RESTORE_UNATTACHED_HOURS,
   SNS_FETCH_URL_SECONDS,
   USER_QUOTA_BYTES,
   KEEP_AFTER_SENT_DAYS,
@@ -196,6 +197,34 @@ export async function postMedia(db: SupabaseClient<Database>, postId: string): P
   const { data, error } = await db.from("media_files").select("*").eq("post_id", postId).order("position");
   if (error) throw error;
   return (data ?? []).map(toMediaFile);
+}
+
+// 書きかけの控えから戻せる画像か（4.62）: この投稿の画像か、まだどこにも添えていない（投稿にもメモにも）、上げてから RESTORE_UNATTACHED_HOURS 以内の画像。
+// rows は利用者の権限（RLS）で読んだ、本人の行だけ
+export function restorableRows<T extends { id: string; post_id: string | null; note_id: string | null; created_at: string }>(rows: T[], postId: string | null, now: Date): T[] {
+  const since = now.getTime() - RESTORE_UNATTACHED_HOURS * 3600_000;
+  return rows.filter((r) => (postId !== null && r.post_id === postId) || (r.post_id === null && r.note_id === null && Date.parse(r.created_at) > since));
+}
+
+// 書きかけの画像を読み直す（restoreDraftImages の中身。4.62）。db は利用者の権限のクライアント（RLS が本人の行に絞る）。
+// sign には、restorableRows で絞ったあとの行のパスだけを渡す（サーバーの権限で URL を作るのは、本人のものと確かめた画像だけ）。控えの順に並べて返す
+export async function restoreImages(
+  db: SupabaseClient<Database>,
+  sign: (paths: string[]) => Promise<Map<string, string>>,
+  postId: string | null,
+  ids: string[],
+  now: Date,
+): Promise<{ id: string; previewUrl: string | null; altText: string; width: number; height: number; sizeBytes: number; aiGenerated: boolean }[]> {
+  if (!ids.length) return [];
+  const { data, error } = await db.from("media_files").select("*").in("id", ids);
+  if (error) throw error;
+  const rows = restorableRows(data ?? [], postId, now);
+  const urls = await sign(rows.map((r) => r.storage_path));
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  return ids.flatMap((id) => {
+    const r = byId.get(id);
+    return r ? [{ id: r.id, previewUrl: urls.get(r.storage_path) ?? null, altText: r.alt_text, width: r.width, height: r.height, sizeBytes: r.size_bytes, aiGenerated: r.ai_generated }] : [];
+  });
 }
 
 // 期限つきの URL（画面のプレビューと、SNS が取りに来るとき）

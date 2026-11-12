@@ -20,6 +20,7 @@ import { type AttachedImage } from "../image-attachments";
 import { applyFix } from "@/lib/ai/ai-check";
 import { type NoteInsertMode } from "../note-picker";
 import { noteImageForCompose } from "@/lib/notes/actions";
+import { restoreDraftImages } from "@/lib/media/actions";
 import type { IdeaNote } from "@/lib/notes/rules";
 import { MAX_IMAGES_PER_POST } from "@/lib/media/rules";
 import { type PlanHintsData } from "../plan-hints";
@@ -227,6 +228,7 @@ export function useComposer({
       overrides: Object.fromEntries(initial.targets.filter((t) => t.bodyOverride !== null).map((t) => [t.sns, t.bodyOverride!])),
       titles: Object.fromEntries(initial.targets.filter((t) => t.title).map((t) => [t.sns, t.title!])),
       hashtags: initialTagInputs(initial),
+      images: (initial.images ?? []).map((i) => ({ id: i.id, altText: i.altText })),
     }),
     [initial],
   );
@@ -254,11 +256,13 @@ export function useComposer({
   }, [notice, draftKey, projectId]);
   useEffect(() => {
     if (!found || found.draft) return;
-    const now: PostDraft = { body, overrides, titles, hashtags: tagInputs };
+    const now: PostDraft = { body, overrides, titles, hashtags: tagInputs, images: images.map((i) => ({ id: i.id, altText: i.altText })) };
     const step = draftStep({ same: samePostDraft(now, initialDraft), typed: typed.current });
     if (step === "clear") clearFormDraft(draftKey);
     else if (step === "write") writeFormDraft(draftKey, { ...now, step: composeStep }, draftBase);
-  }, [body, overrides, titles, tagInputs, found, draftKey, initialDraft, draftBase, composeStep]);
+  }, [body, overrides, titles, tagInputs, images, found, draftKey, initialDraft, draftBase, composeStep]);
+  // 書きかけを戻したときに、戻せなかった画像の枚数（帯で知らせる）
+  const [restoreMissing, setRestoreMissing] = useState(0);
   function restoreDraft() {
     if (!restorable) return;
     const v = restorable.value;
@@ -270,6 +274,18 @@ export function useComposer({
     setRestorable(null);
     // 控えたときのステップに戻す（前の版の控えにはない）
     if (typeof v.step === "number") goStep(parseStep(String(v.step), composeStep), { replace: true });
+    // 画像（前の版の控えにはない。そのときは、いまの画像のまま）。id と説明文しか控えていないので、サーバーで本人のものか確かめて読み直す（4.62）。
+    // 消えた画像（添えていない画像は 1 日で片付ける）・ほかの人や別の投稿の画像は戻さず、枚数を知らせる。見出しの元は戻らない（開き直したときと同じ）
+    const want = v.images;
+    if (!want) return;
+    if (!want.length) return setImages([]);
+    void callAction(() => restoreDraftImages(postId, want.map((i) => i.id))).then((r) => {
+      // 通信が切れたなどで確かめられなかったときは、いまの画像のまま、戻せなかった枚数だけ知らせる
+      if (!r.ok || r.value.error) return setRestoreMissing(want.length);
+      const alt = new Map(want.map((i) => [i.id, i.altText]));
+      setImages(r.value.images.map((i) => ({ ...i, altText: alt.get(i.id) ?? i.altText })));
+      setRestoreMissing(want.length - r.value.images.length);
+    });
   }
   const quiet = !touched;
 
@@ -799,6 +815,8 @@ export function useComposer({
     restorable,
     setRestorable,
     restoreDraft,
+    restoreMissing,
+    setRestoreMissing,
     quiet,
     resetOpen,
     setResetOpen,

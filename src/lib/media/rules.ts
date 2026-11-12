@@ -32,6 +32,15 @@ export const KEEP_AFTER_SENT_DAYS = 30;
 
 // 画面のプレビューの署名 URL の長さ（秒）
 export const PREVIEW_URL_SECONDS = 60 * 60;
+
+// 書きかけの控えから戻せる、まだ投稿に添えていない画像の古さ（4.62）。添えていない画像は 1 日で片付ける（cleanup_media_candidates）ので、
+// 片付けの直前に戻して、保存する前に消えないよう、上げてから 20 時間までのものだけ戻す（保存するまで 4 時間は残る）
+export const RESTORE_UNATTACHED_HOURS = 20;
+
+// 書きかけの控えが、画像を戻せないことがある古さか（控えた時刻 at から RESTORE_UNATTACHED_HOURS を過ぎた）
+export function draftImagesMayBeGone(at: number, now = Date.now()): boolean {
+  return now - at > RESTORE_UNATTACHED_HOURS * 3600_000;
+}
 // SNS が画像を取りに来る署名 URL の長さ（秒）。送る直前に作る（予約の時刻とは関係しない）。
 // Threads・Instagram はコンテナを作るときに取りに来て、処理に数十秒〜数分かかることがあるので、余裕を見て 1 時間
 export const SNS_FETCH_URL_SECONDS = 60 * 60;

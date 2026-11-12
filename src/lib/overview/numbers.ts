@@ -25,7 +25,7 @@ export type OverviewCard = {
   deltaPct: number | null;
   // 遅れて届く数字がどのストアからもまだ届いていない（数は出さず、添え書きに「まだ届いていません」）
   notArrived?: true;
-  // 添え書き（「前の 30 日比」「うち予約 3 件」「直近 7 日・先週比」）
+  // 添え書き（「前の 30 日比」「予約中の投稿 3 件」「直近 7 日・先週比」）
   note?: string;
 };
 
@@ -91,7 +91,7 @@ export function dailySeries(rows: Daily[], today: string, days: number): Daily[]
 function compared(key: "downloads" | "link_clicks" | "posts", label: string, rows: Daily[], today: string, since?: string | null): OverviewCard {
   const { now, before } = compareDays(rows, today);
   // 単位は予約中・下書き（件）とそろえる。ダウンロードは数だけ（「DL」と書き分けない）
-  const unit = key === "posts" ? "件" : key === "link_clicks" ? "回" : undefined;
+  const unit = key === "posts" ? "本" : key === "link_clicks" ? "回" : undefined;
   if (!prevKnown(since, today)) return { key, label, value: now, unit, deltaPct: null, note: "前の記録はまだありません" };
   const deltaPct = pctChange(now, before);
   return { key, label, value: now, unit, deltaPct, note: deltaPct === null ? (before === 0 && now > 0 ? "前の 30 日は 0" : undefined) : "前の 30 日比" };
@@ -110,7 +110,7 @@ function delayedCard(base: Pick<OverviewCard, "key" | "kpi" | "label">, v: WeekV
 }
 
 // 4 枚のカードを、出せるものから順に選ぶ（PM と決めた a〜e。出せない数字は出さず、「準備中」でも埋めない）
-// a. ダウンロード（ストアをつないでいれば） b. 行き先へのクリック（アプリならストア。短縮リンクがあれば） c. 投稿数（いつも）
+// a. ダウンロード（ストアをつないでいれば） b. 行き先へのクリック（アプリならストア。短縮リンクがあれば） c. SNS への投稿（いつも。SNS ごとに数える）
 // d. 追いかける数字のうち a〜c 以外で値があるもの d'. Google Play が数えた SNS からの DL（つないでいれば）e. 予約中 → 下書き（いつも出せる本当の数。比べない）
 export function pickOverviewCards(input: OverviewInput, max = 4): OverviewCard[] {
   const { today } = input;
@@ -118,7 +118,9 @@ export function pickOverviewCards(input: OverviewInput, max = 4): OverviewCard[]
   if (input.downloads) cards.push(delayedCard({ key: "downloads", label: "ダウンロード" }, input.downloads, OVERVIEW_DAYS));
   if (input.clicks) cards.push(compared("link_clicks", clickLabel(input.productType), input.clicks, today, input.since?.clicks));
   const postsAt = cards.length;
-  cards.push(compared("posts", "投稿数", input.published, today, input.since?.posts));
+  // SNS ごとに数える（1 本の投稿を 2 つの SNS に出すと 2 本。分析・伴走・ロードマップの「投稿した回数」と同じ）。
+  // 前は「投稿数 2 件」で、投稿 1 件の数と読めた（2026-11-12 PMO のローカルでの確かめ）
+  cards.push(compared("posts", "SNS への投稿", input.published, today, input.since?.posts));
 
   for (const k of input.kpis) {
     if (cards.length >= max) break;
@@ -159,8 +161,8 @@ export function pickOverviewCards(input: OverviewInput, max = 4): OverviewCard[]
   ];
   for (const f of fillers) if (cards.length < max) cards.push(f);
 
-  // 予約中のカードがなければ、投稿数に「うち予約」を添える（見本 A の「うち予約 84 件」）
-  if (!cards.some((c) => c.key === "scheduled")) cards[postsAt] = { ...cards[postsAt], note: `うち予約 ${input.scheduledCount} 件` };
+  // 予約中のカードがなければ、SNS への投稿に予約中の投稿の数を添える（見本 A の「うち予約 84 件」。予約は投稿の数なので「件」）
+  if (!cards.some((c) => c.key === "scheduled")) cards[postsAt] = { ...cards[postsAt], note: `予約中の投稿 ${input.scheduledCount} 件` };
   return cards.slice(0, max);
 }
 

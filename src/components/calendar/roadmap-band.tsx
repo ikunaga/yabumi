@@ -183,7 +183,10 @@ function TodoDetail({ todo, base, titleId, onClose }: { todo: CalendarTodo; base
             {todo.action.kind === "post" ? "この内容で投稿をつくる" : todo.action.label}
           </ButtonLink>
         )}
-        {todo.status === "done" ? (
+        {/* 自動で達成したものは、押す「済みにする」を出さない（ロードマップの押せないチェックと同じ考え方。2026-11-12 PMO のローカルでの確かめ） */}
+        {todo.status === "achieved" ? (
+          <span className="text-sm font-bold text-success">✓ 達成（自動）</span>
+        ) : todo.status === "done" ? (
           <Button type="button" variant="secondary" size="sm" disabled={pending} onClick={() => run(() => setItemStatus(projectId, todo.id, "todo"))}>
             まだに戻す
           </Button>

@@ -11,7 +11,7 @@ import { ComposeStepImages } from "./compose/step-images";
 import { ComposeShortLinks } from "./compose/short-links";
 import { ComposeStepSend } from "./compose/step-send";
 import { ComposeAiCheck, ComposePlanHints } from "./compose/helpers";
-import { ComposeAlerts, ComposeDraftSpace, ComposeResetControl } from "./compose/compose-top";
+import { ComposeAlerts, ComposeResetControl } from "./compose/compose-top";
 import { ComposeStepNav } from "./compose/step-nav";
 import { ComposeStepBar } from "./compose/step-bar";
 import { ComposeSummary } from "./compose/summary";
@@ -85,7 +85,7 @@ export function PostComposer(props: ComposerProps) {
         {busy === "now" ? "送っています。数秒から数十秒かかります。このまま待ってください。" : busy === "schedule" ? "予約しています。" : busy === "draft" ? "保存しています。" : ""}
       </p>
       {/* 保存・送信を押したら、画面に移るか失敗が返るまで、本文の編集・送り先の変更などを止める（押せない・打てない） */}
-      <div className="flex flex-col gap-4" inert={busy !== null || undefined} aria-busy={busy !== null || undefined}>
+      <div className="relative flex flex-col gap-4" inert={busy !== null || undefined} aria-busy={busy !== null || undefined}>
       {/* 見出し。下書きに保存する・リセットは、どのステップでも押せるようここに置く */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <h1 className="text-[26px] font-bold max-sm:text-[22px]">{postId ? (sentAny ? "送った投稿" : "下書き") : "投稿をつくる"}</h1>
@@ -113,7 +113,6 @@ export function PostComposer(props: ComposerProps) {
       {steps ? (
         <div ref={stepsTopRef} className="flex flex-col gap-4">
           <StepsLayout c={c} wide={wide} start={start} notePicker={notePicker} headingRef={headingRef} />
-          <ComposeDraftSpace c={c} />
         </div>
       ) : (
         <ComposeSentView

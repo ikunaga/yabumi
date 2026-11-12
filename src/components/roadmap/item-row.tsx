@@ -42,19 +42,22 @@ export function RoadmapItemRow({
     <li id={`item-${item.id}`} className="flex scroll-mt-24 flex-col gap-1 border-b border-line px-6 py-3 last:border-b-0 target:bg-primary-soft/50 max-sm:px-4">
       {/* スマホはボタン（やらない・削除する）をタイトルの下の行に回す（横に並べるとタイトルが細くなるため） */}
       <div className="flex items-start gap-3 max-sm:flex-wrap">
+        {/* 自動で達成した（数字が目標に届いた・ここから作った投稿を送った）ものは、チェック済みで押せない四角にする。
+            前は四角が空のまま横に「✓ 達成」が並び、押すべきか迷った（2026-11-12 PMO のローカルでの確かめ）。自動の達成は数字で決まるので手では取り消せない
+            （数字が減ればまだに戻る。もうやらないなら「やらない」）。手で済みにしたものは、押せる四角と取り消し線のまま（押すと戻る） */}
         <input
           type="checkbox"
-          aria-label={`「${item.title}」を済みにする`}
-          checked={item.status === "done"}
-          disabled={pending}
+          aria-label={state === "achieved" ? `「${item.title}」は自動で達成しました` : `「${item.title}」を済みにする`}
+          checked={item.status === "done" || state === "achieved"}
+          disabled={pending || state === "achieved"}
           onChange={(e) => run(() => setItemStatus(projectId, item.id, e.target.checked ? "done" : "todo"))}
-          className="mt-1 size-4 shrink-0 accent-[var(--primary)]"
+          className="mt-1 size-4 shrink-0 accent-[var(--primary)] disabled:opacity-50"
         />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className={`text-[14px] ${state === "done" ? "text-muted line-through" : state === "skipped" || state === "achieved" ? "text-muted" : "font-bold"}`}>
             {item.title}
             {item.status === "skipped" && <span className="ml-2 text-xs font-normal">（やらない）</span>}
-            {state === "achieved" && <span className="ml-2 text-xs font-bold whitespace-nowrap text-success">✓ 達成</span>}
+            {state === "achieved" && <span className="ml-2 text-xs font-bold whitespace-nowrap text-success">✓ 達成（自動）</span>}
           </span>
           {item.detail && <span className="text-xs leading-6 text-muted">{item.detail}</span>}
           {item.kpi && item.target !== null && (

@@ -55,7 +55,8 @@ const COLS: Record<number, string> = { 1: "grid-cols-1", 2: "grid-cols-2", 3: "g
 
 // 日ごとの棒グラフで選べる数字
 const CHARTS = {
-  posts: { label: "投稿", unit: "本" },
+  // SNS ごとに数える（1 本の投稿を 2 つの SNS に出すと 2 本。概要と同じ名前）
+  posts: { label: "SNS への投稿", unit: "本" },
   clicks: { label: "ストアへのクリック", unit: "回" },
   downloads: { label: "ダウンロード", unit: "件" },
   page_views: { label: "ストアのページの閲覧", unit: "回" },

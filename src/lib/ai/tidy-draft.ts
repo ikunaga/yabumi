@@ -4,7 +4,7 @@ import { voiceExampleTexts } from "@/lib/plan/voice";
 import { cleanSlotValues, formatSlots } from "@/lib/post-formats/schema";
 import { getFormat } from "@/lib/post-formats/store";
 import { SNS, type SnsKey } from "@/lib/sns";
-import { tidyDraftHashtags } from "@/lib/sns/hashtags";
+import { extractHashtags, tidyDraftHashtags } from "@/lib/sns/hashtags";
 import type { Database } from "@/lib/supabase/database.types";
 import type { ModelOutput } from "./app-description";
 import { budgeted, withAiBudget } from "./budget";
@@ -65,6 +65,7 @@ ${DATA_RULES}
 - 投稿の本文では「顧客」と書かない。来てくれた方・買ってくれた方・使ってくれている方など、読む人に向けた呼び方にする
 - 改行は話の区切り（段落）だけにする。長い投稿で 1 文ごとに改行しない（X の短い投稿は 3 行まで）
 - ハッシュタグは、アカウント設計の「ハッシュタグ」の中から、その投稿に合うもの（「付けるとき」に当てはまるもの）だけを、本文の最後に付ける。合うものがなければ付けない。設計にないタグを作らない。設計でハッシュタグが決まっていなければ付けない。数は下の「下書きを書く SNS」に書いた数まで
+- 元の文（<draft>）と投稿のフォーマット（<format>・<slot>）に利用者が書いたタグは、利用者が選んだもの。設計にないタグでも、外したり別のタグに置き換えたりせず、本文の最後に残す（数が SNS の上限を超えるときだけ、後ろから減らしてよい）
 
 # してはいけないこと
 - アカウント設計の口調とやらないことを破る（口調が決まっていなければ、元の文の口調に合わせる）
@@ -240,7 +241,8 @@ export async function runTidyDraft(
     return { ok: false, message: aiFailureMessage(e, "AI とのやりとりがうまくいきませんでした。時間をおいてもう一度お試しください。") };
   }
   if (r.stopReason === "refusal") return { ok: false, message: "AI がこの文には答えられませんでした。" };
-  const hashtags = planTags(ctx.plan);
+  // 残してよいタグ: 設計のタグと、利用者が元の文・フォーマットに書いたタグ（利用者が選んだものは、設計になくても外さない。PMO の確かめ）
+  const hashtags = [...new Set([...planTags(ctx.plan), ...extractHashtags([text, format?.body ?? "", ...Object.values(format?.values ?? {})].join("\n"))])];
   const options = r.stopReason === "end_turn" ? normalizeTidy(r.output, sns, hashtags, ctx.project.productType) : null;
   if (!options) return { ok: false, message: "うまく整えられませんでした。もう一度お試しください。" };
 

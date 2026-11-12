@@ -4,7 +4,6 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { chipClass } from "@/components/ui/chip";
 import { LearningTip } from "@/components/learning/learning-tip";
-import { hasUrl } from "@/lib/learning/tips";
 import { Input } from "@/components/ui/field";
 import { SNS, SNS_KEYS, countHashtags, INSTAGRAM_MAX_HASHTAGS, type SnsKey } from "@/lib/sns";
 import { HASHTAG_RULES, MAX_TARGET_HASHTAGS } from "@/lib/sns/hashtags";
@@ -13,7 +12,7 @@ import { XBudgetNotice } from "./x-budget-notice";
 
 // ② 送り先: SNS を選ぶ・送り先の注意・引用（compose-steps.md）
 export function ComposeStepTargets({ c }: { c: Composer }) {
-  const { connected, selected, overrides, quote, setQuote, textFor, checks, isLocked, chosen, learnFrom, quoting, clearFieldError, toggle, fe, connectHref, targetState, sentState, countText, warnings, mode } = c;
+  const { connected, selected, overrides, quote, setQuote, checks, isLocked, chosen, learnFrom, quoting, clearFieldError, toggle, fe, connectHref, targetState, sentState, countText, warnings, mode } = c;
   return (
     <>
       {/* 送り先。PC は字数つきのチップ（見本 B）、スマホは行（見本 D） */}
@@ -117,7 +116,6 @@ export function ComposeStepTargets({ c }: { c: Composer }) {
       {mode !== "all_sent" && (
         <>
           <LearningTip trigger="instagram_selected" when={!learnFrom.instagram && chosen.includes("instagram")} />
-          <LearningTip trigger="url_in_body" when={!learnFrom.url && chosen.some((s) => hasUrl(textFor(s)))} />
         </>
       )}
     </>

@@ -143,4 +143,14 @@ describe("AI で投稿に整える", () => {
     expect(none).not.toHaveBeenCalled();
     expect(other).not.toHaveBeenCalled();
   });
+
+  it("利用者が元の文に書いたタグは、設計の候補になくても外さない（AI が付けた設計にないタグは外す。PMO の確かめ）", async () => {
+    const out = { options: [{ label: "そのまま", why: "", drafts: [{ sns: "x", text: "連想映画クイズ。答えはリプで\n#個人開発 #映画クイズ" }] }] };
+    const r = await runTidyDraft(alice, admin, { callTidy: caller(out) }, { userId: aliceId, projectId, text: "連想映画クイズです #個人開発", sns: ["x"] });
+    expect(r).toMatchObject({ ok: true });
+    const drafted = r.ok ? r.options[0].drafts[0].text : "";
+    expect(drafted).toContain("#個人開発");
+    expect(drafted).not.toContain("#映画クイズ");
+  });
 });
+

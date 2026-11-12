@@ -65,7 +65,7 @@ describe("Threads のトピック（実際の投稿に合わせる）", () => {
 
 describe("AI のチェックが、利用者のタグや仕掛けの言葉を消させない", () => {
   it("本文のタグは利用者が選んだもの。設計の候補にないことだけでは指摘せず、設計のタグに置き換えない", () => {
-    expect(AI_CHECK_SYSTEM).toContain("候補にないことだけでは指摘しない");
+    expect(AI_CHECK_SYSTEM).toContain("候補にあるかでは指摘しない");
     expect(AI_CHECK_SYSTEM).toContain("設計のタグを足す・置き換える fix は出さない");
     expect(AI_CHECK_SYSTEM).not.toContain("設計のタグに置き換えるのはよい");
     expect(AI_CHECK_SYSTEM).not.toContain("アカウント設計の「ハッシュタグ」にないタグ（設計で決めたタグがあるとき）");

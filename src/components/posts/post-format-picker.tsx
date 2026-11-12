@@ -32,6 +32,7 @@ import {
   type PostFormat,
   type PostFormatInput,
 } from "@/lib/post-formats/schema";
+import type { SnsKey } from "@/lib/sns";
 import { MAX_TARGET_HASHTAGS, hashtagLine, normalizeHashtag, parseHashtagInput } from "@/lib/sns/hashtags";
 import { Choice } from "./maker-parts";
 
@@ -46,6 +47,7 @@ export function PostFormatPicker({
   bodyHasText,
   pillars,
   planHashtags = [],
+  connected = [],
   onInsert,
   onUseChange,
   aiEnabled,
@@ -58,6 +60,8 @@ export function PostFormatPicker({
   pillars: string[];
   // アカウント設計のハッシュタグの候補（# なし。フォーマットのタグに押して足す）
   planHashtags?: string[];
+  // つないだ SNS（SNS ごとのタグの欄は、つないだ SNS を先に出し、ほかは畳む）
+  connected?: SnsKey[];
   // hashtags: フォーマットの毎回付けるタグ（SNS ごとのタグの欄に入れる。4.59）
   onInsert: (text: string, how: "replace" | "append", hashtags: FormatHashtags) => void;
   onUseChange?: (use: FormatUse | null) => void;
@@ -216,7 +220,7 @@ export function PostFormatPicker({
         </div>
       )}
 
-      <FormatManager projectId={projectId} formats={formats} examples={examples} kinds={kinds} pillars={pillars} planHashtags={planHashtags} aiEnabled={aiEnabled} onChange={apply} />
+      <FormatManager projectId={projectId} formats={formats} examples={examples} kinds={kinds} pillars={pillars} planHashtags={planHashtags} connected={connected} aiEnabled={aiEnabled} onChange={apply} />
       {error && <ErrorBanner>{error}</ErrorBanner>}
     </fieldset>
   );
@@ -230,6 +234,7 @@ function FormatManager({
   kinds,
   pillars,
   planHashtags,
+  connected,
   aiEnabled,
   onChange,
 }: {
@@ -239,6 +244,7 @@ function FormatManager({
   kinds: string[];
   pillars: string[];
   planHashtags: string[];
+  connected: SnsKey[];
   aiEnabled: boolean;
   onChange: (r: FormatsResult) => void;
 }) {
@@ -271,7 +277,7 @@ function FormatManager({
             {formats.map((f) =>
               editing === f.id ? (
                 <li key={f.id} className="py-2">
-                  <FormatEditor initial={f} pillars={pillars} planHashtags={planHashtags} pending={pending} onCancel={() => setEditing(null)} onSave={(v) => run(() => updatePostFormat(projectId, f.id, v), () => setEditing(null))} />
+                  <FormatEditor initial={f} pillars={pillars} planHashtags={planHashtags} connected={connected} pending={pending} onCancel={() => setEditing(null)} onSave={(v) => run(() => updatePostFormat(projectId, f.id, v), () => setEditing(null))} />
                 </li>
               ) : (
                 <li key={f.id} className="flex flex-col gap-1 py-2">
@@ -312,6 +318,7 @@ function FormatManager({
               initial={draft ?? undefined}
               pillars={pillars}
               planHashtags={planHashtags}
+              connected={connected}
               pending={pending}
               onCancel={() => (setEditing(null), setDraft(null))}
               onSave={(v) => run(() => addPostFormat(projectId, v), () => (setEditing(null), setDraft(null)))}
@@ -358,6 +365,7 @@ function FormatEditor({
   initial,
   pillars,
   planHashtags,
+  connected,
   pending,
   onSave,
   onCancel,
@@ -365,6 +373,7 @@ function FormatEditor({
   initial?: PostFormatInput;
   pillars: string[];
   planHashtags: string[];
+  connected: SnsKey[];
   pending: boolean;
   onSave: (v: PostFormatInput) => void;
   onCancel: () => void;
@@ -417,7 +426,7 @@ function FormatEditor({
           </select>
         </label>
       )}
-      <FormatTagsFields tags={tags} setTag={setTag} planHashtags={planHashtags} />
+      <FormatTagsFields tags={tags} setTag={setTag} planHashtags={planHashtags} connected={connected} />
       {problem && <p className="text-sm font-semibold text-danger">{problem}</p>}
       <div className="flex gap-2">
         <Button
@@ -451,14 +460,26 @@ function FormatTagsFields({
   tags,
   setTag,
   planHashtags,
+  connected,
 }: {
   tags: Partial<Record<FormatHashtagKey, string>>;
   setTag: (k: FormatHashtagKey, x: string) => void;
   planHashtags: string[];
+  connected: SnsKey[];
 }) {
   const allTags = parseHashtagInput(tags.all ?? "").tags.map((t) => t.toLowerCase());
   const candidates = planHashtags.map(normalizeHashtag).filter((t) => t && !allTags.includes(t.toLowerCase()));
-  const perSns = FORMAT_HASHTAG_KEYS.filter((k) => k !== "all");
+  // つないだ SNS を先に出し、つないでいない SNS は「そのほかの SNS」に畳む（PMO の確かめ。フォーマットはプロジェクトのものなので、あとでつなぐ SNS の分も持てる）。
+  // つないだ SNS がなければ、すべて出す
+  const perSns = FORMAT_HASHTAG_KEYS.filter((k): k is SnsKey => k !== "all");
+  const shown = connected.length ? perSns.filter((k) => connected.includes(k)) : perSns;
+  const rest = perSns.filter((k) => !shown.includes(k));
+  const field = (k: SnsKey) => (
+    <label key={k} className="flex min-w-0 flex-col gap-1">
+      <span className="text-xs font-bold">{hashtagKeyLabel(k)}</span>
+      <Input value={tags[k] ?? ""} maxLength={400} onChange={(e) => setTag(k, e.target.value)} placeholder="空なら全部の SNS と同じ" className="py-2 text-sm" />
+    </label>
+  );
   return (
     <fieldset className="flex min-w-0 flex-col gap-1.5">
       <legend className="mb-1 text-xs font-bold">
@@ -480,14 +501,13 @@ function FormatTagsFields({
       )}
       <details className="text-xs" open={perSns.some((k) => (tags[k] ?? "").trim() !== "")}>
         <summary className="cursor-pointer text-muted">SNS ごとに変える</summary>
-        <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-2 max-sm:grid-cols-1">
-          {perSns.map((k) => (
-            <label key={k} className="flex min-w-0 flex-col gap-1">
-              <span className="text-xs font-bold">{hashtagKeyLabel(k)}</span>
-              <Input value={tags[k] ?? ""} maxLength={400} onChange={(e) => setTag(k, e.target.value)} placeholder="空なら全部の SNS と同じ" className="py-2 text-sm" />
-            </label>
-          ))}
-        </div>
+        <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-2 max-sm:grid-cols-1">{shown.map(field)}</div>
+        {rest.length > 0 && (
+          <details className="mt-2" open={rest.some((k) => (tags[k] ?? "").trim() !== "")}>
+            <summary className="cursor-pointer text-muted">つないでいない SNS（{rest.map((k) => hashtagKeyLabel(k)).join("・")}）</summary>
+            <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-2 max-sm:grid-cols-1">{rest.map(field)}</div>
+          </details>
+        )}
       </details>
       <span className="text-xs text-muted">本文の下に 1 行あけて付きます。投稿ごとに「2 送り先」で直せます。</span>
     </fieldset>

@@ -70,7 +70,7 @@ export function AiCheckPanel({ projectId, aiEnabled, texts, onApply }: Props) {
         </div>
         {pending && <AiThinking kind="check" note="10〜20 秒ほどかかります" />}
         <p className="text-xs leading-[1.7] text-muted">
-          決まり文句、大げさな言葉、書いた人しか知らない事実（本当かどうか）、ハッシュタグ（付けすぎ・ネタと関係ないもの・宣伝だけのもの）、設計の口調とのずれを見ます。直すかどうかはあなたが選べます。送るのは止めません（1 回 5 円ほど）。
+          決まり文句、大げさな言葉、書いた人しか知らない事実（本当かどうか）、ハッシュタグ（宣伝だけのもの・本文の途中に並べたもの・Instagram の 6 個以上）、設計の口調とのずれを見ます。直すかどうかはあなたが選べます。送るのは止めません（1 回 5 円ほど）。
         </p>
 
         {error && <ErrorBanner>{error}</ErrorBanner>}

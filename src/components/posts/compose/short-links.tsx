@@ -4,11 +4,13 @@ import { ShortLinkToggle } from "@/components/links/short-link-toggle";
 import { planShortLinks } from "@/lib/links/rules";
 import { findUrls, sameUrl } from "@/lib/posts/profile-link";
 import { DestinationInsert } from "../destination-insert";
+import { LearningTip } from "@/components/learning/learning-tip";
+import { hasUrl } from "@/lib/learning/tips";
 import { type Composer } from "./use-composer";
 
 // ④ リンク: 行き先の URL・短縮リンク（compose-steps.md）
 export function ComposeShortLinks({ c }: { c: Composer }) {
-  const { projectId, profileLink, shortLinks, setShortLinks, body, insertedUrl, textFor, chosen, toSend, insertDestination } = c;
+  const { projectId, profileLink, shortLinks, setShortLinks, body, insertedUrl, textFor, chosen, toSend, insertDestination, learnFrom, mode } = c;
   return (
     <>
       {(chosen.length === 0 || toSend.length > 0) && (
@@ -29,6 +31,8 @@ export function ComposeShortLinks({ c }: { c: Composer }) {
           行き先の URL を本文に入れました。送るとき、SNS ごとの短縮リンクに置き換えます。
         </p>
       )}
+      {/* 本文の URL の「ひとこと」（短縮リンクのすすめ）。短縮リンクがオンなら、もう入っているので出さない（PMO の確かめ。前は ② に、X の上限の知らせと並んで出ていた） */}
+      {mode !== "all_sent" && <LearningTip trigger="url_in_body" when={!learnFrom.url && !shortLinks && chosen.some((s) => hasUrl(textFor(s)))} />}
     </>
   );
 }

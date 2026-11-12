@@ -23,8 +23,12 @@ const SETUP_TARGETS: { re: RegExp; target: SetupTarget }[] = [
   { re: /短縮リンク/, target: { path: (b) => `${b}/links`, label: "短縮リンクを開く" } },
   { re: /ハッシュタグ/, target: { path: (b) => `${b}/plan?open=hashtags#plan-hashtags-head`, label: "設計を開く" } },
   { re: /投稿の柱|口調/, target: { path: (b) => `${b}/plan?open=pillars#plan-pillars-head`, label: "設計を開く" } },
-  { re: /ストア|App Store|Google Play|アプリの紹介/i, target: { path: (b) => `${b}/stores`, label: "ストアを開く" } },
-  { re: /GitHub|リポジトリ/i, target: { path: (b) => `${b}/github`, label: "GitHub を開く" } },
+  // ストア・GitHub は、yabumi の「ストアと課金をつなぐ」「GitHub をつなぐ」の画面が役に立つやること（つなぐ・数字を取り込む）だけ、その画面へ。
+  // ボタンはその画面ですることの名前（「ストアをつなぐ」「GitHub をつなぐ」）。スクリーンショットを差し替える・README を整えるなど、
+  // App Store・GitHub の側でするやることは、yabumi の画面では進まないので行き先を作らない（ロードマップのその行と「済みにする」）。
+  // 前は「ストアを開く」「GitHub を開く」で、App Store・GitHub が開くと読め、押してもすることにつながらなかった（2026-11-12 PMO の本番での通しテスト）
+  { re: /(?:ストア|App Store|Google Play|課金|RevenueCat)[^\n]*(?:つな|連携|取り込|接続)|(?:つな|連携|取り込|接続)[^\n]*(?:ストア|App Store|Google Play|課金|RevenueCat)/i, target: { path: (b) => `${b}/stores`, label: "ストアをつなぐ" } },
+  { re: /(?:GitHub|リポジトリ)[^\n]*(?:つな|連携|接続)|(?:つな|連携|接続)[^\n]*(?:GitHub|リポジトリ)/i, target: { path: (b) => `${b}/github`, label: "GitHub をつなぐ" } },
   { re: /行き先/, target: { path: (_, id) => `${projectSettingsHref(id)}#destinations`, label: "設定を開く" } },
   { re: /(?:SNS|アカウント|X|Threads|Instagram|Facebook|TikTok|YouTube)\s*を?\s*(?:つな|連携)|つなぎ直/i, target: { path: (_, id) => projectSettingsHref(id, "sns"), label: "SNS をつなぐ" } },
 ];

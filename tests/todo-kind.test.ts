@@ -18,7 +18,9 @@ describe("種類を推す（種類のない前のやること）", () => {
 
   it("行き先の画面が決まる設定は設定。見直しでも設定の画面が決まればそちら", () => {
     expect(inferTodoKind({ title: "プロフィールを整える" })).toBe("setup");
-    expect(inferTodoKind({ title: "ストアのページを直す" })).toBe("setup");
+    expect(inferTodoKind({ title: "App Store のデータをつなぐ" })).toBe("setup");
+    // ストアの側でするやること（yabumi の画面では進まない）は設定にしない
+    expect(inferTodoKind({ title: "ストアのページを直す" })).toBe("other");
     expect(inferTodoKind({ title: "ハッシュタグを見直す" })).toBe("setup");
     expect(inferTodoKind({ title: "Threads をつなぐ" })).toBe("setup");
     expect(inferTodoKind({ title: "SNS をつなぐ" })).toBe("setup");
@@ -49,7 +51,7 @@ describe("押したときの行き先", () => {
 
   it("設定は中身に合う画面。決まらなければロードマップのその行", () => {
     expect(todoAction(base, item("プロフィールを整える", "setup"), { aiEnabled: true })).toEqual({ kind: "setup", href: "/projects/p1/plan?open=profile#plan-profile-head", label: "プロフィールの案を見る" });
-    expect(todoAction(base, item("ストアのページを直す", "setup"), { aiEnabled: true }).href).toBe("/projects/p1/stores");
+    expect(todoAction(base, item("App Store をつなぐ", "setup"), { aiEnabled: true }).href).toBe("/projects/p1/stores");
     expect(todoAction(base, item("短縮リンクを作る", "setup"), { aiEnabled: true }).href).toBe("/projects/p1/links");
     expect(todoAction(base, item("SNS をつなぐ", "setup"), { aiEnabled: true }).href).toBe("/projects/p1/edit#sns");
     expect(todoAction(base, item("顧客の声を集める", "setup"), { aiEnabled: true })).toEqual({ kind: "other", href: "/projects/p1/roadmap#item-i1", label: "ロードマップで見る" });
@@ -64,6 +66,16 @@ describe("押したときの行き先", () => {
     expect(todoAction(base, item("短縮リンクを作る", "setup"), { aiEnabled: true }).label).toBe("短縮リンクを開く");
     for (const t of ["プロフィールを整える", "Instagram のプロフィールに置く", "アイコンを変える"]) {
       expect(todoAction(base, item(t, "setup"), { aiEnabled: true }).label).not.toMatch(/Instagram|X|Threads|を開く$/);
+    }
+  });
+
+  // 2026-11-12 PMO の本番での通しテスト: 「ストアを開く」「GitHub を開く」は App Store・GitHub が開くと読め、押してもすることにつながらなかった
+  it("ストア・GitHub は、つなぐやることだけ yabumi のつなぐ画面（「ストアをつなぐ」「GitHub をつなぐ」）。ストア・GitHub の側でするやることは行き先を作らない", () => {
+    expect(todoAction(base, item("App Store の数字を yabumi に取り込む", "setup"), { aiEnabled: true })).toEqual({ kind: "setup", href: "/projects/p1/stores", label: "ストアをつなぐ" });
+    expect(todoAction(base, item("RevenueCat をつないで課金を見る", "setup"), { aiEnabled: true }).label).toBe("ストアをつなぐ");
+    expect(todoAction(base, item("GitHub のリポジトリをつなぐ", "setup"), { aiEnabled: true })).toEqual({ kind: "setup", href: "/projects/p1/github", label: "GitHub をつなぐ" });
+    for (const t of ["App Store のスクリーンショットを差し替える", "ストアのページを直す", "Google Play の説明を直す", "GitHub のリポジトリの README を整える"]) {
+      expect(todoAction(base, item(t, "setup"), { aiEnabled: true })).toEqual({ kind: "other", href: "/projects/p1/roadmap#item-i1", label: "ロードマップで見る" });
     }
   });
 

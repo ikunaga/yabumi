@@ -179,7 +179,7 @@ function MainBand({
     );
   }
   const [first, ...others] = todos;
-  // 押したときの行き先は、やることの種類ごと（投稿をつくる・振り返る・プロフィールを開く・ロードマップで見る。4.42）
+  // 押したときの行き先は、やることの種類ごと（投稿をつくる・振り返る・プロフィールの案を見る・ロードマップで見る。4.42）
   const actionOf = (t: RoadmapItem) => todoAction(base, t, { aiEnabled });
   const main = actionOf(first);
   return (

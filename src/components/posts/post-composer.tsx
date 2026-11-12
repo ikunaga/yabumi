@@ -11,7 +11,7 @@ import { ComposeStepImages } from "./compose/step-images";
 import { ComposeShortLinks } from "./compose/short-links";
 import { ComposeStepSend } from "./compose/step-send";
 import { ComposeAiCheck, ComposePlanHints } from "./compose/helpers";
-import { ComposeAlerts, ComposeResetControl } from "./compose/compose-top";
+import { ComposeAlerts, ComposeDraftSpace, ComposeResetControl } from "./compose/compose-top";
 import { ComposeStepNav } from "./compose/step-nav";
 import { ComposeStepBar } from "./compose/step-bar";
 import { ComposeSummary } from "./compose/summary";
@@ -113,6 +113,7 @@ export function PostComposer(props: ComposerProps) {
       {steps ? (
         <div ref={stepsTopRef} className="flex flex-col gap-4">
           <StepsLayout c={c} wide={wide} start={start} notePicker={notePicker} headingRef={headingRef} />
+          <ComposeDraftSpace c={c} />
         </div>
       ) : (
         <ComposeSentView

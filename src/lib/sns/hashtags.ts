@@ -3,12 +3,12 @@ import type { SnsKey } from "./index";
 // ハッシュタグの決まり（2026-10-20 に各社の資料で確かめた。docs/architecture.md の 4.15）。
 // 下書きを出す AI への指示（post-ideas・consult）と、AI の下書きの後始末（tidyDraftHashtags）に使う。
 // - X: いくつでも付けられるが、公式のヘルプが 2 つまでをすすめている
-// - Threads: 1 投稿に 1 つ（トピックタグ）。2 つ目からはタグにならない
+// - Threads: 1 投稿に 1 つ（トピックタグ）。本文の 1 つ目がトピックになって名前の横に出て、本文ではその # が外れる。2 つ目からはタグにならず文字のまま（2026-11-12 の実際の投稿で確かめた）
 // - Instagram: 2025 年 12 月から 1 投稿 5 個まで（投稿と Reels。コメントに書いた分も数える）。超えると送れないか、外される
 // - Facebook・TikTok・YouTube: はっきりした上限は小さくないが、少なく付けるのが目安（YouTube は 15 個を超えると全部が無視される）
 export const HASHTAG_RULES: Record<SnsKey, { max: number; text: string }> = {
   x: { max: 2, text: "1〜2 個まで（X のヘルプのすすめ）" },
-  threads: { max: 1, text: "1 つまで（Threads は 1 投稿に 1 つしかタグにならない）" },
+  threads: { max: 1, text: "1 つまで（Threads は 1 つ目のタグがトピックになり、2 つ目からはタグにならず文字のまま出る）" },
   instagram: { max: 5, text: "5 個まで（Instagram の決まり。ネタに合うものだけなら 1〜3 個でよい）" },
   facebook: { max: 2, text: "1〜2 個まで（目安）" },
   tiktok: { max: 3, text: "3 個まで（目安）" },

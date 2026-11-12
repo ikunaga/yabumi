@@ -20,6 +20,8 @@ export type TargetResult = {
   fallback?: ManualInfo;
   // 引用の X（manual に X の投稿の画面の URL が入る。X の画面で送って記録する。4.52）
   quote?: boolean;
+  // 月の上限で、利用者が「X は手で投稿する」を選んだもの（失敗ではないので「手で投稿」と出す）
+  byHand?: boolean;
   // 手で投稿して記録したもの（SNS 上の投稿の ID がないので、yabumi からは取り消せない）
   postedByHand?: boolean;
   // yabumi の外（SNS の画面など）で消されていた。yabumi から取り消したときは false
@@ -127,7 +129,8 @@ function ResultRow({ sns, r, projectId, postId }: { sns: SnsKey; r: TargetResult
           ) : (
             <span className="text-muted">{label} から取り消しました（yabumi の下書きは残っています）</span>
           ))}
-        {r.status === "failed" && (
+        {r.status === "failed" && r.byHand && <span className="font-bold text-signal">手で投稿</span>}
+        {r.status === "failed" && !r.byHand && (
           <>
             <span className="font-bold text-danger">! 失敗</span>
             <span className="font-bold text-signal">要確認</span>
@@ -140,7 +143,7 @@ function ResultRow({ sns, r, projectId, postId }: { sns: SnsKey; r: TargetResult
         )}
       </div>
       {(r.status === "failed" || r.status === "pending") && r.errorMessage && <p className="text-muted">{r.errorMessage}</p>}
-      {r.status === "failed" && <p className="text-xs text-muted">直してから「今すぐ送る」か「予約」で送り直せます。</p>}
+      {r.status === "failed" && !r.byHand && <p className="text-xs text-muted">直してから「今すぐ送る」か「予約」で送り直せます。</p>}
       {r.status === "published" && (
         <RemovedOnSns label={label} onConfirm={() => markRemovedOnSns(projectId, postId, r.id)} />
       )}

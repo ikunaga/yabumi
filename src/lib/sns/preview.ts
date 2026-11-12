@@ -23,7 +23,7 @@ export type PreviewSpec = {
 
 export const PREVIEW: Record<SnsKey, PreviewSpec> = {
   x: { layout: "after_grid", fold: null, note: "X は本文のあとに画像が 4 枚まで並びます。上限の字数までなら、全文が出ます。", short: "画像は本文のあと 4 枚まで" },
-  threads: { layout: "after_row", fold: null, note: "Threads は本文のあとに画像が横に並び、横にめくって見ます。", short: "画像は横に並ぶ" },
+  threads: { layout: "after_row", fold: null, note: "Threads は本文のあとに画像が横に並び、横にめくって見ます。本文の 1 つ目のハッシュタグはトピックになって名前の横に出て、本文では # が外れます。2 つ目からはタグにならず、文字のまま出ます。", short: "画像は横に並ぶ" },
   instagram: { layout: "before", fold: { lines: 2, more: "続きを読む" }, note: "Instagram は画像が先に出て、本文は 2 行で折りたたまれます。最初の 2 行で読みたくなるように。", short: "画像が先・本文は 2 行で折りたたみ" },
   facebook: { layout: "after_grid", fold: { lines: 5, more: "もっと見る" }, note: "Facebook は長い本文が 5 行ほどで折りたたまれ、そのあとに画像が並びます。", short: "5 行で折りたたみ・画像はあと" },
   tiktok: { layout: "video", fold: { lines: 2, more: "もっと見る" }, note: "TikTok は動画の上に説明が 2 行ほど出ます（動画の添付は準備中）。", short: "縦の動画が必要（準備中）" },
@@ -53,6 +53,16 @@ export function foldText(text: string, fold: PreviewSpec["fold"]): { shown: stri
     return { shown: out.join("\n").trimEnd(), folded: true };
   }
   return { shown: text, folded: false };
+}
+
+// Threads のトピック（PMO の通しテストの実際の投稿で確かめた）。本文の 1 つ目のハッシュタグがトピックになり、名前の横に出て、本文ではその # が外れる。
+// 2 つ目からはタグにならず、文字のまま残る（見え方では色を付けない）
+const FIRST_HASHTAG = /(^|[^\p{L}\p{N}_&])([#＃])([\p{L}\p{N}\p{M}_]+)/u;
+export function threadsTopic(text: string): { topic: string | null; text: string } {
+  const m = FIRST_HASHTAG.exec(text);
+  if (!m) return { topic: null, text };
+  const at = m.index + m[1].length;
+  return { topic: m[3], text: text.slice(0, at) + text.slice(at + 1) };
 }
 
 // 本文の中の URL とハッシュタグ（プレビューで色を付ける）。それ以外は text

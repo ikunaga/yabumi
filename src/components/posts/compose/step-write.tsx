@@ -13,7 +13,7 @@ import { isSideBySide, type Composer } from "./use-composer";
 
 // ① 書く: 本文・AI で整える・書いたのは誰（docs/design/compose-steps.md）。見出し・リセット・保存のエラー・書きかけの帯は、どのステップでも見えるよう上の帯（compose-top.tsx）に置く
 export function ComposeStepWrite({ c, steps = false }: { c: Composer; steps?: boolean }) {
-  const { goStep, formatUse, setFormatUse, applyFormatTags, planHints, projectId, initial, aiCheckEnabled, selfWrittenPosts, hasVoiceMemo, body, setBody, bodyRef, overrides, setOverrides, setFocus, tidyAdopted, setTidyAdopted, textOrigin, setTextOrigin, noteIds, markTyped, resetRound, checks, sentAny, chosen, focus, toSend, clearFieldError, showBody, editOverride, fe, focusLabel, splitSns, bodySns, countText } = c;
+  const { goStep, formatUse, bodyUnused, setFormatUse, applyFormatTags, planHints, projectId, initial, aiCheckEnabled, selfWrittenPosts, hasVoiceMemo, body, setBody, bodyRef, overrides, setOverrides, setFocus, setTidyAdopted, textOrigin, setTextOrigin, noteIds, markTyped, resetRound, checks, sentAny, chosen, focus, toSend, clearFieldError, showBody, editOverride, fe, focusLabel, splitSns, bodySns, countText } = c;
   return (
     <>
       {/* 投稿のフォーマット（docs/design/post-formats.md の 4）。穴を埋めて本文に入れる。穴の言葉は利用者が打ったものなので、書きかけの控えに乗せる */}
@@ -75,18 +75,23 @@ export function ComposeStepWrite({ c, steps = false }: { c: Composer; steps?: bo
               clearFieldError("body");
             }}
           />
-          <span className={`num shrink-0 pt-1.5 text-[13px] ${checks[bodySns].issues.includes("too_long") ? "font-bold text-danger" : "text-faint"}`}>
-            {bodySns !== focus && <span className="mr-1">{SNS[bodySns].label}</span>}
-            {countText(bodySns)}
-            {chosen.length > 1 && bodySns === focus && <span className="sr-only">（{focusLabel}）</span>}
-          </span>
+          {/* 本文で送る SNS がない（どれも SNS ごとの文面）ときは、本文の字数は出さない（ほかの SNS の文面の字数に見えるため） */}
+          {!bodyUnused && (
+            <span className={`num shrink-0 pt-1.5 text-[13px] ${checks[bodySns].issues.includes("too_long") ? "font-bold text-danger" : "text-faint"}`}>
+              {bodySns !== focus && <span className="mr-1">{SNS[bodySns].label}</span>}
+              {countText(bodySns)}
+              {chosen.length > 1 && bodySns === focus && <span className="sr-only">（{focusLabel}）</span>}
+            </span>
+          )}
         </div>
       </div>
       {fe.body && <p className="text-sm font-semibold text-danger">{fe.body}</p>}
-      {/* SNS ごとの文面がある SNS は、本文を直しても変わらない。そのことと、その欄へ行くボタンを 1 行で */}
-      {splitSns.length > 0 && !tidyAdopted && (
+      {/* SNS ごとの文面がある SNS は、本文を直しても変わらない。そのことと、その欄へ行くボタンを 1 行で（AI の案を使ったあとも出す） */}
+      {splitSns.length > 0 && (
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted">
-          <span>{splitSns.map((s) => SNS[s].label).join("・")} は SNS ごとの文面で送ります（本文を直しても変わりません）。</span>
+          <span>
+            {splitSns.map((s) => SNS[s].label).join("・")} は SNS ごとの文面で送ります{bodyUnused ? "（この本文は使いません）" : ""}。本文をあとで直しても、SNS ごとの文面には届きません。
+          </span>
           {splitSns.map((s) => (
             <button key={s} type="button" onClick={() => editOverride(s)} className="font-semibold text-fg underline underline-offset-2">
               {SNS[s].label} 用の文面を直す

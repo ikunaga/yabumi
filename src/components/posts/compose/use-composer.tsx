@@ -34,6 +34,10 @@ import { type TimeBand } from "@/lib/metrics/time-bands";
 import { composeChanges, type ComposeSnapshot } from "@/lib/posts/compose-reset";
 import { hashtagInputProblem, hashtagLine, parseHashtagInput, withHashtags } from "@/lib/sns/hashtags";
 import { formatTagsFor, hasFormatHashtags, type FormatHashtags } from "@/lib/post-formats/schema";
+import { checkXSend } from "@/lib/posts/x-send-actions";
+import { hasXUrl } from "@/lib/sns/x-text";
+import { xOverMessage } from "@/lib/sns/x/send-rules";
+import type { XSendVerdict } from "@/lib/sns/x/send-verdict";
 
 export type ComposerInitial = {
   body: string;
@@ -167,6 +171,10 @@ export function useComposer({
   const [plannedAt, setPlannedAt] = useState(initial.plannedAt);
   // 引用する X の投稿（外すと、ふつうの X の投稿として予約・送信できる）
   const [quote, setQuote] = useState<string | null>(initial.quotePostId ?? null);
+  // X の月の上限に当たるとき、利用者が「X は手で投稿する」を選んだ（前に選んで保存した投稿は、そのまま）
+  const [xByHand, setXByHand] = useState(Boolean(results.x?.byHand));
+  // X をいま（予約ならその時刻に）送ったら上限に当たるか（サーバーが送信ジョブと同じ判定で返す）。key は調べたときの条件
+  const [xCheck, setXCheck] = useState<{ key: string; verdict: { now: XSendVerdict; planned: XSendVerdict | null } | null } | null>(null);
   // AI で整えた案を使った知らせが出ているか（出ている間は、SNS ごとの文面の 1 行をその知らせにまとめる）
   const [tidyAdopted, setTidyAdopted] = useState(false);
   // 本文を書いたのは誰か。「AI で整える」の案を採用したら ai にする（戻しても自動では self に戻さない。利用者が切り替えられる）
@@ -384,6 +392,28 @@ export function useComposer({
   // 送れない理由（最初の 1 つ）。日時は予約のときだけ要る
   // 引用は X だけで、X の画面で送る（X の API の引用は、使った分だけ払う方式では使えない。4.52）
   const quoting = quote !== null && selected.has("x") && !isLocked("x");
+  // X の上限を調べ直す条件（費用が変わるのは、送る文に URL があるか・説明文のある画像の枚数・送る月だけ）
+  const xAlt = images.filter((i) => (i.altText ?? "").trim()).length;
+  const xKey = toSend.includes("x") && !quoting ? `${hasXUrl(textFor("x")) ? "url" : "plain"}:${xAlt}:${plannedAt.slice(0, 7)}` : null;
+  useEffect(() => {
+    if (!xKey || xCheck?.key === xKey) return;
+    let alive = true;
+    void callAction(() => checkXSend({ projectId, text: textFor("x"), altCount: xAlt, plannedAt })).then((out) => {
+      if (alive) setXCheck({ key: xKey, verdict: out.ok ? (out.value ?? null) : null });
+    });
+    return () => {
+      alive = false;
+    };
+    // textFor・plannedAt は xKey に入っている分だけ見る（字を打つたびに呼ばない）
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [xKey, projectId]);
+  const xChecked = xKey && xCheck?.key === xKey ? xCheck.verdict : null;
+  // 予約の日時があれば、その時刻に送るときの判定（来月以降なら上限が戻る）。今すぐ送るは、いまの判定
+  const xVerdict = xChecked ? (xChecked.planned ?? xChecked.now) : null;
+  const xNowVerdict = xChecked?.now ?? null;
+  // X を自動で送れない（上限に当たり、手で投稿するも選んでいない）ときの文
+  const xBudgetBlocker = xVerdict?.over && !xByHand ? `X: ${xOverMessage(xVerdict.over, xVerdict)}` : null;
+  const xNowBlocker = xNowVerdict?.over && !xByHand ? `X: ${xOverMessage(xNowVerdict.over, xNowVerdict)}` : null;
   const sendBlocker = (() => {
     if (chosen.length === 0) return "送り先の SNS を選んでください";
     if (quoting && chosen.some((s) => s !== "x")) return "引用の投稿は X だけに送れます。ほかの SNS を外すか、引用を外してください";
@@ -400,6 +430,7 @@ export function useComposer({
     }
     // 手で投稿する SNS は、つながなくてよい
     if (missingConnect.length) return missingConnectMessage;
+    if (xBudgetBlocker) return xBudgetBlocker;
     const reconnect = images.length > 0 ? toSend.filter((s) => needImageReconnect.includes(s)) : [];
     if (reconnect.length) return `${reconnect.map((s) => SNS[s].label).join("・")} に画像を送るには、つなぎ直しが要ります`;
     return null;
@@ -407,7 +438,7 @@ export function useComposer({
   const blocker = sendBlocker ?? (plannedAt ? null : "送る日時を決めてください");
   // 今すぐ送れるのは、自動で送る SNS だけ
   const nowBlocker =
-    sendBlocker ?? (toSend.some((s) => !isManualSns(s)) ? null : "note・Substack は手で投稿します。予約するか下書きに保存すると、投稿の画面から手で投稿できます");
+    sendBlocker ?? xNowBlocker ?? (toSend.some((s) => !isManualSns(s)) ? null : "note・Substack は手で投稿します。予約するか下書きに保存すると、投稿の画面から手で投稿できます");
 
   // 直し始めたら、その欄のエラーは消す
   function clearFieldError(key: keyof NonNullable<SavePostResult["fieldErrors"]>) {
@@ -514,6 +545,7 @@ export function useComposer({
         noteIds,
         quotePostId: quoting ? quote : null,
         textOrigin,
+        xByHand: xByHand && toSend.includes("x"),
         targets: chosen.map((sns) => ({
           sns,
           bodyOverride: overrides[sns] ?? null,
@@ -580,6 +612,8 @@ export function useComposer({
   const hasOverride = overrides[focus] !== undefined;
   // SNS ごとの文面で送る SNS（送り終えたものは除く）
   const splitSns = toSend.filter((s) => overrides[s] !== undefined);
+  // 送る SNS がすべて SNS ごとの文面（本文はどの SNS にも使わない）
+  const bodyUnused = toSend.length > 0 && splitSns.length === toSend.length;
   // 本文の欄の字数は、本文で送る SNS で数える（いま見ている SNS が SNS ごとの文面なら、本文で送るほかの SNS で。なければそのまま）
   const bodySns = overrides[focus] === undefined ? focus : (previewSns.find((s) => overrides[s] === undefined) ?? focus);
   const connectHref = projectSettingsHref(projectId, "sns");
@@ -612,7 +646,9 @@ export function useComposer({
     .filter((w) => w.state && w.state.text !== "OK" && !TARGET_STATE_TEXTS.has(w.state.text));
 
   const mode = sendMode({ sentAny, toSend: toSend.length });
-  const labels = sendLabels(mode, toSend.length);
+  // X を手で投稿するときは、自動で送る数に X を数えない
+  const autoCount = toSend.length - (xByHand && toSend.includes("x") ? 1 : 0);
+  const labels = sendLabels(mode, autoCount);
   const sentLabels = chosen.filter((s) => isLocked(s)).map((s) => SNS[s].label).join("・");
 
   // 削除する（確かめてから）。送った投稿では、SNS の投稿は消えず yabumi の記録だけが消えることを書く
@@ -662,6 +698,7 @@ export function useComposer({
         missingConnect: missingConnect.map((s) => SNS[s].label),
         reconnect: images.length > 0 ? toSend.filter((s) => needImageReconnect.includes(s)).map((s) => SNS[s].label) : [],
         needsTime: !plannedAt,
+        xBudget: xBudgetBlocker,
       });
   const marks = stepMarks({ current: composeStep, visited, problems: stepProblems, filled: { 1: body.trim() !== "", 2: chosen.length > 0, 3: images.length > 0 } });
   const nextOk = canGoNext(composeStep, { body, chosen: chosen.length });
@@ -720,6 +757,9 @@ export function useComposer({
     setPlannedAt,
     quote,
     setQuote,
+    xByHand,
+    setXByHand,
+    xVerdict,
     tidyAdopted,
     setTidyAdopted,
     textOrigin,
@@ -799,6 +839,7 @@ export function useComposer({
     focusLabel,
     hasOverride,
     splitSns,
+    bodyUnused,
     bodySns,
     connectHref,
     plannedLabel,

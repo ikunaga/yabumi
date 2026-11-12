@@ -5,6 +5,9 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { ISSUE_LABEL, SNS, checkTarget, isManualSns, type SnsKey } from "@/lib/sns";
 import { hashtagInputProblem, parseHashtagInput, withHashtags } from "@/lib/sns/hashtags";
+import { xSendVerdict } from "@/lib/sns/x/send-verdict";
+import { xOverMessage } from "@/lib/sns/x/send-rules";
+import { markXByHand } from "./x-by-hand";
 import { canPublish, publisherDeps } from "@/lib/sns/adapters";
 import { publishDueTargets } from "@/lib/sns/publisher";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -31,7 +34,7 @@ const MIN_LEAD_MS = 5 * 60 * 1000;
 export async function savePost(input: SavePostInput): Promise<SavePostResult> {
   const parsed = savePostInputSchema.safeParse(input);
   if (!parsed.success) return { error: "入力の形式が正しくありません。画面を読み込み直してください。" };
-  const { projectId, postId, body, plannedAt, intent, media, shortLinks, roadmapItemId, noteIds } = parsed.data;
+  const { projectId, postId, body, plannedAt, intent, media, shortLinks, roadmapItemId, noteIds, xByHand } = parsed.data;
   // SNS ごとのタグ（# を外し、同じタグは 1 つに）。タグにできない言葉・6 個以上は、下で欄のエラーにする
   const targets = parsed.data.targets.map((t) => ({ ...t, hashtags: parseHashtagInput(t.hashtags.join(" ")).tags }));
   const tagProblem = parsed.data.targets.map((t) => ({ sns: t.sns, problem: hashtagInputProblem(t.hashtags.join(" ")) })).find((t) => t.problem);
@@ -123,15 +126,27 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
           fieldErrors.targets = `${label} に画像を送るには、つなぎ直しが要ります。プロジェクトの設定の「つないだ SNS」から ${label} をつなぎ直してください。`;
           break;
         }
+        // X の月の上限（送信ジョブと同じ判定。予約は送る時刻の月で見る）。「X は手で投稿する」を選んでいれば、X は送らないので見ない
+        if (t.sns === "x" && !xByHand) {
+          const at = intent === "now" ? new Date() : new Date(plannedIso!);
+          const v = await xSendVerdict(createAdminClient(), userId, { text, altCount: media.filter((m) => m.altText.trim()).length, at });
+          if (v.over) {
+            fieldErrors.targets = `${xOverMessage(v.over, v)}。X を外すか、「X は手で投稿する」を選んでください`;
+            break;
+          }
+        }
       }
     }
   }
 
   if (Object.keys(fieldErrors).length > 0) return { fieldErrors };
 
+  // X を手で投稿する（予約・今すぐ送るで、X を送る SNS に入れているとき）。X は送り直さず、自動では送らない
+  const xHand = intent !== "draft" && xByHand && toSend.some((t) => t.sns === "x");
+
   // 失敗した配信先を、送り直せる状態に戻す
   if (intent !== "draft" && postId) {
-    const { error } = await supabase.rpc("requeue_failed_targets", { p_post_id: postId, p_sns: toSend.map((t) => t.sns) });
+    const { error } = await supabase.rpc("requeue_failed_targets", { p_post_id: postId, p_sns: toSend.map((t) => t.sns).filter((s) => !(xHand && s === "x")) });
     if (error) return { error: "保存できませんでした。時間をおいてもう一度お試しください。" };
   }
 
@@ -141,7 +156,8 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
     p_project_id: projectId,
     p_body: body,
     p_planned_at: sendAt as string,
-    p_status: intent === "draft" ? "draft" : "scheduled",
+    // X を手で投稿するときは、いったん下書きで保存し、X を送らない印を付けてから予約にする（印を付ける前に送信ジョブが X を取り出さないように）
+    p_status: intent === "draft" || xHand ? "draft" : "scheduled",
     p_targets: targets.map((t) => ({
       sns: t.sns,
       title: SNS[t.sns].needsTitle ? (t.title ?? null) : null,
@@ -154,6 +170,17 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
   });
   if (error || !savedId) {
     return { error: "保存できませんでした。時間をおいてもう一度お試しください。" };
+  }
+
+  if (xHand) {
+    try {
+      await markXByHand(createAdminClient(), savedId, userId);
+    } catch (e) {
+      console.error("[savePost] X を手で投稿する印を付けられませんでした", e);
+      return { error: "保存できませんでした。時間をおいてもう一度お試しください。" };
+    }
+    const { error: statusError } = await supabase.from("posts").update({ status: "scheduled" }).eq("id", savedId).eq("project_id", projectId);
+    if (statusError) return { error: "保存できませんでした。時間をおいてもう一度お試しください。" };
   }
 
   // ロードマップのやることから作った投稿なら、結びつける（その投稿が送られたら、やることの進み具合に数える。4.23）

@@ -9,16 +9,18 @@ import { BAND_INFO, plannedAtFor } from "@/lib/metrics/time-bands";
 import { COMPOSE_STEPS, blockerStep } from "@/lib/posts/compose-steps";
 import { SNS, isManualSns } from "@/lib/sns";
 import { QUIET_BLOCKER, type Composer } from "./use-composer";
+import { XBudgetNotice } from "./x-budget-notice";
 
 // ⑤ 送る: 日時・予約・今すぐ・下書き・削除（compose-steps.md）
 export function ComposeStepSend({ c, steps = false }: { c: Composer; steps?: boolean }) {
-  const { composeStep, goStep, stepProblems, timeHint, images, plannedAt, setPlannedAt, confirmSend, setConfirmSend, pending, busy, sending, missingConnectMessage, blocker, nowBlocker, clearFieldError, submit, fe, connectHref, mode, labels, sentLabels, deleteRow, toSend } = c;
+  const { composeStep, goStep, stepProblems, timeHint, images, plannedAt, setPlannedAt, confirmSend, setConfirmSend, pending, busy, sending, missingConnectMessage, blocker, nowBlocker, clearFieldError, submit, fe, connectHref, mode, labels, sentLabels, deleteRow, toSend, xByHand } = c;
   // 日時が空のときは「今すぐ送る」を主なボタンにする（予約は日時を決めてから。2026-11-12 PMO の通しのテスト）
   const nowMain = !plannedAt;
   const mainBlocker = nowMain ? nowBlocker : blocker;
   const fixAt = blockerStep(mainBlocker, stepProblems);
   // 今すぐ送る SNS の名前（確かめに出す。note・Substack は手で投稿するので入れない）
-  const nowNames = toSend.filter((s) => !isManualSns(s)).map((s) => SNS[s].label).join("・");
+  // 今すぐ送る SNS の名前（手で投稿する SNS と、「X は手で投稿する」を選んだ X は送らないので入れない）
+  const nowNames = toSend.filter((s) => !isManualSns(s) && !(xByHand && s === "x")).map((s) => SNS[s].label).join("・");
   return (
     <>
       {/* 送る日時と送る */}
@@ -74,6 +76,7 @@ export function ComposeStepSend({ c, steps = false }: { c: Composer; steps?: boo
             </p>
           )}
           {sending && <SendProgress postId={sending.postId} sns={sending.sns} hasImages={images.length > 0} />}
+          <XBudgetNotice c={c} />
           {nowMain && confirmSend ? (
             // 今すぐ送るは取り消しにくいので、送り先の SNS の名前を出して確かめる
             <div className="flex flex-col gap-2 rounded-md border border-line px-3.5 py-3">

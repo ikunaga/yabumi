@@ -96,11 +96,15 @@ describe("返事の検証", () => {
 describe("案を使う", () => {
   const option: TidyOption = { label: "a", why: "", drafts: [{ sns: "x", text: "短い" }, { sns: "threads", text: "長い方の文" }] };
 
-  it("本文は上限の大きい SNS の文面、ほかは違えば SNS ごとの文面。整えていない SNS の文面はそのまま", () => {
+  it("案の文面が SNS で違うときは、共通の本文を残し、案はすべて SNS ごとの文面に入れる。整えていない SNS の文面はそのまま（PMO の通しテスト 04）", () => {
     expect(adoptTidyOption(option, { body: "元", overrides: { note: "記事", threads: "前の文" } })).toEqual({
-      body: "長い方の文",
-      overrides: { note: "記事", x: "短い" },
+      body: "元",
+      overrides: { note: "記事", x: "短い", threads: "長い方の文" },
     });
+  });
+
+  it("元の本文が空なら、上限の大きい SNS の文面を本文にし、違う SNS だけ SNS ごとの文面にする", () => {
+    expect(adoptTidyOption(option, { body: " \n", overrides: {} })).toEqual({ body: "長い方の文", overrides: { x: "短い" } });
   });
 
   it("本文に入れるのは上限のいちばん大きい SNS の文面（画面で「本文には Threads の文面を」と出す）", () => {

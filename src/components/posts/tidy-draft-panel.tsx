@@ -65,7 +65,8 @@ export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace, 
   const summary = directionSummary(direction);
   // 整える前の文（案を使ったときに覚え、「元に戻す」で戻す）
   const [original, setOriginal] = useState<Composer | null>(null);
-  const [adopted, setAdopted] = useState<{ index: number; main: SnsKey | null; split: SnsKey[] } | null>(null);
+  // kept: 共通の本文を利用者の文のまま残し、案をすべて SNS ごとの文面に入れた（案の文面が SNS で違うとき）
+  const [adopted, setAdopted] = useState<{ index: number; main: SnsKey | null; split: SnsKey[]; kept: boolean } | null>(null);
   // 案を使ったら案の欄を閉じ、知らせの 1 行だけにする（「ほかの案を見る」で開き直す）
   const [showOptions, setShowOptions] = useState(true);
   const notice = useRef<HTMLDivElement>(null);
@@ -149,7 +150,7 @@ export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace, 
     flushSync(() => {
       onReplace(next, split[0]);
       onAdoptedChange(true);
-      setAdopted({ index: i, main: tidyMainSns(option), split });
+      setAdopted({ index: i, main: tidyMainSns(option), split, kept: next.body === base.body && option.drafts.length > 0 && option.drafts.every((d) => next.overrides[d.sns] !== undefined) });
       setShowOptions(false);
     });
     const el = notice.current;
@@ -235,14 +236,25 @@ export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace, 
           role="status"
           className="flex scroll-mt-20 scroll-mb-24 flex-col gap-1 max-sm:scroll-mt-3 rounded-md bg-primary-soft px-3 py-2 text-sm text-fg outline-none focus-visible:shadow-[0_0_0_2px_var(--primary)]"
         >
-          <p>
-            「{adoptedOption.label}」の案を使いました。本文に入れました（
-            <button type="button" className={linkClass} onClick={onShowBody}>
-              本文を見る
-            </button>
-            ）
-          </p>
-          {split.length > 0 && adopted.main && (
+          {adopted.kept ? (
+            <p>
+              「{adoptedOption.label}」の案を使いました。SNS ごとに文面が違うので、{split.map((s) => SNS[s].label).join("・")} の文面に入れました（共通の本文はそのままです）。
+              {split.map((s) => (
+                <button key={s} type="button" className={`ml-2 ${linkClass}`} onClick={() => onEditOverride(s)}>
+                  {SNS[s].label} 用の文面を見る
+                </button>
+              ))}
+            </p>
+          ) : (
+            <p>
+              「{adoptedOption.label}」の案を使いました。本文に入れました（
+              <button type="button" className={linkClass} onClick={onShowBody}>
+                本文を見る
+              </button>
+              ）
+            </p>
+          )}
+          {!adopted.kept && split.length > 0 && adopted.main && (
             <p className="text-[13px] text-muted">
               {split.map((s) => SNS[s].label).join("・")} には SNS ごとの文面を入れました（{SNS[adopted.main].label} と字数が違うため）。
               {split.map((s) => (

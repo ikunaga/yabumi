@@ -17,6 +17,7 @@ import { countSelfWrittenPosts, hasVoiceMemo } from "@/lib/plan/voice";
 import { createClient } from "@/lib/supabase/server";
 import { canPublish } from "@/lib/sns/adapters";
 import { targetText } from "@/lib/sns/hashtags";
+import { X_BY_HAND_MESSAGE } from "@/lib/sns/x/send-rules";
 import { getPlanHints } from "@/lib/plan/queries";
 import { loadPostImages, snsNeedingImageReconnect } from "@/lib/media/queries";
 import { postLinkPreview } from "@/lib/links/store";
@@ -101,6 +102,7 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
             ? { title: null, text: targetText(post.body, t), composeUrl: xComposeUrl(targetText(post.body, t)) }
             : undefined,
         postedByHand: t.status === "published" && !t.external_post_id,
+        byHand: t.sns === "x" && t.status === "failed" && t.error_message === X_BY_HAND_MESSAGE,
         removedOnSns: t.status === "deleted" && Boolean(t.sns_removed_at),
       },
     ]),

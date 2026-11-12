@@ -6,18 +6,26 @@ export type TidyOption = { label: string; why: string; drafts: { sns: SnsKey; te
 
 type Composer = { body: string; overrides: Partial<Record<SnsKey, string>> };
 
-// 案を本文と SNS ごとの文面にする。共通の本文は、上限のいちばん大きい SNS の文面（note・Substack など、整えていない SNS にも長い方が入る）。
-// ほかの SNS は、文面が本文と違えば SNS ごとの文面にし、同じなら SNS ごとの文面を外す。整えていない SNS の文面はそのまま
+// 案を本文と SNS ごとの文面にする（PMO の通しテストで、共通の本文が Instagram の文面に置き換わった件）。
+// - 案の文面がどの SNS も同じ: 共通の本文に入れ、その SNS の SNS ごとの文面は外す
+// - SNS で違う: 共通の本文は利用者の文のまま残し、案はすべて SNS ごとの文面に入れる（本文の欄に、ある SNS 用のタグや言い回しが入らないように）
+// - 元の本文が空（フォーマットの穴だけで整えたなど）: 残すものがないので、上限のいちばん大きい SNS の文面を本文にし、違う SNS だけ SNS ごとの文面にする
+// 整えていない SNS の文面はそのまま
 export function adoptTidyOption(option: TidyOption, current: Composer): Composer {
   const mainSns = tidyMainSns(option);
   const main = option.drafts.find((d) => d.sns === mainSns);
   if (!main) return current;
   const overrides = { ...current.overrides };
-  for (const d of option.drafts) {
-    if (d.text === main.text) delete overrides[d.sns];
-    else overrides[d.sns] = d.text;
+  const allSame = option.drafts.every((d) => d.text === main.text);
+  if (allSame || !current.body.trim()) {
+    for (const d of option.drafts) {
+      if (d.text === main.text) delete overrides[d.sns];
+      else overrides[d.sns] = d.text;
+    }
+    return { body: main.text, overrides };
   }
-  return { body: main.text, overrides };
+  for (const d of option.drafts) overrides[d.sns] = d.text;
+  return { body: current.body, overrides };
 }
 
 // 共通の本文に入れる文面の SNS（上限のいちばん大きい SNS）

@@ -49,6 +49,8 @@ export function problemsByStep(a: {
   issues: { sns: SnsKey; label: string; issues: TargetIssue[]; override: boolean; tags?: boolean; issueLabel: (i: TargetIssue) => string }[];
   // SNS ごとのタグの欄の問題（タグにできない言葉・多すぎる。② で直す）
   tagProblems?: { label: string; text: string }[];
+  // X の月の上限に当たる（X を外すか、手で投稿するかを ② で選ぶ）
+  xBudget?: string | null;
   noTargets: boolean;
   missingConnect: string[];
   reconnect: string[];
@@ -64,6 +66,7 @@ export function problemsByStep(a: {
     }
   }
   for (const p of a.tagProblems ?? []) out.push({ step: 2, text: `${p.label}: ${p.text}` });
+  if (a.xBudget) out.push({ step: 2, text: a.xBudget });
   if (a.missingConnect.length) out.push({ step: 2, text: `${a.missingConnect.join("・")} をつなぐと送れます` });
   if (a.reconnect.length) out.push({ step: 3, text: `${a.reconnect.join("・")} に画像を送るには、つなぎ直しが要ります` });
   if (a.needsTime) out.push({ step: 5, text: "送る日時を決めてください" });

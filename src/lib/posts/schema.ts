@@ -41,6 +41,8 @@ export const savePostInputSchema = z.object({
   // 本文を書いたのは誰か（self: 本人 / ai: AI の文をもとにした）。文調のメモの材料と例を選ぶのに使う（docs/design/voice-from-posts.md の 2.3）。
   // 省くと、新しい投稿は self、前からある投稿は変えない
   textOrigin: z.enum(["self", "ai"]).nullable().optional(),
+  // X を手で投稿する（月の上限に当たるので、利用者が選んだ）。X の配信先は自動では送らず、送信の結果から手で投稿して記録する
+  xByHand: z.boolean().default(false),
 });
 
 export type SavePostInput = z.input<typeof savePostInputSchema>;

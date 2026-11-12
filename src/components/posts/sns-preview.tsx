@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { SNS, ignoresImages, type SnsKey } from "@/lib/sns";
-import { PREVIEW, foldText, previewImageLayout, previewName, previewSegments } from "@/lib/sns/preview";
+import { PREVIEW, foldText, previewImageLayout, previewName, previewSegments, threadsTopic } from "@/lib/sns/preview";
 import { PLACEHOLDER_CODE } from "@/lib/links/rules";
 import { SNS_COLOR } from "@/components/ui/marks";
 import type { AttachedImage } from "./image-attachments";
@@ -26,13 +26,15 @@ export function SnsPreview({ sns, text, title, projectName, images, length, acco
   const [expanded, setExpanded] = useState(false);
   const max = SNS[sns].maxLength;
   const shownImages = ignoresImages(sns) ? [] : images.filter((i) => i.previewUrl).slice(0, SNS[sns].maxImages);
-  const { shown, folded } = foldText(text, expanded ? null : spec.fold);
+  // Threads は 1 つ目のタグがトピック（名前の横）になり、本文では # が外れる。2 つ目からはタグにならない
+  const topic = sns === "threads" ? threadsTopic(text) : null;
+  const { shown, folded } = foldText(topic ? topic.text : text, expanded ? null : spec.fold);
   const who = previewName(sns, projectName, account);
 
   const body = text ? (
     <p className="break-words whitespace-pre-wrap [overflow-wrap:anywhere]">
       {sns === "instagram" && <b className="mr-1.5">{who.name}</b>}
-      <Rich text={shown} />
+      <Rich text={shown} tags={sns !== "threads"} />
       {folded && (
         <>
           …{" "}
@@ -54,6 +56,13 @@ export function SnsPreview({ sns, text, title, projectName, images, length, acco
             <span aria-hidden className={`size-8 flex-none rounded-full ${SNS_COLOR[sns].bg}`} />
             <b className="min-w-0 truncate">{who.name}</b>
             {who.handle && <span className="min-w-0 shrink truncate text-[13px] text-faint">@{who.handle}</span>}
+            {topic?.topic && (
+              <span className="min-w-0 shrink truncate text-[14px]">
+                <span aria-hidden className="text-faint">› </span>
+                {topic.topic}
+                <span className="sr-only">（トピック）</span>
+              </span>
+            )}
             <span className="shrink-0 text-[13px] text-faint">· 今</span>
           </div>
         )}
@@ -86,12 +95,19 @@ export function SnsPreview({ sns, text, title, projectName, images, length, acco
   );
 }
 
-function Rich({ text }: { text: string }) {
+// tags: ハッシュタグに色を付けるか（Threads はトピックの 1 つ目のほかはタグにならないので、付けない）
+function Rich({ text, tags = true }: { text: string; tags?: boolean }) {
   return (
     <>
-      {/* 保存する前の仮の短縮リンク（送るときに決まる）は薄い字にする */}
+      {/* 保存する前の仮の短縮リンク（送るときに決まる）は薄い字にする。Threads は 2 つ目からのタグに色を付けない */}
       {previewSegments(text).map((s, i) =>
-        s.kind === "text" ? <span key={i}>{s.value}</span> : <span key={i} className={s.value.endsWith(`/${PLACEHOLDER_CODE}`) ? "text-faint" : "text-info"}>{s.value}</span>,
+        s.kind === "text" || (s.kind === "tag" && !tags) ? (
+          <span key={i}>{s.value}</span>
+        ) : (
+          <span key={i} className={s.value.endsWith(`/${PLACEHOLDER_CODE}`) ? "text-faint" : "text-info"}>
+            {s.value}
+          </span>
+        ),
       )}
     </>
   );

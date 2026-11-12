@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/field";
 import { SNS, SNS_KEYS, countHashtags, INSTAGRAM_MAX_HASHTAGS, type SnsKey } from "@/lib/sns";
 import { HASHTAG_RULES, MAX_TARGET_HASHTAGS } from "@/lib/sns/hashtags";
 import { type Composer } from "./use-composer";
+import { XBudgetNotice } from "./x-budget-notice";
 
 // ② 送り先: SNS を選ぶ・送り先の注意・引用（compose-steps.md）
 export function ComposeStepTargets({ c }: { c: Composer }) {
@@ -86,6 +87,7 @@ export function ComposeStepTargets({ c }: { c: Composer }) {
             ))}
           </ul>
         )}
+        <XBudgetNotice c={c} />
         {quoting && (
           <QuoteTag
             id={quote!}
@@ -167,14 +169,14 @@ function TargetHashtags({ c }: { c: Composer }) {
   );
 }
 
-// タグの数の目安（Instagram は本文のタグと合わせて 5 個まで。Threads は 1 つ目だけがタグになる。ほかは目安を超えたら添える）
+// タグの数の目安（Instagram は本文のタグと合わせて 5 個まで。Threads は 1 つ目がトピックになり、2 つ目からはタグにならない。ほかは目安を超えたら添える）
 function tagNote(sns: SnsKey, tags: number, total: number): { text: string; danger?: boolean } | null {
   if (tags === 0) return null;
   if (sns === "instagram") {
     if (total > INSTAGRAM_MAX_HASHTAGS) return { text: `本文のタグと合わせて ${INSTAGRAM_MAX_HASHTAGS} 個までです（いま ${total} 個）`, danger: true };
     return null;
   }
-  if (sns === "threads") return total > 1 ? { text: "Threads は 1 つ目だけがタグになります" } : null;
+  if (sns === "threads") return total > 1 ? { text: "Threads では 1 つ目のタグがトピック（名前の横に出る）になり、本文の # は外れます。2 つ目からはタグにならず、文字のまま出ます" } : null;
   const rule = HASHTAG_RULES[sns];
   return total > rule.max ? { text: `目安: ${rule.text}` } : null;
 }

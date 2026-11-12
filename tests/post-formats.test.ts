@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { styleProblems } from "@/lib/ai/japanese-style";
 import { PRODUCT_TYPES } from "@/lib/projects/product-types";
-import { FORMAT_EXAMPLES, MAX_FORMAT_SLOTS, cleanSlotValues, fillFormat, formatInputSchema, formatSlots, insertFormatted, slotProblem } from "@/lib/post-formats/schema";
+import { FORMAT_EXAMPLES, MAX_FORMAT_SLOTS, cleanSlotValues, fillFormat, formatInputSchema, formatSlots, insertFormatted, slotProblem, unfilledSlots } from "@/lib/post-formats/schema";
 
 describe("穴の読み方", () => {
   it("出てくる順に、同じ名前は 1 つ。前後の空白は落とす", () => {
@@ -28,6 +28,13 @@ describe("穴の読み方", () => {
 });
 
 describe("本文に入れる", () => {
+  it("まだ埋めていない穴（全部埋めたら空。空白だけは埋めていない）", () => {
+    const body = "連想映画クイズ\n{キーワード5つ}\n{答え}";
+    expect(unfilledSlots(body, {})).toEqual(["キーワード5つ", "答え"]);
+    expect(unfilledSlots(body, { キーワード5つ: "時計台・稲妻", 答え: "  " })).toEqual(["答え"]);
+    expect(unfilledSlots(body, { キーワード5つ: "時計台・稲妻", 答え: "タイムマシン" })).toEqual([]);
+  });
+
   it("埋めた穴は言葉に、埋めなかった穴は【穴の名前】で残す", () => {
     expect(fillFormat("【新メニュー】{何が}\n{いつから}から、{いくら}です。", { 何が: "栗のタルト", いつから: " 11 月 15 日 " })).toBe("【新メニュー】栗のタルト\n11 月 15 日から、【いくら】です。");
   });

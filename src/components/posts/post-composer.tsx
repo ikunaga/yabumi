@@ -40,6 +40,17 @@ function useWide(): boolean {
   return useSyncExternalStore(subscribeWide, () => window.matchMedia(WIDE).matches, () => true);
 }
 
+// 画面の上に留まっている帯（PC の上の帯など）の下端。ステップを移ったときに、そこから少し下にステップの並びを出す
+function stickyTopOffset(): number {
+  let bottom = 0;
+  for (const el of document.querySelectorAll<HTMLElement>("header")) {
+    const st = getComputedStyle(el);
+    if (st.display === "none" || (st.position !== "sticky" && st.position !== "fixed")) continue;
+    bottom = Math.max(bottom, el.getBoundingClientRect().bottom);
+  }
+  return bottom + 12;
+}
+
 export function PostComposer(props: ComposerProps) {
   const c = useComposer(props);
   const { projectId, postId, results, notice, afterNotice, noticeTone, aiCheckEnabled, numbers, body, busy, notesOpen, setNotesOpen, noteIds, sentAny, pickNote, mode, composeStep, headingRef, pending, submit, goStep } = c;
@@ -48,15 +59,18 @@ export function PostComposer(props: ComposerProps) {
   const [extending, setExtending] = useState(false);
   const steps = mode !== "all_sent" || extending;
 
-  // ステップを移ったら、そのステップの見出しへ（読み上げにも、どこに来たかがわかるように）。開いたときは動かさない
+  // ステップを移ったら、ステップの並び（進みの札）と見出しが見えるところへ（読み上げにも、どこに来たかがわかるように、見出しにフォーカスを置く）。開いたときは動かさない。
+  // 上の帯（sticky）の下に来るように位置を計って、すぐに移す。前は見出しへの scrollIntoView（smooth）で、見出しが上の帯の下に隠れたり、
+  // 右の列が長くて下までスクロールしたまま「次へ」を押すと、途中で止まって左が空白に見えたりした（2026-11-12 PMO の本番での通しテスト 12）
   const shownStep = useRef(composeStep);
+  const stepsTopRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (shownStep.current === composeStep) return;
     shownStep.current = composeStep;
-    const el = headingRef.current;
-    if (!el) return;
-    el.focus({ preventScroll: true });
-    el.scrollIntoView({ block: "start", behavior: "smooth" });
+    headingRef.current?.focus({ preventScroll: true });
+    const top = stepsTopRef.current;
+    if (!top) return;
+    window.scrollTo({ top: Math.max(0, window.scrollY + top.getBoundingClientRect().top - stickyTopOffset()), behavior: "instant" });
   }, [composeStep, headingRef]);
 
   const notePicker = notesOpen && !postId && (
@@ -97,7 +111,9 @@ export function PostComposer(props: ComposerProps) {
       <ComposeAlerts c={c} />
 
       {steps ? (
-        <StepsLayout c={c} wide={wide} start={start} notePicker={notePicker} headingRef={headingRef} />
+        <div ref={stepsTopRef} className="flex flex-col gap-4">
+          <StepsLayout c={c} wide={wide} start={start} notePicker={notePicker} headingRef={headingRef} />
+        </div>
       ) : (
         <ComposeSentView
           c={c}

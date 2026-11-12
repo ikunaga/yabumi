@@ -166,6 +166,11 @@ export function fillFormat(body: string, values: Record<string, string>): string
   });
 }
 
+// まだ埋めていない穴（本文に入れると【穴の名前】のまま残るもの）。全部埋めたら空（「【】で残っています」と出さない。2026-11-12 PMO の通しテスト 02）
+export function unfilledSlots(body: string, values: Record<string, string>): string[] {
+  return formatSlots(body).filter((s) => !values[s]?.trim());
+}
+
 // 本文の欄に入れる。いまの本文が空なら埋めた本文、"replace" は置きかえ、"append" は空行を 1 つあけて下に足す
 export function insertFormatted(current: string, filled: string, how: "replace" | "append"): string {
   if (!current.trim() || how === "replace") return filled;

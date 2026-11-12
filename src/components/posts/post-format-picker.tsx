@@ -22,6 +22,7 @@ import {
   MAX_SLOT_VALUE,
   FORMAT_HASHTAG_KEYS,
   fillFormat,
+  unfilledSlots,
   formatInputSchema,
   formatSlots,
   hasFormatHashtags,
@@ -116,8 +117,26 @@ export function PostFormatPicker({
     if (selected) onUseChange?.({ format: selected, values: next });
   }
 
-  if (formats === null) return error ? <ErrorBanner>{error}</ErrorBanner> : null;
+  // 読み込み中も、読み込んだあとと同じ場所を空けておく（見出し・「なし」・「フォーマットを管理」の 1 行）。
+  // 前は読み込むまで何も出さず、あとから欄が出て下の本文の欄がずれ、押した所が「フォーマットを管理」に変わって、打った文字が入らなかった
+  // （2026-11-12 PMO の本番での通しテスト 01）
+  if (formats === null) {
+    return (
+      <fieldset className="flex min-w-0 flex-col gap-2" aria-busy={!error || undefined}>
+        <legend className="mb-1.5 text-[14px] font-bold">フォーマット</legend>
+        <div className="flex flex-wrap gap-2">
+          <Choice on onClick={() => {}}>
+            なし
+          </Choice>
+        </div>
+        <p className="text-xs text-faint">フォーマットを読み込んでいます…</p>
+        {error && <ErrorBanner>{error}</ErrorBanner>}
+      </fieldset>
+    );
+  }
   const slots = selected ? formatSlots(selected.body) : [];
+  // 本文に入れたとき、まだ埋めていない穴（【穴の名前】のまま本文に入る）
+  const unfilled = selected ? unfilledSlots(selected.body, values) : [];
 
   return (
     <fieldset className="flex min-w-0 flex-col gap-2">
@@ -144,15 +163,21 @@ export function PostFormatPicker({
             </details>
           )}
           {slots.length > 0 && (
-            <div className="grid grid-cols-2 gap-x-3 gap-y-2 max-sm:grid-cols-1">
+            // 穴の欄は横いっぱいにし、長い言葉は折り返して全部見えるようにする（前は 2 列の 1 行の欄で、「キーワード5つ」の言葉が途中で切れた。通しテスト 02）。
+            // 改行は入れない（Enter では改行しない。言い換えの確定の Enter はそのまま）
+            <div className="flex flex-col gap-2">
               {slots.map((s) => (
                 <label key={s} className="flex min-w-0 flex-col gap-1">
                   <span className="text-xs font-bold">{s}</span>
-                  <Input
+                  <Textarea
+                    rows={1}
                     value={values[s] ?? ""}
                     maxLength={MAX_SLOT_VALUE}
-                    onChange={(e) => setValue(s, e.target.value)}
-                    className="py-2 text-sm"
+                    onChange={(e) => setValue(s, e.target.value.replace(/\r?\n/g, " "))}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.nativeEvent.isComposing) e.preventDefault();
+                    }}
+                    className="min-h-0 resize-none! py-2 text-sm [field-sizing:content]"
                   />
                 </label>
               ))}
@@ -183,7 +208,8 @@ export function PostFormatPicker({
           </div>
           {inserted && (
             <p className="text-xs font-semibold text-success">
-              本文に入れました。埋めなかったところは【】で残っているので、書き換えてください。
+              {/* 全部埋めたときは【】の案内を出さない（前は埋めても「【】で残っています」と出た。通しテスト 02） */}
+              {unfilled.length > 0 ? `本文に入れました。埋めなかったところ（${unfilled.join("・")}）は【】で残っているので、書き換えてください。` : "本文に入れました。"}
               {hasFormatHashtags(selected.hashtags) && "タグは本文の下に付き、「2 送り先」で SNS ごとに直せます。"}
             </p>
           )}

@@ -10,6 +10,7 @@ import type { GoalReview } from "@/lib/goals/review";
 import { CYCLE_WEEKS, remainingText, type PaceStatus } from "@/lib/coach/pace";
 import { SNS } from "@/lib/sns";
 import { DismissableDetails } from "@/components/ui/dismissable-details";
+import { MarkDoneButton } from "./mark-done-button";
 import { nowBandKind, STEPS, stepHref, weekTodoPhase } from "@/lib/projects/next-step";
 import type { RoadmapItem } from "@/lib/roadmap/load";
 import { formatValue, kpiLabel } from "@/lib/roadmap/schema";
@@ -17,14 +18,32 @@ import { todoAction } from "@/lib/roadmap/todo-kind";
 
 // 概要の「いまやること」（1 行とボタンの小さな帯。2026-10-30 オーナーの決定）。いつも 1 つ出す（next-step.ts の nowBandKind）:
 // 最初の 4 段階 → 目標の振り返り（KGI の期限・届いた）→ 1 か月の区切り → 今週のやること（ロードマップ）。GitHub をつなぐ（任意）は帯の下の小さな 1 行。
-// 伴走（今週の回数）は帯の右に小さく出す。説明は「?」に畳む
-// いまやることの帯（いつも出す）と、その下の GitHub をつなぐ（任意。つないでいない・飛ばしていないときだけの小さな 1 行）
+// 伴走（今週の投稿の本数）は帯の下の小さな 1 行に出す。説明は押すと開く欄に畳む。
+// 前は帯の右（やることの題名の横）にあり、「今週 5/5 本 ✓ 達成」が別のやること（プロフィールに置くなど）の達成に見えた（2026-11-12 PMO の通しテスト）
+// いまやることの帯（いつも出す）と、その下の伴走の 1 行・GitHub をつなぐ（任意。つないでいない・飛ばしていないときだけの小さな 1 行）
 export function NowBand(props: Parameters<typeof MainBand>[0]) {
-  const { projectId, github } = props;
+  const { projectId, github, coach, coachReady } = props;
+  const kind = nowBandKind({ stepIndex: props.stepIndex, cycleEnded: Boolean(coach?.cycle?.ended), goalReview: Boolean(props.goalReview), cycleMerged: props.cycleMerged });
   return (
     <div className="flex flex-col gap-2">
       <MainBand {...props} />
+      {kind !== "step" && (coach || coachReady) && <PaceLine projectId={projectId} coach={coach} />}
       {github.show && <GithubLine projectId={projectId} configured={github.configured} />}
+    </div>
+  );
+}
+
+// 伴走の 1 行: 今週の投稿の本数（押すと SNS ごと）。週の回数を決めていなければ、決める入口
+function PaceLine({ projectId, coach }: { projectId: string; coach: CoachView | null }) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 text-sm text-muted">
+      {coach ? (
+        <PaceChip projectId={projectId} view={coach} />
+      ) : (
+        <Link href={`/projects/${projectId}/plan?open=first_month`} className="hover:text-fg hover:underline">
+          投稿のペース: 週の回数を決める
+        </Link>
+      )}
     </div>
   );
 }
@@ -57,7 +76,6 @@ function MainBand({
   projectId,
   stepIndex,
   coach,
-  coachReady,
   todos,
   progress,
   doneCount,
@@ -82,7 +100,6 @@ function MainBand({
   cycleMerged: boolean;
 }) {
   const base = `/projects/${projectId}`;
-  const pace = coach ? <PaceChip projectId={projectId} view={coach} /> : null;
 
   const kind = nowBandKind({ stepIndex, cycleEnded: Boolean(coach?.cycle?.ended), goalReview: Boolean(goalReview), cycleMerged });
   if (kind === "step") {
@@ -121,7 +138,6 @@ function MainBand({
       <ActionBar
         label="いまやること"
         title={goalReview.kind === "reached" ? `目標「${name}」に届きました` : `目標「${name}」の期限が来ました`}
-        help={pace}
         action={
           <ButtonLink href={aiEnabled ? `${base}/consult/new?start=goal_review&goal=${goalReview.goal.id}` : `${base}/roadmap`} size="sm">
             {aiEnabled ? "AI と振り返る" : "ロードマップで終える"}
@@ -137,7 +153,6 @@ function MainBand({
       <ActionBar
         label="いまやること"
         title="この 1 か月が終わりました。振り返って、次の 1 か月の目標と回数を決めましょう"
-        help={pace}
         action={
           <ButtonLink href={aiEnabled ? `${base}/consult/new?start=month_review` : `${base}/plan?open=first_month`} size="sm">
             {aiEnabled ? "AI と振り返る" : "次の 1 か月を決める"}
@@ -148,11 +163,6 @@ function MainBand({
   }
 
   const roadmapHref = `${base}/roadmap`;
-  const setup = !coach && coachReady ? (
-    <Link href={`${base}/plan?open=first_month`} className="shrink-0 text-sm text-muted hover:text-fg hover:underline max-sm:hidden">
-      週の回数を決める
-    </Link>
-  ) : null;
   // 済んだ・まだ決めていないの分け方は、プロジェクトの一覧の「次にやること」と同じ（weekTodoPhase）
   const phase = weekTodoPhase({ open: todos.length, finished: doneCount });
   if (phase !== "open") {
@@ -160,7 +170,6 @@ function MainBand({
       <ActionBar
         label="今週のやること"
         title={phase === "done" ? `今週のやることは済みました（${doneCount} 件）` : "今週のやることを決めましょう"}
-        help={pace ?? setup}
         action={
           <ButtonLink href={roadmapHref} size="sm" variant={phase === "done" ? "secondary" : "primary"}>
             {phase === "done" ? "来週を見る" : "決める"}
@@ -178,11 +187,20 @@ function MainBand({
       <ActionBar
         label={`今週のやること ${todos.length} 件`}
         title={<TodoText item={first} progress={progress[first.id]} />}
-        help={pace ?? setup}
         action={
-          <ButtonLink href={main.href} size="sm">
-            {main.label}
-          </ButtonLink>
+          // 数字で数えないやること（プロフィールに置く・振り返るなど）は、ここで済みにできる。数字のものは届けば自動で済み
+          progress[first.id] ? (
+            <ButtonLink href={main.href} size="sm">
+              {main.label}
+            </ButtonLink>
+          ) : (
+            <span className="flex items-center gap-2 max-sm:flex-col-reverse max-sm:items-stretch">
+              <MarkDoneButton projectId={projectId} itemId={first.id} title={first.title} />
+              <ButtonLink href={main.href} size="sm">
+                {main.label}
+              </ButtonLink>
+            </span>
+          )
         }
       />
       {others.length > 0 && (
@@ -195,6 +213,7 @@ function MainBand({
                 </Link>
                 {actionOf(t).kind !== "post" && <span className="text-xs text-muted">{actionOf(t).label}</span>}
                 <TodoText item={t} progress={progress[t.id]} only="progress" />
+                {!progress[t.id] && <MarkDoneButton projectId={projectId} itemId={t.id} title={t.title} variant="link" />}
               </li>
             ))}
             <li>
@@ -250,13 +269,13 @@ function PaceChip({ projectId, view }: { projectId: string; view: CoachView }) {
   return (
     <DismissableDetails className="relative shrink-0">
       <summary className="flex cursor-pointer list-none items-baseline gap-1.5 rounded-full border border-border px-3 py-1 text-xs text-muted hover:border-input hover:text-fg [&::-webkit-details-marker]:hidden">
-        <span>今週</span>
+        <span>投稿のペース 今週</span>
         <b className="num text-fg">
           {done}/{target} 本
         </b>
         {state && <span className={`font-bold ${state.cls}`}>{state.text}</span>}
       </summary>
-      <div className="absolute right-0 z-30 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-lg bg-pop px-4 py-3 text-[13px] leading-[1.7] text-on-pop shadow-pop">
+      <div className="absolute left-0 z-30 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-lg bg-pop px-4 py-3 text-[13px] leading-[1.7] text-on-pop shadow-pop">
         <p className="font-bold">今週の投稿のペース{cycle && !cycle.ended && `（この 1 か月の ${cycle.weekIndex}/${CYCLE_WEEKS} 週目）`}</p>
         {!week.achieved && !week.covered && <p>今週あと {remainingText(week)}</p>}
         <ul className="mt-1">

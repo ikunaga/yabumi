@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { MAX_IMAGES_PER_POST, MAX_UNATTACHED, MEDIA_BUCKET, USER_QUOTA_BYTES, mediaPath } from "@/lib/media/rules";
+import { MAX_IMAGES_PER_POST, MAX_UNATTACHED, MEDIA_BUCKET, USER_QUOTA_BYTES, mediaPath, unattachedLimitMessage } from "@/lib/media/rules";
 import type { SnsKey } from "@/lib/sns";
 import type { Database } from "@/lib/supabase/database.types";
 import { MAX_NOTE_CHARS, MAX_NOTES_PER_PROJECT } from "./rules";
@@ -158,7 +158,7 @@ export async function copyNoteImageForCompose(
   // 上限の確かめと記録は一続きではない（同時に何度も押すと少し超えうる）が、超えるのは本人の容量の中だけで、添えていない画像は 1 日で消えるので受け入れる（2026-11-02 PM の判断）
   const { count } = await admin.from("media_files").select("id", { count: "exact", head: true }).eq("owner_id", args.userId).is("post_id", null).is("note_id", null);
   if ((count ?? 0) >= MAX_UNATTACHED) {
-    return { ok: false, message: `保存していない画像が ${MAX_UNATTACHED} 枚あります。投稿を保存するか、要らない画像を外してから選んでください。` };
+    return { ok: false, message: unattachedLimitMessage() };
   }
   const { data: used } = await admin.rpc("media_usage_bytes", { p_owner_id: args.userId });
   if (Number(used ?? 0) + r.size_bytes > USER_QUOTA_BYTES) {

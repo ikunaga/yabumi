@@ -23,6 +23,14 @@ export const USER_QUOTA_BYTES = 100 * 1024 * 1024;
 
 // 投稿に添えないまま置ける枚数（上げたまま保存しなかった画像。1 日で消える）
 export const MAX_UNATTACHED = 20;
+// 画像の欄に「保存していない画像 18/20」を出しはじめる数（この数を超えたら出す。つまずく前にわかるように。4.63）
+export const SHOW_UNATTACHED_ABOVE = 16;
+
+// 保存していない画像が上限に達したときの言葉（画像を上げるとき・ネタ帳のメモの画像を写すとき。4.63）。
+// 数えるのはどの投稿にもメモにも添えていない画像の全部（ほかの書きかけ・閉じた画面の分も）なので、この画面で外せない分があることと、待てば減ることを添える
+export function unattachedLimitMessage(): string {
+  return `保存していない画像が ${MAX_UNATTACHED} 枚あります（ほかの書きかけの分も数えます）。投稿を保存するか、この画面の要らない画像を外してください。使わなかった画像は、上げてから 1 日で消えます。`;
+}
 
 // 代わりの文（alt）の上限。X・Threads・Instagram とも 1,000 字
 export const MAX_ALT_LENGTH = 1000;

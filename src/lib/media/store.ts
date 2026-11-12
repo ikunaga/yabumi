@@ -15,6 +15,7 @@ import {
   formatBytes,
   isOwnMediaPath,
   mediaPath,
+  unattachedLimitMessage,
 } from "./rules";
 
 // 画像の確認・添付・片付け（docs/architecture.md の 4.18）。admin は RLS を通らないクライアント。
@@ -63,7 +64,7 @@ export async function issueUpload(admin: Admin, ownerId: string, id: string = cr
   if (ticketError) throw ticketError;
   if (status === "too_many_pending") throw new MediaError("画像の追加が続いています。少し待ってからもう一度お試しください。");
   if (status === "too_many_unattached") {
-    throw new MediaError(`保存していない画像が ${MAX_UNATTACHED} 枚あります。投稿を保存するか、要らない画像を外してから追加してください。`);
+    throw new MediaError(unattachedLimitMessage());
   }
   if (status === "quota") {
     throw new MediaError(`置ける画像の合計（${formatBytes(USER_QUOTA_BYTES)}）に近づいています。送り終えた画像は ${KEEP_AFTER_SENT_DAYS} 日で消えます。要らない下書きの画像を外してください。`);
@@ -204,6 +205,18 @@ export async function postMedia(db: SupabaseClient<Database>, postId: string): P
 export function restorableRows<T extends { id: string; post_id: string | null; note_id: string | null; created_at: string }>(rows: T[], postId: string | null, now: Date): T[] {
   const since = now.getTime() - RESTORE_UNATTACHED_HOURS * 3600_000;
   return rows.filter((r) => (postId !== null && r.post_id === postId) || (r.post_id === null && r.note_id === null && Date.parse(r.created_at) > since));
+}
+
+// 保存していない画像の数（上限の確かめ issue_media_upload_ticket と同じ数え方: どの投稿にもメモにも添えていない画像と、1 日以内の確かめ待ちの引換券。4.63）。
+// 画面の「保存していない画像 18/20」に使う。ownerId はサーバーが決めたログイン中の利用者
+export async function unattachedCount(admin: Admin, ownerId: string): Promise<number> {
+  const [media, tickets] = await Promise.all([
+    admin.from("media_files").select("id", { count: "exact", head: true }).eq("owner_id", ownerId).is("post_id", null).is("note_id", null),
+    admin.from("media_upload_tickets").select("storage_path", { count: "exact", head: true }).eq("owner_id", ownerId).gt("created_at", new Date(Date.now() - 86_400_000).toISOString()),
+  ]);
+  if (media.error) throw media.error;
+  if (tickets.error) throw tickets.error;
+  return (media.count ?? 0) + (tickets.count ?? 0);
 }
 
 // 書きかけの画像を読み直す（restoreDraftImages の中身。4.62）。db は利用者の権限のクライアント（RLS が本人の行に絞る）。

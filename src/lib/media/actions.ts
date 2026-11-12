@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ownRecentPhotoJob } from "@/lib/ai/photo-gen";
 import { MAX_IMAGES_PER_POST, PREVIEW_URL_SECONDS } from "./rules";
 import { requireUser } from "@/lib/auth/user";
-import { MediaError, discardUnattached, restoreImages, issueUpload, ownAiMedia, signedUrls, verifyUpload, type MediaFile, type UploadTicket } from "./store";
+import { MediaError, discardUnattached, restoreImages, unattachedCount, issueUpload, ownAiMedia, signedUrls, verifyUpload, type MediaFile, type UploadTicket } from "./store";
 
 // 画面から呼ぶ、画像の添付の操作（docs/architecture.md の 4.18）。画像そのものは Vercel の関数を通さず、
 // ブラウザが署名つきの URL で Storage に直接上げる。ここでは URL の発行と、上げたあとの確かめだけを行う
@@ -90,5 +90,16 @@ export async function restoreDraftImages(postId: unknown, ids: unknown): Promise
     return { images };
   } catch (e) {
     return { images: [], ...failure(e, "画像を戻せませんでした。") };
+  }
+}
+
+// 保存していない画像の数（画像の欄の「保存していない画像 18/20」。数え方はサーバーの上限の確かめと同じ。4.63）
+export async function unattachedImageCount(): Promise<{ count: number | null }> {
+  const user = await requireUser();
+  try {
+    return { count: await unattachedCount(createAdminClient(), user.id) };
+  } catch (e) {
+    console.error("[media]", e instanceof Error ? e.message : e);
+    return { count: null };
   }
 }

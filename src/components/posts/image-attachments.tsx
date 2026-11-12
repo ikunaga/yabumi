@@ -5,9 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import { Button, buttonClass } from "@/components/ui/button";
 import { HelpTip } from "@/components/ui/help";
 import { Term } from "@/components/ui/term";
-import { discardImage } from "@/lib/media/actions";
+import { discardImage, unattachedImageCount } from "@/lib/media/actions";
 import { uploadImageFile, uploadJpeg } from "@/lib/media/client-upload";
-import { MAX_ALT_LENGTH, MAX_IMAGES_PER_POST, formatBytes } from "@/lib/media/rules";
+import { MAX_ALT_LENGTH, MAX_IMAGES_PER_POST, MAX_UNATTACHED, SHOW_UNATTACHED_ABOVE, formatBytes } from "@/lib/media/rules";
 import { aspectWarnings, carouselMismatches, instagramRatioOk, phoneOrientation, ratioLabel } from "@/lib/media/aspect";
 import { renderAspect } from "@/lib/media/aspect-render";
 import type { Adjustments } from "@/lib/media/adjust";
@@ -126,6 +126,19 @@ export function ImageAttachments({
   // まとめて整えている間は、並べ替え・外す・1 枚ずつ整えるを止める（番号がずれないように）
   const locked = disabled || bulkProgress !== null;
   const room = MAX_IMAGES_PER_POST - images.length - busy;
+  // 保存していない画像の数（サーバーの上限の確かめと同じ数え方。ほかの書きかけの分も入る。4.63）。画像が変わって、上げ終わったら数え直す
+  const [unattached, setUnattached] = useState<number | null>(null);
+  const imageIds = images.map((i) => i.id).join(",");
+  useEffect(() => {
+    if (busy > 0) return;
+    let alive = true;
+    void unattachedImageCount()
+      .then((r) => alive && setUnattached(r.count))
+      .catch(() => alive && setUnattached(null));
+    return () => {
+      alive = false;
+    };
+  }, [imageIds, busy]);
 
   async function addFiles(files: File[]) {
     setError(null);
@@ -329,7 +342,16 @@ export function ImageAttachments({
         </span>
         <HelpTip label="画像の扱い" align="right">
           送る前に JPEG に縮め、撮った場所などの情報は消します。動画は準備中です。
+          <p className="mt-2">
+            保存していない画像（どの投稿にも添えていない画像）は、ほかの書きかけ・閉じた画面の分も合わせて {MAX_UNATTACHED} 枚までです。{MAX_UNATTACHED} 枚になると新しい画像を上げられません。投稿を保存するか、この画面の要らない画像を外すと減ります。使わなかった画像は、上げてから 1 日で消えます。
+          </p>
         </HelpTip>
+        {/* 保存していない画像が多くなったら、数を出す（つまずく前にわかるように。説明は左の「?」） */}
+        {unattached !== null && unattached > SHOW_UNATTACHED_ABOVE && (
+          <span className={`num text-[13px] font-bold ${unattached >= MAX_UNATTACHED ? "text-signal" : "text-muted"}`}>
+            保存していない画像 {Math.min(unattached, MAX_UNATTACHED)}/{MAX_UNATTACHED}
+          </span>
+        )}
       </div>
 
       {maker && makerMounted && (

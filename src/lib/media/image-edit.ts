@@ -1,7 +1,7 @@
-// 添えた画像を整えたときの元のたどり方（縦横を整える・調整する。docs/architecture.md の 4.53）。
+// 添えた画像を整えたときの元のたどり方（縦横を整える・調整する・見出しを付ける。docs/architecture.md の 4.53・4.58）。
 // 最後の整え方と同じ整え方でやり直すときは、そのとき描き直した元（base）から描き直し（描き直しを重ねて画質を落とさない）、
 // 違う整え方ならいまの画像に重ねる（縦横を整えてから調整しても、縦横が消えない）
-export type EditKind = "aspect" | "adjust";
+export type EditKind = "aspect" | "adjust" | "headline";
 
 type Editable = { id: string; original?: Editable; edit?: { kind: EditKind; base: Editable } };
 

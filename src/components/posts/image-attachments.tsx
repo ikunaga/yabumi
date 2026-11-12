@@ -11,12 +11,13 @@ import { MAX_ALT_LENGTH, MAX_IMAGES_PER_POST, formatBytes } from "@/lib/media/ru
 import { aspectWarnings, carouselMismatches, instagramRatioOk, phoneOrientation, ratioLabel } from "@/lib/media/aspect";
 import { renderAspect } from "@/lib/media/aspect-render";
 import type { Adjustments } from "@/lib/media/adjust";
+import { headlineAction, headlineAlt, headlineAutoAlt, headlineUnknown, textAfterEdit, type HeadlineSettings } from "@/lib/media/headline";
 import { editSource, editedIds, staleAfterEdit, type EditKind } from "@/lib/media/image-edit";
 import { canvasToJpeg } from "@/lib/media/template-render";
 import { ImageNumbers, loadBitmap } from "./aspect-options";
 import type { BulkAspectOptions } from "./image-aspect-bulk";
 
-import type { ImageMakerProps } from "./image-maker";
+import type { ImageMakerProps, MadeImage } from "./image-maker";
 import { AiBadge } from "./ai-badge";
 
 // 縦横を整える画面も、開いたときに読み込む
@@ -29,6 +30,12 @@ const ImageAspectEditor = dynamic(() => import("./image-aspect-editor").then((m)
 const ImageAdjustEditor = dynamic(() => import("./image-adjust-editor").then((m) => m.ImageAdjustEditor), {
   ssr: false,
   loading: () => <p className="text-sm text-muted">調整する画面を開いています…</p>,
+});
+
+// 見出しを付ける欄（4.58）も、開いたときに読み込む（書体とテンプレートの処理）
+const ImageHeadlineEditor = dynamic(() => import("./image-headline-editor").then((m) => m.ImageHeadlineEditor), {
+  ssr: false,
+  loading: () => <p className="text-sm text-muted">見出しを付ける欄を開いています…</p>,
 });
 
 const ImageAspectBulk = dynamic(() => import("./image-aspect-bulk").then((m) => m.ImageAspectBulk), {
@@ -47,7 +54,8 @@ export type ImageMakerContext = Omit<ImageMakerProps, "onAdd" | "onClose" | "nex
 // aiGenerated: AI で作った画像（「AI で作った画像」の札を出す）。
 // original: 縦横を整えた・調整したときの元の画像（この画面の中だけで持ち、元に戻すときの元にする。保存はしない）。
 // edit: 最後の整え方（縦横を整える・調整する）と、そのとき描き直した元（base。たどり方は src/lib/media/image-edit.ts）。
-// 調整したときは、その値（adjust）も持ち、開き直したときにスライダーを戻す
+// 調整したときは、その値（adjust）も持ち、開き直したときにスライダーを戻す。見出しを付けたときは、その設定（headline）を持ち、「見出しを直す」で欄に戻す。
+// text: 画像に文字が入っているか（この画面で添えた・つくった画像だけわかる。保存して開き直した画像は undefined。見出しの入口を決める。4.58）
 export type AttachedImage = {
   id: string;
   previewUrl: string | null;
@@ -56,8 +64,9 @@ export type AttachedImage = {
   height: number;
   sizeBytes: number;
   aiGenerated?: boolean;
+  text?: boolean;
   original?: AttachedImage;
-  edit?: { kind: EditKind; base: AttachedImage; adjust?: Adjustments };
+  edit?: { kind: EditKind; base: AttachedImage; adjust?: Adjustments; headline?: HeadlineSettings };
 };
 
 // 描き直す元として持つときは、その先の元や整え方を持たない（いまの画像の original と edit で足りる）
@@ -100,6 +109,8 @@ export function ImageAttachments({
   const [adjusting, setAdjusting] = useState<string | null>(null);
   // 調整する画面を開いている画像の ID（縦横を整える画面とは、どちらか 1 つだけ開く）
   const [tuning, setTuning] = useState<string | null>(null);
+  // 見出しを付ける欄を開いている画像の ID（縦横を整える・調整すると、どれか 1 つだけ開く）
+  const [titling, setTitling] = useState<string | null>(null);
   // まとめて整える: 欄を開いているか・進み具合・終わったあと（整えた画像の新しい ID と、整えられなかった画像の ID）
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
@@ -117,7 +128,7 @@ export function ImageAttachments({
     for (const file of picked) {
       try {
         const image = await uploadImageFile(file);
-        onChange((prev) => [...prev, image]);
+        onChange((prev) => [...prev, { ...image, text: false }]);
       } catch (e) {
         setError(e instanceof Error ? e.message : "画像を追加できませんでした。");
       } finally {
@@ -126,8 +137,9 @@ export function ImageAttachments({
     }
   }
 
-  // つくった画像を添える。添えられたら true（画面は閉じずに、続けて次の画像をつくれる）
-  async function addMade(jpeg: Blob, altText: string, ai?: { jobId: string; source: "generated" | "composite" }): Promise<boolean> {
+  // つくった画像を添える。添えられたら true（画面は閉じずに、続けて次の画像をつくれる）。
+  // 写真に見出しは、敷いた写真を先に元として上げ、「見出しを直す」「元に戻す」ができるようにする（4.58）
+  async function addMade(jpeg: Blob, altText: string, ai: { jobId: string; source: "generated" | "composite" } | undefined, made: MadeImage): Promise<boolean> {
     setError(null);
     if (countRef.current >= MAX_IMAGES_PER_POST) {
       setError(`画像は 1 つの投稿に ${MAX_IMAGES_PER_POST} 枚までです。`);
@@ -136,8 +148,19 @@ export function ImageAttachments({
     countRef.current += 1;
     setBusy((n) => n + 1);
     try {
-      const image = await uploadJpeg(jpeg, "作った画像", ai);
-      onChange((prev) => [...prev, { ...image, altText }]);
+      if (made.kind === "headline") {
+        const photo = { ...(await uploadJpeg(made.photo, "敷いた写真", made.photoAi ? { jobId: made.photoAi, source: "generated" } : undefined)), text: false };
+        try {
+          const image = await uploadJpeg(jpeg, "作った画像", ai);
+          onChange((prev) => [...prev, { ...image, altText, text: true, original: photo, edit: { kind: "headline", base: photo, headline: made.settings } }]);
+        } catch (e) {
+          void discardImage(photo.id);
+          throw e;
+        }
+      } else {
+        const image = await uploadJpeg(jpeg, "作った画像", ai);
+        onChange((prev) => [...prev, { ...image, altText, text: made.kind === "text" }]);
+      }
       return true;
     } catch (e) {
       countRef.current -= 1;
@@ -154,20 +177,26 @@ export function ImageAttachments({
   }
 
   // 整えた画像を上げて、いまの画像と差し替える（元の画像は original に持ち、元に戻せる）。差し替えた画像の新しい ID を返す
-  async function swap(image: AttachedImage, jpeg: Blob, kind: EditKind, adjust?: Adjustments): Promise<string> {
+  async function swap(image: AttachedImage, jpeg: Blob, kind: EditKind, adjust?: Adjustments, headline?: { settings: HeadlineSettings; altText: string }): Promise<string> {
     const original = image.original ?? image;
     const base = strip(editSource(image, kind));
     const uploaded = await uploadJpeg(jpeg, "整えた画像", original.aiGenerated ? { fromMediaId: original.id } : undefined);
     // 前に整えた画像のうち、元にも、今回描き直した元にもならないものは要らなくなる
     for (const id of staleAfterEdit(image, kind, uploaded.id)) void discardImage(id);
-    onChange((prev) => prev.map((p) => (p.id === image.id ? { ...uploaded, altText: p.altText, original, edit: { kind, base, adjust } } : p)));
+    onChange((prev) =>
+      prev.map((p) =>
+        p.id === image.id
+          ? { ...uploaded, altText: headline?.altText ?? p.altText, text: textAfterEdit(image, kind), original, edit: { kind, base, adjust, headline: headline?.settings } }
+          : p,
+      ),
+    );
     return uploaded.id;
   }
 
-  async function replaceWith(image: AttachedImage, jpeg: Blob, kind: EditKind, adjust?: Adjustments): Promise<boolean> {
+  async function replaceWith(image: AttachedImage, jpeg: Blob, kind: EditKind, adjust?: Adjustments, headline?: { settings: HeadlineSettings; altText: string }): Promise<boolean> {
     setError(null);
     try {
-      await swap(image, jpeg, kind, adjust);
+      await swap(image, jpeg, kind, adjust, headline);
       return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : "画像を差し替えられませんでした。");
@@ -177,7 +206,9 @@ export function ImageAttachments({
 
   function revert(image: AttachedImage) {
     if (!image.original) return;
-    const original = { ...image.original, altText: image.altText };
+    // 見出しから作った説明文のままなら、見出しのない元の説明文に戻す（利用者が書き直した説明文は残す）
+    const autoAltText = image.edit?.kind === "headline" && image.edit.headline && image.altText === headlineAutoAlt(image.edit.headline);
+    const original = { ...image.original, altText: autoAltText ? image.original.altText : image.altText };
     onChange((prev) => prev.map((p) => (p.id === image.id ? original : p)));
     for (const id of editedIds(image)) void discardImage(id);
   }
@@ -417,7 +448,7 @@ export function ImageAttachments({
                   )}
                   {image.original && (
                     <span className="num text-muted">
-                      整えました（元 {image.original.width}×{image.original.height}）
+                      {image.edit?.kind === "headline" ? "見出しを付けました" : "整えました"}（元 {image.original.width}×{image.original.height}）
                     </span>
                   )}
                   <button
@@ -426,6 +457,7 @@ export function ImageAttachments({
                     aria-expanded={adjusting === image.id}
                     onClick={() => {
                       setTuning(null);
+                      setTitling(null);
                       setAdjusting((a) => (a === image.id ? null : image.id));
                     }}
                     className="font-semibold text-primary hover:underline disabled:text-muted disabled:no-underline"
@@ -438,12 +470,28 @@ export function ImageAttachments({
                     aria-expanded={tuning === image.id}
                     onClick={() => {
                       setAdjusting(null);
+                      setTitling(null);
                       setTuning((a) => (a === image.id ? null : image.id));
                     }}
                     className="font-semibold text-primary hover:underline disabled:text-muted disabled:no-underline"
                   >
                     調整する
                   </button>
+                  {maker && headlineAction(image) && (
+                    <button
+                      type="button"
+                      disabled={locked || !editSource(image, "headline").previewUrl}
+                      aria-expanded={titling === image.id}
+                      onClick={() => {
+                        setAdjusting(null);
+                        setTuning(null);
+                        setTitling((a) => (a === image.id ? null : image.id));
+                      }}
+                      className="font-semibold text-primary hover:underline disabled:text-muted disabled:no-underline"
+                    >
+                      {headlineAction(image) === "edit" ? "見出しを直す" : "見出しを付ける"}
+                    </button>
+                  )}
                   {image.original && (
                     <button type="button" disabled={locked} onClick={() => revert(image)} className="text-muted hover:text-fg hover:underline">
                       元に戻す
@@ -487,6 +535,31 @@ export function ImageAttachments({
                     index={i}
                     onApply={(jpeg, adjust) => replaceWith(image, jpeg, "adjust", adjust)}
                     onClose={() => setTuning(null)}
+                  />
+                </div>
+              )}
+              {maker && titling === image.id && headlineAction(image) && editSource(image, "headline").previewUrl && (
+                <div className="col-span-2">
+                  <ImageHeadlineEditor
+                    // 元が変わったら（元に戻したなど）、前の設定を持ち越さずに開き直す
+                    key={editSource(image, "headline").id}
+                    source={sourceOf(editSource(image, "headline"))}
+                    initial={image.edit?.kind === "headline" ? image.edit.headline : undefined}
+                    unknown={headlineUnknown(image)}
+                    ai={Boolean((image.original ?? image).aiGenerated)}
+                    index={i}
+                    projectId={maker.projectId}
+                    projectName={maker.projectName}
+                    aiEnabled={maker.aiEnabled}
+                    text={maker.text}
+                    targets={maker.targets}
+                    onApply={(jpeg, settings) =>
+                      replaceWith(image, jpeg, "headline", undefined, {
+                        settings,
+                        altText: headlineAlt(image.altText, settings, image.edit?.kind === "headline" ? image.edit.headline : undefined),
+                      })
+                    }
+                    onClose={() => setTitling(null)}
                   />
                 </div>
               )}

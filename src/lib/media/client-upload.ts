@@ -9,6 +9,15 @@ export type UploadedImage = { id: string; previewUrl: string | null; altText: st
 // 画像として読めないファイル（拡張子だけ画像のものなど）は、ここで読めずに失敗する
 export async function toJpeg(file: File): Promise<Blob> {
   const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+  try {
+    return await bitmapToJpeg(bitmap);
+  } finally {
+    bitmap.close();
+  }
+}
+
+// 読み込んだ画像を JPEG に描き直す（toJpeg と同じ。写真に見出しで敷いた写真を、元の画像として上げるときにも使う）。bitmap は閉じない
+export async function bitmapToJpeg(bitmap: ImageBitmap): Promise<Blob> {
   const scale = Math.min(1, MAX_LONG_EDGE / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement("canvas");
   canvas.width = Math.max(1, Math.round(bitmap.width * scale));
@@ -19,7 +28,6 @@ export async function toJpeg(file: File): Promise<Blob> {
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  bitmap.close();
   for (const quality of [JPEG_QUALITY, 0.7, 0.55]) {
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
     if (blob && blob.size <= MAX_IMAGE_BYTES) return blob;

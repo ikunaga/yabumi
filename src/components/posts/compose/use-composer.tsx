@@ -30,10 +30,13 @@ import { sendLabels, sendMode } from "@/lib/posts/send-mode";
 import { findUrls, profileLinkLine, withDestinationUrl, withProfileLink, type ProfileLinkInfo } from "@/lib/posts/profile-link";
 import { type TimeBand } from "@/lib/metrics/time-bands";
 import { composeChanges, type ComposeSnapshot } from "@/lib/posts/compose-reset";
+import { hashtagInputProblem, hashtagLine, parseHashtagInput, withHashtags } from "@/lib/sns/hashtags";
+import { formatTagsFor, hasFormatHashtags, type FormatHashtags } from "@/lib/post-formats/schema";
 
 export type ComposerInitial = {
   body: string;
-  targets: { sns: SnsKey; bodyOverride: string | null; title?: string | null }[];
+  // hashtags: 本文とは別に付けるタグ（# なし。4.59）
+  targets: { sns: SnsKey; bodyOverride: string | null; title?: string | null; hashtags?: string[] }[];
   plannedAt: string;
   images?: AttachedImage[];
   // 本文の URL を短縮リンクにするか（新しい投稿はオン。4.22、D20）
@@ -151,6 +154,8 @@ export function useComposer({
   const [titles, setTitles] = useState<Partial<Record<SnsKey, string>>>(() =>
     Object.fromEntries(initial.targets.filter((t) => t.title).map((t) => [t.sns, t.title!])),
   );
+  // SNS ごとのタグの欄（書いたままの文字。送るときに本文の後ろに足す。4.59）
+  const [tagInputs, setTagInputs] = useState<Partial<Record<SnsKey, string>>>(() => initialTagInputs(initial));
   const [plannedAt, setPlannedAt] = useState(initial.plannedAt);
   // 引用する X の投稿（外すと、ふつうの X の投稿として予約・送信できる）
   const [quote, setQuote] = useState<string | null>(initial.quotePostId ?? null);
@@ -205,6 +210,7 @@ export function useComposer({
       body: initial.body,
       overrides: Object.fromEntries(initial.targets.filter((t) => t.bodyOverride !== null).map((t) => [t.sns, t.bodyOverride!])),
       titles: Object.fromEntries(initial.targets.filter((t) => t.title).map((t) => [t.sns, t.title!])),
+      hashtags: initialTagInputs(initial),
     }),
     [initial],
   );
@@ -232,17 +238,19 @@ export function useComposer({
   }, [notice, draftKey, projectId]);
   useEffect(() => {
     if (!found || found.draft) return;
-    const now: PostDraft = { body, overrides, titles };
+    const now: PostDraft = { body, overrides, titles, hashtags: tagInputs };
     const step = draftStep({ same: samePostDraft(now, initialDraft), typed: typed.current });
     if (step === "clear") clearFormDraft(draftKey);
     else if (step === "write") writeFormDraft(draftKey, { ...now, step: composeStep }, draftBase);
-  }, [body, overrides, titles, found, draftKey, initialDraft, draftBase, composeStep]);
+  }, [body, overrides, titles, tagInputs, found, draftKey, initialDraft, draftBase, composeStep]);
   function restoreDraft() {
     if (!restorable) return;
     const v = restorable.value;
     setBody(v.body);
     setOverrides(v.overrides ?? {});
     setTitles(v.titles ?? {});
+    // 前の版の控え（タグの欄がない）では、保存したタグのまま
+    setTagInputs(v.hashtags ?? initialDraft.hashtags ?? {});
     setRestorable(null);
     // 控えたときのステップに戻す（前の版の控えにはない）
     if (typeof v.step === "number") goStep(parseStep(String(v.step), composeStep), { replace: true });
@@ -268,13 +276,14 @@ export function useComposer({
   );
   const resetChanges = composeChanges(
     initialSnapshot,
-    { body, overrides, titles, imageIds: images.map(imageKey), plannedAt, targets: [...selected], shortLinks, noteIds },
+    { body, overrides, titles, hashtags: tagInputs, imageIds: images.map(imageKey), plannedAt, targets: [...selected], shortLinks, noteIds },
     { saved: postId !== null },
   );
   function resetAll() {
     setBody(initial.body);
     setOverrides(initialDraft.overrides);
     setTitles(initialDraft.titles);
+    setTagInputs(initialDraft.hashtags ?? {});
     // まだ保存していない画像は、外したときと同じく翌日の片付けで消える（4.18）
     setImages(initial.images ?? []);
     setPlannedAt(initial.plannedAt);
@@ -307,14 +316,37 @@ export function useComposer({
     }
   }
 
-  const textFor = (sns: SnsKey) => overrides[sns] ?? body;
+  // SNS ごとのタグ（欄から読んだもの）と、送る文（本文か SNS ごとの文面 ＋ 空行 ＋ タグ。DB の post_target_text と同じ組み立て）
+  const tagsFor = (sns: SnsKey) => parseHashtagInput(tagInputs[sns] ?? "").tags;
+  const textFor = (sns: SnsKey) => withHashtags(overrides[sns] ?? body, tagsFor(sns));
+  // タグを付ける前の文（AI に渡すのはこちら。タグは AI に送らない）
+  const bodyFor = (sns: SnsKey) => overrides[sns] ?? body;
   const checks = useMemo(
     () =>
       Object.fromEntries(
-        SNS_KEYS.map((sns) => [sns, checkTarget(sns, overrides[sns] ?? body, { images: images.length, videos: 0, sizes: images }, titles[sns] ?? null)]),
+        SNS_KEYS.map((sns) => [
+          sns,
+          checkTarget(sns, withHashtags(overrides[sns] ?? body, parseHashtagInput(tagInputs[sns] ?? "").tags), { images: images.length, videos: 0, sizes: images }, titles[sns] ?? null),
+        ]),
       ) as Record<SnsKey, ReturnType<typeof checkTarget>>,
-    [body, overrides, titles, images],
+    [body, overrides, titles, tagInputs, images],
   );
+  // タグの欄の問題（タグにできない言葉・6 個以上）
+  const tagProblem = (sns: SnsKey) => hashtagInputProblem(tagInputs[sns] ?? "");
+  // 投稿のフォーマットのタグを、SNS ごとのタグの欄に入れる（置きかえ。送った SNS は変えない）。フォーマットにタグがなければ何もしない
+  function applyFormatTags(h: FormatHashtags | null | undefined) {
+    if (!hasFormatHashtags(h)) return;
+    setTagInputs((prev) => {
+      const next = { ...prev };
+      for (const s of SNS_KEYS) {
+        if (isLocked(s)) continue;
+        const tags = formatTagsFor(h, s);
+        if (tags.length) next[s] = hashtagLine(tags);
+        else delete next[s];
+      }
+      return next;
+    });
+  }
 
   const isLocked = (s: SnsKey) => LOCKED.has(results[s]?.status ?? "");
   // 1 つでも送った（送信中・取り消し済みを含む）投稿
@@ -347,6 +379,10 @@ export function useComposer({
     if (quoting) return QUOTE_BLOCKER;
     if (toSend.length === 0) return "選んだ SNS にはすべて投稿済みです";
     if (quiet) return QUIET_BLOCKER;
+    for (const s of toSend) {
+      const p = tagProblem(s);
+      if (p) return `${SNS[s].label}: ${p}`;
+    }
     for (const s of toSend) {
       const issue = checks[s].issues[0];
       if (issue) return `${SNS[s].label}: ${ISSUE_LABEL[issue]}`;
@@ -467,7 +503,13 @@ export function useComposer({
         noteIds,
         quotePostId: quoting ? quote : null,
         textOrigin,
-        targets: chosen.map((sns) => ({ sns, bodyOverride: overrides[sns] ?? null, title: SNS[sns].needsTitle ? (titles[sns] ?? null) : null })),
+        targets: chosen.map((sns) => ({
+          sns,
+          bodyOverride: overrides[sns] ?? null,
+          title: SNS[sns].needsTitle ? (titles[sns] ?? null) : null,
+          // 欄に書いたまま区切って渡す（タグにできない言葉は、サーバーが欄のエラーにする）
+          hashtags: (tagInputs[sns] ?? "").split(/[\s,、，]+/u).filter(Boolean),
+        })),
       }), "書いた内容は残しています。");
       const sendPostId = out.ok ? out.value?.sendPostId : undefined;
       if (sendPostId) {
@@ -599,7 +641,11 @@ export function useComposer({
   const stepProblems = quiet
     ? []
     : problemsByStep({
-        issues: toSend.map((sns) => ({ sns, label: SNS[sns].label, issues: checks[sns].issues, override: overrides[sns] !== undefined, issueLabel: (i) => ISSUE_LABEL[i] })),
+        issues: toSend.map((sns) => ({ sns, label: SNS[sns].label, issues: checks[sns].issues, override: overrides[sns] !== undefined, tags: tagsFor(sns).length > 0, issueLabel: (i) => ISSUE_LABEL[i] })),
+        tagProblems: toSend.flatMap((sns) => {
+          const p = tagProblem(sns);
+          return p ? [{ label: SNS[sns].label, text: p }] : [];
+        }),
         noTargets: chosen.length === 0,
         missingConnect: missingConnect.map((s) => SNS[s].label),
         reconnect: images.length > 0 ? toSend.filter((s) => needImageReconnect.includes(s)).map((s) => SNS[s].label) : [],
@@ -651,6 +697,11 @@ export function useComposer({
     setFocus,
     titles,
     setTitles,
+    tagInputs,
+    setTagInputs,
+    tagsFor,
+    tagProblem,
+    applyFormatTags,
     plannedAt,
     setPlannedAt,
     quote,
@@ -705,6 +756,7 @@ export function useComposer({
     resetAll,
     closeReset,
     textFor,
+    bodyFor,
     checks,
     isLocked,
     sentAny,
@@ -759,6 +811,11 @@ const TARGET_STATE: Partial<Record<TargetResult["status"], { text: string; tone:
 // 送ったあとの状態は、上の「送信の結果」に出ているので、チップの下の注意には出さない
 
 export const TARGET_STATE_TEXTS = new Set(Object.values(TARGET_STATE).map((s) => s!.text));
+
+// 保存したタグを、欄に出す文字にする（#a #b）
+function initialTagInputs(initial: ComposerInitial): Partial<Record<SnsKey, string>> {
+  return Object.fromEntries(initial.targets.filter((t) => t.hashtags?.length).map((t) => [t.sns, hashtagLine(t.hashtags!)]));
+}
 
 // 投稿をつくるの書きかけの控え（4.35）
 const noopSubscribe = () => () => {};

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isManualSns, type SnsKey } from "@/lib/sns";
+import { targetText } from "@/lib/sns/hashtags";
 import type { Database } from "@/lib/supabase/database.types";
 import { projectLinkBase } from "./domains";
 import { CODE_PATTERN, findLinkableUrls, generateCode, shortLinkUrl, substituteLinks, substitutesBodyLinks, withTrackingParams, type Device, type Excluded } from "./rules";
@@ -162,7 +163,7 @@ export async function substituteForTarget(admin: Admin, postTargetId: string, sn
 export async function preparePostLinks(admin: Admin, input: { ownerId: string; projectId: string; postId: string; enabled: boolean }): Promise<void> {
   const [{ data: post, error: postError }, { data: targets, error }] = await Promise.all([
     admin.from("posts").select("body").eq("id", input.postId).eq("owner_id", input.ownerId).single(),
-    admin.from("post_targets").select("id, sns, status, body_override").eq("post_id", input.postId).eq("owner_id", input.ownerId),
+    admin.from("post_targets").select("id, sns, status, body_override, hashtags").eq("post_id", input.postId).eq("owner_id", input.ownerId),
   ]);
   if (postError) throw postError;
   if (error) throw error;
@@ -173,7 +174,7 @@ export async function preparePostLinks(admin: Admin, input: { ownerId: string; p
       if (delError) throw delError;
       continue;
     }
-    await ensurePostLinks(admin, { ownerId: input.ownerId, projectId: input.projectId, postTargetId: t.id, sns: t.sns as SnsKey, text: t.body_override ?? post.body });
+    await ensurePostLinks(admin, { ownerId: input.ownerId, projectId: input.projectId, postTargetId: t.id, sns: t.sns as SnsKey, text: targetText(post.body, t) });
   }
 }
 

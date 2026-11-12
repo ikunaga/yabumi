@@ -1303,6 +1303,7 @@ export type Database = {
           body: string
           created_at: string
           example: string
+          hashtags: Json
           id: string
           name: string
           owner_id: string
@@ -1316,6 +1317,7 @@ export type Database = {
           body: string
           created_at?: string
           example?: string
+          hashtags?: Json
           id?: string
           name: string
           owner_id?: string
@@ -1329,6 +1331,7 @@ export type Database = {
           body?: string
           created_at?: string
           example?: string
+          hashtags?: Json
           id?: string
           name?: string
           owner_id?: string
@@ -1388,6 +1391,7 @@ export type Database = {
           error_message: string | null
           external_post_id: string | null
           external_url: string | null
+          hashtags: string[]
           id: string
           locked_at: string | null
           next_attempt_at: string | null
@@ -1412,6 +1416,7 @@ export type Database = {
           error_message?: string | null
           external_post_id?: string | null
           external_url?: string | null
+          hashtags?: string[]
           id?: string
           locked_at?: string | null
           next_attempt_at?: string | null
@@ -1436,6 +1441,7 @@ export type Database = {
           error_message?: string | null
           external_post_id?: string | null
           external_url?: string | null
+          hashtags?: string[]
           id?: string
           locked_at?: string | null
           next_attempt_at?: string | null
@@ -2479,6 +2485,10 @@ export type Database = {
           scheduled: number
           sns: string
         }[]
+      }
+      post_target_text: {
+        Args: { p_hashtags: string[]; p_text: string }
+        Returns: string
       }
       posting_time_trends: {
         Args: { p_project_id: string; p_today: string }

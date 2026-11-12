@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button";
 import { chipClass } from "@/components/ui/chip";
 import { LearningTip } from "@/components/learning/learning-tip";
 import { hasUrl } from "@/lib/learning/tips";
-import { SNS, SNS_KEYS } from "@/lib/sns";
+import { Input } from "@/components/ui/field";
+import { SNS, SNS_KEYS, countHashtags, INSTAGRAM_MAX_HASHTAGS, type SnsKey } from "@/lib/sns";
+import { HASHTAG_RULES, MAX_TARGET_HASHTAGS } from "@/lib/sns/hashtags";
 import { type Composer } from "./use-composer";
 
 // ② 送り先: SNS を選ぶ・送り先の注意・引用（compose-steps.md）
@@ -108,6 +110,8 @@ export function ComposeStepTargets({ c }: { c: Composer }) {
         )}
       </fieldset>
 
+      {chosen.length > 0 && <TargetHashtags c={c} />}
+
       {mode !== "all_sent" && (
         <>
           <LearningTip trigger="instagram_selected" when={!learnFrom.instagram && chosen.includes("instagram")} />
@@ -116,6 +120,63 @@ export function ComposeStepTargets({ c }: { c: Composer }) {
       )}
     </>
   );
+}
+
+// SNS ごとのタグ（docs/architecture.md の 4.59）。本文とは別に持ち、送るときに本文の下に 1 行あけて付く。
+// 投稿のフォーマットを本文に入れると、そのタグが入る。送った SNS は直せない（送り直さない）
+function TargetHashtags({ c }: { c: Composer }) {
+  const { chosen, tagInputs, setTagInputs, tagsFor, tagProblem, textFor, isLocked, markTyped, clearFieldError } = c;
+  return (
+    <fieldset className="flex min-w-0 flex-col gap-2">
+      <legend className="mb-1 text-[14px] font-bold">
+        タグ<span className="ml-1.5 text-[13px] font-normal text-muted">本文の下に付きます・SNS ごとに {MAX_TARGET_HASHTAGS} 個まで</span>
+      </legend>
+      <ul className="flex flex-col gap-2">
+        {chosen.map((sns) => {
+          const locked = isLocked(sns);
+          const problem = locked ? null : tagProblem(sns);
+          const note = locked ? null : tagNote(sns, tagsFor(sns).length, countHashtags(textFor(sns)));
+          return (
+            <li key={sns} className="flex flex-col gap-1">
+              <label className="flex items-center gap-3 max-sm:flex-col max-sm:items-stretch max-sm:gap-1">
+                <span className="w-24 shrink-0 text-[13px] font-bold max-sm:w-auto">{SNS[sns].label}</span>
+                <Input
+                  value={tagInputs[sns] ?? ""}
+                  maxLength={400}
+                  disabled={locked}
+                  onChange={(e) => {
+                    markTyped();
+                    clearFieldError("targets");
+                    setTagInputs((o) => ({ ...o, [sns]: e.target.value }));
+                  }}
+                  placeholder={locked ? "" : "例: #個人開発 #indiedev"}
+                  className="min-w-0 flex-1 py-2 text-sm"
+                />
+              </label>
+              {locked && <span className="pl-[108px] text-xs text-muted max-sm:pl-0">投稿済み（直しても送り直しません）</span>}
+              {problem ? (
+                <span className="pl-[108px] text-xs font-semibold text-danger max-sm:pl-0">{problem}</span>
+              ) : (
+                note && <span className={`pl-[108px] text-xs max-sm:pl-0 ${note.danger ? "font-semibold text-danger" : "text-muted"}`}>{note.text}</span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </fieldset>
+  );
+}
+
+// タグの数の目安（Instagram は本文のタグと合わせて 5 個まで。Threads は 1 つ目だけがタグになる。ほかは目安を超えたら添える）
+function tagNote(sns: SnsKey, tags: number, total: number): { text: string; danger?: boolean } | null {
+  if (tags === 0) return null;
+  if (sns === "instagram") {
+    if (total > INSTAGRAM_MAX_HASHTAGS) return { text: `本文のタグと合わせて ${INSTAGRAM_MAX_HASHTAGS} 個までです（いま ${total} 個）`, danger: true };
+    return null;
+  }
+  if (sns === "threads") return total > 1 ? { text: "Threads は 1 つ目だけがタグになります" } : null;
+  const rule = HASHTAG_RULES[sns];
+  return total > rule.max ? { text: `目安: ${rule.text}` } : null;
 }
 
 // 引用する X の投稿の札（4.52）。外すと、ふつうの X の投稿になる

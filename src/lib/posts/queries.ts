@@ -19,6 +19,8 @@ export type PostTargetRow = {
   next_attempt_at: string | null;
   // 引用する X の投稿の id（引用の X の配信先だけ。利用者が X の画面で送り、記録したら消える。4.52）
   quote_post_id: string | null;
+  // 本文とは別に付けるタグ（# なし。送るときに本文の後ろに足す。4.59）
+  hashtags: string[];
 };
 export type PostRow = {
   id: string;
@@ -32,7 +34,7 @@ export type PostRow = {
   textOrigin: "self" | "ai" | null;
 };
 
-const TARGET_FIELDS = "id, sns, status, title, body_override, external_post_id, external_url, sns_removed_at, error_message, published_at, next_attempt_at, quote_post_id";
+const TARGET_FIELDS = "id, sns, status, title, body_override, external_post_id, external_url, sns_removed_at, error_message, published_at, next_attempt_at, quote_post_id, hashtags";
 const POST_SELECT = `id, body, planned_at, status, text_origin, post_targets(${TARGET_FIELDS}), media_files(count)` as const;
 const POST_SELECT_FAILED_ONLY = `id, body, planned_at, status, text_origin, post_targets!inner(${TARGET_FIELDS}), media_files(count)` as const;
 

@@ -48,5 +48,6 @@ export async function getPlanHints(projectId: string) {
   const p = await getAccountPlan(projectId);
   if (!p) return null;
   const { items, tone, toneBySns, avoid } = p.plan.pillars;
-  return { concept: p.plan.concept.statement.trim(), pillars: items.filter((i) => i.name.trim()), tone, toneBySns, avoid };
+  const hashtags = p.plan.hashtags.items.map((h) => h.tag).filter(Boolean);
+  return { concept: p.plan.concept.statement.trim(), pillars: items.filter((i) => i.name.trim()), tone, toneBySns, avoid, hashtags };
 }

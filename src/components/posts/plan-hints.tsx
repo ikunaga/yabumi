@@ -9,6 +9,8 @@ export type PlanHintsData = {
   tone: string;
   toneBySns: Partial<Record<SnsKey, string>>;
   avoid: string;
+  // ハッシュタグの候補（# なし。投稿のフォーマットのタグに押して足す。4.59）
+  hashtags?: string[];
 };
 
 // 投稿を書くときの手がかり: アカウント設計の「コンセプト」「投稿の柱」「口調」を見返す（コンセプトの 1 文を一番上に）。本文の欄を目立たせるため、閉じて置く（開けば見られる）。

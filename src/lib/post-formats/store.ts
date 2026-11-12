@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
-import { MAX_POST_FORMATS, MAX_POST_FORMATS_PER_USER, formatInputSchema, type PostFormat, type PostFormatInput } from "./schema";
+import { MAX_POST_FORMATS, MAX_POST_FORMATS_PER_USER, formatInputSchema, readFormatHashtags, type PostFormat, type PostFormatInput } from "./schema";
 
 // 投稿のフォーマットの読み書き（利用者の権限のクライアントで。RLS で本人のものだけ。20261110120000_post_formats）
 
@@ -15,7 +15,10 @@ export class FormatError extends Error {
 
 const FAILED = "保存できませんでした。時間をおいてもう一度お試しください。";
 const NOT_FOUND = "フォーマットが見つかりません。画面を読み込み直してください。";
-const COLUMNS = "id, name, purpose, body, example, pillar";
+const COLUMNS = "id, name, purpose, body, example, pillar, hashtags";
+
+type Row = Omit<PostFormat, "hashtags"> & { hashtags: unknown };
+const toFormat = (r: Row): PostFormat => ({ ...r, hashtags: readFormatHashtags(r.hashtags) });
 
 export function checkFormat(input: unknown): PostFormatInput {
   const p = formatInputSchema.safeParse(input);
@@ -26,13 +29,13 @@ export function checkFormat(input: unknown): PostFormatInput {
 export async function listFormats(db: Db, projectId: string): Promise<PostFormat[]> {
   const { data, error } = await db.from("post_formats").select(COLUMNS).eq("project_id", projectId).order("position").order("created_at");
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []).map(toFormat);
 }
 
 // 1 つ読む（本人の、このプロジェクトのものだけ）。なければ null
 export async function getFormat(db: Db, projectId: string, id: string): Promise<PostFormat | null> {
   const { data } = await db.from("post_formats").select(COLUMNS).eq("project_id", projectId).eq("id", id).maybeSingle();
-  return data ?? null;
+  return data ? toFormat(data) : null;
 }
 
 // 足す（並びはいちばん後ろ）。上限は DB が数える（同時に足しても超えない）

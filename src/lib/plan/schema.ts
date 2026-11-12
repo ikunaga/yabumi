@@ -3,6 +3,7 @@ import { actionFromLegacyGoal, DESIRED_ACTIONS } from "@/lib/projects/product-ty
 import { KPI_KEYS, MAX_KPIS } from "@/lib/metrics/kpis";
 import { SNS_KEYS, type SnsKey } from "@/lib/sns";
 import { isYmd } from "@/lib/time";
+import { isValidHashtag, normalizeHashtag } from "@/lib/sns/hashtags";
 
 // アカウント設計（要求 F15）のデータの形。DB の account_plans.data にセクションごとに入る。
 // セクションはここに書いた順に画面に並ぶ。名前は投稿の柱が決まらないと決めにくいので、柱 → ハッシュタグ → 持ち方 → 名前の順にしている。
@@ -28,13 +29,8 @@ const HASHTAG = "ハッシュタグの中に空白や記号（句読点など）
 export const MAX_WEEKLY_PER_SNS = 14;
 const WEEKLY = `週の回数は 1〜${MAX_WEEKLY_PER_SNS} の整数にしてください`;
 
-// 先頭の # / ＃ は外して持つ。タグの途中に空白や記号があると、SNS がそこでタグを切ってしまう
-export function normalizeHashtag(raw: string): string {
-  return raw.trim().replace(/^[#＃]+/, "").trim();
-}
-export function isValidHashtag(tag: string): boolean {
-  return /^[\p{L}\p{N}\p{M}_]+$/u.test(tag);
-}
+// タグの決まりは src/lib/sns/hashtags.ts（投稿のフォーマット・投稿の SNS ごとのタグと同じ）
+export { isValidHashtag, normalizeHashtag } from "@/lib/sns/hashtags";
 const hashtagText = z
   .string()
   .transform(normalizeHashtag)

@@ -7,7 +7,7 @@ import { type Composer } from "./use-composer";
 
 // ③ 画像: 添える・つくる・整える（compose-steps.md）
 export function ComposeStepImages({ c }: { c: Composer }) {
-  const { projectId, projectName, needImageReconnect, aiCheckEnabled, images, setImages, selected, pending, textFor, isLocked, chosen, focus, clearFieldError, fe, connectHref } = c;
+  const { projectId, projectName, needImageReconnect, aiCheckEnabled, images, setImages, selected, pending, bodyFor, isLocked, chosen, focus, clearFieldError, fe, connectHref } = c;
   return (
     <>
       {images.length > 0 && needImageReconnect.some((s) => selected.has(s) && !isLocked(s)) && (
@@ -24,7 +24,7 @@ export function ComposeStepImages({ c }: { c: Composer }) {
         <ImageAttachments
           images={images}
           disabled={pending}
-          maker={{ projectId, projectName, aiEnabled: aiCheckEnabled, text: textFor(focus), targets: chosen }}
+          maker={{ projectId, projectName, aiEnabled: aiCheckEnabled, text: bodyFor(focus), targets: chosen }}
           instagram={chosen.includes("instagram")}
           onChange={(next) => {
             setImages(next);

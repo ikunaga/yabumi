@@ -7,6 +7,8 @@ export type ComposeSnapshot = {
   body: string;
   overrides: Partial<Record<SnsKey, string>>;
   titles: Partial<Record<SnsKey, string>>;
+  // SNS ごとのタグの欄（4.59）
+  hashtags?: Partial<Record<SnsKey, string>>;
   // 添えた画像の id（並び順も見る）
   imageIds: string[];
   plannedAt: string;
@@ -29,6 +31,8 @@ export function composeChanges(initial: ComposeSnapshot, now: ComposeSnapshot, {
   if (overrides.length) out.push(`SNS ごとの文面（${labels(overrides)}）`);
   const titles = changed(initial.titles, now.titles).filter((s) => (now.titles[s] ?? "") !== (initial.titles[s] ?? ""));
   if (titles.length) out.push(`${labels(titles)} のタイトル`);
+  const tags = SNS_KEYS.filter((s) => (now.hashtags?.[s] ?? "").trim() !== (initial.hashtags?.[s] ?? "").trim());
+  if (tags.length) out.push(`SNS ごとのタグ（${labels(tags)}）`);
   if (now.imageIds.join() !== initial.imageIds.join()) {
     out.push(saved || initial.imageIds.length ? "添えた画像の変更" : `添えた画像 ${now.imageIds.length} 枚`);
   }

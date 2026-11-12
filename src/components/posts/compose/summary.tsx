@@ -3,16 +3,24 @@
 import { COMPOSE_STEPS, type StepNo } from "@/lib/posts/compose-steps";
 import { findUrls } from "@/lib/posts/profile-link";
 import { SNS } from "@/lib/sns";
+import { hashtagLine } from "@/lib/sns/hashtags";
 import { type Composer } from "./use-composer";
 
 // ⑤ のまとめ: ①〜④ の短い要約と、直すところ。「直す」でそのステップへ（docs/design/compose-steps.md の 2.）
 export function ComposeSummary({ c }: { c: Composer }) {
-  const { body, chosen, images, shortLinks, textFor, stepProblems, goStep, isLocked } = c;
+  const { body, chosen, images, shortLinks, textFor, tagsFor, stepProblems, goStep, isLocked } = c;
+  // SNS ごとのタグ（同じタグの SNS はまとめる。4.59）
+  const tagGroups = new Map<string, string[]>();
+  for (const s of chosen) {
+    const line = hashtagLine(tagsFor(s));
+    if (line) tagGroups.set(line, [...(tagGroups.get(line) ?? []), SNS[s].label]);
+  }
+  const tagLines = [...tagGroups].map(([line, labels]) => `タグ ${labels.join("・")}: ${line}`);
   const firstLine = body.trim().split("\n")[0] ?? "";
   const hasLink = findUrls(body).length > 0 || chosen.some((s) => findUrls(textFor(s)).length > 0);
-  const rows: { n: StepNo; text: string }[] = [
+  const rows: { n: StepNo; text: string; sub?: string[] }[] = [
     { n: 1, text: firstLine ? (firstLine.length > 40 ? `${firstLine.slice(0, 40)}…` : firstLine) : "まだ書いていません" },
-    { n: 2, text: chosen.length ? chosen.map((s) => `${SNS[s].label}${isLocked(s) ? "（投稿済み）" : ""}`).join("・") : "まだ選んでいません" },
+    { n: 2, text: chosen.length ? chosen.map((s) => `${SNS[s].label}${isLocked(s) ? "（投稿済み）" : ""}`).join("・") : "まだ選んでいません", sub: tagLines },
     { n: 3, text: images.length ? `画像 ${images.length} 枚` : "画像なし" },
     { n: 4, text: hasLink ? (shortLinks ? "リンクあり（短縮リンクで押された回数を数える）" : "リンクあり") : "リンクなし" },
   ];
@@ -30,6 +38,11 @@ export function ComposeSummary({ c }: { c: Composer }) {
               <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span className="text-[13px] text-muted">{COMPOSE_STEPS[r.n - 1].label}</span>
                 <span className="text-[15px] break-words">{r.text}</span>
+                {r.sub?.map((t) => (
+                  <span key={t} className="text-[13px] break-words text-muted">
+                    {t}
+                  </span>
+                ))}
                 {problems.map((p) => (
                   <span key={p.text} className="text-[13px] font-semibold text-signal">
                     ● {p.text}

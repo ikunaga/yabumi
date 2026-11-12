@@ -1,5 +1,7 @@
 import { z } from "zod";
 import type { ProductType } from "@/lib/projects/product-types";
+import { SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
+import { MAX_TARGET_HASHTAGS, hashtagInputProblem, parseHashtagInput } from "@/lib/sns/hashtags";
 
 // 投稿のフォーマット（繰り返し出す投稿の型。docs/design/post-formats.md、docs/architecture.md の 4.56）。画面とサーバーの両方から読む。
 // 上限と字数の正は DB（20261110120000_post_formats の check とトリガー）。ここはその写しと、穴の読み方
@@ -37,7 +39,59 @@ export const FORMAT_KINDS: Record<ProductType, string[]> = {
   other: ["お知らせ", "活動の様子", "参加してくれた方の声", "よくある質問"],
 };
 
-export type PostFormat = { id: string; name: string; purpose: string; body: string; example: string; pillar: string };
+// 毎回付けるタグ（# なし。docs/architecture.md の 4.59）。all は全 SNS 共通、SNS の名前のキーはその SNS だけ（あればこちらを使う）。それぞれ 5 個まで
+export type FormatHashtagKey = "all" | SnsKey;
+export const FORMAT_HASHTAG_KEYS: FormatHashtagKey[] = ["all", ...SNS_KEYS];
+export type FormatHashtags = Partial<Record<FormatHashtagKey, string[]>>;
+
+// その SNS に付けるタグ（SNS だけのタグがあればそれ、なければ共通）
+export function formatTagsFor(h: FormatHashtags | null | undefined, sns: SnsKey): string[] {
+  const own = h?.[sns];
+  return own && own.length ? own : (h?.all ?? []);
+}
+
+export function hasFormatHashtags(h: FormatHashtags | null | undefined): boolean {
+  return FORMAT_HASHTAG_KEYS.some((k) => (h?.[k]?.length ?? 0) > 0);
+}
+
+// DB から読んだ値（jsonb）を、決まった形にそろえる（形が違うものは捨てる）
+export function readFormatHashtags(raw: unknown): FormatHashtags {
+  const out: FormatHashtags = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  for (const k of FORMAT_HASHTAG_KEYS) {
+    const v = (raw as Record<string, unknown>)[k];
+    if (Array.isArray(v)) {
+      const tags = v.filter((t): t is string => typeof t === "string" && t !== "");
+      if (tags.length) out[k] = tags;
+    }
+  }
+  return out;
+}
+
+export const hashtagKeyLabel = (k: FormatHashtagKey) => (k === "all" ? "全部の SNS" : SNS[k].label);
+
+// 編集の欄から（キーごとに「#a #b」の文字か、タグの配列）。空のキーは持たない
+const hashtagsInput = z
+  .record(z.string(), z.union([z.string().max(1000), z.array(z.string().max(100)).max(20)]))
+  .default({})
+  .transform((raw, ctx) => {
+    const out: FormatHashtags = {};
+    for (const [k, v] of Object.entries(raw)) {
+      if (!(FORMAT_HASHTAG_KEYS as string[]).includes(k)) continue;
+      const key = k as FormatHashtagKey;
+      const text = Array.isArray(v) ? v.join(" ") : v;
+      const problem = hashtagInputProblem(text);
+      if (problem) {
+        ctx.addIssue({ code: "custom", message: `${hashtagKeyLabel(key)} のタグ: ${problem}` });
+        return z.NEVER;
+      }
+      const { tags } = parseHashtagInput(text);
+      if (tags.length) out[key] = tags.slice(0, MAX_TARGET_HASHTAGS);
+    }
+    return out;
+  });
+
+export type PostFormat = { id: string; name: string; purpose: string; body: string; example: string; pillar: string; hashtags: FormatHashtags };
 export type PostFormatInput = Omit<PostFormat, "id">;
 
 // {穴の名前}。名前に「{」「}」と改行は入らない
@@ -86,6 +140,7 @@ export const formatInputSchema = z.object({
     }),
   example: multiLine(MAX_FORMAT_EXAMPLE, "埋めた例").default(""),
   pillar: oneLine(MAX_FORMAT_PILLAR, "柱").default(""),
+  hashtags: hashtagsInput,
 });
 
 // 穴に入れた言葉（穴の名前 → 言葉）。知らない穴と空の言葉は捨て、言葉は 1 行・200 字まで
@@ -120,7 +175,8 @@ export function insertFormatted(current: string, filled: string, how: "replace" 
 // はじめから出す例（「例から足す」。AI を使わない）。宣伝するものの種類ごとに 2 つ + 共通の 1 つ。
 // 例の文も日本語の決まり（src/lib/ai/japanese-style.ts）に合わせる（体言止めを続けない、「！」を使わない、呼びかけない）
 type Example = PostFormatInput;
-const ex = (name: string, purpose: string, body: string): Example => ({ name, purpose, body, example: "", pillar: "" });
+// 例にタグは入れない（タグは人ごとに決めるもの）
+const ex = (name: string, purpose: string, body: string): Example => ({ name, purpose, body, example: "", pillar: "", hashtags: {} });
 
 const COMMON: Example[] = [ex("今週の振り返り", "1 週間の終わりに、あったことを短く伝えるとき", "今週は{よかったこと}。\n来週は{次にやること}。\n{ひとこと}")];
 

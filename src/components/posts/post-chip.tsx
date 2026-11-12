@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { PostRow } from "@/lib/posts/queries";
 import { postTitle } from "@/lib/posts/queries";
 import { SNS, checkTarget } from "@/lib/sns";
+import { targetText } from "@/lib/sns/hashtags";
 import { formatTime } from "@/lib/time";
 
 export type PostDisplayStatus = "draft" | "scheduled" | "posted" | "failed";
@@ -28,7 +29,7 @@ export function postWarning(post: PostRow): string | null {
   if (status !== "scheduled" && status !== "draft") return null;
   for (const t of post.targets) {
     if (t.status !== "pending") continue;
-    const issue = checkTarget(t.sns, t.body_override ?? post.body, { images: post.images, videos: 0 }).issues[0];
+    const issue = checkTarget(t.sns, targetText(post.body, t), { images: post.images, videos: 0 }).issues[0];
     if (issue === "needs_image") return `${SNS[t.sns].label} は画像が未設定です`;
     if (issue === "needs_video") return `${SNS[t.sns].label} は動画が未設定です`;
     if (issue === "too_long") return `${SNS[t.sns].label} は文字数オーバーです`;

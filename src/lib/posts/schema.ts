@@ -17,6 +17,8 @@ export const savePostInputSchema = z.object({
         bodyOverride: z.string().max(10000).nullable(),
         // 長文の SNS（note・Substack）のタイトル
         title: z.string().max(200).nullable().optional(),
+        // 本文とは別に付けるタグ（# なし。送るときに本文の後ろに足す。docs/architecture.md の 4.59）。数と形はサーバーで確かめる
+        hashtags: z.array(z.string().max(100)).max(20).default([]),
       }),
     )
     .max(SNS_KEYS.length),

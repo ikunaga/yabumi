@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { ISSUE_LABEL, SNS, checkTarget, isManualSns, type SnsKey } from "@/lib/sns";
+import { hashtagInputProblem, parseHashtagInput, withHashtags } from "@/lib/sns/hashtags";
 import { canPublish, publisherDeps } from "@/lib/sns/adapters";
 import { publishDueTargets } from "@/lib/sns/publisher";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -28,7 +29,10 @@ const MIN_LEAD_MS = 5 * 60 * 1000;
 export async function savePost(input: SavePostInput): Promise<SavePostResult> {
   const parsed = savePostInputSchema.safeParse(input);
   if (!parsed.success) return { error: "入力の形式が正しくありません。画面を読み込み直してください。" };
-  const { projectId, postId, body, targets, plannedAt, intent, media, shortLinks, roadmapItemId, noteIds } = parsed.data;
+  const { projectId, postId, body, plannedAt, intent, media, shortLinks, roadmapItemId, noteIds } = parsed.data;
+  // SNS ごとのタグ（# を外し、同じタグは 1 つに）。タグにできない言葉・6 個以上は、下で欄のエラーにする
+  const targets = parsed.data.targets.map((t) => ({ ...t, hashtags: parseHashtagInput(t.hashtags.join(" ")).tags }));
+  const tagProblem = parsed.data.targets.map((t) => ({ sns: t.sns, problem: hashtagInputProblem(t.hashtags.join(" ")) })).find((t) => t.problem);
   const quotePostId = parsed.data.quotePostId ?? null;
 
   const fieldErrors: NonNullable<SavePostResult["fieldErrors"]> = {};
@@ -61,8 +65,11 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
   }
   const toSend = targets.filter((t) => !locked.has(t.sns));
 
+  // タグの形は下書きでも確かめる（DB の check で保存できないため）
+  if (tagProblem) fieldErrors.targets = `${SNS[tagProblem.sns].label}: ${tagProblem.problem}`;
+
   // 引用は X だけ（下書きでも。X の画面で送るため）
-  if (quotePostId && targets.some((t) => t.sns !== "x")) fieldErrors.targets = QUOTE_X_ONLY;
+  if (!fieldErrors.targets && quotePostId && targets.some((t) => t.sns !== "x")) fieldErrors.targets = QUOTE_X_ONLY;
 
   if (intent !== "draft") {
     if (intent === "schedule") {
@@ -85,13 +92,15 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
     } else {
       for (const t of toSend) {
         const label = SNS[t.sns].label;
-        const issue = checkTarget(t.sns, t.bodyOverride ?? body, { images, videos: 0, sizes }, t.title ?? null).issues[0];
+        // 送る文（タグ込み）で確かめる
+        const text = withHashtags(t.bodyOverride ?? body, t.hashtags);
+        const issue = checkTarget(t.sns, text, { images, videos: 0, sizes }, t.title ?? null).issues[0];
         if (issue) {
           fieldErrors.targets = `${label}: ${ISSUE_LABEL[issue]}`;
           break;
         }
         // AI のネタの【作品名】のような、利用者が書き換える印が残っていたら送らない
-        if (needsFillIn(t.bodyOverride ?? body) || needsFillIn(t.title ?? "")) {
+        if (needsFillIn(text) || needsFillIn(t.title ?? "")) {
           fieldErrors.targets = `${label}: 【】で囲んだところを、自分の言葉に書き換えてください`;
           break;
         }
@@ -135,6 +144,7 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
       body_override: t.bodyOverride,
       social_account_id: isManualSns(t.sns) ? null : (accounts[t.sns] ?? null),
       quote_post_id: t.sns === "x" ? quotePostId : null,
+      hashtags: t.hashtags,
     })),
     p_text_origin: (parsed.data.textOrigin ?? null) as string,
   });

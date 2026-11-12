@@ -15,6 +15,7 @@ import { isManualSns, manualComposeUrl, xComposeUrl, type SnsKey } from "@/lib/s
 import { countSelfWrittenPosts, hasVoiceMemo } from "@/lib/plan/voice";
 import { createClient } from "@/lib/supabase/server";
 import { canPublish } from "@/lib/sns/adapters";
+import { targetText } from "@/lib/sns/hashtags";
 import { getPlanHints } from "@/lib/plan/queries";
 import { loadPostImages, snsNeedingImageReconnect } from "@/lib/media/queries";
 import { postLinkPreview } from "@/lib/links/store";
@@ -82,16 +83,16 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
         publishedAt: t.published_at,
         nextAttemptAt: t.next_attempt_at,
         manual: isManualSns(t.sns)
-          ? { title: t.title, text: t.body_override ?? post.body, composeUrl: manualComposeUrl(t.sns, profileUrl(t.sns)) }
+          ? { title: t.title, text: targetText(post.body, t), composeUrl: manualComposeUrl(t.sns, profileUrl(t.sns)) }
           : quoting(t)
-            ? { title: null, text: t.body_override ?? post.body, composeUrl: xComposeUrl(t.body_override ?? post.body, `https://x.com/i/web/status/${t.quote_post_id}`) }
+            ? { title: null, text: targetText(post.body, t), composeUrl: xComposeUrl(targetText(post.body, t), `https://x.com/i/web/status/${t.quote_post_id}`) }
             : undefined,
         // 引用の X（X の API では引用を送れないので、X の画面で送って記録する。4.52）
         quote: quoting(t),
         // 送れなかった X は、手で投稿して記録できる（月の上限・クレジット切れのとき。決定 D16）
         fallback:
           t.sns === "x" && t.status === "failed"
-            ? { title: null, text: t.body_override ?? post.body, composeUrl: xComposeUrl(t.body_override ?? post.body) }
+            ? { title: null, text: targetText(post.body, t), composeUrl: xComposeUrl(targetText(post.body, t)) }
             : undefined,
         postedByHand: t.status === "published" && !t.external_post_id,
         removedOnSns: t.status === "deleted" && Boolean(t.sns_removed_at),
@@ -129,7 +130,7 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
       noticeTone={notice?.tone}
       initial={{
         body: post.body,
-        targets: post.targets.map((t) => ({ sns: t.sns, bodyOverride: t.body_override, title: t.title })),
+        targets: post.targets.map((t) => ({ sns: t.sns, bodyOverride: t.body_override, title: t.title, hashtags: t.hashtags })),
         plannedAt: toInputValue(post.planned_at),
         images,
         shortLinks,

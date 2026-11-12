@@ -32,7 +32,8 @@ export function parseStep(raw: string | null | undefined, fallback: StepNo): Ste
 export type StepProblem = { step: StepNo; text: string };
 
 // SNS ごとの確かめ（checkTarget の issues）を、どのステップで直すかに分ける。
-// 文面の問題は、SNS ごとの文面があればその SNS の欄（② 送り先）、なければ本文（① 書く）
+// 文面の問題は、SNS ごとの文面があればその SNS の欄（② 送り先）、なければ本文（① 書く）。
+// ハッシュタグが多すぎるのは、SNS ごとのタグがあれば ② のタグの欄（本文とタグを合わせて数えるため。4.59）
 const ISSUE_STEP: Record<TargetIssue, "text" | ComposeStepKey> = {
   empty: "text",
   too_long: "text",
@@ -45,7 +46,9 @@ const ISSUE_STEP: Record<TargetIssue, "text" | ComposeStepKey> = {
 };
 
 export function problemsByStep(a: {
-  issues: { sns: SnsKey; label: string; issues: TargetIssue[]; override: boolean; issueLabel: (i: TargetIssue) => string }[];
+  issues: { sns: SnsKey; label: string; issues: TargetIssue[]; override: boolean; tags?: boolean; issueLabel: (i: TargetIssue) => string }[];
+  // SNS ごとのタグの欄の問題（タグにできない言葉・多すぎる。② で直す）
+  tagProblems?: { label: string; text: string }[];
   noTargets: boolean;
   missingConnect: string[];
   reconnect: string[];
@@ -56,10 +59,11 @@ export function problemsByStep(a: {
   for (const t of a.issues) {
     for (const issue of t.issues) {
       const k = ISSUE_STEP[issue];
-      const step = k === "text" ? (t.override ? 2 : 1) : stepNo(k);
+      const step = k === "text" ? (t.override || (issue === "too_many_hashtags" && t.tags) ? 2 : 1) : stepNo(k);
       out.push({ step, text: `${t.label}: ${t.issueLabel(issue)}` });
     }
   }
+  for (const p of a.tagProblems ?? []) out.push({ step: 2, text: `${p.label}: ${p.text}` });
   if (a.missingConnect.length) out.push({ step: 2, text: `${a.missingConnect.join("・")} をつなぐと送れます` });
   if (a.reconnect.length) out.push({ step: 3, text: `${a.reconnect.join("・")} に画像を送るには、つなぎ直しが要ります` });
   if (a.needsTime) out.push({ step: 5, text: "送る日時を決めてください" });

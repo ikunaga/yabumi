@@ -20,12 +20,18 @@ import {
   MAX_FORMAT_SLOTS,
   MAX_POST_FORMATS,
   MAX_SLOT_VALUE,
+  FORMAT_HASHTAG_KEYS,
   fillFormat,
   formatInputSchema,
   formatSlots,
+  hasFormatHashtags,
+  hashtagKeyLabel,
+  type FormatHashtagKey,
+  type FormatHashtags,
   type PostFormat,
   type PostFormatInput,
 } from "@/lib/post-formats/schema";
+import { MAX_TARGET_HASHTAGS, hashtagLine, normalizeHashtag, parseHashtagInput } from "@/lib/sns/hashtags";
 import { Choice } from "./maker-parts";
 
 // 投稿のフォーマットを選んだ状態（整えるに渡す。docs/design/post-formats.md の 4）
@@ -38,6 +44,7 @@ export function PostFormatPicker({
   projectId,
   bodyHasText,
   pillars,
+  planHashtags = [],
   onInsert,
   onUseChange,
   aiEnabled,
@@ -48,7 +55,10 @@ export function PostFormatPicker({
   aiEnabled: boolean;
   // アカウント設計の投稿の柱の名前（フォーマットを柱とつなぐ）
   pillars: string[];
-  onInsert: (text: string, how: "replace" | "append") => void;
+  // アカウント設計のハッシュタグの候補（# なし。フォーマットのタグに押して足す）
+  planHashtags?: string[];
+  // hashtags: フォーマットの毎回付けるタグ（SNS ごとのタグの欄に入れる。4.59）
+  onInsert: (text: string, how: "replace" | "append", hashtags: FormatHashtags) => void;
   onUseChange?: (use: FormatUse | null) => void;
 }) {
   const [formats, setFormats] = useState<PostFormat[] | null>(null);
@@ -84,7 +94,6 @@ export function PostFormatPicker({
       if (r.formats) setFormats(r.formats);
       if (r.examples) setExamples(r.examples);
       if (r.kinds) setKinds(r.kinds);
-    if (r.kinds) setKinds(r.kinds);
     });
     return () => {
       alive = false;
@@ -127,6 +136,7 @@ export function PostFormatPicker({
       {selected && (
         <div className="flex flex-col gap-2.5 rounded-md border border-line px-4 py-3 max-sm:px-3">
           {selected.purpose && <p className="text-xs text-muted">{selected.purpose}</p>}
+          {hasFormatHashtags(selected.hashtags) && <FormatTagsLine h={selected.hashtags} className="text-xs text-muted" />}
           {selected.example && (
             <details className="text-xs">
               <summary className="cursor-pointer text-muted">埋めた例を見る</summary>
@@ -154,7 +164,7 @@ export function PostFormatPicker({
               size="sm"
               variant="secondary"
               onClick={() => {
-                onInsert(fillFormat(selected.body, values), how);
+                onInsert(fillFormat(selected.body, values), how, selected.hashtags);
                 setInserted(true);
               }}
             >
@@ -171,11 +181,16 @@ export function PostFormatPicker({
               </span>
             )}
           </div>
-          {inserted && <p className="text-xs font-semibold text-success">本文に入れました。埋めなかったところは【】で残っているので、書き換えてください。</p>}
+          {inserted && (
+            <p className="text-xs font-semibold text-success">
+              本文に入れました。埋めなかったところは【】で残っているので、書き換えてください。
+              {hasFormatHashtags(selected.hashtags) && "タグは本文の下に付き、「2 送り先」で SNS ごとに直せます。"}
+            </p>
+          )}
         </div>
       )}
 
-      <FormatManager projectId={projectId} formats={formats} examples={examples} kinds={kinds} pillars={pillars} aiEnabled={aiEnabled} onChange={apply} />
+      <FormatManager projectId={projectId} formats={formats} examples={examples} kinds={kinds} pillars={pillars} planHashtags={planHashtags} aiEnabled={aiEnabled} onChange={apply} />
       {error && <ErrorBanner>{error}</ErrorBanner>}
     </fieldset>
   );
@@ -188,6 +203,7 @@ function FormatManager({
   examples,
   kinds,
   pillars,
+  planHashtags,
   aiEnabled,
   onChange,
 }: {
@@ -196,6 +212,7 @@ function FormatManager({
   examples: PostFormatInput[];
   kinds: string[];
   pillars: string[];
+  planHashtags: string[];
   aiEnabled: boolean;
   onChange: (r: FormatsResult) => void;
 }) {
@@ -228,7 +245,7 @@ function FormatManager({
             {formats.map((f) =>
               editing === f.id ? (
                 <li key={f.id} className="py-2">
-                  <FormatEditor initial={f} pillars={pillars} pending={pending} onCancel={() => setEditing(null)} onSave={(v) => run(() => updatePostFormat(projectId, f.id, v), () => setEditing(null))} />
+                  <FormatEditor initial={f} pillars={pillars} planHashtags={planHashtags} pending={pending} onCancel={() => setEditing(null)} onSave={(v) => run(() => updatePostFormat(projectId, f.id, v), () => setEditing(null))} />
                 </li>
               ) : (
                 <li key={f.id} className="flex flex-col gap-1 py-2">
@@ -256,6 +273,7 @@ function FormatManager({
                     </span>
                   </div>
                   <p className="line-clamp-2 text-xs leading-[1.7] whitespace-pre-line text-muted">{f.body}</p>
+                  {hasFormatHashtags(f.hashtags) && <FormatTagsLine h={f.hashtags} className="text-xs text-muted" />}
                 </li>
               ),
             )}
@@ -267,6 +285,7 @@ function FormatManager({
               key={draft?.name ?? "new"}
               initial={draft ?? undefined}
               pillars={pillars}
+              planHashtags={planHashtags}
               pending={pending}
               onCancel={() => (setEditing(null), setDraft(null))}
               onSave={(v) => run(() => addPostFormat(projectId, v), () => (setEditing(null), setDraft(null)))}
@@ -312,19 +331,26 @@ function FormatManager({
 function FormatEditor({
   initial,
   pillars,
+  planHashtags,
   pending,
   onSave,
   onCancel,
 }: {
   initial?: PostFormatInput;
   pillars: string[];
+  planHashtags: string[];
   pending: boolean;
   onSave: (v: PostFormatInput) => void;
   onCancel: () => void;
 }) {
-  const [v, setV] = useState<PostFormatInput>(initial ?? { name: "", purpose: "", body: "", example: "", pillar: "" });
+  const [v, setV] = useState<PostFormatInput>(initial ?? { name: "", purpose: "", body: "", example: "", pillar: "", hashtags: {} });
+  // 毎回付けるタグの欄（書いたままの文字。保存するときにタグの配列にする）
+  const [tags, setTags] = useState<Partial<Record<FormatHashtagKey, string>>>(() =>
+    Object.fromEntries(FORMAT_HASHTAG_KEYS.filter((k) => initial?.hashtags?.[k]?.length).map((k) => [k, hashtagLine(initial!.hashtags[k]!)])),
+  );
   const [problem, setProblem] = useState<string | null>(null);
-  const set = (k: keyof PostFormatInput, x: string) => (setV((o) => ({ ...o, [k]: x })), setProblem(null));
+  const set = (k: Exclude<keyof PostFormatInput, "hashtags">, x: string) => (setV((o) => ({ ...o, [k]: x })), setProblem(null));
+  const setTag = (k: FormatHashtagKey, x: string) => (setTags((o) => ({ ...o, [k]: x })), setProblem(null));
   const slots = formatSlots(v.body);
 
   return (
@@ -365,13 +391,14 @@ function FormatEditor({
           </select>
         </label>
       )}
+      <FormatTagsFields tags={tags} setTag={setTag} planHashtags={planHashtags} />
       {problem && <p className="text-sm font-semibold text-danger">{problem}</p>}
       <div className="flex gap-2">
         <Button
           size="sm"
           disabled={pending || !v.name.trim() || !v.body.trim()}
           onClick={() => {
-            const p = formatInputSchema.safeParse({ ...v, pillar: pillars.includes(v.pillar) ? v.pillar : "" });
+            const p = formatInputSchema.safeParse({ ...v, pillar: pillars.includes(v.pillar) ? v.pillar : "", hashtags: tags });
             if (!p.success) return setProblem(p.error.issues[0]?.message ?? "入力の形式が正しくありません。");
             onSave(p.data);
           }}
@@ -383,6 +410,61 @@ function FormatEditor({
         </Button>
       </div>
     </div>
+  );
+}
+
+// フォーマットのタグを 1 行で（全部の SNS のタグと、SNS だけのタグ）
+function FormatTagsLine({ h, className }: { h: FormatHashtags; className?: string }) {
+  const parts = FORMAT_HASHTAG_KEYS.filter((k) => h[k]?.length).map((k) => `${k === "all" ? "" : `${hashtagKeyLabel(k)}: `}${hashtagLine(h[k]!)}`);
+  return <p className={`break-words ${className ?? ""}`}>タグ {parts.join(" ／ ")}</p>;
+}
+
+// 毎回付けるタグの欄（docs/architecture.md の 4.59）。全部の SNS に付けるタグと、畳んだ「SNS ごとに変える」。
+// アカウント設計のハッシュタグの候補は、押すと全部の SNS の欄に足す
+function FormatTagsFields({
+  tags,
+  setTag,
+  planHashtags,
+}: {
+  tags: Partial<Record<FormatHashtagKey, string>>;
+  setTag: (k: FormatHashtagKey, x: string) => void;
+  planHashtags: string[];
+}) {
+  const allTags = parseHashtagInput(tags.all ?? "").tags.map((t) => t.toLowerCase());
+  const candidates = planHashtags.map(normalizeHashtag).filter((t) => t && !allTags.includes(t.toLowerCase()));
+  const perSns = FORMAT_HASHTAG_KEYS.filter((k) => k !== "all");
+  return (
+    <fieldset className="flex min-w-0 flex-col gap-1.5">
+      <legend className="mb-1 text-xs font-bold">
+        毎回付けるタグ<span className="ml-1.5 font-normal text-muted">任意</span>
+      </legend>
+      <label className="flex flex-col gap-1">
+        <span className="text-xs text-muted">全部の SNS（{MAX_TARGET_HASHTAGS} 個まで）</span>
+        <Input value={tags.all ?? ""} maxLength={400} onChange={(e) => setTag("all", e.target.value)} placeholder="例: #個人開発 #indiedev" className="py-2 text-sm" />
+      </label>
+      {candidates.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-muted">設計の候補:</span>
+          {candidates.map((t) => (
+            <Button key={t} type="button" size="sm" variant="text" onClick={() => setTag("all", `${(tags.all ?? "").trim()} #${t}`.trim())}>
+              ＋ #{t}
+            </Button>
+          ))}
+        </div>
+      )}
+      <details className="text-xs" open={perSns.some((k) => (tags[k] ?? "").trim() !== "")}>
+        <summary className="cursor-pointer text-muted">SNS ごとに変える</summary>
+        <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-2 max-sm:grid-cols-1">
+          {perSns.map((k) => (
+            <label key={k} className="flex min-w-0 flex-col gap-1">
+              <span className="text-xs font-bold">{hashtagKeyLabel(k)}</span>
+              <Input value={tags[k] ?? ""} maxLength={400} onChange={(e) => setTag(k, e.target.value)} placeholder="空なら全部の SNS と同じ" className="py-2 text-sm" />
+            </label>
+          ))}
+        </div>
+      </details>
+      <span className="text-xs text-muted">本文の下に 1 行あけて付きます。投稿ごとに「2 送り先」で直せます。</span>
+    </fieldset>
   );
 }
 
@@ -446,7 +528,7 @@ function FormatAiMaker({ projectId, kinds, onPick, onCancel }: { projectId: stri
               <li key={p.name} className="flex flex-col gap-1.5 rounded-md border border-line px-3 py-2.5">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <span className="font-bold">{p.name}</span>
-                  <Button size="sm" variant="secondary" className="ml-auto" onClick={() => onPick({ name: p.name, purpose: p.purpose, body: p.body, example: p.example, pillar: p.pillar })}>
+                  <Button size="sm" variant="secondary" className="ml-auto" onClick={() => onPick({ name: p.name, purpose: p.purpose, body: p.body, example: p.example, pillar: p.pillar, hashtags: {} })}>
                     これを使う
                   </Button>
                 </div>

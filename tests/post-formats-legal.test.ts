@@ -32,7 +32,7 @@ describe("投稿のフォーマットを預かる版", () => {
 
   it("本文に、預かる・使い道・Anthropic に送る・保存期間の文がある。上限は DB とアプリと同じ", () => {
     const privacy = read("src/app/privacy/page.tsx");
-    expect(privacy).toContain("利用者が登録した、くり返し出す投稿の型（名前・いつ使うか・型の文・穴を埋めた例・つなげた投稿の柱の名前。プロジェクトに 20 個、1 人 100 個まで）");
+    expect(privacy).toContain("利用者が登録した、くり返し出す投稿の型（名前・いつ使うか・型の文・穴を埋めた例・つなげた投稿の柱の名前・毎回付けるハッシュタグ（全 SNS 共通と SNS ごと）。プロジェクトに 20 個、1 人 100 個まで）");
     expect(privacy).toContain("投稿のフォーマットの案を作ること");
     expect(privacy).toContain("選んだ投稿のフォーマットと穴に入れた言葉（案は保存しません）");
     expect(privacy).toContain("投稿のフォーマットを AI とつくるときは、プロジェクトとアカウント設計（書き方は送りません）");

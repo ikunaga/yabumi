@@ -130,6 +130,7 @@
   - tests/ に、ほかの人から読めない・書けない・ほかの人のプロジェクトに足せない・上限・同時に足しても超えない、の結合テストを足す
 - AI とつくる: ai_usage の purpose `post_format`（予約の下限は 0.05 ドルの見込み。AI_MAX_TOKENS は 3000）。1 人 1 日 10 回まで（voice_memo と同じく reserve_ai_usage の lock の中で ai_usage を数える。8 の Q6）
 - 整えるにフォーマットを渡すのは、いまの tidy_draft の purpose のまま（足す入力は 300 トークンほど）
+- 毎回付けるタグ（2026-11-12 に足した。docs/architecture.md の 4.59）: post_formats.hashtags（全 SNS 共通と SNS ごと）。投稿では post_targets.hashtags に SNS ごとに持ち、送るときに本文の後ろに足す
 
 ## 6. 法務（D31 の ① か ② か）
 

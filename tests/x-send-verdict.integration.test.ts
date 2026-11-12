@@ -15,7 +15,7 @@ import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpe
 vi.mock("server-only", () => ({}));
 let current: TestClient;
 vi.mock("@/lib/supabase/server", () => ({ createClient: async () => current }));
-const { listPostsNeedingAttention } = await import("@/lib/posts/queries");
+const { listDueManualPosts, listPostsNeedingAttention } = await import("@/lib/posts/queries");
 const { loadCalendarStats } = await import("@/lib/calendar/stats");
 
 const admin = adminClient();
@@ -129,5 +129,19 @@ describe("「X は手で投稿する」を選んだ X の配信先", () => {
     expect(ids).toContain(broken);
     expect(ids).not.toContain(hand);
     expect((await loadCalendarStats(projectId, "2099-01", alice)).failed).toBe(1);
+  });
+
+  it("送る時刻が来たら、手で投稿の X は概要の「手で投稿する番」に出る（忘れないように）。まだ先の予約は出ない", async () => {
+    const save = async (at: string) =>
+      (await alice.rpc("save_post", { p_post_id: null as unknown as string, p_project_id: projectId, p_body: "手で出す", p_planned_at: at, p_status: "draft", p_targets: [{ sns: "x", social_account_id: xAccountId }] })).data!;
+    const past = await save(new Date(Date.now() - 3600_000).toISOString());
+    const future = await save("2099-02-01T00:00:00Z");
+    for (const id of [past, future]) {
+      await markXByHand(admin, id, aliceId);
+      await alice.from("posts").update({ status: "scheduled" }).eq("id", id);
+    }
+    const ids = (await listDueManualPosts(projectId)).map((p) => p.id);
+    expect(ids).toContain(past);
+    expect(ids).not.toContain(future);
   });
 });

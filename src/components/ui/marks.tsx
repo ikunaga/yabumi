@@ -36,15 +36,17 @@ export function SnsTag({ sns }: { sns: SnsKey }) {
 }
 
 // SNS の小さな印（X・IG など）。SNS ごとの色の枠と字。短い名前の意味は title と読み上げで補う
-export function SnsMark({ sns }: { sns: SnsKey }) {
+// byHand: 自動では送らず、利用者が手で投稿する（「X は手で投稿する」を選んだ X）。点線の枠と「手で」を添える
+export function SnsMark({ sns, byHand = false }: { sns: SnsKey; byHand?: boolean }) {
   const c = SNS_COLOR[sns];
   return (
     <span
-      title={SNS[sns].label}
-      className={`inline-flex h-5 shrink-0 items-center rounded-sm border px-1.5 text-[11px] leading-none font-bold ${c.border} ${c.text}`}
+      title={byHand ? `${SNS[sns].label}（手で投稿）` : SNS[sns].label}
+      className={`inline-flex h-5 shrink-0 items-center rounded-sm border px-1.5 text-[11px] leading-none font-bold ${byHand ? "border-dashed" : ""} ${c.border} ${c.text}`}
     >
       <span aria-hidden>{SNS_SHORT[sns]}</span>
-      <span className="sr-only">{SNS[sns].label}</span>
+      {byHand && <span className="ml-1 font-normal">手で</span>}
+      <span className="sr-only">{byHand ? `${SNS[sns].label}（手で投稿）` : SNS[sns].label}</span>
     </span>
   );
 }

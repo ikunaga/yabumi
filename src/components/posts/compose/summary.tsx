@@ -9,7 +9,7 @@ import { type Composer } from "./use-composer";
 
 // ⑤ のまとめ: ①〜④ の短い要約と、直すところ。「直す」でそのステップへ（docs/design/compose-steps.md の 2.）
 export function ComposeSummary({ c }: { c: Composer }) {
-  const { body, chosen, images, shortLinks, textFor, tagsFor, stepProblems, goStep, isLocked } = c;
+  const { body, chosen, images, shortLinks, textFor, tagsFor, stepProblems, goStep, sentState } = c;
   // SNS ごとのタグ（同じタグの SNS はまとめる。4.59）
   const tagGroups = new Map<string, { labels: string[]; tags: string[] }>();
   for (const s of chosen) {
@@ -39,7 +39,7 @@ export function ComposeSummary({ c }: { c: Composer }) {
   const hasLink = findUrls(body).length > 0 || chosen.some((s) => findUrls(textFor(s)).length > 0);
   const rows: { n: StepNo; text: string; sub?: { key: string; node: ReactNode }[] }[] = [
     { n: 1, text: firstLine ? (firstLine.length > 40 ? `${firstLine.slice(0, 40)}…` : firstLine) : "まだ書いていません" },
-    { n: 2, text: chosen.length ? chosen.map((s) => `${SNS[s].label}${isLocked(s) ? "（投稿済み）" : ""}`).join("・") : "まだ選んでいません", sub: tagLines },
+    { n: 2, text: chosen.length ? chosen.map((s) => `${SNS[s].label}${sentState(s) ? `（${sentState(s)!.plain}）` : ""}`).join("・") : "まだ選んでいません", sub: tagLines },
     { n: 3, text: images.length ? `画像 ${images.length} 枚` : "画像なし" },
     { n: 4, text: hasLink ? (shortLinks ? "リンクあり（短縮リンクで押された回数を数える）" : "リンクあり") : "リンクなし" },
   ];

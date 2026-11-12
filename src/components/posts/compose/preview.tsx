@@ -6,13 +6,13 @@ import { VoiceInputButton } from "@/components/ui/voice-input";
 import { tabClass, tabListClass } from "@/components/ui/tabs";
 import { ShortLinkPreviewNote } from "@/components/links/short-link-toggle";
 import { SnsPreview } from "../sns-preview";
-import { PREVIEW } from "@/lib/sns/preview";
+import { PREVIEW, PREVIEW_DISCLAIMER } from "@/lib/sns/preview";
 import { MAX_TITLE_LENGTH, SNS, instagramRatioOk, ignoresImages, isManualSns } from "@/lib/sns";
 import { formatCount, type Composer } from "./use-composer";
 
 // SNS ごとの見え方と文面（タブ）と、SNS ごとの注意のカード（compose-steps.md。PC は右の列）
 export function ComposePreview({ c }: { c: Composer }) {
-  const { projectName, linkPreview, images, shortLinks, body, overrideRef, overrides, setOverrides, setFocus, titles, setTitles, markTyped, textFor, checks, isLocked, previewSns, focus, focusLabel, hasOverride } = c;
+  const { projectName, accountNames, shownText, linkPreview, images, shortLinks, body, overrideRef, overrides, setOverrides, setFocus, titles, setTitles, markTyped, textFor, checks, isLocked, previewSns, focus, focusLabel, hasOverride } = c;
   return (
     <>
       <section aria-label="SNS ごとの見え方と文面" className="overflow-hidden rounded-lg border border-border bg-surface">
@@ -31,6 +31,7 @@ export function ComposePreview({ c }: { c: Composer }) {
           </div>
           <HelpTip label={`${focusLabel} での出方`} align="right">
             {PREVIEW[focus].note}
+            <p className="mt-2">{PREVIEW_DISCLAIMER}</p>
           </HelpTip>
         </div>
         <div role="tabpanel" className="flex flex-col gap-3 px-6 py-5 max-sm:px-4 max-sm:py-4">
@@ -53,7 +54,7 @@ export function ComposePreview({ c }: { c: Composer }) {
               />
             </div>
           )}
-          <SnsPreview key={focus} sns={focus} text={textFor(focus)} title={titles[focus] ?? null} projectName={projectName} images={images} length={checks[focus].length} />
+          <SnsPreview key={focus} sns={focus} text={shownText(focus)} title={titles[focus] ?? null} projectName={projectName} account={accountNames[focus] ?? null} images={images} length={checks[focus].length} />
           <ShortLinkPreviewNote sns={focus} text={textFor(focus)} enabled={shortLinks} preview={linkPreview} />
           {images.length > 0 && ignoresImages(focus) && (
             <p className="text-[13px] text-muted">

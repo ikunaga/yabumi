@@ -68,3 +68,29 @@ export function previewSegments(text: string): { kind: "text" | "url" | "tag"; v
   if (last < text.length) out.push({ kind: "text", value: text.slice(last) });
   return out;
 }
+
+// 見え方の「?」に添える一言（本物と細かいところが違うことがあるので）
+export const PREVIEW_DISCLAIMER = "見え方は目安です。画像の切れ方や折りたたむ位置は、SNS のアプリ・画面の幅・時期で変わることがあります。";
+
+// 見え方に出す名前。つないだアカウントがあれば、その SNS の画面と同じ出し方（X は表示名と @handle、Threads・Instagram は handle）、
+// なければプロジェクトの名前（2026-11-12 PMO の通しのテスト「Instagram の見え方の名前がプロジェクトの名前だった」）
+export function previewName(sns: SnsKey, projectName: string, account: { name: string; handle: string } | null): { name: string; handle: string | null } {
+  if (!account) return { name: projectName, handle: null };
+  if (sns === "x") return { name: account.name || account.handle || projectName, handle: account.handle || null };
+  if (sns === "threads" || sns === "instagram") return { name: account.handle || account.name || projectName, handle: null };
+  return { name: account.name || account.handle || projectName, handle: null };
+}
+
+// 本文のあとに画像を格子に並べる SNS（X・Facebook）の並び。X の画面に合わせる（目安）:
+// 1 枚は元の縦横（縦長は 3:4、横長は 16:9 までで切る）、2 枚は左右に半分ずつ、3 枚は左に 1 枚と右に 2 枚、4 枚は 2×2（全体は 16:9）
+// （2026-11-12 PMO の通しのテスト「4:5 の画像が横長に切られていた」。前は 1 枚を 16:9 に切っていた）
+export const MAX_TALL_RATIO = 3 / 4;
+export const MAX_WIDE_RATIO = 16 / 9;
+export function previewImageLayout(images: { width: number; height: number }[]): { cols: 1 | 2; rows: 1 | 2; ratio: number; tall: number | null } {
+  if (images.length <= 1) {
+    const r = images[0] && images[0].height > 0 ? images[0].width / images[0].height : MAX_WIDE_RATIO;
+    return { cols: 1, rows: 1, ratio: Math.min(MAX_WIDE_RATIO, Math.max(MAX_TALL_RATIO, r)), tall: null };
+  }
+  if (images.length === 2) return { cols: 2, rows: 1, ratio: 16 / 9, tall: null };
+  return { cols: 2, rows: 2, ratio: 16 / 9, tall: images.length === 3 ? 0 : null };
+}

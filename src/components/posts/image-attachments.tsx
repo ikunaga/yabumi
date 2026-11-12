@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonClass } from "@/components/ui/button";
 import { HelpTip } from "@/components/ui/help";
 import { Term } from "@/components/ui/term";
 import { discardImage } from "@/lib/media/actions";
@@ -73,6 +73,14 @@ export type AttachedImage = {
 function strip(image: AttachedImage): AttachedImage {
   return { ...image, original: undefined, edit: undefined };
 }
+
+// 画像の行の「縦横を整える」「調整する」「見出しを付ける」。文字だけだと押せるものに見えないので、小さな枠のボタンにする。開いている欄のボタンは藍にする
+// （2026-11-12 PMO の通しのテスト）
+const rowAction = buttonClass({
+  variant: "secondary",
+  size: "sm",
+  className: "h-7 px-2.5 text-xs aria-expanded:border-primary aria-expanded:bg-primary-soft aria-expanded:text-primary",
+});
 
 const sourceOf = (image: AttachedImage) => ({ previewUrl: image.previewUrl!, width: image.width, height: image.height });
 
@@ -441,7 +449,7 @@ export function ImageAttachments({
                     </button>
                   </span>
                 </div>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs">
                   {bulkResult?.failedIds.includes(image.id) && <span className="font-bold text-danger">直せませんでした</span>}
                   {instagram && !instagramRatioOk(image.width, image.height) && (
                     <span className="font-bold text-signal">● Instagram には縦横比が合いません（{ratioLabel(image.width, image.height)}）</span>
@@ -460,7 +468,7 @@ export function ImageAttachments({
                       setTitling(null);
                       setAdjusting((a) => (a === image.id ? null : image.id));
                     }}
-                    className="font-semibold text-primary hover:underline disabled:text-muted disabled:no-underline"
+                    className={rowAction}
                   >
                     縦横を整える
                   </button>
@@ -473,7 +481,7 @@ export function ImageAttachments({
                       setTitling(null);
                       setTuning((a) => (a === image.id ? null : image.id));
                     }}
-                    className="font-semibold text-primary hover:underline disabled:text-muted disabled:no-underline"
+                    className={rowAction}
                   >
                     調整する
                   </button>
@@ -487,7 +495,7 @@ export function ImageAttachments({
                         setTuning(null);
                         setTitling((a) => (a === image.id ? null : image.id));
                       }}
-                      className="font-semibold text-primary hover:underline disabled:text-muted disabled:no-underline"
+                      className={rowAction}
                     >
                       {headlineAction(image) === "edit" ? "見出しを直す" : "見出しを付ける"}
                     </button>

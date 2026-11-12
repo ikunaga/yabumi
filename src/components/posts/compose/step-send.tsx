@@ -7,12 +7,18 @@ import { HelpTip } from "@/components/ui/help";
 import { SendProgress } from "../send-progress";
 import { BAND_INFO, plannedAtFor } from "@/lib/metrics/time-bands";
 import { COMPOSE_STEPS, blockerStep } from "@/lib/posts/compose-steps";
+import { SNS, isManualSns } from "@/lib/sns";
 import { QUIET_BLOCKER, type Composer } from "./use-composer";
 
 // ⑤ 送る: 日時・予約・今すぐ・下書き・削除（compose-steps.md）
 export function ComposeStepSend({ c, steps = false }: { c: Composer; steps?: boolean }) {
-  const { composeStep, goStep, stepProblems, timeHint, images, plannedAt, setPlannedAt, confirmSend, setConfirmSend, pending, busy, sending, missingConnectMessage, blocker, nowBlocker, clearFieldError, submit, fe, connectHref, mode, labels, sentLabels, deleteRow } = c;
-  const fixAt = blockerStep(blocker, stepProblems);
+  const { composeStep, goStep, stepProblems, timeHint, images, plannedAt, setPlannedAt, confirmSend, setConfirmSend, pending, busy, sending, missingConnectMessage, blocker, nowBlocker, clearFieldError, submit, fe, connectHref, mode, labels, sentLabels, deleteRow, toSend } = c;
+  // 日時が空のときは「今すぐ送る」を主なボタンにする（予約は日時を決めてから。2026-11-12 PMO の通しのテスト）
+  const nowMain = !plannedAt;
+  const mainBlocker = nowMain ? nowBlocker : blocker;
+  const fixAt = blockerStep(mainBlocker, stepProblems);
+  // 今すぐ送る SNS の名前（確かめに出す。note・Substack は手で投稿するので入れない）
+  const nowNames = toSend.filter((s) => !isManualSns(s)).map((s) => SNS[s].label).join("・");
   return (
     <>
       {/* 送る日時と送る */}
@@ -68,12 +74,35 @@ export function ComposeStepSend({ c, steps = false }: { c: Composer; steps?: boo
             </p>
           )}
           {sending && <SendProgress postId={sending.postId} sns={sending.sns} hasImages={images.length > 0} />}
-          <Button type="button" size="lg" disabled={pending || blocker !== null} onClick={() => submit("schedule")} className="w-full">
-            {busy === "schedule" ? "予約しています…" : labels.schedule}
-          </Button>
-          <p className={`text-[13px] ${fe.plannedAt || (blocker && blocker !== QUIET_BLOCKER) ? "text-signal" : "text-faint"}`}>
-            {fe.plannedAt ?? blocker ?? "予約すると、この日時に自動で送ります"}
-            {!fe.plannedAt && blocker === missingConnectMessage && (
+          {nowMain && confirmSend ? (
+            // 今すぐ送るは取り消しにくいので、送り先の SNS の名前を出して確かめる
+            <div className="flex flex-col gap-2 rounded-md border border-line px-3.5 py-3">
+              <p className="text-[14px] leading-[1.7]">
+                <b>{nowNames}</b> に、いますぐ送ります。
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button type="button" disabled={pending} onClick={() => submit("now")}>
+                  本当に{labels.now}
+                </Button>
+                <Button type="button" variant="text" disabled={pending} onClick={() => setConfirmSend(false)}>
+                  やめる
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button
+              type="button"
+              size="lg"
+              disabled={pending || mainBlocker !== null}
+              onClick={() => (nowMain ? setConfirmSend(true) : submit("schedule"))}
+              className="w-full"
+            >
+              {nowMain ? (busy === "now" ? "送っています…" : labels.now) : busy === "schedule" ? "予約しています…" : labels.schedule}
+            </Button>
+          )}
+          <p className={`text-[13px] ${fe.plannedAt || (mainBlocker && mainBlocker !== QUIET_BLOCKER) ? "text-signal" : "text-faint"}`}>
+            {fe.plannedAt ?? mainBlocker ?? (nowMain ? "予約するときは、上で送る日時を決めてください" : "予約すると、この日時に自動で送ります")}
+            {!fe.plannedAt && mainBlocker === missingConnectMessage && (
               <>
                 {" "}
                 <Link href={connectHref} className="font-semibold text-fg underline">
@@ -82,7 +111,7 @@ export function ComposeStepSend({ c, steps = false }: { c: Composer; steps?: boo
               </>
             )}
             {/* どのステップで直すかを添える（ステップの画面のとき。いまのステップで直すものと、つなぐものは除く） */}
-            {steps && !fe.plannedAt && fixAt !== null && fixAt !== composeStep && blocker !== missingConnectMessage && (
+            {steps && !fe.plannedAt && fixAt !== null && fixAt !== composeStep && mainBlocker !== missingConnectMessage && (
               <>
                 {" "}
                 <button type="button" onClick={() => goStep(fixAt)} className="font-semibold text-fg underline">
@@ -91,29 +120,33 @@ export function ComposeStepSend({ c, steps = false }: { c: Composer; steps?: boo
               </>
             )}
           </p>
-          {/* 今すぐ送るは取り消しにくいので、押したら確かめる */}
           <div className="flex flex-wrap items-center gap-2">
-            {confirmSend ? (
-              <>
-                <Button type="button" variant="secondary" size="sm" disabled={pending} onClick={() => submit("now")}>
-                  本当に{labels.now}
+            {/* 日時があるときは予約が主なボタン。今すぐ送るは二番手で、押したら送り先の名前を出して確かめる */}
+            {!nowMain &&
+              (confirmSend ? (
+                <>
+                  <span className="w-full text-[13px] text-muted">
+                    <b className="text-fg">{nowNames}</b> に、いますぐ送ります。
+                  </span>
+                  <Button type="button" variant="secondary" size="sm" disabled={pending} onClick={() => submit("now")}>
+                    本当に{labels.now}
+                  </Button>
+                  <Button type="button" variant="text" size="sm" disabled={pending} onClick={() => setConfirmSend(false)}>
+                    やめる
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={pending || nowBlocker !== null}
+                  title={nowBlocker ?? undefined}
+                  onClick={() => setConfirmSend(true)}
+                >
+                  {busy === "now" ? "送っています…" : labels.now}
                 </Button>
-                <Button type="button" variant="text" size="sm" disabled={pending} onClick={() => setConfirmSend(false)}>
-                  やめる
-                </Button>
-              </>
-            ) : (
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                disabled={pending || nowBlocker !== null}
-                title={nowBlocker ?? undefined}
-                onClick={() => setConfirmSend(true)}
-              >
-                {busy === "now" ? "送っています…" : labels.now}
-              </Button>
-            )}
+              ))}
             <Button type="button" variant="secondary" size="sm" disabled={pending} onClick={() => submit("draft")}>
               {busy === "draft" ? "保存しています…" : "下書きに保存する"}
             </Button>

@@ -12,7 +12,7 @@ import { type Composer } from "./use-composer";
 
 // ② 送り先: SNS を選ぶ・送り先の注意・引用（compose-steps.md）
 export function ComposeStepTargets({ c }: { c: Composer }) {
-  const { connected, selected, overrides, quote, setQuote, textFor, checks, isLocked, chosen, learnFrom, quoting, clearFieldError, toggle, fe, connectHref, targetState, countText, warnings, mode } = c;
+  const { connected, selected, overrides, quote, setQuote, textFor, checks, isLocked, chosen, learnFrom, quoting, clearFieldError, toggle, fe, connectHref, targetState, sentState, countText, warnings, mode } = c;
   return (
     <>
       {/* 送り先。PC は字数つきのチップ（見本 B）、スマホは行（見本 D） */}
@@ -35,7 +35,7 @@ export function ComposeStepTargets({ c }: { c: Composer }) {
                 {SNS[sns].label}
                 {on && <span className={`num ${over ? "text-danger" : ""}`}>{countText(sns)}</span>}
                 {overrides[sns] !== undefined && <span aria-hidden>✎</span>}
-                {isLocked(sns) && <span className="text-success">投稿済み</span>}
+                {sentState(sns) && <span className={sentState(sns)!.tone}>{sentState(sns)!.text}</span>}
               </button>
             );
           })}
@@ -125,7 +125,7 @@ export function ComposeStepTargets({ c }: { c: Composer }) {
 // SNS ごとのタグ（docs/architecture.md の 4.59）。本文とは別に持ち、送るときに本文の下に 1 行あけて付く。
 // 投稿のフォーマットを本文に入れると、そのタグが入る。送った SNS は直せない（送り直さない）
 function TargetHashtags({ c }: { c: Composer }) {
-  const { chosen, tagInputs, setTagInputs, tagsFor, tagProblem, textFor, isLocked, markTyped, clearFieldError } = c;
+  const { chosen, tagInputs, setTagInputs, tagsFor, tagProblem, textFor, isLocked, sentState, markTyped, clearFieldError } = c;
   return (
     <fieldset className="flex min-w-0 flex-col gap-2">
       <legend className="mb-1 text-[14px] font-bold">
@@ -153,7 +153,7 @@ function TargetHashtags({ c }: { c: Composer }) {
                   className="min-w-0 flex-1 py-2 text-sm"
                 />
               </label>
-              {locked && <span className="pl-[108px] text-xs text-muted max-sm:pl-0">投稿済み（直しても送り直しません）</span>}
+              {locked && <span className="pl-[108px] text-xs text-muted max-sm:pl-0">{sentState(sns)?.plain ?? "投稿済み"}（直しても送り直しません）</span>}
               {problem ? (
                 <span className="pl-[108px] text-xs font-semibold text-danger max-sm:pl-0">{problem}</span>
               ) : (

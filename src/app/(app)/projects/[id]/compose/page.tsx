@@ -6,7 +6,8 @@ import { PostNumbersBand } from "@/components/posts/post-numbers-band";
 import { loadPostNumbers } from "@/lib/posts/numbers";
 import { loadTimeTrends } from "@/lib/metrics/time-trends";
 import { timeHintOf } from "@/lib/metrics/time-hint";
-import { connectedAccounts } from "@/lib/posts/queries";
+import { connectedAccountNames, connectedAccounts } from "@/lib/posts/queries";
+import { projectLinkBase } from "@/lib/links/domains";
 import { getProject } from "@/lib/projects/queries";
 import { loadProfileLinkInfo } from "@/lib/posts/profile-link-info";
 import { SNS_KEYS, type SnsKey } from "@/lib/sns";
@@ -31,7 +32,12 @@ export default async function ComposePage(props: PageProps<"/projects/[id]/compo
   const profileLink = await loadProfileLinkInfo(await createClient(), project);
   // 「最初は自分で書く」のすすめに使う（docs/design/voice-from-posts.md の 3.4）
   const db = await createClient();
-  const [selfWrittenPosts, voiceMemo] = await Promise.all([countSelfWrittenPosts(db, project.id), hasVoiceMemo(db, project.id)]);
+  const [selfWrittenPosts, voiceMemo, accountNames, linkBase] = await Promise.all([
+    countSelfWrittenPosts(db, project.id),
+    hasVoiceMemo(db, project.id),
+    connectedAccountNames(project.id),
+    projectLinkBase(db, project.id),
+  ]);
   const item = typeof searchParams.item === "string" && /^[0-9a-f-]{36}$/.test(searchParams.item) ? await loadItem(project.id, searchParams.item) : null;
   const date = isYmd(searchParams.date) ? searchParams.date : (item?.planned_on ?? null);
   const needImageReconnect = await snsNeedingImageReconnect(accounts);
@@ -52,6 +58,8 @@ export default async function ComposePage(props: PageProps<"/projects/[id]/compo
       profileLink={profileLink}
       selfWrittenPosts={selfWrittenPosts}
       hasVoiceMemo={voiceMemo}
+      accountNames={accountNames}
+      linkBase={linkBase}
       initial={{
         body: "",
         targets: (item?.sns && isSnsKey(item.sns) ? [item.sns] : SNS_KEYS.filter((s) => connected.includes(s))).map((sns) => ({ sns, bodyOverride: null })),

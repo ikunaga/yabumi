@@ -111,6 +111,18 @@ export function substituteLinks(text: string, links: Map<string, string>): strin
   });
 }
 
+// 保存する前の短縮リンクの仮のコード（本当のコードと同じ長さ。見え方では薄い字で出す）
+export const PLACEHOLDER_CODE = "x".repeat(CODE_LENGTH);
+
+// 送るときに短縮リンクに置き換わる URL を、置き換えたあとの形にする（保存した短縮リンクがあればそれ、なければ同じドメイン・同じ長さの仮のもの）。
+// 見え方と字数を、実際に送る文にそろえる（2026-11-12 PMO の通しのテスト「見え方に長い URL が出ていた」）。サーバーの字数の確かめも同じ形で数える
+export function shortLinkShownText(text: string, sns: SnsKey, opts: { enabled: boolean; base: string; saved?: Map<string, string> }): string {
+  if (!opts.enabled || isManualSns(sns) || !substitutesBodyLinks(sns)) return text;
+  const urls = findLinkableUrls(text);
+  if (!urls.length) return text;
+  return substituteLinks(text, new Map(urls.map((u) => [u, opts.saved?.get(u) ?? shortLinkUrl(PLACEHOLDER_CODE, opts.base)])));
+}
+
 // 本文の URL を押せない SNS は置き換えない（プロフィールのリンクで数える）。手で投稿する SNS は、利用者が貼る文に入る
 export function substitutesBodyLinks(sns: SnsKey): boolean {
   return sns !== "instagram";

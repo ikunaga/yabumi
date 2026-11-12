@@ -14,6 +14,8 @@ import { canGoNext, fieldErrorStep, parseStep, problemsByStep, startStep, stepMa
 import { clearSending, markSending } from "../send-progress";
 import type { SavePostResult } from "@/lib/posts/schema";
 import type { PostLinkPreview } from "@/lib/links/store";
+import { shortLinkShownText } from "@/lib/links/rules";
+import type { AccountNames } from "@/lib/posts/queries";
 import { type AttachedImage } from "../image-attachments";
 import { applyFix } from "@/lib/ai/ai-check";
 import { type NoteInsertMode } from "../note-picker";
@@ -26,7 +28,7 @@ import { type TargetResult } from "../send-results";
 import { previewTabs } from "@/lib/sns/preview";
 import { ISSUE_LABEL, SNS, SNS_KEYS, checkTarget, isManualSns, type SnsKey, type TargetIssue } from "@/lib/sns";
 import { projectSettingsHref } from "@/lib/projects/paths";
-import { sendLabels, sendMode } from "@/lib/posts/send-mode";
+import { TARGET_STATE, sendLabels, sendMode, sentStateOf } from "@/lib/posts/send-mode";
 import { findUrls, profileLinkLine, withDestinationUrl, withProfileLink, type ProfileLinkInfo } from "@/lib/posts/profile-link";
 import { type TimeBand } from "@/lib/metrics/time-bands";
 import { composeChanges, type ComposeSnapshot } from "@/lib/posts/compose-reset";
@@ -68,6 +70,10 @@ export type ComposerProps = {
   needImageReconnect?: SnsKey[];
   // 保存した投稿の、配信先ごとの短縮リンク（送るときにこの URL に置き換わる）
   linkPreview?: PostLinkPreview;
+  // このプロジェクトの短縮リンクの土台（例 https://yabumi.app/go。保存する前の見え方の仮の短縮リンクに使う）
+  linkBase?: string;
+  // つないだアカウントの表示名と @handle（見え方の名前。つないでいない SNS はプロジェクトの名前）
+  accountNames?: AccountNames;
   // AI っぽさチェック（F11）を使えるか（Claude API のキーがあるか）
   aiCheckEnabled?: boolean;
   // 下の数字の帯（前回の投稿・この投稿の数字。出せる数字がなければ渡さない）
@@ -124,6 +130,8 @@ export function useComposer({
   planHints = null,
   needImageReconnect = [],
   linkPreview = {},
+  linkBase = "",
+  accountNames = {},
   aiCheckEnabled = false,
   numbers = null,
   timeHint = null,
@@ -321,15 +329,18 @@ export function useComposer({
   const textFor = (sns: SnsKey) => withHashtags(overrides[sns] ?? body, tagsFor(sns));
   // タグを付ける前の文（AI に渡すのはこちら。タグは AI に送らない）
   const bodyFor = (sns: SnsKey) => overrides[sns] ?? body;
+  // 見え方に出す文と、字数を数える文。送るときに短縮リンクに置き換わる URL は、置き換えたあとの形にする（保存する前は同じ長さの仮のもの）
+  const shownTextOf = (sns: SnsKey, text: string) =>
+    shortLinkShownText(text, sns, { enabled: shortLinks && linkBase !== "", base: linkBase, saved: new Map((linkPreview[sns] ?? []).map((p) => [p.destination, p.url])) });
+  const shownText = (sns: SnsKey) => shownTextOf(sns, textFor(sns));
   const checks = useMemo(
     () =>
       Object.fromEntries(
-        SNS_KEYS.map((sns) => [
-          sns,
-          checkTarget(sns, withHashtags(overrides[sns] ?? body, parseHashtagInput(tagInputs[sns] ?? "").tags), { images: images.length, videos: 0, sizes: images }, titles[sns] ?? null),
-        ]),
+        SNS_KEYS.map((sns) => [sns, checkTarget(sns, shownTextOf(sns, withHashtags(overrides[sns] ?? body, parseHashtagInput(tagInputs[sns] ?? "").tags)), { images: images.length, videos: 0, sizes: images }, titles[sns] ?? null)]),
       ) as Record<SnsKey, ReturnType<typeof checkTarget>>,
-    [body, overrides, titles, tagInputs, images],
+    // shownTextOf は shortLinks・linkBase・linkPreview で決まる
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [body, overrides, titles, tagInputs, images, shortLinks, linkBase, linkPreview],
   );
   // タグの欄の問題（タグにできない言葉・6 個以上）
   const tagProblem = (sns: SnsKey) => hashtagInputProblem(tagInputs[sns] ?? "");
@@ -575,12 +586,13 @@ export function useComposer({
   const plannedLabel = plannedAt ? `${Number(plannedAt.slice(5, 7))}/${Number(plannedAt.slice(8, 10))} ${plannedAt.slice(11, 16)}` : null;
 
   // 送り先ごとの状態（スマホの行の右と、PC のチップの下の注意に出す）
+  // 送った配信先のいまの本当の状態（送信中・失敗・送り直し待ち・投稿済み・取り消し済み）。まだ送っていなければ null。
+  // ② の送り先と ⑤ のまとめに出す（送っている途中を「投稿済み」と出さない。2026-11-12 PMO の通しのテスト）
+  const sentState = (sns: SnsKey) => sentStateOf(results[sns]);
   function targetState(sns: SnsKey): { text: string; tone: string } | null {
     const on = selected.has(sns);
-    const sent = results[sns];
     const issue = checks[sns].issues[0];
-    if (on && sent && sent.status !== "pending") return TARGET_STATE[sent.status] ?? null;
-    if (on && sent?.status === "pending" && sent.errorMessage) return { text: "送り直し待ち", tone: "font-bold text-signal" };
+    if (on && sentState(sns)) return sentState(sns);
     if (!on) return { text: isManualSns(sns) ? "手で投稿" : "オフ", tone: "text-faint" };
     if (quiet) return null;
     // 引用の X は X の画面で送るので、つないでいなくてよい（4.52）
@@ -673,6 +685,8 @@ export function useComposer({
     planHints,
     needImageReconnect,
     linkPreview,
+    shownText,
+    accountNames,
     aiCheckEnabled,
     numbers,
     timeHint,
@@ -789,6 +803,7 @@ export function useComposer({
     connectHref,
     plannedLabel,
     targetState,
+    sentState,
     countText,
     warnings,
     mode,
@@ -800,15 +815,7 @@ export function useComposer({
 
 export type Composer = ReturnType<typeof useComposer>;
 
-// 送った配信先の状態（スマホの行の右）
-const TARGET_STATE: Partial<Record<TargetResult["status"], { text: string; tone: string }>> = {
-  published: { text: "✓ 投稿済み", tone: "font-bold text-success" },
-  preparing: { text: "送信中", tone: "text-muted" },
-  publishing: { text: "送信中", tone: "text-muted" },
-  deleted: { text: "取り消し済み", tone: "text-muted" },
-  failed: { text: "! 失敗", tone: "font-bold text-danger" },
-};
-// 送ったあとの状態は、上の「送信の結果」に出ているので、チップの下の注意には出さない
+// 送ったあとの状態（src/lib/posts/send-mode.ts の TARGET_STATE）は、上の「送信の結果」に出ているので、チップの下の注意には出さない
 
 export const TARGET_STATE_TEXTS = new Set(Object.values(TARGET_STATE).map((s) => s!.text));
 

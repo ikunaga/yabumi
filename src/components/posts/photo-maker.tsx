@@ -418,8 +418,10 @@ export function PhotoMaker({
             </Button>
           </div>
           <p className="text-xs leading-[1.7] text-muted">
-            {pickedItems.length > 1 ? "見出しを重ねるのは 1 枚ずつです。" : ""}
-            {remainingCandidates.length > 0 ? "選ばなかった画像は 1 日で消えます。" : "候補はすべて添えました。続けてつくるときは、場面を変えて「つくる」を押してください。"}
+            {/* 見出しを重ねるが押せない理由（添えた画像には、その画像の行の「見出しを付ける」から付けられる。4.58） */}
+            {remainingCandidates.length === 0
+              ? "候補はすべて添えました。見出しは、下の添えた画像の行の「見出しを付ける」から付けられます。続けてつくるときは、場面を変えて「つくる」を押してください。"
+              : `${pickedItems.length === 0 ? "見出しを重ねるときは、候補を 1 枚選んでください。" : pickedItems.length > 1 ? "見出しを重ねるのは 1 枚ずつです。" : ""}選ばなかった画像は 1 日で消えます。`}
           </p>
         </div>
       )}

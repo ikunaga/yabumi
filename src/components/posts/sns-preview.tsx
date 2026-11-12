@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { SNS, ignoresImages, type SnsKey } from "@/lib/sns";
-import { PREVIEW, foldText, previewSegments } from "@/lib/sns/preview";
+import { PREVIEW, foldText, previewImageLayout, previewName, previewSegments } from "@/lib/sns/preview";
+import { PLACEHOLDER_CODE } from "@/lib/links/rules";
 import { SNS_COLOR } from "@/components/ui/marks";
 import type { AttachedImage } from "./image-attachments";
 
@@ -14,20 +15,23 @@ type Props = {
   images: AttachedImage[];
   // 字数（SNS の数え方。checkTarget の length）
   length: number;
+  // つないだアカウントの表示名と @handle（つないでいなければ、プロジェクトの名前を出す）
+  account?: { name: string; handle: string } | null;
 };
 
 // 1 つの SNS での見え方（投稿をつくる画面の右のタブの中。出方の説明は呼ぶ側の「?」に畳む）。改行・長さ・画像の並び・折りたたみ・字数の上限が SNS ごとにわかるように。
 // 切り替えたら折りたたみを戻すため、呼ぶ側で key={sns} を付ける
-export function SnsPreview({ sns, text, title, projectName, images, length }: Props) {
+export function SnsPreview({ sns, text, title, projectName, images, length, account = null }: Props) {
   const spec = PREVIEW[sns];
   const [expanded, setExpanded] = useState(false);
   const max = SNS[sns].maxLength;
   const shownImages = ignoresImages(sns) ? [] : images.filter((i) => i.previewUrl).slice(0, SNS[sns].maxImages);
   const { shown, folded } = foldText(text, expanded ? null : spec.fold);
+  const who = previewName(sns, projectName, account);
 
   const body = text ? (
     <p className="break-words whitespace-pre-wrap [overflow-wrap:anywhere]">
-      {sns === "instagram" && <b className="mr-1.5">{projectName}</b>}
+      {sns === "instagram" && <b className="mr-1.5">{who.name}</b>}
       <Rich text={shown} />
       {folded && (
         <>
@@ -48,7 +52,8 @@ export function SnsPreview({ sns, text, title, projectName, images, length }: Pr
         {spec.layout !== "article" && (
           <div className="flex items-center gap-2.5">
             <span aria-hidden className={`size-8 flex-none rounded-full ${SNS_COLOR[sns].bg}`} />
-            <b className="min-w-0 truncate">{projectName}</b>
+            <b className="min-w-0 truncate">{who.name}</b>
+            {who.handle && <span className="min-w-0 shrink truncate text-[13px] text-faint">@{who.handle}</span>}
             <span className="shrink-0 text-[13px] text-faint">· 今</span>
           </div>
         )}
@@ -84,7 +89,10 @@ export function SnsPreview({ sns, text, title, projectName, images, length }: Pr
 function Rich({ text }: { text: string }) {
   return (
     <>
-      {previewSegments(text).map((s, i) => (s.kind === "text" ? <span key={i}>{s.value}</span> : <span key={i} className="text-info">{s.value}</span>))}
+      {/* 保存する前の仮の短縮リンク（送るときに決まる）は薄い字にする */}
+      {previewSegments(text).map((s, i) =>
+        s.kind === "text" ? <span key={i}>{s.value}</span> : <span key={i} className={s.value.endsWith(`/${PLACEHOLDER_CODE}`) ? "text-faint" : "text-info"}>{s.value}</span>,
+      )}
     </>
   );
 }
@@ -112,16 +120,13 @@ function Images({ images, layout }: { images: AttachedImage[]; layout: "before" 
       </div>
     );
   }
+  // X・Facebook: 1 枚は元の縦横（縦長は 3:4 まで、横長は 16:9 までで切る）、2 枚は左右に半分ずつ、3 枚は左に 1 枚と右に 2 枚、4 枚は 2×2（previewImageLayout）
+  const grid = previewImageLayout(images.slice(0, 4));
   return (
-    <div className={`grid gap-0.5 overflow-hidden rounded-xl border border-line ${images.length > 1 ? "grid-cols-2" : ""}`}>
+    <div className={`grid gap-0.5 overflow-hidden rounded-xl border border-line ${grid.cols === 2 ? "grid-cols-2" : ""} ${grid.rows === 2 ? "grid-rows-2" : ""}`} style={{ aspectRatio: grid.ratio }}>
       {images.slice(0, 4).map((image, i) => (
         // eslint-disable-next-line @next/next/no-img-element -- 同上
-        <img
-          key={image.id}
-          src={image.previewUrl!}
-          alt={alt(image, i)}
-          className={`w-full object-cover ${images.length === 1 ? "aspect-video" : images.length === 3 && i === 0 ? "row-span-2 h-full" : "aspect-square"}`}
-        />
+        <img key={image.id} src={image.previewUrl!} alt={alt(image, i)} className={`size-full min-h-0 object-cover ${grid.tall === i ? "row-span-2" : ""}`} />
       ))}
     </div>
   );

@@ -10,7 +10,7 @@ import { type Composer } from "./use-composer";
 // すべて送った投稿（docs/design/compose-steps.md の 6.）: 決めることが残っていないので、ステップに分けずに送った文面を読むだけにする。
 // 送った結果・取り消すは上の「送信の結果」、数字は下の帯。ほかの SNS にも送るときは「ほかの SNS にも送る」で ② から
 export function ComposeSentView({ c, onExtend }: { c: Composer; onExtend: () => void }) {
-  const { chosen, isLocked, textFor, titles, projectName, images, checks, deleteRow } = c;
+  const { chosen, isLocked, shownText, titles, projectName, accountNames, images, checks, deleteRow } = c;
   const sent = chosen.filter((s) => isLocked(s));
   const [tab, setTab] = useState<SnsKey | null>(null);
   const focus = tab && sent.includes(tab) ? tab : sent[0];
@@ -32,7 +32,7 @@ export function ComposeSentView({ c, onExtend }: { c: Composer; onExtend: () => 
       )}
       {focus && (
         <div role={sent.length > 1 ? "tabpanel" : undefined}>
-          <SnsPreview key={focus} sns={focus} text={textFor(focus)} title={titles[focus] ?? null} projectName={projectName} images={images} length={checks[focus].length} />
+          <SnsPreview key={focus} sns={focus} text={shownText(focus)} title={titles[focus] ?? null} projectName={projectName} account={accountNames[focus] ?? null} images={images} length={checks[focus].length} />
         </div>
       )}
       <p className="text-[14px] leading-[1.7] text-muted">送った投稿です。直すときは各 SNS で、取り消すときは上の「送信の結果」から。</p>

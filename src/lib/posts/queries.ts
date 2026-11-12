@@ -139,6 +139,24 @@ export async function connectedAccounts(projectId: string): Promise<Partial<Reco
   return result;
 }
 
+// つないだアカウントの表示名と @handle（投稿をつくるの見え方に出す。本人のアカウントだけ。RLS が本人の行に絞る）。
+// 2026-11-12 PMO の通しのテスト「Instagram の見え方の名前がプロジェクトの名前で、実際は scene_and_sound_jp だった」
+export type AccountNames = Partial<Record<SnsKey, { name: string; handle: string }>>;
+export async function connectedAccountNames(projectId: string): Promise<AccountNames> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("project_social_accounts")
+    .select("social_accounts(sns, status, display_name, handle)")
+    .eq("project_id", projectId);
+  if (error) throw error;
+  const result: AccountNames = {};
+  for (const row of data as unknown as { social_accounts: { sns: string; status: string; display_name: string; handle: string } | null }[]) {
+    const a = row.social_accounts;
+    if (a && a.status === "active" && isSnsKey(a.sns) && !result[a.sns]) result[a.sns] = { name: a.display_name, handle: a.handle };
+  }
+  return result;
+}
+
 // 送れなかった配信先がある投稿（概要の「要確認」）
 export async function listPostsNeedingAttention(projectId: string, limit = 5) {
   const supabase = await createClient();

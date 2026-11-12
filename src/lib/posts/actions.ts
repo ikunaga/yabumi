@@ -15,6 +15,8 @@ import { snsNeedingImageReconnect } from "@/lib/media/queries";
 import { MediaError, attachMedia } from "@/lib/media/store";
 import { markNotesUsed } from "@/lib/notes/store";
 import { preparePostLinks } from "@/lib/links/store";
+import { projectLinkBase } from "@/lib/links/domains";
+import { shortLinkShownText } from "@/lib/links/rules";
 import { connectedAccounts } from "./queries";
 import { savePostInputSchema, type SavePostInput, type SavePostResult } from "./schema";
 import { isSendNowPost } from "./send-now";
@@ -90,11 +92,13 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
     } else if (intent === "now" && toSend.every((t) => isManualSns(t.sns))) {
       fieldErrors.targets = "note・Substack は手で投稿します。予約するか下書きに保存すると、投稿の画面から手で投稿できます";
     } else {
+      let linkBase: string | undefined;
       for (const t of toSend) {
         const label = SNS[t.sns].label;
-        // 送る文（タグ込み）で確かめる
+        // 送る文（タグ込み）で確かめる。字数は、短縮リンクに置き換えたあとの長さで数える（画面と同じ。送るときの短縮リンクと同じ長さの仮のもの）
         const text = withHashtags(t.bodyOverride ?? body, t.hashtags);
-        const issue = checkTarget(t.sns, text, { images, videos: 0, sizes }, t.title ?? null).issues[0];
+        const counted = shortLinkShownText(text, t.sns, { enabled: shortLinks, base: linkBase ??= await projectLinkBase(supabase, projectId) });
+        const issue = checkTarget(t.sns, counted, { images, videos: 0, sizes }, t.title ?? null).issues[0];
         if (issue) {
           fieldErrors.targets = `${label}: ${ISSUE_LABEL[issue]}`;
           break;

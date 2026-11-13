@@ -13,7 +13,7 @@ import { XBudgetNotice } from "./x-budget-notice";
 
 // ⑤ 送る: 日時・予約・今すぐ・下書き・削除（compose-steps.md）
 export function ComposeStepSend({ c, steps = false }: { c: Composer; steps?: boolean }) {
-  const { composeStep, goStep, stepProblems, timeHint, images, plannedAt, setPlannedAt, confirmSend, setConfirmSend, pending, busy, sending, missingConnectMessage, blocker, nowBlocker, clearFieldError, submit, fe, connectHref, mode, labels, sentLabels, deleteRow, toSend, xByHand, recheckX } = c;
+  const { composeStep, goStep, stepProblems, timeHint, images, plannedAt, setPlannedAt, confirmSend, setConfirmSend, pending, busy, sending, missingConnectMessage, blocker, nowBlocker, clearFieldError, submit, fe, connectHref, mode, labels, sentLabels, deleteRow, toSend, xByHand, recheckX, xChecking, scheduleAsked, askSchedule } = c;
   // 日時が空のときは「今すぐ送る」を主なボタンにする（予約は日時を決めてから。2026-11-12 PMO の通しのテスト）
   const nowMain = !plannedAt;
   const mainBlocker = nowMain ? nowBlocker : blocker;
@@ -84,8 +84,9 @@ export function ComposeStepSend({ c, steps = false }: { c: Composer; steps?: boo
                 <b>{nowNames}</b> に、いますぐ送ります。
               </p>
               <div className="flex flex-wrap items-center gap-2">
-                <Button type="button" disabled={pending} onClick={() => submit("now")}>
-                  本当に{labels.now}
+                {/* 押したときの X の上限の調べ直しが済むまで押せない（上限に当たったら、この確かめは閉じて知らせだけになる） */}
+                <Button type="button" disabled={pending || xChecking} onClick={() => submit("now")}>
+                  {xChecking ? "上限を確かめています…" : `本当に${labels.now}`}
                 </Button>
                 <Button type="button" variant="text" disabled={pending} onClick={() => setConfirmSend(false)}>
                   やめる
@@ -96,11 +97,11 @@ export function ComposeStepSend({ c, steps = false }: { c: Composer; steps?: boo
             <Button
               type="button"
               size="lg"
-              disabled={pending || mainBlocker !== null}
-              onClick={() => (nowMain ? (recheckX(), setConfirmSend(true)) : submit("schedule"))}
+              disabled={pending || scheduleAsked || mainBlocker !== null}
+              onClick={() => (nowMain ? (recheckX(), setConfirmSend(true)) : askSchedule())}
               className="w-full"
             >
-              {nowMain ? (busy === "now" ? "送っています…" : labels.now) : busy === "schedule" ? "予約しています…" : labels.schedule}
+              {nowMain ? (busy === "now" ? "送っています…" : labels.now) : scheduleAsked ? "上限を確かめています…" : busy === "schedule" ? "予約しています…" : labels.schedule}
             </Button>
           )}
           <p className={`text-[13px] ${fe.plannedAt || (mainBlocker && mainBlocker !== QUIET_BLOCKER) ? "text-signal" : "text-faint"}`}>
@@ -131,8 +132,8 @@ export function ComposeStepSend({ c, steps = false }: { c: Composer; steps?: boo
                   <span className="w-full text-[13px] text-muted">
                     <b className="text-fg">{nowNames}</b> に、いますぐ送ります。
                   </span>
-                  <Button type="button" variant="secondary" size="sm" disabled={pending} onClick={() => submit("now")}>
-                    本当に{labels.now}
+                  <Button type="button" variant="secondary" size="sm" disabled={pending || xChecking} onClick={() => submit("now")}>
+                    {xChecking ? "上限を確かめています…" : `本当に${labels.now}`}
                   </Button>
                   <Button type="button" variant="text" size="sm" disabled={pending} onClick={() => setConfirmSend(false)}>
                     やめる

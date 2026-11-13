@@ -7,6 +7,8 @@ import { formatSlots, MAX_SLOT_VALUE } from "./schema";
 // AI への指示は 60 字まで、答えの名前は 12 字まで（穴の名前と同じ）
 export const MAX_SERIES_INSTRUCTION = 60;
 export const MAX_ANSWER_NAME = 12;
+// 答えの名前を空にしたときの名前・答えの決まりがないときに案やこれまでの回で答えに添える名前
+export const DEFAULT_ANSWER_NAME = "答え";
 // 記録の答えは 100 字まで、1 つのフォーマットに 300 回まで（DB のトリガーで同じ値）
 export const MAX_ROUND_ANSWER = 100;
 export const MAX_ROUNDS = 300;
@@ -46,8 +48,9 @@ export function cleanSeries(raw: unknown, body?: string): FormatSeries {
   let answer: FormatSeries["answer"] = null;
   if (r.answer && typeof r.answer === "object" && !Array.isArray(r.answer)) {
     const a = r.answer as { name?: unknown; instruction?: unknown };
-    const name = oneLine(a.name, MAX_ANSWER_NAME);
-    if (name) answer = { name, instruction: oneLine(a.instruction, MAX_SERIES_INSTRUCTION) };
+    // 「答えを持つ」を選んで名前を空のまま保存したときは「答え」にする（前は黙って答えなしになり、案に答えが出なかった。PMO2 の 3 回目の n1）
+    const name = oneLine(a.name, MAX_ANSWER_NAME) || DEFAULT_ANSWER_NAME;
+    answer = { name, instruction: oneLine(a.instruction, MAX_SERIES_INSTRUCTION) };
   }
   return { answer, slots };
 }

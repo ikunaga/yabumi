@@ -1,7 +1,7 @@
 // 画面の書きかけの控え（src/lib/form-draft.ts。docs/architecture.md の 4.35）。本人にだけ戻し、ログアウトで消す
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { clearFormDraft, FORM_DRAFT_DAYS, FORM_DRAFT_PREFIX, parseFormDraft, readFormDraft, usableFormDraft, writeFormDraft } from "@/lib/form-draft";
-import { draftStep, postDraftBase, samePostDraft } from "@/lib/posts/post-draft";
+import { draftStep, postDraftBase, readDraftFormat, samePostDraft } from "@/lib/posts/post-draft";
 import { clearNoteDraftsOnDevice, setDraftOwner } from "@/lib/notes/draft";
 
 class MemoryStorage {
@@ -103,5 +103,27 @@ describe("書きかけを出す・残す決まり（2026-11-09 オーナーの�
     expect(postDraftBase({ body: "", overrides: { x: "1", threads: "2" }, titles: {} })).toBe(postDraftBase({ body: "", overrides: { threads: "2", x: "1" }, titles: {} }));
     // SNS ごとの文面を作るボタン（本文を写すだけ）は、開いたときと違う
     expect(samePostDraft({ body: "本文", overrides: { x: "本文" }, titles: {} }, { body: "本文", overrides: {}, titles: {} })).toBe(false);
+  });
+});
+
+describe("書きかけの控えのフォーマット（PMO2 の 3 回目の 03）", () => {
+  it("選んでいたフォーマット・穴の言葉・答え・記録を読む。null は「なし」、前の版（ない）・壊れた値は undefined（戻してもいまの選択のまま）", () => {
+    expect(readDraftFormat({ id: "f1", values: { キーワード: "時計台・稲妻", 壊れ: 1 }, answer: "バック・トゥ・ザ・フューチャー", roundIds: ["r1", 2] })).toEqual({
+      id: "f1",
+      values: { キーワード: "時計台・稲妻" },
+      answer: "バック・トゥ・ザ・フューチャー",
+      roundIds: ["r1"],
+    });
+    expect(readDraftFormat({ id: "f1" })).toEqual({ id: "f1", values: {}, answer: "", roundIds: [] });
+    expect(readDraftFormat(null)).toBeNull();
+    expect(readDraftFormat(undefined)).toBeUndefined();
+    expect(readDraftFormat({ id: "" })).toBeUndefined();
+    expect(readDraftFormat("f1")).toBeUndefined();
+  });
+  it("フォーマットは比べる中身に入れない（選んだだけでは控えを残さない・前の版の控えと同じ文字）", () => {
+    const base = { body: "本文", overrides: {}, titles: {} };
+    const withFormat = { ...base, format: { id: "f1", values: { キーワード: "x" }, answer: "", roundIds: [] } };
+    expect(samePostDraft(withFormat, base)).toBe(true);
+    expect(postDraftBase(withFormat)).toBe(postDraftBase(base));
   });
 });

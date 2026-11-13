@@ -23,6 +23,7 @@ import {
 import {
   EMPTY_SERIES,
   MAX_ANSWER_NAME,
+  DEFAULT_ANSWER_NAME,
   MAX_PASTE_ROUNDS,
   MAX_ROUND_ANSWER,
   MAX_ROUND_WISH,
@@ -63,7 +64,8 @@ import { MAX_TARGET_HASHTAGS, hashtagLine, normalizeHashtag, parseHashtagInput }
 import { Choice } from "./maker-parts";
 
 // 投稿のフォーマットを選んだ状態（整えるに渡す。docs/design/post-formats.md の 4）
-export type FormatUse = { format: PostFormat; values: Record<string, string> };
+// answer: シリーズのこの回の答え（本文には出ない。書きかけの控えに乗せる）
+export type FormatUse = { format: PostFormat; values: Record<string, string>; answer?: string };
 
 // 投稿をつくるの「フォーマット」（docs/design/post-formats.md の 4。docs/architecture.md の 4.56）。
 // 「なし」と登録したフォーマットのチップ、選んだフォーマットの穴の欄、「本文に入れる」（AI を使わない）。
@@ -77,6 +79,7 @@ export function PostFormatPicker({
   onInsert,
   onUseChange,
   initialFormatId = null,
+  initialValues,
   onRoundAdded,
   aiEnabled,
 }: {
@@ -93,8 +96,10 @@ export function PostFormatPicker({
   // hashtags: フォーマットの毎回付けるタグ（SNS ごとのタグの欄に入れる。4.59）
   onInsert: (text: string, how: "replace" | "append", hashtags: FormatHashtags) => void;
   onUseChange?: (use: FormatUse | null) => void;
-  // 開いたときに選んでおくフォーマット（下書きから再開したとき。消したフォーマットなら「なし」）
+  // 開いたときに選んでおくフォーマット（下書きから再開したとき。消したフォーマットなら「なし」）。
+  // 書きかけの控えから戻したときは、穴の言葉と答えも入れて開く（PMO2 の 3 回目の 03）
   initialFormatId?: string | null;
+  initialValues?: { values: Record<string, string>; answer: string };
   // シリーズの記録を付けた（docs/design/format-series.md の 2。画面が、保存で投稿に結びつけ、リセットで消す）
   onRoundAdded?: (id: string) => void;
 }) {
@@ -120,7 +125,7 @@ export function PostFormatPicker({
       if (selectedId) {
         const now = r.formats.find((f) => f.id === selectedId);
         if (!now) setSelectedId(null);
-        onUseChange?.(now ? { format: now, values } : null);
+        onUseChange?.(now ? { format: now, values, answer } : null);
       }
     }
     if (r.examples) setExamples(r.examples);
@@ -134,11 +139,17 @@ export function PostFormatPicker({
       setError(r.error ?? null);
       if (r.formats) {
         setFormats(r.formats);
-        // 下書きから再開したときは、保存したときに選んでいたフォーマットを選んで開く（穴の言葉は本文に入っているので、欄は空）
+        // 下書きから再開したときは、保存したときに選んでいたフォーマットを選んで開く（穴の言葉は本文に入っているので、欄は空）。
+        // 書きかけの控えから戻したときは、穴の言葉と答えも戻す（型の文にない穴は捨てる）
         const first = initialFormatId ? r.formats.find((f) => f.id === initialFormatId) : undefined;
         if (first) {
+          const slotNames = formatSlots(first.body);
+          const v = Object.fromEntries(Object.entries(initialValues?.values ?? {}).filter(([k]) => slotNames.includes(k)));
+          const a = first.series.answer || isSeries(first.series) ? (initialValues?.answer ?? "") : "";
           setSelectedId(first.id);
-          onUseChange?.({ format: first, values: {} });
+          setValues(v);
+          setAnswer(a);
+          onUseChange?.({ format: first, values: v, answer: a });
         }
       }
       if (r.examples) setExamples(r.examples);
@@ -167,7 +178,7 @@ export function PostFormatPicker({
     const next = { ...values, [slot]: v };
     setValues(next);
     setInserted(false);
-    if (selected) onUseChange?.({ format: selected, values: next });
+    if (selected) onUseChange?.({ format: selected, values: next, answer });
   }
 
   // 読み込み中も、読み込んだあとと同じ場所を空けておく（見出し・「なし」・「フォーマットを管理」の 1 行）。
@@ -228,17 +239,18 @@ export function PostFormatPicker({
                 setAnswer(p.answer);
                 setRoundSource("ai");
                 setInserted(false);
-                onUseChange?.({ format: selected, values: next });
+                onUseChange?.({ format: selected, values: next, answer: p.answer });
               }}
             />
           )}
-          {selected.series.answer && (
+          {/* 答えの欄は、シリーズならいつも出す（答えの決まりがなくても、AI の案の答えが入る。直せる） */}
+          {(selected.series.answer || isSeries(selected.series)) && (
             <label className="flex min-w-0 flex-col gap-1">
               <span className="text-xs font-bold">
-                {selected.series.answer.name}
+                {selected.series.answer?.name || DEFAULT_ANSWER_NAME}
                 <span className="ml-1.5 font-normal text-muted">答え・本文には出ません</span>
               </span>
-              <Input value={answer} maxLength={MAX_ROUND_ANSWER} onChange={(e) => (setAnswer(e.target.value), setInserted(false))} className="py-2 text-sm" />
+              <Input value={answer} maxLength={MAX_ROUND_ANSWER} onChange={(e) => (setAnswer(e.target.value), setInserted(false), onUseChange?.({ format: selected, values, answer: e.target.value }))} className="py-2 text-sm" />
             </label>
           )}
           {slots.length > 0 && (
@@ -249,7 +261,7 @@ export function PostFormatPicker({
                 <label key={s} className="flex min-w-0 flex-col gap-1">
                   <span className="text-xs font-bold">
                     {s}
-                    {s in selected.series.slots && <span className="ml-1.5 font-normal text-muted">AI が埋める穴</span>}
+                    {s in selected.series.slots && <span className="ml-1.5 font-normal text-muted">AI が埋める穴・直せます</span>}
                   </span>
                   <Textarea
                     rows={1}
@@ -754,7 +766,7 @@ function SeriesFields({ slots, series, setSeries }: { slots: string[]; series: F
                   value={series.answer.name}
                   maxLength={MAX_ANSWER_NAME}
                   onChange={(e) => setSeries({ ...series, answer: { ...series.answer!, name: e.target.value } })}
-                  placeholder="名前（例: 映画）"
+                  placeholder="名前（例: 映画。空なら「答え」）"
                   className="py-2 text-sm"
                 />
                 <Input
@@ -867,9 +879,10 @@ function SeriesNextRound({
             {proposals.map((p, i) => (
               <li key={i} className={`flex flex-col gap-1.5 rounded-md border bg-surface px-3 py-2.5 ${picked === i ? "border-primary" : "border-line"}`}>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  {series.answer && (
+                  {/* 答えはいつも出す（答えの決まりがなくても AI が書いたとき。本文には出ない。PMO2 の 3 回目の n1） */}
+                  {p.answer && (
                     <span className="font-bold">
-                      {series.answer.name}: {p.answer}
+                      {series.answer?.name || DEFAULT_ANSWER_NAME}: {p.answer}
                       <span className="ml-1.5 text-xs font-normal text-muted">本文には出ません</span>
                     </span>
                   )}
@@ -929,6 +942,7 @@ function SeriesRounds({ projectId, format }: { projectId: string; format: PostFo
       after?.(r);
     });
   const label = format.series.answer?.name || "回";
+  const answerName = format.series.answer?.name || DEFAULT_ANSWER_NAME;
   return (
     <details
       className="text-xs"
@@ -944,8 +958,18 @@ function SeriesRounds({ projectId, format }: { projectId: string; format: PostFo
           <ul className="flex max-h-60 flex-col divide-y divide-line overflow-y-auto rounded-md border border-line">
             {rounds.map((r) => (
               <li key={r.id} className="flex items-center gap-2 px-2.5 py-1.5">
+                {/* 答えがあれば答えを先に出し、穴の言葉を添える（PMO2 の 3 回目の n2） */}
                 <span className="min-w-0 flex-1 truncate">
-                  {r.answer || Object.values(r.values).join(" / ")}
+                  {r.answer ? (
+                    <>
+                      <b>
+                        {answerName}: {r.answer}
+                      </b>
+                      {Object.keys(r.values).length > 0 && <span className="ml-1.5 text-muted">{Object.values(r.values).join(" / ")}</span>}
+                    </>
+                  ) : (
+                    Object.values(r.values).join(" / ")
+                  )}
                   <span className="ml-1.5 text-faint">{r.source === "pasted" ? "貼った回" : r.postId ? "投稿した回" : "本文に入れた回"}</span>
                 </span>
                 <Button size="sm" variant="text" disabled={pending} onClick={() => run(() => deleteFormatRound(projectId, format.id, r.id))}>

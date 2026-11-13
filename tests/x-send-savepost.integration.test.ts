@@ -76,6 +76,31 @@ describe("savePost は X の月の上限で、送る前に止める", () => {
   });
 });
 
+describe("今すぐ送るも、X の月の上限でサーバーが止める（PMO2 の 3 回目の 02b。画面の確かめが出たまま押しても）", () => {
+  it("今月の額で 1 人の上限に当たるなら、今すぐ送らない（投稿もつくらず、X の API も呼ばない）", async () => {
+    const { savePost } = await import("@/lib/posts/actions");
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    await admin.from("sns_api_usage").insert({ owner_id: aliceId, sns: "x", operation: "post", cost_usd: 0.95 });
+    try {
+      const blocked = await savePost({
+        projectId,
+        postId: null,
+        body: "新しい版を出しました https://example.com/app",
+        plannedAt: "",
+        intent: "now" as const,
+        targets: [{ sns: "x" as const, bodyOverride: null, hashtags: [] }],
+      });
+      expect(blocked.fieldErrors?.targets).toContain("今月の X の自動投稿の上限（1 人 $1）");
+      expect(blocked.sendPostId).toBeUndefined();
+      expect((await admin.from("posts").select("id").eq("project_id", projectId)).data).toEqual([]);
+      expect(fetchSpy.mock.calls.filter(([u]) => String(u instanceof Request ? u.url : u).includes("x.com"))).toEqual([]);
+    } finally {
+      fetchSpy.mockRestore();
+      await admin.from("sns_api_usage").delete().eq("owner_id", aliceId);
+    }
+  });
+});
+
 describe("下書きの保存で、本文にあるタグを外し、選んでいたフォーマットを覚える（PMO2 の x2・s8）", () => {
   it("本文の #映画クイズ は、タグの行から外して保存する。フォーマットの id を覚え、他人のフォーマットは付けられない", async () => {
     const { savePost } = await import("@/lib/posts/actions");

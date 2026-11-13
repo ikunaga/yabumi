@@ -9,11 +9,13 @@ import { MAX_PASTE_ROUNDS, answerKey, cleanRoundValues, cleanSeries, isSeries, p
 const BODY = "連想映画クイズ\n{キーワード}\nこの 5 つから連想する映画は？答えは{答え方}で";
 
 describe("フォーマットのシリーズの設定", () => {
-  it("型の文にない穴の指示は捨て、指示は 60 字・名前は 12 字まで。答えの名前が空なら答えなし", () => {
+  it("型の文にない穴の指示は捨て、指示は 60 字・名前は 12 字まで。答えを持つで名前が空なら「答え」（黙って答えなしにしない。PMO2 の 3 回目の n1）", () => {
     const s = cleanSeries({ slots: { キーワード: " 答えの映画を連想できる言葉を 5 つ ", ない穴: "x", 答え方: "あ".repeat(80) }, answer: { name: "映画", instruction: "だれでも知っている映画を 1 つ" } }, BODY);
     expect(s.slots).toEqual({ キーワード: "答えの映画を連想できる言葉を 5 つ", 答え方: "あ".repeat(60) });
     expect(s.answer).toEqual({ name: "映画", instruction: "だれでも知っている映画を 1 つ" });
-    expect(cleanSeries({ slots: {}, answer: { name: " ", instruction: "x" } }, BODY).answer).toBeNull();
+    expect(cleanSeries({ slots: {}, answer: { name: " ", instruction: "x" } }, BODY).answer).toEqual({ name: "答え", instruction: "x" });
+    expect(cleanSeries({ slots: {}, answer: { name: "", instruction: "" } }, BODY).answer).toEqual({ name: "答え", instruction: "" });
+    expect(cleanSeries({ slots: {}, answer: null }, BODY).answer).toBeNull();
     expect(isSeries(cleanSeries({ slots: { キーワード: "" } }, BODY))).toBe(true);
     expect(isSeries(cleanSeries(null))).toBe(false);
     expect(cleanSeries("壊れた値")).toEqual({ answer: null, slots: {} });
@@ -61,11 +63,36 @@ describe("次の回の案の確かめ方", () => {
       { answer: "ジュラシック・パーク", values: { キーワード: "恐竜・島" }, checks: [] },
     ]);
   });
-  it("答えのないシリーズは、穴の言葉の組み合わせで重なりを見る。使える案がなければ null", () => {
+  it("答えの決まりがないシリーズは、穴の言葉の組み合わせで重なりを見る。AI が書いた答えは残し（画面に出す）、答えが同じ案も捨てる。使える案がなければ null", () => {
     const noAnswer = { series: cleanSeries({ slots: { キーワード: "" } }, BODY) };
-    const out = normalizeRoundProposals(raw([{ answer: "無視", slots: [{ slot: "キーワード", text: "時計台・稲妻" }], checks: [] }, { answer: "", slots: [{ slot: "キーワード", text: "時計台 稲妻" }], checks: [] }]), noAnswer, new Set());
-    expect(out).toEqual([{ answer: "", values: { キーワード: "時計台・稲妻" }, checks: [] }]);
+    const out = normalizeRoundProposals(
+      raw([
+        { answer: "バック・トゥ・ザ・フューチャー", slots: [{ slot: "キーワード", text: "時計台・稲妻" }], checks: [] },
+        { answer: "", slots: [{ slot: "キーワード", text: "時計台 稲妻" }], checks: [] },
+        { answer: "バックトゥザフューチャー", slots: [{ slot: "キーワード", text: "デロリアン・1985年" }], checks: [] },
+        { answer: "", slots: [{ slot: "キーワード", text: "豪華客船・氷山" }], checks: [] },
+      ]),
+      noAnswer,
+      new Set(),
+    );
+    expect(out).toEqual([
+      { answer: "バック・トゥ・ザ・フューチャー", values: { キーワード: "時計台・稲妻" }, checks: [] },
+      { answer: "", values: { キーワード: "豪華客船・氷山" }, checks: [] },
+    ]);
+    // 答えが前の回の答えと同じ案も捨てる
+    expect(normalizeRoundProposals(raw([{ answer: "ローマの休日", slots: [{ slot: "キーワード", text: "真実の口" }], checks: [] }]), noAnswer, new Set([answerKey("ローマの休日")]))).toBeNull();
     expect(normalizeRoundProposals({ wrong: true }, noAnswer, new Set())).toBeNull();
+  });
+  it("答えの決まりがなくても、何についての回かが決まるなら answer に書くよう指示する", () => {
+    expect(FORMAT_ROUND_SYSTEM).toContain("答えの指示がなくても、この回が何についてか");
+    const req = buildFormatRoundRequest({
+      project: { name: "ねむり日和", description: null, targetAudience: null, productType: "app" },
+      plan: normalizePlan(null, ""),
+      format: { name: "連想映画クイズ", body: BODY, series: cleanSeries({ slots: { キーワード: "" } }, BODY) },
+      past: [],
+      wish: "",
+    });
+    expect(JSON.stringify(req.messages)).toContain("答え: 決まりなし");
   });
 });
 

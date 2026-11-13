@@ -35,7 +35,7 @@ export const roundProposalsSchema = z.object({
   proposals: z
     .array(
       z.object({
-        answer: z.string().describe("この回の答え（本文には出ない。答えの指示がなければ空文字）"),
+        answer: z.string().describe("この回の答え（本文には出ない）。答えの指示がなければ、この回が何についてか（作品やものの名前）。なければ空文字"),
         slots: z.array(z.object({ slot: z.string().describe("AI が埋める穴の名前（そのまま）"), text: z.string().describe("穴に入れる言葉。1 行") })),
         checks: z.array(z.string()).describe("利用者に確かめてほしいところ。作品やものごとの事実のうち、間違えやすいもの。1〜3 個、1 つ 60 字くらい"),
       }),
@@ -54,7 +54,7 @@ export const FORMAT_ROUND_SYSTEM = `あなたは「yabumi」の中で、利用�
 - 返事は決められた形（JSON）だけで返します
 
 # 次の回の決まり
-- 答えの指示があれば、先に答えを決め、AI が埋める穴はその答えに合う言葉で埋める。答えの指示がなければ answer は空文字
+- 答えの指示があれば、先に答えを決め、AI が埋める穴はその答えに合う言葉で埋める。答えの指示がなくても、この回が何についてか（作品やものの名前など）が 1 つに決まるなら、answer に短く書く（利用者が案を見比べるのに使う。本文には出ない）。決まらなければ answer は空文字
 - AI が埋める穴だけを埋める（slots の slot は、「AI が埋める穴」の名前をそのまま使い、すべての穴を埋める）。利用者が埋める穴は埋めない
 - 答えは、<past> のどの回とも、案どうしでも重ならない（同じ作品・同じものを、言い方を変えて出さない）
 - 穴の言葉も、前の回と同じ組み合わせにしない
@@ -91,7 +91,7 @@ export function buildFormatRoundRequest(input: {
     [
       "# 穴と答えの指示",
       "<instruction>",
-      series.answer ? `答え（本文には出さない）「${escapeData(series.answer.name)}」: ${escapeData(series.answer.instruction) || "（指示なし）"}` : "答え: なし（answer は空文字）",
+      series.answer ? `答え（本文には出さない）「${escapeData(series.answer.name)}」: ${escapeData(series.answer.instruction) || "（指示なし）"}` : "答え: 決まりなし（この回が何についてか、作品やものの名前が 1 つに決まるなら answer に短く。決まらなければ空文字）",
       ...aiSlots.map(([name, inst]) => `AI が埋める穴 {${escapeData(name)}}: ${escapeData(inst) || "（指示なし。型の文に合う言葉）"}`),
       ...(handSlots.length ? [`利用者が埋める穴（あなたは埋めない）: ${handSlots.map((s) => `{${escapeData(s)}}`).join("・")}`] : []),
       "</instruction>",
@@ -124,7 +124,8 @@ export function normalizeRoundProposals(raw: unknown, format: Pick<PostFormat, "
   const seen = new Set(used);
   const out: RoundProposal[] = [];
   for (const x of p.data.proposals) {
-    const answer = needAnswer ? cleanAnswer(x.answer) : "";
+    // 答えの決まりがなくても、AI が書いた答えは残す（案のカードとこれまでの回に出す。PMO2 の 3 回目の n1・n2）
+    const answer = cleanAnswer(x.answer);
     if (needAnswer && !answer) continue;
     const values: Record<string, string> = {};
     for (const s of x.slots) {
@@ -140,7 +141,11 @@ export function normalizeRoundProposals(raw: unknown, format: Pick<PostFormat, "
     })) continue;
     const key = needAnswer ? answerKey(answer) : answerKey(names.map((n) => values[n]).join("|"));
     if (!key || seen.has(key)) continue;
+    // 答えの決まりがないときも、答えが前の回・案どうしと同じなら捨てる（穴の言葉を変えただけの同じ作品）
+    const extra = needAnswer ? "" : answerKey(answer);
+    if (extra && seen.has(extra)) continue;
     seen.add(key);
+    if (extra) seen.add(extra);
     const checks = x.checks.map((c) => line(c, 80)).filter(Boolean).slice(0, 3);
     out.push({ answer, values, checks });
     if (out.length >= ROUND_PROPOSALS) break;

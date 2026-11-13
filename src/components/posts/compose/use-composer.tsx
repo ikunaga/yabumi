@@ -2,7 +2,7 @@
 
 import type { FormatUse } from "../post-format-picker";
 import { callAction } from "@/lib/client-errors";
-import { draftStep, postDraftBase, samePostDraft, type PostDraft } from "@/lib/posts/post-draft";
+import { draftStep, postDraftBase, readDraftFormat, samePostDraft, type PostDraft } from "@/lib/posts/post-draft";
 import { clearFormDraft, parseFormDraft, usableFormDraft, writeFormDraft, type FormDraft } from "@/lib/form-draft";
 import { pruneTabDrafts, rawTabDraft, readTabDraft, tabDraftKey, tabId } from "@/lib/tab-drafts";
 import { getDraftOwner } from "@/lib/notes/draft";
@@ -167,6 +167,10 @@ export function useComposer({
   // この画面で付けたシリーズの記録（docs/design/format-series.md の 2）。保存したら投稿に結びつけ、リセットしたら消す
   const [roundIds, setRoundIds] = useState<string[]>([]);
   const addRoundId = (id: string) => setRoundIds((ids) => (ids.includes(id) ? ids : [...ids, id]));
+  // フォーマットの欄を開くときに選んでおくフォーマットと穴の言葉・答え（開いたときは保存した投稿のもの。書きかけを戻すと控えのもの。PMO2 の 3 回目の 03）
+  const [formatSeed, setFormatSeed] = useState<{ id: string | null; values: Record<string, string>; answer: string }>(() => ({ id: initial.formatId ?? null, values: {}, answer: "" }));
+  // 書きかけを戻すたびに、フォーマットの欄を作り直す（formatSeed で開き直す）
+  const [formatRound, setFormatRound] = useState(0);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const overrideRef = useRef<HTMLTextAreaElement>(null);
   const [selected, setSelected] = useState<Set<SnsKey>>(() => new Set(initial.targets.map((t) => t.sns)));
@@ -209,6 +213,8 @@ export function useComposer({
   const [result, setResult] = useState<SavePostResult>({});
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmSend, setConfirmSend] = useState(false);
+  // 予約を押した（X の上限を調べ直してから予約する。PMO2 の 3 回目の 02b）
+  const [scheduleAsked, setScheduleAsked] = useState(false);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
   // いまのステップ（docs/design/compose-steps.md）。URL の ?step に持つ（ブラウザの戻るで前のステップへ。読み込み直しても同じステップ）
@@ -298,8 +304,13 @@ export function useComposer({
     const now: PostDraft = { body, overrides, titles, hashtags: tagInputs, images: images.map(toDraftImage) };
     const step = draftStep({ same: samePostDraft(now, initialDraft), typed: typed.current });
     if (step === "clear") clearFormDraft(draftKey);
-    else if (step === "write") writeFormDraft(draftKey, { ...now, step: composeStep }, draftBase);
-  }, [body, overrides, titles, tagInputs, images, found, draftKey, initialDraft, draftBase, composeStep]);
+    else if (step === "write") {
+      // 選んでいるフォーマットと穴の言葉・答え・この画面で付けたシリーズの記録も控える（比べる中身には入れない。null は「なし」）。
+      // フォーマットの欄が出ていない（送った投稿など）ときは、戻すときに使わない（restoreDraft）
+      const format = formatUse ? { id: formatUse.format.id, values: formatUse.values, answer: formatUse.answer ?? "", roundIds } : null;
+      writeFormDraft(draftKey, { ...now, step: composeStep, format }, draftBase);
+    }
+  }, [body, overrides, titles, tagInputs, images, found, draftKey, initialDraft, draftBase, composeStep, formatUse, roundIds]);
   // 書きかけを戻したときに、戻せなかった画像の枚数（帯で知らせる）
   const [restoreMissing, setRestoreMissing] = useState(0);
   function restoreDraft() {
@@ -316,6 +327,16 @@ export function useComposer({
     // 前の版の控え（タグの欄がない）では、保存したタグのまま
     setTagInputs(v.hashtags ?? initialDraft.hashtags ?? {});
     setRestorable(null);
+    // フォーマットの選択と穴の言葉・答え（前の版の控えにはない。そのときは、いまの選択のまま）。
+    // 欄を作り直して開き、選べたら（消したフォーマットでなければ）欄から formatId が入る。記録は保存で投稿に結びつける
+    const f = readDraftFormat(v.format);
+    if (f !== undefined && !sentAny) {
+      setFormatUse(null);
+      setFormatId(null);
+      setFormatSeed(f ? { id: f.id, values: f.values, answer: f.answer } : { id: null, values: {}, answer: "" });
+      if (f) for (const id of f.roundIds) addRoundId(id);
+      setFormatRound((n) => n + 1);
+    }
     // 控えたときのステップに戻す（前の版の控えにはない）
     if (typeof v.step === "number") goStep(parseStep(String(v.step), composeStep), { replace: true });
     // 画像（前の版の控えにはない。そのときは、いまの画像のまま）。id と説明文しか控えていないので、サーバーで本人のものか確かめて読み直す（4.62）。
@@ -370,6 +391,7 @@ export function useComposer({
     setTidyAdopted(false);
     setFormatUse(null);
     setFormatId(initial.formatId ?? null);
+    setFormatSeed({ id: initial.formatId ?? null, values: {}, answer: "" });
     // 本文から外したので、この画面で付けた、まだ投稿に結びついていない記録は消す（残すと、使っていない回が次の回の案から外れる）
     if (roundIds.length) void discardFormatRounds(projectId, roundIds);
     setRoundIds([]);
@@ -509,6 +531,10 @@ export function useComposer({
   // 今すぐ送れるのは、自動で送る SNS だけ
   const nowBlocker =
     sendBlocker ?? xNowBlocker ?? (toSend.some((s) => !isManualSns(s)) ? null : "note・Substack は手で投稿します。予約するか下書きに保存すると、投稿の画面から手で投稿できます");
+  // X の上限を調べ直している途中か（押したときの調べ直しが済むまで、「本当に今すぐ送る」と予約は押せない。PMO2 の 3 回目の 02b）
+  const xChecking = xKey !== null && xCheck?.key !== xKey;
+  // 調べ直して上限に当たった（ほかの送れない理由が出た）ら、「本当に今すぐ送る」の確かめを閉じて、知らせだけにする
+  if (confirmSend && nowBlocker !== null) setConfirmSend(false);
 
   // 直し始めたら、その欄のエラーは消す
   function clearFieldError(key: keyof NonNullable<SavePostResult["fieldErrors"]>) {
@@ -592,6 +618,20 @@ export function useComposer({
     if (!el) return;
     el.scrollIntoView({ block: "center", behavior: "smooth" });
     el.focus({ preventScroll: true });
+  }
+
+  // 予約: 押したら X の上限を調べ直し、済んでから予約する。上限に当たったら予約せず、知らせ（xBudgetBlocker）だけにする（PMO2 の 3 回目の 02b）。
+  // 画面の判定が古くても、止めるのはサーバーの savePost（tests/x-send-savepost.integration.test.ts）
+  async function askSchedule() {
+    if (!xKey || !xBase) return submit("schedule");
+    setScheduleAsked(true);
+    const out = await callAction(() => checkXSend({ projectId, text: textFor("x"), altCount: xAlt, plannedAt }));
+    setScheduleAsked(false);
+    const verdict = out.ok ? (out.value ?? null) : null;
+    setXCheck({ key: xKey, base: xBase, verdict });
+    const v = verdict ? (verdict.planned ?? verdict.now) : null;
+    if (v?.over && !xByHand) return;
+    submit("schedule");
   }
 
   function submit(intent: "draft" | "schedule" | "now") {
@@ -814,6 +854,8 @@ export function useComposer({
     setBody,
     formatUse,
     setFormatUse: changeFormatUse,
+    formatSeed,
+    formatRound,
     addRoundId,
     bodyRef,
     overrideRef,
@@ -839,6 +881,9 @@ export function useComposer({
     setXByHand,
     xVerdict,
     recheckX,
+    xChecking,
+    scheduleAsked,
+    askSchedule: () => void askSchedule(),
     tidyAdopted,
     setTidyAdopted,
     textOrigin,

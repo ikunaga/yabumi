@@ -65,6 +65,10 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
   ]);
   const timeHint = timeHintOf(await loadTimeTrends(project.id));
   const profileLink = await loadProfileLinkInfo(supabase, project);
+  // ロードマップのやることから作った投稿は、やることの題と説明を手がかりとして出す（下書きから再開したときも。PMO2 の s8。RLS で本人のものだけ）
+  const roadmapItem = post.roadmapItemId
+    ? ((await supabase.from("roadmap_items").select("id, title, detail").eq("id", post.roadmapItemId).eq("project_id", project.id).maybeSingle()).data ?? null)
+    : null;
   // 「最初は自分で書く」のすすめに使う（docs/design/voice-from-posts.md の 3.4）
   const [selfWrittenPosts, voiceMemo, accountNames, linkBase] = await Promise.all([
     countSelfWrittenPosts(supabase, project.id),
@@ -146,6 +150,9 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
         shortLinks,
         quotePostId: post.targets.find((t) => t.sns === "x" && t.status === "pending")?.quote_post_id ?? null,
         textOrigin: post.textOrigin,
+        // 下書きから再開したときに、選んでいたフォーマットと「やることから」の手がかりを戻す（PMO2 の s8）
+        formatId: post.formatId,
+        roadmapItem,
       }}
     />
     </>

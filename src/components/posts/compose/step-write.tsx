@@ -34,6 +34,7 @@ export function ComposeStepWrite({ c, steps = false }: { c: Composer; steps?: bo
             clearFieldError("body");
           }}
           onUseChange={setFormatUse}
+          initialFormatId={initial.formatId ?? null}
         />
       )}
 

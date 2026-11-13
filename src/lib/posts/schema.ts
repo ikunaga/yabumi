@@ -43,6 +43,8 @@ export const savePostInputSchema = z.object({
   textOrigin: z.enum(["self", "ai"]).nullable().optional(),
   // X を手で投稿する（月の上限に当たるので、利用者が選んだ）。X の配信先は自動では送らず、送信の結果から手で投稿して記録する
   xByHand: z.boolean().default(false),
+  // 選んでいた投稿のフォーマット（下書きから再開したときに戻す。PMO2 の s8）。null は「なし」、省くと変えない（ネタ・相談から下書きをつくるときなど）
+  formatId: z.uuid().nullable().optional(),
 });
 
 export type SavePostInput = z.input<typeof savePostInputSchema>;

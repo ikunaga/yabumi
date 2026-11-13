@@ -50,6 +50,7 @@ export function PostFormatPicker({
   connected = [],
   onInsert,
   onUseChange,
+  initialFormatId = null,
   aiEnabled,
 }: {
   projectId: string;
@@ -65,6 +66,8 @@ export function PostFormatPicker({
   // hashtags: フォーマットの毎回付けるタグ（SNS ごとのタグの欄に入れる。4.59）
   onInsert: (text: string, how: "replace" | "append", hashtags: FormatHashtags) => void;
   onUseChange?: (use: FormatUse | null) => void;
+  // 開いたときに選んでおくフォーマット（下書きから再開したとき。消したフォーマットなら「なし」）
+  initialFormatId?: string | null;
 }) {
   const [formats, setFormats] = useState<PostFormat[] | null>(null);
   const [examples, setExamples] = useState<PostFormatInput[]>([]);
@@ -96,13 +99,23 @@ export function PostFormatPicker({
     void listPostFormats(projectId).then((r) => {
       if (!alive) return;
       setError(r.error ?? null);
-      if (r.formats) setFormats(r.formats);
+      if (r.formats) {
+        setFormats(r.formats);
+        // 下書きから再開したときは、保存したときに選んでいたフォーマットを選んで開く（穴の言葉は本文に入っているので、欄は空）
+        const first = initialFormatId ? r.formats.find((f) => f.id === initialFormatId) : undefined;
+        if (first) {
+          setSelectedId(first.id);
+          onUseChange?.({ format: first, values: {} });
+        }
+      }
       if (r.examples) setExamples(r.examples);
       if (r.kinds) setKinds(r.kinds);
     });
     return () => {
       alive = false;
     };
+    // 開いたときの選択（initialFormatId）は最初の 1 回だけ使う。リセットでは key が変わって作り直される
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
   const selected = formats?.find((f) => f.id === selectedId) ?? null;

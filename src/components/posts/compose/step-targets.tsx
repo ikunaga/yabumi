@@ -125,7 +125,7 @@ export function ComposeStepTargets({ c }: { c: Composer }) {
 // SNS ごとのタグ（docs/architecture.md の 4.59）。本文とは別に持ち、送るときに本文の下に 1 行あけて付く。
 // 投稿のフォーマットを本文に入れると、そのタグが入る。送った SNS は直せない（送り直さない）
 function TargetHashtags({ c }: { c: Composer }) {
-  const { chosen, tagInputs, setTagInputs, tagsFor, tagProblem, textFor, isLocked, sentState, markTyped, clearFieldError } = c;
+  const { chosen, tagInputs, setTagInputs, tagsFor, tagsInBody, tagProblem, textFor, isLocked, sentState, markTyped, clearFieldError } = c;
   return (
     <fieldset className="flex min-w-0 flex-col gap-2">
       <legend className="mb-1 text-[14px] font-bold">
@@ -136,6 +136,8 @@ function TargetHashtags({ c }: { c: Composer }) {
           const locked = isLocked(sns);
           const problem = locked ? null : tagProblem(sns);
           const note = locked ? null : tagNote(sns, tagsFor(sns).length, countHashtags(textFor(sns)));
+          // 本文にもあるタグは、タグの行に付けない（保存すると、この欄からも外れる）
+          const dup = locked || problem ? [] : tagsInBody(sns);
           return (
             <li key={sns} className="flex flex-col gap-1">
               <label className="flex items-center gap-3 max-sm:flex-col max-sm:items-stretch max-sm:gap-1">
@@ -158,6 +160,11 @@ function TargetHashtags({ c }: { c: Composer }) {
                 <span className="pl-[108px] text-xs font-semibold text-danger max-sm:pl-0">{problem}</span>
               ) : (
                 note && <span className={`pl-[108px] text-xs max-sm:pl-0 ${note.danger ? "font-semibold text-danger" : "text-muted"}`}>{note.text}</span>
+              )}
+              {dup.length > 0 && (
+                <span className="pl-[108px] text-xs text-muted max-sm:pl-0">
+                  本文にもある {dup.map((t) => `#${t}`).join(" ")} は、2 回出ないよう、タグの行には付けません（保存すると、この欄からも外れます）
+                </span>
               )}
             </li>
           );

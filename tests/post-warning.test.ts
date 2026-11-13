@@ -13,7 +13,7 @@ function target(sns: SnsKey, status: TargetStatus = "pending"): PostTargetRow {
   return { id: `${sns}-t`, sns, status, body_override: null, title: null, external_post_id: null, external_url: null, sns_removed_at: null, error_message: null, published_at: status === "published" ? "2026-11-04T01:00:00Z" : null, next_attempt_at: null, quote_post_id: null, hashtags: [] };
 }
 function post(over: Partial<PostRow>): PostRow {
-  return { id: "p1", body: "金曜の朝だけ、カンパーニュを焼きます", planned_at: "2026-11-06T00:00:00Z", status: "scheduled", targets: [target("instagram")], images: 0, textOrigin: null, ...over };
+  return { id: "p1", body: "金曜の朝だけ、カンパーニュを焼きます", planned_at: "2026-11-06T00:00:00Z", status: "scheduled", targets: [target("instagram")], images: 0, textOrigin: null, formatId: null, roadmapItemId: null, ...over };
 }
 
 describe("postWarning", () => {

@@ -95,7 +95,7 @@ describe("AI の案を使っても、共通の本文は残す", () => {
 
 describe("「X は手で投稿する」は失敗に数えない（判定は isXByHand の 1 か所）", () => {
   const t = (over: Partial<PostTargetRow>): PostTargetRow => ({ id: "t", sns: "x", status: "failed", body_override: null, title: null, external_post_id: null, external_url: null, sns_removed_at: null, error_message: X_BY_HAND_MESSAGE, published_at: null, next_attempt_at: null, quote_post_id: null, hashtags: [], ...over });
-  const post = (targets: PostTargetRow[]): PostRow => ({ id: "p", body: "本文", planned_at: "2026-11-12T12:00:00Z", status: "scheduled", targets, images: 0, textOrigin: null });
+  const post = (targets: PostTargetRow[]): PostRow => ({ id: "p", body: "本文", planned_at: "2026-11-12T12:00:00Z", status: "scheduled", targets, images: 0, textOrigin: null, formatId: null, roadmapItemId: null });
   it("X の失敗で、決まった文のときだけ手で投稿", () => {
     expect(isXByHand(t({}))).toBe(true);
     expect(isXByHand(t({ error_message: "今月の X の自動投稿の上限（1 人 $1）に達しました。" }))).toBe(false);
@@ -105,5 +105,13 @@ describe("「X は手で投稿する」は失敗に数えない（判定は isXB
   it("投稿の札（カレンダー・一覧）は、手で投稿の X だけなら「失敗あり」にしない（手で投稿する SNS と同じく、記録するまで予約のまま）。ほかが失敗なら失敗あり", () => {
     expect(displayStatus(post([t({}), t({ id: "t2", sns: "threads", status: "published", error_message: null, published_at: "2026-11-12T12:00:00Z" })]))).toBe("scheduled");
     expect(displayStatus(post([t({}), t({ id: "t2", sns: "threads", error_message: "送れませんでした" })]))).toBe("failed");
+  });
+});
+
+describe("本文にあるタグは、タグの行に重ねない（PMO2 の x2）", () => {
+  it("本文（大文字・小文字の違いも同じとみなす）にあるタグを外し、外したものを返す", async () => {
+    const { splitTagsByText } = await import("@/lib/sns/hashtags");
+    expect(splitTagsByText("連想映画クイズ #映画クイズ #IndieDev", ["映画クイズ", "indiedev", "個人開発"])).toEqual({ keep: ["個人開発"], inText: ["映画クイズ", "indiedev"] });
+    expect(splitTagsByText("タグなし", ["映画"])).toEqual({ keep: ["映画"], inText: [] });
   });
 });

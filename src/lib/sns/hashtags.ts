@@ -45,6 +45,16 @@ export function withHashtags(text: string, tags: readonly string[]): string {
   return head ? `${head}\n\n${hashtagLine(tags)}` : hashtagLine(tags);
 }
 
+// タグの行から、本文（SNS ごとの文面）にもう書いてあるタグを外す（大文字・小文字の違いも同じとみなす。2 回出さない。PMO2 の x2）。
+// 保存のとき（savePost）と画面の見え方・字数で使う。保存したタグはもう外れているので、送る文の組み立て（post_target_text・withHashtags）は変えない
+export function splitTagsByText(text: string, tags: readonly string[]): { keep: string[]; inText: string[] } {
+  const inBody = new Set(extractHashtags(text).map((t) => t.toLowerCase()));
+  const keep: string[] = [];
+  const inText: string[] = [];
+  for (const t of tags) (inBody.has(t.toLowerCase()) ? inText : keep).push(t);
+  return { keep, inText };
+}
+
 // 保存した配信先の送る文（DB の行から。送信ジョブの claim_due_targets と同じ組み立て）
 export function targetText(body: string, t: { body_override: string | null; hashtags?: readonly string[] | null }): string {
   return withHashtags(t.body_override ?? body, t.hashtags ?? []);

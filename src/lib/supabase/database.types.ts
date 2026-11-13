@@ -1480,6 +1480,7 @@ export type Database = {
         Row: {
           body: string
           created_at: string
+          format_id: string | null
           id: string
           owner_id: string
           planned_at: string | null
@@ -1492,6 +1493,7 @@ export type Database = {
         Insert: {
           body?: string
           created_at?: string
+          format_id?: string | null
           id?: string
           owner_id?: string
           planned_at?: string | null
@@ -1504,6 +1506,7 @@ export type Database = {
         Update: {
           body?: string
           created_at?: string
+          format_id?: string | null
           id?: string
           owner_id?: string
           planned_at?: string | null
@@ -1514,6 +1517,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "posts_format_id_fkey"
+            columns: ["format_id"]
+            isOneToOne: false
+            referencedRelation: "post_formats"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "posts_project_id_fkey"
             columns: ["project_id"]

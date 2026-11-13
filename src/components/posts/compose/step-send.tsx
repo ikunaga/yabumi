@@ -13,7 +13,7 @@ import { XBudgetNotice } from "./x-budget-notice";
 
 // ⑤ 送る: 日時・予約・今すぐ・下書き・削除（compose-steps.md）
 export function ComposeStepSend({ c, steps = false }: { c: Composer; steps?: boolean }) {
-  const { composeStep, goStep, stepProblems, timeHint, images, plannedAt, setPlannedAt, confirmSend, setConfirmSend, pending, busy, sending, missingConnectMessage, blocker, nowBlocker, clearFieldError, submit, fe, connectHref, mode, labels, sentLabels, deleteRow, toSend, xByHand } = c;
+  const { composeStep, goStep, stepProblems, timeHint, images, plannedAt, setPlannedAt, confirmSend, setConfirmSend, pending, busy, sending, missingConnectMessage, blocker, nowBlocker, clearFieldError, submit, fe, connectHref, mode, labels, sentLabels, deleteRow, toSend, xByHand, recheckX } = c;
   // 日時が空のときは「今すぐ送る」を主なボタンにする（予約は日時を決めてから。2026-11-12 PMO の通しのテスト）
   const nowMain = !plannedAt;
   const mainBlocker = nowMain ? nowBlocker : blocker;
@@ -97,7 +97,7 @@ export function ComposeStepSend({ c, steps = false }: { c: Composer; steps?: boo
               type="button"
               size="lg"
               disabled={pending || mainBlocker !== null}
-              onClick={() => (nowMain ? setConfirmSend(true) : submit("schedule"))}
+              onClick={() => (nowMain ? (recheckX(), setConfirmSend(true)) : submit("schedule"))}
               className="w-full"
             >
               {nowMain ? (busy === "now" ? "送っています…" : labels.now) : busy === "schedule" ? "予約しています…" : labels.schedule}
@@ -145,7 +145,7 @@ export function ComposeStepSend({ c, steps = false }: { c: Composer; steps?: boo
                   size="sm"
                   disabled={pending || nowBlocker !== null}
                   title={nowBlocker ?? undefined}
-                  onClick={() => setConfirmSend(true)}
+                  onClick={() => (recheckX(), setConfirmSend(true))}
                 >
                   {busy === "now" ? "送っています…" : labels.now}
                 </Button>

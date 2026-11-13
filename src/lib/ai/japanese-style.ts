@@ -10,7 +10,7 @@ export const JAPANESE_STYLE_RULES = `# 日本語の書き方（どの投稿に�
 - 優先の順: 書いていないことを足さない・誇張しない・決まりきった型を使わない、はどの書き方でも守る。語尾・絵文字・記号・改行などの細部は、SNS ごとの口調 → 利用者のメッセージの「${VOICE_HEADING}」 → この決まり、の順に先にする（「${VOICE_HEADING}」がなければ、口調とこの決まりに従う）
 - 文末は「です・ます」か「だ・である」のどちらかにそろえる。同じ語尾（「〜です。〜です。〜です。」）を 3 つ続けない。言い切る文と「〜ました」「〜ています」を混ぜて、話すときの流れにする
 - 体言止め（「こだわりの一杯。」「金曜だけの新作。」）は続けない。1 投稿に 1 回まで
-- 文の終わりには「。」を付けてそろえる（ハッシュタグの行と「」で終わる文は除く）。「。」のある文とない文を混ぜない
+- 文の終わりには「。」を付けてそろえる（ハッシュタグの行、「」で終わる文、題名の行、言葉を並べた行、問いかけの行（？で終わる行や、？のあとに「答えはリプで」のような短い案内が続く行）は文として数えない）。「。」のある文とない文を混ぜない
 - 利用者が書き換える【】の印は、できるだけ文の一部として入れる（「書き上げたときは【その子の様子】でした。」）。1 文まるごとを書いてもらうときは、【】の後ろに「。」を付けない
 - 「！」と「？」は、合わせて 1 投稿に 1 つまで。「〜ですよね！」「〜しませんか？」「〜でしょうか？」のように読む人へ呼びかける形は、元の文がそうなっているか、問いかけを頼まれたときだけ
 - 絵文字と飾りの記号（✨ 👉 ✅ 💡 🔥 ‼️ ⭐ など）は、口調か「${VOICE_HEADING}」で決まっているときだけ使い、決まっていても 1 投稿に 2 つまで。文ごとに付けない
@@ -83,6 +83,15 @@ function textLines(text: string): string[] {
   return text.split("\n").filter((l) => l.trim() && !isTagLine(l) && !isProfileLine(l));
 }
 
+// 「。」のばらつきで、文として数えない行（AI のチェックの指示・日本語の書き方の決まりと同じ。2026-11-13 PM の依頼）:
+// 題名の行（最初の行で、ほかに行があり、短く「、」「。」のない行）・言葉を並べた行（「・」で 3 つ以上並べた行）・問いかけの行（「？」を含む行）。
+// タグの行は textLines で、「」で終わる行は末尾の記号で、もう除いている
+export function periodExempt(line: string, index: number, lines: number): boolean {
+  if (/[？?]/.test(line)) return true;
+  if ((line.match(/・/g) ?? []).length >= 2 && !/。/.test(line)) return true;
+  return index === 0 && lines > 1 && [...line].length <= 20 && !/[、。]/.test(line);
+}
+
 // 文に分ける（「。」「！」「？」と改行で）。文末の記号・絵文字・空白は落とした中身と、終わり方を返す
 function sentences(text: string): { body: string; end: string }[] {
   const out: { body: string; end: string }[] = [];
@@ -138,8 +147,10 @@ function detect(text: string, opts: StyleOptions): Map<string, StyleProblem> {
   const nouns = ss.filter((s) => nounEnding(s.body)).length;
   if (nouns >= 2) add("noun_ending", "noun_ending", `体言止めが ${nouns} 回あります（1 回まで）`);
 
-  // 「。」のある文とない文が混ざる（行の終わりで数える。「！」「？」・」で終わる行は除く）
-  const lineEnds = textLines(text).map((l) => l.replace(EMOJI, "").replace(/[\s‍️]+$/u, "").trim());
+  // 「。」のある文とない文が混ざる（行の終わりで数える。「！」「？」・」で終わる行と、文として数えない行（periodExempt）は除く）
+  const lineEnds = textLines(text)
+    .map((l) => l.replace(EMOJI, "").replace(/[\s‍️]+$/u, "").trim())
+    .filter((l, i, all) => !periodExempt(l, i, all.length));
   const withPeriod = lineEnds.filter((l) => /。$/.test(l)).length;
   const bare = lineEnds.filter((l) => l && !/[。！？!?」』）)】…]$/.test(l)).length;
   if (withPeriod > 0 && bare > 0) add("period_mix", "period_mix", "文の終わりの「。」が、ある文とない文で混ざっています");

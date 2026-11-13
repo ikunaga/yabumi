@@ -129,6 +129,8 @@ export function ImageAttachments({
   // 保存していない画像の数（サーバーの上限の確かめと同じ数え方。ほかの書きかけの分も入る。4.63）。画像が変わって、上げ終わったら数え直す
   const [unattached, setUnattached] = useState<number | null>(null);
   const imageIds = images.map((i) => i.id).join(",");
+  // 保存していない画像が上限なら、選ぶ・つくるを押せなくする（押してもつくったあとで添えられず、AI の写真なら費用もかかるため。2026-11-13 PMO2 の確かめ 08d）
+  const full = unattached !== null && unattached >= MAX_UNATTACHED;
   useEffect(() => {
     if (busy > 0) return;
     let alive = true;
@@ -327,11 +329,11 @@ export function ImageAttachments({
             e.target.value = "";
           }}
         />
-        <Button type="button" variant="secondary" size="sm" disabled={disabled || room <= 0} onClick={() => inputRef.current?.click()}>
+        <Button type="button" variant="secondary" size="sm" disabled={disabled || room <= 0 || full} onClick={() => inputRef.current?.click()}>
           画像を選ぶ
         </Button>
         {maker && (
-          <Button type="button" variant="secondary" size="sm" disabled={disabled || room <= 0 || making} onClick={openMaker}>
+          <Button type="button" variant="secondary" size="sm" disabled={disabled || room <= 0 || making || full} onClick={openMaker}>
             {images.length > 0 ? `次の画像（${images.length + 1} 枚目）をつくる` : "画像をつくる"}
           </Button>
         )}
@@ -350,6 +352,7 @@ export function ImageAttachments({
         {unattached !== null && unattached > SHOW_UNATTACHED_ABOVE && (
           <span className={`num text-[13px] font-bold ${unattached >= MAX_UNATTACHED ? "text-signal" : "text-muted"}`}>
             保存していない画像 {Math.min(unattached, MAX_UNATTACHED)}/{MAX_UNATTACHED}
+            {full && <span className="font-normal text-muted">・要らない画像を外すと追加できます</span>}
           </span>
         )}
       </div>

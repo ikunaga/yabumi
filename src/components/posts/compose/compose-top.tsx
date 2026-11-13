@@ -3,7 +3,6 @@
 import { DraftRestoreBar } from "@/components/ui/draft-restore";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ErrorBanner } from "@/components/ui/feedback";
-import { clearFormDraft } from "@/lib/form-draft";
 import { draftImagesMayBeGone } from "@/lib/media/rules";
 import { type Composer } from "./use-composer";
 
@@ -49,7 +48,7 @@ export function ComposeResetControl({ c }: { c: Composer }) {
 // 画面に留めず、ページと一緒に動く（前は画面の下に留めていて、背の低い PC（1512×767）で項目の説明の分だけ欄が下がると、本文の欄の下の端に重なった）。
 // 戻すか捨てるかを選ぶと消え、下の見出しとボタンが見える
 export function ComposeAlerts({ c }: { c: Composer }) {
-  const { result, restorable, restoreDraft, setRestorable, draftKey, restoreMissing, setRestoreMissing } = c;
+  const { result, restorable, restoreDraft, discardDraft, restoreMissing, setRestoreMissing } = c;
   // 控えに画像があれば、帯に枚数を出す。添えていない画像は 1 日で片付けるので、古い控えでは戻せないことがあると先に添える（4.62）
   const draftImages = restorable?.value.images?.length ?? 0;
   const old = restorable ? draftImagesMayBeGone(restorable.at) : false;
@@ -64,7 +63,7 @@ export function ComposeAlerts({ c }: { c: Composer }) {
             what={draftImages ? `本文と画像 ${draftImages} 枚の書きかけ` : "本文の書きかけ"}
             note={draftImages && old ? "画像は戻せないことがあります。" : undefined}
             onRestore={restoreDraft}
-            onDiscard={() => (clearFormDraft(draftKey), setRestorable(null))}
+            onDiscard={discardDraft}
           />
         </div>
       )}

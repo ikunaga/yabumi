@@ -3,7 +3,8 @@
 import type { FormatUse } from "../post-format-picker";
 import { callAction } from "@/lib/client-errors";
 import { draftStep, postDraftBase, samePostDraft, type PostDraft } from "@/lib/posts/post-draft";
-import { clearFormDraft, parseFormDraft, rawFormDraft, usableFormDraft, writeFormDraft, type FormDraft } from "@/lib/form-draft";
+import { clearFormDraft, parseFormDraft, usableFormDraft, writeFormDraft, type FormDraft } from "@/lib/form-draft";
+import { pruneTabDrafts, rawTabDraft, readTabDraft, tabDraftKey, tabId } from "@/lib/tab-drafts";
 import { getDraftOwner } from "@/lib/notes/draft";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition, type ReactNode } from "react";
 import { flushSync } from "react-dom";
@@ -21,6 +22,7 @@ import { applyFix } from "@/lib/ai/ai-check";
 import { type NoteInsertMode } from "../note-picker";
 import { noteImageForCompose } from "@/lib/notes/actions";
 import { restoreDraftImages } from "@/lib/media/actions";
+import { draftImageIds, rebuildDraftImages, toDraftImage } from "@/lib/posts/draft-images";
 import type { IdeaNote } from "@/lib/notes/rules";
 import { MAX_IMAGES_PER_POST } from "@/lib/media/rules";
 import { type PlanHintsData } from "../plan-hints";
@@ -232,8 +234,11 @@ export function useComposer({
   if (!touched && body.trim() !== "") setTouched(true);
 
   // 書きかけの控え（4.35）。本文・SNS ごとの文面・タイトルを、保存できるまでこの端末に置く。古い画面で保存できず読み込み直したときなどに戻せる。
-  // 保存して移ってきた（notice がある）ときは、この投稿と「新しい投稿」の控えを消す
-  const draftKey = `post:${postId ?? `new:${projectId}`}`;
+  // 保存して移ってきた（notice がある）ときは、この投稿と「新しい投稿」の控えを消す。
+  // 控えはタブごとに分ける（src/lib/tab-drafts.ts。4.65）。draftKey はこのタブの控えの鍵（サーバーで描くときは元の鍵のまま。控えは画面でだけ読み書きする）
+  const draftBaseKey = `post:${postId ?? `new:${projectId}`}`;
+  const tab = typeof window === "undefined" ? null : tabId();
+  const draftKey = tabDraftKey(draftBaseKey, tab);
   const initialDraft = useMemo<PostDraft>(
     () => ({
       body: initial.body,
@@ -253,22 +258,36 @@ export function useComposer({
     typed.current = true;
   };
   // 開いたときに見つけた控え（戻すか捨てるかを選ぶまで、新しく書き込まない）。サーバーで描くときは undefined（まだ見ていない）
-  const rawDraft = useSyncExternalStore(noopSubscribe, () => rawFormDraft(draftKey), () => undefined);
-  const [found, setFound] = useState<{ draft: FormDraft<PostDraft> | null } | undefined>(undefined);
+  // このタブの控え（読み込み直したとき）か、閉じたタブのいちばん新しい控え（開いているほかのタブの控えは出さない・上書きしない）
+  const rawDraft = useSyncExternalStore(noopSubscribe, () => rawTabDraft(draftBaseKey, getDraftOwner()), () => undefined);
+  // key: 見つけた控えの鍵（ほかのタブの控えなら、戻すとこのタブの控えとして引き取る）
+  const [found, setFound] = useState<{ draft: FormDraft<PostDraft> | null; key: string | null } | undefined>(undefined);
   if (found === undefined && rawDraft !== undefined) {
-    const d = notice ? null : parseFormDraft<PostDraft>(rawDraft, getDraftOwner());
-    setFound({ draft: usableFormDraft(d, draftBase, (v) => samePostDraft(v, initialDraft)) });
+    const t = readTabDraft(rawDraft);
+    const d = notice || !t ? null : parseFormDraft<PostDraft>(t.raw, getDraftOwner());
+    setFound({ draft: usableFormDraft(d, draftBase, (v) => samePostDraft(v, initialDraft)), key: t?.key ?? null });
   }
   const restorable = found?.draft ?? null;
-  const setRestorable = (d: null) => setFound({ draft: d });
+  const setRestorable = (d: null) => setFound({ draft: d, key: null });
+  // 帯の「捨てる」: 見つけた控え（このタブのか、閉じたタブの）を消す
+  const discardDraft = () => {
+    if (found?.key) clearFormDraft(found.key);
+    setRestorable(null);
+  };
   useEffect(() => {
     if (!notice) return;
     clearFormDraft(draftKey);
+    clearFormDraft(tabDraftKey(`post:new:${projectId}`, tab));
+    // 前の版の、タブに分けていない控え
+    clearFormDraft(draftBaseKey);
     clearFormDraft(`post:new:${projectId}`);
-  }, [notice, draftKey, projectId]);
+  }, [notice, draftKey, draftBaseKey, projectId, tab]);
+  useEffect(() => {
+    pruneTabDrafts(draftBaseKey);
+  }, [draftBaseKey]);
   useEffect(() => {
     if (!found || found.draft) return;
-    const now: PostDraft = { body, overrides, titles, hashtags: tagInputs, images: images.map((i) => ({ id: i.id, altText: i.altText })) };
+    const now: PostDraft = { body, overrides, titles, hashtags: tagInputs, images: images.map(toDraftImage) };
     const step = draftStep({ same: samePostDraft(now, initialDraft), typed: typed.current });
     if (step === "clear") clearFormDraft(draftKey);
     else if (step === "write") writeFormDraft(draftKey, { ...now, step: composeStep }, draftBase);
@@ -278,6 +297,11 @@ export function useComposer({
   function restoreDraft() {
     if (!restorable) return;
     const v = restorable.value;
+    // 閉じたタブの控えなら、このタブの控えとして引き取る（元の控えは消す。ほかのタブとは奪い合わない）
+    if (found?.key && found.key !== draftKey) {
+      writeFormDraft(draftKey, v, restorable.base);
+      clearFormDraft(found.key);
+    }
     setBody(v.body);
     setOverrides(v.overrides ?? {});
     setTitles(v.titles ?? {});
@@ -291,12 +315,12 @@ export function useComposer({
     const want = v.images;
     if (!want) return;
     if (!want.length) return setImages([]);
-    void callAction(() => restoreDraftImages(postId, want.map((i) => i.id))).then((r) => {
+    void callAction(() => restoreDraftImages(postId, draftImageIds(want))).then((r) => {
       // 通信が切れたなどで確かめられなかったときは、いまの画像のまま、戻せなかった枚数だけ知らせる
       if (!r.ok || r.value.error) return setRestoreMissing(want.length);
-      const alt = new Map(want.map((i) => [i.id, i.altText]));
-      setImages(r.value.images.map((i) => ({ ...i, altText: alt.get(i.id) ?? i.altText })));
-      setRestoreMissing(want.length - r.value.images.length);
+      const rebuilt = rebuildDraftImages(want, r.value.images);
+      setImages(rebuilt.images);
+      setRestoreMissing(rebuilt.missing);
     });
   }
   const quiet = !touched;
@@ -829,6 +853,7 @@ export function useComposer({
     touched,
     setTouched,
     draftKey,
+    discardDraft,
     initialDraft,
     draftBase,
     typed,

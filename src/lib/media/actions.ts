@@ -82,7 +82,8 @@ export async function discardImage(id: string): Promise<void> {
 export type RestoredImage = Awaited<ReturnType<typeof restoreImages>>[number];
 export async function restoreDraftImages(postId: unknown, ids: unknown): Promise<{ images: RestoredImage[]; error?: string }> {
   const p = z.uuid().nullable().safeParse(postId);
-  const list = z.array(z.uuid()).max(MAX_IMAGES_PER_POST).safeParse(ids);
+  // 添えた画像と、その元の画像・描き直した元（4.65）なので、1 枚につき 3 つまで
+  const list = z.array(z.uuid()).max(MAX_IMAGES_PER_POST * 3).safeParse(ids);
   if (!p.success || !list.success) return { images: [], error: "入力の形式が正しくありません。" };
   await requireUser();
   try {

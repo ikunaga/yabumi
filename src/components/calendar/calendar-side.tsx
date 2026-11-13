@@ -7,6 +7,7 @@ import type { CalendarStats } from "@/lib/calendar/stats";
 import { postTitle, type PostRow } from "@/lib/posts/queries";
 import { SNS } from "@/lib/sns";
 import { formatShort } from "@/lib/time";
+import { isXByHand } from "@/lib/sns/x/send-rules";
 import type { WeekPace } from "@/lib/coach/pace";
 import { WeekSlotsCard } from "./week-slots-card";
 
@@ -37,8 +38,9 @@ export function CalendarSide({ stats, month, upcoming, base, week }: { stats: Ca
                 <Link href={`${base}/posts/${p.id}`} className="flex flex-col gap-1 py-2.5 hover:no-underline">
                   <span className="flex flex-wrap items-center gap-1.5">
                     <span className="num text-[13px] text-faint">{formatShort(p.planned_at!)}</span>
+                    {/* 「X は手で投稿する」を選んだ X は、手で出すとわかる印にする（概要の次の予約と同じ。2026-11-13 PMO2 の確かめ x6） */}
                     {p.targets.map((t) => (
-                      <SnsMark key={t.id} sns={t.sns} />
+                      <SnsMark key={t.id} sns={t.sns} byHand={isXByHand(t)} />
                     ))}
                   </span>
                   <span className="truncate text-[15px] hover:underline">{postTitle(p.body, 24)}</span>

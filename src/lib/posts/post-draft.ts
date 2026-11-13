@@ -5,7 +5,14 @@ import type { SnsKey } from "@/lib/sns";
 // step: 控えたときのステップ（docs/design/compose-steps.md の 4.。戻すと同じステップから。比べる中身には入れない）
 // images: 添えた画像（上げ済みの id と説明文。並びは配列の順。docs/architecture.md の 4.62。前の版の控えにはない）。
 // URL・大きさ・AI の印・見出しの元は控えない（戻すときにサーバーで本人のものか確かめて読み直す）
-export type DraftImage = { id: string; altText: string };
+// text・originalId・edit: 文字が入っているか・元の画像・最後に描き直した元と整え方（4.65。前の版の控えにはない。比べる中身には入れない）
+export type DraftImage = {
+  id: string;
+  altText: string;
+  text?: boolean;
+  originalId?: string;
+  edit?: { kind: string; baseId: string; adjust?: unknown; headline?: unknown };
+};
 export type PostDraft = {
   body: string;
   overrides: Partial<Record<SnsKey, string>>;

@@ -4,7 +4,8 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { xConfigured } from "@/lib/sns/x/config";
-import { xSendVerdict, type XSendVerdict } from "@/lib/sns/x/send-verdict";
+import { xSpendThisMonth, xVerdictFromSpend, type XSendVerdict } from "@/lib/sns/x/send-verdict";
+import { cachedXSpend } from "@/lib/sns/x/spend-cache";
 import { fromInputValue } from "@/lib/time";
 
 // 投稿をつくるの ② と ⑤ で、X をいま（予約ならその時刻に）送ったら月の上限に当たるかを、送信ジョブと同じ判定で返す。
@@ -29,8 +30,9 @@ export async function checkXSend(raw: unknown): Promise<{ now: XSendVerdict; pla
   const { data: project } = await supabase.from("projects").select("id").eq("id", p.data.projectId).maybeSingle();
   if (!project) return null;
   const at = p.data.plannedAt ? fromInputValue(p.data.plannedAt) : null;
+  // 今月の額を読み直すのは利用者ごとに 1 分 20 回まで。超えたら最後に読んだ額（直接連打されても DB に負荷をかけない。App-L2。送るときの savePost・送信ジョブは毎回見る）
   const admin = createAdminClient();
+  const spend = await cachedXSpend(userId, () => xSpendThisMonth(admin, userId));
   const a = { text: p.data.text, altCount: p.data.altCount };
-  const [now, planned] = await Promise.all([xSendVerdict(admin, userId, a), at ? xSendVerdict(admin, userId, { ...a, at: new Date(at) }) : Promise.resolve(null)]);
-  return { now, planned };
+  return { now: xVerdictFromSpend(spend, a), planned: at ? xVerdictFromSpend(spend, { ...a, at: new Date(at) }) : null };
 }

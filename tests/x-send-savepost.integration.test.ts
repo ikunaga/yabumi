@@ -15,7 +15,9 @@ let current: TestClient;
 vi.mock("@/lib/supabase/server", () => ({ createClient: async () => current }));
 vi.mock("@/lib/supabase/admin", async () => {
   const { adminClient } = await import("./helpers/supabase");
-  return { createAdminClient: () => adminClient() };
+  // 同じ client を返す（checkXSend の RPC の回数を数えるため）
+  let shared: ReturnType<typeof adminClient> | null = null;
+  return { createAdminClient: () => (shared ??= adminClient()) };
 });
 
 const admin = adminClient();
@@ -96,6 +98,44 @@ describe("今すぐ送るも、X の月の上限でサーバーが止める（PM
       expect(fetchSpy.mock.calls.filter(([u]) => String(u instanceof Request ? u.url : u).includes("x.com"))).toEqual([]);
     } finally {
       fetchSpy.mockRestore();
+      await admin.from("sns_api_usage").delete().eq("owner_id", aliceId);
+    }
+  });
+});
+
+describe("checkXSend は今月の額を読み直すのを利用者ごとに 1 分 20 回までにし、送るとき（savePost）は毎回見る（App-L2）", () => {
+  it("20 回までは毎回読み直す（額が増えれば次の見込みに出る）。超えたら RPC を流さず最後の額。見込みが古くても savePost は今の額で止める", async () => {
+    const { checkXSend } = await import("@/lib/posts/x-send-actions");
+    const { savePost } = await import("@/lib/posts/actions");
+    const { clearXSpendCache, X_SPEND_LOADS_PER_WINDOW } = await import("@/lib/sns/x/spend-cache");
+    const { createAdminClient } = await import("@/lib/supabase/admin");
+    clearXSpendCache();
+    const rpc = vi.spyOn(createAdminClient(), "rpc");
+    const text = "新しい版を出しました";
+    const check = () => checkXSend({ projectId, text, altCount: 0, plannedAt: "" });
+    try {
+      expect((await check())?.now.over).toBeNull();
+      expect(rpc.mock.calls.length).toBe(2);
+      // 額が増えたら、次の見込み（押したときの調べ直し）に出る
+      await admin.from("sns_api_usage").insert({ owner_id: aliceId, sns: "x", operation: "post", cost_usd: 0.995 });
+      expect((await check())?.now.over).not.toBeNull();
+      for (let i = 2; i < X_SPEND_LOADS_PER_WINDOW; i++) await check();
+      expect(rpc.mock.calls.length).toBe(2 * X_SPEND_LOADS_PER_WINDOW);
+      // 超えたら RPC を流さない（最後に読んだ額で答える）
+      await admin.from("sns_api_usage").delete().eq("owner_id", aliceId);
+      for (let i = 0; i < 10; i++) expect((await check())?.now.over).not.toBeNull();
+      expect(rpc.mock.calls.length).toBe(2 * X_SPEND_LOADS_PER_WINDOW);
+      // 見込みが古い額（上限に当たらない）のままでも、送るときは今の額で止める（投稿もつくらない）
+      clearXSpendCache();
+      for (let i = 0; i < X_SPEND_LOADS_PER_WINDOW; i++) expect((await check())?.now.over).toBeNull();
+      await admin.from("sns_api_usage").insert({ owner_id: aliceId, sns: "x", operation: "post", cost_usd: 0.995 });
+      expect((await check())?.now.over).toBeNull();
+      const blocked = await savePost({ projectId, postId: null, body: text, plannedAt: "", intent: "now" as const, targets: [{ sns: "x" as const, bodyOverride: null, hashtags: [] }] });
+      expect(blocked.fieldErrors?.targets).toContain("今月の X の自動投稿の上限（1 人 $1）");
+      expect((await admin.from("posts").select("id").eq("project_id", projectId)).data).toEqual([]);
+    } finally {
+      rpc.mockRestore();
+      clearXSpendCache();
       await admin.from("sns_api_usage").delete().eq("owner_id", aliceId);
     }
   });

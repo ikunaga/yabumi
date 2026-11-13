@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 // 前と比べた増減（▲ 緑・▼ 赤・± 灰）。value は差（12.4 なら ▲12.4）。unit は「%」「pt」「件」など
@@ -21,6 +22,8 @@ export function Metric({
   unit,
   delta,
   note,
+  href,
+  linkLabel = "一覧を見る",
   className = "",
 }: {
   label: ReactNode;
@@ -31,10 +34,14 @@ export function Metric({
   delta?: ReactNode;
   // 添え書き（「前月比」「うち予約 84 件」）
   note?: ReactNode;
+  // カードを押すと開く画面（下書きの一覧など）。押せることがわかるよう、下に下線つきの「一覧を見る →」を添える
+  href?: string;
+  linkLabel?: string;
   className?: string;
 }) {
-  return (
-    <div className={`min-w-0 rounded-lg border border-border bg-surface px-6 py-5 max-sm:px-4 max-sm:py-3.5 ${className}`}>
+  const box = `min-w-0 rounded-lg border border-border bg-surface px-6 py-5 max-sm:px-4 max-sm:py-3.5 ${className}`;
+  const body = (
+    <>
       <p className="truncate text-[16px] text-muted">{label}</p>
       <p className="num mt-1.5 text-metric font-bold max-sm:text-[30px]">
         {value}
@@ -46,8 +53,17 @@ export function Metric({
           {note && <span>{note}</span>}
         </p>
       )}
-    </div>
+      {href && <p className="mt-1.5 text-sm font-bold text-fg underline">{linkLabel} →</p>}
+    </>
   );
+  if (href) {
+    return (
+      <Link href={href} className={`${box} block text-fg hover:border-input hover:no-underline`}>
+        {body}
+      </Link>
+    );
+  }
+  return <div className={box}>{body}</div>;
 }
 
 // 横棒の 1 行（見本 A の「媒体別」）。barClass に色（SNS_COLOR[sns].bg、bg-info など）を渡す

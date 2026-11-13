@@ -1,6 +1,6 @@
 // 投稿の画面の下のボタンの出し分け（送った投稿で押せない「予約する」を出さない）
 import { describe, expect, it } from "vitest";
-import { sendLabels, sendMode, sentStateOf } from "@/lib/posts/send-mode";
+import { sendLabels, sendMode, sentStateOf, composeHeading } from "@/lib/posts/send-mode";
 
 describe("sendMode", () => {
   it("まだ送っていなければ new、一部だけ送ったら partial、選んだ SNS にすべて送ったら all_sent", () => {
@@ -36,5 +36,16 @@ describe("sentStateOf（② の送り先と ⑤ のまとめに出す、送っ�
     expect(sentStateOf(r("pending", "一時的なエラー"))?.plain).toBe("送り直し待ち");
     expect(sentStateOf(r("pending"))).toBeNull();
     expect(sentStateOf(undefined)).toBeNull();
+  });
+});
+
+// 2026-11-13 PMO2 の確かめ: 予約した投稿を開くと、見出しが「下書き・保存済み」のままだった
+describe("投稿をつくるの見出し", () => {
+  it("新しい投稿・下書き・予約した投稿・一部送った投稿・送った投稿", () => {
+    expect(composeHeading({ postId: null, sentAny: false, mode: "new", savedStatus: null })).toBe("投稿をつくる");
+    expect(composeHeading({ postId: "p", sentAny: false, mode: "new", savedStatus: "draft" })).toBe("下書き");
+    expect(composeHeading({ postId: "p", sentAny: false, mode: "new", savedStatus: "scheduled" })).toBe("予約した投稿");
+    expect(composeHeading({ postId: "p", sentAny: true, mode: "partial", savedStatus: "scheduled" })).toBe("一部送った投稿");
+    expect(composeHeading({ postId: "p", sentAny: true, mode: "all_sent", savedStatus: "draft" })).toBe("送った投稿");
   });
 });

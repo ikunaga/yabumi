@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { SNS_KEYS, isSnsKey, type SnsKey } from "@/lib/sns";
 import { createClient } from "@/lib/supabase/server";
+import { isUnsentDraft } from "./drafts";
 import { dueManualPostIds, overduePostIds } from "./overdue";
 import { NOT_X_BY_HAND_FILTER } from "@/lib/sns/x/send-rules";
 
@@ -116,6 +117,33 @@ export async function listUndatedDrafts(projectId: string) {
     .limit(20);
   if (error) throw error;
   return (data as RawPost[]).map(normalize);
+}
+
+// 下書きの一覧（まだどこにも送っていない下書き。直した日の新しい順。src/lib/posts/drafts.ts の決め方）
+export const DRAFTS_LIMIT = 200;
+export type DraftRow = { id: string; body: string; plannedAt: string | null; updatedAt: string; sns: SnsKey[]; overrides: (string | null)[]; titles: (string | null)[]; images: number };
+export async function listDrafts(projectId: string): Promise<DraftRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("posts")
+    .select("id, body, planned_at, updated_at, status, post_targets(sns, status, title, body_override), media_files(count)")
+    .eq("project_id", projectId)
+    .eq("status", "draft")
+    .order("updated_at", { ascending: false })
+    .limit(DRAFTS_LIMIT);
+  if (error) throw error;
+  return (data ?? [])
+    .filter((p) => isUnsentDraft({ status: p.status, targetStatuses: p.post_targets.map((t) => t.status) }))
+    .map((p) => ({
+      id: p.id,
+      body: p.body,
+      plannedAt: p.planned_at,
+      updatedAt: p.updated_at,
+      sns: p.post_targets.map((t) => t.sns).filter(isSnsKey).sort((a, b) => SNS_KEYS.indexOf(a) - SNS_KEYS.indexOf(b)),
+      overrides: p.post_targets.map((t) => t.body_override),
+      titles: p.post_targets.map((t) => t.title),
+      images: (p.media_files as { count: number }[] | null)?.[0]?.count ?? 0,
+    }));
 }
 
 export async function listUpcomingPosts(projectId: string, limit = 5) {

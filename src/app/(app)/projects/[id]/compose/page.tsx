@@ -15,6 +15,7 @@ import { canPublish } from "@/lib/sns/adapters";
 import { getPlanHints } from "@/lib/plan/queries";
 import { snsNeedingImageReconnect } from "@/lib/media/queries";
 import { countSelfWrittenPosts, hasVoiceMemo } from "@/lib/plan/voice";
+import { countUnsentDrafts } from "@/lib/posts/drafts";
 import { createClient } from "@/lib/supabase/server";
 import { isSnsKey } from "@/lib/sns";
 import { isYmd } from "@/lib/time";
@@ -32,11 +33,13 @@ export default async function ComposePage(props: PageProps<"/projects/[id]/compo
   const profileLink = await loadProfileLinkInfo(await createClient(), project);
   // 「最初は自分で書く」のすすめに使う（docs/design/voice-from-posts.md の 3.4）
   const db = await createClient();
-  const [selfWrittenPosts, voiceMemo, accountNames, linkBase] = await Promise.all([
+  const [selfWrittenPosts, voiceMemo, accountNames, linkBase, draftsCount] = await Promise.all([
     countSelfWrittenPosts(db, project.id),
     hasVoiceMemo(db, project.id),
     connectedAccountNames(project.id),
     projectLinkBase(db, project.id),
+    // 下書きの数（見出しの横の「下書きから続ける（n 件）」。2026-11-13 PMO2 の確かめ: Compose を押すと、いつも新しい空の投稿になった）
+    countUnsentDrafts(db, project.id),
   ]);
   const item = typeof searchParams.item === "string" && /^[0-9a-f-]{36}$/.test(searchParams.item) ? await loadItem(project.id, searchParams.item) : null;
   const date = isYmd(searchParams.date) ? searchParams.date : (item?.planned_on ?? null);
@@ -49,6 +52,7 @@ export default async function ComposePage(props: PageProps<"/projects/[id]/compo
       projectId={project.id}
       projectName={project.name}
       postId={null}
+      draftsCount={draftsCount}
       connected={connected}
       planHints={planHints}
       needImageReconnect={needImageReconnect}

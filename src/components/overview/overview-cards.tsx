@@ -21,7 +21,8 @@ export function CardLabel({ card }: { card: OverviewCard }) {
 const COLS: Record<number, string> = { 1: "grid-cols-1", 2: "grid-cols-2", 3: "grid-cols-3", 4: "grid-cols-4" };
 
 // mobileHidden: スマホの大きな数字と同じ数字のカード（スマホでは重ねて出さない）
-export function OverviewCards({ cards, mobileHidden, className = "" }: { cards: OverviewCard[]; mobileHidden?: OverviewCard["key"]; className?: string }) {
+// draftsHref: 「下書き」のカードを押すと開く下書きの一覧（2026-11-13 PMO2 の確かめ）
+export function OverviewCards({ cards, mobileHidden, draftsHref, className = "" }: { cards: OverviewCard[]; mobileHidden?: OverviewCard["key"]; draftsHref?: string; className?: string }) {
   return (
     <div className={`grid ${COLS[cards.length] ?? "grid-cols-4"} gap-4 max-lg:grid-cols-2 max-sm:gap-3 ${className}`}>
       {cards.map((c) => (
@@ -32,6 +33,7 @@ export function OverviewCards({ cards, mobileHidden, className = "" }: { cards: 
           unit={c.unit}
           delta={c.deltaPct !== null ? <Delta value={c.deltaPct} unit="%" /> : undefined}
           note={c.note}
+          href={c.key === "drafts" ? draftsHref : undefined}
           className={c.key === mobileHidden ? "max-sm:hidden" : ""}
         />
       ))}

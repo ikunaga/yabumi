@@ -66,8 +66,8 @@ type ChartKey = keyof typeof CHARTS;
 
 // 追いかける数字のカード（見本 A の数字のカード）。数字がまだ出せないものは、数字の代わりに出す方法（つなぐ）を出す
 function KpiCard({ k, value, projectId, days, productType }: { k: KpiKey; value?: WeekValue; projectId: string; days: MetricsPeriod; productType: string }) {
-  // 行き先へのクリックは、アプリなら「ストアへのクリック」（決定 D34）
-  const def = k === "link_clicks" ? { ...KPIS[k], label: clickLabel(productType) } : KPIS[k];
+  // 行き先へのクリックは、アプリなら「ストアへのクリック」（決定 D34）。投稿した回数は、概要と同じ「SNS への投稿」（SNS ごとに数える。2026-11-13 PMO2 の確かめ）
+  const def = k === "link_clicks" ? { ...KPIS[k], label: clickLabel(productType) } : k === "posts" ? { ...KPIS[k], label: "SNS への投稿" } : KPIS[k];
   const label = (
     <span className="inline-flex items-center gap-1.5">
       {def.term ? <Term k={def.term}>{def.label}</Term> : def.label}

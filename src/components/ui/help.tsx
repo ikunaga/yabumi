@@ -88,9 +88,10 @@ export function HelpTip({ label = "説明", children }: { label?: string; childr
 }
 
 // 開くと出る欄（「くわしく」）。手順や長い説明をしまっておく。段落の中には置かない（中身は div）
-export function Disclosure({ summary = "くわしく", children, className = "" }: { summary?: ReactNode; children: ReactNode; className?: string }) {
+// open: はじめから開いておく（ほかの画面から「一覧を見る」で来たときなど）
+export function Disclosure({ summary = "くわしく", children, className = "", open }: { summary?: ReactNode; children: ReactNode; className?: string; open?: boolean }) {
   return (
-    <details className={`group ${className}`}>
+    <details className={`group ${className}`} open={open}>
       <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-sm text-muted hover:text-fg [&::-webkit-details-marker]:hidden">
         <svg aria-hidden viewBox="0 0 12 12" className="size-3 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
           <path d="M4.5 3 7.5 6 4.5 9" />

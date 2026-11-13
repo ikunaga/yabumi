@@ -18,6 +18,8 @@ export type CalendarStats = {
   drafts: number;
   // 送れなかった SNS がある投稿（いつのものでも。直すか送り直すまで残る）
   failed: number;
+  // そのうち 1 件の投稿の id（1 件だけのとき、カードからその投稿を開く）
+  failedPostId: string | null;
   // この月（週の表示はこの週）の SNS ごとの本数（予約と投稿済み）。0 の SNS は入れない
   bySns: { sns: SnsKey; count: number }[];
 };
@@ -36,7 +38,7 @@ export async function loadCalendarStatsBetween(projectId: string, fromYmd: strin
   const to = startOfYmd(toYmdExclusive).toISOString();
   const head = { count: "exact", head: true } as const;
 
-  const [scheduled, posted, drafts, failed, ...bySns] = await Promise.all([
+  const [scheduled, posted, drafts, failed, failedOne, ...bySns] = await Promise.all([
     supabase
       .from("posts")
       .select("id, post_targets!inner(id)", head)
@@ -61,6 +63,14 @@ export async function loadCalendarStatsBetween(projectId: string, fromYmd: strin
       .eq("post_targets.status", "failed")
       // 「X は手で投稿する」を選んだ X は、失敗に数えない
       .or(NOT_X_BY_HAND_FILTER, { referencedTable: "post_targets" }),
+    supabase
+      .from("posts")
+      .select("id, post_targets!inner(id)")
+      .eq("project_id", projectId)
+      .eq("post_targets.status", "failed")
+      .or(NOT_X_BY_HAND_FILTER, { referencedTable: "post_targets" })
+      .order("updated_at", { ascending: false })
+      .limit(1),
     ...SNS_KEYS.map((sns) =>
       supabase
         .from("post_targets")
@@ -73,13 +83,14 @@ export async function loadCalendarStatsBetween(projectId: string, fromYmd: strin
         .lt("posts.planned_at", to),
     ),
   ]);
-  for (const r of [scheduled, posted, failed, ...bySns]) if (r.error) throw r.error;
+  for (const r of [scheduled, posted, failed, failedOne, ...bySns]) if (r.error) throw r.error;
 
   return {
     scheduled: scheduled.count ?? 0,
     posted: posted.count ?? 0,
     drafts,
     failed: failed.count ?? 0,
+    failedPostId: failedOne.data?.[0]?.id ?? null,
     bySns: SNS_KEYS.map((sns, i) => ({ sns, count: bySns[i].count ?? 0 }))
       .filter((s) => s.count > 0)
       .sort((a, b) => b.count - a.count),

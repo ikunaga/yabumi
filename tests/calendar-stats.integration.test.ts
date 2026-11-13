@@ -22,6 +22,7 @@ let aliceProject: string;
 let bobProject: string;
 // 数字の帯のテスト用（カレンダーの数と混ざらないよう、別のプロジェクト）
 let numbersProject: string;
+let failedPostId: string;
 
 // 日本時間の "YYYY-MM-DDTHH:MM" を ISO にする
 const jst = (s: string) => new Date(`${s}:00+09:00`).toISOString();
@@ -69,7 +70,7 @@ beforeAll(async () => {
   // 予約は 8 月だが、送ったのは日本時間の 9/1 0:05（投稿済みは送った日で数える）
   await post(aliceId, aliceProject, { at: "2026-08-31T23:50", status: "scheduled", targets: [{ sns: "threads", status: "published", publishedAt: "2026-09-01T00:05" }] });
   // 9 月に送れなかった投稿（いつのものでも「送れなかった」に数える。予約・投稿済みには入れない）
-  await post(aliceId, aliceProject, { at: "2026-09-15T12:00", status: "scheduled", targets: [{ sns: "x", status: "failed" }] });
+  failedPostId = (await post(aliceId, aliceProject, { at: "2026-09-15T12:00", status: "scheduled", targets: [{ sns: "x", status: "failed" }] })).postId;
   // 下書き（日付の有無を問わない。予約の数には入れない）
   await post(aliceId, aliceProject, { at: "2026-09-20T12:00", status: "draft", targets: [{ sns: "x" }] });
   await post(aliceId, aliceProject, { at: null, status: "draft", targets: [] });
@@ -90,6 +91,8 @@ describe("カレンダーの数字", () => {
     expect(sep.posted).toBe(2);
     expect(sep.drafts).toBe(2);
     expect(sep.failed).toBe(1);
+    // カレンダーの「直していない失敗」から開く投稿（1 件のとき）
+    expect(sep.failedPostId).toBe(failedPostId);
     // SNS ごとは、この月に予定した投稿の予約と投稿済み（送れなかったもの・下書き・送った日だけ 9 月のものは入れない）。多い順
     expect(sep.bySns).toEqual([
       { sns: "x", count: 3 },
@@ -125,9 +128,9 @@ describe("カレンダーの数字", () => {
 
   it("他人の投稿は数えない（他人のプロジェクトを指しても 0）", async () => {
     const bobs = await loadCalendarStats(bobProject, "2026-09", bob);
-    expect(bobs).toEqual({ scheduled: 1, posted: 0, drafts: 1, failed: 0, bySns: [{ sns: "x", count: 1 }] });
+    expect(bobs).toEqual({ scheduled: 1, posted: 0, drafts: 1, failed: 0, failedPostId: null, bySns: [{ sns: "x", count: 1 }] });
     const peek = await loadCalendarStats(aliceProject, "2026-09", bob);
-    expect(peek).toEqual({ scheduled: 0, posted: 0, drafts: 0, failed: 0, bySns: [] });
+    expect(peek).toEqual({ scheduled: 0, posted: 0, drafts: 0, failed: 0, failedPostId: null, bySns: [] });
   });
 });
 

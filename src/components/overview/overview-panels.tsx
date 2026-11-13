@@ -112,8 +112,11 @@ export function AttentionStrip({
   overdue,
   manualDue,
   overdueTodos,
+  open,
 }: {
   projectId: string;
+  // はじめから開いておく（カレンダーの「直していない失敗」から来たとき。?attention=open）
+  open?: boolean;
   failed: PostRow[];
   overdue: PostRow[];
   manualDue: PostRow[];
@@ -129,8 +132,9 @@ export function AttentionStrip({
   if (total === 0) return null;
   const base = `/projects/${projectId}`;
   return (
-    <div className="rounded-lg border border-border bg-surface px-5 py-3 max-sm:px-4">
+    <div id="attention" className="scroll-mt-24 rounded-lg border border-border bg-surface px-5 py-3 max-sm:px-4">
       <Disclosure
+        open={open}
         summary={
           <span className="flex flex-wrap items-baseline gap-x-2">
             <b className="text-signal">● 要確認 {total}</b>

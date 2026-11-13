@@ -55,7 +55,7 @@ const STORE_NAME = { app_store: "App Store", google_play: "Google Play" } as con
 // → 数字のカード 4 枚 → 左に日ごとの棒グラフ、右に SNS ごとのストアへのクリックと次の予約。数字は直近 30 日と前の 30 日の比べ（docs/architecture.md の 4.31）
 export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
   const { id } = await props.params;
-  const { done, items, reviewed, goal } = await props.searchParams;
+  const { done, items, reviewed, goal, attention: attentionParam } = await props.searchParams;
   const supabase = await createClient();
   // 待ち時間を縮めるため、id だけで読めるもの（プロジェクト・アカウント設計・お知らせの設定）は並べて読む
   const [project, plan, { data: prefs }, goals] = await Promise.all([
@@ -171,7 +171,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
 
       {todayTerm && <TodayTermBand projectId={project.id} term={todayTerm} />}
 
-      <AttentionStrip projectId={project.id} failed={attention} overdue={overdue} manualDue={manualDue} overdueTodos={overdueItems(roadmap.items, roadmap.today, roadmap.daily)} />
+      <AttentionStrip projectId={project.id} open={attentionParam === "open"} failed={attention} overdue={overdue} manualDue={manualDue} overdueTodos={overdueItems(roadmap.items, roadmap.today, roadmap.daily)} />
 
       {/* スマホ（見本 D の右）: 大きな数字 1 つと 7 日の棒 */}
       <div className="sm:hidden">

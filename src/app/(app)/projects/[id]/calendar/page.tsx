@@ -95,7 +95,7 @@ export default async function CalendarPage(props: PageProps<"/projects/[id]/cale
       {/* 予約したあとの「ひとこと」（4.47。1 日 1 回まで） */}
       {done === DONE.scheduled && <LearningTip trigger="post_scheduled" />}
 
-      <StatCards stats={stats} period="この週" draftsHref={`${base}/drafts`} />
+      <StatCards stats={stats} period="この週" base={base} />
 
       <div className="grid grid-cols-[minmax(0,1fr)_300px] gap-4 max-xl:grid-cols-1">
         <div className="flex min-w-0 flex-col gap-4">
@@ -171,14 +171,23 @@ function Header({ switcher, label, milestones, nav, navLabel }: { switcher: Reac
 }
 
 // 上の数字のカード（見本 C の上の 4 つ）。いまあるもの（予約・投稿済み・下書き・送れなかった）だけ
-// period: 数えた期間（「12 月」「この週」）。draftsHref: 「下書き」のカードを押すと開く下書きの一覧
-function StatCards({ stats, period, draftsHref }: { stats: CalendarStats; period: string; draftsHref: string }) {
+// period: 数えた期間（「12 月」「この週」）。base: /projects/<id>（「下書き」は下書きの一覧へ、「直していない失敗」はその投稿か概要の要確認へ）
+function StatCards({ stats, period, base }: { stats: CalendarStats; period: string; base: string }) {
   return (
     <div className="grid grid-cols-4 gap-4 max-lg:grid-cols-2 max-sm:gap-2.5">
       <Metric label={`${period}の予約`} value={stats.scheduled} unit="件" />
       <Metric label={`${period}の投稿済み`} value={stats.posted} unit="件" />
-      <Metric label="下書き" value={stats.drafts} unit="件" href={draftsHref} />
-      <Metric label="送れなかった" value={<span className={stats.failed > 0 ? "text-danger" : ""}>{stats.failed}</span>} unit="件" />
+      <Metric label="下書き" value={stats.drafts} unit="件" href={`${base}/drafts`} />
+      {/* 送れなかった投稿は、いつのものでも直すか送り直すまで数える（週・月で区切ると、ほかの週の直していない失敗が見えなくなる）。
+          ほかのカード（この週の… / n 月の…）と範囲が違うことがわかる名前にする（2026-11-13 PMO2 の 3 回目の確かめ）。
+          押すと、1 件ならその投稿、2 件以上なら概要の「要確認」（開いた形）へ */}
+      <Metric
+        label="直していない失敗"
+        value={<span className={stats.failed > 0 ? "text-danger" : ""}>{stats.failed}</span>}
+        unit="件"
+        href={stats.failed === 1 && stats.failedPostId ? `${base}/posts/${stats.failedPostId}` : stats.failed > 1 ? `${base}?attention=open#attention` : undefined}
+        linkLabel={stats.failed === 1 ? "その投稿を見る" : "一覧を見る"}
+      />
     </div>
   );
 }
@@ -311,7 +320,7 @@ async function MonthView({ projectId, productType, base, ym, today, done }: { pr
       {/* 予約したあとの「ひとこと」（4.47。1 日 1 回まで） */}
       {done === DONE.scheduled && <LearningTip trigger="post_scheduled" />}
 
-      <StatCards stats={stats} period={`${month} 月`} draftsHref={`${base}/drafts`} />
+      <StatCards stats={stats} period={`${month} 月`} base={base} />
 
       <div className="grid grid-cols-[minmax(0,1fr)_300px] gap-4 max-xl:grid-cols-1">
         <div className="flex min-w-0 flex-col gap-4">

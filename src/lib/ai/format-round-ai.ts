@@ -59,6 +59,7 @@ export const FORMAT_ROUND_SYSTEM = `あなたは「yabumi」の中で、利用�
 - 答えは、<past> のどの回とも、案どうしでも重ならない（同じ作品・同じものを、言い方を変えて出さない）
 - 穴の言葉も、前の回と同じ組み合わせにしない
 - 穴の言葉は 1 行。型の文の前後とつながる形にする（型の文に「・」でつなぐとあれば「・」で）
+- 穴の言葉の中に、区切りの記号（・）を入れない。言葉そのものに「・」が入るときは、別の書き方にする（例: 「スペース・レンジャー」→「宇宙のおもちゃ」）。言葉の数の指示（「5 つ」など）があれば、区切ったときにちょうどその数になるようにする
 - 3 つの案は、答えの種類や年代・ジャンルを散らす
 
 # 作品やものごとの事実（この係だけの決まり。下の「書く中身の決まり」より、ここが先）
@@ -106,8 +107,15 @@ export function buildFormatRoundRequest(input: {
 
 const line = (s: string, n: number) => [...s.replace(/[\u0000-\u001f\u007f]+/g, " ").trim()].slice(0, n).join("");
 
-// 返事を確かめて、使える案だけを残す: AI の穴をすべて埋めている・答えの指示があれば答えがある・答え（なければ穴の言葉の組み合わせ）が
-// もう出した回（used。記録の全件）とも案どうしでも重ならない。1 つも残らなければ null
+// 指示に「・」と言葉の数（「5 つ」「5 個」）があれば、その数（「・」で区切ったときの言葉の数を確かめる）。なければ null
+export function expectedWordCount(instruction: string): number | null {
+  if (!instruction.includes("・")) return null;
+  const m = /(\d+)\s*(?:つ|個)/.exec(instruction.normalize("NFKC"));
+  return m ? Number(m[1]) : null;
+}
+
+// 返事を確かめて、使える案だけを残す: AI の穴をすべて埋めている・言葉の数の指示があれば「・」で区切った数が合う・答えの指示があれば答えがある・
+// 答え（なければ穴の言葉の組み合わせ）がもう出した回（used。記録の全件）とも案どうしでも重ならない。1 つも残らなければ null
 export function normalizeRoundProposals(raw: unknown, format: Pick<PostFormat, "series">, used: Set<string>): RoundProposal[] | null {
   const p = roundProposalsSchema.safeParse(raw);
   if (!p.success) return null;
@@ -125,6 +133,11 @@ export function normalizeRoundProposals(raw: unknown, format: Pick<PostFormat, "
       if (names.includes(name) && text && !(name in values)) values[name] = text;
     }
     if (names.some((n) => !(n in values))) continue;
+    // 言葉の中の「・」で数がずれた案（「スペース・レンジャー」で 6 つに見える）は捨てる
+    if (names.some((n) => {
+      const want = expectedWordCount(format.series.slots[n] ?? "");
+      return want !== null && values[n].split("・").filter((w) => w.trim()).length !== want;
+    })) continue;
     const key = needAnswer ? answerKey(answer) : answerKey(names.map((n) => values[n]).join("|"));
     if (!key || seen.has(key)) continue;
     seen.add(key);

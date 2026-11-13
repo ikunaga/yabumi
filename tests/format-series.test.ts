@@ -1,6 +1,6 @@
 // シリーズ投稿（docs/design/format-series.md）: 設定のそろえ方・答えの比べ方・貼った行の読み方・次の回の案の確かめ方・AI への指示
 import { describe, expect, it } from "vitest";
-import { FORMAT_ROUND_SYSTEM, buildFormatRoundRequest, normalizeRoundProposals } from "@/lib/ai/format-round-ai";
+import { FORMAT_ROUND_SYSTEM, buildFormatRoundRequest, expectedWordCount, normalizeRoundProposals } from "@/lib/ai/format-round-ai";
 import { CONTENT_RULES } from "@/lib/ai/content-rules";
 import { JAPANESE_STYLE_RULES } from "@/lib/ai/japanese-style";
 import { normalizePlan } from "@/lib/plan/schema";
@@ -66,6 +66,33 @@ describe("次の回の案の確かめ方", () => {
     const out = normalizeRoundProposals(raw([{ answer: "無視", slots: [{ slot: "キーワード", text: "時計台・稲妻" }], checks: [] }, { answer: "", slots: [{ slot: "キーワード", text: "時計台 稲妻" }], checks: [] }]), noAnswer, new Set());
     expect(out).toEqual([{ answer: "", values: { キーワード: "時計台・稲妻" }, checks: [] }]);
     expect(normalizeRoundProposals({ wrong: true }, noAnswer, new Set())).toBeNull();
+  });
+});
+
+describe("言葉の数と、言葉の中の「・」", () => {
+  const quiz = { series: cleanSeries({ slots: { キーワード: "答えの映画を連想できる言葉を 5 つ。・でつなぐ" }, answer: { name: "映画", instruction: "有名な映画" } }, BODY) };
+  it("指示に「・」と数があれば、その数で確かめる（全角の数字も読む）。どちらかがなければ確かめない", () => {
+    expect(expectedWordCount("連想できる言葉を 5 つ。・でつなぐ")).toBe(5);
+    expect(expectedWordCount("言葉を５個、・で区切る")).toBe(5);
+    expect(expectedWordCount("連想できる言葉を 5 つ")).toBeNull();
+    expect(expectedWordCount("・でつなぐ")).toBeNull();
+  });
+  it("言葉の中の「・」で数がずれた案（スペース・レンジャー）は捨てる（偽の返事）", () => {
+    const out = normalizeRoundProposals(
+      {
+        proposals: [
+          { answer: "トイ・ストーリー", slots: [{ slot: "キーワード", text: "カウボーイ人形・スペース・レンジャー・おもちゃ・引っ越し・アンディ" }], checks: [] },
+          { answer: "ホーム・アローン", slots: [{ slot: "キーワード", text: "クリスマス・留守番・泥棒・手作りの罠・シカゴ" }], checks: [] },
+          { answer: "タイタニック", slots: [{ slot: "キーワード", text: "豪華客船・氷山・船首" }], checks: [] },
+        ],
+      },
+      quiz,
+      new Set(),
+    );
+    expect(out?.map((p) => p.answer)).toEqual(["ホーム・アローン"]);
+  });
+  it("指示に、言葉の中に区切りの「・」を入れない決まりがある", () => {
+    expect(FORMAT_ROUND_SYSTEM).toContain("穴の言葉の中に、区切りの記号（・）を入れない");
   });
 });
 

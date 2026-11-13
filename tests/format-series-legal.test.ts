@@ -11,11 +11,12 @@ const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "u
 describe("シリーズ投稿の版", () => {
   const rev = LEGAL_VERSIONS.find((r) => r.version === VERSION)!;
 
-  it("最後に、プライバシーポリシーだけの版として足し、前もって知らせない理由があり、決まりを守っている（1 日 1 版）", () => {
-    expect(LEGAL_VERSIONS.at(-1)).toBe(rev);
-    expect(rev.docs).toEqual(["privacy"]);
+  // 同じ日にほかの ② の版（実装担当3 の feat/image-edit-base など）と出すときは 1 つの版にまとめるので、最後の版か・文書が privacy だけかは見ない
+  it("版があり、要約にシリーズの文があり、前もって知らせない理由があり、決まりを守っている（1 日 1 版）", () => {
+    expect(rev).toBeDefined();
+    expect(rev.docs).toContain("privacy");
     expect(rev.adverse).toBe(false);
-    expect(rev.summary.join("")).toContain("シリーズの記録");
+    expect(rev.summary.some((line) => line.includes("シリーズの記録"))).toBe(true);
     expect(rev.noticeFrom).toBeNull();
     expect(rev.noticeWaived).toContain("運営者だけ");
     expect(historyProblems()).toEqual([]);

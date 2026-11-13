@@ -10,6 +10,8 @@ export type WithdrawDeps = RevokeDeps & {
   uninstallGithub?: (installationId: number) => Promise<void>;
   // 短縮リンクの利用者のドメインを Vercel から外す（D28）。Vercel の設定がないときは渡さない
   linkDomains?: LinkDomainDeps;
+  // 退会する人のいまのログインのアクセストークン。渡すと、利用者を消す前に、すべての端末のログインを切る（signOut の global）
+  accessToken?: string;
 };
 
 export type WithdrawReport = {
@@ -21,7 +23,10 @@ export type WithdrawReport = {
 // 1. SNS 側の連携を、解除できるもの（X）は解除する  2. GitHub App のインストールを外す（ほかの yabumi の利用者が使っていなければ）
 // 3. 利用者を消す。auth.users からのカスケードで本人のデータがすべて消え、費用の記録（ai_usage、sns_api_usage）は紐づけが空になって残る。
 // 4. 短縮リンクの利用者のドメインを Vercel から外す（3 のカスケードで DB のトリガーが外す列に積む。外せなければ次の機会にやり直す）
-// 1・2・4 は失敗しても続ける（yabumi の側のトークンは 3 で消えるので、それ以上は使われない）
+// 1・2・4 は失敗しても続ける（yabumi の側のトークンは 3 で消えるので、それ以上は使われない）。
+// 3 の前に、すべての端末のログインを切る（signOut の global。セキュリティ確認 2026-11-13 の 2 回目の参考）。消したあとは利用者が見つからず切れないので、前にする。
+// 利用者を消すとログインの記録（auth.sessions・refresh_tokens）も消えるので、どちらでもほかの端末は取り直せなくなる。
+// 出したアクセストークン（JWT）は期限（ふつう 1 時間）まで署名だけで通る（getClaims）が、本人の行は消え、費用のかかる呼び出しは予約（reserve_*）が外部キーで断る
 export async function withdrawUser(admin: Admin, userId: string, deps: WithdrawDeps): Promise<WithdrawReport> {
   const report: WithdrawReport = { sns: [], github: [] };
 
@@ -52,6 +57,10 @@ export async function withdrawUser(admin: Admin, userId: string, deps: WithdrawD
     }
   }
 
+  if (deps.accessToken) {
+    const { error: signOutError } = await admin.auth.admin.signOut(deps.accessToken, "global");
+    if (signOutError) console.error("[withdraw] すべての端末のログインを切れませんでした（利用者を消すと切れる）", signOutError.message);
+  }
   const { error } = await admin.auth.admin.deleteUser(userId);
   if (error) throw error;
   if (deps.linkDomains) {

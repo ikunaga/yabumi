@@ -44,8 +44,11 @@ export async function withdraw(_prev: WithdrawState, formData: FormData): Promis
     };
   }
 
+  // パスワードで入れ直したいまのログイン。退会の前に、これですべての端末のログインを切る
+  const { data: sessionData } = await supabase.auth.getSession();
   try {
     const report = await withdrawUser(createAdminClient(), userId, {
+      accessToken: sessionData.session?.access_token,
       ...revokeDeps(),
       uninstallGithub: githubConfigured()
         ? async (id) => {

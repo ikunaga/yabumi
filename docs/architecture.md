@@ -2741,6 +2741,8 @@ yabumi のコンセプトは、使って SNS を運用するうちに、マー�
 | 法務 | ①（docs/legal.md の 2026-11-12。/privacy の「投稿」と「投稿のフォーマット」の行に書き足した。LEGAL_VERSIONS は足さない） |
 | 費用 | 0 円 |
 
+送ったあと（pending 以外）の配信先は、利用者の権限（REST から直接・save_post）では、文面・タイトル・タグ・引用・送り先のアカウント（authenticated に update を grant している列の全部）を変えられない（トリガー post_targets_lock_sent。マイグレーション 20261113100000。セキュリティ確認 2026-11-13 の DB-L1: 準備中の行のタグを変えると、claim_due_targets が返す本文と作ったコンテナが食い違った）。サーバー（service_role）の送信ジョブ・送った結果の記録・失敗の行のアカウントの付け替え（switch_project_sns_account）と、アカウントを消したときの外部キー（social_account_id を null）は止めない。タグの check は、ゼロ幅の文字（U+200B〜U+200F・U+202A〜U+202E・U+2060〜U+2064・U+FEFF）と 2 次元の配列も弾く（配信先・フォーマットとも。参考 I1。画面とサーバーの isValidHashtag では前から弾いている）。テスト: tests/post-targets-lock.integration.test.ts
+
 テスト: tests/post-hashtags.test.ts（組み立て・欄の読み方・フォーマットのタグ・ステップの問題・控え・リセット）、tests/post-hashtags.integration.test.ts（post_target_text と withHashtags が同じ結果、claim_due_targets が組み立てた文を返す、save_post がタグを保存し・渡さない呼び出しでは変えず・送った配信先は変えない、DB の check、他人のフォーマット・配信先は読めない）
 
 ### 4.60 通しテストの直し（2026-11-12、PMO の本番での通しテスト。PM の依頼。fix/walkthrough-2）

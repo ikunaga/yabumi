@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { FormatSeries } from "./series";
 import type { ProductType } from "@/lib/projects/product-types";
 import { SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
 import { MAX_TARGET_HASHTAGS, hashtagInputProblem, parseHashtagInput } from "@/lib/sns/hashtags";
@@ -91,8 +92,9 @@ const hashtagsInput = z
     return out;
   });
 
-export type PostFormat = { id: string; name: string; purpose: string; body: string; example: string; pillar: string; hashtags: FormatHashtags };
-export type PostFormatInput = Omit<PostFormat, "id">;
+// series: シリーズ投稿の設定（AI が埋める穴と答え。docs/design/format-series.md。src/lib/post-formats/series.ts）
+export type PostFormat = { id: string; name: string; purpose: string; body: string; example: string; pillar: string; hashtags: FormatHashtags; series: FormatSeries };
+export type PostFormatInput = Omit<PostFormat, "id" | "series"> & { series?: FormatSeries };
 
 // {穴の名前}。名前に「{」「}」と改行は入らない
 const SLOT = /\{([^{}\n]*)\}/g;
@@ -141,6 +143,8 @@ export const formatInputSchema = z.object({
   example: multiLine(MAX_FORMAT_EXAMPLE, "埋めた例").default(""),
   pillar: oneLine(MAX_FORMAT_PILLAR, "柱").default(""),
   hashtags: hashtagsInput,
+  // 形をそろえ、型の文にない穴の指示を捨てるのは保存のとき（store.ts の checkFormat で cleanSeries）
+  series: z.custom<FormatSeries>(() => true).optional(),
 });
 
 // 穴に入れた言葉（穴の名前 → 言葉）。知らない穴と空の言葉は捨て、言葉は 1 行・200 字まで

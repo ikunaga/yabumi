@@ -8,6 +8,7 @@ import { hashtagInputProblem, parseHashtagInput, splitTagsByText, withHashtags }
 import { xSendVerdict } from "@/lib/sns/x/send-verdict";
 import { xOverMessage } from "@/lib/sns/x/send-rules";
 import { markXByHand, xByHandTooLateMessage } from "./x-by-hand";
+import { attachRounds } from "@/lib/post-formats/rounds";
 import { canPublish, publisherDeps } from "@/lib/sns/adapters";
 import { publishDueTargets } from "@/lib/sns/publisher";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -208,6 +209,13 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
     if (e instanceof MediaError) return { fieldErrors: { media: e.userMessage } };
     console.error("[savePost] 画像を保存できませんでした", e);
     return { error: "画像を保存できませんでした。時間をおいてもう一度お試しください。" };
+  }
+
+  // この画面で付けたシリーズの記録を、この投稿に結びつける（以後はリセットで消さない）。失敗しても投稿の保存は済んでいるので、続ける
+  try {
+    await attachRounds(supabase, [...new Set(parsed.data.formatRoundIds)], savedId);
+  } catch (e) {
+    console.error("[savePost] シリーズの記録を結びつけられませんでした", e);
   }
 
   // 「ネタ帳から」入れたメモに「投稿にした」の印を付ける（ネタ帳の「下書きにする」と同じ）。失敗しても投稿の保存は済んでいるので、続ける

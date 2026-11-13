@@ -1298,6 +1298,54 @@ export type Database = {
           },
         ]
       }
+      post_format_rounds: {
+        Row: {
+          answer: string
+          created_at: string
+          format_id: string
+          id: string
+          owner_id: string
+          post_id: string | null
+          source: string
+          values: Json
+        }
+        Insert: {
+          answer?: string
+          created_at?: string
+          format_id: string
+          id?: string
+          owner_id?: string
+          post_id?: string | null
+          source: string
+          values?: Json
+        }
+        Update: {
+          answer?: string
+          created_at?: string
+          format_id?: string
+          id?: string
+          owner_id?: string
+          post_id?: string | null
+          source?: string
+          values?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_format_rounds_format_id_fkey"
+            columns: ["format_id"]
+            isOneToOne: false
+            referencedRelation: "post_formats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_format_rounds_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       post_formats: {
         Row: {
           body: string
@@ -1311,6 +1359,7 @@ export type Database = {
           position: number
           project_id: string
           purpose: string
+          series: Json
           updated_at: string
         }
         Insert: {
@@ -1325,6 +1374,7 @@ export type Database = {
           position?: number
           project_id: string
           purpose?: string
+          series?: Json
           updated_at?: string
         }
         Update: {
@@ -1339,6 +1389,7 @@ export type Database = {
           position?: number
           project_id?: string
           purpose?: string
+          series?: Json
           updated_at?: string
         }
         Relationships: [

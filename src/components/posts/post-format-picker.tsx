@@ -3,11 +3,35 @@
 import { useEffect, useState, useTransition } from "react";
 import { AiThinking } from "@/components/ui/ai-thinking";
 import { Button, NotReadyButton } from "@/components/ui/button";
-import { draftPostFormats } from "@/lib/ai/post-format-actions";
+import { draftFormatRound, draftPostFormats } from "@/lib/ai/post-format-actions";
+import type { RoundProposal } from "@/lib/ai/format-round-ai";
 import type { FormatProposal } from "@/lib/ai/post-format-ai";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { Input, Textarea } from "@/components/ui/field";
-import { addPostFormat, deletePostFormat, listPostFormats, updatePostFormat, type FormatsResult } from "@/lib/post-formats/actions";
+import {
+  addFormatRound,
+  addPostFormat,
+  deleteFormatRound,
+  deletePostFormat,
+  listFormatRounds,
+  listPostFormats,
+  pasteFormatRounds,
+  updatePostFormat,
+  type FormatsResult,
+} from "@/lib/post-formats/actions";
+import {
+  EMPTY_SERIES,
+  MAX_ANSWER_NAME,
+  MAX_PASTE_ROUNDS,
+  MAX_ROUND_ANSWER,
+  MAX_ROUND_WISH,
+  MAX_ROUNDS,
+  MAX_SERIES_INSTRUCTION,
+  SERIES_DAILY_RUNS,
+  isSeries,
+  type FormatRound,
+  type FormatSeries,
+} from "@/lib/post-formats/series";
 import {
   MAX_FORMAT_BODY,
   MAX_FORMAT_EXAMPLE,
@@ -51,6 +75,7 @@ export function PostFormatPicker({
   onInsert,
   onUseChange,
   initialFormatId = null,
+  onRoundAdded,
   aiEnabled,
 }: {
   projectId: string;
@@ -68,6 +93,8 @@ export function PostFormatPicker({
   onUseChange?: (use: FormatUse | null) => void;
   // 開いたときに選んでおくフォーマット（下書きから再開したとき。消したフォーマットなら「なし」）
   initialFormatId?: string | null;
+  // シリーズの記録を付けた（docs/design/format-series.md の 2。画面が、保存で投稿に結びつけ、リセットで消す）
+  onRoundAdded?: (id: string) => void;
 }) {
   const [formats, setFormats] = useState<PostFormat[] | null>(null);
   const [examples, setExamples] = useState<PostFormatInput[]>([]);
@@ -77,6 +104,10 @@ export function PostFormatPicker({
   const [values, setValues] = useState<Record<string, string>>({});
   const [how, setHow] = useState<"replace" | "append">("append");
   const [inserted, setInserted] = useState(false);
+  // シリーズ: この回の答え（本文には出ない）と、AI の案を使ったか
+  const [answer, setAnswer] = useState("");
+  const [roundSource, setRoundSource] = useState<"ai" | "hand">("hand");
+  const [roundError, setRoundError] = useState<string | null>(null);
 
   const apply = (r: FormatsResult) => {
     if (r.error) setError(r.error);
@@ -124,6 +155,9 @@ export function PostFormatPicker({
     setSelectedId(f?.id ?? null);
     setValues({});
     setInserted(false);
+    setAnswer("");
+    setRoundSource("hand");
+    setRoundError(null);
     onUseChange?.(f ? { format: f, values: {} } : null);
   }
 
@@ -179,13 +213,42 @@ export function PostFormatPicker({
               <p className="mt-1.5 rounded-md bg-surface2 px-3 py-2 text-[13px] leading-[1.7] whitespace-pre-wrap">{selected.example}</p>
             </details>
           )}
+          {isSeries(selected.series) && (
+            <SeriesNextRound
+              key={selected.id}
+              projectId={projectId}
+              formatId={selected.id}
+              series={selected.series}
+              aiEnabled={aiEnabled}
+              onPick={(p) => {
+                const next = { ...values, ...p.values };
+                setValues(next);
+                setAnswer(p.answer);
+                setRoundSource("ai");
+                setInserted(false);
+                onUseChange?.({ format: selected, values: next });
+              }}
+            />
+          )}
+          {selected.series.answer && (
+            <label className="flex min-w-0 flex-col gap-1">
+              <span className="text-xs font-bold">
+                {selected.series.answer.name}
+                <span className="ml-1.5 font-normal text-muted">答え・本文には出ません</span>
+              </span>
+              <Input value={answer} maxLength={MAX_ROUND_ANSWER} onChange={(e) => (setAnswer(e.target.value), setInserted(false))} className="py-2 text-sm" />
+            </label>
+          )}
           {slots.length > 0 && (
             // 穴の欄は横いっぱいにし、長い言葉は折り返して全部見えるようにする（前は 2 列の 1 行の欄で、「キーワード5つ」の言葉が途中で切れた。通しテスト 02）。
             // 改行は入れない（Enter では改行しない。言い換えの確定の Enter はそのまま）
             <div className="flex flex-col gap-2">
               {slots.map((s) => (
                 <label key={s} className="flex min-w-0 flex-col gap-1">
-                  <span className="text-xs font-bold">{s}</span>
+                  <span className="text-xs font-bold">
+                    {s}
+                    {s in selected.series.slots && <span className="ml-1.5 font-normal text-muted">AI が埋める穴</span>}
+                  </span>
                   <Textarea
                     rows={1}
                     value={values[s] ?? ""}
@@ -208,6 +271,14 @@ export function PostFormatPicker({
               onClick={() => {
                 onInsert(fillFormat(selected.body, values), how, selected.hashtags);
                 setInserted(true);
+                // シリーズのフォーマットなら、この回を記録する（次の回の案で重ならないように）
+                if (isSeries(selected.series)) {
+                  setRoundError(null);
+                  void addFormatRound(projectId, selected.id, { answer, values, source: roundSource }).then((r) => {
+                    if (r.error) setRoundError(`本文には入れましたが、シリーズの記録に残せませんでした。${r.error}`);
+                    else if (r.id) onRoundAdded?.(r.id);
+                  });
+                }
               }}
             >
               本文に入れる
@@ -223,6 +294,7 @@ export function PostFormatPicker({
               </span>
             )}
           </div>
+          {roundError && <p className="text-xs font-semibold text-danger">{roundError}</p>}
           {inserted && (
             <p className="text-xs font-semibold text-success">
               {/* 全部埋めたときは【】の案内を出さない（前は埋めても「【】で残っています」と出た。通しテスト 02） */}
@@ -319,6 +391,7 @@ function FormatManager({
                   </div>
                   <p className="line-clamp-2 text-xs leading-[1.7] whitespace-pre-line text-muted">{f.body}</p>
                   {hasFormatHashtags(f.hashtags) && <FormatTagsLine h={f.hashtags} className="text-xs text-muted" />}
+                  {isSeries(f.series) && <SeriesRounds projectId={projectId} format={f} />}
                 </li>
               ),
             )}
@@ -396,8 +469,10 @@ function FormatEditor({
   const [tags, setTags] = useState<Partial<Record<FormatHashtagKey, string>>>(() =>
     Object.fromEntries(FORMAT_HASHTAG_KEYS.filter((k) => initial?.hashtags?.[k]?.length).map((k) => [k, hashtagLine(initial!.hashtags[k]!)])),
   );
+  // シリーズ（AI が埋める穴と答え。docs/design/format-series.md の 1）
+  const [series, setSeries] = useState<FormatSeries>(initial?.series ?? EMPTY_SERIES);
   const [problem, setProblem] = useState<string | null>(null);
-  const set = (k: Exclude<keyof PostFormatInput, "hashtags">, x: string) => (setV((o) => ({ ...o, [k]: x })), setProblem(null));
+  const set = (k: Exclude<keyof PostFormatInput, "hashtags" | "series">, x: string) => (setV((o) => ({ ...o, [k]: x })), setProblem(null));
   const setTag = (k: FormatHashtagKey, x: string) => (setTags((o) => ({ ...o, [k]: x })), setProblem(null));
   const slots = formatSlots(v.body);
 
@@ -440,13 +515,14 @@ function FormatEditor({
         </label>
       )}
       <FormatTagsFields tags={tags} setTag={setTag} planHashtags={planHashtags} connected={connected} />
+      {slots.length > 0 && <SeriesFields slots={slots} series={series} setSeries={(x) => (setSeries(x), setProblem(null))} />}
       {problem && <p className="text-sm font-semibold text-danger">{problem}</p>}
       <div className="flex gap-2">
         <Button
           size="sm"
           disabled={pending || !v.name.trim() || !v.body.trim()}
           onClick={() => {
-            const p = formatInputSchema.safeParse({ ...v, pillar: pillars.includes(v.pillar) ? v.pillar : "", hashtags: tags });
+            const p = formatInputSchema.safeParse({ ...v, pillar: pillars.includes(v.pillar) ? v.pillar : "", hashtags: tags, series });
             if (!p.success) return setProblem(p.error.issues[0]?.message ?? "入力の形式が正しくありません。");
             onSave(p.data);
           }}
@@ -612,5 +688,258 @@ function FormatAiMaker({ projectId, kinds, onPick, onCancel }: { projectId: stri
         </div>
       )}
     </div>
+  );
+}
+
+// フォーマットの編集の「シリーズ」（docs/design/format-series.md の 1）。穴ごとに「AI が埋める」を選び、短い指示を書く。
+// 本文に出さない答え（例: 映画）も 1 つ持てる。AI の穴が 1 つでもあれば、投稿をつくるで「AI に次の回を出してもらう」が出る
+function SeriesFields({ slots, series, setSeries }: { slots: string[]; series: FormatSeries; setSeries: (s: FormatSeries) => void }) {
+  const on = Object.keys(series.slots).some((k) => slots.includes(k));
+  return (
+    <details className="text-xs" open={on || undefined}>
+      <summary className="cursor-pointer font-bold">
+        シリーズにする<span className="ml-1.5 font-normal text-muted">任意・一部の穴を AI が毎回埋める</span>
+      </summary>
+      <div className="mt-2 flex flex-col gap-2.5">
+        <p className="leading-[1.7] text-muted">AI が埋める穴を選ぶと、投稿をつくるときに、前の回と重ならない次の回の案を AI が出します（例: 連想映画クイズの映画とキーワード）。</p>
+        {slots.map((name) => {
+          const ai = name in series.slots;
+          return (
+            <div key={name} className="flex flex-col gap-1">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={ai}
+                  onChange={(e) => {
+                    const next = { ...series.slots };
+                    if (e.target.checked) next[name] = "";
+                    else delete next[name];
+                    setSeries({ ...series, slots: next });
+                  }}
+                  className="accent-[var(--primary)]"
+                />
+                <span className="font-bold">{name}</span>
+                <span className="text-muted">を AI が埋める</span>
+              </label>
+              {ai && (
+                <Input
+                  aria-label={`${name} の AI への指示`}
+                  value={series.slots[name]}
+                  maxLength={MAX_SERIES_INSTRUCTION}
+                  onChange={(e) => setSeries({ ...series, slots: { ...series.slots, [name]: e.target.value } })}
+                  placeholder="AI への指示（例: 答えの映画を連想できる言葉を 5 つ。・でつなぐ）"
+                  className="py-2 text-sm"
+                />
+              )}
+            </div>
+          );
+        })}
+        {on && (
+          <div className="flex flex-col gap-1">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={series.answer !== null}
+                onChange={(e) => setSeries({ ...series, answer: e.target.checked ? { name: "", instruction: "" } : null })}
+                className="accent-[var(--primary)]"
+              />
+              <span className="font-bold">本文に出さない答えを、AI に先に決めてもらう</span>
+            </label>
+            {series.answer && (
+              <div className="grid grid-cols-[minmax(0,10rem)_1fr] gap-2 max-sm:grid-cols-1">
+                <Input
+                  aria-label="答えの名前"
+                  value={series.answer.name}
+                  maxLength={MAX_ANSWER_NAME}
+                  onChange={(e) => setSeries({ ...series, answer: { ...series.answer!, name: e.target.value } })}
+                  placeholder="名前（例: 映画）"
+                  className="py-2 text-sm"
+                />
+                <Input
+                  aria-label="答えの AI への指示"
+                  value={series.answer.instruction}
+                  maxLength={MAX_SERIES_INSTRUCTION}
+                  onChange={(e) => setSeries({ ...series, answer: { ...series.answer!, instruction: e.target.value } })}
+                  placeholder="AI への指示（例: だれでも知っている映画を 1 つ）"
+                  className="py-2 text-sm"
+                />
+              </div>
+            )}
+            <span className="text-muted">答えは前の回と重ならないように使います。投稿には入りません。</span>
+          </div>
+        )}
+      </div>
+    </details>
+  );
+}
+
+// 投稿をつくるの「AI に次の回を出してもらう」（docs/design/format-series.md の 3）。案は 3 つ。選ぶと穴の欄と答えに入る（直せる）
+function SeriesNextRound({
+  projectId,
+  formatId,
+  series,
+  aiEnabled,
+  onPick,
+}: {
+  projectId: string;
+  formatId: string;
+  series: FormatSeries;
+  aiEnabled: boolean;
+  onPick: (p: RoundProposal) => void;
+}) {
+  const [wish, setWish] = useState("");
+  const [proposals, setProposals] = useState<RoundProposal[] | null>(null);
+  const [picked, setPicked] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const ask = () =>
+    start(async () => {
+      setError(null);
+      setPicked(null);
+      const r = await draftFormatRound(projectId, formatId, wish);
+      if (r.error || !r.proposals) setError(r.error ?? "うまくいきませんでした。");
+      else setProposals(r.proposals);
+    });
+  if (!aiEnabled) {
+    return (
+      <NotReadyButton size="sm" variant="secondary" className="self-start">
+        AI に次の回を出してもらう
+      </NotReadyButton>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-2 rounded-md bg-surface2 px-3 py-2.5">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <Button type="button" size="sm" variant="secondary" disabled={pending} onClick={ask}>
+          {pending ? "考えています…" : proposals ? "ほかの案を出してもらう" : "AI に次の回を出してもらう"}
+        </Button>
+        <span className="text-xs text-muted">前の回と重ならない案を 3 つ。1 回 5 円ほど・1 日 {SERIES_DAILY_RUNS} 回まで</span>
+      </div>
+      <Input aria-label="次の回への希望" value={wish} maxLength={MAX_ROUND_WISH} onChange={(e) => setWish(e.target.value)} placeholder="希望（任意。例: 90 年代の映画で）" className="py-2 text-sm" />
+      {pending && <AiThinking kind="brief" note="10〜20 秒ほどかかります" />}
+      {error && <ErrorBanner>{error}</ErrorBanner>}
+      {proposals && !pending && (
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-semibold text-signal">AI は作品やものごとの中身を間違えることがあります。出す前に確かめてください。</p>
+          <ul className="flex flex-col gap-2">
+            {proposals.map((p, i) => (
+              <li key={i} className={`flex flex-col gap-1.5 rounded-md border bg-surface px-3 py-2.5 ${picked === i ? "border-primary" : "border-line"}`}>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  {series.answer && (
+                    <span className="font-bold">
+                      {series.answer.name}: {p.answer}
+                      <span className="ml-1.5 text-xs font-normal text-muted">本文には出ません</span>
+                    </span>
+                  )}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={picked === i ? "primary" : "secondary"}
+                    className="ml-auto"
+                    onClick={() => {
+                      setPicked(i);
+                      onPick(p);
+                    }}
+                  >
+                    {picked === i ? "使っています" : "これを使う"}
+                  </Button>
+                </div>
+                <dl className="flex flex-col gap-0.5 text-[13px]">
+                  {Object.entries(p.values).map(([k, v]) => (
+                    <div key={k} className="flex gap-2">
+                      <dt className="shrink-0 text-muted">{k}</dt>
+                      <dd className="min-w-0 break-words">{v}</dd>
+                    </div>
+                  ))}
+                </dl>
+                {p.checks.length > 0 && (
+                  <div className="text-xs leading-[1.7] text-muted">
+                    <span className="font-bold text-fg">確かめてほしいところ</span>
+                    <ul className="list-disc pl-5">
+                      {p.checks.map((c) => (
+                        <li key={c}>{c}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// フォーマットを管理の「これまでの回」（docs/design/format-series.md の 2）。開いたときに読む。消す・これまでの回を貼る
+function SeriesRounds({ projectId, format }: { projectId: string; format: PostFormat }) {
+  const [rounds, setRounds] = useState<FormatRound[] | null>(null);
+  const [text, setText] = useState("");
+  const [note, setNote] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const run = (fn: () => ReturnType<typeof listFormatRounds>, after?: (r: Awaited<ReturnType<typeof listFormatRounds>>) => void) =>
+    start(async () => {
+      const r = await fn();
+      if (r.error) return setError(r.error);
+      setError(null);
+      if (r.rounds) setRounds(r.rounds);
+      after?.(r);
+    });
+  const label = format.series.answer?.name || "回";
+  return (
+    <details
+      className="text-xs"
+      onToggle={(e) => {
+        if ((e.currentTarget as HTMLDetailsElement).open && rounds === null) run(() => listFormatRounds(projectId, format.id));
+      }}
+    >
+      <summary className="cursor-pointer text-muted">シリーズのこれまでの回{rounds ? `（${rounds.length} / ${MAX_ROUNDS}）` : ""}</summary>
+      <div className="mt-1.5 flex flex-col gap-2">
+        {rounds === null && !error && <p className="text-faint">読み込んでいます…</p>}
+        {rounds && rounds.length === 0 && <p className="text-muted">まだありません。投稿をつくるで本文に入れると、ここに残ります。</p>}
+        {rounds && rounds.length > 0 && (
+          <ul className="flex max-h-60 flex-col divide-y divide-line overflow-y-auto rounded-md border border-line">
+            {rounds.map((r) => (
+              <li key={r.id} className="flex items-center gap-2 px-2.5 py-1.5">
+                <span className="min-w-0 flex-1 truncate">
+                  {r.answer || Object.values(r.values).join(" / ")}
+                  <span className="ml-1.5 text-faint">{r.source === "pasted" ? "貼った回" : r.postId ? "投稿した回" : "本文に入れた回"}</span>
+                </span>
+                <Button size="sm" variant="text" disabled={pending} onClick={() => run(() => deleteFormatRound(projectId, format.id, r.id))}>
+                  消す
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <label className="flex flex-col gap-1">
+          <span className="font-bold">これまでの回を貼る</span>
+          <span className="text-muted">
+            yabumi の外で出した回の{label}を、1 行に 1 つ（1 回に {MAX_PASTE_ROUNDS} 行まで）。次の回の案で重ならないように使います。
+          </span>
+          <Textarea value={text} rows={3} onChange={(e) => (setText(e.target.value), setNote(null))} placeholder={"例:\nバック・トゥ・ザ・フューチャー\nジュラシック・パーク"} className="py-2 text-sm" />
+        </label>
+        <Button
+          size="sm"
+          variant="secondary"
+          className="self-start"
+          disabled={pending || !text.trim()}
+          onClick={() =>
+            run(
+              () => pasteFormatRounds(projectId, format.id, text),
+              (r) => {
+                setText("");
+                setNote(`${r.added ?? 0} 回を足しました。${r.skipped ? `同じものなど ${r.skipped} 行は足していません。` : ""}${r.overflow ? `上限のため ${r.overflow} 行は足していません。` : ""}`);
+              },
+            )
+          }
+        >
+          足す
+        </Button>
+        {note && <p className="font-semibold text-success">{note}</p>}
+        {error && <p className="font-semibold text-danger">{error}</p>}
+      </div>
+    </details>
   );
 }

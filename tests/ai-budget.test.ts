@@ -2,6 +2,7 @@
 // ソースを読んで、呼び忘れ・ai_usage への直接の書き込み・テスト用の切り替えの使い忘れがないことを確かめる
 import { voiceMemoSchema } from "@/lib/ai/voice-memo";
 import { postFormatProposalsSchema } from "@/lib/ai/post-format-ai";
+import { roundProposalsSchema } from "@/lib/ai/format-round-ai";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -85,6 +86,7 @@ const PURPOSE_CALLS: Record<string, AiCall[]> = {
   tidy_draft: ["tidy_draft", "shorten"],
   voice_memo: ["voice_memo"],
   post_format: ["post_format"],
+  post_format_round: ["post_format_round"],
 };
 const SCHEMAS: Record<AiCall, z.ZodType> = {
   plan_coach: coachTurnSchema,
@@ -99,6 +101,7 @@ const SCHEMAS: Record<AiCall, z.ZodType> = {
   tidy_draft: tidyDraftSchema,
   voice_memo: voiceMemoSchema,
   post_format: postFormatProposalsSchema,
+  post_format_round: roundProposalsSchema,
 };
 
 // いちばん新しいマイグレーションの reserve_ai_usage の、用途ごとの下限の表
@@ -216,7 +219,7 @@ describe("count_tokens で数えた見込み", () => {
 
   it("anthropic.ts の呼び出しには、どれも数える関数が付いている", () => {
     const exported = Object.entries(calls).filter(([k, v]) => /^call[A-Z]/.test(k) && typeof v === "function");
-    expect(exported.length).toBe(12);
+    expect(exported.length).toBe(13);
     for (const [k, v] of exported) expect(tokenCounterOf(v as never), k).toBeTypeOf("function");
   });
 });

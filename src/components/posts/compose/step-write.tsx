@@ -13,7 +13,7 @@ import { isSideBySide, type Composer } from "./use-composer";
 
 // ① 書く: 本文・AI で整える・書いたのは誰（docs/design/compose-steps.md）。見出し・リセット・保存のエラー・書きかけの帯は、どのステップでも見えるよう上の帯（compose-top.tsx）に置く
 export function ComposeStepWrite({ c, steps = false }: { c: Composer; steps?: boolean }) {
-  const { connected, goStep, formatUse, bodyUnused, setFormatUse, applyFormatTags, planHints, projectId, initial, aiCheckEnabled, selfWrittenPosts, hasVoiceMemo, body, setBody, bodyRef, overrides, setOverrides, setFocus, setTidyAdopted, textOrigin, setTextOrigin, noteIds, markTyped, resetRound, checks, sentAny, chosen, focus, toSend, clearFieldError, showBody, editOverride, fe, focusLabel, splitSns, bodySns, countText } = c;
+  const { connected, addRoundId, goStep, formatUse, bodyUnused, setFormatUse, applyFormatTags, planHints, projectId, initial, aiCheckEnabled, selfWrittenPosts, hasVoiceMemo, body, setBody, bodyRef, overrides, setOverrides, setFocus, setTidyAdopted, textOrigin, setTextOrigin, noteIds, markTyped, resetRound, checks, sentAny, chosen, focus, toSend, clearFieldError, showBody, editOverride, fe, focusLabel, splitSns, bodySns, countText } = c;
   return (
     <>
       {/* 投稿のフォーマット（docs/design/post-formats.md の 4）。穴を埋めて本文に入れる。穴の言葉は利用者が打ったものなので、書きかけの控えに乗せる */}
@@ -35,6 +35,7 @@ export function ComposeStepWrite({ c, steps = false }: { c: Composer; steps?: bo
           }}
           onUseChange={setFormatUse}
           initialFormatId={initial.formatId ?? null}
+          onRoundAdded={addRoundId}
         />
       )}
 

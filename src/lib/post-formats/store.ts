@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
+import { cleanSeries, type FormatSeries } from "./series";
 import { MAX_POST_FORMATS, MAX_POST_FORMATS_PER_USER, formatInputSchema, readFormatHashtags, type PostFormat, type PostFormatInput } from "./schema";
 
 // 投稿のフォーマットの読み書き（利用者の権限のクライアントで。RLS で本人のものだけ。20261110120000_post_formats）
@@ -15,15 +16,16 @@ export class FormatError extends Error {
 
 const FAILED = "保存できませんでした。時間をおいてもう一度お試しください。";
 const NOT_FOUND = "フォーマットが見つかりません。画面を読み込み直してください。";
-const COLUMNS = "id, name, purpose, body, example, pillar, hashtags";
+const COLUMNS = "id, name, purpose, body, example, pillar, hashtags, series";
 
-type Row = Omit<PostFormat, "hashtags"> & { hashtags: unknown };
-const toFormat = (r: Row): PostFormat => ({ ...r, hashtags: readFormatHashtags(r.hashtags) });
+type Row = Omit<PostFormat, "hashtags" | "series"> & { hashtags: unknown; series: unknown };
+const toFormat = (r: Row): PostFormat => ({ ...r, hashtags: readFormatHashtags(r.hashtags), series: cleanSeries(r.series) });
 
-export function checkFormat(input: unknown): PostFormatInput {
+// series は保存する形（型の文にない穴の指示を捨てる）にそろえて必ず入れる（渡さなければ空。シリーズでなくなる）
+export function checkFormat(input: unknown): Omit<PostFormatInput, "series"> & { series: FormatSeries } {
   const p = formatInputSchema.safeParse(input);
   if (!p.success) throw new FormatError(p.error.issues[0]?.message ?? "入力の形式が正しくありません。");
-  return p.data;
+  return { ...p.data, series: cleanSeries(p.data.series, p.data.body) };
 }
 
 export async function listFormats(db: Db, projectId: string): Promise<PostFormat[]> {

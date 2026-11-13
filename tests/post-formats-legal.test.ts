@@ -10,8 +10,7 @@ const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "u
 describe("投稿のフォーマットを預かる版", () => {
   const rev = LEGAL_VERSIONS.find((r) => r.version === VERSION)!;
 
-  it("最後に、プライバシーポリシーだけの版として足し、前もって知らせない理由があり、決まりを守っている（1 日 1 版）", () => {
-    expect(LEGAL_VERSIONS.at(-1)).toBe(rev);
+  it("プライバシーポリシーだけの版として足し、前もって知らせない理由があり、決まりを守っている（1 日 1 版）", () => {
     expect(rev.docs).toEqual(["privacy"]);
     expect(rev.adverse).toBe(false);
     expect(rev.summary.join("")).toContain("投稿のフォーマット");
@@ -32,11 +31,12 @@ describe("投稿のフォーマットを預かる版", () => {
 
   it("本文に、預かる・使い道・Anthropic に送る・保存期間の文がある。上限は DB とアプリと同じ", () => {
     const privacy = read("src/app/privacy/page.tsx");
-    expect(privacy).toContain("利用者が登録した、くり返し出す投稿の型（名前・いつ使うか・型の文・穴を埋めた例・つなげた投稿の柱の名前・毎回付けるハッシュタグ（全 SNS 共通と SNS ごと）。プロジェクトに 20 個、1 人 100 個まで）");
+    expect(privacy).toContain("利用者が登録した、くり返し出す投稿の型（名前・いつ使うか・型の文・穴を埋めた例・つなげた投稿の柱の名前・毎回付けるハッシュタグ（全 SNS 共通と SNS ごと）・シリーズの設定（AI が埋める穴と、本文に出さない答えの名前、それぞれの AI への指示）。プロジェクトに 20 個、1 人 100 個まで）");
     expect(privacy).toContain("投稿のフォーマットの案を作ること");
     expect(privacy).toContain("選んだ投稿のフォーマットと穴に入れた言葉（案は保存しません）");
     expect(privacy).toContain("投稿のフォーマットを AI とつくるときは、プロジェクトとアカウント設計（書き方は送りません）");
-    expect(privacy).toContain('["投稿のフォーマット", "利用者が消すか、プロジェクトを消すか、退会まで"]');
+    // 保存期間の行は、シリーズ投稿の版（2026-11-14 の予定）でシリーズの記録を含む形に直した（tests/format-series-legal.test.ts）
+    expect(privacy).toContain('["投稿のフォーマット（シリーズの記録を含む）", "利用者が消すか、フォーマットかプロジェクトを消すか、退会まで');
     const sql = read("supabase/migrations/20261110120000_post_formats.sql");
     expect(sql).toContain(">= 20 then");
     expect(sql).toContain(">= 100 then");

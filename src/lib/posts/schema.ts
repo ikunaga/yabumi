@@ -45,6 +45,8 @@ export const savePostInputSchema = z.object({
   xByHand: z.boolean().default(false),
   // 選んでいた投稿のフォーマット（下書きから再開したときに戻す。PMO2 の s8）。null は「なし」、省くと変えない（ネタ・相談から下書きをつくるときなど）
   formatId: z.uuid().nullable().optional(),
+  // この画面で付けたシリーズの記録（docs/design/format-series.md の 2）。保存したら、この投稿に結びつける（まだ結びついていないものだけ）
+  formatRoundIds: z.array(z.uuid()).max(20).default([]),
 });
 
 export type SavePostInput = z.input<typeof savePostInputSchema>;

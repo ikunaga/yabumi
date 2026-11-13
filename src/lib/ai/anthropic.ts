@@ -15,6 +15,7 @@ import { shortenSchema, type CallShorten } from "./shorten";
 import { tidyDraftSchema, type CallTidy } from "./tidy-draft";
 import { voiceMemoSchema, type CallVoiceMemo } from "./voice-memo";
 import { postFormatProposalsSchema, type CallPostFormat } from "./post-format-ai";
+import { roundProposalsSchema, type CallFormatRound } from "./format-round-ai";
 import { PLAN_COACH_MODEL, type CallModel } from "./plan-coach";
 import { AI_MAX_TOKENS, countable, type CountTokens } from "./budget";
 import { AiRequestRejected, AiUnavailableError, isRejectedStatus, isUnavailableResponse } from "./provider-failure";
@@ -180,3 +181,5 @@ export const callTidyDraft: CallTidy = structuredCaller(tidyDraftSchema, AI_MAX_
 export const callVoiceMemo: CallVoiceMemo = structuredCaller(voiceMemoSchema, AI_MAX_TOKENS.voice_memo, "low");
 // 投稿のフォーマットの案（docs/design/post-formats.md の 3）。組み立ての違う型を 3 つ考え、作り話をさせない穴にする判断が要るので effort は medium
 export const callPostFormat: CallPostFormat = structuredCaller(postFormatProposalsSchema, AI_MAX_TOKENS.post_format, "medium");
+// シリーズの次の回の案（docs/design/format-series.md の 3）。作品の要素を選ぶので effort は medium
+export const callFormatRound: CallFormatRound = structuredCaller(roundProposalsSchema, AI_MAX_TOKENS.post_format_round, "medium");

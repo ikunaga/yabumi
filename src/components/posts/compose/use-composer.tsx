@@ -38,6 +38,7 @@ import { composeChanges, type ComposeSnapshot } from "@/lib/posts/compose-reset"
 import { hashtagInputProblem, hashtagLine, parseHashtagInput, splitTagsByText, withHashtags } from "@/lib/sns/hashtags";
 import { formatTagsFor, hasFormatHashtags, type FormatHashtags } from "@/lib/post-formats/schema";
 import { checkXSend } from "@/lib/posts/x-send-actions";
+import { discardFormatRounds } from "@/lib/post-formats/actions";
 import { hasXUrl } from "@/lib/sns/x-text";
 import { xOverMessage } from "@/lib/sns/x/send-rules";
 import type { XSendVerdict } from "@/lib/sns/x/send-verdict";
@@ -159,6 +160,9 @@ export function useComposer({
     setFormatUse(use);
     setFormatId(use?.format.id ?? null);
   };
+  // この画面で付けたシリーズの記録（docs/design/format-series.md の 2）。保存したら投稿に結びつけ、リセットしたら消す
+  const [roundIds, setRoundIds] = useState<string[]>([]);
+  const addRoundId = (id: string) => setRoundIds((ids) => (ids.includes(id) ? ids : [...ids, id]));
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const overrideRef = useRef<HTMLTextAreaElement>(null);
   const [selected, setSelected] = useState<Set<SnsKey>>(() => new Set(initial.targets.map((t) => t.sns)));
@@ -362,6 +366,9 @@ export function useComposer({
     setTidyAdopted(false);
     setFormatUse(null);
     setFormatId(initial.formatId ?? null);
+    // 本文から外したので、この画面で付けた、まだ投稿に結びついていない記録は消す（残すと、使っていない回が次の回の案から外れる）
+    if (roundIds.length) void discardFormatRounds(projectId, roundIds);
+    setRoundIds([]);
     setTextOrigin(initial.textOrigin ?? "self");
     setIgLinked(false);
     setResult({});
@@ -609,6 +616,7 @@ export function useComposer({
         textOrigin,
         xByHand: xByHand && toSend.includes("x"),
         formatId,
+        formatRoundIds: roundIds,
         targets: chosen.map((sns) => ({
           sns,
           bodyOverride: overrides[sns] ?? null,
@@ -801,6 +809,7 @@ export function useComposer({
     setBody,
     formatUse,
     setFormatUse: changeFormatUse,
+    addRoundId,
     bodyRef,
     overrideRef,
     selected,

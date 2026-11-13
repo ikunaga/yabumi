@@ -12,13 +12,13 @@ import type { WeekPace } from "@/lib/coach/pace";
 import { WeekSlotsCard } from "./week-slots-card";
 
 // カレンダーの右の列（見本 C の右）。今週の投稿のあと何本・SNS ごとの本数・次の予約（数字の段 4。時間帯の傾向は左の列のマス目の下。DL・相関は出さない）
-export function CalendarSide({ stats, month, upcoming, base, week }: { stats: CalendarStats; month: number; upcoming: PostRow[]; base: string; week: WeekPace | null }) {
+export function CalendarSide({ stats, period, upcoming, base, week }: { stats: CalendarStats; period: string; upcoming: PostRow[]; base: string; week: WeekPace | null }) {
   const max = Math.max(0, ...stats.bySns.map((s) => s.count));
   return (
     <div className="flex min-w-0 flex-col gap-4">
       <WeekSlotsCard week={week} base={base} />
       <Card>
-        <CardHeader title="SNS ごと" action={`${month} 月の予約と投稿済み`} />
+        <CardHeader title="SNS ごと" action={`${period}の予約と投稿済み`} />
         {stats.bySns.length ? (
           <div className="flex flex-col gap-3 px-6 pt-2 pb-5 [&>div]:grid-cols-[5.5rem_1fr_2.5rem] [&>div]:text-[15px]">
             {stats.bySns.map((s) => (

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { ErrorBanner, SuccessBanner } from "@/components/ui/feedback";
 import { ComposeStart } from "./compose-start";
 import { NotePicker } from "./note-picker";
@@ -11,7 +12,8 @@ import { ComposeStepImages } from "./compose/step-images";
 import { ComposeShortLinks } from "./compose/short-links";
 import { ComposeStepSend } from "./compose/step-send";
 import { ComposeAiCheck, ComposePlanHints } from "./compose/helpers";
-import { ComposeAlerts, ComposeResetControl } from "./compose/compose-top";
+import { ComposeAlerts, ComposeDraftBar, ComposeResetControl } from "./compose/compose-top";
+import { composeHeading } from "@/lib/posts/send-mode";
 import { ComposeStepNav } from "./compose/step-nav";
 import { ComposeStepBar } from "./compose/step-bar";
 import { ComposeSummary } from "./compose/summary";
@@ -85,13 +87,18 @@ export function PostComposer(props: ComposerProps) {
         {busy === "now" ? "送っています。数秒から数十秒かかります。このまま待ってください。" : busy === "schedule" ? "予約しています。" : busy === "draft" ? "保存しています。" : ""}
       </p>
       {/* 保存・送信を押したら、画面に移るか失敗が返るまで、本文の編集・送り先の変更などを止める（押せない・打てない） */}
-      <div className="relative flex flex-col gap-4" inert={busy !== null || undefined} aria-busy={busy !== null || undefined}>
+      <div className="flex flex-col gap-4" inert={busy !== null || undefined} aria-busy={busy !== null || undefined}>
       {/* 見出し。下書きに保存する・リセットは、どのステップでも押せるようここに置く */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <h1 className="text-[26px] font-bold max-sm:text-[22px]">{postId ? (sentAny ? "送った投稿" : "下書き") : "投稿をつくる"}</h1>
+        <h1 className="text-[26px] font-bold max-sm:text-[22px]">{composeHeading({ postId, sentAny, mode, savedStatus: props.savedStatus ?? null })}</h1>
         {!steps && start}
         {/* 送った投稿の「送った SNS には送り直さない」は、読むだけの画面の「ほかの SNS にも送る」の横に出す（2026-11-10 PM の指摘） */}
-        {postId && !sentAny && <span className="text-[15px] text-faint">保存済み</span>}
+        {postId && !sentAny && props.savedStatus !== "scheduled" && <span className="text-[15px] text-faint">保存済み</span>}
+        {!postId && (props.draftsCount ?? 0) > 0 && (
+          <Link href={`/projects/${projectId}/drafts`} className="text-[15px] font-bold text-fg underline">
+            下書きから続ける（<span className="num">{props.draftsCount}</span> 件）
+          </Link>
+        )}
         {steps && (
           <span className="ml-auto flex items-center gap-3">
             <ComposeResetControl c={c} />
@@ -111,7 +118,8 @@ export function PostComposer(props: ComposerProps) {
       <ComposeAlerts c={c} />
 
       {steps ? (
-        <div ref={stepsTopRef} className="flex flex-col gap-4">
+        <div ref={stepsTopRef} className="relative flex flex-col gap-4">
+          <ComposeDraftBar c={c} />
           <StepsLayout c={c} wide={wide} start={start} notePicker={notePicker} headingRef={headingRef} />
         </div>
       ) : (

@@ -178,7 +178,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
         <MobileHero name={chartName} win={win7} arrived={arrived} hero={numbers.hero7} today={numbers.today} source={numbers.chart?.rows ?? null} empty={emptyChart} />
       </div>
 
-      <OverviewCards cards={numbers.cards} mobileHidden={numbers.chart?.kind} />
+      <OverviewCards cards={numbers.cards} mobileHidden={numbers.chart?.kind} draftsHref={`${base}/drafts`} />
 
       {/* 2 列（xl から。左に日ごとの棒、右に SNS ごとのクリックと次の予約）。docs/design/new_design/README.md の「中身の幅と 2 列」 */}
       <Columns

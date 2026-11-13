@@ -36,3 +36,10 @@ export function sentStateOf(r: { status: SentStatus; errorMessage: string | null
   if (r.status === "pending") return r.errorMessage ? RETRY_STATE : null;
   return TARGET_STATE[r.status] ?? null;
 }
+
+// 見出し: 新しい投稿・下書き・予約した投稿・一部送った投稿・送った投稿（前は予約した投稿も「下書き・保存済み」だった。2026-11-13 PMO2 の確かめ）
+export function composeHeading(a: { postId: string | null; sentAny: boolean; mode: SendMode; savedStatus: "draft" | "scheduled" | null }): string {
+  if (!a.postId) return "投稿をつくる";
+  if (a.sentAny) return a.mode === "partial" ? "一部送った投稿" : "送った投稿";
+  return a.savedStatus === "scheduled" ? "予約した投稿" : "下書き";
+}

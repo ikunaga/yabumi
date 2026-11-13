@@ -41,32 +41,12 @@ export function ComposeResetControl({ c }: { c: Composer }) {
   );
 }
 
-// 保存のエラーと、書きかけの帯。
-// 書きかけの帯は、画面が動き出したとき（この端末の控えを読んだとき）に出るので、本文の欄より上に差し込むと欄が下にずれ、
-// 押した所が別のものに変わって打った文字が入らなかった（2026-11-12 PMO の本番での通しテスト）。
-// 欄を動かさず、どの欄にも重ならないよう、投稿をつくるのいちばん上（見出し・「下書きに保存する」・ステップの並びの上）に重ねて出す。
-// 画面に留めず、ページと一緒に動く（前は画面の下に留めていて、背の低い PC（1512×767）で項目の説明の分だけ欄が下がると、本文の欄の下の端に重なった）。
-// 戻すか捨てるかを選ぶと消え、下の見出しとボタンが見える
+// 保存のエラーと、書きかけの画像が戻せなかったときの知らせ（書きかけの帯は ComposeDraftBar）
 export function ComposeAlerts({ c }: { c: Composer }) {
-  const { result, restorable, restoreDraft, discardDraft, restoreMissing, setRestoreMissing } = c;
-  // 控えに画像があれば、帯に枚数を出す。添えていない画像は 1 日で片付けるので、古い控えでは戻せないことがあると先に添える（4.62）
-  const draftImages = restorable?.value.images?.length ?? 0;
-  const old = restorable ? draftImagesMayBeGone(restorable.at) : false;
+  const { result, restoreMissing, setRestoreMissing } = c;
   return (
     <>
       {result.error && <ErrorBanner>{result.error}</ErrorBanner>}
-      {restorable && (
-        <div className="absolute inset-x-0 top-0 z-20 rounded-md shadow-pop">
-          <DraftRestoreBar
-            compact
-            at={restorable.at}
-            what={draftImages ? `本文と画像 ${draftImages} 枚の書きかけ` : "本文の書きかけ"}
-            note={draftImages && old ? "画像は戻せないことがあります。" : undefined}
-            onRestore={restoreDraft}
-            onDiscard={discardDraft}
-          />
-        </div>
-      )}
       {restoreMissing > 0 && (
         <p role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-line bg-surface2 px-3.5 py-2 text-[13px] leading-[1.7]">
           <span>
@@ -82,3 +62,27 @@ export function ComposeAlerts({ c }: { c: Composer }) {
   );
 }
 
+// 書きかけの帯。画面が動き出したとき（この端末の控えを読んだとき）に出るので、本文の欄より上に差し込むと欄が下にずれ、
+// 押した所が別のものに変わって打った文字が入らなかった（2026-11-12 PMO の本番での通しテスト）。欄を動かさず、どの欄にも重ならないよう、
+// ステップの並び（1 書く〜5 送る）の行に重ねて出す（呼ぶ側が relative の枠のいちばん上に置く。ページと一緒に動く）。
+// 見出し・「リセット」・「下書きに保存する」は覆わない（前は見出しの行に重ね、閉じるまで「下書きに保存する」が押せなかった。2026-11-13 PMO2 の確かめ）。
+// PC は 1 行の細い形でステップの並びの行に収まり、スマホは 2〜3 行でステップの枠の上の端（見出し）まで重なる。戻すか捨てるかを選ぶと消える
+export function ComposeDraftBar({ c }: { c: Composer }) {
+  const { restorable, restoreDraft, discardDraft } = c;
+  if (!restorable) return null;
+  // 控えに画像があれば、帯に枚数を出す。添えていない画像は 1 日で片付けるので、古い控えでは戻せないことがあると先に添える（4.62）
+  const draftImages = restorable.value.images?.length ?? 0;
+  const old = draftImagesMayBeGone(restorable.at);
+  return (
+    <div className="absolute inset-x-0 top-0 z-20 rounded-md shadow-pop">
+      <DraftRestoreBar
+        compact
+        at={restorable.at}
+        what={draftImages ? `本文と画像 ${draftImages} 枚の書きかけ` : "本文の書きかけ"}
+        note={draftImages && old ? "画像は戻せないことがあります。" : undefined}
+        onRestore={restoreDraft}
+        onDiscard={discardDraft}
+      />
+    </div>
+  );
+}

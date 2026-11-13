@@ -64,6 +64,10 @@ export type ComposerProps = {
   projectId: string;
   projectName: string;
   postId: string | null;
+  // 保存した投稿の状態（見出しを「下書き」「予約した投稿」に分ける。新しい投稿は null）
+  savedStatus?: "draft" | "scheduled" | null;
+  // 新しい投稿のとき、保存した下書きの数（見出しの横に「下書きから続ける（n 件）」を出す）
+  draftsCount?: number;
   initial: ComposerInitial;
   // つないでいて、送信もできる SNS
   connected: SnsKey[];

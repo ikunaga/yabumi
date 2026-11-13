@@ -15,7 +15,7 @@ import { TimeTrendsCard } from "@/components/calendar/time-trends-card";
 import { WeekGrid } from "@/components/calendar/week-grid";
 import { chipClass } from "@/components/ui/chip";
 import { Metric } from "@/components/ui/metric";
-import { loadCalendarStats, type CalendarStats } from "@/lib/calendar/stats";
+import { loadCalendarStats, loadCalendarStatsBetween, type CalendarStats } from "@/lib/calendar/stats";
 import { loadCoachView } from "@/lib/coach/load";
 import { loadTimeTrends } from "@/lib/metrics/time-trends";
 import { createClient } from "@/lib/supabase/server";
@@ -59,13 +59,13 @@ export default async function CalendarPage(props: PageProps<"/projects/[id]/cale
 
   const days = weekOf(isYmd(searchParams.week) ? searchParams.week : today);
   const isThisWeek = days.includes(today);
-  // 数字と右の列は、今週なら今月、ほかの週はその週の木曜の月（週の多くの日がある月）
-  const ym = ymOf(isThisWeek ? today : days[3]);
+  // 数字と右の列の「SNS ごと」は、表示している週で数える（下書きと送れなかったは、いつのものでも）。
+  // 前は今週なら今月、ほかの週は木曜の月で数え、週の中の予約が数に入らないことがあった（2026-11-13 PMO2 の確かめ）
   const [posts, undated, { bands, milestones }, stats, upcoming, side] = await Promise.all([
     listPostsBetween(project.id, startOfYmd(days[0]).toISOString(), startOfYmd(addDays(days[6], 1)).toISOString()),
     listUndatedDrafts(project.id),
     loadCalendarRoadmap(project.id, [days[0]], today, project.product_type),
-    loadCalendarStats(project.id, ym),
+    loadCalendarStatsBetween(project.id, days[0], addDays(days[6], 1)),
     listUpcoming(project.id),
     loadSide(project.id),
   ]);
@@ -74,7 +74,8 @@ export default async function CalendarPage(props: PageProps<"/projects/[id]/cale
   const byDay = new Map<string, PostRow[]>(days.map((d) => [d, []]));
   for (const p of posts) byDay.get(toYmd(new Date(p.planned_at!)))?.push(p);
 
-  const monthHref = `${base}/calendar?view=month&month=${ym}`;
+  // 「月」に切り替えたときの月: 今週なら今月、ほかの週はその週の木曜の月（週の多くの日がある月）
+  const monthHref = `${base}/calendar?view=month&month=${ymOf(isThisWeek ? today : days[3])}`;
 
   return (
     <div className="flex flex-col gap-4">
@@ -94,7 +95,7 @@ export default async function CalendarPage(props: PageProps<"/projects/[id]/cale
       {/* 予約したあとの「ひとこと」（4.47。1 日 1 回まで） */}
       {done === DONE.scheduled && <LearningTip trigger="post_scheduled" />}
 
-      <StatCards stats={stats} month={Number(ym.slice(5, 7))} />
+      <StatCards stats={stats} period="この週" draftsHref={`${base}/drafts`} />
 
       <div className="grid grid-cols-[minmax(0,1fr)_300px] gap-4 max-xl:grid-cols-1">
         <div className="flex min-w-0 flex-col gap-4">
@@ -136,7 +137,7 @@ export default async function CalendarPage(props: PageProps<"/projects/[id]/cale
           <TimeTrendsCard trends={side.trends} />
           <UndatedDrafts posts={undated} base={base} />
         </div>
-        <CalendarSide stats={stats} month={Number(ym.slice(5, 7))} upcoming={upcoming} base={base} week={side.week} />
+        <CalendarSide stats={stats} period="この週" upcoming={upcoming} base={base} week={side.week} />
       </div>
 
       <MobileComposeButton base={base} />
@@ -170,12 +171,13 @@ function Header({ switcher, label, milestones, nav, navLabel }: { switcher: Reac
 }
 
 // 上の数字のカード（見本 C の上の 4 つ）。いまあるもの（予約・投稿済み・下書き・送れなかった）だけ
-function StatCards({ stats, month }: { stats: CalendarStats; month: number }) {
+// period: 数えた期間（「12 月」「この週」）。draftsHref: 「下書き」のカードを押すと開く下書きの一覧
+function StatCards({ stats, period, draftsHref }: { stats: CalendarStats; period: string; draftsHref: string }) {
   return (
     <div className="grid grid-cols-4 gap-4 max-lg:grid-cols-2 max-sm:gap-2.5">
-      <Metric label={`${month} 月の予約`} value={stats.scheduled} unit="件" />
-      <Metric label={`${month} 月の投稿済み`} value={stats.posted} unit="件" />
-      <Metric label="下書き" value={stats.drafts} unit="件" />
+      <Metric label={`${period}の予約`} value={stats.scheduled} unit="件" />
+      <Metric label={`${period}の投稿済み`} value={stats.posted} unit="件" />
+      <Metric label="下書き" value={stats.drafts} unit="件" href={draftsHref} />
       <Metric label="送れなかった" value={<span className={stats.failed > 0 ? "text-danger" : ""}>{stats.failed}</span>} unit="件" />
     </div>
   );
@@ -309,7 +311,7 @@ async function MonthView({ projectId, productType, base, ym, today, done }: { pr
       {/* 予約したあとの「ひとこと」（4.47。1 日 1 回まで） */}
       {done === DONE.scheduled && <LearningTip trigger="post_scheduled" />}
 
-      <StatCards stats={stats} month={month} />
+      <StatCards stats={stats} period={`${month} 月`} draftsHref={`${base}/drafts`} />
 
       <div className="grid grid-cols-[minmax(0,1fr)_300px] gap-4 max-xl:grid-cols-1">
         <div className="flex min-w-0 flex-col gap-4">
@@ -322,7 +324,7 @@ async function MonthView({ projectId, productType, base, ym, today, done }: { pr
           <TimeTrendsCard trends={side.trends} />
           <UndatedDrafts posts={undated} base={base} />
         </div>
-        <CalendarSide stats={stats} month={month} upcoming={upcoming} base={base} week={side.week} />
+        <CalendarSide stats={stats} period={`${month} 月`} upcoming={upcoming} base={base} week={side.week} />
       </div>
 
       <MobileComposeButton base={base} />

@@ -1,6 +1,7 @@
 import "server-only";
 import type { KpiKey } from "@/lib/metrics/kpis";
 import { loadMetricsOverview, loadStoreTotals, type ClicksBySns, type MetricsOverview, type WeekValue } from "@/lib/metrics/queries";
+import { countUnsentDrafts } from "@/lib/posts/drafts";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, toYmd } from "@/lib/time";
 import { sumPlayUtm, utmEnd } from "@/lib/metrics/play-utm";
@@ -38,12 +39,11 @@ export async function loadOverviewNumbers(projectId: string, kpis: KpiKey[], pro
     loadDailyNumbers(supabase, projectId, today, OVERVIEW_DAYS * 2),
     supabase.from("short_links").select("id", { count: "exact", head: true }).eq("project_id", projectId),
     supabase.from("posts").select("id", { count: "exact", head: true }).eq("project_id", projectId).eq("status", "scheduled").gte("planned_at", new Date().toISOString()),
-    // 下書き: 予約していない投稿のうち、どこにも送っていないもの（今すぐ送った投稿は下書きの状態のまま送られる）
-    supabase.from("posts").select("id, post_targets(status)").eq("project_id", projectId).eq("status", "draft"),
+    // 下書き: 予約していない投稿のうち、どこにも送っていないもの（今すぐ送った投稿は下書きの状態のまま送られる。src/lib/posts/drafts.ts）
+    countUnsentDrafts(supabase, projectId),
   ]);
   if (links.error) throw links.error;
   if (scheduled.error) throw scheduled.error;
-  if (drafts.error) throw drafts.error;
 
   // ダウンロードは、宣伝するものがアプリで、ストアから取り込んだことがあるときだけ（分析の画面と同じ判定）。
   // 種類をアプリから変えたプロジェクトは、取り込んだ記録を残したまま出さない（決定 D34。アプリに戻せばまた出る）
@@ -56,7 +56,7 @@ export async function loadOverviewNumbers(projectId: string, kpis: KpiKey[], pro
   const playConnected = isApp && (daily.stores.includes("google_play") || daily.playUtm.length > 0);
   const clicks: Daily[] | null = hasLinks ? daily.clicks : null;
   const published = daily.published;
-  const draftCount = (drafts.data ?? []).filter((p) => p.post_targets.every((t) => t.status === "pending")).length;
+  const draftCount = drafts;
 
   const cards = pickOverviewCards({
     today,

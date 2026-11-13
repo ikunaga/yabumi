@@ -1,7 +1,7 @@
 // カレンダーの上の数字・右の列（src/lib/calendar/stats.ts）と、投稿をつくる画面の下の数字の帯（src/lib/posts/numbers.ts）:
 // 月の境目（日本時間）、予約・投稿済み・下書き・送れなかったの数え方、前回送った投稿の選び方と数字の足し方、他人の投稿を数えないこと
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { loadCalendarStats } from "@/lib/calendar/stats";
+import { loadCalendarStats, loadCalendarStatsBetween } from "@/lib/calendar/stats";
 import { loadPostNumbers } from "@/lib/posts/numbers";
 import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
 
@@ -106,6 +106,21 @@ describe("カレンダーの数字", () => {
     expect(aug.posted).toBe(0);
     // 8 月に予定して 9 月に送った投稿は、8 月の SNS ごとに数える
     expect(aug.bySns).toEqual([{ sns: "threads", count: 1 }]);
+  });
+
+  // 2026-11-13 PMO2 の確かめ: 月をまたぐ週（11/30〜12/6）で、週の中の予約が「12 月の予約 0 件」になった。週の表示は、その週で数える
+  it("週の表示は、表示している週（月をまたいでも）で数える。境目は日本時間", async () => {
+    const week = await loadCalendarStatsBetween(aliceProject, "2026-09-28", "2026-10-05", alice);
+    // 9/30 23:30 の X と 10/1 0:30 の Instagram（日本時間）。9/1 の予約・9/10 に送った投稿は入れない
+    expect(week.scheduled).toBe(2);
+    expect(week.posted).toBe(0);
+    // 同じ数なら SNS の並び順
+    expect(week.bySns).toEqual([
+      { sns: "x", count: 1 },
+      { sns: "instagram", count: 1 },
+    ]);
+    // 下書きと送れなかったは、いつのものでも
+    expect([week.drafts, week.failed]).toEqual([2, 1]);
   });
 
   it("他人の投稿は数えない（他人のプロジェクトを指しても 0）", async () => {

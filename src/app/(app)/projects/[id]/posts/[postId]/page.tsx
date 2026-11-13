@@ -126,6 +126,7 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
       projectId={project.id}
       projectName={project.name}
       postId={post.id}
+      savedStatus={post.status}
       connected={(Object.keys(accounts) as SnsKey[]).filter(canPublish)}
       planHints={planHints}
       afterNotice={sentTip ? <LearningTip trigger="post_sent" /> : null}

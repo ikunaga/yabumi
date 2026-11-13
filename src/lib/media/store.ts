@@ -165,9 +165,11 @@ export async function attachMedia(admin: Admin, ownerId: string, postId: string,
   const { data: rows, error } = all.length ? await admin.from("media_files").select("id, post_id, note_id, source_of").eq("owner_id", ownerId).in("id", all) : { data: [], error: null };
   if (error) throw error;
   const byId = new Map((rows ?? []).map((r) => [r.id, r]));
-  // 元の画像として使ってよいもの: 本人の、投稿にもメモにも添えていない画像で、ほかの投稿の画像の元でないもの
-  const sourceOk = (id: string | undefined) => {
-    const r = id ? byId.get(id) : undefined;
+  // 元の画像として使ってよいもの: 本人の、投稿にもメモにも添えていない画像で、ほかの投稿の画像の元でないもの。
+  // 同じ保存で添える画像（その画像自身も）は元にしない（添える画像を元にすると、DB の check で保存が途中で止まる。セキュリティ確認 2026-11-13 の App-L1）
+  const sourceOk = (id: string | undefined, itemId: string) => {
+    if (!id || id === itemId || ids.includes(id)) return false;
+    const r = byId.get(id);
     return Boolean(r && r.post_id === null && r.note_id === null && (r.source_of === null || currentIds.has(r.source_of) || ids.includes(r.source_of)));
   };
   for (const id of ids) {
@@ -177,12 +179,24 @@ export async function attachMedia(admin: Admin, ownerId: string, postId: string,
     if (!ok) throw new MediaError("見つからない画像があります。画面を読み込み直してください。");
   }
 
+  // 判定を先に済ませてから書き込む（途中で止まって中途半端な状態を残さない）。整え方を持たせる画像と、その元
+  const keeps = new Map(
+    items.filter((i) => i.edit && i.originalId && i.editBaseId && sourceOk(i.originalId, i.id) && sourceOk(i.editBaseId, i.id)).map((i) => [i.id, i]),
+  );
+  // 同じ元を 2 つの画像の元にしない（1 つの元の行は 1 つの画像だけを指せる）。先に出てきた画像だけに持たせる
+  const claimed = new Set<string>();
+  for (const [id, i] of [...keeps]) {
+    const mine = [...new Set([i.originalId!, i.editBaseId!])];
+    if (mine.some((m) => claimed.has(m))) keeps.delete(id);
+    else for (const m of mine) claimed.add(m);
+  }
+
   if (ids.length) {
     // 添え直す画像が元の画像だったときは、元の印を外してから添える（DB の check: 元の画像は投稿に添えない）
     const { error: clearError } = await admin.from("media_files").update({ source_of: null }).eq("owner_id", ownerId).in("id", ids).not("source_of", "is", null);
     if (clearError) throw clearError;
     for (const [position, item] of items.entries()) {
-      const keep = item.edit && item.originalId && item.editBaseId && sourceOk(item.originalId) && sourceOk(item.editBaseId);
+      const keep = keeps.has(item.id);
       const { error: e } = await admin
         .from("media_files")
         .update({
@@ -205,7 +219,7 @@ export async function attachMedia(admin: Admin, ownerId: string, postId: string,
   }
 
   // この投稿の画像の元のうち、もう使っていないもの（整え直した・元に戻した）は、ファイルごと消す
-  const used = new Set(items.flatMap((i) => [i.originalId, i.editBaseId]).filter((x): x is string => Boolean(x)));
+  const used = new Set([...keeps.values()].flatMap((i) => [i.originalId!, i.editBaseId!]));
   const owners = [...new Set([...currentIds, ...ids])];
   if (owners.length) {
     const { data: sources, error: srcError } = await admin.from("media_files").select("id, storage_path").eq("owner_id", ownerId).in("source_of", owners);

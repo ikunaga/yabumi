@@ -128,4 +128,62 @@ describe("整えた画像の元", () => {
     const { error } = await admin.from("media_files").update({ post_id: post }).eq("id", photo);
     expect(error).not.toBeNull();
   });
+
+  it("同じ保存で添える画像・その画像自身・ほかの画像と同じ元は、元にしない。保存は途中で止まらず、中途半端な状態を残さない（App-L1）", async () => {
+    const post = await newPost();
+    const a = await upload(aliceId);
+    const b = await upload(aliceId);
+    // a の元に、同じ保存で添える b を指す（前は b の source_of を付けようとして、DB の check で途中で止まった）
+    await attachMedia(admin, aliceId, post, [
+      { id: a, altText: "", originalId: b, editBaseId: b, edit, hasText: true },
+      { id: b, altText: "" },
+    ]);
+    expect(await row(a)).toMatchObject({ post_id: post, original_id: null, edit: null });
+    expect(await row(b)).toMatchObject({ post_id: post, source_of: null });
+    // その画像自身
+    await attachMedia(admin, aliceId, post, [{ id: a, altText: "", originalId: a, editBaseId: a, edit, hasText: true }]);
+    expect(await row(a)).toMatchObject({ post_id: post, original_id: null, source_of: null });
+    // 同じ元を 2 つの画像に: 先の画像だけが持つ
+    const photo = await upload(aliceId);
+    const c = await upload(aliceId);
+    const d = await upload(aliceId);
+    await attachMedia(admin, aliceId, post, [
+      { id: c, altText: "", originalId: photo, editBaseId: photo, edit, hasText: true },
+      { id: d, altText: "", originalId: photo, editBaseId: photo, edit, hasText: true },
+    ]);
+    expect(await row(c)).toMatchObject({ original_id: photo });
+    expect(await row(d)).toMatchObject({ original_id: null, edit: null });
+    expect(await row(photo)).toMatchObject({ source_of: c });
+  });
+});
+
+describe("DB で縛る（DB-L1）", () => {
+  it("元・描き直した元・source_of は、同じ持ち主の行だけを指せる", async () => {
+    const mine = await upload(aliceId);
+    const bobs = await upload(bobId);
+    for (const patch of [{ original_id: bobs }, { edit_base_id: bobs }, { source_of: bobs }]) {
+      const { error } = await admin.from("media_files").update(patch).eq("id", mine);
+      expect(error?.code, Object.keys(patch)[0]).toBe("23514");
+    }
+  });
+  it("自分自身を元にしない・整え方の大きさに上限がある", async () => {
+    const mine = await upload(aliceId);
+    expect((await admin.from("media_files").update({ source_of: mine }).eq("id", mine)).error?.code).toBe("23514");
+    expect((await admin.from("media_files").update({ original_id: mine }).eq("id", mine)).error?.code).toBe("23514");
+    const big = { kind: "headline", note: "x".repeat(5000) };
+    expect((await admin.from("media_files").update({ edit: big }).eq("id", mine)).error?.code).toBe("23514");
+  });
+  it("UPDATE は変わった列だけを見るが、ほかの人の行を指すように変えたときは止まる（変えていない列が正しくても）", async () => {
+    const mine = await upload(aliceId);
+    const own = await upload(aliceId);
+    const bobs = await upload(bobId);
+    expect((await admin.from("media_files").update({ original_id: own, edit_base_id: own }).eq("id", mine)).error).toBeNull();
+    // 関係のない列だけを変えるのは通る
+    expect((await admin.from("media_files").update({ alt_text: "説明" }).eq("id", mine)).error).toBeNull();
+    // 1 列だけほかの人の行に変えると止まる
+    expect((await admin.from("media_files").update({ edit_base_id: bobs }).eq("id", mine)).error?.code).toBe("23514");
+    expect((await row(mine))?.edit_base_id).toBe(own);
+    // 持ち主が変わるときは、変えていない列も確かめる（own は alice の行なので、bob の行にはできない）
+    expect((await admin.from("media_files").update({ owner_id: bobId }).eq("id", mine)).error?.code).toBe("23514");
+  });
 });

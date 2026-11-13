@@ -836,8 +836,12 @@ function SeriesNextRound({
       {pending && <AiThinking kind="brief" note="10〜20 秒ほどかかります" />}
       {error &&
         (empty ? (
-          <p className="flex flex-wrap items-center gap-x-1 text-[13px] leading-[1.7] font-semibold text-signal">
-            <span>{error}</span>
+          // 文の後ろに「?」を続けて置く（前は flex で、PC で「?」だけ 3 行目に回った）。朱は先頭の印だけ（朱は印に使う決まり）
+          <p className="text-[13px] leading-[1.7] font-semibold text-danger">
+            <span aria-hidden className="mr-1 text-signal">
+              ●
+            </span>
+            {error}{" "}
             <HelpTip label="案が出なかったわけ">
               AI の案が、どれも前の回と重なっていたか、穴の決まり（言葉の数など）に合わなかったので、除きました。AI はもう使ったので、今日の {SERIES_DAILY_RUNS} 回のうち 1 回に数えています。
             </HelpTip>
@@ -847,12 +851,15 @@ function SeriesNextRound({
         ))}
       {proposals && !pending && (
         <div className="flex flex-col gap-2">
-          <p className="text-xs font-semibold text-signal">AI は作品やものごとの中身を間違えることがあります。出す前に確かめてください。</p>
+          <p className="text-xs font-semibold text-fg">
+            <span aria-hidden className="mr-1 text-signal">
+              ●
+            </span>
+            AI は作品やものごとの中身を間違えることがあります。出す前に確かめてください。
+          </p>
           {!failedOnce && dropped > 0 && proposals.length < ROUND_PROPOSALS && (
-            <p className="flex flex-wrap items-center gap-x-1 text-xs leading-[1.7] text-muted">
-              <span>
-                前の回と重なる案を除いたので、案は {proposals.length} つです{left !== null ? `（今日はあと ${left} 回）` : ""}。
-              </span>
+            <p className="text-xs leading-[1.7] text-muted">
+              前の回と重なる案を除いたので、案は {proposals.length} つです{left !== null ? `（今日はあと ${left} 回）` : ""}。{" "}
               <HelpTip label="案が少ないわけ">前の回と重なる案や、穴の決まり（言葉の数など）に合わない案を除きました。「ほかの案を出してもらう」も、1 回に数えます。</HelpTip>
             </p>
           )}

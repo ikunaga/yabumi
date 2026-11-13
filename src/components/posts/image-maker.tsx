@@ -182,13 +182,15 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
     }
   }
 
+  // 押したときの欄の値で描き直して作る（見本の canvas は書体の読み込みを待って描くので、打ってすぐ押すと前の文字のままのことがあった。4.69）
   async function add() {
-    const canvas = canvasRef.current;
-    if (!canvas || notReady) return;
+    if (notReady) return;
     setAdding(true);
     setError(null);
     try {
-      const jpeg = await canvasToJpeg(canvas);
+      const out = document.createElement("canvas");
+      await renderTemplate(out, input, shot?.bitmap ?? null);
+      const jpeg = await canvasToJpeg(out);
       const ai = kind === "screen" && shot?.aiJobId ? { jobId: shot.aiJobId, source: "composite" as const } : undefined;
       // 写真に見出しは、敷いた写真も元として上げる（添えたあとに「見出しを直す」「元に戻す」ができる）
       const made: MadeImage =

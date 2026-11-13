@@ -113,13 +113,16 @@ export function ImageHeadlineEditor({
     });
   }
 
+  // 押したときの欄の値で描き直して作る（見本の canvas は、書体の読み込みを待って描くので、打ってすぐ押すと前の文字のままのことがあった。
+  // 2026-11-13 PMO2 の確かめ: 見出しを打ってすぐ押すと、途中までの文字で画像ができた。docs/architecture.md の 4.69）
   async function apply() {
-    const canvas = canvasRef.current;
-    if (!canvas || notReady) return;
+    if (!bitmap || notReady) return;
     setBusy(true);
     setError(null);
     try {
-      if (await onApply(await canvasToJpeg(canvas), settings)) onClose();
+      const out = document.createElement("canvas");
+      await renderTemplate(out, input, bitmap);
+      if (await onApply(await canvasToJpeg(out), settings)) onClose();
     } catch {
       setError("画像を作れませんでした。もう一度お試しください。");
     } finally {

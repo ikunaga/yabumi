@@ -150,7 +150,14 @@ export function normalizeRoundProposals(raw: unknown, format: Pick<PostFormat, "
 
 type Db = SupabaseClient<Database>;
 export type CallFormatRound = (req: ReturnType<typeof buildFormatRoundRequest>) => Promise<ModelOutput>;
-export type FormatRoundOutcome = { ok: true; proposals: RoundProposal[] } | { ok: false; message: string };
+// left: AI を呼んだあとの、今日の残りの回数（呼ぶ前に断ったときはない）。dropped: 前の回と重なる・決まりに合わないので捨てた案の数
+export type FormatRoundOutcome = { ok: true; proposals: RoundProposal[]; left: number; dropped: number } | { ok: false; message: string; left?: number };
+
+// 案が 1 つも残らなかったときの文（何が起きたか・1 回に数えたこと・次にどうすればよいか）
+export function noRoundMessage(left: number): string {
+  const rest = left > 0 ? `今日はあと ${left} 回です。希望に年代やジャンルなどを書き添えて、もう一度出してもらってください。` : `今日はもう出せません。明日またお試しください（穴は自分でも埋められます）。`;
+  return `AI の案が、どれも前の回と重なっていたか、穴の決まりに合わなかったので、出せる案がありませんでした。今日の ${SERIES_DAILY_RUNS} 回のうち 1 回に数えています。${rest}`;
+}
 
 // user: 利用者の権限（プロジェクト・設計・フォーマット・記録を読む。RLS で本人のものだけ）、admin: 回数の判定と、利用量の記録・上限の判定
 export async function runFormatRound(
@@ -206,7 +213,11 @@ export async function runFormatRound(
     return { ok: false, message: aiFailureMessage(e, "AI とのやりとりがうまくいきませんでした。時間をおいてもう一度お試しください。") };
   }
   if (r.stopReason === "refusal") return { ok: false, message: "AI がこの内容には答えられませんでした。穴は自分で埋められます。" };
+  // この 1 回は、案が残らなくても今日の回数に数える（AI はもう呼んで、費用もかかっている）
+  const left = Math.max(0, SERIES_DAILY_RUNS - (count ?? 0) - 1);
   const proposals = r.stopReason === "end_turn" ? normalizeRoundProposals(r.output, format, used) : null;
-  if (!proposals) return { ok: false, message: "前の回と重ならない案を、うまくつくれませんでした。希望を書き添えて、もう一度お試しください。" };
-  return { ok: true, proposals };
+  if (!proposals) return { ok: false, message: noRoundMessage(left), left };
+  const asked = roundProposalsSchema.safeParse(r.output);
+  const dropped = asked.success ? Math.max(0, asked.data.proposals.length - proposals.length) : 0;
+  return { ok: true, proposals, left, dropped };
 }

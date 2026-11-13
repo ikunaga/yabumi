@@ -27,6 +27,7 @@ import {
   MAX_ROUND_WISH,
   MAX_ROUNDS,
   MAX_SERIES_INSTRUCTION,
+  ROUND_PROPOSALS,
   SERIES_DAILY_RUNS,
   isSeries,
   type FormatRound,
@@ -791,14 +792,26 @@ function SeriesNextRound({
   const [proposals, setProposals] = useState<RoundProposal[] | null>(null);
   const [picked, setPicked] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [left, setLeft] = useState<number | null>(null);
+  const [dropped, setDropped] = useState(0);
+  const [failedOnce, setFailedOnce] = useState(false);
   const [pending, start] = useTransition();
   const ask = () =>
     start(async () => {
       setError(null);
       setPicked(null);
       const r = await draftFormatRound(projectId, formatId, wish);
-      if (r.error || !r.proposals) setError(r.error ?? "うまくいきませんでした。");
-      else setProposals(r.proposals);
+      // 今日の残りの回数と、捨てた案の数（案が 1〜2 つしか残らなかったとき、なぜ少ないかを添える）
+      setLeft(r.left ?? null);
+      setDropped(r.dropped ?? 0);
+      if (r.error || !r.proposals) {
+        setError(r.error ?? "うまくいきませんでした。");
+        // 前の案は使えるので残す（今回の案がなかったことは、上の文で伝える）
+        setFailedOnce(true);
+      } else {
+        setFailedOnce(false);
+        setProposals(r.proposals);
+      }
     });
   if (!aiEnabled) {
     return (
@@ -811,7 +824,7 @@ function SeriesNextRound({
     <div className="flex flex-col gap-2 rounded-md bg-surface2 px-3 py-2.5">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <Button type="button" size="sm" variant="secondary" disabled={pending} onClick={ask}>
-          {pending ? "考えています…" : proposals ? "ほかの案を出してもらう" : "AI に次の回を出してもらう"}
+          {pending ? "考えています…" : failedOnce ? "もう一度出してもらう" : proposals ? "ほかの案を出してもらう" : "AI に次の回を出してもらう"}
         </Button>
         <span className="text-xs text-muted">前の回と重ならない案を 3 つ。1 回 5 円ほど・1 日 {SERIES_DAILY_RUNS} 回まで</span>
       </div>
@@ -821,6 +834,11 @@ function SeriesNextRound({
       {proposals && !pending && (
         <div className="flex flex-col gap-2">
           <p className="text-xs font-semibold text-signal">AI は作品やものごとの中身を間違えることがあります。出す前に確かめてください。</p>
+          {!failedOnce && dropped > 0 && proposals.length < ROUND_PROPOSALS && (
+            <p className="text-xs leading-[1.7] text-muted">
+              前の回と重なる案などを除いたので、案は {proposals.length} つです。ほかの案がほしいときは「ほかの案を出してもらう」を押してください（1 回に数えます{left !== null ? `。今日はあと ${left} 回` : ""}）。
+            </p>
+          )}
           <ul className="flex flex-col gap-2">
             {proposals.map((p, i) => (
               <li key={i} className={`flex flex-col gap-1.5 rounded-md border bg-surface px-3 py-2.5 ${picked === i ? "border-primary" : "border-line"}`}>

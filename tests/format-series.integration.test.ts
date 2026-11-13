@@ -138,10 +138,18 @@ describe("次の回の案（偽の AI）", () => {
       ],
     });
     const r = await runFormatRound(alice, admin, { callFormatRound: call }, { userId: aliceId, projectId, formatId, wish: "古い映画で" });
-    expect(r).toEqual({ ok: true, proposals: [{ answer: "ローマの休日", values: { キーワード: "スクーター・真実の口" }, checks: [] }] });
+    // 2 案のうち 1 つは出した回と重なるので捨てる（捨てた数と、今日の残りの回数も返す）
+    expect(r).toEqual({ ok: true, proposals: [{ answer: "ローマの休日", values: { キーワード: "スクーター・真実の口" }, checks: [] }], left: SERIES_DAILY_RUNS - 1, dropped: 1 });
     const sent = JSON.stringify(vi.mocked(call).mock.calls[0][0].messages);
     expect(sent).toContain("バック・トゥ・ザ・フューチャー");
     expect(sent).toContain("古い映画で");
+    expect((await admin.from("ai_usage").select("purpose").eq("owner_id", aliceId)).data).toEqual([{ purpose: "post_format_round" }]);
+  });
+
+  it("案がどれも前の回と重なって 0 になったら、何が起きたか・1 回に数えたこと・次にどうすればよいかを返す（利用量も記録する）", async () => {
+    const call = caller({ proposals: [{ answer: "バック・トゥ・ザ・フューチャー", slots: [{ slot: "キーワード", text: "時計台・稲妻" }], checks: [] }] });
+    const r = await runFormatRound(alice, admin, { callFormatRound: call }, { userId: aliceId, projectId, formatId });
+    expect(r).toEqual({ ok: false, left: SERIES_DAILY_RUNS - 1, empty: true, message: `出せる案がありませんでした（今日はあと ${SERIES_DAILY_RUNS - 1} 回）。希望に年代やジャンルを足して、もう一度出してもらってください。` });
     expect((await admin.from("ai_usage").select("purpose").eq("owner_id", aliceId)).data).toEqual([{ purpose: "post_format_round" }]);
   });
 

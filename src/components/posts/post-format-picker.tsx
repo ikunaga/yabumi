@@ -7,6 +7,7 @@ import { draftFormatRound, draftPostFormats } from "@/lib/ai/post-format-actions
 import type { RoundProposal } from "@/lib/ai/format-round-ai";
 import type { FormatProposal } from "@/lib/ai/post-format-ai";
 import { ErrorBanner } from "@/components/ui/feedback";
+import { HelpTip } from "@/components/ui/help";
 import { Input, Textarea } from "@/components/ui/field";
 import {
   addFormatRound,
@@ -795,6 +796,8 @@ function SeriesNextRound({
   const [left, setLeft] = useState<number | null>(null);
   const [dropped, setDropped] = useState(0);
   const [failedOnce, setFailedOnce] = useState(false);
+  // AI は呼んだが、捨てて案が残らなかった（わけと数え方を「?」に畳む）
+  const [empty, setEmpty] = useState(false);
   const [pending, start] = useTransition();
   const ask = () =>
     start(async () => {
@@ -808,6 +811,7 @@ function SeriesNextRound({
         setError(r.error ?? "うまくいきませんでした。");
         // 前の案は使えるので残す（今回の案がなかったことは、上の文で伝える）
         setFailedOnce(true);
+        setEmpty(Boolean(r.empty));
       } else {
         setFailedOnce(false);
         setProposals(r.proposals);
@@ -830,13 +834,26 @@ function SeriesNextRound({
       </div>
       <Input aria-label="次の回への希望" value={wish} maxLength={MAX_ROUND_WISH} onChange={(e) => setWish(e.target.value)} placeholder="希望（任意。例: 90 年代の映画で）" className="py-2 text-sm" />
       {pending && <AiThinking kind="brief" note="10〜20 秒ほどかかります" />}
-      {error && <ErrorBanner>{error}</ErrorBanner>}
+      {error &&
+        (empty ? (
+          <p className="flex flex-wrap items-center gap-x-1 text-[13px] leading-[1.7] font-semibold text-signal">
+            <span>{error}</span>
+            <HelpTip label="案が出なかったわけ">
+              AI の案が、どれも前の回と重なっていたか、穴の決まり（言葉の数など）に合わなかったので、除きました。AI はもう使ったので、今日の {SERIES_DAILY_RUNS} 回のうち 1 回に数えています。
+            </HelpTip>
+          </p>
+        ) : (
+          <ErrorBanner>{error}</ErrorBanner>
+        ))}
       {proposals && !pending && (
         <div className="flex flex-col gap-2">
           <p className="text-xs font-semibold text-signal">AI は作品やものごとの中身を間違えることがあります。出す前に確かめてください。</p>
           {!failedOnce && dropped > 0 && proposals.length < ROUND_PROPOSALS && (
-            <p className="text-xs leading-[1.7] text-muted">
-              前の回と重なる案などを除いたので、案は {proposals.length} つです。ほかの案がほしいときは「ほかの案を出してもらう」を押してください（1 回に数えます{left !== null ? `。今日はあと ${left} 回` : ""}）。
+            <p className="flex flex-wrap items-center gap-x-1 text-xs leading-[1.7] text-muted">
+              <span>
+                前の回と重なる案を除いたので、案は {proposals.length} つです{left !== null ? `（今日はあと ${left} 回）` : ""}。
+              </span>
+              <HelpTip label="案が少ないわけ">前の回と重なる案や、穴の決まり（言葉の数など）に合わない案を除きました。「ほかの案を出してもらう」も、1 回に数えます。</HelpTip>
             </p>
           )}
           <ul className="flex flex-col gap-2">

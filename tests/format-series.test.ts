@@ -124,10 +124,10 @@ describe("次の回の案の AI への指示", () => {
 });
 
 describe("案が残らなかったときの文", () => {
-  it("残りの回数があれば、もう一度出してもらうよう伝え、なければ明日と自分で埋められることを伝える", async () => {
+  it("2 文まで。残りの回数があれば、もう一度出してもらうよう伝え、なければ明日か自分で埋めることを伝える", async () => {
     const { noRoundMessage } = await import("@/lib/ai/format-round-ai");
-    expect(noRoundMessage(3)).toContain("今日はあと 3 回です。希望に年代やジャンルなどを書き添えて、もう一度出してもらってください。");
-    expect(noRoundMessage(0)).toContain("今日はもう出せません。明日またお試しください（穴は自分でも埋められます）。");
-    expect(noRoundMessage(0)).toContain("1 回に数えています");
+    expect(noRoundMessage(3)).toBe("出せる案がありませんでした（今日はあと 3 回）。希望に年代やジャンルを足して、もう一度出してもらってください。");
+    expect(noRoundMessage(0)).toBe("出せる案がありませんでした（今日はもう出せません）。明日またお試しいただくか、穴を自分で埋めてください。");
+    for (const n of [0, 3]) expect(noRoundMessage(n).split("。").filter(Boolean)).toHaveLength(2);
   });
 });

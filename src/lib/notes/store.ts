@@ -33,6 +33,7 @@ async function attachImage(admin: Db, ownerId: string, noteId: string, mediaId: 
     .eq("owner_id", ownerId)
     .is("post_id", null)
     .is("note_id", null)
+    .is("source_of", null)
     .select("id");
   return Boolean(data?.length);
 }
@@ -60,7 +61,7 @@ export async function createNote(
     return { ok: false, message: `ネタ帳のメモが ${MAX_NOTES_PER_PROJECT.toLocaleString("ja-JP")} 件あります。使い終えたメモを削除してから残してください。` };
   }
   if (args.mediaId) {
-    const { data: m } = await admin.from("media_files").select("id").eq("id", args.mediaId).eq("owner_id", args.userId).is("post_id", null).is("note_id", null).maybeSingle();
+    const { data: m } = await admin.from("media_files").select("id").eq("id", args.mediaId).eq("owner_id", args.userId).is("post_id", null).is("note_id", null).is("source_of", null).maybeSingle();
     if (!m) return { ok: false, message: "画像が見つかりません。もう一度選んでください。" };
   }
 
@@ -156,7 +157,7 @@ export async function copyNoteImageForCompose(
   const [r] = await noteImageRows(admin, args.userId, [note.id]);
   if (!r) return { ok: true, image: null };
   // 上限の確かめと記録は一続きではない（同時に何度も押すと少し超えうる）が、超えるのは本人の容量の中だけで、添えていない画像は 1 日で消えるので受け入れる（2026-11-02 PM の判断）
-  const { count } = await admin.from("media_files").select("id", { count: "exact", head: true }).eq("owner_id", args.userId).is("post_id", null).is("note_id", null);
+  const { count } = await admin.from("media_files").select("id", { count: "exact", head: true }).eq("owner_id", args.userId).is("post_id", null).is("note_id", null).is("source_of", null);
   if ((count ?? 0) >= MAX_UNATTACHED) {
     return { ok: false, message: unattachedLimitMessage() };
   }

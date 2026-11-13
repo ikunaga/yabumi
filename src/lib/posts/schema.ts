@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { MAX_ALT_LENGTH, MAX_IMAGES_PER_POST } from "@/lib/media/rules";
+import { mediaEditSchema } from "@/lib/media/edit-schema";
 import { MAX_NOTES_PER_POST } from "@/lib/notes/rules";
 import { SNS_KEYS, type SnsKey } from "@/lib/sns";
 
@@ -24,7 +25,17 @@ export const savePostInputSchema = z.object({
     .max(SNS_KEYS.length),
   // 添える画像（並び順）。画像はブラウザから Storage に上げて確かめ済みのもの（docs/architecture.md の 4.18）
   media: z
-    .array(z.object({ id: z.uuid(), altText: z.string().max(MAX_ALT_LENGTH, `画像の説明文は ${MAX_ALT_LENGTH} 字までです`) }))
+    .array(
+      z.object({
+        id: z.uuid(),
+        altText: z.string().max(MAX_ALT_LENGTH, `画像の説明文は ${MAX_ALT_LENGTH} 字までです`),
+        // 整えた画像の元（docs/architecture.md の 4.68）: 元の画像・最後に描き直した元・整え方・文字が入っているか。元はサーバーで本人のものか確かめる
+        originalId: z.uuid().optional(),
+        editBaseId: z.uuid().optional(),
+        edit: mediaEditSchema.optional(),
+        hasText: z.boolean().optional(),
+      }),
+    )
     .max(MAX_IMAGES_PER_POST)
     .default([]),
   // 本文のストアなどの URL を、配信先ごとの短縮リンクにする（docs/architecture.md の 4.22、決定 D20。初期値はオン）

@@ -22,7 +22,7 @@ import { applyFix } from "@/lib/ai/ai-check";
 import { type NoteInsertMode } from "../note-picker";
 import { noteImageForCompose } from "@/lib/notes/actions";
 import { restoreDraftImages } from "@/lib/media/actions";
-import { draftImageIds, rebuildDraftImages, toDraftImage } from "@/lib/posts/draft-images";
+import { draftImageIds, rebuildDraftImages, toDraftImage, toSavedMedia } from "@/lib/posts/draft-images";
 import type { IdeaNote } from "@/lib/notes/rules";
 import { MAX_IMAGES_PER_POST } from "@/lib/media/rules";
 import { type PlanHintsData } from "../plan-hints";
@@ -612,7 +612,8 @@ export function useComposer({
         body,
         plannedAt,
         intent,
-        media: images.map((i) => ({ id: i.id, altText: i.altText })),
+        // 整えた画像は、元と整え方も渡す（下書きを開き直しても「見出しを直す」「元に戻す」ができる。4.68）
+        media: images.map(toSavedMedia),
         shortLinks,
         roadmapItemId: initial.roadmapItem?.id ?? null,
         noteIds,

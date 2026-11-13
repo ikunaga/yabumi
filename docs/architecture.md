@@ -2860,6 +2860,19 @@ yabumi のコンセプトは、使って SNS を運用するうちに、マー�
 - 短縮リンクのひとこと（url_in_body）は決まりどおり: 開いたときの本文に URL がなく、この画面で URL を入れ、短縮リンクがオフのときに出す（保存した下書きを開いたとき、前から URL があれば出さない）。DB で 1 日 1 回まで
 - テスト: tests/drafts.test.ts（下書きの決め方・題）、tests/drafts.integration.test.ts（数・他人を数えない）、tests/calendar-stats.integration.test.ts（月をまたぐ週）、tests/send-mode.test.ts（見出し）
 
+### 4.68 整えた画像の元を DB に持つ（2026-11-13、オーナーの了承（案 B）。PM の依頼。feat/image-edit-base。4.67 は実装担当1 の fix/check2-1）
+
+| 項目 | 内容 |
+|---|---|
+| 見立て | 見出しを付けた・縦横を整えた・調整した画像の元（4.53・4.58）は画面の中だけで持っていたので、下書きを保存して開き直すと「見出しを直す」「元に戻す」が出ず、「見出しを付ける」を押すと見出しが二重になるおそれがあった（4.58 の (イ)） |
+| DB（20261113150000_media_edit_source） | media_files に original_id（元の画像）・edit_base_id（最後に描き直した元）・edit（jsonb。種類と見出しの設定・調整の値）・has_text（文字が入っているか）・source_of（元の画像の行が、その元を使っている添えた画像を指す。on delete cascade）を足した。元の画像は投稿にもメモにも添えない（check）。edit は object で kind が 3 つのどれか（check）。利用者は select だけ（RLS で本人の行）、書くのは投稿の保存（サーバー） |
+| 片付け・上限 | cleanup_media_candidates の「添えないまま 1 日」と、issue_media_upload_ticket の「保存していない画像」（20 枚）から、source_of のある元の画像を外した（画面の数 unattachedCount・ネタ帳のメモの画像の確かめも同じ）。容量（100MB）は元の分も数える。添えた画像が消えると（外す・投稿を消して翌日・送り終えて 30 日）、元の行も cascade で消え、ファイルは投稿の保存で一緒に消す（片付けでは、行のないファイルとして翌日に消える） |
+| 投稿の保存（attachMedia） | 画像ごとに originalId・editBaseId・edit（zod の mediaEditSchema で形を確かめる）・hasText を受け取る。元が本人のもので、投稿にもメモにも添えておらず、ほかの投稿の画像の元でないときだけ整え方を持たせ、元の行の source_of をその画像に付け直す（だめなら整え方を持たせないだけで、保存は止めない）。元に戻した画像（この投稿の画像の元だったもの）は、元の印を外して添える。使わなくなった元・外した画像とその元は、ファイルごと消す。保存していない画像を外す（discardImage）は、元の画像の行を消さない |
+| 開くとき | loadPostImages が、元の行（source_of がこの投稿の画像のもの）も利用者の権限で読み、元と描き直した元がそろって整え方の形が正しければ、original・edit・text を付ける（src/lib/media/attached.ts の toAttached）。書きかけの控え（4.65）から戻すときも、元の行は古さを問わずに戻せる（restorableRows） |
+| 法務 | ②（保存期間が延びる。元の画像は前は 1 日で消していた）。/privacy の預かる情報と保存期間の「投稿に添えた画像」の行に書き足し、シリーズ投稿と同じ 2026-11-14 の版（仮。施行日は本番に出す日に PM が合わせる）にまとめた。docs/legal.md に記録 |
+
+テスト: tests/media-edit-source.integration.test.ts（保存で元と整え方を持ち、元は数・片付けから外れ、開くと「見出しを直す」の形に戻る、整え直す・元に戻す・外す（元も消える）、ほかの人やほかの投稿の画像は元にできない、利用者は列を書けない、元は投稿に添えられない）、tests/media-edit-legal.test.ts（版と本文）
+
 ## 5. データモデル（主要テーブル）
 
 | テーブル | 内容 |

@@ -939,13 +939,18 @@ export type Database = {
           ai_generated: boolean
           alt_text: string
           created_at: string
+          edit: Json | null
+          edit_base_id: string | null
+          has_text: boolean | null
           height: number
           id: string
           note_id: string | null
+          original_id: string | null
           owner_id: string
           position: number
           post_id: string | null
           size_bytes: number
+          source_of: string | null
           storage_path: string
           updated_at: string
           width: number
@@ -954,13 +959,18 @@ export type Database = {
           ai_generated?: boolean
           alt_text?: string
           created_at?: string
+          edit?: Json | null
+          edit_base_id?: string | null
+          has_text?: boolean | null
           height: number
           id?: string
           note_id?: string | null
+          original_id?: string | null
           owner_id: string
           position?: number
           post_id?: string | null
           size_bytes: number
+          source_of?: string | null
           storage_path: string
           updated_at?: string
           width: number
@@ -969,18 +979,30 @@ export type Database = {
           ai_generated?: boolean
           alt_text?: string
           created_at?: string
+          edit?: Json | null
+          edit_base_id?: string | null
+          has_text?: boolean | null
           height?: number
           id?: string
           note_id?: string | null
+          original_id?: string | null
           owner_id?: string
           position?: number
           post_id?: string | null
           size_bytes?: number
+          source_of?: string | null
           storage_path?: string
           updated_at?: string
           width?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "media_files_edit_base_id_fkey"
+            columns: ["edit_base_id"]
+            isOneToOne: false
+            referencedRelation: "media_files"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "media_files_note_id_fkey"
             columns: ["note_id"]
@@ -989,10 +1011,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "media_files_original_id_fkey"
+            columns: ["original_id"]
+            isOneToOne: false
+            referencedRelation: "media_files"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "media_files_post_id_fkey"
             columns: ["post_id"]
             isOneToOne: false
             referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "media_files_source_of_fkey"
+            columns: ["source_of"]
+            isOneToOne: false
+            referencedRelation: "media_files"
             referencedColumns: ["id"]
           },
         ]

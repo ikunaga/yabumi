@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { InvalidImageError, sanitizeJpeg, withAiMark, type AiSource } from "./jpeg";
+import type { MediaEdit } from "./edit-schema";
 import {
   MAX_ALT_LENGTH,
   MAX_DIMENSION,
@@ -137,10 +138,13 @@ export async function verifyUpload(admin: Admin, ownerId: string, path: string, 
   }
 }
 
-export type AttachItem = { id: string; altText: string };
+// 整えた画像は、元の画像（originalId）・最後に描き直した元（editBaseId）・整え方（edit）・文字が入っているか（hasText）も渡す（4.68）
+export type AttachItem = { id: string; altText: string; originalId?: string; editBaseId?: string; edit?: MediaEdit; hasText?: boolean };
 
 // 投稿の画像を、渡した順と代わりの文にそろえる。外された画像は消す。
-// 投稿が本人のものであること、画像が本人のもので、まだどこにも添えていないか同じ投稿のものであることを確かめる
+// 投稿が本人のものであること、画像が本人のもので、まだどこにも添えていないか同じ投稿のものであることを確かめる。
+// 整えた画像の元（4.68）は、投稿に添えずに source_of でその画像を指し、その画像が消えたら一緒に消える（DB の on delete cascade）。
+// 元が本人のものでない・ほかの投稿やメモのもの・ほかの画像の元のときは、整え方を持たせない（保存は止めない）
 export async function attachMedia(admin: Admin, ownerId: string, postId: string, items: AttachItem[]): Promise<void> {
   if (items.length > MAX_IMAGES_PER_POST) throw new MediaError(`画像は 1 つの投稿に ${MAX_IMAGES_PER_POST} 枚までです。`);
   if (new Set(items.map((i) => i.id)).size !== items.length) throw new MediaError("同じ画像が 2 回入っています。");
@@ -151,29 +155,77 @@ export async function attachMedia(admin: Admin, ownerId: string, postId: string,
   const { data: post } = await admin.from("posts").select("id").eq("id", postId).eq("owner_id", ownerId).maybeSingle();
   if (!post) throw new MediaError("投稿が見つかりません。");
 
+  // いまこの投稿に添えてある画像（元に戻した画像は、その画像の元だったものなので、ここを手がかりに確かめる）
+  const { data: current, error: curError } = await admin.from("media_files").select("id").eq("owner_id", ownerId).eq("post_id", postId);
+  if (curError) throw curError;
+  const currentIds = new Set((current ?? []).map((r) => r.id));
   const ids = items.map((i) => i.id);
+  const sourceIds = [...new Set(items.flatMap((i) => [i.originalId, i.editBaseId]).filter((x): x is string => Boolean(x)))].filter((x) => !ids.includes(x));
+  const all = [...new Set([...ids, ...sourceIds])];
+  const { data: rows, error } = all.length ? await admin.from("media_files").select("id, post_id, note_id, source_of").eq("owner_id", ownerId).in("id", all) : { data: [], error: null };
+  if (error) throw error;
+  const byId = new Map((rows ?? []).map((r) => [r.id, r]));
+  // 元の画像として使ってよいもの: 本人の、投稿にもメモにも添えていない画像で、ほかの投稿の画像の元でないもの
+  const sourceOk = (id: string | undefined) => {
+    const r = id ? byId.get(id) : undefined;
+    return Boolean(r && r.post_id === null && r.note_id === null && (r.source_of === null || currentIds.has(r.source_of) || ids.includes(r.source_of)));
+  };
+  for (const id of ids) {
+    const r = byId.get(id);
+    // 添える画像: まだどこにも添えていないか同じ投稿のもの。元の画像を添え直す（元に戻す）なら、この投稿の画像の元だったものだけ
+    const ok = r && r.note_id === null && (r.post_id === postId || (r.post_id === null && (r.source_of === null || currentIds.has(r.source_of))));
+    if (!ok) throw new MediaError("見つからない画像があります。画面を読み込み直してください。");
+  }
+
   if (ids.length) {
-    const { data: rows, error } = await admin.from("media_files").select("id, post_id").eq("owner_id", ownerId).in("id", ids);
-    if (error) throw error;
-    const ok = new Map((rows ?? []).filter((r) => r.post_id === null || r.post_id === postId).map((r) => [r.id, r]));
-    if (ids.some((id) => !ok.has(id))) throw new MediaError("見つからない画像があります。画面を読み込み直してください。");
+    // 添え直す画像が元の画像だったときは、元の印を外してから添える（DB の check: 元の画像は投稿に添えない）
+    const { error: clearError } = await admin.from("media_files").update({ source_of: null }).eq("owner_id", ownerId).in("id", ids).not("source_of", "is", null);
+    if (clearError) throw clearError;
     for (const [position, item] of items.entries()) {
+      const keep = item.edit && item.originalId && item.editBaseId && sourceOk(item.originalId) && sourceOk(item.editBaseId);
       const { error: e } = await admin
         .from("media_files")
-        .update({ post_id: postId, position, alt_text: item.altText.trim() })
+        .update({
+          post_id: postId,
+          position,
+          alt_text: item.altText.trim(),
+          original_id: keep ? item.originalId! : null,
+          edit_base_id: keep ? item.editBaseId! : null,
+          edit: keep ? item.edit! : null,
+          has_text: item.hasText ?? null,
+        })
         .eq("id", item.id)
         .eq("owner_id", ownerId);
       if (e) throw e;
+      if (keep) {
+        const { error: se } = await admin.from("media_files").update({ source_of: item.id }).eq("owner_id", ownerId).in("id", [...new Set([item.originalId!, item.editBaseId!])]);
+        if (se) throw se;
+      }
     }
   }
 
-  // この投稿から外された画像は、ファイルごと消す
+  // この投稿の画像の元のうち、もう使っていないもの（整え直した・元に戻した）は、ファイルごと消す
+  const used = new Set(items.flatMap((i) => [i.originalId, i.editBaseId]).filter((x): x is string => Boolean(x)));
+  const owners = [...new Set([...currentIds, ...ids])];
+  if (owners.length) {
+    const { data: sources, error: srcError } = await admin.from("media_files").select("id, storage_path").eq("owner_id", ownerId).in("source_of", owners);
+    if (srcError) throw srcError;
+    const stale = (sources ?? []).filter((r) => !used.has(r.id) && !ids.includes(r.id));
+    if (stale.length) {
+      await removeObjects(admin, stale.map((g) => g.storage_path));
+      const { error: delError } = await admin.from("media_files").delete().in("id", stale.map((g) => g.id));
+      if (delError) throw delError;
+    }
+  }
+
+  // この投稿から外された画像は、ファイルごと消す（その元の行は DB の cascade で消え、元のファイルは下で消す）
   let removed = admin.from("media_files").select("id, storage_path").eq("owner_id", ownerId).eq("post_id", postId);
   if (ids.length) removed = removed.not("id", "in", `(${ids.join(",")})`);
   const { data: gone, error: goneError } = await removed;
   if (goneError) throw goneError;
   if (gone?.length) {
-    await removeObjects(admin, gone.map((g) => g.storage_path));
+    const { data: goneSources } = await admin.from("media_files").select("storage_path").eq("owner_id", ownerId).in("source_of", gone.map((g) => g.id));
+    await removeObjects(admin, [...gone.map((g) => g.storage_path), ...(goneSources ?? []).map((g) => g.storage_path)]);
     const { error: delError } = await admin.from("media_files").delete().in("id", gone.map((g) => g.id));
     if (delError) throw delError;
   }
@@ -187,7 +239,8 @@ export async function ownAiMedia(admin: Admin, ownerId: string, mediaId: string)
 
 // 保存していない画像を外す（画面の「外す」）。投稿に添えた画像は、投稿を保存したときに attachMedia が消す
 export async function discardUnattached(admin: Admin, ownerId: string, id: string): Promise<void> {
-  const { data } = await admin.from("media_files").select("id, storage_path").eq("id", id).eq("owner_id", ownerId).is("post_id", null).maybeSingle();
+  // 保存した投稿の画像の元（source_of のある行）は、ここでは消さない（その画像が外されたときに、投稿の保存で一緒に消える。4.68）
+  const { data } = await admin.from("media_files").select("id, storage_path").eq("id", id).eq("owner_id", ownerId).is("post_id", null).is("source_of", null).maybeSingle();
   if (!data) return;
   await removeObjects(admin, [data.storage_path]);
   await admin.from("media_files").delete().eq("id", data.id);
@@ -202,16 +255,24 @@ export async function postMedia(db: SupabaseClient<Database>, postId: string): P
 
 // 書きかけの控えから戻せる画像か（4.62）: この投稿の画像か、まだどこにも添えていない（投稿にもメモにも）、上げてから RESTORE_UNATTACHED_HOURS 以内の画像。
 // rows は利用者の権限（RLS）で読んだ、本人の行だけ
-export function restorableRows<T extends { id: string; post_id: string | null; note_id: string | null; created_at: string }>(rows: T[], postId: string | null, now: Date): T[] {
+// 保存した投稿の画像の元（source_of のある行。4.68）は、その画像がこの投稿のもので、同じく読み直すときだけ戻す（古さは問わない）
+export function restorableRows<T extends { id: string; post_id: string | null; note_id: string | null; created_at: string; source_of?: string | null }>(rows: T[], postId: string | null, now: Date): T[] {
   const since = now.getTime() - RESTORE_UNATTACHED_HOURS * 3600_000;
-  return rows.filter((r) => (postId !== null && r.post_id === postId) || (r.post_id === null && r.note_id === null && Date.parse(r.created_at) > since));
+  const ofPost = new Set(rows.filter((r) => postId !== null && r.post_id === postId).map((r) => r.id));
+  return rows.filter((r) => {
+    if (postId !== null && r.post_id === postId) return true;
+    if (r.post_id !== null || r.note_id !== null) return false;
+    if (r.source_of) return ofPost.has(r.source_of);
+    return Date.parse(r.created_at) > since;
+  });
 }
 
 // 保存していない画像の数（上限の確かめ issue_media_upload_ticket と同じ数え方: どの投稿にもメモにも添えていない画像と、1 日以内の確かめ待ちの引換券。4.63）。
 // 画面の「保存していない画像 18/20」に使う。ownerId はサーバーが決めたログイン中の利用者
 export async function unattachedCount(admin: Admin, ownerId: string): Promise<number> {
   const [media, tickets] = await Promise.all([
-    admin.from("media_files").select("id", { count: "exact", head: true }).eq("owner_id", ownerId).is("post_id", null).is("note_id", null),
+    // 保存した投稿の画像の元（source_of のある行。4.68）は数えない
+    admin.from("media_files").select("id", { count: "exact", head: true }).eq("owner_id", ownerId).is("post_id", null).is("note_id", null).is("source_of", null),
     admin.from("media_upload_tickets").select("storage_path", { count: "exact", head: true }).eq("owner_id", ownerId).gt("created_at", new Date(Date.now() - 86_400_000).toISOString()),
   ]);
   if (media.error) throw media.error;

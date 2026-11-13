@@ -19,6 +19,18 @@ export function toDraftImage(i: AttachedImage): DraftImage {
   };
 }
 
+// 投稿の保存に渡す形（4.68）。元と描き直した元の両方があるときだけ、整え方を渡す
+export function toSavedMedia(i: AttachedImage): { id: string; altText: string; originalId?: string; editBaseId?: string; edit?: { kind: EditKind; adjust?: Adjustments; headline?: HeadlineSettings }; hasText?: boolean } {
+  return {
+    id: i.id,
+    altText: i.altText,
+    ...(i.text !== undefined ? { hasText: i.text } : {}),
+    ...(i.original && i.edit
+      ? { originalId: i.original.id, editBaseId: i.edit.base.id, edit: { kind: i.edit.kind, ...(i.edit.adjust ? { adjust: i.edit.adjust } : {}), ...(i.edit.headline ? { headline: i.edit.headline } : {}) } }
+      : {}),
+  };
+}
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // 読み直す id（画像と、元の画像・描き直した元。重ならないように。形の違う id は送らない）

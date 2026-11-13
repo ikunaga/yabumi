@@ -204,7 +204,7 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
 
   // 画像を、渡した順と代わりの文にそろえる（外した画像は消える）。送る前に済ませる
   try {
-    await attachMedia(createAdminClient(), userId, savedId, media.map((m) => ({ id: m.id, altText: m.altText })));
+    await attachMedia(createAdminClient(), userId, savedId, media);
   } catch (e) {
     if (e instanceof MediaError) return { fieldErrors: { media: e.userMessage } };
     console.error("[savePost] 画像を保存できませんでした", e);

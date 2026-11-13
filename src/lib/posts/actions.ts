@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { ISSUE_LABEL, SNS, checkTarget, isManualSns, type SnsKey } from "@/lib/sns";
-import { hashtagInputProblem, parseHashtagInput, withHashtags } from "@/lib/sns/hashtags";
+import { hashtagInputProblem, parseHashtagInput, splitTagsByText, withHashtags } from "@/lib/sns/hashtags";
 import { xSendVerdict } from "@/lib/sns/x/send-verdict";
 import { xOverMessage } from "@/lib/sns/x/send-rules";
 import { markXByHand, xByHandTooLateMessage } from "./x-by-hand";
@@ -36,7 +36,8 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
   if (!parsed.success) return { error: "入力の形式が正しくありません。画面を読み込み直してください。" };
   const { projectId, postId, body, plannedAt, intent, media, shortLinks, roadmapItemId, noteIds, xByHand } = parsed.data;
   // SNS ごとのタグ（# を外し、同じタグは 1 つに）。タグにできない言葉・6 個以上は、下で欄のエラーにする
-  const targets = parsed.data.targets.map((t) => ({ ...t, hashtags: parseHashtagInput(t.hashtags.join(" ")).tags }));
+  // 本文（SNS ごとの文面）にもう書いてあるタグは、タグの行から外して保存する（2 回出さない。PMO2 の x2）
+  const targets = parsed.data.targets.map((t) => ({ ...t, hashtags: splitTagsByText(t.bodyOverride ?? body, parseHashtagInput(t.hashtags.join(" ")).tags).keep }));
   const tagProblem = parsed.data.targets.map((t) => ({ sns: t.sns, problem: hashtagInputProblem(t.hashtags.join(" ")) })).find((t) => t.problem);
   const quotePostId = parsed.data.quotePostId ?? null;
 
@@ -185,6 +186,13 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
     if (statusError) return { error: "保存できませんでした。時間をおいてもう一度お試しください。" };
     // 送信ジョブが先に X を取り出していた（読んだときは送信待ちだった）。X は自動で送られるので、手では出さないよう知らせて止める
     if (!marked.ok) return { error: xByHandTooLateMessage(marked.status) };
+  }
+
+  // 選んでいた投稿のフォーマットを覚える（下書きから再開したときに戻す）。同じ持ち主・同じプロジェクトのものだけ（DB のトリガー posts_check_format）。
+  // 覚えられなくても投稿の保存は済んでいるので、続ける
+  if (parsed.data.formatId !== undefined) {
+    const { error: formatError } = await supabase.from("posts").update({ format_id: parsed.data.formatId }).eq("id", savedId).eq("project_id", projectId);
+    if (formatError) console.error("[savePost] フォーマットを覚えられませんでした", formatError.message);
   }
 
   // ロードマップのやることから作った投稿なら、結びつける（その投稿が送られたら、やることの進み具合に数える。4.23）

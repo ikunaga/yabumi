@@ -33,11 +33,14 @@ export type PostRow = {
   images: number;
   // 本文を書いたのは誰か（null は列を足す前からある投稿。docs/design/voice-from-posts.md の 2.3）
   textOrigin: "self" | "ai" | null;
+  // 投稿をつくったときに選んでいたフォーマットと、つないだロードマップのやること（下書きから再開したときに戻す。PMO2 の s8）
+  formatId: string | null;
+  roadmapItemId: string | null;
 };
 
 const TARGET_FIELDS = "id, sns, status, title, body_override, external_post_id, external_url, sns_removed_at, error_message, published_at, next_attempt_at, quote_post_id, hashtags";
-const POST_SELECT = `id, body, planned_at, status, text_origin, post_targets(${TARGET_FIELDS}), media_files(count)` as const;
-const POST_SELECT_FAILED_ONLY = `id, body, planned_at, status, text_origin, post_targets!inner(${TARGET_FIELDS}), media_files(count)` as const;
+const POST_SELECT = `id, body, planned_at, status, text_origin, format_id, roadmap_item_id, post_targets(${TARGET_FIELDS}), media_files(count)` as const;
+const POST_SELECT_FAILED_ONLY = `id, body, planned_at, status, text_origin, format_id, roadmap_item_id, post_targets!inner(${TARGET_FIELDS}), media_files(count)` as const;
 
 
 type RawPost = {
@@ -46,6 +49,8 @@ type RawPost = {
   planned_at: string | null;
   status: string;
   text_origin?: string | null;
+  format_id?: string | null;
+  roadmap_item_id?: string | null;
   post_targets: (Omit<PostTargetRow, "sns" | "status"> & { sns: string; status: string })[];
   media_files?: { count: number }[];
 };
@@ -57,6 +62,8 @@ function normalize(p: RawPost): PostRow {
     planned_at: p.planned_at,
     status: p.status === "scheduled" ? "scheduled" : "draft",
     textOrigin: p.text_origin === "ai" || p.text_origin === "self" ? p.text_origin : null,
+    formatId: p.format_id ?? null,
+    roadmapItemId: p.roadmap_item_id ?? null,
     targets: p.post_targets
       .filter((t) => isSnsKey(t.sns))
       .map((t) => ({ ...t, sns: t.sns as SnsKey, status: t.status as TargetStatus }))

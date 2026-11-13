@@ -33,7 +33,7 @@ import { TARGET_STATE, sendLabels, sendMode, sentStateOf } from "@/lib/posts/sen
 import { findUrls, profileLinkLine, withDestinationUrl, withProfileLink, type ProfileLinkInfo } from "@/lib/posts/profile-link";
 import { type TimeBand } from "@/lib/metrics/time-bands";
 import { composeChanges, type ComposeSnapshot } from "@/lib/posts/compose-reset";
-import { hashtagInputProblem, hashtagLine, parseHashtagInput, withHashtags } from "@/lib/sns/hashtags";
+import { hashtagInputProblem, hashtagLine, parseHashtagInput, splitTagsByText, withHashtags } from "@/lib/sns/hashtags";
 import { formatTagsFor, hasFormatHashtags, type FormatHashtags } from "@/lib/post-formats/schema";
 import { checkXSend } from "@/lib/posts/x-send-actions";
 import { hasXUrl } from "@/lib/sns/x-text";
@@ -54,6 +54,8 @@ export type ComposerInitial = {
   quotePostId?: string | null;
   // 本文を書いたのは誰か（前からある投稿は null。docs/design/voice-from-posts.md の 2.3）
   textOrigin?: "self" | "ai" | null;
+  // 選んでいた投稿のフォーマット（下書きから再開したときに選んだ状態で開く。PMO2 の s8）
+  formatId?: string | null;
 };
 
 export type ComposerProps = {
@@ -149,6 +151,12 @@ export function useComposer({
   const [body, setBody] = useState(initial.body);
   // 選んでいる投稿のフォーマットと穴の言葉（整えるに渡す。docs/design/post-formats.md の 4）
   const [formatUse, setFormatUse] = useState<FormatUse | null>(null);
+  // 保存する、選んでいるフォーマット（フォーマットの欄が出ていないとき（送った投稿など）は、開いたときのまま）
+  const [formatId, setFormatId] = useState<string | null>(initial.formatId ?? null);
+  const changeFormatUse = (use: FormatUse | null) => {
+    setFormatUse(use);
+    setFormatId(use?.format.id ?? null);
+  };
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const overrideRef = useRef<HTMLTextAreaElement>(null);
   const [selected, setSelected] = useState<Set<SnsKey>>(() => new Set(initial.targets.map((t) => t.sns)));
@@ -175,7 +183,11 @@ export function useComposer({
   // X の月の上限に当たるとき、利用者が「X は手で投稿する」を選んだ（前に選んで保存した投稿は、そのまま）
   const [xByHand, setXByHand] = useState(Boolean(results.x?.byHand));
   // X をいま（予約ならその時刻に）送ったら上限に当たるか（サーバーが送信ジョブと同じ判定で返す）。key は調べたときの条件
-  const [xCheck, setXCheck] = useState<{ key: string; verdict: { now: XSendVerdict; planned: XSendVerdict | null } | null } | null>(null);
+  // base: 費用の変わる条件（これが同じなら、調べ直している間も前の判定を出したままにする）、key: 調べた回（base ＋ ステップ ＋ 押した回数）
+  const [xCheck, setXCheck] = useState<{ key: string; base: string; verdict: { now: XSendVerdict; planned: XSendVerdict | null } | null } | null>(null);
+  // 判定し直す回数（⑤ に入ったとき・「今すぐ送る」「予約する」を押したときに増やす。画面を開いたあとに額が増えた・減ったのを拾う。PMO2 の x1）
+  const [xNonce, setXNonce] = useState(0);
+  const recheckX = () => setXNonce((n) => n + 1);
   // AI で整えた案を使った知らせが出ているか（出ている間は、SNS ごとの文面の 1 行をその知らせにまとめる）
   const [tidyAdopted, setTidyAdopted] = useState(false);
   // 本文を書いたのは誰か。「AI で整える」の案を採用したら ai にする（戻しても自動では self に戻さない。利用者が切り替えられる）
@@ -325,6 +337,7 @@ export function useComposer({
     setNoteIds([]);
     setTidyAdopted(false);
     setFormatUse(null);
+    setFormatId(initial.formatId ?? null);
     setTextOrigin(initial.textOrigin ?? "self");
     setIgLinked(false);
     setResult({});
@@ -349,7 +362,11 @@ export function useComposer({
   }
 
   // SNS ごとのタグ（欄から読んだもの）と、送る文（本文か SNS ごとの文面 ＋ 空行 ＋ タグ。DB の post_target_text と同じ組み立て）
-  const tagsFor = (sns: SnsKey) => parseHashtagInput(tagInputs[sns] ?? "").tags;
+  // 本文（SNS ごとの文面）にもう書いてあるタグは、タグの行に付けない（保存のときも外す。2 回出さない。PMO2 の x2）
+  const tagSplit = (sns: SnsKey) => splitTagsByText(overrides[sns] ?? body, parseHashtagInput(tagInputs[sns] ?? "").tags);
+  const tagsFor = (sns: SnsKey) => tagSplit(sns).keep;
+  // 本文にもあるので、タグの行には付けないタグ（② の欄の下に添える）
+  const tagsInBody = (sns: SnsKey) => tagSplit(sns).inText;
   const textFor = (sns: SnsKey) => withHashtags(overrides[sns] ?? body, tagsFor(sns));
   // タグを付ける前の文（AI に渡すのはこちら。タグは AI に送らない）
   const bodyFor = (sns: SnsKey) => overrides[sns] ?? body;
@@ -360,7 +377,7 @@ export function useComposer({
   const checks = useMemo(
     () =>
       Object.fromEntries(
-        SNS_KEYS.map((sns) => [sns, checkTarget(sns, shownTextOf(sns, withHashtags(overrides[sns] ?? body, parseHashtagInput(tagInputs[sns] ?? "").tags)), { images: images.length, videos: 0, sizes: images }, titles[sns] ?? null)]),
+        SNS_KEYS.map((sns) => [sns, checkTarget(sns, shownTextOf(sns, withHashtags(overrides[sns] ?? body, splitTagsByText(overrides[sns] ?? body, parseHashtagInput(tagInputs[sns] ?? "").tags).keep)), { images: images.length, videos: 0, sizes: images }, titles[sns] ?? null)]),
       ) as Record<SnsKey, ReturnType<typeof checkTarget>>,
     // shownTextOf は shortLinks・linkBase・linkPreview で決まる
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -410,12 +427,14 @@ export function useComposer({
   const quoting = quote !== null && selected.has("x") && !isLocked("x");
   // X の上限を調べ直す条件（費用が変わるのは、送る文に URL があるか・説明文のある画像の枚数・送る月だけ）
   const xAlt = images.filter((i) => (i.altText ?? "").trim()).length;
-  const xKey = toSend.includes("x") && !quoting ? `${hasXUrl(textFor("x")) ? "url" : "plain"}:${xAlt}:${plannedAt.slice(0, 7)}` : null;
+  const xBase = toSend.includes("x") && !quoting ? `${hasXUrl(textFor("x")) ? "url" : "plain"}:${xAlt}:${plannedAt.slice(0, 7)}` : null;
+  // ② と ⑤ に入るたびにも調べ直す（ほかの画面・ほかの投稿で額が変わっていることがある）
+  const xKey = xBase ? `${xBase}:${composeStep === 2 || composeStep === 5 ? composeStep : 0}:${xNonce}` : null;
   useEffect(() => {
-    if (!xKey || xCheck?.key === xKey) return;
+    if (!xKey || !xBase || xCheck?.key === xKey) return;
     let alive = true;
     void callAction(() => checkXSend({ projectId, text: textFor("x"), altCount: xAlt, plannedAt })).then((out) => {
-      if (alive) setXCheck({ key: xKey, verdict: out.ok ? (out.value ?? null) : null });
+      if (alive) setXCheck({ key: xKey, base: xBase, verdict: out.ok ? (out.value ?? null) : null });
     });
     return () => {
       alive = false;
@@ -423,7 +442,7 @@ export function useComposer({
     // textFor・plannedAt は xKey に入っている分だけ見る（字を打つたびに呼ばない）
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [xKey, projectId]);
-  const xChecked = xKey && xCheck?.key === xKey ? xCheck.verdict : null;
+  const xChecked = xBase && xCheck?.base === xBase ? xCheck.verdict : null;
   // 予約の日時があれば、その時刻に送るときの判定（来月以降なら上限が戻る）。今すぐ送るは、いまの判定
   const xVerdict = xChecked ? (xChecked.planned ?? xChecked.now) : null;
   const xNowVerdict = xChecked?.now ?? null;
@@ -541,6 +560,8 @@ export function useComposer({
   }
 
   function submit(intent: "draft" | "schedule" | "now") {
+    // 押したときにも X の上限を調べ直す（止めるのはサーバーの savePost。ここは画面の知らせを今の額に合わせる）
+    if (intent !== "draft") recheckX();
     setTouched(true);
     setResult({});
     setConfirmSend(false);
@@ -563,6 +584,7 @@ export function useComposer({
         quotePostId: quoting ? quote : null,
         textOrigin,
         xByHand: xByHand && toSend.includes("x"),
+        formatId,
         targets: chosen.map((sns) => ({
           sns,
           bodyOverride: overrides[sns] ?? null,
@@ -754,7 +776,7 @@ export function useComposer({
     body,
     setBody,
     formatUse,
-    setFormatUse,
+    setFormatUse: changeFormatUse,
     bodyRef,
     overrideRef,
     selected,
@@ -768,6 +790,7 @@ export function useComposer({
     tagInputs,
     setTagInputs,
     tagsFor,
+    tagsInBody,
     tagProblem,
     applyFormatTags,
     plannedAt,
@@ -777,6 +800,7 @@ export function useComposer({
     xByHand,
     setXByHand,
     xVerdict,
+    recheckX,
     tidyAdopted,
     setTidyAdopted,
     textOrigin,

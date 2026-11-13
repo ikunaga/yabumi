@@ -7,6 +7,7 @@ import { AiThinking } from "@/components/ui/ai-thinking";
 import { Button, ButtonLink, NotReadyButton } from "@/components/ui/button";
 import { Badge, chipClass } from "@/components/ui/chip";
 import { HelpTip } from "@/components/ui/help";
+import { Term } from "@/components/ui/term";
 import { SnsMark } from "@/components/ui/marks";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { Input, Textarea } from "@/components/ui/field";
@@ -14,6 +15,7 @@ import { Steps } from "@/components/ui/steps";
 import { adoptIdea, generateIdeas, refineIdeas } from "@/lib/ai/post-ideas-actions";
 import { MAX_NEWS_CHARS, MAX_TOPIC_CHARS, needsFillIn, type IdeaNoteMaterial, type IdeaQuestion, type IdeaSource, type IdeasThread, type PostIdea } from "@/lib/ai/post-ideas";
 import type { ThinkingKind } from "@/lib/ai/thinking";
+import { READER_CONCERN_LABEL, readerConcernOf } from "@/lib/ai/reader-concerns";
 import { IDEA_PERIODS, type IdeaPeriod } from "@/lib/github/commit-reader";
 import { IDEA_STEPS, type IdeaStep, canGoIdeaStep, initialIdeaStep, visibleIdeaStep } from "@/lib/ideas/steps";
 import { MAX_NOTES_FOR_IDEAS } from "@/lib/notes/rules";
@@ -712,8 +714,16 @@ function IdeaCard({
   return (
     <li className="flex flex-col gap-3.5 rounded-lg border border-border bg-surface px-6 py-5 max-sm:px-4 max-sm:py-4">
       <div className="flex flex-col gap-1.5">
-        {idea.pillar && (
-          <Badge className="w-fit">柱: {idea.pillar}</Badge>
+        {(idea.pillar || readerConcernOf(idea.concern)) && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {idea.pillar && <Badge className="w-fit">柱: {idea.pillar}</Badge>}
+            {/* 読む人のどの悩み・望みに触れるか（HARM。4.64）。前の版の案と、どれにも当たらない案には出さない */}
+            {readerConcernOf(idea.concern) && (
+              <Badge className="w-fit">
+                <Term k="harm">悩み</Term>: {READER_CONCERN_LABEL[readerConcernOf(idea.concern)!]}
+              </Badge>
+            )}
+          </div>
         )}
         <h3 className="text-[17px] font-bold">{idea.title}</h3>
         {idea.angle && <p className="text-[15px] leading-[1.7] text-muted">{idea.angle}</p>}

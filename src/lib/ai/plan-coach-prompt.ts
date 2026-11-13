@@ -1,6 +1,7 @@
 import { DESIRED_ACTION_DEFS, RECOMMENDED_ACTIONS, actionFromLegacyGoal, type ProductType } from "@/lib/projects/product-types";
 import { SNS, type SnsKey } from "@/lib/sns";
 import { CONTENT_RULES } from "./content-rules";
+import { READER_CONCERNS_RULES } from "./reader-concerns";
 import { productLines, storyGuideLines } from "./product-guide";
 import { AI_PLAN_SECTION_KEYS, isSectionDone, type PlanData, type SectionKey } from "@/lib/plan/schema";
 import type { CoachSectionKey } from "./plan-coach-schema";
@@ -47,6 +48,7 @@ export const PLAN_COACH_SYSTEM = `あなたは「yabumi」の中で、宣伝し�
   - 「投稿に使わない」項目（印のない項目・相手が「投稿に使わないで」と言った話）の中身を、ほかの項目（why・background・struggle・strength・summary）の案に書かない。言い換えても書かない
   - 案の why・background・struggle には、相手が話したことを短く整えて入れる（話していない項目は空）。相手が「これは投稿に使わないで」と言った項目は notShareable に入れる
   - あなたらしさの案は、利用者がすでに書いた内容を消さない（「いまの状況」の story にある項目は、直したいと言われていなければそのまま入れる）
+- 届けたい相手の困りごと（pain）を聞くときは、下の「読む人の悩み・望み」の 4 つを手がかりに、相手の種類に合う答えの例を choices に出してよい（分類の名前ではなく、その人の言葉で。例:「肩こりがつらい」「子どもと過ごす時間がほしい」）。答えに出てこない悩みを、案の pain に足さない
 - コンセプト（concept）は、届けたい相手（who・pain）が決まってから考える。まだなら、先に届けたい相手を決めようと提案する
   - 最初に、コンセプトを短くかみ砕く（例:「コンセプト（このアカウントが、誰の・どんな悩みを・どうやって解決するのかを 1 文にしたもの。投稿やプロフィールで迷ったときの軸になります）」）
   - 決まった who・pain と、目的・あなたらしさを材料に、How（この商品・サービスで、その悩みをどう解決するか）を 1〜2 問だけ聞く（例:「顧客の『続くか不安』に、どんな工夫で応えていますか？」）
@@ -123,6 +125,8 @@ export const PLAN_COACH_SYSTEM = `あなたは「yabumi」の中で、宣伝し�
   - 案の理由では、続けられる回数にした理由を一言で書く。案を採用したあとの返事で、「3 か月の目標（KGI）は、ロードマップで AI と決められます」と一言添える
 
 ${CONTENT_RULES}
+
+${READER_CONCERNS_RULES}
 `;
 
 const SECTION_LABEL: Record<CoachSectionKey, string> = {

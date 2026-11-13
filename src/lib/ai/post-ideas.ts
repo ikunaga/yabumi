@@ -18,6 +18,7 @@ import { actionFromLegacyGoal, type ProductType } from "@/lib/projects/product-t
 import { guideFor, productLines, productTypeOf, usesDevTalk } from "./product-guide";
 import { LENGTH_RULES, shortenOverDrafts, type CallShorten } from "./shorten";
 import { CONTENT_RULES } from "./content-rules";
+import { READER_CONCERNS, READER_CONCERNS_RULES, readerConcernOf, type ReaderConcern } from "./reader-concerns";
 import { JAPANESE_STYLE_RULES, draftStyleChecker, styleLabels, type StyleProblem } from "./japanese-style";
 import { aiFailureMessage } from "./provider-failure";
 import { MAX_X_POST_INTEREST, MAX_X_POST_TEXT, X_POST_INTEREST_QUESTION, parseXPostUrl } from "@/lib/ideas/x-post";
@@ -48,6 +49,7 @@ export const postIdeasSchema = z.object({
         pillar: z.string().describe("どの投稿の柱か。アカウント設計の柱の名前をそのまま書く。柱が決まっていなければ、短い種類の名前（例: 詰まった・直した）"),
         title: z.string().describe("ネタの短い名前（20 字ほど）"),
         angle: z.string().describe("なぜこのネタがよいか。誰に何が伝わるか。1〜2 文"),
+        concern: z.enum([...READER_CONCERNS, "none"]).describe("このネタが読む人のどの悩み・望みに触れるか（HARM）。どれにも当たらなければ none"),
         commits: z.array(z.object({ sha: z.string().describe("元にしたコミットの sha（7 文字以上）"), note: z.string().describe("どんな変更か。素人にもわかる言葉で 1 文") })),
         notes: z.array(z.number().int()).describe("元にしたメモの番号（材料がネタ帳のときだけ。ほかは空）"),
         drafts: z.array(z.object({ sns: z.enum(IDEA_SNS as [SnsKey, ...SnsKey[]]), text: z.string().describe("その SNS の投稿の下書き") })),
@@ -64,6 +66,8 @@ export type PostIdea = {
   title: string;
   angle: string;
   commits: { sha: string; note: string }[];
+  // 読む人のどの悩み・望みに触れるか（HARM。4.64。画面の「悩み: 人間関係」の札）。どれにも当たらなければ null。前の版の会話にはない
+  concern?: ReaderConcern | null;
   // 元にしたメモの番号（1 から。材料がネタ帳のときだけ。前の版の会話にはない）
   notes?: number[];
   // style: 直しても残った、日本語の決まりに反する言い回し（japanese-style.ts。画面に出す）
@@ -137,6 +141,7 @@ ${DATA_RULES}
 - 投稿の柱は、アカウント設計の柱の名前をそのまま pillar に書く。柱の割合が決まっていれば、割合の大きい柱を多めにする。柱が決まっていなければ、「# プロジェクト」の「この種類の投稿の柱の例」から短い名前を付ける
 - 柱が SNS ごとに決まっているときは、そのネタの柱が付いた SNS にだけ下書きを書く（付いていない SNS の下書きは書かない）。ネタは、下書きを書く SNS のどれかに付いた柱から選ぶ
 - angle には、なぜこのネタがよいか（届けたい相手に何が伝わるか）を、素人にもわかる言葉で書く
+- concern には、そのネタが読む人のどの悩み・望みに触れるかを、下の「読む人の悩み・望み」の 4 つから選ぶ。当てはまらなければ none。angle にも、どんな悩み・望みに応えるネタかが伝わるように書く。ネタごとに同じ分類ばかりにしない
 - 材料がコミットのとき: 関係するコミットはまとめて 1 つのネタにしてよい。誤字の修正、依存の更新、書式の整理のような小さなコミットは、それだけではネタにしない。commits には、元にしたコミットの sha と、どんな変更かを素人にもわかる言葉で 1 文。<commits> にない sha は書かない
 - 材料が最近のできごとのとき: 利用者が書いたことを、投稿になる形に広げる。書かれていないできごとは足さない。commits は空にする
 - 材料がネタ帳のメモでなければ、notes は空にする
@@ -172,6 +177,8 @@ ${DATA_RULES}
 - 利用者の答えを反映して、ネタと下書きを出し直す。答えに書かれたことは使ってよい。答えられた質問は消し、まだ聞きたいことがあれば残す
 
 ${CONTENT_RULES}
+
+${READER_CONCERNS_RULES}
 
 ${JAPANESE_STYLE_RULES}`;
 
@@ -356,7 +363,11 @@ export function normalizeIdeas(
   // notes は材料がネタ帳のときのために足した欄。なくても読む（前の版の返事と、ほかの材料）
   const withNotes =
     raw && typeof raw === "object" && Array.isArray((raw as { ideas?: unknown }).ideas)
-      ? { ...raw, ideas: (raw as { ideas: unknown[] }).ideas.map((i) => (i && typeof i === "object" && !("notes" in i) ? { ...i, notes: [] } : i)) }
+      ? {
+          ...raw,
+          // concern も同じく、なくても読む（前の版の返事）
+          ideas: (raw as { ideas: unknown[] }).ideas.map((i) => (i && typeof i === "object" ? { ...("notes" in i ? {} : { notes: [] }), ...("concern" in i ? {} : { concern: "none" }), ...i } : i)),
+        }
       : raw;
   const parsed = postIdeasSchema.safeParse(withNotes);
   if (!parsed.success) return null;
@@ -386,7 +397,7 @@ export function normalizeIdeas(
     }
     // 知らないメモの番号は捨てる
     const notes = [...new Set(i.notes)].filter((n) => Number.isInteger(n) && n >= 1 && n <= (opts.noteCount ?? 0));
-    ideas.push({ pillar: cap(i.pillar, 50), title, angle: cap(i.angle, 400), commits, notes, drafts });
+    ideas.push({ pillar: cap(i.pillar, 50), title, angle: cap(i.angle, 400), concern: readerConcernOf(i.concern), commits, notes, drafts });
     if (ideas.length >= MAX_IDEAS) break;
   }
   if (ideas.length === 0) return null;

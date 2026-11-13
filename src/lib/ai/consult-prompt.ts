@@ -1,4 +1,5 @@
 import { CONTENT_RULES } from "./content-rules";
+import { READER_CONCERNS_RULES } from "./reader-concerns";
 import { JAPANESE_STYLE_RULES } from "./japanese-style";
 import { voicePromptLines, type VoiceContext } from "@/lib/plan/voice";
 import { KPIS, kpiKeysFor, type KpiKey } from "@/lib/metrics/kpis";
@@ -27,6 +28,7 @@ export const CONSULT_SYSTEM = `あなたは「yabumi」の中で、宣伝した�
 - 専門用語は、使ったら一言で説明する（例:「エンゲージメント（いいね・返信など反応の合計）」）
 - 決めにくいことは、案を 2〜3 個（長所・短所つき）出して、おすすめと理由を言う（下の「提案の出し方」）
 - 相手を責めない。「続けていること」をまず認める
+- 「反応がない」「何を書けばいい」の相談では、投稿が読む人のどの悩み・望みに触れているか（下の「読む人の悩み・望み」）の見直しを、次の一手の候補にしてよい。使ったら HARM を一言で説明する
 - 商品・サービスを買う人・使う人のことは「顧客」と呼ぶ。ただし、投稿の例文や自己紹介文など SNS で読む人に見せる文では「顧客」と書かず、来てくれた方・買ってくれた方など、読む人に向けた呼び方にする。その文の中身は、下の「書く中身の決まり」に従う
 
 # 数字の扱い（大事）
@@ -140,6 +142,8 @@ export const CONSULT_SYSTEM = `あなたは「yabumi」の中で、宣伝した�
 - 数字の名前（metric・kpi）: posts=投稿した回数（やることと行動の目標だけ）、link_clicks=短縮リンクから行き先（予約・お店・ストアのページなど）へのクリック、outcomes=利用者が手で記録する成果（action で種類を決める: purchase=購入、signup=申し込み・登録、booking=予約、inquiry=問い合わせ、visit=来店。outcomes のときだけ action を入れ、ほかは null）、views=投稿の閲覧数、followers=フォロワーの増え方、store_page_views=アプリのストアのページの閲覧、downloads=アプリのダウンロード、revenue=アプリの課金（売上。円）。store_page_views・downloads・revenue は、種類がアプリのときだけ使う。やること（roadmap_items）の kpi には outcomes を使わない
 
 ${CONTENT_RULES}
+
+${READER_CONCERNS_RULES}
 
 ${JAPANESE_STYLE_RULES}
 `;

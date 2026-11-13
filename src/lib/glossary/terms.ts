@@ -25,7 +25,7 @@ export const glossary = {
     summary:
       "宣伝したいものを届けたい「たった一人の典型的な顧客像」。年齢・職業・悩み・SNS の使い方まで具体的に決めると、投稿の言葉選びがぶれなくなります。",
     example: "例:「子どもの習い事を探している 30 代の会社員。夜 22 時ごろ Instagram を眺めている」（教室の場合）。「残業続きで家計簿が続かない 28 歳。夜 23 時ごろ X を見ている」（アプリの場合）",
-    related: ["contentPillar", "toneAndManner"],
+    related: ["contentPillar", "toneAndManner", "harm"],
   },
   conversion: {
     label: "コンバージョン",
@@ -89,7 +89,33 @@ export const glossary = {
       },
       { kind: "p", text: "3 つをつなげて 1 文にします。長くなったら、いちばん伝えたいところだけを残します。" },
     ],
-    related: ["persona", "story", "contentPillar"],
+    related: ["persona", "story", "contentPillar", "harm"],
+  },
+  harm: {
+    label: "HARM（人の 4 つの悩み）",
+    reading: "ハーム",
+    summary:
+      "人が強く気にする悩み・望みを、健康（Health）・夢や仕事（Ambition）・人間関係（Relationship）・お金（Money）の 4 つに分けたもの。投稿が読む人のどの悩みに触れるかを決めておくと、「自分のことだ」と思ってもらいやすくなります。",
+    example: "例: 整体院が「デスクワークの肩こり」（健康）に触れる投稿、教室が「子どもと過ごす時間」（人間関係）に触れる投稿。",
+    details: [
+      {
+        kind: "table",
+        caption: "4 つの悩み・望みと、投稿の例",
+        head: ["分類", "どんな悩み・望みか", "投稿の例"],
+        rows: [
+          ["健康・美容（Health）", "体の不調、疲れ、見た目、食べ物の安心", "整体・ヨガ教室の「座りっぱなしで肩がつらい人へ」、パン屋の「子どもにも安心な材料のこと」"],
+          ["夢・仕事（Ambition）", "うまくなりたい、資格や仕事、好きなことを形にしたい、時間がほしい", "教室の「資格を目指す人の 1 日」、フリーランスの「任せると楽になる作業」、作品の発信の「作り始めたころの話」"],
+          ["人間関係（Relationship）", "家族や子ども、友だち、職場の人、ひとりの寂しさ", "お店の「家族で来られる時間帯」、アプリの「離れて暮らす親との連絡」"],
+          ["お金（Money）", "節約、長く使えるか、払う価値があるか", "ネットショップの「長く使えて結局お得な選び方」、家計簿アプリの「続けるコツ」"],
+        ],
+      },
+      { kind: "p", text: "全部に触れようとせず、1 つの投稿で 1 つに絞ります。届けたい相手が本当に持っている悩みを選びます（アカウント設計の「相手の困りごと」）。お知らせなど、どれにも当たらない投稿があってかまいません。" },
+      {
+        kind: "p",
+        text: "不安をあおる書き方（「このままでは〜」「知らないと損」）はしません。健康・美容の効き目や、もうかることは約束しません（薬機法や景品表示法などの決まりがあります）。yabumi の AI も、ネタを出すときにこの考え方を使い、ネタの案に「悩み: 人間関係」のように出します。",
+      },
+    ],
+    related: ["persona", "concept", "contentPillar"],
   },
   story: {
     label: "ストーリー（共感）",
@@ -395,7 +421,7 @@ export type GlossaryCategory = { id: GlossaryCategoryId; label: string; note: st
 export const GLOSSARY_CATEGORIES: GlossaryCategory[] = [
   { id: "goals", label: "目標と計画", note: "ゴールの決め方と、そこまでの道のり", cover: "kgi", keys: ["kgi", "milestone", "kpi", "roadmap", "persona"] },
   { id: "flow", label: "顧客の流れと数字", note: "知ってもらってから行動するまでと、そこで見る数字", cover: "marketingFunnel", keys: ["marketingFunnel", "awareness", "impression", "conversion", "correlation"] },
-  { id: "posting", label: "発信のしかた", note: "何を、どんな口調で投稿するか", cover: "contentPillar", keys: ["contentPillar", "concept", "story", "toneAndManner", "hashtag", "buildInPublic", "ugc"] },
+  { id: "posting", label: "発信のしかた", note: "何を、どんな口調で投稿するか", cover: "contentPillar", keys: ["contentPillar", "concept", "harm", "story", "toneAndManner", "hashtag", "buildInPublic", "ugc"] },
   { id: "media", label: "メディアと広告", note: "自分の場所・口コミ・広告の使い分け", cover: "tripleMedia", keys: ["tripleMedia", "ownedMedia", "earnedMedia", "paidMedia", "organicVsAds", "seoVsSns", "ownedAudience", "newsletter"] },
   { id: "sns", label: "SNS ごと", note: "SNS ごとの特徴と、つなぐときの準備", cover: "snsTraits", keys: ["snsTraits", "proAccount", "facebookPage", "payPerUse"] },
   { id: "tech", label: "リンクと技術", note: "短縮リンクと、自分のドメインの設定の言葉", cover: "shortLink", keys: ["shortLink", "campaignLink", "storeListing", "dns", "cname", "subdomain"] },

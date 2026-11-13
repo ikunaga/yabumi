@@ -1,4 +1,5 @@
-import { formatUsd, xPostCostUsd } from "./pricing";
+import { SNS } from "@/lib/sns";
+import { X_PRICE_USD, formatUsd, xPostCostUsd } from "./pricing";
 
 // X をいま送ったら、月の上限（利用者ごと・yabumi 全体）に当たるか（PMO の通しテストで、送ったあとで初めて上限がわかった件）。
 // 送信ジョブの reserve_sns_spend（20261011390000_x_post_user_cap）と同じ比べ方「今月の額 ＋ この投稿 > 上限」で、利用者ごとを先に見る。
@@ -6,9 +7,15 @@ import { formatUsd, xPostCostUsd } from "./pricing";
 
 export type XOver = "user" | "global";
 
+// X の投稿 1 本のいちばん高い額（URL あり＋説明文のある画像を上限の枚数まで）
+export const X_MAX_POST_COST_USD = X_PRICE_USD.post_with_url + SNS.x.maxImages * X_PRICE_USD.media_metadata;
+
+// 全体の上限は、この投稿の額によらず、いちばん高い額で判定する（文や画像の枚数を変えて答えを見比べると、
+// 全体の残りの額が少しずつわかってしまうため。セキュリティ確認 2026-11-13 の App-L1）。利用者ごとの上限は本人の額なので、この投稿の額で見る。
+// 送信ジョブの reserve_sns_spend はこの投稿の額で止めるので、見込みは少し早めに「当たる」と出ることがある（費用は超えない向き）
 export function judgeXSend(a: { userSpentUsd: number; totalSpentUsd: number; costUsd: number; userBudgetUsd: number | null; budgetUsd: number | null }): XOver | null {
   if (a.userBudgetUsd !== null && a.userSpentUsd + a.costUsd > a.userBudgetUsd) return "user";
-  if (a.budgetUsd !== null && a.totalSpentUsd + a.costUsd > a.budgetUsd) return "global";
+  if (a.budgetUsd !== null && a.totalSpentUsd + X_MAX_POST_COST_USD > a.budgetUsd) return "global";
   return null;
 }
 

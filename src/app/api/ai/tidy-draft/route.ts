@@ -10,6 +10,9 @@ import { SNS_KEYS, type SnsKey } from "@/lib/sns";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
+// 整えるに渡す穴の言葉の数の上限（route の入力で確かめる）
+const MAX_FORMAT_VALUE_KEYS = 16;
+
 const inputSchema = z.object({
   projectId: z.uuid(),
   text: z.string().max(MAX_TIDY_CHARS * 2),
@@ -17,7 +20,13 @@ const inputSchema = z.object({
   // 整え方（形が合わない項目は「おまかせ」にする。ほかに一言は 100 字まで）
   direction: z.unknown().optional(),
   // 投稿のフォーマット（docs/design/post-formats.md の 4）。中身はサーバーが利用者の権限で読み直し、穴の言葉は 1 つ 200 字までに整える
-  format: z.object({ id: z.uuid(), values: z.record(z.string().max(40), z.string().max(400)) }).nullish(),
+  // 穴の言葉は 16 個まで（穴は 8 種類までなので余裕を見た数。欄の数に上限がないと、大きな入力を受けてしまう。セキュリティ確認 2026-11-13 の App-L5）
+  format: z
+    .object({
+      id: z.uuid(),
+      values: z.record(z.string().max(40), z.string().max(400)).refine((v) => Object.keys(v).length <= MAX_FORMAT_VALUE_KEYS, "穴の言葉が多すぎます"),
+    })
+    .nullish(),
 });
 
 export type TidyDraftResponse = { error?: string; options?: TidyOption[] };

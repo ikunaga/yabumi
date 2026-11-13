@@ -7,7 +7,7 @@ import { ISSUE_LABEL, SNS, checkTarget, isManualSns, type SnsKey } from "@/lib/s
 import { hashtagInputProblem, parseHashtagInput, withHashtags } from "@/lib/sns/hashtags";
 import { xSendVerdict } from "@/lib/sns/x/send-verdict";
 import { xOverMessage } from "@/lib/sns/x/send-rules";
-import { markXByHand } from "./x-by-hand";
+import { markXByHand, xByHandTooLateMessage } from "./x-by-hand";
 import { canPublish, publisherDeps } from "@/lib/sns/adapters";
 import { publishDueTargets } from "@/lib/sns/publisher";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -173,14 +173,18 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
   }
 
   if (xHand) {
+    let marked;
     try {
-      await markXByHand(createAdminClient(), savedId, userId);
+      marked = await markXByHand(createAdminClient(), savedId, userId);
     } catch (e) {
       console.error("[savePost] X を手で投稿する印を付けられませんでした", e);
       return { error: "保存できませんでした。時間をおいてもう一度お試しください。" };
     }
+    // 印を付けられなくても、ほかの SNS は予約に戻す（利用者が送るつもりのもの）
     const { error: statusError } = await supabase.from("posts").update({ status: "scheduled" }).eq("id", savedId).eq("project_id", projectId);
     if (statusError) return { error: "保存できませんでした。時間をおいてもう一度お試しください。" };
+    // 送信ジョブが先に X を取り出していた（読んだときは送信待ちだった）。X は自動で送られるので、手では出さないよう知らせて止める
+    if (!marked.ok) return { error: xByHandTooLateMessage(marked.status) };
   }
 
   // ロードマップのやることから作った投稿なら、結びつける（その投稿が送られたら、やることの進み具合に数える。4.23）

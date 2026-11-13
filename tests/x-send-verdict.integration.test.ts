@@ -6,7 +6,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { saveConnectedAccount } from "@/lib/sns/accounts";
 import type { SnsAdapter } from "@/lib/sns/adapters/types";
 import { publishDueTargets, type PublisherDeps } from "@/lib/sns/publisher";
-import { markXByHand } from "@/lib/posts/x-by-hand";
+import { markXByHand, xByHandTooLateMessage } from "@/lib/posts/x-by-hand";
 import { X_BY_HAND_MESSAGE } from "@/lib/sns/x/send-rules";
 import { xSendVerdict } from "@/lib/sns/x/send-verdict";
 import { xPostCostUsd } from "@/lib/sns/x/pricing";
@@ -144,4 +144,24 @@ describe("「X は手で投稿する」を選んだ X の配信先", () => {
     expect(ids).toContain(past);
     expect(ids).not.toContain(future);
   });
+
+  it("App-L2: 送信ジョブが先に X を取り出していたら印を付けず、いまの状態を返す（手でも出して二重にならないよう、保存で知らせる）", async () => {
+    const { data: postId } = await alice.rpc("save_post", {
+      p_post_id: null as unknown as string,
+      p_project_id: projectId,
+      p_body: "二重にしない",
+      p_planned_at: "2099-03-01T00:00:00Z",
+      p_status: "draft",
+      p_targets: [{ sns: "x", social_account_id: xAccountId }],
+    });
+    // 予約を読んだあと、印を付ける前に、送信ジョブが X を取り出した
+    await admin.from("post_targets").update({ status: "publishing", locked_at: new Date().toISOString() }).eq("post_id", postId!).eq("sns", "x");
+    expect(await markXByHand(admin, postId!, aliceId)).toEqual({ ok: false, status: "publishing" });
+    expect((await admin.from("post_targets").select("status, error_message").eq("post_id", postId!).single()).data).toEqual({ status: "publishing", error_message: null });
+    expect(xByHandTooLateMessage("publishing")).toContain("手では出さないでください");
+    // まだ送信待ちなら印を付ける
+    await admin.from("post_targets").update({ status: "pending", locked_at: null }).eq("post_id", postId!);
+    expect(await markXByHand(admin, postId!, aliceId)).toEqual({ ok: true });
+  });
 });
+

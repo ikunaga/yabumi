@@ -2,6 +2,9 @@ import { LearningTip } from "@/components/learning/learning-tip";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { XSyncOnView } from "@/components/posts/x-sync-on-view";
+import { PostCommentsSection } from "@/components/comments/comments";
+import { MarkCommentsSeen } from "@/components/comments/mark-seen";
+import { loadProjectComments } from "@/lib/sns/comments/queries";
 import { aiConfigured } from "@/lib/ai/anthropic";
 import { PostComposer } from "@/components/posts/post-composer";
 import { PostNumbersBand } from "@/components/posts/post-numbers-band";
@@ -63,6 +66,8 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
     postLinkPreview(supabase, post.id),
     loadPostNumbers(project.id, { postId: post.id, sent }),
   ]);
+  // SNS のコメント（4.70）: 送った投稿だけ。数字の帯の下に出す
+  const comments = sent ? (await loadProjectComments(project.id, { postId: post.id })).filter((p) => p.sns !== "x") : [];
   const timeHint = timeHintOf(await loadTimeTrends(project.id));
   const profileLink = await loadProfileLinkInfo(supabase, project);
   // ロードマップのやることから作った投稿は、やることの題と説明を手がかりとして出す（下書きから再開したときも。PMO2 の s8。RLS で本人のものだけ）
@@ -121,6 +126,7 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
   return (
     <>
       {hasPublishedX && <XSyncOnView projectId={project.id} postId={post.id} />}
+      {comments.length > 0 && <MarkCommentsSeen projectId={project.id} postId={post.id} />}
       <PostComposer
       key={post.id}
       projectId={project.id}
@@ -134,7 +140,14 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
       results={results}
       needImageReconnect={needImageReconnect}
       linkPreview={linkPreview}
-      numbers={numbers && <PostNumbersBand projectId={project.id} numbers={numbers} />}
+      numbers={
+        (numbers || comments.length > 0) && (
+          <div className="flex flex-col gap-4">
+            {numbers && <PostNumbersBand projectId={project.id} numbers={numbers} />}
+            <PostCommentsSection posts={comments} now={new Date()} />
+          </div>
+        )
+      }
       timeHint={timeHint}
       profileLink={profileLink}
       selfWrittenPosts={selfWrittenPosts}

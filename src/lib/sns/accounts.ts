@@ -88,13 +88,15 @@ export async function deleteAccountsByExternalId(admin: Admin, sns: SnsKey, exte
 }
 
 // アクセスがなくなったとき（yabumi の「外す」、SNS の側で外された、データの削除を求められた）に、その SNS から受け取ったものを消す:
-// 送った投稿の数字（post_metrics）とフォロワーの数（account_metrics）、SNS 上の投稿の ID・URL・送信の途中の情報。
+// 送った投稿の数字（post_metrics）とフォロワーの数（account_metrics）、読んだコメント（sns_comments。4.70）、SNS 上の投稿の ID・URL・送信の途中の情報。
 // 投稿の本文と「送った」という記録は利用者が書いたものなので残す。X の Developer Policy と Meta の Platform Terms に合わせ、
 // どの SNS も同じ扱いにする（docs/architecture.md の 4.14、プライバシーポリシーの第 5・6 条）
 export async function purgeSnsDataOf(admin: Admin, socialAccountIds: string[]): Promise<void> {
   if (!socialAccountIds.length) return;
   const { error: e0 } = await admin.from("account_metrics").delete().in("social_account_id", socialAccountIds);
   if (e0) throw e0;
+  const { error: ec } = await admin.from("sns_comments").delete().in("social_account_id", socialAccountIds);
+  if (ec) throw ec;
   const { data: targets, error } = await admin.from("post_targets").select("id").in("social_account_id", socialAccountIds);
   if (error) throw error;
   const ids = targets.map((t) => t.id);

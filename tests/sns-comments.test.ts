@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { classifyGraphError, CommentsError, facebookComments, instagramComments, MAX_BODY_CHARS, threadsComments } from "@/lib/sns/comments/fetchers";
 import { FRESH_INTERVAL_MS, LATER_INTERVAL_MS, nextCheckAt, SLACK_MS } from "@/lib/sns/comments/import";
+import { digestMessage } from "@/lib/sns/comments/digest";
+import { agoLabel, buildPostComments, newCommentSummary, SEEN_GRACE_MS } from "@/lib/sns/comments/view";
 import { enabledCommentScopes, hasCommentsScope, requestedScopes, withCommentsScope } from "@/lib/sns/comments/scopes";
 
 const account = { externalId: "me-id", accessToken: "tok", handle: "me" };
@@ -168,5 +170,72 @@ describe("AI に送らない", () => {
     walk(join(process.cwd(), "src/lib/ai"));
     expect(files.length).toBeGreaterThan(10);
     for (const f of files) expect(readFileSync(f, "utf8"), f).not.toMatch(/sns_comments|sns\/comments/);
+  });
+});
+
+describe("画面の組み立て", () => {
+  const now = new Date("2026-11-14T12:00:00Z");
+  const row = (id: string, target: string, extra: Record<string, unknown> = {}) => ({
+    id,
+    post_target_id: target,
+    sns: "threads",
+    parent_external_id: null,
+    author_name: "@a",
+    body: "b",
+    is_own: false,
+    commented_at: "2026-11-14T10:00:00Z",
+    seen_at: null,
+    ...extra,
+  });
+  const target = (id: string, sns: "threads" | "x", publishedAt: string, extra: Record<string, unknown> = {}) => ({ id, postId: `p-${id}`, sns, title: id, publishedAt, url: null, likes: null, replies: null, ...extra });
+
+  it("新しいコメントのある投稿を上に、古い順に並べ、自分のものは数えない。見てから 10 分は新しいの印を残す。X は返信の数だけ", () => {
+    const views = buildPostComments(
+      [target("t1", "threads", "2026-11-14T00:00:00Z"), target("t2", "threads", "2026-11-10T00:00:00Z"), target("x1", "x", "2026-11-13T00:00:00Z", { replies: 5, likes: 3 }), target("x2", "x", "2026-11-13T00:00:00Z", { replies: 0 })],
+      [
+        row("a", "t1", { seen_at: new Date(now.getTime() - SEEN_GRACE_MS - 1).toISOString() }),
+        row("b", "t1", { is_own: true, parent_external_id: "ext-a", commented_at: "2026-11-14T09:00:00Z" }),
+        row("c", "t2", { seen_at: new Date(now.getTime() - 60_000).toISOString() }),
+      ],
+      now,
+    );
+    expect(views.map((v) => [v.targetId, v.count, v.newCount])).toEqual([
+      ["t2", 1, 1],
+      ["t1", 1, 0],
+      ["x1", 5, 0],
+    ]);
+    expect(views[1].comments.map((c) => [c.id, c.isReply, c.isOwn])).toEqual([
+      ["b", true, true],
+      ["a", false, false],
+    ]);
+  });
+
+  it("概要の帯は、まだ見ていないものだけを SNS ごとに数える", () => {
+    expect(
+      newCommentSummary([
+        { sns: "threads", is_own: false, seen_at: null },
+        { sns: "instagram", is_own: false, seen_at: null },
+        { sns: "threads", is_own: true, seen_at: null },
+        { sns: "threads", is_own: false, seen_at: "2026-11-14T00:00:00Z" },
+      ]),
+    ).toEqual({ total: 2, bySns: { threads: 1, instagram: 1 } });
+  });
+
+  it("いつ書かれたか", () => {
+    expect(agoLabel("2026-11-14T11:59:30Z", now)).toBe("たった今");
+    expect(agoLabel("2026-11-14T11:15:00Z", now)).toBe("45 分前");
+    expect(agoLabel("2026-11-14T09:00:00Z", now)).toBe("3 時間前");
+    expect(agoLabel("2026-11-13T09:00:00Z", now)).toBe("昨日");
+    expect(agoLabel("2026-11-10T09:00:00Z", now)).toBe("11/10");
+  });
+
+  it("まとめの通知: いちばん多いプロジェクトを開き、ほかのプロジェクトの数を添える", () => {
+    expect(
+      digestMessage([
+        { projectId: "p1", projectName: "A", bySns: { threads: 1 }, total: 1 },
+        { projectId: "p2", projectName: "こむぎ日和", bySns: { threads: 2, instagram: 1 }, total: 3 },
+      ]),
+    ).toEqual({ title: "新しいコメント 4 件", body: "こむぎ日和: Threads 2・Instagram 1（ほか 1 つのプロジェクト）", url: "/projects/p2/comments", tag: "comments" });
+    expect(digestMessage([])).toBeNull();
   });
 });

@@ -107,6 +107,12 @@ Threads の Use cases → Settings の Uninstall Callback URL は `https://yabum
 4. 何か投稿を送り、翌日 5 時以降に指標の画面の「よく見られた投稿」と「投稿の閲覧数」に数字が出ることを確かめる（**これが申請の 30 日以内の呼び出しの実績になる**）
 5. 画面の録画（下の表の threads_manage_insights）を撮り、App Review でこの権限だけを追加で申請する（Instagram の申請と一緒に出す。決定 D21）
 
+### threads_read_replies（コメントに気付く。2026-11-14 に画面ができた。architecture.md の 4.70）
+
+> Yabumi helps people notice replies to the posts they published through Yabumi, so they can answer them on Threads. After a user connects their Threads account with this permission, a job reads the replies (username, text, timestamp) to the user's own posts published through Yabumi, only for 7 days after publishing, every 3 hours. The replies are shown on the project's "Comments" page with a link to open the post on Threads to reply, and the number of new replies is shown on the project overview and in an optional once-a-day push notification (count only; reply text and usernames are never included). Replies are stored for 30 days and deleted immediately when the user disconnects Threads, deletes or withdraws the post, or deletes their account. Replies are never sent to AI services. We do not reply or hide replies with this permission.
+
+- 申請までの流れは threads_manage_insights と同じ（Permissions で足す → `SNS_COMMENTS` に threads → つなぎ直す → 何か送り、コメントが付いたら 3 時間以内にコメントの画面に出ることを確かめる＝30 日以内の呼び出しの実績）。deploy.md の 28
+
 ## 画面の録画（権限ごとに 1 本）
 
 共通の決まり: 1080p 以上、音声なし、マウスで操作、英語の字幕か注釈を付ける（画面は日本語なので、各操作に「Click "Connect" (つなぐ)」のような注釈）。最初に、ブラウザのアドレスバーで本番の URL が見えるようにする。
@@ -116,6 +122,7 @@ Threads の Use cases → Settings の Uninstall Callback URL は `https://yabum
 | threads_basic | ① 審査用のアカウントで yabumi にログイン ② プロジェクトのプロジェクトの設定の「つないだ SNS」→ Threads の「つなぐ」③ Threads の認可画面（求める権限が並ぶ）で許可 ④ yabumi に戻り「✓ @ユーザー名」が出る |
 | threads_content_publish | ① ログイン済み、Threads はつないだ状態から ②「投稿をつくる」で本文を入れ、送り先に Threads を選ぶ ③ Threads のプレビュー（文字数）を見せる ④「今すぐ送る」⑤ 送信の結果の「Threads で見る」を押し、Threads で投稿が出ていることを見せる ⑥ 予約も見せる: 数分後に予約 → カレンダーに出る → 時刻が来て「✓ 送信済み」 |
 | threads_delete | ① 送信済みの投稿の画面 ②「Threads から取り消す」→ 確認 ③ 送信の結果が取り消しに変わる ④ Threads で投稿が消えたことを見せる |
+| threads_read_replies | ① ログイン済みで、プロジェクトの設定の「つないだ SNS」から Threads を「つなぎ直す」→ 認可画面に返信を読む権限が出ているところを見せて許可 ② 前に送った投稿に、別のアカウントから Threads で返信を付ける ③（3 時間以内に）概要の「● 新しいコメント 1」の帯を見せ、「コメントを見る」を押す ④ コメントの画面に返信（名前・本文）が出ていることを見せる ⑤「Threads で開いて返信する」を押して、Threads の投稿が開くことを見せる |
 | threads_manage_insights | ① ログイン済みで、プロジェクトの設定の「つないだ SNS」から Threads を「つなぎ直す」→ 認可画面に投稿の数字を読む権限（insights）が出ているところを見せて許可 ② 数日前に送った投稿がある状態で、サイドバーの「指標」（Metrics）を開く ③「投稿の閲覧数」（views）と先週との差、「フォロワーの増え方」を見せる ④「よく見られた投稿」（Most viewed posts）の 1 位を押して、その投稿の画面を開く ⑤ 同じ投稿を Threads のアプリで開き、表示回数が同じくらいであることを見せる（数字は 1 日 1 回の取り込みなので、少しずれてよい） |
 
 ## 審査の担当者向けの説明（Reviewer instructions に貼る）
@@ -166,6 +173,17 @@ yabumi の側は作り済み（architecture.md の 4.21）。別の Meta アプ�
 #### instagram_business_manage_insights
 
 > On the project's "Metrics" page, Yabumi shows indie developers whether their posts are reaching people. With this permission, a daily job reads the insights of the posts the user published through Yabumi (views, reach, likes, comments, saves, shares, total interactions) on day 2, 4, 8 and 31 after publishing, and the account's followers_count once a day. We show the total views of the last 7 days compared with the previous week, the follower growth, and the most viewed posts. If the user asks Yabumi's AI assistant to review their numbers, these numbers are included in that request (Anthropic does not use API data for training and deletes it within 30 days). We only read the user's own account and posts published through Yabumi, and we never sell or share these numbers. When the user disconnects the account in Yabumi, removes Yabumi in Instagram settings, or Meta sends a data deletion request, we delete these numbers immediately.
+
+#### instagram_business_manage_comments（コメントに気付く。2026-11-14。architecture.md の 4.70）
+
+> Yabumi helps people notice comments on the Instagram posts they published through Yabumi, so they can reply on Instagram. With this permission, a job reads the comments (username, text, timestamp) on the user's own media published through Yabumi, only for 7 days after publishing, every 3 hours (it first reads comments_count and reads the list only when it changed). Comments are shown on the project's "Comments" page with a link to open the post on Instagram to reply, and the number of new comments is shown on the overview and in an optional once-a-day push notification (count only). Comments are stored for 30 days, deleted immediately when the user disconnects Instagram, withdraws the post, or deletes their account, and are never sent to AI services. We do not reply, hide or delete comments with this permission.
+
+#### pages_read_user_content（コメントに気付く。2026-11-14。architecture.md の 4.70）
+
+> Yabumi reads the comments that people leave on the Page posts published through Yabumi (commenter name, message, time), only for 7 days after publishing, every 3 hours, so the Page owner can notice them on the project's "Comments" page and reply on Facebook through the provided link. The number of new comments is shown on the overview and in an optional once-a-day push notification (count only). Comments are stored for 30 days, deleted immediately when the user disconnects the Page, withdraws the post, or deletes their account, and are never sent to AI services.
+
+- 録画は Threads の threads_read_replies と同じ形（つなぎ直す → 別のアカウントからコメント → 概要の帯 → コメントの画面 → 「Instagram（Facebook）で開いて返信する」）
+- Meta の資料は、ページの投稿のコメントを読むのに「pages_read_engagement and/or pages_read_user_content」と書いていて決め切れないので、両方を求める（pages_read_engagement はもとから求めている）。審査で「pages_read_engagement だけで足りる」と言われたら、COMMENTS_SCOPE（src/lib/sns/comments/scopes.ts）を直す
 
 #### pages_show_list
 

@@ -2,9 +2,10 @@
 // 取り込みは必ずテストの利用者に絞る（共有のローカル DB のほかの人の行に触らない）
 import { randomBytes, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { saveConnectedAccount } from "@/lib/sns/accounts";
+import { purgeSnsDataOf, saveConnectedAccount } from "@/lib/sns/accounts";
 import { CommentsError, type CommentsFetcher, type FetchedComment } from "@/lib/sns/comments/fetchers";
 import { runSnsCommentsImport } from "@/lib/sns/comments/import";
+import { runCommentDigest } from "@/lib/sns/comments/digest";
 import { anonClient, adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
 
 const key = randomBytes(32);
@@ -279,6 +280,18 @@ describe("消すとき", () => {
     expect(await commentsOf(t.targetId)).toEqual([]);
   });
 
+  it("SNS の側で外された・データの削除を求められた（purgeSnsDataOf）ときも、そのアカウントのコメントが消える", async () => {
+    const sa = await saveConnectedAccount(
+      admin,
+      { ownerId: aliceId, sns: "threads", externalId: `threads-${randomUUID()}`, displayName: "D", handle: "d", accessToken: "t", expiresAt: new Date("2099-01-01"), scopes: ["threads_read_replies"] },
+      key,
+    );
+    const t = await publishedTarget("threads", sa, hoursAgo(5));
+    await insertComment(t.targetId, sa, aliceId, "p1");
+    await purgeSnsDataOf(admin, [sa]);
+    expect(await commentsOf(t.targetId)).toEqual([]);
+  });
+
   it("30 日たったコメントは purge_expired_data で消え、新しいものは残る", async () => {
     const t = await publishedTarget("threads", threadsAccount, hoursAgo(5));
     await insertComment(t.targetId, threadsAccount, aliceId, "old", { commented_at: hoursAgo(31 * 24) });
@@ -307,5 +320,39 @@ describe("消すとき", () => {
     await insertComment(target.id, sa, userId, "w1");
     await deleteUser(userId);
     expect((await admin.from("sns_comments").select("id", { count: "exact", head: true }).eq("owner_id", userId)).count).toBe(0);
+  });
+});
+
+describe("まとめの通知", () => {
+  it("まだ知らせていない・見ていない・自分のものでないコメントの件数だけを送り、知らせた印を付ける。本文と名前は入れない。2 回目は送らない", async () => {
+    const t = await publishedTarget("threads", threadsAccount, hoursAgo(5));
+    await admin.from("sns_comments").update({ notified_at: NOW.toISOString() }).eq("owner_id", aliceId);
+    await insertComment(t.targetId, threadsAccount, aliceId, "n1", { body: "ひみつの本文", author_name: "@secret_name" });
+    await insertComment(t.targetId, threadsAccount, aliceId, "n2");
+    await insertComment(t.targetId, threadsAccount, aliceId, "n3", { is_own: true });
+    await insertComment(t.targetId, threadsAccount, aliceId, "n4", { seen_at: NOW.toISOString() });
+    const push = vi.fn(async () => ({ sent: 1, removed: 0, failed: 0 }));
+    const outcomes = await runCommentDigest(admin, { push, ownerId: aliceId, now: () => NOW });
+    expect(outcomes).toEqual([{ userId: aliceId, result: "sent", total: 2 }]);
+    const msg = (push.mock.calls[0] as unknown as [unknown, string, { title: string; body: string; url: string }])[2];
+    expect(msg.title).toBe("新しいコメント 2 件");
+    expect(msg.body).toBe("コメント: Threads 2");
+    expect(msg.url).toBe(`/projects/${projectId}/comments`);
+    expect(JSON.stringify(msg)).not.toMatch(/ひみつ|secret/);
+    expect(await runCommentDigest(admin, { push, ownerId: aliceId, now: () => NOW })).toEqual([]);
+  });
+
+  it("受け取らないにした人には送らず、知らせたことにする。push が失敗したら明日もう一度", async () => {
+    const t = await publishedTarget("threads", threadsAccount, hoursAgo(5));
+    await admin.from("sns_comments").update({ notified_at: NOW.toISOString() }).eq("owner_id", aliceId);
+    await insertComment(t.targetId, threadsAccount, aliceId, "f1");
+    const failing = vi.fn(async () => ({ sent: 0, removed: 0, failed: 1 }));
+    expect((await runCommentDigest(admin, { push: failing, ownerId: aliceId }))[0].result).toBe("failed");
+    await admin.from("notification_prefs").update({ comment_push: "off" }).eq("user_id", aliceId);
+    const push = vi.fn(async () => ({ sent: 1, removed: 0, failed: 0 }));
+    expect((await runCommentDigest(admin, { push, ownerId: aliceId }))[0].result).toBe("off");
+    expect(push).not.toHaveBeenCalled();
+    expect(await runCommentDigest(admin, { push, ownerId: aliceId })).toEqual([]);
+    await admin.from("notification_prefs").update({ comment_push: "daily" }).eq("user_id", aliceId);
   });
 });

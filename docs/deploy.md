@@ -685,3 +685,20 @@ Next.js の server action の ID は、ビルドごとの暗号の鍵から作�
   docker run --rm -e PROD_DB_URL postgres:17 sh -c 'pg_dump "$PROD_DB_URL" --data-only -t public.roadmaps -t public.roadmap_items -t public.account_plans' > before-goals-$(date +%Y%m%d).sql
   ```
 - 戻すとき（① を取り消して、控えから戻す）は、docs/design/goals-model.md の 10.3 の SQL を PM が流す。① は 3 つの表を変えないので、ふつうは控えから書き戻す必要はない（控えは、万一のときのため）
+
+## 28. SNS のコメントに気付く（コメントを読む権限。2026-11-14、feat/sns-comments。architecture.md の 4.70）
+
+コメントを読む権限は、数字の権限（14）と同じく、Meta のアプリの側で先に足してから yabumi で有効にする（yabumi が先に求めると、つなぐ画面がエラーになる）。審査の前は、開発モードの Tester（オーナー）だけで動く。SNS_COMMENTS を入れるまでは、ジョブは何も読まない。
+
+| 段 | 誰が | すること | 状態 |
+|---|---|---|---|
+| 28-1 | PM | マイグレーション 20261114100000_sns_comments を本番に当てる（表 2 つ・列 1 つ・関数・トリガー・purge の置き換え・pg_cron 2 つ。既存の行は変えない） | まだ |
+| 28-2 | オーナー | Threads: Meta の Yabumi Dev → Use cases → Access the Threads API → Permissions で **threads_read_replies** を足す | まだ |
+| 28-3 | オーナー | Instagram: Instagram のユースケース → Permissions で **instagram_business_manage_comments** を足す。Facebook ページ: Facebook Login for Business → Configurations → yabumi の設定 → 権限に **pages_read_user_content** を足す（pages_read_engagement はもとからある） | まだ |
+| 28-4 | オーナー | Vercel → Settings → Environment Variables に `SNS_COMMENTS`（28-2・28-3 で足した SNS をカンマ区切りで。例 `threads,instagram,facebook`）を足して Redeploy | まだ |
+| 28-5 | オーナー | yabumi のプロジェクトの設定の「つないだ SNS」で、それぞれ**つなぎ直す**（コメントの権限が増えた認可画面が出る）。概要の「● 要確認 … コメントを見るには、つなぎ直しが要ります」が消える | まだ |
+| 28-6 | PM | 送ってから 7 日以内の投稿にコメントが付いていれば、3 時間以内（毎時 15 分の回）に、概要の帯とコメントの画面に出ることを確かめる。`select count(*) from sns_comments;` と、ジョブのログ（件数だけ）で確かめる。19:00 にスマホにまとめが届くことも確かめる | まだ |
+| 28-7 | PM | 規約・ポリシーの ② の版（legal.md の「SNS のコメントに気付く版」）の施行日を、本番に出す日に合わせる（src/lib/legal/version.ts と tests/sns-comments-legal.test.ts の日付） | まだ |
+
+- 権限を外すときは、先に SNS_COMMENTS から外して Redeploy し、そのあと Meta のアプリから外す（逆にすると、つなぐ画面がエラーになる）
+- 他の人に使ってもらうには、これらの権限の App Review が要る（docs/review/meta.md）

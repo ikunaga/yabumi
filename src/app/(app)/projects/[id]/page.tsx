@@ -7,6 +7,9 @@ import { ChartEmpty, DailyBars } from "@/components/overview/daily-chart";
 import { TodayTermBand } from "@/components/learning/today-term-band";
 import { ConceptHintBand } from "@/components/plan/concept-hint-band";
 import { NowBand } from "@/components/overview/now-band";
+import { CommentsReconnectNotice, NewCommentsStrip } from "@/components/comments/comments";
+import { loadNewCommentSummary, snsNeedingCommentsReconnect } from "@/lib/sns/comments/queries";
+import type { SnsKey } from "@/lib/sns";
 import { OverviewCards } from "@/components/overview/overview-cards";
 import { AttentionStrip, ConnectedSnsLine, NextScheduled, Panel, SnsClicks } from "@/components/overview/overview-panels";
 import { displayStatus } from "@/components/posts/post-chip";
@@ -84,6 +87,9 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
     // 目標の振り返り（KGI の期限が来た・届いた）
     loadGoalReview(supabase, goals),
   ]);
+  // SNS のコメント（4.70）: 新しいコメントの数と、コメントの権限なしでつないだ SNS（使える状態のアカウントだけ）
+  const activeAccounts = Object.fromEntries(snsAccounts.filter((a) => a.status === "active").map((a) => [a.sns, a.id])) as Partial<Record<SnsKey, string>>;
+  const [newComments, commentsReconnect] = await Promise.all([loadNewCommentSummary(project.id), snsNeedingCommentsReconnect(activeAccounts)]);
   const stepState = stepStates[project.id];
   const stepIndex = currentStepIndex(stepState);
   // 今週のまだのやること（数字で達成したものは済みと同じに数える。帯の先頭・件数・残りの一覧はどれもこれから）
@@ -172,6 +178,8 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
       {todayTerm && <TodayTermBand projectId={project.id} term={todayTerm} />}
 
       <AttentionStrip projectId={project.id} open={attentionParam === "open"} failed={attention} overdue={overdue} manualDue={manualDue} overdueTodos={overdueItems(roadmap.items, roadmap.today, roadmap.daily)} />
+      <NewCommentsStrip projectId={project.id} total={newComments.total} bySns={newComments.bySns} />
+      <CommentsReconnectNotice projectId={project.id} sns={commentsReconnect} />
 
       {/* スマホ（見本 D の右）: 大きな数字 1 つと 7 日の棒 */}
       <div className="sm:hidden">

@@ -1,6 +1,6 @@
 // プロジェクト内のナビ。まだ作っていない画面は href なし（押せない）。
 // main: 上の横並びのメニュー（PC）とスマホの下のタブに出す 5 つ（決定 D33）。ほかは「…」（その他）と、スマホの「メニュー」と、関係する画面の中から開く
-export type ProjectNavKey = "overview" | "plan" | "compose" | "drafts" | "notes" | "calendar" | "links" | "metrics" | "consult" | "roadmap" | "settings";
+export type ProjectNavKey = "overview" | "plan" | "compose" | "drafts" | "comments" | "notes" | "calendar" | "links" | "metrics" | "consult" | "roadmap" | "settings";
 
 // barLabel: PC の上の帯に出す英語の名前（2026-10-31 オーナーの指示）。画面の見出し・スマホのタブ・メニューの説明は日本語（label・tabLabel）のまま
 export type ProjectNavItem = { key: ProjectNavKey; label: string; barLabel: string; tabLabel: string; href: string | null; main: boolean };
@@ -17,6 +17,8 @@ export function projectNavItems(projectId: string): ProjectNavItem[] {
     // ここから「…」（その他）。概要の「いまやること」「今週のやること」からも開く
     // 下書きの一覧（保存した下書きを探して続ける。概要とカレンダーの「下書き n 件」・投稿をつくるの「下書きから続ける」からも開く。2026-11-13 PMO2 の確かめ）
     { key: "drafts", label: "下書き", barLabel: "Drafts", tabLabel: "下書き", href: `${base}/drafts`, main: false },
+    // SNS のコメント（4.70）。概要の「新しいコメント」の帯・スマホの通知・投稿の画面からも開く
+    { key: "comments", label: "コメント", barLabel: "Comments", tabLabel: "コメント", href: `${base}/comments`, main: false },
     { key: "plan", label: "アカウント設計", barLabel: "Strategy", tabLabel: "設計", href: `${base}/plan`, main: false },
     // ネタ帳（4.26）。メモを残すのは上の「＋ メモ」、スマホは右下の「＋ メモ」
     { key: "notes", label: "ネタ帳", barLabel: "Notes", tabLabel: "ネタ帳", href: `${base}/notes`, main: false },
@@ -38,6 +40,8 @@ export function activeNavKey(segment: string | null): ProjectNavKey {
       return "compose";
     case "drafts":
       return "drafts";
+    case "comments":
+      return "comments";
     case "notes":
       return "notes";
     case "calendar":

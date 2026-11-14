@@ -39,6 +39,7 @@ import { currentStepIndex, STEPS } from "@/lib/projects/next-step";
 import { getProject } from "@/lib/projects/queries";
 import { loadStepStates } from "@/lib/projects/step-state";
 import { overdueItems } from "@/lib/roadmap/load";
+import { isPostDismissed, isTodoDismissed, loadAttentionDismissals } from "@/lib/attention/dismissals";
 import { loadRoadmap, thisWeekCounts, thisWeekTodos } from "@/lib/roadmap/queries";
 import { itemProgress } from "@/lib/roadmap/schema";
 import { listProjectSnsAccounts } from "@/lib/sns/queries";
@@ -70,13 +71,15 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
   if (!project) notFound();
   // 数字のカード: いまの目標の KPI（なければアカウント設計の数字・目的からのおすすめ）
   const kpis = kpiCardKeys(goals.active?.kpis ?? [], project.product_type, chosenKpis(plan?.plan.first_month.kpis, plan?.plan.goal.goalType, project.product_type));
-  const [numbers, upcoming, snsAccounts, attention, overdue, manualDue, { data: repoLink }, { data: manualChannels }, roadmap, stepStates, coach, goalReview] = await Promise.all([
+  // 要確認の帯で閉じた項目（4.71）。予約を過ぎた投稿・手で投稿する番・予定日を過ぎたやることから除く（送れなかった投稿は読むときに除く）
+  const dismissalsP = loadAttentionDismissals(supabase, project.id);
+  const [numbers, upcoming, snsAccounts, attention, overdue, manualDue, { data: repoLink }, { data: manualChannels }, roadmap, stepStates, coach, goalReview, dismissals] = await Promise.all([
     loadOverviewNumbers(project.id, kpis, toYmd(new Date(project.created_at)), project.product_type),
     listUpcomingPosts(project.id, 8),
     listProjectSnsAccounts(project.id),
     listPostsNeedingAttention(project.id),
-    listOverduePosts(project.id),
-    listDueManualPosts(project.id),
+    dismissalsP.then((d) => listOverduePosts(project.id, { hide: (p) => isPostDismissed(d, "overdue", p) })),
+    dismissalsP.then((d) => listDueManualPosts(project.id, { hide: (p) => isPostDismissed(d, "manual", p) })),
     supabase.from("project_github_repos").select("full_name").eq("project_id", project.id).maybeSingle(),
     supabase.from("project_manual_channels").select("sns").eq("project_id", project.id),
     loadRoadmap(project.id),
@@ -86,6 +89,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
     loadCoachView(supabase, project.id, { goals, behindWeekday: prefs?.behind_weekday ?? DEFAULT_BEHIND_WEEKDAY }),
     // 目標の振り返り（KGI の期限が来た・届いた）
     loadGoalReview(supabase, goals),
+    dismissalsP,
   ]);
   // SNS のコメント（4.70）: 新しいコメントの数と、コメントの権限なしでつないだ SNS（使える状態のアカウントだけ）
   const activeAccounts = Object.fromEntries(snsAccounts.filter((a) => a.status === "active").map((a) => [a.sns, a.id])) as Partial<Record<SnsKey, string>>;
@@ -177,7 +181,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
 
       {todayTerm && <TodayTermBand projectId={project.id} term={todayTerm} />}
 
-      <AttentionStrip projectId={project.id} open={attentionParam === "open"} failed={attention} overdue={overdue} manualDue={manualDue} overdueTodos={overdueItems(roadmap.items, roadmap.today, roadmap.daily)} />
+      <AttentionStrip projectId={project.id} open={attentionParam === "open"} failed={attention} overdue={overdue} manualDue={manualDue} overdueTodos={overdueItems(roadmap.items, roadmap.today, roadmap.daily).filter((i) => !isTodoDismissed(dismissals, i))} />
       <NewCommentsStrip projectId={project.id} total={newComments.total} bySns={newComments.bySns} />
       <CommentsReconnectNotice projectId={project.id} sns={commentsReconnect} />
 

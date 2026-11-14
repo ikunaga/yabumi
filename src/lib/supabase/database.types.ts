@@ -345,6 +345,64 @@ export type Database = {
           },
         ]
       }
+      attention_dismissals: {
+        Row: {
+          closed_at: string
+          id: string
+          kind: string
+          owner_id: string
+          post_id: string | null
+          project_id: string
+          ref_at: string | null
+          ref_on: string | null
+          roadmap_item_id: string | null
+        }
+        Insert: {
+          closed_at?: string
+          id?: string
+          kind: string
+          owner_id: string
+          post_id?: string | null
+          project_id: string
+          ref_at?: string | null
+          ref_on?: string | null
+          roadmap_item_id?: string | null
+        }
+        Update: {
+          closed_at?: string
+          id?: string
+          kind?: string
+          owner_id?: string
+          post_id?: string | null
+          project_id?: string
+          ref_at?: string | null
+          ref_on?: string | null
+          roadmap_item_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attention_dismissals_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attention_dismissals_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attention_dismissals_roadmap_item_id_fkey"
+            columns: ["roadmap_item_id"]
+            isOneToOne: false
+            referencedRelation: "roadmap_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       github_installations: {
         Row: {
           account_login: string
@@ -1476,11 +1534,13 @@ export type Database = {
       post_targets: {
         Row: {
           attempts: number
+          attention_closed_at: string | null
           body_override: string | null
           created_at: string
           error_message: string | null
           external_post_id: string | null
           external_url: string | null
+          failed_at: string | null
           hashtags: string[]
           id: string
           locked_at: string | null
@@ -1501,11 +1561,13 @@ export type Database = {
         }
         Insert: {
           attempts?: number
+          attention_closed_at?: string | null
           body_override?: string | null
           created_at?: string
           error_message?: string | null
           external_post_id?: string | null
           external_url?: string | null
+          failed_at?: string | null
           hashtags?: string[]
           id?: string
           locked_at?: string | null
@@ -1526,11 +1588,13 @@ export type Database = {
         }
         Update: {
           attempts?: number
+          attention_closed_at?: string | null
           body_override?: string | null
           created_at?: string
           error_message?: string | null
           external_post_id?: string | null
           external_url?: string | null
+          failed_at?: string | null
           hashtags?: string[]
           id?: string
           locked_at?: string | null
@@ -2527,6 +2591,10 @@ export type Database = {
           media_id: string
           storage_path: string
         }[]
+      }
+      close_attention: {
+        Args: { p_items: Json; p_project_id: string }
+        Returns: number
       }
       close_goal_internal: {
         Args: { p_goal_id: string; p_replacing: boolean }

@@ -204,30 +204,37 @@ export async function listPostsNeedingAttention(projectId: string, limit = 5) {
     .eq("post_targets.status", "failed")
     // 「X は手で投稿する」を選んだ X は、送れなかったものに数えない
     .or(NOT_X_BY_HAND_FILTER, { referencedTable: "post_targets" })
+    // 要確認の帯で閉じたものは出さない（また失敗すると空に戻る。4.71）
+    .is("post_targets.attention_closed_at", null)
     .order("planned_at", { ascending: false })
     .limit(limit);
   if (error) throw error;
   return (data as unknown as RawPost[]).map(normalize);
 }
 
-// 予約時刻を過ぎても送られていない投稿（送信ジョブが止まっている印。概要の「要確認」）
-export async function listOverduePosts(projectId: string, now = new Date()) {
+// 予約時刻を過ぎても送られていない投稿（送信ジョブが止まっている印。概要の「要確認」）。
+// hide: 要確認の帯で閉じたもの（4.71）。閉じたものを除いてから 5 件にするため、多めに読む
+export async function listOverduePosts(projectId: string, { now = new Date(), hide }: { now?: Date; hide?: (p: PostRow) => boolean } = {}) {
   const supabase = await createClient();
-  const ids = await overduePostIds(supabase, projectId, now);
-  if (ids.length === 0) return [];
-  const { data, error } = await supabase.from("posts").select(POST_SELECT).in("id", ids).order("planned_at");
-  if (error) throw error;
-  return (data as RawPost[]).map(normalize);
+  const ids = await overduePostIds(supabase, projectId, now, hide ? 50 : 5);
+  return postsByIds(supabase, ids, hide);
 }
 
-// 手で投稿する予定の時刻が来た投稿（概要の「手で投稿する番です」）
-export async function listDueManualPosts(projectId: string, now = new Date()) {
+// 手で投稿する予定の時刻が来た投稿（概要の「手で投稿する番です」）。hide は上と同じ
+export async function listDueManualPosts(projectId: string, { now = new Date(), hide }: { now?: Date; hide?: (p: PostRow) => boolean } = {}) {
   const supabase = await createClient();
-  const ids = await dueManualPostIds(supabase, projectId, now);
+  const ids = await dueManualPostIds(supabase, projectId, now, hide ? 50 : 5);
+  return postsByIds(supabase, ids, hide);
+}
+
+async function postsByIds(supabase: Awaited<ReturnType<typeof createClient>>, ids: string[], hide?: (p: PostRow) => boolean) {
   if (ids.length === 0) return [];
   const { data, error } = await supabase.from("posts").select(POST_SELECT).in("id", ids).order("planned_at");
   if (error) throw error;
-  return (data as RawPost[]).map(normalize);
+  return (data as RawPost[])
+    .map(normalize)
+    .filter((p) => !hide?.(p))
+    .slice(0, 5);
 }
 
 // 一覧やカレンダーに出す見出し（本文の 1 行目）

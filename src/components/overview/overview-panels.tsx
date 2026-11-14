@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import { BarRow } from "@/components/ui/metric";
 import { SNS_COLOR, SnsMark } from "@/components/ui/marks";
 import { Disclosure } from "@/components/ui/help";
+import { AttentionFrame } from "./attention-close";
+import { attentionItems } from "@/lib/attention/dismissals";
 import type { ClicksBySns } from "@/lib/metrics/queries";
 import { slotLabel } from "@/lib/overview/numbers";
 import { postTitle, type PostRow } from "@/lib/posts/queries";
@@ -105,7 +107,7 @@ export function ConnectedSnsLine({
   );
 }
 
-// 要確認（送れなかった投稿・予約を過ぎた投稿・手で投稿する番・予定日を過ぎたやること）。あるときだけ、開くと一覧
+// 要確認（送れなかった投稿・予約を過ぎた投稿・手で投稿する番・予定日を過ぎたやること）。あるときだけ、開くと一覧。× で閉じられる（4.71）
 export function AttentionStrip({
   projectId,
   failed,
@@ -132,7 +134,8 @@ export function AttentionStrip({
   if (total === 0) return null;
   const base = `/projects/${projectId}`;
   return (
-    <div id="attention" className="scroll-mt-24 rounded-lg border border-border bg-surface px-5 py-3 max-sm:px-4">
+    // × で、いま出している項目を閉じる（4.71。新しく出たものだけがまた出る）
+    <AttentionFrame projectId={projectId} items={attentionItems({ failed, overdue, manualDue, overdueTodos })}>
       <Disclosure
         open={open}
         summary={
@@ -208,7 +211,7 @@ export function AttentionStrip({
           )}
         </div>
       </Disclosure>
-    </div>
+    </AttentionFrame>
   );
 }
 

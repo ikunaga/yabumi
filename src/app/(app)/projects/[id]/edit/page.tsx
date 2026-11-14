@@ -17,6 +17,7 @@ import { instagramConfigured } from "@/lib/sns/instagram/config";
 import { readReplacedCookie, SNS_REPLACED_COOKIE } from "@/lib/sns/link";
 import { listProjectSnsAccounts } from "@/lib/sns/queries";
 import { threadsConfigured } from "@/lib/sns/threads/config";
+import { tiktokConfigured } from "@/lib/sns/tiktok/config";
 import { xConfigured } from "@/lib/sns/x/config";
 import { xSpendThisMonth } from "@/lib/sns/x/spend";
 import { createClient } from "@/lib/supabase/server";
@@ -54,7 +55,7 @@ export default async function ProjectSettingsPage(props: PageProps<"/projects/[i
         projectId={project.id}
         accounts={snsAccounts}
         manualChannels={manualChannels ?? []}
-        connectable={{ threads: threadsConfigured(), x: xReady, instagram: instagramConfigured(), facebook: facebookConfigured() }}
+        connectable={{ threads: threadsConfigured(), x: xReady, instagram: instagramConfigured(), facebook: facebookConfigured(), tiktok: tiktokConfigured() }}
         xSpend={xSpend}
       />
 

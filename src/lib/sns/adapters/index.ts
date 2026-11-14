@@ -5,6 +5,8 @@ import { xConfig, xConfigured, xMonthlyBudgetUsd, xPostUserMonthlyUsd } from "@/
 import type { RevokeDeps } from "@/lib/sns/revoke";
 import type { PublisherDeps } from "@/lib/sns/publisher";
 import { facebookAppSecret } from "@/lib/sns/facebook/config";
+import { revokeToken as revokeTikTokToken } from "@/lib/sns/tiktok/api";
+import { tiktokConfig, tiktokConfigured } from "@/lib/sns/tiktok/config";
 import { createFacebookAdapter } from "./facebook";
 import { createInstagramAdapter } from "./instagram";
 import { createThreadsAdapter } from "./threads";
@@ -30,5 +32,8 @@ export function publisherDeps(): PublisherDeps {
 
 // SNS を外す・退会のときに、SNS 側の連携を解除するためのもの
 export function revokeDeps(): RevokeDeps {
-  return { revokeX: xConfigured() ? (token, hint) => revokeToken(xConfig(), token, hint) : undefined };
+  return {
+    revokeX: xConfigured() ? (token, hint) => revokeToken(xConfig(), token, hint) : undefined,
+    revokeTikTok: tiktokConfigured() ? (token) => revokeTikTokToken(tiktokConfig(), token) : undefined,
+  };
 }

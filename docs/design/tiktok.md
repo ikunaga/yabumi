@@ -296,6 +296,16 @@ TikTok を送り先に選んだ投稿の、⑤ 送る（と ② 送り先の Tik
 - 審査の前（自分だけにしか出せない間）に、公開で出したい人の逃げ道になる
 - 審査のあとも、TikTok のアプリで音楽を付けたい人が使える（下書きの逃げ道と役割が近いので、審査のあとにどちらを残すかは、使われ方を見て決める）
 
+## 18. 作ったもの（段 1〜5。2026-11-14、feat/tiktok）
+
+- 段 1〜2: 11. のとおり。同意の設定は post_targets の列ではなく、別の表 **post_target_tiktok** に置いた（post_targets は画面が `select *` で読むので、列の権限で隠すと読みがすべて止まる。PM の了承）
+- 段 3 送る画面: ⑤ 送るに「TikTok に送る内容の確かめ」（src/components/posts/compose/tiktok-panel.tsx）。開くたびに creator_info を読み（getTikTokCreator）、ニックネームと @ の名前、審査の前の帯、送り方（そのまま投稿する／TikTok のアプリで仕上げる。許可のスコープがないほうは押せない）、公開範囲（最初は選んでいない。審査の前は「自分だけ」だけ）、コメント（最初はオフ。TikTok 側で止めていれば押せない）、宣伝の内容（自分のブランド・ブランドコンテンツ。ブランドコンテンツと「自分だけ」は同時に選べない）、TikTok だけの見え方、同意の文（英語の原文とリンク・日本語の添え書き）。タイトル（90 字）は ② 送り先の TikTok の欄
+- 保存（savePost）: 画面から受け取るのは選んだもの（posts/schema.ts の tiktok）だけ。サーバーが creator_info を読み直して確かめ（checkTikTokChoice）、いったん下書きで保存してから、同意の記録（writeTikTokConsent）を書き、予約に戻す（記録の前に送信ジョブが取り出さないように。X の手で投稿すると同じ順）。同意の時刻・文の指紋（タイトルと、送信ジョブが送る文 post_target_text の SHA-256）・AI の印・ニックネームはサーバーが決める
+- 段 4 送信の部品（src/lib/sns/adapters/tiktok.ts）: preparing の 2 段（startPublish で creator_info → 確かめ → 入口の URL → content/init、continuePublish で status/fetch）。配信先ごとの設定を読むため、startPublish に配信先（PublishTarget: id と、短縮リンクに置き換える前の文）を渡すようにした。入口は送り終えたとき・失敗したときに閉じる。失敗の理由は failureOf で retryable・auth・permanent に分ける
+- 段 5 予約の守り: 送る直前に checkBeforeSend（同意がない・公開範囲が選べなくなった・アカウントが変わった・タイトルか説明が変わった → 送らずに失敗にする）。投稿できない状態（CANNOT_POST_CODES）は creator_info の時点で止め、入口も作らない
+- テスト: tests/tiktok-publish.test.ts（決まり・送る直前の確かめ・偽の TikTok での送信）、tests/tiktok-media.integration.test.ts（入口・表の権限・同意の記録がサーバーの値で書かれ、指紋が post_target_text と合うこと）
+- まだ: 1 日の上限の前もった知らせ（7.）は段 6 で画面と一緒に
+
 ## 作る前に確かめること（読めなかった資料）
 
 2026-11-14 に PM が公式の資料で確かめたもの（下の「確かめた窓口」）を除き、残りは次のとおり。

@@ -156,3 +156,32 @@ export async function connectedProfile(tokens: TikTokTokens): Promise<{ openId: 
   const u = await fetchUser(tokens.accessToken);
   return { openId: tokens.openId || u.openId, nickname: u.displayName, username: "" };
 }
+
+export const TIKTOK_CONTENT_INIT_PATH = "/v2/post/publish/content/init/";
+export const TIKTOK_STATUS_PATH = "/v2/post/publish/status/fetch/";
+
+// 写真の投稿を始める（直接投稿か下書き）。答えは publish_id（状態は status/fetch で確かめる）。トークン 1 つで 1 分 6 回まで
+export async function initPhotoPost(accessToken: string, body: Record<string, unknown>): Promise<string> {
+  const res = await call(TIKTOK_CONTENT_INIT_PATH, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json; charset=UTF-8" },
+    body: JSON.stringify(body),
+  });
+  const id = (res.data as { publish_id?: unknown } | undefined)?.publish_id;
+  if (typeof id !== "string" || !id) throw new TikTokApiError(200, "invalid_publish_response", "TikTok の投稿の答えに publish_id がありません");
+  return id;
+}
+
+export type PublishStatus = { status: string; failReason: string; postIds: string[] };
+
+// 投稿の状態（トークン 1 つで 1 分 30 回まで）。publicaly_available_post_id は資料の綴りのまま
+export async function fetchPublishStatus(accessToken: string, publishId: string): Promise<PublishStatus> {
+  const res = await call(TIKTOK_STATUS_PATH, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json; charset=UTF-8" },
+    body: JSON.stringify({ publish_id: publishId }),
+  });
+  const d = (res.data ?? {}) as Record<string, unknown>;
+  const ids = Array.isArray(d.publicaly_available_post_id) ? d.publicaly_available_post_id.map((x) => String(x)) : [];
+  return { status: typeof d.status === "string" ? d.status : "", failReason: typeof d.fail_reason === "string" ? d.fail_reason : "", postIds: ids };
+}

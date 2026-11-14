@@ -29,9 +29,12 @@ import { type PlanHintsData } from "../plan-hints";
 import { hasUrl } from "@/lib/learning/tips";
 import { type TargetResult } from "../send-results";
 import { previewTabs } from "@/lib/sns/preview";
-import { ISSUE_LABEL, SNS, SNS_KEYS, checkTarget, isManualSns, type SnsKey, type TargetIssue } from "@/lib/sns";
+import { ISSUE_LABEL, SNS, SNS_KEYS, checkTarget, hasTitleField, isManualSns, type SnsKey, type TargetIssue } from "@/lib/sns";
 import { projectSettingsHref } from "@/lib/projects/paths";
 import { TARGET_STATE, sendLabels, sendMode, sentStateOf } from "@/lib/posts/send-mode";
+import type { TikTokChoice } from "@/lib/sns/tiktok/choice";
+import type { TikTokCreatorView } from "@/lib/sns/tiktok/actions";
+import { settingsProblem, type PrivacyLevel } from "@/lib/sns/tiktok/publish";
 import { findUrls, profileLinkLine, withDestinationUrl, withProfileLink, type ProfileLinkInfo } from "@/lib/posts/profile-link";
 import { type TimeBand } from "@/lib/metrics/time-bands";
 import { composeChanges, type ComposeSnapshot } from "@/lib/posts/compose-reset";
@@ -114,6 +117,7 @@ const ISSUE_TONE: Record<TargetIssue, string> = {
   needs_video: "text-signal",
   needs_title: "text-signal",
   too_many_images: "text-danger",
+  title_too_long: "text-danger",
 };
 
 // 引用の投稿の、送れない理由（X の画面で送る。4.52）
@@ -196,6 +200,10 @@ export function useComposer({
   const [quote, setQuote] = useState<string | null>(initial.quotePostId ?? null);
   // X の月の上限に当たるとき、利用者が「X は手で投稿する」を選んだ（前に選んで保存した投稿は、そのまま）
   const [xByHand, setXByHand] = useState(Boolean(results.x?.byHand));
+  // TikTok に送るときに利用者が選ぶもの（docs/design/tiktok.md の 3.）。公開範囲は最初は選んでいない・コメントと宣伝の内容は最初はオフ
+  const [tiktokChoice, setTikTokChoice] = useState<TikTokChoice>({ privacyLevel: null, allowComment: false, commercial: false, brandOrganic: false, brandContent: false, mode: "DIRECT_POST" });
+  // つないだ TikTok のいまの状態（⑤ の TikTok の欄を開くたびに読む）。読めなければ error
+  const [tiktokCreator, setTikTokCreator] = useState<{ creator?: TikTokCreatorView; error?: string } | null>(null);
   // X をいま（予約ならその時刻に）送ったら上限に当たるか（サーバーが送信ジョブと同じ判定で返す）。key は調べたときの条件
   // base: 費用の変わる条件（これが同じなら、調べ直している間も前の判定を出したままにする）、key: 調べた回（base ＋ ステップ ＋ 押した回数）
   const [xCheck, setXCheck] = useState<{ key: string; base: string; verdict: { now: XSendVerdict; planned: XSendVerdict | null } | null } | null>(null);
@@ -523,6 +531,14 @@ export function useComposer({
     // 手で投稿する SNS は、つながなくてよい
     if (missingConnect.length) return missingConnectMessage;
     if (xBudgetBlocker) return xBudgetBlocker;
+    // TikTok: 選んだ公開範囲などを確かめる（保存のときに、サーバーが creator_info でもう一度確かめる）
+    if (toSend.includes("tiktok")) {
+      if (!tiktokCreator?.creator) return tiktokCreator?.error ? `TikTok: ${tiktokCreator.error}` : "TikTok のアカウントの状態を読んでいます";
+      if (tiktokChoice.mode === "DIRECT_POST") {
+        const p = settingsProblem(tiktokChoice, tiktokCreator.creator.privacyOptions as PrivacyLevel[]);
+        if (p) return `TikTok: ${p}`;
+      }
+    }
     const reconnect = images.length > 0 ? toSend.filter((s) => needImageReconnect.includes(s)) : [];
     if (reconnect.length) return `${reconnect.map((s) => SNS[s].label).join("・")} に画像を送るには、つなぎ直しが要ります`;
     return null;
@@ -660,12 +676,13 @@ export function useComposer({
         quotePostId: quoting ? quote : null,
         textOrigin,
         xByHand: xByHand && toSend.includes("x"),
+        ...(toSend.includes("tiktok") ? { tiktok: tiktokChoice } : {}),
         formatId,
         formatRoundIds: roundIds,
         targets: chosen.map((sns) => ({
           sns,
           bodyOverride: overrides[sns] ?? null,
-          title: SNS[sns].needsTitle ? (titles[sns] ?? null) : null,
+          title: hasTitleField(sns) ? (titles[sns] ?? null) : null,
           // 欄に書いたまま区切って渡す（タグにできない言葉は、サーバーが欄のエラーにする）
           hashtags: (tagInputs[sns] ?? "").split(/[\s,、，]+/u).filter(Boolean),
         })),
@@ -878,6 +895,10 @@ export function useComposer({
     quote,
     setQuote,
     xByHand,
+    tiktokChoice,
+    setTikTokChoice,
+    tiktokCreator,
+    setTikTokCreator,
     setXByHand,
     xVerdict,
     recheckX,

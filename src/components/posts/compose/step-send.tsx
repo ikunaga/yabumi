@@ -10,6 +10,7 @@ import { COMPOSE_STEPS, blockerStep } from "@/lib/posts/compose-steps";
 import { SNS, isManualSns } from "@/lib/sns";
 import { QUIET_BLOCKER, type Composer } from "./use-composer";
 import { XBudgetNotice } from "./x-budget-notice";
+import { ComposeTikTok } from "./tiktok-panel";
 
 // ⑤ 送る: 日時・予約・今すぐ・下書き・削除（compose-steps.md）
 export function ComposeStepSend({ c, steps = false }: { c: Composer; steps?: boolean }) {
@@ -77,6 +78,7 @@ export function ComposeStepSend({ c, steps = false }: { c: Composer; steps?: boo
           )}
           {sending && <SendProgress postId={sending.postId} sns={sending.sns} hasImages={images.length > 0} />}
           <XBudgetNotice c={c} />
+          {toSend.includes("tiktok") && <ComposeTikTok c={c} />}
           {nowMain && confirmSend ? (
             // 今すぐ送るは取り消しにくいので、送り先の SNS の名前を出して確かめる
             <div className="flex flex-col gap-2 rounded-md border border-line px-3.5 py-3">

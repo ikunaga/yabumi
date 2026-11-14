@@ -11,6 +11,9 @@ import { GET, HEAD } from "@/app/tiktok-media/[file]/route";
 import { MEDIA_BUCKET } from "@/lib/media/rules";
 import { attachMedia, issueUpload, verifyUpload } from "@/lib/media/store";
 import { clearMediaTickets, cleanupExpiredTickets, hashTicketToken, issueMediaTickets } from "@/lib/sns/tiktok/media";
+import { writeTikTokConsent } from "@/lib/sns/tiktok/consent";
+import { consentHash } from "@/lib/sns/tiktok/send-check";
+import { withHashtags } from "@/lib/sns/hashtags";
 import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
 
 const admin = adminClient();
@@ -133,5 +136,47 @@ describe("表の権限（利用者の権限では読めない・書けない）"
     await admin.from("post_targets").delete().eq("id", t);
     expect((await admin.from("post_target_tiktok").select("post_target_id").eq("post_target_id", t)).data).toEqual([]);
     expect((await admin.from("tiktok_media_tickets").select("token_hash").eq("post_target_id", t)).data).toEqual([]);
+  });
+});
+
+describe("同意の記録（savePost のあとにサーバーが書く）", () => {
+  const creator = { username: "komugi_bakery", nickname: "こむぎ", avatarUrl: null, privacyLevelOptions: ["PUBLIC_TO_EVERYONE", "SELF_ONLY"], commentDisabled: false, duetDisabled: false, stitchDisabled: false, maxVideoPostDurationSec: null };
+  const choice = { privacyLevel: "PUBLIC_TO_EVERYONE" as const, allowComment: true, commercial: true, brandOrganic: true, brandContent: false, mode: "DIRECT_POST" as const };
+  let consentPostId: string;
+  let consentTargetId: string;
+  let aiPhoto: string;
+  const body = "焼きたてのパン\u3000\n";
+  const tags = ["パン", "新作"];
+
+  beforeAll(async () => {
+    const { data, error } = await alice.rpc("save_post", { p_post_id: null as unknown as string, p_project_id: projectId, p_body: body, p_planned_at: null as unknown as string, p_status: "draft", p_targets: [{ sns: "tiktok", title: "新作", hashtags: tags }] });
+    if (error) throw error;
+    consentPostId = data!;
+    consentTargetId = (await admin.from("post_targets").select("id").eq("post_id", consentPostId).single()).data!.id;
+    aiPhoto = await upload(aliceId, realJpeg(100, 100));
+    await admin.from("media_files").update({ ai_generated: true }).eq("id", aiPhoto);
+    await attachMedia(admin, aliceId, consentPostId, [{ id: aiPhoto, altText: "" }]);
+  });
+
+  it("時刻・文の指紋・AI の印・ニックネームはサーバーが決め、指紋は送信ジョブが送る文（post_target_text）と同じ", async () => {
+    const now = new Date("2026-11-14T09:00:00Z");
+    await writeTikTokConsent(admin, { userId: aliceId, postId: consentPostId, title: "新作", text: withHashtags(body, tags), mediaIds: [aiPhoto], checked: { choice, creator }, now });
+    const row = (await admin.from("post_target_tiktok").select("*").eq("post_target_id", consentTargetId).single()).data!;
+    expect(row).toMatchObject({ owner_id: aliceId, privacy_level: "PUBLIC_TO_EVERYONE", disable_comment: false, brand_organic: true, brand_content: false, post_mode: "DIRECT_POST", is_aigc: true, consent_nickname: "こむぎ", consent_username: "komugi_bakery" });
+    expect(new Date(row.consented_at).toISOString()).toBe(now.toISOString());
+    const { data: sent } = await admin.rpc("post_target_text", { p_text: body, p_hashtags: tags });
+    expect(row.consent_text_hash).toBe(consentHash("新作", sent!));
+  });
+
+  it("下書き（MEDIA_UPLOAD）は公開範囲・コメント・宣伝の印を持たない", async () => {
+    await writeTikTokConsent(admin, { userId: aliceId, postId: consentPostId, title: "新作", text: "x", mediaIds: [], checked: { choice: { ...choice, mode: "MEDIA_UPLOAD" }, creator } });
+    const row = (await admin.from("post_target_tiktok").select("*").eq("post_target_id", consentTargetId).single()).data!;
+    expect(row).toMatchObject({ privacy_level: "SELF_ONLY", disable_comment: true, brand_organic: false, brand_content: false, post_mode: "MEDIA_UPLOAD", is_aigc: false });
+  });
+
+  it("ほかの人の投稿には書けない", async () => {
+    await expect(writeTikTokConsent(admin, { userId: bobId, postId: consentPostId, title: "", text: "", mediaIds: [], checked: { choice, creator } })).rejects.toBeTruthy();
+    const { count } = await admin.from("post_target_tiktok").select("post_target_id", { count: "exact", head: true }).eq("owner_id", bobId);
+    expect(count).toBe(0);
   });
 });

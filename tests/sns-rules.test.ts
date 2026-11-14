@@ -40,7 +40,8 @@ describe("SNS ごとの指摘", () => {
   });
 
   it("TikTok と YouTube は動画が必要", () => {
-    expect(checkTarget("tiktok", "本文").issues).toEqual(["needs_video"]);
+    // TikTok は写真の投稿（2026-11-14〜。動画は準備中）
+    expect(checkTarget("tiktok", "本文").issues).toEqual(["needs_image"]);
     expect(checkTarget("youtube", "本文", { images: 3, videos: 0 }).issues).toEqual(["needs_video"]);
     expect(checkTarget("youtube", "本文", { images: 0, videos: 1 }).issues).toEqual([]);
   });

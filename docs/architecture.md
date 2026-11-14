@@ -2914,6 +2914,13 @@ yabumi のコンセプトは、使って SNS を運用するうちに、マー�
 | 法務 | 新しく預かる情報・送り先・使い道はない（閉じた時刻だけ）ので変えない |
 | テスト | tests/attention-dismiss.integration.test.ts（閉じると帯とカレンダーから消える・また失敗するとまた出る・出していなかった新しい失敗は残る・X の手で投稿や失敗していないものは閉じない・他人の項目・列を直接書けない・200 件・予定を動かすとまた出る・やること（kind が空のものも）・cascade と退会） |
 
+### 4.72 TikTok の連携（2026-11-14、オーナーの決定。PM の依頼。feat/tiktok。設計は docs/design/tiktok.md）
+
+- つなぐ・外す（/sns/tiktok/connect・callback。トークンは返ってきた expires_in で期限を決め、リフレッシュトークンは取り直すたびに入れ替える）
+- 写真を渡す入口（/tiktok-media/<推測できないトークン>.jpg。tiktok_media_tickets はハッシュだけを持ち、1 時間・送り終えたら無効。いまも投稿に添えてある本人の画像だけを 1080 に縮めて返し、ほかは 404。3xx は返さない）
+- 同意の記録（post_target_tiktok。どちらの表も RLS を有効にしてポリシーを置かず、利用者の権限には grant しない。持ち主はトリガー tiktok_check_owner でそろえる）
+- 送信の部品は preparing の 2 段。startPublish に配信先（PublishTarget）を渡し、送る直前に creator_info と同意の記録を照らす（docs/design/tiktok.md の 18.）
+
 ## 5. データモデル（主要テーブル）
 
 | テーブル | 内容 |

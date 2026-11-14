@@ -4,7 +4,7 @@ import { revokeDeps } from "@/lib/sns/adapters";
 import { linkAccountToProject, replacedCookie, type ReplacedAccount } from "@/lib/sns/link";
 import { saveConnectedAccount } from "@/lib/sns/accounts";
 import { exchangeCode, exchangeForLongLived, fetchProfile, INSTAGRAM_SCOPES, PROFESSIONAL_ACCOUNT_TYPES } from "@/lib/sns/instagram/api";
-import { withInsightsScope } from "@/lib/sns/insights/scopes";
+import { requestedScopes } from "@/lib/sns/comments/scopes";
 import { INSTAGRAM_PATHS, INSTAGRAM_STATE_COOKIE, instagramConfig } from "@/lib/sns/instagram/config";
 import { verifyOAuthState } from "@/lib/sns/oauth-state";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
       handle: profile.username,
       accessToken: long.accessToken,
       expiresAt: long.expiresAt,
-      scopes: withInsightsScope("instagram", INSTAGRAM_SCOPES),
+      scopes: requestedScopes("instagram", INSTAGRAM_SCOPES),
     });
     // プロジェクトに付ける。別の Instagram アカウントがつながっていたら付け替える（1 つのプロジェクトに SNS ごとに 1 つ）
     replaced = await linkAccountToProject(admin, { ownerId: userId, projectId: saved.projectId, accountId }, revokeDeps());

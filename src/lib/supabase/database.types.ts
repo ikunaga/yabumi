@@ -1092,6 +1092,7 @@ export type Database = {
       notification_prefs: {
         Row: {
           behind_weekday: number
+          comment_push: string
           email_mode: string
           learning_enabled: boolean
           learning_term_dismissed_on: string | null
@@ -1104,6 +1105,7 @@ export type Database = {
         }
         Insert: {
           behind_weekday?: number
+          comment_push?: string
           email_mode?: string
           learning_enabled?: boolean
           learning_term_dismissed_on?: string | null
@@ -1116,6 +1118,7 @@ export type Database = {
         }
         Update: {
           behind_weekday?: number
+          comment_push?: string
           email_mode?: string
           learning_enabled?: boolean
           learning_term_dismissed_on?: string | null
@@ -2091,6 +2094,110 @@ export type Database = {
           },
         ]
       }
+      sns_comment_polls: {
+        Row: {
+          fails: number
+          last_checked_at: string | null
+          last_count: number | null
+          next_check_at: string
+          owner_id: string
+          post_target_id: string
+          stopped: boolean
+        }
+        Insert: {
+          fails?: number
+          last_checked_at?: string | null
+          last_count?: number | null
+          next_check_at: string
+          owner_id: string
+          post_target_id: string
+          stopped?: boolean
+        }
+        Update: {
+          fails?: number
+          last_checked_at?: string | null
+          last_count?: number | null
+          next_check_at?: string
+          owner_id?: string
+          post_target_id?: string
+          stopped?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sns_comment_polls_post_target_id_fkey"
+            columns: ["post_target_id"]
+            isOneToOne: true
+            referencedRelation: "post_targets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sns_comments: {
+        Row: {
+          author_name: string
+          body: string
+          commented_at: string
+          external_id: string
+          fetched_at: string
+          id: string
+          is_own: boolean
+          notified_at: string | null
+          owner_id: string
+          parent_external_id: string | null
+          post_target_id: string
+          seen_at: string | null
+          sns: string
+          social_account_id: string
+        }
+        Insert: {
+          author_name?: string
+          body?: string
+          commented_at: string
+          external_id: string
+          fetched_at?: string
+          id?: string
+          is_own?: boolean
+          notified_at?: string | null
+          owner_id: string
+          parent_external_id?: string | null
+          post_target_id: string
+          seen_at?: string | null
+          sns: string
+          social_account_id: string
+        }
+        Update: {
+          author_name?: string
+          body?: string
+          commented_at?: string
+          external_id?: string
+          fetched_at?: string
+          id?: string
+          is_own?: boolean
+          notified_at?: string | null
+          owner_id?: string
+          parent_external_id?: string | null
+          post_target_id?: string
+          seen_at?: string | null
+          sns?: string
+          social_account_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sns_comments_post_target_id_fkey"
+            columns: ["post_target_id"]
+            isOneToOne: false
+            referencedRelation: "post_targets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sns_comments_social_account_id_fkey"
+            columns: ["social_account_id"]
+            isOneToOne: false
+            referencedRelation: "social_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       social_account_tokens: {
         Row: {
           access_token_encrypted: string
@@ -2473,6 +2580,26 @@ export type Database = {
           social_account_id: string
         }[]
       }
+      due_sns_comment_targets: {
+        Args: {
+          p_limit?: number
+          p_now?: string
+          p_owner_id?: string
+          p_scopes: Json
+        }
+        Returns: {
+          account_external_id: string
+          account_handle: string
+          external_post_id: string
+          fails: number
+          last_count: number
+          owner_id: string
+          post_target_id: string
+          published_at: string
+          sns: string
+          social_account_id: string
+        }[]
+      }
       ensure_active_goal: {
         Args: { p_owner_id: string; p_project_id: string; p_starts_on: string }
         Returns: string
@@ -2548,6 +2675,10 @@ export type Database = {
       mark_manual_target_posted: {
         Args: { p_target_id: string; p_url?: string }
         Returns: undefined
+      }
+      mark_sns_comments_seen: {
+        Args: { p_post_id?: string; p_project_id: string }
+        Returns: number
       }
       media_usage_bytes: { Args: { p_owner_id: string }; Returns: number }
       metrics_period_totals: {

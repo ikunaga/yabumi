@@ -5,7 +5,7 @@ import { linkAccountToProject, replacedCookie, type ReplacedAccount } from "@/li
 import { saveConnectedAccount } from "@/lib/sns/accounts";
 import { verifyOAuthState } from "@/lib/sns/oauth-state";
 import { exchangeCode, exchangeForLongLived, fetchProfile, THREADS_SCOPES } from "@/lib/sns/threads/api";
-import { withInsightsScope } from "@/lib/sns/insights/scopes";
+import { requestedScopes } from "@/lib/sns/comments/scopes";
 import { THREADS_PATHS, threadsConfig } from "@/lib/sns/threads/config";
 import { THREADS_STATE_COOKIE } from "@/lib/sns/threads/cookie";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
       handle: profile.username,
       accessToken: long.accessToken,
       expiresAt: long.expiresAt,
-      scopes: withInsightsScope("threads", THREADS_SCOPES),
+      scopes: requestedScopes("threads", THREADS_SCOPES),
     });
 
     // プロジェクトに付ける。別の Threads アカウントがつながっていたら付け替える（1 つのプロジェクトに SNS ごとに 1 つ）

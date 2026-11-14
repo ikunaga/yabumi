@@ -19,7 +19,7 @@ import { ComposeStepBar } from "./compose/step-bar";
 import { ComposeSummary } from "./compose/summary";
 import { ComposeSentView } from "./compose/sent-view";
 import { Button } from "@/components/ui/button";
-import { COMPOSE_STEPS, type StepNo } from "@/lib/posts/compose-steps";
+import { COMPOSE_STEPS, nextBlockedReason, type StepNo } from "@/lib/posts/compose-steps";
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { ComposePreview } from "./compose/preview";
 import { useComposer, type ComposerProps } from "./compose/use-composer";
@@ -140,8 +140,10 @@ export function PostComposer(props: ComposerProps) {
 
 // ステップの画面（compose-steps.md の 3.）
 function StepsLayout({ c, wide, start, notePicker, headingRef }: { c: ReturnType<typeof useComposer>; wide: boolean; start: ReactNode; notePicker: ReactNode; headingRef: ReturnType<typeof useComposer>["headingRef"] }) {
-  const { composeStep } = c;
+  const { composeStep, body, chosen } = c;
   const step = COMPOSE_STEPS[composeStep - 1];
+  // スマホの下に留めた帯の高さぶん空ける（「次へ」が押せない理由の 1 行が出るときは、その分も）
+  const barPad = nextBlockedReason(composeStep, { body, chosen: chosen.length }) ? "max-sm:pb-20" : "max-sm:pb-16";
   const at = (n: StepNo) => composeStep === n;
   // 見え方: 横に並ぶ幅ではどのステップでも右の列。並ばない幅では ② と ⑤ の中だけ（ほかのステップでは畳む）
   const inlinePreview = !wide && (at(2) || at(5));
@@ -149,7 +151,7 @@ function StepsLayout({ c, wide, start, notePicker, headingRef }: { c: ReturnType
     <>
       <ComposeStepNav c={c} />
       <div className="grid grid-cols-[minmax(0,1.03fr)_minmax(0,1fr)] gap-4 max-lg:grid-cols-1">
-        <div className="flex min-w-0 flex-col gap-3 max-sm:pb-16">
+        <div className={`flex min-w-0 flex-col gap-3 ${barPad}`}>
           <section aria-labelledby="step-heading" className="flex flex-col gap-3.5 rounded-lg border border-border bg-surface px-6 py-5 max-sm:px-4 max-sm:py-4">
             <h2 id="step-heading" ref={headingRef} tabIndex={-1} className="text-[18px] font-bold outline-none max-sm:text-[16px]">
               <span className="num mr-2 text-faint">{composeStep}</span>

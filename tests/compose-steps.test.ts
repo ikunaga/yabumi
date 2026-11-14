@@ -1,7 +1,7 @@
 // 投稿をつくるのステップ（docs/design/compose-steps.md）: 開いたときのステップ・?step・次へ進める条件・問題のあるステップ・進みの印・欄のエラーのステップ、
 // 書きかけの控えにステップを足しても、控えを残す・出す決まり（書いたときだけ残す・保存し直されたら出さない）が変わらないこと
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { COMPOSE_STEPS, blockerStep, canGoNext, fieldErrorStep, parseStep, problemsByStep, startStep, stepMarks, stepNo, type StepNo } from "@/lib/posts/compose-steps";
+import { COMPOSE_STEPS, blockerStep, canGoNext, fieldErrorStep, nextBlockedReason, parseStep, problemsByStep, startStep, stepMarks, stepNo, type StepNo } from "@/lib/posts/compose-steps";
 import { parseFormDraft, rawFormDraft, usableFormDraft, writeFormDraft } from "@/lib/form-draft";
 import { draftStep, postDraftBase, samePostDraft, type PostDraft } from "@/lib/posts/post-draft";
 import { setDraftOwner } from "@/lib/notes/draft";
@@ -32,6 +32,22 @@ describe("ステップの区切りと開き方", () => {
     expect(canGoNext(3, { body: "", chosen: 0 })).toBe(true);
     expect(canGoNext(4, { body: "", chosen: 0 })).toBe(true);
     expect(canGoNext(5, { body: "金曜", chosen: 2 })).toBe(false);
+  });
+
+  it("次へが押せない理由: ① の本文が空・② の送り先が 0 のときだけ出し、進めるとき・③・④・⑤ には出さない", () => {
+    expect(nextBlockedReason(1, { body: " ", chosen: 1 })).toBe("本文を書くと進めます");
+    expect(nextBlockedReason(1, { body: "金曜", chosen: 0 })).toBeNull();
+    expect(nextBlockedReason(2, { body: "金曜", chosen: 0 })).toBe("送り先を選ぶと進めます");
+    expect(nextBlockedReason(2, { body: "金曜", chosen: 1 })).toBeNull();
+    expect(nextBlockedReason(3, { body: "", chosen: 0 })).toBeNull();
+    expect(nextBlockedReason(4, { body: "", chosen: 0 })).toBeNull();
+    expect(nextBlockedReason(5, { body: "", chosen: 0 })).toBeNull();
+    // 押せない理由があるステップは、どれも canGoNext が false のステップ（理由の抜けがない）
+    for (const step of [1, 2, 3, 4] as StepNo[]) {
+      for (const a of [{ body: "", chosen: 0 }, { body: "金曜", chosen: 0 }, { body: "", chosen: 2 }, { body: "金曜", chosen: 2 }]) {
+        expect(nextBlockedReason(step, a) !== null).toBe(!canGoNext(step, a));
+      }
+    }
   });
 });
 

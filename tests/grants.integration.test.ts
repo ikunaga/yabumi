@@ -44,6 +44,7 @@ const TABLES = [
   "legal_consents",
   "legal_notice_campaigns",
   "legal_notice_sends",
+  "attention_dismissals",
 ] as const;
 
 let alice: TestClient;

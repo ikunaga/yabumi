@@ -2902,6 +2902,18 @@ yabumi のコンセプトは、使って SNS を運用するうちに、マー�
 | 後の段階 | B: X の返信の中身を読む（1 人 月 約 $1.35）。C: yabumi から返信する（Threads・Instagram・Facebook。X は 2026-02-23 からの返信の制限を確かめてから）。D: webhook |
 | テスト | tests/sns-comments.integration.test.ts（RLS・列・関数の権限、取り込み、消すとき、まとめの通知）、tests/sns-comments.test.ts（読み方・失敗の分け方・ページのたどり方・画面の組み立て・通知の文・AI のファイル）、tests/sns-comments-legal.test.ts |
 
+### 4.71 要確認の帯を × で閉じる（2026-11-14、オーナーの依頼「普通にこの通知をバツで閉じれればそれでいい」。PM の依頼。feat/attention-dismiss）
+
+| 項目 | 内容 |
+|---|---|
+| 背景 | 配信先が failed のままだと、送り直すか投稿を消すまで「送れなかった投稿」がずっと出ていた（SNS のチェックを外して保存しても、save_post は pending しか消さない） |
+| 画面 | 概要の「● 要確認」の帯の右に ×（「?」は付けない。aria-label「要確認を閉じる」。形と大きさは「おすすめ」「今日の用語」の × とそろえる（src/components/ui/band-close.tsx。押せる範囲はスマホで 44×44、PC で 32×32、色は text-muted）。閉じる通信が失敗しても画面全体はエラーにせず、帯の中に「閉じられませんでした。…」。開いたときのやることの日付は朱にしない（朱は「● 要確認」の印だけ））。押すと、画面に出していた項目を閉じて、帯ごと消す。新しい項目が出たら帯がまた出て、新しい項目だけが並ぶ。投稿の画面の「! 失敗」・送り直し・手で投稿はそのまま。カレンダーの「直していない失敗」も閉じたものを数えない（帯と揃える） |
+| 送れなかった投稿 | post_targets.failed_at（失敗した時刻）と attention_closed_at（閉じた時刻）。トリガー post_targets_mark_failed が、failed に変わるたびに failed_at = now()、attention_closed_at = null にする（同じ配信先がまた失敗したら、新しい失敗としてまた出る）。帯とカレンダーは「failed で、X の手で投稿でなく、attention_closed_at is null」で数える。2 列とも利用者には書かせない（列ごとの update の grant に入れない）。BEFORE のトリガーは名前の順（clear_removed_refs → lock_sent → mark_failed → set_updated_at）で、ほかは status と 2 列に触らないので順に左右されない |
+| ほかの 3 種類 | 予約を過ぎた投稿・手で投稿する番・予定日を過ぎたやることは attention_dismissals（項目と、閉じたときの予定時刻 ref_at・予定日 ref_on の組。予定を動かすとまた出る）。本人だけ select（列は project_id・kind・post_id・roadmap_item_id・ref_at・ref_on）。insert・update・delete は grant しない。投稿・やること・プロジェクト・退会で cascade で消える。閉じても、送られれば消え、送れなければ「送れなかった投稿」として新しく出る。手で投稿する番の push のお知らせ・伴走の声かけは変えない |
+| 閉じる | close_attention(project, items)（security definer。authenticated だけ）。items は画面に出していた項目（failed は post_target の id、ほかは kind・id・stamp）で 200 件まで。本人のプロジェクトでなければ 42501。1 件ずつ、本人のプロジェクトのものか・いま要確認か（failed で X の手で投稿でない／予約中で予定時刻が一致して過ぎている／まだのやることで予定日が一致して今日（日本時間）より前。やることは kind で絞らない（帯に出すかは画面の overdueItems が決め、kind が空のものも投稿と推して出すため。推し方を SQL に写すと食い違う））を確かめ、合わないものは黙って飛ばす。時刻は now()。開いてから × を押すまでに新しく出たものは閉じない |
+| 法務 | 新しく預かる情報・送り先・使い道はない（閉じた時刻だけ）ので変えない |
+| テスト | tests/attention-dismiss.integration.test.ts（閉じると帯とカレンダーから消える・また失敗するとまた出る・出していなかった新しい失敗は残る・X の手で投稿や失敗していないものは閉じない・他人の項目・列を直接書けない・200 件・予定を動かすとまた出る・やること（kind が空のものも）・cascade と退会） |
+
 ## 5. データモデル（主要テーブル）
 
 | テーブル | 内容 |

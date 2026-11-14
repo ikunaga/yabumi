@@ -62,13 +62,16 @@ export async function loadCalendarStatsBetween(projectId: string, fromYmd: strin
       .eq("project_id", projectId)
       .eq("post_targets.status", "failed")
       // 「X は手で投稿する」を選んだ X は、失敗に数えない
-      .or(NOT_X_BY_HAND_FILTER, { referencedTable: "post_targets" }),
+      .or(NOT_X_BY_HAND_FILTER, { referencedTable: "post_targets" })
+      // 概要の要確認の帯で閉じたものは数えない（帯と数を揃える。4.71）
+      .is("post_targets.attention_closed_at", null),
     supabase
       .from("posts")
       .select("id, post_targets!inner(id)")
       .eq("project_id", projectId)
       .eq("post_targets.status", "failed")
       .or(NOT_X_BY_HAND_FILTER, { referencedTable: "post_targets" })
+      .is("post_targets.attention_closed_at", null)
       .order("updated_at", { ascending: false })
       .limit(1),
     ...SNS_KEYS.map((sns) =>

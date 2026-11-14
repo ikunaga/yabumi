@@ -197,6 +197,29 @@ describe("予定日を過ぎたやること", () => {
     // overdueItems と合わせても出る（予定日を過ぎた投稿するやること）
     expect(overdueItems([{ ...item, kind: "post", status: "todo", plannedOn: "2026-10-22" } as RoadmapItem], "2026-11-14").length).toBe(1);
   });
+  it("kind が空のやること（画面が投稿と推して出すもの）も閉じられる。済んだやることは閉じない（PMO の pc2・sp3）", async () => {
+    const { data, error } = await admin
+      .from("roadmap_items")
+      .insert(
+        goalLess([
+          { project_id: projectId, owner_id: aliceId, title: "kind なし", week_start: "2026-10-19", planned_on: "2026-10-21", kind: null, status: "todo" },
+          { project_id: projectId, owner_id: aliceId, title: "済んだ", week_start: "2026-10-19", planned_on: "2026-10-21", kind: "post", status: "done" },
+        ]),
+      )
+      .select("id, title");
+    if (error) throw error;
+    const rows = data as { id: string; title: string }[];
+    const blank = rows.find((r) => r.title === "kind なし")!.id;
+    const done = rows.find((r) => r.title === "済んだ")!.id;
+    const r = await close(alice, [
+      { kind: "todo", id: blank, stamp: "2026-10-21" },
+      { kind: "todo", id: done, stamp: "2026-10-21" },
+    ]);
+    expect(r.data).toBe(1);
+    const d = await loadAttentionDismissals(alice, projectId);
+    expect(isTodoDismissed(d, { id: blank, plannedOn: "2026-10-21" })).toBe(true);
+    expect(isTodoDismissed(d, { id: done, plannedOn: "2026-10-21" })).toBe(false);
+  });
 });
 
 describe("消えるとき", () => {

@@ -153,14 +153,15 @@ begin
       get diagnostics v_n = row_count;
       v_count := v_count + v_n;
     elsif v_kind = 'todo' and v_on is not null then
-      -- まだ済んでいない、投稿するやることで、予定日が出していたものと同じで、今日（日本時間）より前
+      -- まだ済んでいないやることで、予定日が出していたものと同じで、今日（日本時間）より前。
+      -- kind では絞らない（帯に出すかは画面の overdueItems が決める。kind が空のやることも投稿と推して出すので、ここで推し方を写すと食い違う）。
+      -- 閉じて変わるのは本人の帯の見え方だけ
       insert into public.attention_dismissals (owner_id, project_id, kind, roadmap_item_id, ref_on)
       select v_uid, p_project_id, 'todo', i.id, i.planned_on
         from public.roadmap_items i
        where i.id = v_id
          and i.project_id = p_project_id
          and i.owner_id = v_uid
-         and i.kind = 'post'
          and i.status = 'todo'
          and i.planned_on = v_on
          and i.planned_on < v_today

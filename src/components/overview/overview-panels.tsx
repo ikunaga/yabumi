@@ -197,7 +197,7 @@ export function AttentionStrip({
             <Group title="予定日を過ぎたやること" note="やらないことにしたら、ロードマップの「やらない」で消えます。">
               {overdueTodos.slice(0, 5).map((i) => (
                 <li key={i.id} className="flex flex-wrap items-baseline gap-x-2">
-                  <span className="num text-xs font-bold text-signal">
+                  <span className="num text-xs font-bold">
                     {monthOf(i.plannedOn!)}/{dayOfMonth(i.plannedOn!)}（{weekdayLabel(i.plannedOn!)}）
                   </span>
                   <b>{i.title}</b>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
+import { BandCloseButton } from "@/components/ui/band-close";
 import { closeConceptHint } from "@/lib/plan/actions";
 
 // 概要の「コンセプトを決める」（4.50）。最初の 4 段階が済んで、コンセプトがまだの人にだけ出す小さな 1 行。「×」でこの端末では出さない
@@ -20,17 +21,19 @@ export function ConceptHintBand({ projectId }: { projectId: string }) {
       <Link href={href} className="shrink-0 font-semibold whitespace-nowrap text-primary hover:underline max-sm:order-last">
         決める →
       </Link>
-      <button
-        type="button"
-        aria-label="コンセプトのおすすめを閉じる"
+      <BandCloseButton
+        label="コンセプトのおすすめを閉じる"
+        className="max-sm:ml-auto"
         onClick={() => {
           setHidden(true);
-          startTransition(() => closeConceptHint(projectId));
+          // 閉じたことを記録できなくても、画面全体をエラーにしない（この画面では消えたまま。読み込み直すとまた出る）
+          startTransition(async () => {
+            try {
+              await closeConceptHint(projectId);
+            } catch {}
+          });
         }}
-        className="-mr-1 shrink-0 rounded px-1.5 text-base leading-none text-muted hover:text-fg max-sm:ml-auto"
-      >
-        ×
-      </button>
+      />
     </aside>
   );
 }

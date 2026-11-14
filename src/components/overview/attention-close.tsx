@@ -2,8 +2,11 @@
 
 // 概要の「● 要確認」の帯の × と、閉じたら帯ごと消す外枠（4.71）。閉じたことはサーバーに持つ（スマホと PC で揃える）
 import { useState, useTransition, type ReactNode } from "react";
+import { BandCloseButton } from "@/components/ui/band-close";
 import { closeAttention } from "@/lib/attention/actions";
 import type { AttentionItem } from "@/lib/attention/dismissals";
+
+const FAILED = "閉じられませんでした。画面を読み込み直してください。";
 
 export function AttentionFrame({ projectId, items, children }: { projectId: string; items: AttentionItem[]; children: ReactNode }) {
   const [closed, setClosed] = useState(false);
@@ -16,22 +19,23 @@ export function AttentionFrame({ projectId, items, children }: { projectId: stri
         {children}
         {error && <p className="mt-1 text-sm text-danger">{error}</p>}
       </div>
-      <button
-        type="button"
-        aria-label="閉じる"
+      <BandCloseButton
+        label="要確認を閉じる"
         disabled={pending}
         onClick={() =>
           start(async () => {
             setError(null);
-            const r = await closeAttention(projectId, items);
-            if (r.error) setError(r.error);
-            else setClosed(true);
+            // 通信そのものが失敗しても、画面全体をエラーにしない（帯の中に出す。PMO の pc7）
+            try {
+              const r = await closeAttention(projectId, items);
+              if (r.error) setError(r.error);
+              else setClosed(true);
+            } catch {
+              setError(FAILED);
+            }
           })
         }
-        className="-my-1 -mr-2 shrink-0 rounded px-2 py-1 text-muted hover:text-fg disabled:opacity-50"
-      >
-        ✕
-      </button>
+      />
     </div>
   );
 }

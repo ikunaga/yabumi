@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { glossaryHref } from "@/lib/glossary/terms";
 import { useState, useTransition } from "react";
+import { BandCloseButton } from "@/components/ui/band-close";
 import { dismissTodayTerm } from "@/lib/learning/actions";
 import type { TodayTerm } from "@/lib/learning/today";
 
@@ -25,17 +26,19 @@ export function TodayTermBand({ projectId, term }: { projectId: string; term: To
       <Link href={glossaryHref(term.key)} className="shrink-0 font-semibold whitespace-nowrap text-primary hover:underline max-sm:hidden">
         くわしく →
       </Link>
-      <button
-        type="button"
-        aria-label="今日の用語を閉じる（今日はもう出しません）"
+      <BandCloseButton
+        label="今日の用語を閉じる（今日はもう出しません）"
+        className="max-sm:ml-auto"
         onClick={() => {
           setHidden(true);
-          startTransition(() => dismissTodayTerm(projectId));
+          // 閉じたことを記録できなくても、画面全体をエラーにしない（この画面では消えたまま。読み込み直すとまた出る）
+          startTransition(async () => {
+            try {
+              await dismissTodayTerm(projectId);
+            } catch {}
+          });
         }}
-        className="-mr-1 shrink-0 rounded px-1.5 text-base leading-none text-muted hover:text-fg max-sm:ml-auto"
-      >
-        ×
-      </button>
+      />
     </aside>
   );
 }

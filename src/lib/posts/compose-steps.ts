@@ -80,6 +80,14 @@ export function canGoNext(step: StepNo, a: { body: string; chosen: number }): bo
   return step < LAST_STEP;
 }
 
+// 「次へ」が押せない理由（下の帯に小さく 1 行。押せない理由がわからず止まらないように。2026-11-14 PM の指示）。進めるとき・⑤ は null
+export function nextBlockedReason(step: StepNo, a: { body: string; chosen: number }): string | null {
+  if (step === LAST_STEP || canGoNext(step, a)) return null;
+  if (step === 1) return "本文を書くと進めます";
+  if (step === 2) return "送り先を選ぶと進めます";
+  return null;
+}
+
 // 上の進みの印: 問題あり（●）・済み（✓。一度通り過ぎたか、中身がある）・まだ
 export type StepMark = "problem" | "done" | "todo";
 export function stepMarks(a: { current: StepNo; visited: ReadonlySet<StepNo>; problems: StepProblem[]; filled: Partial<Record<StepNo, boolean>> }): Record<StepNo, StepMark> {

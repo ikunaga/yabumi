@@ -1,5 +1,5 @@
 // 投稿に動画を添える版（docs/legal.md の「投稿に動画を添える版」。② として扱う）: 版の並び・本文の新しい文が、作り（DB・決まり）と合っていること。
-// 【仮】施行日は本番に出す日に PM が合わせる（ここの日付も一緒に直す）
+// 了承は 2026-11-15（前もって知らせず、本番に出す日を施行日にする）。施行日は本番に出す日に PM が合わせる（ここの日付も一緒に直す）
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { LEGAL_VERSIONS, currentLegalVersion, historyProblems } from "@/lib/legal/version";
@@ -15,6 +15,8 @@ describe("投稿に動画を添える版", () => {
   it("利用規約とプライバシーポリシーの版で、決まりを守っている", () => {
     expect(rev.docs).toEqual(["terms", "privacy"]);
     expect(rev.adverse).toBe(false);
+    expect(rev.noticeFrom).toBeNull();
+    expect(rev.noticeWaived).toContain("2026-11-15");
     expect(rev.summary.join("")).toContain("動画");
     expect(historyProblems()).toEqual([]);
     expect(currentLegalVersion(new Date(`${VERSION}T00:00:00+09:00`))).toBe(VERSION);

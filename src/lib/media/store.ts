@@ -18,6 +18,7 @@ import {
   mediaPath,
   unattachedLimitMessage,
 } from "./rules";
+import { VIDEO_BUCKET } from "./video-rules";
 
 // 画像の確認・添付・片付け（docs/architecture.md の 4.18）。admin は RLS を通らないクライアント。
 // 呼ぶ側で、ownerId がログイン中の利用者であることを確かめておく
@@ -156,13 +157,13 @@ export async function attachMedia(admin: Admin, ownerId: string, postId: string,
   if (!post) throw new MediaError("投稿が見つかりません。");
 
   // いまこの投稿に添えてある画像（元に戻した画像は、その画像の元だったものなので、ここを手がかりに確かめる）
-  const { data: current, error: curError } = await admin.from("media_files").select("id").eq("owner_id", ownerId).eq("post_id", postId);
+  const { data: current, error: curError } = await admin.from("media_files").select("id").eq("owner_id", ownerId).eq("post_id", postId).eq("kind", "image");
   if (curError) throw curError;
   const currentIds = new Set((current ?? []).map((r) => r.id));
   const ids = items.map((i) => i.id);
   const sourceIds = [...new Set(items.flatMap((i) => [i.originalId, i.editBaseId]).filter((x): x is string => Boolean(x)))].filter((x) => !ids.includes(x));
   const all = [...new Set([...ids, ...sourceIds])];
-  const { data: rows, error } = all.length ? await admin.from("media_files").select("id, post_id, note_id, source_of").eq("owner_id", ownerId).in("id", all) : { data: [], error: null };
+  const { data: rows, error } = all.length ? await admin.from("media_files").select("id, post_id, note_id, source_of").eq("owner_id", ownerId).eq("kind", "image").in("id", all) : { data: [], error: null };
   if (error) throw error;
   const byId = new Map((rows ?? []).map((r) => [r.id, r]));
   // 元の画像として使ってよいもの: 本人の、投稿にもメモにも添えていない画像で、ほかの投稿の画像の元でないもの。
@@ -232,8 +233,8 @@ export async function attachMedia(admin: Admin, ownerId: string, postId: string,
     }
   }
 
-  // この投稿から外された画像は、ファイルごと消す（その元の行は DB の cascade で消え、元のファイルは下で消す）
-  let removed = admin.from("media_files").select("id, storage_path").eq("owner_id", ownerId).eq("post_id", postId);
+  // この投稿から外された画像は、ファイルごと消す（その元の行は DB の cascade で消え、元のファイルは下で消す）。動画は attachVideo が扱う（video-store.ts）
+  let removed = admin.from("media_files").select("id, storage_path").eq("owner_id", ownerId).eq("post_id", postId).eq("kind", "image");
   if (ids.length) removed = removed.not("id", "in", `(${ids.join(",")})`);
   const { data: gone, error: goneError } = await removed;
   if (goneError) throw goneError;
@@ -254,15 +255,15 @@ export async function ownAiMedia(admin: Admin, ownerId: string, mediaId: string)
 // 保存していない画像を外す（画面の「外す」）。投稿に添えた画像は、投稿を保存したときに attachMedia が消す
 export async function discardUnattached(admin: Admin, ownerId: string, id: string): Promise<void> {
   // 保存した投稿の画像の元（source_of のある行）は、ここでは消さない（その画像が外されたときに、投稿の保存で一緒に消える。4.68）
-  const { data } = await admin.from("media_files").select("id, storage_path").eq("id", id).eq("owner_id", ownerId).is("post_id", null).is("source_of", null).maybeSingle();
+  const { data } = await admin.from("media_files").select("id, storage_path").eq("id", id).eq("owner_id", ownerId).eq("kind", "image").is("post_id", null).is("source_of", null).maybeSingle();
   if (!data) return;
   await removeObjects(admin, [data.storage_path]);
   await admin.from("media_files").delete().eq("id", data.id);
 }
 
-// 投稿の画像（並び順）
+// 投稿の画像（並び順）。動画は postVideoFor（video-store.ts）
 export async function postMedia(db: SupabaseClient<Database>, postId: string): Promise<MediaFile[]> {
-  const { data, error } = await db.from("media_files").select("*").eq("post_id", postId).order("position");
+  const { data, error } = await db.from("media_files").select("*").eq("post_id", postId).eq("kind", "image").order("position");
   if (error) throw error;
   return (data ?? []).map(toMediaFile);
 }
@@ -286,8 +287,8 @@ export function restorableRows<T extends { id: string; post_id: string | null; n
 export async function unattachedCount(admin: Admin, ownerId: string): Promise<number> {
   const [media, tickets] = await Promise.all([
     // 保存した投稿の画像の元（source_of のある行。4.68）は数えない
-    admin.from("media_files").select("id", { count: "exact", head: true }).eq("owner_id", ownerId).is("post_id", null).is("note_id", null).is("source_of", null),
-    admin.from("media_upload_tickets").select("storage_path", { count: "exact", head: true }).eq("owner_id", ownerId).gt("created_at", new Date(Date.now() - 86_400_000).toISOString()),
+    admin.from("media_files").select("id", { count: "exact", head: true }).eq("owner_id", ownerId).eq("kind", "image").is("post_id", null).is("note_id", null).is("source_of", null),
+    admin.from("media_upload_tickets").select("storage_path", { count: "exact", head: true }).eq("owner_id", ownerId).eq("kind", "image").gt("created_at", new Date(Date.now() - 86_400_000).toISOString()),
   ]);
   if (media.error) throw media.error;
   if (tickets.error) throw tickets.error;
@@ -304,7 +305,7 @@ export async function restoreImages(
   now: Date,
 ): Promise<{ id: string; previewUrl: string | null; altText: string; width: number; height: number; sizeBytes: number; aiGenerated: boolean }[]> {
   if (!ids.length) return [];
-  const { data, error } = await db.from("media_files").select("*").in("id", ids);
+  const { data, error } = await db.from("media_files").select("*").eq("kind", "image").in("id", ids);
   if (error) throw error;
   const rows = restorableRows(data ?? [], postId, now);
   const urls = await sign(rows.map((r) => r.storage_path));
@@ -329,15 +330,25 @@ export async function downloadMedia(admin: Admin, path: string): Promise<Uint8Ar
   return new Uint8Array(await data.arrayBuffer());
 }
 
-// 毎日の片付け: 添えないまま 1 日たった画像、投稿が消えた画像、送り終えて 30 日たった画像、記録のないファイルを消す
+// 毎日の片付け: 添えないまま 1 日たった画像・動画、投稿が消えた画像・動画、送り終えて 30 日たった画像、送り終えて 1 日（失敗が残れば 7 日）たった動画、
+// 記録のないファイルを消す（docs/design/video.md の 7.）。送り終えた動画は、ファイルだけ消して行に removed_at を入れる（投稿の画面に「消しました」と出す）。
 // ownerId を渡すとその利用者の分だけ（結合テスト用。毎日のジョブは全体）
 export async function cleanupMedia(admin: Admin, { limit = 200, ownerId }: { limit?: number; ownerId?: string } = {}): Promise<{ removed: number }> {
   const { data, error } = await admin.rpc("cleanup_media_candidates", { p_limit: limit, ...(ownerId ? { p_owner_id: ownerId } : {}) });
   if (error) throw error;
   if (!data.length) return { removed: 0 };
-  const { error: rmError } = await admin.storage.from(MEDIA_BUCKET).remove(data.map((d) => d.storage_path));
-  if (rmError) throw rmError;
-  const ids = data.map((d) => d.media_id).filter((id): id is string => Boolean(id));
+  for (const bucket of [MEDIA_BUCKET, VIDEO_BUCKET]) {
+    const paths = data.filter((d) => d.bucket === bucket).map((d) => d.storage_path);
+    if (!paths.length) continue;
+    const { error: rmError } = await admin.storage.from(bucket).remove(paths);
+    if (rmError) throw rmError;
+  }
+  const marks = data.filter((d) => d.media_id && d.mark_removed).map((d) => d.media_id as string);
+  if (marks.length) {
+    const { error: markError } = await admin.from("media_files").update({ removed_at: new Date().toISOString() }).in("id", marks);
+    if (markError) throw markError;
+  }
+  const ids = data.filter((d) => d.media_id && !d.mark_removed).map((d) => d.media_id as string);
   if (ids.length) {
     const { error: delError } = await admin.from("media_files").delete().in("id", ids);
     if (delError) throw delError;

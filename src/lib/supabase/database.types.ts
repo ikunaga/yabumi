@@ -997,16 +997,19 @@ export type Database = {
           ai_generated: boolean
           alt_text: string
           created_at: string
+          duration_ms: number | null
           edit: Json | null
           edit_base_id: string | null
           has_text: boolean | null
           height: number
           id: string
+          kind: string
           note_id: string | null
           original_id: string | null
           owner_id: string
           position: number
           post_id: string | null
+          removed_at: string | null
           size_bytes: number
           source_of: string | null
           storage_path: string
@@ -1017,16 +1020,19 @@ export type Database = {
           ai_generated?: boolean
           alt_text?: string
           created_at?: string
+          duration_ms?: number | null
           edit?: Json | null
           edit_base_id?: string | null
           has_text?: boolean | null
           height: number
           id?: string
+          kind?: string
           note_id?: string | null
           original_id?: string | null
           owner_id: string
           position?: number
           post_id?: string | null
+          removed_at?: string | null
           size_bytes: number
           source_of?: string | null
           storage_path: string
@@ -1037,16 +1043,19 @@ export type Database = {
           ai_generated?: boolean
           alt_text?: string
           created_at?: string
+          duration_ms?: number | null
           edit?: Json | null
           edit_base_id?: string | null
           has_text?: boolean | null
           height?: number
           id?: string
+          kind?: string
           note_id?: string | null
           original_id?: string | null
           owner_id?: string
           position?: number
           post_id?: string | null
+          removed_at?: string | null
           size_bytes?: number
           source_of?: string | null
           storage_path?: string
@@ -1094,16 +1103,19 @@ export type Database = {
       media_upload_tickets: {
         Row: {
           created_at: string
+          kind: string
           owner_id: string
           storage_path: string
         }
         Insert: {
           created_at?: string
+          kind?: string
           owner_id: string
           storage_path: string
         }
         Update: {
           created_at?: string
+          kind?: string
           owner_id?: string
           storage_path?: string
         }
@@ -1580,6 +1592,53 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "post_target_tiktok_post_target_id_fkey"
+            columns: ["post_target_id"]
+            isOneToOne: true
+            referencedRelation: "post_targets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      post_target_youtube: {
+        Row: {
+          category_id: string
+          consent_channel: string
+          consent_text_hash: string
+          consented_at: string
+          made_for_kids: boolean
+          owner_id: string
+          post_target_id: string
+          privacy_status: string
+          synthetic_media: boolean
+          updated_at: string
+        }
+        Insert: {
+          category_id: string
+          consent_channel: string
+          consent_text_hash: string
+          consented_at: string
+          made_for_kids: boolean
+          owner_id: string
+          post_target_id: string
+          privacy_status: string
+          synthetic_media?: boolean
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string
+          consent_channel?: string
+          consent_text_hash?: string
+          consented_at?: string
+          made_for_kids?: boolean
+          owner_id?: string
+          post_target_id?: string
+          privacy_status?: string
+          synthetic_media?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_target_youtube_post_target_id_fkey"
             columns: ["post_target_id"]
             isOneToOne: true
             referencedRelation: "post_targets"
@@ -2525,6 +2584,24 @@ export type Database = {
           },
         ]
       }
+      video_upload_counts: {
+        Row: {
+          count: number
+          month: string
+          owner_id: string
+        }
+        Insert: {
+          count?: number
+          month: string
+          owner_id: string
+        }
+        Update: {
+          count?: number
+          month?: string
+          owner_id?: string
+        }
+        Relationships: []
+      }
       waitlist: {
         Row: {
           app_note: string
@@ -2598,6 +2675,50 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      youtube_uploads: {
+        Row: {
+          bytes_sent: number
+          bytes_total: number
+          owner_id: string
+          post_target_id: string
+          processing_check_until: string | null
+          session_uri_encrypted: string | null
+          started_at: string
+          updated_at: string
+          video_id: string | null
+        }
+        Insert: {
+          bytes_sent?: number
+          bytes_total: number
+          owner_id: string
+          post_target_id: string
+          processing_check_until?: string | null
+          session_uri_encrypted?: string | null
+          started_at?: string
+          updated_at?: string
+          video_id?: string | null
+        }
+        Update: {
+          bytes_sent?: number
+          bytes_total?: number
+          owner_id?: string
+          post_target_id?: string
+          processing_check_until?: string | null
+          session_uri_encrypted?: string | null
+          started_at?: string
+          updated_at?: string
+          video_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "youtube_uploads_post_target_id_fkey"
+            columns: ["post_target_id"]
+            isOneToOne: true
+            referencedRelation: "post_targets"
             referencedColumns: ["id"]
           },
         ]
@@ -2685,8 +2806,10 @@ export type Database = {
         }[]
       }
       cleanup_media_candidates: {
-        Args: { p_limit?: number; p_owner_id?: string }
+        Args: { p_limit?: number; p_now?: string; p_owner_id?: string }
         Returns: {
+          bucket: string
+          mark_removed: boolean
           media_id: string
           storage_path: string
         }[]
@@ -2803,6 +2926,19 @@ export type Database = {
           p_max_file_bytes: number
           p_max_pending: number
           p_max_unattached: number
+          p_owner_id: string
+          p_quota_bytes: number
+          p_storage_path: string
+        }
+        Returns: string
+      }
+      issue_video_upload_ticket: {
+        Args: {
+          p_global_quota_bytes: number
+          p_max_file_bytes: number
+          p_max_pending: number
+          p_max_unattached: number
+          p_month_limit: number
           p_owner_id: string
           p_quota_bytes: number
           p_storage_path: string
@@ -3028,6 +3164,15 @@ export type Database = {
           usage_id: string
           used: number
         }[]
+      }
+      reserve_youtube_upload: {
+        Args: {
+          p_global_limit: number
+          p_owner_id: string
+          p_post_target_id: string
+          p_user_limit: number
+        }
+        Returns: string
       }
       revise_goal: {
         Args: {

@@ -31,6 +31,7 @@ async function attachImage(admin: Db, ownerId: string, noteId: string, mediaId: 
     .update({ note_id: noteId })
     .eq("id", mediaId)
     .eq("owner_id", ownerId)
+    .eq("kind", "image")
     .is("post_id", null)
     .is("note_id", null)
     .is("source_of", null)
@@ -61,7 +62,7 @@ export async function createNote(
     return { ok: false, message: `ネタ帳のメモが ${MAX_NOTES_PER_PROJECT.toLocaleString("ja-JP")} 件あります。使い終えたメモを削除してから残してください。` };
   }
   if (args.mediaId) {
-    const { data: m } = await admin.from("media_files").select("id").eq("id", args.mediaId).eq("owner_id", args.userId).is("post_id", null).is("note_id", null).is("source_of", null).maybeSingle();
+    const { data: m } = await admin.from("media_files").select("id").eq("id", args.mediaId).eq("owner_id", args.userId).eq("kind", "image").is("post_id", null).is("note_id", null).is("source_of", null).maybeSingle();
     if (!m) return { ok: false, message: "画像が見つかりません。もう一度選んでください。" };
   }
 
@@ -117,7 +118,7 @@ export async function copyNoteImagesToPost(admin: Db, ownerId: string, postId: s
   if (!rows.length) return { copied: 0, skipped: 0 };
   // メモを選んだ順に並べる
   rows.sort((a, b) => noteIds.indexOf(a.note_id!) - noteIds.indexOf(b.note_id!));
-  const { count } = await admin.from("media_files").select("id", { count: "exact", head: true }).eq("post_id", postId);
+  const { count } = await admin.from("media_files").select("id", { count: "exact", head: true }).eq("post_id", postId).eq("kind", "image");
   const { data: used } = await admin.rpc("media_usage_bytes", { p_owner_id: ownerId });
   let position = count ?? 0;
   let total = Number(used ?? 0);
@@ -157,7 +158,7 @@ export async function copyNoteImageForCompose(
   const [r] = await noteImageRows(admin, args.userId, [note.id]);
   if (!r) return { ok: true, image: null };
   // 上限の確かめと記録は一続きではない（同時に何度も押すと少し超えうる）が、超えるのは本人の容量の中だけで、添えていない画像は 1 日で消えるので受け入れる（2026-11-02 PM の判断）
-  const { count } = await admin.from("media_files").select("id", { count: "exact", head: true }).eq("owner_id", args.userId).is("post_id", null).is("note_id", null).is("source_of", null);
+  const { count } = await admin.from("media_files").select("id", { count: "exact", head: true }).eq("owner_id", args.userId).eq("kind", "image").is("post_id", null).is("note_id", null).is("source_of", null);
   if ((count ?? 0) >= MAX_UNATTACHED) {
     return { ok: false, message: unattachedLimitMessage() };
   }

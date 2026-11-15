@@ -60,7 +60,7 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
   // Instagram は縦横比を確かめるので、画像の幅と高さを読む（RLS で本人の画像だけ）
   let sizes: { width: number; height: number }[] | undefined;
   if (images > 0 && targets.some((t) => t.sns === "instagram")) {
-    const { data: rows } = await supabase.from("media_files").select("id, width, height").in("id", media.map((m) => m.id));
+    const { data: rows } = await supabase.from("media_files").select("id, width, height").eq("kind", "image").in("id", media.map((m) => m.id));
     sizes = (rows ?? []).map((r) => ({ width: r.width, height: r.height }));
   }
 

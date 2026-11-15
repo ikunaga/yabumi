@@ -18,7 +18,8 @@ describe("TikTok の連携の版", () => {
     expect(rev.noticeWaived).toContain("2026-11-15");
     expect(rev.summary.join("")).toContain("TikTok");
     expect(historyProblems()).toEqual([]);
-    expect(LEGAL_VERSIONS.at(-1)?.version).toBe(VERSION);
+    // あとに別の版（動画など）が続いてもよい。前の版（SNS のコメント）より後に並ぶ
+    expect(LEGAL_VERSIONS.findIndex((r) => r.version === VERSION)).toBeGreaterThan(LEGAL_VERSIONS.findIndex((r) => r.version === "2026-11-15"));
   });
 
   it("プライバシーポリシーに、預かるもの・送り先・外国・保存期間・外し方を書き、作りと合っている", () => {

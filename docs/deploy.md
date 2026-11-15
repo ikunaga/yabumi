@@ -702,3 +702,19 @@ Next.js の server action の ID は、ビルドごとの暗号の鍵から作�
 
 - 権限を外すときは、先に SNS_COMMENTS から外して Redeploy し、そのあと Meta のアプリから外す（逆にすると、つなぐ画面がエラーになる）
 - 他の人に使ってもらうには、これらの権限の App Review が要る（docs/review/meta.md）
+
+## 29. 投稿に動画を添える（2026-11-15、feat/video。architecture.md の 4.73、docs/design/video.md）
+
+動画は Supabase Storage の post-videos に置く。新しい環境変数・外部の鍵はない。SNS の権限も今のまま（Threads は threads_content_publish、Instagram は instagram_business_content_publish、Facebook は pages_manage_posts で動画も送れる見込み【未確認: 29-5 で確かめる】）。X は W2 の確かめが済むまで動画を送らない（SNS.x.video は false）。
+
+| 段 | 誰が | すること | 状態 |
+|---|---|---|---|
+| 29-1 | PM | マイグレーション 20261115100000_post_videos を本番に当てる（バケット post-videos・media_files の列と決まり・引換券の kind と consumed_at・video_upload_counts・関数 3 つの置き換えと 1 つの追加。既存の画像の行は kind = 'image' になるだけ） | まだ |
+| 29-2 | オーナー | Supabase → Storage → Settings の「Upload file size limit」（全体の 1 ファイルの上限）が **50MB 以上**であることを確かめる（Free の上限は 50MB。バケットの上限は全体の上限を超えられない）。Storage の Buckets に post-videos があり、Public がオフであることも確かめる | まだ |
+| 29-3 | PM | 法務の版（legal.md の「投稿に動画を添える版」。YouTube と同じ 2026-11-17 の版）の施行日と noticeWaived の【仮】を、オーナーの了承と本番に出す日に合わせる（src/lib/legal/version.ts と tests/video-legal.test.ts の日付） | まだ |
+| 29-4 | PM | 本番で、オーナーの iPhone の Safari と PC の Chrome から、③ で動画を選び、整えて上げられることを確かめる（音が出るか・かかる時間）。`select kind, count(*) from media_files group by kind;` で動画の行ができたことを確かめる | まだ |
+| 29-5 | PM | 本物の SNS への確かめ（オーナーの了承のあと、4 つをまとめて 1 回）: Threads・Instagram（リール）・Facebook（リール）に 10 秒ほどの動画を 1 本ずつ送り、W2 として X に 1080×1920 を 1 本送る（約 $0.015）。送ったものは取り消す（Instagram は API で消せないので手で）。確かめること: 署名 URL を取りに来られるか（Range）、音声なし・44.1kHz、Facebook の rupload に appsecret_proof が要るか、X が 1080×1920 を受け付けるか | まだ |
+| 29-6 | PM | 送り終えて 1 日たった動画が、毎日 4:00 の片付け（cleanup-media）で Storage から消え、投稿の画面に「動画は送り終えたので消しました」が出ることを確かめる | まだ |
+
+- 全体の上限（500MB）と 1 人 300MB・月 20 本は Free のうちの値。段階 ②（Supabase Pro）に進むときに見直す（オーナーの返事待ち。roadmap.md）
+- 転送量の目安: 1 本 約 0.2GB（送り先 4 つ・再生 1 回）。Supabase の Usage で Egress を週に 1 回見る（Free は月 5GB）

@@ -203,6 +203,8 @@ export function useComposer({
   // TikTok に送るときに利用者が選ぶもの（docs/design/tiktok.md の 3.）。公開範囲は最初は選んでいない・コメントと宣伝の内容は最初はオフ
   const [tiktokChoice, setTikTokChoice] = useState<TikTokChoice>({ privacyLevel: null, allowComment: false, commercial: false, brandOrganic: false, brandContent: false, mode: "DIRECT_POST" });
   // つないだ TikTok のいまの状態（⑤ の TikTok の欄を開くたびに読む）。読めなければ error
+  // TikTok は手で投稿する（docs/design/tiktok.md の 17.）。TikTok は自動では送らず、送信の結果から手で投稿して記録する
+  const [tiktokByHand, setTikTokByHand] = useState(Boolean(results.tiktok?.byHand));
   const [tiktokCreator, setTikTokCreator] = useState<{ creator?: TikTokCreatorView; error?: string } | null>(null);
   // X をいま（予約ならその時刻に）送ったら上限に当たるか（サーバーが送信ジョブと同じ判定で返す）。key は調べたときの条件
   // base: 費用の変わる条件（これが同じなら、調べ直している間も前の判定を出したままにする）、key: 調べた回（base ＋ ステップ ＋ 押した回数）
@@ -532,7 +534,7 @@ export function useComposer({
     if (missingConnect.length) return missingConnectMessage;
     if (xBudgetBlocker) return xBudgetBlocker;
     // TikTok: 選んだ公開範囲などを確かめる（保存のときに、サーバーが creator_info でもう一度確かめる）
-    if (toSend.includes("tiktok")) {
+    if (toSend.includes("tiktok") && !tiktokByHand) {
       if (!tiktokCreator?.creator) return tiktokCreator?.error ? `TikTok: ${tiktokCreator.error}` : "TikTok のアカウントの状態を読んでいます";
       if (tiktokChoice.mode === "DIRECT_POST") {
         const p = settingsProblem(tiktokChoice, tiktokCreator.creator.privacyOptions as PrivacyLevel[]);
@@ -546,7 +548,14 @@ export function useComposer({
   const blocker = sendBlocker ?? (plannedAt ? null : "送る日時を決めてください");
   // 今すぐ送れるのは、自動で送る SNS だけ
   const nowBlocker =
-    sendBlocker ?? xNowBlocker ?? (toSend.some((s) => !isManualSns(s)) ? null : "note・Substack は手で投稿します。予約するか下書きに保存すると、投稿の画面から手で投稿できます");
+    sendBlocker ??
+    xNowBlocker ??
+    // 自動で送る SNS がない（note・Substack と、手で投稿すると選んだ X・TikTok だけ）なら、今すぐ送るものがない
+    (toSend.some((s) => !isManualSns(s) && !(xByHand && s === "x") && !(tiktokByHand && s === "tiktok"))
+      ? null
+      : toSend.some(isManualSns)
+        ? "note・Substack は手で投稿します。予約するか下書きに保存すると、投稿の画面から手で投稿できます"
+        : "手で投稿する SNS だけです。予約するか下書きに保存すると、投稿の画面から手で投稿できます");
   // X の上限を調べ直している途中か（押したときの調べ直しが済むまで、「本当に今すぐ送る」と予約は押せない。PMO2 の 3 回目の 02b）
   const xChecking = xKey !== null && xCheck?.key !== xKey;
   // 調べ直して上限に当たった（ほかの送れない理由が出た）ら、「本当に今すぐ送る」の確かめを閉じて、知らせだけにする
@@ -659,7 +668,7 @@ export function useComposer({
     setBusy(intent);
     // 自動で送る SNS（note・Substack は手で投稿するので、ここでは送らない）
     // X を手で投稿するときは、送る進み具合に X を出さない（送らないので）
-    const autoSns = toSend.filter((s) => !isManualSns(s) && !(xByHand && s === "x"));
+    const autoSns = toSend.filter((s) => !isManualSns(s) && !(xByHand && s === "x") && !(tiktokByHand && s === "tiktok"));
     if (intent === "now") setSending({ postId: null, sns: autoSns });
     startTransition(async () => {
       const out = await callAction(() => savePost({
@@ -676,7 +685,8 @@ export function useComposer({
         quotePostId: quoting ? quote : null,
         textOrigin,
         xByHand: xByHand && toSend.includes("x"),
-        ...(toSend.includes("tiktok") ? { tiktok: tiktokChoice } : {}),
+        tiktokByHand: tiktokByHand && toSend.includes("tiktok"),
+        ...(toSend.includes("tiktok") && !tiktokByHand ? { tiktok: tiktokChoice } : {}),
         formatId,
         formatRoundIds: roundIds,
         targets: chosen.map((sns) => ({
@@ -780,7 +790,7 @@ export function useComposer({
 
   const mode = sendMode({ sentAny, toSend: toSend.length });
   // X を手で投稿するときは、自動で送る数に X を数えない
-  const autoCount = toSend.length - (xByHand && toSend.includes("x") ? 1 : 0);
+  const autoCount = toSend.length - (xByHand && toSend.includes("x") ? 1 : 0) - (tiktokByHand && toSend.includes("tiktok") ? 1 : 0);
   const labels = sendLabels(mode, autoCount);
   const sentLabels = chosen.filter((s) => isLocked(s)).map((s) => SNS[s].label).join("・");
 
@@ -898,6 +908,8 @@ export function useComposer({
     tiktokChoice,
     setTikTokChoice,
     tiktokCreator,
+    tiktokByHand,
+    setTikTokByHand,
     setTikTokCreator,
     setXByHand,
     xVerdict,

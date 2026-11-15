@@ -4,7 +4,7 @@ import type { Database } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
 import { SNS_KEYS, type SnsKey } from "@/lib/sns";
 import { countUnsentDrafts } from "@/lib/posts/drafts";
-import { NOT_X_BY_HAND_FILTER } from "@/lib/sns/x/send-rules";
+import { NOT_BY_HAND_FILTER } from "@/lib/sns/by-hand";
 import { addMonths, startOfYmd } from "@/lib/time";
 
 // カレンダーの上の数字と右の列（見本 C）。いまあるデータだけで出す（DL・相関・空き枠は出さない。2026-10-30 の PM の回答）。
@@ -62,7 +62,7 @@ export async function loadCalendarStatsBetween(projectId: string, fromYmd: strin
       .eq("project_id", projectId)
       .eq("post_targets.status", "failed")
       // 「X は手で投稿する」を選んだ X は、失敗に数えない
-      .or(NOT_X_BY_HAND_FILTER, { referencedTable: "post_targets" })
+      .or(NOT_BY_HAND_FILTER, { referencedTable: "post_targets" })
       // 概要の要確認の帯で閉じたものは数えない（帯と数を揃える。4.71）
       .is("post_targets.attention_closed_at", null),
     supabase
@@ -70,7 +70,7 @@ export async function loadCalendarStatsBetween(projectId: string, fromYmd: strin
       .select("id, post_targets!inner(id)")
       .eq("project_id", projectId)
       .eq("post_targets.status", "failed")
-      .or(NOT_X_BY_HAND_FILTER, { referencedTable: "post_targets" })
+      .or(NOT_BY_HAND_FILTER, { referencedTable: "post_targets" })
       .is("post_targets.attention_closed_at", null)
       .order("updated_at", { ascending: false })
       .limit(1),

@@ -7,7 +7,8 @@ import { ISSUE_LABEL, SNS, checkTarget, hasTitleField, isManualSns, type SnsKey 
 import { hashtagInputProblem, parseHashtagInput, splitTagsByText, withHashtags } from "@/lib/sns/hashtags";
 import { xSendVerdict } from "@/lib/sns/x/send-verdict";
 import { xOverMessage } from "@/lib/sns/x/send-rules";
-import { markXByHand, xByHandTooLateMessage } from "./x-by-hand";
+import { byHandTooLateMessage, markByHand } from "./by-hand";
+import type { ByHandSns } from "@/lib/sns/by-hand";
 import { attachRounds } from "@/lib/post-formats/rounds";
 import { canPublish, publisherDeps } from "@/lib/sns/adapters";
 import { publishDueTargets } from "@/lib/sns/publisher";
@@ -36,7 +37,7 @@ const MIN_LEAD_MS = 5 * 60 * 1000;
 export async function savePost(input: SavePostInput): Promise<SavePostResult> {
   const parsed = savePostInputSchema.safeParse(input);
   if (!parsed.success) return { error: "入力の形式が正しくありません。画面を読み込み直してください。" };
-  const { projectId, postId, body, plannedAt, intent, media, shortLinks, roadmapItemId, noteIds, xByHand } = parsed.data;
+  const { projectId, postId, body, plannedAt, intent, media, shortLinks, roadmapItemId, noteIds, xByHand, tiktokByHand } = parsed.data;
   // SNS ごとのタグ（# を外し、同じタグは 1 つに）。タグにできない言葉・6 個以上は、下で欄のエラーにする
   // 本文（SNS ごとの文面）にもう書いてあるタグは、タグの行から外して保存する（2 回出さない。PMO2 の x2）
   const targets = parsed.data.targets.map((t) => ({ ...t, hashtags: splitTagsByText(t.bodyOverride ?? body, parseHashtagInput(t.hashtags.join(" ")).tags).keep }));
@@ -99,6 +100,8 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
       fieldErrors.targets = "選んだ SNS にはすべて投稿済みです";
     } else if (intent === "now" && toSend.every((t) => isManualSns(t.sns))) {
       fieldErrors.targets = "note・Substack は手で投稿します。予約するか下書きに保存すると、投稿の画面から手で投稿できます";
+    } else if (intent === "now" && toSend.every((t) => isManualSns(t.sns) || (xByHand && t.sns === "x") || (tiktokByHand && t.sns === "tiktok"))) {
+      fieldErrors.targets = "手で投稿する SNS だけです。予約するか下書きに保存すると、投稿の画面から手で投稿できます";
     } else {
       let linkBase: string | undefined;
       for (const t of toSend) {
@@ -131,8 +134,8 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
           fieldErrors.targets = `${label} に画像を送るには、つなぎ直しが要ります。プロジェクトの設定の「つないだ SNS」から ${label} をつなぎ直してください。`;
           break;
         }
-        // TikTok は、利用者が選んだ公開範囲などを、いまの creator_info で確かめる（docs/design/tiktok.md の 3. と 4.）
-        if (t.sns === "tiktok") {
+        // TikTok は、利用者が選んだ公開範囲などを、いまの creator_info で確かめる（docs/design/tiktok.md の 3. と 4.）。手で投稿するなら送らないので見ない
+        if (t.sns === "tiktok" && !tiktokByHand) {
           const r = await checkTikTokChoice(createAdminClient(), accounts.tiktok!, parsed.data.tiktok);
           if ("error" in r) {
             fieldErrors.targets = `TikTok: ${r.error}`;
@@ -155,14 +158,16 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
 
   if (Object.keys(fieldErrors).length > 0) return { fieldErrors };
 
-  // X を手で投稿する（予約・今すぐ送るで、X を送る SNS に入れているとき）。X は送り直さず、自動では送らない
+  // X・TikTok を手で投稿する（予約・今すぐ送るで、その SNS を送る SNS に入れているとき）。その SNS は送り直さず、自動では送らない
   const xHand = intent !== "draft" && xByHand && toSend.some((t) => t.sns === "x");
+  const tiktokHand = intent !== "draft" && tiktokByHand && toSend.some((t) => t.sns === "tiktok");
+  const hands: ByHandSns[] = [...(xHand ? (["x"] as const) : []), ...(tiktokHand ? (["tiktok"] as const) : [])];
   // TikTok を送るときは、同意の記録を書いてから予約にする（記録の前に送信ジョブが TikTok を取り出さないように）
-  const tiktokSend = intent !== "draft" && tiktokChecked !== null && toSend.some((t) => t.sns === "tiktok");
+  const tiktokSend = intent !== "draft" && !tiktokHand && tiktokChecked !== null && toSend.some((t) => t.sns === "tiktok");
 
   // 失敗した配信先を、送り直せる状態に戻す
   if (intent !== "draft" && postId) {
-    const { error } = await supabase.rpc("requeue_failed_targets", { p_post_id: postId, p_sns: toSend.map((t) => t.sns).filter((s) => !(xHand && s === "x")) });
+    const { error } = await supabase.rpc("requeue_failed_targets", { p_post_id: postId, p_sns: toSend.map((t) => t.sns).filter((s) => !(hands as string[]).includes(s)) });
     if (error) return { error: "保存できませんでした。時間をおいてもう一度お試しください。" };
   }
 
@@ -172,8 +177,8 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
     p_project_id: projectId,
     p_body: body,
     p_planned_at: sendAt as string,
-    // X を手で投稿するときは、いったん下書きで保存し、X を送らない印を付けてから予約にする（印を付ける前に送信ジョブが X を取り出さないように）
-    p_status: intent === "draft" || xHand || tiktokSend ? "draft" : "scheduled",
+    // 手で投稿するときは、いったん下書きで保存し、送らない印を付けてから予約にする（印を付ける前に送信ジョブが取り出さないように）
+    p_status: intent === "draft" || hands.length > 0 || tiktokSend ? "draft" : "scheduled",
     p_targets: targets.map((t) => ({
       sns: t.sns,
       title: hasTitleField(t.sns) ? (t.title ?? null) : null,
@@ -203,25 +208,29 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
       console.error("[savePost] TikTok の同意を記録できませんでした", e);
       return { error: "保存できませんでした。時間をおいてもう一度お試しください。" };
     }
-    if (!xHand) {
+    if (hands.length === 0) {
       const { error: statusError } = await supabase.from("posts").update({ status: "scheduled" }).eq("id", savedId).eq("project_id", projectId);
       if (statusError) return { error: "保存できませんでした。時間をおいてもう一度お試しください。" };
     }
   }
 
-  if (xHand) {
-    let marked;
-    try {
-      marked = await markXByHand(createAdminClient(), savedId, userId);
-    } catch (e) {
-      console.error("[savePost] X を手で投稿する印を付けられませんでした", e);
-      return { error: "保存できませんでした。時間をおいてもう一度お試しください。" };
+  if (hands.length > 0) {
+    const late: string[] = [];
+    for (const sns of hands) {
+      let marked;
+      try {
+        marked = await markByHand(createAdminClient(), savedId, userId, sns);
+      } catch (e) {
+        console.error("[savePost] 手で投稿する印を付けられませんでした", sns, e);
+        return { error: "保存できませんでした。時間をおいてもう一度お試しください。" };
+      }
+      // 送信ジョブが先に取り出していた（読んだときは送信待ちだった）。自動で送られるので、手では出さないよう知らせる
+      if (!marked.ok) late.push(byHandTooLateMessage(sns, marked.status));
     }
     // 印を付けられなくても、ほかの SNS は予約に戻す（利用者が送るつもりのもの）
     const { error: statusError } = await supabase.from("posts").update({ status: "scheduled" }).eq("id", savedId).eq("project_id", projectId);
     if (statusError) return { error: "保存できませんでした。時間をおいてもう一度お試しください。" };
-    // 送信ジョブが先に X を取り出していた（読んだときは送信待ちだった）。X は自動で送られるので、手では出さないよう知らせて止める
-    if (!marked.ok) return { error: xByHandTooLateMessage(marked.status) };
+    if (late.length > 0) return { error: late.join(" ") };
   }
 
   // 選んでいた投稿のフォーマットを覚える（下書きから再開したときに戻す）。同じ持ち主・同じプロジェクトのものだけ（DB のトリガー posts_check_format）。

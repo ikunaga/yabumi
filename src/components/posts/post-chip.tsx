@@ -3,14 +3,14 @@ import type { PostRow } from "@/lib/posts/queries";
 import { postTitle } from "@/lib/posts/queries";
 import { SNS, checkTarget } from "@/lib/sns";
 import { targetText } from "@/lib/sns/hashtags";
-import { isXByHand } from "@/lib/sns/x/send-rules";
+import { isByHand } from "@/lib/sns/by-hand";
 import { formatTime } from "@/lib/time";
 
 export type PostDisplayStatus = "draft" | "scheduled" | "posted" | "failed";
 
 export function displayStatus(post: PostRow): PostDisplayStatus {
   // 「X は手で投稿する」を選んだ X は、失敗に数えない
-  if (post.targets.some((t) => t.status === "failed" && !isXByHand(t))) return "failed";
+  if (post.targets.some((t) => t.status === "failed" && !isByHand(t))) return "failed";
   // SNS 上で取り消したものは数えない
   const live = post.targets.filter((t) => t.status !== "deleted");
   if (live.length > 0 && live.every((t) => t.status === "published")) return "posted";

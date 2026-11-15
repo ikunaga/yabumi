@@ -304,7 +304,12 @@ TikTok を送り先に選んだ投稿の、⑤ 送る（と ② 送り先の Tik
 - 段 4 送信の部品（src/lib/sns/adapters/tiktok.ts）: preparing の 2 段（startPublish で creator_info → 確かめ → 入口の URL → content/init、continuePublish で status/fetch）。配信先ごとの設定を読むため、startPublish に配信先（PublishTarget: id と、短縮リンクに置き換える前の文）を渡すようにした。入口は送り終えたとき・失敗したときに閉じる。失敗の理由は failureOf で retryable・auth・permanent に分ける
 - 段 5 予約の守り: 送る直前に checkBeforeSend（同意がない・公開範囲が選べなくなった・アカウントが変わった・タイトルか説明が変わった → 送らずに失敗にする）。投稿できない状態（CANNOT_POST_CODES）は creator_info の時点で止め、入口も作らない
 - テスト: tests/tiktok-publish.test.ts（決まり・送る直前の確かめ・偽の TikTok での送信）、tests/tiktok-media.integration.test.ts（入口・表の権限・同意の記録がサーバーの値で書かれ、指紋が post_target_text と合うこと）
-- まだ: 1 日の上限の前もった知らせ（7.）は段 6 で画面と一緒に
+- 段 6（2026-11-15）:
+  - 「TikTok は手で投稿する」（17.）: X と同じ作り（配信先を failed にし、error_message に決まった文）。文は TS では src/lib/sns/by-hand.ts の BY_HAND_MESSAGE（SNS ごと）、SQL では public.by_hand_message の 1 か所に置き、close_attention はこの関数を読む（20261115090000_tiktok_by_hand。PM の了承）。一致は tests/tiktok-by-hand.integration.test.ts で close_attention の動きから確かめる。mark_manual_target_posted は TikTok の失敗も記録できるようにした。X だけだった判定（isXByHand・NOT_X_BY_HAND_FILTER・markXByHand・手で投稿する番）は、SNS ごとの判定（isByHand・NOT_BY_HAND_FILTER・markByHand）に広げた
+  - ⑤ の TikTok の欄の上に「TikTok は手で投稿する」。選ぶとほかの欄を畳み、TikTok には送らない。送信の結果の「TikTok に手で投稿する」は、タイトルと本文のコピー・TikTok のアプリでの手順・記録（写真の投稿をウェブで開く窓口はない）
+  - 手で投稿する SNS だけ（note・Substack と、手で投稿すると選んだ X・TikTok）なら、今すぐ送るは押せない（画面と savePost の両方。前は X だけを手で投稿にすると、送り先が空の確かめが出た）
+  - 下書きの逃げ道（8.）: 送信の結果で、TikTok の URL のない送信は「送信」と書き、受信箱の通知から仕上げることと、取り消しは TikTok のアプリからであることを出す（TikTok の API では投稿を消せない）
+  - 1 日の上限（7.）は、送り方の下に「1 日 15 本ほどまで（ほかのアプリの分も含む）」と出す。数えて止めるのは TikTok の答え（spam_risk_too_many_posts）に任せる（ほかのアプリの分はこちらから数えられないため）
 
 ## 作る前に確かめること（読めなかった資料）
 

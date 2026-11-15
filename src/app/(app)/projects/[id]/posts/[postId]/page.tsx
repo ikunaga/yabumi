@@ -20,7 +20,7 @@ import { countSelfWrittenPosts, hasVoiceMemo } from "@/lib/plan/voice";
 import { createClient } from "@/lib/supabase/server";
 import { canPublish } from "@/lib/sns/adapters";
 import { targetText } from "@/lib/sns/hashtags";
-import { isXByHand } from "@/lib/sns/x/send-rules";
+import { isByHand } from "@/lib/sns/by-hand";
 import { getPlanHints } from "@/lib/plan/queries";
 import { loadPostImages, snsNeedingImageReconnect } from "@/lib/media/queries";
 import { postLinkPreview } from "@/lib/links/store";
@@ -105,13 +105,16 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
             : undefined,
         // 引用の X（X の API では引用を送れないので、X の画面で送って記録する。4.52）
         quote: quoting(t),
-        // 送れなかった X は、手で投稿して記録できる（月の上限・クレジット切れのとき。決定 D16）
+        // 送れなかった X は、手で投稿して記録できる（月の上限・クレジット切れのとき。決定 D16）。
+        // TikTok も、手で投稿するを選んだとき・送れなかったときは、TikTok のアプリで投稿して記録できる（docs/design/tiktok.md の 17.。写真の投稿をウェブで開く窓口はない）
         fallback:
           t.sns === "x" && t.status === "failed"
             ? { title: null, text: targetText(post.body, t), composeUrl: xComposeUrl(targetText(post.body, t)) }
-            : undefined,
+            : t.sns === "tiktok" && t.status === "failed"
+              ? { title: t.title, text: targetText(post.body, t), composeUrl: null }
+              : undefined,
         postedByHand: t.status === "published" && !t.external_post_id,
-        byHand: isXByHand(t),
+        byHand: isByHand(t),
         removedOnSns: t.status === "deleted" && Boolean(t.sns_removed_at),
       },
     ]),

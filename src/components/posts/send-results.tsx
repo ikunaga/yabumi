@@ -16,11 +16,11 @@ export type TargetResult = {
   nextAttemptAt: string | null;
   // 手で投稿する SNS 用: 保存してあるタイトルと本文、投稿の画面の URL
   manual?: ManualInfo;
-  // 自動で送れなかった X を、手で投稿して記録するための情報
+  // 自動で送れなかった・手で投稿すると選んだ X・TikTok を、手で投稿して記録するための情報
   fallback?: ManualInfo;
   // 引用の X（manual に X の投稿の画面の URL が入る。X の画面で送って記録する。4.52）
   quote?: boolean;
-  // 月の上限で、利用者が「X は手で投稿する」を選んだもの（失敗ではないので「手で投稿」と出す）
+  // 利用者が「X・TikTok は手で投稿する」を選んだもの（失敗ではないので「手で投稿」と出す）
   byHand?: boolean;
   // 手で投稿して記録したもの（SNS 上の投稿の ID がないので、yabumi からは取り消せない）
   postedByHand?: boolean;
@@ -73,7 +73,16 @@ function ResultRow({ sns, r, projectId, postId }: { sns: SnsKey; r: TargetResult
         <b>{label}</b>
         {r.status === "published" && (
           <>
-            <span className="text-muted">{r.publishedAt ? `${formatShort(r.publishedAt)} に投稿` : "投稿済み"}</span>
+            {/* TikTok の下書き（受信箱）と、TikTok の確かめが済む前の公開の投稿は、投稿の URL がない（docs/design/tiktok.md の 6. と 8.） */}
+            <span className="text-muted">
+              {sns === "tiktok" && !r.externalUrl && !r.postedByHand
+                ? r.publishedAt
+                  ? `${formatShort(r.publishedAt)} に送信`
+                  : "送信済み"
+                : r.publishedAt
+                  ? `${formatShort(r.publishedAt)} に投稿`
+                  : "投稿済み"}
+            </span>
             {r.externalUrl && (
               <a href={r.externalUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary hover:underline">
                 {label} で見る
@@ -81,6 +90,11 @@ function ResultRow({ sns, r, projectId, postId }: { sns: SnsKey; r: TargetResult
             )}
             {r.postedByHand ? (
               <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">手で投稿</span>
+            ) : sns === "tiktok" ? (
+              // TikTok の API では投稿を消せない。受信箱に送った下書きは、利用者が TikTok のアプリで仕上げる
+              <span className="ml-auto text-xs text-muted">
+                {r.externalUrl ? "取り消すときは、TikTok のアプリから" : "TikTok のアプリの受信箱に届いていれば、通知から開いて仕上げてください。取り消すときは TikTok のアプリから"}
+              </span>
             ) : sns === "instagram" ? (
               // Instagram Login では、API で投稿を消せない（docs/architecture.md の 4.21）
               <span className="ml-auto text-xs text-muted">取り消すときは、Instagram のアプリで投稿の「…」→「削除」</span>
@@ -268,7 +282,7 @@ function ManualSteps({
   const [pending, startTransition] = useTransition();
   const label = SNS[sns].label;
   // X は投稿の画面に本文を入れた状態で開けるので、コピーは控えめにする
-  const unit = sns === "x" ? "投稿" : "記事";
+  const unit = sns === "x" || sns === "tiktok" ? "投稿" : "記事";
 
   async function copy(kind: "title" | "body", text: string) {
     try {
@@ -300,10 +314,14 @@ function ManualSteps({
             <a href={m.composeUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary hover:underline">
               {label} の投稿の画面を開く
             </a>
+          ) : sns === "tiktok" ? (
+            <span className="text-muted">スマホの TikTok のアプリを開き、＋ から写真を選んで、タイトルと本文を貼り付けて投稿する</span>
           ) : (
             <span className="text-muted">{label} を開いて、新しい記事を作る</span>
           )}
-          <span className="text-xs text-muted">{sns === "x" ? (quote ? "（本文と引用する投稿が入った状態で開きます）" : "（本文が入った状態で開きます）") : "（貼り付けて投稿します）"}</span>
+          {sns !== "tiktok" && (
+            <span className="text-xs text-muted">{sns === "x" ? (quote ? "（本文と引用する投稿が入った状態で開きます）" : "（本文が入った状態で開きます）") : "（貼り付けて投稿します）"}</span>
+          )}
         </li>
         <li className="flex flex-col gap-1.5">
           <span>

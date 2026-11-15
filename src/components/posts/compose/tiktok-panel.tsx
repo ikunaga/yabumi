@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { Button } from "@/components/ui/button";
 import { getTikTokCreator } from "@/lib/sns/tiktok/actions";
 import { callAction } from "@/lib/client-errors";
 import { PRIVACY_LABEL, commercialLabel, consentDeclaration, type PrivacyLevel } from "@/lib/sns/tiktok/publish";
@@ -10,7 +11,7 @@ import { type Composer } from "./use-composer";
 // 開くたびに creator_info を読み、ニックネームを出す。公開範囲は利用者が選ぶ（最初は選んでいない）。コメント・宣伝の内容は最初はオフ。
 // 送るボタンの前に同意の文とリンク、TikTok だけのプレビュー。yabumi の透かしやロゴは付けない
 export function ComposeTikTok({ c }: { c: Composer }) {
-  const { projectId, tiktokChoice: ch, setTikTokChoice, tiktokCreator, setTikTokCreator, images, titles, shownText, markTyped } = c;
+  const { projectId, tiktokChoice: ch, setTikTokChoice, tiktokCreator, setTikTokCreator, tiktokByHand, setTikTokByHand, clearFieldError, images, titles, shownText, markTyped } = c;
   const set = (patch: Partial<typeof ch>) => {
     markTyped();
     setTikTokChoice((x) => ({ ...x, ...patch }));
@@ -42,10 +43,35 @@ export function ComposeTikTok({ c }: { c: Composer }) {
         TikTok に送る内容の確かめ
       </h3>
 
-      {!tiktokCreator && <p className="text-[13px] text-muted">TikTok のアカウントの状態を読んでいます…</p>}
-      {tiktokCreator?.error && <p className="text-[13px] font-semibold text-danger">{tiktokCreator.error}</p>}
+      {/* TikTok は手で投稿する（docs/design/tiktok.md の 17.）。審査の前に公開で出したいとき・音楽を付けたいとき・送れないときの逃げ道 */}
+      {tiktokByHand ? (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] leading-[1.7]">
+          <span className="text-muted">TikTok は手で投稿します。yabumi からは送りません。ほかの SNS を送ったあと、送信の結果の「TikTok に手で投稿する」から、TikTok のアプリで投稿して記録できます。</span>
+          <Button type="button" variant="text" size="sm" onClick={() => setTikTokByHand(false)}>
+            やめる
+          </Button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
+          <span className="text-muted">TikTok のアプリで音楽を付けたい・公開で出したいときは</span>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              setTikTokByHand(true);
+              clearFieldError("targets");
+            }}
+          >
+            TikTok は手で投稿する
+          </Button>
+        </div>
+      )}
 
-      {creator && (
+      {!tiktokByHand && !tiktokCreator && <p className="text-[13px] text-muted">TikTok のアカウントの状態を読んでいます…</p>}
+      {!tiktokByHand && tiktokCreator?.error && <p className="text-[13px] font-semibold text-danger">{tiktokCreator.error}</p>}
+
+      {!tiktokByHand && creator && (
         <>
           <p className="flex items-center gap-2 text-[14px]">
             {/* eslint-disable-next-line @next/next/no-img-element -- TikTok のアイコン（2 時間で切れる URL。保存しない） */}
@@ -75,6 +101,7 @@ export function ComposeTikTok({ c }: { c: Composer }) {
               TikTok のアプリで仕上げる（受信箱に下書きとして送る）
             </label>
             {!direct && <p className="text-[12px] leading-[1.7] text-muted">送ると TikTok のアプリに通知が届きます。通知から開いて、公開範囲などを決めて投稿してください。未完了の下書きは 24 時間で 5 件までです。</p>}
+            <p className="text-[12px] leading-[1.7] text-muted">TikTok に送れるのは 1 日 15 本ほどまでです（ほかのアプリから投稿した分も含みます）。</p>
           </fieldset>
 
           {direct && (

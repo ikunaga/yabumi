@@ -2626,6 +2626,7 @@ export type Database = {
           owner_today_count: number
         }[]
       }
+      by_hand_message: { Args: { p_sns: string }; Returns: string }
       calendar_day_counts: {
         Args: { p_from: string; p_project_id: string; p_to: string }
         Returns: {

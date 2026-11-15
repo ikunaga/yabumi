@@ -4,7 +4,7 @@ import { SNS_KEYS, isSnsKey, type SnsKey } from "@/lib/sns";
 import { createClient } from "@/lib/supabase/server";
 import { isUnsentDraft } from "./drafts";
 import { dueManualPostIds, overduePostIds } from "./overdue";
-import { NOT_X_BY_HAND_FILTER } from "@/lib/sns/x/send-rules";
+import { NOT_BY_HAND_FILTER } from "@/lib/sns/by-hand";
 
 export type TargetStatus = "pending" | "preparing" | "publishing" | "published" | "failed" | "deleted";
 export type PostTargetRow = {
@@ -203,7 +203,7 @@ export async function listPostsNeedingAttention(projectId: string, limit = 5) {
     .eq("project_id", projectId)
     .eq("post_targets.status", "failed")
     // 「X は手で投稿する」を選んだ X は、送れなかったものに数えない
-    .or(NOT_X_BY_HAND_FILTER, { referencedTable: "post_targets" })
+    .or(NOT_BY_HAND_FILTER, { referencedTable: "post_targets" })
     // 要確認の帯で閉じたものは出さない（また失敗すると空に戻る。4.71）
     .is("post_targets.attention_closed_at", null)
     .order("planned_at", { ascending: false })

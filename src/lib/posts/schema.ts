@@ -55,6 +55,8 @@ export const savePostInputSchema = z.object({
   textOrigin: z.enum(["self", "ai"]).nullable().optional(),
   // X を手で投稿する（月の上限に当たるので、利用者が選んだ）。X の配信先は自動では送らず、送信の結果から手で投稿して記録する
   xByHand: z.boolean().default(false),
+  // TikTok を手で投稿する（docs/design/tiktok.md の 17.）。TikTok の配信先は自動では送らず、送信の結果から手で投稿して記録する
+  tiktokByHand: z.boolean().default(false),
   // TikTok に送るときに利用者が選んだもの（公開範囲・コメント・宣伝の内容・送り方）。同意の時刻などはサーバーが決める（docs/design/tiktok.md の 3.）
   tiktok: tiktokChoiceSchema.optional(),
   // 選んでいた投稿のフォーマット（下書きから再開したときに戻す。PMO2 の s8）。null は「なし」、省くと変えない（ネタ・相談から下書きをつくるときなど）

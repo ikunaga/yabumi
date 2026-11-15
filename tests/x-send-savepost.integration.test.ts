@@ -174,3 +174,14 @@ describe("下書きの保存で、本文にあるタグを外し、選んでい�
   });
 });
 
+
+describe("手で投稿する SNS だけなら、今すぐ送らない（送るものがない。X・TikTok の手で投稿する）", () => {
+  it("X だけを手で投稿する・TikTok だけを手で投稿するで今すぐ送ると、投稿をつくらずに理由を返す", async () => {
+    const { savePost } = await import("@/lib/posts/actions");
+    for (const [sns, flags] of [["x", { xByHand: true }], ["tiktok", { tiktokByHand: true }]] as const) {
+      const r = await savePost({ projectId, postId: null, body: "手で出します", plannedAt: "", intent: "now" as const, ...flags, targets: [{ sns, bodyOverride: null, hashtags: [] }] });
+      expect(r.fieldErrors?.targets, sns).toBe("手で投稿する SNS だけです。予約するか下書きに保存すると、投稿の画面から手で投稿できます");
+    }
+    expect((await admin.from("posts").select("id").eq("project_id", projectId)).data).toEqual([]);
+  });
+});

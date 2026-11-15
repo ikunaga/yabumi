@@ -14,14 +14,14 @@ import { ComposeTikTok } from "./tiktok-panel";
 
 // ⑤ 送る: 日時・予約・今すぐ・下書き・削除（compose-steps.md）
 export function ComposeStepSend({ c, steps = false }: { c: Composer; steps?: boolean }) {
-  const { composeStep, goStep, stepProblems, timeHint, images, plannedAt, setPlannedAt, confirmSend, setConfirmSend, pending, busy, sending, missingConnectMessage, blocker, nowBlocker, clearFieldError, submit, fe, connectHref, mode, labels, sentLabels, deleteRow, toSend, xByHand, recheckX, xChecking, scheduleAsked, askSchedule } = c;
+  const { composeStep, goStep, stepProblems, timeHint, images, plannedAt, setPlannedAt, confirmSend, setConfirmSend, pending, busy, sending, missingConnectMessage, blocker, nowBlocker, clearFieldError, submit, fe, connectHref, mode, labels, sentLabels, deleteRow, toSend, xByHand, tiktokByHand, recheckX, xChecking, scheduleAsked, askSchedule } = c;
   // 日時が空のときは「今すぐ送る」を主なボタンにする（予約は日時を決めてから。2026-11-12 PMO の通しのテスト）
   const nowMain = !plannedAt;
   const mainBlocker = nowMain ? nowBlocker : blocker;
   const fixAt = blockerStep(mainBlocker, stepProblems);
   // 今すぐ送る SNS の名前（確かめに出す。note・Substack は手で投稿するので入れない）
   // 今すぐ送る SNS の名前（手で投稿する SNS と、「X は手で投稿する」を選んだ X は送らないので入れない）
-  const nowNames = toSend.filter((s) => !isManualSns(s) && !(xByHand && s === "x")).map((s) => SNS[s].label).join("・");
+  const nowNames = toSend.filter((s) => !isManualSns(s) && !(xByHand && s === "x") && !(tiktokByHand && s === "tiktok")).map((s) => SNS[s].label).join("・");
   return (
     <>
       {/* 送る日時と送る */}

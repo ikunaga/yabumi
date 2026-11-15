@@ -85,6 +85,9 @@ export async function convertVideo(file: File, prepared: Prepared, range: VideoR
       },
       audio: prepared.probe.audio === "none" ? { discard: true } : { codec: "aac", forceTranscode: false },
       trim: { start: range.startMs / 1000, end: range.endMs / 1000 },
+      // コピーした音声の始まりの時刻（AAC の頭の空白・切り取りの端）を 0 に寄せる。寄せないと edit list（edts）が書かれ、
+      // Threads・Instagram の決まり（edit list なし）に合わない。音と映像のずれは保たれる（mediabunny の資料）。2026-11-15 に Chrome で確かめた
+      copy: { shiftTolerance: Infinity, boundaryPolicy: "shrink" },
       tags: {},
       showWarnings: false,
     });

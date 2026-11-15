@@ -82,9 +82,30 @@ async function limitMessage(admin: Admin, ownerId: string, status: string): Prom
   throw new Error(`上限を確かめられませんでした（${status}）`);
 }
 
+// 本人の「使った印つき・記録のない引換券の場所」に残っているファイルを消す（docs/design/video.md の 11.）。
+// Storage の insert のポリシーが効くのは TUS を作るとき（POST）で、作ったあとの 1 本は、やめて印を付けたあとでも最後の書き込みが届いて
+// ファイルができることがある（2026-11-15 PMO の再確認: 6 回中 4 回、印の 0.1〜0.4 秒後）。時刻の競り合いに頼らず、上限を数える前と
+// やめるたびに、ここで消す（ないファイルを消しても何も起きない）。消すのは本人の引換券の場所だけ
+export async function purgeOrphanVideos(admin: Admin, ownerId: string): Promise<void> {
+  const { data: tickets, error } = await admin
+    .from("media_upload_tickets")
+    .select("storage_path")
+    .eq("owner_id", ownerId)
+    .eq("kind", "video")
+    .not("consumed_at", "is", null);
+  if (error) throw error;
+  const paths = (tickets ?? []).map((t) => t.storage_path).filter((p) => isOwnVideoPath(ownerId, p));
+  if (!paths.length) return;
+  const { data: recorded } = await admin.from("media_files").select("storage_path").in("storage_path", paths);
+  const keep = new Set((recorded ?? []).map((r) => r.storage_path));
+  const orphans = paths.filter((p) => !keep.has(p));
+  if (orphans.length) await removeVideoObjects(admin, orphans);
+}
+
 // 上限の確かめだけ（読むだけ。整える前に画面が呼ぶ。docs/design/video.md の 7.）。当たっていれば MediaError。
 // 本当の守りは引換券の発行（issueVideoUpload。ロックの中で同じ確かめをする）
 export async function checkVideoUpload(admin: Admin, ownerId: string): Promise<void> {
+  await purgeOrphanVideos(admin, ownerId);
   const { data: status, error } = await admin.rpc("video_upload_check", { p_owner_id: ownerId, ...LIMITS });
   if (error) throw error;
   const message = await limitMessage(admin, ownerId, status);
@@ -96,6 +117,7 @@ export async function checkVideoUpload(admin: Admin, ownerId: string): Promise<v
 // 上限の確認と引換券の記録は DB の中で、利用者ごと・全体のロックの中で行う
 export async function issueVideoUpload(admin: Admin, ownerId: string, id: string = crypto.randomUUID()): Promise<VideoUploadTicket> {
   const path = videoPath(ownerId, id);
+  await purgeOrphanVideos(admin, ownerId);
   const { data: status, error: ticketError } = await admin.rpc("issue_video_upload_ticket", { p_owner_id: ownerId, p_storage_path: path, ...LIMITS });
   if (ticketError) throw ticketError;
   const message = await limitMessage(admin, ownerId, status);
@@ -104,7 +126,8 @@ export async function issueVideoUpload(admin: Admin, ownerId: string, id: string
 }
 
 // 上げている途中・確かめる前後に「やめる」を押したとき（docs/design/video.md の 3.）。本人の動画の引換券に使った印を付け
-// （もう確かめない。Storage のポリシーも、その場所への書き込みを断る。上げている途中の TUS も最後の書き込みで断られる）、その場所のファイルを消す。確かめを通ってまだ投稿に添えていなければ、その動画も外す。
+// （もう確かめない。Storage のポリシーで、その場所に新しく TUS を作れなくなる）、その場所のファイルを消す。
+// すでに作ってある TUS の最後の書き込みは、印のあとに届いてファイルができることがある。それは次の上限の確かめ・やめるで消える（purgeOrphanVideos）。確かめを通ってまだ投稿に添えていなければ、その動画も外す。
 // 月の本数は確かめを通った動画だけを数えるので、確かめる前にやめれば数えない
 export async function cancelVideoUpload(admin: Admin, ownerId: string, path: string): Promise<void> {
   if (!isOwnVideoPath(ownerId, path)) return;
@@ -115,6 +138,7 @@ export async function cancelVideoUpload(admin: Admin, ownerId: string, path: str
   if (row && row.post_id !== null) return;
   await removeVideoObjects(admin, [path]);
   if (row) await admin.from("media_files").delete().eq("id", row.id);
+  await purgeOrphanVideos(admin, ownerId);
 }
 
 // ブラウザが上げた動画を確かめて記録する。MP4 の箱を読み（作り直さない）、合わなければファイルを消し、引換券に使った印を付けて MediaError

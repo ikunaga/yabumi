@@ -56,7 +56,9 @@ export function clampRange(r: VideoRange, durationMs: number, moved: "start" | "
 
 // 進み具合の目安の文（整える・上げる）
 // confirm: 上げ終えて、サーバーが確かめている（やめるは出さない）
-export function progressLabel(stage: "convert" | "upload" | "confirm", ratio: number): string {
+// stopping: 「やめる」を押したあと（片付けている）
+export function progressLabel(stage: "convert" | "upload" | "confirm" | "stopping", ratio: number): string {
+  if (stage === "stopping") return "やめています…";
   if (stage === "confirm") return "動画を確かめています";
   const pct = Math.max(0, Math.min(100, Math.floor(ratio * 100)));
   return stage === "convert" ? `動画を整えています ${pct}%` : `上げています ${pct}%`;

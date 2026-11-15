@@ -214,7 +214,7 @@ describe("やめる（2026-11-15 PMO の確かめ v15）", () => {
       expect(await month(userId)).toBe(before);
       await expect(verifyVideoUpload(admin, userId, ticket.path)).rejects.toBeInstanceOf(MediaError);
 
-      // やめた場所には、もう上げられない（上げている途中でやめても、最後の書き込みで断られる）
+      // やめた場所には、新しく上げ始められない
       expect(await tusUpload({ path: ticket.path, bytes: testMp4() })).toBe(403);
       expect(await exists(ticket.path)).toBe(false);
       const midway = await issueVideoUpload(admin, userId);
@@ -222,6 +222,55 @@ describe("やめる（2026-11-15 PMO の確かめ v15）", () => {
       expect(await tusUpload({ path: midway.path, bytes: testMp4({ mdatBytes: 7 * 1024 * 1024 }) })).toBe(403);
       expect(await exists(midway.path)).toBe(false);
     } finally {
+      await admin.from("media_upload_tickets").delete().eq("owner_id", userId);
+      await deleteUser(userId);
+    }
+  });
+
+  it("やめて印を付けたあとに最後の書き込みが届いてファイルができても、次の上限の確かめ・発行・やめるで消え、量に数えられない（PMO の再確認）", async () => {
+    const { userId } = await signUpNewUser();
+    try {
+      const ticket = await issueVideoUpload(admin, userId);
+      await cancelVideoUpload(admin, userId, ticket.path);
+      // 印のあとに最後の書き込みが届いた形を作る（作ってあった TUS の最後の 1 本。ポリシーは TUS を作るときにしか効かない）
+      const late = testMp4({ mdatBytes: 300_000 });
+      const { error: lateError } = await admin.storage.from(VIDEO_BUCKET).upload(ticket.path, late, { contentType: "video/mp4" });
+      expect(lateError).toBeNull();
+      expect(await exists(ticket.path)).toBe(true);
+      // そのままだと量に数えられる（実際の大きさで）
+      const quotaArgs = { p_owner_id: userId, p_max_pending: 9, p_max_unattached: 9, p_quota_bytes: MAX_VIDEO_BYTES + late.length - 1, p_max_file_bytes: MAX_VIDEO_BYTES, p_month_limit: 99, p_global_quota_bytes: 1e15 };
+      expect((await admin.rpc("video_upload_check", quotaArgs)).data).toBe("quota");
+      // 次の上限の確かめ（画面が整える前に呼ぶ）で消え、数えられない
+      await checkVideoUpload(admin, userId);
+      expect(await exists(ticket.path)).toBe(false);
+      expect((await admin.rpc("video_upload_check", quotaArgs)).data).toBe("ok");
+      // 発行の前・やめるのあとでも消える
+      await admin.storage.from(VIDEO_BUCKET).upload(ticket.path, late, { contentType: "video/mp4" });
+      const next = await issueVideoUpload(admin, userId);
+      expect(await exists(ticket.path)).toBe(false);
+      await admin.storage.from(VIDEO_BUCKET).upload(ticket.path, late, { contentType: "video/mp4" });
+      await cancelVideoUpload(admin, userId, next.path);
+      expect(await exists(ticket.path)).toBe(false);
+    } finally {
+      await admin.from("media_upload_tickets").delete().eq("owner_id", userId);
+      await deleteUser(userId);
+    }
+  });
+
+  it("1 枚の引換券で置けるのは 1 本だけ（上げ終えた場所にもう一度・別の名前には上げられない）。確かめを通った動画は片付けで消さない", async () => {
+    const { userId } = await signUpNewUser();
+    try {
+      const ticket = await issueVideoUpload(admin, userId);
+      expect(await tusUpload({ path: ticket.path, bytes: testMp4() })).toBe(204);
+      expect(await tusUpload({ path: ticket.path, bytes: testMp4({ mdatBytes: 999 }) })).toBe(409);
+      expect(await tusUpload({ path: ticket.path, bytes: testMp4({ mdatBytes: 999 }), upsert: true })).toBe(403);
+      expect(await tusUpload({ path: videoPath(userId, crypto.randomUUID()), bytes: testMp4() })).toBe(403);
+      const v = await verifyVideoUpload(admin, userId, ticket.path);
+      await checkVideoUpload(admin, userId);
+      expect(await exists(v.storagePath)).toBe(true);
+    } finally {
+      const files = (await admin.storage.from(VIDEO_BUCKET).list(userId)).data ?? [];
+      if (files.length) await admin.storage.from(VIDEO_BUCKET).remove(files.map((o) => `${userId}/${o.name}`));
       await admin.from("media_upload_tickets").delete().eq("owner_id", userId);
       await deleteUser(userId);
     }

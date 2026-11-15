@@ -392,7 +392,9 @@ grant execute on function public.cleanup_media_candidates(integer, uuid, timesta
 -- 署名つきのアップロードのトークンは 2 時間使え、TUS の入口（/upload/resumable/sign）では、すでにあるファイルを上書きできた
 -- （確かめを通った画像・動画を、確かめていない中身に差し替えられた。main の画像にもあった）。取り消すこともできない。
 -- そこで、利用者のログイン（authenticated）のまま上げ、Storage の insert を「本人のフォルダで、まだ使っていない 2 時間以内の引換券がある場所」だけに絞る。
--- 引換券に使った印（consumed_at）を付ければ、その場所にはすぐ上げられなくなる。update・delete・select のポリシーは置かない（上書きもできない）
+-- 引換券に使った印（consumed_at）を付ければ、その場所に新しく上げ始められなくなる。update・delete・select のポリシーは置かない（上書きもできない）。
+-- ポリシーが効くのは TUS を作るとき（POST）だけ。作ったあとの 1 本は同じ場所にだけ書けるので、印のあとに最後の書き込みが届いてファイルができることがある。
+-- それはサーバーが上限を数える前・やめるたびに消す（src/lib/media/video-store.ts の purgeOrphanVideos）
 create function public.storage_upload_allowed(p_bucket text, p_name text)
 returns boolean
 language sql

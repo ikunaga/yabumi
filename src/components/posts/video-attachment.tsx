@@ -16,7 +16,7 @@ type Stage =
   | { kind: "idle" }
   // message: 範囲を選ぶ理由（90 秒以下でも、整えると大きすぎたとき）
   | { kind: "range"; file: File; prepared: Prepared; range: VideoRange; previewUrl: string; message?: string }
-  | { kind: "busy"; stage: "convert" | "upload" | "confirm"; ratio: number };
+  | { kind: "busy"; stage: "convert" | "upload" | "confirm" | "stopping"; ratio: number };
 
 export function VideoAttachment({
   video,
@@ -97,7 +97,7 @@ export function VideoAttachment({
       const [{ convertVideo, VideoPrepError }, { uploadVideoBlob, VideoUploadError }] = await Promise.all([import("@/lib/media/video-convert"), import("@/lib/media/video-upload")]);
       let blob: Blob;
       try {
-        blob = await convertVideo(file, prepared, range, { signal: ac.signal, onProgress: (ratio) => setStage({ kind: "busy", stage: "convert", ratio }) });
+        blob = await convertVideo(file, prepared, range, { signal: ac.signal, onProgress: (ratio) => !ac.signal.aborted && setStage({ kind: "busy", stage: "convert", ratio }) });
       } catch (e) {
         // 整えると 50MB を超えた: 短くする手段として、範囲を選ぶ欄を出す（90 秒以下でも）
         if (e instanceof VideoPrepError && e.code === "too_large") {
@@ -113,7 +113,7 @@ export function VideoAttachment({
       try {
         const up = await uploadVideoBlob(blob, {
           signal: ac.signal,
-          onProgress: (ratio) => setStage({ kind: "busy", stage: "upload", ratio }),
+          onProgress: (ratio) => !ac.signal.aborted && setStage({ kind: "busy", stage: "upload", ratio }),
           // 上げ終えたら「やめる」を隠す（サーバーの確かめは数秒で終わる）
           onUploaded: () => setStage({ kind: "busy", stage: "confirm", ratio: 1 }),
         });
@@ -170,8 +170,18 @@ export function VideoAttachment({
         <div role="status" className="flex flex-col gap-2 rounded-lg border border-border bg-surface px-3.5 py-3">
           <div className="flex items-center gap-3">
             <span className="num text-sm font-semibold">{progressLabel(stage.stage, stage.ratio)}</span>
-            {stage.stage !== "confirm" && (
-              <Button type="button" variant="text" size="sm" className="ml-auto" onClick={() => abortRef.current?.abort()}>
+            {stage.stage !== "confirm" && stage.stage !== "stopping" && (
+              <Button
+                type="button"
+                variant="text"
+                size="sm"
+                className="ml-auto"
+                onClick={() => {
+                  // 押したらすぐ「やめています…」にする（「やめる」は隠す）
+                  setStage({ kind: "busy", stage: "stopping", ratio: stage.ratio });
+                  abortRef.current?.abort();
+                }}
+              >
                 やめる
               </Button>
             )}

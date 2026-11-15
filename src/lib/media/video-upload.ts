@@ -2,7 +2,8 @@
 // サーバーが発行した署名つきのトークンで、TUS（6MB ずつ。途中で切れても同じ画面の中なら続きから）で Storage に直接上げる。
 // tus-js-client は、動画を上げるときに読み込む（import() で分ける）。
 // やめたとき（signal）は、上げている途中でも、上げ終えたあと・確かめたあとでも、サーバーで引換券とファイルを片付ける
-// （cancelVideo。前は上げ終えたあとにやめると引換券とファイルが残り、1 日動画を追加できなくなった。2026-11-15 PMO の確かめ v15）
+// （cancelVideo。前は上げ終えたあとにやめると引換券とファイルが残り、1 日動画を追加できなくなった。2026-11-15 PMO の確かめ v15）。
+// やめたあとに最後の送信が届いてファイルができても、次の上限の確かめ・やめるでサーバーが消す（purgeOrphanVideos）ので、画面は待たない
 
 import { browserClient } from "@/lib/supabase/browser";
 import { cancelVideo, confirmVideoUpload, discardVideo, requestVideoUpload, type UploadedVideo } from "./video-actions";
@@ -76,12 +77,10 @@ export async function uploadVideoBlob(
       });
       const abort = () => {
         stopped = true;
-        // 送信を止め終えてから片付ける（止める前に片付けると、そのあとに最後の送信が届いてファイルができることがあった。3 回中 2 回）。
-        // 上げ終えたあとの abort は「Cannot terminate an already completed upload」で断られる。片付けはサーバーで行うので、失敗は拾って捨てる
-        void upload
-          .abort(true)
-          .catch(() => {})
-          .finally(() => reject(aborted()));
+        // 送信を止める（終わりは待たない。DELETE のやり直しで 20 秒ほどかかることがある）。上げ終えたあとの abort は
+        // 「Cannot terminate an already completed upload」で断られるので、失敗は拾って捨てる。片付けはサーバーで行う
+        upload.abort(true).catch(() => {});
+        reject(aborted());
       };
       if (opts.signal?.aborted) return abort();
       opts.signal?.addEventListener("abort", abort, { once: true });

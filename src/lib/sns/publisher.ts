@@ -291,7 +291,7 @@ async function publishOne(admin: Admin, t: ClaimedTarget, deps: PublisherDeps): 
     // 準備中の続き（前の回に startPublish 済み）。費用の記録や画像の読み込みはもう済んでいる
     if (t.sns_container && adapter.continuePublish) {
       const since = t.preparing_since ?? now.toISOString();
-      if (now.getTime() - new Date(since).getTime() > PREPARE_TIMEOUT_MS) {
+      if (adapter.restartOnPrepareTimeout !== false && now.getTime() - new Date(since).getTime() > PREPARE_TIMEOUT_MS) {
         throw new SnsPublishError("retryable", `${label} 側の準備（画像・動画の処理）に時間がかかっています。最初から送り直します。`);
       }
       const next = await adapter.continuePublish(account, t.sns_container as PrepareState);

@@ -82,6 +82,8 @@ export interface SnsAdapter {
   continuePublish?(account: AdapterAccount, state: PrepareState): Promise<ContinueResult>;
   // 動画の投稿（docs/design/video.md の 5.）。SNS の video が true の SNS だけが持つ。準備の続きは continuePublish
   startPublishVideo?(account: AdapterAccount, text: string, video: PublishVideo, target?: PublishTarget): Promise<PrepareState>;
+  // 準備が PREPARE_TIMEOUT_MS を超えても、最初から送り直さない（YouTube。送り直すと二重に上がるおそれと、割り当てをもう 1 本使うので、続きから送る）
+  restartOnPrepareTimeout?: boolean;
 
   // --- 使った分だけ払う SNS（X）。送る前に費用を記録し、月の上限を守る ---
   publishCost?(text: string, images?: PublishImage[]): PublishCost;

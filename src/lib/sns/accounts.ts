@@ -105,6 +105,11 @@ export async function purgeSnsDataOf(admin: Admin, socialAccountIds: string[]): 
   if (e1) throw e1;
   const { error: e2 } = await admin.from("post_targets").update({ external_post_id: null, external_url: null, sns_container: null }).in("id", ids);
   if (e2) throw e2;
+  // YouTube: アップロードの途中の情報（セッションの URL・動画の ID）と、同意の記録（YouTube から読んだチャンネル名を含む。docs/design/youtube.md の 9.）
+  const { error: e3 } = await admin.from("youtube_uploads").delete().in("post_target_id", ids);
+  if (e3) throw e3;
+  const { error: e4 } = await admin.from("post_target_youtube").delete().in("post_target_id", ids);
+  if (e4) throw e4;
 }
 
 // Facebook の側で yabumi が外されたとき。その Facebook の利用者がつないだページを、すべて「解除済み」にしてトークンを消す

@@ -45,6 +45,8 @@ const TABLES = [
   "legal_notice_campaigns",
   "legal_notice_sends",
   "attention_dismissals",
+  "post_target_youtube",
+  "youtube_uploads",
 ] as const;
 
 let alice: TestClient;

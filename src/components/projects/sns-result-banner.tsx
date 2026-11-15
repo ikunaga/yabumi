@@ -1,7 +1,7 @@
 import { ErrorBanner, SuccessBanner } from "@/components/ui/feedback";
 
 // エラーのときは ?sns= でどの SNS かがわかる（ないときは、最初につないだ Threads として扱う）
-type BannerSns = "threads" | "x" | "instagram" | "facebook";
+type BannerSns = "threads" | "x" | "instagram" | "facebook" | "youtube";
 
 const ERRORS: Record<BannerSns, Record<string, string>> = {
   threads: {
@@ -25,6 +25,14 @@ const ERRORS: Record<BannerSns, Record<string, string>> = {
       "投稿を作れる役割のある Facebook ページがありませんでした。ページの管理者に、投稿を作れる役割（管理者・編集者など）をもらってから、もう一度つないでください。Facebook の画面で、つなぐページにチェックが入っているかも確かめてください。",
     failed: "Facebook とつなげませんでした。時間をおいて、もう一度お試しください。",
   },
+  youtube: {
+    not_configured: "YouTube をつなぐ機能は準備中です。",
+    denied: "Google の画面でキャンセルされたため、つなぎませんでした。",
+    scope:
+      "YouTube への投稿と、チャンネルの確認を許可されなかったため、つなぎませんでした。もう一度つなぎ、Google の画面で 2 つとも許可してください。",
+    no_channel: "この Google のアカウントには YouTube のチャンネルがありません。YouTube でチャンネルを作ってから、もう一度つないでください。",
+    failed: "YouTube とつなげませんでした。時間をおいて、もう一度お試しください。",
+  },
   x: {
     not_configured: "X をつなぐ機能は準備中です。",
     denied: "X の画面でキャンセルされたため、つなぎませんでした。",
@@ -33,7 +41,7 @@ const ERRORS: Record<BannerSns, Record<string, string>> = {
 };
 const STATE_ERROR = "つなぐときの確認に失敗しました。時間をおいて、もう一度「つなぐ」から始めてください。";
 
-const CONNECTED: Record<string, string> = { threads: "Threads", x: "X", instagram: "Instagram", facebook: "Facebook ページ" };
+const CONNECTED: Record<string, string> = { threads: "Threads", x: "X", instagram: "Instagram", facebook: "Facebook ページ", youtube: "YouTube" };
 
 // SNS をつないだ結果（OAuth の受け口から ?connected= / ?sns_error= 付きで戻る）
 // replaced: 同じ SNS の別のアカウントから付け替えたときの、外した古いアカウント（1 つのプロジェクトに SNS ごとに 1 つ。docs/architecture.md の 4.6）
@@ -63,7 +71,7 @@ export function SnsResultBanner({
   }
   if (typeof error !== "string") return null;
   if (error === "state") return <ErrorBanner>{STATE_ERROR}</ErrorBanner>;
-  const key: BannerSns = sns === "x" || sns === "instagram" || sns === "facebook" ? sns : "threads";
+  const key: BannerSns = sns === "x" || sns === "instagram" || sns === "facebook" || sns === "youtube" ? sns : "threads";
   const message = ERRORS[key][error];
   return message ? <ErrorBanner>{message}</ErrorBanner> : null;
 }

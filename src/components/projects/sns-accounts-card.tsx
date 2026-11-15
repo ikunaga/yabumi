@@ -15,6 +15,7 @@ const CONNECT_HREF: Partial<Record<SnsKey, (projectId: string) => string>> = {
   threads: (id) => `/projects/${id}/connect/threads`,
   x: (id) => `/projects/${id}/connect/x`,
   tiktok: (id) => `/projects/${id}/connect/tiktok`,
+  youtube: (id) => `/projects/${id}/connect/youtube`,
   instagram: (id) => `/projects/${id}/connect/instagram`,
   facebook: (id) => `/projects/${id}/connect/facebook`,
 };

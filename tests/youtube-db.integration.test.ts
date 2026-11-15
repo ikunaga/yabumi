@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { purgeSnsDataOf, saveConnectedAccount } from "@/lib/sns/accounts";
 import { BY_HAND_MESSAGE } from "@/lib/sns/by-hand";
 import { consentHash } from "@/lib/sns/tiktok/send-check";
+import { pacificDayRange } from "@/lib/sns/youtube/schedule";
 import { clearYouTubeUpload, loadYouTubeTarget, loadYouTubeUpload, reserveYouTubeUpload, saveYouTubeUpload } from "@/lib/sns/youtube/store";
 import { adminClient, anonClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
 
@@ -37,17 +38,6 @@ const consent = (targetId: string, owner = aliceId) => ({
   consent_text_hash: consentHash("新しいパン", "説明"),
   consent_channel: "こむぎのパン",
 });
-
-// 太平洋時間の今日の 0 時（reserve_youtube_upload が数える日の始め）
-function pacificDayStart(now = new Date()): Date {
-  const parts = Object.fromEntries(
-    new Intl.DateTimeFormat("en-US", { timeZone: "America/Los_Angeles", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" })
-      .formatToParts(now)
-      .map((p) => [p.type, p.value]),
-  );
-  const sinceMidnight = (Number(parts.hour) * 3600 + Number(parts.minute) * 60 + Number(parts.second)) * 1000;
-  return new Date(Math.floor(now.getTime() / 1000) * 1000 - sinceMidnight);
-}
 
 beforeAll(async () => {
   ({ client: alice, userId: aliceId } = await signUpNewUser());
@@ -145,7 +135,7 @@ describe("1 日のアップロードの数", () => {
     // 全体の数は共有の DB のほかの行も数えるので、いまの数を足した上限で試す
     const { data: before } = await admin.rpc("reserve_youtube_upload", { p_owner_id: aliceId, p_post_target_id: null as unknown as string, p_global_limit: 0, p_user_limit: 0 });
     expect(before).toBe("global");
-    const dayStart = pacificDayStart().toISOString();
+    const dayStart = pacificDayRange(new Date()).start.toISOString();
     const { count: others } = await admin.from("sns_api_usage").select("id", { count: "exact", head: true }).eq("sns", "youtube").eq("operation", "upload").gte("created_at", dayStart);
     const base = others ?? 0;
 

@@ -12,6 +12,8 @@ import { loadPostNumbers } from "@/lib/posts/numbers";
 import { loadTimeTrends } from "@/lib/metrics/time-trends";
 import { timeHintOf } from "@/lib/metrics/time-hint";
 import { connectedAccountNames, connectedAccounts, getPost, postTitle } from "@/lib/posts/queries";
+import { youtubeChoiceOf } from "@/lib/sns/youtube/consent";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { projectLinkBase } from "@/lib/links/domains";
 import { getProject } from "@/lib/projects/queries";
 import { loadProfileLinkInfo } from "@/lib/posts/profile-link-info";
@@ -87,6 +89,9 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
   ]);
   // 画像はあとから足すこともあるので、画像がなくても調べる
   const needImageReconnect = await snsNeedingImageReconnect(accounts);
+  // YouTube に送るときに選んでいたもの（同意して保存した投稿を開き直したとき。サーバーだけが読める表なので、本人の投稿であることを確かめてから読む）
+  const { data: claims } = await supabase.auth.getClaims();
+  const youtubeChoice = post.targets.some((t) => t.sns === "youtube") && claims?.claims?.sub ? await youtubeChoiceOf(createAdminClient(), post.id, claims.claims.sub) : null;
   // 短縮リンクのチェックの状態: 本文に URL があるのに、送る前の配信先に短縮リンクがなければ、オフで保存したもの
   const hasUrl = [post.body, ...post.targets.map((t) => t.body_override ?? "")].some((t) => findLinkableUrls(t).length > 0);
   const shortLinks = !hasUrl || Object.keys(linkPreview).length > 0 || !post.targets.some((t) => t.status === "pending");
@@ -116,7 +121,11 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
             ? { title: null, text: targetText(post.body, t), composeUrl: xComposeUrl(targetText(post.body, t)) }
             : t.sns === "tiktok" && t.status === "failed"
               ? { title: t.title, text: targetText(post.body, t), composeUrl: null, downloads: tiktokDownloads }
-              : undefined,
+              : // YouTube も、手で投稿するを選んだとき・送れなかったときは、YouTube Studio で投稿して記録できる（docs/design/youtube.md の 12.）。
+                // 動画を保存する URL は、動画の仕組み（feat/video）が入ってから足す
+                t.sns === "youtube" && t.status === "failed"
+                ? { title: t.title, text: targetText(post.body, t), composeUrl: "https://studio.youtube.com/", downloads: [] }
+                : undefined,
         postedByHand: t.status === "published" && !t.external_post_id,
         byHand: isByHand(t),
         removedOnSns: t.status === "deleted" && Boolean(t.sns_removed_at),
@@ -185,6 +194,7 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
         // 下書きから再開したときに、選んでいたフォーマットと「やることから」の手がかりを戻す（PMO2 の s8）
         formatId: post.formatId,
         roadmapItem,
+        youtube: youtubeChoice,
       }}
     />
     </>

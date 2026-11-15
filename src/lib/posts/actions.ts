@@ -26,6 +26,9 @@ import { shortLinkShownText } from "@/lib/links/rules";
 import { connectedAccounts } from "./queries";
 import { savePostInputSchema, type SavePostInput, type SavePostResult } from "./schema";
 import { checkTikTokChoice, writeTikTokConsent, type CheckedTikTok } from "@/lib/sns/tiktok/consent";
+import { checkYouTubeChoice, writeYouTubeConsent, type CheckedYouTube } from "@/lib/sns/youtube/consent";
+import { YOUTUBE_USER_DAILY_UPLOADS } from "@/lib/sns/youtube/config";
+import { youtubeSchedulesOnDay } from "@/lib/sns/youtube/schedule";
 import { isSendNowPost } from "./send-now";
 
 // 引用の投稿（4.52）。X の画面で利用者が送る
@@ -38,7 +41,7 @@ const MIN_LEAD_MS = 5 * 60 * 1000;
 export async function savePost(input: SavePostInput): Promise<SavePostResult> {
   const parsed = savePostInputSchema.safeParse(input);
   if (!parsed.success) return { error: "入力の形式が正しくありません。画面を読み込み直してください。" };
-  const { projectId, postId, body, plannedAt, intent, media, video, shortLinks, roadmapItemId, noteIds, xByHand, tiktokByHand } = parsed.data;
+  const { projectId, postId, body, plannedAt, intent, media, video, shortLinks, roadmapItemId, noteIds, xByHand, tiktokByHand, youtubeByHand } = parsed.data;
   // SNS ごとのタグ（# を外し、同じタグは 1 つに）。タグにできない言葉・6 個以上は、下で欄のエラーにする
   // 本文（SNS ごとの文面）にもう書いてあるタグは、タグの行から外して保存する（2 回出さない。PMO2 の x2）
   const targets = parsed.data.targets.map((t) => ({ ...t, hashtags: splitTagsByText(t.bodyOverride ?? body, parseHashtagInput(t.hashtags.join(" ")).tags).keep }));
@@ -91,6 +94,7 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
 
   // TikTok の同意（確かめたもの。予約・今すぐ送るで TikTok を送るときだけ）
   let tiktokChecked: CheckedTikTok | null = null;
+  let youtubeChecked: CheckedYouTube | null = null;
   if (intent !== "draft") {
     if (intent === "schedule") {
       if (!plannedIso && !fieldErrors.plannedAt) fieldErrors.plannedAt = "送る日時を決めてください";
@@ -109,7 +113,7 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
       fieldErrors.targets = "選んだ SNS にはすべて投稿済みです";
     } else if (intent === "now" && toSend.every((t) => isManualSns(t.sns))) {
       fieldErrors.targets = "note・Substack は手で投稿します。予約するか下書きに保存すると、投稿の画面から手で投稿できます";
-    } else if (intent === "now" && toSend.every((t) => isManualSns(t.sns) || (xByHand && t.sns === "x") || (tiktokByHand && t.sns === "tiktok"))) {
+    } else if (intent === "now" && toSend.every((t) => isManualSns(t.sns) || (xByHand && t.sns === "x") || (tiktokByHand && t.sns === "tiktok") || (youtubeByHand && t.sns === "youtube"))) {
       fieldErrors.targets = "手で投稿する SNS だけです。予約するか下書きに保存すると、投稿の画面から手で投稿できます";
     } else {
       let linkBase: string | undefined;
@@ -152,6 +156,21 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
           }
           tiktokChecked = r;
         }
+        // YouTube は、利用者が選んだ公開範囲などと、いまのチャンネルを確かめる（docs/design/youtube.md の 4. と 5.）。手で投稿するなら送らないので見ない
+        if (t.sns === "youtube" && !youtubeByHand) {
+          const r = await checkYouTubeChoice(createAdminClient(), accounts.youtube!, parsed.data.youtube);
+          if ("error" in r) {
+            fieldErrors.targets = `YouTube: ${r.error}`;
+            break;
+          }
+          // 1 日 5 本まで（太平洋時間の 1 日。送信ジョブの reserve_youtube_upload と同じ日の区切り。docs/design/youtube.md の 6.）
+          const at = intent === "now" ? new Date() : new Date(plannedIso!);
+          if ((await youtubeSchedulesOnDay(supabase, at, postId)) >= YOUTUBE_USER_DAILY_UPLOADS) {
+            fieldErrors.targets = `YouTube: この日は YouTube の上限（1 日 ${YOUTUBE_USER_DAILY_UPLOADS} 本）を超えます。別の日にするか、「YouTube は手で投稿する」を選んでください`;
+            break;
+          }
+          youtubeChecked = r;
+        }
         // X の月の上限（送信ジョブと同じ判定。予約は送る時刻の月で見る）。「X は手で投稿する」を選んでいれば、X は送らないので見ない
         if (t.sns === "x" && !xByHand) {
           const at = intent === "now" ? new Date() : new Date(plannedIso!);
@@ -170,9 +189,12 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
   // X・TikTok を手で投稿する（予約・今すぐ送るで、その SNS を送る SNS に入れているとき）。その SNS は送り直さず、自動では送らない
   const xHand = intent !== "draft" && xByHand && toSend.some((t) => t.sns === "x");
   const tiktokHand = intent !== "draft" && tiktokByHand && toSend.some((t) => t.sns === "tiktok");
-  const hands: ByHandSns[] = [...(xHand ? (["x"] as const) : []), ...(tiktokHand ? (["tiktok"] as const) : [])];
+  const youtubeHand = intent !== "draft" && youtubeByHand && toSend.some((t) => t.sns === "youtube");
+  const hands: ByHandSns[] = [...(xHand ? (["x"] as const) : []), ...(tiktokHand ? (["tiktok"] as const) : []), ...(youtubeHand ? (["youtube"] as const) : [])];
   // TikTok を送るときは、同意の記録を書いてから予約にする（記録の前に送信ジョブが TikTok を取り出さないように）
   const tiktokSend = intent !== "draft" && !tiktokHand && tiktokChecked !== null && toSend.some((t) => t.sns === "tiktok");
+  // YouTube も同じく、同意の記録を書いてから予約にする
+  const youtubeSend = intent !== "draft" && !youtubeHand && youtubeChecked !== null && toSend.some((t) => t.sns === "youtube");
 
   // 失敗した配信先を、送り直せる状態に戻す
   if (intent !== "draft" && postId) {
@@ -187,7 +209,7 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
     p_body: body,
     p_planned_at: sendAt as string,
     // 手で投稿するときは、いったん下書きで保存し、送らない印を付けてから予約にする（印を付ける前に送信ジョブが取り出さないように）
-    p_status: intent === "draft" || hands.length > 0 || tiktokSend ? "draft" : "scheduled",
+    p_status: intent === "draft" || hands.length > 0 || tiktokSend || youtubeSend ? "draft" : "scheduled",
     p_targets: targets.map((t) => ({
       sns: t.sns,
       title: hasTitleField(t.sns) ? (t.title ?? null) : null,
@@ -200,6 +222,27 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
   });
   if (error || !savedId) {
     return { error: "保存できませんでした。時間をおいてもう一度お試しください。" };
+  }
+
+  if (youtubeSend) {
+    const yt = toSend.find((t) => t.sns === "youtube")!;
+    try {
+      await writeYouTubeConsent(createAdminClient(), {
+        userId,
+        postId: savedId,
+        title: yt.title ?? "",
+        // 送信ジョブの rawText（送る文面。タグ込み）と同じもので指紋をとる（TikTok と同じ）
+        text: withHashtags(yt.bodyOverride ?? body, yt.hashtags),
+        checked: youtubeChecked!,
+      });
+    } catch (e) {
+      console.error("[savePost] YouTube の同意を記録できませんでした", e);
+      return { error: "保存できませんでした。時間をおいてもう一度お試しください。" };
+    }
+    if (hands.length === 0 && !tiktokSend) {
+      const { error: statusError } = await supabase.from("posts").update({ status: "scheduled" }).eq("id", savedId).eq("project_id", projectId);
+      if (statusError) return { error: "保存できませんでした。時間をおいてもう一度お試しください。" };
+    }
   }
 
   if (tiktokSend) {

@@ -312,7 +312,7 @@ TikTok を送り先に選んだ投稿の、⑤ 送る（と ② 送り先の Tik
   - 1 日の上限（7.）は、送り方の下に「1 日 15 本ほどまで（ほかのアプリの分も含む）」と出す。数えて止めるのは TikTok の答え（spam_risk_too_many_posts）に任せる（ほかのアプリの分はこちらから数えられないため）
 
 - 段 7（2026-11-15）: /sns/tiktok/webhook（src/lib/sns/tiktok/webhook.ts）。署名（TikTok-Signature、5 分）が合わなければ 401。authorization.removed だけを扱い、届いた open_id のアカウントごとに、こちらのトークンでユーザー情報を読み、使えなくなっていたアカウントだけを revokeAccountsByIds で外す（トークンを消し、purgeSnsDataOf）。同じ open_id を別の利用者がつないでいても、確かめはアカウントごと。外したアカウントは見ないので、何度届いても同じ。確かめが TikTok の障害でできないときは 500（やり直してもらう）。Webhook と /tiktok-media は、ログインなしで届くパス（src/lib/supabase/public-paths.ts）に足した（ログインへの 3xx を返さない）。/sns/deletion は Meta のデータ削除の通知に返すページなので、TikTok は足さない（TikTok にはデータ削除の通知がない。外したとき・退会で消える）
-- 段 8（2026-11-15）: 法務の ② の版（docs/legal.md の「案: TikTok の連携」）。プライバシーポリシーと利用規約の本文、LEGAL_VERSIONS の 2026-11-30【仮】。オーナーの了承まで本番に出さない
+- 段 8（2026-11-15）: 法務の ② の版（docs/legal.md の「案: TikTok の連携」）。プライバシーポリシーと利用規約の本文、LEGAL_VERSIONS の 2026-11-16（2026-11-15 にオーナーが了承。noticeWaived で、本番に出す日を施行日にする）
 
 - PMO の確かめでの直し（2026-11-15）:
   - 投稿の ID の丸め: TikTok の答えは本文の文字のまま読み、安全に表せない整数は文字のまま受け取る（api.ts の parseTikTokJson。JSON.parse の reviver の context.source）。publicaly_available_post_id の 19 桁の数が 2^53 を超えて丸まり、別の ID と URL になっていた。publish_id は資料では文字列だが、数で来ても文字にする

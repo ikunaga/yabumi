@@ -1,19 +1,21 @@
 // TikTok の連携の版（docs/legal.md の「TikTok の連携の版」。② として扱う）: 版の並び・本文の新しい文・作りとの一致。
-// 【仮】文と施行日・知らせ方はオーナーの了承待ち。施行日は本番に出す日に PM が合わせる（ここの日付も一緒に直す）
+// 了承は 2026-11-15（前もって知らせず、本番に出す日を施行日にする）。施行日は本番に出す日に PM が合わせる（ここの日付も一緒に直す）
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { LEGAL_VERSIONS, historyProblems } from "@/lib/legal/version";
 import { TICKET_TTL_MS } from "@/lib/sns/tiktok/media";
 
-const VERSION = "2026-11-30";
+const VERSION = "2026-11-16";
 const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 
 describe("TikTok の連携の版", () => {
   const rev = LEGAL_VERSIONS.find((r) => r.version === VERSION)!;
 
-  it("利用規約とプライバシーポリシーの版で、決まりを守っている", () => {
+  it("利用規約とプライバシーポリシーの版で、前もって知らせない理由があり、決まりを守っている", () => {
     expect(rev.docs).toEqual(["terms", "privacy"]);
     expect(rev.adverse).toBe(false);
+    expect(rev.noticeFrom).toBeNull();
+    expect(rev.noticeWaived).toContain("2026-11-15");
     expect(rev.summary.join("")).toContain("TikTok");
     expect(historyProblems()).toEqual([]);
     expect(LEGAL_VERSIONS.at(-1)?.version).toBe(VERSION);

@@ -2926,7 +2926,7 @@ yabumi のコンセプトは、使って SNS を運用するうちに、マー�
 - 同意の記録（post_target_tiktok。どちらの表も RLS を有効にしてポリシーを置かず、利用者の権限には grant しない。持ち主はトリガー tiktok_check_owner でそろえる）
 - 送信の部品は preparing の 2 段。startPublish に配信先（PublishTarget）を渡し、送る直前に creator_info と同意の記録を照らす（docs/design/tiktok.md の 18.）
 - 「TikTok は手で投稿する」は X と同じ作り。手で投稿するの文は TS の src/lib/sns/by-hand.ts と SQL の public.by_hand_message の 2 か所だけに置き、一致は結合テストで確かめる（20261115090000_tiktok_by_hand）
-- 外されたとき: /sns/tiktok/webhook（署名を確かめ、中身は信じずにアカウントごとにトークンで確かめてから外す）。法務は ② の版（2026-11-16。2026-11-15 にオーナーが了承）
+- 外されたとき: /sns/tiktok/webhook（署名を確かめ、中身は信じずにアカウントごとにトークンで確かめてから外す）。法務は ② の版（2026-11-16。2026-11-15 にオーナーが了承。動画・YouTube と 1 つの版にまとめた）
 
 ### 4.73 投稿に動画を添える（2026-11-15、オーナーの決定と W1〜W6 の了承。PM の依頼。feat/video。設計は docs/design/video.md）
 
@@ -2954,7 +2954,7 @@ yabumi のコンセプトは、使って SNS を運用するうちに、マー�
 - 7 日ごと: refreshDueTokens でトークンを取り直してまだ許可されているかを確かめ（invalid_grant は期限切れ）、チャンネル名を読み直す（変わったときだけ書く。social_accounts.updated_at はテスト中の 7 日の表示に使う）。期限切れのまま 29 日たったら、トークンと YouTube のデータを消す（purgeExpiredYouTube。開発者ポリシーの 30 日以内）
 - 取り消しは YouTube Studio へ案内する（Y5）。「YouTube は手で投稿する」は X・TikTok と同じ作り（by_hand_message に YouTube を足した）
 - 動画は送信ジョブの動画の受け口（startPublishVideo。4.73）で受け、続きの回は postVideoFor で読み直す（送り終えて消したあとは止める）。SNS.youtube.video は true
-- 法務は ② の版。動画（4.73）と同じ版（2026-11-17【仮】。オーナーの了承の前）にまとめた
+- 法務は ② の版。TikTok（4.72）・動画（4.73）と同じ版（2026-11-16。2026-11-15 にオーナーが了承）にまとめた
 
 ## 5. データモデル（主要テーブル）
 

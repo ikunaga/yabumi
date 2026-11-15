@@ -36,6 +36,12 @@ export function VideoAttachment({
 }) {
   const [stage, setStage] = useState<Stage>({ kind: "idle" });
   const [error, setError] = useState<string | null>(null);
+  // 添えた動画が変わったら（添えた・外した・選び直した）、前の動画で出た文は消す（2026-11-15 PMO の再確認 r07）
+  const [errorFor, setErrorFor] = useState(video?.id ?? null);
+  if ((video?.id ?? null) !== errorFor) {
+    setErrorFor(video?.id ?? null);
+    setError(null);
+  }
   const abortRef = useRef<AbortController | null>(null);
   const busy = stage.kind === "busy";
 

@@ -34,12 +34,16 @@ export async function uploadVideoBlob(
     throw aborted();
   }
   const { Upload } = await import("tus-js-client");
-  // 利用者のログインのまま上げる（Storage の insert のポリシーが、引換券のある場所だけを通す）
-  const accessToken = (await browserClient().auth.getSession()).data.session?.access_token;
-  if (!accessToken) {
+  // 利用者のログインのまま上げる（Storage の insert のポリシーが、引換券のある場所だけを通す）。
+  // アクセストークンは送るたびに読み直す（getSession は期限の 90 秒前を切ると取り直す。最初に 1 回読んだだけだと、
+  // 期限の近いトークンで上げ始めたときに、途中で切れて残りが断られる）
+  const accessToken = async () => (await browserClient().auth.getSession()).data.session?.access_token ?? null;
+  if (!(await accessToken())) {
     cleanup();
     throw new VideoUploadError("ログインし直してください。");
   }
+  // やめたか（やめたあとに届いた onSuccess は、もう一度片付ける）
+  let stopped = false;
   try {
     await new Promise<void>((resolve, reject) => {
       const upload = new Upload(blob, {
@@ -51,21 +55,33 @@ export async function uploadVideoBlob(
         removeFingerprintOnSuccess: true,
         headers: {
           apikey: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-          Authorization: `Bearer ${accessToken}`,
           "x-upsert": "false",
+        },
+        onBeforeRequest: async (req) => {
+          const token = await accessToken();
+          if (token) req.setHeader("Authorization", `Bearer ${token}`);
         },
         metadata: { bucketName: ticket.bucket, objectName: ticket.path, contentType: "video/mp4", cacheControl: "3600" },
         onProgress: (sent, total) => opts.onProgress?.(total > 0 ? sent / total : 0),
-        onSuccess: () => resolve(),
+        onSuccess: () => {
+          // やめたあとに最後の送信が終わってファイルができた: もう一度片付ける（2026-11-15 PMO の再確認。引換券の印で書き込みは断られる見込みだが、
+          // 印を付ける前に最後の送信が届いていた場合に備える）
+          if (stopped) return cleanup();
+          resolve();
+        },
         onError: (e) => {
           console.error("[video] 上げられませんでした", e.message);
           reject(new VideoUploadError("動画を上げられませんでした。通信のよいところで、もう一度お試しください。"));
         },
       });
       const abort = () => {
+        stopped = true;
+        // 送信を止め終えてから片付ける（止める前に片付けると、そのあとに最後の送信が届いてファイルができることがあった。3 回中 2 回）。
         // 上げ終えたあとの abort は「Cannot terminate an already completed upload」で断られる。片付けはサーバーで行うので、失敗は拾って捨てる
-        upload.abort(true).catch(() => {});
-        reject(aborted());
+        void upload
+          .abort(true)
+          .catch(() => {})
+          .finally(() => reject(aborted()));
       };
       if (opts.signal?.aborted) return abort();
       opts.signal?.addEventListener("abort", abort, { once: true });

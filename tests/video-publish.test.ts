@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createThreadsAdapter } from "@/lib/sns/adapters/threads";
 import { createInstagramAdapter } from "@/lib/sns/adapters/instagram";
 import { createFacebookAdapter } from "@/lib/sns/adapters/facebook";
+import { createXAdapter } from "@/lib/sns/adapters/x";
 import { SnsPublishError, type PrepareState, type PublishVideo } from "@/lib/sns/adapters/types";
 
 type Call = { url: URL; method: string; body: URLSearchParams | null; headers: Headers };
@@ -133,5 +134,63 @@ describe("Facebook ページのリール", () => {
   it("壊れた途中の記録は読まない", async () => {
     mockFetch([]);
     await expect(adapter().continuePublish!(account, { kind: "single", id: "x" })).rejects.toMatchObject({ kind: "permanent" });
+  });
+});
+
+describe("X の動画（W2 の確かめまで、SNS.x.video は false のまま）", () => {
+  const account = { externalId: "x1", accessToken: "x-token" };
+  // FormData の中身も見られる偽物
+  function xFetch(responses: { status?: number; body: unknown }[]) {
+    const calls: { url: URL; method: string; form: FormData | null; json: unknown }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const body = init?.body;
+        calls.push({ url: new URL(String(input)), method: init?.method ?? "GET", form: body instanceof FormData ? body : null, json: typeof body === "string" ? JSON.parse(body) : null });
+        const r = responses.shift() ?? { status: 500, body: {} };
+        return new Response(JSON.stringify(r.body), { status: r.status ?? 200 });
+      }),
+    );
+    return calls;
+  }
+  const adapter = () => createXAdapter(() => ({ clientId: "c", clientSecret: "s", redirectUri: "https://localhost/cb" }));
+  const big = (n: number) => ({ ...video, sizeBytes: n, readRange: async (s: number, e: number) => new Uint8Array(e - s) });
+
+  it("initialize → 5MB ずつ append（segment_index は 0 から）→ finalize。処理中なら状態を返し、済んだら投稿する", async () => {
+    const size = 12 * 1024 * 1024;
+    const calls = xFetch([
+      { body: { data: { id: "media-1" } } },
+      { body: {} },
+      { body: {} },
+      { body: {} },
+      { body: { data: { processing_info: { state: "pending", check_after_secs: 5 } } } },
+      { body: { data: { processing_info: { state: "in_progress" } } } },
+      { body: { data: { processing_info: { state: "succeeded" } } } },
+      { body: { data: { id: "post-1" } } },
+    ]);
+    const a = adapter();
+    const state = await a.startPublishVideo!(account, "本文", big(size));
+    expect(state).toEqual({ kind: "x_video", mediaId: "media-1", text: "本文" });
+    expect(calls[0].json).toEqual({ media_type: "video/mp4", total_bytes: size, media_category: "tweet_video" });
+    const appends = calls.slice(1, 4);
+    expect(appends.map((c) => c.url.pathname)).toEqual(Array(3).fill("/2/media/upload/media-1/append"));
+    expect(appends.map((c) => c.form?.get("segment_index"))).toEqual(["0", "1", "2"]);
+    expect(appends.map((c) => (c.form?.get("media") as Blob).size)).toEqual([5 * 1024 * 1024, 5 * 1024 * 1024, 2 * 1024 * 1024]);
+    expect(calls[4].url.pathname).toBe("/2/media/upload/media-1/finalize");
+    expect(await a.continuePublish!(account, state)).toEqual({ state });
+    expect(calls[5].url.searchParams.get("command")).toBe("STATUS");
+    expect(await a.continuePublish!(account, state)).toEqual({ done: { externalPostId: "post-1", url: "https://x.com/i/web/status/post-1" } });
+    expect(calls[7].json).toEqual({ text: "本文", media: { media_ids: ["media-1"] } });
+  });
+
+  it("finalize で処理が要らなければ、次の確かめで STATUS を呼ばずに投稿する。failed は permanent", async () => {
+    const calls = xFetch([{ body: { data: { id: "m2" } } }, { body: {} }, { body: { data: {} } }, { body: { data: { id: "post-2" } } }]);
+    const a = adapter();
+    const state = await a.startPublishVideo!(account, "本文", big(100));
+    expect(await a.continuePublish!(account, state)).toMatchObject({ done: { externalPostId: "post-2" } });
+    expect(calls.some((c) => c.url.searchParams.get("command") === "STATUS")).toBe(false);
+
+    xFetch([{ body: { data: { processing_info: { state: "failed", error: { message: "InvalidMedia" } } } } }]);
+    await expect(a.continuePublish!(account, { kind: "x_video", mediaId: "m3", text: "" })).rejects.toMatchObject({ kind: "permanent" });
   });
 });

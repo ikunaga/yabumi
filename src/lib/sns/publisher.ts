@@ -307,6 +307,10 @@ async function publishOne(admin: Admin, t: ClaimedTarget, deps: PublisherDeps): 
     if (video && (!isSnsKey(t.sns) || !SNS[t.sns].video || !adapter.startPublishVideo || !adapter.continuePublish)) {
       return fail(`${label} には、yabumi からはまだ動画を送れません。投稿の画面で ${label} を送り先から外すか、動画を外してから送り直してください。`);
     }
+    // 画像と同じ権限で動画も送る SNS（X の media.write）。つなぎ直していなければ送らない
+    if (video && isSnsKey(t.sns) && lacksImageScope(t.sns, await tokenScopes(admin, t.social_account_id))) {
+      return fail(`${label} に動画を送るには、画像・動画を送る権限を足すためのつなぎ直しが要ります。${RECONNECT}`);
+    }
 
     // 投稿の画像（docs/architecture.md の 4.18）。画像を送らない SNS（動画だけ・手で投稿）には渡さない
     let images: PublishImage[] = [];

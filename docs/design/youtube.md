@@ -1,6 +1,6 @@
 # YouTube の連携（設計メモ）
 
-- **作成日**: 2026-11-15（実装担当2。PM の依頼）
+- **作成日**: 2026-11-15（実装担当2。PM の依頼）。同じ日に、同意の記録を post_targets の列から別の表 post_target_youtube に直した（PM の指示。TikTok の post_target_tiktok にそろえる）
 - **いまの状態**: 設計だけ。コードは PM の了承のあと
 - **前提**
   - docs/architecture.md の 4.24（2026-10-11 の調べ。V1〜V5）、docs/review/youtube.md
@@ -171,7 +171,7 @@ YouTube を送り先に選んだ投稿の、② 送り先の YouTube の欄（�
 - **おすすめ: yabumi の予約の時刻にアップロードを始める**（ほかの SNS と同じ送信ジョブ）。publishAt は使わない
   - 理由: 上げたあとに予約を変える・やめるには videos.update・videos.delete が要り、youtube.upload では足りない見込み（【未確認】）。yabumi の画面で予約を動かしても、YouTube が古い時刻に公開してしまう／yabumi の予約の作り（取り消し・動かす・要確認）をそのまま使える／同意した中身と送る中身がずれない
   - 弱み: YouTube の処理（数分）だけ、公開が予約の時刻より遅れる。予約の画面の YouTube に「予約の時刻にアップロードを始めます。YouTube での公開は数分遅れることがあります」と出す
-- 予約を決めるとき（savePost）に、送る中身（タイトル・説明・公開範囲・子ども向け・申告・カテゴリ）を post_targets.youtube に記録し（8.）、送るときはその中身だけを送る。予約のあとに文を変えたら、保存し直し（同意し直し）になる
+- 予約を決めるとき（savePost）に、送る中身（公開範囲・子ども向け・申告・カテゴリ、タイトルと説明の指紋、チャンネル名）を post_target_youtube に記録し（8.）、送るときはその中身だけを送る。予約のあとに文を変えたら、保存し直し（同意し直し）になる。送る直前に、指紋とチャンネル名を照らし、違えば送らずに failed と要確認（「YouTube に送る内容が予約のときと変わったので、送りませんでした。投稿の画面で確かめてから、もう一度送ってください」）
 - 予約の時刻に、つなぎ直しが要る（テスト中の 7 日切れ・取り消し）ときは failed にして要確認（既存の「つながりが切れています」）
 
 ## 6. 割り当て（videos.insert は 1 日 100 回・プロジェクト全体）
@@ -200,24 +200,34 @@ YouTube を送り先に選んだ投稿の、② 送り先の YouTube の欄（�
 既存の SNS に合わせる。
 
 - **social_accounts・social_account_tokens**: そのまま（sns = 'youtube'）。トークンは暗号化、サーバーの権限だけが読む
-- **post_targets に 1 列**: `youtube jsonb`（null 可。YouTube の配信先だけ）
-  - 中身: privacy_status（public・unlisted・private）・made_for_kids（bool）・synthetic（bool）・category_id（数字の文字列）・consented_at（サーバーが決める）
-  - タイトルは post_targets.title、説明は body_override（既存の列）
-  - **利用者の権限では書けない**: post_targets の列ごとの update・insert の grant に入れない。savePost が zod で確かめ、サーバーの権限で書く。consented_at は now()
-  - check: jsonb の object、privacy_status が 3 つのどれか、made_for_kids が bool、大きさ 1KB まで
-  - 読むのは本人（いまの RLS と select のまま）
-  - tiktok.md の post_targets.tiktok と同じ作り。両方を作るときは、名前と形をそろえる（実装担当3 と合わせる）
+- **新しい表 post_target_youtube**（送るときに利用者が選んで同意した設定。配信先ごとに 1 行。feat/tiktok の post_target_tiktok〈20261114120000〉と名前と形をそろえる）
+  - post_targets に列を足さない理由: post_targets は利用者の権限で表ごと select を許している。列を足すとその列も読めてしまい、列ごとの grant に組み直すと select * しているところが壊れる（TikTok で決めたこと）
+  - 列:
+    - post_target_id（主キー、post_targets に on delete cascade）・owner_id（auth.users に on delete cascade）
+    - privacy_status text not null check（'public'・'unlisted'・'private'）
+    - made_for_kids boolean not null（初めの値を置かない。選ぶまで保存しない）
+    - synthetic_media boolean not null default false
+    - category_id text not null check（数字だけ、3 字まで）
+    - consented_at timestamptz not null（サーバーが now() を入れる）
+    - consent_text_hash text not null check（SHA-256 の 16 進 64 字）: 同意したときのタイトルと説明の指紋。送る直前の文と違えば送らない（tiktok.md の 4. と同じ）
+    - consent_channel text not null check（100 字まで）: 同意したときのチャンネル名（Y1 が ②）。送る直前に読み直したチャンネル名と違えば送らない（別のチャンネルにつなぎ直したとき）
+    - updated_at
+  - タイトルは post_targets.title、説明は body_override（既存の列。いまの列ごとの grant のまま）
+  - RLS を有効にし、ポリシーは置かない。`revoke all ... from anon, authenticated`、service_role にだけ select・insert・update・delete を grant（post_target_tiktok と同じ）
+  - 書くのは savePost（zod で確かめ、サーバーの権限で）。画面に戻すとき（下書きの再開・投稿の画面）も、サーバーが持ち主を確かめて読む（tiktok の loadTikTokTarget と同じ形の loadYouTubeTarget）
+  - 持ち主をそろえるトリガー: 配信先が同じ持ち主の YouTube の配信先であること（tiktok_check_owner と同じ。共通の関数にするか、YouTube 用を足すかは、作るときに実装担当3 と決める）
 - **新しい表 youtube_uploads**（アップロードの途中の情報。サーバーだけ）
+  - post_target_tiktok の tiktok_media_tickets と同じく、同意の表とは分ける（消える時期と中身が違うため）
   - post_target_id（主キー、post_targets に on delete cascade）・owner_id（auth.users に on delete cascade）・session_uri_encrypted（セッションの URL は、それだけで続きを送れる鍵に近いので暗号化する【未確認】）・bytes_total・bytes_sent・video_id・processing_checked_until・started_at・updated_at
-  - RLS を有効にし、ポリシーは置かない。authenticated・anon には grant しない
+  - RLS を有効にし、ポリシーは置かない。`revoke all ... from anon, authenticated`、service_role にだけ grant。持ち主をそろえるトリガーも同じく付ける
   - post_targets.sns_container には `{ stage: "uploading" | "processing", bytesSent }` だけを入れる（本人が読める列なので、セッションの URL は入れない）
 - **関数 reserve_youtube_upload**（6.）: security definer、`revoke all ... from public, anon, authenticated, service_role` のあと service_role にだけ grant
 - **SNS の定義**（src/lib/sns/index.ts）: youtube の maxLength 5000 を「バイト」で数える。タイトル 100 字。maxImages: 0、media: "video"（いまのまま）
-- 結合テスト: 他人の配信先の youtube 列・youtube_uploads が読めず書けない、利用者の権限で youtube 列・consented_at を書けない、reserve の上限と同時実行、anon から読めない（grants.integration.test.ts の TABLES に youtube_uploads を足す）
+- 結合テスト: post_target_youtube・youtube_uploads は本人も他人も利用者の権限で読めず書けない、anon も同じ、ほかの人の配信先や YouTube でない配信先には行を作れない（トリガー）、reserve の上限と同時実行（grants.integration.test.ts の TABLES に 2 つの表を足す）
 
 ## 9. 外されたとき・データの削除（purgeSnsDataOf）
 
-- purgeSnsDataOf に youtube_uploads（そのアカウントの配信先の行）を足す。ほかは既存のまま（送った動画の ID・URL・sns_container を消す。本文と「送った」記録は残す）
+- purgeSnsDataOf に youtube_uploads と post_target_youtube の consent_channel（チャンネル名。YouTube から読んだデータ）を足す（行を消すか、チャンネル名を空にする。送り直すには同意し直しが要るので、行ごと消してよい）。ほかは既存のまま（送った動画の ID・URL・sns_container を消す。本文と「送った」記録は残す）
 - 消す時期（開発者ポリシー）
   - yabumi で外す・データの削除を求められた: **7 日以内** → その場で消す
   - Google の設定で取り消された: **30 日以内** → 2.4 のとおり、7 日ごとの確かめで気付き、30 日待ってから消す（つなぎ直しを待つ間も 30 日を超えない）
@@ -289,7 +299,7 @@ YouTube を送り先に選んだ投稿の、② 送り先の YouTube の欄（�
 | 段 | 作るもの | 確かめ |
 |---|---|---|
 | 1 | つなぐ・外す・取り直し・7 日ごとの確かめ（social_accounts・tokens・state・PKCE・revoke） | 結合: state が違うと断る、スコープが足りないと断る、チャンネルがないと断る、トークンは本人でも読めない、外すと purge、invalid_grant で期限切れ。偽の Google（fetch の差し替え）で |
-| 2 | post_targets.youtube と保存（savePost の確かめ。タイトル・説明のバイト・< >・公開範囲・子ども向け・申告） | 単体: 字数とバイト、< > の確かめ、ショートの 1 行の出し分け。結合: youtube 列・consented_at を利用者の権限で書けない |
+| 2 | post_target_youtube と保存（savePost の確かめ。タイトル・説明のバイト・< >・公開範囲・子ども向け・申告・指紋・チャンネル名） | 単体: 字数とバイト、< > の確かめ、ショートの 1 行の出し分け、指紋とチャンネル名が違えば送らない。結合: 表を利用者の権限で読めず書けない、consented_at はサーバーが決める、持ち主のトリガー |
 | 3 | 割り当て（reserve_youtube_upload・sns_api_usage） | 結合: 全体と利用者ごとの上限、同時に 10 本取っても超えない、太平洋時間の日の切り替わり |
 | 4 | アダプター（再開できるアップロード・youtube_uploads・続きから・処理の確かめ） | 単体（偽の Google）: 308 の続き、最後の答えが消えても二重に上げない、404 でやり直し、5xx のやり直し、quotaExceeded・uploadLimitExceeded、40 秒で切り上げて次の回に続き、処理の rejected で failed |
 | 5 | 送る画面（4. の欄・同意・ショートの 1 行・テスト中の帯） | 画面（スマホ・PC、明暗。PMO） |

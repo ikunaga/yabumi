@@ -4,7 +4,6 @@ import { checkMp4, Mp4CheckError, mp4ProblemMessage } from "./mp4-check";
 import { MediaError } from "./store";
 import { SNS_FETCH_URL_SECONDS, formatBytes } from "./rules";
 import {
-  KEEP_VIDEO_AFTER_SENT_DAYS,
   MAX_PENDING_VIDEO_TICKETS,
   MAX_UNATTACHED_VIDEOS,
   MAX_VIDEO_BYTES,
@@ -72,7 +71,7 @@ async function limitMessage(admin: Admin, ownerId: string, status: string): Prom
     return `保存していない動画が ${count ?? MAX_UNATTACHED_VIDEOS} 本あります。要らない動画を外すか、投稿を保存してから追加してください。`;
   }
   if (status === "quota") {
-    return `置ける動画の合計（${formatBytes(VIDEO_USER_QUOTA_BYTES)}）に近づいています。送り終えた動画は ${KEEP_VIDEO_AFTER_SENT_DAYS} 日で消えます。要らない下書きの動画を外してください。`;
+    return `置ける動画の合計（${formatBytes(VIDEO_USER_QUOTA_BYTES)}）に近づいています。送り終えた動画はすぐに消えます。要らない下書きの動画を外してください。`;
   }
   if (status === "month_limit") return `動画は 1 か月に ${VIDEO_MONTH_LIMIT} 本まで追加できます。来月 1 日からまた追加できます。`;
   if (status === "global_quota") {
@@ -320,4 +319,31 @@ export async function publishVideoFor(admin: Admin, postId: string): Promise<(Po
   const video = await postVideoFor(admin, postId);
   if (!video) return "removed";
   return { ...video, url: await signedVideoUrl(admin, row.storagePath, SNS_FETCH_URL_SECONDS) };
+}
+
+// 配信先が終わったと見なす状態（送信済み・取り消した）と、まだ動画が要る状態（送る前・送っている・送れなかった〈「手で投稿する」を含む〉）
+const TARGET_DONE = ["published", "deleted"];
+const TARGET_NEEDS_VIDEO = ["pending", "preparing", "publishing", "failed"];
+
+// 送り終えた動画を、その場で消す（2026-11-15 オーナーの了承。docs/design/video.md の 7.）。送信ジョブが配信先を送り終えたときと、手で投稿したと記録したときに呼ぶ。
+// 投稿のすべての配信先が終わり（1 つ以上が送信済みか取り消し済み）、送る前・送っている・送れなかった配信先が 1 つもないときだけ消す。
+// 送れなかった配信先（「手で投稿する」の印も failed）が残る間は、送り直す・手元に落として手で出すために残す（片付けが最後の更新から 7 日で消す）。
+// 先に removed_at を入れてからファイルを消す: 入れた時点で、送信ジョブ（publishVideoFor の "removed"）と保存（「動画を選び直して」）が止まる。
+// ファイルを消しそこねても、毎日の片付け（cleanup_media_candidates の「removed_at があるのにファイルが残っている」）が拾う。
+// 返り値: 消したか
+export async function removeSentVideo(admin: Admin, postId: string, now: Date = new Date()): Promise<boolean> {
+  const { data: targets, error } = await admin.from("post_targets").select("status").eq("post_id", postId);
+  if (error) throw error;
+  if (!targets.length || targets.some((t) => TARGET_NEEDS_VIDEO.includes(t.status)) || !targets.some((t) => TARGET_DONE.includes(t.status))) return false;
+  const { data: marked, error: markError } = await admin
+    .from("media_files")
+    .update({ removed_at: now.toISOString() })
+    .eq("post_id", postId)
+    .eq("kind", "video")
+    .is("removed_at", null)
+    .select("storage_path");
+  if (markError) throw markError;
+  if (!marked.length) return false;
+  await removeVideoObjects(admin, marked.map((m) => m.storage_path));
+  return true;
 }

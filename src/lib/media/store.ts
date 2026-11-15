@@ -335,8 +335,9 @@ export async function downloadMedia(admin: Admin, path: string): Promise<Uint8Ar
   return new Uint8Array(await data.arrayBuffer());
 }
 
-// 毎日の片付け: 添えないまま 1 日たった画像・動画、投稿が消えた画像・動画、送り終えて 30 日たった画像、送り終えて 1 日（失敗が残れば 7 日）たった動画、
-// 記録のないファイルを消す（docs/design/video.md の 7.）。送り終えた動画は、ファイルだけ消して行に removed_at を入れる（投稿の画面に「消しました」と出す）。
+// 毎日の片付け: 添えないまま 1 日たった画像・動画、投稿が消えた画像・動画、送り終えて 30 日たった画像、送り終えた動画（失敗が残れば 7 日。
+// ふだんは送信ジョブがその場で消す〈removeSentVideo〉ので、ここは取りこぼしの受け皿）、記録のないファイルを消す（docs/design/video.md の 7.）。
+// 送り終えた動画は、ファイルだけ消して行に removed_at を入れる（投稿の画面に「消しました」と出す）。
 // ownerId を渡すとその利用者の分だけ（結合テスト用。毎日のジョブは全体）
 export async function cleanupMedia(admin: Admin, { limit = 200, ownerId }: { limit?: number; ownerId?: string } = {}): Promise<{ removed: number }> {
   const { data, error } = await admin.rpc("cleanup_media_candidates", { p_limit: limit, ...(ownerId ? { p_owner_id: ownerId } : {}) });
@@ -350,7 +351,8 @@ export async function cleanupMedia(admin: Admin, { limit = 200, ownerId }: { lim
   }
   const marks = data.filter((d) => d.media_id && d.mark_removed).map((d) => d.media_id as string);
   if (marks.length) {
-    const { error: markError } = await admin.from("media_files").update({ removed_at: new Date().toISOString() }).in("id", marks);
+    // 送信ジョブがもう removed_at を入れていた（ファイルだけ残っていた）ものは、消した時刻を上書きしない
+    const { error: markError } = await admin.from("media_files").update({ removed_at: new Date().toISOString() }).in("id", marks).is("removed_at", null);
     if (markError) throw markError;
   }
   const ids = data.filter((d) => d.media_id && !d.mark_removed).map((d) => d.media_id as string);

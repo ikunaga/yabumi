@@ -469,7 +469,7 @@ describe("片付け", () => {
     await discardUnattachedVideo(admin, aliceId, v.mediaId);
   });
 
-  it("送り終えた動画は 1 日、送れなかった配信先が残れば 7 日。下書き（配信先が pending）・preparing・publishing の間は消さない", async () => {
+  it("送り終えた動画は待たずに（ふだんは送信ジョブがその場で消す。ここは取りこぼしの受け皿）、送れなかった配信先が残れば 7 日。下書き（配信先が pending）・preparing・publishing の間は消さない", async () => {
     const sent = await sentPost(["published", "published"]);
     const failed = await sentPost(["published", "failed"]);
     const preparing = await sentPost(["published", "preparing"]);
@@ -478,9 +478,11 @@ describe("片付け", () => {
     const v = Object.fromEntries(
       await Promise.all(Object.entries({ sent, failed, preparing, publishing, draft }).map(async ([k, post]) => [k, (await seedPostVideo(admin, { ownerId: aliceId, postId: post })).mediaId] as const)),
     );
-    const day2 = await candidates(aliceId, soon(2));
-    expect(pick(day2, v.sent)).toMatchObject({ bucket: VIDEO_BUCKET, mark_removed: true });
-    for (const k of ["failed", "preparing", "publishing", "draft"]) expect(pick(day2, v[k])).toBeUndefined();
+    const day0 = await candidates(aliceId, soon(0));
+    expect(pick(day0, v.sent)).toMatchObject({ bucket: VIDEO_BUCKET, mark_removed: true });
+    for (const k of ["failed", "preparing", "publishing", "draft"]) expect(pick(day0, v[k])).toBeUndefined();
+    const day6 = await candidates(aliceId, soon(6));
+    expect(pick(day6, v.failed)).toBeUndefined();
     const day8 = await candidates(aliceId, soon(8));
     expect(pick(day8, v.failed)).toMatchObject({ mark_removed: true });
     for (const k of ["preparing", "publishing", "draft"]) expect(pick(day8, v[k])).toBeUndefined();

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { publisherDeps } from "@/lib/sns/adapters";
 import { SnsPublishError } from "@/lib/sns/adapters/types";
+import { removeSentVideo } from "@/lib/media/video-store";
 import { deletePublishedTarget } from "@/lib/sns/publisher";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -20,6 +21,14 @@ export async function markManualPosted(projectId: string, postId: string, target
   const supabase = await createClient();
   const { error } = await supabase.rpc("mark_manual_target_posted", { p_target_id: targetId, p_url: u.data });
   if (error) return { error: "記録できませんでした。画面を読み込み直してください。" };
+  // 手で投稿した配信先が最後だったら、送り終えた動画をその場で消す（「手で投稿する」の間は、手元に落とせるように残している）。
+  // 投稿は、記録した配信先から利用者の権限（RLS で本人の行だけ）で引く（引数の postId は使わない）。消しそこねても記録は済んでいる（毎日の片付けが拾う）
+  try {
+    const { data: own } = await supabase.from("post_targets").select("post_id").eq("id", targetId).maybeSingle();
+    if (own) await removeSentVideo(createAdminClient(), own.post_id);
+  } catch (e) {
+    console.error("[markManualPosted] 送り終えた動画を消せませんでした", e);
+  }
   revalidatePath(`/projects/${projectId}`, "layout");
   redirect(`/projects/${projectId}/posts/${postId}?done=manual_posted`);
 }

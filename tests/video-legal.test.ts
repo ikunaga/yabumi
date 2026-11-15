@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { LEGAL_VERSIONS, currentLegalVersion, historyProblems } from "@/lib/legal/version";
-import { KEEP_VIDEO_AFTER_FAILED_DAYS, KEEP_VIDEO_AFTER_SENT_DAYS } from "@/lib/media/video-rules";
+import { KEEP_VIDEO_AFTER_FAILED_DAYS } from "@/lib/media/video-rules";
 import { SNS } from "@/lib/sns";
 
 const VERSION = "2026-11-16";
@@ -25,7 +25,8 @@ describe("投稿に動画を添える版", () => {
   it("預かるもの・送り先・保存期間が、作りと合っている", () => {
     const privacy = read("src/app/privacy/page.tsx");
     expect(privacy).toContain("撮影の場所・日時・機種などの情報は、利用者の端末で形をそろえるときに取り除き");
-    expect(privacy).toContain(`すべての送り先に送り終えて ${KEEP_VIDEO_AFTER_SENT_DAYS} 日（送れなかった送り先が残っていれば ${KEEP_VIDEO_AFTER_FAILED_DAYS} 日）`);
+    // 送り終えたらすぐ（送信ジョブの removeSentVideo。片付けも待たない）、送れなかった・手で投稿する送り先が残れば 7 日（2026-11-15 オーナーの了承。legal.md では ① として本文だけ直し、施行する版の summary は変えない）
+    expect(privacy).toContain(`すべての送り先に送り終えたら、すぐに消す（送れなかった送り先や、手で投稿する送り先が残っていれば ${KEEP_VIDEO_AFTER_FAILED_DAYS} 日）`);
     // 送り先に書いた SNS だけが、動画を送れる（X は W2 の確かめのあとで足す）
     for (const sns of ["threads", "instagram", "facebook"] as const) expect(SNS[sns].video).toBe(true);
     expect(SNS.x.video).toBe(false);
@@ -33,8 +34,11 @@ describe("投稿に動画を添える版", () => {
     expect(privacy).toContain("Instagram が画像や動画を取りに来るための");
     expect(privacy).toContain("Facebook が画像や動画を取りに来るための");
     const sql = read("supabase/migrations/20261115100000_post_videos.sql");
-    expect(sql).toContain("interval '7 days'");
     expect(sql).toContain("interval '13 months'");
+    const cleanup = read("supabase/migrations/20261115120000_video_delete_after_send.sql");
+    expect(cleanup).toContain(`interval '${KEEP_VIDEO_AFTER_FAILED_DAYS} days'`);
+    expect(cleanup).not.toContain("else interval '1 day'");
+    expect(read("src/lib/sns/publisher.ts")).toContain("removeSentVideo");
     const terms = read("src/app/terms/page.tsx");
     expect(terms).toContain("写っている人の同意を得ていない動画");
   });

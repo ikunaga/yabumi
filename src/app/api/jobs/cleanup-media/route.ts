@@ -7,7 +7,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export const maxDuration = 60;
 
 // 画像の片付け（docs/architecture.md の 4.18）。pg_cron から毎日呼ばれる。
-// 投稿に添えないまま 1 日たった画像、投稿が消えた画像、送り終えて 30 日たった画像、記録のないファイルを消す
+// 投稿に添えないまま 1 日たった画像、投稿が消えた画像、送り終えて 30 日たった画像、記録のないファイルを消す。
+// 動画（4.73）も消す。送り終えた動画はふだん送信ジョブがその場で消すので、ここは取りこぼしと、送れなかった配信先が残って 7 日たったもの
 export async function POST(request: NextRequest) {
   if (!isAuthorizedJob(request.headers.get("authorization"))) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });

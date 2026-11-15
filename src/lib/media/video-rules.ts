@@ -30,8 +30,8 @@ export const VIDEO_USER_QUOTA_BYTES = 300 * 1024 * 1024;
 export const VIDEO_MONTH_LIMIT = 20;
 export const VIDEO_GLOBAL_QUOTA_BYTES = 500 * 1024 * 1024;
 
-// 送り終えて消すまで（W6。送れなかった配信先が残っていれば 7 日）
-export const KEEP_VIDEO_AFTER_SENT_DAYS = 1;
+// 送り終えたら、送信ジョブがその場で消す（removeSentVideo。2026-11-15 オーナーの了承で、W6 の 1 日から縮めた）。
+// 送れなかった配信先（「手で投稿する」を含む）が残っていれば、最後の更新から 7 日残す（送り直す・手で出すため。片付けが消す）
 export const KEEP_VIDEO_AFTER_FAILED_DAYS = 7;
 
 // サーバーが読むときの署名 URL の長さ（秒。postVideoFor の readRange が使い回す）

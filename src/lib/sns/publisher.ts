@@ -5,7 +5,7 @@ import { substituteForTarget } from "@/lib/links/store";
 import type { OperatorNotifyDeps } from "@/lib/notify/operator";
 import { alertIfNearXBudget } from "@/lib/sns/x/budget-alert";
 import { publishImagesFor } from "@/lib/media/store";
-import { publishVideoFor } from "@/lib/media/video-store";
+import { publishVideoFor, removeSentVideo } from "@/lib/media/video-store";
 import { refreshTokenAad } from "./accounts";
 import { isSnsKey, SNS, type SnsKey } from "@/lib/sns";
 import type { Database, Json } from "@/lib/supabase/database.types";
@@ -413,6 +413,15 @@ export async function publishDueTargets(
       continue;
     }
     outcomes.push(await publishOne(admin, t, deps));
+  }
+  // 送り終えた投稿の動画は、その場で消す（すべての配信先が終わったときだけ。docs/design/video.md の 7.）。
+  // 消しそこねても送信の結果は変えない（毎日の片付けが拾う）
+  for (const postId of new Set(outcomes.filter((o) => o.result === "published").map((o) => o.postId))) {
+    try {
+      await removeSentVideo(admin, postId, deps.now?.());
+    } catch (e) {
+      console.error("[publish] 送り終えた動画を消せませんでした", e);
+    }
   }
   return outcomes;
 }

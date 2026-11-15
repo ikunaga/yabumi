@@ -1523,7 +1523,7 @@ Facebook ページ（graph.facebook.com）:
 | 動画の形 | すべての SNS に同じ 1 本を送る。**MP4（H.264 + AAC）・縦 9:16（1080×1920）・30fps・3〜90 秒・50MB まで** | 90 秒は Facebook リールの上限、3 秒は Instagram・Facebook の下限、50MB は Supabase Free の 1 ファイルの上限。iPhone の既定（HEVC の MOV）は X が受け付けないので H.264 にそろえる |
 | 形をそろえる場所 | **ブラウザで作り直す**（WebCodecs で H.264・AAC に、大きさと長さを整え、moov を先頭に置く） | Vercel の関数では変換できない（時間と大きさの上限）。変換の外部サービス（Mux など）は費用がかかる。素人に「書き出しの設定」をさせない |
 | 置き場所 | Supabase Storage の非公開のバケット（画像とは別の `post-videos`）。画像の引換券（4.18）を動画に広げ、**再開できるアップロード（TUS）を、サーバーが発行する署名つきのトークンで** | 6MB を超えるファイルは TUS がすすめられている。TUS は署名つきのアップロードのトークン（`x-signature`）で認可できるので、利用者に Storage へ直接書く権限を渡さずに済む |
-| 送り終えたら | **すべての送り先が終わって 1 日で消す**（画像は 30 日） | 容量と転送量のいちばんの原因になるので、早く消す |
+| 送り終えたら | **すべての送り先が終わって 1 日で消す**（画像は 30 日。4.73 で「送り終えたらすぐ」に縮めた） | 容量と転送量のいちばんの原因になるので、早く消す |
 | TikTok | まずは**下書きとして送る（Upload、video.upload）**。直接投稿（Direct Post、video.publish）は監査のあと | 予約投稿が規約で認められるかが書かれていない（下）。下書きなら、利用者が TikTok のアプリで仕上げるので、予約の時刻に送っても規約の問題が起きにくい |
 | YouTube | videos.insert（再開できるアップロード）、スコープは youtube.upload だけ | 投稿だけなら最小のスコープ。restricted（CASA が要る）には入っていない |
 | Google Cloud のプロジェクト | **F07 の M6（Google Play）とは別に、YouTube 用を作る** | 同じでも作れるが、OAuth の確認はプロジェクトのすべての OAuth クライアントが対象になり、利用者の上限（未確認のアプリは 100 人）もプロジェクト単位。yabumi の名前と yabumi.app で確認を受け、Play の連携を巻き込まない |
@@ -1645,7 +1645,7 @@ Facebook ページ（graph.facebook.com）:
 - **Supabase Free で動画を使えるのは 2〜3 人まで**。転送量（月 5GB）が先に足りなくなる。Free は超えても請求されないが、猶予のあとで制限がかかり、組織のすべてのプロジェクト（DB の読み取り専用化や 402）に及ぶので、超えそうになる前に Pro にする必要がある
 - Pro にすると 1 ファイルの上限を上げられるので、長さの上限（90 秒）を SNS ごとに伸ばせる（ショート 3 分など）
 - Pro にする費用（$25）は、DB のバックアップ（7 の表）・指標の DB の増加（4.22）の理由と重なるので、Pro にする時期はまとめて決めるのがよい
-- 減らす方法（費用の順に）: 送ったらすぐ消す（1 日→送り終えた直後）／長さを 60 秒に／1 人あたりの本数の上限（月 8 本など）／動画を有料の料金プランだけにする
+- 減らす方法（費用の順に）: 送ったらすぐ消す（1 日→送り終えた直後。2026-11-15 に採用、4.73）／長さを 60 秒に／1 人あたりの本数の上限（月 8 本など）／動画を有料の料金プランだけにする
 
 #### オーナーに決めてもらうこと
 
@@ -2932,12 +2932,12 @@ yabumi のコンセプトは、使って SNS を運用するうちに、マー�
 
 | 項目 | 内容 |
 |---|---|
-| 決まり（W1〜W6） | Threads・Instagram（リール）・Facebook（リール）に送る。X は 1080×1920 が通るかを 1 本送って確かめてから（W2。部品はあり、SNS.x.video は false）。一律 3〜90 秒。1 人 300MB・月 20 本・全体 500MB（全体の上限はオーナーに確かめ中）。作り直せない音声の動画は受け付けない。送り終えて 1 日で消す（送れなかった送り先が残れば 7 日） |
+| 決まり（W1〜W6） | Threads・Instagram（リール）・Facebook（リール）に送る。X は 1080×1920 が通るかを 1 本送って確かめてから（W2。部品はあり、SNS.x.video は false）。一律 3〜90 秒。1 人 300MB・月 20 本・全体 500MB（段階 ② の Supabase Pro で全体を 50GB に上げ、1 人・月の本数も見直す。2026-11-15 オーナーの了承、docs/launch-checklist.md の 2.2）。作り直せない音声の動画は受け付けない。送り終えたらすぐ消す（送れなかった送り先・「手で投稿する」の送り先が残れば 7 日。2026-11-15 オーナーの了承で 1 日から縮めた） |
 | 1 本の形 | MP4（H.264 High・30fps 固定・2 秒ごとのキーフレーム・moov が先頭・edit list なし）、9:16 の枠（1080×1920 に収め、拡大しない。540×960 未満は断る）、AAC-LC（コピー）か音声なし、50MB まで（Supabase Free の 1 ファイルの上限）。映像のビットレートは長さから決める（最大 6Mbps、90 秒で約 4.1Mbps） |
 | ブラウザ | src/lib/media/video-convert.ts（mediabunny 1.65.0、MPL-2.0。選んだときに import()）。読み取り → 判定（video-plan.ts）→ 90 秒を超えるなら範囲を選ぶ → 映像はいつも作り直し、音声はコピー（Safari 26〜27.x は AAC を作ると音が消える不具合があり、Firefox・Linux は AAC を作れないため）→ tags を空に（指定しないと mediabunny は撮影の場所などを書き写す）→ copy の boundaryPolicy: shrink と shiftTolerance: Infinity（コピーした AAC の頭の空白で edit list が書かれるのを避ける）。作り直せないブラウザ・読めない形式は、選んだときに 1 行で知らせる |
 | 上げ方 | src/lib/media/video-upload.ts（tus-js-client 4.3.1）。整える前に checkVideoUploadAllowed（video_upload_check。読むだけ）→ requestVideoUpload → issue_video_upload_ticket（上限をロックの中で）→ 利用者のログインのまま TUS（`/storage/v1/upload/resumable`、Authorization: Bearer。storage.objects の insert のポリシー storage_upload_allowed が、本人の・まだ使っていない・2 時間以内の引換券がある場所だけを通す。update・delete・select のポリシーはなく、上書きもできない）→ confirmVideoUpload → checkMp4（src/lib/media/mp4-check.ts。箱を読むだけで作り直さない。udta・meta があれば断る）→ media_files（kind = 'video'）。やめたら cancelVideoUpload（引換券に印、ファイルを消す）。ポリシーが効くのは TUS を作るとき（POST）だけ。作ったあとの 1 本は同じ場所にだけ書け、上書きはできない（1 枚の引換券で置けるのは 1 本）。やめたあとに最後の書き込みが届いてできたファイルは、次の上限の確かめ・やめるでサーバーが消す（purgeOrphanVideos）。**画像（4.18）も同じ作りに変えた**: 前は署名つきのアップロードのトークンを渡していたが、2 時間取り消せず、TUS の入口（/sign）では確かめたあとのファイルを上書きできた（2026-11-15 に見つけた） |
 | 表と権限 | バケット post-videos（非公開・50MB・video/mp4・利用者のポリシーなし）。media_files に kind・duration_ms・removed_at と check（拡張子・長さ・メモや整えに使わない）、1 投稿に動画 1 本の一意の索引、画像と混ぜないトリガー media_files_no_mix。media_upload_tickets に kind・consumed_at（使ったら消さずに印。断った・外した場所への上げ直しを量に数え、片付けがすぐ消す。画像も同じ）。video_upload_counts（月の本数。サーバーだけ）。issue_media_upload_ticket・media_usage_bytes は画像だけを数える |
-| 片付け | cleanup_media_candidates（bucket・mark_removed を返す。p_now はテスト用）: 添えずに 1 日、送り終えて 1 日（failed が残れば 7 日）でファイルを消して removed_at（行は残し、投稿の画面に「消しました」）、配信先が pending・preparing・publishing の間は画像も動画も消さない、記録のないファイルは両方のバケットで 1 日、月の本数は 13 か月 |
+| 片付け | 送り終えた動画は、送信ジョブ（publishDueTargets）と「手で投稿した」の記録（markManualPosted）が、投稿の配信先に pending・preparing・publishing・failed がなくなった時点でその場で消す（removeSentVideo: removed_at を先に入れてからファイルを消す）。cleanup_media_candidates（bucket・mark_removed を返す。p_now はテスト用。20261115120000 で受け皿に）: 添えずに 1 日、送り終えた動画は待たずに（failed〈「手で投稿する」を含む〉が残れば 7 日）ファイルを消して removed_at（行は残し、投稿の画面に「消しました」）、removed_at があるのにファイルが残るものもファイルを消す、配信先が pending・preparing・publishing の間は画像も動画も消さない、記録のないファイルは両方のバケットで 1 日、月の本数は 13 か月 |
 | 画面 | 投稿をつくるの ③「画像・動画」（画像の枠に「動画を選ぶ」、片方を添えたらもう片方を押せない、範囲を選ぶ欄、整えている・上げている間の棒とやめる、9:16 の箱を押すと再生）。動画を送れない SNS は「● 要確認 X には動画を送れません」（TargetIssue の video_unsupported、③ の問題）。見え方の欄に「▶ 動画（0:42）を添えて送ります」。送った投稿の画面に箱、消したあとは「消しました」 |
 | 送る | アダプターの startPublishVideo → continuePublish（準備中にして次の回に確かめる。15 分まで）。Threads は VIDEO、Instagram は REELS（share_to_feed）、Facebook は video_reels の start → rupload に file_url → finish。どれも 1 時間の署名 URL を取りに来てもらう（publishVideoFor）。X は 5MB ずつ append して STATUS を見る（readRange）。YouTube・TikTok は postVideoFor / startPublishVideo の形で、それぞれの担当が足す。動画を送れない SNS・消した動画・権限（X の media.write）がないときは送らない |
 | 費用 | オーナーだけのうちは $0（Free の 1GB・5GB の中。1 本 約 0.2GB の転送）。段階 ②（招待制）で Supabase Pro にするときに、上限を見直す。7 の表 |

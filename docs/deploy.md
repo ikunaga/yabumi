@@ -714,9 +714,9 @@ Next.js の server action の ID は、ビルドごとの暗号の鍵から作�
 | 29-3 | PM | 法務の版（legal.md の「投稿に動画を添える版」）の施行日と noticeWaived の【仮】を、オーナーの了承と本番に出す日に合わせる（src/lib/legal/version.ts と tests/video-legal.test.ts の日付） | 済み（2026-11-15。TikTok・YouTube と 1 つの版 2026-11-16 にまとめた。了承は 2026-11-15。2026-11-15 に本番に出し、2026-11-16 に施行） |
 | 29-4 | PM | 本番で、オーナーの iPhone の Safari と PC の Chrome から、③ で動画を選び、整えて上げられることを確かめる（音が出るか・かかる時間）。`select kind, count(*) from media_files group by kind;` で動画の行ができたことを確かめる | まだ |
 | 29-5 | PM | 本物の SNS への確かめ（オーナーの了承のあと、4 つをまとめて 1 回）: Threads・Instagram（リール）・Facebook（リール）に 10 秒ほどの動画を 1 本ずつ送り、W2 として X に 1080×1920 を 1 本送る（約 $0.015）。送ったものは取り消す（Instagram は API で消せないので手で）。確かめること: 署名 URL を取りに来られるか（Range）、音声なし・44.1kHz、Facebook の rupload に appsecret_proof が要るか、X が 1080×1920 を受け付けるか | まだ |
-| 29-6 | PM | 送り終えて 1 日たった動画が、毎日 4:00 の片付け（cleanup-media）で Storage から消え、投稿の画面に「動画は送り終えたので消しました」が出ることを確かめる | まだ |
+| 29-6 | PM | 送り終えた動画が、送信ジョブでその場で Storage から消え（removed_at が入る）、投稿の画面に「動画は送り終えたので消しました」が出ることを確かめる。送れなかった配信先が残る投稿の動画は残ることも（29-5 の本物の確かめのときに一緒に見る） | まだ |
 
-- 全体の上限（500MB）と 1 人 300MB・月 20 本は Free のうちの値。段階 ②（Supabase Pro）に進むときに見直す（オーナーの返事待ち。roadmap.md）
+- 全体の上限（500MB）と 1 人 300MB・月 20 本は Free のうちの値。段階 ②（Supabase Pro）に進むときに、全体を 50GB に上げ、1 人・月の本数も見直す（2026-11-15 オーナーの了承「案ア」。docs/launch-checklist.md の 2.2）
 - 転送量の目安: 1 本 約 0.2GB（送り先 4 つ・再生 1 回）。Supabase の Usage で Egress を週に 1 回見る（Free は月 5GB）
 ## 30. YouTube の連携（Google Cloud のプロジェクトと鍵。2026-11-15、feat/youtube。architecture.md の 4.74、docs/design/youtube.md）
 

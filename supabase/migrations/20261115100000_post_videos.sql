@@ -1,11 +1,12 @@
 -- 投稿に動画を添える（docs/design/video.md の 6.・7.。2026-11-15 オーナーが W1〜W6 をおすすめで了承）。
--- 動画は非公開のバケット post-videos の「<利用者の ID>/<乱数>.mp4」に、サーバーが発行する署名つきのトークンでブラウザから直接上げる（TUS）。
--- サーバーが MP4 の箱を確かめてから media_files に kind = 'video' で記録する。利用者が直接読む・書く経路は置かない（画像と同じ）。
+-- 動画は非公開のバケット post-videos の「<利用者の ID>/<乱数>.mp4」に、利用者のログインのままブラウザから直接上げる（TUS）。
+-- 上げられるのは、サーバーが発行した、まだ使っていない 2 時間以内の引換券がある場所だけ（このファイルの最後の insert のポリシー。画像も同じにした）。
+-- サーバーが MP4 の箱を確かめてから media_files に kind = 'video' で記録する。利用者が読む・上書きする・消す経路は置かない。
 -- 1 つの投稿は「画像（10 枚まで）」か「動画 1 本」のどちらか。動画はネタ帳のメモ・画像の整え（元の画像）には使わない。
 -- 送り終えた動画は 1 日（送れなかった配信先が残っていれば 7 日）でファイルを消し、行は removed_at を入れて残す（投稿の画面に「消しました」と出すため）。
 
 -- ===== バケット =====
--- 1 本 50MB まで（Supabase Free の 1 ファイルの上限）。MP4 だけ。ポリシーは置かない（上げるのは署名つきのトークン、読むのはサーバーの署名 URL だけ）
+-- 1 本 50MB まで（Supabase Free の 1 ファイルの上限）。MP4 だけ。ポリシーは insert だけ（最後の節）。読むのはサーバーの署名 URL だけ
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('post-videos', 'post-videos', false, 52428800, array['video/mp4'])
 on conflict (id) do update
@@ -386,3 +387,41 @@ $$;
 
 revoke all on function public.cleanup_media_candidates(integer, uuid, timestamptz) from public, anon, authenticated, service_role;
 grant execute on function public.cleanup_media_candidates(integer, uuid, timestamptz) to service_role;
+
+-- ===== 利用者のログインのまま上げる（署名つきのトークンをやめる。2026-11-15、セキュリティの確かめ。PM の依頼） =====
+-- 署名つきのアップロードのトークンは 2 時間使え、TUS の入口（/upload/resumable/sign）では、すでにあるファイルを上書きできた
+-- （確かめを通った画像・動画を、確かめていない中身に差し替えられた。main の画像にもあった）。取り消すこともできない。
+-- そこで、利用者のログイン（authenticated）のまま上げ、Storage の insert を「本人のフォルダで、まだ使っていない 2 時間以内の引換券がある場所」だけに絞る。
+-- 引換券に使った印（consumed_at）を付ければ、その場所にはすぐ上げられなくなる。update・delete・select のポリシーは置かない（上書きもできない）
+create function public.storage_upload_allowed(p_bucket text, p_name text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  -- 他人の引換券は探れない（auth.uid() の行だけを見る。引数は置き場所だけ）
+  select exists (
+    select 1
+      from public.media_upload_tickets k
+     where k.storage_path = p_name
+       and k.owner_id = (select auth.uid())
+       and k.consumed_at is null
+       and k.created_at > now() - interval '2 hours'
+       and k.kind = case p_bucket when 'post-media' then 'image' when 'post-videos' then 'video' end
+       and (storage.foldername(p_name))[1] = (select auth.uid())::text
+  );
+$$;
+
+revoke all on function public.storage_upload_allowed(text, text) from public, anon, authenticated, service_role;
+grant execute on function public.storage_upload_allowed(text, text) to authenticated;
+
+-- 説明は -- コメントに書く（storage のポリシーに comment on policy を付けると、本番の db push が must be owner で落ちる）
+-- post-media・post-videos: まだ使っていない引換券がある場所にだけ、本人が上げられる
+create policy "post_media_insert_with_ticket" on storage.objects
+  for insert to authenticated
+  with check (bucket_id = 'post-media' and public.storage_upload_allowed(bucket_id, name));
+
+create policy "post_videos_insert_with_ticket" on storage.objects
+  for insert to authenticated
+  with check (bucket_id = 'post-videos' and public.storage_upload_allowed(bucket_id, name));

@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { VIDEO_BUCKET, videoPath } from "@/lib/media/video-rules";
 import { testEnv } from "./env";
+import { clientOf } from "./supabase";
 import { testMp4 } from "./mp4";
 
 const url = testEnv("SUPABASE_TEST_URL", "NEXT_PUBLIC_SUPABASE_URL");
@@ -28,12 +29,13 @@ export async function seedPostVideo(
   return { mediaId: data.id, path, bytes };
 }
 
-// TUS（再開できるアップロード）で、署名つきのトークンを使って上げる。chunk ずつ PATCH する。返り値は最後の応答の状態
-export async function tusUpload(o: { path: string; token: string; bytes: Uint8Array; chunk?: number; bucket?: string; authorization?: string }): Promise<number> {
+// TUS（再開できるアップロード）で、利用者のログインのまま上げる（画面と同じ。Storage の insert のポリシーを通す）。chunk ずつ PATCH する。
+// 返り値は最後の応答の状態。as を省くと、置き場所の最初のフォルダ（利用者の ID）の利用者で上げる
+export async function tusUpload(o: { path: string; bytes: Uint8Array; chunk?: number; bucket?: string; as?: string; upsert?: boolean }): Promise<number> {
   const meta = (k: string, v: string) => `${k} ${Buffer.from(v).toString("base64")}`;
-  const headers: Record<string, string> = { apikey: publishableKey, "Tus-Resumable": "1.0.0", "x-signature": o.token };
-  if (o.authorization) headers.authorization = o.authorization;
-  const create = await fetch(`${url}/storage/v1/upload/resumable/sign`, {
+  const jwt = (await clientOf(o.as ?? o.path.split("/")[0]).auth.getSession()).data.session?.access_token;
+  const headers: Record<string, string> = { apikey: publishableKey, "Tus-Resumable": "1.0.0", Authorization: `Bearer ${jwt}`, "x-upsert": o.upsert ? "true" : "false" };
+  const create = await fetch(`${url}/storage/v1/upload/resumable`, {
     method: "POST",
     headers: {
       ...headers,

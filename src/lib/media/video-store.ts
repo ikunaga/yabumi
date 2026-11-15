@@ -52,7 +52,7 @@ async function removeVideoObjects(admin: Admin, paths: string[]) {
   if (error) console.error("[video] 動画を消せませんでした", error.message);
 }
 
-export type VideoUploadTicket = { path: string; token: string };
+export type VideoUploadTicket = { path: string };
 
 const LIMITS = {
   p_max_pending: MAX_PENDING_VIDEO_TICKETS,
@@ -91,7 +91,8 @@ export async function checkVideoUpload(admin: Admin, ownerId: string): Promise<v
   if (message) throw new MediaError(message);
 }
 
-// 動画を 1 本上げるための、署名つきのトークンを発行する（その場所にだけ、2 時間上げられる。TUS の x-signature に入れる）。
+// 動画を 1 本上げるための引換券を発行する。ブラウザは利用者のログインのまま、TUS でこの場所に上げる（画像の issueUpload と同じ。
+// Storage の insert のポリシーが、本人の・まだ使っていない・2 時間以内の引換券がある場所だけを通す）。
 // 上限の確認と引換券の記録は DB の中で、利用者ごと・全体のロックの中で行う
 export async function issueVideoUpload(admin: Admin, ownerId: string, id: string = crypto.randomUUID()): Promise<VideoUploadTicket> {
   const path = videoPath(ownerId, id);
@@ -99,17 +100,11 @@ export async function issueVideoUpload(admin: Admin, ownerId: string, id: string
   if (ticketError) throw ticketError;
   const message = await limitMessage(admin, ownerId, status);
   if (message) throw new MediaError(message);
-
-  const { data, error } = await admin.storage.from(VIDEO_BUCKET).createSignedUploadUrl(path);
-  if (error || !data) {
-    await admin.from("media_upload_tickets").delete().eq("storage_path", path);
-    throw error ?? new Error("アップロードのトークンを作れませんでした");
-  }
-  return { path, token: data.token };
+  return { path };
 }
 
 // 上げている途中・確かめる前後に「やめる」を押したとき（docs/design/video.md の 3.）。本人の動画の引換券に使った印を付け
-// （もう確かめない）、その場所のファイルを消す。確かめを通ってまだ投稿に添えていなければ、その動画も外す。
+// （もう確かめない。Storage のポリシーも、その場所への書き込みを断る。上げている途中の TUS も最後の書き込みで断られる）、その場所のファイルを消す。確かめを通ってまだ投稿に添えていなければ、その動画も外す。
 // 月の本数は確かめを通った動画だけを数えるので、確かめる前にやめれば数えない
 export async function cancelVideoUpload(admin: Admin, ownerId: string, path: string): Promise<void> {
   if (!isOwnVideoPath(ownerId, path)) return;

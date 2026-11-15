@@ -48,10 +48,12 @@ async function removeObjects(admin: Admin, paths: string[]) {
 // 確かめ待ちの引換券の上限（URL を発行したが、まだ確かめていないもの）
 export const MAX_PENDING_TICKETS = 10;
 
-export type UploadTicket = { path: string; token: string; signedUrl: string };
+// 上げてよい場所（引換券）。ブラウザは利用者のログインのまま、この場所に上げる（Storage の insert のポリシーが、
+// 本人の・まだ使っていない・2 時間以内の引換券がある場所だけを通す。20261115100000 の storage_upload_allowed）。
+// 前は署名つきのアップロードの URL を渡していたが、トークンは 2 時間取り消せず、TUS の入口では確かめたあとのファイルを上書きできた
+export type UploadTicket = { path: string };
 
-// 画像を 1 枚上げるための、署名つきのアップロード URL を発行する（その場所にだけ、2 時間上げられる）。
-// 上げる前に、確かめ待ちの数・添えていない画像の数・容量を確かめる
+// 画像を 1 枚上げるための引換券を発行する。上げる前に、確かめ待ちの数・添えていない画像の数・容量を確かめる
 export async function issueUpload(admin: Admin, ownerId: string, id: string = crypto.randomUUID()): Promise<UploadTicket> {
   const path = mediaPath(ownerId, id);
   // 上限の確認と引換券の記録は、DB の中で利用者ごとに順に行う（同時に頼まれても上限を超えない）
@@ -72,13 +74,7 @@ export async function issueUpload(admin: Admin, ownerId: string, id: string = cr
     throw new MediaError(`置ける画像の合計（${formatBytes(USER_QUOTA_BYTES)}）に近づいています。送り終えた画像は ${KEEP_AFTER_SENT_DAYS} 日で消えます。要らない下書きの画像を外してください。`);
   }
   if (status !== "ok") throw new Error(`引換券を発行できませんでした（${status}）`);
-
-  const { data, error } = await admin.storage.from(MEDIA_BUCKET).createSignedUploadUrl(path);
-  if (error || !data) {
-    await admin.from("media_upload_tickets").delete().eq("storage_path", path);
-    throw error ?? new Error("アップロードの URL を作れませんでした");
-  }
-  return { path, token: data.token, signedUrl: data.signedUrl };
+  return { path };
 }
 
 // ブラウザが Storage に直接上げた画像を確かめる。JPEG か（中身で）、大きさ、上限を確かめ、

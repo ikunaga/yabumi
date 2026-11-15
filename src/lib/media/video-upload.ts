@@ -4,6 +4,7 @@
 // やめたとき（signal）は、上げている途中でも、上げ終えたあと・確かめたあとでも、サーバーで引換券とファイルを片付ける
 // （cancelVideo。前は上げ終えたあとにやめると引換券とファイルが残り、1 日動画を追加できなくなった。2026-11-15 PMO の確かめ v15）
 
+import { browserClient } from "@/lib/supabase/browser";
 import { cancelVideo, confirmVideoUpload, discardVideo, requestVideoUpload, type UploadedVideo } from "./video-actions";
 
 // Supabase の資料で決まっている大きさ（変えない）
@@ -33,6 +34,12 @@ export async function uploadVideoBlob(
     throw aborted();
   }
   const { Upload } = await import("tus-js-client");
+  // 利用者のログインのまま上げる（Storage の insert のポリシーが、引換券のある場所だけを通す）
+  const accessToken = (await browserClient().auth.getSession()).data.session?.access_token;
+  if (!accessToken) {
+    cleanup();
+    throw new VideoUploadError("ログインし直してください。");
+  }
   try {
     await new Promise<void>((resolve, reject) => {
       const upload = new Upload(blob, {
@@ -44,7 +51,7 @@ export async function uploadVideoBlob(
         removeFingerprintOnSuccess: true,
         headers: {
           apikey: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-          "x-signature": ticket.token,
+          Authorization: `Bearer ${accessToken}`,
           "x-upsert": "false",
         },
         metadata: { bucketName: ticket.bucket, objectName: ticket.path, contentType: "video/mp4", cacheControl: "3600" },

@@ -23,15 +23,16 @@ function failure(e: unknown, fallback: string) {
 }
 
 // TUS の送り先（Supabase の資料の「直接のホスト名」。ローカルは 127.0.0.1:55321 のまま）。
-// 署名つきのトークン（x-signature）で上げるときは /sign の付いた入口を使う（付けない入口は storage.objects の RLS を見るので、ポリシーのない post-videos は 403。2026-11-15 にローカルで確かめた）
+// 利用者のログイン（Authorization: Bearer）のまま上げ、storage.objects の insert のポリシーを通す（/sign の入口と署名つきのトークンは使わない。
+// トークンは取り消せず、確かめたあとのファイルを上書きできたため。2026-11-15 にローカルで確かめた）
 function tusEndpoint(): string {
   const base = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!);
   const m = base.hostname.match(/^([a-z0-9]+)\.supabase\.co$/);
   if (m) base.hostname = `${m[1]}.storage.supabase.co`;
-  return new URL("/storage/v1/upload/resumable/sign", base).toString();
+  return new URL("/storage/v1/upload/resumable", base).toString();
 }
 
-export type VideoUploadGrant = { path: string; token: string; endpoint: string; bucket: string };
+export type VideoUploadGrant = { path: string; endpoint: string; bucket: string };
 
 // 整える前に、上限に当たっていないかを確かめる（読むだけ。当たっていれば、整える時間を使わせずに知らせる）
 export async function checkVideoUploadAllowed(): Promise<{ error?: string }> {
@@ -62,7 +63,7 @@ export async function requestVideoUpload(): Promise<{ ticket?: VideoUploadGrant;
   if (!userId) return { error: "ログインし直してください。" };
   try {
     const t = await issueVideoUpload(createAdminClient(), userId);
-    return { ticket: { path: t.path, token: t.token, endpoint: tusEndpoint(), bucket: "post-videos" } };
+    return { ticket: { path: t.path, endpoint: tusEndpoint(), bucket: "post-videos" } };
   } catch (e) {
     return failure(e, "動画を追加できませんでした。時間をおいてもう一度お試しください。");
   }

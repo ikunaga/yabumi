@@ -789,6 +789,8 @@ Supabase は既定で、public に作ったテーブル・関数のすべての�
 
 ### 4.18 投稿に画像を添える（F03・F14 の一部、2026-10-11）
 
+> 2026-11-15 に上げ方を変えた: 署名つきのアップロードの URL をやめ、利用者のログインのまま引換券の場所に上げる（storage.objects の insert のポリシー。上書き不可）。署名つきのトークンは 2 時間取り消せず、TUS の入口では確かめたあとの画像を上書きできたため。詳しくは 4.73 の「上げ方」。この節の「署名つきの URL」の記述は当時の作り
+
 Instagram（画像が必須）をつなぐ前提として、X と Threads にも画像を付けられるようにした。画像の生成（AI）と動画は、まだ作っていない（TikTok・YouTube 向けにあとで）。
 
 #### SNS ごとの決まり（各社の公式の資料、2026-10-11）
@@ -2933,7 +2935,7 @@ yabumi のコンセプトは、使って SNS を運用するうちに、マー�
 | 決まり（W1〜W6） | Threads・Instagram（リール）・Facebook（リール）に送る。X は 1080×1920 が通るかを 1 本送って確かめてから（W2。部品はあり、SNS.x.video は false）。一律 3〜90 秒。1 人 300MB・月 20 本・全体 500MB（全体の上限はオーナーに確かめ中）。作り直せない音声の動画は受け付けない。送り終えて 1 日で消す（送れなかった送り先が残れば 7 日） |
 | 1 本の形 | MP4（H.264 High・30fps 固定・2 秒ごとのキーフレーム・moov が先頭・edit list なし）、9:16 の枠（1080×1920 に収め、拡大しない。540×960 未満は断る）、AAC-LC（コピー）か音声なし、50MB まで（Supabase Free の 1 ファイルの上限）。映像のビットレートは長さから決める（最大 6Mbps、90 秒で約 4.1Mbps） |
 | ブラウザ | src/lib/media/video-convert.ts（mediabunny 1.65.0、MPL-2.0。選んだときに import()）。読み取り → 判定（video-plan.ts）→ 90 秒を超えるなら範囲を選ぶ → 映像はいつも作り直し、音声はコピー（Safari 26〜27.x は AAC を作ると音が消える不具合があり、Firefox・Linux は AAC を作れないため）→ tags を空に（指定しないと mediabunny は撮影の場所などを書き写す）→ copy の boundaryPolicy: shrink と shiftTolerance: Infinity（コピーした AAC の頭の空白で edit list が書かれるのを避ける）。作り直せないブラウザ・読めない形式は、選んだときに 1 行で知らせる |
-| 上げ方 | src/lib/media/video-upload.ts（tus-js-client 4.3.1）。requestVideoUpload → issue_video_upload_ticket（上限をロックの中で）→ createSignedUploadUrl のトークン → TUS（`/storage/v1/upload/resumable/sign`、x-signature。/sign のない入口は storage.objects の RLS を見て 403）→ confirmVideoUpload → checkMp4（src/lib/media/mp4-check.ts。箱を読むだけで作り直さない。udta・meta があれば断る）→ media_files（kind = 'video'） |
+| 上げ方 | src/lib/media/video-upload.ts（tus-js-client 4.3.1）。整える前に checkVideoUploadAllowed（video_upload_check。読むだけ）→ requestVideoUpload → issue_video_upload_ticket（上限をロックの中で）→ 利用者のログインのまま TUS（`/storage/v1/upload/resumable`、Authorization: Bearer。storage.objects の insert のポリシー storage_upload_allowed が、本人の・まだ使っていない・2 時間以内の引換券がある場所だけを通す。update・delete・select のポリシーはなく、上書きもできない）→ confirmVideoUpload → checkMp4（src/lib/media/mp4-check.ts。箱を読むだけで作り直さない。udta・meta があれば断る）→ media_files（kind = 'video'）。やめたら cancelVideoUpload（引換券に印、ファイルを消す。印が付くと、途中の TUS も最後の書き込みで断られる）。**画像（4.18）も同じ作りに変えた**: 前は署名つきのアップロードのトークンを渡していたが、2 時間取り消せず、TUS の入口（/sign）では確かめたあとのファイルを上書きできた（2026-11-15 に見つけた） |
 | 表と権限 | バケット post-videos（非公開・50MB・video/mp4・利用者のポリシーなし）。media_files に kind・duration_ms・removed_at と check（拡張子・長さ・メモや整えに使わない）、1 投稿に動画 1 本の一意の索引、画像と混ぜないトリガー media_files_no_mix。media_upload_tickets に kind・consumed_at（使ったら消さずに印。断った・外した場所への上げ直しを量に数え、片付けがすぐ消す。画像も同じ）。video_upload_counts（月の本数。サーバーだけ）。issue_media_upload_ticket・media_usage_bytes は画像だけを数える |
 | 片付け | cleanup_media_candidates（bucket・mark_removed を返す。p_now はテスト用）: 添えずに 1 日、送り終えて 1 日（failed が残れば 7 日）でファイルを消して removed_at（行は残し、投稿の画面に「消しました」）、配信先が pending・preparing・publishing の間は画像も動画も消さない、記録のないファイルは両方のバケットで 1 日、月の本数は 13 か月 |
 | 画面 | 投稿をつくるの ③「画像・動画」（画像の枠に「動画を選ぶ」、片方を添えたらもう片方を押せない、範囲を選ぶ欄、整えている・上げている間の棒とやめる、9:16 の箱を押すと再生）。動画を送れない SNS は「● 要確認 X には動画を送れません」（TargetIssue の video_unsupported、③ の問題）。見え方の欄に「▶ 動画（0:42）を添えて送ります」。送った投稿の画面に箱、消したあとは「消しました」 |

@@ -3261,6 +3261,10 @@ export type Database = {
         Args: { p_project_id: string; p_target: number }
         Returns: string
       }
+      storage_upload_allowed: {
+        Args: { p_bucket: string; p_name: string }
+        Returns: boolean
+      }
       store_period_totals: {
         Args: { p_days: number; p_end: string; p_project_id: string }
         Returns: {

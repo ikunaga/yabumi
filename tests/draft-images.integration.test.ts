@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { MEDIA_BUCKET } from "@/lib/media/rules";
 import { attachMedia, issueUpload, restorableRows, restoreImages, signedUrls, verifyUpload } from "@/lib/media/store";
 import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
+import { putImage } from "./helpers/upload";
 import { testJpeg } from "./helpers/jpeg";
 
 const admin = adminClient();
@@ -18,7 +19,7 @@ const ids: Record<string, string> = {};
 const paths: Record<string, string> = {};
 async function upload(ownerId: string) {
   const ticket = await issueUpload(admin, ownerId);
-  const res = await fetch(ticket.signedUrl, { method: "PUT", body: Buffer.from(testJpeg()), headers: { "Content-Type": "image/jpeg", "x-upsert": "false" } });
+  const res = await putImage(ticket.path, testJpeg());
   expect(res.ok).toBe(true);
   const f = await verifyUpload(admin, ownerId, ticket.path);
   paths[f.id] = f.storagePath;

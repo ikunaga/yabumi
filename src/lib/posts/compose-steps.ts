@@ -5,7 +5,7 @@ import type { SnsKey, TargetIssue } from "@/lib/sns";
 export const COMPOSE_STEPS = [
   { key: "write", label: "書く", title: "何を伝えるか" },
   { key: "targets", label: "送り先", title: "どこに出すか" },
-  { key: "images", label: "画像", title: "画像を添えるか" },
+  { key: "images", label: "画像・動画", title: "画像か動画を添えるか" },
   { key: "links", label: "リンク", title: "行き先へ案内するか" },
   { key: "send", label: "送る", title: "いつ出すか" },
 ] as const;
@@ -44,6 +44,7 @@ const ISSUE_STEP: Record<TargetIssue, "text" | ComposeStepKey> = {
   needs_video: "images",
   bad_aspect_ratio: "images",
   too_many_images: "images",
+  video_unsupported: "images",
 };
 
 export function problemsByStep(a: {

@@ -9,7 +9,7 @@ import { ISSUE_LABEL } from "@/lib/sns";
 
 describe("ステップの区切りと開き方", () => {
   it("5 つのステップを、書く・送り先・画像・リンク・送るの順に並べる", () => {
-    expect(COMPOSE_STEPS.map((s) => s.label)).toEqual(["書く", "送り先", "画像", "リンク", "送る"]);
+    expect(COMPOSE_STEPS.map((s) => s.label)).toEqual(["書く", "送り先", "画像・動画", "リンク", "送る"]);
     expect(stepNo("images")).toBe(3);
   });
 

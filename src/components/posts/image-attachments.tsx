@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button, buttonClass } from "@/components/ui/button";
 import { HelpTip } from "@/components/ui/help";
 import { Term } from "@/components/ui/term";
@@ -91,6 +91,9 @@ export function ImageAttachments({
   disabled = false,
   maker,
   instagram = false,
+  addBlocked = null,
+  buttonsNote = null,
+  extraButtons,
 }: {
   images: AttachedImage[];
   onChange: (next: AttachedImage[] | ((prev: AttachedImage[]) => AttachedImage[])) => void;
@@ -99,6 +102,12 @@ export function ImageAttachments({
   maker?: ImageMakerContext;
   // 送り先に Instagram があるか（縦横比が合わない画像に印を出す）
   instagram?: boolean;
+  // 画像を足せない理由（動画を添えているとき。docs/design/video.md の 4.）。あれば「画像を選ぶ」「画像をつくる」を押せなくし、ボタンの下に出す
+  addBlocked?: string | null;
+  // ボタンの下に出す一言（画像を添えているので動画を選べない、など）。addBlocked があればそちらを出す
+  buttonsNote?: string | null;
+  // 枠の中のボタンの後ろに足すもの（「動画を選ぶ」）
+  extraButtons?: ReactNode;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   // 画像をつくる画面: 開いているか（making）と、一度開いたか（makerMounted）。閉じても外さずに隠すので、
@@ -308,13 +317,13 @@ export function ImageAttachments({
       <div
         onDragOver={(e) => {
           e.preventDefault();
-          if (!disabled) setDragging(true);
+          if (!disabled && !addBlocked) setDragging(true);
         }}
         onDragLeave={() => setDragging(false)}
         onDrop={(e) => {
           e.preventDefault();
           setDragging(false);
-          if (!disabled) void addFiles([...e.dataTransfer.files]);
+          if (!disabled && !addBlocked) void addFiles([...e.dataTransfer.files]);
         }}
         className={`flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-dashed px-3 py-2.5 text-sm ${dragging ? "border-primary bg-primary-soft" : "border-input text-muted"}`}
       >
@@ -329,21 +338,23 @@ export function ImageAttachments({
             e.target.value = "";
           }}
         />
-        <Button type="button" variant="secondary" size="sm" disabled={disabled || room <= 0 || full} onClick={() => inputRef.current?.click()}>
+        <Button type="button" variant="secondary" size="sm" disabled={disabled || room <= 0 || full || Boolean(addBlocked)} onClick={() => inputRef.current?.click()}>
           画像を選ぶ
         </Button>
         {maker && (
-          <Button type="button" variant="secondary" size="sm" disabled={disabled || room <= 0 || making || full} onClick={openMaker}>
+          <Button type="button" variant="secondary" size="sm" disabled={disabled || room <= 0 || making || full || Boolean(addBlocked)} onClick={openMaker}>
             {images.length > 0 ? `次の画像（${images.length + 1} 枚目）をつくる` : "画像をつくる"}
           </Button>
         )}
+        {extraButtons}
         <span className="num text-[13px] text-faint">
           {images.length > 0 && <span className="mr-1 font-bold text-muted">{images.length} 枚</span>}
           <span className="hidden sm:inline">この枠に画像をドラッグしても追加できます・</span>
-          {MAX_IMAGES_PER_POST} 枚まで（X は 4 枚）
+          {MAX_IMAGES_PER_POST} 枚まで（X は 4 枚）{extraButtons ? "・動画は 1 本（3〜90 秒）" : ""}
         </span>
         <HelpTip label="画像の扱い" align="right">
-          送る前に JPEG に縮め、撮った場所などの情報は消します。動画は準備中です。
+          送る前に JPEG に縮め、撮った場所などの情報は消します。
+          {extraButtons && <p className="mt-2">動画は、どの SNS でも通る形に、この端末で整えてから上げます。撮った場所などの情報は残しません。送り終えた動画は 1 日で消えます。1 か月 20 本まで。</p>}
           <p className="mt-2">
             保存していない画像（どの投稿にも添えていない画像）は、ほかの書きかけ・閉じた画面の分も合わせて {MAX_UNATTACHED} 枚までです。{MAX_UNATTACHED} 枚になると新しい画像を上げられません。投稿を保存するか、この画面の要らない画像を外すと減ります。使わなかった画像は、上げてから 1 日で消えます。
           </p>
@@ -356,6 +367,7 @@ export function ImageAttachments({
           </span>
         )}
       </div>
+      {(addBlocked ?? buttonsNote) && <p className="-mt-1.5 text-[13px] text-muted">{addBlocked ?? buttonsNote}</p>}
 
       {maker && makerMounted && (
         <div hidden={!making}>

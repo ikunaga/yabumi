@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { IMAGE_SCOPES, MEDIA_BUCKET, PREVIEW_URL_SECONDS, lacksImageScope } from "./rules";
 import { signedUrls } from "./store";
+import { postVideoRow } from "./video-store";
 import { toAttached } from "./attached";
 
 
@@ -57,3 +58,11 @@ export async function loadPostImageDownloads(postId: string): Promise<{ url: str
   return signed;
 }
 
+
+// 投稿の動画（作成画面・投稿の画面に出す）。読めるのは本人のものだけ（RLS）。再生の URL は押したときに作る（videoPlaybackUrl）
+export async function loadPostVideo(postId: string): Promise<{ video: { id: string; durationMs: number; sizeBytes: number; localUrl: null } | null; removed: { durationMs: number } | null }> {
+  const row = await postVideoRow(await createClient(), postId);
+  if (!row) return { video: null, removed: null };
+  if (row.removedAt) return { video: null, removed: { durationMs: row.durationMs } };
+  return { video: { id: row.id, durationMs: row.durationMs, sizeBytes: row.sizeBytes, localUrl: null }, removed: null };
+}

@@ -11,6 +11,8 @@ export type ComposeSnapshot = {
   hashtags?: Partial<Record<SnsKey, string>>;
   // 添えた画像の id（並び順も見る）
   imageIds: string[];
+  // 添えた動画の id（docs/design/video.md の 4.。前の版にはない）
+  videoId?: string | null;
   plannedAt: string;
   targets: SnsKey[];
   shortLinks: boolean;
@@ -36,6 +38,7 @@ export function composeChanges(initial: ComposeSnapshot, now: ComposeSnapshot, {
   if (now.imageIds.join() !== initial.imageIds.join()) {
     out.push(saved || initial.imageIds.length ? "添えた画像の変更" : `添えた画像 ${now.imageIds.length} 枚`);
   }
+  if ((now.videoId ?? null) !== (initial.videoId ?? null)) out.push(saved || initial.videoId ? "添えた動画の変更" : "添えた動画");
   if (now.plannedAt !== initial.plannedAt) out.push(saved || initial.plannedAt ? "送る日時の変更" : "送る日時");
   if ([...now.targets].sort().join() !== [...initial.targets].sort().join()) out.push(saved ? "送り先の選び直し" : "送り先の選び直し（最初の選び方に戻します）");
   if (now.shortLinks !== initial.shortLinks) out.push("短縮リンクのオン・オフ");

@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { formatDuration } from "@/lib/media/video-rules";
 import { COMPOSE_STEPS, type StepNo } from "@/lib/posts/compose-steps";
 import { findUrls } from "@/lib/posts/profile-link";
 import { SNS } from "@/lib/sns";
@@ -9,7 +10,7 @@ import { type Composer } from "./use-composer";
 
 // ⑤ のまとめ: ①〜④ の短い要約と、直すところ。「直す」でそのステップへ（docs/design/compose-steps.md の 2.）
 export function ComposeSummary({ c }: { c: Composer }) {
-  const { body, chosen, images, shortLinks, textFor, tagsFor, stepProblems, goStep, sentState } = c;
+  const { body, chosen, images, video, shortLinks, textFor, tagsFor, stepProblems, goStep, sentState } = c;
   // SNS ごとのタグ（同じタグの SNS はまとめる。4.59）
   const tagGroups = new Map<string, { labels: string[]; tags: string[] }>();
   for (const s of chosen) {
@@ -40,7 +41,7 @@ export function ComposeSummary({ c }: { c: Composer }) {
   const rows: { n: StepNo; text: string; sub?: { key: string; node: ReactNode }[] }[] = [
     { n: 1, text: firstLine ? (firstLine.length > 40 ? `${firstLine.slice(0, 40)}…` : firstLine) : "まだ書いていません" },
     { n: 2, text: chosen.length ? chosen.map((s) => `${SNS[s].label}${sentState(s) ? `（${sentState(s)!.plain}）` : ""}`).join("・") : "まだ選んでいません", sub: tagLines },
-    { n: 3, text: images.length ? `画像 ${images.length} 枚` : "画像なし" },
+    { n: 3, text: video ? `動画 ${formatDuration(video.durationMs)}` : images.length ? `画像 ${images.length} 枚` : "画像・動画なし" },
     { n: 4, text: hasLink ? (shortLinks ? "リンクあり（短縮リンクで押された回数を数える）" : "リンクあり") : "リンクなし" },
   ];
   return (

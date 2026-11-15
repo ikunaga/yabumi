@@ -184,6 +184,8 @@ export async function verifyVideoUpload(admin: Admin, ownerId: string, path: str
       .select("*")
       .single();
     if (insError) throw insError;
+    // 順番を変えない: 記録してから印を付ける。purgeOrphanVideos は「印つき・記録なし」の場所だけを消すので、
+    // 印の前（確かめている間）も、印のあと（記録あり）も、確かめた動画は消されない（2026-11-15 PM の確かめ）
     await consume();
     return toVideoFile(row);
   } catch (e) {

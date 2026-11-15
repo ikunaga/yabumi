@@ -46,7 +46,7 @@
 | ロボットの確認（Turnstile）。Hostname は deploy.md では `yabumi.vercel.app` のままなので、`yabumi.app` を足す | オーナー | ② の前（必須） | 0 円 | deploy.md の 5-8 | 要確認 |
 | 運営者の画面を開けるようにする（OPERATOR_ADMIN_EMAILS）と、招待のメールのテンプレート（Invite user） | オーナー | ② の前 | 0 円 | deploy.md の 19-1・19-4 | 要確認 |
 | 招待の案内に「いまは無料。有料のプランを始めるときは前もって知らせ、申し込んだ人だけ払う」（規約の「料金」と同じ）を書く。いまの supabase/templates/invite.html には入っていない | 実装（文はオーナーが確かめる） | ② の前 | 0 円 | roadmap.md の 2.5 の ②（もとの表） | まだ |
-| 登録の確認メール（/auth/confirm）をテンプレートと合わせる | 実装 | ― | ― | architecture.md の 4.11 の「登録できる人」（古い書き方）。今の作りは 4.16 の「流れ」 | 済（token_hash の形で受ける。4.11 の「他の人に提供するときに直す」は古い） |
+| 登録の確認メール（/auth/confirm）をテンプレートと合わせる | 実装 | ― | ― | architecture.md の 4.11 の「登録できる人」（古い書き方）。今の作りは 4.16 の「流れ」 | 済（token_hash の形で受ける。4.11 にも直したことを書いた） |
 
 ### 1.3 SNS 各社の審査（どれも無料。時間がかかる）
 
@@ -57,7 +57,7 @@
 | Meta: ビジネス認証（YuXport Labs）→ 権限ごとの App Review（説明文と録画）→ Tech Provider 認証 → アプリを Live に。Threads 用（Yabumi Dev）と Instagram・Facebook 用（Yabumi）の 2 つ | オーナー（説明文・録画の手順は実装が書いた） | ② の前（1〜2 か月かかる。② に 3 SNS を使ってもらうなら、ここが ② の時期を決める） | 0 円 | docs/review/meta.md、deploy.md の 12-7 | まだ（開発モード） |
 | Meta の申請に出す権限: threads_basic・threads_content_publish・threads_delete・threads_manage_insights・threads_read_replies、instagram_business_basic・content_publish・manage_insights・manage_comments、pages_show_list・pages_read_engagement・pages_manage_posts・pages_read_user_content・read_insights | オーナー | 同上 | 0 円 | docs/review/meta.md、deploy.md の 14・28 | まだ |
 | Meta の審査の質問「政府などからの開示の求めへの方針」を、方針として掲げてよいか決める | オーナー | Meta の申請の前 | 0 円 | legal.md の L11、docs/review/meta.md | まだ |
-| X: アプリの名前（Dev を含まない）・説明・Website URL・規約とポリシーの URL。**説明の案が「for indie app developers」のまま**なので、D34（宣伝したい商品・サービスがある人）に合わせて直す | オーナー（説明の案は実装が直す） | ② の前 | 0 円 | docs/review/x.md の X-1・X-2 | まだ |
+| X: アプリの名前（Dev を含まない）・説明・Website URL・規約とポリシーの URL。説明の案は D34（宣伝したい商品・サービスがある人）に合わせて直した（2026-11-15） | オーナー | ② の前 | 0 円 | docs/review/x.md の X-1・X-2 | まだ |
 | TikTok: サンドボックスで本物に送る確かめ（段 9）→ デモ動画 → Content Posting API の監査を申請 → 通ったら `TIKTOK_AUDITED=true`。監査の前は「自分だけ」の投稿だけで、**24 時間で 5 人まで** | オーナー（アプリと鍵）・実装（段 9）・PM | ② の前（② の 10 人が TikTok を使うなら） | 0 円 | docs/design/tiktok.md の 9・14・15・16、docs/review/tiktok.md | まだ（段 9 はオーナーの準備待ち） |
 | YouTube: Google Cloud のプロジェクトと鍵 → 本番に切り替えて OAuth の確認を申請 → 済んだら `YOUTUBE_OAUTH_TESTING=false`。確認の前は「確認されていないアプリ」と出て、**新しい利用者は合計 100 人まで（戻らない）**、テスト中は許可が 7 日で切れる | オーナー・PM | ② の前（② の人が YouTube を使うなら） | 0 円 | deploy.md の 30、docs/design/youtube.md の 11.1、docs/review/youtube.md | まだ |
 | GitHub App を Any account に（先にマイグレーション 20261011210000 を本番に当てる）。名前・ロゴ・説明 | オーナー（マイグレーションは PM） | ② の前（アプリを宣伝する人が使うなら） | 0 円 | deploy.md の 10 | 要確認（マイグレーションが本番に当たっているか） |
@@ -67,7 +67,7 @@
 | やること | だれが | いつ | 費用 | 元の資料 | 状態 |
 |---|---|---|---|---|---|
 | 費用の見積もりを今の機能で直す（cost-review.md は 2026-10-11 のまま。AI の写真・絵、X を探す、声のメモ、SNS のコメント、動画、TikTok、YouTube を足して、② と ③ の月額を出し直す） | PM・実装 | ② の時期を決める前 | 0 円 | cost-review.md、architecture.md の 7 | まだ |
-| docs/review/README.md の R4・legal.md の L6（Vercel のプラン「未決定」）を、決定（C2: ② で Pro）に直す | 実装 | いつでも | 0 円 | cost-review.md の 5 の C2 | まだ（古い書き方） |
+| docs/review/README.md の R4・legal.md の L6（Vercel のプラン「未決定」）を、決定（C2: ② で Pro）に直す | 実装 | いつでも | 0 円 | cost-review.md の 5 の C2 | 済（2026-11-15） |
 
 ## 2. ② に進むとき（お金がかかり始める）
 
@@ -136,12 +136,12 @@
 | X の投稿に利用者ごとの上限がない（cost-review.md の 0） | 済（2026-10-11。X_POST_USER_MONTHLY_USD） |
 | 全体の上限の 80% で運営者に知らせる | 済（2026-10-11） |
 | 文章の AI の上限を「先に予約」に（2026-11-03 の M2・M3） | コードは済（20261103170000 まで）。本番に出たかは 1.1 の要確認 |
-| 確認メールを使わない（architecture.md の 4.11 の「登録できる人」の「他の人に提供するときに直す」） | 済。登録は確認メールの token_hash の形（4.16 の「流れ」）。4.11 の書き方が古い |
+| 確認メールを使わない（architecture.md の 4.11 の「登録できる人」の「他の人に提供するときに直す」） | 済。登録は確認メールの token_hash の形（4.16 の「流れ」）。4.11 にも書き足した（2026-11-15） |
 | DB が 50 人を超えたら Supabase Pro を考える（architecture.md の 4.22・7） | ② で Pro にするので、この目安は ② の Pro に含まれる |
 | 動画を使う人が 2〜3 人を超えたら Supabase Pro（architecture.md の 4.24） | 同上（docs/design/video.md の 8: ② の 10 人に含まれる） |
 | AI の背景（F14 の段取り ②）は ③ に進むときに作る（D25） | D35（2026-11-02）で、写真のような画像まで先に作った（1 人 月 20 枚・全体 $6.66）。③ ではプランごとの枚数を決めるだけ |
 | 問い合わせ先を Cloudflare Email Routing で受ける（deploy.md の 11 の G） | 不要になった（contact@yuxport.com） |
-| Vercel のプラン「未決定」（docs/review/README.md の R4、legal.md の L6） | 2026-10-12 に決定（C2: ② で Pro）。元の資料の書き直しは 1.4 |
+| Vercel のプラン「未決定」（docs/review/README.md の R4、legal.md の L6） | 2026-10-12 に決定（C2: ② で Pro）。元の資料も直した（2026-11-15） |
 
 ## 6. オーナーに決めてもらうこと
 

@@ -38,7 +38,7 @@
 
 | # | どこで | やること |
 |---|---|---|
-| X-1 | console.x.com → アプリ → Settings | App name を「Yabumi」など、Dev を含まない名前にする。Description に「Social media scheduling tool for indie app developers. Users write posts, review them, and publish or schedule them to their own X account.」 |
+| X-1 | console.x.com → アプリ → Settings | App name を「Yabumi」など、Dev を含まない名前にする。Description に「Social media scheduling tool for people who want to promote their products or services, such as small business owners, online sellers, creators, and app developers. Users write posts, review them, and publish or schedule them to their own X account.」（D34 の位置づけ。2026-11-15 に「for indie app developers」から直した） |
 | X-2 | 同上 | Website URL を本番の URL に。Terms of service・Privacy policy の欄があれば `https://yabumi.app/terms`・`/privacy` |
 | X-3 | 同上 → User authentication settings | Callback URI に本番の URL があること（deploy.md の 6-4） |
 | X-4 | Billing | Spending limit が yabumi の月の上限（X_MONTHLY_BUDGET_USD。投稿と数字の読み取りで共有）より少し上か確かめる。他の人が使い始めると、yabumi 全体の $3 はすぐ届くので、人数に合わせて上限を見直す（PM の「利用者数ごとの費用」） |

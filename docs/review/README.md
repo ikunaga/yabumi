@@ -18,7 +18,7 @@
 | R1 | **独自ドメイン** | 決定（2026-10-11）: **yabumi.app**（Cloudflare Registrar） | YouTube（Google）の確認は、自分が持っていると証明できるドメインが要る（`vercel.app` は Public Suffix List に載っていて証明できない）。TikTok の URL の所有確認も yabumi.app で行う。切り替えの手順は deploy.md の 11。**Meta の申請は、切り替え（11 の C）が済んでから出す**（申請に書いた URL を変えると出し直しになることがある） |
 | R2 | **Meta のビジネス認証の名義** | 決定（2026-10-11）: 個人事業主「**YuXport Labs**」（開業届は提出済み） | 書類と手順は [meta.md](meta.md) の「ビジネス認証」 |
 | R3 | **運営者の表示**（規約・ポリシー・各社の申請画面） | 決定（2026-10-11）: **YuXport Labs（代表 生長 真尚）**、問い合わせ先 contact@yuxport.com | 各社の申請と規約に同じ表記を書く（大文字・小文字もこのとおり）。src/lib/legal/info.ts、[legal.md](../legal.md) の L1 |
-| R4 | **Vercel のプラン** | 未決定 | Vercel Hobby は個人の非商用だけ。他の人に提供する（とくに有料にする）なら Pro（$20/月 ≒ 3,000 円）が要り、予算をほぼ使い切る。[legal.md](../legal.md) の L6 |
+| R4 | **Vercel のプラン** | 決定（2026-10-12）: **他の人に提供する時点（公開の段階 ②）で Pro**（cost-review.md の 5 の C2。オーナーだけの間は Hobby） | Vercel Hobby は個人の非商用だけ。Pro は $20/月（約 3,200 円）。段階ごとの作業と費用は [launch-checklist.md](../launch-checklist.md)。[legal.md](../legal.md) の L6 |
 
 ## どの順に進めるか（おすすめ）
 

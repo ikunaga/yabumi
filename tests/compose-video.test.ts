@@ -49,3 +49,23 @@ describe("リセットと書きかけの控え", () => {
     expect(samePostDraft({ ...d, video: { id: "v1" } }, d)).toBe(false);
   });
 });
+
+describe("PMO の確かめ（2026-11-15）での直し", () => {
+  it("送り終えて動画を消した投稿に送り先を足すと、③ の問題として先に出す", async () => {
+    const { VIDEO_REMOVED_TEXT } = await import("@/lib/posts/compose-steps");
+    const problems = problemsByStep({ issues: [], noTargets: false, missingConnect: [], reconnect: [], needsTime: false, videoRemoved: true });
+    expect(problems).toEqual([{ step: 3, text: VIDEO_REMOVED_TEXT }]);
+  });
+
+  it("大きさの表示は、ちょうどのときに小数を付けない", async () => {
+    const { formatBytes } = await import("@/lib/media/rules");
+    expect(formatBytes(300 * 1024 * 1024)).toBe("300MB");
+    expect(formatBytes(7.3 * 1024 * 1024)).toBe("7.3MB");
+    expect(formatBytes(2048)).toBe("2KB");
+  });
+
+  it("上げ終えて確かめている間は「動画を確かめています」（％を出さない）", async () => {
+    const { progressLabel } = await import("@/lib/media/video-plan");
+    expect(progressLabel("confirm", 1)).toBe("動画を確かめています");
+  });
+});

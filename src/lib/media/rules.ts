@@ -63,7 +63,8 @@ export function isOwnMediaPath(ownerId: string, path: string): boolean {
 }
 
 export function formatBytes(bytes: number): string {
-  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
+  // 300MB のようにちょうどのときは小数を付けない（「300.0MB」にしない。2026-11-15 PMO の確かめ）
+  if (bytes >= 1024 * 1024) return `${Number((bytes / 1024 / 1024).toFixed(1))}MB`;
   return `${Math.max(1, Math.round(bytes / 1024))}KB`;
 }
 

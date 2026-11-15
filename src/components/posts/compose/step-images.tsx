@@ -7,11 +7,12 @@ import { ImageAttachments } from "../image-attachments";
 import { VideoAttachment } from "../video-attachment";
 import { SNS } from "@/lib/sns";
 import { formatDuration } from "@/lib/media/video-rules";
+import { VIDEO_REMOVED_TEXT } from "@/lib/posts/compose-steps";
 import { type Composer } from "./use-composer";
 
 // ③ 画像・動画: 添える・つくる・整える（compose-steps.md）。1 つの投稿は、画像か動画 1 本のどちらか（docs/design/video.md の 4.）
 export function ComposeStepImages({ c }: { c: Composer }) {
-  const { projectId, projectName, postId, initial, needImageReconnect, aiCheckEnabled, images, setImages, video, setVideo, videoBusy, setVideoBusy, selected, pending, bodyFor, isLocked, chosen, focus, clearFieldError, fe, connectHref, markTyped, checks } = c;
+  const { projectId, projectName, postId, initial, needImageReconnect, aiCheckEnabled, images, setImages, video, setVideo, videoBusy, setVideoBusy, videoRemovedBlocks, selected, pending, bodyFor, isLocked, chosen, focus, clearFieldError, fe, connectHref, markTyped, checks } = c;
   const videoInputRef = useRef<HTMLInputElement>(null);
   // 動画を添えたが、yabumi からはまだ動画を送れない送り先
   const noVideo = video ? chosen.filter((s) => !isLocked(s) && checks[s].issues.includes("video_unsupported")) : [];
@@ -32,10 +33,18 @@ export function ComposeStepImages({ c }: { c: Composer }) {
           {noVideo.map((s) => SNS[s].label).join("・")} には動画を送れません。{noVideo.map((s) => SNS[s].label).join("・")} を送り先から外すか、動画を外してください。
         </p>
       )}
-      {!video && initial.videoRemoved && (
-        <p className="text-[13px] text-muted">
-          動画（<span className="num">{formatDuration(initial.videoRemoved.durationMs)}</span>）は送り終えたので消しました。
+      {videoRemovedBlocks ? (
+        <p className="text-[13px] leading-[1.7]">
+          <span className="mr-1.5 font-bold text-signal">● 要確認</span>
+          {VIDEO_REMOVED_TEXT}（前の動画は <span className="num">{formatDuration(initial.videoRemoved!.durationMs)}</span>）。
         </p>
+      ) : (
+        !video &&
+        initial.videoRemoved && (
+          <p className="text-[13px] text-muted">
+            動画（<span className="num">{formatDuration(initial.videoRemoved.durationMs)}</span>）は送り終えたので消しました。
+          </p>
+        )
       )}
 
       <div className="flex flex-col gap-1.5">

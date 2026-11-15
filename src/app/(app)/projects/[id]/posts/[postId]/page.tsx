@@ -130,7 +130,9 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
       ? preparingSns.every((s) => s === "tiktok")
         ? { text: "送信を始めました。TikTok で処理しています（数分かかることがあります）。少しして読み込み直すと結果が出ます。", tone: "success" as const }
         : { text: "送信を始めました。画像は SNS 側の処理を待ってから送ります（数分かかることがあります）。少しして読み込み直すと結果が出ます。", tone: "success" as const }
-      : NOTICES[String(searchParams.done)];
+      : String(searchParams.done) === "preparing" && postVideo.video
+        ? { text: "送信を始めました。動画は SNS が処理しています（数分かかることがあります）。少しして読み込み直すと結果が出ます。", tone: "success" as const }
+        : NOTICES[String(searchParams.done)];
   // 送ったあと（送信を始めた・送った・手で投稿したと記録した）の「ひとこと」（4.47。1 日 1 回まで）
   const sentTip = ["sent", "sending", "preparing", "manual_posted"].includes(String(searchParams.done));
 

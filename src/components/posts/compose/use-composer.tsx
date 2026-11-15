@@ -11,7 +11,7 @@ import { flushSync } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { deletePost, savePost, sendSavedPost } from "@/lib/posts/actions";
 import { useRouter, useSearchParams } from "next/navigation";
-import { canGoNext, fieldErrorStep, parseStep, problemsByStep, startStep, stepMarks, type StepNo } from "@/lib/posts/compose-steps";
+import { VIDEO_REMOVED_TEXT, canGoNext, fieldErrorStep, parseStep, problemsByStep, startStep, stepMarks, type StepNo } from "@/lib/posts/compose-steps";
 import { clearSending, markSending } from "../send-progress";
 import type { SavePostResult } from "@/lib/posts/schema";
 import type { PostLinkPreview } from "@/lib/links/store";
@@ -537,6 +537,8 @@ export function useComposer({
   // X を自動で送れない（上限に当たり、手で投稿するも選んでいない）ときの文
   const xBudgetBlocker = xVerdict?.over && !xByHand ? `X: ${xOverMessage(xVerdict.over, xVerdict)}` : null;
   const xNowBlocker = xNowVerdict?.over && !xByHand ? `X: ${xOverMessage(xNowVerdict.over, xNowVerdict)}` : null;
+  // 送り終えて動画を消した投稿に、自動で送る送り先を足した（動画を選び直すまで送れない。保存でもサーバーが止める）
+  const videoRemovedBlocks = Boolean(initial.videoRemoved) && !video && images.length === 0 && toSend.some((s) => !isManualSns(s));
   const sendBlocker = (() => {
     if (chosen.length === 0) return "送り先の SNS を選んでください";
     if (quoting && chosen.some((s) => s !== "x")) return "引用の投稿は X だけに送れます。ほかの SNS を外すか、引用を外してください";
@@ -551,6 +553,7 @@ export function useComposer({
       const issue = checks[s].issues[0];
       if (issue) return `${SNS[s].label}: ${ISSUE_LABEL[issue]}`;
     }
+    if (videoRemovedBlocks) return VIDEO_REMOVED_TEXT;
     // 手で投稿する SNS は、つながなくてよい
     if (missingConnect.length) return missingConnectMessage;
     if (xBudgetBlocker) return xBudgetBlocker;
@@ -864,6 +867,7 @@ export function useComposer({
         missingConnect: missingConnect.map((s) => SNS[s].label),
         reconnect: images.length > 0 ? toSend.filter((s) => needImageReconnect.includes(s)).map((s) => SNS[s].label) : [],
         needsTime: !plannedAt,
+        videoRemoved: videoRemovedBlocks,
         xBudget: xBudgetBlocker,
       });
   const marks = stepMarks({ current: composeStep, visited, problems: stepProblems, filled: { 1: body.trim() !== "", 2: chosen.length > 0, 3: images.length > 0 || video !== null } });
@@ -902,6 +906,7 @@ export function useComposer({
     setVideo,
     videoBusy,
     setVideoBusy,
+    videoRemovedBlocks,
     shortLinks,
     setShortLinks,
     body,

@@ -58,11 +58,16 @@ export function ComposePreview({ c }: { c: Composer }) {
           )}
           <SnsPreview key={focus} sns={focus} text={shownText(focus)} title={titles[focus] ?? null} projectName={projectName} account={accountNames[focus] ?? null} images={images} length={checks[focus].length} />
           <ShortLinkPreviewNote sns={focus} text={textFor(focus)} enabled={shortLinks} preview={linkPreview} />
-          {video && (
-            <p className="text-[13px] text-muted">
-              ▶ 動画（<span className="num">{formatDuration(video.durationMs)}</span>）を添えて送ります
-            </p>
-          )}
+          {/* 手で投稿する SNS は、利用者が投稿の画面で手で添えるので出さない */}
+          {video &&
+            !isManualSns(focus) &&
+            (SNS[focus].video ? (
+              <p className="text-[13px] text-muted">
+                ▶ 動画（<span className="num">{formatDuration(video.durationMs)}</span>）を添えて送ります
+              </p>
+            ) : (
+              <p className="text-[13px] font-semibold text-danger">{focusLabel} には動画を送れません</p>
+            ))}
           {images.length > 0 && ignoresImages(focus) && (
             <p className="text-[13px] text-muted">
               {isManualSns(focus) ? `${focusLabel} には、画像は投稿の画面で手で添えてください。` : `${focusLabel} には画像を送りません（動画だけの SNS です）。`}

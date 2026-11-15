@@ -54,34 +54,51 @@ async function removeVideoObjects(admin: Admin, paths: string[]) {
 
 export type VideoUploadTicket = { path: string; token: string };
 
+const LIMITS = {
+  p_max_pending: MAX_PENDING_VIDEO_TICKETS,
+  p_max_unattached: MAX_UNATTACHED_VIDEOS,
+  p_quota_bytes: VIDEO_USER_QUOTA_BYTES,
+  p_max_file_bytes: MAX_VIDEO_BYTES,
+  p_month_limit: VIDEO_MONTH_LIMIT,
+  p_global_quota_bytes: VIDEO_GLOBAL_QUOTA_BYTES,
+};
+
+// 上限に当たったときの文。添えていない動画は、実際の本数を出す
+async function limitMessage(admin: Admin, ownerId: string, status: string): Promise<string | null> {
+  if (status === "ok") return null;
+  if (status === "too_many_pending") return "動画の追加が続いています。少し待ってからもう一度お試しください。";
+  if (status === "too_many_unattached") {
+    const { count } = await admin.from("media_files").select("id", { count: "exact", head: true }).eq("owner_id", ownerId).eq("kind", "video").is("post_id", null);
+    return `保存していない動画が ${count ?? MAX_UNATTACHED_VIDEOS} 本あります。要らない動画を外すか、投稿を保存してから追加してください。`;
+  }
+  if (status === "quota") {
+    return `置ける動画の合計（${formatBytes(VIDEO_USER_QUOTA_BYTES)}）に近づいています。送り終えた動画は ${KEEP_VIDEO_AFTER_SENT_DAYS} 日で消えます。要らない下書きの動画を外してください。`;
+  }
+  if (status === "month_limit") return `動画は 1 か月に ${VIDEO_MONTH_LIMIT} 本まで追加できます。来月 1 日からまた追加できます。`;
+  if (status === "global_quota") {
+    console.error("[video] 全体の動画の量が上限に達しました");
+    return "いま動画を受け付けられません。時間をおいてもう一度お試しください。";
+  }
+  throw new Error(`上限を確かめられませんでした（${status}）`);
+}
+
+// 上限の確かめだけ（読むだけ。整える前に画面が呼ぶ。docs/design/video.md の 7.）。当たっていれば MediaError。
+// 本当の守りは引換券の発行（issueVideoUpload。ロックの中で同じ確かめをする）
+export async function checkVideoUpload(admin: Admin, ownerId: string): Promise<void> {
+  const { data: status, error } = await admin.rpc("video_upload_check", { p_owner_id: ownerId, ...LIMITS });
+  if (error) throw error;
+  const message = await limitMessage(admin, ownerId, status);
+  if (message) throw new MediaError(message);
+}
+
 // 動画を 1 本上げるための、署名つきのトークンを発行する（その場所にだけ、2 時間上げられる。TUS の x-signature に入れる）。
 // 上限の確認と引換券の記録は DB の中で、利用者ごと・全体のロックの中で行う
 export async function issueVideoUpload(admin: Admin, ownerId: string, id: string = crypto.randomUUID()): Promise<VideoUploadTicket> {
   const path = videoPath(ownerId, id);
-  const { data: status, error: ticketError } = await admin.rpc("issue_video_upload_ticket", {
-    p_owner_id: ownerId,
-    p_storage_path: path,
-    p_max_pending: MAX_PENDING_VIDEO_TICKETS,
-    p_max_unattached: MAX_UNATTACHED_VIDEOS,
-    p_quota_bytes: VIDEO_USER_QUOTA_BYTES,
-    p_max_file_bytes: MAX_VIDEO_BYTES,
-    p_month_limit: VIDEO_MONTH_LIMIT,
-    p_global_quota_bytes: VIDEO_GLOBAL_QUOTA_BYTES,
-  });
+  const { data: status, error: ticketError } = await admin.rpc("issue_video_upload_ticket", { p_owner_id: ownerId, p_storage_path: path, ...LIMITS });
   if (ticketError) throw ticketError;
-  if (status === "too_many_pending") throw new MediaError("動画の追加が続いています。少し待ってからもう一度お試しください。");
-  if (status === "too_many_unattached") throw new MediaError(`保存していない動画が ${MAX_UNATTACHED_VIDEOS} 本あります。要らない動画を外すか、投稿を保存してから追加してください。`);
-  if (status === "quota") {
-    throw new MediaError(
-      `置ける動画の合計（${formatBytes(VIDEO_USER_QUOTA_BYTES)}）に近づいています。送り終えた動画は ${KEEP_VIDEO_AFTER_SENT_DAYS} 日で消えます。要らない下書きの動画を外してください。`,
-    );
-  }
-  if (status === "month_limit") throw new MediaError(`動画は 1 か月に ${VIDEO_MONTH_LIMIT} 本まで追加できます。来月 1 日からまた追加できます。`);
-  if (status === "global_quota") {
-    console.error("[video] 全体の動画の量が上限に達しました");
-    throw new MediaError("いま動画を受け付けられません。時間をおいてもう一度お試しください。");
-  }
-  if (status !== "ok") throw new Error(`引換券を発行できませんでした（${status}）`);
+  const message = await limitMessage(admin, ownerId, status);
+  if (message) throw new MediaError(message);
 
   const { data, error } = await admin.storage.from(VIDEO_BUCKET).createSignedUploadUrl(path);
   if (error || !data) {
@@ -89,6 +106,20 @@ export async function issueVideoUpload(admin: Admin, ownerId: string, id: string
     throw error ?? new Error("アップロードのトークンを作れませんでした");
   }
   return { path, token: data.token };
+}
+
+// 上げている途中・確かめる前後に「やめる」を押したとき（docs/design/video.md の 3.）。本人の動画の引換券に使った印を付け
+// （もう確かめない）、その場所のファイルを消す。確かめを通ってまだ投稿に添えていなければ、その動画も外す。
+// 月の本数は確かめを通った動画だけを数えるので、確かめる前にやめれば数えない
+export async function cancelVideoUpload(admin: Admin, ownerId: string, path: string): Promise<void> {
+  if (!isOwnVideoPath(ownerId, path)) return;
+  const { data: ticket } = await admin.from("media_upload_tickets").select("storage_path, consumed_at").eq("storage_path", path).eq("owner_id", ownerId).eq("kind", "video").maybeSingle();
+  if (!ticket) return;
+  if (!ticket.consumed_at) await admin.from("media_upload_tickets").update({ consumed_at: new Date().toISOString() }).eq("storage_path", path);
+  const { data: row } = await admin.from("media_files").select("id, post_id").eq("storage_path", path).eq("owner_id", ownerId).maybeSingle();
+  if (row && row.post_id !== null) return;
+  await removeVideoObjects(admin, [path]);
+  if (row) await admin.from("media_files").delete().eq("id", row.id);
 }
 
 // ブラウザが上げた動画を確かめて記録する。MP4 の箱を読み（作り直さない）、合わなければファイルを消し、引換券に使った印を付けて MediaError

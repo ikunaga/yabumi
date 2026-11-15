@@ -57,6 +57,8 @@ export function problemsByStep(a: {
   missingConnect: string[];
   reconnect: string[];
   needsTime: boolean;
+  // 送り終えて動画を消した投稿に、送り先を足して送ろうとしている（動画を選び直すまで送れない。docs/design/video.md の 7.）
+  videoRemoved?: boolean;
 }): StepProblem[] {
   const out: StepProblem[] = [];
   if (a.noTargets) out.push({ step: 2, text: "送り先の SNS を選んでください" });
@@ -71,9 +73,12 @@ export function problemsByStep(a: {
   if (a.xBudget) out.push({ step: 2, text: a.xBudget });
   if (a.missingConnect.length) out.push({ step: 2, text: `${a.missingConnect.join("・")} をつなぐと送れます` });
   if (a.reconnect.length) out.push({ step: 3, text: `${a.reconnect.join("・")} に画像を送るには、つなぎ直しが要ります` });
+  if (a.videoRemoved) out.push({ step: 3, text: VIDEO_REMOVED_TEXT });
   if (a.needsTime) out.push({ step: 5, text: "送る日時を決めてください" });
   return out.sort((x, y) => x.step - y.step);
 }
+
+export const VIDEO_REMOVED_TEXT = "添えていた動画は、送り終えたので消しました。動画を選び直してください";
 
 // 次へ進めるか（2.）。① は本文があること、② は SNS を 1 つ以上（「あとで選ぶ」は別のボタン）。③・④ はいつでも
 export function canGoNext(step: StepNo, a: { body: string; chosen: number }): boolean {

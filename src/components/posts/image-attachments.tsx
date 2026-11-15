@@ -349,7 +349,8 @@ export function ImageAttachments({
         {extraButtons}
         <span className="num text-[13px] text-faint">
           {images.length > 0 && <span className="mr-1 font-bold text-muted">{images.length} 枚</span>}
-          <span className="hidden sm:inline">この枠に画像をドラッグしても追加できます・</span>
+          {/* 画像のボタンが押せないとき（動画を添えている・枚数がいっぱい）は、ドラッグの案内も出さない */}
+          {!disabled && !addBlocked && room > 0 && !full && <span className="hidden sm:inline">この枠に画像をドラッグしても追加できます・</span>}
           {MAX_IMAGES_PER_POST} 枚まで（X は 4 枚）{extraButtons ? "・動画は 1 本（3〜90 秒）" : ""}
         </span>
         <HelpTip label="画像の扱い" align="right">

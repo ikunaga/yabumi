@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { MediaError } from "./store";
 import { PREVIEW_URL_SECONDS, RESTORE_UNATTACHED_HOURS } from "./rules";
-import { discardUnattachedVideo, issueVideoUpload, postVideoRow, signedVideoUrl, verifyVideoUpload, type VideoFile } from "./video-store";
+import { cancelVideoUpload, checkVideoUpload, discardUnattachedVideo, issueVideoUpload, postVideoRow, signedVideoUrl, verifyVideoUpload, type VideoFile } from "./video-store";
 
 // 画面から呼ぶ、動画の添付の操作（docs/design/video.md の 3.）。動画そのものは Vercel の関数を通さず、
 // ブラウザが署名つきのトークンで Storage に直接上げる（TUS）。ここではトークンの発行と、上げたあとの確かめだけを行う
@@ -32,6 +32,30 @@ function tusEndpoint(): string {
 }
 
 export type VideoUploadGrant = { path: string; token: string; endpoint: string; bucket: string };
+
+// 整える前に、上限に当たっていないかを確かめる（読むだけ。当たっていれば、整える時間を使わせずに知らせる）
+export async function checkVideoUploadAllowed(): Promise<{ error?: string }> {
+  const userId = await currentUserId();
+  if (!userId) return { error: "ログインし直してください。" };
+  try {
+    await checkVideoUpload(createAdminClient(), userId);
+    return {};
+  } catch (e) {
+    return failure(e, "動画を追加できませんでした。時間をおいてもう一度お試しください。");
+  }
+}
+
+// 上げている途中・確かめる前後に「やめる」を押したとき。本人の引換券とファイルを片付ける
+export async function cancelVideo(path: string): Promise<void> {
+  if (typeof path !== "string" || path.length > 200) return;
+  const userId = await currentUserId();
+  if (!userId) return;
+  try {
+    await cancelVideoUpload(createAdminClient(), userId, path);
+  } catch (e) {
+    console.error("[video]", e instanceof Error ? e.message : e);
+  }
+}
 
 export async function requestVideoUpload(): Promise<{ ticket?: VideoUploadGrant; error?: string }> {
   const userId = await currentUserId();

@@ -7,7 +7,11 @@ import { MAX_VIDEO_BYTES, VIDEO_FPS, VIDEO_KEYFRAME_SECONDS, videoBitrate } from
 import { outputSize, probeProblem, probeProblemMessage, type VideoProbe, type VideoRange } from "./video-plan";
 
 export class VideoPrepError extends Error {
-  constructor(readonly userMessage: string) {
+  // too_large: 整えると 50MB を超える（画面は範囲を選ぶ欄を出し、短くしてもらう）
+  constructor(
+    readonly userMessage: string,
+    readonly code?: "too_large",
+  ) {
     super(userMessage);
     this.name = "VideoPrepError";
   }
@@ -109,7 +113,7 @@ export async function convertVideo(file: File, prepared: Prepared, range: VideoR
     }
     const buffer = (output.target as InstanceType<typeof mb.BufferTarget>).buffer;
     if (!buffer) throw new VideoPrepError("動画を整えられませんでした。もう一度お試しください。");
-    if (buffer.byteLength > MAX_VIDEO_BYTES) throw new VideoPrepError("整えた動画が大きすぎます。使う範囲を短くしてください。");
+    if (buffer.byteLength > MAX_VIDEO_BYTES) throw new VideoPrepError("この動画は、整えると大きくなりすぎます。使う範囲を短くしてください。", "too_large");
     return new Blob([buffer], { type: "video/mp4" });
   } finally {
     input.dispose();

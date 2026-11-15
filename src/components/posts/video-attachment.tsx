@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { formatBytes } from "@/lib/media/rules";
 import { MAX_VIDEO_MS, formatDuration } from "@/lib/media/video-rules";
 import { clampRange, defaultRange, progressLabel, type VideoRange } from "@/lib/media/video-plan";
-import { discardVideo, videoPlaybackUrl, type AttachedVideo } from "@/lib/media/video-actions";
+import { checkVideoUploadAllowed, discardVideo, videoPlaybackUrl, type AttachedVideo } from "@/lib/media/video-actions";
 import type { Prepared } from "@/lib/media/video-convert";
 
 // 投稿に動画を 1 本添える（docs/design/video.md の 2.・4.。2026-11-15 PM が見た目を了承）。
@@ -14,8 +14,9 @@ import type { Prepared } from "@/lib/media/video-convert";
 
 type Stage =
   | { kind: "idle" }
-  | { kind: "range"; file: File; prepared: Prepared; range: VideoRange; previewUrl: string }
-  | { kind: "busy"; stage: "convert" | "upload"; ratio: number };
+  // message: 範囲を選ぶ理由（90 秒以下でも、整えると大きすぎたとき）
+  | { kind: "range"; file: File; prepared: Prepared; range: VideoRange; previewUrl: string; message?: string }
+  | { kind: "busy"; stage: "convert" | "upload" | "confirm"; ratio: number };
 
 export function VideoAttachment({
   video,
@@ -56,6 +57,12 @@ export function VideoAttachment({
   async function pick(file: File) {
     setError(null);
     try {
+      // 上限（月の本数・置ける量・添えていない本数・確かめ待ち）は、整える前に確かめる（整え終わってから断らない）
+      const allowed = await checkVideoUploadAllowed();
+      if (allowed.error) {
+        setError(allowed.error);
+        return;
+      }
       const { probeVideo, VideoPrepError } = await import("@/lib/media/video-convert");
       let prepared: Prepared;
       try {
@@ -86,6 +93,11 @@ export function VideoAttachment({
       try {
         blob = await convertVideo(file, prepared, range, { signal: ac.signal, onProgress: (ratio) => setStage({ kind: "busy", stage: "convert", ratio }) });
       } catch (e) {
+        // 整えると 50MB を超えた: 短くする手段として、範囲を選ぶ欄を出す（90 秒以下でも）
+        if (e instanceof VideoPrepError && e.code === "too_large") {
+          setStage({ kind: "range", file, prepared, range, previewUrl: URL.createObjectURL(file), message: e.userMessage });
+          return;
+        }
         if (e instanceof VideoPrepError) setError(e.userMessage);
         else if (!(e instanceof DOMException && e.name === "AbortError")) setError("動画を整えられませんでした。もう一度お試しください。");
         setStage({ kind: "idle" });
@@ -93,7 +105,12 @@ export function VideoAttachment({
       }
       setStage({ kind: "busy", stage: "upload", ratio: 0 });
       try {
-        const up = await uploadVideoBlob(blob, { signal: ac.signal, onProgress: (ratio) => setStage({ kind: "busy", stage: "upload", ratio }) });
+        const up = await uploadVideoBlob(blob, {
+          signal: ac.signal,
+          onProgress: (ratio) => setStage({ kind: "busy", stage: "upload", ratio }),
+          // 上げ終えたら「やめる」を隠す（サーバーの確かめは数秒で終わる）
+          onUploaded: () => setStage({ kind: "busy", stage: "confirm", ratio: 1 }),
+        });
         // 前に添えていた、まだ保存していない動画は外す（保存した投稿の動画は、保存したときに消える）
         if (video) void discardVideo(video.id);
         onChange({ id: up.id, durationMs: up.durationMs, sizeBytes: up.sizeBytes, localUrl: URL.createObjectURL(blob) });
@@ -130,6 +147,7 @@ export function VideoAttachment({
 
       {stage.kind === "range" && (
         <RangePicker
+          message={stage.message}
           durationMs={stage.prepared.probe.durationMs}
           previewUrl={stage.previewUrl}
           range={stage.range}
@@ -146,9 +164,11 @@ export function VideoAttachment({
         <div role="status" className="flex flex-col gap-2 rounded-lg border border-border bg-surface px-3.5 py-3">
           <div className="flex items-center gap-3">
             <span className="num text-sm font-semibold">{progressLabel(stage.stage, stage.ratio)}</span>
-            <Button type="button" variant="text" size="sm" className="ml-auto" onClick={() => abortRef.current?.abort()}>
-              やめる
-            </Button>
+            {stage.stage !== "confirm" && (
+              <Button type="button" variant="text" size="sm" className="ml-auto" onClick={() => abortRef.current?.abort()}>
+                やめる
+              </Button>
+            )}
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-surface2" aria-hidden>
             <div className="h-full bg-primary transition-[width]" style={{ width: `${Math.round(stage.ratio * 100)}%` }} />
@@ -233,6 +253,7 @@ export function VideoBox({ video, postId }: { video: Pick<AttachedVideo, "durati
 
 // 90 秒を超える動画の、使う範囲を選ぶ欄
 function RangePicker({
+  message,
   durationMs,
   previewUrl,
   range,
@@ -240,6 +261,7 @@ function RangePicker({
   onCancel,
   onConfirm,
 }: {
+  message?: string;
   durationMs: number;
   previewUrl: string;
   range: VideoRange;
@@ -259,7 +281,11 @@ function RangePicker({
     <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-3.5">
       <video ref={videoRef} src={previewUrl} controls playsInline preload="metadata" className="max-h-[320px] w-full rounded-md bg-surface2 object-contain" />
       <p className="text-sm">
-        <span className="num">{formatDuration(durationMs)}</span> の動画です。使う 90 秒を選んでください
+        {message ?? (
+          <>
+            <span className="num">{formatDuration(durationMs)}</span> の動画です。使う 90 秒を選んでください
+          </>
+        )}
       </p>
       {(["start", "end"] as const).map((which) => (
         <label key={which} className="grid grid-cols-[3.5rem_1fr_3rem] items-center gap-3 text-sm">

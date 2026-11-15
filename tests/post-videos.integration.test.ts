@@ -4,7 +4,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { MEDIA_BUCKET } from "@/lib/media/rules";
 import { MediaError, attachMedia, cleanupMedia, issueUpload, unattachedCount, verifyUpload } from "@/lib/media/store";
-import { attachVideo, discardUnattachedVideo, issueVideoUpload, postVideoFor, verifyVideoUpload } from "@/lib/media/video-store";
+import { attachVideo, cancelVideoUpload, checkVideoUpload, discardUnattachedVideo, issueVideoUpload, postVideoFor, verifyVideoUpload } from "@/lib/media/video-store";
 import { MAX_PENDING_VIDEO_TICKETS, MAX_VIDEO_BYTES, VIDEO_BUCKET, videoPath } from "@/lib/media/video-rules";
 import { adminClient, anonClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
 import { testJpeg } from "./helpers/jpeg";
@@ -165,6 +165,101 @@ describe("利用者が直接読める・書ける経路がない", () => {
     expect((await alice.rpc("issue_video_upload_ticket", args)).error?.code).toBe("42501");
     expect((await anonClient().rpc("issue_video_upload_ticket", args)).error?.code).toBe("42501");
     expect((await alice.rpc("cleanup_media_candidates", {})).error?.code).toBe("42501");
+  });
+});
+
+describe("やめる（2026-11-15 PMO の確かめ v15）", () => {
+  // 利用者ごとの、確かめ待ち・量・月の本数（video_upload_check と同じ数え方で、上限ぎりぎりの値を渡して見る）
+  const month = async (ownerId: string) => {
+    const { data } = await admin.from("video_upload_counts").select("count").eq("owner_id", ownerId);
+    return (data ?? []).reduce((n, r) => n + r.count, 0);
+  };
+  const check = (ownerId: string, o: Partial<{ pending: number; quota: number; month: number }>) =>
+    admin.rpc("video_upload_check", {
+      p_owner_id: ownerId,
+      p_max_pending: o.pending ?? 9,
+      p_max_unattached: 9,
+      p_quota_bytes: o.quota ?? 1e12,
+      p_max_file_bytes: MAX_VIDEO_BYTES,
+      p_month_limit: o.month ?? 999,
+      p_global_quota_bytes: 1e15,
+    });
+
+  it("上げ終えたあとにやめると、引換券に印を付けてファイルを消し、確かめ待ち・量・月の本数が元に戻る（その引換券ではもう確かめない）", async () => {
+    const { userId } = await signUpNewUser();
+    try {
+      const before = await month(userId);
+      const ticket = await issueVideoUpload(admin, userId);
+      expect(await tusUpload({ path: ticket.path, token: ticket.token, bytes: testMp4() })).toBe(204);
+      // やめる前: 確かめ待ちが 1 本（上限 1 なら断る）、量に 50MB を見込む
+      expect((await check(userId, { pending: 1 })).data).toBe("too_many_pending");
+      expect((await check(userId, { quota: MAX_VIDEO_BYTES * 2 - 1 })).data).toBe("quota");
+
+      await cancelVideoUpload(admin, userId, ticket.path);
+      expect(await exists(ticket.path)).toBe(false);
+      expect((await check(userId, { pending: 1 })).data).toBe("ok");
+      expect((await check(userId, { quota: MAX_VIDEO_BYTES })).data).toBe("ok");
+      expect(await month(userId)).toBe(before);
+      await expect(verifyVideoUpload(admin, userId, ticket.path)).rejects.toBeInstanceOf(MediaError);
+
+      // まだ使えるトークンで上げ直したら、そのファイルの大きさを量に数え、片付けがすぐ消す
+      const bytes = testMp4({ mdatBytes: 200_000 });
+      expect(await tusUpload({ path: ticket.path, token: ticket.token, bytes })).toBe(204);
+      expect((await check(userId, { quota: MAX_VIDEO_BYTES + bytes.length - 1 })).data).toBe("quota");
+      expect((await check(userId, { quota: MAX_VIDEO_BYTES + bytes.length })).data).toBe("ok");
+      await cleanupMedia(admin, { ownerId: userId });
+      expect(await exists(ticket.path)).toBe(false);
+    } finally {
+      await admin.from("media_upload_tickets").delete().eq("owner_id", userId);
+      await deleteUser(userId);
+    }
+  });
+
+  it("確かめを通ったあとにやめると、まだ添えていなければ動画を外す。月の本数は確かめを通った動画だけを数える", async () => {
+    const { userId } = await signUpNewUser();
+    try {
+      const before = await month(userId);
+      const v = await uploadVideo(userId);
+      expect(await month(userId)).toBe(before + 1);
+      await cancelVideoUpload(admin, userId, v.storagePath);
+      expect((await admin.from("media_files").select("id").eq("id", v.id)).data).toEqual([]);
+      expect(await exists(v.storagePath)).toBe(false);
+      // 断った動画は数えない
+      const ticket = await issueVideoUpload(admin, userId);
+      expect(await tusUpload({ path: ticket.path, token: ticket.token, bytes: testMp4({ udta: true }) })).toBe(204);
+      await expect(verifyVideoUpload(admin, userId, ticket.path)).rejects.toBeInstanceOf(MediaError);
+      expect(await month(userId)).toBe(before + 1);
+      // 他人の引換券・投稿に添えた動画は片付けない
+      const other = await issueVideoUpload(admin, bobId);
+      await cancelVideoUpload(admin, userId, other.path);
+      expect((await admin.from("media_upload_tickets").select("consumed_at").eq("storage_path", other.path).single()).data?.consumed_at).toBeNull();
+      await clearTickets(bobId);
+    } finally {
+      await admin.from("media_upload_tickets").delete().eq("owner_id", userId);
+      await admin.from("video_upload_counts").delete().eq("owner_id", userId);
+      await deleteUser(userId);
+    }
+  });
+
+  it("整える前の確かめ（checkVideoUpload）は、上限に当たっていれば文で知らせ、引換券は出さない", async () => {
+    const { userId } = await signUpNewUser();
+    try {
+      await checkVideoUpload(admin, userId);
+      const month0 = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Tokyo" }));
+      const monthKey = `${month0.getFullYear()}-${String(month0.getMonth() + 1).padStart(2, "0")}-01`;
+      await admin.from("video_upload_counts").insert({ owner_id: userId, month: monthKey, count: 20 });
+      await expect(checkVideoUpload(admin, userId)).rejects.toMatchObject({ userMessage: expect.stringContaining("1 か月に 20 本") });
+      expect((await admin.from("media_upload_tickets").select("storage_path").eq("owner_id", userId)).data).toEqual([]);
+    } finally {
+      await admin.from("video_upload_counts").delete().eq("owner_id", userId);
+      await deleteUser(userId);
+    }
+  });
+
+  it("引換券の関数（video_upload_check も）を、authenticated・anon は呼べない", async () => {
+    const args = { p_owner_id: aliceId, p_max_pending: 9, p_max_unattached: 9, p_quota_bytes: 1, p_max_file_bytes: 1, p_month_limit: 1, p_global_quota_bytes: 1 };
+    expect((await alice.rpc("video_upload_check", args)).error?.code).toBe("42501");
+    expect((await anonClient().rpc("video_upload_check", args)).error?.code).toBe("42501");
   });
 });
 

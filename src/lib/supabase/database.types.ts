@@ -3317,6 +3317,19 @@ export type Database = {
           views: number
         }[]
       }
+      video_orphan_bytes: { Args: { p_owner_id: string }; Returns: number }
+      video_upload_check: {
+        Args: {
+          p_global_quota_bytes: number
+          p_max_file_bytes: number
+          p_max_pending: number
+          p_max_unattached: number
+          p_month_limit: number
+          p_owner_id: string
+          p_quota_bytes: number
+        }
+        Returns: string
+      }
       weekly_post_totals: {
         Args: { p_project_id: string; p_today: string }
         Returns: {

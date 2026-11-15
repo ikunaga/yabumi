@@ -84,13 +84,14 @@ create table public.video_upload_counts (
 alter table public.video_upload_counts enable row level security;
 revoke all on public.video_upload_counts from anon, authenticated;
 
--- ===== 動画のアップロードの引換券 =====
--- 上限の確認と引換券の記録を 1 つの処理で（画像の issue_media_upload_ticket と同じ考え方）。利用者ごとのロック（画像と同じ鍵）と、
--- 全体の量のためのロックの中で数える。確かめ待ちの引換券は 1 本あたりの上限（p_max_file_bytes）で量に数える。
--- 月の本数は引換券を出したときに数える（上げずにやめても戻さない。何度も発行して上限の確認を避けられないように）
-create function public.issue_video_upload_ticket(
+-- ===== 動画のアップロードの上限と引換券 =====
+-- 上限の確かめ（読むだけ）。整える前の確かめ（画面）と、引換券の発行の両方で使う。返り値は 'ok' か、当たった上限の名前。
+-- 量に数えるもの: 確かめを通った動画（消したあとのものを除く）＋ 確かめ待ちの引換券（1 本あたりの上限の大きさで）＋
+--   使った引換券（consumed_at）の場所に残っている記録のないファイル（実際の大きさ。署名つきのトークンは 2 時間使えるので、
+--   断った・やめた場所に上げ直されたファイルも数える。片付けがすぐ消す）
+-- 月の本数は、確かめを通った動画（video_upload_counts。media_files に動画の行ができたときにトリガーで数える）＋ 確かめ待ちの引換券
+create function public.video_upload_check(
   p_owner_id uuid,
-  p_storage_path text,
   p_max_pending integer,
   p_max_unattached integer,
   p_quota_bytes bigint,
@@ -100,6 +101,7 @@ create function public.issue_video_upload_ticket(
 )
 returns text
 language plpgsql
+stable
 security definer
 set search_path = ''
 as $$
@@ -110,17 +112,7 @@ declare
   v_used bigint;
   v_count integer;
   v_global bigint;
-  v_held integer;
-  v_global_held integer;
 begin
-  if p_storage_path not like p_owner_id::text || '/%.mp4' then
-    raise exception 'invalid storage path' using errcode = '22023';
-  end if;
-
-  perform pg_advisory_xact_lock(hashtext('media_upload:' || p_owner_id::text));
-  perform pg_advisory_xact_lock(hashtext('video_upload:global'));
-
-  -- 確かめ待ち（まだ使っていない引換券）
   select count(*) into v_pending
     from public.media_upload_tickets
    where owner_id = p_owner_id and kind = 'video' and consumed_at is null and created_at > now() - interval '1 day';
@@ -138,52 +130,106 @@ begin
   select coalesce(sum(size_bytes), 0) into v_used
     from public.media_files
    where owner_id = p_owner_id and kind = 'video' and removed_at is null;
-  -- 量に数える引換券: 確かめ待ちと、使った引換券のうち記録のない場所（トークンが使える 2 時間の間か、そこにファイルがある間）
-  select count(*) into v_held
-    from public.media_upload_tickets k
-   where k.owner_id = p_owner_id and k.kind = 'video' and k.created_at > now() - interval '1 day'
-     and (
-       k.consumed_at is null
-       or (
-         not exists (select 1 from public.media_files m where m.storage_path = k.storage_path)
-         and (k.created_at > now() - interval '2 hours'
-              or exists (select 1 from storage.objects o where o.bucket_id = 'post-videos' and o.name = k.storage_path))
-       )
-     );
-  if v_used + (v_held + 1) * p_max_file_bytes > p_quota_bytes then
+  v_used := v_used + public.video_orphan_bytes(p_owner_id);
+  if v_used + (v_pending + 1) * p_max_file_bytes > p_quota_bytes then
     return 'quota';
   end if;
 
   select coalesce((select c.count from public.video_upload_counts c where c.owner_id = p_owner_id and c.month = v_month), 0) into v_count;
-  if v_count >= p_month_limit then
+  if v_count + v_pending >= p_month_limit then
     return 'month_limit';
   end if;
 
   select coalesce(sum(size_bytes), 0) into v_global from public.media_files where kind = 'video' and removed_at is null;
-  select count(*) into v_global_held
-    from public.media_upload_tickets k
-   where k.kind = 'video' and k.created_at > now() - interval '1 day'
-     and (
-       k.consumed_at is null
-       or (
-         not exists (select 1 from public.media_files m where m.storage_path = k.storage_path)
-         and (k.created_at > now() - interval '2 hours'
-              or exists (select 1 from storage.objects o where o.bucket_id = 'post-videos' and o.name = k.storage_path))
-       )
-     );
-  if v_global + (v_global_held + 1) * p_max_file_bytes > p_global_quota_bytes then
+  v_global := v_global + public.video_orphan_bytes(null)
+    + (select count(*) from public.media_upload_tickets where kind = 'video' and consumed_at is null and created_at > now() - interval '1 day') * p_max_file_bytes;
+  if v_global + p_max_file_bytes > p_global_quota_bytes then
     return 'global_quota';
   end if;
-
-  insert into public.media_upload_tickets (owner_id, storage_path, kind) values (p_owner_id, p_storage_path, 'video');
-  insert into public.video_upload_counts (owner_id, month, count) values (p_owner_id, v_month, 1)
-  on conflict (owner_id, month) do update set count = public.video_upload_counts.count + 1;
   return 'ok';
 end;
 $$;
 
+-- 使った引換券の場所に残っている、記録のないファイルの大きさ（p_owner_id が null なら全体）。画像・動画のどちらのバケットも見る
+create function public.video_orphan_bytes(p_owner_id uuid)
+returns bigint
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(sum((o.metadata->>'size')::bigint), 0)::bigint
+    from public.media_upload_tickets k
+    join storage.objects o on o.bucket_id = 'post-videos' and o.name = k.storage_path
+   where k.kind = 'video'
+     and k.consumed_at is not null
+     and (p_owner_id is null or k.owner_id = p_owner_id)
+     and not exists (select 1 from public.media_files m where m.storage_path = k.storage_path);
+$$;
+
+-- 上限の確かめと引換券の記録を 1 つの処理で（画像の issue_media_upload_ticket と同じ考え方）。利用者ごとのロック（画像と同じ鍵）と、
+-- 全体の量のためのロックの中で、video_upload_check を通してから記録する
+create function public.issue_video_upload_ticket(
+  p_owner_id uuid,
+  p_storage_path text,
+  p_max_pending integer,
+  p_max_unattached integer,
+  p_quota_bytes bigint,
+  p_max_file_bytes bigint,
+  p_month_limit integer,
+  p_global_quota_bytes bigint
+)
+returns text
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_status text;
+begin
+  if p_storage_path not like p_owner_id::text || '/%.mp4' then
+    raise exception 'invalid storage path' using errcode = '22023';
+  end if;
+
+  perform pg_advisory_xact_lock(hashtext('media_upload:' || p_owner_id::text));
+  perform pg_advisory_xact_lock(hashtext('video_upload:global'));
+
+  v_status := public.video_upload_check(p_owner_id, p_max_pending, p_max_unattached, p_quota_bytes, p_max_file_bytes, p_month_limit, p_global_quota_bytes);
+  if v_status <> 'ok' then
+    return v_status;
+  end if;
+  insert into public.media_upload_tickets (owner_id, storage_path, kind) values (p_owner_id, p_storage_path, 'video');
+  return 'ok';
+end;
+$$;
+
+-- 月の本数は、確かめを通った動画（media_files に動画の行ができたとき）だけを数える（やめた・断った動画は数えない）
+create function public.media_files_count_video()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if new.kind = 'video' then
+    insert into public.video_upload_counts (owner_id, month, count)
+    values (new.owner_id, date_trunc('month', now() at time zone 'Asia/Tokyo')::date, 1)
+    on conflict (owner_id, month) do update set count = public.video_upload_counts.count + 1;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger media_files_count_video
+  after insert on public.media_files
+  for each row execute function public.media_files_count_video();
+
+revoke all on function public.video_orphan_bytes(uuid) from public, anon, authenticated, service_role;
+revoke all on function public.video_upload_check(uuid, integer, integer, bigint, bigint, integer, bigint) from public, anon, authenticated, service_role;
+grant execute on function public.video_upload_check(uuid, integer, integer, bigint, bigint, integer, bigint) to service_role;
 revoke all on function public.issue_video_upload_ticket(uuid, text, integer, integer, bigint, bigint, integer, bigint) from public, anon, authenticated, service_role;
 grant execute on function public.issue_video_upload_ticket(uuid, text, integer, integer, bigint, bigint, integer, bigint) to service_role;
+revoke all on function public.media_files_count_video() from public, anon, authenticated, service_role;
 
 -- ===== 画像の引換券・容量: 画像だけを数える（動画が画像の枠を食わないように）。使った引換券の場所の上げ直しも数える（動画と同じ）。それ以外は 20261113150000 と同じ =====
 create or replace function public.issue_media_upload_ticket(
@@ -203,7 +249,7 @@ declare
   v_pending integer;
   v_unattached integer;
   v_used bigint;
-  v_held integer;
+  v_held bigint;
 begin
   perform pg_advisory_xact_lock(hashtext('media_upload:' || p_owner_id::text));
 
@@ -221,20 +267,15 @@ begin
     return 'too_many_unattached';
   end if;
 
-  select coalesce(sum(size_bytes), 0) into v_used from public.media_files where owner_id = p_owner_id and kind = 'image';
-  -- 量に数える引換券: 確かめ待ちと、使った引換券のうち記録のない場所（URL が使える 2 時間の間か、そこにファイルがある間）。動画と同じ
-  select count(*) into v_held
+  -- 量に数えるもの: 確かめ待ちの引換券（1 枚あたりの上限の大きさで）と、使った引換券の場所に残っている記録のないファイル（実際の大きさ）。動画と同じ
+  select coalesce(sum((o.metadata->>'size')::bigint), 0) into v_held
     from public.media_upload_tickets k
-   where k.owner_id = p_owner_id and k.kind = 'image' and k.created_at > now() - interval '1 day'
-     and (
-       k.consumed_at is null
-       or (
-         not exists (select 1 from public.media_files m where m.storage_path = k.storage_path)
-         and (k.created_at > now() - interval '2 hours'
-              or exists (select 1 from storage.objects o where o.bucket_id = 'post-media' and o.name = k.storage_path))
-       )
-     );
-  if v_used + (v_held + 1) * p_max_file_bytes > p_quota_bytes then
+    join storage.objects o on o.bucket_id = 'post-media' and o.name = k.storage_path
+   where k.owner_id = p_owner_id and k.kind = 'image' and k.consumed_at is not null
+     and not exists (select 1 from public.media_files m where m.storage_path = k.storage_path);
+
+  select coalesce(sum(size_bytes), 0) into v_used from public.media_files where owner_id = p_owner_id and kind = 'image';
+  if v_used + v_held + (v_pending + 1) * p_max_file_bytes > p_quota_bytes then
     return 'quota';
   end if;
 

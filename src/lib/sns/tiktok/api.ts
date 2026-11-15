@@ -38,12 +38,34 @@ export function authorizeUrl(config: TikTokConfig, state: string): string {
   return url.toString();
 }
 
+// TikTok の答えを読む。投稿の ID（publicaly_available_post_id など）は 19 桁の数で来うるので、そのまま数にすると
+// 2^53 を超えて丸まり、別の ID になる。安全に表せない整数は、本文の文字のまま（文字列）で受け取る（JSON.parse の reviver の context.source）
+export function parseTikTokJson(text: string): unknown {
+  return JSON.parse(text, function (this: unknown, _key: string, value: unknown, context?: { source?: string }) {
+    if (typeof value === "number" && Number.isInteger(value) && !Number.isSafeInteger(value)) {
+      const source = context?.source;
+      if (typeof source === "string" && /^-?\d+$/.test(source)) return source;
+      // 本文の文字が読めない（古い実行環境）ときは、丸まった数を ID にしない
+      throw new TikTokApiError(200, "unsafe_integer", "TikTok の答えの数が大きすぎて読めません");
+    }
+    return value;
+  });
+}
+
 async function call(path: string, init: RequestInit): Promise<Record<string, unknown>> {
   const res = await fetch(`${TIKTOK_API_URL}${path}`, { ...init, cache: "no-store", signal: AbortSignal.timeout(20_000) });
   let body: Record<string, unknown> = {};
+  let text = "";
   try {
-    body = (await res.json()) as Record<string, unknown>;
+    text = await res.text();
   } catch {
+    // 本文が読めないときは、状態の番号だけで判断する
+  }
+  try {
+    const parsed = parseTikTokJson(text);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) body = parsed as Record<string, unknown>;
+  } catch (e) {
+    if (e instanceof TikTokApiError) throw e;
     // 本文が JSON でないときは、状態の番号だけで判断する
   }
   // 返り方は 2 つある: トークンの窓口は { error, error_description } を、そのほかは { data, error: { code, message } } を返す
@@ -167,7 +189,9 @@ export async function initPhotoPost(accessToken: string, body: Record<string, un
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json; charset=UTF-8" },
     body: JSON.stringify(body),
   });
-  const id = (res.data as { publish_id?: unknown } | undefined)?.publish_id;
+  const raw = (res.data as { publish_id?: unknown } | undefined)?.publish_id;
+  // 資料では文字列（v_pub_url~… の形）。数で来ても文字にする（大きな数は parseTikTokJson が文字のまま渡す）
+  const id = typeof raw === "number" && Number.isSafeInteger(raw) ? String(raw) : raw;
   if (typeof id !== "string" || !id) throw new TikTokApiError(200, "invalid_publish_response", "TikTok の投稿の答えに publish_id がありません");
   return id;
 }
@@ -182,6 +206,7 @@ export async function fetchPublishStatus(accessToken: string, publishId: string)
     body: JSON.stringify({ publish_id: publishId }),
   });
   const d = (res.data ?? {}) as Record<string, unknown>;
-  const ids = Array.isArray(d.publicaly_available_post_id) ? d.publicaly_available_post_id.map((x) => String(x)) : [];
+  // ID は数でも文字列でも来うる（大きな数は parseTikTokJson が文字のまま渡す）。数字の並びだけを ID にする
+  const ids = Array.isArray(d.publicaly_available_post_id) ? d.publicaly_available_post_id.map((x) => String(x)).filter((x) => /^\d{1,25}$/.test(x)) : [];
   return { status: typeof d.status === "string" ? d.status : "", failReason: typeof d.fail_reason === "string" ? d.fail_reason : "", postIds: ids };
 }

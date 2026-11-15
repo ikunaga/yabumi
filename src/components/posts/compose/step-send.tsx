@@ -107,7 +107,7 @@ export function ComposeStepSend({ c, steps = false }: { c: Composer; steps?: boo
             </Button>
           )}
           <p className={`text-[13px] ${fe.plannedAt || (mainBlocker && mainBlocker !== QUIET_BLOCKER) ? "text-signal" : "text-faint"}`}>
-            {fe.plannedAt ?? mainBlocker ?? (nowMain ? "予約するときは、上で送る日時を決めてください" : "予約すると、この日時に自動で送ります")}
+            {fe.plannedAt ?? mainBlocker ?? (nowMain ? "予約するときは、上で送る日時を決めてください" : nowNames ? "予約すると、この日時に自動で送ります" : "この日時に、手で投稿する番として知らせます")}
             {!fe.plannedAt && mainBlocker === missingConnectMessage && (
               <>
                 {" "}

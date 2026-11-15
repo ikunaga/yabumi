@@ -247,7 +247,7 @@ export default function PrivacyPage() {
               <>
                 TikTok（TikTok Pte. Ltd.）
                 <br />
-                <ExternalLink href="https://www.tiktok.com/legal/page/row/privacy-policy/en">プライバシーポリシー</ExternalLink>
+                <ExternalLink href="https://www.tiktok.com/legal/page/row/privacy-policy/ja-JP">プライバシーポリシー</ExternalLink>
               </>,
               "TikTok への写真の投稿（そのまま投稿する・TikTok のアプリの受信箱に下書きとして送る）、投稿の状態の確かめ、送る前のアカウントの名前と選べる公開範囲の読み取り、トークンの取り直しと取り消し。TikTok への投稿は、本サービスからは取り消せません",
               "投稿のタイトルと説明、添えた画像（TikTok が画像を取りに来るための、1 時間で切れる URL。長い辺を 1080 ピクセルに縮めたもの）、公開範囲・コメントの許可・宣伝の内容の表示、AI で作った画像かどうか、アクセストークン",
@@ -384,7 +384,7 @@ export default function PrivacyPage() {
             ["GitHub の連携の情報", "つないでいる間"],
             ["Facebook ページを選ぶまでのページの一覧とトークン", "15 分で自動で消す（選んだら、すぐに消す）"],
             ["TikTok に送るときの設定と同意", "その投稿の TikTok の送り先を消すか、投稿を消すか、退会まで"],
-            ["TikTok が画像を取りに来るための URL の記録", "1 時間で自動で消す（送り終えたら、すぐに消す）"],
+            ["TikTok が画像を取りに来るための URL の記録", "1 時間で使えなくなり、送り終えたら消す（残ったものも毎日消す）"],
             ["ロードマップ", "利用者が消すか、プロジェクトを消すか、退会まで"],
             [
               "SNS・ストア・課金の数字",

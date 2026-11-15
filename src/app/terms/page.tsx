@@ -73,8 +73,8 @@ export default function TermsPage() {
                   <ExternalLink key="fb" href="https://www.facebook.com/terms">Meta 利用規約（Facebook）</ExternalLink>,
                   <ExternalLink key="fbp" href="https://www.facebook.com/policies_center/pages_groups_events">Facebook ページのポリシー</ExternalLink>,
                   <ExternalLink key="tt" href="https://www.tiktok.com/legal/page/row/terms-of-service/ja-JP">TikTok サービス規約</ExternalLink>,
-                  <ExternalLink key="ttm" href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en">TikTok の音楽の利用の確認（Music Usage Confirmation）</ExternalLink>,
-                  <ExternalLink key="ttb" href="https://www.tiktok.com/legal/page/global/bc-policy/en">TikTok のブランドコンテンツのポリシー（Branded Content Policy）</ExternalLink>,
+                  <ExternalLink key="ttm" href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en">TikTok の音楽の利用の確認（Music Usage Confirmation。英語のページだけ）</ExternalLink>,
+                  <ExternalLink key="ttb" href="https://www.tiktok.com/legal/page/global/bc-policy/ja-JP">TikTok のブランドコンテンツのポリシー（Branded Content Policy）</ExternalLink>,
                   <ExternalLink key="gh" href="https://docs.github.com/ja/site-policy/github-terms/github-terms-of-service">GitHub 利用規約</ExternalLink>,
                 ]}
               />

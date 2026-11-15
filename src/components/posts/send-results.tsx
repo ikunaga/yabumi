@@ -2,7 +2,7 @@
 
 import { callAction } from "@/lib/client-errors";
 import { useState, useTransition } from "react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonClass } from "@/components/ui/button";
 import { deleteFromSns, markManualPosted, markRemovedOnSns } from "@/lib/posts/send-actions";
 import { SNS, SNS_KEYS, isManualSns, type SnsKey } from "@/lib/sns";
 import { formatShort } from "@/lib/time";
@@ -28,7 +28,8 @@ export type TargetResult = {
   removedOnSns?: boolean;
 };
 
-type ManualInfo = { title: string | null; text: string; composeUrl: string | null };
+// downloads: 画像を保存する URL（TikTok に手で投稿するとき。写真の投稿をウェブで開く窓口がないので、保存してアプリで選ぶ）
+type ManualInfo = { title: string | null; text: string; composeUrl: string | null; downloads?: { url: string; name: string }[] };
 
 // 送信の結果: 送れたものは SNS 上の投稿へのリンクと取り消し、送れなかったものは理由と「要確認」
 export function SendResults({ projectId, postId, results }: { projectId: string; postId: string; results: Partial<Record<SnsKey, TargetResult>> }) {
@@ -134,9 +135,13 @@ function ResultRow({ sns, r, projectId, postId }: { sns: SnsKey; r: TargetResult
           </>
         )}
         {r.status === "publishing" && <span className="text-muted">送信中です。しばらくしてから読み込み直してください。</span>}
-        {r.status === "preparing" && (
-          <span className="text-muted">{label} が画像を処理しています。準備ができしだい送ります（1〜2 分ほど。読み込み直すと結果が出ます）</span>
-        )}
+        {r.status === "preparing" &&
+          (sns === "tiktok" ? (
+            // TikTok は、送ったあとに TikTok の側で写真を取りに来て処理する（docs/design/tiktok.md の 6.）
+            <span className="text-muted">TikTok で処理しています（数分かかることがあります。読み込み直すと結果が出ます）</span>
+          ) : (
+            <span className="text-muted">{label} が画像を処理しています。準備ができしだい送ります（1〜2 分ほど。読み込み直すと結果が出ます）</span>
+          ))}
         {r.status === "deleted" &&
           (r.removedOnSns ? (
             <span className="text-muted">{label} で消されていました。消えた投稿へのリンクは、yabumi からも消しました（yabumi の下書きは残っています）</span>
@@ -283,6 +288,9 @@ function ManualSteps({
   const label = SNS[sns].label;
   // X は投稿の画面に本文を入れた状態で開けるので、コピーは控えめにする
   const unit = sns === "x" || sns === "tiktok" ? "投稿" : "記事";
+  // TikTok は「画像を保存」を先に置くので、番号を 1 つずらす
+  const tiktok = sns === "tiktok";
+  const n = (i: number) => (tiktok ? i + 1 : i);
 
   async function copy(kind: "title" | "body", text: string) {
     try {
@@ -297,8 +305,30 @@ function ManualSteps({
   return (
     <>
       <ol className="flex flex-col gap-2 text-sm">
+        {tiktok && (
+          <li className="flex flex-col gap-1.5">
+            <span>
+              <span className="text-muted">1.</span> 画像を保存します（スマホは画像を長押しするか「保存」、PC は「保存」でダウンロード）
+            </span>
+            {m.downloads?.length ? (
+              <div className="flex flex-wrap gap-2">
+                {m.downloads.map((d, i) => (
+                  <div key={d.url} className="flex flex-col items-center gap-1">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- 添えた画像の署名つき URL（1 時間で切れる） */}
+                    <img src={d.url} alt={`画像 ${i + 1}`} className="size-20 rounded-md border border-line object-cover" />
+                    <a href={d.url} download={d.name} className={buttonClass({ variant: "secondary", size: "sm" })}>
+                      保存
+                    </a>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <span className="text-xs text-muted">この投稿には画像がありません。TikTok の写真の投稿には画像が要ります。</span>
+            )}
+          </li>
+        )}
         <li className="flex flex-wrap items-center gap-2">
-          <span className="text-muted">1.</span>
+          <span className="text-muted">{n(1)}.</span>
           {m.title && (
             <Button type="button" variant="secondary" size="sm" onClick={() => copy("title", m.title!)}>
               {copied === "title" ? "コピーしました" : "タイトルをコピー"}
@@ -309,13 +339,13 @@ function ManualSteps({
           </Button>
         </li>
         <li className="flex flex-wrap items-center gap-2">
-          <span className="text-muted">2.</span>
+          <span className="text-muted">{n(2)}.</span>
           {m.composeUrl ? (
             <a href={m.composeUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary hover:underline">
               {label} の投稿の画面を開く
             </a>
           ) : sns === "tiktok" ? (
-            <span className="text-muted">スマホの TikTok のアプリを開き、＋ から写真を選んで、タイトルと本文を貼り付けて投稿する</span>
+            <span className="text-muted">スマホの TikTok のアプリを開き、＋ から保存した写真を選んで、タイトルと本文を貼り付けて投稿する</span>
           ) : (
             <span className="text-muted">{label} を開いて、新しい記事を作る</span>
           )}
@@ -325,7 +355,7 @@ function ManualSteps({
         </li>
         <li className="flex flex-col gap-1.5">
           <span>
-            <span className="text-muted">3.</span> 投稿したら、記録します。投稿の URL は任意です
+            <span className="text-muted">{n(3)}.</span> 投稿したら、記録します。投稿の URL は任意です
           </span>
           <div className="flex flex-wrap items-center gap-2">
             <input

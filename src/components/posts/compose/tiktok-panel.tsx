@@ -139,16 +139,23 @@ export function ComposeTikTok({ c }: { c: Composer }) {
                       <input type="checkbox" checked={ch.brandOrganic} onChange={(e) => set({ brandOrganic: e.target.checked })} />
                       自分のブランド（Your brand）: 自分の商品・お店・サービスの宣伝
                     </label>
-                    <label className="flex items-center gap-2">
+                    {/* 審査の前は「自分だけ」しか選べず、ブランドコンテンツは「自分だけ」にできないので、押せなくして理由を見える形で出す */}
+                    <label className={`flex items-center gap-2 ${creator.audited ? "" : "text-muted"}`}>
                       <input
                         type="checkbox"
+                        aria-describedby={creator.audited ? undefined : "tiktok-bc-unaudited"}
                         checked={ch.brandContent}
-                        disabled={ch.privacyLevel === "SELF_ONLY"}
-                        title={ch.privacyLevel === "SELF_ONLY" ? "Branded content visibility cannot be set to private." : undefined}
+                        disabled={!creator.audited || ch.privacyLevel === "SELF_ONLY"}
+                        title={creator.audited && ch.privacyLevel === "SELF_ONLY" ? "Branded content visibility cannot be set to private." : undefined}
                         onChange={(e) => set({ brandContent: e.target.checked })}
                       />
                       ブランドコンテンツ（Branded content）: ほかの会社から頼まれた・お礼をもらった宣伝
                     </label>
+                    {!creator.audited && (
+                      <p id="tiktok-bc-unaudited" className="pl-6 text-xs text-muted">
+                        ブランドコンテンツは、yabumi の審査が終わると選べます
+                      </p>
+                    )}
                     {label && <p className="text-[12px] text-muted">{label}（TikTok でこのラベルが付きます）</p>}
                     {!ch.brandOrganic && !ch.brandContent && <p className="text-[12px] text-signal">どちらかを選ぶと送れます</p>}
                   </div>

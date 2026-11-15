@@ -25,7 +25,8 @@ describe("TikTok の連携の版", () => {
     expect(privacy).toContain("TikTok（TikTok Pte. Ltd.）");
     expect(privacy).toContain("TikTok が画像を取りに来るための、1 時間で切れる URL");
     expect(privacy).toContain("シンガポールには個人情報保護法（PDPA）があります");
-    expect(privacy).toContain("1 時間で自動で消す（送り終えたら、すぐに消す）");
+    expect(privacy).toContain("1 時間で使えなくなり、送り終えたら消す（残ったものも毎日消す）");
+    expect(privacy).toContain("https://www.tiktok.com/legal/page/row/privacy-policy/ja-JP");
     expect(privacy).toContain("TikTok に問い合わせて外されたことを確かめ");
     // 入口の期限は 1 時間（書いた文と同じ）
     expect(TICKET_TTL_MS).toBe(60 * 60 * 1000);
@@ -39,7 +40,8 @@ describe("TikTok の連携の版", () => {
     const terms = read("src/app/terms/page.tsx");
     expect(terms).toContain("Facebook ページ、TikTok）と GitHub");
     expect(terms).toContain("https://www.tiktok.com/legal/page/global/music-usage-confirmation/en");
-    expect(terms).toContain("https://www.tiktok.com/legal/page/global/bc-policy/en");
+    expect(terms).toContain("https://www.tiktok.com/legal/page/global/bc-policy/ja-JP");
+    expect(terms).toContain("https://www.tiktok.com/legal/page/row/terms-of-service/ja-JP");
     expect(terms).toContain("TikTok への投稿は、TikTok の仕組み上、本サービスからは取り消せません");
   });
 });

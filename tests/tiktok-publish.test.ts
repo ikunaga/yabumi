@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createTikTokAdapter, type TikTokTarget } from "@/lib/sns/adapters/tiktok";
 import { SnsPublishError, type PublishImage } from "@/lib/sns/adapters/types";
-import type { CreatorInfo } from "@/lib/sns/tiktok/api";
+import { parseTikTokJson, type CreatorInfo } from "@/lib/sns/tiktok/api";
 import { allowedPrivacy, commercialLabel, consentDeclaration, failureOf, photoInitBody, settingsProblem, type TikTokSettings } from "@/lib/sns/tiktok/publish";
 import { checkBeforeSend, consentHash } from "@/lib/sns/tiktok/send-check";
 
@@ -164,6 +164,20 @@ describe("TikTok への送信（写真）", () => {
     const { adapter } = makeAdapter({ ownerId: "u1", title: "新作", settings: settings({ post_mode: "MEDIA_UPLOAD", privacy_level: "SELF_ONLY" }) });
     const state = await adapter.startPublish!(account, "本文", [image("m1")], { id: "t1", rawText: "本文" });
     expect(await adapter.continuePublish!(account, state)).toEqual({ done: { externalPostId: "p2", url: null } });
+  });
+
+  it("19 桁の投稿の ID（JSON の数）を丸めずに、そのまま ID と URL にする", async () => {
+    const raw = '{"data":{"status":"PUBLISH_COMPLETE","publicaly_available_post_id":[7412345678901234567]},"error":{"code":"ok","message":""}}';
+    expect(Number("7412345678901234567").toString()).not.toBe("7412345678901234567"); // ふつうに読むと丸まる
+    scriptedFetch([creatorReply, ok({ publish_id: "p9" })]);
+    const { adapter } = makeAdapter();
+    const state = await adapter.startPublish!(account, "本文", [image("m1")], { id: "t1", rawText: "本文" });
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(raw, { status: 200 })));
+    expect(await adapter.continuePublish!(account, state)).toEqual({ done: { externalPostId: "7412345678901234567", url: "https://www.tiktok.com/@komugi_bakery/photo/7412345678901234567" } });
+  });
+
+  it("安全な大きさの数・文字列の ID・publish_id が数で来たときも、文字の ID にする", () => {
+    expect(parseTikTokJson('{"a":[123,"7412345678901234567",-9223372036854775808],"b":1.5}')).toEqual({ a: [123, "7412345678901234567", "-9223372036854775808"], b: 1.5 });
   });
 
   it("公開されたが ID がまだ来ないときは、publish_id を残して URL なし", async () => {

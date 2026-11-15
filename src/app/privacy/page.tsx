@@ -67,6 +67,11 @@ export default function PrivacyPage() {
             ],
             ["手で投稿する SNS", "note・Substack のプロフィールの URL（任意）", "利用者が入力"],
             [
+              "TikTok に送るときの設定と同意",
+              "TikTok に送るときに選んだ送り方・公開範囲・コメントの許可・宣伝の内容の表示、同意した日時と、そのときの TikTok の名前、同意したときのタイトルと説明の指紋（元の文には戻せない値。送る直前の文と比べるため）、AI で作った画像かどうか。TikTok が画像を取りに来るための URL の記録（URL そのものは持たず、指紋だけ）",
+              "利用者の操作、TikTok から",
+            ],
+            [
               "ストアと課金の鍵と数字",
               "利用者が預けた App Store Connect の API キー（Issuer ID、Key ID、秘密鍵、ベンダー番号）と RevenueCat のキー（暗号化して保存）、そこから毎日読む数字（ダウンロード、受け取り、売上、ストアのページの閲覧、App Store と Google Play では、本サービスの短縮リンクごとのはじめてのダウンロード・インストールの数など）。Google Play は鍵を預からず、本サービスが利用者・プロジェクトごとに作った読み取り用のアカウント（そのメールアドレス）と、利用者が入れた一括レポートの置き場所とパッケージ名を預かり、利用者がそのアカウントを Play Console に招待したレポートを読む。App Store のページの閲覧数のレポートを依頼するときの Admin のキーは、1 回だけ使って保存せず、依頼の ID だけを預かる",
               "利用者が入力、App Store Connect・RevenueCat・Google Play から",
@@ -240,6 +245,16 @@ export default function PrivacyPage() {
             ],
             [
               <>
+                TikTok（TikTok Pte. Ltd.）
+                <br />
+                <ExternalLink href="https://www.tiktok.com/legal/page/row/privacy-policy/ja-JP">プライバシーポリシー</ExternalLink>
+              </>,
+              "TikTok への写真の投稿（そのまま投稿する・TikTok のアプリの受信箱に下書きとして送る）、投稿の状態の確かめ、送る前のアカウントの名前と選べる公開範囲の読み取り、トークンの取り直しと取り消し。TikTok への投稿は、本サービスからは取り消せません",
+              "投稿のタイトルと説明、添えた画像（TikTok が画像を取りに来るための、1 時間で切れる URL。長い辺を 1080 ピクセルに縮めたもの）、公開範囲・コメントの許可・宣伝の内容の表示、AI で作った画像かどうか、アクセストークン",
+              "シンガポール・マレーシア・アイルランド・米国など（TikTok の設備がある国）",
+            ],
+            [
+              <>
                 X
                 <br />
                 <ExternalLink href="https://x.com/ja/privacy">プライバシーポリシー</ExternalLink>
@@ -352,7 +367,7 @@ export default function PrivacyPage() {
         <p>
           前の条の送り先の多くは米国の会社です（個人情報の保護に関する法律の「外国にある第三者」）。米国には、日本の個人情報保護法にあたる連邦全体の包括的な法律はなく、分野や州ごとの法律で守られています（
           <ExternalLink href="https://www.ppc.go.jp/personalinfo/legal/kaiseihogohou/#gaikoku">個人情報保護委員会「外国における個人情報の保護に関する制度等の調査」</ExternalLink>
-          ）。各社は、それぞれのプライバシーポリシーや契約で、個人情報の保護の措置をとっています。
+          ）。TikTok はシンガポールの会社で、シンガポールには個人情報保護法（PDPA）があります（同じ調査の資料）。TikTok の設備はシンガポールのほか、マレーシア・アイルランド・米国などにあります。各社は、それぞれのプライバシーポリシーや契約で、個人情報の保護の措置をとっています。
         </p>
       </LegalSection>
 
@@ -368,6 +383,8 @@ export default function PrivacyPage() {
             ["SNS のトークンとアカウントの情報", "SNS をつないでいる間。外す・退会するとすぐに消す（外しても、yabumi で書いた投稿の本文と送った記録は残る）"],
             ["GitHub の連携の情報", "つないでいる間"],
             ["Facebook ページを選ぶまでのページの一覧とトークン", "15 分で自動で消す（選んだら、すぐに消す）"],
+            ["TikTok に送るときの設定と同意", "その投稿の TikTok の送り先を消すか、投稿を消すか、退会まで"],
+            ["TikTok が画像を取りに来るための URL の記録", "1 時間で使えなくなり、送り終えたら消す（残ったものも毎日消す）"],
             ["ロードマップ", "利用者が消すか、プロジェクトを消すか、退会まで"],
             [
               "SNS・ストア・課金の数字",
@@ -437,6 +454,7 @@ export default function PrivacyPage() {
           items={[
             "Threads: Threads のアプリの「設定」→「アカウント」→「ウェブサイトのアクセス許可」から yabumi を削除できます。削除すると、Meta から本サービスに知らせが届き、トークンを消します。Meta のデータ削除の依頼を受けたときは、Threads のアカウントの情報とトークン、Threads から読んだ投稿の数字とフォロワーの数・コメント、Threads 上の投稿の ID と URL を消し（yabumi で書いた投稿の本文は残します）、確認のページと確認コードを返します",
             "Instagram: Instagram のアプリの「設定とアクティビティ」→「ウェブサイトのアクセス許可」→「アプリとウェブサイト」から yabumi を削除できます。Facebook ページ: Facebook の「設定とプライバシー」→「設定」→「ビジネス統合」から yabumi を削除できます。どちらも、削除やデータ削除の依頼の知らせを受けたときの扱いは Threads と同じです（Facebook は、その人がつないだページをまとめて扱います）",
+            "TikTok: TikTok のアプリの設定から、yabumi への許可を外せます。外すと、TikTok から本サービスに知らせが届きます。本サービスは、知らせを受けたら TikTok に問い合わせて外されたことを確かめ、TikTok のアカウントのトークンと、TikTok 上の投稿の ID と URL を消します（yabumi で書いた投稿の本文は残します）",
             <>
               X: X の「設定とプライバシー」→「セキュリティとアカウントアクセス」→「アプリとセッション」→「連携しているアプリ」から外せます（
               <ExternalLink href="https://x.com/settings/connected_apps">連携しているアプリ</ExternalLink>）

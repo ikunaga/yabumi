@@ -60,7 +60,7 @@ export default function TermsPage() {
       <LegalSection id="sns" n={next()} title="SNS・GitHub・ストアとの連携">
         <Clauses
           items={[
-            "SNS（Threads、X、Instagram、Facebook ページ）と GitHub は、各社の公式の認可の仕組みでつなぎます。本サービスは、各社の ID やパスワードを預かりません。",
+            "SNS（Threads、X、Instagram、Facebook ページ、TikTok）と GitHub は、各社の公式の認可の仕組みでつなぎます。本サービスは、各社の ID やパスワードを預かりません。",
             "本サービスは、利用者が「送る」「予約」を押したものだけを、利用者のアカウントから投稿します。利用者が確かめていない文面を、本サービスが勝手に投稿することはありません。",
             <>
               利用者は、つないだ SNS と GitHub の規約を守ってください。主なもの:
@@ -72,6 +72,9 @@ export default function TermsPage() {
                   <ExternalLink key="ig" href="https://help.instagram.com/581066165581870">Instagram 利用規約</ExternalLink>,
                   <ExternalLink key="fb" href="https://www.facebook.com/terms">Meta 利用規約（Facebook）</ExternalLink>,
                   <ExternalLink key="fbp" href="https://www.facebook.com/policies_center/pages_groups_events">Facebook ページのポリシー</ExternalLink>,
+                  <ExternalLink key="tt" href="https://www.tiktok.com/legal/page/row/terms-of-service/ja-JP">TikTok サービス規約</ExternalLink>,
+                  <ExternalLink key="ttm" href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en">TikTok の音楽の利用の確認（Music Usage Confirmation。英語のページだけ）</ExternalLink>,
+                  <ExternalLink key="ttb" href="https://www.tiktok.com/legal/page/global/bc-policy/ja-JP">TikTok のブランドコンテンツのポリシー（Branded Content Policy）</ExternalLink>,
                   <ExternalLink key="gh" href="https://docs.github.com/ja/site-policy/github-terms/github-terms-of-service">GitHub 利用規約</ExternalLink>,
                 ]}
               />
@@ -79,6 +82,7 @@ export default function TermsPage() {
             "同じ文面や、ほとんど同じ文面を、複数の X のアカウントに投稿しないでください（X の自動化のルールで禁じられています）。",
             "SNS の側の都合（仕様や料金の変更、障害、審査、アカウントの制限）で、投稿できない・遅れる・機能が使えなくなることがあります。投稿の結果は、投稿の画面の「送信の結果」で確かめてください。",
             "Instagram への投稿は、Instagram の仕組み上、本サービスからは取り消せません。取り消すときは、Instagram のアプリから消してください。",
+            "TikTok に送るときは、公開範囲・コメントの許可・宣伝の内容の表示を利用者が選び、送る前に TikTok の音楽の利用の確認（宣伝の内容にブランドコンテンツを選んだときはブランドコンテンツのポリシーも）に同意します。選んだ内容と、宣伝であることの表示が正しいことは、利用者が責任を持ちます。TikTok への投稿は、TikTok の仕組み上、本サービスからは取り消せません。取り消すときは、TikTok のアプリから消してください。",
             "note と Substack は、公式の投稿の仕組みがないため、本サービスからは投稿しません。利用者が手で投稿し、記録する形です。",
             "App Store Connect・RevenueCat の鍵を預けるときと、Google Play で本サービスの読み取り用のアカウントを招待するときは、利用者が権限を持つアプリのものだけにしてください。本サービスは数字を読むだけで、ストアや課金の設定を書き換えません。",
           ]}

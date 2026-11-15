@@ -64,7 +64,7 @@ export function SendProgress({ postId, sns, hasImages }: Props) {
       <ul className="flex flex-col gap-1.5 text-[14px]">
         {sns.map((s) => (
           <li key={s} className="flex items-center gap-2">
-            <Row label={SNS[s].label} status={postId ? states[s] : undefined} hasImages={hasImages} />
+            <Row label={SNS[s].label} tiktok={s === "tiktok"} status={postId ? states[s] : undefined} hasImages={hasImages} />
           </li>
         ))}
       </ul>
@@ -72,14 +72,19 @@ export function SendProgress({ postId, sns, hasImages }: Props) {
   );
 }
 
-function Row({ label, status, hasImages }: { label: string; status?: Status; hasImages: boolean }) {
+function Row({ label, tiktok = false, status, hasImages }: { label: string; tiktok?: boolean; status?: Status; hasImages: boolean }) {
   switch (status) {
     case "published":
       return <span className="font-bold text-success">✓ {label} に送りました</span>;
     case "failed":
       return <span className="font-bold text-danger">! {label} に送れませんでした（理由は次の画面に出ます）</span>;
     case "preparing":
-      return <span className="text-fg">● {label} が画像を受け取っています。このあと自動で投稿されます</span>;
+      // TikTok は、TikTok の側で写真を取りに来て処理する（下書きのときは受信箱に届く。docs/design/tiktok.md の 6.）
+      return tiktok ? (
+        <span className="text-fg">● TikTok で処理しています（数分かかることがあります）</span>
+      ) : (
+        <span className="text-fg">● {label} が画像を受け取っています。このあと自動で投稿されます</span>
+      );
     case "publishing":
       return (
         <>

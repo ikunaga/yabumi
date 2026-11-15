@@ -7,7 +7,7 @@ import type { CalendarStats } from "@/lib/calendar/stats";
 import { postTitle, type PostRow } from "@/lib/posts/queries";
 import { SNS } from "@/lib/sns";
 import { formatShort } from "@/lib/time";
-import { isXByHand } from "@/lib/sns/x/send-rules";
+import { isByHand } from "@/lib/sns/by-hand";
 import type { WeekPace } from "@/lib/coach/pace";
 import { WeekSlotsCard } from "./week-slots-card";
 
@@ -40,7 +40,7 @@ export function CalendarSide({ stats, period, upcoming, base, week }: { stats: C
                     <span className="num text-[13px] text-faint">{formatShort(p.planned_at!)}</span>
                     {/* 「X は手で投稿する」を選んだ X は、手で出すとわかる印にする（概要の次の予約と同じ。2026-11-13 PMO2 の確かめ x6） */}
                     {p.targets.map((t) => (
-                      <SnsMark key={t.id} sns={t.sns} byHand={isXByHand(t)} />
+                      <SnsMark key={t.id} sns={t.sns} byHand={isByHand(t)} />
                     ))}
                   </span>
                   <span className="truncate text-[15px] hover:underline">{postTitle(p.body, 24)}</span>

@@ -3,7 +3,7 @@ import type { AttachedImage } from "@/components/posts/image-attachments";
 import { isSnsKey, type SnsKey } from "@/lib/sns";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { IMAGE_SCOPES, PREVIEW_URL_SECONDS, lacksImageScope } from "./rules";
+import { IMAGE_SCOPES, MEDIA_BUCKET, PREVIEW_URL_SECONDS, lacksImageScope } from "./rules";
 import { signedUrls } from "./store";
 import { toAttached } from "./attached";
 
@@ -35,3 +35,25 @@ export async function snsNeedingImageReconnect(accounts: Partial<Record<SnsKey, 
   const scopes = new Map((data ?? []).map((r) => [r.social_account_id, r.scopes]));
   return entries.filter(([sns, id]) => isSnsKey(sns) && lacksImageScope(sns, scopes.get(id) ?? [])).map(([sns]) => sns);
 }
+
+// 投稿の画像を保存するための URL（「TikTok に手で投稿する」で、利用者が画像を保存して TikTok のアプリから選ぶため）。
+// 読めるのは本人のものだけ（RLS）。URL は保存（ダウンロード）として開く形で、1 時間で切れる
+export async function loadPostImageDownloads(postId: string): Promise<{ url: string; name: string }[]> {
+  const db = await createClient();
+  const { data: rows, error } = await db.from("media_files").select("storage_path").eq("post_id", postId).order("position");
+  if (error) throw error;
+  const files = rows ?? [];
+  if (!files.length) return [];
+  // 保存したときのファイルの名前（download= に入れる。PC のダウンロードで yabumi-1.jpg のようになる）。名前ごとに URL を作る
+  const storage = createAdminClient().storage.from(MEDIA_BUCKET);
+  const signed = await Promise.all(
+    files.map(async (f, i) => {
+      const name = `yabumi-${i + 1}.jpg`;
+      const { data, error: signError } = await storage.createSignedUrl(f.storage_path, PREVIEW_URL_SECONDS, { download: name });
+      if (signError) throw signError;
+      return { url: data.signedUrl, name };
+    }),
+  );
+  return signed;
+}
+

@@ -20,9 +20,9 @@ import { countSelfWrittenPosts, hasVoiceMemo } from "@/lib/plan/voice";
 import { createClient } from "@/lib/supabase/server";
 import { canPublish } from "@/lib/sns/adapters";
 import { targetText } from "@/lib/sns/hashtags";
-import { isXByHand } from "@/lib/sns/x/send-rules";
+import { isByHand } from "@/lib/sns/by-hand";
 import { getPlanHints } from "@/lib/plan/queries";
-import { loadPostImages, snsNeedingImageReconnect } from "@/lib/media/queries";
+import { loadPostImageDownloads, loadPostImages, snsNeedingImageReconnect } from "@/lib/media/queries";
 import { postLinkPreview } from "@/lib/links/store";
 import { findLinkableUrls } from "@/lib/links/rules";
 import type { TargetResult } from "@/components/posts/send-results";
@@ -58,13 +58,16 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
   const supabase = await createClient();
   // 送った投稿ならその投稿の数字、まだならば前回送った投稿の数字
   const sent = post.targets.some((t) => ["published", "preparing", "publishing", "deleted"].includes(t.status));
-  const [accounts, planHints, { data: channels }, images, linkPreview, numbers] = await Promise.all([
+  // 送れなかった・手で投稿する TikTok は、利用者が画像を保存して TikTok のアプリから投稿する（保存の URL を作る）
+  const tiktokByHandNeeded = post.targets.some((t) => t.sns === "tiktok" && t.status === "failed");
+  const [accounts, planHints, { data: channels }, images, linkPreview, numbers, tiktokDownloads] = await Promise.all([
     connectedAccounts(project.id),
     getPlanHints(project.id),
     supabase.from("project_manual_channels").select("sns, profile_url").eq("project_id", project.id),
     loadPostImages(post.id),
     postLinkPreview(supabase, post.id),
     loadPostNumbers(project.id, { postId: post.id, sent }),
+    tiktokByHandNeeded ? loadPostImageDownloads(post.id) : Promise.resolve([]),
   ]);
   // SNS のコメント（4.70）: 送った投稿だけ。数字の帯の下に出す
   const comments = sent ? (await loadProjectComments(project.id, { postId: post.id })).filter((p) => p.sns !== "x") : [];
@@ -105,18 +108,28 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
             : undefined,
         // 引用の X（X の API では引用を送れないので、X の画面で送って記録する。4.52）
         quote: quoting(t),
-        // 送れなかった X は、手で投稿して記録できる（月の上限・クレジット切れのとき。決定 D16）
+        // 送れなかった X は、手で投稿して記録できる（月の上限・クレジット切れのとき。決定 D16）。
+        // TikTok も、手で投稿するを選んだとき・送れなかったときは、TikTok のアプリで投稿して記録できる（docs/design/tiktok.md の 17.。写真の投稿をウェブで開く窓口はない）
         fallback:
           t.sns === "x" && t.status === "failed"
             ? { title: null, text: targetText(post.body, t), composeUrl: xComposeUrl(targetText(post.body, t)) }
-            : undefined,
+            : t.sns === "tiktok" && t.status === "failed"
+              ? { title: t.title, text: targetText(post.body, t), composeUrl: null, downloads: tiktokDownloads }
+              : undefined,
         postedByHand: t.status === "published" && !t.external_post_id,
-        byHand: isXByHand(t),
+        byHand: isByHand(t),
         removedOnSns: t.status === "deleted" && Boolean(t.sns_removed_at),
       },
     ]),
   );
-  const notice = NOTICES[String(searchParams.done)];
+  // 準備中の帯は、準備中の SNS に合わせる（TikTok は TikTok の側で写真を取りに来て処理する。docs/design/tiktok.md の 6.）
+  const preparingSns = post.targets.filter((t) => t.status === "preparing").map((t) => t.sns);
+  const notice =
+    String(searchParams.done) === "preparing" && preparingSns.includes("tiktok")
+      ? preparingSns.every((s) => s === "tiktok")
+        ? { text: "送信を始めました。TikTok で処理しています（数分かかることがあります）。少しして読み込み直すと結果が出ます。", tone: "success" as const }
+        : { text: "送信を始めました。画像は SNS 側の処理を待ってから送ります（数分かかることがあります）。少しして読み込み直すと結果が出ます。", tone: "success" as const }
+      : NOTICES[String(searchParams.done)];
   // 送ったあと（送信を始めた・送った・手で投稿したと記録した）の「ひとこと」（4.47。1 日 1 回まで）
   const sentTip = ["sent", "sending", "preparing", "manual_posted"].includes(String(searchParams.done));
 

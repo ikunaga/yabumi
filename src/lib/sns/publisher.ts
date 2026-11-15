@@ -329,7 +329,7 @@ async function publishOne(admin: Admin, t: ClaimedTarget, deps: PublisherDeps): 
 
     // 画像の準備に時間がかかる SNS は、コンテナを作るだけで待たない。すぐ準備できていれば、この回で公開まで進める
     if (images.length > 0 && adapter.startPublish && adapter.continuePublish) {
-      const state = await adapter.startPublish(account, body, images);
+      const state = await adapter.startPublish(account, body, images, { id: t.target_id, rawText: t.body });
       const next = await adapter.continuePublish(account, state);
       return "done" in next ? published(next.done) : preparing(next.state, now.toISOString());
     }

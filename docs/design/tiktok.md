@@ -18,7 +18,7 @@
   - [Login Kit for Web](https://developers.tiktok.com/doc/login-kit-web)
   - [Webhooks](https://developers.tiktok.com/doc/webhooks-overview)・[Webhook events](https://developers.tiktok.com/doc/webhooks-events)
   - [Rate limits](https://developers.tiktok.com/doc/tiktok-api-v2-rate-limit)
-  - 読めなかったページ（403）: トークンの取得・更新・取り消し、Webhook の署名。ここに書いたことのうち、それらに当たるものは【未確認】にした。作り始める前に、オーナーのブラウザーで開いて確かめる（下の「作る前に確かめること」）
+  - 2026-11-14 の読み直しで読めなかったページ（トークンの取得・更新・取り消し、Webhook の署名）は、同じ日に PM が公式の資料で確かめた（下の「確かめた窓口」）
 
 ## 0. オーナーに決めてもらうこと（おすすめ順）
 
@@ -27,7 +27,7 @@
 | A | 写真を渡す入口の URL を「一回きり」にするか | ① 1 回読まれたら無効 ② 1 時間で無効、送り終えたらその場で無効 | **②** | TikTok は取りに来るのを失敗するとやり直すことがあり、取りに来る回数は資料に書かれていない。① だと、やり直しのたびに送れなくなるおそれがある。② でも、推測できないトークン・他人の画像を返さない・送り終えたら無効、で守れる |
 | B | 「TikTok は手で投稿する」を選べるようにするか（X と同じ） | ① 作る ② 作らない | **① 作る** | 審査の前は、API の投稿が「自分だけ」に限られる。審査を待つ間（数週間）に TikTok に出したい人は、手で投稿するしかない。X の手で投稿する作り（X_BY_HAND）をそのまま広げられ、手間は小さい |
 | C | 審査の前の画面の伝え方 | 送る画面の上に帯を出す（下の 9.） | 帯の文の案（下）でよいか | 利用者のせいではなく yabumi の準備の都合だと、はっきり書く |
-| D | Webhook を何に使うか | ① 外されたとき（authorization.removed）だけ ② 投稿の状態も | **①** | 署名の確かめ方の資料が読めず【未確認】。投稿の状態は status/fetch（1 分 30 回まで）で確かめられる。Webhook の中身は信じず、きっかけとしてだけ使う |
+| D | Webhook を何に使うか | ① 外されたとき（authorization.removed）だけ ② 投稿の状態も | **①** | 署名は確かめる（下の「確かめた窓口」）が、投稿の状態は status/fetch（1 分 30 回まで）で確かめられる。Webhook の中身は信じず、きっかけとしてだけ使う |
 
 ## 1. つなぐ・外す（Login Kit）
 
@@ -40,8 +40,8 @@
   - 戻ってくるもの: code・scopes・state・error・error_description
 - **スコープ**: `user.info.basic`・`video.publish`・`video.upload` だけ
   - 戻ってきた scopes に video.publish がなければ、つなげはするが「直接投稿が使えません」と出し、下書き（8.）だけにする
-- **トークンを取る**【未確認・作る前に確かめる】
-  - 2026-10-11 の調べでは `POST https://open.tiktokapis.com/v2/oauth/token/`（client_key・client_secret・code・grant_type=authorization_code・redirect_uri）。返ってくるもの: access_token・expires_in・refresh_token・refresh_expires_in・open_id・scope
+- **トークンを取る**（2026-11-14 に確かめた。下の「確かめた窓口」）
+  - `POST https://open.tiktokapis.com/v2/oauth/token/`（client_key・client_secret・code・grant_type=authorization_code・redirect_uri）。返ってくるもの: access_token・expires_in・refresh_token・refresh_expires_in・open_id・scope
   - サーバーでだけ呼ぶ。client_secret は画面に出さない
 - **トークンの期限**: 資料が食い違っている
   - docs/review/tiktok.md（2026-10-11）: アクセス 24 時間、リフレッシュ 365 日
@@ -53,7 +53,7 @@
 - **アカウントの記録**: 既存の social_accounts（sns = 'tiktok'、external_id = open_id、display_name = ニックネーム、handle = ユーザー名）
   - ニックネームとユーザー名は、user.info.basic（/v2/user/info/）か creator_info で読む
   - アイコンの URL は 2 時間で切れるので、保存しない（画面を出すたびに creator_info で読む）
-- **外す**: yabumi の「外す」で、トークンの取り消し（【未確認】2026-10-11 の調べでは `POST /v2/oauth/revoke/`）→ social_accounts を消し、purgeSnsDataOf（下の 12.）
+- **外す**: yabumi の「外す」で、トークンの取り消し（`POST /v2/oauth/revoke/`）→ social_accounts を消し、purgeSnsDataOf（下の 12.）
 
 ## 2. 写真を渡す入口
 
@@ -150,7 +150,7 @@ TikTok を送り先に選んだ投稿の、⑤ 送る（と ② 送り先の Tik
     - 形の問題 → 画像の直し方を出す
   - SEND_TO_USER_INBOX: 下書き（8.）のとき。「TikTok のアプリの受信箱から仕上げてください」
 - 画面: 送信の結果に「TikTok で処理しています（数分かかることがあります）」。既存の SendProgress と同じく、読み込み直すと結果が出る
-- Webhook（post.publish.*）は、資料の 2 つのページで食い違っていて、署名の確かめ方も【未確認】なので、最初は使わない（0. の D）
+- Webhook（post.publish.*）は、資料の 2 つのページで食い違っているので、最初は使わない（0. の D）
 
 ## 7. 回数の上限
 
@@ -201,25 +201,27 @@ TikTok を送り先に選んだ投稿の、⑤ 送る（と ② 送り先の Tik
 既存の SNS に合わせる。
 
 - **social_accounts・social_account_tokens**: そのまま使う（sns = 'tiktok'）。トークンは既存どおり暗号化して、サーバーの権限だけが読む
-- **post_targets に 1 列**: `tiktok jsonb`（null 可。TikTok の配信先だけ）
-  - 中身: privacy_level・disable_comment・brand_organic・brand_content・post_mode（DIRECT_POST・MEDIA_UPLOAD）・is_aigc・consented_at・consent_text_hash・consent_nickname
-  - **利用者の権限では書けない**: いまの post_targets の列の grant に入れない。保存のサーバー関数（savePost）が、creator_info を読んだうえで zod で確かめて、サーバーの権限で書く
-  - is_aigc・consented_at・consent_text_hash はサーバーが決める
-  - check: jsonb の object で、privacy_level が 4 つのどれか、大きさの上限（1KB）
-  - 読むのは本人（いまの RLS と select の grant のまま）
+- **新しい表 post_target_tiktok**（送るときの同意の記録。配信先ごとに 1 行。2026-11-14 に、post_targets の列から別の表に変えた）
+  - post_targets は利用者の権限で表ごと select を許しているので、列だけを読めなくするには select を列ごとの grant に組み直す必要があり、利用者の権限で select * しているところが壊れる。別の表にして、RLS を有効・ポリシーなし・利用者には grant しない形で、利用者の権限では読めず書けないことを守る（PM の了承）
+  - 列: post_target_id（主キー。on delete cascade）・owner_id・privacy_level（4 つのどれか）・disable_comment・brand_organic・brand_content・post_mode（DIRECT_POST・MEDIA_UPLOAD）・is_aigc・consented_at・consent_text_hash（SHA-256 の hex）・consent_nickname・consent_username・updated_at
+  - check: ブランドコンテンツは「自分だけ」にできない
+  - 書くのは保存のサーバー関数だけ（creator_info を読んだうえで zod で確かめる）。is_aigc・consented_at・consent_text_hash はサーバーが決める。画面に出すときは、サーバーが本人の配信先か確かめてから読む
+  - トリガー（tiktok_check_owner）で、配信先が同じ持ち主の TikTok の配信先であることを確かめる
 - **新しい表 tiktok_media_tickets**（2. の入口のトークン）
   - token_hash（主キー）・owner_id・post_target_id・media_id・expires_at・created_at
   - RLS は有効。ポリシーは置かず、authenticated・anon には grant しない（サーバーの権限だけ）
   - post_target_id・media_id は on delete cascade（配信先や画像が消えたら一緒に消える）
+  - トリガー（tiktok_check_owner）で、配信先と画像が同じ持ち主のものであることを確かめる
+  - マイグレーションは 20261114120000_tiktok（2 つの表とトリガー）
   - 毎日の片付けで、期限切れの行を消す
 - **SNS の定義**（src/lib/sns/index.ts）: TikTok は media: "video"・maxImages: 0 になっている。写真の 35 枚まで・タイトル 90 字・説明 4000 字に直す。字数は UTF-16 で数える（いまの数え方は書記素なので、TikTok だけ別に数える）
-- 結合テストで、他人の配信先の tiktok 列・tickets が読めず書けないことを確かめる（CLAUDE.md の決まり）
+- 結合テストで、post_target_tiktok・tiktok_media_tickets が利用者の権限で読めず書けないこと、配信先を消すと一緒に消えることを確かめる（tests/tiktok-media.integration.test.ts）
 
 ## 12. 外されたとき・データの削除
 
 - **TikTok の側で外された**: Webhook の authorization.removed（reason: 1 アプリで外した・2 アカウントの削除・3 年齢・4 停止・5 開発者が取り消し）
   - `/sns/tiktok/webhook` で受ける
-  - 署名の確かめ方（TikTok-Signature）は【未確認】なので、**中身を信じない**。届いた user_openid のアカウントについて、こちらからトークンでユーザー情報を読み、401 なら外されたと見なす（どのみちトークンは無効になっている）
+  - 署名（TikTok-Signature）を確かめたうえで、**中身は信じない**。届いた user_openid のアカウントについて、こちらからトークンでユーザー情報を読み、401 なら外されたと見なす（どのみちトークンは無効になっている）
   - 外されたと確かめたら、既存の revoke と同じく、social_accounts を「解除済み」にしてトークンを消し、purgeSnsDataOf で、送った投稿の ID・URL・送信の途中の情報（sns_container）を消す
   - 受けたら、すぐ 200 を返す（返さないと 72 時間やり直してくる）。同じ通知が何度も来ても同じ結果になるようにする
 - **yabumi の「外す」**: 1. のとおり、取り消してから同じく消す
@@ -281,7 +283,7 @@ TikTok を送り先に選んだ投稿の、⑤ 送る（と ② 送り先の Tik
 | 6 | 下書きの逃げ道・審査の前の帯・（B なら）手で投稿する | 画面（スマホ・PC、明暗） |
 | 7 | Webhook（authorization.removed） | 結合: 中身を信じずにこちらから確かめる、何度来ても同じ |
 | 8 | 法務の版 | 版と本文のテスト |
-| 9 | サンドボックスで本物に送る（オーナーのアカウント・自分だけ） | is_aigc の置き場所、写真の 1080 の上限、PULL_FROM_URL が 3xx なしで取れること |
+| 9 | サンドボックスで本物に送る（オーナーのアカウント・自分だけ） | is_aigc の置き場所、写真の 1080 の上限、PULL_FROM_URL が 3xx なしで取れること、publicaly_available_post_id が数（19 桁）で来るか文字列で来るか（どちらでも丸めずに読む作りにした） |
 | 10 | デモ動画を撮って申請 → 審査の間に動画（4.24） | |
 
 - 本物の TikTok に送るのは 9. の段だけで、オーナーの了承を得てからにする（本物の SNS に投稿しない決まり）
@@ -294,11 +296,46 @@ TikTok を送り先に選んだ投稿の、⑤ 送る（と ② 送り先の Tik
 - 審査の前（自分だけにしか出せない間）に、公開で出したい人の逃げ道になる
 - 審査のあとも、TikTok のアプリで音楽を付けたい人が使える（下書きの逃げ道と役割が近いので、審査のあとにどちらを残すかは、使われ方を見て決める）
 
+## 18. 作ったもの（段 1〜5。2026-11-14、feat/tiktok）
+
+- 段 1〜2: 11. のとおり。同意の設定は post_targets の列ではなく、別の表 **post_target_tiktok** に置いた（post_targets は画面が `select *` で読むので、列の権限で隠すと読みがすべて止まる。PM の了承）
+- 段 3 送る画面: ⑤ 送るに「TikTok に送る内容の確かめ」（src/components/posts/compose/tiktok-panel.tsx）。開くたびに creator_info を読み（getTikTokCreator）、ニックネームと @ の名前、審査の前の帯、送り方（そのまま投稿する／TikTok のアプリで仕上げる。許可のスコープがないほうは押せない）、公開範囲（最初は選んでいない。審査の前は「自分だけ」だけ）、コメント（最初はオフ。TikTok 側で止めていれば押せない）、宣伝の内容（自分のブランド・ブランドコンテンツ。ブランドコンテンツと「自分だけ」は同時に選べない）、TikTok だけの見え方、同意の文（英語の原文とリンク・日本語の添え書き）。タイトル（90 字）は ② 送り先の TikTok の欄
+- 保存（savePost）: 画面から受け取るのは選んだもの（posts/schema.ts の tiktok）だけ。サーバーが creator_info を読み直して確かめ（checkTikTokChoice）、いったん下書きで保存してから、同意の記録（writeTikTokConsent）を書き、予約に戻す（記録の前に送信ジョブが取り出さないように。X の手で投稿すると同じ順）。同意の時刻・文の指紋（タイトルと、送信ジョブが送る文 post_target_text の SHA-256）・AI の印・ニックネームはサーバーが決める
+- 段 4 送信の部品（src/lib/sns/adapters/tiktok.ts）: preparing の 2 段（startPublish で creator_info → 確かめ → 入口の URL → content/init、continuePublish で status/fetch）。配信先ごとの設定を読むため、startPublish に配信先（PublishTarget: id と、短縮リンクに置き換える前の文）を渡すようにした。入口は送り終えたとき・失敗したときに閉じる。失敗の理由は failureOf で retryable・auth・permanent に分ける
+- 段 5 予約の守り: 送る直前に checkBeforeSend（同意がない・公開範囲が選べなくなった・アカウントが変わった・タイトルか説明が変わった → 送らずに失敗にする）。投稿できない状態（CANNOT_POST_CODES）は creator_info の時点で止め、入口も作らない
+- テスト: tests/tiktok-publish.test.ts（決まり・送る直前の確かめ・偽の TikTok での送信）、tests/tiktok-media.integration.test.ts（入口・表の権限・同意の記録がサーバーの値で書かれ、指紋が post_target_text と合うこと）
+- 段 6（2026-11-15）:
+  - 「TikTok は手で投稿する」（17.）: X と同じ作り（配信先を failed にし、error_message に決まった文）。文は TS では src/lib/sns/by-hand.ts の BY_HAND_MESSAGE（SNS ごと）、SQL では public.by_hand_message の 1 か所に置き、close_attention はこの関数を読む（20261115090000_tiktok_by_hand。PM の了承）。一致は tests/tiktok-by-hand.integration.test.ts で close_attention の動きから確かめる。mark_manual_target_posted は TikTok の失敗も記録できるようにした。X だけだった判定（isXByHand・NOT_X_BY_HAND_FILTER・markXByHand・手で投稿する番）は、SNS ごとの判定（isByHand・NOT_BY_HAND_FILTER・markByHand）に広げた
+  - ⑤ の TikTok の欄の上に「TikTok は手で投稿する」。選ぶとほかの欄を畳み、TikTok には送らない。送信の結果の「TikTok に手で投稿する」は、タイトルと本文のコピー・TikTok のアプリでの手順・記録（写真の投稿をウェブで開く窓口はない）
+  - 手で投稿する SNS だけ（note・Substack と、手で投稿すると選んだ X・TikTok）なら、今すぐ送るは押せない（画面と savePost の両方。前は X だけを手で投稿にすると、送り先が空の確かめが出た）
+  - 下書きの逃げ道（8.）: 送信の結果で、TikTok の URL のない送信は「送信」と書き、受信箱の通知から仕上げることと、取り消しは TikTok のアプリからであることを出す（TikTok の API では投稿を消せない）
+  - 1 日の上限（7.）は、送り方の下に「1 日 15 本ほどまで（ほかのアプリの分も含む）」と出す。数えて止めるのは TikTok の答え（spam_risk_too_many_posts）に任せる（ほかのアプリの分はこちらから数えられないため）
+
+- 段 7（2026-11-15）: /sns/tiktok/webhook（src/lib/sns/tiktok/webhook.ts）。署名（TikTok-Signature、5 分）が合わなければ 401。authorization.removed だけを扱い、届いた open_id のアカウントごとに、こちらのトークンでユーザー情報を読み、使えなくなっていたアカウントだけを revokeAccountsByIds で外す（トークンを消し、purgeSnsDataOf）。同じ open_id を別の利用者がつないでいても、確かめはアカウントごと。外したアカウントは見ないので、何度届いても同じ。確かめが TikTok の障害でできないときは 500（やり直してもらう）。Webhook と /tiktok-media は、ログインなしで届くパス（src/lib/supabase/public-paths.ts）に足した（ログインへの 3xx を返さない）。/sns/deletion は Meta のデータ削除の通知に返すページなので、TikTok は足さない（TikTok にはデータ削除の通知がない。外したとき・退会で消える）
+- 段 8（2026-11-15）: 法務の ② の版（docs/legal.md の「案: TikTok の連携」）。プライバシーポリシーと利用規約の本文、LEGAL_VERSIONS の 2026-11-16（2026-11-15 にオーナーが了承。noticeWaived で、本番に出す日を施行日にする）
+
+- PMO の確かめでの直し（2026-11-15）:
+  - 投稿の ID の丸め: TikTok の答えは本文の文字のまま読み、安全に表せない整数は文字のまま受け取る（api.ts の parseTikTokJson。JSON.parse の reviver の context.source）。publicaly_available_post_id の 19 桁の数が 2^53 を超えて丸まり、別の ID と URL になっていた。publish_id は資料では文字列だが、数で来ても文字にする
+  - 審査の前は、ブランドコンテンツを押せなくし、すぐ下に「ブランドコンテンツは、yabumi の審査が終わると選べます」を出す（審査の前は「自分だけ」しか選べず、ブランドコンテンツは「自分だけ」にできないので、選んでも送れなかった）
+  - 「TikTok に手で投稿する」の最初に「画像を保存」（画像の小さな見本と「保存」。保存の URL は 1 時間で切れ、ダウンロードとして開く）。手順は「画像を保存 → 本文をコピー → アプリで＋から保存した写真を選ぶ → 記録」
+  - 手で投稿する SNS だけの予約は「この日時に、手で投稿する番として知らせます」
+  - 準備中（preparing）の TikTok は「TikTok で処理しています（数分かかることがあります）」（送信の結果と、今すぐ送るの進み具合）
+  - プライバシーポリシーの入口の保存期間を動きに合わせ（1 時間で使えなくなり、送り終えたら消す。残ったものも毎日消す）、TikTok のリンクを日本語のページにそろえた（音楽の利用の確認は日本語のページがないので英語のまま。docs/legal.md）
+
 ## 作る前に確かめること（読めなかった資料）
 
-- トークンの取得・更新・取り消しの窓口と、期限（24 時間・365 日か、2 時間・180 日か）
-- Webhook の署名（TikTok-Signature）の確かめ方
-- is_aigc の置き場所（写真と動画で違うか）
+2026-11-14 に PM が公式の資料で確かめたもの（下の「確かめた窓口」）を除き、残りは次のとおり。
+
+- is_aigc の置き場所（写真と動画で違うか）。サンドボックスで確かめる
 - 宣伝のスイッチ（brand_content_toggle・brand_organic_toggle）が必須か
 - photo_cover_index が範囲の外のときの扱い
 - サンドボックスでのリダイレクト URI に localhost を使えるか
+
+## 確かめた窓口（2026-11-14、PM が公式の資料で確かめた）
+
+- トークンを取る: POST https://open.tiktokapis.com/v2/oauth/token/（x-www-form-urlencoded。client_key・client_secret・code（URL デコード済み）・grant_type=authorization_code・redirect_uri（認可のときと同じ））。code_verifier はモバイル・デスクトップのときだけで、Web では要らない（[Get a user access token](https://developers.tiktok.com/doc/oauth-get-a-user-access-token)）
+- 取り直す: 同じ URL で grant_type=refresh_token。毎回新しいリフレッシュトークンが返るので入れ替える。古いものを使うと以後の取り直しが失敗し、つなぎ直しが要る（並んで取り直さないよう鍵を付ける）
+- 取り消す: POST https://open.tiktokapis.com/v2/oauth/revoke/（client_key・client_secret・token）。成功は空の本文、失敗は error・error_description・log_id
+- ユーザー情報: GET https://open.tiktokapis.com/v2/user/info/?fields=...（Bearer）。user.info.basic で読めるのは open_id・union_id・avatar_url・avatar_url_100・avatar_large_url・display_name。username は user.info.profile のスコープなので申請せず、creator_info から読む。資料に「この API は移行の予定がある」と注意書きがある
+- 期限: いまの資料ではアクセス 2 時間・リフレッシュ 180 日（[Manage User Access Tokens](https://developers.tiktok.com/doc/oauth-user-access-token-management)）。expires_in・refresh_expires_in を使う作りのまま。アクセスが 2 時間なので、送る直前にも期限を見て取り直す
+- Webhook の署名: ヘッダー TikTok-Signature: t=<時刻>,s=<hex>。署名する文字列は「t の文字列 + "." + 受け取った本文（生のまま）」、HMAC-SHA256、鍵は client_secret。比べるときは timingSafeEqual。t と今の差の許容は資料にないので 5 分にする。署名が合っても中身は信じず、こちらから確かめる（[Webhooks verification](https://developers.tiktok.com/doc/webhooks-verification)）

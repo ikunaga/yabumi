@@ -29,7 +29,8 @@ export const SNS: Record<SnsKey, SnsSpec> = {
   instagram: { label: "Instagram", maxLength: 2200, media: "image_or_video", delivery: "auto", maxImages: 10 },
   // Facebook ページの複数の写真の上限は公式の資料で確かめられなかった。つなぐときに確かめる
   facebook: { label: "Facebook", maxLength: null, media: "none", delivery: "auto", maxImages: 10 },
-  tiktok: { label: "TikTok", maxLength: 2200, media: "video", delivery: "auto", maxImages: 0 },
+  // TikTok は写真の投稿（35 枚まで。説明は 4000 字、タイトルは 90 字。どちらも UTF-16 で数える）。動画は準備中（docs/design/tiktok.md）
+  tiktok: { label: "TikTok", maxLength: 4000, media: "image_or_video", delivery: "auto", maxImages: 35 },
   youtube: { label: "YouTube", maxLength: 5000, media: "video", delivery: "auto", maxImages: 0 },
   // note・Substack は本文の上限が公表されていないので、上限なしとして扱う。画像は利用者が投稿の画面で手で添える
   note: { label: "note", maxLength: null, media: "none", delivery: "manual", needsTitle: true, maxImages: 0 },
@@ -46,6 +47,13 @@ export function isManualSns(sns: SnsKey): boolean {
 }
 
 export const MAX_TITLE_LENGTH = 200;
+// TikTok のタイトルの上限（UTF-16。src/lib/sns/tiktok/publish.ts の TIKTOK_TITLE_MAX と同じ）
+export const TIKTOK_TITLE_LIMIT = 90;
+
+// タイトルの欄を出す SNS（長文の SNS は必須、TikTok は任意で 90 字まで）
+export function hasTitleField(sns: SnsKey): boolean {
+  return Boolean(SNS[sns].needsTitle) || sns === "tiktok";
+}
 
 // 手で投稿する SNS の、投稿の画面の URL。Substack は人ごとにアドレスが違うので、登録したプロフィールの URL から作る
 export function manualComposeUrl(sns: SnsKey, profileUrl?: string | null): string | null {
@@ -81,6 +89,8 @@ export { hasXUrl, xWeightedLength } from "./x-text";
 // 画面に出す文字数
 export function displayLength(sns: SnsKey, text: string): number {
   if (sns === "x") return Math.ceil(xWeightedLength(text) / 2);
+  // TikTok は UTF-16 で数える（絵文字は 2）
+  if (sns === "tiktok") return text.length;
   return [...text].length;
 }
 
@@ -92,7 +102,8 @@ export type TargetIssue =
   | "needs_title"
   | "too_many_images"
   | "bad_aspect_ratio"
-  | "too_many_hashtags";
+  | "too_many_hashtags"
+  | "title_too_long";
 
 export type TargetCheck = {
   length: number;
@@ -134,6 +145,8 @@ export function checkTarget(
   if (spec.media === "video" && media.videos === 0) issues.push("needs_video");
   if (spec.needsTitle && !(title ?? "").trim()) issues.push("needs_title");
   if (spec.maxImages > 0 && media.images > spec.maxImages) issues.push("too_many_images");
+  // TikTok のタイトルは 90 字まで（UTF-16）
+  if (sns === "tiktok" && (title ?? "").length > TIKTOK_TITLE_LIMIT) issues.push("title_too_long");
   if (sns === "instagram") {
     if (media.sizes?.some((s) => !instagramRatioOk(s.width, s.height))) issues.push("bad_aspect_ratio");
     if (countHashtags(text) > INSTAGRAM_MAX_HASHTAGS) issues.push("too_many_hashtags");
@@ -150,6 +163,7 @@ export const ISSUE_LABEL: Record<TargetIssue, string> = {
   too_many_images: "画像が多すぎます",
   bad_aspect_ratio: "画像の縦横比が合いません",
   too_many_hashtags: "ハッシュタグが多すぎます",
+  title_too_long: "タイトルが長すぎます",
 };
 
 // 画像を付けても、この SNS には送らない（動画だけの SNS、手で投稿する SNS）。作成画面で知らせる

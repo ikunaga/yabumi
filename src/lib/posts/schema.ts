@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { MAX_ALT_LENGTH, MAX_IMAGES_PER_POST } from "@/lib/media/rules";
 import { mediaEditSchema } from "@/lib/media/edit-schema";
+import { tiktokChoiceSchema } from "@/lib/sns/tiktok/choice";
 import { MAX_NOTES_PER_POST } from "@/lib/notes/rules";
 import { SNS_KEYS, type SnsKey } from "@/lib/sns";
 
@@ -54,6 +55,10 @@ export const savePostInputSchema = z.object({
   textOrigin: z.enum(["self", "ai"]).nullable().optional(),
   // X を手で投稿する（月の上限に当たるので、利用者が選んだ）。X の配信先は自動では送らず、送信の結果から手で投稿して記録する
   xByHand: z.boolean().default(false),
+  // TikTok を手で投稿する（docs/design/tiktok.md の 17.）。TikTok の配信先は自動では送らず、送信の結果から手で投稿して記録する
+  tiktokByHand: z.boolean().default(false),
+  // TikTok に送るときに利用者が選んだもの（公開範囲・コメント・宣伝の内容・送り方）。同意の時刻などはサーバーが決める（docs/design/tiktok.md の 3.）
+  tiktok: tiktokChoiceSchema.optional(),
   // 選んでいた投稿のフォーマット（下書きから再開したときに戻す。PMO2 の s8）。null は「なし」、省くと変えない（ネタ・相談から下書きをつくるときなど）
   formatId: z.uuid().nullable().optional(),
   // この画面で付けたシリーズの記録（docs/design/format-series.md の 2）。保存したら、この投稿に結びつける（まだ結びついていないものだけ）

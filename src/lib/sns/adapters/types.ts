@@ -9,7 +9,11 @@ export type PublishResult = { externalPostId: string; url: string | null };
 
 // 投稿に添える画像（docs/architecture.md の 4.18）。JPEG。URL を取りに来る SNS（Threads）には url を、
 // ファイルを送る SNS（X）には load() の中身を渡す。url は送る直前に作る期限つきの署名 URL
-export type PublishImage = { url: string; altText: string; load: () => Promise<Uint8Array> };
+// mediaId・aiGenerated: 画像の行の ID と、AI で作った画像か（TikTok の入口と AI の印に使う。docs/design/tiktok.md の 2. と 10.）
+export type PublishImage = { url: string; altText: string; load: () => Promise<Uint8Array>; mediaId?: string; aiGenerated?: boolean };
+
+// 送る配信先（配信先ごとの設定を読む SNS（TikTok）が使う）。rawText は短縮リンクに置き換える前の、送る文
+export type PublishTarget = { id: string; rawText: string };
 
 // 失敗の種類。送信ジョブはこれを見て、やり直すか・アカウントを「期限切れ」にするかを決める
 // - retryable: 一時的な失敗（回数制限、SNS 側の障害、通信エラー）。間をあけてやり直す
@@ -62,7 +66,7 @@ export interface SnsAdapter {
   // --- 画像の準備に時間がかかる SNS（Threads・Instagram）。1 回のジョブの中で待ち続けないための 2 段階の送り方 ---
   // 画像つきの投稿は publishText ではなくこちらを使う（docs/architecture.md の 4.7「1 回のジョブの時間」）。
   // startPublish: コンテナを作り、準備の途中の状態を返す（待たない）。continuePublish: 準備ができていれば公開し、まだなら状態を返す
-  startPublish?(account: AdapterAccount, text: string, images: PublishImage[]): Promise<PrepareState>;
+  startPublish?(account: AdapterAccount, text: string, images: PublishImage[], target?: PublishTarget): Promise<PrepareState>;
   continuePublish?(account: AdapterAccount, state: PrepareState): Promise<ContinueResult>;
 
   // --- 使った分だけ払う SNS（X）。送る前に費用を記録し、月の上限を守る ---

@@ -1531,6 +1531,62 @@ export type Database = {
           },
         ]
       }
+      post_target_tiktok: {
+        Row: {
+          brand_content: boolean
+          brand_organic: boolean
+          consent_nickname: string
+          consent_text_hash: string
+          consent_username: string
+          consented_at: string
+          disable_comment: boolean
+          is_aigc: boolean
+          owner_id: string
+          post_mode: string
+          post_target_id: string
+          privacy_level: string
+          updated_at: string
+        }
+        Insert: {
+          brand_content?: boolean
+          brand_organic?: boolean
+          consent_nickname: string
+          consent_text_hash: string
+          consent_username?: string
+          consented_at: string
+          disable_comment?: boolean
+          is_aigc?: boolean
+          owner_id: string
+          post_mode?: string
+          post_target_id: string
+          privacy_level: string
+          updated_at?: string
+        }
+        Update: {
+          brand_content?: boolean
+          brand_organic?: boolean
+          consent_nickname?: string
+          consent_text_hash?: string
+          consent_username?: string
+          consented_at?: string
+          disable_comment?: boolean
+          is_aigc?: boolean
+          owner_id?: string
+          post_mode?: string
+          post_target_id?: string
+          privacy_level?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_target_tiktok_post_target_id_fkey"
+            columns: ["post_target_id"]
+            isOneToOne: true
+            referencedRelation: "post_targets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       post_targets: {
         Row: {
           attempts: number
@@ -2427,6 +2483,48 @@ export type Database = {
           },
         ]
       }
+      tiktok_media_tickets: {
+        Row: {
+          created_at: string
+          expires_at: string
+          media_id: string
+          owner_id: string
+          post_target_id: string
+          token_hash: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          media_id: string
+          owner_id: string
+          post_target_id: string
+          token_hash: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          media_id?: string
+          owner_id?: string
+          post_target_id?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tiktok_media_tickets_media_id_fkey"
+            columns: ["media_id"]
+            isOneToOne: false
+            referencedRelation: "media_files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tiktok_media_tickets_post_target_id_fkey"
+            columns: ["post_target_id"]
+            isOneToOne: false
+            referencedRelation: "post_targets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       waitlist: {
         Row: {
           app_note: string
@@ -2528,6 +2626,7 @@ export type Database = {
           owner_today_count: number
         }[]
       }
+      by_hand_message: { Args: { p_sns: string }; Returns: string }
       calendar_day_counts: {
         Args: { p_from: string; p_project_id: string; p_to: string }
         Returns: {

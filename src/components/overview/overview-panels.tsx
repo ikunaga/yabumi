@@ -12,7 +12,7 @@ import { projectSettingsHref } from "@/lib/projects/paths";
 import type { RoadmapItem } from "@/lib/roadmap/load";
 import { todoAction } from "@/lib/roadmap/todo-kind";
 import { isManualSns, SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
-import { isXByHand } from "@/lib/sns/x/send-rules";
+import { isByHand } from "@/lib/sns/by-hand";
 import type { ProjectSnsAccount } from "@/lib/sns/queries";
 import { dayOfMonth, formatShort, monthOf, weekdayLabel } from "@/lib/time";
 
@@ -52,8 +52,8 @@ export function NextScheduled({ projectId, posts, now }: { projectId: string; po
     <ul>
       {posts.map((p) => {
         const sns = [...new Set(p.targets.filter((t) => t.status !== "deleted").map((t) => t.sns))];
-        // 「X は手で投稿する」を選んだ X は、手で出すとわかる印にする
-        const byHand = new Set(p.targets.filter(isXByHand).map((t) => t.sns));
+        // 「手で投稿する」を選んだ X・TikTok は、手で出すとわかる印にする
+        const byHand = new Set(p.targets.filter(isByHand).map((t) => t.sns));
         return (
           <li key={p.id} className="border-t border-dashed border-line first:border-t-0">
             <Link href={`/projects/${projectId}/posts/${p.id}`} className="flex items-center gap-2 py-2 text-[14px] text-fg hover:no-underline hover:opacity-80">
@@ -149,7 +149,7 @@ export function AttentionStrip({
           {failed.length > 0 && (
             <Group title="送れなかった投稿">
               {failed.map((p) => {
-                const f = p.targets.find((t) => t.status === "failed" && !isXByHand(t));
+                const f = p.targets.find((t) => t.status === "failed" && !isByHand(t));
                 return (
                   <li key={p.id}>
                     <Link href={`${base}/posts/${p.id}`} className="font-bold hover:underline">
@@ -177,7 +177,7 @@ export function AttentionStrip({
             </Group>
           )}
           {manualDue.length > 0 && (
-            <Group title="手で投稿する番です" note="note・Substack と、手で投稿すると選んだ X は、自動では送られません。投稿の画面で本文をコピーして投稿し、投稿したことを記録してください。">
+            <Group title="手で投稿する番です" note="note・Substack と、手で投稿すると選んだ X・TikTok は、自動では送られません。投稿の画面で本文をコピーして投稿し、投稿したことを記録してください。">
               {manualDue.map((p) => (
                 <li key={p.id}>
                   <Link href={`${base}/posts/${p.id}`} className="hover:underline">
@@ -185,7 +185,7 @@ export function AttentionStrip({
                   </Link>
                   <span className="ml-2 text-muted">
                     {p.targets
-                      .filter((t) => (isManualSns(t.sns) && t.status === "pending") || isXByHand(t))
+                      .filter((t) => (isManualSns(t.sns) && t.status === "pending") || isByHand(t))
                       .map((t) => SNS[t.sns].label)
                       .join("・")}
                   </span>

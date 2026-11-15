@@ -26,7 +26,7 @@ export const PREVIEW: Record<SnsKey, PreviewSpec> = {
   threads: { layout: "after_row", fold: null, note: "Threads は本文のあとに画像が横に並び、横にめくって見ます。本文の 1 つ目のハッシュタグはトピックになって名前の横に出て、本文では # が外れます。2 つ目からはタグにならず、文字のまま出ます。", short: "画像は横に並ぶ" },
   instagram: { layout: "before", fold: { lines: 2, more: "続きを読む" }, note: "Instagram は画像が先に出て、本文は 2 行で折りたたまれます。最初の 2 行で読みたくなるように。", short: "画像が先・本文は 2 行で折りたたみ" },
   facebook: { layout: "after_grid", fold: { lines: 5, more: "もっと見る" }, note: "Facebook は長い本文が 5 行ほどで折りたたまれ、そのあとに画像が並びます。", short: "5 行で折りたたみ・画像はあと" },
-  tiktok: { layout: "video", fold: { lines: 2, more: "もっと見る" }, note: "TikTok は動画の上に説明が 2 行ほど出ます（動画の添付は準備中）。", short: "縦の動画が必要（準備中）" },
+  tiktok: { layout: "before", fold: { lines: 2, more: "もっと見る" }, note: "TikTok の写真の投稿は、写真が先に出て、めくって見ます。説明は 2 行ほどで折りたたまれます（動画は準備中）。", short: "写真が先・説明は 2 行で折りたたみ" },
   youtube: { layout: "video", fold: { lines: 3, more: "もっと見る" }, note: "YouTube は動画の下の説明が 3 行ほどで折りたたまれます（動画の添付は準備中）。", short: "動画が必要（準備中）" },
   note: { layout: "article", fold: null, note: "note はタイトルと本文の記事になります。画像は投稿の画面で手で添えます。", short: "タイトルと記事・手で投稿" },
   substack: { layout: "article", fold: null, note: "Substack はタイトルと本文の記事（メールでも届きます）になります。画像は投稿の画面で手で添えます。", short: "タイトルと記事・手で投稿" },

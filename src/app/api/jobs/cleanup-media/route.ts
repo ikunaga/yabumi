@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { isAuthorizedJob } from "@/lib/jobs/auth";
 import { cleanupMedia } from "@/lib/media/store";
+import { cleanupExpiredTickets } from "@/lib/sns/tiktok/media";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const maxDuration = 60;
@@ -19,6 +20,8 @@ export async function POST(request: NextRequest) {
     removed += r.removed;
     if (r.removed < 200) break;
   }
-  if (removed) console.info("[jobs/cleanup-media]", removed);
-  return NextResponse.json({ removed });
+  // TikTok に写真を渡す入口のうち、期限の切れたもの（docs/design/tiktok.md の 2.）
+  const tickets = await cleanupExpiredTickets(admin);
+  if (removed || tickets) console.info("[jobs/cleanup-media]", removed, tickets);
+  return NextResponse.json({ removed, tickets });
 }

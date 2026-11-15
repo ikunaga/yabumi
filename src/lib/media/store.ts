@@ -346,13 +346,13 @@ export async function cleanupMedia(admin: Admin, { limit = 200, ownerId }: { lim
 }
 
 // 送るときの画像（並び順）。URL は送る直前に作る期限つきの署名 URL（SNS_FETCH_URL_SECONDS）。予約の時刻とは関係しない
-export async function publishImagesFor(admin: Admin, postId: string): Promise<{ url: string; altText: string; load: () => Promise<Uint8Array> }[]> {
+export async function publishImagesFor(admin: Admin, postId: string): Promise<{ url: string; altText: string; load: () => Promise<Uint8Array>; mediaId: string; aiGenerated: boolean }[]> {
   const files = await postMedia(admin, postId);
   if (!files.length) return [];
   const urls = await signedUrls(admin, files.map((f) => f.storagePath), SNS_FETCH_URL_SECONDS);
   return files.map((f) => {
     const url = urls.get(f.storagePath);
     if (!url) throw new Error(`画像の URL を作れませんでした（${f.storagePath}）`);
-    return { url, altText: f.altText, load: () => downloadMedia(admin, f.storagePath) };
+    return { url, altText: f.altText, load: () => downloadMedia(admin, f.storagePath), mediaId: f.id, aiGenerated: f.aiGenerated };
   });
 }

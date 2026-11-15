@@ -10,16 +10,18 @@ export type ProjectSnsAccount = {
   handle: string;
   displayName: string;
   status: "active" | "expired" | "revoked";
+  // 最後につないだ（つなぎ直した）時刻。YouTube のテスト中の 7 日の表示に使う（docs/design/youtube.md の 2.2。アカウントが active の間に行を書くのは、つなぐときだけ）
+  updatedAt: string;
 };
 
 type Row = {
   project_id: string;
-  social_accounts: { id: string; sns: string; handle: string; display_name: string; status: string } | null;
+  social_accounts: { id: string; sns: string; handle: string; display_name: string; status: string; updated_at: string } | null;
 };
 
 function toAccount(a: NonNullable<Row["social_accounts"]>): ProjectSnsAccount | null {
   if (!isSnsKey(a.sns)) return null;
-  return { id: a.id, sns: a.sns, handle: a.handle, displayName: a.display_name, status: a.status as ProjectSnsAccount["status"] };
+  return { id: a.id, sns: a.sns, handle: a.handle, displayName: a.display_name, status: a.status as ProjectSnsAccount["status"], updatedAt: a.updated_at };
 }
 
 // プロジェクトにつないだアカウント
@@ -27,7 +29,7 @@ export async function listProjectSnsAccounts(projectId: string): Promise<Project
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("project_social_accounts")
-    .select("project_id, social_accounts(id, sns, handle, display_name, status)")
+    .select("project_id, social_accounts(id, sns, handle, display_name, status, updated_at)")
     .eq("project_id", projectId)
     .order("created_at");
   if (error) throw error;
@@ -38,7 +40,7 @@ export async function listProjectSnsAccounts(projectId: string): Promise<Project
 // projectId を渡すと、そのプロジェクトだけ
 export async function activeSnsByProject(projectId?: string): Promise<Record<string, SnsKey[]>> {
   const supabase = await createClient();
-  let query = supabase.from("project_social_accounts").select("project_id, social_accounts(id, sns, handle, display_name, status)");
+  let query = supabase.from("project_social_accounts").select("project_id, social_accounts(id, sns, handle, display_name, status, updated_at)");
   if (projectId) query = query.eq("project_id", projectId);
   const { data, error } = await query.order("created_at");
   if (error) throw error;

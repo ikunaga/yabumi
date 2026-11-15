@@ -41,7 +41,7 @@ describe("TikTok の連携の版", () => {
 
   it("利用規約に、TikTok の規約・音楽の利用の確認・ブランドコンテンツのポリシーと、取り消せないことを書いた", () => {
     const terms = read("src/app/terms/page.tsx");
-    expect(terms).toContain("Facebook ページ、TikTok）と GitHub");
+    expect(terms).toMatch(/Facebook ページ、TikTok(、YouTube)?）と GitHub/);
     expect(terms).toContain("https://www.tiktok.com/legal/page/global/music-usage-confirmation/en");
     expect(terms).toContain("https://www.tiktok.com/legal/page/global/bc-policy/ja-JP");
     expect(terms).toContain("https://www.tiktok.com/legal/page/row/terms-of-service/ja-JP");

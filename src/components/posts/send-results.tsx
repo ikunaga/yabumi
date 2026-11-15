@@ -16,11 +16,11 @@ export type TargetResult = {
   nextAttemptAt: string | null;
   // 手で投稿する SNS 用: 保存してあるタイトルと本文、投稿の画面の URL
   manual?: ManualInfo;
-  // 自動で送れなかった・手で投稿すると選んだ X・TikTok を、手で投稿して記録するための情報
+  // 自動で送れなかった・手で投稿すると選んだ X・TikTok・YouTube を、手で投稿して記録するための情報
   fallback?: ManualInfo;
   // 引用の X（manual に X の投稿の画面の URL が入る。X の画面で送って記録する。4.52）
   quote?: boolean;
-  // 利用者が「X・TikTok は手で投稿する」を選んだもの（失敗ではないので「手で投稿」と出す）
+  // 利用者が「X・TikTok・YouTube は手で投稿する」を選んだもの（失敗ではないので「手で投稿」と出す）
   byHand?: boolean;
   // 手で投稿して記録したもの（SNS 上の投稿の ID がないので、yabumi からは取り消せない）
   postedByHand?: boolean;
@@ -28,7 +28,7 @@ export type TargetResult = {
   removedOnSns?: boolean;
 };
 
-// downloads: 画像を保存する URL（TikTok に手で投稿するとき。写真の投稿をウェブで開く窓口がないので、保存してアプリで選ぶ）
+// downloads: 画像・動画を保存する URL（TikTok・YouTube に手で投稿するとき。保存してアプリや YouTube Studio で選ぶ）
 type ManualInfo = { title: string | null; text: string; composeUrl: string | null; downloads?: { url: string; name: string }[] };
 
 // 送信の結果: 送れたものは SNS 上の投稿へのリンクと取り消し、送れなかったものは理由と「要確認」
@@ -97,6 +97,11 @@ function ResultRow({ sns, r, projectId, postId, video }: { sns: SnsKey; r: Targe
               <span className="ml-auto text-xs text-muted">
                 {r.externalUrl ? "取り消すときは、TikTok のアプリから" : "TikTok のアプリの受信箱に届いていれば、通知から開いて仕上げてください。取り消すときは TikTok のアプリから"}
               </span>
+            ) : sns === "youtube" ? (
+              // YouTube は yabumi から取り消さない（youtube.upload では消せない。2026-11-15 オーナーの決定 Y5）
+              <a href="https://studio.youtube.com/" target="_blank" rel="noopener noreferrer" className="ml-auto text-xs text-muted underline hover:text-fg">
+                取り消すときは、YouTube Studio から
+              </a>
             ) : sns === "instagram" ? (
               // Instagram Login では、API で投稿を消せない（docs/architecture.md の 4.21）
               <span className="ml-auto text-xs text-muted">取り消すときは、Instagram のアプリで投稿の「…」→「削除」</span>
@@ -140,6 +145,9 @@ function ResultRow({ sns, r, projectId, postId, video }: { sns: SnsKey; r: Targe
           (sns === "tiktok" ? (
             // TikTok は、送ったあとに TikTok の側で写真を取りに来て処理する（docs/design/tiktok.md の 6.）
             <span className="text-muted">TikTok で処理しています（数分かかることがあります。読み込み直すと結果が出ます）</span>
+          ) : sns === "youtube" ? (
+            // YouTube は、動画を何回かに分けて送る（docs/design/youtube.md の 3.）
+            <span className="text-muted">YouTube に動画を上げています（数分かかることがあります。読み込み直すと結果が出ます）</span>
           ) : (
             <span className="text-muted">
               {video
@@ -292,10 +300,11 @@ function ManualSteps({
   const [pending, startTransition] = useTransition();
   const label = SNS[sns].label;
   // X は投稿の画面に本文を入れた状態で開けるので、コピーは控えめにする
-  const unit = sns === "x" || sns === "tiktok" ? "投稿" : "記事";
-  // TikTok は「画像を保存」を先に置くので、番号を 1 つずらす
+  const unit = sns === "x" || sns === "tiktok" ? "投稿" : sns === "youtube" ? "動画" : "記事";
+  // TikTok は「画像を保存」、YouTube は「動画を保存」を先に置くので、番号を 1 つずらす
   const tiktok = sns === "tiktok";
-  const n = (i: number) => (tiktok ? i + 1 : i);
+  const youtube = sns === "youtube";
+  const n = (i: number) => (tiktok || youtube ? i + 1 : i);
 
   async function copy(kind: "title" | "body", text: string) {
     try {
@@ -332,6 +341,24 @@ function ManualSteps({
             )}
           </li>
         )}
+        {youtube && (
+          <li className="flex flex-col gap-1.5">
+            <span>
+              <span className="text-muted">1.</span> 動画を保存します
+            </span>
+            {m.downloads?.length ? (
+              <div className="flex flex-wrap gap-2">
+                {m.downloads.map((d) => (
+                  <a key={d.url} href={d.url} download={d.name} className={buttonClass({ variant: "secondary", size: "sm" })}>
+                    動画を保存
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <span className="text-xs text-muted">この投稿には動画がありません。YouTube には動画が要ります。</span>
+            )}
+          </li>
+        )}
         <li className="flex flex-wrap items-center gap-2">
           <span className="text-muted">{n(1)}.</span>
           {m.title && (
@@ -353,12 +380,14 @@ function ManualSteps({
             <span className="text-muted">{n(2)}.</span>
             {m.composeUrl ? (
               <a href={m.composeUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary hover:underline">
-                {label} の投稿の画面を開く
+                {youtube ? "YouTube Studio を開く" : `${label} の投稿の画面を開く`}
               </a>
             ) : (
               <span className="text-muted">{label} を開いて、新しい記事を作る</span>
             )}
-            <span className="text-xs text-muted">{sns === "x" ? (quote ? "（本文と引用する投稿が入った状態で開きます）" : "（本文が入った状態で開きます）") : "（貼り付けて投稿します）"}</span>
+            <span className="text-xs text-muted">
+              {sns === "x" ? (quote ? "（本文と引用する投稿が入った状態で開きます）" : "（本文が入った状態で開きます）") : youtube ? "（「作成」→「動画をアップロード」で保存した動画を選び、タイトルと説明を貼り付けます）" : "（貼り付けて投稿します）"}
+            </span>
           </li>
         )}
         <li className="flex flex-col gap-1.5">

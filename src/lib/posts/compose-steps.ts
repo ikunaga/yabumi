@@ -40,6 +40,7 @@ const ISSUE_STEP: Record<TargetIssue, "text" | ComposeStepKey> = {
   too_many_hashtags: "text",
   needs_title: "targets",
   title_too_long: "targets",
+  angle_brackets: "text",
   needs_image: "images",
   needs_video: "images",
   bad_aspect_ratio: "images",

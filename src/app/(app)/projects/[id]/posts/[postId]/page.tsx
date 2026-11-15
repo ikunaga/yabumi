@@ -12,6 +12,8 @@ import { loadPostNumbers } from "@/lib/posts/numbers";
 import { loadTimeTrends } from "@/lib/metrics/time-trends";
 import { timeHintOf } from "@/lib/metrics/time-hint";
 import { connectedAccountNames, connectedAccounts, getPost, postTitle } from "@/lib/posts/queries";
+import { youtubeChoiceOf } from "@/lib/sns/youtube/consent";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { projectLinkBase } from "@/lib/links/domains";
 import { getProject } from "@/lib/projects/queries";
 import { loadProfileLinkInfo } from "@/lib/posts/profile-link-info";
@@ -22,7 +24,7 @@ import { canPublish } from "@/lib/sns/adapters";
 import { targetText } from "@/lib/sns/hashtags";
 import { isByHand } from "@/lib/sns/by-hand";
 import { getPlanHints } from "@/lib/plan/queries";
-import { loadPostImageDownloads, loadPostImages, loadPostVideo, snsNeedingImageReconnect } from "@/lib/media/queries";
+import { loadPostImageDownloads, loadPostImages, loadPostVideo, loadPostVideoDownload, snsNeedingImageReconnect } from "@/lib/media/queries";
 import { postLinkPreview } from "@/lib/links/store";
 import { findLinkableUrls } from "@/lib/links/rules";
 import type { TargetResult } from "@/components/posts/send-results";
@@ -60,7 +62,8 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
   const sent = post.targets.some((t) => ["published", "preparing", "publishing", "deleted"].includes(t.status));
   // 送れなかった・手で投稿する TikTok は、利用者が画像を保存して TikTok のアプリから投稿する（保存の URL を作る）
   const tiktokByHandNeeded = post.targets.some((t) => t.sns === "tiktok" && t.status === "failed");
-  const [accounts, planHints, { data: channels }, images, linkPreview, numbers, tiktokDownloads, postVideo] = await Promise.all([
+  const youtubeByHandNeeded = post.targets.some((t) => t.sns === "youtube" && t.status === "failed");
+  const [accounts, planHints, { data: channels }, images, linkPreview, numbers, tiktokDownloads, postVideo, youtubeDownloads] = await Promise.all([
     connectedAccounts(project.id),
     getPlanHints(project.id),
     supabase.from("project_manual_channels").select("sns, profile_url").eq("project_id", project.id),
@@ -69,6 +72,8 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
     loadPostNumbers(project.id, { postId: post.id, sent }),
     tiktokByHandNeeded ? loadPostImageDownloads(post.id) : Promise.resolve([]),
     loadPostVideo(post.id),
+    // 送れなかった・手で投稿する YouTube は、利用者が動画を保存して YouTube Studio から上げる（docs/design/youtube.md の 12.）
+    youtubeByHandNeeded ? loadPostVideoDownload(post.id) : Promise.resolve([]),
   ]);
   // SNS のコメント（4.70）: 送った投稿だけ。数字の帯の下に出す
   const comments = sent ? (await loadProjectComments(project.id, { postId: post.id })).filter((p) => p.sns !== "x") : [];
@@ -87,6 +92,9 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
   ]);
   // 画像はあとから足すこともあるので、画像がなくても調べる
   const needImageReconnect = await snsNeedingImageReconnect(accounts);
+  // YouTube に送るときに選んでいたもの（同意して保存した投稿を開き直したとき。サーバーだけが読める表なので、本人の投稿であることを確かめてから読む）
+  const { data: claims } = await supabase.auth.getClaims();
+  const youtubeChoice = post.targets.some((t) => t.sns === "youtube") && claims?.claims?.sub ? await youtubeChoiceOf(createAdminClient(), post.id, claims.claims.sub) : null;
   // 短縮リンクのチェックの状態: 本文に URL があるのに、送る前の配信先に短縮リンクがなければ、オフで保存したもの
   const hasUrl = [post.body, ...post.targets.map((t) => t.body_override ?? "")].some((t) => findLinkableUrls(t).length > 0);
   const shortLinks = !hasUrl || Object.keys(linkPreview).length > 0 || !post.targets.some((t) => t.status === "pending");
@@ -116,7 +124,10 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
             ? { title: null, text: targetText(post.body, t), composeUrl: xComposeUrl(targetText(post.body, t)) }
             : t.sns === "tiktok" && t.status === "failed"
               ? { title: t.title, text: targetText(post.body, t), composeUrl: null, downloads: tiktokDownloads }
-              : undefined,
+              : // YouTube も、手で投稿するを選んだとき・送れなかったときは、YouTube Studio で投稿して記録できる（docs/design/youtube.md の 12.）。
+                t.sns === "youtube" && t.status === "failed"
+                ? { title: t.title, text: targetText(post.body, t), composeUrl: "https://studio.youtube.com/", downloads: youtubeDownloads }
+                : undefined,
         postedByHand: t.status === "published" && !t.external_post_id,
         byHand: isByHand(t),
         removedOnSns: t.status === "deleted" && Boolean(t.sns_removed_at),
@@ -131,7 +142,12 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
         ? { text: "送信を始めました。TikTok で処理しています（数分かかることがあります）。少しして読み込み直すと結果が出ます。", tone: "success" as const }
         : { text: "送信を始めました。画像は SNS 側の処理を待ってから送ります（数分かかることがあります）。少しして読み込み直すと結果が出ます。", tone: "success" as const }
       : String(searchParams.done) === "preparing" && postVideo.video
-        ? { text: "送信を始めました。動画は SNS が処理しています（数分かかることがあります）。少しして読み込み直すと結果が出ます。", tone: "success" as const }
+        ? // YouTube は yabumi から何回かに分けて動画を上げる（docs/design/youtube.md の 3.）。ほかの SNS は SNS の側で動画を処理する
+          preparingSns.length > 0 && preparingSns.every((s) => s === "youtube")
+          ? { text: "送信を始めました。YouTube に動画を上げています（数分かかることがあります）。少しして読み込み直すと結果が出ます。", tone: "success" as const }
+          : preparingSns.includes("youtube")
+            ? { text: "送信を始めました。YouTube に動画を上げ、ほかの SNS は動画を処理しています（数分かかることがあります）。少しして読み込み直すと結果が出ます。", tone: "success" as const }
+            : { text: "送信を始めました。動画は SNS が処理しています（数分かかることがあります）。少しして読み込み直すと結果が出ます。", tone: "success" as const }
         : NOTICES[String(searchParams.done)];
   // 送ったあと（送信を始めた・送った・手で投稿したと記録した）の「ひとこと」（4.47。1 日 1 回まで）
   const sentTip = ["sent", "sending", "preparing", "manual_posted"].includes(String(searchParams.done));
@@ -185,6 +201,7 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
         // 下書きから再開したときに、選んでいたフォーマットと「やることから」の手がかりを戻す（PMO2 の s8）
         formatId: post.formatId,
         roadmapItem,
+        youtube: youtubeChoice,
       }}
     />
     </>

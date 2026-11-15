@@ -6,19 +6,22 @@ import { refreshTokenAad } from "./accounts";
 type Admin = SupabaseClient<Database>;
 
 // SNS 側の連携を、アプリから解除できるものは解除する（SNS を外す・退会のとき。docs/architecture.md の 4.14）。
-// X・TikTok: トークンを SNS 側で取り消す。Threads: 解除する API がないので何もしない（画面で、Threads の設定から外せると案内する）。
+// X・TikTok・YouTube: トークンを SNS 側で取り消す。Threads: 解除する API がないので何もしない（画面で、Threads の設定から外せると案内する）。
 // 失敗しても、yabumi の側のトークンは呼ぶ側が消すので、それ以上は使われない。結果だけを返す
 export type RevokeDeps = {
   key?: Buffer;
   revokeX?: (token: string, hint: "access_token" | "refresh_token") => Promise<void>;
   // TikTok はアクセストークンを取り消す（docs/design/tiktok.md の 1.）
   revokeTikTok?: (accessToken: string) => Promise<void>;
+  // YouTube（Google）はリフレッシュトークンを取り消す（このプロジェクトに許したすべてのスコープが消える。docs/design/youtube.md の 2.3）
+  revokeYouTube?: (token: string) => Promise<void>;
 };
 
 export type RevokeResult = "revoked" | "not_supported" | "failed" | "no_token";
 
 export async function revokeSnsAccess(admin: Admin, socialAccountId: string, sns: string, deps: RevokeDeps): Promise<RevokeResult> {
   if (sns === "tiktok") return revokeTikTok(admin, socialAccountId, deps);
+  if (sns === "youtube") return revokeYouTube(admin, socialAccountId, deps);
   if (sns !== "x") return "not_supported";
   if (!deps.revokeX) return "failed";
   const { data } = await admin
@@ -48,6 +51,26 @@ async function revokeTikTok(admin: Admin, socialAccountId: string, deps: RevokeD
     return "revoked";
   } catch (e) {
     console.error("[sns] TikTok のトークンを取り消せませんでした", e instanceof Error ? e.message : e);
+    return "failed";
+  }
+}
+
+async function revokeYouTube(admin: Admin, socialAccountId: string, deps: RevokeDeps): Promise<RevokeResult> {
+  if (!deps.revokeYouTube) return "failed";
+  const { data } = await admin
+    .from("social_account_tokens")
+    .select("access_token_encrypted, refresh_token_encrypted")
+    .eq("social_account_id", socialAccountId)
+    .maybeSingle();
+  if (!data) return "no_token";
+  try {
+    const token = data.refresh_token_encrypted
+      ? decryptToken(data.refresh_token_encrypted, refreshTokenAad(socialAccountId), deps.key)
+      : decryptToken(data.access_token_encrypted, socialAccountId, deps.key);
+    await deps.revokeYouTube(token);
+    return "revoked";
+  } catch (e) {
+    console.error("[sns] YouTube のトークンを取り消せませんでした", e instanceof Error ? e.message : e);
     return "failed";
   }
 }

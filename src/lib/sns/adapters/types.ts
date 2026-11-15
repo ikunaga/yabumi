@@ -74,6 +74,9 @@ export interface SnsAdapter {
   refreshWithRefreshToken?(refreshToken: string, now: Date): Promise<RefreshedTokens>;
   // 日次のジョブで、リフレッシュトークンが使われないまま古くならないよう取り直す時期か（lastRefreshedAt は最後に取り直した日時）
   shouldRotate?(lastRefreshedAt: Date, now: Date): boolean;
+  // 日次のジョブで取り直したあとに、アカウントの名前を読み直す SNS（YouTube。保存した YouTube のデータは 30 日ごとに読み直す決まり）。
+  // 読めなければ null（名前はそのまま）
+  refreshProfile?(accessToken: string): Promise<{ displayName: string; handle: string } | null>;
 
   // --- 画像の準備に時間がかかる SNS（Threads・Instagram）。1 回のジョブの中で待ち続けないための 2 段階の送り方 ---
   // 画像つきの投稿は publishText ではなくこちらを使う（docs/architecture.md の 4.7「1 回のジョブの時間」）。
@@ -82,6 +85,8 @@ export interface SnsAdapter {
   continuePublish?(account: AdapterAccount, state: PrepareState): Promise<ContinueResult>;
   // 動画の投稿（docs/design/video.md の 5.）。SNS の video が true の SNS だけが持つ。準備の続きは continuePublish
   startPublishVideo?(account: AdapterAccount, text: string, video: PublishVideo, target?: PublishTarget): Promise<PrepareState>;
+  // 準備が PREPARE_TIMEOUT_MS を超えても、最初から送り直さない（YouTube。送り直すと二重に上がるおそれと、割り当てをもう 1 本使うので、続きから送る）
+  restartOnPrepareTimeout?: boolean;
 
   // --- 使った分だけ払う SNS（X）。送る前に費用を記録し、月の上限を守る ---
   publishCost?(text: string, images?: PublishImage[]): PublishCost;

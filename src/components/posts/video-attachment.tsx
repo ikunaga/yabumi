@@ -119,7 +119,7 @@ export function VideoAttachment({
         });
         // 前に添えていた、まだ保存していない動画は外す（保存した投稿の動画は、保存したときに消える）
         if (video) void discardVideo(video.id);
-        onChange({ id: up.id, durationMs: up.durationMs, sizeBytes: up.sizeBytes, localUrl: URL.createObjectURL(blob) });
+        onChange({ id: up.id, durationMs: up.durationMs, sizeBytes: up.sizeBytes, localUrl: URL.createObjectURL(blob), width: up.width, height: up.height });
       } catch (e) {
         if (e instanceof VideoUploadError) setError(e.userMessage);
         else if (!(e instanceof DOMException && e.name === "AbortError")) setError("動画を上げられませんでした。もう一度お試しください。");

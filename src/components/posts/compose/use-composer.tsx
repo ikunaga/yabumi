@@ -34,6 +34,8 @@ import { ISSUE_LABEL, SNS, SNS_KEYS, checkTarget, hasTitleField, isManualSns, ty
 import { projectSettingsHref } from "@/lib/projects/paths";
 import { TARGET_STATE, sendLabels, sendMode, sentStateOf } from "@/lib/posts/send-mode";
 import type { TikTokChoice } from "@/lib/sns/tiktok/choice";
+import { EMPTY_YOUTUBE_CHOICE, youtubeChoiceProblem, type YouTubeChoice } from "@/lib/sns/youtube/choice";
+import type { YouTubeChannelView } from "@/lib/sns/youtube/actions";
 import type { TikTokCreatorView } from "@/lib/sns/tiktok/actions";
 import { settingsProblem, type PrivacyLevel } from "@/lib/sns/tiktok/publish";
 import { findUrls, profileLinkLine, withDestinationUrl, withProfileLink, type ProfileLinkInfo } from "@/lib/posts/profile-link";
@@ -66,6 +68,8 @@ export type ComposerInitial = {
   textOrigin?: "self" | "ai" | null;
   // 選んでいた投稿のフォーマット（下書きから再開したときに選んだ状態で開く。PMO2 の s8）
   formatId?: string | null;
+  // YouTube に送るときに選んでいたもの（同意して保存した投稿を開き直したとき。docs/design/youtube.md の 4.）
+  youtube?: YouTubeChoice | null;
 };
 
 export type ComposerProps = {
@@ -123,6 +127,7 @@ const ISSUE_TONE: Record<TargetIssue, string> = {
   too_many_images: "text-danger",
   title_too_long: "text-danger",
   video_unsupported: "text-danger",
+  angle_brackets: "text-danger",
 };
 
 // 引用の投稿の、送れない理由（X の画面で送る。4.52）
@@ -214,6 +219,14 @@ export function useComposer({
   // TikTok は手で投稿する（docs/design/tiktok.md の 17.）。TikTok は自動では送らず、送信の結果から手で投稿して記録する
   const [tiktokByHand, setTikTokByHand] = useState(Boolean(results.tiktok?.byHand));
   const [tiktokCreator, setTikTokCreator] = useState<{ creator?: TikTokCreatorView; error?: string } | null>(null);
+  // YouTube に送るときに利用者が選ぶもの（docs/design/youtube.md の 4.）。公開範囲と子ども向けかは、最初は選んでいない（Y6）
+  const [youtubeChoice, setYouTubeChoice] = useState<YouTubeChoice>(initial.youtube ?? EMPTY_YOUTUBE_CHOICE);
+  // YouTube は手で投稿する（docs/design/youtube.md の 12.。Y4）
+  const [youtubeByHand, setYouTubeByHand] = useState(Boolean(results.youtube?.byHand));
+  // つないだチャンネル（⑤ の YouTube の欄を開くたびに読む）。読めなければ error
+  const [youtubeChannel, setYouTubeChannel] = useState<{ channel?: YouTubeChannelView; error?: string } | null>(null);
+  // 自動では送らない SNS（手で投稿する SNS と、手で投稿すると選んだ X・TikTok・YouTube）
+  const byHandOrManual = (s: SnsKey) => isManualSns(s) || (xByHand && s === "x") || (tiktokByHand && s === "tiktok") || (youtubeByHand && s === "youtube");
   // X をいま（予約ならその時刻に）送ったら上限に当たるか（サーバーが送信ジョブと同じ判定で返す）。key は調べたときの条件
   // base: 費用の変わる条件（これが同じなら、調べ直している間も前の判定を出したままにする）、key: 調べた回（base ＋ ステップ ＋ 押した回数）
   const [xCheck, setXCheck] = useState<{ key: string; base: string; verdict: { now: XSendVerdict; planned: XSendVerdict | null } | null } | null>(null);
@@ -565,6 +578,12 @@ export function useComposer({
         if (p) return `TikTok: ${p}`;
       }
     }
+    // YouTube: 公開範囲と子ども向けかを選び、チャンネルを読めていること（保存のときに、サーバーがもう一度確かめる）
+    if (toSend.includes("youtube") && !youtubeByHand) {
+      if (!youtubeChannel?.channel) return youtubeChannel?.error ? `YouTube: ${youtubeChannel.error}` : "YouTube のチャンネルを読んでいます";
+      const p = youtubeChoiceProblem(youtubeChoice);
+      if (p) return `YouTube: ${p}`;
+    }
     const reconnect = images.length > 0 ? toSend.filter((s) => needImageReconnect.includes(s)) : [];
     if (reconnect.length) return `${reconnect.map((s) => SNS[s].label).join("・")} に画像を送るには、つなぎ直しが要ります`;
     return null;
@@ -575,7 +594,7 @@ export function useComposer({
     sendBlocker ??
     xNowBlocker ??
     // 自動で送る SNS がない（note・Substack と、手で投稿すると選んだ X・TikTok だけ）なら、今すぐ送るものがない
-    (toSend.some((s) => !isManualSns(s) && !(xByHand && s === "x") && !(tiktokByHand && s === "tiktok"))
+    (toSend.some((s) => !byHandOrManual(s))
       ? null
       : toSend.some(isManualSns)
         ? "note・Substack は手で投稿します。予約するか下書きに保存すると、投稿の画面から手で投稿できます"
@@ -693,7 +712,7 @@ export function useComposer({
     setBusy(intent);
     // 自動で送る SNS（note・Substack は手で投稿するので、ここでは送らない）
     // X を手で投稿するときは、送る進み具合に X を出さない（送らないので）
-    const autoSns = toSend.filter((s) => !isManualSns(s) && !(xByHand && s === "x") && !(tiktokByHand && s === "tiktok"));
+    const autoSns = toSend.filter((s) => !byHandOrManual(s));
     if (intent === "now") setSending({ postId: null, sns: autoSns });
     startTransition(async () => {
       const out = await callAction(() => savePost({
@@ -713,6 +732,8 @@ export function useComposer({
         xByHand: xByHand && toSend.includes("x"),
         tiktokByHand: tiktokByHand && toSend.includes("tiktok"),
         ...(toSend.includes("tiktok") && !tiktokByHand ? { tiktok: tiktokChoice } : {}),
+        youtubeByHand: youtubeByHand && toSend.includes("youtube"),
+        ...(toSend.includes("youtube") && !youtubeByHand ? { youtube: youtubeChoice } : {}),
         formatId,
         formatRoundIds: roundIds,
         targets: chosen.map((sns) => ({
@@ -816,7 +837,7 @@ export function useComposer({
 
   const mode = sendMode({ sentAny, toSend: toSend.length });
   // X を手で投稿するときは、自動で送る数に X を数えない
-  const autoCount = toSend.length - (xByHand && toSend.includes("x") ? 1 : 0) - (tiktokByHand && toSend.includes("tiktok") ? 1 : 0);
+  const autoCount = toSend.filter((s) => !byHandOrManual(s)).length + toSend.filter(isManualSns).length;
   const labels = sendLabels(mode, autoCount);
   const sentLabels = chosen.filter((s) => isLocked(s)).map((s) => SNS[s].label).join("・");
 
@@ -943,6 +964,13 @@ export function useComposer({
     tiktokByHand,
     setTikTokByHand,
     setTikTokCreator,
+    youtubeChoice,
+    setYouTubeChoice,
+    youtubeByHand,
+    setYouTubeByHand,
+    youtubeChannel,
+    setYouTubeChannel,
+    byHandOrManual,
     setXByHand,
     xVerdict,
     recheckX,

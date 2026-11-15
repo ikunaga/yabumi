@@ -8,7 +8,7 @@ import { tabClass, tabListClass } from "@/components/ui/tabs";
 import { ShortLinkPreviewNote } from "@/components/links/short-link-toggle";
 import { SnsPreview } from "../sns-preview";
 import { PREVIEW, PREVIEW_DISCLAIMER } from "@/lib/sns/preview";
-import { MAX_TITLE_LENGTH, SNS, TIKTOK_TITLE_LIMIT, hasTitleField, instagramRatioOk, ignoresImages, isManualSns } from "@/lib/sns";
+import { SNS, hasTitleField, titleLimit, instagramRatioOk, ignoresImages, isManualSns } from "@/lib/sns";
 import { formatCount, type Composer } from "./use-composer";
 
 // SNS ごとの見え方と文面（タブ）と、SNS ごとの注意のカード（compose-steps.md。PC は右の列）
@@ -42,16 +42,17 @@ export function ComposePreview({ c }: { c: Composer }) {
               <label htmlFor="target-title" className="text-[13px] font-bold">
                 {focusLabel} のタイトル
                 {focus === "tiktok" && <span className="ml-1.5 font-normal text-muted">任意・90 字まで（TikTok の写真のタイトル）</span>}
+                {focus === "youtube" && <span className="ml-1.5 font-normal text-muted">必須・100 字まで（&lt; と &gt; は使えません）</span>}
               </label>
               <input
                 id="target-title"
                 value={titles[focus] ?? ""}
-                maxLength={focus === "tiktok" ? TIKTOK_TITLE_LIMIT : MAX_TITLE_LENGTH}
+                maxLength={titleLimit(focus)}
                 onChange={(e) => {
                   markTyped();
                   setTitles((t) => ({ ...t, [focus]: e.target.value }));
                 }}
-                placeholder={focus === "tiktok" ? "例: 日曜の朝だけの食パン" : "例: ひとりでお店を 3 か月続けて気づいたこと"}
+                placeholder={focus === "tiktok" || focus === "youtube" ? "例: 日曜の朝だけの食パン" : "例: ひとりでお店を 3 か月続けて気づいたこと"}
                 className="w-full rounded-md border border-input bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:shadow-[0_0_0_1px_var(--primary)] max-sm:text-[16px]"
               />
             </div>

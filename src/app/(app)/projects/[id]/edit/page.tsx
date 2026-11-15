@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { DeleteProjectButton } from "@/components/projects/delete-project-button";
 import { ProjectForm } from "@/components/projects/project-form";
 import { SnsAccountsCard } from "@/components/projects/sns-accounts-card";
+import { youtubeConfigured, youtubeOAuthTesting } from "@/lib/sns/youtube/config";
 import { SnsResultBanner } from "@/components/projects/sns-result-banner";
 import { Disclosure } from "@/components/ui/help";
 import { PageHeader } from "@/components/ui/page-header";
@@ -55,8 +56,9 @@ export default async function ProjectSettingsPage(props: PageProps<"/projects/[i
         projectId={project.id}
         accounts={snsAccounts}
         manualChannels={manualChannels ?? []}
-        connectable={{ threads: threadsConfigured(), x: xReady, instagram: instagramConfigured(), facebook: facebookConfigured(), tiktok: tiktokConfigured() }}
+        connectable={{ threads: threadsConfigured(), x: xReady, instagram: instagramConfigured(), facebook: facebookConfigured(), tiktok: tiktokConfigured(), youtube: youtubeConfigured() }}
         xSpend={xSpend}
+        youtubeTesting={youtubeOAuthTesting()}
       />
 
       <ProjectForm

@@ -718,3 +718,22 @@ Next.js の server action の ID は、ビルドごとの暗号の鍵から作�
 
 - 全体の上限（500MB）と 1 人 300MB・月 20 本は Free のうちの値。段階 ②（Supabase Pro）に進むときに見直す（オーナーの返事待ち。roadmap.md）
 - 転送量の目安: 1 本 約 0.2GB（送り先 4 つ・再生 1 回）。Supabase の Usage で Egress を週に 1 回見る（Free は月 5GB）
+## 30. YouTube の連携（Google Cloud のプロジェクトと鍵。2026-11-15、feat/youtube。architecture.md の 4.74、docs/design/youtube.md）
+
+動画の仕組み（29。feat/video）が先に本番に入っている前提。YouTube 用の Google Cloud のプロジェクトは、Google Play 用（M6）とは別に作る（Y7）。同意の画面は「テスト中」のまま始め、テストのユーザー（オーナー）だけで動かす（許可は 7 日で切れる）。鍵を入れるまでは「YouTube をつなぐ」は「準備中」のまま。
+
+| 段 | 誰が | すること | 状態 |
+|---|---|---|---|
+| 30-1 | PM | マイグレーション 20261115110000_youtube を本番に当てる（表 2 つ・関数 2 つ・トリガー 2 つ・sns_api_usage の operation の check に upload を足す〈既存の行の operation が新しい check を通ることを先に確かめる〉・by_hand_message と mark_manual_target_posted の置き換え） | まだ |
+| 30-2 | オーナー | Search Console で yabumi.app を「ドメイン」で足し、Cloudflare の DNS に TXT を入れて確かめる | まだ |
+| 30-3 | オーナー | Google Cloud でプロジェクト（例 `yabumi-youtube`）を作り、YouTube Data API v3 を有効にする | まだ |
+| 30-4 | オーナー | Google Auth Platform: 種類「外部」、アプリ名 Yabumi、サポートのメール、ロゴ、ホームページ `https://yabumi.app/`、プライバシーポリシー `https://yabumi.app/privacy`、利用規約 `https://yabumi.app/terms`、承認済みドメイン `yabumi.app`。データへのアクセスに `.../auth/youtube.upload` と `.../auth/youtube.readonly` を足し、**sensitive か restricted かの表示を PM に知らせる**。テストのユーザーにオーナーの Google のアカウントを足す | まだ |
+| 30-5 | オーナー | OAuth クライアント（ウェブ アプリケーション）を作り、承認済みのリダイレクト URI に `https://yabumi.app/sns/youtube/callback` を入れる | まだ |
+| 30-6 | オーナー | Vercel → Settings → Environment Variables（Production と Preview）に `YOUTUBE_CLIENT_ID`・`YOUTUBE_CLIENT_SECRET` を足す（値は画面にもログにも出さない）。`YOUTUBE_OAUTH_TESTING` は入れない（既定でテスト中の案内を出す）。`YOUTUBE_DAILY_UPLOADS` も入れない（既定 90）。Redeploy | まだ |
+| 30-7 | オーナー | yabumi のプロジェクトの設定の「つないだ SNS」で YouTube をつなぐ（「確認されていないアプリ」と出たら「詳細」から進む）。チャンネル名と「m/d までにつなぎ直してください」が出る | まだ |
+| 30-8 | オーナー・PM | **オーナーの了承のあとで**、オーナーのチャンネルに「限定公開」で 1 本送る（docs/design/youtube.md の 14. の 8）。確かめること: 選んだ公開範囲のままか（非公開に固定されないか）、縦 60 秒の動画がショートになるか、送信の結果が投稿済みになり「YouTube で見る」が開くか、送信ジョブのログ（件数だけ）。`select count(*) from sns_api_usage where sns = 'youtube';` が 1 増えること | まだ |
+| 30-9 | PM | 規約・ポリシーの ② の版（動画と YouTube をまとめた版。legal.md）の施行日を、本番に出す日に合わせる（src/lib/legal/version.ts と tests/youtube-legal.test.ts の日付） | まだ |
+| 30-10 | オーナー | デモ動画を撮り、公開の状態を「本番」にして OAuth の確認を申請する（docs/design/youtube.md の 11.1）。確認が済んだら Vercel に `YOUTUBE_OAUTH_TESTING=false` を足して Redeploy（7 日の案内が消える） | まだ |
+
+- 外すときは、yabumi の「外す」で Google の側の許可も取り消す（Google のアカウントの「サードパーティ アプリとサービス」からも消える）
+- 1 日 100 本の枠（プロジェクト全体）は、全体で 1 日 50 本を超える日が出てきたら、割り当ての監査を申請する（docs/design/youtube.md の 11.2）。増えたら `YOUTUBE_DAILY_UPLOADS` を上げる

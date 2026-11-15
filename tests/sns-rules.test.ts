@@ -42,9 +42,11 @@ describe("SNS ごとの指摘", () => {
   it("TikTok と YouTube は動画が必要", () => {
     // TikTok は写真の投稿（2026-11-14〜。動画は準備中）
     expect(checkTarget("tiktok", "本文").issues).toEqual(["needs_image"]);
-    expect(checkTarget("youtube", "本文", { images: 3, videos: 0 }).issues).toEqual(["needs_video"]);
-    // 動画があれば「動画が必要」は出ない。yabumi から YouTube に動画を送る部品ができるまでは「動画を送れません」（SNS.youtube.video。docs/design/video.md の 5.）
-    expect(checkTarget("youtube", "本文", { images: 0, videos: 1 }).issues).toEqual(SNS.youtube.video ? [] : ["video_unsupported"]);
+    // YouTube はタイトルも必須（docs/design/youtube.md の 4.）。動画は送れる（SNS.youtube.video。4.74）
+    expect(checkTarget("youtube", "本文", { images: 3, videos: 0 }, "タイトル").issues).toEqual(["needs_video"]);
+    expect(checkTarget("youtube", "本文", { images: 0, videos: 1 }, "タイトル").issues).toEqual(SNS.youtube.video ? [] : ["video_unsupported"]);
+    expect(SNS.youtube.video).toBe(true);
+    expect(checkTarget("youtube", "本文", { images: 0, videos: 1 }).issues).toEqual(["needs_title"]);
   });
 
   it("Facebook は上限なし", () => {

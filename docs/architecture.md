@@ -2944,6 +2944,18 @@ yabumi のコンセプトは、使って SNS を運用するうちに、マー�
 | 【未確認】 | X の 1080×1920（W2）、Facebook・Instagram が音声なし・44.1kHz を受け付けるか、Facebook の rupload に appsecret_proof が要るか、本番の Storage の署名 URL の Range、iPhone の Safari での作り直しの時間と音。本物の確かめは 4 つ（Threads・Instagram・Facebook・X）をまとめて 1 回で行う（オーナーの了承のあと） |
 | テスト | tests/post-videos.integration.test.ts（TUS・RLS・上限・決まり・片付け・postVideoFor）、tests/video-publish.integration.test.ts（送信ジョブ）、tests/video-publish.test.ts（4 つのアダプター）、tests/video-check.test.ts・video-plan.test.ts・compose-video.test.ts・video-legal.test.ts |
 
+### 4.74 YouTube の連携（2026-11-15、オーナーが Y1〜Y7 をおすすめで了承。PM の依頼。feat/youtube。設計は docs/design/youtube.md）
+
+- つなぐ・外す（/sns/youtube/connect・callback。state・PKCE S256・offline・毎回同意。スコープは youtube.upload と youtube.readonly の 2 つがそろい、チャンネルがあるときだけつなぐ。外すと Google の revoke にリフレッシュトークンを送る）
+- 表: post_target_youtube（送るときの設定と同意）・youtube_uploads（アップロードの途中の情報。セッションの URL は暗号化）。どちらも RLS を有効にしてポリシーを置かず、利用者の権限には grant しない。持ち主はトリガー youtube_check_owner でそろえる（tiktok_check_owner は変えない）
+- 割り当て: reserve_youtube_upload（太平洋時間の 1 日。全体 YOUTUBE_DAILY_UPLOADS〈既定 90〉と利用者ごと 5 本を advisory lock で数え、sns_api_usage に operation = upload・費用 0 で記録）。保存のときも、その日の予約が 5 本を超えるなら止める
+- 送信の部品は preparing の 2 段。startPublishVideo はセッションを始めるだけ、continuePublish が 8MB ずつ 15 秒まで送り、残りは次の回に続きから。済んだら published にし、準備に時間がかかっても最初から送り直さない（restartOnPrepareTimeout: false）。最後の答えが届かなくても、次の回に受け取られた量を聞いてわかるので二重に上げない。送る直前に同意の指紋とチャンネルを照らす
+- 送ったあと: 送信ジョブのたびに、上げた動画の処理を 30 分まで確かめ（checkYouTubeProcessing）、受け付けられなければ配信先を失敗にし、途中の情報を消して送り直せるようにする
+- 7 日ごと: refreshDueTokens でトークンを取り直してまだ許可されているかを確かめ（invalid_grant は期限切れ）、チャンネル名を読み直す（変わったときだけ書く。social_accounts.updated_at はテスト中の 7 日の表示に使う）。期限切れのまま 29 日たったら、トークンと YouTube のデータを消す（purgeExpiredYouTube。開発者ポリシーの 30 日以内）
+- 取り消しは YouTube Studio へ案内する（Y5）。「YouTube は手で投稿する」は X・TikTok と同じ作り（by_hand_message に YouTube を足した）
+- 動画は送信ジョブの動画の受け口（startPublishVideo。4.73）で受け、続きの回は postVideoFor で読み直す（送り終えて消したあとは止める）。SNS.youtube.video は true
+- 法務は ② の版。動画（4.73）と同じ版（2026-11-17【仮】。オーナーの了承の前）にまとめた
+
 ## 5. データモデル（主要テーブル）
 
 | テーブル | 内容 |

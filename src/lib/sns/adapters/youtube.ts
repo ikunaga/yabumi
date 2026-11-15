@@ -226,6 +226,12 @@ export function createYouTubeAdapter(deps: YouTubeAdapterDeps): SnsAdapter {
       }
     },
 
+    // チャンネル名を読み直す（7 日ごとの取り直しのあと。保存した YouTube のデータは 30 日ごとに読み直す決まり）
+    async refreshProfile(accessToken) {
+      const channel = await fetchMyChannel(accessToken);
+      return channel ? { displayName: channel.title, handle: channel.handle } : null;
+    },
+
     // 7 日に 1 回は取り直して、まだ許可されているかを確かめる（開発者ポリシーの 30 日ごとの確かめ。docs/design/youtube.md の 2.2）
     shouldRotate(lastRefreshedAt, at) {
       return at.getTime() - lastRefreshedAt.getTime() >= 7 * 24 * 60 * 60 * 1000;

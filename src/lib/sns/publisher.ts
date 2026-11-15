@@ -463,6 +463,19 @@ export const REFRESH_PAGE_SIZE = 500;
 export type RefreshOutcome = { socialAccountId: string; result: "refreshed" | "expired" | "failed" | "skipped"; message?: string };
 
 // 期限が近いトークンを延長する（日次のジョブ）。延長は発行から 24 時間たったものだけができる
+// 名前を読み直し、変わっていたときだけ書く（social_accounts の updated_at は、YouTube のテスト中の 7 日の表示に使うので、変わらなければ触らない）
+async function refreshProfileOf(admin: Admin, socialAccountId: string, adapter: SnsAdapter, accessToken: string): Promise<void> {
+  try {
+    const profile = await adapter.refreshProfile!(accessToken);
+    if (!profile) return;
+    const { data: cur } = await admin.from("social_accounts").select("display_name, handle").eq("id", socialAccountId).maybeSingle();
+    if (!cur || (cur.display_name === profile.displayName && cur.handle === profile.handle)) return;
+    await admin.from("social_accounts").update({ display_name: profile.displayName, handle: profile.handle }).eq("id", socialAccountId);
+  } catch (e) {
+    console.error("[refresh] アカウントの名前を読み直せませんでした", e instanceof Error ? e.message : e);
+  }
+}
+
 export async function refreshDueTokens(admin: Admin, deps: PublisherDeps): Promise<RefreshOutcome[]> {
   const now = deps.now?.() ?? new Date();
   // Supabase の API は 1 回に 1,000 行までしか返さないので、ID の順に少しずつ読む。
@@ -499,6 +512,7 @@ export async function refreshDueTokens(admin: Admin, deps: PublisherDeps): Promi
       if (!adapter.shouldRotate(new Date(row.updated_at), now)) continue;
       try {
         const token = await refreshOnce(admin, id, adapter, deps, { force: true });
+        if (token && adapter.refreshProfile) await refreshProfileOf(admin, id, adapter, token);
         outcomes.push({ socialAccountId: id, result: token ? "refreshed" : "expired" });
       } catch (e) {
         outcomes.push({ socialAccountId: id, result: "failed", message: e instanceof Error ? e.message : String(e) });

@@ -8,6 +8,7 @@ import { ManualChannelRow } from "./manual-channel-row";
 import type { ProjectSnsAccount } from "@/lib/sns/queries";
 import { formatUsd } from "@/lib/sns/x/pricing";
 import type { XSpend } from "@/lib/sns/x/spend";
+import { dayOfMonth, monthOf, toYmd } from "@/lib/time";
 
 // つなぐ処理がある SNS と、その入口
 // どの SNS も、先に確かめの画面（できること・費用・準備）を出してから認可の画面へ進む（docs/architecture.md の 4.21）
@@ -37,6 +38,7 @@ export function SnsAccountsCard({
   manualChannels = [],
   connectable = {},
   xSpend = null,
+  youtubeTesting = false,
 }: {
   projectId: string;
   accounts: ProjectSnsAccount[];
@@ -44,6 +46,8 @@ export function SnsAccountsCard({
   // 環境変数がそろい、つなげる SNS。そろっていなければ「準備中」
   connectable?: Partial<Record<SnsKey, boolean>>;
   xSpend?: XSpend | null;
+  // Google の同意の画面がテスト中（許可が 7 日で切れる。docs/design/youtube.md の 2.2）
+  youtubeTesting?: boolean;
 }) {
   return (
     <Card className="overflow-hidden">
@@ -73,6 +77,7 @@ export function SnsAccountsCard({
                   {account ? <AccountLabel account={account} /> : <span className="text-muted">まだつないでいません</span>}
                 </span>
                 {sns === "x" && xSpend && <XSpendLine spend={xSpend} />}
+                {sns === "youtube" && youtubeTesting && account?.status === "active" && <YouTubeTestingLine connectedAt={account.updatedAt} />}
               </span>
               {account && <DisconnectSnsButton projectId={projectId} accountId={account.id} sns={sns} label={SNS[sns].label} />}
               {connectHref ? (
@@ -93,6 +98,16 @@ export function SnsAccountsCard({
         })}
       </ul>
     </Card>
+  );
+}
+
+// テスト中は、つないでから 7 日で Google の許可が切れる。つなぎ直しの目安の日を出す
+function YouTubeTestingLine({ connectedAt }: { connectedAt: string }) {
+  const until = toYmd(new Date(new Date(connectedAt).getTime() + 7 * 86400_000));
+  return (
+    <span className="mt-0.5 block text-xs leading-[1.6] text-muted">
+      {monthOf(until)}/{dayOfMonth(until)} までにつなぎ直してください（yabumi が Google の確認を受けている途中のため、7 日ごとにつなぎ直しが要ります）
+    </span>
   );
 }
 

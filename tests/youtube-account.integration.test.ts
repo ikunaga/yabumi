@@ -9,6 +9,9 @@ import { publishDueTargets, refreshDueTokens, type PublisherDeps } from "@/lib/s
 import { consentHash } from "@/lib/sns/tiktok/send-check";
 import { EMPTY_YOUTUBE_CHOICE, isShortsShape, youtubeChoiceProblem } from "@/lib/sns/youtube/choice";
 import { pacificDayRange, youtubeSchedulesOnDay } from "@/lib/sns/youtube/schedule";
+import { checkYouTubeProcessing, processingFailureMessage } from "@/lib/sns/youtube/processing";
+import { purgeExpiredYouTube } from "@/lib/sns/youtube/purge";
+import { saveYouTubeUpload } from "@/lib/sns/youtube/store";
 import { checkTarget, ISSUE_LABEL, displayLength } from "@/lib/sns";
 import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
 
@@ -102,6 +105,95 @@ describe("つながりが切れたとき（invalid_grant）", () => {
     expect(t.error_message).toMatch(/つながりが切れて/);
     expect(t.error_message).toMatch(/つなぎ直/);
     expect((await admin.from("social_accounts").select("status").eq("id", accountId).single()).data!.status).toBe("expired");
+  });
+});
+
+// Google の答えを決めて返す偽物（Supabase への通信はそのまま通す）
+const google = (answer: (url: string) => Response | null) =>
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = input instanceof Request ? input.url : String(input);
+      if (url.includes("googleapis.com")) return answer(url) ?? new Response("unexpected", { status: 500 });
+      return realFetch(input, init);
+    }),
+  );
+
+async function publishedYouTube(accountId: string, videoId: string) {
+  const { data: postId } = await alice.rpc("save_post", {
+    p_post_id: null as unknown as string,
+    p_project_id: projectId,
+    p_body: "動画",
+    p_planned_at: FUTURE,
+    p_status: "draft",
+    p_targets: [{ sns: "youtube", social_account_id: accountId, title: "t" }],
+  });
+  const targetId = (await admin.from("post_targets").select("id").eq("post_id", postId!).single()).data!.id;
+  await admin.from("post_targets").update({ status: "published", external_post_id: videoId, published_at: new Date().toISOString() }).eq("id", targetId);
+  await saveYouTubeUpload(admin, targetId, aliceId, { sessionUri: null, bytesTotal: 10, bytesSent: 10, videoId }, new Date(), key);
+  return targetId;
+}
+
+describe("送ったあと・7 日ごと・30 日", () => {
+  it("YouTube が受け付けなかった動画は、配信先を失敗にして理由を出し、送り直せば上げ直せる（途中の情報を消す）。処理が済めば確かめを終える", async () => {
+    const accountId = await connect(new Date(Date.now() + 3600_000));
+    const rejected = await publishedYouTube(accountId, "vid_REJECT1");
+    const ok = await publishedYouTube(accountId, "vid_OK00001");
+    google((url) => {
+      if (url.includes("vid_REJECT1")) return new Response(JSON.stringify({ items: [{ status: { uploadStatus: "rejected", rejectionReason: "duplicate" }, processingDetails: { processingStatus: "succeeded" } }] }), { status: 200 });
+      if (url.includes("vid_OK00001")) return new Response(JSON.stringify({ items: [{ status: { uploadStatus: "processed", privacyStatus: "unlisted" }, processingDetails: { processingStatus: "succeeded" } }] }), { status: 200 });
+      return null;
+    });
+    const out = await checkYouTubeProcessing(admin, adapter, { key, onlyOwner: aliceId });
+    expect(out.find((o) => o.targetId === rejected)).toMatchObject({ result: "failed" });
+    expect(out.find((o) => o.targetId === ok)).toMatchObject({ result: "ok" });
+    const t = (await admin.from("post_targets").select("status, error_message").eq("id", rejected).single()).data!;
+    expect(t.status).toBe("failed");
+    expect(t.error_message).toMatch(/同じ動画がもうチャンネルにある/);
+    expect((await admin.from("youtube_uploads").select("post_target_id").eq("post_target_id", rejected)).data).toEqual([]);
+    expect((await admin.from("youtube_uploads").select("processing_check_until").eq("post_target_id", ok).single()).data!.processing_check_until).toBeNull();
+    // 二度目は何も確かめない
+    expect(await checkYouTubeProcessing(admin, adapter, { key, onlyOwner: aliceId })).toEqual([]);
+  });
+
+  it("処理の失敗の文", () => {
+    expect(processingFailureMessage({ uploadStatus: "failed", processingStatus: "failed", privacyStatus: "", rejectionReason: "", failureReason: "codec" })).toMatch(/形式を読めなかった/);
+    expect(processingFailureMessage({ uploadStatus: "uploaded", processingStatus: "processing", privacyStatus: "", rejectionReason: "", failureReason: "" })).toBeNull();
+  });
+
+  it("7 日ごとの取り直しのあとにチャンネル名を読み直し、変わったときだけ書く", async () => {
+    const accountId = await connect(new Date(Date.now() + 3600_000));
+    const before = (await admin.from("social_accounts").select("updated_at").eq("id", accountId).single()).data!.updated_at;
+    let title = "こむぎのパン";
+    google((url) => {
+      if (url.startsWith("https://oauth2.googleapis.com/token")) return new Response(JSON.stringify({ access_token: "access-2", expires_in: 3600 }), { status: 200 });
+      if (url.includes("/channels")) return new Response(JSON.stringify({ items: [{ id: "UC", snippet: { title, customUrl: "@komugi" } }] }), { status: 200 });
+      return null;
+    });
+    const later = new Date(Date.now() + 8 * 86400_000);
+    await refreshDueTokens(admin, deps(later));
+    expect((await admin.from("social_accounts").select("updated_at").eq("id", accountId).single()).data!.updated_at).toBe(before);
+    title = "こむぎのパン工房";
+    await refreshDueTokens(admin, deps(new Date(Date.now() + 16 * 86400_000)));
+    expect((await admin.from("social_accounts").select("display_name").eq("id", accountId).single()).data!.display_name).toBe("こむぎのパン工房");
+  });
+
+  it("期限切れのまま 30 日近くたったアカウントは、トークンと YouTube のデータを消す（それより前・使える状態のものは消さない）", async () => {
+    const expired = await connect(new Date(Date.now() + 3600_000));
+    const active = await connect(new Date(Date.now() + 3600_000));
+    const target = await publishedYouTube(expired, "vid_PURGE01");
+    await admin.from("social_accounts").update({ status: "expired" }).eq("id", expired);
+    expect(await purgeExpiredYouTube(admin, new Date(Date.now() + 20 * 86400_000), aliceId)).toEqual([]);
+    // このファイルの前のテストで期限切れにしたアカウントも一緒に片付く
+    const purged = await purgeExpiredYouTube(admin, new Date(Date.now() + 30 * 86400_000), aliceId);
+    expect(purged).toContain(expired);
+    expect(purged).not.toContain(active);
+    expect((await admin.from("social_account_tokens").select("social_account_id").eq("social_account_id", expired)).data).toEqual([]);
+    expect((await admin.from("social_account_tokens").select("social_account_id").eq("social_account_id", active)).data).toHaveLength(1);
+    expect((await admin.from("youtube_uploads").select("post_target_id").eq("post_target_id", target)).data).toEqual([]);
+    expect((await admin.from("post_targets").select("external_post_id").eq("id", target).single()).data!.external_post_id).toBeNull();
+    // 二度目は拾わない
+    expect(await purgeExpiredYouTube(admin, new Date(Date.now() + 31 * 86400_000), aliceId)).toEqual([]);
   });
 });
 

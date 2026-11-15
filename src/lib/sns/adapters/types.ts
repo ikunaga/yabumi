@@ -74,6 +74,9 @@ export interface SnsAdapter {
   refreshWithRefreshToken?(refreshToken: string, now: Date): Promise<RefreshedTokens>;
   // 日次のジョブで、リフレッシュトークンが使われないまま古くならないよう取り直す時期か（lastRefreshedAt は最後に取り直した日時）
   shouldRotate?(lastRefreshedAt: Date, now: Date): boolean;
+  // 日次のジョブで取り直したあとに、アカウントの名前を読み直す SNS（YouTube。保存した YouTube のデータは 30 日ごとに読み直す決まり）。
+  // 読めなければ null（名前はそのまま）
+  refreshProfile?(accessToken: string): Promise<{ displayName: string; handle: string } | null>;
 
   // --- 画像の準備に時間がかかる SNS（Threads・Instagram）。1 回のジョブの中で待ち続けないための 2 段階の送り方 ---
   // 画像つきの投稿は publishText ではなくこちらを使う（docs/architecture.md の 4.7「1 回のジョブの時間」）。

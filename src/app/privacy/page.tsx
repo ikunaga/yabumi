@@ -57,7 +57,7 @@ export default function PrivacyPage() {
             ],
             [
               "SNS のアカウント",
-              "SNS 上の ID、ユーザー名、表示名、SNS が発行したアクセストークン（暗号化して保存）。Facebook はページの ID と名前、つないだ Facebook の利用者の ID。ページを選ぶまでの間（15 分）は、管理しているページの一覧と、暗号化したページのトークンを一時的に置きます",
+              "SNS 上の ID、ユーザー名、表示名、SNS が発行したアクセストークン（暗号化して保存）。YouTube はチャンネルの ID・チャンネル名・ハンドルと、Google が発行したアクセストークンとリフレッシュトークン（暗号化して保存）。Facebook はページの ID と名前、つないだ Facebook の利用者の ID。ページを選ぶまでの間（15 分）は、管理しているページの一覧と、暗号化したページのトークンを一時的に置きます",
               "SNS をつないだとき、SNS から",
             ],
             [
@@ -70,6 +70,11 @@ export default function PrivacyPage() {
               "TikTok に送るときの設定と同意",
               "TikTok に送るときに選んだ送り方・公開範囲・コメントの許可・宣伝の内容の表示、同意した日時と、そのときの TikTok の名前、同意したときのタイトルと説明の指紋（元の文には戻せない値。送る直前の文と比べるため）、AI で作った画像かどうか。TikTok が画像を取りに来るための URL の記録（URL そのものは持たず、指紋だけ）",
               "利用者の操作、TikTok から",
+            ],
+            [
+              "YouTube に送るときの設定と同意",
+              "YouTube に送るときに選んだ公開範囲・子ども向けかどうか・改変や合成の申告・カテゴリ、同意した日時と、そのときのチャンネル名、同意したときのタイトルと説明の指紋（元の文には戻せない値。送る直前の文と比べるため）。動画のアップロードの途中の情報（YouTube のアップロードの受付の URL〈暗号化して保存〉、送った量、上げた動画の ID）と、YouTube に送った本数（1 日の上限を数えるため）",
+              "利用者の操作、YouTube から",
             ],
             [
               "ストアと課金の鍵と数字",
@@ -260,6 +265,16 @@ export default function PrivacyPage() {
             ],
             [
               <>
+                YouTube（Google LLC）
+                <br />
+                <ExternalLink href="https://www.google.com/policies/privacy">Google のプライバシーポリシー</ExternalLink>
+              </>,
+              "YouTube API サービスを使った、利用者のチャンネルへの動画のアップロード、上げた動画の YouTube での処理の確かめ、つないだチャンネルの名前の読み取り（送る前と 7 日ごと）、トークンの取り直しと取り消し。上げた動画は、本サービスからは直したり消したりしません",
+              "動画、タイトル、説明（タグを含む）、公開範囲・子ども向けかどうか・改変や合成の申告・カテゴリ、アクセストークン",
+              "米国（Google の設備がある国で、保存・処理されることがあります）",
+            ],
+            [
+              <>
                 X
                 <br />
                 <ExternalLink href="https://x.com/ja/privacy">プライバシーポリシー</ExternalLink>
@@ -346,6 +361,12 @@ export default function PrivacyPage() {
             "Anthropic は、運営者の委託を受けて処理する立場（データの処理者）で、Anthropic のデータ処理の補足契約に沿って扱います。",
           ]}
         />
+        <p className="font-bold">YouTube API サービスの利用</p>
+        <p>
+          本サービスは、YouTube に動画を送るために YouTube API サービスを使います。YouTube をつなぐと、
+          <ExternalLink href="https://www.google.com/policies/privacy">Google のプライバシーポリシー</ExternalLink>
+          も適用されます。本サービスが YouTube から受け取るのは、つないだチャンネルの ID・名前・ハンドルと、本サービスから上げた動画の処理の状態だけで、あなたが選んだ動画を、あなたが選んだ設定で、あなたのチャンネルに上げるためと、送り先と結果を画面に出すためだけに使います。広告や、ほかの目的には使いません。
+        </p>
         <p className="font-bold">Google（Gemini API）での扱い</p>
         <Bullets
           items={[
@@ -390,6 +411,7 @@ export default function PrivacyPage() {
             ["Facebook ページを選ぶまでのページの一覧とトークン", "15 分で自動で消す（選んだら、すぐに消す）"],
             ["TikTok に送るときの設定と同意", "その投稿の TikTok の送り先を消すか、投稿を消すか、退会まで"],
             ["TikTok が画像を取りに来るための URL の記録", "1 時間で使えなくなり、送り終えたら消す（残ったものも毎日消す）"],
+            ["YouTube に送るときの設定と同意・アップロードの途中の情報", "その投稿の YouTube の送り先を消すか、投稿を消すか、YouTube を外すか、退会まで。チャンネル名は 7 日ごとに YouTube から読み直す。Google の設定で yabumi へのアクセスを取り消されたときは、気付いてから 30 日以内に、トークンと YouTube から受け取った情報を消す"],
             ["ロードマップ", "利用者が消すか、プロジェクトを消すか、退会まで"],
             [
               "SNS・ストア・課金の数字",
@@ -462,6 +484,11 @@ export default function PrivacyPage() {
             "Threads: Threads のアプリの「設定」→「アカウント」→「ウェブサイトのアクセス許可」から yabumi を削除できます。削除すると、Meta から本サービスに知らせが届き、トークンを消します。Meta のデータ削除の依頼を受けたときは、Threads のアカウントの情報とトークン、Threads から読んだ投稿の数字とフォロワーの数・コメント、Threads 上の投稿の ID と URL を消し（yabumi で書いた投稿の本文は残します）、確認のページと確認コードを返します",
             "Instagram: Instagram のアプリの「設定とアクティビティ」→「ウェブサイトのアクセス許可」→「アプリとウェブサイト」から yabumi を削除できます。Facebook ページ: Facebook の「設定とプライバシー」→「設定」→「ビジネス統合」から yabumi を削除できます。どちらも、削除やデータ削除の依頼の知らせを受けたときの扱いは Threads と同じです（Facebook は、その人がつないだページをまとめて扱います）",
             "TikTok: TikTok のアプリの設定から、yabumi への許可を外せます。外すと、TikTok から本サービスに知らせが届きます。本サービスは、知らせを受けたら TikTok に問い合わせて外されたことを確かめ、TikTok のアカウントのトークンと、TikTok 上の投稿の ID と URL を消します（yabumi で書いた投稿の本文は残します）",
+            <>
+              YouTube: 本サービスの「外す」か、Google のセキュリティの設定（
+              <ExternalLink href="https://security.google.com/settings/security/permissions">サードパーティ アプリとサービス</ExternalLink>
+              ）から、yabumi へのアクセスをいつでも取り消せます。本サービスの「外す」では Google の側の許可も取り消し、その場でトークンと YouTube から受け取った情報（チャンネル名、上げた動画の ID、アップロードの途中の情報、送るときの同意の記録）を消します。Google の設定で取り消したときは、本サービスが 7 日ごとの確かめで気付き、30 日以内に同じものを消します（yabumi で書いた投稿の本文は残します）
+            </>,
             <>
               X: X の「設定とプライバシー」→「セキュリティとアカウントアクセス」→「アプリとセッション」→「連携しているアプリ」から外せます（
               <ExternalLink href="https://x.com/settings/connected_apps">連携しているアプリ</ExternalLink>）

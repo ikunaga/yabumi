@@ -24,7 +24,7 @@ import { canPublish } from "@/lib/sns/adapters";
 import { targetText } from "@/lib/sns/hashtags";
 import { isByHand } from "@/lib/sns/by-hand";
 import { getPlanHints } from "@/lib/plan/queries";
-import { loadPostImageDownloads, loadPostImages, loadPostVideo, snsNeedingImageReconnect } from "@/lib/media/queries";
+import { loadPostImageDownloads, loadPostImages, loadPostVideo, loadPostVideoDownload, snsNeedingImageReconnect } from "@/lib/media/queries";
 import { postLinkPreview } from "@/lib/links/store";
 import { findLinkableUrls } from "@/lib/links/rules";
 import type { TargetResult } from "@/components/posts/send-results";
@@ -62,7 +62,8 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
   const sent = post.targets.some((t) => ["published", "preparing", "publishing", "deleted"].includes(t.status));
   // 送れなかった・手で投稿する TikTok は、利用者が画像を保存して TikTok のアプリから投稿する（保存の URL を作る）
   const tiktokByHandNeeded = post.targets.some((t) => t.sns === "tiktok" && t.status === "failed");
-  const [accounts, planHints, { data: channels }, images, linkPreview, numbers, tiktokDownloads, postVideo] = await Promise.all([
+  const youtubeByHandNeeded = post.targets.some((t) => t.sns === "youtube" && t.status === "failed");
+  const [accounts, planHints, { data: channels }, images, linkPreview, numbers, tiktokDownloads, postVideo, youtubeDownloads] = await Promise.all([
     connectedAccounts(project.id),
     getPlanHints(project.id),
     supabase.from("project_manual_channels").select("sns, profile_url").eq("project_id", project.id),
@@ -71,6 +72,8 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
     loadPostNumbers(project.id, { postId: post.id, sent }),
     tiktokByHandNeeded ? loadPostImageDownloads(post.id) : Promise.resolve([]),
     loadPostVideo(post.id),
+    // 送れなかった・手で投稿する YouTube は、利用者が動画を保存して YouTube Studio から上げる（docs/design/youtube.md の 12.）
+    youtubeByHandNeeded ? loadPostVideoDownload(post.id) : Promise.resolve([]),
   ]);
   // SNS のコメント（4.70）: 送った投稿だけ。数字の帯の下に出す
   const comments = sent ? (await loadProjectComments(project.id, { postId: post.id })).filter((p) => p.sns !== "x") : [];
@@ -122,9 +125,8 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
             : t.sns === "tiktok" && t.status === "failed"
               ? { title: t.title, text: targetText(post.body, t), composeUrl: null, downloads: tiktokDownloads }
               : // YouTube も、手で投稿するを選んだとき・送れなかったときは、YouTube Studio で投稿して記録できる（docs/design/youtube.md の 12.）。
-                // 動画を保存する URL は、動画の仕組み（feat/video）が入ってから足す
                 t.sns === "youtube" && t.status === "failed"
-                ? { title: t.title, text: targetText(post.body, t), composeUrl: "https://studio.youtube.com/", downloads: [] }
+                ? { title: t.title, text: targetText(post.body, t), composeUrl: "https://studio.youtube.com/", downloads: youtubeDownloads }
                 : undefined,
         postedByHand: t.status === "published" && !t.external_post_id,
         byHand: isByHand(t),

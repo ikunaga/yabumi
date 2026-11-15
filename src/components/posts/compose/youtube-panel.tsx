@@ -4,14 +4,14 @@ import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { callAction } from "@/lib/client-errors";
 import { getYouTubeChannel } from "@/lib/sns/youtube/actions";
-import { YOUTUBE_CATEGORIES, YOUTUBE_PRIVACY, YOUTUBE_PRIVACY_LABEL, type YouTubeChoice } from "@/lib/sns/youtube/choice";
+import { isShortsShape, YOUTUBE_CATEGORIES, YOUTUBE_PRIVACY, YOUTUBE_PRIVACY_LABEL, type YouTubeChoice } from "@/lib/sns/youtube/choice";
 import { type Composer } from "./use-composer";
 
 // ⑤ 送るの YouTube の欄（docs/design/youtube.md の 4.）。開くたびにつないだチャンネルを読み、送り先を出す。
 // 公開範囲と子ども向けかは利用者が選ぶ（最初は選んでいない。Y6・COPPA）。送る・予約するのボタンが、この内容への同意を兼ねる。
 // yabumi は説明に文を足さず、透かしやロゴも付けない
 export function ComposeYouTube({ c }: { c: Composer }) {
-  const { projectId, youtubeChoice: ch, setYouTubeChoice, youtubeChannel, setYouTubeChannel, youtubeByHand, setYouTubeByHand, clearFieldError, titles, markTyped } = c;
+  const { projectId, youtubeChoice: ch, setYouTubeChoice, youtubeChannel, setYouTubeChannel, youtubeByHand, setYouTubeByHand, clearFieldError, titles, markTyped, video } = c;
   const set = (patch: Partial<YouTubeChoice>) => {
     markTyped();
     setYouTubeChoice((x) => ({ ...x, ...patch }));
@@ -122,7 +122,14 @@ export function ComposeYouTube({ c }: { c: Composer }) {
             </select>
           </label>
 
-          <p className="text-[12px] leading-[1.7] text-muted">3 分以内の縦長か正方形の動画は、YouTube ショートとして出ます。それより長い・横長の動画は、ふつうの動画として出ます。</p>
+          {/* ショートになるか（API に項目はなく、YouTube が長さと縦横で決める。docs/design/youtube.md の 4.） */}
+          <p className="text-[12px] leading-[1.7] text-muted">
+            {video && video.width && video.height
+              ? isShortsShape({ durationMs: video.durationMs, width: video.width, height: video.height })
+                ? "この動画は YouTube ショートとして出ます（3 分以内・縦長か正方形）。"
+                : "この動画はふつうの動画として出ます（ショートにするには、3 分以内の縦長か正方形の動画にしてください）。"
+              : "3 分以内の縦長か正方形の動画は、YouTube ショートとして出ます。それより長い・横長の動画は、ふつうの動画として出ます。"}
+          </p>
 
           <div className="flex flex-col gap-1 rounded-md bg-surface2 p-3 text-[13px]">
             <span className="text-[12px] font-bold text-muted">この内容で上げます</span>

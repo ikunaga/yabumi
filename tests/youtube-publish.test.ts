@@ -115,8 +115,15 @@ function deps(over: Partial<YouTubeAdapterDeps> & { video?: YouTubeVideo | null;
   return { d, store };
 }
 
-async function sendOnce(adapter: ReturnType<typeof createYouTubeAdapter>, state?: PrepareState) {
-  const s = state ?? (await adapter.startPublish!(account, "説明", [], target));
+// 送信ジョブの最初の回（startPublishVideo に、送信ジョブが読んだ動画を渡す。読めなければ渡さずに、アダプターが読み直す）
+async function start(adapter: ReturnType<typeof createYouTubeAdapter>, d: YouTubeAdapterDeps) {
+  const v = await d.loadVideo("post");
+  const given = v && v !== "removed" ? { ...v, url: "https://storage.example/v.mp4" } : (undefined as never);
+  return adapter.startPublishVideo!(account, "説明", given, target);
+}
+
+async function sendOnce(adapter: ReturnType<typeof createYouTubeAdapter>, d: YouTubeAdapterDeps, state?: PrepareState) {
+  const s = state ?? (await start(adapter, d));
   return adapter.continuePublish!(account, s);
 }
 
@@ -161,7 +168,7 @@ describe("再開できるアップロード", () => {
     const video = fakeVideo(20 * MB);
     const { d, store } = deps({ video });
     const adapter = createYouTubeAdapter(d);
-    const r = await sendOnce(adapter);
+    const r = await sendOnce(adapter, d);
     expect(r).toEqual({ done: { externalPostId: "vid_ABC123", url: "https://www.youtube.com/watch?v=vid_ABC123" } });
     expect(d.reserveUpload).toHaveBeenCalledTimes(1);
     expect(video.reads).toEqual([
@@ -185,7 +192,7 @@ describe("再開できるアップロード", () => {
       return origRead(a, b);
     };
     const adapter = createYouTubeAdapter(d);
-    const first = await sendOnce(adapter);
+    const first = await sendOnce(adapter, d);
     expect("state" in first).toBe(true);
     expect(store.row?.bytesSent).toBe(2 * UPLOAD_CHUNK_BYTES);
     const second = await adapter.continuePublish!(account, (first as { state: PrepareState }).state);
@@ -201,16 +208,16 @@ describe("再開できるアップロード", () => {
     const video = fakeVideo(4 * MB);
     const { d, store } = deps({ video });
     const adapter = createYouTubeAdapter(d);
-    const state = await adapter.startPublish!(account, "説明", [], target);
+    const state = await start(adapter, d);
     await expect(adapter.continuePublish!(account, state)).rejects.toMatchObject({ kind: "retryable" });
     // 送り直し: publisher は sns_container を消して startPublish からやり直す。セッションが残っているので始め直さない
-    const again = await sendOnce(adapter);
+    const again = await sendOnce(adapter, d);
     expect(again).toMatchObject({ done: { externalPostId: "vid_ABC123" } });
     expect(g.calls.filter((c) => c.startsWith("POST")).length).toBe(1);
     expect(video.reads.length).toBe(1);
     expect(store.row?.videoId).toBe("vid_ABC123");
     // 済んだあとにもう一度呼ばれても、上げ直さない
-    const third = await sendOnce(adapter);
+    const third = await sendOnce(adapter, d);
     expect(third).toMatchObject({ done: { externalPostId: "vid_ABC123" } });
     expect(g.calls.filter((c) => c.startsWith("POST")).length).toBe(1);
   });
@@ -220,20 +227,20 @@ describe("再開できるアップロード", () => {
     vi.stubGlobal("fetch", g.fetchMock);
     const { d, store } = deps({ video: fakeVideo(4 * MB) });
     const adapter = createYouTubeAdapter(d);
-    await expect(sendOnce(adapter)).rejects.toMatchObject({ kind: "retryable" });
+    await expect(sendOnce(adapter, d)).rejects.toMatchObject({ kind: "retryable" });
     expect(store.row).toBeNull();
-    await expect(sendOnce(adapter)).rejects.toBeInstanceOf(SnsPublishError);
+    await expect(sendOnce(adapter, d)).rejects.toBeInstanceOf(SnsPublishError);
     expect(d.reserveUpload).toHaveBeenCalledTimes(2);
   });
 
   it("YouTube の 5xx は retryable、401 はつなぎ直し（auth）", async () => {
     vi.stubGlobal("fetch", fakeGoogle({ total: 4 * MB, status5xx: true }).fetchMock);
-    const a = createYouTubeAdapter(deps({ video: fakeVideo(4 * MB) }).d);
-    await expect(sendOnce(a)).rejects.toMatchObject({ kind: "retryable" });
+    const da = deps({ video: fakeVideo(4 * MB) }).d;
+    await expect(sendOnce(createYouTubeAdapter(da), da)).rejects.toMatchObject({ kind: "retryable" });
 
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: { message: "bad", errors: [{ reason: "authError" }] } }), { status: 401 })));
-    const b = createYouTubeAdapter(deps().d);
-    await expect(b.startPublish!(account, "説明", [], target)).rejects.toMatchObject({ kind: "auth" });
+    const db = deps().d;
+    await expect(start(createYouTubeAdapter(db), db)).rejects.toMatchObject({ kind: "auth" });
   });
 });
 
@@ -248,8 +255,7 @@ describe("送る直前の確かめと割り当て", () => {
     ];
     for (const [over, message] of cases) {
       const { d } = deps(over);
-      const a = createYouTubeAdapter(d);
-      await expect(a.startPublish!(account, "説明", [], target)).rejects.toMatchObject({ kind: "permanent", userMessage: expect.stringMatching(message) });
+      await expect(start(createYouTubeAdapter(d), d)).rejects.toMatchObject({ kind: "permanent", userMessage: expect.stringMatching(message) });
       expect(d.reserveUpload).not.toHaveBeenCalled();
     }
   });
@@ -262,7 +268,7 @@ describe("送る直前の確かめと割り当て", () => {
       ["user", "YouTube は 1 日 5 本まで送れます。明日送り直すか、手で投稿してください。"],
     ] as const) {
       const { d } = deps({ reserveUpload: vi.fn(async () => verdict) });
-      await expect(createYouTubeAdapter(d).startPublish!(account, "説明", [], target)).rejects.toMatchObject({ kind: "permanent", userMessage: message });
+      await expect(start(createYouTubeAdapter(d), d)).rejects.toMatchObject({ kind: "permanent", userMessage: message });
     }
     expect(g.calls.some((c) => c.startsWith("POST"))).toBe(false);
   });
@@ -277,8 +283,14 @@ describe("送る直前の確かめと割り当て", () => {
             : new Response(JSON.stringify({ error: { message: "x", errors: [{ reason }] } }), { status: 403 }),
         ),
       );
-      await expect(createYouTubeAdapter(deps().d).startPublish!(account, "説明", [], target)).rejects.toMatchObject({ kind: "permanent" });
+      const dq = deps().d;
+      await expect(start(createYouTubeAdapter(dq), dq)).rejects.toMatchObject({ kind: "permanent" });
     }
+  });
+
+  it("送り終えて動画を消したあと（removed）は、続きを送らずに止める", async () => {
+    const { d } = deps({ loadVideo: async () => "removed" as const });
+    await expect(start(createYouTubeAdapter(d), d)).rejects.toMatchObject({ kind: "permanent", userMessage: expect.stringMatching(/選び直して/) });
   });
 
   it("取り消しは YouTube Studio へ案内する（Y5）", async () => {

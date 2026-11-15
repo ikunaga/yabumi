@@ -72,7 +72,8 @@ export async function requestVideoUpload(): Promise<{ ticket?: VideoUploadGrant;
 export type UploadedVideo = VideoFile & { previewUrl: string | null };
 
 // 投稿をつくる画面が持つ動画。localUrl: 上げた直後の手元の動画（blob の URL。画面の中だけ）。あとから開いたときは null（押したときに videoPlaybackUrl）
-export type AttachedVideo = { id: string; durationMs: number; sizeBytes: number; localUrl?: string | null };
+// width・height: 見た目の縦横（YouTube のショートになるかの案内に使う。docs/design/youtube.md の 4.）。わからなければ省く
+export type AttachedVideo = { id: string; durationMs: number; sizeBytes: number; localUrl?: string | null; width?: number; height?: number };
 
 export async function confirmVideoUpload(path: string): Promise<{ video?: UploadedVideo; error?: string }> {
   if (typeof path !== "string" || path.length > 200) return { error: "入力の形式が正しくありません。" };
@@ -116,12 +117,12 @@ export async function restoreDraftVideo(postId: unknown, id: unknown): Promise<{
   const v = z.uuid().safeParse(id);
   if (!p.success || !v.success) return { video: null };
   try {
-    const { data } = await (await createClient()).from("media_files").select("id, post_id, created_at, duration_ms, size_bytes, removed_at").eq("id", v.data).eq("kind", "video").maybeSingle();
+    const { data } = await (await createClient()).from("media_files").select("id, post_id, created_at, duration_ms, size_bytes, removed_at, width, height").eq("id", v.data).eq("kind", "video").maybeSingle();
     if (!data || data.removed_at) return { video: null };
     const ofPost = p.data !== null && data.post_id === p.data;
     const fresh = data.post_id === null && Date.parse(data.created_at) > Date.now() - RESTORE_UNATTACHED_HOURS * 3600_000;
     if (!ofPost && !fresh) return { video: null };
-    return { video: { id: data.id, durationMs: data.duration_ms ?? 0, sizeBytes: data.size_bytes, localUrl: null } };
+    return { video: { id: data.id, durationMs: data.duration_ms ?? 0, sizeBytes: data.size_bytes, localUrl: null, width: data.width, height: data.height } };
   } catch (e) {
     console.error("[video]", e instanceof Error ? e.message : e);
     return { video: null };

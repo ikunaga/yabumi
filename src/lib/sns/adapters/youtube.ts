@@ -243,7 +243,7 @@ export function createYouTubeAdapter(deps: YouTubeAdapterDeps): SnsAdapter {
     async startPublishVideo(account, text, video: PublishVideo, target?: PublishTarget): Promise<PrepareState> {
       if (!target) throw new SnsPublishError("permanent", "YouTube の配信先がわかりません。");
       try {
-        const r = await prepare(account, target.id, text, target.rawText, { ...video, mime: "video/mp4", aiGenerated: false });
+        const r = await prepare(account, target.id, text, target.rawText, video ? { ...video, mime: "video/mp4", aiGenerated: false } : undefined);
         if (r.done) return { stage: "done", targetId: target.id, videoId: r.videoId } as unknown as PrepareState;
         const state: State = { stage: "uploading", targetId: target.id, bytesSent: r.row.bytesSent };
         return state as unknown as PrepareState;

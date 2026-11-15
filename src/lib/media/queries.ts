@@ -1,4 +1,5 @@
 import "server-only";
+import { VIDEO_BUCKET } from "@/lib/media/video-rules";
 import type { AttachedImage } from "@/components/posts/image-attachments";
 import { isSnsKey, type SnsKey } from "@/lib/sns";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -58,11 +59,21 @@ export async function loadPostImageDownloads(postId: string): Promise<{ url: str
   return signed;
 }
 
+// 投稿の動画を保存するための URL（「YouTube に手で投稿する」で、利用者が動画を保存して YouTube Studio で選ぶため。docs/design/youtube.md の 12.）。
+// 読めるのは本人のものだけ（RLS で行を読んでから、サーバーの権限で署名する）。送り終えて消したあとは空。1 時間で切れる
+export async function loadPostVideoDownload(postId: string): Promise<{ url: string; name: string }[]> {
+  const row = await postVideoRow(await createClient(), postId);
+  if (!row || row.removedAt) return [];
+  const name = "yabumi-video.mp4";
+  const { data, error } = await createAdminClient().storage.from(VIDEO_BUCKET).createSignedUrl(row.storagePath, PREVIEW_URL_SECONDS, { download: name });
+  if (error) throw error;
+  return [{ url: data.signedUrl, name }];
+}
 
 // 投稿の動画（作成画面・投稿の画面に出す）。読めるのは本人のものだけ（RLS）。再生の URL は押したときに作る（videoPlaybackUrl）
-export async function loadPostVideo(postId: string): Promise<{ video: { id: string; durationMs: number; sizeBytes: number; localUrl: null } | null; removed: { durationMs: number } | null }> {
+export async function loadPostVideo(postId: string): Promise<{ video: { id: string; durationMs: number; sizeBytes: number; localUrl: null; width: number; height: number } | null; removed: { durationMs: number } | null }> {
   const row = await postVideoRow(await createClient(), postId);
   if (!row) return { video: null, removed: null };
   if (row.removedAt) return { video: null, removed: { durationMs: row.durationMs } };
-  return { video: { id: row.id, durationMs: row.durationMs, sizeBytes: row.sizeBytes, localUrl: null }, removed: null };
+  return { video: { id: row.id, durationMs: row.durationMs, sizeBytes: row.sizeBytes, localUrl: null, width: row.width, height: row.height }, removed: null };
 }

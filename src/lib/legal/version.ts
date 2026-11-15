@@ -135,9 +135,9 @@ export const LEGAL_VERSIONS: readonly LegalRevision[] = [
     noticeFrom: null,
     noticeWaived: "施行の時点で利用者は運営者だけ（招待していない）で、運営者が了承した（2026-11-15）",
   },
-  // 投稿に動画を添える（docs/design/video.md の 9.、docs/legal.md の「投稿に動画を添える版」。② として扱う）。
-  // 【仮】日付と noticeWaived の了承日は、オーナーの了承を得て本番に出す日に PM が合わせる
-  // YouTube の連携（docs/legal.md の「案: YouTube の連携」。② として扱う）も同じ版に入れる（2026-11-15 PM の指示。1 日 1 版）。
+  // 投稿に動画を添える（docs/design/video.md の 9.、docs/legal.md の「案: 投稿に動画を添える」。② として扱った。了承は 2026-11-15）。
+  // YouTube の連携（docs/legal.md の「案: YouTube の連携」。② として扱った。了承は 2026-11-15）も同じ版に入れる（2026-11-15 PM の指示。1 日 1 版）。
+  // 施行日（版の日付）は本番に出す日に PM が合わせる
   {
     version: "2026-11-17",
     docs: ["terms", "privacy"],
@@ -149,7 +149,7 @@ export const LEGAL_VERSIONS: readonly LegalRevision[] = [
     ],
     adverse: false,
     noticeFrom: null,
-    noticeWaived: "【仮】施行の時点で利用者は運営者だけ（招待していない）で、運営者が了承した（了承の日は PM が入れる）",
+    noticeWaived: "施行の時点で利用者は運営者だけ（招待していない）で、運営者が了承した（2026-11-15）",
   },
 ];
 

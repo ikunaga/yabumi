@@ -1,4 +1,4 @@
-// YouTube の連携の版（docs/legal.md の「案: YouTube の連携」。② として扱う。日付は【仮】）: 版の並び・本文の新しい文・作りとの一致。
+// YouTube の連携の版（docs/legal.md の「案: YouTube の連携」。② として扱った。了承は 2026-11-15。施行日は本番に出す日に PM が合わせる〈ここの日付も一緒に直す〉）: 版の並び・本文の新しい文・作りとの一致。
 // YouTube API Services の開発者ポリシーが求める文（API を使うこと・Google のプライバシーポリシー・取り消し方・YouTube 利用規約）が入っていること
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
@@ -11,11 +11,12 @@ const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "u
 describe("YouTube の連携の版", () => {
   const rev = LEGAL_VERSIONS.find((r) => r.version === VERSION)!;
 
-  it("利用規約とプライバシーポリシーの版（仮）で、決まりを守っている", () => {
+  it("利用規約とプライバシーポリシーの版で、決まりを守っている", () => {
     expect(rev.docs).toEqual(["terms", "privacy"]);
     expect(rev.adverse).toBe(false);
     expect(rev.noticeFrom).toBeNull();
-    expect(rev.noticeWaived).toContain("【仮】");
+    expect(rev.noticeWaived).toContain("2026-11-15");
+    expect(rev.noticeWaived).not.toContain("【仮】");
     expect(rev.summary.join("")).toContain("YouTube API サービス");
     expect(historyProblems()).toEqual([]);
     expect(LEGAL_VERSIONS.at(-1)?.version).toBe(VERSION);

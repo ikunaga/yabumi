@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { VideoBox } from "../video-attachment";
+import { formatDuration } from "@/lib/media/video-rules";
 import { Button } from "@/components/ui/button";
 import { tabClass, tabListClass } from "@/components/ui/tabs";
 import { SNS, type SnsKey } from "@/lib/sns";
@@ -10,7 +12,7 @@ import { type Composer } from "./use-composer";
 // すべて送った投稿（docs/design/compose-steps.md の 6.）: 決めることが残っていないので、ステップに分けずに送った文面を読むだけにする。
 // 送った結果・取り消すは上の「送信の結果」、数字は下の帯。ほかの SNS にも送るときは「ほかの SNS にも送る」で ② から
 export function ComposeSentView({ c, onExtend }: { c: Composer; onExtend: () => void }) {
-  const { chosen, isLocked, shownText, titles, projectName, accountNames, images, checks, deleteRow } = c;
+  const { chosen, isLocked, shownText, titles, projectName, accountNames, images, video, initial, postId, checks, deleteRow } = c;
   const sent = chosen.filter((s) => isLocked(s));
   const [tab, setTab] = useState<SnsKey | null>(null);
   const focus = tab && sent.includes(tab) ? tab : sent[0];
@@ -34,6 +36,16 @@ export function ComposeSentView({ c, onExtend }: { c: Composer; onExtend: () => 
         <div role={sent.length > 1 ? "tabpanel" : undefined}>
           <SnsPreview key={focus} sns={focus} text={shownText(focus)} title={titles[focus] ?? null} projectName={projectName} account={accountNames[focus] ?? null} images={images} length={checks[focus].length} />
         </div>
+      )}
+      {video && (
+        <div className="w-[88px] max-sm:w-[64px]">
+          <VideoBox video={video} postId={postId ?? undefined} />
+        </div>
+      )}
+      {!video && initial.videoRemoved && (
+        <p className="text-[13px] text-muted">
+          動画（<span className="num">{formatDuration(initial.videoRemoved.durationMs)}</span>）は送り終えたので消しました。
+        </p>
       )}
       <p className="text-[14px] leading-[1.7] text-muted">送った投稿です。直すときは各 SNS で、取り消すときは上の「送信の結果」から。</p>
       <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3.5">

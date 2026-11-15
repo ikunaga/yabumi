@@ -6,6 +6,7 @@ import { MEDIA_BUCKET } from "@/lib/media/rules";
 import { issueUpload, verifyUpload } from "@/lib/media/store";
 import { createNote } from "@/lib/notes/store";
 import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
+import { putImage } from "./helpers/upload";
 import { testJpeg } from "./helpers/jpeg";
 
 const admin = adminClient();
@@ -242,7 +243,7 @@ describe("投稿のネタ", () => {
   it("ネタ帳のメモから出す。AI に送るのは本文だけ。下書きにすると、メモの写真を添え、メモに「投稿にした」の印を付ける", async () => {
     const p4 = (await alice.from("projects").insert({ name: "メモのプロジェクト" }).select("id").single()).data!.id;
     const ticket = await issueUpload(admin, aliceId);
-    await fetch(ticket.signedUrl, { method: "PUT", body: Buffer.from(testJpeg({ width: 400, height: 500 })), headers: { "Content-Type": "image/jpeg", "x-upsert": "false" } });
+    await putImage(ticket.path, testJpeg({ width: 400, height: 500 }));
     const img = await verifyUpload(admin, aliceId, ticket.path);
     const n1 = await createNote(alice, admin, { userId: aliceId, projectId: p4, body: "友だちに「グラフが見にくい」と言われた", mediaId: img.id });
     const n2 = await createNote(alice, admin, { userId: aliceId, projectId: p4, body: "通知の時間を選べたらいいのに", mediaId: null });

@@ -62,7 +62,16 @@ export async function signUpNewUser(): Promise<{ client: TestClient; userId: str
   const client = anonClient();
   const { error } = await client.auth.verifyOtp({ token_hash: link.properties.hashed_token, type: "magiclink" });
   if (error) throw error;
+  signedIn.set(created.user.id, client);
   return { client, userId: created.user.id };
+}
+
+// signUpNewUser で作った利用者の、ログインしたクライアント（画像・動画を利用者のログインのまま上げるテストに使う）
+const signedIn = new Map<string, TestClient>();
+export function clientOf(userId: string): TestClient {
+  const c = signedIn.get(userId);
+  if (!c) throw new Error("この利用者は、このテストのファイルで signUpNewUser したものではありません");
+  return c;
 }
 
 // テストの利用者を消す。費用の記録（ai_usage、sns_api_usage）は利用者を消しても持ち主を空にして残る決まり（4.14）なので、先に消す。

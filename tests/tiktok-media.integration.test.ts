@@ -15,6 +15,7 @@ import { writeTikTokConsent } from "@/lib/sns/tiktok/consent";
 import { consentHash } from "@/lib/sns/tiktok/send-check";
 import { withHashtags } from "@/lib/sns/hashtags";
 import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
+import { putImage } from "./helpers/upload";
 
 const admin = adminClient();
 let alice: TestClient;
@@ -32,7 +33,7 @@ const realJpeg = (width: number, height: number) => {
 };
 async function upload(ownerId: string, bytes = realJpeg(2048, 1536)) {
   const ticket = await issueUpload(admin, ownerId);
-  const res = await fetch(ticket.signedUrl, { method: "PUT", body: Buffer.from(bytes), headers: { "Content-Type": "image/jpeg", "x-upsert": "false" } });
+  const res = await putImage(ticket.path, bytes);
   expect(res.ok).toBe(true);
   return (await verifyUpload(admin, ownerId, ticket.path)).id;
 }

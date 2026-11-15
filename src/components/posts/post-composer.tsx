@@ -103,7 +103,8 @@ export function PostComposer(props: ComposerProps) {
           <span className="ml-auto flex items-center gap-3">
             <ComposeResetControl c={c} />
             {composeStep < 5 && (
-              <Button type="button" variant="secondary" size="sm" disabled={pending} onClick={() => submit("draft")}>
+              // 動画を整えている・上げている間は保存しない（途中の状態で保存されるのを防ぐ）
+              <Button type="button" variant="secondary" size="sm" disabled={pending || c.videoBusy} onClick={() => submit("draft")}>
                 {busy === "draft" ? "保存しています…" : "下書きに保存する"}
               </Button>
             )}
@@ -114,7 +115,7 @@ export function PostComposer(props: ComposerProps) {
       {/* 保存・送信の知らせと、送信の結果（送ったあとはこの投稿の画面に移り、ここに結果が出る） */}
       {notice && (noticeTone === "error" ? <ErrorBanner>{notice}</ErrorBanner> : <SuccessBanner>{notice}</SuccessBanner>)}
       {notice && afterNotice}
-      {postId && <SendResults projectId={projectId} postId={postId} results={results} />}
+      {postId && <SendResults projectId={projectId} postId={postId} results={results} video={c.video !== null || Boolean(c.initial.videoRemoved)} />}
       <ComposeAlerts c={c} />
 
       {steps ? (

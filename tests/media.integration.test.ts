@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { MEDIA_BUCKET } from "@/lib/media/rules";
 import { MAX_PENDING_TICKETS, MediaError, attachMedia, cleanupMedia, discardUnattached, issueUpload, postMedia, publishImagesFor, verifyUpload } from "@/lib/media/store";
 import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
+import { putImage } from "./helpers/upload";
 import { EXIF_GPS_MARK, includesAscii, testJpeg } from "./helpers/jpeg";
 
 const admin = adminClient();
@@ -15,14 +16,13 @@ let aliceId: string;
 let bobId: string;
 let projectId: string;
 
-async function putToSignedUrl(signedUrl: string, bytes: Uint8Array, contentType = "image/jpeg") {
-  return fetch(signedUrl, { method: "PUT", body: Buffer.from(bytes), headers: { "Content-Type": contentType, "x-upsert": "false" } });
-}
+// 画面と同じく、利用者のログインのまま引換券の場所に上げる
+const putToTicket = (ticket: { path: string }, bytes: Uint8Array, contentType = "image/jpeg") => putImage(ticket.path, bytes, contentType);
 
 // 画面と同じ流れ: URL を発行 → 上げる → 確かめる
 async function uploadImage(ownerId: string, bytes = testJpeg()) {
   const ticket = await issueUpload(admin, ownerId);
-  const res = await putToSignedUrl(ticket.signedUrl, bytes);
+  const res = await putToTicket(ticket, bytes);
   expect(res.ok).toBe(true);
   return verifyUpload(admin, ownerId, ticket.path);
 }
@@ -69,20 +69,50 @@ describe("上げて確かめる", () => {
     const stored = new Uint8Array(await data!.arrayBuffer());
     expect(includesAscii(stored, EXIF_GPS_MARK)).toBe(false);
     expect(file.sizeBytes).toBe(stored.length);
-    // 引換券は使ったら消える
-    expect((await admin.from("media_upload_tickets").select("storage_path").eq("storage_path", file.storagePath)).data).toEqual([]);
+    // 引換券は使ったら消さずに印を付ける（同じ引換券ではもう確かめない）
+    const { data: used } = await admin.from("media_upload_tickets").select("consumed_at").eq("storage_path", file.storagePath).single();
+    expect(used?.consumed_at).not.toBeNull();
   });
 
   it("JPEG でない中身は、Content-Type をごまかしても受け付けず、ファイルも消す", async () => {
     const ticket = await issueUpload(admin, aliceId);
-    await putToSignedUrl(ticket.signedUrl, new TextEncoder().encode("<svg xmlns='http://www.w3.org/2000/svg'></svg>"));
+    await putToTicket(ticket, new TextEncoder().encode("<svg xmlns='http://www.w3.org/2000/svg'></svg>"));
     await expect(verifyUpload(admin, aliceId, ticket.path)).rejects.toBeInstanceOf(MediaError);
     expect(await objectExists(ticket.path)).toBe(false);
   });
 
+  it("利用者のログインのまま上げられるのは、本人の・まだ使っていない・2 時間以内の引換券がある場所だけ。上書きもできない", async () => {
+    // 確かめを通った画像を、同じ場所に上げ直して差し替えることはできない（前は署名つきのトークンで、TUS から上書きできた）
+    const ticket = await issueUpload(admin, bobId);
+    expect((await putToTicket(ticket, testJpeg())).ok).toBe(true);
+    const file = await verifyUpload(admin, bobId, ticket.path);
+    expect((await putImage(ticket.path, testJpeg({ width: 50, height: 50 }), "image/jpeg", { upsert: true })).ok).toBe(false);
+    expect((await putImage(ticket.path, testJpeg())).ok).toBe(false);
+    const { data: stored } = await admin.storage.from(MEDIA_BUCKET).download(ticket.path);
+    expect(stored!.size).toBe(file.sizeBytes);
+    // 断った場所には、もう上げられない
+    const bad = await issueUpload(admin, bobId);
+    await putToTicket(bad, new TextEncoder().encode("not a jpeg"));
+    await expect(verifyUpload(admin, bobId, bad.path)).rejects.toBeInstanceOf(MediaError);
+    expect((await putToTicket(bad, testJpeg())).ok).toBe(false);
+    expect(await objectExists(bad.path)).toBe(false);
+    // 期限切れ（2 時間を過ぎた）の引換券の場所・引換券のない場所・他人のフォルダには上げられない
+    const old = await issueUpload(admin, bobId);
+    await admin.from("media_upload_tickets").update({ created_at: new Date(Date.now() - 3 * 3600_000).toISOString() }).eq("storage_path", old.path);
+    expect((await putToTicket(old, testJpeg())).ok).toBe(false);
+    expect((await putImage(`${bobId}/${randomUUID()}.jpg`, testJpeg())).ok).toBe(false);
+    const alices = await issueUpload(admin, aliceId);
+    expect((await putImage(alices.path, testJpeg(), "image/jpeg", { as: bobId })).ok).toBe(false);
+    // 0 バイトは確かめで落ちる
+    const empty = await issueUpload(admin, bobId);
+    await putToTicket(empty, new Uint8Array(0));
+    await expect(verifyUpload(admin, bobId, empty.path)).rejects.toBeInstanceOf(MediaError);
+    await admin.from("media_upload_tickets").delete().in("owner_id", [aliceId, bobId]);
+  });
+
   it("バケットは JPEG 以外の Content-Type を受け付けない", async () => {
     const ticket = await issueUpload(admin, aliceId);
-    const res = await putToSignedUrl(ticket.signedUrl, new Uint8Array([0x89, 0x50, 0x4e, 0x47]), "image/png");
+    const res = await putToTicket(ticket, new Uint8Array([0x89, 0x50, 0x4e, 0x47]), "image/png");
     expect(res.ok).toBe(false);
     await admin.from("media_upload_tickets").delete().eq("storage_path", ticket.path);
   });
@@ -92,7 +122,7 @@ describe("上げて確かめる", () => {
     await admin.storage.from(MEDIA_BUCKET).upload(path, Buffer.from(testJpeg()), { contentType: "image/jpeg" });
     await expect(verifyUpload(admin, aliceId, path)).rejects.toBeInstanceOf(MediaError);
     const ticket = await issueUpload(admin, aliceId);
-    await putToSignedUrl(ticket.signedUrl, testJpeg());
+    await putToTicket(ticket, testJpeg());
     await expect(verifyUpload(admin, bobId, ticket.path)).rejects.toBeInstanceOf(MediaError);
     await discardUnattached(admin, aliceId, (await verifyUpload(admin, aliceId, ticket.path)).id);
   });

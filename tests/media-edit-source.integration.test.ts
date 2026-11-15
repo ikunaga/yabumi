@@ -5,6 +5,7 @@ import { initialHeadline } from "@/lib/media/headline";
 import { attachMedia, issueUpload, unattachedCount, verifyUpload } from "@/lib/media/store";
 import { toAttached } from "@/lib/media/attached";
 import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
+import { putImage } from "./helpers/upload";
 import { testJpeg } from "./helpers/jpeg";
 
 const admin = adminClient();
@@ -17,7 +18,7 @@ const edit = { kind: "headline" as const, headline };
 
 async function upload(ownerId: string) {
   const ticket = await issueUpload(admin, ownerId);
-  const res = await fetch(ticket.signedUrl, { method: "PUT", body: Buffer.from(testJpeg()), headers: { "Content-Type": "image/jpeg", "x-upsert": "false" } });
+  const res = await putImage(ticket.path, testJpeg());
   expect(res.ok).toBe(true);
   return (await verifyUpload(admin, ownerId, ticket.path)).id;
 }

@@ -32,7 +32,8 @@ export type TargetResult = {
 type ManualInfo = { title: string | null; text: string; composeUrl: string | null; downloads?: { url: string; name: string }[] };
 
 // 送信の結果: 送れたものは SNS 上の投稿へのリンクと取り消し、送れなかったものは理由と「要確認」
-export function SendResults({ projectId, postId, results }: { projectId: string; postId: string; results: Partial<Record<SnsKey, TargetResult>> }) {
+// video: 動画の投稿（準備中の文を動画のものにする。docs/design/video.md の 5.）
+export function SendResults({ projectId, postId, results, video = false }: { projectId: string; postId: string; results: Partial<Record<SnsKey, TargetResult>>; video?: boolean }) {
   const rows = SNS_KEYS.flatMap((sns) => {
     const r = results[sns];
     if (!r) return [];
@@ -53,7 +54,7 @@ export function SendResults({ projectId, postId, results }: { projectId: string;
           (isManualSns(sns) || r.quote) && r.manual ? (
             <ManualRow key={sns} sns={sns} r={r} projectId={projectId} postId={postId} />
           ) : (
-            <ResultRow key={sns} sns={sns} r={r} projectId={projectId} postId={postId} />
+            <ResultRow key={sns} sns={sns} r={r} projectId={projectId} postId={postId} video={video} />
           ),
         )}
       </ul>
@@ -61,7 +62,7 @@ export function SendResults({ projectId, postId, results }: { projectId: string;
   );
 }
 
-function ResultRow({ sns, r, projectId, postId }: { sns: SnsKey; r: TargetResult; projectId: string; postId: string }) {
+function ResultRow({ sns, r, projectId, postId, video }: { sns: SnsKey; r: TargetResult; projectId: string; postId: string; video: boolean }) {
   const [confirm, setConfirm] = useState(false);
   const [showManual, setShowManual] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -140,7 +141,11 @@ function ResultRow({ sns, r, projectId, postId }: { sns: SnsKey; r: TargetResult
             // TikTok は、送ったあとに TikTok の側で写真を取りに来て処理する（docs/design/tiktok.md の 6.）
             <span className="text-muted">TikTok で処理しています（数分かかることがあります。読み込み直すと結果が出ます）</span>
           ) : (
-            <span className="text-muted">{label} が画像を処理しています。準備ができしだい送ります（1〜2 分ほど。読み込み直すと結果が出ます）</span>
+            <span className="text-muted">
+              {video
+                ? `${label} が動画を処理しています。準備ができしだい送ります（数分かかることがあります。読み込み直すと結果が出ます）`
+                : `${label} が画像を処理しています。準備ができしだい送ります（1〜2 分ほど。読み込み直すと結果が出ます）`}
+            </span>
           ))}
         {r.status === "deleted" &&
           (r.removedOnSns ? (

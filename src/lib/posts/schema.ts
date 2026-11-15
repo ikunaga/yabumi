@@ -39,6 +39,8 @@ export const savePostInputSchema = z.object({
     )
     .max(MAX_IMAGES_PER_POST)
     .default([]),
+  // 添える動画（1 本。画像とは一緒に添えられない。docs/design/video.md の 4.）。上げて確かめ済みのもの
+  video: z.uuid().nullable().default(null),
   // 本文のストアなどの URL を、配信先ごとの短縮リンクにする（docs/architecture.md の 4.22、決定 D20。初期値はオン）
   shortLinks: z.boolean().default(true),
   // 日本時間の "YYYY-MM-DDTHH:mm"。空なら日付なし

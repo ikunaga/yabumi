@@ -82,6 +82,7 @@ export async function resolveTicket(admin: Admin, token: string, now = new Date(
     .select("storage_path")
     .eq("id", ticket.media_id)
     .eq("owner_id", ticket.owner_id)
+    .eq("kind", "image")
     .eq("post_id", target.post_id)
     .maybeSingle();
   return media?.storage_path ?? null;

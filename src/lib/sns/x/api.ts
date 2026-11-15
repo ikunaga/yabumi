@@ -182,3 +182,48 @@ export async function createPostWithMedia(token: string, text: string, mediaIds:
   });
   return { id: String(json.data.id) };
 }
+
+// ===== 動画（docs/design/video.md の 5.。スコープ media.write が要る） =====
+// 分けて送る方式（https://docs.x.com/x-api/media/quickstart/media-upload-chunked）: initialize → append（5MB ずつ）→ finalize →
+// 処理が終わるまで状態を見る（processing_info）。上げただけでは投稿されない。投稿の動画は 20 分・8GB まで。
+// 1080×1920 が通るかは資料で決め切れない（「1280×1024 まで」）【未確認】。W2 で 1 本送って確かめる
+export const X_VIDEO_CHUNK_BYTES = 5 * 1024 * 1024;
+
+export type XMediaProcessing = { state: "pending" | "in_progress" | "succeeded" | "failed" | string; checkAfterSecs?: number; error?: string };
+
+type ProcessingInfo = { state?: string; check_after_secs?: number; error?: { message?: string; name?: string } };
+const toProcessing = (p: ProcessingInfo | undefined): XMediaProcessing | null =>
+  p ? { state: p.state ?? "pending", ...(p.check_after_secs ? { checkAfterSecs: p.check_after_secs } : {}), ...(p.error ? { error: p.error.message ?? p.error.name } : {}) } : null;
+
+export async function initVideoUpload(token: string, totalBytes: number): Promise<string> {
+  const json = await call<{ data: { id: string } }>(`${X_API_URL}/2/media/upload/initialize`, {
+    method: "POST",
+    headers: { ...bearer(token), "Content-Type": "application/json" },
+    body: JSON.stringify({ media_type: "video/mp4", total_bytes: totalBytes, media_category: "tweet_video" }),
+  });
+  return String(json.data.id);
+}
+
+export async function appendVideoChunk(token: string, mediaId: string, index: number, bytes: Uint8Array): Promise<void> {
+  const body = new FormData();
+  body.append("media", new Blob([bytes as BlobPart], { type: "application/octet-stream" }), "chunk");
+  body.append("segment_index", String(index));
+  await call<unknown>(`${X_API_URL}/2/media/upload/${encodeURIComponent(mediaId)}/append`, { method: "POST", headers: bearer(token), body });
+}
+
+// 上げ終えたことを知らせる。処理が要るときは processing_info が返る（返らなければ、もう使える）
+export async function finalizeVideoUpload(token: string, mediaId: string): Promise<XMediaProcessing | null> {
+  const json = await call<{ data: { processing_info?: ProcessingInfo } }>(`${X_API_URL}/2/media/upload/${encodeURIComponent(mediaId)}/finalize`, {
+    method: "POST",
+    headers: bearer(token),
+  });
+  return toProcessing(json.data?.processing_info);
+}
+
+export async function videoUploadStatus(token: string, mediaId: string): Promise<XMediaProcessing | null> {
+  const url = new URL(`${X_API_URL}/2/media/upload`);
+  url.searchParams.set("command", "STATUS");
+  url.searchParams.set("media_id", mediaId);
+  const json = await call<{ data: { processing_info?: ProcessingInfo } }>(url.toString(), { method: "GET", headers: bearer(token) });
+  return toProcessing(json.data?.processing_info);
+}

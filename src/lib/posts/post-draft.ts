@@ -19,6 +19,8 @@ export type PostDraft = {
   titles: Partial<Record<SnsKey, string>>;
   hashtags?: Partial<Record<SnsKey, string>>;
   images?: DraftImage[];
+  // 添えた動画（上げ済みの id だけ。docs/design/video.md の 4.。前の版の控えにはない）。戻すときにサーバーで本人のものか確かめて読み直す
+  video?: { id: string } | null;
   step?: number;
   format?: DraftFormat | null;
 };
@@ -51,7 +53,14 @@ export function postDraftBase(d: PostDraft): string {
   // タグ・画像がなければ前の版と同じ文字にする（足す前の控えを、保存し直されたものと見なさないように）
   const hashtags = tidy(d.hashtags);
   const images = (d.images ?? []).map((i) => [i.id, i.altText]);
-  return JSON.stringify({ body: d.body, overrides: tidy(d.overrides), titles: tidy(d.titles), ...(Object.keys(hashtags).length ? { hashtags } : {}), ...(images.length ? { images } : {}) });
+  return JSON.stringify({
+    body: d.body,
+    overrides: tidy(d.overrides),
+    titles: tidy(d.titles),
+    ...(Object.keys(hashtags).length ? { hashtags } : {}),
+    ...(images.length ? { images } : {}),
+    ...(d.video ? { video: d.video.id } : {}),
+  });
 }
 
 export function samePostDraft(a: PostDraft, b: PostDraft): boolean {
@@ -61,7 +70,7 @@ export function samePostDraft(a: PostDraft, b: PostDraft): boolean {
   };
   // 画像は並びと説明文で比べる（前の版の控えで画像がないときは、画像なしと同じ）
   const imageKey = (d: PostDraft) => JSON.stringify((d.images ?? []).map((i) => [i.id, i.altText]));
-  return a.body === b.body && same(a.overrides, b.overrides) && same(a.titles, b.titles) && same(a.hashtags, b.hashtags) && imageKey(a) === imageKey(b);
+  return a.body === b.body && same(a.overrides, b.overrides) && same(a.titles, b.titles) && same(a.hashtags, b.hashtags) && imageKey(a) === imageKey(b) && (a.video?.id ?? null) === (b.video?.id ?? null);
 }
 
 // 欄が変わったときに控えをどうするか: 開いたときと同じなら消す。違っても、利用者が欄に書いていない（ボタンで入れた値だけ）なら控えない

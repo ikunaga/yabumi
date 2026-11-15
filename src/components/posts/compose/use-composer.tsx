@@ -11,7 +11,7 @@ import { flushSync } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { deletePost, savePost, sendSavedPost } from "@/lib/posts/actions";
 import { useRouter, useSearchParams } from "next/navigation";
-import { canGoNext, fieldErrorStep, parseStep, problemsByStep, startStep, stepMarks, type StepNo } from "@/lib/posts/compose-steps";
+import { VIDEO_REMOVED_TEXT, canGoNext, fieldErrorStep, parseStep, problemsByStep, startStep, stepMarks, type StepNo } from "@/lib/posts/compose-steps";
 import { clearSending, markSending } from "../send-progress";
 import type { SavePostResult } from "@/lib/posts/schema";
 import type { PostLinkPreview } from "@/lib/links/store";
@@ -22,6 +22,7 @@ import { applyFix } from "@/lib/ai/ai-check";
 import { type NoteInsertMode } from "../note-picker";
 import { noteImageForCompose } from "@/lib/notes/actions";
 import { restoreDraftImages } from "@/lib/media/actions";
+import { restoreDraftVideo, type AttachedVideo } from "@/lib/media/video-actions";
 import { draftImageIds, rebuildDraftImages, toDraftImage, toSavedMedia } from "@/lib/posts/draft-images";
 import type { IdeaNote } from "@/lib/notes/rules";
 import { MAX_IMAGES_PER_POST } from "@/lib/media/rules";
@@ -52,6 +53,9 @@ export type ComposerInitial = {
   targets: { sns: SnsKey; bodyOverride: string | null; title?: string | null; hashtags?: string[] }[];
   plannedAt: string;
   images?: AttachedImage[];
+  // 添えた動画（docs/design/video.md の 4.）。videoRemoved: 送り終えて消した動画の長さ（「消しました」を出す）
+  video?: AttachedVideo | null;
+  videoRemoved?: { durationMs: number } | null;
   // 本文の URL を短縮リンクにするか（新しい投稿はオン。4.22、D20）
   shortLinks?: boolean;
   // ロードマップのやることから作るとき（4.23）。題と説明を、本文の下書きの手がかりとして出す
@@ -118,6 +122,7 @@ const ISSUE_TONE: Record<TargetIssue, string> = {
   needs_title: "text-signal",
   too_many_images: "text-danger",
   title_too_long: "text-danger",
+  video_unsupported: "text-danger",
 };
 
 // 引用の投稿の、送れない理由（X の画面で送る。4.52）
@@ -158,6 +163,9 @@ export function useComposer({
   hasVoiceMemo = false,
 }: ComposerProps) {
   const [images, setImages] = useState<AttachedImage[]>(initial.images ?? []);
+  const [video, setVideo] = useState<AttachedVideo | null>(initial.video ?? null);
+  // 動画を整えている・上げている間（ステップを移る・保存するを止める。移ると途中の作業が消えるため）
+  const [videoBusy, setVideoBusy] = useState(false);
   const [shortLinks, setShortLinks] = useState(initial.shortLinks ?? true);
   const [body, setBody] = useState(initial.body);
   // 選んでいる投稿のフォーマットと穴の言葉（整えるに渡す。docs/design/post-formats.md の 4）
@@ -270,6 +278,7 @@ export function useComposer({
       titles: Object.fromEntries(initial.targets.filter((t) => t.title).map((t) => [t.sns, t.title!])),
       hashtags: initialTagInputs(initial),
       images: (initial.images ?? []).map((i) => ({ id: i.id, altText: i.altText })),
+      video: initial.video ? { id: initial.video.id } : null,
     }),
     [initial],
   );
@@ -311,7 +320,7 @@ export function useComposer({
   }, [draftBaseKey]);
   useEffect(() => {
     if (!found || found.draft) return;
-    const now: PostDraft = { body, overrides, titles, hashtags: tagInputs, images: images.map(toDraftImage) };
+    const now: PostDraft = { body, overrides, titles, hashtags: tagInputs, images: images.map(toDraftImage), video: video ? { id: video.id } : null };
     const step = draftStep({ same: samePostDraft(now, initialDraft), typed: typed.current });
     if (step === "clear") clearFormDraft(draftKey);
     else if (step === "write") {
@@ -320,7 +329,7 @@ export function useComposer({
       const format = formatUse ? { id: formatUse.format.id, values: formatUse.values, answer: formatUse.answer ?? "", roundIds } : null;
       writeFormDraft(draftKey, { ...now, step: composeStep, format }, draftBase);
     }
-  }, [body, overrides, titles, tagInputs, images, found, draftKey, initialDraft, draftBase, composeStep, formatUse, roundIds]);
+  }, [body, overrides, titles, tagInputs, images, video, found, draftKey, initialDraft, draftBase, composeStep, formatUse, roundIds]);
   // 書きかけを戻したときに、戻せなかった画像の枚数（帯で知らせる）
   const [restoreMissing, setRestoreMissing] = useState(0);
   function restoreDraft() {
@@ -349,6 +358,16 @@ export function useComposer({
     }
     // 控えたときのステップに戻す（前の版の控えにはない）
     if (typeof v.step === "number") goStep(parseStep(String(v.step), composeStep), { replace: true });
+    // 動画（前の版の控えにはない。そのときは、いまの動画のまま）。画像と同じく、サーバーで本人のものか確かめて読み直す
+    if (v.video !== undefined) {
+      const wantVideo = v.video;
+      if (!wantVideo) setVideo(null);
+      else
+        void callAction(() => restoreDraftVideo(postId, wantVideo.id)).then((r) => {
+          if (r.ok && r.value.video) setVideo(r.value.video);
+          else setRestoreMissing((n) => n + 1);
+        });
+    }
     // 画像（前の版の控えにはない。そのときは、いまの画像のまま）。id と説明文しか控えていないので、サーバーで本人のものか確かめて読み直す（4.62）。
     // 消えた画像（添えていない画像は 1 日で片付ける）・ほかの人や別の投稿の画像は戻さず、枚数を知らせる。見出しの元は戻らない（開き直したときと同じ）
     const want = v.images;
@@ -374,6 +393,7 @@ export function useComposer({
     () => ({
       ...initialDraft,
       imageIds: (initial.images ?? []).map(imageKey),
+      videoId: initial.video?.id ?? null,
       plannedAt: initial.plannedAt,
       targets: initial.targets.map((t) => t.sns),
       shortLinks: initial.shortLinks ?? true,
@@ -383,7 +403,7 @@ export function useComposer({
   );
   const resetChanges = composeChanges(
     initialSnapshot,
-    { body, overrides, titles, hashtags: tagInputs, imageIds: images.map(imageKey), plannedAt, targets: [...selected], shortLinks, noteIds },
+    { body, overrides, titles, hashtags: tagInputs, imageIds: images.map(imageKey), videoId: video?.id ?? null, plannedAt, targets: [...selected], shortLinks, noteIds },
     { saved: postId !== null },
   );
   function resetAll() {
@@ -393,6 +413,7 @@ export function useComposer({
     setTagInputs(initialDraft.hashtags ?? {});
     // まだ保存していない画像は、外したときと同じく翌日の片付けで消える（4.18）
     setImages(initial.images ?? []);
+    setVideo(initial.video ?? null);
     setPlannedAt(initial.plannedAt);
     setSelected(new Set(initial.targets.map((t) => t.sns)));
     setShortLinks(initial.shortLinks ?? true);
@@ -444,11 +465,11 @@ export function useComposer({
   const checks = useMemo(
     () =>
       Object.fromEntries(
-        SNS_KEYS.map((sns) => [sns, checkTarget(sns, shownTextOf(sns, withHashtags(overrides[sns] ?? body, splitTagsByText(overrides[sns] ?? body, parseHashtagInput(tagInputs[sns] ?? "").tags).keep)), { images: images.length, videos: 0, sizes: images }, titles[sns] ?? null)]),
+        SNS_KEYS.map((sns) => [sns, checkTarget(sns, shownTextOf(sns, withHashtags(overrides[sns] ?? body, splitTagsByText(overrides[sns] ?? body, parseHashtagInput(tagInputs[sns] ?? "").tags).keep)), { images: images.length, videos: video ? 1 : 0, sizes: images }, titles[sns] ?? null)]),
       ) as Record<SnsKey, ReturnType<typeof checkTarget>>,
     // shownTextOf は shortLinks・linkBase・linkPreview で決まる
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [body, overrides, titles, tagInputs, images, shortLinks, linkBase, linkPreview],
+    [body, overrides, titles, tagInputs, images, video, shortLinks, linkBase, linkPreview],
   );
   // タグの欄の問題（タグにできない言葉・6 個以上）
   const tagProblem = (sns: SnsKey) => hashtagInputProblem(tagInputs[sns] ?? "");
@@ -516,6 +537,8 @@ export function useComposer({
   // X を自動で送れない（上限に当たり、手で投稿するも選んでいない）ときの文
   const xBudgetBlocker = xVerdict?.over && !xByHand ? `X: ${xOverMessage(xVerdict.over, xVerdict)}` : null;
   const xNowBlocker = xNowVerdict?.over && !xByHand ? `X: ${xOverMessage(xNowVerdict.over, xNowVerdict)}` : null;
+  // 送り終えて動画を消した投稿に、自動で送る送り先を足した（動画を選び直すまで送れない。保存でもサーバーが止める）
+  const videoRemovedBlocks = Boolean(initial.videoRemoved) && !video && images.length === 0 && toSend.some((s) => !isManualSns(s));
   const sendBlocker = (() => {
     if (chosen.length === 0) return "送り先の SNS を選んでください";
     if (quoting && chosen.some((s) => s !== "x")) return "引用の投稿は X だけに送れます。ほかの SNS を外すか、引用を外してください";
@@ -530,6 +553,7 @@ export function useComposer({
       const issue = checks[s].issues[0];
       if (issue) return `${SNS[s].label}: ${ISSUE_LABEL[issue]}`;
     }
+    if (videoRemovedBlocks) return VIDEO_REMOVED_TEXT;
     // 手で投稿する SNS は、つながなくてよい
     if (missingConnect.length) return missingConnectMessage;
     if (xBudgetBlocker) return xBudgetBlocker;
@@ -585,6 +609,7 @@ export function useComposer({
     setNoteIds((ids) => (mode === "replace" ? [note.id] : [...ids, note.id]));
     clearFieldError("body");
     if (!note.image) return null;
+    if (video) return "動画を添えているので、メモの写真は添えませんでした（本文は入れました）。";
     if (images.length >= MAX_IMAGES_PER_POST) return `画像は ${MAX_IMAGES_PER_POST} 枚までなので、メモの写真は添えませんでした（本文は入れました）。`;
     const r = await noteImageForCompose(projectId, note.id);
     if (r.error) return `${r.error}（本文は入れました）`;
@@ -679,6 +704,7 @@ export function useComposer({
         intent,
         // 整えた画像は、元と整え方も渡す（下書きを開き直しても「見出しを直す」「元に戻す」ができる。4.68）
         media: images.map(toSavedMedia),
+        video: video?.id ?? null,
         shortLinks,
         roadmapItemId: initial.roadmapItem?.id ?? null,
         noteIds,
@@ -841,9 +867,10 @@ export function useComposer({
         missingConnect: missingConnect.map((s) => SNS[s].label),
         reconnect: images.length > 0 ? toSend.filter((s) => needImageReconnect.includes(s)).map((s) => SNS[s].label) : [],
         needsTime: !plannedAt,
+        videoRemoved: videoRemovedBlocks,
         xBudget: xBudgetBlocker,
       });
-  const marks = stepMarks({ current: composeStep, visited, problems: stepProblems, filled: { 1: body.trim() !== "", 2: chosen.length > 0, 3: images.length > 0 } });
+  const marks = stepMarks({ current: composeStep, visited, problems: stepProblems, filled: { 1: body.trim() !== "", 2: chosen.length > 0, 3: images.length > 0 || video !== null } });
   const nextOk = canGoNext(composeStep, { body, chosen: chosen.length });
 
   return {
@@ -875,6 +902,11 @@ export function useComposer({
     hasVoiceMemo,
     images,
     setImages,
+    video,
+    setVideo,
+    videoBusy,
+    setVideoBusy,
+    videoRemovedBlocks,
     shortLinks,
     setShortLinks,
     body,

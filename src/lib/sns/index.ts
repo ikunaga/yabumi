@@ -20,21 +20,24 @@ type SnsSpec = {
   // 1 つの投稿に付けられる画像の数（各社の公式の資料、2026-10-11。docs/architecture.md の 4.18）。
   // 0 は、yabumi からは画像を送らない（動画だけの SNS、手で投稿する SNS）
   maxImages: number;
+  // yabumi から動画を送れるか（docs/design/video.md の 5.）。送る部品ができた SNS から true にする。
+  // Threads・Instagram（リール）・Facebook（リール）は実装担当1 の区切り 5・6、X は W2 の確かめのあと、YouTube は実装担当2、TikTok は実装担当3
+  video: boolean;
 };
 
 export const SNS: Record<SnsKey, SnsSpec> = {
   // X は写真 4 枚まで。Threads はカルーセルで 20 枚まで。Instagram はカルーセルで 10 枚まで
-  x: { label: "X", maxLength: 140, media: "none", delivery: "auto", maxImages: 4 },
-  threads: { label: "Threads", maxLength: 500, media: "none", delivery: "auto", maxImages: 20 },
-  instagram: { label: "Instagram", maxLength: 2200, media: "image_or_video", delivery: "auto", maxImages: 10 },
+  x: { label: "X", maxLength: 140, media: "none", delivery: "auto", maxImages: 4, video: false },
+  threads: { label: "Threads", maxLength: 500, media: "none", delivery: "auto", maxImages: 20, video: true },
+  instagram: { label: "Instagram", maxLength: 2200, media: "image_or_video", delivery: "auto", maxImages: 10, video: true },
   // Facebook ページの複数の写真の上限は公式の資料で確かめられなかった。つなぐときに確かめる
-  facebook: { label: "Facebook", maxLength: null, media: "none", delivery: "auto", maxImages: 10 },
+  facebook: { label: "Facebook", maxLength: null, media: "none", delivery: "auto", maxImages: 10, video: true },
   // TikTok は写真の投稿（35 枚まで。説明は 4000 字、タイトルは 90 字。どちらも UTF-16 で数える）。動画は準備中（docs/design/tiktok.md）
-  tiktok: { label: "TikTok", maxLength: 4000, media: "image_or_video", delivery: "auto", maxImages: 35 },
-  youtube: { label: "YouTube", maxLength: 5000, media: "video", delivery: "auto", maxImages: 0 },
+  tiktok: { label: "TikTok", maxLength: 4000, media: "image_or_video", delivery: "auto", maxImages: 35, video: false },
+  youtube: { label: "YouTube", maxLength: 5000, media: "video", delivery: "auto", maxImages: 0, video: false },
   // note・Substack は本文の上限が公表されていないので、上限なしとして扱う。画像は利用者が投稿の画面で手で添える
-  note: { label: "note", maxLength: null, media: "none", delivery: "manual", needsTitle: true, maxImages: 0 },
-  substack: { label: "Substack", maxLength: null, media: "none", delivery: "manual", needsTitle: true, maxImages: 0 },
+  note: { label: "note", maxLength: null, media: "none", delivery: "manual", needsTitle: true, maxImages: 0, video: false },
+  substack: { label: "Substack", maxLength: null, media: "none", delivery: "manual", needsTitle: true, maxImages: 0, video: false },
 };
 
 // 画面に並べる順（デザインの「送り先と文面の調整」の順。手で投稿する SNS は最後）
@@ -103,7 +106,8 @@ export type TargetIssue =
   | "too_many_images"
   | "bad_aspect_ratio"
   | "too_many_hashtags"
-  | "title_too_long";
+  | "title_too_long"
+  | "video_unsupported";
 
 export type TargetCheck = {
   length: number;
@@ -143,6 +147,8 @@ export function checkTarget(
   if (spec.maxLength !== null && length > spec.maxLength) issues.push("too_long");
   if (spec.media === "image_or_video" && media.images + media.videos === 0) issues.push("needs_image");
   if (spec.media === "video" && media.videos === 0) issues.push("needs_video");
+  // 動画を添えたが、yabumi からはまだこの SNS に動画を送れない（手で投稿する SNS は、画像と同じく添えたものを使わないので問わない）
+  if (media.videos > 0 && !spec.video && spec.delivery === "auto") issues.push("video_unsupported");
   if (spec.needsTitle && !(title ?? "").trim()) issues.push("needs_title");
   if (spec.maxImages > 0 && media.images > spec.maxImages) issues.push("too_many_images");
   // TikTok のタイトルは 90 字まで（UTF-16）
@@ -164,6 +170,7 @@ export const ISSUE_LABEL: Record<TargetIssue, string> = {
   bad_aspect_ratio: "画像の縦横比が合いません",
   too_many_hashtags: "ハッシュタグが多すぎます",
   title_too_long: "タイトルが長すぎます",
+  video_unsupported: "動画を送れません",
 };
 
 // 画像を付けても、この SNS には送らない（動画だけの SNS、手で投稿する SNS）。作成画面で知らせる

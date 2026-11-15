@@ -153,7 +153,7 @@ export function ComposeStepSend({ c, steps = false }: { c: Composer; steps?: boo
                   {busy === "now" ? "送っています…" : labels.now}
                 </Button>
               ))}
-            <Button type="button" variant="secondary" size="sm" disabled={pending} onClick={() => submit("draft")}>
+            <Button type="button" variant="secondary" size="sm" disabled={pending || c.videoBusy} onClick={() => submit("draft")}>
               {busy === "draft" ? "保存しています…" : "下書きに保存する"}
             </Button>
             {deleteRow(mode === "partial")}

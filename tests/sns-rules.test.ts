@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkTarget, displayLength, xWeightedLength } from "@/lib/sns";
+import { SNS, checkTarget, displayLength, xWeightedLength } from "@/lib/sns";
 
 describe("X の文字数", () => {
   it("半角は 1、日本語は 2 として数える", () => {
@@ -43,7 +43,8 @@ describe("SNS ごとの指摘", () => {
     // TikTok は写真の投稿（2026-11-14〜。動画は準備中）
     expect(checkTarget("tiktok", "本文").issues).toEqual(["needs_image"]);
     expect(checkTarget("youtube", "本文", { images: 3, videos: 0 }).issues).toEqual(["needs_video"]);
-    expect(checkTarget("youtube", "本文", { images: 0, videos: 1 }).issues).toEqual([]);
+    // 動画があれば「動画が必要」は出ない。yabumi から YouTube に動画を送る部品ができるまでは「動画を送れません」（SNS.youtube.video。docs/design/video.md の 5.）
+    expect(checkTarget("youtube", "本文", { images: 0, videos: 1 }).issues).toEqual(SNS.youtube.video ? [] : ["video_unsupported"]);
   });
 
   it("Facebook は上限なし", () => {

@@ -5,6 +5,7 @@ import { MEDIA_BUCKET } from "@/lib/media/rules";
 import { issueUpload, verifyUpload } from "@/lib/media/store";
 import { copyNoteImageForCompose, createNote, markNotesUsed } from "@/lib/notes/store";
 import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
+import { putImage } from "./helpers/upload";
 import { testJpeg } from "./helpers/jpeg";
 
 const admin = adminClient();
@@ -18,7 +19,7 @@ let otherProjectId: string;
 
 async function uploadImage(ownerId: string) {
   const ticket = await issueUpload(admin, ownerId);
-  const res = await fetch(ticket.signedUrl, { method: "PUT", body: Buffer.from(testJpeg({ width: 640, height: 480 })), headers: { "Content-Type": "image/jpeg", "x-upsert": "false" } });
+  const res = await putImage(ticket.path, testJpeg({ width: 640, height: 480 }));
   expect(res.ok).toBe(true);
   return verifyUpload(admin, ownerId, ticket.path);
 }

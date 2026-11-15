@@ -789,6 +789,8 @@ Supabase は既定で、public に作ったテーブル・関数のすべての�
 
 ### 4.18 投稿に画像を添える（F03・F14 の一部、2026-10-11）
 
+> 2026-11-15 に上げ方を変えた: 署名つきのアップロードの URL をやめ、利用者のログインのまま引換券の場所に上げる（storage.objects の insert のポリシー。上書き不可）。署名つきのトークンは 2 時間取り消せず、TUS の入口では確かめたあとの画像を上書きできたため。詳しくは 4.73 の「上げ方」。この節の「署名つきの URL」の記述は当時の作り
+
 Instagram（画像が必須）をつなぐ前提として、X と Threads にも画像を付けられるようにした。画像の生成（AI）と動画は、まだ作っていない（TikTok・YouTube 向けにあとで）。
 
 #### SNS ごとの決まり（各社の公式の資料、2026-10-11）
@@ -1509,6 +1511,8 @@ Facebook ページ（graph.facebook.com）:
 5. 用語、文書（4.14 の表、7 の費用）、テスト（AI はモック）
 
 ### 4.24 動画の添付と、TikTok・YouTube の連携（2026-10-11 に調査・設計。コードはまだ）
+
+> 2026-11-15 に、2026-11 の公式の資料で調べ直して作り直した。いまの動画の作りは **4.73** と docs/design/video.md（TikTok は 4.72、YouTube は 4.74）。この節は 2026-10-11 の調べの記録として残す。
 
 目的: TikTok と YouTube の審査には数週間かかるので、オーナーが早めに申請できるように、作り方と申請の段取りを先に決める。画像の添付（4.18）を動画に広げる。出典はすべて各社の公式の資料（2026-10-11 に確認）。食い違い・書かれていないことは【未確認】。
 
@@ -2924,6 +2928,22 @@ yabumi のコンセプトは、使って SNS を運用するうちに、マー�
 - 「TikTok は手で投稿する」は X と同じ作り。手で投稿するの文は TS の src/lib/sns/by-hand.ts と SQL の public.by_hand_message の 2 か所だけに置き、一致は結合テストで確かめる（20261115090000_tiktok_by_hand）
 - 外されたとき: /sns/tiktok/webhook（署名を確かめ、中身は信じずにアカウントごとにトークンで確かめてから外す）。法務は ② の版（2026-11-16。2026-11-15 にオーナーが了承）
 
+### 4.73 投稿に動画を添える（2026-11-15、オーナーの決定と W1〜W6 の了承。PM の依頼。feat/video。設計は docs/design/video.md）
+
+| 項目 | 内容 |
+|---|---|
+| 決まり（W1〜W6） | Threads・Instagram（リール）・Facebook（リール）に送る。X は 1080×1920 が通るかを 1 本送って確かめてから（W2。部品はあり、SNS.x.video は false）。一律 3〜90 秒。1 人 300MB・月 20 本・全体 500MB（全体の上限はオーナーに確かめ中）。作り直せない音声の動画は受け付けない。送り終えて 1 日で消す（送れなかった送り先が残れば 7 日） |
+| 1 本の形 | MP4（H.264 High・30fps 固定・2 秒ごとのキーフレーム・moov が先頭・edit list なし）、9:16 の枠（1080×1920 に収め、拡大しない。540×960 未満は断る）、AAC-LC（コピー）か音声なし、50MB まで（Supabase Free の 1 ファイルの上限）。映像のビットレートは長さから決める（最大 6Mbps、90 秒で約 4.1Mbps） |
+| ブラウザ | src/lib/media/video-convert.ts（mediabunny 1.65.0、MPL-2.0。選んだときに import()）。読み取り → 判定（video-plan.ts）→ 90 秒を超えるなら範囲を選ぶ → 映像はいつも作り直し、音声はコピー（Safari 26〜27.x は AAC を作ると音が消える不具合があり、Firefox・Linux は AAC を作れないため）→ tags を空に（指定しないと mediabunny は撮影の場所などを書き写す）→ copy の boundaryPolicy: shrink と shiftTolerance: Infinity（コピーした AAC の頭の空白で edit list が書かれるのを避ける）。作り直せないブラウザ・読めない形式は、選んだときに 1 行で知らせる |
+| 上げ方 | src/lib/media/video-upload.ts（tus-js-client 4.3.1）。整える前に checkVideoUploadAllowed（video_upload_check。読むだけ）→ requestVideoUpload → issue_video_upload_ticket（上限をロックの中で）→ 利用者のログインのまま TUS（`/storage/v1/upload/resumable`、Authorization: Bearer。storage.objects の insert のポリシー storage_upload_allowed が、本人の・まだ使っていない・2 時間以内の引換券がある場所だけを通す。update・delete・select のポリシーはなく、上書きもできない）→ confirmVideoUpload → checkMp4（src/lib/media/mp4-check.ts。箱を読むだけで作り直さない。udta・meta があれば断る）→ media_files（kind = 'video'）。やめたら cancelVideoUpload（引換券に印、ファイルを消す）。ポリシーが効くのは TUS を作るとき（POST）だけ。作ったあとの 1 本は同じ場所にだけ書け、上書きはできない（1 枚の引換券で置けるのは 1 本）。やめたあとに最後の書き込みが届いてできたファイルは、次の上限の確かめ・やめるでサーバーが消す（purgeOrphanVideos）。**画像（4.18）も同じ作りに変えた**: 前は署名つきのアップロードのトークンを渡していたが、2 時間取り消せず、TUS の入口（/sign）では確かめたあとのファイルを上書きできた（2026-11-15 に見つけた） |
+| 表と権限 | バケット post-videos（非公開・50MB・video/mp4・利用者のポリシーなし）。media_files に kind・duration_ms・removed_at と check（拡張子・長さ・メモや整えに使わない）、1 投稿に動画 1 本の一意の索引、画像と混ぜないトリガー media_files_no_mix。media_upload_tickets に kind・consumed_at（使ったら消さずに印。断った・外した場所への上げ直しを量に数え、片付けがすぐ消す。画像も同じ）。video_upload_counts（月の本数。サーバーだけ）。issue_media_upload_ticket・media_usage_bytes は画像だけを数える |
+| 片付け | cleanup_media_candidates（bucket・mark_removed を返す。p_now はテスト用）: 添えずに 1 日、送り終えて 1 日（failed が残れば 7 日）でファイルを消して removed_at（行は残し、投稿の画面に「消しました」）、配信先が pending・preparing・publishing の間は画像も動画も消さない、記録のないファイルは両方のバケットで 1 日、月の本数は 13 か月 |
+| 画面 | 投稿をつくるの ③「画像・動画」（画像の枠に「動画を選ぶ」、片方を添えたらもう片方を押せない、範囲を選ぶ欄、整えている・上げている間の棒とやめる、9:16 の箱を押すと再生）。動画を送れない SNS は「● 要確認 X には動画を送れません」（TargetIssue の video_unsupported、③ の問題）。見え方の欄に「▶ 動画（0:42）を添えて送ります」。送った投稿の画面に箱、消したあとは「消しました」 |
+| 送る | アダプターの startPublishVideo → continuePublish（準備中にして次の回に確かめる。15 分まで）。Threads は VIDEO、Instagram は REELS（share_to_feed）、Facebook は video_reels の start → rupload に file_url → finish。どれも 1 時間の署名 URL を取りに来てもらう（publishVideoFor）。X は 5MB ずつ append して STATUS を見る（readRange）。YouTube・TikTok は postVideoFor / startPublishVideo の形で、それぞれの担当が足す。動画を送れない SNS・消した動画・権限（X の media.write）がないときは送らない |
+| 費用 | オーナーだけのうちは $0（Free の 1GB・5GB の中。1 本 約 0.2GB の転送）。段階 ②（招待制）で Supabase Pro にするときに、上限を見直す。7 の表 |
+| 【未確認】 | X の 1080×1920（W2）、Facebook・Instagram が音声なし・44.1kHz を受け付けるか、Facebook の rupload に appsecret_proof が要るか、本番の Storage の署名 URL の Range、iPhone の Safari での作り直しの時間と音。本物の確かめは 4 つ（Threads・Instagram・Facebook・X）をまとめて 1 回で行う（オーナーの了承のあと） |
+| テスト | tests/post-videos.integration.test.ts（TUS・RLS・上限・決まり・片付け・postVideoFor）、tests/video-publish.integration.test.ts（送信ジョブ）、tests/video-publish.test.ts（4 つのアダプター）、tests/video-check.test.ts・video-plan.test.ts・compose-video.test.ts・video-legal.test.ts |
+
 ## 5. データモデル（主要テーブル）
 
 | テーブル | 内容 |
@@ -2986,7 +3006,7 @@ yabumi のコンセプトは、使って SNS を運用するうちに、マー�
 | メール（確認、パスワードの再設定、伴走の知らせ） | 数通＋伴走で月 約 9 通（1 プロジェクト）。無料枠の中 | 4.16、4.27 |
 | 指標（F07、これから作る） | Threads・Instagram・Facebook・ストア・RevenueCat・短縮リンクは $0。X の数字を読むなら約 $0.64、振り返りの AI（F08）を週 1 で約 $0.17 | 4.22 の見積もり。X の数字はオーナーの判断（4.22 の M1） |
 | 画像の生成（4.25。テンプレートは 2026-10-12、AI で写真・絵は 2026-11-02 に作った） | テンプレートだけなら案を出す分の約 $0.1〜0.3。AI の画像は 1 人 月 20 枚までで最大 約 $0.7（約 100 円）＋案 約 $0.1。全体の上限は月 $6.66（1,000 円） | 4.25 の ②（Nano Banana 2.1、1K 1 枚 $0.0336。2026-11-02 に確かめ直した） |
-| 動画（これから作る。4.24） | Supabase の Storage と転送量。動画を使う人が 2〜3 人を超えると Pro（$25/月）が要る。SNS の API は無料 | 4.24 の見積もり（1 人 月 8 本・40MB で、常に約 160MB、転送量 約 1.3GB） |
+| 動画（4.73。2026-11-15 に作った） | Supabase の Storage と転送量。オーナーだけなら Free の中（1 本 約 0.2GB の転送、月 20 本まで）。段階 ② で Pro（$25/月）にするときに上限を見直す。SNS の API は無料（X は投稿 $0.015、動画を上げる料金の行はない【未確認】） | docs/design/video.md の 8. |
 
 ### 固定でかかるもの
 

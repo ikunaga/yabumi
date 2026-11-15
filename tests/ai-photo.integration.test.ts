@@ -14,6 +14,7 @@ import { readAiMark } from "@/lib/media/jpeg";
 import { MEDIA_BUCKET } from "@/lib/media/rules";
 import { downloadMedia, issueUpload, verifyUpload } from "@/lib/media/store";
 import { adminClient, anonClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
+import { putImage } from "./helpers/upload";
 import { testJpeg } from "./helpers/jpeg";
 
 const admin = adminClient();
@@ -240,7 +241,7 @@ describe("つくる", () => {
     expect(await ownRecentPhotoJob(admin, aliceId, failed!.id)).toBe(false);
 
     const ticket = await issueUpload(admin, aliceId);
-    const res = await fetch(ticket.signedUrl, { method: "PUT", body: Buffer.from(testJpeg()), headers: { "Content-Type": "image/jpeg", "x-upsert": "false" } });
+    const res = await putImage(ticket.path, testJpeg());
     expect(res.ok).toBe(true);
     const file = await verifyUpload(admin, aliceId, ticket.path, { ai: "composite" });
     expect(file.aiGenerated).toBe(true);

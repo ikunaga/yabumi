@@ -2,6 +2,7 @@
 // 印は、元の画像がこの利用者の AI の画像だとサーバーで確かめたときだけ付く（画面から渡された印を信じない）
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
+import { putImage } from "./helpers/upload";
 import { testJpeg } from "./helpers/jpeg";
 
 const admin = adminClient();
@@ -26,7 +27,7 @@ let bobAiMediaId: string;
 
 async function upload(ownerId: string, ai?: "generated") {
   const ticket = await issueUpload(admin, ownerId);
-  const res = await fetch(ticket.signedUrl, { method: "PUT", body: Buffer.from(testJpeg()), headers: { "Content-Type": "image/jpeg", "x-upsert": "false" } });
+  const res = await putImage(ticket.path, testJpeg());
   expect(res.ok).toBe(true);
   return verifyUpload(admin, ownerId, ticket.path, { ai });
 }
@@ -36,7 +37,7 @@ async function uploadAdjusted(as: TestClient, ai: Parameters<typeof confirmImage
   current = as;
   const { ticket } = await requestImageUpload();
   expect(ticket).toBeTruthy();
-  const res = await fetch(ticket!.signedUrl, { method: "PUT", body: Buffer.from(testJpeg({ width: 1080, height: 1350 })), headers: { "Content-Type": "image/jpeg", "x-upsert": "false" } });
+  const res = await putImage(ticket!.path, testJpeg({ width: 1080, height: 1350 }));
   expect(res.ok).toBe(true);
   return confirmImageUpload(ticket!.path, ai);
 }

@@ -10,12 +10,19 @@ import { type Composer } from "./use-composer";
 
 // 予約の日時とリセット。送った投稿では出さない。何も変えていないときも出さない
 export function ComposeResetControl({ c }: { c: Composer }) {
-  const { postId, resetOpen, setResetOpen, resetRound, resetChanges, resetAll, closeReset, sentAny, plannedLabel } = c;
+  const { postId, resetOpen, setResetOpen, resetRound, resetChanges, resetAll, closeReset, sentAny, plannedLabel, videoBusy } = c;
   return (
     <span className="flex items-baseline gap-3">
       {plannedLabel && <span className="num text-[15px] text-faint">{plannedLabel} {sentAny ? "に送信" : "予約"}</span>}
       {!sentAny && resetChanges.length > 0 && (
-        <button type="button" aria-haspopup="dialog" onClick={() => setResetOpen(true)} className="text-[13px] text-muted underline-offset-2 hover:text-fg hover:underline">
+        // 動画を整えている・上げている間は押せない（途中の作業が残らないように）
+        <button
+          type="button"
+          aria-haspopup="dialog"
+          disabled={videoBusy}
+          onClick={() => setResetOpen(true)}
+          className="text-[13px] text-muted underline-offset-2 hover:text-fg hover:underline disabled:no-underline disabled:opacity-50"
+        >
           {postId ? "保存した内容に戻す" : "リセット"}
         </button>
       )}

@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { IMAGE_SCOPES, MEDIA_BUCKET, PREVIEW_URL_SECONDS, lacksImageScope } from "./rules";
 import { signedUrls } from "./store";
+import { postVideoRow } from "./video-store";
 import { toAttached } from "./attached";
 
 
@@ -12,7 +13,7 @@ import { toAttached } from "./attached";
 // 整えた画像は、元の画像と最後に描き直した元（source_of でその画像を指す行）も読み、「見出しを直す」「元に戻す」が出せる形にする（4.68）
 export async function loadPostImages(postId: string): Promise<AttachedImage[]> {
   const db = await createClient();
-  const { data: rows, error } = await db.from("media_files").select("*").eq("post_id", postId).order("position");
+  const { data: rows, error } = await db.from("media_files").select("*").eq("post_id", postId).eq("kind", "image").order("position");
   if (error) throw error;
   const files = rows ?? [];
   const { data: sourceRows, error: srcError } = files.length ? await db.from("media_files").select("*").in("source_of", files.map((f) => f.id)) : { data: [], error: null };
@@ -40,7 +41,7 @@ export async function snsNeedingImageReconnect(accounts: Partial<Record<SnsKey, 
 // 読めるのは本人のものだけ（RLS）。URL は保存（ダウンロード）として開く形で、1 時間で切れる
 export async function loadPostImageDownloads(postId: string): Promise<{ url: string; name: string }[]> {
   const db = await createClient();
-  const { data: rows, error } = await db.from("media_files").select("storage_path").eq("post_id", postId).order("position");
+  const { data: rows, error } = await db.from("media_files").select("storage_path").eq("post_id", postId).eq("kind", "image").order("position");
   if (error) throw error;
   const files = rows ?? [];
   if (!files.length) return [];
@@ -57,3 +58,11 @@ export async function loadPostImageDownloads(postId: string): Promise<{ url: str
   return signed;
 }
 
+
+// 投稿の動画（作成画面・投稿の画面に出す）。読めるのは本人のものだけ（RLS）。再生の URL は押したときに作る（videoPlaybackUrl）
+export async function loadPostVideo(postId: string): Promise<{ video: { id: string; durationMs: number; sizeBytes: number; localUrl: null } | null; removed: { durationMs: number } | null }> {
+  const row = await postVideoRow(await createClient(), postId);
+  if (!row) return { video: null, removed: null };
+  if (row.removedAt) return { video: null, removed: { durationMs: row.durationMs } };
+  return { video: { id: row.id, durationMs: row.durationMs, sizeBytes: row.sizeBytes, localUrl: null }, removed: null };
+}

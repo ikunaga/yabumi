@@ -1,5 +1,6 @@
 import { confirmImageUpload, requestImageUpload, type AiOrigin } from "./actions";
-import { JPEG_QUALITY, MAX_IMAGE_BYTES, MAX_LONG_EDGE, formatBytes } from "./rules";
+import { browserClient } from "@/lib/supabase/browser";
+import { JPEG_QUALITY, MAX_IMAGE_BYTES, MAX_LONG_EDGE, MEDIA_BUCKET, formatBytes } from "./rules";
 
 // ブラウザで画像を JPEG にして上げる（4.18）。投稿の画像とネタ帳のメモの画像で使う
 
@@ -55,8 +56,9 @@ export async function uploadJpeg(blob: Blob, name: string, ai?: AiOrigin): Promi
   if (blob.size > MAX_IMAGE_BYTES) throw new Error(`${name}は ${formatBytes(MAX_IMAGE_BYTES)} を超えます。`);
   const { ticket, error } = await requestImageUpload();
   if (!ticket) throw new Error(error ?? "画像を追加できませんでした。");
-  const res = await fetch(ticket.signedUrl, { method: "PUT", body: blob, headers: { "Content-Type": "image/jpeg", "x-upsert": "false" } });
-  if (!res.ok) throw new Error(`${name}を上げられませんでした。時間をおいてもう一度お試しください。`);
+  // 利用者のログインのまま上げる（Storage の insert のポリシーが、本人の・まだ使っていない引換券がある場所だけを通す。上書きはできない）
+  const { error: upError } = await browserClient().storage.from(MEDIA_BUCKET).upload(ticket.path, blob, { contentType: "image/jpeg", upsert: false });
+  if (upError) throw new Error(`${name}を上げられませんでした。時間をおいてもう一度お試しください。`);
   const confirmed = await confirmImageUpload(ticket.path, ai);
   if (!confirmed.image) throw new Error(confirmed.error ?? "画像を確かめられませんでした。");
   const { id, previewUrl, altText, width, height, sizeBytes, aiGenerated } = confirmed.image;

@@ -9,6 +9,7 @@ import type { PublishImage, SnsAdapter } from "@/lib/sns/adapters/types";
 import { publishDueTargets } from "@/lib/sns/publisher";
 import { testJpeg } from "./helpers/jpeg";
 import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
+import { putImage } from "./helpers/upload";
 
 const key = randomBytes(32);
 const admin = adminClient();
@@ -30,7 +31,7 @@ function fakeAdapter(sns: "threads" | "x"): SnsAdapter {
 
 async function upload(altText: string) {
   const ticket = await issueUpload(admin, aliceId);
-  await fetch(ticket.signedUrl, { method: "PUT", body: Buffer.from(testJpeg()), headers: { "Content-Type": "image/jpeg" } });
+  await putImage(ticket.path, testJpeg());
   const file = await verifyUpload(admin, aliceId, ticket.path);
   return { id: file.id, altText };
 }

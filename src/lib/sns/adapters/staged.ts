@@ -2,7 +2,7 @@ import { SnsPublishError, type ContinueResult, type PrepareState, type PublishRe
 
 // Threads と Instagram の「コンテナを作る → 準備を待つ → 公開」を、1 回で待ち続けずに段階で進めるための共通部分。
 // 状態の形:
-// - 画像 1 枚: { kind: "single", id }
+// - 画像 1 枚: { kind: "single", id }。動画（Threads の VIDEO・Instagram のリール）は { kind: "single", id, video: true }
 // - カルーセル: { kind: "carousel", children: [...], text } → 子がすべて準備できたら親を作り { ..., parent }
 // 子の準備ができる前に親を作ると断られることがあるので、子を待ってから親を作る
 
@@ -18,21 +18,26 @@ export type StagedOps = {
   toError: (e: unknown, stage: "prepare" | "publish") => SnsPublishError;
 };
 
-type Single = { kind: "single"; id: string };
+type Single = { kind: "single"; id: string; video?: boolean };
 type Carousel = { kind: "carousel"; children: string[]; text: string; parent?: string };
 type State = Single | Carousel;
 
 function parse(state: PrepareState): State {
-  const s = state as { kind?: unknown; id?: unknown; children?: unknown; text?: unknown; parent?: unknown };
-  if (s.kind === "single" && typeof s.id === "string") return { kind: "single", id: s.id };
+  const s = state as { kind?: unknown; id?: unknown; children?: unknown; text?: unknown; parent?: unknown; video?: unknown };
+  if (s.kind === "single" && typeof s.id === "string") return { kind: "single", id: s.id, ...(s.video === true ? { video: true } : {}) };
   if (s.kind === "carousel" && Array.isArray(s.children) && typeof s.text === "string") {
     return { kind: "carousel", children: (s.children as unknown[]).map(String), text: s.text, parent: typeof s.parent === "string" ? s.parent : undefined };
   }
   throw new SnsPublishError("permanent", "送信の途中の記録が読めませんでした。もう一度送ってください。");
 }
 
-function rejected(ops: StagedOps, detail?: string): SnsPublishError {
-  return new SnsPublishError("permanent", `${ops.label} が投稿を受け付けませんでした（${detail ?? "ERROR"}）。画像の縦横比や大きさを確かめてください。`);
+function rejected(ops: StagedOps, detail?: string, video = false): SnsPublishError {
+  return new SnsPublishError(
+    "permanent",
+    video
+      ? `${ops.label} が動画を受け付けませんでした（${detail ?? "ERROR"}）。動画を選び直して、もう一度送ってください。`
+      : `${ops.label} が投稿を受け付けませんでした（${detail ?? "ERROR"}）。画像の縦横比や大きさを確かめてください。`,
+  );
 }
 
 // 準備ができていれば公開して結果を、まだなら（進めた）状態を返す。1 回の呼び出しは数回の API の呼び出しで終わる
@@ -42,7 +47,7 @@ export async function continueStaged(ops: StagedOps, raw: PrepareState): Promise
   try {
     if (state.kind === "single") {
       const { status, detail } = await ops.status(state.id);
-      if (status === "ERROR" || status === "EXPIRED") throw rejected(ops, detail ?? status);
+      if (status === "ERROR" || status === "EXPIRED") throw rejected(ops, detail ?? status, state.video);
       if (status !== "FINISHED") return { state };
       ready = state.id;
     } else if (!state.parent) {

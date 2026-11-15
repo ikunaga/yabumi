@@ -18,6 +18,7 @@ import { fromInputValue, toYmd } from "@/lib/time";
 import { needsFillIn } from "@/lib/ai/post-ideas";
 import { snsNeedingImageReconnect } from "@/lib/media/queries";
 import { MediaError, attachMedia } from "@/lib/media/store";
+import { attachVideo } from "@/lib/media/video-store";
 import { markNotesUsed } from "@/lib/notes/store";
 import { preparePostLinks } from "@/lib/links/store";
 import { projectLinkBase } from "@/lib/links/domains";
@@ -37,7 +38,7 @@ const MIN_LEAD_MS = 5 * 60 * 1000;
 export async function savePost(input: SavePostInput): Promise<SavePostResult> {
   const parsed = savePostInputSchema.safeParse(input);
   if (!parsed.success) return { error: "入力の形式が正しくありません。画面を読み込み直してください。" };
-  const { projectId, postId, body, plannedAt, intent, media, shortLinks, roadmapItemId, noteIds, xByHand, tiktokByHand } = parsed.data;
+  const { projectId, postId, body, plannedAt, intent, media, video, shortLinks, roadmapItemId, noteIds, xByHand, tiktokByHand } = parsed.data;
   // SNS ごとのタグ（# を外し、同じタグは 1 つに）。タグにできない言葉・6 個以上は、下で欄のエラーにする
   // 本文（SNS ごとの文面）にもう書いてあるタグは、タグの行から外して保存する（2 回出さない。PMO2 の x2）
   const targets = parsed.data.targets.map((t) => ({ ...t, hashtags: splitTagsByText(t.bodyOverride ?? body, parseHashtagInput(t.hashtags.join(" ")).tags).keep }));
@@ -56,11 +57,19 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
   const userId = claims?.claims?.sub;
   if (!userId) return { error: "ログインし直してください。" };
   const images = media.length;
+  const videos = video ? 1 : 0;
+  // 1 つの投稿は、画像か動画 1 本のどちらか（docs/design/video.md の 4.）
+  if (images > 0 && videos > 0) fieldErrors.media = "画像と動画は一緒に添えられません。どちらかを外してください。";
+  // 送り終えて動画を消した投稿を、動画なしで送り直さない（文だけで送ってしまわないように。docs/design/video.md の 7.）。読むのは利用者の権限（RLS で本人の行だけ）
+  if (intent !== "draft" && postId && videos === 0 && images === 0) {
+    const { data: removed } = await supabase.from("media_files").select("id").eq("post_id", postId).eq("kind", "video").not("removed_at", "is", null).limit(1);
+    if (removed?.length) fieldErrors.media = "添えていた動画は、送り終えたので消しました。動画を選び直してから送ってください。";
+  }
   const needReconnect = images > 0 ? await snsNeedingImageReconnect(accounts) : [];
   // Instagram は縦横比を確かめるので、画像の幅と高さを読む（RLS で本人の画像だけ）
   let sizes: { width: number; height: number }[] | undefined;
   if (images > 0 && targets.some((t) => t.sns === "instagram")) {
-    const { data: rows } = await supabase.from("media_files").select("id, width, height").in("id", media.map((m) => m.id));
+    const { data: rows } = await supabase.from("media_files").select("id, width, height").eq("kind", "image").in("id", media.map((m) => m.id));
     sizes = (rows ?? []).map((r) => ({ width: r.width, height: r.height }));
   }
 
@@ -109,7 +118,7 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
         // 送る文（タグ込み）で確かめる。字数は、短縮リンクに置き換えたあとの長さで数える（画面と同じ。送るときの短縮リンクと同じ長さの仮のもの）
         const text = withHashtags(t.bodyOverride ?? body, t.hashtags);
         const counted = shortLinkShownText(text, t.sns, { enabled: shortLinks, base: linkBase ??= await projectLinkBase(supabase, projectId) });
-        const issue = checkTarget(t.sns, counted, { images, videos: 0, sizes }, t.title ?? null).issues[0];
+        const issue = checkTarget(t.sns, counted, { images, videos, sizes }, t.title ?? null).issues[0];
         if (issue) {
           fieldErrors.targets = `${label}: ${ISSUE_LABEL[issue]}`;
           break;
@@ -246,9 +255,13 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
     if (linkError) console.error("[savePost] やることに結びつけられませんでした", linkError.message);
   }
 
-  // 画像を、渡した順と代わりの文にそろえる（外した画像は消える）。送る前に済ませる
+  // 画像を、渡した順と代わりの文にそろえる（外した画像は消える）。動画もそろえる（外した・入れ替えた動画は消える）。送る前に済ませる。
+  // 画像と動画は同じ投稿に混ぜられない（DB のトリガー）ので、動画を外すときは画像より先に、添えるときは画像のあとにする
   try {
-    await attachMedia(createAdminClient(), userId, savedId, media);
+    const admin = createAdminClient();
+    if (!video) await attachVideo(admin, userId, savedId, null, { keepRemoved: media.length === 0 });
+    await attachMedia(admin, userId, savedId, media);
+    if (video) await attachVideo(admin, userId, savedId, video);
   } catch (e) {
     if (e instanceof MediaError) return { fieldErrors: { media: e.userMessage } };
     console.error("[savePost] 画像を保存できませんでした", e);

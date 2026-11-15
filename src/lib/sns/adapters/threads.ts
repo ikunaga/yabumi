@@ -2,6 +2,7 @@ import {
   createCarouselContainer,
   createImageContainer,
   createTextContainer,
+  createVideoContainer,
   deleteMedia,
   getContainerStatus,
   getPermalink,
@@ -95,6 +96,15 @@ export function createThreadsAdapter({
           children.push(await createImageContainer(account.accessToken, image.url, { carouselItem: true, altText: image.altText || undefined }));
         }
         return { kind: "carousel", children, text };
+      } catch (e) {
+        throw toPublishError(e, "prepare");
+      }
+    },
+
+    // 動画: コンテナを作るだけで待たない（Threads が取りに来て処理する）。準備の続きは continuePublish
+    async startPublishVideo(account, text, video) {
+      try {
+        return { kind: "single", id: await createVideoContainer(account.accessToken, video.url, text), video: true };
       } catch (e) {
         throw toPublishError(e, "prepare");
       }

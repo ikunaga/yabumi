@@ -21,7 +21,9 @@ function useKeyboardOpen(): boolean {
 
 // 下の帯: 戻る・次へ（docs/design/compose-steps.md の 3.）。スマホは画面の下（下のタブの上）に留める。⑤ では「次へ」を出さない（送るボタンは中に）
 export function ComposeStepBar({ c }: { c: Composer }) {
-  const { composeStep, goStep, nextOk, images, chosen, pending, body, textFor } = c;
+  const { composeStep, goStep, nextOk, images, video, videoBusy, chosen, pending: savePending, body, textFor } = c;
+  // 動画を整えている・上げている間は移らない（③ を離れると途中の作業が消える）
+  const pending = savePending || videoBusy;
   const keyboard = useKeyboardOpen();
   const reasonId = useId();
   // 「次へ」が押せない理由（① の本文が空・② の送り先が 0）。帯の右下に小さく出し、ボタンの説明にもつなぐ
@@ -31,7 +33,7 @@ export function ComposeStepBar({ c }: { c: Composer }) {
   const nextLabel = next ? COMPOSE_STEPS[next - 1].label : "";
   // ③ 画像・④ リンクは、要らなければそのまま飛ばせる（ボタンの名前で伝える）
   const hasLink = findUrls(body).length > 0 || chosen.some((s) => findUrls(textFor(s)).length > 0);
-  const primary = composeStep === 3 && images.length === 0 ? "画像なしで次へ" : composeStep === 4 && !hasLink ? "リンクなしで次へ" : `次へ（${nextLabel}）`;
+  const primary = composeStep === 3 && images.length === 0 && !video ? "画像・動画なしで次へ" : composeStep === 4 && !hasLink ? "リンクなしで次へ" : `次へ（${nextLabel}）`;
   return (
     <div
       className={`flex flex-col gap-1 max-sm:fixed max-sm:inset-x-0 max-sm:bottom-[calc(var(--tabbar-h,64px)+env(safe-area-inset-bottom))] max-sm:z-10 max-sm:border-t max-sm:border-border max-sm:bg-surface max-sm:px-4 max-sm:py-2.5 ${keyboard ? "max-sm:hidden" : ""}`}

@@ -60,20 +60,20 @@ export async function saveConnectedAccount(admin: Admin, a: ConnectedAccount, ke
 
 // SNS 側でアプリが外されたとき。アカウントは残し（過去の投稿の記録のため）、トークンだけ消す
 export async function revokeAccountsByExternalId(admin: Admin, sns: SnsKey, externalId: string): Promise<number> {
-  const { data, error } = await admin
-    .from("social_accounts")
-    .update({ status: "revoked" })
-    .eq("sns", sns)
-    .eq("external_id", externalId)
-    .select("id");
+  const { data, error } = await admin.from("social_accounts").select("id").eq("sns", sns).eq("external_id", externalId);
   if (error) throw error;
-  const ids = data.map((r) => r.id);
-  if (ids.length) {
-    const { error: delError } = await admin.from("social_account_tokens").delete().in("social_account_id", ids);
-    if (delError) throw delError;
-    // SNS の側でアクセスを取り消されたので、その SNS から受け取ったものも消す（4.14）
-    await purgeSnsDataOf(admin, ids);
-  }
+  return revokeAccountsByIds(admin, data.map((r) => r.id));
+}
+
+// 指定したアカウントを「解除済み」にし、トークンと、その SNS から受け取ったものを消す（何度呼んでも同じ結果）
+export async function revokeAccountsByIds(admin: Admin, ids: string[]): Promise<number> {
+  if (!ids.length) return 0;
+  const { error } = await admin.from("social_accounts").update({ status: "revoked" }).in("id", ids);
+  if (error) throw error;
+  const { error: delError } = await admin.from("social_account_tokens").delete().in("social_account_id", ids);
+  if (delError) throw delError;
+  // SNS の側でアクセスを取り消されたので、その SNS から受け取ったものも消す（4.14）
+  await purgeSnsDataOf(admin, ids);
   return ids.length;
 }
 

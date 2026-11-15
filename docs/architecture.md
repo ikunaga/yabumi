@@ -2920,6 +2920,8 @@ yabumi のコンセプトは、使って SNS を運用するうちに、マー�
 - 写真を渡す入口（/tiktok-media/<推測できないトークン>.jpg。tiktok_media_tickets はハッシュだけを持ち、1 時間・送り終えたら無効。いまも投稿に添えてある本人の画像だけを 1080 に縮めて返し、ほかは 404。3xx は返さない）
 - 同意の記録（post_target_tiktok。どちらの表も RLS を有効にしてポリシーを置かず、利用者の権限には grant しない。持ち主はトリガー tiktok_check_owner でそろえる）
 - 送信の部品は preparing の 2 段。startPublish に配信先（PublishTarget）を渡し、送る直前に creator_info と同意の記録を照らす（docs/design/tiktok.md の 18.）
+- 「TikTok は手で投稿する」は X と同じ作り。手で投稿するの文は TS の src/lib/sns/by-hand.ts と SQL の public.by_hand_message の 2 か所だけに置き、一致は結合テストで確かめる（20261115090000_tiktok_by_hand）
+- 外されたとき: /sns/tiktok/webhook（署名を確かめ、中身は信じずにアカウントごとにトークンで確かめてから外す）。法務は ② の版（2026-11-30【仮】。オーナーの了承待ち）
 
 ## 5. データモデル（主要テーブル）
 

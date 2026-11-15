@@ -1,13 +1,17 @@
 import {
   deletePost,
   FacebookApiError,
+  finishReel,
   getPermalink,
+  getReelStatus,
+  startReelUpload,
+  uploadReelFromUrl,
   postPhoto,
   postText,
   postWithPhotos,
   uploadUnpublishedPhoto,
 } from "@/lib/sns/facebook/api";
-import { SnsPublishError, type SnsAdapter } from "./types";
+import { SnsPublishError, type PrepareState, type SnsAdapter } from "./types";
 
 const RATE_LIMIT_CODES = new Set([4, 17, 32, 613, 80001]);
 // 権限がない（ページの役割を外された、権限を外したなど）
@@ -53,10 +57,63 @@ export function toFacebookError(e: unknown, stage: "prepare" | "publish"): SnsPu
   return new SnsPublishError("retryable", "Facebook につながりませんでした。時間をおいて送り直します。", { cause: e });
 }
 
+// リールの準備の途中の状態（post_targets.sns_container）。finished: 公開（finish）を頼んだあと
+type ReelState = { kind: "fb_reel"; videoId: string; finished?: boolean };
+
+function parseReel(state: PrepareState): ReelState {
+  const s = state as { kind?: unknown; videoId?: unknown; finished?: unknown };
+  if (s.kind === "fb_reel" && typeof s.videoId === "string") return { kind: "fb_reel", videoId: s.videoId, ...(s.finished === true ? { finished: true } : {}) };
+  throw new SnsPublishError("permanent", "送信の途中の記録が読めませんでした。もう一度送ってください。");
+}
+
+const reelRejected = (detail?: string) =>
+  new SnsPublishError("permanent", `Facebook が動画を受け付けませんでした（${detail ?? "error"}）。動画を選び直して、もう一度送ってください。`);
+
 // Facebook ページ。account.externalId はページの ID、accessToken はページのトークン（期限なし）
 export function createFacebookAdapter(appSecret: () => string): SnsAdapter {
   return {
     sns: "facebook",
+
+    // 動画はリールとして送る（docs/design/video.md の 5.）。受付と、Facebook に取りに来てもらうところまで。処理と公開は continuePublish
+    async startPublishVideo(account, text, video) {
+      const { accessToken: token, externalId: pageId } = account;
+      try {
+        const videoId = await startReelUpload(appSecret(), token, pageId);
+        await uploadReelFromUrl(token, videoId, video.url);
+        return { ...({ kind: "fb_reel", videoId } satisfies ReelState), text };
+      } catch (e) {
+        throw toFacebookError(e, "prepare");
+      }
+    },
+
+    // 取り込みが終わったら公開を頼み（本文はここで付ける。startPublishVideo で受けた本文を state に持つ）、公開まで済んだら終わり。
+    // まだなら同じ状態を返す（次の回にまた確かめる）
+    async continuePublish(account, raw) {
+      const state = parseReel(raw);
+      const text = typeof (raw as { text?: unknown }).text === "string" ? String((raw as { text: string }).text) : "";
+      const secret = appSecret();
+      const { accessToken: token, externalId: pageId } = account;
+      let status;
+      try {
+        status = await getReelStatus(secret, token, state.videoId);
+      } catch (e) {
+        throw toFacebookError(e, "prepare");
+      }
+      if (status.videoStatus === "error" || [status.uploading, status.processing, status.publishing].includes("error")) throw reelRejected(status.error);
+      if (!state.finished) {
+        if (status.uploading !== "complete") return { state: raw };
+        try {
+          await finishReel(secret, token, pageId, state.videoId, text);
+        } catch (e) {
+          throw toFacebookError(e, "publish");
+        }
+        return { state: { ...raw, finished: true } };
+      }
+      if (status.publishing !== "complete") return { state: raw };
+      // URL は表示用。取れなくても送信は成功として扱う
+      const url = await getPermalink(secret, token, state.videoId).catch(() => null);
+      return { done: { externalPostId: state.videoId, url } };
+    },
 
     async publishText(account, text, images = []) {
       const secret = appSecret();

@@ -5,10 +5,11 @@ import { substituteForTarget } from "@/lib/links/store";
 import type { OperatorNotifyDeps } from "@/lib/notify/operator";
 import { alertIfNearXBudget } from "@/lib/sns/x/budget-alert";
 import { publishImagesFor } from "@/lib/media/store";
+import { publishVideoFor } from "@/lib/media/video-store";
 import { refreshTokenAad } from "./accounts";
 import { isSnsKey, SNS, type SnsKey } from "@/lib/sns";
 import type { Database, Json } from "@/lib/supabase/database.types";
-import { SnsPublishError, type AdapterAccount, type PrepareState, type PublishImage, type PublishResult, type RefreshedTokens, type SnsAdapter } from "./adapters/types";
+import { SnsPublishError, type AdapterAccount, type PrepareState, type PublishImage, type PublishResult, type PublishVideo, type RefreshedTokens, type SnsAdapter } from "./adapters/types";
 
 // 送信ジョブの本体。RLS を通らないクライアント（createAdminClient）で呼ぶ。方針は docs/architecture.md の 4.7
 type Admin = SupabaseClient<Database>;
@@ -33,6 +34,8 @@ export type PublisherDeps = {
   refreshPageSize?: number;
   // 投稿の画像を読む（テストで差し替える）。既定は Storage から読み、署名 URL を作る
   loadImages?: (admin: Admin, postId: string) => Promise<PublishImage[]>;
+  // 投稿の動画を読む（テストで差し替える。ないときは publishVideoFor。docs/design/video.md の 5.）
+  loadVideo?: (admin: Admin, postId: string) => Promise<PublishVideo | "removed" | null>;
 };
 
 // 1 つの配信先につき最大 3 回まで試す。2 回目は 1 分後、3 回目は 5 分後
@@ -289,15 +292,25 @@ async function publishOne(admin: Admin, t: ClaimedTarget, deps: PublisherDeps): 
     if (t.sns_container && adapter.continuePublish) {
       const since = t.preparing_since ?? now.toISOString();
       if (now.getTime() - new Date(since).getTime() > PREPARE_TIMEOUT_MS) {
-        throw new SnsPublishError("retryable", `${label} 側の画像の準備に時間がかかっています。最初から送り直します。`);
+        throw new SnsPublishError("retryable", `${label} 側の準備（画像・動画の処理）に時間がかかっています。最初から送り直します。`);
       }
       const next = await adapter.continuePublish(account, t.sns_container as PrepareState);
       return "done" in next ? published(next.done) : preparing(next.state, since);
     }
 
+    // 投稿の動画（docs/design/video.md の 5.）。1 つの投稿は画像か動画 1 本のどちらか。yabumi から動画を送れない SNS には送らない
+    // （保存のときに「動画を送れません」で止めているが、あとから SNS の扱いが変わったときのために、ここでも確かめる）
+    const video = isSnsKey(t.sns) && SNS[t.sns].delivery === "auto" ? await (deps.loadVideo ?? publishVideoFor)(admin, t.post_id) : null;
+    if (video === "removed") {
+      return fail(`添えていた動画は、送り終えたので消しました。投稿の画面で動画を選び直してから送り直してください。`);
+    }
+    if (video && (!isSnsKey(t.sns) || !SNS[t.sns].video || !adapter.startPublishVideo || !adapter.continuePublish)) {
+      return fail(`${label} には、yabumi からはまだ動画を送れません。投稿の画面で ${label} を送り先から外すか、動画を外してから送り直してください。`);
+    }
+
     // 投稿の画像（docs/architecture.md の 4.18）。画像を送らない SNS（動画だけ・手で投稿）には渡さない
     let images: PublishImage[] = [];
-    if (isSnsKey(t.sns) && SNS[t.sns].maxImages > 0) {
+    if (!video && isSnsKey(t.sns) && SNS[t.sns].maxImages > 0) {
       images = await (deps.loadImages ?? publishImagesFor)(admin, t.post_id);
       if (images.length > SNS[t.sns].maxImages) {
         return fail(`${label} に添えられる画像は ${SNS[t.sns].maxImages} 枚までです。投稿の画面で画像を減らしてから送り直してください。`);
@@ -325,6 +338,13 @@ async function publishOne(admin: Admin, t: ClaimedTarget, deps: PublisherDeps): 
       }
       usageId = reserved.usageId;
       if (t.sns === "x") await alertIfNearXBudget(admin, budget, { scopeOwner: deps.budgetScopeOwner, now, notify: deps.notify });
+    }
+
+    // 動画は、SNS が取りに来て処理するのを待たない（準備中にして、次の回に続きを確かめる）
+    if (video && adapter.startPublishVideo && adapter.continuePublish) {
+      const state = await adapter.startPublishVideo(account, body, video, { id: t.target_id, rawText: t.body });
+      const next = await adapter.continuePublish(account, state);
+      return "done" in next ? published(next.done) : preparing(next.state, now.toISOString());
     }
 
     // 画像の準備に時間がかかる SNS は、コンテナを作るだけで待たない。すぐ準備できていれば、この回で公開まで進める

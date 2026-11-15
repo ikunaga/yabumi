@@ -177,6 +177,12 @@ export async function createImageContainer(
   return String(json.id);
 }
 
+// 動画 1 本（docs/design/video.md の 5.）。Threads が video_url を取りに来て処理する（平均 30 秒）。状態は getContainerStatus で見る
+export async function createVideoContainer(token: string, videoUrl: string, text: string): Promise<string> {
+  const json = await call<{ id: string }>(`${THREADS_GRAPH_URL}/v1.0/me/threads`, form({ media_type: "VIDEO", video_url: videoUrl, text, access_token: token }));
+  return String(json.id);
+}
+
 // カルーセル（2〜20 枚）。children はカルーセルの中の 1 枚のコンテナ
 export async function createCarouselContainer(token: string, children: string[], text: string): Promise<string> {
   const json = await call<{ id: string }>(

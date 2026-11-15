@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { checkMp4, Mp4CheckError, mp4ProblemMessage } from "./mp4-check";
 import { MediaError } from "./store";
-import { formatBytes } from "./rules";
+import { SNS_FETCH_URL_SECONDS, formatBytes } from "./rules";
 import {
   KEEP_VIDEO_AFTER_SENT_DAYS,
   MAX_PENDING_VIDEO_TICKETS,
@@ -145,7 +145,8 @@ export async function verifyVideoUpload(admin: Admin, ownerId: string, path: str
 
 // 投稿の動画をそろえる（投稿の保存で、画像の attachMedia のあとに呼ぶ）。videoId が null なら外す。
 // 外した・入れ替えた動画は、ファイルごと消す。画像が添えてある投稿には添えない（DB のトリガーでも断る）
-export async function attachVideo(admin: Admin, ownerId: string, postId: string, videoId: string | null): Promise<void> {
+// keepRemoved: 外すだけのとき、送り終えて消した動画の印（removed_at のある行）を残すか（既定は残す。画像を添えるときは外す）
+export async function attachVideo(admin: Admin, ownerId: string, postId: string, videoId: string | null, { keepRemoved = true }: { keepRemoved?: boolean } = {}): Promise<void> {
   const { data: post } = await admin.from("posts").select("id").eq("id", postId).eq("owner_id", ownerId).maybeSingle();
   if (!post) throw new MediaError("投稿が見つかりません。");
 
@@ -156,9 +157,11 @@ export async function attachVideo(admin: Admin, ownerId: string, postId: string,
     if ((count ?? 0) > 0) throw new MediaError("画像と動画は一緒に添えられません。どちらかを外してください。");
   }
 
-  // 入れ替え・外すときは、先に前の動画を消す（1 つの投稿に動画は 1 本の一意の索引）
+  // 入れ替え・外すときは、先に前の動画を消す（1 つの投稿に動画は 1 本の一意の索引）。
+  // 外すだけ（videoId が null）のときは、送り終えて消した動画の印（removed_at のある行）は残す（送り直すときに、文だけで送ってしまわないように）
   let old = admin.from("media_files").select("id, storage_path").eq("owner_id", ownerId).eq("post_id", postId).eq("kind", "video");
   if (videoId) old = old.neq("id", videoId);
+  else if (keepRemoved) old = old.is("removed_at", null);
   const { data: gone, error: goneError } = await old;
   if (goneError) throw goneError;
   if (gone?.length) {
@@ -254,4 +257,15 @@ export async function postVideoFor(admin: Admin, postId: string, deps: { fetch?:
       throw new Error(`動画を読めませんでした（${res.status}）`);
     },
   };
+}
+
+// 送信ジョブが SNS に渡す動画（postVideoFor に、SNS が取りに来るための 1 時間の署名 URL を足したもの）。
+// 動画を添えていなければ null。添えていたが消したあと（送り終えて片付けた・ファイルがない）は "removed"（文だけで送ってしまわないように）
+export async function publishVideoFor(admin: Admin, postId: string): Promise<(PostVideo & { url: string }) | "removed" | null> {
+  const row = await postVideoRow(admin, postId);
+  if (!row) return null;
+  if (row.removedAt) return "removed";
+  const video = await postVideoFor(admin, postId);
+  if (!video) return "removed";
+  return { ...video, url: await signedVideoUrl(admin, row.storagePath, SNS_FETCH_URL_SECONDS) };
 }

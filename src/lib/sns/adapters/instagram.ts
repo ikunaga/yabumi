@@ -1,6 +1,7 @@
 import {
   createCarouselContainer,
   createImageContainer,
+  createReelsContainer,
   getContainerStatus,
   getPermalink,
   InstagramApiError,
@@ -109,6 +110,15 @@ export function createInstagramAdapter({
           children.push(await createImageContainer(token, igUserId, image.url, { carouselItem: true, altText: image.altText || undefined }));
         }
         return { kind: "carousel", children, text };
+      } catch (e) {
+        throw toInstagramError(e, "prepare");
+      }
+    },
+
+    // 動画はリールとして送る（フィードにも出す）。コンテナを作るだけで待たない。準備の続きは continuePublish
+    async startPublishVideo(account, text, video) {
+      try {
+        return { kind: "single", id: await createReelsContainer(account.accessToken, account.externalId, video.url, text), video: true };
       } catch (e) {
         throw toInstagramError(e, "prepare");
       }

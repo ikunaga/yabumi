@@ -159,6 +159,53 @@ export async function postWithPhotos(appSecret: string, pageToken: string, pageI
   return String(json.id);
 }
 
+// ===== リール（動画 1 本。docs/design/video.md の 5.。公式の Reels Publishing API の 3 段階） =====
+// 1. 受付（upload_phase=start）→ 2. Facebook に動画を取りに来てもらう（rupload に file_url）→ 3. 公開（upload_phase=finish）。
+// 公開は Facebook の処理が終わってから行われるので、状態（status）で確かめる
+
+export const FACEBOOK_RUPLOAD_URL = "https://rupload.facebook.com";
+
+export async function startReelUpload(appSecret: string, pageToken: string, pageId: string): Promise<string> {
+  const json = await call<{ video_id: string }>(graph(`${pageId}/video_reels`, pageToken, appSecret), form({ upload_phase: "start" }));
+  return String(json.video_id);
+}
+
+// Facebook に、署名 URL の動画を取りに来てもらう（こちらからは送らない）。
+// rupload は access_token の代わりに Authorization: OAuth を使う。appsecret_proof を求められるかは資料に書かれていない【未確認】
+export async function uploadReelFromUrl(pageToken: string, videoId: string, fileUrl: string): Promise<void> {
+  await call<{ success: boolean }>(`${FACEBOOK_RUPLOAD_URL}/video-upload/${FACEBOOK_API_VERSION}/${videoId}`, {
+    method: "POST",
+    headers: { Authorization: `OAuth ${pageToken}`, file_url: fileUrl },
+  });
+}
+
+export type ReelPhase = "not_started" | "in_progress" | "complete" | "error" | string;
+export type ReelStatus = { videoStatus: string; uploading: ReelPhase; processing: ReelPhase; publishing: ReelPhase; error?: string };
+
+export async function getReelStatus(appSecret: string, pageToken: string, videoId: string): Promise<ReelStatus> {
+  type Phase = { status?: string; errors?: { message?: string }[] };
+  const json = await call<{ status?: { video_status?: string; uploading_phase?: Phase; processing_phase?: Phase; publishing_phase?: Phase } }>(
+    graph(videoId, pageToken, appSecret, { fields: "status" }),
+  );
+  const st = json.status ?? {};
+  const phases = [st.uploading_phase, st.processing_phase, st.publishing_phase];
+  const error = phases.flatMap((p) => p?.errors ?? []).map((e) => e.message).find(Boolean);
+  return {
+    videoStatus: st.video_status ?? "",
+    uploading: st.uploading_phase?.status ?? "not_started",
+    processing: st.processing_phase?.status ?? "not_started",
+    publishing: st.publishing_phase?.status ?? "not_started",
+    ...(error ? { error } : {}),
+  };
+}
+
+export async function finishReel(appSecret: string, pageToken: string, pageId: string, videoId: string, description: string): Promise<void> {
+  await call<{ success: boolean }>(
+    graph(`${pageId}/video_reels`, pageToken, appSecret),
+    form({ upload_phase: "finish", video_id: videoId, video_state: "PUBLISHED", description }),
+  );
+}
+
 export async function getPermalink(appSecret: string, pageToken: string, postId: string): Promise<string | null> {
   const json = await call<{ permalink_url?: string }>(graph(postId, pageToken, appSecret, { fields: "permalink_url" }));
   return json.permalink_url ?? null;

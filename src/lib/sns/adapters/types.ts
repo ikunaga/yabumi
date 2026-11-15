@@ -12,6 +12,18 @@ export type PublishResult = { externalPostId: string; url: string | null };
 // mediaId・aiGenerated: 画像の行の ID と、AI で作った画像か（TikTok の入口と AI の印に使う。docs/design/tiktok.md の 2. と 10.）
 export type PublishImage = { url: string; altText: string; load: () => Promise<Uint8Array>; mediaId?: string; aiGenerated?: boolean };
 
+// 投稿に添える動画（docs/design/video.md の 5.）。MP4（H.264・AAC）・9:16・3〜90 秒。url は送る直前に作る期限つきの署名 URL
+// （Threads・Instagram・Facebook が取りに来る）。ファイルを送る SNS は readRange で読む（postVideoFor と同じ）
+export type PublishVideo = {
+  url: string;
+  mediaId: string;
+  sizeBytes: number;
+  durationMs: number;
+  width: number;
+  height: number;
+  readRange(start: number, endExclusive: number): Promise<Uint8Array>;
+};
+
 // 送る配信先（配信先ごとの設定を読む SNS（TikTok）が使う）。rawText は短縮リンクに置き換える前の、送る文
 export type PublishTarget = { id: string; rawText: string };
 
@@ -68,6 +80,8 @@ export interface SnsAdapter {
   // startPublish: コンテナを作り、準備の途中の状態を返す（待たない）。continuePublish: 準備ができていれば公開し、まだなら状態を返す
   startPublish?(account: AdapterAccount, text: string, images: PublishImage[], target?: PublishTarget): Promise<PrepareState>;
   continuePublish?(account: AdapterAccount, state: PrepareState): Promise<ContinueResult>;
+  // 動画の投稿（docs/design/video.md の 5.）。SNS の video が true の SNS だけが持つ。準備の続きは continuePublish
+  startPublishVideo?(account: AdapterAccount, text: string, video: PublishVideo, target?: PublishTarget): Promise<PrepareState>;
 
   // --- 使った分だけ払う SNS（X）。送る前に費用を記録し、月の上限を守る ---
   publishCost?(text: string, images?: PublishImage[]): PublishCost;

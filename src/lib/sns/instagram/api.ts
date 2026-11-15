@@ -133,6 +133,16 @@ export async function createImageContainer(
   return String(json.id);
 }
 
+// リール（動画 1 本。docs/design/video.md の 5.）。Instagram が video_url を取りに来て処理する。フィードにも出す（share_to_feed）。
+// コンテナは 24 時間で切れる。状態は getContainerStatus で見る（1 分に 1 回、5 分までがすすめ）
+export async function createReelsContainer(token: string, igUserId: string, videoUrl: string, caption: string): Promise<string> {
+  const json = await call<{ id: string }>(
+    graph(`${igUserId}/media`),
+    form({ media_type: "REELS", video_url: videoUrl, caption, share_to_feed: "true", access_token: token }),
+  );
+  return String(json.id);
+}
+
 export async function createCarouselContainer(token: string, igUserId: string, children: string[], caption: string): Promise<string> {
   const json = await call<{ id: string }>(
     graph(`${igUserId}/media`),

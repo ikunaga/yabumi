@@ -60,6 +60,11 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
   const videos = video ? 1 : 0;
   // 1 つの投稿は、画像か動画 1 本のどちらか（docs/design/video.md の 4.）
   if (images > 0 && videos > 0) fieldErrors.media = "画像と動画は一緒に添えられません。どちらかを外してください。";
+  // 送り終えて動画を消した投稿を、動画なしで送り直さない（文だけで送ってしまわないように。docs/design/video.md の 7.）。読むのは利用者の権限（RLS で本人の行だけ）
+  if (intent !== "draft" && postId && videos === 0 && images === 0) {
+    const { data: removed } = await supabase.from("media_files").select("id").eq("post_id", postId).eq("kind", "video").not("removed_at", "is", null).limit(1);
+    if (removed?.length) fieldErrors.media = "添えていた動画は、送り終えたので消しました。動画を選び直してから送ってください。";
+  }
   const needReconnect = images > 0 ? await snsNeedingImageReconnect(accounts) : [];
   // Instagram は縦横比を確かめるので、画像の幅と高さを読む（RLS で本人の画像だけ）
   let sizes: { width: number; height: number }[] | undefined;
@@ -254,7 +259,7 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
   // 画像と動画は同じ投稿に混ぜられない（DB のトリガー）ので、動画を外すときは画像より先に、添えるときは画像のあとにする
   try {
     const admin = createAdminClient();
-    if (!video) await attachVideo(admin, userId, savedId, null);
+    if (!video) await attachVideo(admin, userId, savedId, null, { keepRemoved: media.length === 0 });
     await attachMedia(admin, userId, savedId, media);
     if (video) await attachVideo(admin, userId, savedId, video);
   } catch (e) {

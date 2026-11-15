@@ -224,6 +224,26 @@ describe("投稿との関係", () => {
     expect(await exists(b.path)).toBe(false);
   });
 
+  it("送り終えて消した動画の印は、外すだけでは残る（文だけで送らないため）。画像を添えるとき・別の動画に入れ替えるときは外れる", async () => {
+    const post = await newPost();
+    const v = await seedPostVideo(admin, { ownerId: aliceId, postId: post });
+    await admin.storage.from(VIDEO_BUCKET).remove([v.path]);
+    await admin.from("media_files").update({ removed_at: new Date().toISOString() }).eq("id", v.mediaId);
+    await attachVideo(admin, aliceId, post, null);
+    expect((await admin.from("media_files").select("id").eq("id", v.mediaId)).data).toHaveLength(1);
+    await attachVideo(admin, aliceId, post, null, { keepRemoved: false });
+    expect((await admin.from("media_files").select("id").eq("id", v.mediaId)).data).toEqual([]);
+    const img = await uploadImage(aliceId);
+    await attachMedia(admin, aliceId, post, [{ id: img.id, altText: "" }]);
+
+    const post2 = await newPost();
+    const old = await seedPostVideo(admin, { ownerId: aliceId, postId: post2 });
+    await admin.from("media_files").update({ removed_at: new Date().toISOString() }).eq("id", old.mediaId);
+    const next = await seedPostVideo(admin, { ownerId: aliceId, postId: null });
+    await attachVideo(admin, aliceId, post2, next.mediaId);
+    expect((await admin.from("media_files").select("id").eq("post_id", post2)).data).toEqual([{ id: next.mediaId }]);
+  });
+
   it("画像のある投稿には動画を添えられない（サーバーでも DB でも）。画像を保存しても動画は消えない", async () => {
     const post = await newPost();
     const img = await uploadImage(aliceId);

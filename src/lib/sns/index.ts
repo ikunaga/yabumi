@@ -28,10 +28,10 @@ type SnsSpec = {
 export const SNS: Record<SnsKey, SnsSpec> = {
   // X は写真 4 枚まで。Threads はカルーセルで 20 枚まで。Instagram はカルーセルで 10 枚まで
   x: { label: "X", maxLength: 140, media: "none", delivery: "auto", maxImages: 4, video: false },
-  threads: { label: "Threads", maxLength: 500, media: "none", delivery: "auto", maxImages: 20, video: false },
-  instagram: { label: "Instagram", maxLength: 2200, media: "image_or_video", delivery: "auto", maxImages: 10, video: false },
+  threads: { label: "Threads", maxLength: 500, media: "none", delivery: "auto", maxImages: 20, video: true },
+  instagram: { label: "Instagram", maxLength: 2200, media: "image_or_video", delivery: "auto", maxImages: 10, video: true },
   // Facebook ページの複数の写真の上限は公式の資料で確かめられなかった。つなぐときに確かめる
-  facebook: { label: "Facebook", maxLength: null, media: "none", delivery: "auto", maxImages: 10, video: false },
+  facebook: { label: "Facebook", maxLength: null, media: "none", delivery: "auto", maxImages: 10, video: true },
   // TikTok は写真の投稿（35 枚まで。説明は 4000 字、タイトルは 90 字。どちらも UTF-16 で数える）。動画は準備中（docs/design/tiktok.md）
   tiktok: { label: "TikTok", maxLength: 4000, media: "image_or_video", delivery: "auto", maxImages: 35, video: false },
   youtube: { label: "YouTube", maxLength: 5000, media: "video", delivery: "auto", maxImages: 0, video: false },

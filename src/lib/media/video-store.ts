@@ -91,7 +91,7 @@ export async function issueVideoUpload(admin: Admin, ownerId: string, id: string
   return { path, token: data.token };
 }
 
-// ブラウザが上げた動画を確かめて記録する。MP4 の箱を読み（作り直さない）、合わなければファイルと引換券を消して MediaError
+// ブラウザが上げた動画を確かめて記録する。MP4 の箱を読み（作り直さない）、合わなければファイルを消し、引換券に使った印を付けて MediaError
 export async function verifyVideoUpload(admin: Admin, ownerId: string, path: string): Promise<VideoFile> {
   if (!isOwnVideoPath(ownerId, path)) throw new MediaError("動画の置き場所が正しくありません。もう一度選び直してください。");
 
@@ -101,7 +101,17 @@ export async function verifyVideoUpload(admin: Admin, ownerId: string, path: str
     return toVideoFile(existing);
   }
 
-  const { data: ticket } = await admin.from("media_upload_tickets").select("storage_path").eq("storage_path", path).eq("owner_id", ownerId).eq("kind", "video").maybeSingle();
+  // 引換券は使ったら消さずに印を付ける（consumed_at）。署名つきのトークンは 2 時間使えるので、断った・外した場所に上げ直されたファイルを、
+  // DB が量の上限に数え、片付けがすぐ消せるようにするため（20261115100000 の media_upload_tickets.consumed_at）
+  const consume = () => admin.from("media_upload_tickets").update({ consumed_at: new Date().toISOString() }).eq("storage_path", path);
+  const { data: ticket } = await admin
+    .from("media_upload_tickets")
+    .select("storage_path")
+    .eq("storage_path", path)
+    .eq("owner_id", ownerId)
+    .eq("kind", "video")
+    .is("consumed_at", null)
+    .maybeSingle();
   if (!ticket) throw new MediaError("動画の置き場所が正しくありません。もう一度選び直してください。");
 
   try {
@@ -124,11 +134,11 @@ export async function verifyVideoUpload(admin: Admin, ownerId: string, path: str
       .select("*")
       .single();
     if (insError) throw insError;
-    await admin.from("media_upload_tickets").delete().eq("storage_path", path);
+    await consume();
     return toVideoFile(row);
   } catch (e) {
     await removeVideoObjects(admin, [path]);
-    await admin.from("media_upload_tickets").delete().eq("storage_path", path);
+    await consume();
     throw e;
   }
 }

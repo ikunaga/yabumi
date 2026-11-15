@@ -93,8 +93,17 @@ export async function verifyUpload(admin: Admin, ownerId: string, path: string, 
     return toMediaFile(existing);
   }
 
-  // サーバーが発行した場所だけを受け付ける
-  const { data: ticket } = await admin.from("media_upload_tickets").select("storage_path").eq("storage_path", path).eq("owner_id", ownerId).maybeSingle();
+  // サーバーが発行した場所だけを受け付ける。引換券は使ったら消さずに印を付ける（consumed_at。URL は 2 時間使えるので、
+  // 断った・外した画像の場所に上げ直されたファイルを、DB が量の上限に数え、片付けがすぐ消せるようにする。20261115100000）
+  const consume = () => admin.from("media_upload_tickets").update({ consumed_at: new Date().toISOString() }).eq("storage_path", path);
+  const { data: ticket } = await admin
+    .from("media_upload_tickets")
+    .select("storage_path")
+    .eq("storage_path", path)
+    .eq("owner_id", ownerId)
+    .eq("kind", "image")
+    .is("consumed_at", null)
+    .maybeSingle();
   if (!ticket) throw new MediaError("画像の置き場所が正しくありません。もう一度選び直してください。");
 
   try {
@@ -130,11 +139,11 @@ export async function verifyUpload(admin: Admin, ownerId: string, path: string, 
       .select("*")
       .single();
     if (insError) throw insError;
-    await admin.from("media_upload_tickets").delete().eq("storage_path", path);
+    await consume();
     return toMediaFile(row);
   } catch (e) {
     await removeObjects(admin, [path]);
-    await admin.from("media_upload_tickets").delete().eq("storage_path", path);
+    await consume();
     throw e;
   }
 }
@@ -288,7 +297,7 @@ export async function unattachedCount(admin: Admin, ownerId: string): Promise<nu
   const [media, tickets] = await Promise.all([
     // 保存した投稿の画像の元（source_of のある行。4.68）は数えない
     admin.from("media_files").select("id", { count: "exact", head: true }).eq("owner_id", ownerId).eq("kind", "image").is("post_id", null).is("note_id", null).is("source_of", null),
-    admin.from("media_upload_tickets").select("storage_path", { count: "exact", head: true }).eq("owner_id", ownerId).eq("kind", "image").gt("created_at", new Date(Date.now() - 86_400_000).toISOString()),
+    admin.from("media_upload_tickets").select("storage_path", { count: "exact", head: true }).eq("owner_id", ownerId).eq("kind", "image").is("consumed_at", null).gt("created_at", new Date(Date.now() - 86_400_000).toISOString()),
   ]);
   if (media.error) throw media.error;
   if (tickets.error) throw tickets.error;

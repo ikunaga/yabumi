@@ -63,8 +63,12 @@ revoke all on public.media_files from anon, authenticated;
 grant select on public.media_files to authenticated;
 
 -- ===== 引換券の種類 =====
+-- consumed_at: 引換券を確かめに使った時刻（受け付けた・断った。画像も動画も）。引換券は消さずに 1 日の片付けまで残す。
+-- 署名つきのトークン・URL は発行から 2 時間使えるので、断った・外した画像や動画の場所に上げ直されると、記録のないファイルが片付けまで残る。
+-- 使った引換券の場所に記録のないファイルがある間（と、トークンが使える 2 時間）は、そのファイルを量の上限に数える（セキュリティの自動の確かめの指摘、2026-11-15）
 alter table public.media_upload_tickets
   add column kind text not null default 'image' check (kind in ('image', 'video')),
+  add column consumed_at timestamptz,
   add constraint media_upload_tickets_kind_path check ((kind = 'image' and storage_path like '%.jpg') or (kind = 'video' and storage_path like '%.mp4'));
 
 -- ===== 月に上げた動画の本数（行は片付けで消えるので別に数える。13 か月で消す）=====
@@ -106,7 +110,8 @@ declare
   v_used bigint;
   v_count integer;
   v_global bigint;
-  v_global_pending integer;
+  v_held integer;
+  v_global_held integer;
 begin
   if p_storage_path not like p_owner_id::text || '/%.mp4' then
     raise exception 'invalid storage path' using errcode = '22023';
@@ -115,9 +120,10 @@ begin
   perform pg_advisory_xact_lock(hashtext('media_upload:' || p_owner_id::text));
   perform pg_advisory_xact_lock(hashtext('video_upload:global'));
 
+  -- 確かめ待ち（まだ使っていない引換券）
   select count(*) into v_pending
     from public.media_upload_tickets
-   where owner_id = p_owner_id and kind = 'video' and created_at > now() - interval '1 day';
+   where owner_id = p_owner_id and kind = 'video' and consumed_at is null and created_at > now() - interval '1 day';
   if v_pending >= p_max_pending then
     return 'too_many_pending';
   end if;
@@ -132,7 +138,19 @@ begin
   select coalesce(sum(size_bytes), 0) into v_used
     from public.media_files
    where owner_id = p_owner_id and kind = 'video' and removed_at is null;
-  if v_used + (v_pending + 1) * p_max_file_bytes > p_quota_bytes then
+  -- 量に数える引換券: 確かめ待ちと、使った引換券のうち記録のない場所（トークンが使える 2 時間の間か、そこにファイルがある間）
+  select count(*) into v_held
+    from public.media_upload_tickets k
+   where k.owner_id = p_owner_id and k.kind = 'video' and k.created_at > now() - interval '1 day'
+     and (
+       k.consumed_at is null
+       or (
+         not exists (select 1 from public.media_files m where m.storage_path = k.storage_path)
+         and (k.created_at > now() - interval '2 hours'
+              or exists (select 1 from storage.objects o where o.bucket_id = 'post-videos' and o.name = k.storage_path))
+       )
+     );
+  if v_used + (v_held + 1) * p_max_file_bytes > p_quota_bytes then
     return 'quota';
   end if;
 
@@ -142,8 +160,18 @@ begin
   end if;
 
   select coalesce(sum(size_bytes), 0) into v_global from public.media_files where kind = 'video' and removed_at is null;
-  select count(*) into v_global_pending from public.media_upload_tickets where kind = 'video' and created_at > now() - interval '1 day';
-  if v_global + (v_global_pending + 1) * p_max_file_bytes > p_global_quota_bytes then
+  select count(*) into v_global_held
+    from public.media_upload_tickets k
+   where k.kind = 'video' and k.created_at > now() - interval '1 day'
+     and (
+       k.consumed_at is null
+       or (
+         not exists (select 1 from public.media_files m where m.storage_path = k.storage_path)
+         and (k.created_at > now() - interval '2 hours'
+              or exists (select 1 from storage.objects o where o.bucket_id = 'post-videos' and o.name = k.storage_path))
+       )
+     );
+  if v_global + (v_global_held + 1) * p_max_file_bytes > p_global_quota_bytes then
     return 'global_quota';
   end if;
 
@@ -157,7 +185,7 @@ $$;
 revoke all on function public.issue_video_upload_ticket(uuid, text, integer, integer, bigint, bigint, integer, bigint) from public, anon, authenticated, service_role;
 grant execute on function public.issue_video_upload_ticket(uuid, text, integer, integer, bigint, bigint, integer, bigint) to service_role;
 
--- ===== 画像の引換券・容量: 画像だけを数える（動画が画像の枠を食わないように）。それ以外は 20261113150000 と同じ =====
+-- ===== 画像の引換券・容量: 画像だけを数える（動画が画像の枠を食わないように）。使った引換券の場所の上げ直しも数える（動画と同じ）。それ以外は 20261113150000 と同じ =====
 create or replace function public.issue_media_upload_ticket(
   p_owner_id uuid,
   p_storage_path text,
@@ -175,12 +203,13 @@ declare
   v_pending integer;
   v_unattached integer;
   v_used bigint;
+  v_held integer;
 begin
   perform pg_advisory_xact_lock(hashtext('media_upload:' || p_owner_id::text));
 
   select count(*) into v_pending
     from public.media_upload_tickets
-   where owner_id = p_owner_id and kind = 'image' and created_at > now() - interval '1 day';
+   where owner_id = p_owner_id and kind = 'image' and consumed_at is null and created_at > now() - interval '1 day';
   if v_pending >= p_max_pending then
     return 'too_many_pending';
   end if;
@@ -193,7 +222,19 @@ begin
   end if;
 
   select coalesce(sum(size_bytes), 0) into v_used from public.media_files where owner_id = p_owner_id and kind = 'image';
-  if v_used + (v_pending + 1) * p_max_file_bytes > p_quota_bytes then
+  -- 量に数える引換券: 確かめ待ちと、使った引換券のうち記録のない場所（URL が使える 2 時間の間か、そこにファイルがある間）。動画と同じ
+  select count(*) into v_held
+    from public.media_upload_tickets k
+   where k.owner_id = p_owner_id and k.kind = 'image' and k.created_at > now() - interval '1 day'
+     and (
+       k.consumed_at is null
+       or (
+         not exists (select 1 from public.media_files m where m.storage_path = k.storage_path)
+         and (k.created_at > now() - interval '2 hours'
+              or exists (select 1 from storage.objects o where o.bucket_id = 'post-media' and o.name = k.storage_path))
+       )
+     );
+  if v_used + (v_held + 1) * p_max_file_bytes > p_quota_bytes then
     return 'quota';
   end if;
 
@@ -287,11 +328,17 @@ as $$
     from storage.objects o
    where o.bucket_id in ('post-media', 'post-videos')
      and (p_owner_id is null or (storage.foldername(o.name))[1] = p_owner_id::text)
-     and o.created_at < p_now - interval '1 day'
      and not exists (select 1 from public.media_files m where m.storage_path = o.name)
      and (
-       not exists (select 1 from public.media_upload_tickets k where k.storage_path = o.name)
-       or o.name in (select e.storage_path from expired_tickets e)
+       -- 確かめに使った（断った・外した）動画の引換券の場所に、上げ直されたファイル: 1 日を待たずに消す
+       exists (select 1 from public.media_upload_tickets k where k.storage_path = o.name and k.consumed_at is not null)
+       or (
+         o.created_at < p_now - interval '1 day'
+         and (
+           not exists (select 1 from public.media_upload_tickets k where k.storage_path = o.name)
+           or o.name in (select e.storage_path from expired_tickets e)
+         )
+       )
      )
   limit p_limit;
 $$;

@@ -82,7 +82,9 @@ describe("上げる・確かめる", () => {
     expect(v).toMatchObject({ durationMs: 42_000, width: 720, height: 1280, sizeBytes: bytes.length });
     const { data: row } = await admin.from("media_files").select("kind, owner_id, post_id").eq("id", v.id).single();
     expect(row).toEqual({ kind: "video", owner_id: aliceId, post_id: null });
-    expect((await admin.from("media_upload_tickets").select("storage_path").eq("storage_path", v.storagePath)).data).toEqual([]);
+    // 引換券は消さずに、使った印を付ける（同じ引換券ではもう確かめない）
+    const { data: used } = await admin.from("media_upload_tickets").select("consumed_at").eq("storage_path", v.storagePath).single();
+    expect(used?.consumed_at).not.toBeNull();
     const { data: counts } = await admin.from("video_upload_counts").select("count").eq("owner_id", aliceId);
     expect(counts?.[0]?.count).toBeGreaterThanOrEqual(1);
     // 本人は自分の行を読める（RLS）
@@ -91,13 +93,34 @@ describe("上げる・確かめる", () => {
     expect(await exists(v.storagePath)).toBe(false);
   });
 
-  it("形が合わない動画は受け付けず、ファイルも引換券も消す", async () => {
+  it("形が合わない動画は受け付けず、ファイルを消して引換券に使った印を付ける", async () => {
     const ticket = await issueVideoUpload(admin, aliceId);
     expect(await tusUpload({ path: ticket.path, token: ticket.token, bytes: testMp4({ moovAfterMdat: true }) })).toBe(204);
     await expect(verifyVideoUpload(admin, aliceId, ticket.path)).rejects.toBeInstanceOf(MediaError);
     expect(await exists(ticket.path)).toBe(false);
-    expect((await admin.from("media_upload_tickets").select("storage_path").eq("storage_path", ticket.path)).data).toEqual([]);
+    expect((await admin.from("media_upload_tickets").select("consumed_at").eq("storage_path", ticket.path).single()).data?.consumed_at).not.toBeNull();
     expect((await admin.from("media_files").select("id").eq("storage_path", ticket.path)).data).toEqual([]);
+    // 使った引換券ではもう確かめない（上げ直しても記録しない）
+    expect(await tusUpload({ path: ticket.path, token: ticket.token, bytes: testMp4() })).toBe(204);
+    await expect(verifyVideoUpload(admin, aliceId, ticket.path)).rejects.toBeInstanceOf(MediaError);
+    await admin.storage.from(VIDEO_BUCKET).remove([ticket.path]);
+    await clearTickets(aliceId);
+  });
+
+  it("断った・外した動画の場所に、まだ使えるトークンで上げ直したファイルは、量の上限に数え、片付けがすぐ消す", async () => {
+    const ticket = await issueVideoUpload(admin, bobId);
+    expect(await tusUpload({ path: ticket.path, token: ticket.token, bytes: testMp4({ editList: true }) })).toBe(204);
+    await expect(verifyVideoUpload(admin, bobId, ticket.path)).rejects.toBeInstanceOf(MediaError);
+    expect(await tusUpload({ path: ticket.path, token: ticket.token, bytes: testMp4() })).toBe(204);
+    // 上限 1 本分の量だと、上げ直したファイルの分で足りない
+    const args = { p_owner_id: bobId, p_max_pending: 2, p_max_unattached: 3, p_quota_bytes: MAX_VIDEO_BYTES, p_max_file_bytes: MAX_VIDEO_BYTES, p_month_limit: 99, p_global_quota_bytes: 1e15 };
+    expect((await admin.rpc("issue_video_upload_ticket", { ...args, p_storage_path: videoPath(bobId, crypto.randomUUID()) })).data).toBe("quota");
+    // 片付けは 1 日を待たずに、そのファイルを候補にする
+    const rows = await candidates(bobId, new Date());
+    expect(rows.find((r) => r.storage_path === ticket.path)).toMatchObject({ bucket: VIDEO_BUCKET, media_id: null });
+    await cleanupMedia(admin, { ownerId: bobId });
+    expect(await exists(ticket.path)).toBe(false);
+    await clearTickets(bobId);
   });
 
   it("引換券のない場所・他人の場所・画像の引換券では確かめない", async () => {

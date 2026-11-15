@@ -69,8 +69,9 @@ describe("上げて確かめる", () => {
     const stored = new Uint8Array(await data!.arrayBuffer());
     expect(includesAscii(stored, EXIF_GPS_MARK)).toBe(false);
     expect(file.sizeBytes).toBe(stored.length);
-    // 引換券は使ったら消える
-    expect((await admin.from("media_upload_tickets").select("storage_path").eq("storage_path", file.storagePath)).data).toEqual([]);
+    // 引換券は使ったら消さずに印を付ける（同じ引換券ではもう確かめない）
+    const { data: used } = await admin.from("media_upload_tickets").select("consumed_at").eq("storage_path", file.storagePath).single();
+    expect(used?.consumed_at).not.toBeNull();
   });
 
   it("JPEG でない中身は、Content-Type をごまかしても受け付けず、ファイルも消す", async () => {
@@ -78,6 +79,29 @@ describe("上げて確かめる", () => {
     await putToSignedUrl(ticket.signedUrl, new TextEncoder().encode("<svg xmlns='http://www.w3.org/2000/svg'></svg>"));
     await expect(verifyUpload(admin, aliceId, ticket.path)).rejects.toBeInstanceOf(MediaError);
     expect(await objectExists(ticket.path)).toBe(false);
+  });
+
+  it("断った・外した画像の場所に、まだ使える URL で上げ直したファイルは、確かめず、量の上限に数え、片付けがすぐ消す", async () => {
+    const ticket = await issueUpload(admin, bobId);
+    await putToSignedUrl(ticket.signedUrl, new TextEncoder().encode("not a jpeg"));
+    await expect(verifyUpload(admin, bobId, ticket.path)).rejects.toBeInstanceOf(MediaError);
+    expect((await putToSignedUrl(ticket.signedUrl, testJpeg())).ok).toBe(true);
+    await expect(verifyUpload(admin, bobId, ticket.path)).rejects.toBeInstanceOf(MediaError);
+    // 上限 1 枚分の量だと、上げ直したファイルの分で足りない
+    const { data: status } = await admin.rpc("issue_media_upload_ticket", {
+      p_owner_id: bobId,
+      p_storage_path: `${bobId}/${randomUUID()}.jpg`,
+      p_max_pending: 10,
+      p_max_unattached: 20,
+      p_quota_bytes: 4 * 1024 * 1024,
+      p_max_file_bytes: 4 * 1024 * 1024,
+    });
+    expect(status).toBe("quota");
+    const { data: rows } = await admin.rpc("cleanup_media_candidates", { p_limit: 100, p_owner_id: bobId });
+    expect((rows ?? []).some((r: { storage_path: string }) => r.storage_path === ticket.path)).toBe(true);
+    await cleanupMedia(admin, { ownerId: bobId });
+    expect(await objectExists(ticket.path)).toBe(false);
+    await admin.from("media_upload_tickets").delete().eq("owner_id", bobId);
   });
 
   it("バケットは JPEG 以外の Content-Type を受け付けない", async () => {

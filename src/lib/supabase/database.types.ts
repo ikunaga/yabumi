@@ -1102,18 +1102,21 @@ export type Database = {
       }
       media_upload_tickets: {
         Row: {
+          consumed_at: string | null
           created_at: string
           kind: string
           owner_id: string
           storage_path: string
         }
         Insert: {
+          consumed_at?: string | null
           created_at?: string
           kind?: string
           owner_id: string
           storage_path: string
         }
         Update: {
+          consumed_at?: string | null
           created_at?: string
           kind?: string
           owner_id?: string

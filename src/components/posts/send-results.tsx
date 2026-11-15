@@ -338,21 +338,24 @@ function ManualSteps({
             {copied === "body" ? "コピーしました" : "本文をコピー"}
           </Button>
         </li>
-        <li className="flex flex-wrap items-center gap-2">
-          <span className="text-muted">{n(2)}.</span>
-          {m.composeUrl ? (
-            <a href={m.composeUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary hover:underline">
-              {label} の投稿の画面を開く
-            </a>
-          ) : sns === "tiktok" ? (
-            <span className="text-muted">スマホの TikTok のアプリを開き、＋ から保存した写真を選んで、タイトルと本文を貼り付けて投稿する</span>
-          ) : (
-            <span className="text-muted">{label} を開いて、新しい記事を作る</span>
-          )}
-          {sns !== "tiktok" && (
+        {tiktok ? (
+          // 長い 1 文なので、番号と文を 1 つの文にして折り返す（ほかの番号と同じ形。スマホで番号だけが別の行にならないように）
+          <li>
+            <span className="text-muted">{n(2)}.</span> スマホの TikTok のアプリを開き、＋ から保存した写真を選んで、タイトルと本文を貼り付けて投稿する
+          </li>
+        ) : (
+          <li className="flex flex-wrap items-center gap-2">
+            <span className="text-muted">{n(2)}.</span>
+            {m.composeUrl ? (
+              <a href={m.composeUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary hover:underline">
+                {label} の投稿の画面を開く
+              </a>
+            ) : (
+              <span className="text-muted">{label} を開いて、新しい記事を作る</span>
+            )}
             <span className="text-xs text-muted">{sns === "x" ? (quote ? "（本文と引用する投稿が入った状態で開きます）" : "（本文が入った状態で開きます）") : "（貼り付けて投稿します）"}</span>
-          )}
-        </li>
+          </li>
+        )}
         <li className="flex flex-col gap-1.5">
           <span>
             <span className="text-muted">{n(3)}.</span> 投稿したら、記録します。投稿の URL は任意です

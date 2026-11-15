@@ -44,14 +44,16 @@ export async function loadPostImageDownloads(postId: string): Promise<{ url: str
   if (error) throw error;
   const files = rows ?? [];
   if (!files.length) return [];
-  const { data, error: signError } = await createAdminClient()
-    .storage.from(MEDIA_BUCKET)
-    .createSignedUrls(files.map((f) => f.storage_path), PREVIEW_URL_SECONDS, { download: true });
-  if (signError) throw signError;
-  const urls = new Map((data ?? []).flatMap((d) => (d.signedUrl && d.path ? [[d.path, d.signedUrl] as const] : [])));
-  return files.flatMap((f, i) => {
-    const url = urls.get(f.storage_path);
-    return url ? [{ url, name: `yabumi-${i + 1}.jpg` }] : [];
-  });
+  // 保存したときのファイルの名前（download= に入れる。PC のダウンロードで yabumi-1.jpg のようになる）。名前ごとに URL を作る
+  const storage = createAdminClient().storage.from(MEDIA_BUCKET);
+  const signed = await Promise.all(
+    files.map(async (f, i) => {
+      const name = `yabumi-${i + 1}.jpg`;
+      const { data, error: signError } = await storage.createSignedUrl(f.storage_path, PREVIEW_URL_SECONDS, { download: name });
+      if (signError) throw signError;
+      return { url: data.signedUrl, name };
+    }),
+  );
+  return signed;
 }
 

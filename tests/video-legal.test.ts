@@ -1,12 +1,12 @@
 // 投稿に動画を添える版（docs/legal.md の「投稿に動画を添える版」。② として扱う）: 版の並び・本文の新しい文が、作り（DB・決まり）と合っていること。
-// 了承は 2026-11-15（前もって知らせず、本番に出す日を施行日にする）。施行日は本番に出す日に PM が合わせる（ここの日付も一緒に直す）
+// 了承は 2026-11-15（前もって知らせない）。TikTok・YouTube と 1 つの版（2026-11-16）にまとめ、2026-11-15 に本番に出して 2026-11-16 に施行する
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { LEGAL_VERSIONS, currentLegalVersion, historyProblems } from "@/lib/legal/version";
 import { KEEP_VIDEO_AFTER_FAILED_DAYS, KEEP_VIDEO_AFTER_SENT_DAYS } from "@/lib/media/video-rules";
 import { SNS } from "@/lib/sns";
 
-const VERSION = "2026-11-17";
+const VERSION = "2026-11-16";
 const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 
 describe("投稿に動画を添える版", () => {

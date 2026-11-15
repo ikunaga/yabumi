@@ -1,5 +1,5 @@
 // TikTok の連携の版（docs/legal.md の「TikTok の連携の版」。② として扱う）: 版の並び・本文の新しい文・作りとの一致。
-// 了承は 2026-11-15（前もって知らせず、本番に出す日を施行日にする）。施行日は本番に出す日に PM が合わせる（ここの日付も一緒に直す）
+// 了承は 2026-11-15（前もって知らせない）。動画・YouTube と 1 つの版（2026-11-16）にまとめ、2026-11-15 に本番に出して 2026-11-16 に施行する
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { LEGAL_VERSIONS, historyProblems } from "@/lib/legal/version";
@@ -18,7 +18,7 @@ describe("TikTok の連携の版", () => {
     expect(rev.noticeWaived).toContain("2026-11-15");
     expect(rev.summary.join("")).toContain("TikTok");
     expect(historyProblems()).toEqual([]);
-    // あとに別の版（動画など）が続いてもよい。前の版（SNS のコメント）より後に並ぶ
+    // 前の版（SNS のコメント）より後に並ぶ
     expect(LEGAL_VERSIONS.findIndex((r) => r.version === VERSION)).toBeGreaterThan(LEGAL_VERSIONS.findIndex((r) => r.version === "2026-11-15"));
   });
 

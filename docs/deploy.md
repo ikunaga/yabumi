@@ -711,7 +711,7 @@ Next.js の server action の ID は、ビルドごとの暗号の鍵から作�
 |---|---|---|---|
 | 29-1 | PM | マイグレーション 20261115100000_post_videos を本番に当てる（バケット post-videos・media_files の列と決まり・引換券の kind と consumed_at・video_upload_counts・関数 3 つの置き換えと 1 つの追加。既存の画像の行は kind = 'image' になるだけ） | まだ |
 | 29-2 | オーナー | Supabase → Storage → Settings の「Upload file size limit」（全体の 1 ファイルの上限）が **50MB 以上**であることを確かめる（Free の上限は 50MB。バケットの上限は全体の上限を超えられない）。Storage の Buckets に post-videos があり、Public がオフであることも確かめる | まだ |
-| 29-3 | PM | 法務の版（legal.md の「投稿に動画を添える版」。YouTube と同じ 2026-11-17 の版）の施行日と noticeWaived の【仮】を、オーナーの了承と本番に出す日に合わせる（src/lib/legal/version.ts と tests/video-legal.test.ts の日付） | まだ |
+| 29-3 | PM | 法務の版（legal.md の「投稿に動画を添える版」）の施行日と noticeWaived の【仮】を、オーナーの了承と本番に出す日に合わせる（src/lib/legal/version.ts と tests/video-legal.test.ts の日付） | 済み（2026-11-15。TikTok・YouTube と 1 つの版 2026-11-16 にまとめた。了承は 2026-11-15。2026-11-15 に本番に出し、2026-11-16 に施行） |
 | 29-4 | PM | 本番で、オーナーの iPhone の Safari と PC の Chrome から、③ で動画を選び、整えて上げられることを確かめる（音が出るか・かかる時間）。`select kind, count(*) from media_files group by kind;` で動画の行ができたことを確かめる | まだ |
 | 29-5 | PM | 本物の SNS への確かめ（オーナーの了承のあと、4 つをまとめて 1 回）: Threads・Instagram（リール）・Facebook（リール）に 10 秒ほどの動画を 1 本ずつ送り、W2 として X に 1080×1920 を 1 本送る（約 $0.015）。送ったものは取り消す（Instagram は API で消せないので手で）。確かめること: 署名 URL を取りに来られるか（Range）、音声なし・44.1kHz、Facebook の rupload に appsecret_proof が要るか、X が 1080×1920 を受け付けるか | まだ |
 | 29-6 | PM | 送り終えて 1 日たった動画が、毎日 4:00 の片付け（cleanup-media）で Storage から消え、投稿の画面に「動画は送り終えたので消しました」が出ることを確かめる | まだ |
@@ -732,7 +732,7 @@ Next.js の server action の ID は、ビルドごとの暗号の鍵から作�
 | 30-6 | オーナー | Vercel → Settings → Environment Variables（Production と Preview）に `YOUTUBE_CLIENT_ID`・`YOUTUBE_CLIENT_SECRET` を足す（値は画面にもログにも出さない）。`YOUTUBE_OAUTH_TESTING` は入れない（既定でテスト中の案内を出す）。`YOUTUBE_DAILY_UPLOADS` も入れない（既定 90）。Redeploy | まだ |
 | 30-7 | オーナー | yabumi のプロジェクトの設定の「つないだ SNS」で YouTube をつなぐ（「確認されていないアプリ」と出たら「詳細」から進む）。チャンネル名と「m/d までにつなぎ直してください」が出る | まだ |
 | 30-8 | オーナー・PM | **オーナーの了承のあとで**、オーナーのチャンネルに「限定公開」で 1 本送る（docs/design/youtube.md の 14. の 8）。確かめること: 選んだ公開範囲のままか（非公開に固定されないか）、縦 60 秒の動画がショートになるか、送信の結果が投稿済みになり「YouTube で見る」が開くか、送信ジョブのログ（件数だけ）。`select count(*) from sns_api_usage where sns = 'youtube';` が 1 増えること | まだ |
-| 30-9 | PM | 規約・ポリシーの ② の版（動画と YouTube をまとめた版。legal.md）の施行日を、本番に出す日に合わせる（src/lib/legal/version.ts と tests/youtube-legal.test.ts の日付） | まだ |
+| 30-9 | PM | 規約・ポリシーの ② の版（動画と YouTube をまとめた版。legal.md）の施行日を、本番に出す日に合わせる（src/lib/legal/version.ts と tests/youtube-legal.test.ts の日付） | 済み（2026-11-15。TikTok・動画と 1 つの版 2026-11-16 にまとめた。2026-11-15 に本番に出し、2026-11-16 に施行） |
 | 30-10 | オーナー | デモ動画を撮り、公開の状態を「本番」にして OAuth の確認を申請する（docs/design/youtube.md の 11.1）。確認が済んだら Vercel に `YOUTUBE_OAUTH_TESTING=false` を足して Redeploy（7 日の案内が消える） | まだ |
 
 - 外すときは、yabumi の「外す」で Google の側の許可も取り消す（Google のアカウントの「サードパーティ アプリとサービス」からも消える）

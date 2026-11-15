@@ -1,11 +1,11 @@
-// YouTube の連携の版（docs/legal.md の「案: YouTube の連携」。② として扱った。了承は 2026-11-15。施行日は本番に出す日に PM が合わせる〈ここの日付も一緒に直す〉）: 版の並び・本文の新しい文・作りとの一致。
+// YouTube の連携の版（docs/legal.md の「案: YouTube の連携」。② として扱った。了承は 2026-11-15。TikTok・動画と 1 つの版〈2026-11-16〉にまとめ、2026-11-15 に本番に出して 2026-11-16 に施行する）: 版の並び・本文の新しい文・作りとの一致。
 // YouTube API Services の開発者ポリシーが求める文（API を使うこと・Google のプライバシーポリシー・取り消し方・YouTube 利用規約）が入っていること
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { LEGAL_VERSIONS, historyProblems } from "@/lib/legal/version";
 import { EXPIRED_PURGE_DAYS } from "@/lib/sns/youtube/purge";
 
-const VERSION = "2026-11-17";
+const VERSION = "2026-11-16";
 const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 
 describe("YouTube の連携の版", () => {
@@ -20,6 +20,11 @@ describe("YouTube の連携の版", () => {
     expect(rev.summary.join("")).toContain("YouTube API サービス");
     expect(historyProblems()).toEqual([]);
     expect(LEGAL_VERSIONS.at(-1)?.version).toBe(VERSION);
+    // 1 日 1 版: TikTok・動画・YouTube を 1 つの版にまとめ、summary は TikTok → 動画 → YouTube の順
+    expect(LEGAL_VERSIONS.filter((r) => r.version === VERSION)).toHaveLength(1);
+    const order = ["TikTok をつないで", "投稿に動画を添えられる", "YouTube をつないで"].map((w) => rev.summary.findIndex((l) => l.startsWith(w)));
+    expect(order.every((i) => i >= 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
   });
 
   it("プライバシーポリシーに、YouTube API サービス・Google のプライバシーポリシー・取り消し方・預かるもの・保存期間を書き、作りと合っている", () => {

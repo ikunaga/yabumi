@@ -54,11 +54,14 @@ export const STOP_REASON_TEXT: Record<AutoStopReason, string> = {
 // 送る時刻を過ぎても確かめなかった配信先の理由（post_targets.error_message。engine.ts の EXPIRED_MESSAGE と同じ）と、短い言葉
 export const EXPIRED_TARGET_LABEL = "確かめられなかったので送りませんでした";
 
-// カレンダーのチップの言葉（実装担当1 のカレンダーとそろえる。数え方: 確かめ待ちは承認するまで予約に数えない）
-// - before: ジョブがまだ作っていない回（点線の枠）
-// - awaiting: 作ったが、確かめて送る SNS が承認待ち（点線の枠。予約に数えない）
-// - scheduled: 予約（ふつうの予約のチップに ↻）
-// - expired: 確かめないまま送る時刻を過ぎた（! 失敗）
+// カレンダーの自動の回の言葉（数え方: 確かめ待ちは承認するまで予約に数えない）。
+// PC の週・月のマスは札の文字が 6〜8 字ほどで切れるので、札には回し方の名前・投稿の題を出し、この言葉は吹き出し・注意・読み上げ・スマホの一覧に出す
+// （2026-11-16 実装担当1 と合わせた。feat/auto-post-entry）
+// - before: ジョブがまだ作っていない回（点線の札）
+// - awaiting: 送り先がどれも確かめ待ち（点線の札・下書きの見え方。予約に数えない。押すと確かめる画面）。
+//   一部だけ確かめ待ち（Threads は送信待ち、X は確かめ待ちなど）は、予約の札に ↻ と「X は確かめ待ちです」の注意
+// - scheduled: 予約（ふつうの札に ↻）
+// - expired: 確かめないまま送る時刻を過ぎた（! 失敗。error_message に長い文、短くは EXPIRED_TARGET_LABEL）
 export const CALENDAR_CHIP = {
   before: "↻ 自動（作る前）",
   awaiting: "↻ 確かめ待ち",

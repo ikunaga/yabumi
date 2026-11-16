@@ -3,6 +3,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { saveConnectedAccount } from "@/lib/sns/accounts";
+import { SNS } from "@/lib/sns";
 import { SnsPublishError, type PrepareState, type PublishVideo, type SnsAdapter } from "@/lib/sns/adapters/types";
 import { markByHand } from "@/lib/posts/by-hand";
 import { removeSentVideo } from "@/lib/media/video-store";
@@ -111,7 +112,8 @@ describe("動画の投稿を送る", () => {
     expect(adapter.startPublishVideo).toHaveBeenCalledTimes(1);
   });
 
-  it("動画を送れない SNS（いまの X）には送らず、外すよう知らせる", async () => {
+  // X は 29-5 の W2 の試しの間だけ動画を送れる（2026-11-16 オーナー了承）。その間はこの確かめを飛ばす（trial/x-video-off で戻す）
+  it.skipIf(SNS.x.video)("動画を送れない SNS（いまの X）には送らず、外すよう知らせる", async () => {
     const adapter = videoAdapter("x");
     const { postId, targetId } = await scheduledPost("x");
     await seedPostVideo(admin, { ownerId: aliceId, postId });

@@ -47,7 +47,42 @@ export function maxSimilarity(text: string, recent: readonly string[]): number {
 
 // ===== AI を呼ばないチェック =====
 
-const URL_RE = /https?:\/\/[^\s<>"'）)]+/g;
+const URL_RE = /https?:\/\/[^\s<>"'）)]+/gi;
+// スキームのないドメイン（X などは「example.com」だけでもリンクにする）
+const BARE_DOMAIN_RE = /(?<![\w@./-])(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}(?:\/[^\s<>"'）)]*)?/gi;
+
+// 本文の URL が、登録した行き先のどれかの中か。前方一致の文字列では比べない（https://shop.example.com.evil.org/ を通さない）。
+// オリジン（スキーム・ホスト・ポート）が同じで、パスが行き先のパスの中（「/」の区切りで）にあり、ユーザー名・パスワードがないこと
+export function urlAllowed(raw: string, allowed: readonly string[]): boolean {
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    return false;
+  }
+  if (u.username || u.password || !["https:", "http:"].includes(u.protocol)) return false;
+  return allowed.some((a) => {
+    let d: URL;
+    try {
+      d = new URL(a);
+    } catch {
+      return false;
+    }
+    if (d.origin !== u.origin) return false;
+    const base = d.pathname.endsWith("/") ? d.pathname : `${d.pathname}/`;
+    return u.pathname === d.pathname || u.pathname.startsWith(base);
+  });
+}
+
+// 本文にある、リンクになりうるもの（スキームつきの URL と、スキームのないドメイン）のうち、行き先の外のもの
+export function foreignLinks(text: string, allowed: readonly string[]): string[] {
+  const out: string[] = [];
+  const withScheme = text.match(URL_RE) ?? [];
+  for (const u of withScheme) if (!urlAllowed(u, allowed)) out.push(u);
+  const rest = text.replace(URL_RE, " ");
+  for (const d of rest.match(BARE_DOMAIN_RE) ?? []) if (!urlAllowed(`https://${d}`, allowed)) out.push(d);
+  return out;
+}
 
 // 字数（縮めたあとも超えていれば）・【】・材料にない URL・ハッシュタグの数・前の投稿との重なり
 export function plainIssues(texts: Texts, opts: { allowedUrls: readonly string[]; recent: Partial<Record<SnsKey, string[]>> }): Issue[] {
@@ -59,8 +94,7 @@ export function plainIssues(texts: Texts, opts: { allowedUrls: readonly string[]
     }
     if (overLimit(k, text) > 0) issues.push({ kind: "too_long", detail: `${k} の字数の上限を超えています` });
     if (/[【】]/.test(text)) issues.push({ kind: "made_up", detail: `${k} に、あなたが書き足すところ（【】）が残っています` });
-    const urls = text.match(URL_RE) ?? [];
-    if (urls.some((u) => !opts.allowedUrls.some((a) => u === a || u.startsWith(a)))) issues.push({ kind: "check_failed", detail: `${k} に、行き先として登録していない URL があります` });
+    if (foreignLinks(text, opts.allowedUrls).length) issues.push({ kind: "check_failed", detail: `${k} に、行き先として登録していない URL があります` });
     if (extractHashtags(text).length > HASHTAG_RULES[k].max) issues.push({ kind: "check_failed", detail: `${k} のハッシュタグが多すぎます` });
     if (maxSimilarity(text, opts.recent[k] ?? []) >= thresholdOf(k)) issues.push({ kind: "similar", detail: `${k} の文が、前に送った投稿と似ています` });
   }

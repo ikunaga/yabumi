@@ -50,3 +50,18 @@ export const STOP_REASON_TEXT: Record<AutoStopReason, string> = {
   materials_out: "材料を使い切りました",
   operator: "運営者が止めました",
 };
+
+// 送る時刻を過ぎても確かめなかった配信先の理由（post_targets.error_message。engine.ts の EXPIRED_MESSAGE と同じ）と、短い言葉
+export const EXPIRED_TARGET_LABEL = "確かめられなかったので送りませんでした";
+
+// カレンダーのチップの言葉（実装担当1 のカレンダーとそろえる。数え方: 確かめ待ちは承認するまで予約に数えない）
+// - before: ジョブがまだ作っていない回（点線の枠）
+// - awaiting: 作ったが、確かめて送る SNS が承認待ち（点線の枠。予約に数えない）
+// - scheduled: 予約（ふつうの予約のチップに ↻）
+// - expired: 確かめないまま送る時刻を過ぎた（! 失敗）
+export const CALENDAR_CHIP = {
+  before: "↻ 自動（作る前）",
+  awaiting: "↻ 確かめ待ち",
+  scheduled: "↻",
+  expired: "! 失敗",
+} as const;

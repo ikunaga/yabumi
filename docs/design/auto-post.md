@@ -29,7 +29,11 @@
 - **core（feat/auto-post-core。2026-11-16）**: 表と関数（20261116100000_auto_post・20261116110000_auto_post_ai_budget）、src/lib/auto-post の型・読み取り・操作・偽の AI。境目と決めたこと（最初の回の確かめと承認を別のアクションにした、など）は src/lib/auto-post/README.md
   - 確かめて送る SNS は post_targets.status = awaiting_approval で置き、承認の記録（post_target_approvals）と文の指紋で、見せた中身と送る中身をそろえる。承認のあとに文を直すと確かめ待ちに戻る
   - 送る前の配信先を pending だけで見ていた関数のうち、save_post・post_targets_lock_sent・switch_project_sns_account は awaiting_approval も送る前として扱うようにした
-- **TODO（engine）**: 送る時刻を過ぎても承認されなかった配信先を残さない（失敗にして「承認されなかったので送りませんでした」。画面と通知の見え方も決める）。確かめが要る SNS（X・TikTok・YouTube）の自動の回は、送り直すと確かめ待ちに戻し、requeue_failed_targets も承認の記録のない自動の回を pending に戻さない（DB で二重に守る。2026-11-16 PM の指示）。ジョブがサーバーの権限で中身を読む道のテスト
+- **engine（feat/auto-post-engine。2026-11-16）**: ジョブ /api/jobs/auto-post（src/lib/auto-post/engine.ts）、材料の選び方（materials.ts）、文を作る指示（prompt.ts。callAutoPost）、チェック（checks.ts）、知らせ、見本（makeAutoSample を本物に）、マイグレーション 20261116120000_auto_post_engine。architecture.md の 4.75
+  - 送る時刻を過ぎても確かめなかった配信先は失敗にし、「確かめられないまま送る時刻を過ぎたので、送りませんでした…」を入れる（画面は送信の結果の「! 失敗」と要確認の帯。カレンダーのチップは labels.ts の CALENDAR_CHIP）。確かめが要る SNS の自動の回は、送り直すと承認の記録がなければ確かめ待ちに戻る（requeue_failed_targets。DB とジョブで二重に守る）
+  - 最初の回を確かめないまま送る時刻を過ぎたら、その回は取り消す（投稿は下書きのまま）。利用者が投稿の画面で予約にしたら、確かめ済みとして扱う
+  - シリーズは、穴の中身が広く知られた作品の一般的な事実なので（format-series.md の 4.）、「確かめてほしいところ」があっても下書きに回さず、AI っぽさチェックに任せる（記録だけ残す）。利用者が埋める穴があるフォーマットは自動では書けない（飛ばす）
+  - ジョブは `AUTO_POST_ENABLED=true` のときだけ動く（既定は止まっている。deploy.md の 31）
 - **TODO（段階 C）**: 動画の片付け（cleanup_media_candidates の動画の行と、post_videos の関数）は、awaiting_approval を「送る前」として数えていない。段階 A は動画を自動で添えないので触らない。動画を自動で添えるときに直す（2026-11-16 PM の了承）
 - カレンダーの数（counted_post_targets）は、確かめ待ちを承認するまで予約に数えない（2026-11-16 PM の了承。実装担当1 のチップの見え方とそろえる）
 

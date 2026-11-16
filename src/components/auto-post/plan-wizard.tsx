@@ -179,7 +179,6 @@ export function PlanWizard(p: Props) {
   const whatOk = !!kind && AUTO_KINDS_STAGE_A.includes(kind) && (kind !== "series" || !!materials.format_id);
   const whereOk = snsList.length > 0;
   const whenOk = !!effectiveSchedule && effectiveSchedule.weekdays.length > 0;
-  const canGo = (s: Step) => s === "what" || (s === "where" && whatOk) || (s === "when" && whatOk && whereOk) || (s === "confirm" && whatOk && whereOk && whenOk);
 
   const defaultName = kind === "series" ? (p.materials.seriesFormats.find((f) => f.id === materials.format_id)?.name ?? KIND_LABELS.series) : kind ? KIND_LABELS[kind] : "";
   const input = (): Omit<AutoPlanInput, "consent"> | null =>
@@ -211,9 +210,10 @@ export function PlanWizard(p: Props) {
       <div className="flex flex-col gap-3">
         <h1 className="text-[28px] leading-tight font-bold max-sm:text-[24px]">{editing ? "自動の投稿を直す" : "自動の投稿をはじめる"}</h1>
         <div className="max-sm:hidden">
-          <Steps steps={STEPS} current={step} canGo={canGo} onGo={go} label="自動の投稿の段取り" />
+          {/* ステップの印は押せない。動くのは下の「次へ」「戻る」だけ（投稿をつくると同じ。2026-11-15 オーナーの指示） */}
+          <Steps steps={STEPS} current={step} canGo={() => false} onGo={() => {}} label="自動の投稿の段取り" />
         </div>
-        <MobileSteps current={step} canGo={canGo} onGo={go} />
+        <MobileSteps current={step} />
       </div>
       {error && <ErrorBanner>{error}</ErrorBanner>}
 
@@ -310,7 +310,7 @@ export function PlanWizard(p: Props) {
                 const on = !!targets[s];
                 const connected = p.connected.includes(s);
                 return (
-                  <li key={s} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3 first:pt-0 last:pb-0">
+                  <li key={s} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 py-3 first:pt-0 last:pb-0">
                     <label className={`flex items-center gap-2.5 ${connected ? "cursor-pointer" : "text-muted"}`}>
                       <input
                         type="checkbox"
@@ -326,7 +326,6 @@ export function PlanWizard(p: Props) {
                         }}
                       />
                       <SnsTag sns={s} />
-                      <span className="text-[15px] font-bold">{SNS[s].label}</span>
                     </label>
                     {!connected ? (
                       <Link href={`/projects/${p.projectId}/edit`} className="text-sm text-muted underline">
@@ -792,8 +791,8 @@ function SampleView({ sample }: { sample: AutoSample }) {
   );
 }
 
-// スマホのステップ: 「2/4 どこに」と点（投稿をつくるの step-nav と同じ形。1 行に収める）。行けるステップの点は押して移れる
-function MobileSteps({ current, canGo, onGo }: { current: Step; canGo: (s: Step) => boolean; onGo: (s: Step) => void }) {
+// スマホのステップ: 「2/4 どこに」と点（投稿をつくるの step-nav と同じ形。1 行に収める）。いまどこかを見せるだけで、押しても移らない
+function MobileSteps({ current }: { current: Step }) {
   const i = STEPS.findIndex((s) => s.key === current);
   return (
     <nav aria-label="自動の投稿の段取り" className="flex items-center justify-between gap-3 sm:hidden">
@@ -804,22 +803,14 @@ function MobileSteps({ current, canGo, onGo }: { current: Step; canGo: (s: Step)
         {STEPS[i].label}
       </p>
       <ol className="flex items-center gap-1">
-        {STEPS.map((s) => {
+        {STEPS.map((s, n) => {
           const on = s.key === current;
-          const dot = <span aria-hidden className={`block rounded-full ${on ? "size-3 bg-primary ring-2 ring-primary ring-offset-2 ring-offset-bg" : "size-2.5 border border-input bg-surface"}`} />;
           return (
             <li key={s.key}>
-              {!on && canGo(s.key) ? (
-                <button type="button" onClick={() => onGo(s.key)} className="flex size-8 items-center justify-center">
-                  <span className="sr-only">{`${STEPS.indexOf(s) + 1} ${s.label}に移る`}</span>
-                  {dot}
-                </button>
-              ) : (
-                <span aria-current={on ? "step" : undefined} className="flex size-8 items-center justify-center">
-                  <span className="sr-only">{`${STEPS.indexOf(s) + 1} ${s.label}`}</span>
-                  {dot}
-                </span>
-              )}
+              <span aria-current={on ? "step" : undefined} className="flex size-8 items-center justify-center">
+                <span className="sr-only">{`${n + 1} ${s.label}`}</span>
+                <span aria-hidden className={`block rounded-full ${on ? "size-3 bg-primary ring-2 ring-primary ring-offset-2 ring-offset-bg" : "size-2.5 border border-input bg-surface"}`} />
+              </span>
             </li>
           );
         })}

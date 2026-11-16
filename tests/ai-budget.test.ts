@@ -7,6 +7,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
+import { autoPostDraftSchema } from "@/lib/auto-post/ai-schema";
 import { AI_MAX_RESERVATION_USD, AI_MAX_TOKENS, COUNTED_TOKENS_MARGIN, REQUEST_OVERHEAD_TOKENS, estimateRequestUsd, limitMessage, reserveEstimateUsd, tokenCounterOf, type AiCall } from "@/lib/ai/budget";
 import * as calls from "@/lib/ai/anthropic";
 import { estimateCostUsd } from "@/lib/ai/pricing";
@@ -87,6 +88,8 @@ const PURPOSE_CALLS: Record<string, AiCall[]> = {
   voice_memo: ["voice_memo"],
   post_format: ["post_format"],
   post_format_round: ["post_format_round"],
+  auto_post: ["auto_post", "shorten"],
+  auto_post_check: ["ai_check"],
 };
 const SCHEMAS: Record<AiCall, z.ZodType> = {
   plan_coach: coachTurnSchema,
@@ -102,6 +105,7 @@ const SCHEMAS: Record<AiCall, z.ZodType> = {
   voice_memo: voiceMemoSchema,
   post_format: postFormatProposalsSchema,
   post_format_round: roundProposalsSchema,
+  auto_post: autoPostDraftSchema,
 };
 
 // いちばん新しいマイグレーションの reserve_ai_usage の、用途ごとの下限の表
@@ -167,7 +171,9 @@ describe("予約の見込み（その呼び出しで起こりうる最大の額�
     );
     expect(used.size).toBeGreaterThanOrEqual(8);
     for (const p of used) expect(Object.keys(floors), p).toContain(p);
-    expect([...used].sort()).toEqual(Object.keys(PURPOSE_CALLS).sort());
+    // 自動の投稿の用途は、DB の表と見込みを core（feat/auto-post-core）で先に足し、呼び出しは engine で足す。engine で呼ぶようになったら、この除外を外す
+    const ENGINE_PURPOSES = ["auto_post", "auto_post_check"];
+    expect([...used].sort()).toEqual(Object.keys(PURPOSE_CALLS).filter((p) => !ENGINE_PURPOSES.includes(p) || used.has(p)).sort());
   });
 
   it("普段の長さの相談（20 往復）は、1 回の上限（$1）に届かない", () => {
@@ -219,7 +225,7 @@ describe("count_tokens で数えた見込み", () => {
 
   it("anthropic.ts の呼び出しには、どれも数える関数が付いている", () => {
     const exported = Object.entries(calls).filter(([k, v]) => /^call[A-Z]/.test(k) && typeof v === "function");
-    expect(exported.length).toBe(13);
+    expect(exported.length).toBe(14);
     for (const [k, v] of exported) expect(tokenCounterOf(v as never), k).toBeTypeOf("function");
   });
 });

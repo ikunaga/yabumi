@@ -9,7 +9,7 @@ import { formatShort } from "@/lib/time";
 
 export type TargetResult = {
   id: string;
-  status: "pending" | "preparing" | "publishing" | "published" | "failed" | "deleted";
+  status: "pending" | "awaiting_approval" | "preparing" | "publishing" | "published" | "failed" | "deleted";
   externalUrl: string | null;
   errorMessage: string | null;
   publishedAt: string | null;
@@ -141,6 +141,7 @@ function ResultRow({ sns, r, projectId, postId, video }: { sns: SnsKey; r: Targe
           </>
         )}
         {r.status === "publishing" && <span className="text-muted">送信中です。しばらくしてから読み込み直してください。</span>}
+        {r.status === "awaiting_approval" && <span className="font-bold text-signal">確かめ待ち（中身を確かめると送ります）</span>}
         {r.status === "preparing" &&
           (sns === "tiktok" ? (
             // TikTok は、送ったあとに TikTok の側で写真を取りに来て処理する（docs/design/tiktok.md の 6.）

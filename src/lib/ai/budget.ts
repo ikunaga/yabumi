@@ -34,6 +34,9 @@ export const AI_MAX_TOKENS = {
   post_format: 3000,
   // シリーズの次の回の案（docs/design/format-series.md の 3）
   post_format_round: 2500,
+  // 自動の投稿の文を作る（docs/design/auto-post.md の 2.4。DB の reserve_ai_usage の auto_post の下限 0.13 と合う値）。
+  // チェックは AI っぽさチェック（ai_check）の呼び出しを、用途 auto_post_check で使う
+  auto_post: 3200,
 } as const;
 export type AiCall = keyof typeof AI_MAX_TOKENS;
 

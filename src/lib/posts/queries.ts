@@ -6,7 +6,7 @@ import { isUnsentDraft } from "./drafts";
 import { dueManualPostIds, overduePostIds } from "./overdue";
 import { NOT_BY_HAND_FILTER } from "@/lib/sns/by-hand";
 
-export type TargetStatus = "pending" | "preparing" | "publishing" | "published" | "failed" | "deleted";
+export type TargetStatus = "pending" | "awaiting_approval" | "preparing" | "publishing" | "published" | "failed" | "deleted";
 export type PostTargetRow = {
   id: string;
   sns: SnsKey;

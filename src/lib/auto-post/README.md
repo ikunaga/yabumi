@@ -1,0 +1,59 @@
+# src/lib/auto-post（自動の投稿）
+
+設計は docs/design/auto-post.md。DB は supabase/migrations/20261116100000_auto_post.sql と 20261116110000_auto_post_ai_budget.sql。
+ここは画面（実装担当3）・入口と案（実装担当1）・ジョブ（実装担当2 の feat/auto-post-engine）の境目。
+
+## ファイル
+
+| ファイル | 中身 | 使う人 |
+|---|---|---|
+| types.ts | 型（AutoPlan・AutoRun・AutoReviewItem・UpcomingAutoRun・ProjectEvent・AutoSample・AutoResult）と、SNS ごとに選べる送り方（TARGET_MODES）・段階 A の使い道と SNS | みんな |
+| labels.ts | 画面の言葉（使い道・送り方・回の状態・理由・止まった理由） | 画面 |
+| schema.ts | 入力の確かめ（zod）と上限の値 | 画面・アクション |
+| schedule.ts | くり返しの規則から送る時刻を出す（dueTimes・nextDueTime・runsPerMonth） | 画面・カレンダー・ジョブ |
+| queries.ts | 読み取り（server-only。利用者の権限） | サーバーコンポーネント |
+| actions.ts | 操作（"use server"） | 画面 |
+| ai.ts | AI の入口と偽の AI（下） | アクション・ジョブ |
+
+## 読み取り（queries.ts）
+
+- `listAutoPlans(projectId)`・`getAutoPlan(planId)`: 回し方
+- `listAutoRuns(planId, limit)`: 回の一覧（新しい順。結果を見る画面）
+- `listUpcomingAutoRuns(projectId, from, until)`: カレンダー・概要に出す、これからの回。ジョブがまだ作っていない回は規則から出す（postId が null・status が waiting）。止めた・飛ばした回は出さない
+- `listAutoReviewItems(projectId)`・`countAutoReviewItems(projectId)`: 確かめ待ち（送る時刻の前のもの）
+- `listProjectEvents(projectId)`: お知らせ・季節の予定
+
+## 操作（actions.ts）。どれも `AutoResult`（`{ ok: true, data }` か `{ ok: false, error }`。error は画面にそのまま出せる文）
+
+- `saveAutoPlan(projectId, input)`: 作る・直す。**保存のたびに同意（input.consent = true）が要る**（X の自動化のルール: 機能を変えたら同意し直し）。直すと、まだ作っていない回は新しい設定で作り直す
+- `setAutoPlanStatus(projectId, planId, "paused" | "active", toDraft)`・`pauseAllAutoPlans(projectId, toDraft)`: 止める・再開・全部止める。toDraft が true なら、作り終えてまだ送っていない予約を下書きに戻す（false ならそのまま送る）。画面で選んでもらう（初期値 true）
+- `skipNextAutoRun(planId)`: 次の回を飛ばす（次の回がまだ決まっていなければ dueAt が null）
+- `deleteAutoPlan(planId, toDraft)`: 消す
+- `makeAutoSample(projectId, input)`: 見本の 1 回（保存しない）。いまは偽の AI だけ。engine で中身を差し替える（形は変えない）
+- `listEvents`・`saveEvent(projectId, { id?, onDate, body })`・`deleteEvent(projectId, id)`: お知らせ・季節の予定
+- `loadAutoPlan(planId)`・`loadAutoTargetPreviews(postId)`: 開き直したときの読み直し
+
+### 確かめる（2 つの道。決めたこと）
+
+| 道 | いつ | アクション |
+|---|---|---|
+| **最初の回の確かめ**（A3。`AutoReviewItem.kind === "first_review"`） | 回し方の最初の回。投稿は下書きのまま | `reviewAutoRun(runId, send, fingerprints)`。送るなら、画面に出した配信先の `{ targetId: fingerprint }` をすべて渡す（確かめて送る SNS もまとめて承認し、投稿を予約にする。次の回から確かめない）。送らないなら、その回は取り消し、投稿は下書きのまま（次の回もまた確かめる） |
+| **確かめて送る SNS の承認**（X など。`kind === "approval"`） | 2 回目からの回で、確かめて送る SNS があるとき。ほかの SNS は予約のまま送られる | SNS ごとに `approveAutoTarget(targetId, fingerprint)`（承認）か `declineAutoTarget(targetId)`（この SNS には送らない。配信先を外す） |
+
+- 最初の回の確かめを別のアクションにした理由: 投稿全体（予約にするか）と回し方（次から確かめない）を変えるので、配信先ごとの承認とは意味が違う。1 つにすると「X だけ承認したら投稿が予約になる」などの取り違えが起きる
+- fingerprint は queries・`loadAutoTargetPreviews` が返す `AutoTargetPreview.fingerprint` をそのまま渡す。**見せた文と、いまの文が違えば断る**（「確かめたあとに文が変わりました。もう一度確かめてください。」）。承認のあとに文を直すと、承認は外れて確かめ待ちに戻る（DB のトリガー）
+- 送る時刻を過ぎたら承認できない（「送る時刻を過ぎたので…」）
+- 確かめる画面は、`AutoTargetPreview.body`（送る文そのもの。タグを付けた形）と `title` を、SNS ごとにそのまま見せる（X の開発者ポリシー「Show exactly what will be published」）
+
+## 偽の AI（ai.ts）
+
+- 環境変数 `AUTO_POST_FAKE_AI` を `.env.local` に入れると、見本（makeAutoSample）と、engine ができたあとの回の作成が偽の AI で動く。Vercel の上では値があっても使わない
+  - `1`（か `ok`）: 材料の名前を入れた決まった文。チェックに通る
+  - `held`: 「事実か確かめて」の指摘が付く（下書きに回る道）
+  - `cannot`: 「材料だけでは書けません」（飛ばす道）
+- テストは `setAutoPostGeneratorForTest(fn)` で差し込み、終わりに `null` で外す
+
+## 状態（posts と post_targets）
+
+- 自動の回で作った投稿は `posts.auto_run_id` が入る（利用者は書けない）。カレンダー・一覧の「↻」はこれで出す
+- 確かめて送る SNS の配信先は `post_targets.status = "awaiting_approval"`（画面の言葉は「確かめ待ち」。src/lib/posts/send-mode.ts の TARGET_STATE）。送信ジョブは pending しか取り出さないので、承認の前は送られない。カレンダーの数（counted_post_targets）は、承認するまで予約に数えない

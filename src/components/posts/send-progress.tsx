@@ -4,7 +4,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { SNS, type SnsKey } from "@/lib/sns";
 
-type Status = "pending" | "publishing" | "preparing" | "published" | "failed" | "deleted";
+type Status = "pending" | "awaiting_approval" | "publishing" | "preparing" | "published" | "failed" | "deleted";
 
 type Props = {
   // 保存できた投稿（保存している間は null）

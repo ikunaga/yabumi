@@ -27,7 +27,8 @@ type SnsSpec = {
 
 export const SNS: Record<SnsKey, SnsSpec> = {
   // X は写真 4 枚まで。Threads はカルーセルで 20 枚まで。Instagram はカルーセルで 10 枚まで
-  x: { label: "X", maxLength: 140, media: "none", delivery: "auto", maxImages: 4, video: false },
+  // 29-5 の W2 の試しのための一時的なもの。確かめたら戻す（2026-11-16 オーナー了承）
+  x: { label: "X", maxLength: 140, media: "none", delivery: "auto", maxImages: 4, video: true },
   threads: { label: "Threads", maxLength: 500, media: "none", delivery: "auto", maxImages: 20, video: true },
   instagram: { label: "Instagram", maxLength: 2200, media: "image_or_video", delivery: "auto", maxImages: 10, video: true },
   // Facebook ページの複数の写真の上限は公式の資料で確かめられなかった。つなぐときに確かめる

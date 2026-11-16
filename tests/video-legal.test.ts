@@ -29,7 +29,7 @@ describe("投稿に動画を添える版", () => {
     expect(privacy).toContain(`すべての送り先に送り終えたら、すぐに消す（送れなかった送り先や、手で投稿する送り先が残っていれば ${KEEP_VIDEO_AFTER_FAILED_DAYS} 日）`);
     // 送り先に書いた SNS だけが、動画を送れる（X は W2 の確かめのあとで足す）
     for (const sns of ["threads", "instagram", "facebook"] as const) expect(SNS[sns].video).toBe(true);
-    expect(SNS.x.video).toBe(false);
+    // X は 29-5 の W2 の試しの間だけ true（2026-11-16 オーナー了承）。trial/x-video-off で false とこの確かめを戻す
     expect(privacy).toContain("Threads が画像や動画を取りに来るための");
     expect(privacy).toContain("Instagram が画像や動画を取りに来るための");
     expect(privacy).toContain("Facebook が画像や動画を取りに来るための");

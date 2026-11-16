@@ -330,7 +330,7 @@ async function MonthView({ projectId, productType, base, ym, today, done }: { pr
     const d = toYmd(new Date(c.dueAt));
     const list = items.get(d);
     if (!list) continue;
-    list.push({ id: c.id, href: c.href, time: formatTime(c.dueAt), sns: c.sns.map((k) => SNS[k].label).join(" / "), snsKeys: c.sns, title: c.title, status: "draft", warning: null, auto: true });
+    list.push({ id: c.id, href: c.href, time: formatTime(c.dueAt), sns: c.sns.map((k) => SNS[k].label).join(" / "), snsKeys: c.sns, title: c.title, status: "draft", warning: null, auto: true, statusLabel: c.label });
     plannedCount.set(d, (plannedCount.get(d) ?? 0) + 1);
   }
   const days: MonthDay[] = grid.map((d) => {
@@ -421,7 +421,7 @@ function MobilePlannedCard({ chip }: { chip: PlannedAutoChip }) {
       </span>
       <span className="text-[15px]">
         <AutoMark show />
-        {chip.title}
+        {chip.label} {chip.title}
       </span>
     </Link>
   );

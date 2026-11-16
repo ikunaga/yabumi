@@ -105,7 +105,7 @@ export function WeekGrid({
                 })}
                 {autoList.map((c) => {
                   const time = formatTime(c.dueAt);
-                  return <SnsLabel key={c.id} href={c.href} sns={c.sns} status="draft" time={time.endsWith(":00") ? undefined : time} title={c.title} auto />;
+                  return <SnsLabel key={c.id} href={c.href} sns={c.sns} status="draft" time={time.endsWith(":00") ? undefined : time} title={c.title} statusLabel={c.label} auto />;
                 })}
               </div>
             );

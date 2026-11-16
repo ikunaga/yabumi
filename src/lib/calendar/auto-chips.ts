@@ -3,10 +3,11 @@ import type { PostRow } from "@/lib/posts/queries";
 import type { SnsKey } from "@/lib/sns";
 
 // カレンダーに出す自動の回（docs/design/auto-post.md の 1.6）。
-// 作る前の回は点線の札「↻ 自動（作る前） 回し方の名前」で、押すと回し方の画面へ。作ったあとの回はふつうの投稿の札に「↻」を付ける。
+// 作る前の回は点線の札「↻ 回し方の名前」（スマホの一覧は「↻ 自動（作る前） 回し方の名前」）で、押すと回し方の画面へ。作ったあとの回はふつうの投稿の札に「↻」を付ける。
 // 確かめ待ち（最初の回の確かめ・確かめて送る SNS の承認待ち）は、押すと確かめ待ちの画面へ（予約には数えない。displayStatus と同じ扱い）
 
-export type PlannedAutoChip = { id: string; planId: string; dueAt: string; href: string; title: string; sns: SnsKey[] };
+// title は札に出す短い題（回し方の名前。PC のマスは狭いので「自動（作る前）」は札に書かず、点線と ↻ で示す）。label は読み上げと吹き出しの状態
+export type PlannedAutoChip = { id: string; planId: string; dueAt: string; href: string; title: string; label: string; sns: SnsKey[] };
 
 export const PLANNED_TITLE = "自動（作る前）";
 
@@ -19,7 +20,8 @@ export function plannedAutoChips(runs: UpcomingAutoRun[], base: string): Planned
       planId: r.planId,
       dueAt: r.dueAt,
       href: `${base}/auto/${r.planId}`,
-      title: `${PLANNED_TITLE} ${r.planName}`,
+      title: r.planName,
+      label: PLANNED_TITLE,
       sns: r.sns,
     }));
 }

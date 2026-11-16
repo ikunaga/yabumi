@@ -108,6 +108,7 @@ export function MonthMobile({ days, base, initial, bands, today }: { days: Month
                 </span>
               )}
               {it.auto && <span className="sr-only">自動の投稿・</span>}
+              {it.statusLabel && `${it.statusLabel} `}
               {it.title}
             </span>
             {it.warning && <span className="text-xs font-semibold text-signal">{it.warning}</span>}

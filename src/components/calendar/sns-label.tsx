@@ -32,6 +32,7 @@ export function SnsLabel({
   title,
   dim = false,
   auto = false,
+  statusLabel,
 }: {
   href: string;
   sns: SnsKey[];
@@ -40,8 +41,10 @@ export function SnsLabel({
   title: string;
   dim?: boolean;
   auto?: boolean;
+  // 状態の言葉を差し替える（作る前の自動の回は「自動（作る前）」）
+  statusLabel?: string;
 }) {
-  const s = STATUS[status];
+  const s = { ...STATUS[status], label: statusLabel ?? STATUS[status].label };
   const look = status === "draft" || sns.length === 0 ? "border border-dashed border-input text-muted" : `${SNS_TINT[sns[0]]} text-fg`;
   return (
     <Link

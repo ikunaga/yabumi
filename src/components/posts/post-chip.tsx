@@ -15,6 +15,9 @@ export function displayStatus(post: PostRow): PostDisplayStatus {
   const live = post.targets.filter((t) => t.status !== "deleted");
   if (live.length > 0 && live.every((t) => t.status === "published")) return "posted";
   if (post.targets.length > 0 && live.length === 0) return "draft";
+  // 確かめて送る SNS（X など）は、承認するまで送られない。送り先がどれも確かめ待ちなら予約に見せない
+  // （カレンダーの予約の数・counted_post_targets と同じ扱い。docs/design/auto-post.md の 2.3）
+  if (live.length > 0 && live.every((t) => t.status === "awaiting_approval")) return "draft";
   return post.status === "scheduled" ? "scheduled" : "draft";
 }
 
@@ -29,6 +32,9 @@ export function snsSummary(post: PostRow, short = false): string {
 export function postWarning(post: PostRow): string | null {
   const status = displayStatus(post);
   if (status !== "scheduled" && status !== "draft") return null;
+  // 確かめて送る SNS の承認待ち（押すまで送られない）を先に知らせる
+  const waiting = post.targets.filter((t) => t.status === "awaiting_approval");
+  if (waiting.length > 0) return `${waiting.map((t) => SNS[t.sns].label).join("・")} は確かめ待ちです`;
   for (const t of post.targets) {
     if (t.status !== "pending") continue;
     const issue = checkTarget(t.sns, targetText(post.body, t), { images: post.images, videos: 0 }).issues[0];

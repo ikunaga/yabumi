@@ -111,6 +111,8 @@ export type ComposerProps = {
   selfWrittenPosts?: number | null;
   // 書き方（文調のメモ）がもうあるか（あれば、すすめも案内も出さない）
   hasVoiceMemo?: boolean;
+  // 見出しの横の「↻ 自動で回す」の行き先（新しい投稿だけ。渡さなければ出さない。docs/design/auto-post.md の 1.2）
+  autoHref?: string;
 };
 
 // 送信済み・送信中・取り消し済みの配信先は、選び直しも送り直しもできない

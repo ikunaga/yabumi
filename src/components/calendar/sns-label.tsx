@@ -22,7 +22,8 @@ const STATUS: Record<PostDisplayStatus, { mark: string; className: string; label
   draft: { mark: "", className: "", label: "下書き" },
 };
 
-// 1 件の投稿の札: SNS の色の点（送り先の数だけ）・時刻・題。地は最初の SNS の色を薄く。下書きは点線の枠で色を付けない
+// 1 件の投稿の札: SNS の色の点（送り先の数だけ）・時刻・題。地は最初の SNS の色を薄く。下書きは点線の枠で色を付けない。
+// auto: 自動の回（docs/design/auto-post.md の 1.6）。藍の「↻」を付ける。作る前の回は下書きと同じ点線の枠で、題を「自動（作る前） 回し方の名前」にする
 export function SnsLabel({
   href,
   sns,
@@ -30,6 +31,8 @@ export function SnsLabel({
   time,
   title,
   dim = false,
+  auto = false,
+  statusLabel,
 }: {
   href: string;
   sns: SnsKey[];
@@ -37,13 +40,16 @@ export function SnsLabel({
   time?: string;
   title: string;
   dim?: boolean;
+  auto?: boolean;
+  // 状態の言葉を差し替える（作る前の自動の回は「自動（作る前）」）
+  statusLabel?: string;
 }) {
-  const s = STATUS[status];
+  const s = { ...STATUS[status], label: statusLabel ?? STATUS[status].label };
   const look = status === "draft" || sns.length === 0 ? "border border-dashed border-input text-muted" : `${SNS_TINT[sns[0]]} text-fg`;
   return (
     <Link
       href={href}
-      title={`${title}（${sns.map((k) => SNS[k].label).join("・") || "送り先なし"}・${s.label}）`}
+      title={`${auto ? "↻ " : ""}${title}（${sns.map((k) => SNS[k].label).join("・") || "送り先なし"}・${s.label}）`}
       className={`relative z-10 flex min-w-0 items-center gap-1 rounded-sm px-1.5 py-[3px] text-[12px] leading-[1.35] font-bold hover:no-underline hover:brightness-95 ${look} ${dim ? "opacity-60" : ""}`}
     >
       <span className="flex shrink-0 items-center gap-0.5" aria-hidden>
@@ -56,7 +62,15 @@ export function SnsLabel({
           {s.mark}
         </span>
       )}
-      <span className="sr-only">{s.label}</span>
+      {auto && (
+        <span aria-hidden className="shrink-0 text-primary">
+          ↻
+        </span>
+      )}
+      <span className="sr-only">
+        {auto ? "自動の投稿・" : ""}
+        {s.label}
+      </span>
       {time && <span className="num shrink-0 font-normal text-muted">{time}</span>}
       <span className="truncate">{title}</span>
     </Link>

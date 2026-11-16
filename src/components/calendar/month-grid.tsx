@@ -68,7 +68,7 @@ export function MonthGrid({ days, base, bands, today }: { days: MonthDay[]; base
                 <TodoButton key={t.id} todo={t} base={base} variant="day" />
               ))}
               {shown.map((it) => (
-                <SnsLabel key={it.id} href={it.href} sns={it.snsKeys} status={it.status} time={it.time} title={it.title} dim={!d.inMonth} />
+                <SnsLabel key={it.id} href={it.href} sns={it.snsKeys} status={it.status} time={it.time} title={it.title} dim={!d.inMonth} auto={it.auto} statusLabel={it.statusLabel} />
               ))}
               {more > 0 && (
                 <Link

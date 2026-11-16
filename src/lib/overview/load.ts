@@ -38,7 +38,14 @@ export async function loadOverviewNumbers(projectId: string, kpis: KpiKey[], pro
     // 直近 30 日と前の 30 日
     loadDailyNumbers(supabase, projectId, today, OVERVIEW_DAYS * 2),
     supabase.from("short_links").select("id", { count: "exact", head: true }).eq("project_id", projectId),
-    supabase.from("posts").select("id", { count: "exact", head: true }).eq("project_id", projectId).eq("status", "scheduled").gte("planned_at", new Date().toISOString()),
+    // 予約中: 送る前の配信先（pending）がある予約だけ。確かめて送る SNS の承認待ち（awaiting_approval）だけの投稿は数えない（カレンダーの予約の数と同じ）
+    supabase
+      .from("posts")
+      .select("id, post_targets!inner(id)", { count: "exact", head: true })
+      .eq("project_id", projectId)
+      .eq("status", "scheduled")
+      .gte("planned_at", new Date().toISOString())
+      .eq("post_targets.status", "pending"),
     // 下書き: 予約していない投稿のうち、どこにも送っていないもの（今すぐ送った投稿は下書きの状態のまま送られる。src/lib/posts/drafts.ts）
     countUnsentDrafts(supabase, projectId),
   ]);

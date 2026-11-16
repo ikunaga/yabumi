@@ -37,11 +37,13 @@ export type PostRow = {
   // 投稿をつくったときに選んでいたフォーマットと、つないだロードマップのやること（下書きから再開したときに戻す。PMO2 の s8）
   formatId: string | null;
   roadmapItemId: string | null;
+  // 自動の回で作った投稿なら、その回の id（カレンダー・一覧の「↻」。docs/design/auto-post.md の 2.2）。省略は手で作った投稿
+  autoRunId?: string | null;
 };
 
 const TARGET_FIELDS = "id, sns, status, title, body_override, external_post_id, external_url, sns_removed_at, error_message, published_at, next_attempt_at, quote_post_id, hashtags";
-const POST_SELECT = `id, body, planned_at, status, text_origin, format_id, roadmap_item_id, post_targets(${TARGET_FIELDS}), media_files(count)` as const;
-const POST_SELECT_FAILED_ONLY = `id, body, planned_at, status, text_origin, format_id, roadmap_item_id, post_targets!inner(${TARGET_FIELDS}), media_files(count)` as const;
+const POST_SELECT = `id, body, planned_at, status, text_origin, format_id, roadmap_item_id, auto_run_id, post_targets(${TARGET_FIELDS}), media_files(count)` as const;
+const POST_SELECT_FAILED_ONLY = `id, body, planned_at, status, text_origin, format_id, roadmap_item_id, auto_run_id, post_targets!inner(${TARGET_FIELDS}), media_files(count)` as const;
 
 
 type RawPost = {
@@ -52,6 +54,7 @@ type RawPost = {
   text_origin?: string | null;
   format_id?: string | null;
   roadmap_item_id?: string | null;
+  auto_run_id?: string | null;
   post_targets: (Omit<PostTargetRow, "sns" | "status"> & { sns: string; status: string })[];
   media_files?: { count: number }[];
 };
@@ -65,6 +68,7 @@ function normalize(p: RawPost): PostRow {
     textOrigin: p.text_origin === "ai" || p.text_origin === "self" ? p.text_origin : null,
     formatId: p.format_id ?? null,
     roadmapItemId: p.roadmap_item_id ?? null,
+    autoRunId: p.auto_run_id ?? null,
     targets: p.post_targets
       .filter((t) => isSnsKey(t.sns))
       .map((t) => ({ ...t, sns: t.sns as SnsKey, status: t.status as TargetStatus }))

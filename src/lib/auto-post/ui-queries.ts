@@ -1,6 +1,7 @@
 import "server-only";
 import { isSnsKey, type SnsKey } from "@/lib/sns";
 import { createClient } from "@/lib/supabase/server";
+import { EXPIRED_MESSAGE } from "./engine";
 
 // 自動の投稿の画面（実装担当3）だけが使う読み取り。core の queries.ts とは分けた（ジョブの担当と同じファイルを触らないように）。
 // どれも利用者の権限で読む（RLS で本人のものだけ）
@@ -10,6 +11,7 @@ export type RunTargetResult = {
   status: string;
   url: string | null;
   views: number | null;
+  expired: boolean;
 };
 
 // 回の投稿ごとの、SNS ごとの送った結果と表示回数（回し方の画面の回の一覧と「平均の表示」）
@@ -17,7 +19,7 @@ export async function loadRunResults(postIds: string[]): Promise<Map<string, Run
   const out = new Map<string, RunTargetResult[]>();
   if (!postIds.length) return out;
   const db = await createClient();
-  const { data: targets, error } = await db.from("post_targets").select("id, post_id, sns, status, external_url").in("post_id", postIds);
+  const { data: targets, error } = await db.from("post_targets").select("id, post_id, sns, status, external_url, error_message").in("post_id", postIds);
   if (error) throw new Error(`post_targets: ${error.message}`);
   const ids = targets.map((t) => t.id);
   const latest = new Map<string, { day: number; views: number | null }>();
@@ -42,6 +44,8 @@ export async function loadRunResults(postIds: string[]): Promise<Map<string, Run
       status: t.status,
       url: t.external_url,
       views: latest.get(t.id)?.views ?? null,
+      // 確かめないまま送る時刻を過ぎた配信先（engine の settleApprovals が failed にする）
+      expired: t.status === "failed" && t.error_message === EXPIRED_MESSAGE,
     });
     out.set(t.post_id, list);
   }

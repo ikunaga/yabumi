@@ -210,7 +210,10 @@ export function PlanWizard(p: Props) {
     <div className="flex flex-col gap-5 max-sm:gap-4">
       <div className="flex flex-col gap-3">
         <h1 className="text-[28px] leading-tight font-bold max-sm:text-[24px]">{editing ? "自動の投稿を直す" : "自動の投稿をはじめる"}</h1>
-        <Steps steps={STEPS} current={step} canGo={canGo} onGo={go} label="自動の投稿の段取り" />
+        <div className="max-sm:hidden">
+          <Steps steps={STEPS} current={step} canGo={canGo} onGo={go} label="自動の投稿の段取り" />
+        </div>
+        <MobileSteps current={step} canGo={canGo} onGo={go} />
       </div>
       {error && <ErrorBanner>{error}</ErrorBanner>}
 
@@ -237,7 +240,7 @@ export function PlanWizard(p: Props) {
             </Card>
           )}
           <div className="grid grid-cols-3 gap-3 max-lg:grid-cols-2 max-sm:grid-cols-1" role="radiogroup" aria-label="使い道">
-            {AUTO_KINDS.map((k) => {
+            {AUTO_KINDS.filter((k) => editing || k !== p.kindSuggestion.kind).map((k) => {
               const ready = AUTO_KINDS_STAGE_A.includes(k);
               const a = kindAvailability(k, p.materials, p.projectId);
               const on = kind === k;
@@ -751,12 +754,26 @@ function CustomSchedule({ value, onChange }: { value: AutoSchedule; onChange: (s
 
 function SampleView({ sample }: { sample: AutoSample }) {
   const entries = Object.entries(sample.texts) as [SnsKey, string][];
+  // texts が空なら書けなかった（engine の makeAutoSample）。そのときは「書けませんでした」の 1 行と理由だけにする（同じ文を 2 度出さない）
+  const cannot = entries.length === 0;
+  const reasons = cannot ? sample.issues.map((i) => i.detail || RUN_REASON_TEXT[i.kind]) : [];
+  const issues = cannot ? [] : sample.issues;
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-sm text-muted">材料: {sample.materialLabel}</p>
-      {sample.issues.length > 0 && (
+      {sample.materialLabel && <p className="text-sm text-muted">材料: {sample.materialLabel}</p>}
+      {cannot && (
+        <div className="flex flex-col gap-1">
+          <p className="text-[15px] font-bold">この材料では書けませんでした。本番の回なら、この回は飛ばします。</p>
+          {reasons.map((r, n) => (
+            <p key={n} className="text-[14px] text-muted">
+              {r}
+            </p>
+          ))}
+        </div>
+      )}
+      {issues.length > 0 && (
         <ul className="flex flex-col gap-1 rounded-md bg-signal-soft px-4 py-3 text-[14px]">
-          {sample.issues.map((i, n) => (
+          {issues.map((i, n) => (
             <li key={n}>
               <span className="font-bold text-signal">● </span>
               {RUN_REASON_TEXT[i.kind]}
@@ -772,5 +789,41 @@ function SampleView({ sample }: { sample: AutoSample }) {
         </div>
       ))}
     </div>
+  );
+}
+
+// スマホのステップ: 「2/4 どこに」と点（投稿をつくるの step-nav と同じ形。1 行に収める）。行けるステップの点は押して移れる
+function MobileSteps({ current, canGo, onGo }: { current: Step; canGo: (s: Step) => boolean; onGo: (s: Step) => void }) {
+  const i = STEPS.findIndex((s) => s.key === current);
+  return (
+    <nav aria-label="自動の投稿の段取り" className="flex items-center justify-between gap-3 sm:hidden">
+      <p className="text-[15px] font-bold">
+        <span className="num">
+          {i + 1}/{STEPS.length}
+        </span>{" "}
+        {STEPS[i].label}
+      </p>
+      <ol className="flex items-center gap-1">
+        {STEPS.map((s) => {
+          const on = s.key === current;
+          const dot = <span aria-hidden className={`block rounded-full ${on ? "size-3 bg-primary ring-2 ring-primary ring-offset-2 ring-offset-bg" : "size-2.5 border border-input bg-surface"}`} />;
+          return (
+            <li key={s.key}>
+              {!on && canGo(s.key) ? (
+                <button type="button" onClick={() => onGo(s.key)} className="flex size-8 items-center justify-center">
+                  <span className="sr-only">{`${STEPS.indexOf(s) + 1} ${s.label}に移る`}</span>
+                  {dot}
+                </button>
+              ) : (
+                <span aria-current={on ? "step" : undefined} className="flex size-8 items-center justify-center">
+                  <span className="sr-only">{`${STEPS.indexOf(s) + 1} ${s.label}`}</span>
+                  {dot}
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
   );
 }

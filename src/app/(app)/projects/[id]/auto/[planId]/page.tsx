@@ -6,10 +6,11 @@ import { PlanControls } from "@/components/auto-post/plan-controls";
 import { PlanStatusMark } from "@/components/auto-post/status-mark";
 import { Card, CardHeader, EmptyState } from "@/components/ui/card";
 import { Badge } from "@/components/ui/chip";
+import { Disclosure } from "@/components/ui/help";
 import { SuccessBanner } from "@/components/ui/feedback";
 import { SnsTag } from "@/components/ui/marks";
 import { Metric } from "@/components/ui/metric";
-import { KIND_LABELS, RUN_REASON_TEXT, RUN_STATUS_LABELS, TARGET_MODE_LABELS } from "@/lib/auto-post/labels";
+import { EXPIRED_TARGET_LABEL, KIND_LABELS, RUN_REASON_TEXT, RUN_STATUS_LABELS, TARGET_MODE_LABELS } from "@/lib/auto-post/labels";
 import { getAutoPlan, listAutoRuns, listUpcomingAutoRuns } from "@/lib/auto-post/queries";
 import type { AutoRun } from "@/lib/auto-post/types";
 import type { SnsKey } from "@/lib/sns";
@@ -60,7 +61,12 @@ export default async function AutoPlanPage(props: PageProps<"/projects/[id]/auto
 
       <div className="grid grid-cols-3 gap-3 max-sm:grid-cols-3 max-sm:gap-2">
         <Metric label="送った" value={sentRuns.length} unit="回" className="max-sm:px-3" />
-        <Metric label="下書きに回した" value={heldCount} unit="回" className="max-sm:px-3" />
+        <Metric label={
+            <>
+              <span className="max-sm:hidden">下書きに回した</span>
+              <span className="sm:hidden">下書き</span>
+            </>
+          } value={heldCount} unit="回" className="max-sm:px-3" />
         <Metric label="平均の表示" value={avgViews ?? "—"} className="max-sm:px-3" />
       </div>
 
@@ -110,6 +116,7 @@ export default async function AutoPlanPage(props: PageProps<"/projects/[id]/auto
 function RunRow({ run, results, projectId }: { run: AutoRun; results: RunTargetResult[]; projectId: string }) {
   const published = results.filter((t) => t.status === "published");
   const failed = results.some((t) => t.status === "failed");
+  const expired = results.filter((t) => t.expired);
   const label = published.length ? "投稿済み" : failed ? "送れなかった" : RUN_STATUS_LABELS[run.status];
   const tone = published.length ? "success" : failed || run.status === "held" || run.status === "review" ? "signal" : "neutral";
   return (
@@ -119,12 +126,13 @@ function RunRow({ run, results, projectId }: { run: AutoRun; results: RunTargetR
           <span className="num text-[15px] font-bold">{formatShort(run.dueAt)}</span>
           <Badge tone={tone}>{label}</Badge>
         </p>
-        {run.reason && (
-          <p className="text-[14px] text-muted">
-            {RUN_REASON_TEXT[run.reason]}
-            {run.reasonDetail && `（${run.reasonDetail}）`}
+        <RunReason run={run} />
+        {expired.map((t) => (
+          <p key={t.sns} className="flex flex-wrap items-center gap-x-1.5 text-[14px] text-muted">
+            <SnsTag sns={t.sns} />
+            {EXPIRED_TARGET_LABEL}
           </p>
-        )}
+        ))}
       </div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
         {published.map((t) => (
@@ -140,5 +148,27 @@ function RunRow({ run, results, projectId }: { run: AutoRun; results: RunTargetR
         )}
       </div>
     </li>
+  );
+}
+
+// 回の理由（reason の文と reason_detail）。確かめずに時刻を過ぎた最初の回は reason が user_skipped でも利用者が飛ばしたのではないので、reason_detail だけを出す。
+// reason_detail が長いとき（AI の枠の上限の文など）は、reason の文だけを出して、くわしくは畳む
+const DETAIL_INLINE_MAX = 40;
+function RunReason({ run }: { run: AutoRun }) {
+  if (!run.reason) return null;
+  const detail = run.reasonDetail?.trim() || null;
+  if (run.reason === "user_skipped" && detail) return <p className="text-[14px] text-muted">{detail}</p>;
+  if (detail && [...detail].length > DETAIL_INLINE_MAX)
+    return (
+      <div className="flex flex-col gap-0.5 text-[14px] text-muted">
+        <p>{RUN_REASON_TEXT[run.reason]}</p>
+        <Disclosure summary="くわしく">{detail}</Disclosure>
+      </div>
+    );
+  return (
+    <p className="text-[14px] text-muted">
+      {RUN_REASON_TEXT[run.reason]}
+      {detail && `（${detail}）`}
+    </p>
   );
 }

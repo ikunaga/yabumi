@@ -1,6 +1,6 @@
 // プロジェクト内のナビ。まだ作っていない画面は href なし（押せない）。
 // main: 上の横並びのメニュー（PC）とスマホの下のタブに出す 5 つ（決定 D33）。ほかは「…」（その他）と、スマホの「メニュー」と、関係する画面の中から開く
-export type ProjectNavKey = "overview" | "plan" | "compose" | "drafts" | "comments" | "notes" | "calendar" | "links" | "metrics" | "consult" | "roadmap" | "settings";
+export type ProjectNavKey = "overview" | "plan" | "compose" | "auto" | "drafts" | "comments" | "notes" | "calendar" | "links" | "metrics" | "consult" | "roadmap" | "settings";
 
 // barLabel: PC の上の帯に出す英語の名前（2026-10-31 オーナーの指示）。画面の見出し・スマホのタブ・メニューの説明は日本語（label・tabLabel）のまま
 export type ProjectNavItem = { key: ProjectNavKey; label: string; barLabel: string; tabLabel: string; href: string | null; main: boolean };
@@ -15,6 +15,8 @@ export function projectNavItems(projectId: string): ProjectNavItem[] {
     { key: "metrics", label: "分析", barLabel: "Analytics", tabLabel: "分析", href: `${base}/metrics`, main: true },
     { key: "consult", label: "AI と相談", barLabel: "Ask AI", tabLabel: "相談", href: `${base}/consult`, main: true },
     // ここから「…」（その他）。概要の「いまやること」「今週のやること」からも開く
+    // 自動の投稿（docs/design/auto-post.md の 1.2。A7 の ①）。概要の帯・投稿をつくるの「↻ 自動で回す」・カレンダーからも開く
+    { key: "auto", label: "自動の投稿", barLabel: "Autopilot", tabLabel: "自動の投稿", href: `${base}/auto`, main: false },
     // 下書きの一覧（保存した下書きを探して続ける。概要とカレンダーの「下書き n 件」・投稿をつくるの「下書きから続ける」からも開く。2026-11-13 PMO2 の確かめ）
     { key: "drafts", label: "下書き", barLabel: "Drafts", tabLabel: "下書き", href: `${base}/drafts`, main: false },
     // SNS のコメント（4.70）。概要の「新しいコメント」の帯・スマホの通知・投稿の画面からも開く
@@ -38,6 +40,8 @@ export function activeNavKey(segment: string | null): ProjectNavKey {
     case "posts":
     case "ideas":
       return "compose";
+    case "auto":
+      return "auto";
     case "drafts":
       return "drafts";
     case "comments":

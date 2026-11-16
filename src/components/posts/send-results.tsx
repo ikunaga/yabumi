@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { callAction } from "@/lib/client-errors";
 import { useState, useTransition } from "react";
 import { Button, buttonClass } from "@/components/ui/button";
@@ -141,7 +142,15 @@ function ResultRow({ sns, r, projectId, postId, video }: { sns: SnsKey; r: Targe
           </>
         )}
         {r.status === "publishing" && <span className="text-muted">送信中です。しばらくしてから読み込み直してください。</span>}
-        {r.status === "awaiting_approval" && <span className="font-bold text-signal">確かめ待ち（中身を確かめると送ります）</span>}
+        {r.status === "awaiting_approval" && (
+          // 自動の投稿の「確かめて送る」SNS（X など）。確かめる画面で中身を見て承認すると送る（docs/design/auto-post.md の 1.6）
+          <span className="flex flex-wrap items-baseline gap-x-2">
+            <span className="font-bold text-signal">確かめ待ち（中身を確かめると送ります）</span>
+            <Link href={`/projects/${projectId}/auto/review`} className="text-sm font-bold text-fg underline">
+              確かめる →
+            </Link>
+          </span>
+        )}
         {r.status === "preparing" &&
           (sns === "tiktok" ? (
             // TikTok は、送ったあとに TikTok の側で写真を取りに来て処理する（docs/design/tiktok.md の 6.）

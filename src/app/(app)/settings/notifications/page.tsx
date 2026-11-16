@@ -3,6 +3,7 @@ import Link from "next/link";
 import { TopBar } from "@/components/nav/top-bar";
 import { PushSettings } from "@/components/push/push-settings";
 import { LearningPrefsForm } from "@/components/settings/learning-prefs-form";
+import { AutoPostPrefsForm } from "@/components/settings/auto-post-prefs-form";
 import { CommentPrefsForm } from "@/components/settings/comment-prefs-form";
 import { NotificationPrefsForm } from "@/components/settings/notification-prefs-form";
 import { Card, CardHeader } from "@/components/ui/card";
@@ -18,7 +19,7 @@ export const metadata: Metadata = { title: "お知らせの設定" };
 export default async function NotificationSettingsPage() {
   const user = await requireUser();
   const supabase = await createClient();
-  const { data } = await supabase.from("notification_prefs").select("email_mode, push_mode, behind_weekday, learning_enabled, comment_push").maybeSingle();
+  const { data } = await supabase.from("notification_prefs").select("email_mode, push_mode, behind_weekday, learning_enabled, comment_push, auto_post_push").maybeSingle();
   const prefs = { ...DEFAULT_PREFS, ...(data ?? {}) };
   return (
     <>
@@ -50,6 +51,10 @@ export default async function NotificationSettingsPage() {
             <Card className="overflow-hidden">
               <CardHeader title="SNS のコメントのまとめ" />
               <CommentPrefsForm mode={data?.comment_push === "off" ? "off" : "daily"} />
+            </Card>
+            <Card className="overflow-hidden">
+              <CardHeader title="自動の投稿の通知" />
+              <AutoPostPrefsForm on={data?.auto_post_push ?? true} />
             </Card>
             <Card className="overflow-hidden">
               <CardHeader title="学びの表示（今日の用語・ひとこと）" />

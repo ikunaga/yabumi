@@ -1,7 +1,7 @@
 // 自動の回の送る前のチェックと、知らせの文（docs/design/auto-post.md の 2.5・2.7。src/lib/auto-post/checks.ts・engine.ts）
 import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
-import { applyAiCheck, jaccard, maxSimilarity, plainIssues, thresholdOf, trigrams } from "@/lib/auto-post/checks";
+import { applyAiCheck, foreignLinks, jaccard, maxSimilarity, plainIssues, thresholdOf, trigrams, urlAllowed } from "@/lib/auto-post/checks";
 import { generatedMessage } from "@/lib/auto-post/engine";
 
 describe("重なり（3-gram の Jaccard）", () => {
@@ -39,6 +39,29 @@ describe("AI を呼ばないチェック", () => {
     expect(plainIssues({ x: text }, { allowedUrls: [], recent: { x: [text] } })[0].kind).toBe("similar");
     // ほかの SNS に送った文とは比べない
     expect(plainIssues({ x: text }, { allowedUrls: [], recent: { threads: [text] } })).toEqual([]);
+  });
+});
+
+describe("URL は登録した行き先の中だけ（前方一致ですり抜けない）", () => {
+  const allowed = ["https://shop.example.com", "https://example.com/shop/"];
+  it("同じオリジンで、行き先のパスの中なら通す", () => {
+    expect(urlAllowed("https://shop.example.com/", allowed)).toBe(true);
+    expect(urlAllowed("https://shop.example.com/menu?x=1", allowed)).toBe(true);
+    expect(urlAllowed("https://example.com/shop/bread", allowed)).toBe(true);
+  });
+  it("ホストを伸ばした・ユーザー名を入れた・ポートやスキームを変えた・パスの外は通さない", () => {
+    expect(urlAllowed("https://shop.example.com.evil.org/", allowed)).toBe(false);
+    expect(urlAllowed("https://shop.example.com@evil.org/", allowed)).toBe(false);
+    expect(urlAllowed("https://shop.example.com:8443/", allowed)).toBe(false);
+    expect(urlAllowed("http://shop.example.com/", allowed)).toBe(false);
+    expect(urlAllowed("https://example.com/shopping", allowed)).toBe(false);
+    expect(urlAllowed("https://example.com/", allowed)).toBe(false);
+  });
+  it("スキームのないドメインも見る（X などはリンクにする）", () => {
+    expect(foreignLinks("くわしくは evil.org/x へ", allowed)).toEqual(["evil.org/x"]);
+    expect(foreignLinks("くわしくは shop.example.com へ", allowed)).toEqual([]);
+    expect(foreignLinks("メールは a@b.example.jp まで。ver.2 になりました", allowed)).toEqual([]);
+    expect(plainIssues({ threads: "こちら shop.example.com.evil.org です" }, { allowedUrls: allowed, recent: {} })[0].kind).toBe("check_failed");
   });
 });
 

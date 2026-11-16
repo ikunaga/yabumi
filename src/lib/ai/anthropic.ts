@@ -16,6 +16,7 @@ import { tidyDraftSchema, type CallTidy } from "./tidy-draft";
 import { voiceMemoSchema, type CallVoiceMemo } from "./voice-memo";
 import { postFormatProposalsSchema, type CallPostFormat } from "./post-format-ai";
 import { roundProposalsSchema, type CallFormatRound } from "./format-round-ai";
+import { autoPostDraftSchema } from "@/lib/auto-post/ai-schema";
 import { PLAN_COACH_MODEL, type CallModel } from "./plan-coach";
 import { AI_MAX_TOKENS, countable, type CountTokens } from "./budget";
 import { AiRequestRejected, AiUnavailableError, isRejectedStatus, isUnavailableResponse } from "./provider-failure";
@@ -183,3 +184,6 @@ export const callVoiceMemo: CallVoiceMemo = structuredCaller(voiceMemoSchema, AI
 export const callPostFormat: CallPostFormat = structuredCaller(postFormatProposalsSchema, AI_MAX_TOKENS.post_format, "medium");
 // シリーズの次の回の案（docs/design/format-series.md の 3）。作品の要素を選ぶので effort は medium
 export const callFormatRound: CallFormatRound = structuredCaller(roundProposalsSchema, AI_MAX_TOKENS.post_format_round, "medium");
+
+// 自動の投稿の文を作る（docs/design/auto-post.md の 2.4）。呼ぶのは feat/auto-post-engine のジョブ（src/lib/auto-post/ai.ts の入口から）
+export const callAutoPost = structuredCaller(autoPostDraftSchema, AI_MAX_TOKENS.auto_post, "medium");

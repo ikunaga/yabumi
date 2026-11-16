@@ -1,0 +1,222 @@
+"use server";
+
+import { z } from "zod";
+import { SNS } from "@/lib/sns";
+import { createClient } from "@/lib/supabase/server";
+import { autoPostGenerator } from "./ai";
+import { KIND_LABELS } from "./labels";
+import { getAutoPlan, listProjectEvents, loadTargetPreviews } from "./queries";
+import { autoPlanInputSchema, eventInputSchema } from "./schema";
+import type { AutoPlanInput, AutoResult, AutoSample, ProjectEvent } from "./types";
+
+// 自動の投稿の操作（利用者の権限で。書き込みは DB の関数が確かめる。docs/design/auto-post.md、src/lib/auto-post/README.md）
+
+type Db = Awaited<ReturnType<typeof createClient>>;
+
+const BAD = "入力の形式が正しくありません。";
+const FAILED = "うまくいきませんでした。時間をおいてもう一度お試しください。";
+
+// DB の関数が返す決まった理由（hint）を、画面の文にする
+const HINT_TEXT: Record<string, string> = {
+  consent_required: "「AI が作った文を、確かめずに送ります」に同意してください。",
+  legal_consent_missing: "利用規約とプライバシーポリシーに同意してから始めてください。",
+  auto_plans_limit: "自動の投稿は 1 つのプロジェクトに 10 個までです。使っていないものを消してください。",
+  project_events_limit: "予定は 1 つのプロジェクトに 50 件までです。終わった予定を消してください。",
+  approval_expired: "送る時刻を過ぎたので、送れません。投稿の画面で日時を直してから予約してください。",
+  content_changed: "確かめたあとに文が変わりました。もう一度確かめてください。",
+};
+
+type DbError = { code?: string; hint?: string | null; message: string };
+
+function errorText(e: DbError, notFound: string): string {
+  if (e.hint && HINT_TEXT[e.hint]) return HINT_TEXT[e.hint];
+  if (e.code === "P0002") return notFound;
+  if (e.code === "22023") return BAD;
+  console.error("[auto-post]", e.code, e.message);
+  return FAILED;
+}
+
+async function signedIn(): Promise<Db | null> {
+  const db = await createClient();
+  const { data } = await db.auth.getClaims();
+  return data?.claims?.sub ? db : null;
+}
+
+const uuid = z.uuid();
+const SIGN_IN = { ok: false as const, error: "ログインし直してください。" };
+const NO_PLAN = "自動の投稿が見つかりません。画面を読み込み直してください。";
+const NO_TARGET = "確かめる投稿が見つかりません。画面を読み込み直してください。";
+
+// 作る・直す（保存のたびに同意が要る。直したら、まだ作っていない回は新しい設定で作り直す）。保存した id を返す
+export async function saveAutoPlan(projectId: string, input: AutoPlanInput): Promise<AutoResult<{ id: string }>> {
+  if (!uuid.safeParse(projectId).success) return { ok: false, error: BAD };
+  const p = autoPlanInputSchema.safeParse(input);
+  if (!p.success) return { ok: false, error: p.error.issues[0]?.message ?? BAD };
+  const db = await signedIn();
+  if (!db) return SIGN_IN;
+  const v = p.data;
+  const { data, error } = await db.rpc("save_auto_plan", {
+    p_plan_id: (v.id ?? null) as string,
+    p_project_id: projectId,
+    p_name: v.name,
+    p_kind: v.kind,
+    p_materials: v.materials,
+    p_targets: v.targets,
+    p_x_link: v.xLink,
+    p_schedule: v.schedule,
+    p_tone: v.tone,
+    p_lead_hours: v.leadHours,
+    p_consent: v.consent,
+  });
+  if (error) return { ok: false, error: errorText(error, NO_PLAN) };
+  return { ok: true, data: { id: data as string } };
+}
+
+// 止める（paused）・再開する（active）。止めるとき toDraft なら、作り終えてまだ送っていない予約を下書きに戻す（false ならそのまま送る）
+export async function setAutoPlanStatus(projectId: string, planId: string, status: "active" | "paused", toDraft = true): Promise<AutoResult> {
+  if (!uuid.safeParse(projectId).success || !uuid.safeParse(planId).success || !["active", "paused"].includes(status)) return { ok: false, error: BAD };
+  const db = await signedIn();
+  if (!db) return SIGN_IN;
+  const { error } = await db.rpc("set_auto_plan_status", { p_project_id: projectId, p_plan_id: planId, p_status: status, p_to_draft: toDraft });
+  return error ? { ok: false, error: errorText(error, NO_PLAN) } : { ok: true, data: undefined };
+}
+
+// 全部止める（プロジェクトの自動の投稿をすべて止める）。止めた数を返す
+export async function pauseAllAutoPlans(projectId: string, toDraft = true): Promise<AutoResult<{ count: number }>> {
+  if (!uuid.safeParse(projectId).success) return { ok: false, error: BAD };
+  const db = await signedIn();
+  if (!db) return SIGN_IN;
+  const { data, error } = await db.rpc("set_auto_plan_status", { p_project_id: projectId, p_plan_id: null as unknown as string, p_status: "paused", p_to_draft: toDraft });
+  return error ? { ok: false, error: errorText(error, NO_PLAN) } : { ok: true, data: { count: Number(data ?? 0) } };
+}
+
+// 次の回を飛ばす。飛ばした回の時刻を返す（次の回がまだ決まっていなければ null）
+export async function skipNextAutoRun(planId: string): Promise<AutoResult<{ dueAt: string | null }>> {
+  if (!uuid.safeParse(planId).success) return { ok: false, error: BAD };
+  const db = await signedIn();
+  if (!db) return SIGN_IN;
+  const { data, error } = await db.rpc("skip_next_auto_run", { p_plan_id: planId });
+  return error ? { ok: false, error: errorText(error, NO_PLAN) } : { ok: true, data: { dueAt: (data as string | null) ?? null } };
+}
+
+// 消す。toDraft なら、作り終えてまだ送っていない予約を下書きに戻す（false ならふつうの予約として残り、送られる）
+export async function deleteAutoPlan(planId: string, toDraft = true): Promise<AutoResult> {
+  if (!uuid.safeParse(planId).success) return { ok: false, error: BAD };
+  const db = await signedIn();
+  if (!db) return SIGN_IN;
+  const { error } = await db.rpc("delete_auto_plan", { p_plan_id: planId, p_to_draft: toDraft });
+  return error ? { ok: false, error: errorText(error, NO_PLAN) } : { ok: true, data: undefined };
+}
+
+// ===== 確かめる =====
+// 最初の回の確かめ（A3。AutoReviewItem の kind が first_review）は reviewAutoRun。送るなら、画面に出した配信先の指紋をすべて渡す
+// （確かめて送る SNS もまとめて承認する）。確かめて送る SNS の承認待ち（kind が approval）は approveAutoTarget・declineAutoTarget で SNS ごとに
+
+const fingerprint = z.string().regex(/^[0-9a-f]{64}$/);
+
+export async function reviewAutoRun(runId: string, send: boolean, fingerprints: Record<string, string> = {}): Promise<AutoResult> {
+  if (!uuid.safeParse(runId).success || !z.record(z.uuid(), fingerprint).safeParse(fingerprints).success) return { ok: false, error: BAD };
+  const db = await signedIn();
+  if (!db) return SIGN_IN;
+  const { error } = await db.rpc("review_auto_run", { p_run_id: runId, p_send: send, p_fingerprints: fingerprints });
+  return error ? { ok: false, error: errorText(error, NO_TARGET) } : { ok: true, data: undefined };
+}
+
+export async function approveAutoTarget(targetId: string, fp: string): Promise<AutoResult> {
+  if (!uuid.safeParse(targetId).success || !fingerprint.safeParse(fp).success) return { ok: false, error: BAD };
+  const db = await signedIn();
+  if (!db) return SIGN_IN;
+  const { error } = await db.rpc("approve_auto_target", { p_target_id: targetId, p_fingerprint: fp });
+  return error ? { ok: false, error: errorText(error, NO_TARGET) } : { ok: true, data: undefined };
+}
+
+export async function declineAutoTarget(targetId: string): Promise<AutoResult> {
+  if (!uuid.safeParse(targetId).success) return { ok: false, error: BAD };
+  const db = await signedIn();
+  if (!db) return SIGN_IN;
+  const { error } = await db.rpc("decline_auto_target", { p_target_id: targetId });
+  return error ? { ok: false, error: errorText(error, NO_TARGET) } : { ok: true, data: undefined };
+}
+
+// 投稿の、配信先ごとの送る中身と指紋（確かめる画面を開き直したとき）
+export async function loadAutoTargetPreviews(postId: string) {
+  if (!uuid.safeParse(postId).success) return { ok: false as const, error: BAD };
+  const db = await signedIn();
+  if (!db) return SIGN_IN;
+  try {
+    return { ok: true as const, data: await loadTargetPreviews(db, postId) };
+  } catch (e) {
+    console.error("[auto-post]", e instanceof Error ? e.message : e);
+    return { ok: false as const, error: FAILED };
+  }
+}
+
+// ===== 見本の 1 回（保存しない） =====
+// いまは偽の AI だけ（AUTO_POST_FAKE_AI）。本物の AI・材料の選び方・チェックは feat/auto-post-engine で、この関数の中身を差し替える（形は変えない）
+export async function makeAutoSample(projectId: string, input: Omit<AutoPlanInput, "consent">): Promise<AutoResult<AutoSample>> {
+  if (!uuid.safeParse(projectId).success) return { ok: false, error: BAD };
+  const p = autoPlanInputSchema.safeParse({ ...input, consent: true });
+  if (!p.success) return { ok: false, error: p.error.issues[0]?.message ?? BAD };
+  const db = await signedIn();
+  if (!db) return SIGN_IN;
+  const generate = autoPostGenerator();
+  if (!generate) return { ok: false, error: "見本をつくる機能は準備中です。" };
+  const sns = Object.keys(p.data.targets) as (keyof typeof SNS)[];
+  const materialLabel = KIND_LABELS[p.data.kind];
+  const out = await generate({
+    kind: p.data.kind,
+    sns,
+    material: materialLabel,
+    materialLabel,
+    context: "",
+    tone: p.data.tone,
+    recentBodies: [],
+    maxLength: Object.fromEntries(sns.map((s) => [s, SNS[s].maxLength])),
+  });
+  if (!out.ok) return { ok: true, data: { texts: {}, materialLabel, issues: [{ kind: "cannot_write", detail: out.detail }] } };
+  return { ok: true, data: { texts: out.texts, materialLabel, issues: out.issues ?? [] } };
+}
+
+// ===== お知らせ・季節の予定 =====
+export async function listEvents(projectId: string): Promise<AutoResult<ProjectEvent[]>> {
+  if (!uuid.safeParse(projectId).success) return { ok: false, error: BAD };
+  if (!(await signedIn())) return SIGN_IN;
+  try {
+    return { ok: true, data: await listProjectEvents(projectId) };
+  } catch (e) {
+    console.error("[auto-post]", e instanceof Error ? e.message : e);
+    return { ok: false, error: FAILED };
+  }
+}
+
+// 足す（id なし）・直す（id あり）。保存した予定を返す
+export async function saveEvent(projectId: string, input: { id?: string; onDate: string; body: string }): Promise<AutoResult<ProjectEvent>> {
+  if (!uuid.safeParse(projectId).success || (input.id !== undefined && !uuid.safeParse(input.id).success)) return { ok: false, error: BAD };
+  const p = eventInputSchema.safeParse(input);
+  if (!p.success) return { ok: false, error: p.error.issues[0]?.message ?? BAD };
+  const db = await signedIn();
+  if (!db) return SIGN_IN;
+  const q = input.id
+    ? db.from("project_events").update({ on_date: p.data.onDate, body: p.data.body }).eq("id", input.id).eq("project_id", projectId)
+    : db.from("project_events").insert({ project_id: projectId, on_date: p.data.onDate, body: p.data.body });
+  const { data, error } = await q.select("id, on_date, body").maybeSingle();
+  if (error) return { ok: false, error: errorText(error, "予定が見つかりません。") };
+  if (!data) return { ok: false, error: "予定が見つかりません。画面を読み込み直してください。" };
+  return { ok: true, data: { id: data.id, onDate: data.on_date, body: data.body } };
+}
+
+export async function deleteEvent(projectId: string, id: string): Promise<AutoResult> {
+  if (!uuid.safeParse(projectId).success || !uuid.safeParse(id).success) return { ok: false, error: BAD };
+  const db = await signedIn();
+  if (!db) return SIGN_IN;
+  const { error } = await db.from("project_events").delete().eq("id", id).eq("project_id", projectId);
+  return error ? { ok: false, error: errorText(error, "予定が見つかりません。") } : { ok: true, data: undefined };
+}
+
+// 回し方を 1 つ読む（画面の担当が、直す画面を開くときに使う）
+export async function loadAutoPlan(planId: string) {
+  if (!uuid.safeParse(planId).success) return { ok: false as const, error: BAD };
+  if (!(await signedIn())) return SIGN_IN;
+  const plan = await getAutoPlan(planId);
+  return plan ? { ok: true as const, data: plan } : { ok: false as const, error: NO_PLAN };
+}

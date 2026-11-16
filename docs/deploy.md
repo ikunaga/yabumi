@@ -737,3 +737,13 @@ Next.js の server action の ID は、ビルドごとの暗号の鍵から作�
 
 - 外すときは、yabumi の「外す」で Google の側の許可も取り消す（Google のアカウントの「サードパーティ アプリとサービス」からも消える）
 - 1 日 100 本の枠（プロジェクト全体）は、全体で 1 日 50 本を超える日が出てきたら、割り当ての監査を申請する（docs/design/youtube.md の 11.2）。増えたら `YOUTUBE_DAILY_UPLOADS` を上げる
+
+## 31. 自動の投稿（段階 A。2026-11-16、feat/auto-post-core・feat/auto-post-engine。docs/design/auto-post.md）
+
+AI の枠は、自動の投稿の分を別に持つ（A4。2026-11-16 オーナーが (a) に決めた。利用者 月 $3・全体 月 $5・1 人 1 日に作る 10 回。値は reserve_ai_usage の中で固定）。ふだんの AI の全体 $10 と合わせて、yabumi の AI の上限は月 $15 になる。
+
+| 段 | 誰が | すること | 状態 |
+|---|---|---|---|
+| 31-1 | PM | マイグレーション 20261116100000_auto_post と 20261116110000_auto_post_ai_budget を本番に当てる（表 4 つ・posts.auto_run_id・post_targets.status の check に awaiting_approval を足す〈既存の行が新しい check を通ることを先に確かめる〉・関数の追加と、save_post・post_targets_lock_sent・switch_project_sns_account・reserve_ai_usage の置き換え） | まだ |
+| 31-2 | オーナー | **Claude Console の使いすぎの上限を、月 $15 から $20 ほどに上げる**（Settings → Limits。6-3 で決めた上限。yabumi の上限〈ふだん $10 ＋ 自動の投稿 $5〉より少し上にして、yabumi の計算がずれても請求がそれ以上にならないようにする） | まだ |
+| 31-3 | PM | 規約・ポリシーの ② の版（legal.md の「案: 自動の投稿」）を、オーナーの了承のあと、本番に出す日の版として LEGAL_VERSIONS に足す | まだ |

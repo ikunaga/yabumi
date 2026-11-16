@@ -403,6 +403,156 @@ export type Database = {
           },
         ]
       }
+      auto_plans: {
+        Row: {
+          consent_version: string
+          consented_at: string
+          created_at: string
+          fail_streak: number
+          first_review: boolean
+          id: string
+          kind: string
+          lead_hours: number
+          materials: Json
+          name: string
+          owner_id: string
+          project_id: string
+          schedule: Json
+          status: string
+          stop_reason: string | null
+          targets: Json
+          tone: string
+          updated_at: string
+          x_link: string
+        }
+        Insert: {
+          consent_version: string
+          consented_at: string
+          created_at?: string
+          fail_streak?: number
+          first_review?: boolean
+          id?: string
+          kind: string
+          lead_hours?: number
+          materials?: Json
+          name: string
+          owner_id: string
+          project_id: string
+          schedule: Json
+          status?: string
+          stop_reason?: string | null
+          targets: Json
+          tone?: string
+          updated_at?: string
+          x_link?: string
+        }
+        Update: {
+          consent_version?: string
+          consented_at?: string
+          created_at?: string
+          fail_streak?: number
+          first_review?: boolean
+          id?: string
+          kind?: string
+          lead_hours?: number
+          materials?: Json
+          name?: string
+          owner_id?: string
+          project_id?: string
+          schedule?: Json
+          status?: string
+          stop_reason?: string | null
+          targets?: Json
+          tone?: string
+          updated_at?: string
+          x_link?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auto_plans_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      auto_runs: {
+        Row: {
+          attempts: number
+          created_at: string
+          due_at: string
+          generate_at: string
+          id: string
+          locked_at: string | null
+          material_ref: Json
+          owner_id: string
+          plan_id: string
+          post_id: string | null
+          project_id: string
+          reason: string | null
+          reason_detail: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          due_at: string
+          generate_at: string
+          id?: string
+          locked_at?: string | null
+          material_ref?: Json
+          owner_id: string
+          plan_id: string
+          post_id?: string | null
+          project_id: string
+          reason?: string | null
+          reason_detail?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          due_at?: string
+          generate_at?: string
+          id?: string
+          locked_at?: string | null
+          material_ref?: Json
+          owner_id?: string
+          plan_id?: string
+          post_id?: string | null
+          project_id?: string
+          reason?: string | null
+          reason_detail?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auto_runs_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "auto_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auto_runs_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auto_runs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       github_installations: {
         Row: {
           account_login: string
@@ -1546,6 +1696,35 @@ export type Database = {
           },
         ]
       }
+      post_target_approvals: {
+        Row: {
+          approved_at: string
+          fingerprint: string
+          owner_id: string
+          post_target_id: string
+        }
+        Insert: {
+          approved_at?: string
+          fingerprint: string
+          owner_id: string
+          post_target_id: string
+        }
+        Update: {
+          approved_at?: string
+          fingerprint?: string
+          owner_id?: string
+          post_target_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_target_approvals_post_target_id_fkey"
+            columns: ["post_target_id"]
+            isOneToOne: true
+            referencedRelation: "post_targets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       post_target_tiktok: {
         Row: {
           brand_content: boolean
@@ -1750,6 +1929,7 @@ export type Database = {
       }
       posts: {
         Row: {
+          auto_run_id: string | null
           body: string
           created_at: string
           format_id: string | null
@@ -1763,6 +1943,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          auto_run_id?: string | null
           body?: string
           created_at?: string
           format_id?: string | null
@@ -1776,6 +1957,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          auto_run_id?: string | null
           body?: string
           created_at?: string
           format_id?: string | null
@@ -1789,6 +1971,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "posts_auto_run_id_fkey"
+            columns: ["auto_run_id"]
+            isOneToOne: false
+            referencedRelation: "auto_runs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "posts_format_id_fkey"
             columns: ["format_id"]
@@ -1849,6 +2038,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "project_destinations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_events: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          on_date: string
+          owner_id: string
+          project_id: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          on_date: string
+          owner_id?: string
+          project_id: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          on_date?: string
+          owner_id?: string
+          project_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_events_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
@@ -2750,6 +2977,35 @@ export type Database = {
           owner_today_count: number
         }[]
       }
+      approve_auto_target: {
+        Args: { p_fingerprint: string; p_target_id: string }
+        Returns: undefined
+      }
+      auto_approve_target: {
+        Args: { p_fingerprint: string; p_target_id: string; p_uid: string }
+        Returns: undefined
+      }
+      auto_cancel_unsent_runs: {
+        Args: {
+          p_reason: string
+          p_run_ids: string[]
+          p_to_draft: boolean
+          p_uid: string
+        }
+        Returns: number
+      }
+      auto_target_previews: {
+        Args: { p_post_id: string }
+        Returns: {
+          approved_at: string
+          body: string
+          fingerprint: string
+          sns: string
+          status: string
+          target_id: string
+          title: string
+        }[]
+      }
       by_hand_message: { Args: { p_sns: string }; Returns: string }
       calendar_day_counts: {
         Args: { p_from: string; p_project_id: string; p_to: string }
@@ -2757,6 +3013,32 @@ export type Database = {
           day: string
           posts: number
         }[]
+      }
+      claim_due_auto_runs: {
+        Args: { p_limit?: number }
+        Returns: {
+          attempts: number
+          created_at: string
+          due_at: string
+          generate_at: string
+          id: string
+          locked_at: string | null
+          material_ref: Json
+          owner_id: string
+          plan_id: string
+          post_id: string | null
+          project_id: string
+          reason: string | null
+          reason_detail: string | null
+          status: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "auto_runs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       claim_due_targets: {
         Args: { p_limit?: number; p_post_id?: string }
@@ -2838,6 +3120,11 @@ export type Database = {
           state: string
           target_id: string
         }[]
+      }
+      decline_auto_target: { Args: { p_target_id: string }; Returns: undefined }
+      delete_auto_plan: {
+        Args: { p_plan_id: string; p_to_draft?: boolean }
+        Returns: undefined
       }
       dismiss_learning_today_term: { Args: never; Returns: undefined }
       due_account_metric_accounts: {
@@ -3020,6 +3307,10 @@ export type Database = {
           sns: string
         }[]
       }
+      post_target_fingerprint: {
+        Args: { p_body: string; p_hashtags: string[]; p_title: string }
+        Returns: string
+      }
       post_target_text: {
         Args: { p_hashtags: string[]; p_text: string }
         Returns: string
@@ -3177,6 +3468,10 @@ export type Database = {
         }
         Returns: string
       }
+      review_auto_run: {
+        Args: { p_fingerprints?: Json; p_run_id: string; p_send: boolean }
+        Returns: undefined
+      }
       revise_goal: {
         Args: {
           p_ends_on: string
@@ -3214,6 +3509,22 @@ export type Database = {
         }
         Returns: undefined
       }
+      save_auto_plan: {
+        Args: {
+          p_consent: boolean
+          p_kind: string
+          p_lead_hours: number
+          p_materials: Json
+          p_name: string
+          p_plan_id: string
+          p_project_id: string
+          p_schedule: Json
+          p_targets: Json
+          p_tone: string
+          p_x_link: string
+        }
+        Returns: string
+      }
       save_post: {
         Args: {
           p_body: string
@@ -3226,11 +3537,21 @@ export type Database = {
         }
         Returns: string
       }
+      set_auto_plan_status: {
+        Args: {
+          p_plan_id: string
+          p_project_id: string
+          p_status: string
+          p_to_draft?: boolean
+        }
+        Returns: number
+      }
       set_goal_kpis: {
         Args: { p_kpis: Json; p_project_id: string; p_role: string }
         Returns: string
       }
       settle_goal: { Args: { p_goal_id: string }; Returns: string }
+      skip_next_auto_run: { Args: { p_plan_id: string }; Returns: string }
       sns_spend_this_month: {
         Args: { p_owner_id?: string; p_sns: unknown }
         Returns: number

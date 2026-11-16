@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseFrequency, suggestKind, suggestSchedules, suggestTime, type SuggestMaterials } from "@/lib/auto-post/suggest";
 import type { TimeTrends } from "@/lib/metrics/time-bands";
+import { scheduleSchema } from "@/lib/auto-post/schema";
 
 const none: SuggestMaterials = { unusedNotes: 0, unusedPhotoNotes: 0, seriesFormats: 0, destinations: 0 };
 const noTrend: TimeTrends = { views: { ready: false, need: 3 }, clicks: { ready: false, need: 5 } };
@@ -102,16 +103,26 @@ describe("どのくらい: 3 案", () => {
     const s = suggestSchedules({ ...base, targets: [...base.targets], kind: "pillars", materials: none, planFrequency: "週に1回" });
     expect(s.map((x) => x.label)).toEqual(["週 1", "毎日", "週 3"]);
     expect(s[0]).toMatchObject({ fromPlan: true, reason: "設計の頻度（週 1）に合わせました", schedule: { weekdays: [3], every_weeks: 1 } });
+    expect(s[0].schedule.start).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     const n = suggestSchedules({ ...base, targets: [...base.targets], kind: "notes", materials: { ...none, unusedNotes: 9 }, planFrequency: "週 3" });
     expect(n.map((x) => x.label)).toEqual(["週 3", "週 2", "毎日"]);
     expect(n[0].reason).toBe("設計の頻度（週 3）に合わせました。メモが 9 件あるので 3 週間続けられます");
   });
 
   it("曜日と時刻（週 2 は火・金。時刻はどの案も同じ）", () => {
-    const s = suggestSchedules({ ...base, targets: [...base.targets], kind: "notes", materials: { ...none, unusedNotes: 4 }, trends: nightViews });
-    expect(s[0].schedule).toEqual({ weekdays: [2, 5], time: "21:00", every_weeks: 1 });
-    expect(s.find((x) => x.perWeek === 7)?.schedule.weekdays).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    const s = suggestSchedules({ ...base, targets: [...base.targets], kind: "notes", materials: { ...none, unusedNotes: 4 }, trends: nightViews, start: "2026-11-17" });
+    expect(s[0].schedule).toEqual({ weekdays: [2, 5], time: "21:00", every_weeks: 1, start: "2026-11-17" });
+    // 曜日は ISO（1 = 月〜7 = 日）
+    expect(s.find((x) => x.perWeek === 7)?.schedule.weekdays).toEqual([1, 2, 3, 4, 5, 6, 7]);
     expect(s.find((x) => x.perWeek === 3)?.schedule.weekdays).toEqual([1, 3, 5]);
     expect(new Set(s.map((x) => x.timeSource))).toEqual(new Set(["trend"]));
+  });
+
+  it("どの案も、保存の確かめ（scheduleSchema）に通る形", () => {
+    for (const freq of [null, "毎日", "週 1", "週 4", "週 5", "週 6"]) {
+      for (const s of suggestSchedules({ ...base, targets: [...base.targets], kind: "pillars", materials: none, planFrequency: freq })) {
+        expect(scheduleSchema.safeParse(s.schedule).success).toBe(true);
+      }
+    }
   });
 });

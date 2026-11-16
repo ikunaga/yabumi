@@ -3,11 +3,8 @@
 import { SNS, type SnsKey } from "@/lib/sns";
 import { BAND_INFO, type TimeTrends } from "@/lib/metrics/time-bands";
 import { timeHintOf } from "@/lib/metrics/time-hint";
-
-// ===== 仮の型（core の feat/auto-post-core が main に入ったら、そちらの型に合わせる） =====
-export type AutoKind = "series" | "product" | "notes" | "pillars" | "events" | "rerun" | "commits";
-// auto_plans.schedule の形（2.2）。weekdays は 0 = 日 〜 6 = 土、time は日本時間の "HH:MM"
-export type AutoSchedule = { weekdays: number[]; time: string; every_weeks: number };
+import { todayJst } from "@/lib/legal/version";
+import type { AutoKind, AutoSchedule } from "./types";
 
 // 材料の件数（いま使えるもの）
 export type SuggestMaterials = {
@@ -64,7 +61,7 @@ export function parseFrequency(text: string | null | undefined): number | null {
   return found.size === 1 ? [...found][0] : null;
 }
 
-// 回数ごとの曜日（0 = 日）。週 2 は火・金（設計の見取り図の例）
+// 回数ごとの曜日（types.ts の AutoSchedule と同じ ISO: 1 = 月〜7 = 日）。週 2 は火・金（設計の見取り図の例）
 const WEEKDAYS: Record<number, number[]> = {
   1: [3],
   2: [2, 5],
@@ -72,7 +69,7 @@ const WEEKDAYS: Record<number, number[]> = {
   4: [1, 2, 4, 5],
   5: [1, 2, 3, 4, 5],
   6: [1, 2, 3, 4, 5, 6],
-  7: [0, 1, 2, 3, 4, 5, 6],
+  7: [1, 2, 3, 4, 5, 6, 7],
 };
 
 // 回数の案の並び（2.6）。2 週間以上続けられるうちで多いほうを先にする
@@ -121,12 +118,14 @@ export type ScheduleInput = {
   targets: SnsKey[];
   trends: TimeTrends | null;
   planFrequency: string | null; // 設計の cadence.frequency（自由な文）
+  start?: string; // 数え始めの日（YYYY-MM-DD）。省略は日本時間の今日
 };
 
 export function suggestSchedules(input: ScheduleInput): ScheduleSuggestion[] {
   const remaining = remainingOf(input.kind, input.materials);
   const time = suggestTime(input.targets, input.trends);
   const fromPlan = parseFrequency(input.planFrequency);
+  const start = input.start ?? todayJst();
 
   const lasts = (n: number) => remaining === null || remaining >= n * KEEP_WEEKS;
   // 2 週間以上続けられる回数のうち多いほう。どれも足りなければ、いちばん少ない週 2
@@ -154,7 +153,7 @@ export function suggestSchedules(input: ScheduleInput): ScheduleSuggestion[] {
     return {
       perWeek: n,
       label: perWeekLabel(n),
-      schedule: { weekdays: WEEKDAYS[n], time: time.time, every_weeks: 1 },
+      schedule: { weekdays: WEEKDAYS[n], time: time.time, every_weeks: 1, start },
       reason,
       timeReason: time.reason,
       timeSource: time.source,

@@ -14,6 +14,9 @@
 | queries.ts | 読み取り（server-only。利用者の権限） | サーバーコンポーネント |
 | actions.ts | 操作（"use server"） | 画面 |
 | ai.ts | AI の入口と偽の AI（下） | アクション・ジョブ |
+| engine.ts | ジョブ（回を足す・作る・期限切れ・止める・知らせる）と見本（makeSample） | ジョブ・見本のアクション |
+| materials.ts・prompt.ts・checks.ts・ai-schema.ts | 材料の選び方・AI への指示・送る前のチェック・AI の返事の形 | engine |
+| plan-row.ts | DB の行を型にする | queries・engine |
 
 ## 読み取り（queries.ts）
 
@@ -29,7 +32,7 @@
 - `setAutoPlanStatus(projectId, planId, "paused" | "active", toDraft)`・`pauseAllAutoPlans(projectId, toDraft)`: 止める・再開・全部止める。toDraft が true なら、作り終えてまだ送っていない予約を下書きに戻す（false ならそのまま送る）。画面で選んでもらう（初期値 true）
 - `skipNextAutoRun(planId)`: 次の回を飛ばす（次の回がまだ決まっていなければ dueAt が null）
 - `deleteAutoPlan(planId, toDraft)`: 消す
-- `makeAutoSample(projectId, input)`: 見本の 1 回（保存しない）。いまは偽の AI だけ。engine で中身を差し替える（形は変えない）
+- `makeAutoSample(projectId, input)`: 見本の 1 回（保存しない。材料は使ったことにしない）。次の回と同じ道（材料 → AI → チェック）で作り、AI を 1〜2 回使う（自動の投稿の枠）
 - `listEvents`・`saveEvent(projectId, { id?, onDate, body })`・`deleteEvent(projectId, id)`: お知らせ・季節の予定
 - `loadAutoPlan(planId)`・`loadAutoTargetPreviews(postId)`: 開き直したときの読み直し
 
@@ -57,3 +60,6 @@
 
 - 自動の回で作った投稿は `posts.auto_run_id` が入る（利用者は書けない）。カレンダー・一覧の「↻」はこれで出す
 - 確かめて送る SNS の配信先は `post_targets.status = "awaiting_approval"`（画面の言葉は「確かめ待ち」。src/lib/posts/send-mode.ts の TARGET_STATE）。送信ジョブは pending しか取り出さないので、承認の前は送られない。カレンダーの数（counted_post_targets）は、承認するまで予約に数えない
+- 送る時刻を過ぎても確かめなかった配信先は、ジョブが `failed` にして `error_message` に理由（labels.ts の EXPIRED_TARGET_LABEL の長い文）を入れる。「送り直す」と、承認の記録がなければ確かめ待ちに戻る
+- カレンダーのチップの言葉は labels.ts の `CALENDAR_CHIP`
+- スマホの通知は `notification_prefs.auto_post_push`（既定オン）。切り替えの画面はまだない（お知らせの設定に足す）

@@ -47,6 +47,9 @@ export const REQUEST_OVERHEAD_TOKENS = 8000;
 export const AI_MAX_RESERVATION_USD = 1;
 // 全体の月の上限（reserve_ai_usage の c_global_monthly_usd と同じ値。運営者に 80% で知らせるのに使う）
 export const AI_GLOBAL_MONTHLY_USD = 10;
+// 自動の投稿の全体の月の上限（reserve_ai_usage の c_auto_global_monthly_usd と同じ値。docs/design/auto-post.md の A4）
+export const AI_AUTO_GLOBAL_MONTHLY_USD = 5;
+const AUTO_PURPOSES = ["auto_post", "auto_post_check"];
 
 // count_tokens で数えたトークン数に掛けるゆとり。数えるのは呼ぶモデル（Opus 5.5）のトークン数だが、安全のための判定で別のモデルに回ったとき
 // （fallbacks）は、トークンの切り方が違って数が増えうる（モデルの世代でおよそ 1.35 倍まで違う）ため
@@ -214,7 +217,9 @@ export async function reserveAi<Req>(admin: Db, opts: BudgetOpts & { request: Re
     }
   }
   // yabumi 全体の上限の 80% に達したら、運営者に知らせる（月に 1 回。知らせに失敗しても AI は止めない）
-  await alertIfNearBudgetSafely(admin, "ai", Number(row.global_month_usd ?? 0), AI_GLOBAL_MONTHLY_USD, { now: opts.now ?? new Date() });
+  // 自動の投稿は別の枠なので、その枠の 80% で別に知らせる（reserve_ai_usage が返す合計も、その枠のもの）
+  const auto = AUTO_PURPOSES.includes(opts.purpose);
+  await alertIfNearBudgetSafely(admin, auto ? "ai_auto" : "ai", Number(row.global_month_usd ?? 0), auto ? AI_AUTO_GLOBAL_MONTHLY_USD : AI_GLOBAL_MONTHLY_USD, { now: opts.now ?? new Date() });
   if (row.status !== "ok" || !row.usage_id) return { ok: false, message: limitMessage(row.status as Exclude<ReserveStatus, "ok">, row.new_until) };
   const id = row.usage_id;
   const cancel = async () => {

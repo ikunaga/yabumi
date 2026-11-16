@@ -486,12 +486,14 @@ export type Database = {
           id: string
           locked_at: string | null
           material_ref: Json
+          notified_at: string | null
           owner_id: string
           plan_id: string
           post_id: string | null
           project_id: string
           reason: string | null
           reason_detail: string | null
+          reminded_at: string | null
           status: string
           updated_at: string
         }
@@ -503,12 +505,14 @@ export type Database = {
           id?: string
           locked_at?: string | null
           material_ref?: Json
+          notified_at?: string | null
           owner_id: string
           plan_id: string
           post_id?: string | null
           project_id: string
           reason?: string | null
           reason_detail?: string | null
+          reminded_at?: string | null
           status?: string
           updated_at?: string
         }
@@ -520,12 +524,14 @@ export type Database = {
           id?: string
           locked_at?: string | null
           material_ref?: Json
+          notified_at?: string | null
           owner_id?: string
           plan_id?: string
           post_id?: string | null
           project_id?: string
           reason?: string | null
           reason_detail?: string | null
+          reminded_at?: string | null
           status?: string
           updated_at?: string
         }
@@ -1314,6 +1320,7 @@ export type Database = {
       }
       notification_prefs: {
         Row: {
+          auto_post_push: boolean
           behind_weekday: number
           comment_push: string
           email_mode: string
@@ -1327,6 +1334,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          auto_post_push?: boolean
           behind_weekday?: number
           comment_push?: string
           email_mode?: string
@@ -1340,6 +1348,7 @@ export type Database = {
           user_id?: string
         }
         Update: {
+          auto_post_push?: boolean
           behind_weekday?: number
           comment_push?: string
           email_mode?: string
@@ -3015,7 +3024,7 @@ export type Database = {
         }[]
       }
       claim_due_auto_runs: {
-        Args: { p_limit?: number }
+        Args: { p_limit?: number; p_owner_ids?: string[] }
         Returns: {
           attempts: number
           created_at: string
@@ -3024,12 +3033,14 @@ export type Database = {
           id: string
           locked_at: string | null
           material_ref: Json
+          notified_at: string | null
           owner_id: string
           plan_id: string
           post_id: string | null
           project_id: string
           reason: string | null
           reason_detail: string | null
+          reminded_at: string | null
           status: string
           updated_at: string
         }[]

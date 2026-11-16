@@ -740,10 +740,15 @@ Next.js の server action の ID は、ビルドごとの暗号の鍵から作�
 
 ## 31. 自動の投稿（段階 A。2026-11-16、feat/auto-post-core・feat/auto-post-engine。docs/design/auto-post.md）
 
+ジョブは環境変数 `AUTO_POST_ENABLED` が `true` のときだけ動く（既定は止まっている。ローカルの .env.local にも入れない。2026-11-16 PM の指示）。
+
 AI の枠は、自動の投稿の分を別に持つ（A4。2026-11-16 オーナーが (a) に決めた。利用者 月 $3・全体 月 $5・1 人 1 日に作る 10 回。値は reserve_ai_usage の中で固定）。ふだんの AI の全体 $10 と合わせて、yabumi の AI の上限は月 $15 になる。
 
 | 段 | 誰が | すること | 状態 |
 |---|---|---|---|
 | 31-1 | PM | マイグレーション 20261116100000_auto_post と 20261116110000_auto_post_ai_budget を本番に当てる（表 4 つ・posts.auto_run_id・post_targets.status の check に awaiting_approval を足す〈既存の行が新しい check を通ることを先に確かめる〉・関数の追加と、save_post・post_targets_lock_sent・switch_project_sns_account・reserve_ai_usage の置き換え） | まだ |
 | 31-2 | オーナー | **Claude Console の使いすぎの上限を、月 $15 から $20 ほどに上げる**（Settings → Limits。6-3 で決めた上限。yabumi の上限〈ふだん $10 ＋ 自動の投稿 $5〉より少し上にして、yabumi の計算がずれても請求がそれ以上にならないようにする） | まだ |
+| 31-1b | PM | マイグレーション 20261116120000_auto_post_engine を本番に当てる（claim_due_auto_runs の作り直し・requeue_failed_targets の置き換え・auto_runs と notification_prefs の列・pg_cron の yabumi-auto-post〈10 分ごと〉と yabumi-purge-auto-post〈毎日〉）。**当てた時点でジョブは 10 分ごとに呼ばれるが、AUTO_POST_ENABLED がない間は何もしない** | まだ |
 | 31-3 | PM | 規約・ポリシーの ② の版（legal.md の「案: 自動の投稿」）を、オーナーの了承のあと、本番に出す日の版として LEGAL_VERSIONS に足す | まだ |
+| 31-4 | オーナー | **法務の了承（31-3）と 31-1・31-1b・31-2 が済んでから**、Vercel の Production に `AUTO_POST_ENABLED=true` を足して Redeploy（Preview には入れない）。止めるときは値を消すか false にして Redeploy（新しい回を作らなくなる。作り終えた予約は送信ジョブがそのまま送るので、止めたい予約は利用者の「全部止める」か、投稿を下書きに戻す） | まだ |
+| 31-5 | オーナー・PM | **オーナーの了承のあとで**、本物の AI で数回確かめる（費用は src/lib/ai/pricing.ts で先に出す。1 回 約 $0.06〜0.10）。確かめること: 回が予約になり Threads に送られる、X は確かめ待ちになり承認すると送られる、下書きに回る・飛ばす道、知らせ（本文が入らない） | まだ |

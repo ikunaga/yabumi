@@ -1,13 +1,12 @@
 "use server";
 
 import { z } from "zod";
-import { SNS } from "@/lib/sns";
 import { createClient } from "@/lib/supabase/server";
-import { autoPostGenerator } from "./ai";
-import { KIND_LABELS } from "./labels";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { engineDeps, makeSample } from "./engine";
 import { getAutoPlan, listProjectEvents, loadTargetPreviews } from "./queries";
 import { autoPlanInputSchema, eventInputSchema } from "./schema";
-import type { AutoPlanInput, AutoResult, AutoSample, ProjectEvent } from "./types";
+import type { AutoPlan, AutoPlanInput, AutoResult, AutoSample, ProjectEvent } from "./types";
 
 // 自動の投稿の操作（利用者の権限で。書き込みは DB の関数が確かめる。docs/design/auto-post.md、src/lib/auto-post/README.md）
 
@@ -152,29 +151,52 @@ export async function loadAutoTargetPreviews(postId: string) {
 }
 
 // ===== 見本の 1 回（保存しない） =====
-// いまは偽の AI だけ（AUTO_POST_FAKE_AI）。本物の AI・材料の選び方・チェックは feat/auto-post-engine で、この関数の中身を差し替える（形は変えない）
+// 次の回と同じ道（材料を選ぶ → AI が作る → チェック）で 1 回分を作って見せる。AI を 1〜2 回使う（自動の投稿の枠）。材料は使ったことにしない
 export async function makeAutoSample(projectId: string, input: Omit<AutoPlanInput, "consent">): Promise<AutoResult<AutoSample>> {
   if (!uuid.safeParse(projectId).success) return { ok: false, error: BAD };
   const p = autoPlanInputSchema.safeParse({ ...input, consent: true });
   if (!p.success) return { ok: false, error: p.error.issues[0]?.message ?? BAD };
-  const db = await signedIn();
-  if (!db) return SIGN_IN;
-  const generate = autoPostGenerator();
-  if (!generate) return { ok: false, error: "見本をつくる機能は準備中です。" };
-  const sns = Object.keys(p.data.targets) as (keyof typeof SNS)[];
-  const materialLabel = KIND_LABELS[p.data.kind];
-  const out = await generate({
-    kind: p.data.kind,
-    sns,
-    material: materialLabel,
-    materialLabel,
-    context: "",
-    tone: p.data.tone,
-    recentBodies: [],
-    maxLength: Object.fromEntries(sns.map((s) => [s, SNS[s].maxLength])),
-  });
-  if (!out.ok) return { ok: true, data: { texts: {}, materialLabel, issues: [{ kind: "cannot_write", detail: out.detail }] } };
-  return { ok: true, data: { texts: out.texts, materialLabel, issues: out.issues ?? [] } };
+  const db = await createClient();
+  const { data: claims } = await db.auth.getClaims();
+  const userId = claims?.claims?.sub;
+  if (!userId) return SIGN_IN;
+  // 本人のプロジェクトか（ここから先はサーバーの権限で、持ち主とプロジェクトで絞って読む）
+  const { data: project } = await db.from("projects").select("id").eq("id", projectId).maybeSingle();
+  if (!project) return { ok: false, error: "プロジェクトが見つかりません。" };
+  const admin = createAdminClient();
+  const deps = engineDeps(admin);
+  if (!deps) return { ok: false, error: "見本をつくる機能は準備中です。" };
+  const v = p.data;
+  const plan: AutoPlan = {
+    id: v.id ?? "",
+    projectId,
+    name: v.name,
+    kind: v.kind,
+    materials: v.materials,
+    targets: v.targets,
+    xLink: v.xLink,
+    schedule: v.schedule,
+    tone: v.tone,
+    leadHours: v.leadHours,
+    firstReview: true,
+    status: "active",
+    stopReason: null,
+    failStreak: 0,
+    consentedAt: "",
+    createdAt: "",
+    updatedAt: "",
+  };
+  try {
+    const r = await makeSample(admin, deps, { ownerId: userId, projectId, plan: v.id ? plan : { ...plan, id: "00000000-0000-0000-0000-000000000000" } });
+    if (!r.ok) {
+      if (r.reason === "ai_limit") return { ok: false, error: r.detail || "今月の自動の投稿の AI の枠を使い切りました。" };
+      return { ok: true, data: { texts: {}, materialLabel: "", issues: [{ kind: r.reason, detail: r.detail }] } };
+    }
+    return { ok: true, data: { texts: r.texts, materialLabel: r.label, issues: r.issues } };
+  } catch (e) {
+    console.error("[auto-post] 見本を作れませんでした", e instanceof Error ? e.message : e);
+    return { ok: false, error: FAILED };
+  }
 }
 
 // ===== お知らせ・季節の予定 =====

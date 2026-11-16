@@ -171,9 +171,7 @@ describe("予約の見込み（その呼び出しで起こりうる最大の額�
     );
     expect(used.size).toBeGreaterThanOrEqual(8);
     for (const p of used) expect(Object.keys(floors), p).toContain(p);
-    // 自動の投稿の用途は、DB の表と見込みを core（feat/auto-post-core）で先に足し、呼び出しは engine で足す。engine で呼ぶようになったら、この除外を外す
-    const ENGINE_PURPOSES = ["auto_post", "auto_post_check"];
-    expect([...used].sort()).toEqual(Object.keys(PURPOSE_CALLS).filter((p) => !ENGINE_PURPOSES.includes(p) || used.has(p)).sort());
+    expect([...used].sort()).toEqual(Object.keys(PURPOSE_CALLS).sort());
   });
 
   it("普段の長さの相談（20 往復）は、1 回の上限（$1）に届かない", () => {

@@ -9,6 +9,10 @@ import type { MonthDay } from "@/components/calendar/month-types";
 import { TodoButton, WeekBandView } from "@/components/calendar/roadmap-band";
 import { CalendarViewSwitch } from "@/components/calendar/view-switch";
 import { loadCalendarRoadmap, type CalendarTodo, type MilestoneNote } from "@/lib/calendar/roadmap";
+import { autoReviewWarning, autoRunsRange, firstReviewPostIds, plannedAutoChips, postChipHref, type PlannedAutoChip } from "@/lib/calendar/auto-chips";
+import { listUpcomingAutoRuns } from "@/lib/auto-post/queries";
+import type { UpcomingAutoRun } from "@/lib/auto-post/types";
+import { SNS } from "@/lib/sns";
 import { displayStatus, postWarning, snsSummary } from "@/components/posts/post-chip";
 import { CalendarSide } from "@/components/calendar/calendar-side";
 import { TimeTrendsCard } from "@/components/calendar/time-trends-card";
@@ -61,14 +65,21 @@ export default async function CalendarPage(props: PageProps<"/projects/[id]/cale
   const isThisWeek = days.includes(today);
   // 数字と右の列の「SNS ごと」は、表示している週で数える（下書きと送れなかったは、いつのものでも）。
   // 前は今週なら今月、ほかの週は木曜の月で数え、週の中の予約が数に入らないことがあった（2026-11-13 PMO2 の確かめ）
-  const [posts, undated, { bands, milestones }, stats, upcoming, side] = await Promise.all([
-    listPostsBetween(project.id, startOfYmd(days[0]).toISOString(), startOfYmd(addDays(days[6], 1)).toISOString()),
+  const [weekFrom, weekTo] = [startOfYmd(days[0]).toISOString(), startOfYmd(addDays(days[6], 1)).toISOString()];
+  const [posts, undated, { bands, milestones }, stats, upcoming, side, autoRuns] = await Promise.all([
+    listPostsBetween(project.id, weekFrom, weekTo),
     listUndatedDrafts(project.id),
     loadCalendarRoadmap(project.id, [days[0]], today, project.product_type),
     loadCalendarStatsBetween(project.id, days[0], addDays(days[6], 1)),
     listUpcoming(project.id),
     loadSide(project.id),
+    loadAutoRuns(project.id, weekFrom, weekTo),
   ]);
+  // 自動の回（docs/design/auto-post.md の 1.6）: 作る前の回は点線の札、確かめ待ちの投稿は確かめ待ちの画面へ
+  const planned = plannedAutoChips(autoRuns, base);
+  const firstReview = firstReviewPostIds(autoRuns);
+  const plannedByDay = new Map<string, PlannedAutoChip[]>(days.map((d) => [d, []]));
+  for (const c of planned) plannedByDay.get(toYmd(new Date(c.dueAt)))?.push(c);
   const band = bands.get(days[0]);
   const todosByDay = plannedTodos(band ? [band] : []);
   const byDay = new Map<string, PostRow[]>(days.map((d) => [d, []]));
@@ -106,7 +117,7 @@ export default async function CalendarPage(props: PageProps<"/projects/[id]/cale
             </div>
           )}
           <div className="max-md:hidden">
-            <WeekGrid days={days} today={today} posts={posts} todosByDay={todosByDay} base={base} />
+            <WeekGrid days={days} today={today} posts={posts} planned={planned} hrefOf={(p) => postChipHref(p, base, firstReview)} todosByDay={todosByDay} base={base} />
           </div>
 
           {/* スマホ: 日付ごとの縦リスト */}
@@ -114,6 +125,7 @@ export default async function CalendarPage(props: PageProps<"/projects/[id]/cale
             {days.map((d) => {
               const isToday = d === today;
               const list = byDay.get(d) ?? [];
+              const autoList = plannedByDay.get(d) ?? [];
               return (
                 <li key={d} className="flex flex-col gap-1.5">
                   <p className={`text-[13px] font-bold ${isToday ? "text-fg" : "text-muted"}`}>
@@ -122,12 +134,19 @@ export default async function CalendarPage(props: PageProps<"/projects/[id]/cale
                   {(todosByDay.get(d) ?? []).map((t) => (
                     <TodoButton key={t.id} todo={t} base={base} variant="list" />
                   ))}
-                  {list.length === 0 ? (
+                  {list.length + autoList.length === 0 ? (
                     <Link href={`${base}/compose?date=${d}`} className="rounded-md border border-dashed border-input px-3.5 py-2.5 text-[13px] text-faint hover:no-underline">
                       ＋ 投稿をつくる
                     </Link>
                   ) : (
-                    list.map((p) => <MobilePostCard key={p.id} post={p} projectId={project.id} highlight={isToday} />)
+                    <>
+                      {list.map((p) => (
+                        <MobilePostCard key={p.id} post={p} href={postChipHref(p, base, firstReview)} extraWarning={autoReviewWarning(p, firstReview)} highlight={isToday} />
+                      ))}
+                      {autoList.map((c) => (
+                        <MobilePlannedCard key={c.id} chip={c} />
+                      ))}
+                    </>
                   )}
                 </li>
               );
@@ -207,6 +226,16 @@ async function listUpcoming(projectId: string): Promise<PostRow[]> {
   return posts.filter((p) => displayStatus(p) === "scheduled").slice(0, 3);
 }
 
+// 表示している期間の、これからの自動の回。読めなくてもカレンダーは出す
+async function loadAutoRuns(projectId: string, fromIso: string, toIso: string): Promise<UpcomingAutoRun[]> {
+  const range = autoRunsRange(fromIso, toIso);
+  if (!range) return [];
+  return listUpcomingAutoRuns(projectId, range.from, range.until).catch((e) => {
+    console.error("[calendar] 自動の回", e instanceof Error ? e.message : e);
+    return [];
+  });
+}
+
 function Legend() {
   return (
     <div className="ml-auto flex gap-4 text-[13px] text-muted max-md:hidden">
@@ -266,7 +295,7 @@ async function MonthView({ projectId, productType, base, ym, today, done }: { pr
   const grid = monthGrid(ym);
   const [from, to] = [startOfYmd(grid[0]).toISOString(), startOfYmd(addDays(grid[41], 1)).toISOString()];
   const weekStarts = Array.from({ length: grid.length / 7 }, (_, i) => grid[i * 7]);
-  const [posts, counts, undated, { bands: bandMap, milestones }, stats, upcoming, side] = await Promise.all([
+  const [posts, counts, undated, { bands: bandMap, milestones }, stats, upcoming, side, autoRuns] = await Promise.all([
     listPostsBetween(projectId, from, to, MONTH_POST_LIMIT),
     countPostsByDay(projectId, from, to),
     listUndatedDrafts(projectId),
@@ -274,8 +303,10 @@ async function MonthView({ projectId, productType, base, ym, today, done }: { pr
     loadCalendarStats(projectId, ym),
     listUpcoming(projectId),
     loadSide(projectId),
+    loadAutoRuns(projectId, from, to),
   ]);
   const bands = weekStarts.map((w) => bandMap.get(w));
+  const firstReview = firstReviewPostIds(autoRuns);
   const todosByDay = plannedTodos([...bandMap.values()]);
 
   const items = new Map<string, MonthDay["items"]>(grid.map((d) => [d, []]));
@@ -283,18 +314,29 @@ async function MonthView({ projectId, productType, base, ym, today, done }: { pr
     const status = displayStatus(p);
     items.get(toYmd(new Date(p.planned_at!)))?.push({
       id: p.id,
-      href: `${base}/posts/${p.id}`,
+      href: postChipHref(p, base, firstReview),
       time: formatTime(p.planned_at!),
       sns: snsSummary(p, true),
       snsKeys: p.targets.map((t) => t.sns),
       title: postTitle(p.body, 28),
       status,
-      warning: postWarning(p),
+      warning: autoReviewWarning(p, firstReview) ?? postWarning(p),
+      auto: Boolean(p.autoRunId),
     });
   }
+  // 作る前の自動の回（点線の札）。DB の日ごとの数（投稿）には入らないので、その日の数に足す
+  const plannedCount = new Map<string, number>();
+  for (const c of plannedAutoChips(autoRuns, base)) {
+    const d = toYmd(new Date(c.dueAt));
+    const list = items.get(d);
+    if (!list) continue;
+    list.push({ id: c.id, href: c.href, time: formatTime(c.dueAt), sns: c.sns.map((k) => SNS[k].label).join(" / "), snsKeys: c.sns, title: c.title, status: "draft", warning: null, auto: true });
+    plannedCount.set(d, (plannedCount.get(d) ?? 0) + 1);
+  }
   const days: MonthDay[] = grid.map((d) => {
-    const list = items.get(d) ?? [];
-    return { ymd: d, day: dayOfMonth(d), inMonth: ymOf(d) === ym, isToday: d === today, count: Math.max(counts.get(d) ?? 0, list.length), items: list, todos: todosByDay.get(d) ?? [] };
+    const list = (items.get(d) ?? []).sort((a, b) => a.time.localeCompare(b.time));
+    const auto = plannedCount.get(d) ?? 0;
+    return { ymd: d, day: dayOfMonth(d), inMonth: ymOf(d) === ym, isToday: d === today, count: Math.max(counts.get(d) ?? 0, list.length - auto) + auto, items: list, todos: todosByDay.get(d) ?? [] };
   });
   const isThisMonth = ym === ymOf(today);
   // 週に切り替えるときは、今月なら今週、ほかの月はその月の 1 日の週
@@ -341,12 +383,12 @@ async function MonthView({ projectId, productType, base, ym, today, done }: { pr
   );
 }
 
-function MobilePostCard({ post, projectId, highlight }: { post: PostRow; projectId: string; highlight: boolean }) {
+function MobilePostCard({ post, href, extraWarning, highlight }: { post: PostRow; href: string; extraWarning: string | null; highlight: boolean }) {
   const status = displayStatus(post);
-  const warning = postWarning(post);
+  const warning = extraWarning ?? postWarning(post);
   return (
     <Link
-      href={`/projects/${projectId}/posts/${post.id}`}
+      href={href}
       className={`flex flex-col gap-1.5 rounded-md bg-surface px-3.5 py-3 hover:no-underline ${highlight ? "border border-primary" : status === "draft" ? "border border-dashed border-input" : "border border-border"}`}
     >
       <span className="flex items-center gap-1.5 text-[13px]">
@@ -358,9 +400,42 @@ function MobilePostCard({ post, projectId, highlight }: { post: PostRow; project
           <StatusMark status={status} />
         </span>
       </span>
-      <span className="text-[15px]">{postTitle(post.body, 28)}</span>
+      <span className="text-[15px]">
+        <AutoMark show={Boolean(post.autoRunId)} />
+        {postTitle(post.body, 28)}
+      </span>
       {warning && <span className="text-[13px] font-semibold text-signal">{warning}</span>}
     </Link>
+  );
+}
+
+// 作る前の自動の回（スマホの週の表示）。下書きと同じ点線の枠で、押すと回し方の画面へ
+function MobilePlannedCard({ chip }: { chip: PlannedAutoChip }) {
+  return (
+    <Link href={chip.href} className="flex flex-col gap-1.5 rounded-md border border-dashed border-input bg-surface px-3.5 py-3 text-muted hover:no-underline">
+      <span className="flex items-center gap-1.5 text-[13px]">
+        <span className="num text-faint">{formatTime(chip.dueAt)}</span>
+        {chip.sns.map((s) => (
+          <SnsMark key={s} sns={s} />
+        ))}
+      </span>
+      <span className="text-[15px]">
+        <AutoMark show />
+        {chip.title}
+      </span>
+    </Link>
+  );
+}
+
+function AutoMark({ show }: { show: boolean }) {
+  if (!show) return null;
+  return (
+    <>
+      <span aria-hidden className="mr-1 text-primary">
+        ↻
+      </span>
+      <span className="sr-only">自動の投稿・</span>
+    </>
   );
 }
 

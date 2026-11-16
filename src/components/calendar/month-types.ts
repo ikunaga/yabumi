@@ -13,6 +13,8 @@ export type MonthItem = {
   title: string;
   status: PostDisplayStatus;
   warning: string | null;
+  // 自動の回（「↻」を付ける）。作る前の回は status が draft で、href は回し方の画面
+  auto?: boolean;
 };
 
 // 月のマスの 1 日

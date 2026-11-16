@@ -11,6 +11,9 @@ import { CommentsReconnectNotice, NewCommentsStrip } from "@/components/comments
 import { loadNewCommentSummary, snsNeedingCommentsReconnect } from "@/lib/sns/comments/queries";
 import type { SnsKey } from "@/lib/sns";
 import { OverviewCards } from "@/components/overview/overview-cards";
+import { AutoPostBand } from "@/components/overview/auto-post-band";
+import { bandRange, overviewAutoBand } from "@/lib/auto-post/entry";
+import { countAutoReviewItems, listAutoPlans, listUpcomingAutoRuns } from "@/lib/auto-post/queries";
 import { AttentionStrip, ConnectedSnsLine, NextScheduled, Panel, SnsClicks } from "@/components/overview/overview-panels";
 import { displayStatus } from "@/components/posts/post-chip";
 import { Columns } from "@/components/ui/columns";
@@ -93,7 +96,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
   ]);
   // SNS のコメント（4.70）: 新しいコメントの数と、コメントの権限なしでつないだ SNS（使える状態のアカウントだけ）
   const activeAccounts = Object.fromEntries(snsAccounts.filter((a) => a.status === "active").map((a) => [a.sns, a.id])) as Partial<Record<SnsKey, string>>;
-  const [newComments, commentsReconnect] = await Promise.all([loadNewCommentSummary(project.id), snsNeedingCommentsReconnect(activeAccounts)]);
+  const [newComments, commentsReconnect, autoBand] = await Promise.all([loadNewCommentSummary(project.id), snsNeedingCommentsReconnect(activeAccounts), loadAutoBand(project.id)]);
   const stepState = stepStates[project.id];
   const stepIndex = currentStepIndex(stepState);
   // 今週のまだのやること（数字で達成したものは済みと同じに数える。帯の先頭・件数・残りの一覧はどれもこれから）
@@ -184,6 +187,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
       <AttentionStrip projectId={project.id} open={attentionParam === "open"} failed={attention} overdue={overdue} manualDue={manualDue} overdueTodos={overdueItems(roadmap.items, roadmap.today, roadmap.daily).filter((i) => !isTodoDismissed(dismissals, i))} />
       <NewCommentsStrip projectId={project.id} total={newComments.total} bySns={newComments.bySns} />
       <CommentsReconnectNotice projectId={project.id} sns={commentsReconnect} />
+      <AutoPostBand projectId={project.id} band={autoBand} />
 
       {/* スマホ（見本 D の右）: 大きな数字 1 つと 7 日の棒 */}
       <div className="sm:hidden">
@@ -313,4 +317,19 @@ function MobileHero({ name, win, arrived, hero, source, today, empty }: { name: 
       </div>
     </Panel>
   );
+}
+
+// 自動の投稿の帯（docs/design/auto-post.md の 1.2）。回し方がなければ、次の回と確かめ待ちは読まない。読めなくても概要は出す
+async function loadAutoBand(projectId: string) {
+  try {
+    const plans = await listAutoPlans(projectId);
+    if (plans.length === 0) return null;
+    const now = new Date();
+    const { from, until } = bandRange(now);
+    const [upcoming, review] = await Promise.all([listUpcomingAutoRuns(projectId, from, until), countAutoReviewItems(projectId)]);
+    return overviewAutoBand(plans, upcoming, review, now);
+  } catch (e) {
+    console.error("[overview] 自動の投稿", e instanceof Error ? e.message : e);
+    return null;
+  }
 }

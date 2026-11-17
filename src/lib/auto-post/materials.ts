@@ -10,6 +10,7 @@ import { getFormat } from "@/lib/post-formats/store";
 import type { SnsKey } from "@/lib/sns";
 import type { Database } from "@/lib/supabase/database.types";
 import type { AutoPlan, AutoRunReason } from "./types";
+import { defaultTagsFor, readDefaultHashtags } from "@/lib/projects/default-hashtags";
 
 // 自動の回の材料を選ぶ（docs/design/auto-post.md の 2.1）。サーバーの権限で読むので、必ずプロジェクトと持ち主で絞る
 
@@ -181,7 +182,8 @@ async function pickSeries(admin: Db, plan: AutoPlan & { ownerId: string }, planD
   };
 }
 
-export type ProjectRow = { name: string; description: string | null; target_audience: string | null; product_type: string | null };
+// default_hashtags: プロジェクトの「いつものタグ」（20261117100000。どの使い道の回にも付ける）
+export type ProjectRow = { name: string; description: string | null; target_audience: string | null; product_type: string | null; default_hashtags?: unknown };
 export type MaterialDeps = { callFormatRound?: typeof callFormatRound };
 
 export async function pickMaterial(
@@ -189,6 +191,23 @@ export async function pickMaterial(
   args: { plan: AutoPlan & { ownerId: string }; planData: PlanData; project: ProjectRow; past: PastRef[]; dueAt: Date },
   deps: MaterialDeps = {},
 ): Promise<Material | NoMaterial> {
+  const m = await pickByKind(admin, args, deps);
+  if (isNoMaterial(m)) return m;
+  // 本文とは別に付けるタグ: SNS ごとに、シリーズのフォーマットのタグ → なければプロジェクトのいつものタグ（2026-11-17。タグのない SNS は持たない）
+  const defaults = readDefaultHashtags(args.project.default_hashtags ?? null);
+  const fixedTags: Partial<Record<SnsKey, string[]>> = {};
+  for (const s of Object.keys(args.plan.targets) as SnsKey[]) {
+    const tags = m.fixedTags?.[s]?.length ? m.fixedTags[s]! : defaultTagsFor(defaults, s);
+    if (tags.length) fixedTags[s] = tags;
+  }
+  return { ...m, fixedTags };
+}
+
+function pickByKind(
+  admin: Db,
+  args: { plan: AutoPlan & { ownerId: string }; planData: PlanData; project: ProjectRow; past: PastRef[]; dueAt: Date },
+  deps: MaterialDeps,
+): Promise<Material | NoMaterial> | Material | NoMaterial {
   switch (args.plan.kind) {
     case "notes":
       return pickNote(admin, args.plan, args.past);

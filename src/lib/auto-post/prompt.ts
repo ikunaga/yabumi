@@ -3,6 +3,8 @@ import { CONTENT_RULES } from "@/lib/ai/content-rules";
 import { JAPANESE_STYLE_RULES } from "@/lib/ai/japanese-style";
 import { READER_CONCERNS_RULES } from "@/lib/ai/reader-concerns";
 import { LENGTH_RULES } from "@/lib/ai/shorten";
+import { SNS, type SnsKey } from "@/lib/sns";
+import { hashtagLine } from "@/lib/sns/hashtags";
 
 // 自動の投稿の文を作る指示（docs/design/auto-post.md の 2.4）。投稿のネタ出し（post-ideas.ts）の決まりを土台に、
 // 人が見ないで送ることを前提にした決まり（【】を使わない・質問しない・書けなければ書かない・URL は材料の行き先だけ）を足す
@@ -27,7 +29,7 @@ export const AUTO_POST_SYSTEM = `あなたは「yabumi」の中で、利用者�
 - <recent> の投稿と、話題・書き出し・言い回し・組み立てを重ねない。同じことを言い換えただけの投稿にしない
 - 柱（pillar）には、アカウント設計の柱の名前をそのまま書く（決まっていなければ短い名前）。concern には、読む人のどの悩み・望みに触れるか（下の「読む人の悩み・望み」）を書く。前の回と同じにしない
 - URL は、<material> の「使ってよい URL」に書かれたものだけを、指定された SNS にだけ入れる。ほかの URL は作らない・書かない
-- ハッシュタグは、アカウント設計の「ハッシュタグ」の中から、この投稿に合うものだけを本文の最後に付ける（SNS ごとの数まで）。決まっていなければ付けない
+- ハッシュタグは、アカウント設計の「ハッシュタグ」の中から、この投稿に合うものだけを本文の最後に付ける（SNS ごとの数まで）。決まっていなければ付けない。ただし「本文の後ろに別に付くタグ」に書かれた SNS では、本文にハッシュタグを書かない（タグは yabumi が本文の後ろに付ける。字数はその分を引いて書く）
 - 下書きの本文では「顧客」と書かない。来てくれた方・買ってくれた方など、読む人に向けた呼び方にする
 - 見た人にしてほしいこと（予約・購入など）は、毎回入れない。自然につながるときだけ、押しつけずに
 - トレンドの話題や時事のできごとに乗らない。季節の話題は、季節そのもの（気温・行事の一般的なこと）にとどめ、特定の日付の催しや割引を作らない
@@ -45,9 +47,12 @@ export function escapeData(s: string): string {
 
 export type AutoPostRequest = { system: BetaTextBlockParam[]; messages: BetaMessageParam[] };
 
-export function buildAutoPostRequest(input: { context: string; material: string; tone: string; recentBodies: string[] }): AutoPostRequest {
+// fixedTags: 本文とは別に、送るときに本文の後ろに付くタグ（シリーズのフォーマット・プロジェクトのいつものタグ。2026-11-17）
+export function buildAutoPostRequest(input: { context: string; material: string; tone: string; recentBodies: string[]; fixedTags?: Partial<Record<SnsKey, string[]>> }): AutoPostRequest {
+  const tagLines = (Object.entries(input.fixedTags ?? {}) as [SnsKey, string[]][]).filter(([, t]) => t.length).map(([s, t]) => `- ${SNS[s].label}: ${escapeData(hashtagLine(t))}`);
   const parts = [
     input.context,
+    ...(tagLines.length ? [`# 本文の後ろに別に付くタグ（この SNS の本文にはハッシュタグを書かない）\n${tagLines.join("\n")}`] : []),
     `# この回の材料\n<material>\n${escapeData(input.material)}\n</material>`,
     `# この自動の投稿の口調の指示\n${input.tone.trim() ? `<tone>${escapeData(input.tone.trim())}</tone>` : "（なし。アカウント設計の口調に従う）"}`,
     input.recentBodies.length

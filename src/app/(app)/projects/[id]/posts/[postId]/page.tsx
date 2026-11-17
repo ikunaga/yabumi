@@ -7,6 +7,7 @@ import { MarkCommentsSeen } from "@/components/comments/mark-seen";
 import { loadProjectComments } from "@/lib/sns/comments/queries";
 import { aiConfigured } from "@/lib/ai/anthropic";
 import { PostComposer } from "@/components/posts/post-composer";
+import { readDefaultHashtags } from "@/lib/projects/default-hashtags";
 import { PostNumbersBand } from "@/components/posts/post-numbers-band";
 import { loadPostNumbers } from "@/lib/posts/numbers";
 import { loadTimeTrends } from "@/lib/metrics/time-trends";
@@ -160,6 +161,7 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
       {hasPublishedX && <XSyncOnView projectId={project.id} postId={post.id} />}
       {comments.length > 0 && <MarkCommentsSeen projectId={project.id} postId={post.id} />}
       <PostComposer
+      defaultHashtags={readDefaultHashtags(project.default_hashtags)}
       key={post.id}
       projectId={project.id}
       projectName={project.name}

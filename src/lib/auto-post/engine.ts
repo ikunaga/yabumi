@@ -9,10 +9,12 @@ import { normalizePlan, type PlanData } from "@/lib/plan/schema";
 import { loadVoiceContext } from "@/lib/plan/voice";
 import { sendPush, type PushMessage } from "@/lib/push/send";
 import { isManualSns, SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
+import { splitTagsByText, withHashtags } from "@/lib/sns/hashtags";
 import type { Database } from "@/lib/supabase/database.types";
 import { autoPostGenerator, fakeAiMode, type AutoPostGenerator } from "./ai";
 import { callAiCheck, callShortenDrafts } from "@/lib/ai/anthropic";
-import { applyAiCheck, plainIssues, type Issue, type Texts } from "./checks";
+import { applyAiCheck, plainIssues, tagReserve, type Issue, type Texts } from "./checks";
+export { tagReserve } from "./checks";
 import { isNoMaterial, pickMaterial, type Material, type MaterialDeps, type PastRef, type ProjectRow } from "./materials";
 import { toPlan } from "./plan-row";
 import { dueTimes } from "./schedule";
@@ -223,6 +225,9 @@ export async function draftRun(
   const material = await pickMaterial(admin, { plan: args.plan, planData: loaded.planData, project: loaded.project, past: args.past, dueAt: args.dueAt }, deps);
   if (isNoMaterial(material)) return { ok: false, reason: material.reason, detail: material.detail };
   const ref: Record<string, unknown> = { ...material.ref };
+  // 本文とは別に付くタグ（シリーズのフォーマット → なければいつものタグ。materials.ts）。字数はタグの行の分を引いて書かせ、数えるときは足す（2026-11-17）
+  const fixedTags = material.fixedTags ?? {};
+  const reserveOf = (s: SnsKey) => tagReserve(s, fixedTags[s] ?? []);
 
   let texts: Texts;
   let hold: Issue | null = null;
@@ -238,7 +243,8 @@ export async function draftRun(
       context: ideaContextText(loaded.ctx),
       tone: args.plan.tone,
       recentBodies: args.recent.mine,
-      maxLength: Object.fromEntries(args.sns.map((s) => [s, SNS[s].maxLength ?? 10_000])),
+      maxLength: Object.fromEntries(args.sns.map((s) => [s, Math.max(1, (SNS[s].maxLength ?? 10_000) - reserveOf(s))])),
+      fixedTags,
     });
     // 書けなかった材料は、回の記録に残す（次の回は次の柱・行き先・メモへ進む。同じ材料を選び続けない）。AI の枠・失敗はそのまま（同じ材料でやり直す）
     if (!out.ok)
@@ -252,14 +258,15 @@ export async function draftRun(
   }
 
   // 長すぎるものは縮める（自動の投稿の枠で数える）
-  const over = (Object.entries(texts) as [SnsKey, string][]).filter(([k, t]) => overLimit(k, t) > 0);
+  // 送る文（本文＋タグの行）で数え、縮める目標はタグの行の分を引く
+  const over = (Object.entries(texts) as [SnsKey, string][]).filter(([k, t]) => overLimit(k, withHashtags(t, splitTagsByText(t, fixedTags[k] ?? []).keep)) > 0);
   if (over.length && deps.callShorten) {
     const call = budgeted(admin, { userId: args.plan.ownerId, purpose: "auto_post", call: "shorten" }, deps.callShorten);
-    const { texts: short } = await shortenOverDrafts(call, over.map(([sns, text]) => ({ id: sns, sns, text })));
+    const { texts: short } = await shortenOverDrafts(call, over.map(([sns, text]) => ({ id: sns, sns, text, reserve: reserveOf(sns) })));
     for (const [id, t] of short) texts[id as SnsKey] = t;
   }
 
-  const checkArgs = { allowedUrls: material.allowedUrls, recent: args.recent.bySns };
+  const checkArgs = { allowedUrls: material.allowedUrls, recent: args.recent.bySns, tags: fixedTags };
   hold ??= plainIssues(texts, checkArgs)[0] ?? null;
   if (!hold) {
     // AI っぽさチェック（自動の投稿の枠。用途 auto_post_check）
@@ -291,7 +298,9 @@ export async function draftRun(
       }
     }
   }
-  return { ok: true, texts, tags: material.fixedTags ?? {}, material, ref, hold };
+  // 本文にもあるタグは、タグの行に付けない（2 回出さない。投稿をつくるの保存と同じ）
+  const tags = Object.fromEntries((Object.entries(fixedTags) as [SnsKey, string[]][]).map(([s, t]) => [s, splitTagsByText(texts[s] ?? "", t).keep]));
+  return { ok: true, texts, tags, material, ref, hold };
 }
 
 async function processRun(admin: Db, deps: EngineDeps, run: ClaimedRun, now: Date): Promise<AutoRunStatus> {
@@ -565,7 +574,7 @@ export function engineDeps(admin: Db): EngineDeps | null {
 const fakeCheck: CallCheck = async () => ({ output: { summary: "（偽の AI）", findings: [] }, stopReason: "end_turn", model: "fake", usage: { inputTokens: 0, cacheWriteTokens: 0, cacheReadTokens: 0, outputTokens: 0 } });
 
 // 見本の 1 回（保存しない。材料は使ったことにしない）。文とチェックの結果を返す
-export async function makeSample(admin: Db, deps: EngineDeps, args: { ownerId: string; projectId: string; plan: AutoPlan }): Promise<{ ok: true; texts: Texts; label: string; issues: Issue[] } | { ok: false; reason: AutoRunReason; detail: string }> {
+export async function makeSample(admin: Db, deps: EngineDeps, args: { ownerId: string; projectId: string; plan: AutoPlan }): Promise<{ ok: true; texts: Texts; tags: Partial<Record<SnsKey, string[]>>; label: string; issues: Issue[] } | { ok: false; reason: AutoRunReason; detail: string }> {
   const plan = { ...args.plan, projectId: args.projectId, ownerId: args.ownerId };
   const sns = Object.keys(plan.targets) as SnsKey[];
   const { data: pastRows } = plan.id
@@ -574,7 +583,7 @@ export async function makeSample(admin: Db, deps: EngineDeps, args: { ownerId: s
   const recent = await recentTexts(admin, args.projectId, args.ownerId, plan.id, new Date());
   const draft = await draftRun(admin, deps, { plan, sns, dueAt: new Date(Date.now() + 86_400_000), past: (pastRows ?? []).map((r) => (r.material_ref ?? {}) as PastRef), recent });
   if (!draft.ok) return draft;
-  return { ok: true, texts: draft.texts, label: draft.material.label, issues: draft.hold ? [draft.hold] : [] };
+  return { ok: true, texts: draft.texts, tags: draft.tags, label: draft.material.label, issues: draft.hold ? [draft.hold] : [] };
 }
 
 // ===== ジョブの 1 回 =====

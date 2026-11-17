@@ -2257,6 +2257,7 @@ export type Database = {
           app_store_provider_token: string | null
           app_store_url: string | null
           created_at: string
+          default_hashtags: Json
           description: string
           github_prompt_dismissed_at: string | null
           id: string
@@ -2271,6 +2272,7 @@ export type Database = {
           app_store_provider_token?: string | null
           app_store_url?: string | null
           created_at?: string
+          default_hashtags?: Json
           description?: string
           github_prompt_dismissed_at?: string | null
           id?: string
@@ -2285,6 +2287,7 @@ export type Database = {
           app_store_provider_token?: string | null
           app_store_url?: string | null
           created_at?: string
+          default_hashtags?: Json
           description?: string
           github_prompt_dismissed_at?: string | null
           id?: string

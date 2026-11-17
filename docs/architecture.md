@@ -2754,6 +2754,15 @@ yabumi のコンセプトは、使って SNS を運用するうちに、マー�
 
 テスト: tests/post-hashtags.test.ts（組み立て・欄の読み方・フォーマットのタグ・ステップの問題・控え・リセット）、tests/post-hashtags.integration.test.ts（post_target_text と withHashtags が同じ結果、claim_due_targets が組み立てた文を返す、save_post がタグを保存し・渡さない呼び出しでは変えず・送った配信先は変えない、DB の check、他人のフォーマット・配信先は読めない）
 
+#### いつものタグ（2026-11-17、オーナーの依頼・案 A。PM の了承。feat/default-hashtags）
+
+- プロジェクトごとに「いつものタグ」を持つ（projects.default_hashtags。20261117100000_project_default_hashtags）。形と決まりは post_formats.hashtags と同じ（all と SNS ごと、5 個まで、1 つ 50 字まで、空白・「,」「#」なし。画面とサーバーは hashtagsInput、DB の check は守りの二重化）。projects は RLS で本人の行だけで、表ごとの grant のまま
+- アカウント設計の hashtags（AI に渡す「付けるとき」つきの候補）とは別。決めるのはプロジェクトの設定の「いつものタグ」のカード（欄はフォーマットのタグと同じ。設計の候補を押すと全部の SNS の欄に足す）。投稿をつくるの「2 送り先」のタグの欄の下に「いつものタグを決める →」
+- 入るところ: 投稿をつくるで新しい投稿（postId がない）を開いたときの、SNS ごとのタグの欄の初期値（初期値なので、書きかけの控えや「保存していない変更」では変えていない扱い）。AI のネタ・ネタ帳・相談からサーバーで作る下書きには、作る時点で入れる（本文にもあるタグは足さない。src/lib/projects/default-hashtags.ts の withDefaultTags）。下書きの続き・送り直し・送った SNS には入れない。利用者が消した・書いたものは上書きしない
+- フォーマットを入れたとき: その SNS のタグがフォーマットにあれば置きかえ、なければいつものタグに戻す（前は空にしていた。tagsAfterFormat）
+- 自動の投稿の回にも付ける（シリーズのフォーマットのタグ → なければいつものタグ。字数はタグの行を足して数える）。engine の直しは、実装担当2 の fix/auto-post-real-ai が入ってから別のコミットで
+- 法務: ① の書き足し（docs/legal.md）
+
 ### 4.60 通しテストの直し（2026-11-12、PMO の本番での通しテスト。PM の依頼。fix/walkthrough-2）
 
 | 項目 | 内容 |

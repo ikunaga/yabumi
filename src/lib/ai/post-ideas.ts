@@ -22,6 +22,7 @@ import { READER_CONCERNS, READER_CONCERNS_RULES, readerConcernOf, type ReaderCon
 import { JAPANESE_STYLE_RULES, draftStyleChecker, styleLabels, type StyleProblem } from "./japanese-style";
 import { aiFailureMessage } from "./provider-failure";
 import { MAX_X_POST_INTEREST, MAX_X_POST_TEXT, X_POST_INTEREST_QUESTION, parseXPostUrl } from "@/lib/ideas/x-post";
+import { loadDefaultHashtags, withDefaultTags } from "@/lib/projects/default-hashtags";
 
 // 投稿のネタを AI が出す（要求 F04 の一部。docs/architecture.md の 4.15）。材料は 3 つから選ぶ
 // - commits: 最近のコミット（GitHub をつないだ人）。メッセージ・変えたファイル・差分を読む
@@ -819,7 +820,8 @@ export async function adoptPostIdea(
     p_body: body,
     p_planned_at: null as unknown as string,
     p_status: "draft",
-    p_targets: targets,
+    // いつものタグを、作る時点で入れる（2026-11-17。本文にもあるタグは足さない）
+    p_targets: withDefaultTags(targets, body, await loadDefaultHashtags(user, args.projectId)),
     // 本文は AI の文（文調のメモの材料と例から外す）
     p_text_origin: "ai",
   });

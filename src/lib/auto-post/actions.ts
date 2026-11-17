@@ -192,7 +192,7 @@ export async function makeAutoSample(projectId: string, input: Omit<AutoPlanInpu
       if (r.reason === "ai_limit") return { ok: false, error: r.detail || "今月の自動の投稿の AI の枠を使い切りました。" };
       return { ok: true, data: { texts: {}, materialLabel: "", issues: [{ kind: r.reason, detail: r.detail }] } };
     }
-    return { ok: true, data: { texts: r.texts, materialLabel: r.label, issues: r.issues } };
+    return { ok: true, data: { texts: r.texts, tags: r.tags, materialLabel: r.label, issues: r.issues } };
   } catch (e) {
     console.error("[auto-post] 見本を作れませんでした", e instanceof Error ? e.message : e);
     return { ok: false, error: FAILED };

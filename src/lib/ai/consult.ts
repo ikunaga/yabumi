@@ -27,6 +27,7 @@ import type { ModelOutput } from "./app-description";
 import { shortenOverDrafts, type CallShorten } from "./shorten";
 import { draftStyleChecker, styleLabels, type StyleProblem } from "./japanese-style";
 import { aiFailureMessage } from "./provider-failure";
+import { loadDefaultHashtags, withDefaultTags } from "@/lib/projects/default-hashtags";
 
 // AI と相談（F09、docs/architecture.md の 4.23）の会話の 1 往復。作りはアカウント設計の相棒（plan-coach.ts、4.9）と同じ。
 // AI の呼び出しは callModel として外から渡す（テストではモックし、本物の API は呼ばない）
@@ -381,7 +382,8 @@ export async function applyConsultAction(user: Db, projectId: string, action: Ac
           p_body: action.text,
           p_planned_at: null as unknown as string,
           p_status: "draft",
-          p_targets: action.sns ? [{ sns: action.sns, title: null, body_override: null, social_account_id: accountId }] : [],
+          // いつものタグを、作る時点で入れる（2026-11-17。本文にもあるタグは足さない）
+          p_targets: action.sns ? withDefaultTags([{ sns: action.sns, title: null, body_override: null, social_account_id: accountId }], action.text, await loadDefaultHashtags(user, projectId)) : [],
           // 本文は AI の文（文調のメモの材料と例から外す）
           p_text_origin: "ai",
         });

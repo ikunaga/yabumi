@@ -72,6 +72,13 @@ describe("URL は登録した行き先の中だけ（前方一致ですり抜け
     // 登録した行き先が日本語のドメインなら、同じホスト（punycode）は通す
     expect(foreignLinks("くわしくは 例え.jp/menu へ", ["https://例え.jp/"])).toEqual([]);
     expect(foreignLinks("くわしくは https://xn--r8jz45g.jp/menu へ", ["https://例え.jp/"])).toEqual([]);
+    // 日本語の文にくっついたドメインも、くっついた字の数（DNS のラベルの上限の 63 字を超えても）によらず拾う
+    for (const n of [1, 63, 64, 200]) {
+      const text = `${"あ".repeat(n)}evil.com を見て`;
+      expect(foreignLinks(text, allowed), String(n)).toHaveLength(1);
+      expect(plainIssues({ threads: text }, { allowedUrls: allowed, recent: {} })[0]?.kind, String(n)).toBe("check_failed");
+    }
+    expect(foreignLinks(`${"パン".repeat(40)}例え.jp`, allowed)).toHaveLength(1);
     // 文の「。」や、ドメインでない言葉は拾わない
     expect(foreignLinks("くるみパンを焼きました。ver.2 です", allowed)).toEqual([]);
   });

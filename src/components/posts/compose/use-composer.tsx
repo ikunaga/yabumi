@@ -69,6 +69,9 @@ export type ComposerInitial = {
   textOrigin?: "self" | "ai" | null;
   // 選んでいた投稿のフォーマット（下書きから再開したときに選んだ状態で開く。PMO2 の s8）
   formatId?: string | null;
+  // そのフォーマットで本文に入れたシリーズの回の答えと穴の言葉（投稿に結びついた記録から）。③ のフォーマットの画像の絵の説明を埋めるだけに使う
+  // （フォーマットの欄には入れない。入れると同じ回をもう一度本文に入れやすい。docs/design/format-image.md の 2.1）
+  formatValues?: { values: Record<string, string>; answer: string } | null;
   // YouTube に送るときに選んでいたもの（同意して保存した投稿を開き直したとき。docs/design/youtube.md の 4.）
   youtube?: YouTubeChoice | null;
 };

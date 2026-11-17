@@ -33,7 +33,7 @@ export function PhotoTemplatePicker({
 
   return (
     <fieldset className="flex min-w-0 flex-col gap-1.5">
-      <legend className="mb-1.5 text-[14px] font-bold">フォーマット</legend>
+      <legend className="mb-1.5 text-[14px] font-bold">絵の説明のフォーマット</legend>
       <div className="flex flex-wrap gap-2">
         <Choice on={selectedId === null} onClick={() => onSelect(null)}>
           なし

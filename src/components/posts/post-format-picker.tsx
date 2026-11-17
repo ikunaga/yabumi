@@ -62,6 +62,8 @@ import {
 import type { SnsKey } from "@/lib/sns";
 import { MAX_TARGET_HASHTAGS, hashtagLine, normalizeHashtag, parseHashtagInput } from "@/lib/sns/hashtags";
 import { Choice } from "./maker-parts";
+import { FormatImageFields } from "./format-image-fields";
+import { EMPTY_IMAGE, cleanFormatImage, imageSummary } from "@/lib/post-formats/image";
 
 // 投稿のフォーマットを選んだ状態（整えるに渡す。docs/design/post-formats.md の 4）
 // answer: シリーズのこの回の答え（本文には出ない。書きかけの控えに乗せる）
@@ -376,7 +378,7 @@ function FormatManager({
             {formats.map((f) =>
               editing === f.id ? (
                 <li key={f.id} className="py-2">
-                  <FormatEditor initial={f} pillars={pillars} planHashtags={planHashtags} connected={connected} pending={pending} onCancel={() => setEditing(null)} onSave={(v) => run(() => updatePostFormat(projectId, f.id, v), () => setEditing(null))} />
+                  <FormatEditor projectId={projectId} initial={f} pillars={pillars} planHashtags={planHashtags} connected={connected} pending={pending} onCancel={() => setEditing(null)} onSave={(v) => run(() => updatePostFormat(projectId, f.id, v), () => setEditing(null))} />
                 </li>
               ) : (
                 <li key={f.id} className="flex flex-col gap-1 py-2">
@@ -405,6 +407,7 @@ function FormatManager({
                   </div>
                   <p className="line-clamp-2 text-xs leading-[1.7] whitespace-pre-line text-muted">{f.body}</p>
                   {hasFormatHashtags(f.hashtags) && <FormatTagsLine h={f.hashtags} className="text-xs text-muted" />}
+                  {f.image && <p className="text-xs text-muted">{imageSummary(f.image)}</p>}
                   {isSeries(f.series) && <SeriesRounds projectId={projectId} format={f} />}
                 </li>
               ),
@@ -415,6 +418,7 @@ function FormatManager({
           (editing === "new" ? (
             <FormatEditor
               key={draft?.name ?? "new"}
+              projectId={projectId}
               initial={draft ?? undefined}
               pillars={pillars}
               planHashtags={planHashtags}
@@ -462,6 +466,7 @@ function FormatManager({
 
 // フォーマットの欄（名前・いつ使う・本文・埋めた例・柱）。保存の前に画面でも確かめる（正はサーバー）
 function FormatEditor({
+  projectId,
   initial,
   pillars,
   planHashtags,
@@ -470,6 +475,7 @@ function FormatEditor({
   onSave,
   onCancel,
 }: {
+  projectId: string;
   initial?: PostFormatInput;
   pillars: string[];
   planHashtags: string[];
@@ -485,6 +491,8 @@ function FormatEditor({
   );
   // シリーズ（AI が埋める穴と答え。docs/design/format-series.md の 1）
   const [series, setSeries] = useState<FormatSeries>(initial?.series ?? EMPTY_SERIES);
+  // 画像（docs/design/format-image.md の 1.）。絵の説明が空なら画像なしで保存する
+  const [image, setImage] = useState(initial?.image ?? EMPTY_IMAGE);
   const [problem, setProblem] = useState<string | null>(null);
   const set = (k: Exclude<keyof PostFormatInput, "hashtags" | "series">, x: string) => (setV((o) => ({ ...o, [k]: x })), setProblem(null));
   const setTag = (k: FormatHashtagKey, x: string) => (setTags((o) => ({ ...o, [k]: x })), setProblem(null));
@@ -530,6 +538,7 @@ function FormatEditor({
       )}
       <FormatTagsFields tags={tags} setTag={setTag} planHashtags={planHashtags} connected={connected} />
       {slots.length > 0 && <SeriesFields slots={slots} series={series} setSeries={(x) => (setSeries(x), setProblem(null))} />}
+      <FormatImageFields projectId={projectId} body={v.body} series={series} image={image} setImage={(x) => (setImage(x), setProblem(null))} />
       {problem && <p className="text-sm font-semibold text-danger">{problem}</p>}
       <div className="flex gap-2">
         <Button
@@ -538,7 +547,10 @@ function FormatEditor({
           onClick={() => {
             const p = formatInputSchema.safeParse({ ...v, pillar: pillars.includes(v.pillar) ? v.pillar : "", hashtags: tags, series });
             if (!p.success) return setProblem(p.error.issues[0]?.message ?? "入力の形式が正しくありません。");
-            onSave(p.data);
+            // 画像の穴の決まりも画面で先に確かめる（正はサーバー）
+            const img = cleanFormatImage(image, p.data.body, series);
+            if (img.problem) return setProblem(img.problem);
+            onSave({ ...p.data, image: img.image });
           }}
         >
           {pending ? "保存しています…" : "保存する"}

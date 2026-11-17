@@ -80,6 +80,12 @@ export function cleanRoundValues(body: string, raw: unknown): Record<string, str
   return out;
 }
 
+// DB から読んだ記録の穴の言葉（jsonb）を、文字の値だけの形にする
+export function readRoundValues(raw: unknown): Record<string, string> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  return Object.fromEntries(Object.entries(raw as Record<string, unknown>).filter((e): e is [string, string] => typeof e[1] === "string"));
+}
+
 export const cleanAnswer = (s: unknown) => oneLine(s, MAX_ROUND_ANSWER);
 
 // 「これまでの回を貼る」: 1 行に 1 つの答え。空行・同じ答え（記録にあるもの・貼った中での重なり）は捨て、room（残りの回数）と 100 行までにする

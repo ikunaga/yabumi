@@ -50,7 +50,9 @@ export function maxSimilarity(text: string, recent: readonly string[]): number {
 const URL_RE = /https?:\/\/[^\s<>"'）)]+/gi;
 // スキームのないドメイン（X などは「example.com」だけでもリンクにする）。日本語などのドメイン（例え.jp・.日本）も拾う。
 // 本文は先に NFKC にそろえる（全角の「．」「ｊｐ」を「.」「jp」に）。判定は https:// を付けた URL のホスト（punycode）で、urlAllowed がする
-const BARE_DOMAIN_RE = /(?<![\p{L}\p{N}@./-])(?:[\p{L}\p{N}](?:[\p{L}\p{N}-]{0,61}[\p{L}\p{N}])?\.)+(?:xn--[a-z0-9-]{1,59}|\p{L}{2,24})(?:\/[^\s<>"'）)]*)?/giu;
+// ラベルの長さ（DNS では 63 字まで）では縛らない。縛ると、日本語の文に 64 字以上くっついたドメイン（「あ…あevil.com」）が、
+// どこから始めても当たらず、すり抜ける。長すぎるラベルは、文ごと拾ってから urlAllowed が外のものとして扱う（行き先の URL とは合わない）
+const BARE_DOMAIN_RE = /(?<![\p{L}\p{N}@./-])(?:[\p{L}\p{N}](?:[\p{L}\p{N}-]*[\p{L}\p{N}])?\.)+(?:xn--[a-z0-9-]{1,59}|\p{L}{2,24})(?:\/[^\s<>"'）)]*)?/giu;
 
 // 本文の URL が、登録した行き先のどれかの中か。前方一致の文字列では比べない（https://shop.example.com.evil.org/ を通さない）。
 // オリジン（スキーム・ホスト・ポート）が同じで、パスが行き先のパスの中（「/」の区切りで）にあり、ユーザー名・パスワードがないこと

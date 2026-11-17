@@ -346,8 +346,9 @@ describe("止める・飛ばす・消す", () => {
 
 describe("セキュリティ確認（2026-11-17）", () => {
   it("M1: 運営者が止めた回し方は、利用者が再開も一時停止もできない。ほかの理由で止まったものは再開できる", async () => {
-    const op = await newPlan();
-    const project = planProject.get(op)!;
+    // 運営者が止めた回し方があるプロジェクトは作る・直すもできなくなるので、ほかのテストと分けたプロジェクトで試す
+    const project = (await alice.from("projects").insert({ name: "運営者が止めた" }).select("id").single()).data!.id;
+    const op = await newPlan(alice, { p_project_id: project });
     await admin.from("auto_plans").update({ status: "stopped", stop_reason: "operator" }).eq("id", op);
     expect((await alice.rpc("set_auto_plan_status", { p_project_id: project, p_plan_id: op, p_status: "active" })).error?.code).toBe("42501");
     expect((await alice.rpc("set_auto_plan_status", { p_project_id: project, p_plan_id: op, p_status: "paused" })).error?.code).toBe("42501");
@@ -361,6 +362,31 @@ describe("セキュリティ確認（2026-11-17）", () => {
       expect((await alice.rpc("set_auto_plan_status", { p_project_id: planProject.get(id)!, p_plan_id: id, p_status: "active" })).error).toBeNull();
       expect((await admin.from("auto_plans").select("status").eq("id", id).single()).data!.status).toBe("active");
     }
+  });
+
+  it("R4: 運営者が止めた回し方は消せない。同じプロジェクトでは作る・直すもできない。ほかのプロジェクトは今までどおり", async () => {
+    const project = (await alice.from("projects").insert({ name: "運営者が止めた R4" }).select("id").single()).data!.id;
+    const op = await newPlan(alice, { p_project_id: project });
+    const other = await newPlan(alice, { p_project_id: project });
+    await admin.from("auto_plans").update({ status: "stopped", stop_reason: "operator" }).eq("id", op);
+
+    const del = await alice.rpc("delete_auto_plan", { p_plan_id: op, p_to_draft: true });
+    expect(del.error?.code).toBe("42501");
+    expect(del.error?.hint).toBe("auto_plan_operator_stop");
+    expect((await admin.from("auto_plans").select("stop_reason").eq("id", op).single()).data!.stop_reason).toBe("operator");
+    // 作る・直す（止めた回し方も、同じプロジェクトのほかの回し方も）
+    expect((await alice.rpc("save_auto_plan", planArgs({ p_project_id: project }))).error?.hint).toBe("auto_plan_operator_stop");
+    expect((await alice.rpc("save_auto_plan", planArgs({ p_project_id: project, p_plan_id: op }))).error?.code).toBe("42501");
+    expect((await alice.rpc("save_auto_plan", planArgs({ p_project_id: project, p_plan_id: other, p_name: "直す" }))).error?.code).toBe("42501");
+    // 同じプロジェクトのほかの回し方を消すのはよい（止める方向なので）
+    expect((await alice.rpc("delete_auto_plan", { p_plan_id: other, p_to_draft: true })).error).toBeNull();
+    // ほかのプロジェクトでは、今までどおり作れる・消せる
+    const elsewhere = await newPlan();
+    expect((await alice.rpc("delete_auto_plan", { p_plan_id: elsewhere, p_to_draft: true })).error).toBeNull();
+    // ほかの理由で止まった回し方は、今までどおり消せる
+    const failed = await newPlan();
+    await admin.from("auto_plans").update({ status: "stopped", stop_reason: "fail_streak" }).eq("id", failed);
+    expect((await alice.rpc("delete_auto_plan", { p_plan_id: failed, p_to_draft: true })).error).toBeNull();
   });
 
   it("L1: 自動で作った印は利用者が書けない。auto_run_id を付けると印も付き、回し方を消しても残る", async () => {

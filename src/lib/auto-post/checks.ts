@@ -48,8 +48,9 @@ export function maxSimilarity(text: string, recent: readonly string[]): number {
 // ===== AI を呼ばないチェック =====
 
 const URL_RE = /https?:\/\/[^\s<>"'）)]+/gi;
-// スキームのないドメイン（X などは「example.com」だけでもリンクにする）
-const BARE_DOMAIN_RE = /(?<![\w@./-])(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}(?:\/[^\s<>"'）)]*)?/gi;
+// スキームのないドメイン（X などは「example.com」だけでもリンクにする）。日本語などのドメイン（例え.jp・.日本）も拾う。
+// 本文は先に NFKC にそろえる（全角の「．」「ｊｐ」を「.」「jp」に）。判定は https:// を付けた URL のホスト（punycode）で、urlAllowed がする
+const BARE_DOMAIN_RE = /(?<![\p{L}\p{N}@./-])(?:[\p{L}\p{N}](?:[\p{L}\p{N}-]{0,61}[\p{L}\p{N}])?\.)+(?:xn--[a-z0-9-]{1,59}|\p{L}{2,24})(?:\/[^\s<>"'）)]*)?/giu;
 
 // 本文の URL が、登録した行き先のどれかの中か。前方一致の文字列では比べない（https://shop.example.com.evil.org/ を通さない）。
 // オリジン（スキーム・ホスト・ポート）が同じで、パスが行き先のパスの中（「/」の区切りで）にあり、ユーザー名・パスワードがないこと
@@ -77,6 +78,7 @@ export function urlAllowed(raw: string, allowed: readonly string[]): boolean {
 // 本文にある、リンクになりうるもの（スキームつきの URL と、スキームのないドメイン）のうち、行き先の外のもの
 export function foreignLinks(text: string, allowed: readonly string[]): string[] {
   const out: string[] = [];
+  text = text.normalize("NFKC");
   const withScheme = text.match(URL_RE) ?? [];
   for (const u of withScheme) if (!urlAllowed(u, allowed)) out.push(u);
   const rest = text.replace(URL_RE, " ");

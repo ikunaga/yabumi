@@ -344,6 +344,110 @@ describe("止める・飛ばす・消す", () => {
   });
 });
 
+describe("セキュリティ確認（2026-11-17）", () => {
+  it("M1: 運営者が止めた回し方は、利用者が再開も一時停止もできない。ほかの理由で止まったものは再開できる", async () => {
+    const op = await newPlan();
+    const project = planProject.get(op)!;
+    await admin.from("auto_plans").update({ status: "stopped", stop_reason: "operator" }).eq("id", op);
+    expect((await alice.rpc("set_auto_plan_status", { p_project_id: project, p_plan_id: op, p_status: "active" })).error?.code).toBe("42501");
+    expect((await alice.rpc("set_auto_plan_status", { p_project_id: project, p_plan_id: op, p_status: "paused" })).error?.code).toBe("42501");
+    // 全部止めるは、運営者が止めたものを飛ばす（止まったまま）
+    expect((await alice.rpc("set_auto_plan_status", { p_project_id: project, p_plan_id: null as unknown as string, p_status: "paused" })).error).toBeNull();
+    expect((await admin.from("auto_plans").select("status, stop_reason").eq("id", op).single()).data).toEqual({ status: "stopped", stop_reason: "operator" });
+
+    for (const reason of ["fail_streak", "disconnected", "materials_out"]) {
+      const id = await newPlan();
+      await admin.from("auto_plans").update({ status: "stopped", stop_reason: reason }).eq("id", id);
+      expect((await alice.rpc("set_auto_plan_status", { p_project_id: planProject.get(id)!, p_plan_id: id, p_status: "active" })).error).toBeNull();
+      expect((await admin.from("auto_plans").select("status").eq("id", id).single()).data!.status).toBe("active");
+    }
+  });
+
+  it("L1: 自動で作った印は利用者が書けない。auto_run_id を付けると印も付き、回し方を消しても残る", async () => {
+    const id = await newPlan();
+    const { postId } = await runWithPost(id);
+    expect((await admin.from("posts").select("auto_created").eq("id", postId).single()).data!.auto_created).toBe(true);
+    expect((await alice.from("posts").update({ auto_created: false }).eq("id", postId)).error?.code).toBe("42501");
+    expect((await alice.from("posts").insert({ project_id: projectId, body: "手で", status: "draft", auto_created: true })).error?.code).toBe("42501");
+    expect((await alice.rpc("delete_auto_plan", { p_plan_id: id, p_to_draft: true })).error).toBeNull();
+    expect((await admin.from("posts").select("auto_run_id, auto_created").eq("id", postId).single()).data).toEqual({ auto_run_id: null, auto_created: true });
+    // サーバーも、一度付いた印は外せない
+    await admin.from("posts").update({ auto_created: false }).eq("id", postId);
+    expect((await admin.from("posts").select("auto_created").eq("id", postId).single()).data!.auto_created).toBe(true);
+  });
+
+  it("L1 ①: 確かめ待ちの配信先を外して付け直しても（直接・save_post）、確かめ待ちのまま。手で作った投稿は今までどおり", async () => {
+    const id = await newPlan();
+    const { postId, targets } = await runWithPost(id);
+    const project = planProject.get(id)!;
+    expect((await alice.from("post_targets").delete().eq("id", targets.x)).error).toBeNull();
+    const { data: direct, error } = await alice.from("post_targets").insert({ post_id: postId, sns: "x" }).select("id, status").single();
+    expect(error).toBeNull();
+    expect(direct!.status).toBe("awaiting_approval");
+    // save_post で外して、付け直す
+    const body = (await admin.from("posts").select("body").eq("id", postId).single()).data!.body;
+    const save = (targetsArg: unknown[]) =>
+      alice.rpc("save_post", { p_post_id: postId, p_project_id: project, p_body: body, p_planned_at: later(24), p_status: "scheduled", p_targets: targetsArg as never });
+    expect((await save([{ sns: "threads" }])).error).toBeNull();
+    expect((await admin.from("post_targets").select("id").eq("post_id", postId).eq("sns", "x")).data).toEqual([]);
+    expect((await save([{ sns: "threads" }, { sns: "x" }])).error).toBeNull();
+    expect((await admin.from("post_targets").select("status").eq("post_id", postId).eq("sns", "x").single()).data!.status).toBe("awaiting_approval");
+    expect((await admin.from("post_targets").select("status").eq("post_id", postId).eq("sns", "threads").single()).data!.status).toBe("pending");
+
+    // トリガーは security invoker（current_user で利用者かを見るため）。ほかの人の投稿に足そうとすると、トリガーより先に post_targets の insert のポリシーで断られる
+    expect((await bob.from("post_targets").insert({ post_id: postId, sns: "tiktok" })).error?.code).toBe("42501");
+    expect((await admin.from("post_targets").select("id").eq("post_id", postId).eq("sns", "tiktok")).data).toEqual([]);
+
+    const { data: manual } = await alice.from("posts").insert({ project_id: projectId, body: "手で書いた", status: "draft" }).select("id").single();
+    const { data: mt } = await alice.from("post_targets").insert({ post_id: manual!.id, sns: "x" }).select("status").single();
+    expect(mt!.status).toBe("pending");
+  });
+
+  it("L1 ②: 回し方を消したあとに送り直しても、承認の記録がなければ確かめ待ちに戻る", async () => {
+    const id = await newPlan();
+    const { postId, targets } = await runWithPost(id, { targets: [["threads", "failed"], ["x", "failed"]] });
+    expect((await alice.rpc("delete_auto_plan", { p_plan_id: id, p_to_draft: false })).error).toBeNull();
+    expect((await alice.rpc("requeue_failed_targets", { p_post_id: postId, p_sns: ["threads", "x"] })).error).toBeNull();
+    expect(await statusOf(targets.x)).toBe("awaiting_approval");
+    expect(await statusOf(targets.threads)).toBe("pending");
+  });
+
+  it("L1: 送信ジョブは、自動で作った投稿の X を、いまの中身への承認がなければ取り出さない", async () => {
+    const id = await newPlan();
+    const { postId, targets } = await runWithPost(id, { targets: [["x", "pending"]] });
+    await admin.from("posts").update({ planned_at: new Date(Date.now() - 60_000).toISOString() }).eq("id", postId);
+    expect((await admin.rpc("claim_due_targets", { p_limit: 10, p_post_id: postId })).data).toEqual([]);
+    // 古い指紋の承認も数えない
+    await admin.from("post_target_approvals").insert({ post_target_id: targets.x, owner_id: aliceId, fingerprint: "0".repeat(64) });
+    expect((await admin.rpc("claim_due_targets", { p_limit: 10, p_post_id: postId })).data).toEqual([]);
+    expect(await statusOf(targets.x)).toBe("pending");
+  });
+
+  it("承認の指紋には、送り先のアカウント・引用する投稿・添えた画像も入る。承認のあとに変えたら確かめ待ちに戻る", async () => {
+    const id = await newPlan();
+    const { postId, targets } = await runWithPost(id);
+    const approve = async () => {
+      const pv = await previews(postId);
+      expect((await alice.rpc("approve_auto_target", { p_target_id: targets.x, p_fingerprint: pv.x.fingerprint })).error).toBeNull();
+      expect(await statusOf(targets.x)).toBe("pending");
+    };
+    await approve();
+    await alice.from("post_targets").update({ quote_post_id: "1234567890" }).eq("id", targets.x);
+    expect(await statusOf(targets.x)).toBe("awaiting_approval");
+    await approve();
+    const { data: m, error } = await admin
+      .from("media_files")
+      .insert({ owner_id: aliceId, post_id: postId, storage_path: `${aliceId}/${randomUUID()}.jpg`, width: 10, height: 10, size_bytes: 100 })
+      .select("id")
+      .single();
+    expect(error).toBeNull();
+    expect(await statusOf(targets.x)).toBe("awaiting_approval");
+    await approve();
+    await admin.from("media_files").delete().eq("id", m!.id);
+    expect(await statusOf(targets.x)).toBe("awaiting_approval");
+  });
+});
+
 describe("作る回の取り出し（claim_due_auto_runs）", () => {
   it("作る時刻が来た回だけを、同時に呼んでも 1 回だけ取り出す。止めた回し方・送る時刻を過ぎた回は取り出さない。利用者は呼べない", async () => {
     const id = await newPlan();

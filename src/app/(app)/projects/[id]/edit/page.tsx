@@ -3,6 +3,7 @@ import { listDestinations } from "@/lib/projects/destinations";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
+import { DefaultHashtagsCard } from "@/components/projects/default-hashtags-card";
 import { DeleteProjectButton } from "@/components/projects/delete-project-button";
 import { ProjectForm } from "@/components/projects/project-form";
 import { SnsAccountsCard } from "@/components/projects/sns-accounts-card";
@@ -12,7 +13,9 @@ import { Disclosure } from "@/components/ui/help";
 import { PageHeader } from "@/components/ui/page-header";
 import { ErrorBanner, SuccessBanner } from "@/components/ui/feedback";
 import { updateProject } from "@/lib/projects/actions";
+import { readDefaultHashtags } from "@/lib/projects/default-hashtags";
 import { getProject } from "@/lib/projects/queries";
+import { getAccountPlan } from "@/lib/plan/queries";
 import { facebookConfigured } from "@/lib/sns/facebook/config";
 import { instagramConfigured } from "@/lib/sns/instagram/config";
 import { readReplacedCookie, SNS_REPLACED_COOKIE } from "@/lib/sns/link";
@@ -33,11 +36,13 @@ export default async function ProjectSettingsPage(props: PageProps<"/projects/[i
   if (!project) notFound();
   const supabase = await createClient();
   const xReady = xConfigured();
-  const [snsAccounts, { data: manualChannels }, xSpend, destinations] = await Promise.all([
+  const [snsAccounts, { data: manualChannels }, xSpend, destinations, accountPlan] = await Promise.all([
     listProjectSnsAccounts(project.id),
     supabase.from("project_manual_channels").select("sns, profile_url").eq("project_id", project.id),
     xReady ? xSpendThisMonth() : null,
     listDestinations(supabase, project.id),
+    // いつものタグの欄に出す、アカウント設計のハッシュタグの候補
+    getAccountPlan(project.id),
   ]);
   // 同じ SNS の別のアカウントから付け替えたとき（つないだ直後だけ）。新しいアカウントの名前は今つながっているものから
   const replacedNames = typeof connected === "string" ? readReplacedCookie((await cookies()).get(SNS_REPLACED_COOKIE)?.value) : [];
@@ -59,6 +64,13 @@ export default async function ProjectSettingsPage(props: PageProps<"/projects/[i
         connectable={{ threads: threadsConfigured(), x: xReady, instagram: instagramConfigured(), facebook: facebookConfigured(), tiktok: tiktokConfigured(), youtube: youtubeConfigured() }}
         xSpend={xSpend}
         youtubeTesting={youtubeOAuthTesting()}
+      />
+
+      <DefaultHashtagsCard
+        projectId={project.id}
+        initial={readDefaultHashtags(project.default_hashtags)}
+        planHashtags={accountPlan ? accountPlan.plan.hashtags.items.map((h) => h.tag).filter(Boolean) : []}
+        connected={[...new Set(snsAccounts.filter((a) => a.status === "active").map((a) => a.sns))]}
       />
 
       <ProjectForm

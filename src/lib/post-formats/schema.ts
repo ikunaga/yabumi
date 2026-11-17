@@ -72,7 +72,7 @@ export function readFormatHashtags(raw: unknown): FormatHashtags {
 export const hashtagKeyLabel = (k: FormatHashtagKey) => (k === "all" ? "全部の SNS" : SNS[k].label);
 
 // 編集の欄から（キーごとに「#a #b」の文字か、タグの配列）。空のキーは持たない
-const hashtagsInput = z
+export const hashtagsInput = z
   .record(z.string(), z.union([z.string().max(1000), z.array(z.string().max(100)).max(20)]))
   .default({})
   .transform((raw, ctx) => {

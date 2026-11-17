@@ -125,7 +125,7 @@ export function ComposeStepTargets({ c }: { c: Composer }) {
 // SNS ごとのタグ（docs/architecture.md の 4.59）。本文とは別に持ち、送るときに本文の下に 1 行あけて付く。
 // 投稿のフォーマットを本文に入れると、そのタグが入る。送った SNS は直せない（送り直さない）
 function TargetHashtags({ c }: { c: Composer }) {
-  const { chosen, tagInputs, setTagInputs, tagsFor, tagsInBody, tagProblem, textFor, isLocked, sentState, markTyped, clearFieldError } = c;
+  const { chosen, tagInputs, setTagInputs, tagsFor, tagsInBody, tagProblem, textFor, isLocked, sentState, markTyped, clearFieldError, projectId } = c;
   return (
     <fieldset className="flex min-w-0 flex-col gap-2">
       <legend className="mb-1 text-[14px] font-bold">
@@ -170,6 +170,10 @@ function TargetHashtags({ c }: { c: Composer }) {
           );
         })}
       </ul>
+      {/* いつものタグ（プロジェクトの設定。2026-11-17）。新しい投稿のこの欄に最初から入る */}
+      <Link href={`/projects/${projectId}/edit#default-hashtags`} className="self-start text-sm font-bold text-fg underline">
+        いつものタグを決める →
+      </Link>
     </fieldset>
   );
 }

@@ -42,7 +42,8 @@ import { findUrls, profileLinkLine, withDestinationUrl, withProfileLink, type Pr
 import { type TimeBand } from "@/lib/metrics/time-bands";
 import { composeChanges, type ComposeSnapshot } from "@/lib/posts/compose-reset";
 import { hashtagInputProblem, hashtagLine, parseHashtagInput, splitTagsByText, withHashtags } from "@/lib/sns/hashtags";
-import { formatTagsFor, hasFormatHashtags, type FormatHashtags } from "@/lib/post-formats/schema";
+import { hasFormatHashtags, type FormatHashtags } from "@/lib/post-formats/schema";
+import { defaultTagInputs, tagsAfterFormat, type DefaultHashtags } from "@/lib/projects/default-hashtags";
 import { checkXSend } from "@/lib/posts/x-send-actions";
 import { discardFormatRounds } from "@/lib/post-formats/actions";
 import { hasXUrl } from "@/lib/sns/x-text";
@@ -113,6 +114,8 @@ export type ComposerProps = {
   hasVoiceMemo?: boolean;
   // 見出しの横の「↻ 自動で回す」の行き先（新しい投稿だけ。渡さなければ出さない。docs/design/auto-post.md の 1.2）
   autoHref?: string;
+  // プロジェクトの「いつものタグ」（projects.default_hashtags）。新しい投稿の SNS ごとのタグの欄の初期値と、フォーマットにその SNS のタグがないときの戻り先
+  defaultHashtags?: DefaultHashtags;
 };
 
 // 送信済み・送信中・取り消し済みの配信先は、選び直しも送り直しもできない
@@ -158,6 +161,7 @@ export function useComposer({
   afterNotice,
   noticeTone = "success",
   planHints = null,
+  defaultHashtags = {},
   needImageReconnect = [],
   linkPreview = {},
   linkBase = "",
@@ -291,10 +295,11 @@ export function useComposer({
       body: initial.body,
       overrides: Object.fromEntries(initial.targets.filter((t) => t.bodyOverride !== null).map((t) => [t.sns, t.bodyOverride!])),
       titles: Object.fromEntries(initial.targets.filter((t) => t.title).map((t) => [t.sns, t.title!])),
-      hashtags: initialTagInputs(initial),
+      hashtags: initialTagInputs(initial, postId, defaultHashtags),
       images: (initial.images ?? []).map((i) => ({ id: i.id, altText: i.altText })),
       video: initial.video ? { id: initial.video.id } : null,
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [initial],
   );
   // 書き始めたときの保存してある値（控えに添え、次に開いたときに保存し直されていないかを見る）
@@ -495,7 +500,8 @@ export function useComposer({
       const next = { ...prev };
       for (const s of SNS_KEYS) {
         if (isLocked(s)) continue;
-        const tags = formatTagsFor(h, s);
+        // フォーマットにその SNS のタグがなければ、いつものタグに戻す（どちらもなければ空。2026-11-17）
+        const tags = tagsAfterFormat(h, defaultHashtags, s);
         if (tags.length) next[s] = hashtagLine(tags);
         else delete next[s];
       }
@@ -1082,8 +1088,12 @@ export type Composer = ReturnType<typeof useComposer>;
 
 export const TARGET_STATE_TEXTS = new Set(Object.values(TARGET_STATE).map((s) => s!.text));
 
-// 保存したタグを、欄に出す文字にする（#a #b）
-function initialTagInputs(initial: ComposerInitial): Partial<Record<SnsKey, string>> {
+// タグの欄の初期値（#a #b）。保存した投稿は保存したタグ。新しい投稿（postId がない）は、プロジェクトの「いつものタグ」を SNS ごとに入れる（2026-11-17）。
+// 初期値なので、書きかけの控えや「保存していない変更」の判定でも変えていない扱い。消した・書いたものは、そのあと上書きしない
+export function initialTagInputs(initial: ComposerInitial, postId: string | null = null, defaults: DefaultHashtags = {}): Partial<Record<SnsKey, string>> {
+  if (postId === null && !initial.targets.some((t) => t.hashtags?.length)) {
+    return defaultTagInputs(defaults);
+  }
   return Object.fromEntries(initial.targets.filter((t) => t.hashtags?.length).map((t) => [t.sns, hashtagLine(t.hashtags!)]));
 }
 

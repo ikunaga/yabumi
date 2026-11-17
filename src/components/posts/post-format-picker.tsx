@@ -559,16 +559,21 @@ function FormatTagsLine({ h, className }: { h: FormatHashtags; className?: strin
 
 // 毎回付けるタグの欄（docs/architecture.md の 4.59）。全部の SNS に付けるタグと、畳んだ「SNS ごとに変える」。
 // アカウント設計のハッシュタグの候補は、押すと全部の SNS の欄に足す
-function FormatTagsFields({
+// プロジェクトの設定の「いつものタグ」も同じ欄を使う（legend・footnote を変える。2026-11-17）
+export function FormatTagsFields({
   tags,
   setTag,
   planHashtags,
   connected,
+  legend = "毎回付けるタグ",
+  footnote = "本文の下に 1 行あけて付きます。投稿ごとに「2 送り先」で直せます。",
 }: {
   tags: Partial<Record<FormatHashtagKey, string>>;
   setTag: (k: FormatHashtagKey, x: string) => void;
   planHashtags: string[];
   connected: SnsKey[];
+  legend?: string;
+  footnote?: string;
 }) {
   const allTags = parseHashtagInput(tags.all ?? "").tags.map((t) => t.toLowerCase());
   const candidates = planHashtags.map(normalizeHashtag).filter((t) => t && !allTags.includes(t.toLowerCase()));
@@ -586,7 +591,8 @@ function FormatTagsFields({
   return (
     <fieldset className="flex min-w-0 flex-col gap-1.5">
       <legend className="mb-1 text-xs font-bold">
-        毎回付けるタグ<span className="ml-1.5 font-normal text-muted">任意</span>
+        {legend}
+        <span className="ml-1.5 font-normal text-muted">任意</span>
       </legend>
       <label className="flex flex-col gap-1">
         <span className="text-xs text-muted">全部の SNS（{MAX_TARGET_HASHTAGS} 個まで）</span>
@@ -612,7 +618,7 @@ function FormatTagsFields({
           </details>
         )}
       </details>
-      <span className="text-xs text-muted">本文の下に 1 行あけて付きます。投稿ごとに「2 送り先」で直せます。</span>
+      <span className="text-xs text-muted">{footnote}</span>
     </fieldset>
   );
 }

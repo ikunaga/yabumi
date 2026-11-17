@@ -3,6 +3,7 @@ import { MAX_IMAGES_PER_POST, MAX_UNATTACHED, MEDIA_BUCKET, USER_QUOTA_BYTES, me
 import type { SnsKey } from "@/lib/sns";
 import type { Database } from "@/lib/supabase/database.types";
 import { MAX_NOTE_CHARS, MAX_NOTES_PER_PROJECT } from "./rules";
+import { loadDefaultHashtags, withDefaultTags } from "@/lib/projects/default-hashtags";
 
 // ネタ帳のメモの保存・直す・削除・下書きにする（docs/architecture.md の 4.26）。
 // user: 利用者の権限（RLS で本人のメモ・プロジェクトだけ）。admin: 画像（media_files は書き込みがサーバーだけ。4.18）
@@ -198,7 +199,12 @@ export async function noteToDraft(
 ): Promise<NoteOutcome<{ postId: string; skippedImages: number }>> {
   const { data: note } = await user.from("idea_notes").select("id, body, project_id").eq("id", args.noteId).eq("project_id", args.projectId).maybeSingle();
   if (!note) return NOT_FOUND;
-  const targets = (Object.entries(args.accounts) as [SnsKey, string][]).map(([sns, id]) => ({ sns, title: null, body_override: null, social_account_id: id }));
+  // いつものタグを、作る時点で入れる（2026-11-17。開いたときは下書きの続きなので入れない）
+  const targets = withDefaultTags(
+    (Object.entries(args.accounts) as [SnsKey, string][]).map(([sns, id]) => ({ sns, title: null, body_override: null, social_account_id: id })),
+    note.body,
+    await loadDefaultHashtags(user, args.projectId),
+  );
   const { data: postId, error } = await user.rpc("save_post", {
     p_post_id: null as unknown as string,
     p_project_id: args.projectId,

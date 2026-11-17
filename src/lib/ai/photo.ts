@@ -36,10 +36,9 @@ export function photoModel(env: Record<string, string | undefined> = process.env
   return env.IMAGE_GEN_MODEL?.trim() || "gemini-nano-banana-2.1";
 }
 
-// Claude で場面を書く 1 回の目安（円。押す前に出す）。pricing.ts の Opus 5.5（入力 $4・出力 $20 / 1M）で出し直した（2026-11-17）:
-// 入力は指示と設計で 約 3,000〜3,500 トークン、出力は考える分を含めて 300〜2,000 トークン。
-// 案 1 つ（フォーマットの画像）は 約 3〜6 円、案 2〜3 つ（絵の説明の案）は 約 4〜8 円。前は「2 円ほど」と出していたが、考える分を数えていなかった
-export const SCENE_YEN = { one: [3, 6], ideas: [4, 8] } as const;
+// Claude で場面を書く 1 回の目安（円。押す前に出す）。本物で測った値に合わせた（2026-11-17、PM の指示。architecture.md の 4.76）:
+// 案 1 つ（フォーマットの画像）は 入力 約 2,640・出力 約 210 トークンで $0.0147（約 2 円）→ 2〜3 円。案 2〜3 つ（絵の説明の案）は出力が増えるので 2〜4 円
+export const SCENE_YEN = { one: [2, 3], ideas: [2, 4] } as const;
 
 // 1 枚の目安（円。押す前に出す）
 export function photoUnitYen(model: string): number {

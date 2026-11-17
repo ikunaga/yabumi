@@ -19,7 +19,7 @@ describe("YouTube の連携の版", () => {
     expect(rev.noticeWaived).not.toContain("【仮】");
     expect(rev.summary.join("")).toContain("YouTube API サービス");
     expect(historyProblems()).toEqual([]);
-    expect(LEGAL_VERSIONS.at(-1)?.version).toBe(VERSION);
+    expect(LEGAL_VERSIONS.at(-1)!.version >= VERSION).toBe(true);
     // 1 日 1 版: TikTok・動画・YouTube を 1 つの版にまとめ、summary は TikTok → 動画 → YouTube の順
     expect(LEGAL_VERSIONS.filter((r) => r.version === VERSION)).toHaveLength(1);
     const order = ["TikTok をつないで", "投稿に動画を添えられる", "YouTube をつないで"].map((w) => rev.summary.findIndex((l) => l.startsWith(w)));

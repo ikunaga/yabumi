@@ -222,6 +222,62 @@ describe("作る（偽の AI）", () => {
     expect(push).toHaveBeenCalled();
   });
 
+  it("書けなかった回（cannot_write）は選んだ材料を記録に残し、次の回は次の柱・次のメモへ進む", async () => {
+    const p = await project();
+    await admin.from("account_plans").upsert({ project_id: p, owner_id: aliceId, data: { pillars: { items: [{ name: "新作", share: null, example: "", sns: [] }, { name: "店の日常", share: null, example: "", sns: [] }], tone: "", avoid: "" } } as never });
+    const cannot = (word: string): EngineDeps["generator"] => async (input) =>
+      input.materialLabel.includes(word) ? { ok: false, reason: "cannot_write", detail: "材料が足りません" } : generator(input);
+
+    const pid = await plan(p, { p_kind: "pillars", p_materials: {} });
+    await admin.from("auto_plans").update({ first_review: false }).eq("id", pid);
+    const first = await dueRun(pid, p, 20);
+    await makeDueRuns(admin, { ...deps(), generator: cannot("新作") }, new Date(), scopeOpts());
+    expect(await runOf(first)).toMatchObject({ status: "skipped", reason: "cannot_write", material_ref: { pillar: "新作" } });
+    const second = await dueRun(pid, p, 21);
+    await makeDueRuns(admin, { ...deps(), generator: cannot("新作") }, new Date(), scopeOpts());
+    const r2 = await runOf(second);
+    expect(r2.status).toBe("scheduled");
+    expect((await admin.from("posts").select("body").eq("id", r2.post_id!).single()).data!.body).toContain("柱: 店の日常");
+
+    const a = await note(p, "メモ A");
+    const b = await note(p, "メモ B");
+    const nid = await plan(p);
+    await admin.from("auto_plans").update({ first_review: false }).eq("id", nid);
+    const n1 = await dueRun(nid, p, 22);
+    await makeDueRuns(admin, { ...deps(), generator: cannot("メモ A") }, new Date(), scopeOpts());
+    expect(await runOf(n1)).toMatchObject({ status: "skipped", reason: "cannot_write", material_ref: { note_id: a } });
+    // 書けなかったメモは使ったことにしない（利用者は投稿をつくるで使える）
+    expect((await admin.from("idea_notes").select("used_at").eq("id", a).single()).data!.used_at).toBeNull();
+    const n2 = await dueRun(nid, p, 23);
+    await makeDueRuns(admin, { ...deps(), generator: cannot("メモ A") }, new Date(), scopeOpts());
+    expect(await runOf(n2)).toMatchObject({ status: "scheduled", material_ref: { note_id: b } });
+
+    // AI の枠で飛ばした回は材料を残さない（同じ材料でやり直す）
+    const c = await note(p, "メモ C");
+    const n3 = await dueRun(nid, p, 24);
+    await makeDueRuns(admin, { ...deps(), generator: async () => ({ ok: false, reason: "ai_limit", detail: "今月の上限" }) }, new Date(), scopeOpts());
+    expect((await runOf(n3)).material_ref).toEqual({});
+    const n4 = await dueRun(nid, p, 25);
+    await makeDueRuns(admin, deps(), new Date(), scopeOpts());
+    expect(await runOf(n4)).toMatchObject({ status: "scheduled", material_ref: { note_id: c } });
+  });
+
+  it("チェックに、利用者が書いた事実（プロジェクトの説明・届けたい相手・その回の材料）を渡す", async () => {
+    const p = await project();
+    await admin.from("projects").update({ description: "駅から歩いて 5 分のパン屋", target_audience: "近所の人" }).eq("id", p);
+    await note(p, "くるみパンを焼き直した");
+    const id = await plan(p);
+    vi.mocked(callCheck).mockClear();
+    await dueRun(id, p, 20);
+    await makeDueRuns(admin, deps(), new Date(), scopeOpts());
+    const req = vi.mocked(callCheck).mock.calls[0][0];
+    const text = (req.messages[0].content as { text: string }[])[0].text;
+    expect(text).toContain("<facts>");
+    expect(text).toContain("<description>\n駅から歩いて 5 分のパン屋\n</description>");
+    expect(text).toContain("<audience>\n近所の人\n</audience>");
+    expect(text).toMatch(/<material>\n種類: ネタ帳のメモ[\s\S]*くるみパンを焼き直した\n<\/material>/);
+  });
+
   it("止めた回し方の回は作らない。1 人 1 日に SNS ごとに 2 本まで", async () => {
     const p = await project();
     for (const b of ["メモ 1", "メモ 2", "メモ 3"]) await note(p, b);

@@ -117,6 +117,9 @@ export async function settleApprovals(admin: Db, now: Date, opts: EngineOpts = {
 
 // ===== ③ 作る =====
 
+// 材料を選ぶときに見る前の回。書けなかった回（skipped・cannot_write）も、選んだ材料を記録に残しているので数える（同じ材料を選び続けない）
+const PAST_STATUSES: AutoRunStatus[] = ["generating", "scheduled", "review", "held", "skipped"];
+
 type ClaimedRun = { id: string; plan_id: string; owner_id: string; project_id: string; due_at: string };
 
 async function finish(admin: Db, runId: string, patch: { status: AutoRunStatus; reason?: AutoRunReason | null; detail?: string | null; postId?: string | null; ref?: Record<string, unknown> }) {
@@ -207,7 +210,7 @@ async function loadContext(admin: Db, projectId: string, ownerId: string, sns: S
   return { project: project as ProjectRow & { name: string }, planData, ctx };
 }
 
-export type Draft = { ok: true; texts: Texts; tags: Partial<Record<SnsKey, string[]>>; material: Material; ref: Record<string, unknown>; hold: Issue | null } | { ok: false; reason: AutoRunReason; detail: string };
+export type Draft = { ok: true; texts: Texts; tags: Partial<Record<SnsKey, string[]>>; material: Material; ref: Record<string, unknown>; hold: Issue | null } | { ok: false; reason: AutoRunReason; detail: string; ref?: Record<string, unknown> };
 
 // 材料を選び、文を作り、チェックする（見本と回の作成で同じ道）。投稿は作らない
 export async function draftRun(
@@ -237,7 +240,11 @@ export async function draftRun(
       recentBodies: args.recent.mine,
       maxLength: Object.fromEntries(args.sns.map((s) => [s, SNS[s].maxLength ?? 10_000])),
     });
-    if (!out.ok) return { ok: false, reason: out.reason === "cannot_write" ? "cannot_write" : out.reason === "ai_limit" ? "ai_limit" : "error", detail: out.detail };
+    // 書けなかった材料は、回の記録に残す（次の回は次の柱・行き先・メモへ進む。同じ材料を選び続けない）。AI の枠・失敗はそのまま（同じ材料でやり直す）
+    if (!out.ok)
+      return out.reason === "cannot_write"
+        ? { ok: false, reason: "cannot_write", detail: out.detail, ref }
+        : { ok: false, reason: out.reason === "ai_limit" ? "ai_limit" : "error", detail: out.detail };
     texts = out.texts;
     if (out.pillar) ref.pillar = out.pillar;
     if (out.concern) ref.concern = out.concern;
@@ -257,12 +264,19 @@ export async function draftRun(
   if (!hold) {
     // AI っぽさチェック（自動の投稿の枠。用途 auto_post_check）
     const checkTexts: CheckText[] = dedupeTexts((Object.entries(texts) as [SnsKey, string][]).map(([sns, text]) => ({ sns, text })));
-    const b = await withAiBudget(
-      admin,
-      { userId: args.plan.ownerId, purpose: "auto_post_check", call: "ai_check" },
-      buildAiCheckRequest({ projectName: loaded.ctx.project.name, plan: loaded.planData, productType: loaded.ctx.project.productType, sns: args.sns, voice: loaded.ctx.voice }, checkTexts),
-      deps.callCheck,
+    const request = buildAiCheckRequest(
+      {
+        projectName: loaded.ctx.project.name,
+        plan: loaded.planData,
+        productType: loaded.ctx.project.productType,
+        sns: args.sns,
+        voice: loaded.ctx.voice,
+        // 利用者が書いた事実（プロジェクトの説明・届けたい相手・この回の材料）。ここにあることは「事実か確かめて」にしない
+        facts: { description: loaded.ctx.project.description, audience: loaded.ctx.project.targetAudience, material: material.text },
+      },
+      checkTexts,
     );
+    const b = await withAiBudget(admin, { userId: args.plan.ownerId, purpose: "auto_post_check", call: "ai_check" }, request, deps.callCheck);
     // 確かめられないものは送らない
     if (!b.ok) return { ok: false, reason: "ai_limit", detail: b.message };
     const result = b.result.stopReason === "end_turn" ? normalizeAiCheck(b.result.output, checkTexts) : null;
@@ -309,14 +323,14 @@ async function processRun(admin: Db, deps: EngineDeps, run: ClaimedRun, now: Dat
     .select("material_ref")
     .eq("plan_id", plan.id)
     .neq("id", run.id)
-    .in("status", ["generating", "scheduled", "review", "held"])
+    .in("status", PAST_STATUSES)
     .order("due_at", { ascending: false })
     .limit(20);
   const past = (pastRows ?? []).map((r) => (r.material_ref ?? {}) as PastRef);
   const recent = await recentTexts(admin, plan.projectId, plan.ownerId, plan.id, now);
   const draft = await draftRun(admin, deps, { plan, sns, dueAt: due, past, recent });
   if (!draft.ok) {
-    await finish(admin, run.id, { status: "skipped", reason: draft.reason, detail: draft.detail });
+    await finish(admin, run.id, { status: "skipped", reason: draft.reason, detail: draft.detail, ref: draft.ref });
     return "skipped";
   }
   // Instagram は画像が要る（段階 A はネタ帳の写真だけ）。写真がなければ Instagram は外す
@@ -555,7 +569,7 @@ export async function makeSample(admin: Db, deps: EngineDeps, args: { ownerId: s
   const plan = { ...args.plan, projectId: args.projectId, ownerId: args.ownerId };
   const sns = Object.keys(plan.targets) as SnsKey[];
   const { data: pastRows } = plan.id
-    ? await admin.from("auto_runs").select("material_ref").eq("plan_id", plan.id).eq("owner_id", args.ownerId).in("status", ["generating", "scheduled", "review", "held"]).order("due_at", { ascending: false }).limit(20)
+    ? await admin.from("auto_runs").select("material_ref").eq("plan_id", plan.id).eq("owner_id", args.ownerId).in("status", PAST_STATUSES).order("due_at", { ascending: false }).limit(20)
     : { data: [] };
   const recent = await recentTexts(admin, args.projectId, args.ownerId, plan.id, new Date());
   const draft = await draftRun(admin, deps, { plan, sns, dueAt: new Date(Date.now() + 86_400_000), past: (pastRows ?? []).map((r) => (r.material_ref ?? {}) as PastRef), recent });

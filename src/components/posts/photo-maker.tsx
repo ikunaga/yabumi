@@ -1,12 +1,12 @@
 "use client";
 
 import type { SnsKey } from "@/lib/sns";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { AiThinking } from "@/components/ui/ai-thinking";
 import { Button, NotReadyButton } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { Input, Textarea } from "@/components/ui/field";
-import { acknowledgePhoto, draftPhotoIdeas, generatePhotos, photoPanelState, refreshPhotoCandidates, type PhotoPanelState } from "@/lib/ai/photo-actions";
+import { acknowledgePhoto, draftFormatPhotoScene, draftPhotoIdeas, generatePhotos, photoPanelState, refreshPhotoCandidates, type PhotoPanelState } from "@/lib/ai/photo-actions";
 import { MAX_PHOTOS_PER_RUN, MAX_SCENE_CHARS, PHOTO_LIMITS, PHOTO_STYLES, PHOTO_STYLE_LABEL, type PhotoIdea, type PhotoStyle } from "@/lib/ai/photo";
 import type { PhotoCandidate } from "@/lib/ai/photo-gen";
 import { MAX_ALT_LENGTH, PREVIEW_URL_SECONDS } from "@/lib/media/rules";
@@ -16,6 +16,7 @@ import { Choice, Group } from "./maker-parts";
 import { PhotoTemplatePicker, SaveAsTemplate } from "./photo-templates";
 import { listPhotoTemplates, type TemplatesResult } from "@/lib/photo-templates/actions";
 import { SCENE_SLOT, fillTemplate, hasSceneSlot, type PhotoTemplate } from "@/lib/photo-templates/schema";
+import type { FormatPhotoPreset } from "@/lib/post-formats/image";
 
 export type PickedPhoto = { jobId: string; bitmap: ImageBitmap; scene: string };
 
@@ -44,6 +45,7 @@ export function PhotoMaker({
   nextIndex,
   onUseAsIs,
   onUseInTemplate,
+  preset = null,
 }: {
   projectId: string;
   // 送り先の SNS（絵の説明の案の材料にする投稿の柱を、この SNS に付いたものにする）
@@ -57,6 +59,8 @@ export function PhotoMaker({
   // 添えられたら true
   onUseAsIs: (photo: PickedPhoto, altText: string) => Promise<boolean>;
   onUseInTemplate: (photo: PickedPhoto) => void;
+  // 投稿のフォーマットの画像（docs/design/format-image.md の 2.1）。seq が変わるたびに、絵の説明・描き方を入れ直し、auto なら 1 枚つくる
+  preset?: FormatPhotoPreset | null;
 }) {
   const [state, setState] = useState<PhotoPanelState | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -78,6 +82,24 @@ export function PhotoMaker({
   const [examples, setExamples] = useState<{ name: string; body: string }[]>([]);
   const [templateId, setTemplateId] = useState<string | null>(null);
   const [lastIdea, setLastIdea] = useState("");
+  // フォーマットの画像: 入れ直した seq と、まだつくっていない auto の seq（注意を読む前に押されたら、読んだあとにつくる）
+  const [presetSeq, setPresetSeq] = useState<number | null>(null);
+  const pendingAuto = useRef<number | null>(null);
+  if (preset && preset.seq !== presetSeq) {
+    setPresetSeq(preset.seq);
+    setStyle(preset.style);
+    setCount(1);
+    setIdeas([]);
+    setLastIdea("");
+    setTemplateId(null);
+    setScene(preset.text);
+    if (preset.auto) pendingAuto.current = preset.seq;
+  }
+
+  const presetRef = useRef(preset);
+  useEffect(() => {
+    presetRef.current = preset;
+  }, [preset]);
 
   useEffect(() => {
     let alive = true;
@@ -91,7 +113,8 @@ export function PhotoMaker({
       setTemplates(r.templates);
       setExamples(r.examples ?? []);
       // 「いつも使う」をはじめから選び、まだ何も書いていなければ、その本文を絵の説明に入れる（{場面} は穴のまま）
-      const d = r.templates.find((t) => t.isDefault) ?? null;
+      // 投稿のフォーマットの画像で開いたときは、絵の説明のフォーマットを選ばない（絵の説明はフォーマットの画像の設定から入れる）
+      const d = presetRef.current ? null : (r.templates.find((t) => t.isDefault) ?? null);
       setTemplateId(d?.id ?? null);
       if (d) setScene((cur) => (cur.trim() ? cur : d.body));
     });
@@ -152,6 +175,29 @@ export function PhotoMaker({
     return items;
   }
 
+  // フォーマットの画像の「つくる」: 注意を読んでいて、つくれるときだけ。AI が場面に直す設定なら、先に Claude が場面を 1 つ書く（2 つ続けて 1 回の「つくる」）
+  useEffect(() => {
+    const p = presetRef.current;
+    if (!state?.enabled || !state.acknowledged || !p || pendingAuto.current !== p.seq) return;
+    pendingAuto.current = null;
+    if (state.globalReached || state.newUsersFull || state.remainingImages <= 0) return;
+    startMake(async () => {
+      let sc = p.text;
+      if (p.scene === "ai") {
+        setError(null);
+        const r = await draftFormatPhotoScene(projectId, p.formatId, p.values, p.answer, targets);
+        if (!r.scene) {
+          setError(r.error ?? "うまくいきませんでした。");
+          return;
+        }
+        sc = r.scene;
+        setScene(sc);
+      }
+      await generateRef.current(sc, p.style, 1);
+    });
+  }, [state, presetSeq, projectId, targets]);
+  const generateRef = useRef<(sc: string, st: PhotoStyle, cnt: number) => Promise<void>>(async () => {});
+
   if (!state) return error ? <ErrorBanner>{error}</ErrorBanner> : <p className="text-sm text-muted">読み込んでいます…</p>;
 
   // 鍵（GEMINI_API_KEY）がない間は、注意も絵の説明の案も出さない（規約・ポリシーの施行の前に、新しい使い道の情報を預からない・送らない）
@@ -211,21 +257,28 @@ export function PhotoMaker({
   }
 
   function make() {
-    startMake(async () => {
+    startMake(() => generate(scene, style, n));
+  }
+
+  async function generate(sc: string, st: PhotoStyle, cnt: number) {
+    {
       setError(null);
       setNotice(null);
-      const r = await generatePhotos({ projectId, scene, style, size, count: n });
+      const r = await generatePhotos({ projectId, scene: sc, style: st, size, count: cnt });
       if (state && r.remainingImages !== undefined) setState({ ...state, remainingImages: r.remainingImages });
       if (!r.candidates || !r.jobId) {
         setError(r.error ?? "画像をつくれませんでした。");
         return;
       }
-      setCandidates({ jobId: r.jobId, items: r.candidates, scene, signedAt: Date.now() });
+      setCandidates({ jobId: r.jobId, items: r.candidates, scene: sc, signedAt: Date.now() });
       setPicked(r.candidates[0] ? [r.candidates[0].path] : []);
       setUsedPaths([]);
       if (r.partial) setNotice("頼んだうちの一部だけできました（できなかった分は数えません）。");
-    });
+    }
   }
+
+  // 自動でつくるとき（上の useEffect）に、いまの size で呼ぶため
+  generateRef.current = generate;
 
   // asIs: 選んだ候補を、選んだ順にそのまま添える（何枚でも）。見出しを重ねるのは 1 枚だけ
   async function use(asIs: boolean) {
@@ -263,6 +316,12 @@ export function PhotoMaker({
 
   return (
     <div className="flex flex-col gap-4">
+      {preset && (
+        <p className="text-[13px] leading-[1.7]">
+          <span className="font-bold">フォーマット「{preset.name}」の画像</span>
+          <span className="ml-1.5 text-muted">{preset.scene === "ai" ? "AI が絵の説明を場面に直してからつくります（1 回 2 円ほど足されます）" : "穴の言葉を入れた絵の説明でつくります"}</span>
+        </p>
+      )}
       <PhotoTemplatePicker projectId={projectId} templates={templates} examples={examples} selectedId={templateId} onSelect={selectTemplate} onChange={onTemplates} />
 
       <div className="flex flex-col gap-2 rounded-md bg-surface2 px-3.5 py-3 text-sm">

@@ -105,3 +105,31 @@ export const hasUnfilled = (text: string) => /【[^【】\n]+】/.test(text);
 export function imageSummary(img: FormatImage): string {
   return ["画像: " + PHOTO_STYLE_LABEL[img.style].replace(/のように|で$/g, ""), img.scene === "ai" ? "AI が場面に直す" : null, img.headline ? "見出しあり" : null].filter(Boolean).join("・");
 }
+
+// ③ の帯から画像をつくる画面に渡すもの（docs/design/format-image.md の 2.1）。seq が変わるたびに開き直す。
+// auto: 開いてすぐ 1 枚つくる（「つくる」を押したとき）。false は絵の説明を入れて開くだけ（「自分で場面を書く」）。
+// text: 穴の言葉と答えを入れた絵の説明（fill はそのまま画像の AI に、ai はサーバーが読み直して Claude が場面に直す）
+export type FormatPhotoPreset = {
+  seq: number;
+  auto: boolean;
+  formatId: string;
+  name: string;
+  scene: ImageScene;
+  text: string;
+  values: Record<string, string>;
+  answer: string;
+  style: PhotoStyle;
+  size: ImageSize;
+  headline: string | null;
+};
+
+// 選んでいるフォーマットと穴の言葉から、帯に出す絵の説明と見出しを作る（答えはシリーズのときだけ）
+export function formatPhotoTexts(
+  f: { body: string; series: FormatSeries; image: FormatImage },
+  values: Record<string, string>,
+  answer: string | undefined,
+): { text: string; headline: string | null } {
+  const name = answerSlotName(f.series);
+  const a = name && answer?.trim() ? { name, value: answer.trim() } : null;
+  return { text: fillImageText(f.image.prompt, values, a), headline: f.image.headline ? fillImageText(f.image.headline, values, a) : null };
+}

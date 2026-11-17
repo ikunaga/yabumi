@@ -18,6 +18,7 @@ import { ImageNumbers, loadBitmap } from "./aspect-options";
 import type { BulkAspectOptions } from "./image-aspect-bulk";
 
 import type { ImageMakerProps, MadeImage } from "./image-maker";
+import type { FormatPhotoPreset } from "@/lib/post-formats/image";
 import { AiBadge } from "./ai-badge";
 
 // 縦横を整える画面も、開いたときに読み込む
@@ -94,6 +95,7 @@ export function ImageAttachments({
   addBlocked = null,
   buttonsNote = null,
   extraButtons,
+  preset = null,
 }: {
   images: AttachedImage[];
   onChange: (next: AttachedImage[] | ((prev: AttachedImage[]) => AttachedImage[])) => void;
@@ -108,12 +110,20 @@ export function ImageAttachments({
   buttonsNote?: string | null;
   // 枠の中のボタンの後ろに足すもの（「動画を選ぶ」）
   extraButtons?: ReactNode;
+  // 投稿のフォーマットの画像（③ の帯の「つくる」。docs/design/format-image.md の 2.1）。seq が変わるたびに、画像をつくる画面を開いて渡す
+  preset?: FormatPhotoPreset | null;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   // 画像をつくる画面: 開いているか（making）と、一度開いたか（makerMounted）。閉じても外さずに隠すので、
   // 作った候補・絵の説明・フォーマットが残り、続けて 2 枚目をつくれる（オーナーの Notion の項目「1 枚目、2 枚目の作成の手順」）
   const [making, setMaking] = useState(false);
   const [makerMounted, setMakerMounted] = useState(false);
+  const [presetSeq, setPresetSeq] = useState<number | null>(null);
+  if (preset && preset.seq !== presetSeq) {
+    setPresetSeq(preset.seq);
+    setMakerMounted(true);
+    setMaking(true);
+  }
   // 続けて添えるとき（候補をまとめて添えるなど）に、まだ画面に出ていない分も数える
   const countRef = useRef(images.length);
   useEffect(() => {
@@ -379,6 +389,7 @@ export function ImageAttachments({
             instagram={instagram}
             onAdd={addMade}
             onClose={() => setMaking(false)}
+            preset={preset}
           />
         </div>
       )}

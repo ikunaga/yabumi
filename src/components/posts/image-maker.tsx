@@ -30,6 +30,7 @@ import {
   type TemplateKind,
   type TemplateSizeKey,
 } from "@/lib/media/templates";
+import type { FormatPhotoPreset } from "@/lib/post-formats/image";
 import type { SnsKey } from "@/lib/sns";
 import { Choice, Group } from "./maker-parts";
 import { AiBadge } from "./ai-badge";
@@ -56,13 +57,15 @@ export type ImageMakerProps = {
   nextIndex: number;
   first: { width: number; height: number } | null;
   instagram: boolean;
+  // 投稿のフォーマットの画像（docs/design/format-image.md の 2.1）。seq が変わるたびに「AI で写真・絵をつくる」を開き、縦横と見出しをフォーマットに合わせる
+  preset?: FormatPhotoPreset | null;
 };
 
 // テンプレートで画像をつくる（F14 の段取り ①。docs/architecture.md の 4.25）。
 // ブラウザの Canvas で描き、できた JPEG を画像の添付（4.18）と同じ流れで上げる。写真に見出しで敷いた写真は AI には送らない
 // （添えるときに、見出しを直す・元に戻すの元として、添えていない画像として上げる。4.58）
 // 添えても閉じずに、続けて次の画像をつくれる（絵の説明・フォーマット・候補は残る）。2 枚目からは 1 枚目の縦横にそろえる
-export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, onAdd, onClose, nextIndex, first, instagram }: ImageMakerProps) {
+export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, onAdd, onClose, nextIndex, first, instagram, preset = null }: ImageMakerProps) {
   const suggested = useMemo(() => defaultSizeFor(targets), [targets]);
   const firstSize = first ? closestSize(first.width, first.height) : null;
   const [kind, setKind] = useState<TemplateKind>(targets.length === 1 && targets[0] === "note" ? "note" : "card");
@@ -92,6 +95,14 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
   const [mode, setMode] = useState<"template" | "photo">("template");
   // 「AI で写真・絵をつくる」を一度開いたら、タブを切り替えても外さない（作った候補・絵の説明を残す）
   const [photoOpened, setPhotoOpened] = useState(false);
+  // フォーマットの画像で開き直した seq（見出しの文は、写真に見出しを重ねるときに入れる）
+  const [presetSeq, setPresetSeq] = useState<number | null>(null);
+  if (preset && preset.seq !== presetSeq) {
+    setPresetSeq(preset.seq);
+    setPhotoOpened(true);
+    setMode("photo");
+    if (preset.size !== "auto") setSize(preset.size);
+  }
   // aiJobId: 写真が AI で作ったものなら、その記録の ID（添えるときに AI の印を付ける）。scene はその絵の説明（説明文に使う）
   const [shot, setShot] = useState<{ bitmap: ImageBitmap; name: string; aiJobId?: string; scene?: string } | null>(null);
   const [photoFit, setPhotoFit] = useState<PhotoFit>("frame");
@@ -247,6 +258,8 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
   // AI で作った写真を「写真に見出し」に敷く
   function usePhotoInTemplate(photo: PickedPhoto) {
     setShot({ bitmap: photo.bitmap, name: `ai:${photo.jobId}:${photo.bitmap.width}`, aiJobId: photo.jobId, scene: photo.scene });
+    // フォーマットに見出しの文があれば入れておく（まだ何も書いていないときだけ）
+    if (preset?.headline) setHeadline((h) => h || preset.headline || "");
     setKind("screen");
     setPhotoFit("cover");
     setMode("template");
@@ -297,7 +310,7 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
       {photoOpened && (
         <div hidden={mode !== "photo"} className="flex flex-col gap-4">
           {mode === "photo" && error && <ErrorBanner>{error}</ErrorBanner>}
-          <PhotoMaker projectId={projectId} targets={targets} visible={mode === "photo"} text={text} size={size} onSize={setSize} nextIndex={nextIndex} onUseAsIs={addPhotoAsIs} onUseInTemplate={usePhotoInTemplate} />
+          <PhotoMaker projectId={projectId} targets={targets} visible={mode === "photo"} text={text} size={size} onSize={setSize} nextIndex={nextIndex} onUseAsIs={addPhotoAsIs} onUseInTemplate={usePhotoInTemplate} preset={preset} />
         </div>
       )}
       {mode === "template" && (

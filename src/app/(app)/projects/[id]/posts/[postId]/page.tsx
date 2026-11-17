@@ -21,6 +21,7 @@ import { loadProfileLinkInfo } from "@/lib/posts/profile-link-info";
 import { isManualSns, manualComposeUrl, xComposeUrl, type SnsKey } from "@/lib/sns";
 import { countSelfWrittenPosts, hasVoiceMemo } from "@/lib/plan/voice";
 import { createClient } from "@/lib/supabase/server";
+import { readRoundValues } from "@/lib/post-formats/series";
 import { canPublish } from "@/lib/sns/adapters";
 import { targetText } from "@/lib/sns/hashtags";
 import { isByHand } from "@/lib/sns/by-hand";
@@ -81,6 +82,11 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
   const timeHint = timeHintOf(await loadTimeTrends(project.id));
   const profileLink = await loadProfileLinkInfo(supabase, project);
   // ロードマップのやることから作った投稿は、やることの題と説明を手がかりとして出す（下書きから再開したときも。PMO2 の s8。RLS で本人のものだけ）
+  // シリーズのフォーマットで本文に入れた回（投稿に結びついた記録のいちばん新しいもの）。③ のフォーマットの画像の絵の説明を埋める（docs/design/format-image.md の 2.1）
+  const { data: round } = post.formatId
+    ? await supabase.from("post_format_rounds").select("answer, values").eq("post_id", post.id).eq("format_id", post.formatId).order("created_at", { ascending: false }).limit(1).maybeSingle()
+    : { data: null };
+  const formatValues = round ? { values: readRoundValues(round.values), answer: round.answer } : null;
   const roadmapItem = post.roadmapItemId
     ? ((await supabase.from("roadmap_items").select("id, title, detail").eq("id", post.roadmapItemId).eq("project_id", project.id).maybeSingle()).data ?? null)
     : null;
@@ -202,6 +208,7 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
         textOrigin: post.textOrigin,
         // 下書きから再開したときに、選んでいたフォーマットと「やることから」の手がかりを戻す（PMO2 の s8）
         formatId: post.formatId,
+        formatValues,
         roadmapItem,
         youtube: youtubeChoice,
       }}

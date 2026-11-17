@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ImageAttachments } from "../image-attachments";
 import { VideoAttachment } from "../video-attachment";
@@ -9,11 +9,19 @@ import { SNS } from "@/lib/sns";
 import { formatDuration } from "@/lib/media/video-rules";
 import { VIDEO_REMOVED_TEXT } from "@/lib/posts/compose-steps";
 import { type Composer } from "./use-composer";
+import { FormatImageBand } from "./format-image-band";
+import type { FormatPhotoPreset } from "@/lib/post-formats/image";
 
 // ③ 画像・動画: 添える・つくる・整える（compose-steps.md）。1 つの投稿は、画像か動画 1 本のどちらか（docs/design/video.md の 4.）
 export function ComposeStepImages({ c }: { c: Composer }) {
   const { projectId, projectName, postId, initial, needImageReconnect, aiCheckEnabled, images, setImages, video, setVideo, videoBusy, setVideoBusy, videoRemovedBlocks, selected, pending, bodyFor, isLocked, chosen, focus, clearFieldError, fe, connectHref, markTyped, checks } = c;
   const videoInputRef = useRef<HTMLInputElement>(null);
+  // 投稿のフォーマットの画像（docs/design/format-image.md の 2.1）。帯の「つくる」で、画像をつくる画面に渡す
+  const { formatUse } = c;
+  const [preset, setPreset] = useState<FormatPhotoPreset | null>(null);
+  // 下書きから開き直したとき、フォーマットの欄は空なので、投稿に結びついたシリーズの記録の言葉を使う（欄に何か入れたらそちらを使う）
+  const restored = formatUse && formatUse.format.id === initial.formatId && !Object.values(formatUse.values).some((v) => v.trim()) && !formatUse.answer?.trim() ? initial.formatValues : null;
+  const imageUse = formatUse?.format.image ? { ...formatUse, ...(restored ?? {}), format: { ...formatUse.format, image: formatUse.format.image } } : null;
   // 動画を添えたが、yabumi からはまだ動画を送れない送り先
   const noVideo = video ? chosen.filter((s) => !isLocked(s) && checks[s].issues.includes("video_unsupported")) : [];
   return (
@@ -47,8 +55,30 @@ export function ComposeStepImages({ c }: { c: Composer }) {
         )
       )}
 
+      {imageUse && (
+        <FormatImageBand
+          use={imageUse}
+          disabled={pending || videoBusy || Boolean(video)}
+          onMake={(auto, texts) =>
+            setPreset((p) => ({
+              seq: (p?.seq ?? 0) + 1,
+              auto,
+              formatId: imageUse.format.id,
+              name: imageUse.format.name,
+              scene: imageUse.format.image.scene,
+              text: texts.text,
+              values: imageUse.values,
+              answer: imageUse.answer ?? "",
+              style: imageUse.format.image.style,
+              size: imageUse.format.image.size,
+              headline: texts.headline,
+            }))
+          }
+        />
+      )}
       <div className="flex flex-col gap-1.5">
         <ImageAttachments
+          preset={preset}
           images={images}
           disabled={pending || videoBusy}
           maker={{ projectId, projectName, aiEnabled: aiCheckEnabled, text: bodyFor(focus), targets: chosen }}

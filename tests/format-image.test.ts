@@ -1,8 +1,8 @@
 // 投稿のフォーマットの画像の設定（docs/design/format-image.md の 1.・5.1）: 読み方・保存の形・穴の決まり・埋め方
 import { describe, expect, it } from "vitest";
-import { answerSlotName, cleanFormatImage, fillImageText, hasUnfilled, imageSlotNames, imageSummary, needsAiScene, readFormatImage, usesAnswer } from "@/lib/post-formats/image";
+import { answerSlotName, cleanFormatImage, fillImageText, formatPhotoTexts, hasUnfilled, imageSlotNames, imageSummary, needsAiScene, readFormatImage, usesAnswer } from "@/lib/post-formats/image";
 import { checkFormat, FormatError } from "@/lib/post-formats/store";
-import { EMPTY_SERIES, type FormatSeries } from "@/lib/post-formats/series";
+import { EMPTY_SERIES, readRoundValues, type FormatSeries } from "@/lib/post-formats/series";
 
 const BODY = "連想映画クイズ\n{キーワード}\nこの 5 つから連想する映画は？{ひとこと}";
 const SERIES: FormatSeries = { answer: { name: "映画", instruction: "だれでも知っている映画" }, slots: { キーワード: "連想できる言葉を 5 つ" } };
@@ -66,5 +66,18 @@ describe("埋め方", () => {
     const img = readFormatImage({ ...base, scene: "ai", headline: "連想映画クイズ" })!;
     expect(imageSummary(img)).toBe("画像: イラスト・AI が場面に直す・見出しあり");
     expect(imageSummary({ ...img, style: "photo", scene: "fill", headline: null })).toBe("画像: 写真");
+  });
+});
+
+describe("③ の帯の絵の説明と見出し", () => {
+  it("この回の穴の言葉と答えで埋める。答えはシリーズのときだけ", () => {
+    const image = { prompt: "{映画}を思わせる{キーワード}", scene: "ai" as const, style: "photo" as const, size: "auto" as const, headline: "連想映画クイズ {ひとこと}" };
+    expect(formatPhotoTexts({ body: BODY, series: SERIES, image }, { キーワード: "王女", ひとこと: "第 3 回" }, "ローマの休日")).toEqual({ text: "ローマの休日を思わせる王女", headline: "連想映画クイズ 第 3 回" });
+    expect(formatPhotoTexts({ body: BODY, series: EMPTY_SERIES, image: { ...image, headline: null } }, {}, "ローマの休日")).toEqual({ text: "【映画】を思わせる【キーワード】", headline: null });
+  });
+
+  it("記録の穴の言葉は文字の値だけ読む", () => {
+    expect(readRoundValues({ a: "x", b: 1, c: null })).toEqual({ a: "x" });
+    expect(readRoundValues(["x"])).toEqual({});
   });
 });

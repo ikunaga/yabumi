@@ -7,7 +7,6 @@ import {
   MAX_DIMENSION,
   MAX_IMAGE_BYTES,
   MAX_IMAGES_PER_POST,
-  MAX_UNATTACHED,
   MEDIA_BUCKET,
   RESTORE_UNATTACHED_HOURS,
   SNS_FETCH_URL_SECONDS,
@@ -56,15 +55,9 @@ export type UploadTicket = { path: string };
 // 画像を 1 枚上げるための引換券を発行する。上げる前に、確かめ待ちの数・添えていない画像の数・容量を確かめる
 export async function issueUpload(admin: Admin, ownerId: string, id: string = crypto.randomUUID()): Promise<UploadTicket> {
   const path = mediaPath(ownerId, id);
-  // 上限の確認と引換券の記録は、DB の中で利用者ごとに順に行う（同時に頼まれても上限を超えない）
-  const { data: status, error: ticketError } = await admin.rpc("issue_media_upload_ticket", {
-    p_owner_id: ownerId,
-    p_storage_path: path,
-    p_max_pending: MAX_PENDING_TICKETS,
-    p_max_unattached: MAX_UNATTACHED,
-    p_quota_bytes: USER_QUOTA_BYTES,
-    p_max_file_bytes: MAX_IMAGE_BYTES,
-  });
+  // 上限の確認と引換券の記録は、DB の中で利用者ごとに順に行う（同時に頼まれても上限を超えない）。
+  // 上限の値は DB の関数の中の定数（20261117140000。セキュリティ確認の DB-L2）。ここの値とはテストでそろえる（tests/limits-in-functions.test.ts）
+  const { data: status, error: ticketError } = await admin.rpc("issue_media_upload_ticket", { p_owner_id: ownerId, p_storage_path: path });
   if (ticketError) throw ticketError;
   if (status === "too_many_pending") throw new MediaError("画像の追加が続いています。少し待ってからもう一度お試しください。");
   if (status === "too_many_unattached") {

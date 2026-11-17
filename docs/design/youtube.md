@@ -52,7 +52,7 @@
 | 4 | データへのアクセス（スコープ） | `https://www.googleapis.com/auth/youtube.upload`（Y1 が ② なら `.../youtube.readonly` も）。**この画面で sensitive か restricted かの表示を確かめ、PM に知らせる**（資料では確かめられなかった） |
 | 5 | テストのユーザー | オーナーの Google アカウントを足す（100 人まで）。公開の状態は「テスト中」のまま |
 | 6 | OAuth クライアント | 種類「ウェブ アプリケーション」。承認済みのリダイレクト URI: `https://yabumi.app/sns/youtube/callback`（ローカルで試すなら `http://localhost:3100/sns/youtube/callback` も。Google は localhost の http を許す） |
-| 7 | 環境変数（Vercel の Production と Preview、ローカルの .env.local。値は画面にもログにも出さない） | `YOUTUBE_CLIENT_ID`・`YOUTUBE_CLIENT_SECRET`・`YOUTUBE_OAUTH_TESTING`（テスト中は true。7 日の案内を出す）・`YOUTUBE_DAILY_UPLOADS`（全体の 1 日の上限。既定 90。監査で増えたら上げる） |
+| 7 | 環境変数（Vercel の Production と Preview、ローカルの .env.local。値は画面にもログにも出さない） | `YOUTUBE_CLIENT_ID`・`YOUTUBE_CLIENT_SECRET`・`YOUTUBE_OAUTH_TESTING`（テスト中は true。7 日の案内を出す）（全体の 1 日の上限 90 本は、2026-11-17 から DB の関数の中の定数。監査で増えたらマイグレーションで上げる。前は `YOUTUBE_DAILY_UPLOADS`） |
 | 8 | 最小の作りができたら | デモ動画を撮り、公開の状態を「本番」にして OAuth の確認を申請（11.）。並行して割り当ての監査（11.） |
 
 ## 2. つなぐ・外す
@@ -178,7 +178,7 @@ YouTube を送り先に選んだ投稿の、② 送り先の YouTube の欄（�
 
 - 枠は太平洋時間の 0 時に戻る（日本時間 16 時。夏時間の間は 17 時）【未確認】Cloud Console の表示で確かめる
 - **yabumi の中で数える**（Google の残りを API で聞く手段はない）
-  - 送る前に `reserve_youtube_upload(owner_id, post_target_id)`（security definer。service_role だけ）で 1 本ぶんを取る。太平洋時間の今日の数を数え、**全体が YOUTUBE_DAILY_UPLOADS（既定 90。10 本は手での試しや余り）**、**利用者ごとに 5 本**を超えるなら取らない。同時に何本送っても超えないよう、advisory lock で順にする（reserve_sns_spend と同じ考え方）
+  - 送る前に `reserve_youtube_upload(owner_id, post_target_id)`（security definer。service_role だけ）で 1 本ぶんを取る。太平洋時間の今日の数を数え、**全体が 90 本（10 本は手での試しや余り。関数の中の定数。20261117140000）**、**利用者ごとに 5 本**を超えるなら取らない。同時に何本送っても超えないよう、advisory lock で順にする（reserve_sns_spend と同じ考え方）
   - 記録は sns_api_usage（sns = 'youtube'、operation = 'upload'、cost_usd = 0）に入れる（片付け〈13 か月〉と本人だけ読める作りをそのまま使う）。セッションからやり直す（404）ときは、もう 1 本ぶん取る（数えすぎる側に倒す）
 - **当たったとき**（Y3）: 送らずに failed、要確認と通知に
   - 全体: 「今日の YouTube の送信の枠（yabumi 全体）がいっぱいです。日本時間の 16 時を過ぎてから送り直すか、手で投稿してください」

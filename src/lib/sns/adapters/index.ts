@@ -19,7 +19,7 @@ import { clearMediaTickets, issueMediaTickets } from "@/lib/sns/tiktok/media";
 import { loadTikTokTarget } from "@/lib/sns/tiktok/store";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revokeToken as revokeYouTubeToken } from "@/lib/sns/youtube/api";
-import { YOUTUBE_USER_DAILY_UPLOADS, youtubeConfig, youtubeConfigured, youtubeDailyUploads } from "@/lib/sns/youtube/config";
+import { YOUTUBE_USER_DAILY_UPLOADS, youtubeConfig, youtubeConfigured } from "@/lib/sns/youtube/config";
 import { clearYouTubeUpload, loadYouTubeTarget, loadYouTubeUpload, reserveYouTubeUpload, saveYouTubeUpload } from "@/lib/sns/youtube/store";
 import { createYouTubeAdapter } from "./youtube";
 import { postVideoFor, postVideoRow } from "@/lib/media/video-store";
@@ -50,7 +50,7 @@ export const adapters: Partial<Record<SnsKey, SnsAdapter>> = {
       if (row.removedAt) return "removed";
       return (await postVideoFor(admin, postId)) ?? "removed";
     },
-    reserveUpload: (ownerId, targetId) => reserveYouTubeUpload(createAdminClient(), ownerId, targetId, { global: youtubeDailyUploads(), user: YOUTUBE_USER_DAILY_UPLOADS }),
+    reserveUpload: (ownerId, targetId) => reserveYouTubeUpload(createAdminClient(), ownerId, targetId),
     userDailyUploads: YOUTUBE_USER_DAILY_UPLOADS,
     loadUpload: (id) => loadYouTubeUpload(createAdminClient(), id),
     saveUpload: (id, ownerId, row) => saveYouTubeUpload(createAdminClient(), id, ownerId, row),

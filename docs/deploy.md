@@ -729,14 +729,14 @@ Next.js の server action の ID は、ビルドごとの暗号の鍵から作�
 | 30-3 | オーナー | Google Cloud でプロジェクト（例 `yabumi-youtube`）を作り、YouTube Data API v3 を有効にする | まだ |
 | 30-4 | オーナー | Google Auth Platform: 種類「外部」、アプリ名 Yabumi、サポートのメール、ロゴ、ホームページ `https://yabumi.app/`、プライバシーポリシー `https://yabumi.app/privacy`、利用規約 `https://yabumi.app/terms`、承認済みドメイン `yabumi.app`。データへのアクセスに `.../auth/youtube.upload` と `.../auth/youtube.readonly` を足し、**sensitive か restricted かの表示を PM に知らせる**。テストのユーザーにオーナーの Google のアカウントを足す | まだ |
 | 30-5 | オーナー | OAuth クライアント（ウェブ アプリケーション）を作り、承認済みのリダイレクト URI に `https://yabumi.app/sns/youtube/callback` を入れる | まだ |
-| 30-6 | オーナー | Vercel → Settings → Environment Variables（Production と Preview）に `YOUTUBE_CLIENT_ID`・`YOUTUBE_CLIENT_SECRET` を足す（値は画面にもログにも出さない）。`YOUTUBE_OAUTH_TESTING` は入れない（既定でテスト中の案内を出す）。`YOUTUBE_DAILY_UPLOADS` も入れない（既定 90）。Redeploy | まだ |
+| 30-6 | オーナー | Vercel → Settings → Environment Variables（Production と Preview）に `YOUTUBE_CLIENT_ID`・`YOUTUBE_CLIENT_SECRET` を足す（値は画面にもログにも出さない）。`YOUTUBE_OAUTH_TESTING` は入れない（既定でテスト中の案内を出す）。（全体の 1 日の上限 90 本は、2026-11-17 から DB の関数の中の定数。前の `YOUTUBE_DAILY_UPLOADS` は使わないので入れない）。Redeploy | まだ |
 | 30-7 | オーナー | yabumi のプロジェクトの設定の「つないだ SNS」で YouTube をつなぐ（「確認されていないアプリ」と出たら「詳細」から進む）。チャンネル名と「m/d までにつなぎ直してください」が出る | まだ |
 | 30-8 | オーナー・PM | **オーナーの了承のあとで**、オーナーのチャンネルに「限定公開」で 1 本送る（docs/design/youtube.md の 14. の 8）。確かめること: 選んだ公開範囲のままか（非公開に固定されないか）、縦 60 秒の動画がショートになるか、送信の結果が投稿済みになり「YouTube で見る」が開くか、送信ジョブのログ（件数だけ）。`select count(*) from sns_api_usage where sns = 'youtube';` が 1 増えること | まだ |
 | 30-9 | PM | 規約・ポリシーの ② の版（動画と YouTube をまとめた版。legal.md）の施行日を、本番に出す日に合わせる（src/lib/legal/version.ts と tests/youtube-legal.test.ts の日付） | 済み（2026-11-15。TikTok・動画と 1 つの版 2026-11-16 にまとめた。2026-11-15 に本番に出し、2026-11-16 に施行） |
 | 30-10 | オーナー | デモ動画を撮り、公開の状態を「本番」にして OAuth の確認を申請する（docs/design/youtube.md の 11.1）。確認が済んだら Vercel に `YOUTUBE_OAUTH_TESTING=false` を足して Redeploy（7 日の案内が消える） | まだ |
 
 - 外すときは、yabumi の「外す」で Google の側の許可も取り消す（Google のアカウントの「サードパーティ アプリとサービス」からも消える）
-- 1 日 100 本の枠（プロジェクト全体）は、全体で 1 日 50 本を超える日が出てきたら、割り当ての監査を申請する（docs/design/youtube.md の 11.2）。増えたら `YOUTUBE_DAILY_UPLOADS` を上げる
+- 1 日 100 本の枠（プロジェクト全体）は、全体で 1 日 50 本を超える日が出てきたら、割り当ての監査を申請する（docs/design/youtube.md の 11.2）。増えたら、マイグレーションで reserve_youtube_upload の全体の上限（c_global_daily）を上げ、src/lib/sns/youtube/config.ts の YOUTUBE_GLOBAL_DAILY_UPLOADS も直す（2026-11-17 のセキュリティ確認の DB-L2 で、上限を関数の中の定数にした）
 
 ## 31. 自動の投稿（段階 A。2026-11-16、feat/auto-post-core・feat/auto-post-engine。docs/design/auto-post.md）
 

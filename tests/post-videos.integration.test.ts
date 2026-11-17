@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { MEDIA_BUCKET } from "@/lib/media/rules";
 import { MediaError, attachMedia, cleanupMedia, issueUpload, unattachedCount, verifyUpload } from "@/lib/media/store";
 import { attachVideo, cancelVideoUpload, checkVideoUpload, discardUnattachedVideo, issueVideoUpload, postVideoFor, verifyVideoUpload } from "@/lib/media/video-store";
-import { MAX_PENDING_VIDEO_TICKETS, MAX_VIDEO_BYTES, VIDEO_BUCKET, videoPath } from "@/lib/media/video-rules";
+import { MAX_PENDING_VIDEO_TICKETS, MAX_UNATTACHED_VIDEOS, MAX_VIDEO_BYTES, VIDEO_BUCKET, VIDEO_GLOBAL_QUOTA_BYTES, VIDEO_MONTH_LIMIT, VIDEO_USER_QUOTA_BYTES, videoPath } from "@/lib/media/video-rules";
 import { adminClient, anonClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
 import { putImage } from "./helpers/upload";
 import { testJpeg } from "./helpers/jpeg";
@@ -173,7 +173,7 @@ describe("利用者が直接読める・書ける経路がない", () => {
     expect((await alice.from("video_upload_counts").select("*")).error?.code).toBe("42501");
     expect((await alice.from("video_upload_counts").insert({ owner_id: aliceId, month: "2026-11-01", count: 0 })).error?.code).toBe("42501");
     expect((await alice.from("media_upload_tickets").select("*")).error?.code).toBe("42501");
-    const args = { p_owner_id: aliceId, p_storage_path: fake.storage_path, p_max_pending: 9, p_max_unattached: 9, p_quota_bytes: 1e12, p_max_file_bytes: 1, p_month_limit: 999, p_global_quota_bytes: 1e12 };
+    const args = { p_owner_id: aliceId, p_storage_path: fake.storage_path };
     expect((await alice.rpc("issue_video_upload_ticket", args)).error?.code).toBe("42501");
     expect((await anonClient().rpc("issue_video_upload_ticket", args)).error?.code).toBe("42501");
     expect((await alice.rpc("cleanup_media_candidates", {})).error?.code).toBe("42501");
@@ -186,16 +186,18 @@ describe("やめる（2026-11-15 PMO の確かめ v15）", () => {
     const { data } = await admin.from("video_upload_counts").select("count").eq("owner_id", ownerId);
     return (data ?? []).reduce((n, r) => n + r.count, 0);
   };
-  const check = (ownerId: string, o: Partial<{ pending: number; quota: number; month: number }>) =>
-    admin.rpc("video_upload_check", {
-      p_owner_id: ownerId,
-      p_max_pending: o.pending ?? 9,
-      p_max_unattached: 9,
-      p_quota_bytes: o.quota ?? 1e12,
-      p_max_file_bytes: MAX_VIDEO_BYTES,
-      p_month_limit: o.month ?? 999,
-      p_global_quota_bytes: 1e15,
-    });
+  // 上限は関数の中の定数（20261117140000）。全体の量は、その利用者の分だけで数える（共有の DB のほかのテストに左右されない）
+  const check = (ownerId: string) => admin.rpc("video_upload_check", { p_owner_id: ownerId, p_scope_owner: ownerId });
+  // 量の上限に近づけるための、ファイルのない動画の記録（添えていない 1 本に数える。終わったら消す）
+  const filler = async (ownerId: string, bytes: number) => {
+    const { data, error } = await admin
+      .from("media_files")
+      .insert({ owner_id: ownerId, post_id: null, storage_path: videoPath(ownerId, crypto.randomUUID()), kind: "video", duration_ms: 1000, width: 1080, height: 1920, size_bytes: bytes })
+      .select("id")
+      .single();
+    if (error) throw error;
+    return data.id;
+  };
 
   it("上げ終えたあとにやめると、引換券に印を付けてファイルを消し、確かめ待ち・量・月の本数が元に戻る（その引換券ではもう確かめない）", async () => {
     const { userId } = await signUpNewUser();
@@ -203,15 +205,24 @@ describe("やめる（2026-11-15 PMO の確かめ v15）", () => {
       const before = await month(userId);
       const ticket = await issueVideoUpload(admin, userId);
       expect(await tusUpload({ path: ticket.path, bytes: testMp4() })).toBe(204);
-      // やめる前: 確かめ待ちが 1 本（上限 1 なら断る）、量に 50MB を見込む
-      expect((await check(userId, { pending: 1 })).data).toBe("too_many_pending");
-      expect((await check(userId, { quota: MAX_VIDEO_BYTES * 2 - 1 })).data).toBe("quota");
+      // やめる前: 確かめ待ちが 1 本で、量に 50MB を見込む（置ける量の残りがちょうど 2 本分に 1 バイト足りない記録を置くと、量に当たる）
+      const fill = await filler(userId, VIDEO_USER_QUOTA_BYTES - MAX_VIDEO_BYTES * 2 + 1);
+      expect((await check(userId)).data).toBe("quota");
+      await admin.from("media_files").delete().eq("id", fill);
+      // 確かめ待ちがもう 1 本あると、上限（2 本）に当たる
+      const second = await issueVideoUpload(admin, userId);
+      expect((await check(userId)).data).toBe("too_many_pending");
 
       await cancelVideoUpload(admin, userId, ticket.path);
       expect(await exists(ticket.path)).toBe(false);
-      expect((await check(userId, { pending: 1 })).data).toBe("ok");
-      expect((await check(userId, { quota: MAX_VIDEO_BYTES })).data).toBe("ok");
-      expect(await month(userId)).toBe(before);
+      // やめたあと: 確かめ待ちは 1 本に戻り、量も 50MB 分戻る（同じ記録を置いても量に当たらない）
+      expect((await check(userId)).data).toBe("ok");
+      await cancelVideoUpload(admin, userId, second.path);
+      const fill2 = await filler(userId, VIDEO_USER_QUOTA_BYTES - MAX_VIDEO_BYTES * 2 + 1);
+      expect((await check(userId)).data).toBe("ok");
+      await admin.from("media_files").delete().eq("id", fill2);
+      // ファイルのない記録も、足したときに月の本数に数えられる（トリガー）ので、その 2 本を引いてから比べる
+      expect(await month(userId)).toBe(before + 2);
       await expect(verifyVideoUpload(admin, userId, ticket.path)).rejects.toBeInstanceOf(MediaError);
 
       // やめた場所には、新しく上げ始められない
@@ -237,13 +248,14 @@ describe("やめる（2026-11-15 PMO の確かめ v15）", () => {
       const { error: lateError } = await admin.storage.from(VIDEO_BUCKET).upload(ticket.path, late, { contentType: "video/mp4" });
       expect(lateError).toBeNull();
       expect(await exists(ticket.path)).toBe(true);
-      // そのままだと量に数えられる（実際の大きさで）
-      const quotaArgs = { p_owner_id: userId, p_max_pending: 9, p_max_unattached: 9, p_quota_bytes: MAX_VIDEO_BYTES + late.length - 1, p_max_file_bytes: MAX_VIDEO_BYTES, p_month_limit: 99, p_global_quota_bytes: 1e15 };
-      expect((await admin.rpc("video_upload_check", quotaArgs)).data).toBe("quota");
+      // そのままだと量に数えられる（実際の大きさで）。残りがちょうど late の分だけ足りない記録を置いて見る
+      const fill = await filler(userId, VIDEO_USER_QUOTA_BYTES - MAX_VIDEO_BYTES - late.length + 1);
+      expect((await check(userId)).data).toBe("quota");
       // 次の上限の確かめ（画面が整える前に呼ぶ）で消え、数えられない
       await checkVideoUpload(admin, userId);
       expect(await exists(ticket.path)).toBe(false);
-      expect((await admin.rpc("video_upload_check", quotaArgs)).data).toBe("ok");
+      expect((await check(userId)).data).toBe("ok");
+      await admin.from("media_files").delete().eq("id", fill);
       // 発行の前・やめるのあとでも消える
       await admin.storage.from(VIDEO_BUCKET).upload(ticket.path, late, { contentType: "video/mp4" });
       const next = await issueVideoUpload(admin, userId);
@@ -318,24 +330,17 @@ describe("やめる（2026-11-15 PMO の確かめ v15）", () => {
   });
 
   it("引換券の関数（video_upload_check も）を、authenticated・anon は呼べない", async () => {
-    const args = { p_owner_id: aliceId, p_max_pending: 9, p_max_unattached: 9, p_quota_bytes: 1, p_max_file_bytes: 1, p_month_limit: 1, p_global_quota_bytes: 1 };
+    const args = { p_owner_id: aliceId };
     expect((await alice.rpc("video_upload_check", args)).error?.code).toBe("42501");
     expect((await anonClient().rpc("video_upload_check", args)).error?.code).toBe("42501");
   });
 });
 
 describe("上限", () => {
-  const call = (o: Partial<{ pending: number; unattached: number; quota: number; month: number; global: number; path: string }> = {}) =>
-    admin.rpc("issue_video_upload_ticket", {
-      p_owner_id: bobId,
-      p_storage_path: o.path ?? videoPath(bobId, crypto.randomUUID()),
-      p_max_pending: o.pending ?? 2,
-      p_max_unattached: o.unattached ?? 3,
-      p_quota_bytes: o.quota ?? 300 * 1024 * 1024,
-      p_max_file_bytes: MAX_VIDEO_BYTES,
-      p_month_limit: o.month ?? 20,
-      p_global_quota_bytes: o.global ?? 1e15,
-    });
+  // 上限は関数の中の定数（20261117140000）。全体の量は scope の利用者の分だけで数える（既定は bob 自身）
+  const call = (o: Partial<{ scope: string; path: string }> = {}) =>
+    admin.rpc("issue_video_upload_ticket", { p_owner_id: bobId, p_storage_path: o.path ?? videoPath(bobId, crypto.randomUUID()), p_scope_owner: o.scope ?? bobId });
+  const fillerRow = (ownerId: string, bytes: number) => ({ owner_id: ownerId, post_id: null, storage_path: videoPath(ownerId, crypto.randomUUID()), kind: "video", duration_ms: 1000, width: 1080, height: 1920, size_bytes: bytes });
 
   it("確かめ待ちは 2 本まで。同時に 5 本頼んでも 2 本しか出さない", async () => {
     const results = await Promise.all([1, 2, 3, 4, 5].map(() => issueVideoUpload(admin, bobId).then(() => "ok", (e) => (e instanceof MediaError ? "limit" : String(e)))));
@@ -349,13 +354,30 @@ describe("上限", () => {
     await issueUpload(admin, bobId);
     expect((await call()).data).toBe("ok");
     await clearTickets(bobId);
-    const seeded = await Promise.all([1, 2, 3].map(() => seedPostVideo(admin, { ownerId: bobId, postId: null })));
+    const seeded = await Promise.all(Array.from({ length: MAX_UNATTACHED_VIDEOS }, () => seedPostVideo(admin, { ownerId: bobId, postId: null })));
     expect((await call()).data).toBe("too_many_unattached");
-    expect((await call({ unattached: 10, quota: MAX_VIDEO_BYTES })).data).toBe("quota");
-    expect((await call({ unattached: 10, global: MAX_VIDEO_BYTES })).data).toBe("global_quota");
     await admin.from("media_files").delete().in("id", seeded.map((s) => s.mediaId));
     await admin.storage.from(VIDEO_BUCKET).remove(seeded.map((s) => s.path));
-    expect((await call({ month: 1 })).data).toBe("month_limit");
+    // 置ける量: 残りが 1 本分に 1 バイト足りない（ファイルのない記録で量だけ置く）
+    const { data: fill } = await admin.from("media_files").insert(fillerRow(bobId, VIDEO_USER_QUOTA_BYTES - MAX_VIDEO_BYTES + 1)).select("id").single();
+    expect((await call()).data).toBe("quota");
+    await admin.from("media_files").delete().eq("id", fill!.id);
+    // 全体の量: 別の利用者（carol）の分だけで数え、残りが 1 本分に 1 バイト足りない
+    const { userId: carolId } = await signUpNewUser();
+    try {
+      expect((await admin.from("media_files").insert(fillerRow(carolId, VIDEO_GLOBAL_QUOTA_BYTES - MAX_VIDEO_BYTES + 1))).error).toBeNull();
+      expect((await call({ scope: carolId })).data).toBe("global_quota");
+    } finally {
+      await admin.from("media_files").delete().eq("owner_id", carolId);
+      await admin.from("video_upload_counts").delete().eq("owner_id", carolId);
+      await deleteUser(carolId);
+    }
+    // 月の本数: 今月の数が上限に達している
+    const month = new Date(Date.now() + 9 * 3600_000).toISOString().slice(0, 7) + "-01";
+    const { data: counted } = await admin.from("video_upload_counts").select("count").eq("owner_id", bobId).eq("month", month).maybeSingle();
+    await admin.from("video_upload_counts").upsert({ owner_id: bobId, month, count: VIDEO_MONTH_LIMIT }, { onConflict: "owner_id,month" });
+    expect((await call()).data).toBe("month_limit");
+    await admin.from("video_upload_counts").upsert({ owner_id: bobId, month, count: counted?.count ?? 0 }, { onConflict: "owner_id,month" });
     await clearTickets(bobId);
   });
 

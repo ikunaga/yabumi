@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { FormatImage } from "./image";
 import type { FormatSeries } from "./series";
 import type { ProductType } from "@/lib/projects/product-types";
 import { SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
@@ -93,8 +94,9 @@ export const hashtagsInput = z
   });
 
 // series: シリーズ投稿の設定（AI が埋める穴と答え。docs/design/format-series.md。src/lib/post-formats/series.ts）
-export type PostFormat = { id: string; name: string; purpose: string; body: string; example: string; pillar: string; hashtags: FormatHashtags; series: FormatSeries };
-export type PostFormatInput = Omit<PostFormat, "id" | "series"> & { series?: FormatSeries };
+// image: 画像の設定（docs/design/format-image.md。null は画像なし。src/lib/post-formats/image.ts）
+export type PostFormat = { id: string; name: string; purpose: string; body: string; example: string; pillar: string; hashtags: FormatHashtags; series: FormatSeries; image: FormatImage | null };
+export type PostFormatInput = Omit<PostFormat, "id" | "series" | "image"> & { series?: FormatSeries; image?: FormatImage | null };
 
 // {穴の名前}。名前に「{」「}」と改行は入らない
 const SLOT = /\{([^{}\n]*)\}/g;
@@ -145,6 +147,8 @@ export const formatInputSchema = z.object({
   hashtags: hashtagsInput,
   // 形をそろえ、型の文にない穴の指示を捨てるのは保存のとき（store.ts の checkFormat で cleanSeries）
   series: z.custom<FormatSeries>(() => true).optional(),
+  // 形をそろえ、型の文にない穴を断るのは保存のとき（store.ts の checkFormat で cleanFormatImage）
+  image: z.custom<FormatImage | null>(() => true).optional(),
 });
 
 // 穴に入れた言葉（穴の名前 → 言葉）。知らない穴と空の言葉は捨て、言葉は 1 行・200 字まで

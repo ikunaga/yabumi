@@ -1624,6 +1624,7 @@ export type Database = {
           example: string
           hashtags: Json
           id: string
+          image: Json
           name: string
           owner_id: string
           pillar: string
@@ -1639,6 +1640,7 @@ export type Database = {
           example?: string
           hashtags?: Json
           id?: string
+          image?: Json
           name: string
           owner_id?: string
           pillar?: string
@@ -1654,6 +1656,7 @@ export type Database = {
           example?: string
           hashtags?: Json
           id?: string
+          image?: Json
           name?: string
           owner_id?: string
           pillar?: string

@@ -17,7 +17,8 @@ describe("自動の投稿の版", () => {
     expect(rev.noticeFrom).toBeNull();
     expect(rev.noticeWaived).toContain("2026-11-17");
     expect(rev.noticeWaived).not.toContain("【仮】");
-    expect(rev.summary).toHaveLength(2);
+    // 3 行目は、同じ版にまとめた投稿のフォーマットの画像（tests/format-image-legal.test.ts）
+    expect(rev.summary).toHaveLength(3);
     expect(rev.summary[0]).toContain("自動の投稿");
     expect(rev.summary[0]).toContain("プライバシーポリシー");
     expect(rev.summary[1]).toContain("利用規約");

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Input, Textarea } from "@/components/ui/field";
-import { PHOTO_STYLES, PHOTO_STYLE_LABEL, photoModel, photoUnitYen } from "@/lib/ai/photo";
+import { PHOTO_STYLES, PHOTO_STYLE_LABEL, SCENE_YEN, photoModel, photoUnitYen } from "@/lib/ai/photo";
 import { TEMPLATE_SIZES } from "@/lib/media/templates";
 import { listPhotoTemplates } from "@/lib/photo-templates/actions";
 import type { PhotoTemplate } from "@/lib/photo-templates/schema";
@@ -171,7 +171,7 @@ export function FormatImageFields({
         </fieldset>
 
         <p className="leading-[1.7] text-muted">
-          つくるときに 1 枚 約 {unit} 円{scene === "ai" ? `（AI が場面に直すので、合わせて 約 ${unit + 1}〜${unit + 3} 円）` : ""}。「つくる」を押したときだけかかります。
+          つくるときに 1 枚 約 {unit} 円{scene === "ai" ? `（AI が場面に直すので、合わせて 約 ${unit + SCENE_YEN.one[0]}〜${unit + SCENE_YEN.one[1]} 円）` : ""}。「つくる」を押したときだけかかります。
         </p>
       </div>
     </details>

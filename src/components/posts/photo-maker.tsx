@@ -7,7 +7,7 @@ import { Button, NotReadyButton } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { Input, Textarea } from "@/components/ui/field";
 import { acknowledgePhoto, draftFormatPhotoScene, draftPhotoIdeas, generatePhotos, photoPanelState, refreshPhotoCandidates, type PhotoPanelState } from "@/lib/ai/photo-actions";
-import { MAX_PHOTOS_PER_RUN, MAX_SCENE_CHARS, PHOTO_LIMITS, PHOTO_STYLES, PHOTO_STYLE_LABEL, type PhotoIdea, type PhotoStyle } from "@/lib/ai/photo";
+import { MAX_PHOTOS_PER_RUN, MAX_SCENE_CHARS, PHOTO_LIMITS, PHOTO_STYLES, PHOTO_STYLE_LABEL, SCENE_YEN, type PhotoIdea, type PhotoStyle } from "@/lib/ai/photo";
 import type { PhotoCandidate } from "@/lib/ai/photo-gen";
 import { MAX_ALT_LENGTH, PREVIEW_URL_SECONDS } from "@/lib/media/rules";
 import { TEMPLATE_SIZES, type TemplateSizeKey } from "@/lib/media/templates";
@@ -319,7 +319,7 @@ export function PhotoMaker({
       {preset && (
         <p className="text-[13px] leading-[1.7]">
           <span className="font-bold">フォーマット「{preset.name}」の画像</span>
-          <span className="ml-1.5 text-muted">{preset.scene === "ai" ? "AI が絵の説明を場面に直してからつくります（1 回 2 円ほど足されます）" : "穴の言葉を入れた絵の説明でつくります"}</span>
+          <span className="ml-1.5 text-muted">{preset.scene === "ai" ? `AI が絵の説明を場面に直してからつくります（場面の分 約 ${SCENE_YEN.one[0]}〜${SCENE_YEN.one[1]} 円が足されます）` : "穴の言葉を入れた絵の説明でつくります"}</span>
         </p>
       )}
       <PhotoTemplatePicker projectId={projectId} templates={templates} examples={examples} selectedId={templateId} onSelect={selectTemplate} onChange={onTemplates} />
@@ -336,7 +336,7 @@ export function PhotoMaker({
             </NotReadyButton>
           )}
           <span className="text-xs text-muted">
-            {hasText ? `本文とアカウント設計${template ? "・フォーマット" : ""}から 2〜3 案（1 回 2 円ほど）` : "本文を書くと、AI が場面を考えます。手で書いても作れます"}
+            {hasText ? `本文とアカウント設計${template ? "・フォーマット" : ""}から 2〜3 案（1 回 ${SCENE_YEN.ideas[0]}〜${SCENE_YEN.ideas[1]} 円ほど）` : "本文を書くと、AI が場面を考えます。手で書いても作れます"}
           </span>
         </div>
         {drafting && <AiThinking kind="scene" note="10〜20 秒ほどかかります" />}

@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { photoModel, photoUnitYen } from "@/lib/ai/photo";
+import { SCENE_YEN, photoModel, photoUnitYen } from "@/lib/ai/photo";
 import { formatPhotoTexts, hasUnfilled, type FormatImage } from "@/lib/post-formats/image";
 import type { FormatUse } from "../post-format-picker";
 
@@ -19,9 +19,9 @@ export function FormatImageBand({
   const { format, values, answer } = use;
   const texts = formatPhotoTexts(format, values, answer);
   const left = hasUnfilled(texts.text) || (texts.headline !== null && hasUnfilled(texts.headline));
-  // 1 枚の目安（押す前に出す）。AI が場面に直すときは、Claude の 1〜3 円を足す
+  // 1 枚の目安（押す前に出す）。AI が場面に直すときは、Claude の場面の分（SCENE_YEN.one）を足す
   const unit = photoUnitYen(photoModel({}));
-  const cost = format.image.scene === "ai" ? `約 ${unit + 1}〜${unit + 3} 円` : `約 ${unit} 円`;
+  const cost = format.image.scene === "ai" ? `約 ${unit + SCENE_YEN.one[0]}〜${unit + SCENE_YEN.one[1]} 円` : `約 ${unit} 円`;
   return (
     <div className="flex flex-col gap-2 rounded-md border border-line px-4 py-3 text-[13px] max-sm:px-3">
       <p className="font-bold">フォーマット「{format.name}」の画像</p>

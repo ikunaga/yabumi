@@ -351,7 +351,7 @@ describe("見本の 1 回（makeSample）", () => {
 });
 
 describe("送る時刻を過ぎた確かめ待ち・送り直し", () => {
-  it("確かめ待ちは失敗にして理由を入れる。送り直すと、承認の記録がなければ確かめ待ちに戻る。承認があれば送信待ち。他人は戻せない", async () => {
+  it("確かめ待ちは失敗にして理由を入れる。送り直すと、いまの中身への承認の記録がなければ確かめ待ちに戻る。承認があれば送信待ち。他人は戻せない", async () => {
     const p = await project();
     await note(p, "期限切れのテスト");
     const id = await plan(p);
@@ -370,7 +370,13 @@ describe("送る時刻を過ぎた確かめ待ち・送り直し", () => {
 
     // 承認の記録があれば（承認して送ったが X 側で失敗した、など）、送り直しは送信待ちに戻す
     await admin.from("post_targets").update({ status: "failed" }).eq("id", ts.x.id);
+    // いまの中身と違う指紋の承認は数えない（承認のあとに中身が変わった）
     await admin.from("post_target_approvals").insert({ post_target_id: ts.x.id, owner_id: aliceId, fingerprint: "0".repeat(64) });
+    await alice.rpc("requeue_failed_targets", { p_post_id: postId, p_sns: ["x"] });
+    expect((await targetsOf(postId)).x.status).toBe("awaiting_approval");
+    await admin.from("post_targets").update({ status: "failed" }).eq("id", ts.x.id);
+    const { data: fp } = await admin.rpc("post_target_approval_fingerprint", { p_target_id: ts.x.id });
+    await admin.from("post_target_approvals").update({ fingerprint: fp! }).eq("post_target_id", ts.x.id);
     await alice.rpc("requeue_failed_targets", { p_post_id: postId, p_sns: ["x"] });
     expect((await targetsOf(postId)).x.status).toBe("pending");
   });

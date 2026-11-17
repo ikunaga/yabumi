@@ -1941,6 +1941,7 @@ export type Database = {
       }
       posts: {
         Row: {
+          auto_created: boolean
           auto_run_id: string | null
           body: string
           created_at: string
@@ -1955,6 +1956,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          auto_created?: boolean
           auto_run_id?: string | null
           body?: string
           created_at?: string
@@ -1969,6 +1971,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          auto_created?: boolean
           auto_run_id?: string | null
           body?: string
           created_at?: string
@@ -3228,6 +3231,7 @@ export type Database = {
       }
       invoke_job: { Args: { p_path: string }; Returns: number }
       is_manual_sns: { Args: { p_sns: string }; Returns: boolean }
+      is_review_sns: { Args: { p_sns: string }; Returns: boolean }
       issue_media_upload_ticket: {
         Args: {
           p_max_file_bytes: number
@@ -3324,8 +3328,8 @@ export type Database = {
           sns: string
         }[]
       }
-      post_target_fingerprint: {
-        Args: { p_body: string; p_hashtags: string[]; p_title: string }
+      post_target_approval_fingerprint: {
+        Args: { p_target_id: string }
         Returns: string
       }
       post_target_text: {

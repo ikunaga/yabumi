@@ -63,6 +63,18 @@ describe("URL は登録した行き先の中だけ（前方一致ですり抜け
     expect(foreignLinks("メールは a@b.example.jp まで。ver.2 になりました", allowed)).toEqual([]);
     expect(plainIssues({ threads: "こちら shop.example.com.evil.org です" }, { allowedUrls: allowed, recent: {} })[0].kind).toBe("check_failed");
   });
+  it("日本語などのドメインと、全角の「．」で書いたドメインも拾う（NFKC にそろえ、punycode のホストで判定する）", () => {
+    expect(foreignLinks("くわしくは 例え.jp へ", allowed)).toEqual(["例え.jp"]);
+    expect(foreignLinks("くわしくは 例え．ｊｐ/パン へ", allowed)).toEqual(["例え.jp/パン"]);
+    expect(foreignLinks("お店は ｅｖｉｌ．ｏｒｇ です", allowed)).toEqual(["evil.org"]);
+    expect(foreignLinks("サイト ドメイン.日本 を見てね", allowed)).toEqual(["ドメイン.日本"]);
+    expect(foreignLinks("ｈｔｔｐｓ：／／evil.org/x を見て", allowed)).toEqual(["https://evil.org/x"]);
+    // 登録した行き先が日本語のドメインなら、同じホスト（punycode）は通す
+    expect(foreignLinks("くわしくは 例え.jp/menu へ", ["https://例え.jp/"])).toEqual([]);
+    expect(foreignLinks("くわしくは https://xn--r8jz45g.jp/menu へ", ["https://例え.jp/"])).toEqual([]);
+    // 文の「。」や、ドメインでない言葉は拾わない
+    expect(foreignLinks("くるみパンを焼きました。ver.2 です", allowed)).toEqual([]);
+  });
 });
 
 describe("AI っぽさチェックの結果の扱い（A2 の ②）", () => {

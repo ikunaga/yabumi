@@ -49,7 +49,8 @@ export type FakeMode = "ok" | "held" | "cannot";
 // 偽の AI を使うか。Vercel の上（VERCEL_ENV がある）では使わない（本番・プレビューで偽の文が出ないように）
 export function fakeAiMode(env: NodeJS.ProcessEnv = process.env): FakeMode | null {
   const v = env.AUTO_POST_FAKE_AI?.trim();
-  if (!v || env.VERCEL_ENV) return null;
+  // 本番（Vercel・next start の本番ビルド）では、変数が残っていても偽の AI にしない
+  if (!v || env.VERCEL_ENV || env.NODE_ENV === "production") return null;
   if (v === "held" || v === "cannot") return v;
   return "ok";
 }

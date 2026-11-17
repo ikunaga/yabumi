@@ -90,10 +90,11 @@ export async function addUpcomingRuns(admin: Db, now: Date, opts: EngineOpts = {
 
 // ===== ② 送る時刻を過ぎた確かめ待ち =====
 // 確かめ待ちの配信先は失敗にする（送り直すと、承認の記録がなければ確かめ待ちに戻る。requeue_failed_targets）。
+// 回し方を消すと auto_run_id は null になるので、消えない印（posts.auto_created）で拾う。
 // 最初の回の確かめ（review）のまま過ぎた回は取り消す（投稿は下書きのまま残る）。利用者が投稿の画面で予約にした review の回は、確かめが済んだものとして扱う
 export async function settleApprovals(admin: Db, now: Date, opts: EngineOpts = {}): Promise<number> {
   const { data: late, error } = await scope(
-    admin.from("posts").select("id, post_targets!inner(id)").not("auto_run_id", "is", null).lte("planned_at", now.toISOString()).eq("post_targets.status", "awaiting_approval"),
+    admin.from("posts").select("id, post_targets!inner(id)").eq("auto_created", true).lte("planned_at", now.toISOString()).eq("post_targets.status", "awaiting_approval"),
     opts,
   );
   if (error) throw error;

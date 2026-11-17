@@ -1,5 +1,9 @@
 import type { SnsKey } from "@/lib/sns";
 import { getTemplate } from "@/lib/photo-templates/store";
+import { answerSlotName, fillImageText, hasUnfilled } from "@/lib/post-formats/image";
+import { cleanSlotValues } from "@/lib/post-formats/schema";
+import { cleanAnswer } from "@/lib/post-formats/series";
+import { getFormat } from "@/lib/post-formats/store";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizePlan } from "@/lib/plan/schema";
 import { InvalidImageError, sanitizeJpeg } from "@/lib/media/jpeg";
@@ -17,6 +21,7 @@ import {
   PHOTO_ASPECT,
   PHOTO_LIMITS,
   PHOTO_STYLES,
+  buildFormatSceneRequest,
   buildPhotoIdeasRequest,
   buildPhotoPrompt,
   normalizePhotoIdeas,
@@ -153,6 +158,51 @@ export async function runPhotoIdeas(
   const ideas = r.stopReason === "end_turn" ? normalizePhotoIdeas(r.output) : null;
   if (!ideas) return { ok: false, message: "うまく案を出せませんでした。もう一度お試しください。" };
   return { ok: true, ideas };
+}
+
+// ── ①' 投稿のフォーマットの画像の場面（Claude。docs/design/format-image.md の 2.・5.2） ──
+
+export type FormatSceneOutcome = { ok: true; scene: string } | { ok: false; message: string };
+
+// フォーマットはサーバーが利用者の権限で読み直す（本人の、このプロジェクトのものだけ。RLS）。画面から絵の説明の文は受け取らない。
+// 穴の言葉は型の文の穴だけ・1 行 200 字まで、答えは 100 字までにそろえる。場面のつくり方が「AI が場面に直す」のフォーマットだけ
+export async function runFormatPhotoScene(
+  user: Db,
+  admin: Db,
+  deps: { callIdeas: CallPhotoIdeas; now?: () => Date },
+  args: { userId: string; projectId: string; formatId: string; values: unknown; answer: unknown; sns?: SnsKey[] },
+): Promise<FormatSceneOutcome> {
+  const format = await getFormat(user, args.projectId, args.formatId);
+  if (!format) return { ok: false, message: "フォーマットが見つかりません。画面を読み込み直してください。" };
+  const img = format.image;
+  if (!img || img.scene !== "ai") return { ok: false, message: "このフォーマットには、AI が場面に直す画像の設定がありません。" };
+  const name = answerSlotName(format.series);
+  const answer = cleanAnswer(args.answer);
+  const filled = fillImageText(img.prompt, cleanSlotValues(format.body, args.values), name && answer ? { name, value: answer } : null);
+  if (hasUnfilled(filled)) return { ok: false, message: "絵の説明に、まだ埋まっていない穴（【】）があります。「1 書く」で穴を埋めて本文に入れてから押してください。" };
+  const { data: project } = await user.from("projects").select("*").eq("id", args.projectId).maybeSingle();
+  if (!project) return { ok: false, message: "プロジェクトが見つかりません。" };
+  const { data: planRow } = await user.from("account_plans").select("data").eq("project_id", args.projectId).maybeSingle();
+
+  let r: ModelOutput;
+  try {
+    // 写真の場面の案と同じ用途・上限に数える（新しい用途は作らない。format-image.md の 5.2）
+    const b = await withAiBudget(
+      admin,
+      { userId: args.userId, purpose: "image_photo_idea", call: "photo_ideas", now: deps.now?.() },
+      buildFormatSceneRequest({ projectName: project.name, plan: normalizePlan(planRow?.data, project.target_audience ?? ""), productType: productTypeOf(project.product_type), sns: args.sns }, filled),
+      deps.callIdeas,
+    );
+    if (!b.ok) return { ok: false, message: b.message };
+    r = b.result;
+  } catch (e) {
+    console.error("[format-scene] AI の呼び出しに失敗しました", e instanceof Error ? e.message : e);
+    return { ok: false, message: aiFailureMessage(e, "AI とのやりとりがうまくいきませんでした。時間をおいてもう一度お試しください。") + "「自分で場面を書く」からも作れます。" };
+  }
+  if (r.stopReason === "refusal") return { ok: false, message: "AI がこの絵の説明には答えられませんでした。「自分で場面を書く」から作れます。" };
+  const ideas = r.stopReason === "end_turn" ? normalizePhotoIdeas(r.output) : null;
+  if (!ideas) return { ok: false, message: "うまく場面を書けませんでした。もう一度お試しください。" };
+  return { ok: true, scene: ideas[0].scene };
 }
 
 // ── ② 画像をつくる（Gemini。画像だけの上限 D35） ──

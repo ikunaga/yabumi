@@ -7,6 +7,12 @@ vi.mock("@/lib/supabase/admin", async () => {
   const h = await import("./helpers/supabase");
   return { createAdminClient: () => h.adminClient() };
 });
+// 画像を読む関数を数えられるようにする（HEAD では呼ばないことを確かめる。中身は本物のまま）
+const downloads = vi.hoisted(() => ({ count: 0 }));
+vi.mock("@/lib/media/store", async (orig) => {
+  const m = await orig<typeof import("@/lib/media/store")>();
+  return { ...m, downloadMedia: (...a: Parameters<typeof m.downloadMedia>) => (downloads.count++, m.downloadMedia(...a)) };
+});
 import { GET, HEAD } from "@/app/tiktok-media/[file]/route";
 import { MEDIA_BUCKET } from "@/lib/media/rules";
 import { attachMedia, issueUpload, verifyUpload } from "@/lib/media/store";
@@ -76,7 +82,13 @@ describe("写真を渡す入口", () => {
     expect(res.headers.get("location")).toBeNull();
     const img = jpeg.decode(new Uint8Array(await res.arrayBuffer()));
     expect([img.width, img.height]).toEqual([1080, 810]);
-    expect((await get(url, "HEAD")).status).toBe(200);
+    // HEAD は引換券を確かめるだけで、画像を読まない・縮めない（ヘッダーだけ。セキュリティ確認の R1）
+    const before = downloads.count;
+    const head = await get(url, "HEAD");
+    expect(head.status).toBe(200);
+    expect(head.headers.get("content-type")).toBe("image/jpeg");
+    expect(await head.text()).toBe("");
+    expect(downloads.count).toBe(before);
   });
 
   it("知らない・形の違うトークン、期限切れ、送り終えて消した入口は 404", async () => {

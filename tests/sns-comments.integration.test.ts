@@ -225,8 +225,10 @@ describe("取り込み", () => {
 
   it("権限がないと言われたら止める。投稿が消えていたら、コメントを消して止める。回数の上限は 6 時間あける", async () => {
     const perm = await publishedTarget("threads", threadsAccount, hoursAgo(5));
-    await run({ threads: fakeList(new CommentsError("no permission", 403, "permission")) });
+    const permOut = await run({ threads: fakeList(new CommentsError("no permission", 403, "permission")) });
     expect((await pollOf(perm.targetId))!.stopped).toBe(true);
+    // ログに出すのは分類のコードだけ（外部の API のエラー文は出さない。セキュリティ確認の R3）
+    expect(permOut.find((o) => o.id === perm.targetId)?.code).toBe("permission");
 
     const gone = await publishedTarget("threads", threadsAccount, hoursAgo(5));
     await insertComment(gone.targetId, threadsAccount, aliceId, "x1");
@@ -235,6 +237,12 @@ describe("取り込み", () => {
     await run({ threads: fakeList(new CommentsError("not found", 404, "gone")) });
     expect(await commentsOf(gone.targetId)).toEqual([]);
     expect((await pollOf(gone.targetId))!.stopped).toBe(true);
+
+    // そのほかの失敗は HTTP の状態だけのコード（エラー文に入る相手の文・URL は出さない）
+    const other = await publishedTarget("threads", threadsAccount, hoursAgo(5));
+    const otherOut = await run({ threads: fakeList(new CommentsError("upstream said: secret-ish text https://graph.example/x?access_token=t", 500, "other")) });
+    expect(otherOut.find((o) => o.id === other.targetId)).toMatchObject({ result: "failed", code: "http_500" });
+    await admin.from("sns_comment_polls").update({ stopped: true }).eq("post_target_id", other.targetId);
 
     const rate = await publishedTarget("threads", threadsAccount, hoursAgo(5));
     await run({ threads: fakeList(new CommentsError("too many", 400, "rate")) });

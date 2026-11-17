@@ -52,6 +52,8 @@ export type CommentsOutcome = {
   added?: number;
   removed?: number;
   message?: string;
+  // ログに出す分類（外部の API のエラー文は出さない。セキュリティ確認の R3）。rate・permission・gone・no_token・http_<状態>・other
+  code?: string;
 };
 
 type Due = Database["public"]["Functions"]["due_sns_comment_targets"]["Returns"][number];
@@ -117,14 +119,14 @@ async function importOne(
   const block = blocked.get(t.social_account_id);
   if (block === "rate") {
     await savePoll(admin, t, { next_check_at: new Date(now.getTime() + RATE_BACKOFF_MS).toISOString(), last_count: t.last_count, fails: t.fails });
-    return { ...base, result: "skipped", message: "回数の上限" };
+    return { ...base, result: "skipped", message: "回数の上限", code: "rate" };
   }
   if (block === "permission") {
     await savePoll(admin, t, { stopped: true, next_check_at: now.toISOString(), last_count: t.last_count, fails: t.fails });
-    return { ...base, result: "stopped", message: "権限がない（つなぎ直しが要る）" };
+    return { ...base, result: "stopped", message: "権限がない（つなぎ直しが要る）", code: "permission" };
   }
   const token = await accountFor(t);
-  if (!token) return { ...base, result: "skipped", message: "トークンが切れている（つなぎ直しが要る）" };
+  if (!token) return { ...base, result: "skipped", message: "トークンが切れている（つなぎ直しが要る）", code: "no_token" };
   const account: CommentsAccount = { ...token, handle: t.account_handle ?? "" };
 
   try {
@@ -145,26 +147,27 @@ async function importOne(
   } catch (e) {
     const kind = e instanceof CommentsError ? e.kind : "other";
     const message = e instanceof Error ? e.message : String(e);
+    const code = e instanceof CommentsError ? (kind === "other" ? `http_${e.status}` : kind) : "other";
     if (kind === "permission") {
       blocked.set(t.social_account_id, "permission");
       await savePoll(admin, t, { stopped: true, next_check_at: now.toISOString(), last_count: t.last_count, fails: t.fails });
-      return { ...base, result: "stopped", message };
+      return { ...base, result: "stopped", message, code };
     }
     if (kind === "gone") {
       // SNS の側で投稿が消えていた: コメントを消し、もう読まない
       const { error } = await admin.from("sns_comments").delete().eq("post_target_id", t.post_target_id);
       if (error) throw error;
       await savePoll(admin, t, { stopped: true, next_check_at: now.toISOString(), last_count: null, fails: t.fails });
-      return { ...base, result: "stopped", message };
+      return { ...base, result: "stopped", message, code };
     }
     if (kind === "rate") {
       blocked.set(t.social_account_id, "rate");
       await savePoll(admin, t, { next_check_at: new Date(now.getTime() + RATE_BACKOFF_MS).toISOString(), last_count: t.last_count, fails: t.fails });
-      return { ...base, result: "skipped", message };
+      return { ...base, result: "skipped", message, code };
     }
     const fails = Math.min(t.fails + 1, 100);
     await savePoll(admin, t, { next_check_at: nextCheckAt(now, publishedAt, fails).toISOString(), last_checked_at: now.toISOString(), last_count: t.last_count, fails });
-    return { ...base, result: "failed", message };
+    return { ...base, result: "failed", message, code };
   }
 }
 

@@ -2,11 +2,14 @@
 // post_target_youtube・youtube_uploads は利用者の権限では読めず書けない、持ち主のトリガー、1 日の上限（全体と利用者ごと・同時実行）、
 // アップロードの途中の情報の暗号化、手で投稿したことの記録。テストの行はこのファイルの利用者だけに作り、上限は小さな値で試す（共有のローカル DB）
 import { randomBytes, randomUUID } from "node:crypto";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
+
 import { purgeSnsDataOf, saveConnectedAccount } from "@/lib/sns/accounts";
 import { BY_HAND_MESSAGE } from "@/lib/sns/by-hand";
 import { consentHash } from "@/lib/sns/tiktok/send-check";
-import { pacificDayRange } from "@/lib/sns/youtube/schedule";
+import { YOUTUBE_GLOBAL_DAILY_UPLOADS, YOUTUBE_USER_DAILY_UPLOADS } from "@/lib/sns/youtube/config";
 import { clearYouTubeUpload, loadYouTubeTarget, loadYouTubeUpload, reserveYouTubeUpload, saveYouTubeUpload } from "@/lib/sns/youtube/store";
 import { adminClient, anonClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
 
@@ -79,7 +82,7 @@ describe("権限（利用者の権限では読めず書けない）", () => {
 
   it("関数は利用者から呼べない（reserve_youtube_upload）", async () => {
     const { targetId } = await target("youtube");
-    const r = await alice.rpc("reserve_youtube_upload", { p_owner_id: aliceId, p_post_target_id: targetId, p_global_limit: 100, p_user_limit: 100 });
+    const r = await alice.rpc("reserve_youtube_upload", { p_owner_id: aliceId, p_post_target_id: targetId });
     expect(r.error).not.toBeNull();
   });
 });
@@ -131,28 +134,32 @@ describe("外されたとき（purgeSnsDataOf）", () => {
 });
 
 describe("1 日のアップロードの数", () => {
-  it("利用者ごと・全体の上限を超えたら取らない。同時に取っても超えない", async () => {
-    // 全体の数は共有の DB のほかの行も数えるので、いまの数を足した上限で試す
-    const { data: before } = await admin.rpc("reserve_youtube_upload", { p_owner_id: aliceId, p_post_target_id: null as unknown as string, p_global_limit: 0, p_user_limit: 0 });
-    expect(before).toBe("global");
-    const dayStart = pacificDayRange(new Date()).start.toISOString();
-    const { count: others } = await admin.from("sns_api_usage").select("id", { count: "exact", head: true }).eq("sns", "youtube").eq("operation", "upload").gte("created_at", dayStart);
-    const base = others ?? 0;
-
+  // 上限は関数の中の定数（全体 90 本・利用者ごと 5 本。20261117140000）。全体の数は共有の DB のほかの行も数えるので、
+  // 全体の上限は p_scope_owner で、別のテストの利用者（carol）の行だけを数えて試す
+  it("利用者ごと 5 本を超えたら取らない。同時に 7 本取っても 5 本だけ", async () => {
     const { targetId } = await target("youtube");
-    const results = await Promise.all(Array.from({ length: 6 }, () => reserveYouTubeUpload(admin, aliceId, targetId, { global: base + 100, user: 3 })));
-    expect(results.filter((r) => r === "ok").length).toBe(3);
-    expect(results.filter((r) => r === "user").length).toBe(3);
+    const results = await Promise.all(Array.from({ length: 7 }, () => reserveYouTubeUpload(admin, aliceId, targetId, { scopeOwner: aliceId })));
+    expect(results.filter((r) => r === "ok").length).toBe(YOUTUBE_USER_DAILY_UPLOADS);
+    expect(results.filter((r) => r === "user").length).toBe(7 - YOUTUBE_USER_DAILY_UPLOADS);
+  });
 
-    // 全体: bob はまだ 0 本でも、全体の上限に当たれば取れない
-    const { count: now } = await admin.from("sns_api_usage").select("id", { count: "exact", head: true }).eq("sns", "youtube").eq("operation", "upload").gte("created_at", dayStart);
-    const bobs = await target("youtube", bobId, bobProject);
-    expect(await reserveYouTubeUpload(admin, bobId, bobs.targetId, { global: now ?? 0, user: 5 })).toBe("global");
-    expect(await reserveYouTubeUpload(admin, bobId, bobs.targetId, { global: (now ?? 0) + 1, user: 5 })).toBe("ok");
-    // 記録は本人だけ読める（費用 0 の upload）
-    const mine = await bob.from("sns_api_usage").select("operation, cost_usd").eq("sns", "youtube");
-    expect(mine.data).toEqual([{ operation: "upload", cost_usd: 0 }]);
-    expect((await bob.from("sns_api_usage").select("id").eq("owner_id", aliceId)).data).toEqual([]);
+  it("全体 90 本に当たれば、まだ 0 本の人も取れない（89 本なら取れる）。記録は本人だけ読める", async () => {
+    const { userId: carolId } = await signUpNewUser();
+    try {
+      const rows = Array.from({ length: YOUTUBE_GLOBAL_DAILY_UPLOADS - 1 }, () => ({ owner_id: carolId, sns: "youtube" as const, operation: "upload", cost_usd: 0 }));
+      expect((await admin.from("sns_api_usage").insert(rows)).error).toBeNull();
+      const bobs = await target("youtube", bobId, bobProject);
+      // 89 本: bob は取れる（bob の 1 本は carol の数には入らないので、もう一度でも取れる）
+      expect(await reserveYouTubeUpload(admin, bobId, bobs.targetId, { scopeOwner: carolId })).toBe("ok");
+      expect((await admin.from("sns_api_usage").insert({ owner_id: carolId, sns: "youtube", operation: "upload", cost_usd: 0 })).error).toBeNull();
+      // 90 本: bob はまだ 1 本でも取れない
+      expect(await reserveYouTubeUpload(admin, bobId, bobs.targetId, { scopeOwner: carolId })).toBe("global");
+      const mine = await bob.from("sns_api_usage").select("operation, cost_usd").eq("sns", "youtube");
+      expect(mine.data).toEqual([{ operation: "upload", cost_usd: 0 }]);
+      expect((await bob.from("sns_api_usage").select("id").eq("owner_id", aliceId)).data).toEqual([]);
+    } finally {
+      await deleteUser(carolId);
+    }
   });
 });
 

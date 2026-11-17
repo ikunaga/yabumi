@@ -4,11 +4,9 @@ import { checkMp4, Mp4CheckError, mp4ProblemMessage } from "./mp4-check";
 import { MediaError } from "./store";
 import { SNS_FETCH_URL_SECONDS, formatBytes } from "./rules";
 import {
-  MAX_PENDING_VIDEO_TICKETS,
   MAX_UNATTACHED_VIDEOS,
   MAX_VIDEO_BYTES,
   VIDEO_BUCKET,
-  VIDEO_GLOBAL_QUOTA_BYTES,
   VIDEO_MONTH_LIMIT,
   VIDEO_READ_URL_SECONDS,
   VIDEO_USER_QUOTA_BYTES,
@@ -53,14 +51,8 @@ async function removeVideoObjects(admin: Admin, paths: string[]) {
 
 export type VideoUploadTicket = { path: string };
 
-const LIMITS = {
-  p_max_pending: MAX_PENDING_VIDEO_TICKETS,
-  p_max_unattached: MAX_UNATTACHED_VIDEOS,
-  p_quota_bytes: VIDEO_USER_QUOTA_BYTES,
-  p_max_file_bytes: MAX_VIDEO_BYTES,
-  p_month_limit: VIDEO_MONTH_LIMIT,
-  p_global_quota_bytes: VIDEO_GLOBAL_QUOTA_BYTES,
-};
+// 上限の値は DB の関数（video_upload_check・issue_video_upload_ticket）の中の定数（20261117140000。セキュリティ確認の DB-L2）。
+// video-rules.ts の値とはテストでそろえる（tests/limits-in-functions.test.ts）
 
 // 上限に当たったときの文。添えていない動画は、実際の本数を出す
 async function limitMessage(admin: Admin, ownerId: string, status: string): Promise<string | null> {
@@ -105,7 +97,7 @@ export async function purgeOrphanVideos(admin: Admin, ownerId: string): Promise<
 // 本当の守りは引換券の発行（issueVideoUpload。ロックの中で同じ確かめをする）
 export async function checkVideoUpload(admin: Admin, ownerId: string): Promise<void> {
   await purgeOrphanVideos(admin, ownerId);
-  const { data: status, error } = await admin.rpc("video_upload_check", { p_owner_id: ownerId, ...LIMITS });
+  const { data: status, error } = await admin.rpc("video_upload_check", { p_owner_id: ownerId });
   if (error) throw error;
   const message = await limitMessage(admin, ownerId, status);
   if (message) throw new MediaError(message);
@@ -117,7 +109,7 @@ export async function checkVideoUpload(admin: Admin, ownerId: string): Promise<v
 export async function issueVideoUpload(admin: Admin, ownerId: string, id: string = crypto.randomUUID()): Promise<VideoUploadTicket> {
   const path = videoPath(ownerId, id);
   await purgeOrphanVideos(admin, ownerId);
-  const { data: status, error: ticketError } = await admin.rpc("issue_video_upload_ticket", { p_owner_id: ownerId, p_storage_path: path, ...LIMITS });
+  const { data: status, error: ticketError } = await admin.rpc("issue_video_upload_ticket", { p_owner_id: ownerId, p_storage_path: path });
   if (ticketError) throw ticketError;
   const message = await limitMessage(admin, ownerId, status);
   if (message) throw new MediaError(message);

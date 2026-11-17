@@ -36,7 +36,7 @@ const adapter = createYouTubeAdapter({
   config: () => ({ clientId: "id", clientSecret: "secret", redirectUri: "https://yabumi.app/sns/youtube/callback" }),
   loadTarget: (id) => loadYouTubeTarget(admin, id),
   loadVideo: async () => ({ ...video(), mime: "video/mp4", aiGenerated: false }),
-  reserveUpload: (ownerId, targetId) => reserveYouTubeUpload(admin, ownerId, targetId, { global: 1_000_000, user: 5 }),
+  reserveUpload: (ownerId, targetId) => reserveYouTubeUpload(admin, ownerId, targetId, { scopeOwner: ownerId }),
   userDailyUploads: 5,
   loadUpload: (id) => loadYouTubeUpload(admin, id, key),
   saveUpload: (id, ownerId, row) => saveYouTubeUpload(admin, id, ownerId, row, new Date(), key),

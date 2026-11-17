@@ -786,6 +786,7 @@ Supabase は既定で、public に作ったテーブル・関数のすべての�
 - `create table` のあとに、RLS を有効にし、ポリシーと**同じ操作の grant** を書く（例: `grant select, insert on public.xxx to authenticated;`）。書かないと、画面からは permission denied（42501）になる
 - 関数は `revoke execute ... from public, anon, authenticated;` のあと、呼ぶ人にだけ `grant execute` を書く（既定で与えないようにしてあるが、意図を残すため）
 - tests/grants.integration.test.ts の TABLES に足し、anon から読めないことを確かめる
+- 上限（枚数・本数・量・金額）を確かめる関数は、上限を**関数の中の定数**にし、引数で受けない（呼び出す側の値で上限を変えられないように）。TS の値（画面やメッセージに出すもの）とは、マイグレーションの定数を読むテストでそろえる。全体の上限の結合テストのために、全体の数をその利用者の分だけで数える `p_scope_owner uuid default null` を足してよい（service_role だけが呼べる関数に限る。アプリからは渡さない）。例: reserve_ai_usage・reserve_ai_images、20261117140000 の reserve_youtube_upload・video_upload_check・issue_video_upload_ticket・issue_media_upload_ticket（2026-11-17 のセキュリティ確認の DB-L2。tests/limits-in-functions.test.ts）
 
 ### 4.18 投稿に画像を添える（F03・F14 の一部、2026-10-11）
 
@@ -2957,7 +2958,7 @@ yabumi のコンセプトは、使って SNS を運用するうちに、マー�
 
 - つなぐ・外す（/sns/youtube/connect・callback。state・PKCE S256・offline・毎回同意。スコープは youtube.upload と youtube.readonly の 2 つがそろい、チャンネルがあるときだけつなぐ。外すと Google の revoke にリフレッシュトークンを送る）
 - 表: post_target_youtube（送るときの設定と同意）・youtube_uploads（アップロードの途中の情報。セッションの URL は暗号化）。どちらも RLS を有効にしてポリシーを置かず、利用者の権限には grant しない。持ち主はトリガー youtube_check_owner でそろえる（tiktok_check_owner は変えない）
-- 割り当て: reserve_youtube_upload（太平洋時間の 1 日。全体 YOUTUBE_DAILY_UPLOADS〈既定 90〉と利用者ごと 5 本を advisory lock で数え、sns_api_usage に operation = upload・費用 0 で記録）。保存のときも、その日の予約が 5 本を超えるなら止める
+- 割り当て: reserve_youtube_upload（太平洋時間の 1 日。全体 90 本と利用者ごと 5 本〈どちらも関数の中の定数。20261117140000。前は全体を環境変数 YOUTUBE_DAILY_UPLOADS で変えていた〉を advisory lock で数え、sns_api_usage に operation = upload・費用 0 で記録）。保存のときも、その日の予約が 5 本を超えるなら止める
 - 送信の部品は preparing の 2 段。startPublishVideo はセッションを始めるだけ、continuePublish が 8MB ずつ 15 秒まで送り、残りは次の回に続きから。済んだら published にし、準備に時間がかかっても最初から送り直さない（restartOnPrepareTimeout: false）。最後の答えが届かなくても、次の回に受け取られた量を聞いてわかるので二重に上げない。送る直前に同意の指紋とチャンネルを照らす
 - 送ったあと: 送信ジョブのたびに、上げた動画の処理を 30 分まで確かめ（checkYouTubeProcessing）、受け付けられなければ配信先を失敗にし、途中の情報を消して送り直せるようにする
 - 7 日ごと: refreshDueTokens でトークンを取り直してまだ許可されているかを確かめ（invalid_grant は期限切れ）、チャンネル名を読み直す（変わったときだけ書く。social_accounts.updated_at はテスト中の 7 日の表示に使う）。期限切れのまま 29 日たったら、トークンと YouTube のデータを消す（purgeExpiredYouTube。開発者ポリシーの 30 日以内）

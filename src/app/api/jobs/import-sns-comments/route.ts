@@ -20,7 +20,8 @@ export async function POST(request: NextRequest) {
     deadlineMs: Date.now() + 40_000,
   });
   const count = (r: string) => outcomes.filter((o) => o.result === r).length;
-  const failed = outcomes.filter((o) => o.result === "failed" || o.result === "stopped").map((o) => ({ id: o.id, sns: o.sns, result: o.result, message: o.message }));
+  // 失敗の中身は分類のコードだけを出す（外部の API のエラー文には、相手の返した文や URL が入ることがある。セキュリティ確認の R3）
+  const failed = outcomes.filter((o) => o.result === "failed" || o.result === "stopped").map((o) => ({ id: o.id, sns: o.sns, result: o.result, code: o.code ?? "other" }));
   if (outcomes.length) {
     console.info("[jobs/import-sns-comments]", JSON.stringify({ saved: count("saved"), unchanged: count("unchanged"), skipped: count("skipped"), failed }));
   }

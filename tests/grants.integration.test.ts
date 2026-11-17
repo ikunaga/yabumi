@@ -112,14 +112,7 @@ describe("ログインした利用者（authenticated）", () => {
     expect((await alice.from("media_upload_tickets").select("*").limit(1)).error?.code).toBe("42501");
     expect((await alice.rpc("media_usage_bytes", { p_owner_id: aliceId })).error?.code).toBe("42501");
     expect((await alice.rpc("cleanup_media_candidates", {})).error?.code).toBe("42501");
-    const issue = await alice.rpc("issue_media_upload_ticket", {
-      p_owner_id: aliceId,
-      p_storage_path: `${aliceId}/y.jpg`,
-      p_max_pending: 100,
-      p_max_unattached: 100,
-      p_quota_bytes: 1e9,
-      p_max_file_bytes: 1,
-    });
+    const issue = await alice.rpc("issue_media_upload_ticket", { p_owner_id: aliceId, p_storage_path: `${aliceId}/y.jpg` });
     expect(issue.error?.code).toBe("42501");
   });
 

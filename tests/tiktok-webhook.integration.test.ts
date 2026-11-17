@@ -127,6 +127,13 @@ describe("入口（/sns/tiktok/webhook）", () => {
       const req = (sig: string) => new Request("http://127.0.0.1:3100/sns/tiktok/webhook", { method: "POST", body: raw, headers: { "TikTok-Signature": sig } }) as never;
       expect((await POST(req(sign(raw, undefined, "wrong")))).status).toBe(401);
       expect((await POST(req(sign(raw)))).status).toBe(200);
+      // 64KB を超える本文は、署名を確かめる前に 413（Content-Length を見て読まない。書いていなくても、読む量で止める）
+      const big = "x".repeat(64_001);
+      expect((await POST(new Request("http://127.0.0.1:3100/sns/tiktok/webhook", { method: "POST", body: big, headers: { "TikTok-Signature": sign(big) } }) as never)).status).toBe(413);
+      const stream = new ReadableStream({ start(c) { for (let i = 0; i < 20; i++) c.enqueue(new Uint8Array(4_000)); c.close(); } });
+      const chunked = new Request("http://127.0.0.1:3100/sns/tiktok/webhook", { method: "POST", body: stream, duplex: "half", headers: { "TikTok-Signature": "t=1,s=x" } } as RequestInit);
+      expect(chunked.headers.get("content-length")).toBeNull();
+      expect((await POST(chunked as never)).status).toBe(413);
     } finally {
       vi.unstubAllEnvs();
     }

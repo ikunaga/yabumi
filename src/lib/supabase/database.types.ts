@@ -3233,25 +3233,13 @@ export type Database = {
       is_manual_sns: { Args: { p_sns: string }; Returns: boolean }
       is_review_sns: { Args: { p_sns: string }; Returns: boolean }
       issue_media_upload_ticket: {
-        Args: {
-          p_max_file_bytes: number
-          p_max_pending: number
-          p_max_unattached: number
-          p_owner_id: string
-          p_quota_bytes: number
-          p_storage_path: string
-        }
+        Args: { p_owner_id: string; p_storage_path: string }
         Returns: string
       }
       issue_video_upload_ticket: {
         Args: {
-          p_global_quota_bytes: number
-          p_max_file_bytes: number
-          p_max_pending: number
-          p_max_unattached: number
-          p_month_limit: number
           p_owner_id: string
-          p_quota_bytes: number
+          p_scope_owner?: string
           p_storage_path: string
         }
         Returns: string
@@ -3482,10 +3470,9 @@ export type Database = {
       }
       reserve_youtube_upload: {
         Args: {
-          p_global_limit: number
           p_owner_id: string
           p_post_target_id: string
-          p_user_limit: number
+          p_scope_owner?: string
         }
         Returns: string
       }
@@ -3665,15 +3652,7 @@ export type Database = {
       }
       video_orphan_bytes: { Args: { p_owner_id: string }; Returns: number }
       video_upload_check: {
-        Args: {
-          p_global_quota_bytes: number
-          p_max_file_bytes: number
-          p_max_pending: number
-          p_max_unattached: number
-          p_month_limit: number
-          p_owner_id: string
-          p_quota_bytes: number
-        }
+        Args: { p_owner_id: string; p_scope_owner?: string }
         Returns: string
       }
       weekly_post_totals: {

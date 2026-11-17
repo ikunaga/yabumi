@@ -163,7 +163,7 @@
 | 目安 | やること | だれが | 費用（月の増え方） | 元の資料 |
 |---|---|---|---|---|
 | 短縮リンクの利用者のドメインが 32 に届いた（メールが届く） | Vercel を Pro にしているなら LINK_DOMAIN_LIMIT を上げる | オーナー | 0 円 | deploy.md の 17 |
-| YouTube に全体で 1 日 50 本を超える日が出てきた | 割り当ての監査を申請し、通ったら YOUTUBE_DAILY_UPLOADS を上げる | オーナー・PM | 0 円 | docs/design/youtube.md の 11.2、deploy.md の 30 |
+| YouTube に全体で 1 日 50 本を超える日が出てきた | 割り当ての監査を申請し、通ったらマイグレーションで reserve_youtube_upload の全体の上限（c_global_daily）と src/lib/sns/youtube/config.ts の YOUTUBE_GLOBAL_DAILY_UPLOADS を上げる | オーナー・PM | 0 円 | docs/design/youtube.md の 11.2、deploy.md の 30 |
 | 伴走を使う人が 80 人を超える（月曜の振り返りのメールが 1 日 100 通に届く） | Resend を Pro にする | オーナー | +約 3,200 円（$20） | architecture.md の 4.27 の「費用」・7 |
 | 利用者が 100 人を超え、予約が 15 分以上遅れる | pg_cron を 30 秒ごとにするか、invoke_job を並べて呼ぶ（コードの変更は小さい） | 実装 | 0 円（Vercel Pro に含まれる分の中の見込み） | architecture.md の 4.7 |
 | 利用者が 100 人を超え、費用を下げたい | Vercel から Cloudflare Workers（OpenNext）に移すかを考え直す（移す作業に数日） | オーナー・実装 | −約 2,400〜3,200 円 | cost-review.md の 2.1 |

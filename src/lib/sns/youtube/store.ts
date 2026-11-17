@@ -54,12 +54,13 @@ export async function clearYouTubeUpload(admin: Admin, postTargetId: string): Pr
   if (error) throw error;
 }
 
-export async function reserveYouTubeUpload(admin: Admin, ownerId: string, postTargetId: string, limits: { global: number; user: number }): Promise<QuotaVerdict> {
+// 上限（全体 1 日 90 本・利用者ごと 5 本）は DB の関数の中の定数（20261117140000。セキュリティ確認の DB-L2）。config.ts の値とはテストでそろえる。
+// scopeOwner はテスト用（全体の数をその利用者の分だけで数える。アプリからは渡さない）
+export async function reserveYouTubeUpload(admin: Admin, ownerId: string, postTargetId: string, opts: { scopeOwner?: string } = {}): Promise<QuotaVerdict> {
   const { data, error } = await admin.rpc("reserve_youtube_upload", {
     p_owner_id: ownerId,
     p_post_target_id: postTargetId,
-    p_global_limit: limits.global,
-    p_user_limit: limits.user,
+    ...(opts.scopeOwner ? { p_scope_owner: opts.scopeOwner } : {}),
   });
   if (error) throw error;
   return data === "global" || data === "user" ? data : "ok";

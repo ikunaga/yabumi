@@ -32,8 +32,10 @@ export type GenerateInput = {
   tone: string;
   // この回し方で直近に送った本文（重ならないように）
   recentBodies: string[];
-  // SNS ごとの字数の上限
+  // SNS ごとの字数の上限（本文とは別に付くタグの行の分を引いたもの）
   maxLength: Partial<Record<SnsKey, number>>;
+  // 本文とは別に付くタグ（シリーズのフォーマット・いつものタグ）。AI は本文にハッシュタグを書かない
+  fixedTags?: Partial<Record<SnsKey, string[]>>;
 };
 
 export type GenerateOutput =
@@ -67,7 +69,7 @@ export function fakeGenerator(mode: FakeMode = "ok"): AutoPostGenerator {
 // 本物の AI（Claude）。予約（reserve_ai_usage の auto_post）→ 呼ぶ → 実際の額に直す
 export function realGenerator(admin: Db, call = callAutoPost): AutoPostGenerator {
   return async (input) => {
-    const request = buildAutoPostRequest({ context: input.context, material: input.material, tone: input.tone, recentBodies: input.recentBodies });
+    const request = buildAutoPostRequest({ context: input.context, material: input.material, tone: input.tone, recentBodies: input.recentBodies, fixedTags: input.fixedTags });
     try {
       const b = await withAiBudget(admin, { userId: input.ownerId, purpose: "auto_post", call: "auto_post" }, request, call);
       if (!b.ok) return { ok: false, reason: "ai_limit", detail: b.message };

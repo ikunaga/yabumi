@@ -153,6 +153,8 @@ export type ProjectEvent = { id: string; onDate: string; body: string };
 // 見本の 1 回（保存しない）。SNS ごとの文と、チェックで引っかかったところ
 export type AutoSample = {
   texts: Partial<Record<SnsKey, string>>;
+  // 本文とは別に、送るときに本文の後ろに付くタグ（シリーズのフォーマット・いつものタグ。2026-11-17）
+  tags?: Partial<Record<SnsKey, string[]>>;
   materialLabel: string;
   issues: { kind: AutoRunReason; detail: string }[];
 };

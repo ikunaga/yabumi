@@ -7,7 +7,7 @@ vi.mock("server-only", () => ({}));
 import type { CallCheck } from "@/lib/ai/ai-check";
 import { setAiBudgetTestScope } from "@/lib/ai/budget";
 import type { AutoPostGenerator } from "@/lib/auto-post/ai";
-import { addUpcomingRuns, EXPIRED_MESSAGE, makeDueRuns, makeSample, notifyMade, remindApprovals, reviewPlans, runAutoPostJob, settleApprovals, type EngineDeps } from "@/lib/auto-post/engine";
+import { addUpcomingRuns, EXPIRED_MESSAGE, makeDueRuns, makeSample, notifyMade, remindApprovals, reviewPlans, runAutoPostJob, settleApprovals, tagReserve, type EngineDeps } from "@/lib/auto-post/engine";
 import { saveConnectedAccount } from "@/lib/sns/accounts";
 import type { SnsAdapter } from "@/lib/sns/adapters/types";
 import { publishDueTargets } from "@/lib/sns/publisher";
@@ -296,6 +296,39 @@ describe("作る（偽の AI）", () => {
     const r = await dueRun(paused, p, 30);
     await makeDueRuns(admin, deps(), new Date(), scopeOpts());
     expect((await runOf(r)).status).toBe("waiting");
+  });
+});
+
+describe("いつものタグ（2026-11-17）", () => {
+  it("どの使い道の回にも、SNS ごとのいつものタグを付ける。本文にもあるタグは付けない。AI にはタグと、タグの行の分を引いた字数を渡す", async () => {
+    const p = await project();
+    await alice.from("projects").update({ default_hashtags: { all: ["パン屋"], x: ["パン", "天然酵母"] } }).eq("id", p);
+    await note(p, "朝の焼き上がり");
+    const id = await plan(p);
+    await admin.from("auto_plans").update({ first_review: false }).eq("id", id);
+    const run = await dueRun(id, p);
+    vi.mocked(generator).mockClear();
+    vi.mocked(generator).mockImplementationOnce(async () => ({ ok: true as const, texts: { threads: "朝の焼き上がりの話 #パン屋", x: "朝の焼き上がりの話" }, pillar: "お店の日々", concern: "none" }));
+    expect(await makeDueRuns(admin, deps(), new Date(), scopeOpts())).toEqual({ scheduled: 1 });
+    const input = vi.mocked(generator).mock.calls[0][0];
+    expect(input.fixedTags).toEqual({ threads: ["パン屋"], x: ["パン", "天然酵母"] });
+    expect(input.maxLength.x).toBe(140 - tagReserve("x", ["パン", "天然酵母"]));
+    expect(input.maxLength.threads).toBe(500 - tagReserve("threads", ["パン屋"]));
+    const r = await runOf(run);
+    const tags = Object.fromEntries((await admin.from("post_targets").select("sns, hashtags").eq("post_id", r.post_id!)).data!.map((t) => [t.sns, t.hashtags]));
+    // Threads は本文に #パン屋 があるので、タグの行には付けない
+    expect(tags).toEqual({ threads: [], x: ["パン", "天然酵母"] });
+  });
+
+  it("見本にもタグを返す", async () => {
+    const p = await project();
+    await alice.from("projects").update({ default_hashtags: { all: ["パン屋"] } }).eq("id", p);
+    await note(p, "見本のメモ");
+    const id = await plan(p);
+    const { data: row } = await admin.from("auto_plans").select("*").eq("id", id).single();
+    const { toPlan } = await import("@/lib/auto-post/plan-row");
+    const r = await makeSample(admin, deps(), { ownerId: aliceId, projectId: p, plan: toPlan(row!) });
+    expect(r.ok && r.tags).toEqual({ threads: ["パン屋"], x: ["パン屋"] });
   });
 });
 

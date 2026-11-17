@@ -1,7 +1,7 @@
 import { applyFix, type AiCheckResult } from "@/lib/ai/ai-check";
 import { overLimit } from "@/lib/ai/shorten";
-import type { SnsKey } from "@/lib/sns";
-import { extractHashtags, HASHTAG_RULES } from "@/lib/sns/hashtags";
+import { displayLength, type SnsKey } from "@/lib/sns";
+import { extractHashtags, HASHTAG_RULES, splitTagsByText, withHashtags } from "@/lib/sns/hashtags";
 import type { AutoRunReason } from "./types";
 
 // 自動の回の送る前のチェック（docs/design/auto-post.md の 2.5）。AI を呼ばない部分と、AI っぽさチェックの結果の扱い
@@ -84,19 +84,24 @@ export function foreignLinks(text: string, allowed: readonly string[]): string[]
   return out;
 }
 
-// 字数（縮めたあとも超えていれば）・【】・材料にない URL・ハッシュタグの数・前の投稿との重なり
-export function plainIssues(texts: Texts, opts: { allowedUrls: readonly string[]; recent: Partial<Record<SnsKey, string[]>> }): Issue[] {
+// 字数（縮めたあとも超えていれば）・【】・材料にない URL・ハッシュタグの数・前の投稿との重なり。
+// tags: 本文とは別に付くタグ（シリーズのフォーマット・いつものタグ）。字数とタグの数は、送る文（本文＋空行＋タグの行。本文にもあるタグは行に付けない）で数える。
+// 重なりは本文だけで比べる（毎回同じタグの行で「似すぎ」にならないように。前の投稿の本文もタグなし）
+export function plainIssues(texts: Texts, opts: { allowedUrls: readonly string[]; recent: Partial<Record<SnsKey, string[]>>; tags?: Partial<Record<SnsKey, string[]>> }): Issue[] {
   const issues: Issue[] = [];
-  for (const [k, text] of Object.entries(texts) as [SnsKey, string][]) {
-    if (!text.trim()) {
+  for (const [k, body] of Object.entries(texts) as [SnsKey, string][]) {
+    if (!body.trim()) {
       issues.push({ kind: "cannot_write", detail: `${k} の文がありません` });
       continue;
     }
-    if (overLimit(k, text) > 0) issues.push({ kind: "too_long", detail: `${k} の字数の上限を超えています` });
-    if (/[【】]/.test(text)) issues.push({ kind: "made_up", detail: `${k} に、あなたが書き足すところ（【】）が残っています` });
-    if (foreignLinks(text, opts.allowedUrls).length) issues.push({ kind: "check_failed", detail: `${k} に、行き先として登録していない URL があります` });
-    if (extractHashtags(text).length > HASHTAG_RULES[k].max) issues.push({ kind: "check_failed", detail: `${k} のハッシュタグが多すぎます` });
-    if (maxSimilarity(text, opts.recent[k] ?? []) >= thresholdOf(k)) issues.push({ kind: "similar", detail: `${k} の文が、前に送った投稿と似ています` });
+    const keep = splitTagsByText(body, opts.tags?.[k] ?? []).keep;
+    const sent = withHashtags(body, keep);
+    if (overLimit(k, sent) > 0) issues.push({ kind: "too_long", detail: `${k} の字数の上限を超えています` });
+    if (/[【】]/.test(body)) issues.push({ kind: "made_up", detail: `${k} に、あなたが書き足すところ（【】）が残っています` });
+    if (foreignLinks(body, opts.allowedUrls).length) issues.push({ kind: "check_failed", detail: `${k} に、行き先として登録していない URL があります` });
+    // 利用者が決めたタグ（keep）は、目安より多くても止めない（投稿をつくると同じく目安の注意だけ）。AI が本文に足した分で目安を超えたら止める
+    if (extractHashtags(sent).length > Math.max(HASHTAG_RULES[k].max, keep.length)) issues.push({ kind: "check_failed", detail: `${k} のハッシュタグが多すぎます` });
+    if (maxSimilarity(body, opts.recent[k] ?? []) >= thresholdOf(k)) issues.push({ kind: "similar", detail: `${k} の文が、前に送った投稿と似ています` });
   }
   return issues;
 }
@@ -126,4 +131,9 @@ export function applyAiCheck(texts: Texts, result: AiCheckResult): { texts: Text
     fixed++;
   }
   return { texts: out, hold: null, fixed };
+}
+
+// 本文の後ろに付くタグの行の字数（空行＋「#a #b」。タグがなければ 0）
+export function tagReserve(sns: SnsKey, tags: readonly string[]): number {
+  return tags.length ? displayLength(sns, withHashtags("x", tags)) - displayLength(sns, "x") : 0;
 }

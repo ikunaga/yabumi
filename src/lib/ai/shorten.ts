@@ -20,7 +20,14 @@ export const shortenSchema = z.object({
   drafts: z.array(z.object({ id: z.string().describe("縮める下書きの id（<draft id=\"...\"> の値）"), text: z.string().describe("縮めた下書きの全文") })),
 });
 
-export type OverDraft = { id: string; sns: SnsKey; text: string };
+// reserve: 本文のほかに後ろに付く分の字数（自動の投稿の、本文とは別に付くタグの行。2026-11-17）。上限と縮める目標から引く
+export type OverDraft = { id: string; sns: SnsKey; text: string; reserve?: number };
+
+// 上限を何字超えているか（後ろに付く分を含めて）
+function overOf(d: OverDraft, text: string): number {
+  const max = SNS[d.sns].maxLength;
+  return max === null ? 0 : Math.max(0, displayLength(d.sns, text) + (d.reserve ?? 0) - max);
+}
 // 下書きの言い回しを確かめる関数（呼び出す側が、本人の文や整え方を添えて作る）。渡さなければ言い回しは直させない
 export type StyleOf = (d: OverDraft, text: string) => StyleProblem[];
 export type CallShorten = (req: { system: BetaTextBlockParam[]; messages: BetaMessageParam[] }) => Promise<ModelOutput>;
@@ -75,10 +82,13 @@ export function buildShortenRequest(drafts: OverDraft[], problems: Map<string, S
   const body = drafts
     .map((d) => {
       const now = displayLength(d.sns, d.text);
-      const target = shortenTarget(d.sns);
-      const max = SNS[d.sns].maxLength;
+      // 後ろに別に付く分（タグの行）があれば、上限と目標から引く（本文だけの字数で伝える）
+      const reserve = d.reserve ?? 0;
+      const target = Math.max(1, shortenTarget(d.sns) - reserve);
+      const fullMax = SNS[d.sns].maxLength;
+      const max = fullMax === null ? null : Math.max(1, fullMax - reserve);
       const asks: string[] = [];
-      if (overLimit(d.sns, d.text) > 0) asks.push(`縮めて: いま ${now} 字。${SNS[d.sns].label} の上限は ${max} 字なので、${now - target} 字以上縮めて ${target} 字以下に`);
+      if (overOf(d, d.text) > 0) asks.push(`縮めて: いま ${now} 字。${SNS[d.sns].label} の上限は${reserve ? `、後ろに付くタグの分を引いて` : ""} ${max} 字なので、${now - target} 字以上縮めて ${target} 字以下に`);
       else if (max !== null) asks.push(`字数: いま ${now} 字。上限の ${max} 字を超えないように`);
       const ps = problems.get(d.id) ?? [];
       if (ps.length) asks.push(`直すところ: ${ps.map((p) => p.label).join("／")}`);
@@ -102,8 +112,8 @@ export function readShortened(raw: unknown, drafts: OverDraft[], styleOf?: Style
     const src = drafts.find((x) => x.id === d.id);
     const text = d.text.trim();
     if (!src || !text || out.has(d.id)) continue;
-    const wasOver = overLimit(src.sns, src.text) > 0;
-    if (wasOver ? displayLength(src.sns, text) >= displayLength(src.sns, src.text) : overLimit(src.sns, text) > 0) continue;
+    const wasOver = overOf(src, src.text) > 0;
+    if (wasOver ? displayLength(src.sns, text) >= displayLength(src.sns, src.text) : overOf(src, text) > 0) continue;
     if (styleOf) {
       const before = styleOf(src, src.text).length;
       const after = styleOf(src, text).length;
@@ -127,8 +137,8 @@ export async function shortenOverDrafts(
     if (ps.length) problems.set(d.id, ps);
   }
   const over = drafts
-    .filter((d) => overLimit(d.sns, d.text) > 0 || problems.has(d.id))
-    .map((d, i) => ({ d, i, rank: (overLimit(d.sns, d.text) > 0 ? 1000 : 0) + (problems.get(d.id)?.length ?? 0) }))
+    .filter((d) => overOf(d, d.text) > 0 || problems.has(d.id))
+    .map((d, i) => ({ d, i, rank: (overOf(d, d.text) > 0 ? 1000 : 0) + (problems.get(d.id)?.length ?? 0) }))
     .sort((a, b) => b.rank - a.rank || a.i - b.i)
     .slice(0, MAX_FIX_DRAFTS)
     .sort((a, b) => a.i - b.i)

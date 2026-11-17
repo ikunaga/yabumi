@@ -32,6 +32,7 @@ import {
 } from "@/lib/auto-post/types";
 import type { TimeTrends } from "@/lib/metrics/time-bands";
 import { SNS, type SnsKey } from "@/lib/sns";
+import { withHashtags } from "@/lib/sns/hashtags";
 import { scheduleText } from "./format";
 
 // 自動の投稿を始める・直す（docs/design/auto-post.md の 1.4・1.5・1.7）。
@@ -784,7 +785,8 @@ function SampleView({ sample }: { sample: AutoSample }) {
       {entries.map(([s, text]) => (
         <div key={s} className="flex flex-col items-start gap-1.5 rounded-md border border-border px-4 py-3">
           <SnsTag sns={s} />
-          <p className="text-[15px] leading-[1.8] whitespace-pre-wrap">{text}</p>
+          {/* 送る文そのまま（本文＋空行＋本文とは別に付くタグの行） */}
+          <p className="text-[15px] leading-[1.8] whitespace-pre-wrap">{withHashtags(text, sample.tags?.[s] ?? [])}</p>
         </div>
       ))}
     </div>

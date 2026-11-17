@@ -213,7 +213,7 @@ export function useComposer({
     Object.fromEntries(initial.targets.filter((t) => t.title).map((t) => [t.sns, t.title!])),
   );
   // SNS ごとのタグの欄（書いたままの文字。送るときに本文の後ろに足す。4.59）
-  const [tagInputs, setTagInputs] = useState<Partial<Record<SnsKey, string>>>(() => initialTagInputs(initial));
+  const [tagInputs, setTagInputs] = useState<Partial<Record<SnsKey, string>>>(() => initialTagInputs(initial, postId, defaultHashtags));
   const [plannedAt, setPlannedAt] = useState(initial.plannedAt);
   // 引用する X の投稿（外すと、ふつうの X の投稿として予約・送信できる）
   const [quote, setQuote] = useState<string | null>(initial.quotePostId ?? null);

@@ -26,8 +26,10 @@ export function ComposeStepWrite({ c, steps = false }: { c: Composer; steps?: bo
           projectId={projectId}
           bodyHasText={body.trim() !== ""}
           aiEnabled={aiCheckEnabled}
-          onInsert={(text, how, hashtags) => {
+          onInsert={(text, how, hashtags, fromAi) => {
             applyFormatTags(hashtags);
+            // AI の次の回の案を使ったら「AI の文をもとにした」にする（変えられる。パワポの 13）
+            if (fromAi) setTextOrigin("ai");
             markTyped();
             setBody((b) => insertFormatted(b, text, how));
             clearFieldError("body");
@@ -67,7 +69,7 @@ export function ComposeStepWrite({ c, steps = false }: { c: Composer; steps?: bo
           }}
           placeholder="伝えたいことを、自分の言葉で書きます"
           aria-invalid={fe.body ? true : undefined}
-          className="min-h-[148px] w-full resize-y bg-transparent text-[17px] leading-[1.75] text-fg outline-none placeholder:text-faint max-sm:min-h-[120px] max-sm:text-[16px]"
+          className="max-h-[70vh] min-h-[148px] w-full resize-y bg-transparent [field-sizing:content] text-[17px] leading-[1.75] text-fg outline-none placeholder:text-faint max-sm:min-h-[120px] max-sm:text-[16px]"
         />
         <div className="flex items-start justify-between gap-3">
           <VoiceInputButton
@@ -201,7 +203,7 @@ function TextOriginChoice({ value, onChange }: { value: "self" | "ai"; onChange:
         </button>
       ))}
       <HelpTip label="この本文を書いたのは">
-        自分で書いた投稿だけを、あとで AI があなたの書き方を読み取る材料にします。「AI で整える」の案を使うと、「AI の文をもとにした」になります。大きく自分で直したときは「自分で書いた」に戻して構いません。
+        自分で書いた投稿だけを、あとで AI があなたの書き方を読み取る材料にします。「AI で整える」の案や、フォーマットの「AI に次の回を出してもらう」の案を使うと、「AI の文をもとにした」になります。大きく自分で直したときは「自分で書いた」に戻して構いません。
       </HelpTip>
     </div>
   );

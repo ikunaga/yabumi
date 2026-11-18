@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { AiThinking } from "@/components/ui/ai-thinking";
 import { Button, NotReadyButton } from "@/components/ui/button";
 import { Badge } from "@/components/ui/chip";
@@ -36,8 +36,9 @@ export function PostFormatPicker({
   bodyHasText: boolean;
   // AI とつくる（Claude API のキーがあるときだけ）
   aiEnabled: boolean;
+  // fromAi: AI の次の回の案を使って入れた（「この本文は」を「AI の文をもとにした」にする。パワポの 13）
   // hashtags: フォーマットの毎回付けるタグ（SNS ごとのタグの欄に入れる。4.59）
-  onInsert: (text: string, how: "replace" | "append", hashtags: FormatHashtags) => void;
+  onInsert: (text: string, how: "replace" | "append", hashtags: FormatHashtags, fromAi: boolean) => void;
   onUseChange?: (use: FormatUse | null) => void;
   // 開いたときに選んでおくフォーマット（下書きから再開したとき。消したフォーマットなら「なし」）。
   // 書きかけの控えから戻したときは、穴の言葉と答えも入れて開く（PMO2 の 3 回目の 03）
@@ -95,6 +96,26 @@ export function PostFormatPicker({
     setRoundSource("hand");
     setRoundError(null);
     onUseChange?.(f ? { format: f, values: {} } : null);
+  }
+
+  // 本文に入れる。シリーズなら、この回を記録する（次の回の案で重ならないように）。同じ中身をもう一度入れたときは記録を重ねない
+  const recorded = useRef<Set<string>>(new Set());
+  function insert(f: PostFormat, v: Record<string, string>, a: string, source: "ai" | "hand") {
+    onInsert(fillFormat(f.body, v), how, f.hashtags, source === "ai");
+    setInserted(true);
+    // 本文が空のところに入れたら、次に入れ直すときは置きかえる（穴を直して入れ直すと、同じ文が 2 つ並ばないように）
+    if (!bodyHasText) setHow("replace");
+    if (!isSeries(f.series)) return;
+    const key = JSON.stringify([f.id, a, v]);
+    if (recorded.current.has(key)) return;
+    recorded.current.add(key);
+    setRoundError(null);
+    void addFormatRound(projectId, f.id, { answer: a, values: v, source }).then((r) => {
+      if (r.error) {
+        recorded.current.delete(key);
+        setRoundError(`本文には入れましたが、シリーズの記録に残せませんでした。${r.error}`);
+      } else if (r.id) onRoundAdded?.(r.id);
+    });
   }
 
   function setValue(slot: string, v: string) {
@@ -170,6 +191,15 @@ export function PostFormatPicker({
               <p className="mt-1.5 rounded-md bg-surface2 px-3 py-2 text-[13px] leading-[1.7] whitespace-pre-wrap">{selected.example}</p>
             </details>
           )}
+          {!isSeries(selected.series) && formatSlots(selected.body).length > 0 && (
+            // AI に穴を埋めさせる設定がどこにあるかわからなかった（パワポの 1・8）
+            <p className="text-xs text-muted">
+              毎回 AI に変えてもらうには →{" "}
+              <Link href={formatsHref} className="font-bold text-fg underline">
+                フォーマットの設定
+              </Link>
+            </p>
+          )}
           {isSeries(selected.series) && (
             <SeriesNextRound
               key={selected.id}
@@ -178,12 +208,14 @@ export function PostFormatPicker({
               series={selected.series}
               aiEnabled={aiEnabled}
               onPick={(p) => {
+                // 「これを使う」で本文まで入れる（前は穴の欄に入るだけで、もう一度「本文に入れる」を押す必要があった。パワポの 11）。
+                // 穴の欄にも入れるので、直してから「本文に入れる」で入れ直せる
                 const next = { ...values, ...p.values };
                 setValues(next);
                 setAnswer(p.answer);
                 setRoundSource("ai");
-                setInserted(false);
                 onUseChange?.({ format: selected, values: next, answer: p.answer });
+                insert(selected, next, p.answer, "ai");
               }}
             />
           )}
@@ -226,20 +258,9 @@ export function PostFormatPicker({
               type="button"
               size="sm"
               variant="secondary"
-              onClick={() => {
-                onInsert(fillFormat(selected.body, values), how, selected.hashtags);
-                setInserted(true);
-                // シリーズのフォーマットなら、この回を記録する（次の回の案で重ならないように）
-                if (isSeries(selected.series)) {
-                  setRoundError(null);
-                  void addFormatRound(projectId, selected.id, { answer, values, source: roundSource }).then((r) => {
-                    if (r.error) setRoundError(`本文には入れましたが、シリーズの記録に残せませんでした。${r.error}`);
-                    else if (r.id) onRoundAdded?.(r.id);
-                  });
-                }
-              }}
+              onClick={() => insert(selected, values, answer, roundSource)}
             >
-              本文に入れる
+              {inserted ? "本文に入れ直す" : "本文に入れる"}
             </Button>
             {bodyHasText && (
               <span role="radiogroup" aria-label="いまの本文" className="flex items-center gap-2 text-xs text-muted">
@@ -292,6 +313,11 @@ function SeriesNextRound({
   // AI は呼んだが、捨てて案が残らなかった（わけと数え方を「?」に畳む）
   const [empty, setEmpty] = useState(false);
   const [pending, start] = useTransition();
+  // 案が出たら、案のところまで動かす（前は画面の下に出て気づきにくかった。パワポの 10）
+  const proposalsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (proposals && !pending) proposalsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [proposals, pending]);
   const ask = () =>
     start(async () => {
       setError(null);
@@ -326,7 +352,7 @@ function SeriesNextRound({
         <span className="text-xs text-muted">前の回と重ならない案を 3 つ。1 回 5 円ほど・1 日 {SERIES_DAILY_RUNS} 回まで</span>
       </div>
       <Input aria-label="次の回への希望" value={wish} maxLength={MAX_ROUND_WISH} onChange={(e) => setWish(e.target.value)} placeholder="希望（任意。例: 90 年代の映画で）" className="py-2 text-sm" />
-      {pending && <AiThinking kind="brief" note="10〜20 秒ほどかかります" />}
+      {pending && <AiThinking kind="round" note="10〜20 秒ほどかかります" />}
       {error &&
         (empty ? (
           // 文の後ろに「?」を続けて置く（前は flex で、PC で「?」だけ 3 行目に回った）。朱は先頭の印だけ（朱は印に使う決まり）
@@ -343,7 +369,7 @@ function SeriesNextRound({
           <ErrorBanner>{error}</ErrorBanner>
         ))}
       {proposals && !pending && (
-        <div className="flex flex-col gap-2">
+        <div ref={proposalsRef} className="flex scroll-mt-24 flex-col gap-2">
           <p className="text-xs font-semibold text-fg">
             <span aria-hidden className="mr-1 text-signal">
               ●

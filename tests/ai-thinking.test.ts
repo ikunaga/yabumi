@@ -26,6 +26,11 @@ describe("段階の文", () => {
     expect(thinkingStage(THINKING_STAGES.chat, 31)).toBe("もう少しかかっています");
   });
 
+  it("シリーズの次の回の案は、はじめから AI を待っているとわかる文（「読み込んでいます」にしない。パワポの 9）", () => {
+    expect(thinkingStage(THINKING_STAGES.round, 0)).toBe("AI が案を考えています");
+    expect(thinkingStage(THINKING_STAGES.round, 21)).toBe("もう少しかかっています");
+  });
+
   it("どの種類も 0 秒の段階から始まり、時間の順に並び、最後は「もう少しかかっています」", () => {
     for (const stages of Object.values(THINKING_STAGES)) {
       expect(stages[0].at).toBe(0);

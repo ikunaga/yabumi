@@ -86,6 +86,8 @@ export function FormatManager({
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   // シリーズにしたばかりのフォーマット（これまでの回を貼る案内を出す）
   const [justSeries, setJustSeries] = useState<string | null>(null);
+  // 保存したばかりのフォーマット（その行に「保存しました」を出す。前は何も出なかった。パワポの 5）
+  const [saved, setSaved] = useState<string | null>(null);
   const run = (fn: () => Promise<FormatsResult>, after?: (r: FormatsResult) => void) =>
     start(async () => {
       const r = await fn();
@@ -95,6 +97,7 @@ export function FormatManager({
   // 保存のあと、AI が埋める穴が 0 から 1 以上になったフォーマットを探す（新しく作ったものは、前の一覧になかった id）
   const becameSeries = (r: FormatsResult, id: string | null, before: PostFormat | undefined) => {
     const after = r.formats?.find((f) => (id ? f.id === id : !formats.some((o) => o.id === f.id)));
+    if (after) setSaved(after.id);
     if (after && isSeries(after.series) && !(before && isSeries(before.series))) setJustSeries(after.id);
   };
   const left = MAX_POST_FORMATS - formats.length;
@@ -118,7 +121,7 @@ export function FormatManager({
                     <span className="font-bold">{f.name}</span>
                     {f.pillar && <span className="text-xs text-muted">柱: {pillars.includes(f.pillar) ? f.pillar : "なし"}</span>}
                     <span className="ml-auto flex gap-1">
-                      <Button size="sm" variant="text" onClick={() => setEditing(f.id)}>
+                      <Button size="sm" variant="secondary" onClick={() => (setEditing(f.id), setSaved(null))}>
                         直す
                       </Button>
                       {confirmDelete === f.id ? (
@@ -131,7 +134,7 @@ export function FormatManager({
                           </Button>
                         </>
                       ) : (
-                        <Button size="sm" variant="text" onClick={() => setConfirmDelete(f.id)}>
+                        <Button size="sm" variant="secondary" onClick={() => setConfirmDelete(f.id)}>
                           削除する
                         </Button>
                       )}
@@ -140,6 +143,11 @@ export function FormatManager({
                   <p className="line-clamp-2 text-xs leading-[1.7] whitespace-pre-line text-muted">{f.body}</p>
                   {hasFormatHashtags(f.hashtags) && <FormatTagsLine h={f.hashtags} className="text-xs text-muted" />}
                   {f.image && <p className="text-xs text-muted">{imageSummary(f.image)}</p>}
+                  {saved === f.id && (
+                    <p role="status" className="text-xs font-semibold text-success">
+                      保存しました。
+                    </p>
+                  )}
                   {isSeries(f.series) && justSeries === f.id && (
                     <p className="mt-1 rounded-md bg-subtle px-3 py-2 text-[13px] font-bold">これまでに出した回はありますか？　貼ると、次の回の案と重なりません</p>
                   )}
@@ -188,7 +196,7 @@ export function FormatManager({
                     AI とつくる
                   </NotReadyButton>
                 )}
-                <Button size="sm" variant="text" onClick={() => (setDraft(null), setEditing("new"))}>
+                <Button size="sm" variant="secondary" onClick={() => (setDraft(null), setEditing("new"))}>
                   手で書く
                 </Button>
               </span>
@@ -249,6 +257,12 @@ function FormatEditor({
         <Textarea value={v.body} maxLength={MAX_FORMAT_BODY} rows={4} onChange={(e) => set("body", e.target.value)} placeholder={"例: 【新メニュー】{何が}\n{いつから}から、{いくら}でお出しします。"} className="py-2 text-sm" />
         <span className="text-xs text-muted">{slots.length ? `穴: ${slots.join("・")}` : "{ } で囲んだところが穴になります"}</span>
       </label>
+      {/* 毎回 AI に変えてもらう（シリーズ）は本文のすぐ下に出す（前はいちばん下に畳まれていて見つからなかった。パワポの 1・3・8） */}
+      {slots.length > 0 ? (
+        <SeriesFields slots={slots} series={series} setSeries={(x) => (setSeries(x), setProblem(null))} />
+      ) : (
+        <p className="text-xs text-muted">{"{ }"} で囲んだところ（穴）を置くと、毎回 AI に変えてもらう設定ができます。</p>
+      )}
       <label className="flex flex-col gap-1">
         <span className="text-xs font-bold">
           埋めた例<span className="ml-1.5 font-normal text-muted">任意</span>
@@ -271,7 +285,6 @@ function FormatEditor({
         </label>
       )}
       <FormatTagsFields tags={tags} setTag={setTag} planHashtags={planHashtags} connected={connected} />
-      {slots.length > 0 && <SeriesFields slots={slots} series={series} setSeries={(x) => (setSeries(x), setProblem(null))} />}
       <FormatImageFields projectId={projectId} body={v.body} series={series} image={image} setImage={(x) => (setImage(x), setProblem(null))} />
       {problem && <p className="text-sm font-semibold text-danger">{problem}</p>}
       <div className="flex gap-2">
@@ -462,12 +475,14 @@ function FormatAiMaker({ projectId, kinds, onPick, onCancel }: { projectId: stri
 function SeriesFields({ slots, series, setSeries }: { slots: string[]; series: FormatSeries; setSeries: (s: FormatSeries) => void }) {
   const on = Object.keys(series.slots).some((k) => slots.includes(k));
   return (
-    <details className="text-xs" open={on || undefined}>
-      <summary className="cursor-pointer font-bold">
-        シリーズにする<span className="ml-1.5 font-normal text-muted">任意・一部の穴を AI が毎回埋める</span>
-      </summary>
-      <div className="mt-2 flex flex-col gap-2.5">
-        <p className="leading-[1.7] text-muted">AI が埋める穴を選ぶと、投稿をつくるときに、前の回と重ならない次の回の案を AI が出します（例: 連想映画クイズの映画とキーワード）。</p>
+    <section className={`flex flex-col gap-2.5 rounded-md border px-3 py-2.5 text-xs ${on ? "border-primary" : "border-line"}`} aria-label="毎回 AI に変えてもらう">
+      <p className="text-[13px] font-bold">
+        毎回 AI に変えてもらう<span className="ml-1.5 font-normal text-muted">任意・シリーズ</span>
+      </p>
+      <div className="flex flex-col gap-2.5">
+        <p className="leading-[1.7] text-muted">
+          {"{ }"} で囲んだところ（穴）のうち、毎回ちがう言葉にしたいものを選びます。投稿をつくるときに、前の回と重ならない言葉を AI が考えます（例: 連想映画クイズの映画とキーワード）。こうしたフォーマットを「シリーズ」と呼びます。
+        </p>
         {slots.map((name) => {
           const ai = name in series.slots;
           return (
@@ -484,17 +499,20 @@ function SeriesFields({ slots, series, setSeries }: { slots: string[]; series: F
                   }}
                   className="accent-[var(--primary)]"
                 />
-                <span className="font-bold">{name}</span>
-                <span className="text-muted">を AI が埋める</span>
+                <span>
+                  「<span className="font-bold">{name}</span>」を毎回 AI に考えてもらう
+                </span>
               </label>
               {ai && (
-                <Input
+                // 指示は長くなるので 2 行以上の欄にし、書いた分だけ広げる（前は 1 行で切れた。パワポの 4）
+                <Textarea
                   aria-label={`${name} の AI への指示`}
                   value={series.slots[name]}
                   maxLength={MAX_SERIES_INSTRUCTION}
+                  rows={2}
                   onChange={(e) => setSeries({ ...series, slots: { ...series.slots, [name]: e.target.value } })}
                   placeholder="AI への指示（例: 答えの映画を連想できる言葉を 5 つ。・でつなぐ）"
-                  className="py-2 text-sm"
+                  className="min-h-[3.75rem] py-2 text-sm [field-sizing:content]"
                 />
               )}
             </div>
@@ -521,13 +539,14 @@ function SeriesFields({ slots, series, setSeries }: { slots: string[]; series: F
                   placeholder="名前（例: 映画。空なら「答え」）"
                   className="py-2 text-sm"
                 />
-                <Input
+                <Textarea
                   aria-label="答えの AI への指示"
                   value={series.answer.instruction}
                   maxLength={MAX_SERIES_INSTRUCTION}
+                  rows={2}
                   onChange={(e) => setSeries({ ...series, answer: { ...series.answer!, instruction: e.target.value } })}
                   placeholder="AI への指示（例: だれでも知っている映画を 1 つ）"
-                  className="py-2 text-sm"
+                  className="min-h-[3.75rem] py-2 text-sm [field-sizing:content]"
                 />
               </div>
             )}
@@ -535,7 +554,7 @@ function SeriesFields({ slots, series, setSeries }: { slots: string[]; series: F
           </div>
         )}
       </div>
-    </details>
+    </section>
   );
 }
 
@@ -554,7 +573,7 @@ function SeriesRounds({ projectId, format, open = false }: { projectId: string; 
       if (r.rounds) setRounds(r.rounds);
       after?.(r);
     });
-  const label = format.series.answer?.name || "回";
+  const label = format.series.answer?.name || "";
   // シリーズにしたばかりのときは開いて出し、すぐ読む（toggle を待たない）
   useEffect(() => {
     if (open) run(() => listFormatRounds(projectId, format.id));
@@ -592,7 +611,7 @@ function SeriesRounds({ projectId, format, open = false }: { projectId: string; 
                   )}
                   <span className="ml-1.5 text-faint">{r.source === "pasted" ? "貼った回" : r.postId ? "投稿した回" : "本文に入れた回"}</span>
                 </span>
-                <Button size="sm" variant="text" disabled={pending} onClick={() => run(() => deleteFormatRound(projectId, format.id, r.id))}>
+                <Button size="sm" variant="secondary" disabled={pending} onClick={() => run(() => deleteFormatRound(projectId, format.id, r.id))}>
                   消す
                 </Button>
               </li>
@@ -602,7 +621,7 @@ function SeriesRounds({ projectId, format, open = false }: { projectId: string; 
         <label className="flex flex-col gap-1">
           <span className="font-bold">これまでの回を貼る</span>
           <span className="text-muted">
-            yabumi の外で出した回の{label}を、1 行に 1 つ（1 回に {MAX_PASTE_ROUNDS} 行まで）。次の回の案で重ならないように使います。
+            yabumi の外で出した回{label ? `の${label}` : ""}を、1 行に 1 つ（1 回に {MAX_PASTE_ROUNDS} 行まで）。次の回の案で重ならないように使います。
           </span>
           <Textarea value={text} rows={3} onChange={(e) => (setText(e.target.value), setNote(null))} placeholder={"例:\nバック・トゥ・ザ・フューチャー\nジュラシック・パーク"} className="py-2 text-sm" />
         </label>

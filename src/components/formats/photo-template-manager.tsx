@@ -73,7 +73,7 @@ export function PhotoTemplateManager({ projectId }: { projectId: string }) {
                         いつも使う
                       </label>
                       <span className="ml-auto flex gap-1">
-                        <Button size="sm" variant="text" onClick={() => setRenaming({ id: t.id, name: t.name })}>
+                        <Button size="sm" variant="secondary" onClick={() => setRenaming({ id: t.id, name: t.name })}>
                           名前を変える
                         </Button>
                         {confirmDelete === t.id ? (
@@ -86,7 +86,7 @@ export function PhotoTemplateManager({ projectId }: { projectId: string }) {
                             </Button>
                           </>
                         ) : (
-                          <Button size="sm" variant="text" onClick={() => setConfirmDelete(t.id)}>
+                          <Button size="sm" variant="secondary" onClick={() => setConfirmDelete(t.id)}>
                             削除する
                           </Button>
                         )}

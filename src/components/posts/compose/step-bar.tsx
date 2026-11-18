@@ -2,7 +2,8 @@
 
 import { useEffect, useId, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { COMPOSE_STEPS, LAST_STEP, nextBlockedReason, type StepNo } from "@/lib/posts/compose-steps";
+import { COMPOSE_STEPS, imagesStepNext, LAST_STEP, nextBlockedReason, type StepNo } from "@/lib/posts/compose-steps";
+import { SNS } from "@/lib/sns";
 import { findUrls } from "@/lib/posts/profile-link";
 import { type Composer } from "./use-composer";
 
@@ -21,7 +22,7 @@ function useKeyboardOpen(): boolean {
 
 // 下の帯: 戻る・次へ（docs/design/compose-steps.md の 3.）。スマホは画面の下（下のタブの上）に留める。⑤ では「次へ」を出さない（送るボタンは中に）
 export function ComposeStepBar({ c }: { c: Composer }) {
-  const { composeStep, goStep, nextOk, images, video, videoBusy, chosen, pending: savePending, body, textFor } = c;
+  const { composeStep, goStep, nextOk, images, video, videoBusy, chosen, pending: savePending, body, textFor, toSend, checks } = c;
   // 動画を整えている・上げている間は移らない（③ を離れると途中の作業が消える）
   const pending = savePending || videoBusy;
   const keyboard = useKeyboardOpen();
@@ -33,7 +34,11 @@ export function ComposeStepBar({ c }: { c: Composer }) {
   const nextLabel = next ? COMPOSE_STEPS[next - 1].label : "";
   // ③ 画像・④ リンクは、要らなければそのまま飛ばせる（ボタンの名前で伝える）
   const hasLink = findUrls(body).length > 0 || chosen.some((s) => findUrls(textFor(s)).length > 0);
-  const primary = composeStep === 3 && images.length === 0 && !video ? "画像・動画なしで次へ" : composeStep === 4 && !hasLink ? "リンクなしで次へ" : `次へ（${nextLabel}）`;
+  // ③ で画像も動画もないとき。画像（動画）が要る送り先を選んでいれば、名前を変えて注意を出す（付箋 15）
+  const need = (issue: "needs_image" | "needs_video") => toSend.filter((s) => checks[s].issues.includes(issue)).map((s) => SNS[s].label);
+  const imagesNext = composeStep === 3 ? imagesStepNext({ hasMedia: images.length > 0 || video !== null, needImage: need("needs_image"), needVideo: need("needs_video") }) : null;
+  const primary = imagesNext?.label ?? (composeStep === 4 && !hasLink ? "リンクなしで次へ" : `次へ（${nextLabel}）`);
+  const noteId = useId();
   return (
     <div
       className={`flex flex-col gap-1 max-sm:fixed max-sm:inset-x-0 max-sm:bottom-[calc(var(--tabbar-h,64px)+env(safe-area-inset-bottom))] max-sm:z-10 max-sm:border-t max-sm:border-border max-sm:bg-surface max-sm:px-4 max-sm:py-2.5 ${keyboard ? "max-sm:hidden" : ""}`}
@@ -53,12 +58,24 @@ export function ComposeStepBar({ c }: { c: Composer }) {
                 あとで選ぶ
               </Button>
             )}
-            <Button type="button" onClick={() => goStep(next)} disabled={pending || !nextOk} aria-describedby={reason ? reasonId : undefined}>
+            <Button
+              type="button"
+              variant={imagesNext?.note ? "secondary" : "primary"}
+              onClick={() => goStep(next)}
+              disabled={pending || !nextOk}
+              aria-describedby={reason ? reasonId : imagesNext?.note ? noteId : undefined}
+            >
               {primary} →
             </Button>
           </span>
         )}
       </div>
+      {imagesNext?.note && (
+        <p id={noteId} className="text-xs leading-[1.6] sm:text-right">
+          <span className="mr-1 font-bold text-signal">●</span>
+          {imagesNext.note}
+        </p>
+      )}
       {reason && (
         <p id={reasonId} className="text-right text-xs text-muted">
           {reason}

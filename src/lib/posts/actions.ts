@@ -341,7 +341,9 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
   if (intent === "schedule") {
     redirect(`/projects/${projectId}/calendar?week=${toYmd(new Date(plannedIso!))}&done=scheduled`);
   }
-  redirect(`/projects/${projectId}/posts/${savedId}?done=saved`);
+  // 下書きに保存したら、開いていたステップのまま（前は ⑤ のまとめに飛んだ。2026-11-18 PMO の付箋 17）
+  const step = parsed.data.step ? `&step=${parsed.data.step}` : "";
+  redirect(`/projects/${projectId}/posts/${savedId}?done=saved${step}`);
 }
 
 // 失敗したときは { error } を返し、作成画面に出す（成功したときはカレンダーへ移る）

@@ -70,6 +70,8 @@ export const savePostInputSchema = z.object({
   formatId: z.uuid().nullable().optional(),
   // この画面で付けたシリーズの記録（docs/design/format-series.md の 2）。保存したら、この投稿に結びつける（まだ結びついていないものだけ）
   formatRoundIds: z.array(z.uuid()).max(20).default([]),
+  // 下書きに保存したときに開いていたステップ（保存のあとも同じステップに戻す。2026-11-18 PMO の付箋 17）
+  step: z.number().int().min(1).max(5).optional(),
 });
 
 export type SavePostInput = z.input<typeof savePostInputSchema>;

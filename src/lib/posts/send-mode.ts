@@ -45,3 +45,11 @@ export function composeHeading(a: { postId: string | null; sentAny: boolean; mod
   if (a.sentAny) return a.mode === "partial" ? "一部送った投稿" : "送った投稿";
   return a.savedStatus === "scheduled" ? "予約した投稿" : "下書き";
 }
+
+// 送信の結果を読み直す間隔と回数（SNS の側で画像・動画を処理している配信先があるあいだ。2026-11-18 PMO の付箋 25）。
+// 画像は 1〜2 分、動画は数分かかる。20 秒ごとに 30 回（10 分）までで止め、そのあとは「読み込み直して」と出す
+export const RESULT_POLL_MS = 20_000;
+export const RESULT_POLL_MAX = 30;
+export function isProcessing(status: SentStatus): boolean {
+  return status === "preparing" || status === "publishing";
+}

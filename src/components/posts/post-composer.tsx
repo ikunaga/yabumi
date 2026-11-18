@@ -144,7 +144,8 @@ function StepsLayout({ c, wide, start, notePicker, headingRef }: { c: ReturnType
   const { composeStep, body, chosen } = c;
   const step = COMPOSE_STEPS[composeStep - 1];
   // スマホの下に留めた帯の高さぶん空ける（「次へ」が押せない理由の 1 行が出るときは、その分も）
-  const barPad = nextBlockedReason(composeStep, { body, chosen: chosen.length }) ? "max-sm:pb-20" : "max-sm:pb-16";
+  // ③ で画像も動画もないときは、画像が要る送り先の注意（2 行）が出ることがあるので、その分も
+  const barPad = composeStep === 3 && c.images.length === 0 && !c.video ? "max-sm:pb-28" : nextBlockedReason(composeStep, { body, chosen: chosen.length }) ? "max-sm:pb-20" : "max-sm:pb-16";
   const at = (n: StepNo) => composeStep === n;
   // 見え方: 横に並ぶ幅ではどのステップでも右の列。並ばない幅では ② と ⑤ の中だけ（ほかのステップでは畳む）
   const inlinePreview = !wide && (at(2) || at(5));
@@ -177,10 +178,14 @@ function StepsLayout({ c, wide, start, notePicker, headingRef }: { c: ReturnType
             <div hidden={!at(5)} className="flex flex-col gap-3.5">
               <ComposeSummary c={c} />
               <ComposeAiCheck c={c} />
-              <ComposeStepSend c={c} steps />
+              <ComposeStepSend c={c} steps previewBelow={inlinePreview} />
             </div>
           </section>
-          {inlinePreview && <ComposePreview c={c} />}
+          {inlinePreview && (
+            <div id="compose-preview" className="scroll-mt-4">
+              <ComposePreview c={c} />
+            </div>
+          )}
           {!wide && !inlinePreview && (
             <details className="rounded-lg border border-border bg-surface">
               <summary className="cursor-pointer px-4 py-3 text-[14px] font-semibold">見え方を見る</summary>

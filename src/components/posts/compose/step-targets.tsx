@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { chipClass } from "@/components/ui/chip";
 import { LearningTip } from "@/components/learning/learning-tip";
 import { Input } from "@/components/ui/field";
-import { SNS, SNS_KEYS, countHashtags, INSTAGRAM_MAX_HASHTAGS, type SnsKey } from "@/lib/sns";
+import { SNS, SNS_KEYS, countHashtags, INSTAGRAM_MAX_HASHTAGS, isManualSns, type SnsKey } from "@/lib/sns";
 import { HASHTAG_RULES, MAX_TARGET_HASHTAGS } from "@/lib/sns/hashtags";
 import { type Composer } from "./use-composer";
 import { XBudgetNotice } from "./x-budget-notice";
@@ -77,6 +77,10 @@ export function ComposeStepTargets({ c }: { c: Composer }) {
             );
           })}
         </ul>
+        {/* 「手で投稿」の意味（2026-11-18 PMO の付箋 14） */}
+        <p className="text-xs leading-[1.6] text-muted">
+          手で投稿（{SNS_KEYS.filter(isManualSns).map((s) => SNS[s].label).join("・")}）: yabumi からは送れません。保存すると、投稿の画面で文面をコピーして自分で投稿できます。
+        </p>
         {warnings.length > 0 && (
           <ul className="flex flex-col gap-1 text-[13px] max-sm:hidden">
             {warnings.map((w) => (

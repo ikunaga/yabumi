@@ -5,6 +5,7 @@ import { planShortLinks } from "@/lib/links/rules";
 import { findUrls, sameUrl } from "@/lib/posts/profile-link";
 import { DestinationInsert } from "../destination-insert";
 import { LearningTip } from "@/components/learning/learning-tip";
+import { Term } from "@/components/ui/term";
 import { hasUrl } from "@/lib/learning/tips";
 import { type Composer } from "./use-composer";
 
@@ -13,6 +14,12 @@ export function ComposeShortLinks({ c }: { c: Composer }) {
   const { projectId, profileLink, shortLinks, setShortLinks, body, insertedUrl, textFor, chosen, toSend, insertDestination, learnFrom, mode } = c;
   return (
     <>
+      {/* 「行き先」「短縮リンク」が何かを 1 行で（2026-11-18 PMO の付箋 22。短縮リンクの説明は用語の点線から） */}
+      {mode !== "all_sent" && (
+        <p className="text-[13px] leading-[1.7] text-muted">
+          行き先は、見た人に開いてほしいページです（お店の予約・商品・アプリのストアのページなど）。本文に URL を入れると、<Term k="shortLink">短縮リンク</Term>で押された回数を数えられます。要らなければ、このまま次へ。
+        </p>
+      )}
       {(chosen.length === 0 || toSend.length > 0) && (
         <ShortLinkToggle
           checked={shortLinks}

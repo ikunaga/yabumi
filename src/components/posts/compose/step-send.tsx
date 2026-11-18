@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { chipClass } from "@/components/ui/chip";
 import { HelpTip } from "@/components/ui/help";
@@ -14,10 +15,17 @@ import { ComposeTikTok } from "./tiktok-panel";
 import { ComposeYouTube } from "./youtube-panel";
 
 // ⑤ 送る: 日時・予約・今すぐ・下書き・削除（compose-steps.md）
-export function ComposeStepSend({ c, steps = false }: { c: Composer; steps?: boolean }) {
+// previewBelow: SNS ごとの見え方が、このあと（送るボタンより下）に出る（狭い幅）。送るボタンの上に、見え方への短い案内を出す（2026-11-18 PMO の付箋 24）
+export function ComposeStepSend({ c, steps = false, previewBelow = false }: { c: Composer; steps?: boolean; previewBelow?: boolean }) {
   const { composeStep, goStep, stepProblems, timeHint, images, plannedAt, setPlannedAt, confirmSend, setConfirmSend, pending, busy, sending, missingConnectMessage, blocker, nowBlocker, clearFieldError, submit, fe, connectHref, mode, labels, sentLabels, deleteRow, toSend, byHandOrManual, recheckX, xChecking, scheduleAsked, askSchedule } = c;
-  // 日時が空のときは「今すぐ送る」を主なボタンにする（予約は日時を決めてから。2026-11-12 PMO の通しのテスト）
-  const nowMain = !plannedAt;
+  // いつ送るか: 「今すぐ送る」と「予約する」を先に選ぶ（前は日時の欄が空のまま「今すぐ送る」が並び、どちらになるか迷った。2026-11-18 PMO の付箋 23）。
+  // 選ぶまでは、日時が入っていれば予約、空なら今すぐ（下書きを開いたとき・書きかけを戻したときも、日時に合わせる）
+  const [whenPick, setWhenPick] = useState<"now" | "schedule" | null>(null);
+  const nowMain = (whenPick ?? (plannedAt ? "schedule" : "now")) === "now";
+  const pickWhen = (w: "now" | "schedule") => {
+    setWhenPick(w);
+    setConfirmSend(false);
+  };
   const mainBlocker = nowMain ? nowBlocker : blocker;
   const fixAt = blockerStep(mainBlocker, stepProblems);
   // 今すぐ送る SNS の名前（確かめに出す。note・Substack は手で投稿するので入れない）
@@ -25,8 +33,35 @@ export function ComposeStepSend({ c, steps = false }: { c: Composer; steps?: boo
   const nowNames = toSend.filter((s) => !byHandOrManual(s)).map((s) => SNS[s].label).join("・");
   return (
     <>
-      {/* 送る日時と送る */}
-      <div className="flex flex-wrap items-center gap-2">
+      {mode !== "all_sent" && (
+        <div role="radiogroup" aria-label="いつ送るか" className="grid grid-cols-2 gap-2">
+          {(
+            [
+              ["now", labels.now],
+              ["schedule", "予約する"],
+            ] as const
+          ).map(([w, text]) => {
+            const on = (w === "now") === nowMain;
+            return (
+              <button
+                key={w}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                onClick={() => pickWhen(w)}
+                className={`flex h-11 items-center justify-center gap-2 rounded-md border px-3 text-[14px] ${on ? "border-primary bg-surface font-bold text-fg" : "border-border bg-surface text-muted hover:border-input hover:text-fg"}`}
+              >
+                <span aria-hidden className={`flex size-4 shrink-0 items-center justify-center rounded-full border ${on ? "border-primary" : "border-input"}`}>
+                  {on && <span className="size-2 rounded-full bg-primary" />}
+                </span>
+                {text}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {/* 送る日時（予約のときだけ。送った投稿では、送った日時を見せるために出したまま） */}
+      <div hidden={mode !== "all_sent" && nowMain} className="flex flex-wrap items-center gap-2">
         <label htmlFor="planned-at" className="sr-only">
           送る日時
         </label>
@@ -43,7 +78,7 @@ export function ComposeStepSend({ c, steps = false }: { c: Composer; steps?: boo
         />
         <span className="inline-flex h-9 items-center rounded-md border border-border px-3 text-[14px] text-muted">日本時間</span>
       </div>
-      {timeHint && (
+      {timeHint && mode !== "all_sent" && (
         <div className="-mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted">
           <span>{timeHint.kind === "views" ? "この時間帯がよく見られています（傾向）" : "この時間帯によくクリックされています（傾向）"}</span>
           <button
@@ -52,10 +87,11 @@ export function ComposeStepSend({ c, steps = false }: { c: Composer; steps?: boo
               const [ymd, hm] = jstNow();
               setPlannedAt(plannedAtFor(timeHint.band, plannedAt, ymd, hm));
               clearFieldError("plannedAt");
+              pickWhen("schedule");
             }}
             className={chipClass({ className: "h-7 px-2.5 text-[12px]" })}
           >
-            {BAND_INFO[timeHint.band].label}（{BAND_INFO[timeHint.band].hours}）· {BAND_INFO[timeHint.band].at} にする
+            {BAND_INFO[timeHint.band].label}（{BAND_INFO[timeHint.band].hours}）· {BAND_INFO[timeHint.band].at} {nowMain ? "に予約する" : "にする"}
           </button>
           <HelpTip label="時間帯の傾向">
            yabumi が数えた、直近 90 日のあなたの数字です（{timeHint.kind === "views" ? "送った時間帯ごとの 1 本あたりの閲覧数" : "短縮リンクが押された時間帯"}）。傾向であって、この時間に送れば必ず見られるわけではありません。
@@ -81,6 +117,15 @@ export function ComposeStepSend({ c, steps = false }: { c: Composer; steps?: boo
           <XBudgetNotice c={c} />
           {toSend.includes("tiktok") && <ComposeTikTok c={c} />}
           {toSend.includes("youtube") && <ComposeYouTube c={c} />}
+          {previewBelow && (
+            <button
+              type="button"
+              onClick={() => document.getElementById("compose-preview")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+              className="self-start text-[13px] font-semibold text-fg underline underline-offset-2"
+            >
+              送る前に、SNS ごとの見え方を確かめる ↓
+            </button>
+          )}
           {nowMain && confirmSend ? (
             // 今すぐ送るは取り消しにくいので、送り先の SNS の名前を出して確かめる
             <div className="flex flex-col gap-2 rounded-md border border-line px-3.5 py-3">
@@ -109,7 +154,7 @@ export function ComposeStepSend({ c, steps = false }: { c: Composer; steps?: boo
             </Button>
           )}
           <p className={`text-[13px] ${fe.plannedAt || (mainBlocker && mainBlocker !== QUIET_BLOCKER) ? "text-signal" : "text-faint"}`}>
-            {fe.plannedAt ?? mainBlocker ?? (nowMain ? "予約するときは、上で送る日時を決めてください" : nowNames ? "予約すると、この日時に自動で送ります" : "この日時に、手で投稿する番として知らせます")}
+            {fe.plannedAt ?? mainBlocker ?? (nowMain ? `${nowNames} に、押してすぐ送ります` : nowNames ? "予約すると、この日時に自動で送ります" : "この日時に、手で投稿する番として知らせます")}
             {!fe.plannedAt && mainBlocker === missingConnectMessage && (
               <>
                 {" "}
@@ -129,32 +174,6 @@ export function ComposeStepSend({ c, steps = false }: { c: Composer; steps?: boo
             )}
           </p>
           <div className="flex flex-wrap items-center gap-2">
-            {/* 日時があるときは予約が主なボタン。今すぐ送るは二番手で、押したら送り先の名前を出して確かめる */}
-            {!nowMain &&
-              (confirmSend ? (
-                <>
-                  <span className="w-full text-[13px] text-muted">
-                    <b className="text-fg">{nowNames}</b> に、いますぐ送ります。
-                  </span>
-                  <Button type="button" variant="secondary" size="sm" disabled={pending || xChecking} onClick={() => submit("now")}>
-                    {xChecking ? "上限を確かめています…" : `本当に${labels.now}`}
-                  </Button>
-                  <Button type="button" variant="text" size="sm" disabled={pending} onClick={() => setConfirmSend(false)}>
-                    やめる
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  disabled={pending || nowBlocker !== null}
-                  title={nowBlocker ?? undefined}
-                  onClick={() => (recheckX(), setConfirmSend(true))}
-                >
-                  {busy === "now" ? "送っています…" : labels.now}
-                </Button>
-              ))}
             <Button type="button" variant="secondary" size="sm" disabled={pending || c.videoBusy} onClick={() => submit("draft")}>
               {busy === "draft" ? "保存しています…" : "下書きに保存する"}
             </Button>

@@ -2,6 +2,7 @@
 
 import type { FormatUse } from "../post-format-picker";
 import { callAction } from "@/lib/client-errors";
+import { getReloadSaver, setReloadSaver, type ReloadSaver } from "@/lib/reload-saver";
 import { draftStep, postDraftBase, readDraftFormat, samePostDraft, type PostDraft } from "@/lib/posts/post-draft";
 import { clearFormDraft, parseFormDraft, usableFormDraft, writeFormDraft, type FormDraft } from "@/lib/form-draft";
 import { pruneTabDrafts, rawTabDraft, readTabDraft, tabDraftKey, tabId } from "@/lib/tab-drafts";
@@ -262,7 +263,7 @@ export function useComposer({
   const [firstStep] = useState(() => startStep({ saved: postId !== null, body: initial.body }));
   const composeStep = parseStep(searchParams.get("step"), firstStep);
   // 一度開いたステップ（上の進みの ✓ と、問題の ● を出すかに使う）
-  const [visited, setVisited] = useState<ReadonlySet<StepNo>>(() => new Set([firstStep]));
+  const [visited, setVisited] = useState<ReadonlySet<StepNo>>(() => new Set([composeStep]));
   // ステップを移る。replace: 履歴に足さない（書きかけを戻したとき・保存のエラーで移るとき）
   function goStep(n: StepNo, opts: { replace?: boolean } = {}) {
     setVisited((v) => new Set([...v, composeStep, n]));
@@ -716,7 +717,8 @@ export function useComposer({
     submit("schedule");
   }
 
-  function submit(intent: "draft" | "schedule" | "now") {
+  // onFail: 保存・送信できなかったとき（「新しい版があります」の帯の「下書きに保存して読み込み直す」が、読み込み直すのをやめる）
+  function submit(intent: "draft" | "schedule" | "now", opts: { onFail?: () => void } = {}) {
     // 押したときにも X の上限を調べ直す（止めるのはサーバーの savePost。ここは画面の知らせを今の額に合わせる）
     if (intent !== "draft") recheckX();
     setTouched(true);
@@ -749,6 +751,7 @@ export function useComposer({
         ...(toSend.includes("youtube") && !youtubeByHand ? { youtube: youtubeChoice } : {}),
         formatId,
         formatRoundIds: roundIds,
+        step: composeStep,
         targets: chosen.map((sns) => ({
           sns,
           bodyOverride: overrides[sns] ?? null,
@@ -769,6 +772,7 @@ export function useComposer({
         return;
       }
       // 成功時はサーバーで画面を移るので、ここに来るのは失敗したときだけ。古い画面・通信が切れているときも、書いた内容は消さずに理由を出す（4.35）
+      opts.onFail?.();
       if (!out.ok) setResult({ error: out.failure.message });
       else if (out.value) {
         setResult(out.value);
@@ -778,6 +782,21 @@ export function useComposer({
       }
     });
   }
+
+  // 書きかけがあるあいだ、「新しい版があります」の帯から下書きに保存できるようにする（2026-11-18 PMO の付箋 16）
+  const submitRef = useRef(submit);
+  useEffect(() => {
+    submitRef.current = submit;
+  });
+  const unsaved = resetChanges.length > 0 && busy === null && !videoBusy;
+  useEffect(() => {
+    if (!unsaved) return;
+    const fn: ReloadSaver = (onFail) => submitRef.current("draft", { onFail });
+    setReloadSaver(fn);
+    return () => {
+      if (getReloadSaver() === fn) setReloadSaver(null);
+    };
+  }, [unsaved]);
 
   // 今すぐ送っている間に画面を離れようとしたら確かめる（閉じる・読み込み直す・yabumi の中のリンク）。
   // 離れても、保存した投稿は送信ジョブが送る。二重には送らない（claim_due_targets が同じ配信先を 2 回取り出さない）
@@ -830,14 +849,15 @@ export function useComposer({
     const on = selected.has(sns);
     const issue = checks[sns].issues[0];
     if (on && sentState(sns)) return sentState(sns);
-    if (!on) return { text: isManualSns(sns) ? "手で投稿" : "オフ", tone: "text-faint" };
+    // 選んでいない送り先: 前は「オフ」と出し、意味が伝わらなかった（2026-11-18 PMO の付箋 14）。つないでいなければそう書き、つないでいれば何も出さない
+    if (!on) return isManualSns(sns) ? { text: "手で投稿", tone: "text-faint" } : connected.includes(sns) ? null : { text: "つないでいません", tone: "text-faint" };
     if (quiet) return null;
     // 引用の X は X の画面で送るので、つないでいなくてよい（4.52）
     if (sns === "x" && quoting && !checks.x.issues[0]) return { text: "X の画面で送る", tone: "text-muted" };
     if (issue) return { text: ISSUE_LABEL[issue], tone: `font-bold ${ISSUE_TONE[issue]}` };
     if (isManualSns(sns)) return { text: "手で投稿", tone: "text-muted" };
     if (connected.includes(sns)) return { text: "OK", tone: "font-bold text-success" };
-    return { text: "つないでいない", tone: "font-bold text-signal" };
+    return { text: "つないでいません", tone: "font-bold text-signal" };
   }
   const countText = (sns: SnsKey) => {
     const c = checks[sns];

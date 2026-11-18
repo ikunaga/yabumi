@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { callAction } from "@/lib/client-errors";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { isProcessing, RESULT_POLL_MAX, RESULT_POLL_MS } from "@/lib/posts/send-mode";
 import { Button, buttonClass } from "@/components/ui/button";
 import { deleteFromSns, markManualPosted, markRemovedOnSns } from "@/lib/posts/send-actions";
 import { SNS, SNS_KEYS, isManualSns, type SnsKey } from "@/lib/sns";
@@ -43,6 +45,8 @@ export function SendResults({ projectId, postId, results, video = false }: { pro
     if (r.status === "pending" && !r.errorMessage) return [];
     return [{ sns, r }];
   });
+  const processing = rows.some(({ r }) => isProcessing(r.status));
+  const pollEnded = useResultPolling(processing);
   if (rows.length === 0) return null;
 
   return (
@@ -59,8 +63,31 @@ export function SendResults({ projectId, postId, results, video = false }: { pro
           ),
         )}
       </ul>
+      {processing && pollEnded && (
+        <p role="status" className="border-t border-line px-5 py-2.5 text-[13px] text-muted max-sm:px-4">
+          まだ処理しています。少しして、画面を読み込み直してください。
+        </p>
+      )}
     </section>
   );
+}
+
+// SNS の側で処理している配信先があるあいだ、送信の結果を決まった間隔で読み直す（回数に上限。画面が隠れているあいだは数えない）。
+// 上限まで読み直したら true（「読み込み直して」と出す）
+function useResultPolling(active: boolean): boolean {
+  const router = useRouter();
+  const [count, setCount] = useState(0);
+  const ended = count >= RESULT_POLL_MAX;
+  useEffect(() => {
+    if (!active || ended) return;
+    const timer = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      router.refresh();
+      setCount((n) => n + 1);
+    }, RESULT_POLL_MS);
+    return () => clearInterval(timer);
+  }, [active, ended, router]);
+  return ended;
 }
 
 function ResultRow({ sns, r, projectId, postId, video }: { sns: SnsKey; r: TargetResult; projectId: string; postId: string; video: boolean }) {
@@ -154,15 +181,15 @@ function ResultRow({ sns, r, projectId, postId, video }: { sns: SnsKey; r: Targe
         {r.status === "preparing" &&
           (sns === "tiktok" ? (
             // TikTok は、送ったあとに TikTok の側で写真を取りに来て処理する（docs/design/tiktok.md の 6.）
-            <span className="text-muted">TikTok で処理しています（数分かかることがあります。読み込み直すと結果が出ます）</span>
+            <span className="text-muted">TikTok で処理しています（数分かかることがあります。結果が出ると、この画面も変わります）</span>
           ) : sns === "youtube" ? (
             // YouTube は、動画を何回かに分けて送る（docs/design/youtube.md の 3.）
-            <span className="text-muted">YouTube に動画を上げています（数分かかることがあります。読み込み直すと結果が出ます）</span>
+            <span className="text-muted">YouTube に動画を上げています（数分かかることがあります。結果が出ると、この画面も変わります）</span>
           ) : (
             <span className="text-muted">
               {video
-                ? `${label} が動画を処理しています。準備ができしだい送ります（数分かかることがあります。読み込み直すと結果が出ます）`
-                : `${label} が画像を処理しています。準備ができしだい送ります（1〜2 分ほど。読み込み直すと結果が出ます）`}
+                ? `${label} が動画を処理しています。準備ができしだい送ります（数分かかることがあります。結果が出ると、この画面も変わります）`
+                : `${label} が画像を処理しています。準備ができしだい送ります（1〜2 分ほど。結果が出ると、この画面も変わります）`}
             </span>
           ))}
         {r.status === "deleted" &&

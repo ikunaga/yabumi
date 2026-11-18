@@ -47,7 +47,7 @@ const NOTICES: Record<string, { text: string; tone: "success" | "error" }> = {
   idea_images_skipped: { text: "ネタから下書きをつくりました。メモの画像は、置ける合計か 1 つの投稿の枚数を超えるため、添えられなかったものがあります。", tone: "error" },
   sent: { text: "送信しました。", tone: "success" },
   sending: { text: "送信を始めました。少しして読み込み直すと結果が出ます。", tone: "success" },
-  preparing: { text: "送信を始めました。画像は SNS 側の処理を待ってから送ります（1〜2 分ほど）。少しして読み込み直すと結果が出ます。", tone: "success" },
+  preparing: { text: "送信を始めました。画像は SNS 側の処理を待ってから送ります（1〜2 分ほど）。結果が出ると、この画面も変わります。", tone: "success" },
   send_failed: { text: "送れなかった SNS があります。下の「送信の結果」で理由を確かめてください。", tone: "error" },
   deleted_sns: { text: "SNS から取り消しました。yabumi の下書きは残っています。", tone: "success" },
   manual_posted: { text: "投稿したことを記録しました。", tone: "success" },
@@ -146,15 +146,15 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
   const notice =
     String(searchParams.done) === "preparing" && preparingSns.includes("tiktok")
       ? preparingSns.every((s) => s === "tiktok")
-        ? { text: "送信を始めました。TikTok で処理しています（数分かかることがあります）。少しして読み込み直すと結果が出ます。", tone: "success" as const }
-        : { text: "送信を始めました。画像は SNS 側の処理を待ってから送ります（数分かかることがあります）。少しして読み込み直すと結果が出ます。", tone: "success" as const }
+        ? { text: "送信を始めました。TikTok で処理しています（数分かかることがあります）。結果が出ると、この画面も変わります。", tone: "success" as const }
+        : { text: "送信を始めました。画像は SNS 側の処理を待ってから送ります（数分かかることがあります）。結果が出ると、この画面も変わります。", tone: "success" as const }
       : String(searchParams.done) === "preparing" && postVideo.video
         ? // YouTube は yabumi から何回かに分けて動画を上げる（docs/design/youtube.md の 3.）。ほかの SNS は SNS の側で動画を処理する
           preparingSns.length > 0 && preparingSns.every((s) => s === "youtube")
-          ? { text: "送信を始めました。YouTube に動画を上げています（数分かかることがあります）。少しして読み込み直すと結果が出ます。", tone: "success" as const }
+          ? { text: "送信を始めました。YouTube に動画を上げています（数分かかることがあります）。結果が出ると、この画面も変わります。", tone: "success" as const }
           : preparingSns.includes("youtube")
-            ? { text: "送信を始めました。YouTube に動画を上げ、ほかの SNS は動画を処理しています（数分かかることがあります）。少しして読み込み直すと結果が出ます。", tone: "success" as const }
-            : { text: "送信を始めました。動画は SNS が処理しています（数分かかることがあります）。少しして読み込み直すと結果が出ます。", tone: "success" as const }
+            ? { text: "送信を始めました。YouTube に動画を上げ、ほかの SNS は動画を処理しています（数分かかることがあります）。結果が出ると、この画面も変わります。", tone: "success" as const }
+            : { text: "送信を始めました。動画は SNS が処理しています（数分かかることがあります）。結果が出ると、この画面も変わります。", tone: "success" as const }
         : NOTICES[String(searchParams.done)];
   // 送ったあと（送信を始めた・送った・手で投稿したと記録した）の「ひとこと」（4.47。1 日 1 回まで）
   const sentTip = ["sent", "sending", "preparing", "manual_posted"].includes(String(searchParams.done));

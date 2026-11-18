@@ -122,3 +122,14 @@ export function blockerStep(blocker: string | null, problems: StepProblem[]): St
   if (!blocker) return null;
   return problems.find((p) => p.text === blocker)?.step ?? null;
 }
+
+// ③ の下の帯の「次へ」の名前と、画像・動画が要る送り先の注意（2026-11-18 PMO の付箋 15）。
+// 画像も動画もないまま進むとき、画像（動画）が要る送り先を選んでいれば、ボタンの名前を変えて注意を添える。
+// 進むことは止めない（下書きに保存でき、⑤ のまとめにも同じ問題が出て、直すまで送れない。送り先から外して進めることもある）
+export function imagesStepNext(a: { hasMedia: boolean; needImage: string[]; needVideo: string[] }): { label: string | null; note: string | null } {
+  if (a.hasMedia) return { label: null, note: null };
+  const parts = [a.needImage.length ? `${a.needImage.join("・")} は画像か動画` : "", a.needVideo.length ? `${a.needVideo.join("・")} は動画` : ""].filter(Boolean);
+  if (!parts.length) return { label: "画像・動画なしで次へ", note: null };
+  const labels = [...a.needImage, ...a.needVideo].join("・");
+  return { label: "付けずに次へ", note: `${parts.join("、")}が要ります。付けないと ${labels} には送れません` };
+}

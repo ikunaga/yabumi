@@ -1,9 +1,9 @@
-// 自動の投稿の入口（docs/design/auto-post.md の 1.2・1.6）: 概要の帯・「↻ 自動で回す」の行き先・カレンダーの札。DB に触れない決まりだけ
+// 自動の投稿の入口（docs/design/auto-post.md の 1.2・1.6）: 概要の帯・カレンダーの札。DB に触れない決まりだけ
 import { describe, expect, it, vi } from "vitest";
 import type { AutoPlan, UpcomingAutoRun } from "@/lib/auto-post/types";
 import type { PostRow, PostTargetRow, TargetStatus } from "@/lib/posts/queries";
 import type { SnsKey } from "@/lib/sns";
-import { autoEntryHref, nextRunLabel, overviewAutoBand } from "@/lib/auto-post/entry";
+import { nextRunLabel, overviewAutoBand } from "@/lib/auto-post/entry";
 import { autoReviewWarning, autoRunsRange, firstReviewPostIds, plannedAutoChips, postChipHref } from "@/lib/calendar/auto-chips";
 
 vi.mock("server-only", () => ({}));
@@ -80,13 +80,6 @@ describe("概要の帯", () => {
       { id: "plan-a", name: "ネタ帳から", reason: "SNS のつながりが切れています" },
       { id: "plan-b", name: "ネタ帳から", reason: "止まりました" },
     ]);
-  });
-});
-
-describe("「↻ 自動で回す」の行き先", () => {
-  it("回し方がなければ始める画面、あれば一覧", () => {
-    expect(autoEntryHref("p1", 0)).toBe("/projects/p1/auto/new");
-    expect(autoEntryHref("p1", 3)).toBe("/projects/p1/auto");
   });
 });
 

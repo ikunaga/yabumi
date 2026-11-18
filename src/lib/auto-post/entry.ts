@@ -4,7 +4,7 @@ import { addDays, formatTime, toYmd } from "@/lib/time";
 import { STOP_REASON_TEXT } from "./labels";
 import type { AutoPlan, UpcomingAutoRun } from "./types";
 
-// 自動の投稿の入口（docs/design/auto-post.md の 1.2）。概要の 1 行の帯と、投稿をつくるの「↻ 自動で回す」の行き先を、DB に触れずに決める
+// 自動の投稿の入口（docs/design/auto-post.md の 1.2）。概要の 1 行の帯を、DB に触れずに決める
 
 export type OverviewAutoBand = {
   active: number; // 動いている回し方
@@ -44,11 +44,6 @@ export function overviewAutoBand(plans: AutoPlan[], upcoming: UpcomingAutoRun[],
       .filter((p) => p.status === "stopped")
       .map((p) => ({ id: p.id, name: p.name, reason: p.stopReason ? STOP_REASON_TEXT[p.stopReason] : "止まりました" })),
   };
-}
-
-// 「↻ 自動で回す」の行き先: 回し方がまだなければ始める画面、あれば一覧
-export function autoEntryHref(projectId: string, planCount: number): string {
-  return planCount > 0 ? `/projects/${projectId}/auto` : `/projects/${projectId}/auto/new`;
 }
 
 // 概要で読む次の回の範囲（今から 14 日）

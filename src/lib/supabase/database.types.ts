@@ -477,6 +477,45 @@ export type Database = {
           },
         ]
       }
+      auto_post_holds: {
+        Row: {
+          held_at: string
+          held_by: string
+          hold_notified_at: string | null
+          id: string
+          reason: string
+          release_notified_at: string | null
+          release_reason: string | null
+          released_at: string | null
+          released_by: string | null
+          user_id: string
+        }
+        Insert: {
+          held_at?: string
+          held_by: string
+          hold_notified_at?: string | null
+          id?: string
+          reason: string
+          release_notified_at?: string | null
+          release_reason?: string | null
+          released_at?: string | null
+          released_by?: string | null
+          user_id: string
+        }
+        Update: {
+          held_at?: string
+          held_by?: string
+          hold_notified_at?: string | null
+          id?: string
+          reason?: string
+          release_notified_at?: string | null
+          release_reason?: string | null
+          released_at?: string | null
+          released_by?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       auto_runs: {
         Row: {
           attempts: number
@@ -3012,6 +3051,7 @@ export type Database = {
         }
         Returns: number
       }
+      auto_post_held: { Args: { p_uid: string }; Returns: boolean }
       auto_target_previews: {
         Args: { p_post_id: string }
         Returns: {
@@ -3306,6 +3346,32 @@ export type Database = {
         }[]
       }
       my_x_metrics_spend_this_month: { Args: never; Returns: number }
+      operator_auto_post_holds: {
+        Args: never
+        Returns: {
+          email: string
+          held_at: string
+          held_by: string
+          hold_id: string
+          reason: string
+        }[]
+      }
+      operator_hold_auto_post: {
+        Args: { p_by: string; p_email: string; p_reason: string }
+        Returns: {
+          already_held: boolean
+          canceled_runs: number
+          hold_id: string
+        }[]
+      }
+      operator_release_auto_post: {
+        Args: { p_by: string; p_email: string; p_reason: string }
+        Returns: {
+          hold_id: string
+          released: boolean
+        }[]
+      }
+      operator_user_by_email: { Args: { p_email: string }; Returns: string }
       post_counts_by_day: {
         Args: { p_from: string; p_project_id: string; p_to: string }
         Returns: {

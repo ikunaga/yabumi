@@ -4,6 +4,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { engineDeps, makeSample } from "./engine";
+import { HOLD_REFUSED, myAutoPostHold } from "./holds";
 import { getAutoPlan, listProjectEvents, loadTargetPreviews } from "./queries";
 import { autoPlanInputSchema, eventInputSchema } from "./schema";
 import type { AutoPlan, AutoPlanInput, AutoResult, AutoSample, ProjectEvent } from "./types";
@@ -24,6 +25,8 @@ const HINT_TEXT: Record<string, string> = {
   approval_expired: "送る時刻を過ぎたので、送れません。投稿の画面で日時を直してから予約してください。",
   content_changed: "確かめたあとに文が変わりました。もう一度確かめてください。",
   auto_plan_operator_stop: "運営者がこのプロジェクトの自動の投稿を止めています。再開・作る・直す・消すはできません。問い合わせ先にご連絡ください。",
+  // 運営者が利用者ごとに止めている（20261118100000_auto_post_holds）
+  auto_post_hold: HOLD_REFUSED,
 };
 
 type DbError = { code?: string; hint?: string | null; message: string };
@@ -164,6 +167,8 @@ export async function makeAutoSample(projectId: string, input: Omit<AutoPlanInpu
   // 本人のプロジェクトか（ここから先はサーバーの権限で、持ち主とプロジェクトで絞って読む）
   const { data: project } = await db.from("projects").select("id").eq("id", projectId).maybeSingle();
   if (!project) return { ok: false, error: "プロジェクトが見つかりません。" };
+  // 運営者が止めている間は、見本も作らない（AI の予約 reserve_ai_usage でも断る）
+  if (await myAutoPostHold(db)) return { ok: false, error: HOLD_REFUSED };
   const admin = createAdminClient();
   const deps = engineDeps(admin);
   if (!deps) return { ok: false, error: "見本をつくる機能は準備中です。" };

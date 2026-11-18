@@ -20,10 +20,12 @@ import { toPlan } from "./plan-row";
 import { dueTimes } from "./schedule";
 import type { AutoPlan, AutoRunReason, AutoRunStatus, AutoStopReason } from "./types";
 import { STOP_REASON_TEXT } from "./labels";
+import { heldUserIds, HOLD_PUSH, isAutoPostHeld, RELEASE_PUSH } from "./holds";
 
 // 自動の投稿のジョブ（docs/design/auto-post.md の 2.3・2.7）。サーバーの権限（admin）で動くので、読むものは必ず持ち主とプロジェクトで絞る。
 // 1 回の流れ: ① 14 日先までの回を足す → ② 送る時刻を過ぎた確かめ待ちを失敗にする・最初の回の確かめの後始末 → ③ 作る時刻が来た回を作る →
-// ④ 回し方の状態（続けての失敗・材料切れ・つながり）を見直す → ⑤ 知らせる（作った・確かめ待ちの 2 時間前）
+// ④ 回し方の状態（続けての失敗・材料切れ・つながり）を見直す → ⑤ 知らせる（作った・確かめ待ちの 2 時間前）→
+// ⑥ 運営者が止めた・解除したことを知らせる。運営者が止めている人（auto_post_holds）は、①③⑤ から外す（DB の関数でも断る）
 
 type Db = SupabaseClient<Database>;
 
@@ -50,7 +52,7 @@ export type EngineDeps = {
 // ownerIds: 結合テストで、テストの利用者だけを扱う（共有のローカル DB のほかの人の行に触らない）。ジョブは渡さない
 export type EngineOpts = { ownerIds?: string[]; limit?: number };
 
-export type JobSummary = { added: number; expired: number; made: Partial<Record<AutoRunStatus, number>>; stopped: number; notified: number; reminded: number };
+export type JobSummary = { added: number; expired: number; made: Partial<Record<AutoRunStatus, number>>; stopped: number; notified: number; reminded: number; holdNotices: number };
 
 const jstHm = (d: Date) => {
   const j = new Date(d.getTime() + 9 * 3_600_000);
@@ -72,8 +74,10 @@ function scope<Q extends { in: (col: string, v: string[]) => Q }>(q: Q, opts: En
 export async function addUpcomingRuns(admin: Db, now: Date, opts: EngineOpts = {}): Promise<number> {
   const { data: plans, error } = await scope(admin.from("auto_plans").select("id, owner_id, project_id, schedule, lead_hours").eq("status", "active"), opts);
   if (error) throw error;
+  // 運営者が止めている人の回は足さない（解除したら、次のジョブで足す）
+  const held = plans.length ? await heldUserIds(admin, [...new Set(plans.map((p) => p.owner_id))]) : new Set<string>();
   const until = new Date(now.getTime() + AHEAD_DAYS * 86_400_000);
-  const rows = plans.flatMap((p) =>
+  const rows = plans.filter((p) => !held.has(p.owner_id)).flatMap((p) =>
     dueTimes(p.schedule as never, now, until).map((due) => ({
       plan_id: p.id,
       owner_id: p.owner_id,
@@ -308,6 +312,11 @@ async function processRun(admin: Db, deps: EngineDeps, run: ClaimedRun, now: Dat
   const { data: row } = await admin.from("auto_plans").select("*").eq("id", run.plan_id).eq("owner_id", run.owner_id).maybeSingle();
   if (!row || row.status !== "active") {
     await finish(admin, run.id, { status: "canceled", reason: "plan_paused" });
+    return "canceled";
+  }
+  // 取り出したあとに運営者が止めたとき（claim_due_auto_runs でも外している）
+  if (await isAutoPostHeld(admin, run.owner_id)) {
+    await finish(admin, run.id, { status: "canceled", reason: "operator_hold" });
     return "canceled";
   }
   const plan = { ...toPlan(row), ownerId: run.owner_id };
@@ -547,8 +556,12 @@ export async function remindApprovals(admin: Db, deps: EngineDeps, now: Date, op
     opts,
   );
   if (error) throw error;
+  // 運営者が止めている人には、承認を促さない（承認は断られる）
+  const rows = data as NotifyRow[];
+  const held = rows.length ? await heldUserIds(admin, [...new Set(rows.map((r) => r.owner_id))]) : new Set<string>();
   let n = 0;
-  for (const r of data as NotifyRow[]) {
+  for (const r of rows) {
+    if (held.has(r.owner_id)) continue;
     const waiting = (r.posts?.post_targets ?? []).filter((t) => t.status === "awaiting_approval").map((t) => t.sns as SnsKey);
     if (r.status !== "review" && !waiting.length) continue;
     const at = jstHm(new Date(r.due_at));
@@ -562,6 +575,25 @@ export async function remindApprovals(admin: Db, deps: EngineDeps, now: Date, op
     n++;
   }
   return n;
+}
+
+// 運営者が止めた・解除したことを、スマホの通知で 1 回ずつ知らせる（利用規約の「止めたときは画面と通知で知らせます」）。
+// 文は決まったものだけで、理由は入れない。知らせる前に解除した回は、止めた知らせを飛ばす
+export async function notifyHolds(admin: Db, deps: EngineDeps, now: Date, opts: EngineOpts = {}): Promise<number> {
+  const at = now.toISOString();
+  const { data: held, error } = await scope(admin.from("auto_post_holds").select("id, user_id").is("hold_notified_at", null).is("released_at", null), opts, "user_id");
+  if (error) throw error;
+  for (const h of held) {
+    await notify(admin, deps, h.user_id, { ...HOLD_PUSH, url: "/projects", tag: `auto-hold:${h.id}` });
+    await admin.from("auto_post_holds").update({ hold_notified_at: at }).eq("id", h.id);
+  }
+  const { data: released, error: e2 } = await scope(admin.from("auto_post_holds").select("id, user_id, hold_notified_at").is("release_notified_at", null).not("released_at", "is", null), opts, "user_id");
+  if (e2) throw e2;
+  for (const h of released) {
+    if (h.hold_notified_at) await notify(admin, deps, h.user_id, { ...RELEASE_PUSH, url: "/projects", tag: `auto-hold:${h.id}` });
+    await admin.from("auto_post_holds").update({ hold_notified_at: h.hold_notified_at ?? at, release_notified_at: at }).eq("id", h.id);
+  }
+  return held.length + released.filter((h) => h.hold_notified_at).length;
 }
 
 // 本物の呼び出しをつないだ deps（ジョブと見本）。AI が使えなければ null
@@ -596,6 +628,7 @@ export async function runAutoPostJob(admin: Db, deps: EngineDeps, opts: EngineOp
   const stopped = await reviewPlans(admin, deps, now, opts);
   const notified = await notifyMade(admin, deps, now, opts);
   const reminded = await remindApprovals(admin, deps, now, opts);
-  return { added, expired, made, stopped, notified, reminded };
+  const holdNotices = await notifyHolds(admin, deps, now, opts);
+  return { added, expired, made, stopped, notified, reminded, holdNotices };
 }
 

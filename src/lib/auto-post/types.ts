@@ -99,7 +99,8 @@ export type AutoRunReason =
   | "disconnected"
   | "error"
   | "user_skipped"
-  | "plan_paused";
+  | "plan_paused"
+  | "operator_hold";
 
 export type AutoRun = {
   id: string;

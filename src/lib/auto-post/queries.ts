@@ -1,6 +1,7 @@
 import "server-only";
 import { isSnsKey, type SnsKey } from "@/lib/sns";
 import { createClient } from "@/lib/supabase/server";
+import { myAutoPostHold } from "./holds";
 import { dueTimes } from "./schedule";
 import { toPlan, toRun, type PlanRow, type RunRow } from "./plan-row";
 import type { AutoPlan, AutoReviewItem, AutoRun, AutoTargetPreview, ProjectEvent, UpcomingAutoRun } from "./types";
@@ -15,6 +16,11 @@ const RUN_COLUMNS = "id, plan_id, due_at, generate_at, status, post_id, reason, 
 
 async function db(): Promise<Db> {
   return createClient();
+}
+
+// 運営者が、本人の自動の投稿を止めているか（RLS で本人の行だけ。読めるのは日時だけ）。止めていなければ null
+export async function getAutoPostHold(): Promise<{ heldAt: string } | null> {
+  return myAutoPostHold(await db());
 }
 
 // プロジェクトの自動の回し方（作った順）

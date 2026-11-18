@@ -51,6 +51,7 @@ const TABLES = [
   "auto_runs",
   "project_events",
   "post_target_approvals",
+  "auto_post_holds",
 ] as const;
 
 let alice: TestClient;

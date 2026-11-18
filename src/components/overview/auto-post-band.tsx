@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ButtonLink } from "@/components/ui/button";
 import type { OverviewAutoBand } from "@/lib/auto-post/entry";
+import { HOLD_TITLE } from "@/lib/auto-post/holds";
 import { SNS } from "@/lib/sns";
 
 // 概要の自動の投稿の 1 行の帯（docs/design/auto-post.md の 1.2）。
@@ -38,6 +39,11 @@ export function AutoPostBand({ projectId, band }: { projectId: string; band: Ove
           </ButtonLink>
         </span>
       </div>
+      {band.held && (
+        <p className="text-sm">
+          <b className="text-signal">● 要確認</b> <span className="text-muted">{HOLD_TITLE}。くわしくは「自動の投稿を見る」から</span>
+        </p>
+      )}
       {band.stopped.length > 0 && (
         <ul className="flex flex-col gap-1 text-sm">
           {band.stopped.map((p) => (

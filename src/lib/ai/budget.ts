@@ -104,7 +104,7 @@ export const TOO_LARGE_MESSAGE = "AI に送る内容が長すぎます。会話�
 export type ModelLike = { model: string; usage: TokenUsage };
 export type BudgetDenied = { ok: false; message: string };
 
-type ReserveStatus = "ok" | "global_limit" | "new_global_limit" | "user_limit" | "new_user_limit" | "daily_limit" | "voice_memo_limit" | "post_format_limit" | "post_format_round_limit";
+type ReserveStatus = "ok" | "global_limit" | "new_global_limit" | "user_limit" | "new_user_limit" | "daily_limit" | "voice_memo_limit" | "post_format_limit" | "post_format_round_limit" | "auto_post_hold";
 
 // 「11/10」（日本時間の月/日）
 function monthDay(ymd: string): string {
@@ -132,6 +132,9 @@ export function limitMessage(status: Exclude<ReserveStatus, "ok">, newUntil: str
       return `フォーマットを AI とつくるのは、1 日 ${POST_FORMAT_DAILY_RUNS} 回までです。明日またお試しください。`;
     case "post_format_round_limit":
       return `次の回の案は、1 日 ${SERIES_DAILY_RUNS} 回までです。明日またお試しください。`;
+    // 運営者が利用者ごとに自動の投稿を止めている（20261118100000_auto_post_holds。自動の投稿の用途だけ）
+    case "auto_post_hold":
+      return "運営者が、あなたのアカウントの自動の投稿を止めています。";
   }
 }
 
@@ -202,7 +205,7 @@ export async function reserveAi<Req>(admin: Db, opts: BudgetOpts & { request: Re
         else estimate = counted;
       }
     }
-  } else if (opts.countTokens && row.status !== "daily_limit") {
+  } else if (opts.countTokens && row.status !== "daily_limit" && row.status !== "auto_post_hold") {
     // バイト数の見込みが大きすぎて断られたのかもしれない。いちばん小さい見込み（入力 1 トークン）でも断られるなら、数えずに断る
     const floor = reserveEstimateUsd(opts.call, opts.request, 1);
     if (floor < first) {

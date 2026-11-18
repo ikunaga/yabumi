@@ -4,13 +4,13 @@ import { notFound } from "next/navigation";
 import { scheduleText } from "@/components/auto-post/format";
 import { PauseAllButton } from "@/components/auto-post/plan-controls";
 import { PlanStatusMark } from "@/components/auto-post/status-mark";
-import { ButtonLink } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { Card, EmptyState } from "@/components/ui/card";
 import { SuccessBanner } from "@/components/ui/feedback";
 import { SnsTag } from "@/components/ui/marks";
 import { PageHeader } from "@/components/ui/page-header";
 import { KIND_LABELS } from "@/lib/auto-post/labels";
-import { listAutoPlans, listAutoReviewItems, listUpcomingAutoRuns } from "@/lib/auto-post/queries";
+import { getAutoPostHold, listAutoPlans, listAutoReviewItems, listUpcomingAutoRuns } from "@/lib/auto-post/queries";
 import { MAX_AUTO_PLANS } from "@/lib/auto-post/schema";
 import type { SnsKey } from "@/lib/sns";
 import { SNS } from "@/lib/sns";
@@ -28,7 +28,12 @@ export default async function AutoListPage(props: PageProps<"/projects/[id]/auto
   const project = await getProject(id);
   if (!project) notFound();
   const now = new Date();
-  const [plans, reviews, upcoming] = await Promise.all([listAutoPlans(project.id), listAutoReviewItems(project.id), listUpcomingAutoRuns(project.id, now, new Date(now.getTime() + 30 * DAY_MS))]);
+  const [plans, reviews, upcoming, hold] = await Promise.all([
+    listAutoPlans(project.id),
+    listAutoReviewItems(project.id),
+    listUpcomingAutoRuns(project.id, now, new Date(now.getTime() + 30 * DAY_MS)),
+    getAutoPostHold(),
+  ]);
   const base = `/projects/${project.id}/auto`;
   const next = upcoming[0] ?? null;
   const nextOf = new Map<string, string>();
@@ -50,7 +55,12 @@ export default async function AutoListPage(props: PageProps<"/projects/[id]/auto
         }
         actions={
           <>
-            {full ? (
+            {hold ? (
+              // 運営者が止めている間は始められない（理由と問い合わせ先は上の帯）
+              <Button type="button" disabled className="max-sm:w-full">
+                ＋ 自動の投稿をはじめる
+              </Button>
+            ) : full ? (
               <span className="text-sm text-muted">{MAX_AUTO_PLANS} 件までです</span>
             ) : (
               <ButtonLink href={`${base}/new`} className="max-sm:w-full">

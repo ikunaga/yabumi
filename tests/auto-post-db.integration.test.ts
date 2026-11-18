@@ -446,7 +446,8 @@ describe("セキュリティ確認（2026-11-17）", () => {
     // 古い指紋の承認も数えない
     await admin.from("post_target_approvals").insert({ post_target_id: targets.x, owner_id: aliceId, fingerprint: "0".repeat(64) });
     expect((await admin.rpc("claim_due_targets", { p_limit: 10, p_post_id: postId })).data).toEqual([]);
-    expect(await statusOf(targets.x)).toBe("pending");
+    // 黙って飛ばさずに、確かめ待ちに戻す（2026-11-18 の確認の L1。tests/auto-approval-fixes.integration.test.ts）
+    expect(await statusOf(targets.x)).toBe("awaiting_approval");
   });
 
   it("承認の指紋には、送り先のアカウント・引用する投稿・添えた画像も入る。承認のあとに変えたら確かめ待ちに戻る", async () => {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { scheduleText } from "@/components/auto-post/format";
+import { choiceKey, kindCards } from "@/components/auto-post/kind-picker";
 import { projectNavItems, activeNavKey } from "@/components/nav/project-nav-items";
 
 // 自動の投稿の画面（feat/auto-post-ui）の、画面の文とメニューの項目
@@ -22,5 +23,52 @@ describe("メニューの「自動の投稿」", () => {
     const item = projectNavItems("p1").find((i) => i.key === "auto");
     expect(item).toMatchObject({ label: "自動の投稿", barLabel: "Autopilot", href: "/projects/p1/auto", main: false });
     expect(activeNavKey("auto")).toBe("auto");
+  });
+});
+
+// 始める画面の「1 何を」のカード（2026-11-18 オーナーの了承した見本）
+describe("「何を」のカード", () => {
+  const empty = { seriesFormats: [], destinations: [], events: 0, pillarNames: [], unusedNotes: 0, unusedPhotoNotes: 0 };
+  it("シリーズはフォーマットごとに 1 枚で、名前・投稿の例・これまでの回を出す", () => {
+    const cards = kindCards(
+      {
+        ...empty,
+        seriesFormats: [
+          { id: "f1", name: "連想映画クイズ", example: "連想映画クイズ🎬\nデロリアン・雷\n\nこの映画は？", rounds: 3 },
+          { id: "f2", name: "今日の一枚", example: "", rounds: 0 },
+        ],
+      },
+      "p1",
+      "/projects/p1/formats",
+    );
+    const series = cards.filter((c) => c.choice.kind === "series");
+    expect(series.map((c) => [c.title, c.choice.formatId, c.off])).toEqual([
+      ["連想映画クイズ", "f1", undefined],
+      ["今日の一枚", "f2", undefined],
+    ]);
+    expect(series[0].example).toBe("連想映画クイズ🎬／デロリアン・雷／この映画は？");
+    expect(series[0].count).toBe("これまで 3 回");
+    expect(series[1].example).toBeUndefined();
+    expect(new Set(cards.map((c) => c.key)).size).toBe(cards.length);
+  });
+  it("材料がなければ選べず、理由と直し方の行き先を出す。お知らせ・季節はいつも選べる", () => {
+    const cards = kindCards(empty, "p1", "/projects/p1/formats");
+    const off = Object.fromEntries(cards.map((c) => [c.key, c.off?.href ?? null]));
+    expect(off).toEqual({
+      "series:": "/projects/p1/formats",
+      notes: "/projects/p1/notes",
+      pillars: "/projects/p1/plan",
+      events: null,
+      product: "/projects/p1/edit",
+    });
+  });
+  it("メモの数には、使い切ったときの動きを添える", () => {
+    const notes = kindCards({ ...empty, unusedNotes: 2, unusedPhotoNotes: 1 }, "p1", "/f").find((c) => c.key === "notes")!;
+    expect(notes.count).toBe("まだ使っていないメモ 2 件（写真つき 1）・使い切ったら自動の投稿は止まり、お知らせします");
+  });
+  it("選んだものの鍵は、シリーズだけフォーマットごとに分ける", () => {
+    expect(choiceKey({ kind: "series", formatId: "f1" })).toBe("series:f1");
+    expect(choiceKey({ kind: "notes" })).toBe("notes");
+    expect(choiceKey(null)).toBe("");
   });
 });

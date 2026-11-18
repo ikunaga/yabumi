@@ -17,7 +17,6 @@ import { runsPerMonth } from "@/lib/auto-post/schedule";
 import { AUTO_NAME_MAX, AUTO_TONE_MAX, DEFAULT_LEAD_HOURS } from "@/lib/auto-post/schema";
 import { suggestSchedules, type KindSuggestion, type SuggestMaterials } from "@/lib/auto-post/suggest";
 import {
-  AUTO_KINDS,
   AUTO_KINDS_STAGE_A,
   AUTO_SNS_STAGE_A,
   TARGET_MODES,
@@ -30,20 +29,23 @@ import {
   type AutoTargets,
   type TargetMode,
 } from "@/lib/auto-post/types";
+import type { SeriesFormatCard } from "@/lib/auto-post/ui-queries";
 import type { TimeTrends } from "@/lib/metrics/time-bands";
 import { SNS, type SnsKey } from "@/lib/sns";
 import { withHashtags } from "@/lib/sns/hashtags";
 import { scheduleText } from "./format";
+import { choiceKey, kindCards, KindPicker, type KindChoice } from "./kind-picker";
 
 // 自動の投稿を始める・直す（docs/design/auto-post.md の 1.4・1.5・1.7）。
 // 「1 何を › 2 どこに › 3 どのくらい › 4 確かめる」。いまのステップの項目だけ出す。何を・どのくらいの案は AI を呼ばずに決まりで出す（suggest.ts）
 
 export type WizardMaterials = {
   counts: SuggestMaterials;
-  seriesFormats: { id: string; name: string }[];
+  seriesFormats: SeriesFormatCard[];
   destinations: { id: string; label: string }[];
   events: number;
   pillars: number;
+  pillarNames: string[];
 };
 
 type Props = {
@@ -56,6 +58,7 @@ type Props = {
   trends: TimeTrends | null;
   planFrequency: string | null;
   today: string; // 日本時間の YYYY-MM-DD（数え始めの日）
+  isApp: boolean; // 宣伝するものがアプリか（「開発の進み」を出すか）
 };
 
 type Step = "what" | "where" | "when" | "confirm";
@@ -82,65 +85,35 @@ const AI_USD_PER_RUN = 0.08;
 const X_USD = { never: 0.015, always: 0.205 } as const;
 const YEN = 150;
 
-// 使い道が選べるか（材料がなければ押せない形にして、足りないものと入口を出す）
-function kindAvailability(kind: AutoKind, m: WizardMaterials, projectId: string): { ok: boolean; note: string; href?: string; hrefLabel?: string } {
-  const base = `/projects/${projectId}`;
-  switch (kind) {
-    case "series":
-      return m.seriesFormats.length
-        ? { ok: true, note: `フォーマット ${m.seriesFormats.length} つ` }
-        : {
-            ok: false,
-            note: "シリーズのフォーマットがありません",
-            href: `${base}/compose`,
-            hrefLabel: "フォーマットをつくる",
-          };
-    case "product":
-      return m.destinations.length
-        ? { ok: true, note: `行き先 ${m.destinations.length} 件` }
-        : {
-            ok: false,
-            note: "行き先の URL がありません",
-            href: `${base}/edit`,
-            hrefLabel: "行き先を入れる",
-          };
-    case "notes":
-      return m.counts.unusedNotes
-        ? {
-            ok: true,
-            note: `残り ${m.counts.unusedNotes} 件${m.counts.unusedPhotoNotes ? `・写真つき ${m.counts.unusedPhotoNotes}` : ""}`,
-          }
-        : {
-            ok: false,
-            note: "使っていないメモがありません",
-            href: `${base}/notes`,
-            hrefLabel: "メモを書く",
-          };
-    case "pillars":
-      return m.pillars
-        ? { ok: true, note: `柱 ${m.pillars} つ` }
-        : {
-            ok: false,
-            note: "アカウント設計の柱がありません",
-            href: `${base}/plan`,
-            hrefLabel: "設計を進める",
-          };
-    case "events":
-      return {
-        ok: true,
-        note: m.events ? `予定 ${m.events} 件` : "予定がなければ季節のあいさつ",
-      };
-    default:
-      return { ok: false, note: "準備中" };
-  }
-}
-
 export function PlanWizard(p: Props) {
   const router = useRouter();
   const editing = !!p.plan;
   const [step, setStep] = useState<Step>(editing ? "confirm" : "what");
-  const [kind, setKind] = useState<AutoKind | null>(p.plan?.kind ?? null);
-  const [materials, setMaterials] = useState<AutoMaterials>(p.plan?.materials ?? {});
+  const cards = kindCards(
+    {
+      seriesFormats: p.materials.seriesFormats,
+      destinations: p.materials.destinations,
+      events: p.materials.events,
+      pillarNames: p.materials.pillarNames,
+      unusedNotes: p.materials.counts.unusedNotes,
+      unusedPhotoNotes: p.materials.counts.unusedPhotoNotes,
+    },
+    p.projectId,
+    `/projects/${p.projectId}/compose`,
+  );
+  // おすすめのカード（シリーズは最初のフォーマット）。直すときは出さない
+  const suggested = editing ? null : (cards.find((c) => c.choice.kind === p.kindSuggestion.kind && !c.off) ?? null);
+  // 始めるときは、おすすめを初めから選んでおく
+  const [kind, setKind] = useState<AutoKind | null>(p.plan?.kind ?? suggested?.choice.kind ?? null);
+  const [materials, setMaterials] = useState<AutoMaterials>(p.plan?.materials ?? (suggested?.choice.formatId ? { format_id: suggested.choice.formatId } : {}));
+  // 種類を選び直したら、前の種類の材料の設定は残さない（直すときに元の種類へ戻したら、元の設定に戻す）
+  const pick = (c: KindChoice) => {
+    if (choiceKey(c) === choiceKey(kind ? { kind, formatId: materials.format_id } : null)) return;
+    const original = p.plan && choiceKey({ kind: p.plan.kind, formatId: p.plan.materials.format_id }) === choiceKey(c);
+    setKind(c.kind);
+    setMaterials(original ? p.plan!.materials : c.formatId ? { format_id: c.formatId } : {});
+    setSchedule(null);
+  };
   const autoSns = AUTO_SNS_STAGE_A.filter((s) => p.connected.includes(s));
   const [targets, setTargets] = useState<AutoTargets>(() => {
     if (p.plan) return p.plan.targets;
@@ -220,63 +193,13 @@ export function PlanWizard(p: Props) {
 
       {step === "what" && (
         <>
-          {!editing && (
-            <Card className="flex flex-wrap items-center justify-between gap-3 px-6 py-5 max-sm:px-4 max-sm:py-4">
-              <div className="flex min-w-0 flex-col gap-1">
-                <p className="text-sm text-muted">おすすめ</p>
-                <p className="text-[17px] font-bold">{KIND_LABELS[p.kindSuggestion.kind]}</p>
-                <p className="text-[14px] text-muted">{p.kindSuggestion.reason}</p>
-              </div>
-              <Button
-                type="button"
-                variant={kind === p.kindSuggestion.kind ? "secondary" : "primary"}
-                className="max-sm:w-full"
-                onClick={() => {
-                  setKind(p.kindSuggestion.kind);
-                  setSchedule(null);
-                }}
-              >
-                {kind === p.kindSuggestion.kind ? "選んでいます" : "これにする"}
-              </Button>
-            </Card>
-          )}
-          <div className="grid grid-cols-3 gap-3 max-lg:grid-cols-2 max-sm:grid-cols-1" role="radiogroup" aria-label="使い道">
-            {AUTO_KINDS.filter((k) => editing || k !== p.kindSuggestion.kind).map((k) => {
-              const ready = AUTO_KINDS_STAGE_A.includes(k);
-              const a = kindAvailability(k, p.materials, p.projectId);
-              const on = kind === k;
-              const disabled = !ready || !a.ok;
-              return (
-                <div
-                  key={k}
-                  className={`flex flex-col gap-1.5 rounded-lg border bg-surface px-4 py-3.5 ${on ? "border-primary shadow-[0_0_0_1px_var(--primary)]" : "border-border"} ${disabled ? "opacity-70" : ""}`}
-                >
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={on}
-                    disabled={disabled}
-                    onClick={() => {
-                      setKind(k);
-                      setSchedule(null);
-                    }}
-                    className="flex flex-col items-start gap-1 text-left disabled:cursor-not-allowed"
-                  >
-                    <span className="flex items-center gap-2 text-[16px] font-bold">
-                      {KIND_LABELS[k]}
-                      {!ready && <Badge>準備中</Badge>}
-                    </span>
-                    <span className="num text-[14px] text-muted">{ready ? a.note : "これから作ります"}</span>
-                  </button>
-                  {ready && !a.ok && a.href && (
-                    <Link href={a.href} className="text-sm font-bold text-fg underline">
-                      {a.hrefLabel} →
-                    </Link>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+          <KindPicker
+            cards={cards}
+            value={kind ? choiceKey({ kind, formatId: materials.format_id }) : ""}
+            suggestedKey={suggested?.key ?? null}
+            isApp={p.isApp}
+            onChange={pick}
+          />
 
           {kind && <KindDetail kind={kind} materials={materials} setMaterials={setMaterials} m={p.materials} projectId={p.projectId} />}
 
@@ -286,6 +209,7 @@ export function PlanWizard(p: Props) {
                 やめる
               </ButtonLink>
             }
+            note={!kind ? "ネタを 1 つ選んでください" : null}
             next={
               <Button type="button" disabled={!whatOk} onClick={() => go("where")}>
                 次へ: どこに
@@ -551,9 +475,14 @@ function sameSchedule(a: AutoSchedule, b: AutoSchedule) {
   return a.time === b.time && a.every_weeks === b.every_weeks && [...a.weekdays].sort().join() === [...b.weekdays].sort().join();
 }
 
-function Nav({ back, next }: { back: React.ReactNode; next: React.ReactNode }) {
+function Nav({ back, next, note }: { back: React.ReactNode; next: React.ReactNode; note?: string | null }) {
   return (
     <div className="flex items-center justify-end gap-3 max-sm:flex-col-reverse max-sm:items-stretch [&>*]:max-sm:w-full">
+      {note && (
+        <p role="status" className="mr-auto text-[14px] text-muted max-sm:order-first max-sm:text-center">
+          {note}
+        </p>
+      )}
       {back}
       {next}
     </div>
@@ -593,32 +522,6 @@ function ModePicker({ sns, value, disabled, onChange }: { sns: SnsKey; value: Ta
 }
 
 function KindDetail({ kind, materials, setMaterials, m, projectId }: { kind: AutoKind; materials: AutoMaterials; setMaterials: (x: AutoMaterials) => void; m: WizardMaterials; projectId: string }) {
-  if (kind === "series") {
-    return (
-      <Card className="px-6 py-5 max-sm:px-4 max-sm:py-4">
-        <Field label="どのシリーズか" htmlFor="auto-format" required>
-          <select
-            id="auto-format"
-            className="h-11 rounded-md border border-input bg-surface px-3 text-base"
-            value={materials.format_id ?? ""}
-            onChange={(e) =>
-              setMaterials({
-                ...materials,
-                format_id: e.target.value || undefined,
-              })
-            }
-          >
-            <option value="">選んでください</option>
-            {m.seriesFormats.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name}
-              </option>
-            ))}
-          </select>
-        </Field>
-      </Card>
-    );
-  }
   if (kind === "product") {
     const picked = materials.destination_ids ?? [];
     return (
@@ -669,9 +572,9 @@ function KindDetail({ kind, materials, setMaterials, m, projectId }: { kind: Aut
     return (
       <Card className="flex flex-col gap-2 px-6 py-5 max-sm:px-4 max-sm:py-4">
         <p className="flex flex-wrap items-center gap-x-3 text-[14px]">
-          <span className="font-bold">予定 {m.events} 件</span>
+          <span className="font-bold">登録したお知らせ・季節の予定 {m.events} 件</span>
           <Link href={`/projects/${projectId}/auto/events`} className="text-sm font-bold underline">
-            予定を入れる →
+            お知らせを入れる →
           </Link>
         </p>
         <label className="flex items-center gap-2.5 text-[15px]">

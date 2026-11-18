@@ -7,14 +7,22 @@ import { loadMaterialCounts } from "@/lib/auto-post/ui-queries";
 import { loadTimeTrends } from "@/lib/metrics/time-trends";
 import { getAccountPlan } from "@/lib/plan/queries";
 import { connectedAccounts } from "@/lib/posts/queries";
+import { isAppProject } from "@/lib/projects/product-types";
+import { getProject } from "@/lib/projects/queries";
 import type { SnsKey } from "@/lib/sns";
 import { toYmd } from "@/lib/time";
 
 // 始める・直す画面に渡すもの（材料の数・つないだ SNS・設計の役割と頻度・時間帯の傾向）。AI は呼ばない
 export async function wizardProps(projectId: string, plan: AutoPlan | null): Promise<ComponentProps<typeof PlanWizard>> {
-  const [counts, accounts, account, trends] = await Promise.all([loadMaterialCounts(projectId), connectedAccounts(projectId), getAccountPlan(projectId), loadTimeTrends(projectId)]);
+  const [counts, accounts, account, trends, project] = await Promise.all([
+    loadMaterialCounts(projectId),
+    connectedAccounts(projectId),
+    getAccountPlan(projectId),
+    loadTimeTrends(projectId),
+    getProject(projectId),
+  ]);
   const roles = account ? (Object.keys(account.plan.cadence.roles) as SnsKey[]).filter((k) => account.plan.cadence.roles[k]?.trim()) : [];
-  const pillars = account ? account.plan.pillars.items.filter((i) => i.name.trim()).length : 0;
+  const pillarNames = account ? account.plan.pillars.items.map((i) => i.name.trim()).filter(Boolean) : [];
   const suggestMaterials = {
     unusedNotes: counts.unusedNotes,
     unusedPhotoNotes: counts.unusedPhotoNotes,
@@ -29,9 +37,12 @@ export async function wizardProps(projectId: string, plan: AutoPlan | null): Pro
       seriesFormats: counts.seriesFormats,
       destinations: counts.destinations,
       events: counts.events,
-      pillars,
+      pillars: pillarNames.length,
+      pillarNames,
     },
     kindSuggestion: suggestKind(suggestMaterials),
+    // 「開発の進み」は、宣伝するものがアプリのときだけ出す（CLAUDE.md）
+    isApp: project ? isAppProject(project) : false,
     connected: Object.keys(accounts) as SnsKey[],
     planRoles: roles,
     trends,

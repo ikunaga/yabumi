@@ -6,10 +6,20 @@ export const KIND_LABELS: Record<AutoKind, string> = {
   series: "シリーズ",
   product: "商品・サービスの紹介",
   notes: "ネタ帳のメモから",
-  pillars: "柱ごとの定番",
+  pillars: "テーマを順番に",
   rerun: "伸びた投稿の言い直し",
   events: "お知らせ・季節",
   commits: "開発の進み",
+};
+
+// 始める画面の「何を」のカードの 1 行の説明（何が起きるか）。柱は用語の説明を付けるので画面の側で組む
+export const KIND_DESCRIPTIONS: Record<Exclude<AutoKind, "pillars">, string> = {
+  series: "毎回 AI が新しいお題を考えます。前の回と同じお題は出しません。",
+  product: "行き先（商品のページなど）へのリンクをつけて、1 つずつ紹介します。",
+  notes: "書きためたメモを 1 つずつ投稿にします。",
+  rerun: "よく見られた投稿を、言い方を変えてもう一度出します。",
+  events: "登録したお知らせ（イベント・新商品など）を先に投稿します。なければ季節のあいさつにします。",
+  commits: "アプリの開発の進み（直したこと・足したこと）を投稿にします。",
 };
 
 export const TARGET_MODE_LABELS: Record<TargetMode, string> = {

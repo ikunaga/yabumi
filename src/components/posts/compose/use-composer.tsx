@@ -717,8 +717,9 @@ export function useComposer({
     submit("schedule");
   }
 
-  // onFail: 保存・送信できなかったとき（「新しい版があります」の帯の「下書きに保存して読み込み直す」が、読み込み直すのをやめる）
-  function submit(intent: "draft" | "schedule" | "now", opts: { onFail?: () => void } = {}) {
+  // 「新しい版があります」の帯の「下書きに保存して読み込み直す」から（src/lib/reload-saver.ts）。
+  // reloadToken: 保存した下書きへ移る URL に付ける合図。onFail: 保存・送信できなかったとき（読み込み直すのをやめる）
+  function submit(intent: "draft" | "schedule" | "now", opts: { onFail?: () => void; reloadToken?: string } = {}) {
     // 押したときにも X の上限を調べ直す（止めるのはサーバーの savePost。ここは画面の知らせを今の額に合わせる）
     if (intent !== "draft") recheckX();
     setTouched(true);
@@ -752,6 +753,7 @@ export function useComposer({
         formatId,
         formatRoundIds: roundIds,
         step: composeStep,
+        ...(opts.reloadToken ? { reloadToken: opts.reloadToken } : {}),
         targets: chosen.map((sns) => ({
           sns,
           bodyOverride: overrides[sns] ?? null,
@@ -791,7 +793,7 @@ export function useComposer({
   const unsaved = resetChanges.length > 0 && busy === null && !videoBusy;
   useEffect(() => {
     if (!unsaved) return;
-    const fn: ReloadSaver = (onFail) => submitRef.current("draft", { onFail });
+    const fn: ReloadSaver = (reloadToken, onFail) => submitRef.current("draft", { onFail, reloadToken });
     setReloadSaver(fn);
     return () => {
       if (getReloadSaver() === fn) setReloadSaver(null);

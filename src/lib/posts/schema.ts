@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { RELOAD_TOKEN_RE } from "@/lib/reload-saver";
 import { MAX_ALT_LENGTH, MAX_IMAGES_PER_POST } from "@/lib/media/rules";
 import { mediaEditSchema } from "@/lib/media/edit-schema";
 import { tiktokChoiceSchema } from "@/lib/sns/tiktok/choice";
@@ -72,6 +73,8 @@ export const savePostInputSchema = z.object({
   formatRoundIds: z.array(z.uuid()).max(20).default([]),
   // 下書きに保存したときに開いていたステップ（保存のあとも同じステップに戻す。2026-11-18 PMO の付箋 17）
   step: z.number().int().min(1).max(5).optional(),
+  // 「新しい版があります」の帯から保存したときの合図。保存した下書きへ移る URL の ?r= に付け、帯が移ったと気づく（src/lib/reload-saver.ts）
+  reloadToken: z.string().regex(RELOAD_TOKEN_RE).optional(),
 });
 
 export type SavePostInput = z.input<typeof savePostInputSchema>;

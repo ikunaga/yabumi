@@ -9,17 +9,24 @@ export function ComposeStart({
   aiEnabled,
   notesOpen,
   onNotes,
+  formatsOpen,
+  onFormats,
 }: {
   projectId: string;
   aiEnabled: boolean;
   notesOpen: boolean;
   onNotes: () => void;
+  formatsOpen: boolean;
+  onFormats: () => void;
 }) {
   return (
     <nav aria-label="投稿のつくり方" className="flex flex-wrap items-center gap-2">
       <span aria-current="page" className={chipSolidClass(true)}>
         自分で書く
       </span>
+      <button type="button" aria-expanded={formatsOpen} aria-controls="compose-formats" onClick={onFormats} className={chipClass({ on: formatsOpen })}>
+        フォーマットから
+      </button>
       {aiEnabled ? (
         <Link href={`/projects/${projectId}/ideas`} className={`${chipClass()} hover:no-underline`}>
           AI とネタを出す →

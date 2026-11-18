@@ -195,6 +195,8 @@ export function useComposer({
   const [formatSeed, setFormatSeed] = useState<{ id: string | null; values: Record<string, string>; answer: string }>(() => ({ id: initial.formatId ?? null, values: {}, answer: "" }));
   // 書きかけを戻すたびに、フォーマットの欄を作り直す（formatSeed で開き直す）
   const [formatRound, setFormatRound] = useState(0);
+  // 「フォーマットから」の欄を開いているか。保存した投稿・控えでフォーマットを選んでいたら開いて出す（閉じても選んだものは残る）
+  const [formatsOpen, setFormatsOpen] = useState(Boolean(initial.formatId));
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const overrideRef = useRef<HTMLTextAreaElement>(null);
   const [selected, setSelected] = useState<Set<SnsKey>>(() => new Set(initial.targets.map((t) => t.sns)));
@@ -375,6 +377,7 @@ export function useComposer({
       setFormatId(null);
       setFormatSeed(f ? { id: f.id, values: f.values, answer: f.answer } : { id: null, values: {}, answer: "" });
       if (f) for (const id of f.roundIds) addRoundId(id);
+      if (f) setFormatsOpen(true);
       setFormatRound((n) => n + 1);
     }
     // 控えたときのステップに戻す（前の版の控えにはない）
@@ -444,6 +447,7 @@ export function useComposer({
     setFormatUse(null);
     setFormatId(initial.formatId ?? null);
     setFormatSeed({ id: initial.formatId ?? null, values: {}, answer: "" });
+    setFormatsOpen(Boolean(initial.formatId));
     // 本文から外したので、この画面で付けた、まだ投稿に結びついていない記録は消す（残すと、使っていない回が次の回の案から外れる）
     if (roundIds.length) void discardFormatRounds(projectId, roundIds);
     setRoundIds([]);
@@ -1009,6 +1013,8 @@ export function useComposer({
     setSending,
     notesOpen,
     setNotesOpen,
+    formatsOpen,
+    setFormatsOpen,
     noteIds,
     setNoteIds,
     touched,

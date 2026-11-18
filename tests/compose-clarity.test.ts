@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { imagesStepNext } from "@/lib/posts/compose-steps";
 import { isProcessing, RESULT_POLL_MAX, RESULT_POLL_MS } from "@/lib/posts/send-mode";
-import { getReloadSaver, savedAfter, setReloadSaver, subscribeReloadSaver } from "@/lib/reload-saver";
+import { getReloadSaver, newReloadToken, RELOAD_TOKEN_RE, savedWith, setReloadSaver, subscribeReloadSaver } from "@/lib/reload-saver";
 import { savePostInputSchema } from "@/lib/posts/schema";
 
 // 2026-11-18 PMO の SP の通し（連想映画クイズ）で見つかった、投稿をつくるのわかりづらいところ
@@ -63,14 +63,31 @@ describe("新しい版の帯から下書きに保存（付箋 16）", () => {
     setReloadSaver(null);
     expect(n).toBe(2);
   });
-  it("保存して下書きの画面に移ったときだけ、読み込み直す", () => {
-    const before = "https://yabumi.app/projects/p/posts/new?step=3";
-    expect(savedAfter(before, "https://yabumi.app/projects/p/posts/abc?done=saved&step=3")).toBe(true);
-    expect(savedAfter(before, before)).toBe(false);
-    expect(savedAfter(before, "https://yabumi.app/projects/p/posts/new?step=4")).toBe(false);
-    // 同じ投稿をもう一度保存した（前も ?done=saved だった）ときは、URL が変わらなければ移っていない
-    const saved = "https://yabumi.app/projects/p/posts/abc?done=saved&step=3";
-    expect(savedAfter(saved, saved)).toBe(false);
+  it("この保存の合図が付いた下書きの画面に移ったときだけ、読み込み直す", () => {
+    const t = "abc12345xyz";
+    expect(savedWith("https://yabumi.app/projects/p/posts/abc?done=saved&step=3&r=abc12345xyz", t)).toBe(true);
+    // 移っていない・前の保存の画面のまま
+    expect(savedWith("https://yabumi.app/projects/p/posts/new?step=3", t)).toBe(false);
+    expect(savedWith("https://yabumi.app/projects/p/posts/abc?done=saved&step=3", t)).toBe(false);
+    expect(savedWith("https://yabumi.app/projects/p/posts/abc?done=saved&step=3&r=old0000000", t)).toBe(false);
+  });
+  it("すでに ?done=saved の画面で同じ段のまま保存し直しても、移ったと気づく（2026-11-18 のセキュリティ確認）", () => {
+    // 前は「URL が変わったか」で見ていたので、移る先が今と同じ URL になり、30 秒後に「保存できませんでした」と出た
+    const here = "https://yabumi.app/projects/p/posts/abc?done=saved&step=2";
+    const t = newReloadToken();
+    const after = `https://yabumi.app/projects/p/posts/abc?done=saved&step=2&r=${t}`;
+    expect(savedWith(here, t)).toBe(false);
+    expect(savedWith(after, t)).toBe(true);
+  });
+  it("合図は毎回変わり、サーバーが受け取る形に収まる", () => {
+    const a = newReloadToken();
+    expect(a).toMatch(RELOAD_TOKEN_RE);
+    expect(newReloadToken()).not.toBe(a);
+    const r = savePostInputSchema.shape.reloadToken;
+    expect(r.safeParse(a).success).toBe(true);
+    expect(r.safeParse(undefined).success).toBe(true);
+    // redirect の URL に入るので、記号は受け取らない
+    for (const bad of ["x&done=sent", "a/b", "short", "A".repeat(10), "a".repeat(33)]) expect(r.safeParse(bad).success).toBe(false);
   });
 });
 

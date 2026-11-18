@@ -343,7 +343,9 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
   }
   // 下書きに保存したら、開いていたステップのまま（前は ⑤ のまとめに飛んだ。2026-11-18 PMO の付箋 17）
   const step = parsed.data.step ? `&step=${parsed.data.step}` : "";
-  redirect(`/projects/${projectId}/posts/${savedId}?done=saved${step}`);
+  // 新しい版の帯から保存したときは、その合図を付ける（同じ URL のまま保存し直しても、帯が移ったと気づけるように）
+  const reload = parsed.data.reloadToken ? `&r=${parsed.data.reloadToken}` : "";
+  redirect(`/projects/${projectId}/posts/${savedId}?done=saved${step}${reload}`);
 }
 
 // 失敗したときは { error } を返し、作成画面に出す（成功したときはカレンダーへ移る）

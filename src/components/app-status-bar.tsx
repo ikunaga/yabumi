@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { STALE_EVENT } from "@/lib/client-errors";
-import { getReloadSaver, savedAfter, subscribeReloadSaver } from "@/lib/reload-saver";
+import { getReloadSaver, newReloadToken, savedWith, subscribeReloadSaver } from "@/lib/reload-saver";
 
 // 画面のいちばん上に出す小さな帯（docs/architecture.md の 4.35）。押す前に気づけるように、次の 2 つを知らせる。
 // - 通信が切れている（保存や送信は、つながるまで進まない）
@@ -33,6 +33,8 @@ export function AppStatusBar() {
   const saver = useSyncExternalStore(subscribeReloadSaver, getReloadSaver, () => null);
   // 下書きに保存している（保存できたら、移った先で読み込み直す）・保存できなかった
   const [saving, setSaving] = useState<"saving" | "failed" | null>(null);
+  // この保存の合図（移った先の URL に付く）
+  const [token, setToken] = useState("");
 
   useEffect(() => {
     const onStale = () => setStale(true);
@@ -72,10 +74,9 @@ export function AppStatusBar() {
   // 保存したら、保存した下書きの画面に移る。移ったのを見てから読み込み直す（30 秒たっても移らなければやめる）
   useEffect(() => {
     if (saving !== "saving") return;
-    const before = window.location.href;
     const started = Date.now();
     const timer = setInterval(() => {
-      if (savedAfter(before, window.location.href)) {
+      if (savedWith(window.location.href, token)) {
         clearInterval(timer);
         window.location.reload();
       } else if (Date.now() - started > 30_000) {
@@ -84,12 +85,14 @@ export function AppStatusBar() {
       }
     }, 300);
     return () => clearInterval(timer);
-  }, [saving]);
+  }, [saving, token]);
 
   function saveThenReload() {
     if (!saver) return window.location.reload();
+    const t = newReloadToken();
+    setToken(t);
     setSaving("saving");
-    saver(() => setSaving("failed"));
+    saver(t, () => setSaving("failed"));
   }
 
   if (online && !stale) return null;

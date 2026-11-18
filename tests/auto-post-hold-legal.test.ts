@@ -1,11 +1,11 @@
 // 運営者が自動の投稿を止めた記録の版（docs/legal.md の「運営者が自動の投稿を止めた記録の版」。② として扱った。了承は 2026-11-18）:
 // 版の並び・ポリシーの新しい文・作り（20261118100000_auto_post_holds）との一致。
-// 版の日付は本番に出す日に PM が合わせる。合わせるときは src/lib/legal/version.ts の version とこの VERSION を一緒に直す
+// 版は 2026-11-18（本番に出す日。2026-11-18 オーナーがデプロイを了承）。src/lib/legal/version.ts の version と同じ
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { LEGAL_VERSIONS, historyProblems } from "@/lib/legal/version";
 
-const VERSION = "2026-11-19";
+const VERSION = "2026-11-18";
 const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 
 describe("運営者が自動の投稿を止めた記録の版", () => {

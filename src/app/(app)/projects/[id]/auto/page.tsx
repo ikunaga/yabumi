@@ -22,7 +22,7 @@ export const metadata: Metadata = { title: "自動の投稿" };
 const DAY_MS = 86_400_000;
 
 // 自動の投稿の一覧（docs/design/auto-post.md の 1.6・1.7）。上に確かめ待ちと次の回、下に回し方ごとに 1 行。
-// 入口は「…」（その他）・概要の帯・投稿をつくるの「↻ 自動で回す」・カレンダー
+// 入口は「…」（その他）・概要の帯・カレンダー（投稿をつくるには置かない。2026-11-18 オーナーの指示）
 export default async function AutoListPage(props: PageProps<"/projects/[id]/auto">) {
   const [{ id }, { started }] = await Promise.all([props.params, props.searchParams]);
   const project = await getProject(id);

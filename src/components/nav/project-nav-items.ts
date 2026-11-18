@@ -15,7 +15,7 @@ export function projectNavItems(projectId: string): ProjectNavItem[] {
     { key: "metrics", label: "分析", barLabel: "Analytics", tabLabel: "分析", href: `${base}/metrics`, main: true },
     { key: "consult", label: "AI と相談", barLabel: "Ask AI", tabLabel: "相談", href: `${base}/consult`, main: true },
     // ここから「…」（その他）。概要の「いまやること」「今週のやること」からも開く
-    // 自動の投稿（docs/design/auto-post.md の 1.2。A7 の ①）。概要の帯・投稿をつくるの「↻ 自動で回す」・カレンダーからも開く
+    // 自動の投稿（docs/design/auto-post.md の 1.2。A7 の ①）。概要の帯・カレンダーからも開く（投稿をつくるには入口を置かない。2026-11-18 オーナーの指示）
     { key: "auto", label: "自動の投稿", barLabel: "Autopilot", tabLabel: "自動の投稿", href: `${base}/auto`, main: false },
     // 下書きの一覧（保存した下書きを探して続ける。概要とカレンダーの「下書き n 件」・投稿をつくるの「下書きから続ける」からも開く。2026-11-13 PMO2 の確かめ）
     { key: "drafts", label: "下書き", barLabel: "Drafts", tabLabel: "下書き", href: `${base}/drafts`, main: false },

@@ -78,7 +78,7 @@ export function PostComposer(props: ComposerProps) {
   const notePicker = notesOpen && !postId && (
     <NotePicker projectId={projectId} bodyHasText={body.trim() !== ""} pickedIds={noteIds} onPick={pickNote} onClose={() => setNotesOpen(false)} />
   );
-  const start = !postId && <ComposeStart projectId={projectId} aiEnabled={aiCheckEnabled} autoHref={props.autoHref} notesOpen={notesOpen} onNotes={() => setNotesOpen((o) => !o)} />;
+  const start = !postId && <ComposeStart projectId={projectId} aiEnabled={aiCheckEnabled} notesOpen={notesOpen} onNotes={() => setNotesOpen((o) => !o)} />;
 
   return (
     <>

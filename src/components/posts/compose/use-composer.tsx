@@ -115,8 +115,6 @@ export type ComposerProps = {
   selfWrittenPosts?: number | null;
   // 書き方（文調のメモ）がもうあるか（あれば、すすめも案内も出さない）
   hasVoiceMemo?: boolean;
-  // 見出しの横の「↻ 自動で回す」の行き先（新しい投稿だけ。渡さなければ出さない。docs/design/auto-post.md の 1.2）
-  autoHref?: string;
   // プロジェクトの「いつものタグ」（projects.default_hashtags）。新しい投稿の SNS ごとのタグの欄の初期値と、フォーマットにその SNS のタグがないときの戻り先
   defaultHashtags?: DefaultHashtags;
 };

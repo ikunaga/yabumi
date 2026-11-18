@@ -20,8 +20,6 @@ import { countUnsentDrafts } from "@/lib/posts/drafts";
 import { createClient } from "@/lib/supabase/server";
 import { isSnsKey } from "@/lib/sns";
 import { isYmd } from "@/lib/time";
-import { autoEntryHref } from "@/lib/auto-post/entry";
-import { listAutoPlans } from "@/lib/auto-post/queries";
 
 export const metadata: Metadata = { title: "投稿をつくる" };
 
@@ -36,15 +34,13 @@ export default async function ComposePage(props: PageProps<"/projects/[id]/compo
   const profileLink = await loadProfileLinkInfo(await createClient(), project);
   // 「最初は自分で書く」のすすめに使う（docs/design/voice-from-posts.md の 3.4）
   const db = await createClient();
-  const [selfWrittenPosts, voiceMemo, accountNames, linkBase, draftsCount, autoPlans] = await Promise.all([
+  const [selfWrittenPosts, voiceMemo, accountNames, linkBase, draftsCount] = await Promise.all([
     countSelfWrittenPosts(db, project.id),
     hasVoiceMemo(db, project.id),
     connectedAccountNames(project.id),
     projectLinkBase(db, project.id),
     // 下書きの数（見出しの横の「下書きから続ける（n 件）」。2026-11-13 PMO2 の確かめ: Compose を押すと、いつも新しい空の投稿になった）
     countUnsentDrafts(db, project.id),
-    // 「↻ 自動で回す」の行き先（回し方がなければ始める画面）。読めなければ一覧へ
-    listAutoPlans(project.id).catch(() => null),
   ]);
   const item = typeof searchParams.item === "string" && /^[0-9a-f-]{36}$/.test(searchParams.item) ? await loadItem(project.id, searchParams.item) : null;
   const date = isYmd(searchParams.date) ? searchParams.date : (item?.planned_on ?? null);
@@ -70,7 +66,6 @@ export default async function ComposePage(props: PageProps<"/projects/[id]/compo
       hasVoiceMemo={voiceMemo}
       accountNames={accountNames}
       linkBase={linkBase}
-      autoHref={autoPlans ? autoEntryHref(project.id, autoPlans.length) : `/projects/${project.id}/auto`}
       initial={{
         body: "",
         targets: (item?.sns && isSnsKey(item.sns) ? [item.sns] : SNS_KEYS.filter((s) => connected.includes(s))).map((sns) => ({ sns, bodyOverride: null })),

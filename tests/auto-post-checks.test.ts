@@ -82,6 +82,34 @@ describe("URL は登録した行き先の中だけ（前方一致ですり抜け
     // 文の「。」や、ドメインでない言葉は拾わない
     expect(foreignLinks("くるみパンを焼きました。ver.2 です", allowed)).toEqual([]);
   });
+  it("直前が「-」「/」でもドメインを拾う（2026-11-18 のセキュリティ確認の Low）", () => {
+    expect(foreignLinks("-evil.com", allowed)).toEqual(["evil.com"]);
+    expect(foreignLinks("くわしくは -evil.com へ", allowed)).toEqual(["evil.com"]);
+    expect(foreignLinks("a/evil.com を見て", allowed)).toEqual(["evil.com"]);
+    expect(foreignLinks("パン/evil.com/x を見て", allowed)).toEqual(["evil.com/x"]);
+    expect(foreignLinks("ーevil.com", allowed)).toHaveLength(1);
+    for (const text of ["-evil.com", "a/evil.com"]) expect(plainIssues({ threads: text }, { allowedUrls: allowed, recent: {} })[0]?.kind, text).toBe("check_failed");
+    // 「。」（U+3002）の後ろのドメインも拾い、ふつうの文の「。」はドメインにしない
+    expect(foreignLinks("見てね。evil.com", allowed)).toEqual(["evil.com"]);
+    expect(foreignLinks("見てね。-evil.com", allowed)).toEqual(["evil.com"]);
+    expect(foreignLinks("焼きたてです。また来てね。", allowed)).toEqual([]);
+    // 英数字のあいだの「。」「｡」は区切りとして見る（URL の決まりでは https://evil。com は evil.com を開く）
+    expect(foreignLinks("evil。com を見て", allowed)).toEqual(["evil.com"]);
+    expect(foreignLinks("evil｡com を見て", allowed)).toEqual(["evil.com"]);
+    expect(foreignLinks("https://evil。com/x を見て", allowed)).toEqual(["https://evil.com/x"]);
+    expect(foreignLinks("くわしくは shop。example。com へ", allowed)).toEqual([]);
+    expect(foreignLinks("OK。また来てね。ver.2 です", allowed)).toEqual([]);
+    // ハイフンを含むドメインは途中から拾い直さない（1 つとして拾う）
+    expect(foreignLinks("my-shop.example.org です", allowed)).toEqual(["my-shop.example.org"]);
+  });
+  it("登録した行き先の URL のパスの中の字（「/」「-」のあと）を、ドメインとして拾い直さない", () => {
+    const dest = ["https://shop.example.com/items/"];
+    expect(foreignLinks("https://shop.example.com/items/new-bread.html を見て", dest)).toEqual([]);
+    expect(foreignLinks("https://shop.example.com/items/a/b.html を見て", dest)).toEqual([]);
+    expect(foreignLinks("shop.example.com/items/new-bread.html を見て", dest)).toEqual([]);
+    expect(foreignLinks("shop.example.com/items/x/y-z.html を見て", dest)).toEqual([]);
+    expect(foreignLinks("https://shop.example.com/items/x-y.z?q=a/b.c#top を見て", dest)).toEqual([]);
+  });
 });
 
 describe("AI っぽさチェックの結果の扱い（A2 の ②）", () => {

@@ -52,7 +52,10 @@ const URL_RE = /https?:\/\/[^\s<>"'）)]+/gi;
 // 本文は先に NFKC にそろえる（全角の「．」「ｊｐ」を「.」「jp」に）。判定は https:// を付けた URL のホスト（punycode）で、urlAllowed がする
 // ラベルの長さ（DNS では 63 字まで）では縛らない。縛ると、日本語の文に 64 字以上くっついたドメイン（「あ…あevil.com」）が、
 // どこから始めても当たらず、すり抜ける。長すぎるラベルは、文ごと拾ってから urlAllowed が外のものとして扱う（行き先の URL とは合わない）
-const BARE_DOMAIN_RE = /(?<![\p{L}\p{N}@./-])(?:[\p{L}\p{N}](?:[\p{L}\p{N}-]*[\p{L}\p{N}])?\.)+(?:xn--[a-z0-9-]{1,59}|\p{L}{2,24})(?:\/[^\s<>"'）)]*)?/giu;
+// 直前の字が「/」「-」のときも拾う（X は「-evil.com」「a/evil.com」の evil.com もリンクにする見込み。2026-11-18 のセキュリティ確認の Low）。
+// 前は「/」「-」の後ろを除いていたが、スキームつきの URL は先に消し、ドメインのあとのパスはこの式が続けて飲み込むので、
+// 行き先の URL のパスの中から拾い直すことはない。「.」「@」の後ろは除いたまま（a.b.com の b.com・メールアドレスを別に拾わない）
+const BARE_DOMAIN_RE = /(?<![\p{L}\p{N}@.])(?:[\p{L}\p{N}](?:[\p{L}\p{N}-]*[\p{L}\p{N}])?\.)+(?:xn--[a-z0-9-]{1,59}|\p{L}{2,24})(?:\/[^\s<>"'）)]*)?/giu;
 
 // 本文の URL が、登録した行き先のどれかの中か。前方一致の文字列では比べない（https://shop.example.com.evil.org/ を通さない）。
 // オリジン（スキーム・ホスト・ポート）が同じで、パスが行き先のパスの中（「/」の区切りで）にあり、ユーザー名・パスワードがないこと
@@ -80,7 +83,9 @@ export function urlAllowed(raw: string, allowed: readonly string[]): boolean {
 // 本文にある、リンクになりうるもの（スキームつきの URL と、スキームのないドメイン）のうち、行き先の外のもの
 export function foreignLinks(text: string, allowed: readonly string[]): string[] {
   const out: string[] = [];
-  text = text.normalize("NFKC");
+  // 英数字のあいだの「。」（U+3002。半角の「｡」は NFKC でこれになる）は「.」として見る。URL の決まり（IDNA）では「。」も区切りで、
+  // https://evil。com は evil.com を開く。日本語の文の「。」（前か後ろが英数字でない）はそのまま
+  text = text.normalize("NFKC").replace(/(?<=[a-z0-9])\u3002(?=[a-z0-9])/gi, ".");
   const withScheme = text.match(URL_RE) ?? [];
   for (const u of withScheme) if (!urlAllowed(u, allowed)) out.push(u);
   const rest = text.replace(URL_RE, " ");

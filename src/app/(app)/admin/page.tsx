@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { formatLegalDate, upcomingLegalChange } from "@/lib/legal/version";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { listWaitlist } from "@/lib/waitlist/store";
+import { listAutoPostHolds } from "@/lib/auto-post/holds";
 import { requireUser } from "@/lib/auth/user";
 import { isOperatorEmail } from "@/lib/waitlist/operator";
 
@@ -16,7 +17,8 @@ export const metadata: Metadata = { title: "運営", robots: { index: false } };
 export default async function AdminPage() {
   const user = await requireUser();
   if (!isOperatorEmail(user.email)) notFound();
-  const [entries, change] = [await listWaitlist(createAdminClient()), upcomingLegalChange()];
+  const admin = createAdminClient();
+  const [entries, holds, change] = [await listWaitlist(admin), await listAutoPostHolds(admin), upcomingLegalChange()];
   return (
     <>
       <TopBar email={user.email} crumb={<b className="text-fg">運営</b>} mobileBack={{ href: "/projects", title: "運営" }} />
@@ -47,6 +49,20 @@ export default async function AdminPage() {
               }
               value={change ? formatLegalDate(change.version) : "なし"}
               note={change ? "施行の予定の変更" : "予定の変更はありません"}
+              className="group-hover:border-input"
+            />
+          </Link>
+          <Link href="/admin/auto-holds" className="group hover:no-underline">
+            <Metric
+              label={
+                <span className="flex items-center gap-1.5">
+                  自動の投稿を止める
+                  <span aria-hidden className="text-faint group-hover:text-fg">→</span>
+                </span>
+              }
+              value={holds.length}
+              unit="人"
+              note="止めている人・止める・解除する"
               className="group-hover:border-input"
             />
           </Link>

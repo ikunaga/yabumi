@@ -11,7 +11,7 @@ import { SuccessBanner } from "@/components/ui/feedback";
 import { SnsTag } from "@/components/ui/marks";
 import { Metric } from "@/components/ui/metric";
 import { EXPIRED_TARGET_LABEL, KIND_LABELS, RUN_REASON_TEXT, RUN_STATUS_LABELS, TARGET_MODE_LABELS } from "@/lib/auto-post/labels";
-import { getAutoPlan, listAutoRuns, listUpcomingAutoRuns } from "@/lib/auto-post/queries";
+import { getAutoPlan, getAutoPostHold, listAutoRuns, listUpcomingAutoRuns } from "@/lib/auto-post/queries";
 import type { AutoRun } from "@/lib/auto-post/types";
 import type { SnsKey } from "@/lib/sns";
 import { loadRunResults, type RunTargetResult } from "@/lib/auto-post/ui-queries";
@@ -28,7 +28,7 @@ export default async function AutoPlanPage(props: PageProps<"/projects/[id]/auto
   const [project, plan] = await Promise.all([getProject(id), getAutoPlan(planId)]);
   if (!project || !plan || plan.projectId !== project.id) notFound();
   const now = new Date();
-  const [runs, upcoming] = await Promise.all([listAutoRuns(plan.id, 50), listUpcomingAutoRuns(project.id, now, new Date(now.getTime() + 90 * DAY_MS))]);
+  const [runs, upcoming, hold] = await Promise.all([listAutoRuns(plan.id, 50), listUpcomingAutoRuns(project.id, now, new Date(now.getTime() + 90 * DAY_MS)), getAutoPostHold()]);
   const results = await loadRunResults(runs.flatMap((r) => (r.postId ? [r.postId] : [])));
   const next = upcoming.find((u) => u.planId === plan.id) ?? null;
 
@@ -54,7 +54,7 @@ export default async function AutoPlanPage(props: PageProps<"/projects/[id]/auto
             </h1>
             <p className="num text-[15px] text-faint">{next ? `次は ${formatShort(next.dueAt)}` : plan.status === "active" ? "次の回はまだありません" : "止めています"}</p>
           </div>
-          <PlanControls projectId={project.id} planId={plan.id} status={plan.status} nextLabel={next ? formatShort(next.dueAt) : null} />
+          <PlanControls projectId={project.id} planId={plan.id} status={plan.status} nextLabel={next ? formatShort(next.dueAt) : null} held={hold !== null} />
         </div>
       </div>
       {saved === "1" && <SuccessBanner>直しました。まだ作っていない回から、新しい設定で作ります。</SuccessBanner>}

@@ -749,6 +749,57 @@ AI の枠は、自動の投稿の分を別に持つ（A4。2026-11-16 オーナ�
 | 31-1 | PM | マイグレーション 20261116100000_auto_post と 20261116110000_auto_post_ai_budget を本番に当てる（表 4 つ・posts.auto_run_id・post_targets.status の check に awaiting_approval を足す〈既存の行が新しい check を通ることを先に確かめる〉・関数の追加と、save_post・post_targets_lock_sent・switch_project_sns_account・reserve_ai_usage の置き換え） | まだ |
 | 31-2 | オーナー | **Claude Console の使いすぎの上限を、月 $15 から $20 ほどに上げる**（Settings → Limits。6-3 で決めた上限。yabumi の上限〈ふだん $10 ＋ 自動の投稿 $5〉より少し上にして、yabumi の計算がずれても請求がそれ以上にならないようにする） | まだ |
 | 31-1b | PM | マイグレーション 20261116120000_auto_post_engine を本番に当てる（claim_due_auto_runs の作り直し・requeue_failed_targets の置き換え・auto_runs と notification_prefs の列・pg_cron の yabumi-auto-post〈10 分ごと〉と yabumi-purge-auto-post〈毎日〉）。**当てた時点でジョブは 10 分ごとに呼ばれるが、AUTO_POST_ENABLED がない間は何もしない** | まだ |
-| 31-3 | PM | 規約・ポリシーの ② の版（legal.md の「案: 自動の投稿」。2026-11-17 にオーナーが了承し、docs/auto-post-legal-apply で本文と LEGAL_VERSIONS の版〈2026-11-17【仮】〉を入れた）。本番に出す日が 2026-11-17 でなければ、LEGAL_VERSIONS の version と tests/auto-post-legal.test.ts の VERSION をその日に直す。施行したら本番の本文に git のタグ legal-（施行日）を打つ | 本文は入れた。日付とタグはまだ |
+| 31-3 | PM | 規約・ポリシーの ② の版（legal.md の「案: 自動の投稿」。2026-11-17 にオーナーが了承し、docs/auto-post-legal-apply で本文と LEGAL_VERSIONS の版を入れた） | 済み（2026-11-17 に施行。タグ legal-2026-11-17） |
 | 31-4 | オーナー | **法務の了承（31-3）と 31-1・31-1b・31-2 が済んでから**、Vercel の Production に `AUTO_POST_ENABLED=true` を足して Redeploy（Preview には入れない）。止めるときは値を消すか false にして Redeploy（新しい回を作らなくなる。作り終えた予約は送信ジョブがそのまま送るので、止めたい予約は利用者の「全部止める」か、投稿を下書きに戻す） | まだ |
 | 31-5 | オーナー・PM | **オーナーの了承のあとで**、本物の AI で数回確かめる（費用は src/lib/ai/pricing.ts で先に出す。1 回 約 $0.06〜0.10）。確かめること: 回が予約になり Threads に送られる、X は確かめ待ちになり承認すると送られる、下書きに回る・飛ばす道、知らせ（本文が入らない） | まだ |
+
+## 32. 運営者が利用者ごとに自動の投稿を止める（2026-11-18、feat/operator-auto-stop。architecture.md の 4.77）
+
+止めると、その利用者は自動の投稿を作る・直す・再開する・送ることができなくなる（手で作る投稿はそのまま）。まだ送っていない自動の回は取り消し、作り終えた投稿は下書きに戻す。利用者には画面の帯とスマホの通知で、止めていることと問い合わせ先だけを知らせる（理由は見せない）。解除すると、動いている回し方は最初の回を確かめてから送る。
+
+| # | だれが | やること | 状態 |
+|---|---|---|---|
+| 32-1 | PM | マイグレーション 20261118100000_auto_post_holds を本番に当てる（auto_post_holds の表と、関数 8 つの作り直し・5 つの追加。2026-11-18 の確認の Low の直しも入っている。確かめて送る SNS の、指紋の合わない承認の pending は、当てた時点で確かめ待ちに戻る） | まだ |
+| 32-2 | PM | プライバシーポリシーの版（legal.md の「運営者が自動の投稿を止めた記録の版」。2026-11-19【仮】）を、本番に出す日に合わせる（src/lib/legal/version.ts の version と tests/auto-post-hold-legal.test.ts の VERSION）。施行したら本番の本文に git のタグ legal-（施行日）を打つ | まだ |
+
+### 止める・解除する（ふだんは画面で）
+
+1. OPERATOR_ADMIN_EMAILS のアドレスでログインし、/admin →「自動の投稿を止める」を開く
+2. 利用者のメールアドレスと、理由（運営者のメモ。利用者には見せない。200 字まで）を入れて「止める」→ もう一度「止める」
+3. 解除は、一覧の行の「解除する」で、解除の理由を入れて「解除する」
+4. 急ぎでなければ、止める前に下のひな形で理由を知らせる（利用規約の「利用の停止」: 急ぎでないときは、先に理由を知らせ、直す機会を設ける）
+
+### 画面が使えないとき（Supabase の SQL Editor）
+
+本番の SQL Editor は postgres の権限で動くので、そのまま呼べる。利用者のメールアドレス以外の個人の情報は読まない。
+
+```sql
+-- 止める（3 つ目は、だれが止めたか。'sql' か自分のメールアドレス）
+select * from public.operator_hold_auto_post('user@example.com', '理由（200 字まで）', 'sql');
+-- 解除する
+select * from public.operator_release_auto_post('user@example.com', '解除の理由', 'sql');
+-- いま止めている人
+select * from public.operator_auto_post_holds();
+```
+
+- 止めた結果は `already_held`（すでに止めていた）と `canceled_runs`（取り消した回の数）。解除の結果は `released`（false なら止めていなかった）
+- メールアドレスが見つからなければ `user not found`（P0002）
+
+### 利用者へのメールのひな形（問い合わせ先 contact@yuxport.com から送る）
+
+```
+件名: 【yabumi】自動の投稿を止めました（止めます）
+
+yabumi をご利用いただきありがとうございます。運営の YuXport Labs です。
+
+お使いのアカウントの自動の投稿を、YYYY年M月D日 に止めました（止めます）。
+理由: （利用規約のどの決まりに当たるか、どの投稿・設定かを、具体的に）
+
+止めている間も、投稿を手で作って送ること・データを見ることはできます。
+自動の投稿の、まだ送っていない回は取り消し、作り終えた投稿は下書きに戻しました。
+
+再開について、またはご不明な点は、このメールにご返信ください。
+
+yabumi 運営 YuXport Labs
+```
+

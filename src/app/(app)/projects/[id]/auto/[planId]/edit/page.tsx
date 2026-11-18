@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { HeldNotice } from "@/components/auto-post/hold-banner";
 import { PlanWizard } from "@/components/auto-post/plan-wizard";
-import { getAutoPlan } from "@/lib/auto-post/queries";
+import { getAutoPlan, getAutoPostHold } from "@/lib/auto-post/queries";
 import { getProject } from "@/lib/projects/queries";
 import { wizardProps } from "../../wizard-data";
 
@@ -13,5 +14,7 @@ export default async function AutoEditPage(props: PageProps<"/projects/[id]/auto
   const { id, planId } = await props.params;
   const [project, plan] = await Promise.all([getProject(id), getAutoPlan(planId)]);
   if (!project || !plan || plan.projectId !== project.id) notFound();
+  // 運営者が止めている間は直せない（帯は auto/layout.tsx。DB の save_auto_plan でも断る）
+  if (await getAutoPostHold()) return <HeldNotice projectId={project.id} />;
   return <PlanWizard {...await wizardProps(project.id, plan)} />;
 }

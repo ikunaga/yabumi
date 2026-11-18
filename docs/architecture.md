@@ -3101,3 +3101,23 @@ yabumi のコンセプトは、使って SNS を運用するうちに、マー�
 - 例の投稿は、保存の前と AI に渡すたびに、利用者の権限で「材料に入る投稿」に絞る（allowedVoiceExamples・loadVoiceContext）
 - 費用: 書き方の読み取り 1 回 15〜20 円。ふだんの AI は書き方の分（1,700 トークンほど）で 1 回あたり約 1 円増える
 - 法務: ①（docs/legal.md の 2026-11-09 の記録）
+### 4.77 運営者が利用者ごとに自動の投稿を止める（2026-11-18、オーナーが了承。PM の依頼。feat/operator-auto-stop。20261118100000_auto_post_holds）
+
+回し方ごとの止め方（auto_plans.stop_reason = 'operator'、4.75）は、プロジェクトを消して作り直すと抜けられた（2026-11-17 のセキュリティ確認の M1・R4）。利用者の単位の印にして塞いだ（launch-checklist.md の 1.1）。
+
+| もの | 中身 |
+|---|---|
+| 印 | auto_post_holds。1 行が止めた 1 回（解除しても残す）。released_at が null の行がいま止めているもの（1 人 1 行まで）。理由（運営者のメモ、200 字まで）・止めた運営者・日時・解除の理由と日時・知らせた日時。退会で消える |
+| 利用者の権限 | 本人の行だけ（RLS）。列は id・user_id・held_at・released_at だけを select（理由と運営者は見せない）。書き込みは与えない |
+| 止めている間に断る（DB、42501・hint auto_post_hold） | save_auto_plan（作る・直す。プロジェクトを作り直しても）、set_auto_plan_status の再開、auto_approve_target と review_auto_run の送る（承認）、requeue_failed_targets の自動で作った投稿 |
+| 断らない | 止める・全部止める・消す・次の回を飛ばす・送らない（承認しない）・お知らせの予定・手で作る投稿とほかの AI |
+| ジョブ | claim_due_auto_runs が止めている人の回を取り出さない。addUpcomingRuns・remindApprovals からも外す。processRun でも見直す（取り出したあとに止めたとき）。claim_due_targets が止めている人の自動で作った投稿（posts.auto_created）を送らない（送り始めたもの〈preparing〉は続ける）。reserve_ai_usage が自動の投稿の用途（auto_post・auto_post_check）を断る（status auto_post_hold。見本を作るも通る） |
+| 止めたとき | まだ送っていない回（waiting・scheduled・review）を取り消し（reason operator_hold）、作り終えた投稿は下書きに戻す（auto_cancel_unsent_runs の下書きに戻すと同じ）。送った投稿には触らない |
+| 解除したとき | 動いている回し方の first_review を true に戻す（急に送り始めないよう、最初の回を確かめてもらう）。止めたときに取り消した、投稿を作る前の回は消してジョブに足し直させる |
+| 運営者の操作 | service_role だけが呼べる operator_hold_auto_post・operator_release_auto_post（メールアドレス・理由・運営者）・operator_auto_post_holds（一覧）。画面は /admin/auto-holds（OPERATOR_ADMIN_EMAILS の人だけ）、手順は deploy.md の 32 |
+| 利用者に見せるもの | 自動の投稿の画面の上の帯（auto/layout.tsx）と概要の帯に「● 要確認」と決まった文・問い合わせ先。作る・直す・再開するは押せない。止めた・解除したをスマホの通知で 1 回ずつ（ジョブの notifyHolds。理由は入れない）。理由は運営者がメールで伝える（deploy.md の 32 のひな形） |
+| 法務 | プライバシーポリシーに止めた記録を足した（② として扱った。版 2026-11-19【仮】。legal.md）。利用規約は変えない（「利用の停止」に書いてある） |
+
+- 同じマイグレーションで、2026-11-18 の PM のセキュリティ確認の DB の Low を直した: L1 指紋の合わない承認の pending を claim_due_targets が確かめ待ちに戻す（データの直しも）、L2 承認の指紋に画像の代替テキストを入れる、L3 回し方を運営者が止めている回の送る承認を断る（tests/auto-approval-fixes.integration.test.ts）
+- 退会して同じメールで登録し直すと、別の利用者になるので印は外れる。② は招待制なので扱わない（launch-checklist.md の 3.2）
+

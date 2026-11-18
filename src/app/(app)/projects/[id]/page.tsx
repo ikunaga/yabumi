@@ -13,7 +13,7 @@ import type { SnsKey } from "@/lib/sns";
 import { OverviewCards } from "@/components/overview/overview-cards";
 import { AutoPostBand } from "@/components/overview/auto-post-band";
 import { bandRange, overviewAutoBand } from "@/lib/auto-post/entry";
-import { countAutoReviewItems, listAutoPlans, listUpcomingAutoRuns } from "@/lib/auto-post/queries";
+import { countAutoReviewItems, getAutoPostHold, listAutoPlans, listUpcomingAutoRuns } from "@/lib/auto-post/queries";
 import { AttentionStrip, ConnectedSnsLine, NextScheduled, Panel, SnsClicks } from "@/components/overview/overview-panels";
 import { displayStatus } from "@/components/posts/post-chip";
 import { Columns } from "@/components/ui/columns";
@@ -326,8 +326,9 @@ async function loadAutoBand(projectId: string) {
     if (plans.length === 0) return null;
     const now = new Date();
     const { from, until } = bandRange(now);
-    const [upcoming, review] = await Promise.all([listUpcomingAutoRuns(projectId, from, until), countAutoReviewItems(projectId)]);
-    return overviewAutoBand(plans, upcoming, review, now);
+    const [upcoming, review, hold] = await Promise.all([listUpcomingAutoRuns(projectId, from, until), countAutoReviewItems(projectId), getAutoPostHold()]);
+    const band = overviewAutoBand(plans, upcoming, review, now);
+    return band && { ...band, held: hold !== null };
   } catch (e) {
     console.error("[overview] 自動の投稿", e instanceof Error ? e.message : e);
     return null;

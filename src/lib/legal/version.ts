@@ -145,7 +145,7 @@ export const LEGAL_VERSIONS: readonly LegalRevision[] = [
   },
   // 自動の投稿（docs/legal.md の「案: 自動の投稿」。docs/design/auto-post.md の 6.2）。② として扱い、オーナーの了承は 2026-11-17。
   // 投稿のフォーマットの画像（「案: 投稿のフォーマットの画像」。② として扱い、オーナーの了承は 2026-11-17）も、同じ日に出す前提でこの版にまとめた（1 日 1 版）。
-  // 版の日付は本番に出す日に PM が合わせる。今は 2026-11-17【仮】（2026-11-16 の版の次の日）。合わせるときは tests/auto-post-legal.test.ts の VERSION も一緒に直す
+  // 2026-11-17 に施行した（タグ legal-2026-11-17）
   {
     version: "2026-11-17",
     docs: ["terms", "privacy"],
@@ -159,6 +159,18 @@ export const LEGAL_VERSIONS: readonly LegalRevision[] = [
     adverse: false,
     noticeFrom: null,
     noticeWaived: "施行の時点で利用者は運営者だけ（招待していない）で、運営者が了承した（2026-11-17）",
+  },
+  // 運営者が利用者ごとに自動の投稿を止める（docs/legal.md の「運営者が自動の投稿を止めた記録の版」。② として扱い、オーナーの了承は 2026-11-18）。
+  // 版の日付は本番に出す日に PM が合わせる。今は 2026-11-19【仮】。合わせるときは tests/auto-post-hold-legal.test.ts の VERSION も一緒に直す
+  {
+    version: "2026-11-19",
+    docs: ["privacy"],
+    summary: [
+      "利用規約に反するおそれがあるときに、運営者が利用者ごとに自動の投稿を止めた記録（止めた・解除した日時、運営者のメモ）を預かり、退会まで残すことを書き足しました（プライバシーポリシー 預かる情報・使い道・保存期間）",
+    ],
+    adverse: false,
+    noticeFrom: null,
+    noticeWaived: "施行の時点で利用者は運営者だけ（招待していない）で、運営者が了承した（2026-11-18）",
   },
 ];
 

@@ -28,7 +28,8 @@ function ToDraftChoice({ value, onChange }: { value: boolean; onChange: (v: bool
 type Dialog = "pause" | "skip" | "delete" | null;
 
 // 回し方の画面の右の操作: 直す・止める／再開する・次の回を飛ばす・削除する（1.6）
-export function PlanControls({ projectId, planId, status, nextLabel }: { projectId: string; planId: string; status: AutoPlanStatus; nextLabel: string | null }) {
+// held: 運営者が止めている（直す・再開するは押せない。止める・飛ばす・削除するはできる）
+export function PlanControls({ projectId, planId, status, nextLabel, held = false }: { projectId: string; planId: string; status: AutoPlanStatus; nextLabel: string | null; held?: boolean }) {
   const router = useRouter();
   const [dialog, setDialog] = useState<Dialog>(null);
   const [toDraft, setToDraft] = useState(true);
@@ -56,15 +57,21 @@ export function PlanControls({ projectId, planId, status, nextLabel }: { project
         </p>
       )}
       <div className="flex flex-wrap gap-2 max-sm:grid max-sm:grid-cols-2">
-        <ButtonLink href={`/projects/${projectId}/auto/${planId}/edit`} variant="secondary" size="sm">
-          直す
-        </ButtonLink>
+        {held ? (
+          <Button type="button" variant="secondary" size="sm" disabled>
+            直す
+          </Button>
+        ) : (
+          <ButtonLink href={`/projects/${projectId}/auto/${planId}/edit`} variant="secondary" size="sm">
+            直す
+          </ButtonLink>
+        )}
         {status === "active" ? (
           <Button type="button" variant="secondary" size="sm" disabled={pending} onClick={() => setDialog("pause")}>
             止める
           </Button>
         ) : (
-          <Button type="button" variant="secondary" size="sm" disabled={pending} onClick={() => run(() => setAutoPlanStatus(projectId, planId, "active"))}>
+          <Button type="button" variant="secondary" size="sm" disabled={pending || held} onClick={() => run(() => setAutoPlanStatus(projectId, planId, "active"))}>
             再開する
           </Button>
         )}

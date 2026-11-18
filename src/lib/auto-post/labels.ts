@@ -52,6 +52,7 @@ export const RUN_REASON_TEXT: Record<AutoRunReason, string> = {
   error: "うまく作れませんでした",
   user_skipped: "飛ばしました",
   plan_paused: "止めました",
+  operator_hold: "運営者が止めました",
 };
 
 export const STOP_REASON_TEXT: Record<AutoStopReason, string> = {

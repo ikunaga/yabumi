@@ -50,11 +50,11 @@ export default async function AutoPlanPage(props: PageProps<"/projects/[id]/auto
           <div className="flex min-w-0 flex-col gap-1">
             <h1 className="flex flex-wrap items-center gap-x-3 text-[28px] leading-tight font-bold max-sm:text-[24px]">
               {plan.name}
-              <PlanStatusMark plan={plan} />
+              <PlanStatusMark plan={plan} held={hold !== null} />
             </h1>
-            <p className="num text-[15px] text-faint">{next ? `次は ${formatShort(next.dueAt)}` : plan.status === "active" ? "次の回はまだありません" : "止めています"}</p>
+            <p className="num text-[15px] text-faint">{hold && plan.status === "active" ? "新しい回は作りません" : next ? `次は ${formatShort(next.dueAt)}` : plan.status === "active" ? "次の回はまだありません" : "止めています"}</p>
           </div>
-          <PlanControls projectId={project.id} planId={plan.id} status={plan.status} nextLabel={next ? formatShort(next.dueAt) : null} held={hold !== null} />
+          <PlanControls projectId={project.id} planId={plan.id} status={plan.status} nextLabel={next && !hold ? formatShort(next.dueAt) : null} held={hold !== null} />
         </div>
       </div>
       {saved === "1" && <SuccessBanner>直しました。まだ作っていない回から、新しい設定で作ります。</SuccessBanner>}

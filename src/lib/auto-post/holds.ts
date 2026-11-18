@@ -75,7 +75,10 @@ export async function holdAutoPost(admin: Db, args: { email: string; reason: str
   if (error) return { ok: false, error: operatorError(error) };
   const r = data[0];
   if (r.already_held) return { ok: true, notice: "すでに止めています（前の理由のまま）。" };
-  return { ok: true, notice: `止めました。まだ送っていない自動の回を ${r.canceled_runs} 件取り消し、作り終えた投稿は下書きに戻しました。` };
+  return {
+    ok: true,
+    notice: r.canceled_runs > 0 ? `止めました。まだ送っていない自動の回を ${r.canceled_runs} 件取り消し、作り終えた投稿は下書きに戻しました。` : "止めました。まだ送っていない回はありませんでした。",
+  };
 }
 
 // 解除する。動いている回し方は、最初の回をまた確かめてもらう（DB の関数の中で）

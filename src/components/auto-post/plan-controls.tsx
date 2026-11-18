@@ -95,7 +95,7 @@ export function PlanControls({ projectId, planId, status, nextLabel, held = fals
           run(() => setAutoPlanStatus(projectId, planId, "paused", toDraft));
         }}
       >
-        <p>止めている間は、新しい回を作りません。いつでも再開できます。</p>
+        <p>止めている間は、新しい回を作りません。{held ? "" : "いつでも再開できます。"}</p>
         <ToDraftChoice value={toDraft} onChange={setToDraft} />
       </ConfirmDialog>
       <ConfirmDialog
@@ -136,7 +136,8 @@ export function PlanControls({ projectId, planId, status, nextLabel, held = fals
 }
 
 // 一覧の右上の「全部止める」
-export function PauseAllButton({ projectId, activeCount }: { projectId: string; activeCount: number }) {
+// held: 運営者が止めている（再開できないので「再開できます」と書かない）
+export function PauseAllButton({ projectId, activeCount, held = false }: { projectId: string; activeCount: number; held?: boolean }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [toDraft, setToDraft] = useState(true);
@@ -163,7 +164,7 @@ export function PauseAllButton({ projectId, activeCount }: { projectId: string; 
           });
         }}
       >
-        <p>動いている {activeCount} 件を止めます。それぞれの画面から再開できます。</p>
+        <p>動いている {activeCount} 件を止めます。{held ? "" : "それぞれの画面から再開できます。"}</p>
         <ToDraftChoice value={toDraft} onChange={setToDraft} />
       </ConfirmDialog>
     </>

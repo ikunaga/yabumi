@@ -14,14 +14,19 @@ export function AutoPostBand({ projectId, band }: { projectId: string; band: Ove
     <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface px-5 py-3 max-sm:px-4">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <span className="flex flex-wrap items-baseline gap-x-2">
-          {band.active > 0 ? (
+          {band.held ? (
+            // 運営者が止めている間は回を作らないので、「動いています」「次は…」は出さない
+            <b>
+              <span className="text-signal">● 要確認</span> {HOLD_TITLE}
+            </b>
+          ) : band.active > 0 ? (
             <b>
               <span className="text-primary">↻</span> 自動の投稿 <span className="num">{band.active}</span> 件が動いています
             </b>
           ) : (
             <b className="text-muted">‖ 自動の投稿は止めています</b>
           )}
-          {band.next && (
+          {band.next && !band.held && (
             <span className="text-sm text-muted">
               次は <span className="num">{band.next.label}</span>
               {band.next.sns.length > 0 && `（${band.next.sns.map((s) => SNS[s].label).join("・")}）`}
@@ -39,11 +44,6 @@ export function AutoPostBand({ projectId, band }: { projectId: string; band: Ove
           </ButtonLink>
         </span>
       </div>
-      {band.held && (
-        <p className="text-sm">
-          <b className="text-signal">● 要確認</b> <span className="text-muted">{HOLD_TITLE}。くわしくは「自動の投稿を見る」から</span>
-        </p>
-      )}
       {band.stopped.length > 0 && (
         <ul className="flex flex-col gap-1 text-sm">
           {band.stopped.map((p) => (

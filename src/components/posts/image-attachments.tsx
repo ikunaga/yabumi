@@ -96,6 +96,7 @@ export function ImageAttachments({
   buttonsNote = null,
   extraButtons,
   preset = null,
+  onOpenMaker,
 }: {
   images: AttachedImage[];
   onChange: (next: AttachedImage[] | ((prev: AttachedImage[]) => AttachedImage[])) => void;
@@ -112,6 +113,8 @@ export function ImageAttachments({
   extraButtons?: ReactNode;
   // 投稿のフォーマットの画像（③ の帯の「つくる」。docs/design/format-image.md の 2.1）。seq が変わるたびに、画像をつくる画面を開いて渡す
   preset?: FormatPhotoPreset | null;
+  // 「画像をつくる」を押したとき（投稿のフォーマットに画像の設定があれば、その絵の説明を入れて開くため。AI は呼ばない）
+  onOpenMaker?: () => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   // 画像をつくる画面: 開いているか（making）と、一度開いたか（makerMounted）。閉じても外さずに隠すので、
@@ -130,6 +133,12 @@ export function ImageAttachments({
     countRef.current = images.length;
   }, [images.length]);
   const [busy, setBusy] = useState(0);
+  // 画像をつくる画面で添えた画像（画面を閉じて、その行を見える位置に出して枠で示す。指摘 21）
+  const [justAdded, setJustAdded] = useState<string | null>(null);
+  useEffect(() => {
+    if (!justAdded) return;
+    document.getElementById(`image-row-${justAdded}`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [justAdded]);
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   // 縦横を整えている画像の ID
@@ -195,6 +204,7 @@ export function ImageAttachments({
         try {
           const image = await uploadJpeg(jpeg, "作った画像", ai);
           onChange((prev) => [...prev, { ...image, altText, text: true, original: photo, edit: { kind: "headline", base: photo, headline: made.settings } }]);
+          added(image.id);
         } catch (e) {
           void discardImage(photo.id);
           throw e;
@@ -202,6 +212,7 @@ export function ImageAttachments({
       } else {
         const image = await uploadJpeg(jpeg, "作った画像", ai);
         onChange((prev) => [...prev, { ...image, altText, text: made.kind === "text" }]);
+        added(image.id);
       }
       return true;
     } catch (e) {
@@ -213,9 +224,18 @@ export function ImageAttachments({
     }
   }
 
+  // 添えたら画像をつくる画面を閉じる（外さずに隠すので、「次の画像（n 枚目）をつくる」で絵の説明・候補の続きから開ける）。
+  // 前は開いたまま「2 枚目をつくる」になり、終わったのか、添えた画像がどこにあるのかがわからなかった（2026-11-18 オーナーの通しの指摘 21）
+  function added(id: string) {
+    setMaking(false);
+    setJustAdded(id);
+  }
+
   function openMaker() {
     setMakerMounted(true);
     setMaking(true);
+    setJustAdded(null);
+    onOpenMaker?.();
   }
 
   // 整えた画像を上げて、いまの画像と差し替える（元の画像は original に持ち、元に戻せる）。差し替えた画像の新しい ID を返す
@@ -470,7 +490,11 @@ export function ImageAttachments({
       {images.length > 0 && (
         <ol className="flex flex-col gap-2.5">
           {images.map((image, i) => (
-            <li key={image.id} className="grid grid-cols-[88px_1fr] gap-3 rounded-lg border border-border bg-surface p-2.5 max-sm:grid-cols-[64px_1fr]">
+            <li
+              key={image.id}
+              id={`image-row-${image.id}`}
+              className={`grid scroll-mt-20 grid-cols-[88px_1fr] gap-3 rounded-lg border bg-surface p-2.5 max-sm:grid-cols-[64px_1fr] ${justAdded === image.id ? "border-primary" : "border-border"}`}
+            >
               <div className="flex aspect-square items-center justify-center overflow-hidden rounded-md bg-surface2">
                 {image.previewUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element -- 署名つきの URL は期限があり、next/image の最適化を通さない
@@ -482,6 +506,11 @@ export function ImageAttachments({
               <div className="flex min-w-0 flex-col gap-1.5">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
                   <span className="font-bold text-fg">{i + 1} 枚目</span>
+                  {justAdded === image.id && (
+                    <span role="status" className="font-bold text-success">
+                      ✓ 添えました
+                    </span>
+                  )}
                   {image.aiGenerated && <AiBadge />}
                   <span>
                     {image.width}×{image.height}・{formatBytes(image.sizeBytes)}

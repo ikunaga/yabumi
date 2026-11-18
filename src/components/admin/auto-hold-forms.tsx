@@ -2,26 +2,55 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, EmptyState } from "@/components/ui/card";
 import { ErrorBanner, SuccessBanner } from "@/components/ui/feedback";
 import { Field, Input, Textarea } from "@/components/ui/field";
 import { holdAutoPostAction, releaseAutoPostAction } from "@/lib/auto-post/operator-actions";
 import type { HoldRow } from "@/lib/auto-post/holds";
 
-// 運営者の画面（/admin/auto-holds）: 自動の投稿を止める・解除する。押したら確かめの文を出し、もう一度押して実行する（招待の申し込みの行と同じ作り）
+// 運営者の画面（/admin/auto-holds）: 自動の投稿を止める・解除する。押したら確かめの文を出し、もう一度押して実行する（招待の申し込みの行と同じ作り）。
+// 止めた・解除したの知らせは、フォームの上に出す（解除すると一覧の読み直しで行が消えるので、行の中には出さない）
 
 type Result = { ok: true; notice: string } | { ok: false; error: string } | null;
 
-export function HoldForm() {
+// フォームと一覧を 1 つにまとめ、知らせを持つ。holds の heldAt は表示用に整えた文字
+export function AutoHoldsPanel({ holds }: { holds: (HoldRow & { heldAtLabel: string })[] }) {
+  const [result, setResult] = useState<Result>(null);
+  return (
+    <>
+      <Card>
+        <CardHeader title="止める" />
+        <div className="flex flex-col gap-4 px-6 pb-5 max-sm:px-4">
+          {result && (result.ok ? <SuccessBanner>{result.notice}</SuccessBanner> : <ErrorBanner>{result.error}</ErrorBanner>)}
+          <HoldForm onResult={setResult} />
+        </div>
+      </Card>
+      <Card className="overflow-hidden">
+        {holds.length === 0 ? (
+          <EmptyState title="止めている人はいません" description="止めると、ここに並びます。" />
+        ) : (
+          <ul className="flex flex-col divide-y divide-line">
+            {holds.map((h) => (
+              <HoldListRow key={h.id} hold={h} heldAt={h.heldAtLabel} onResult={setResult} />
+            ))}
+          </ul>
+        )}
+      </Card>
+    </>
+  );
+}
+
+function HoldForm({ onResult }: { onResult: (r: Result) => void }) {
   const [email, setEmail] = useState("");
   const [reason, setReason] = useState("");
   const [confirm, setConfirm] = useState(false);
-  const [result, setResult] = useState<Result>(null);
   const [pending, start] = useTransition();
 
   function run() {
     start(async () => {
+      onResult(null);
       const r = await holdAutoPostAction(email, reason);
-      setResult(r);
+      onResult(r);
       setConfirm(false);
       if (r.ok) {
         setEmail("");
@@ -32,7 +61,6 @@ export function HoldForm() {
 
   return (
     <div className="flex flex-col gap-4">
-      {result && (result.ok ? <SuccessBanner>{result.notice}</SuccessBanner> : <ErrorBanner>{result.error}</ErrorBanner>)}
       <Field label="利用者のメールアドレス" htmlFor="hold-email" required>
         <Input id="hold-email" type="email" autoComplete="off" value={email} maxLength={254} onChange={(e) => setEmail(e.target.value)} />
       </Field>
@@ -60,19 +88,23 @@ export function HoldForm() {
   );
 }
 
-export function HoldListRow({ hold, heldAt }: { hold: HoldRow; heldAt: string }) {
+function HoldListRow({ hold, heldAt, onResult }: { hold: HoldRow; heldAt: string; onResult: (r: Result) => void }) {
   const [reason, setReason] = useState("");
   const [confirm, setConfirm] = useState(false);
-  const [result, setResult] = useState<Result>(null);
+  const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const id = `release-${hold.id}`;
 
-  if (result?.ok) {
-    return (
-      <li className="px-6 py-3 text-[15px] text-success max-sm:px-4" role="status">
-        {hold.email}: {result.notice}
-      </li>
-    );
+  function release() {
+    start(async () => {
+      setError(null);
+      const r = await releaseAutoPostAction(hold.email, reason);
+      // 解除できたら、フォームの上に知らせる（行は一覧の読み直しで消える）。できなければ行の中に出す
+      if (r.ok) {
+        onResult({ ok: true, notice: `${hold.email}: ${r.notice}` });
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } else setError(r.error);
+    });
   }
 
   return (
@@ -87,7 +119,7 @@ export function HoldListRow({ hold, heldAt }: { hold: HoldRow; heldAt: string })
         <dt>止めた人</dt>
         <dd className="break-all text-fg">{hold.heldBy}</dd>
       </dl>
-      {result && !result.ok && <p className="font-semibold text-danger">{result.error}</p>}
+      {error && <p className="font-semibold text-danger">{error}</p>}
       {confirm ? (
         <div className="flex flex-col gap-2">
           <Field label="解除の理由（運営者のメモ）" htmlFor={id} required>
@@ -95,7 +127,7 @@ export function HoldListRow({ hold, heldAt }: { hold: HoldRow; heldAt: string })
           </Field>
           <div className="flex flex-wrap items-center gap-3">
             <span>解除すると、動いている自動の投稿は、最初の回を確かめてから送ります。</span>
-            <Button type="button" size="sm" disabled={pending || !reason.trim()} onClick={() => start(async () => setResult(await releaseAutoPostAction(hold.email, reason)))}>
+            <Button type="button" size="sm" disabled={pending || !reason.trim()} onClick={release}>
               {pending ? "解除しています…" : "解除する"}
             </Button>
             <Button type="button" size="sm" variant="text" disabled={pending} onClick={() => setConfirm(false)}>

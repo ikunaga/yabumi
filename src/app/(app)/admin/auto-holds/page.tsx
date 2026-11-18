@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { HoldForm, HoldListRow } from "@/components/admin/auto-hold-forms";
+import { AutoHoldsPanel } from "@/components/admin/auto-hold-forms";
 import { TopBar } from "@/components/nav/top-bar";
-import { Card, CardHeader, EmptyState } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireUser } from "@/lib/auth/user";
 import { listAutoPostHolds } from "@/lib/auto-post/holds";
@@ -41,23 +40,7 @@ export default async function AutoHoldsAdminPage() {
           sub={`止めている ${holds.length} 人`}
           help="止めると、その利用者は自動の投稿を作る・再開する・送ることができなくなります（手で作る投稿はそのまま使えます）。利用者には、止めていることと問い合わせ先だけを、画面とスマホの通知で知らせます。理由は見せないので、急ぎでなければ docs/deploy.md の 32 のひな形でメールを送ってください。"
         />
-        <Card>
-          <CardHeader title="止める" />
-          <div className="px-6 pb-5 max-sm:px-4">
-            <HoldForm />
-          </div>
-        </Card>
-        <Card className="overflow-hidden">
-          {holds.length === 0 ? (
-            <EmptyState title="止めている人はいません" description="止めると、ここに並びます。" />
-          ) : (
-            <ul className="flex flex-col divide-y divide-line">
-              {holds.map((h) => (
-                <HoldListRow key={h.id} hold={h} heldAt={dateFormat.format(new Date(h.heldAt))} />
-              ))}
-            </ul>
-          )}
-        </Card>
+        <AutoHoldsPanel holds={holds.map((h) => ({ ...h, heldAtLabel: dateFormat.format(new Date(h.heldAt)) }))} />
       </main>
     </>
   );

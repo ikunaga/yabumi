@@ -46,7 +46,7 @@ export default async function AutoListPage(props: PageProps<"/projects/[id]/auto
     <div className="flex flex-col gap-5 max-sm:gap-4">
       <PageHeader
         title="自動の投稿"
-        sub={plans.length > 0 ? `${plans.length} 件・動いている ${active} 件` : undefined}
+        sub={plans.length > 0 ? (hold ? `${plans.length} 件・運営者が止めています` : `${plans.length} 件・動いている ${active} 件`) : undefined}
         help={
           <>
             決めた間隔で、AI が投稿の文を作って予約します。送る 24 時間前にカレンダーと通知でお知らせするので、気になれば直す・飛ばす・止めるができます。X
@@ -67,7 +67,7 @@ export default async function AutoListPage(props: PageProps<"/projects/[id]/auto
                 ＋ 自動の投稿をはじめる
               </ButtonLink>
             )}
-            {plans.length > 0 && <PauseAllButton projectId={project.id} activeCount={active} />}
+            {plans.length > 0 && <PauseAllButton projectId={project.id} activeCount={active} held={hold !== null} />}
           </>
         }
       />
@@ -95,7 +95,8 @@ export default async function AutoListPage(props: PageProps<"/projects/[id]/auto
         </Card>
       )}
 
-      {next && (
+      {/* 運営者が止めている間は回を作らないので、次の回は出さない（上の帯で知らせる） */}
+      {next && !hold && (
         <Card className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 max-sm:px-4">
           <div className="flex min-w-0 flex-col gap-1">
             <p className="num text-[18px] font-bold">次は {formatShort(next.dueAt)}</p>
@@ -123,14 +124,14 @@ export default async function AutoListPage(props: PageProps<"/projects/[id]/auto
           <ul className="divide-y divide-border">
             {plans.map((p) => {
               const sns = Object.keys(p.targets) as SnsKey[];
-              const nextAt = p.status === "active" ? nextOf.get(p.id) : undefined;
+              const nextAt = p.status === "active" && !hold ? nextOf.get(p.id) : undefined;
               return (
                 <li key={p.id}>
                   <Link href={`${base}/${p.id}`} className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 px-6 py-4 text-fg hover:bg-subtle hover:no-underline max-sm:px-4">
                     <div className="flex min-w-0 flex-col gap-1">
                       <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
                         <span className="text-[16px] font-bold">{p.name}</span>
-                        <PlanStatusMark plan={p} />
+                        <PlanStatusMark plan={p} held={hold !== null} />
                       </p>
                       <p className="num flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] text-muted">
                         <span>{KIND_LABELS[p.kind]}</span>
@@ -149,7 +150,7 @@ export default async function AutoListPage(props: PageProps<"/projects/[id]/auto
                           <SnsTag key={s} sns={s} />
                         ))}
                       </span>
-                      <span className="num text-sm text-muted">{nextAt ? `次 ${formatShort(nextAt)}` : p.status === "active" ? "次の回はまだ" : ""}</span>
+                      <span className="num text-sm text-muted">{nextAt ? `次 ${formatShort(nextAt)}` : p.status === "active" && !hold ? "次の回はまだ" : ""}</span>
                     </div>
                   </Link>
                 </li>

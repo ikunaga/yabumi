@@ -1,0 +1,348 @@
+{
+  "_": "区分（色・説明・表）と、区分ごとの図の配置。boxes は [表, 列(0〜3), 上からの位置(px), 図に出す列（主キー・外部キーのほかに）, \"ref\"（ほかの図が主の表。点線の枠で出し、ref どうしの線は描かない）]。線は隣の列どうしか、同じ列の上下で引く（離れた列は lanes に通り道の y を書く）。dash は制約のない参照 [元の表, 元の列, 先の表, 言葉]。labels は線に添える言葉（元の表.列: 言葉）。skip は描かない外部キー（元の表.列）。overview は全体像の並び（top: 上の帯、row: 中の段、hub: 下の帯）と線",
+  "groups": [
+    {
+      "key": "project",
+      "title": "プロジェクトと SNS",
+      "color": "#2563EB",
+      "sub": "宣伝するもの・つないだ SNS・行き先・GitHub",
+      "lead": "プロジェクト（宣伝するもの）を中心に、つないだ SNS アカウント・アカウント設計・行き先などがぶら下がる。SNS アカウントは利用者のもので、どのプロジェクトで使うかを結びつきの表で持つ。",
+      "tables": [
+        "projects",
+        "project_social_accounts",
+        "social_accounts",
+        "social_account_tokens",
+        "pending_page_choices",
+        "account_plans",
+        "project_destinations",
+        "project_manual_channels",
+        "project_github_repos",
+        "github_installations",
+        "project_outcomes_daily",
+        "project_events"
+      ],
+      "figures": [
+        {
+          "title": "プロジェクトと SNS",
+          "boxes": [
+            ["account_plans", 0, 30, ["data"]],
+            ["project_destinations", 0, 185, ["kind", "url"]],
+            ["project_manual_channels", 0, 359, ["sns"]],
+            ["project_events", 0, 514, ["on_date", "body"]],
+            ["project_outcomes_daily", 0, 688, ["day", "action", "count"]],
+            ["projects", 1, 330, ["name", "product_type", "default_hashtags"]],
+            ["project_social_accounts", 2, 30, []],
+            ["pending_page_choices", 2, 185, ["parent_external_id", "expires_at"]],
+            ["project_github_repos", 2, 520, ["full_name"]],
+            ["social_accounts", 3, 30, ["sns", "display_name", "status", "parent_external_id"]],
+            ["social_account_tokens", 3, 260, ["access_token_encrypted", "expires_at"]],
+            ["github_installations", 3, 520, ["installation_id", "repo_ids"]]
+          ],
+          "dash": [["pending_page_choices", "parent_external_id", "social_accounts", "利用者の ID"]],
+          "labels": {}
+        }
+      ]
+    },
+    {
+      "key": "post",
+      "title": "投稿とフォーマット",
+      "color": "#0891B2",
+      "sub": "投稿・送り先・画像と動画・フォーマットとシリーズ・ネタ帳",
+      "lead": "投稿は本文と予定の日時を持ち、SNS ごとの送り先（送信の状態）に分かれる。画像と動画は投稿かネタ帳のメモに付く。投稿のフォーマットは繰り返し出す投稿の型で、シリーズの記録に回ごとの答えを残す。",
+      "tables": [
+        "posts",
+        "post_targets",
+        "post_target_tiktok",
+        "post_target_youtube",
+        "post_target_approvals",
+        "youtube_uploads",
+        "tiktok_media_tickets",
+        "media_files",
+        "media_upload_tickets",
+        "video_upload_counts",
+        "ai_image_jobs",
+        "ai_image_notices",
+        "photo_prompt_templates",
+        "post_formats",
+        "post_format_rounds",
+        "idea_notes"
+      ],
+      "figures": [
+        {
+          "title": "投稿と送り先",
+          "boxes": [
+            ["social_accounts", 0, 330, ["sns", "display_name"], "ref"],
+            ["posts", 1, 30, ["body", "planned_at", "status"]],
+            ["post_targets", 1, 330, ["sns", "status", "published_at", "external_post_id"]],
+            ["post_target_approvals", 2, 30, ["approved_at"]],
+            ["post_target_tiktok", 2, 185, ["privacy_level"]],
+            ["post_target_youtube", 2, 340, ["privacy_status"]],
+            ["youtube_uploads", 2, 495, ["video_id"]],
+            ["tiktok_media_tickets", 2, 650, ["expires_at"]],
+            ["media_files", 3, 650, ["kind"], "ref"]
+          ],
+          "skip": ["media_files.post_id"],
+          "dash": [],
+          "labels": {}
+        },
+        {
+          "title": "画像と動画",
+          "boxes": [
+            ["posts", 0, 30, [], "ref"],
+            ["idea_notes", 0, 250, [], "ref"],
+            ["media_files", 1, 30, ["kind", "storage_path", "alt_text"]],
+            ["ai_image_jobs", 2, 30, ["model", "images", "status"]],
+            ["photo_prompt_templates", 2, 230, ["name", "is_default"]],
+            ["media_upload_tickets", 0, 450, ["kind", "consumed_at"]],
+            ["video_upload_counts", 1, 450, ["month", "count"]],
+            ["ai_image_notices", 2, 450, ["acknowledged_at"]]
+          ],
+          "dash": [],
+          "labels": {}
+        },
+        {
+          "title": "フォーマットとネタ帳",
+          "boxes": [
+            ["account_plans", 0, 30, ["data"], "ref"],
+            ["post_formats", 1, 30, ["name", "pillar", "series", "hashtags"]],
+            ["post_format_rounds", 2, 30, ["answer", "source"]],
+            ["posts", 2, 280, ["body"], "ref"],
+            ["idea_notes", 2, 560, ["body", "used_at"]]
+          ],
+          "dash": [["post_formats", "pillar", "account_plans", "柱の名前"]],
+          "labels": {}
+        }
+      ]
+    },
+    {
+      "key": "auto",
+      "title": "自動の投稿",
+      "color": "#7C3AED",
+      "sub": "回し方と回。材料は jsonb の中で指す",
+      "lead": "自動の回し方（設定）から、回（1 回ずつ）が作られ、回が投稿を作る。材料のフォーマット・行き先・メモ・予定は、回し方の材料の選び方（materials）と回の使った材料（material_ref）の jsonb の中で ID を持つだけで、外部キーではない。",
+      "tables": ["auto_plans", "auto_runs"],
+      "figures": [
+        {
+          "title": "自動の投稿",
+          "boxes": [
+            ["auto_plans", 1, 30, ["kind", "materials", "status", "stop_reason"]],
+            ["auto_runs", 1, 330, ["due_at", "status", "material_ref", "reason"]],
+            ["post_formats", 2, 30, [], "ref"],
+            ["project_destinations", 2, 170, [], "ref"],
+            ["posts", 0, 420, ["auto_created"], "ref"],
+            ["idea_notes", 2, 540, [], "ref"],
+            ["project_events", 2, 690, [], "ref"]
+          ],
+          "dash": [
+            ["auto_plans", "materials", "post_formats", "format_id"],
+            ["auto_plans", "materials", "project_destinations", "destination_id"],
+            ["auto_runs", "material_ref", "post_formats", "format_id"],
+            ["auto_runs", "material_ref", "project_destinations", "destination_id"],
+            ["auto_runs", "material_ref", "idea_notes", "note_id"],
+            ["auto_runs", "material_ref", "project_events", "event_id"]
+          ],
+          "labels": {}
+        }
+      ]
+    },
+    {
+      "key": "metrics",
+      "title": "数字とコメント",
+      "color": "#059669",
+      "sub": "投稿・アカウント・ストアの数字と、SNS のコメント",
+      "lead": "送った投稿の数字とコメントは送り先に、アカウントの数字は SNS アカウントに、ストアの数字はプロジェクトにぶら下がる。",
+      "tables": [
+        "post_metrics",
+        "manual_post_metrics",
+        "account_metrics",
+        "sns_comments",
+        "sns_comment_polls",
+        "store_daily",
+        "store_credentials",
+        "app_store_report_requests",
+        "play_connections",
+        "play_account_creations"
+      ],
+      "figures": [
+        {
+          "title": "投稿とアカウントの数字・コメント",
+          "boxes": [
+            ["post_metrics", 0, 30, ["day_index", "values"]],
+            ["manual_post_metrics", 0, 205, ["views", "reactions"]],
+            ["sns_comment_polls", 0, 380, ["next_check_at", "stopped"]],
+            ["post_targets", 1, 150, ["sns", "status"], "ref"],
+            ["social_accounts", 1, 400, ["sns"], "ref"],
+            ["sns_comments", 2, 150, ["author_name", "body", "commented_at"]],
+            ["account_metrics", 2, 400, ["day", "values"]]
+          ],
+          "dash": [],
+          "labels": {}
+        },
+        {
+          "title": "ストアの数字",
+          "boxes": [
+            ["store_daily", 0, 30, ["source", "day", "values"]],
+            ["store_credentials", 0, 230, ["provider", "status"]],
+            ["projects", 1, 150, [], "ref"],
+            ["app_store_report_requests", 2, 30, ["status", "last_imported_day"]],
+            ["play_connections", 2, 230, ["package_name", "status"]],
+            ["play_account_creations", 3, 230, []]
+          ],
+          "dash": [],
+          "labels": {}
+        }
+      ]
+    },
+    {
+      "key": "link",
+      "title": "短縮リンク",
+      "color": "#D97706",
+      "sub": "短縮リンクとクリック、自分のドメイン",
+      "lead": "短縮リンクはプロジェクトにぶら下がり、投稿の本文に置いたものは送り先を指す。クリックはだれかわからないように、日替わりの塩で伏せて保存する。",
+      "tables": ["short_links", "link_clicks", "link_click_daily", "link_domains", "link_domain_attempts", "link_domain_removals", "link_hash_salts"],
+      "figures": [
+        {
+          "title": "短縮リンク",
+          "boxes": [
+            ["post_targets", 0, 60, [], "ref"],
+            ["projects", 0, 330, [], "ref"],
+            ["short_links", 1, 60, ["code", "destination_url", "kind"]],
+            ["link_domains", 1, 400, ["domain", "status"]],
+            ["link_clicks", 2, 30, ["clicked_at", "device", "visitor_hash"]],
+            ["link_click_daily", 2, 230, ["day", "device", "clicks"]],
+            ["link_domain_removals", 2, 430, ["domain", "attempts"]],
+            ["link_hash_salts", 3, 30, ["day", "salt"]],
+            ["link_domain_attempts", 3, 430, ["domain"]]
+          ],
+          "dash": [
+            ["link_clicks", "visitor_hash", "link_hash_salts", "その日の塩"],
+            ["link_domain_removals", "domain", "link_domains", "ドメイン名"]
+          ],
+          "labels": {}
+        }
+      ]
+    },
+    {
+      "key": "goal",
+      "title": "目標と伴走",
+      "color": "#DB2777",
+      "sub": "目標・KPI・ロードマップ・通知",
+      "lead": "目標（KGI）に中間の目標と KPI がぶら下がり、ロードマップのやることは目標とプロジェクトにつながる。通知の設定と宛先は利用者ごと。",
+      "tables": ["goals", "goal_milestones", "goal_kpis", "roadmap_items", "pace_weeks", "notification_prefs", "notification_log", "push_subscriptions", "attention_dismissals"],
+      "figures": [
+        {
+          "title": "目標と伴走",
+          "boxes": [
+            ["goal_milestones", 0, 30, ["seq", "target", "result_value"]],
+            ["goal_kpis", 0, 230, ["role", "metric", "per_week"]],
+            ["goals", 1, 30, ["metric", "target", "status"]],
+            ["roadmap_items", 1, 330, ["title", "week_start", "status"]],
+            ["projects", 2, 30, [], "ref"],
+            ["attention_dismissals", 2, 330, ["kind", "closed_at"]],
+            ["pace_weeks", 3, 30, ["week_start", "achieved"]],
+            ["notification_log", 3, 205, ["kind", "channel"]],
+            ["posts", 3, 400, [], "ref"],
+            ["notification_prefs", 0, 560, ["email_mode", "push_mode"]],
+            ["push_subscriptions", 1, 560, ["device_label", "last_success_at"]]
+          ],
+          "dash": [],
+          "labels": {},
+          "lanes": {
+            "posts.roadmap_item_id": 520
+          }
+        }
+      ]
+    },
+    {
+      "key": "ai",
+      "title": "AI・費用・学び",
+      "color": "#4F46E5",
+      "sub": "AI の会話と使った量、外部 API の費用、学びの記録",
+      "lead": "AI との会話と使った量・費用、SNS の API と X の検索の費用は、月の上限の判定に使う。学びの記録は利用者ごと。",
+      "tables": ["ai_threads", "ai_messages", "ai_usage", "sns_api_usage", "x_search_usage", "learning_term_reads", "learning_tip_shows"],
+      "figures": [
+        {
+          "title": "AI・費用・学び",
+          "boxes": [
+            ["projects", 0, 120, [], "ref"],
+            ["ai_threads", 1, 30, ["purpose", "closed_at"]],
+            ["x_search_usage", 1, 250, ["status", "cost_usd"]],
+            ["ai_messages", 2, 30, ["role", "content"]],
+            ["ai_usage", 2, 205, ["purpose", "model", "cost_usd"]],
+            ["sns_api_usage", 2, 400, ["sns", "operation", "cost_usd"]],
+            ["post_targets", 3, 400, [], "ref"],
+            ["learning_term_reads", 0, 420, ["term_key", "last_read_at"]],
+            ["learning_tip_shows", 1, 450, ["tip_key", "last_shown_at"]]
+          ],
+          "dash": [],
+          "labels": {}
+        }
+      ]
+    },
+    {
+      "key": "legal",
+      "title": "規約と運営",
+      "color": "#64748B",
+      "sub": "規約への同意と知らせ、招待の申し込み、運営者への知らせ",
+      "lead": "規約への同意と、規約の変更の知らせを送った記録。招待の申し込みと運営者への知らせは、サーバーだけが扱う。",
+      "tables": ["legal_consents", "legal_notice_campaigns", "legal_notice_sends", "waitlist", "operator_notifications"],
+      "figures": [
+        {
+          "title": "規約と運営",
+          "boxes": [
+            ["legal_consents", 0, 30, ["version", "via", "accepted_at"]],
+            ["legal_notice_campaigns", 1, 30, ["version", "started_at"]],
+            ["legal_notice_sends", 2, 30, ["status"]],
+            ["waitlist", 0, 230, ["email", "app_note"]],
+            ["operator_notifications", 1, 230, ["key", "sent_at"]]
+          ],
+          "dash": [],
+          "labels": {}
+        }
+      ]
+    }
+  ],
+  "overview": {
+    "top": "post",
+    "hub": "project",
+    "row": ["auto", "goal", "ai", "metrics", "link", "legal"],
+    "edges": [
+      ["auto", "post", "投稿を作る"],
+      ["goal", "post", "要確認・やること"],
+      ["ai", "post", "送り先の費用"],
+      ["metrics", "post", "送り先の数字"],
+      ["link", "post", "本文のリンク"],
+      ["auto", "project", ""],
+      ["goal", "project", ""],
+      ["ai", "project", ""],
+      ["metrics", "project", "SNS アカウントなど"],
+      ["link", "project", ""]
+    ],
+    "short": {
+      "auto": "回し方と回",
+      "goal": "目標・KPI・通知",
+      "ai": "AI と API の費用・学び",
+      "metrics": "数字とコメント",
+      "link": "リンクとクリック",
+      "legal": "同意・招待・運営"
+    }
+  },
+  "notes": [
+    [
+      "利用者（auth.users）は図に出していない",
+      "ほとんどの表は持ち主（owner_id、表によっては user_id）で Supabase の認証の利用者（auth.users）を指す。外部キーの制約はあるが、型のファイルには出ないため、各図では省いた。退会すると、ほとんどの行は一緒に消える。"
+    ],
+    [
+      "jsonb の中で指している参照は、データベースでは確かめない",
+      "自動の回し方の材料の選び方（materials）と回の使った材料（material_ref）は、フォーマット・行き先・メモ・予定の ID を jsonb の中に持つ。投稿のフォーマットの投稿の柱は、アカウント設計の中の柱を名前で指す。消しても参照は残るので、読む側で無いものとして扱う。"
+    ],
+    [
+      "状態と結果はサーバーが決める",
+      "目標・自動の回・送り先の状態など、利用者が書き換えてはいけない列は、列の権限（grant）で書けないようにし、書き込みは関数とサーバーだけにしている。RLS は行だけを絞る。"
+    ],
+    [
+      "消す期限がある表がある",
+      "SNS のコメントは 30 日、通知を送った記録は 90 日、自動の回と承認の記録は 13 か月、お知らせ・季節の予定は日付から 1 年で消す。費用の記録（AI・SNS の API・X の検索）は、退会しても持ち主を空にして残すものがある。"
+    ]
+  ]
+}

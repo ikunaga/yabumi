@@ -79,7 +79,6 @@ export function PhotoMaker({
   const [acking, startAck] = useTransition();
   // 絵の説明のフォーマット（「いつも使う」をはじめから選ぶ）。lastIdea: 最後に選んだ AI の案の場面（フォーマットを替えたときに差し込み直す）
   const [templates, setTemplates] = useState<PhotoTemplate[]>([]);
-  const [examples, setExamples] = useState<{ name: string; body: string }[]>([]);
   const [templateId, setTemplateId] = useState<string | null>(null);
   const [lastIdea, setLastIdea] = useState("");
   // フォーマットの画像: 入れ直した seq と、まだつくっていない auto の seq（注意を読む前に押されたら、読んだあとにつくる）
@@ -111,7 +110,6 @@ export function PhotoMaker({
     void listPhotoTemplates(projectId).then((r) => {
       if (!alive || !r.templates) return;
       setTemplates(r.templates);
-      setExamples(r.examples ?? []);
       // 「いつも使う」をはじめから選び、まだ何も書いていなければ、その本文を絵の説明に入れる（{場面} は穴のまま）
       // 投稿のフォーマットの画像で開いたときは、絵の説明のフォーマットを選ばない（絵の説明はフォーマットの画像の設定から入れる）
       const d = presetRef.current ? null : (r.templates.find((t) => t.isDefault) ?? null);
@@ -133,7 +131,6 @@ export function PhotoMaker({
     }
     setError(null);
     setTemplates(r.templates ?? []);
-    if (r.examples) setExamples(r.examples);
     if (templateId && !r.templates?.some((t) => t.id === templateId)) setTemplateId(null);
   }
 
@@ -322,7 +319,7 @@ export function PhotoMaker({
           <span className="ml-1.5 text-muted">{preset.scene === "ai" ? `AI が絵の説明を場面に直してからつくります（場面の分 約 ${SCENE_YEN.one[0]}〜${SCENE_YEN.one[1]} 円が足されます）` : "穴の言葉を入れた絵の説明でつくります"}</span>
         </p>
       )}
-      <PhotoTemplatePicker projectId={projectId} templates={templates} examples={examples} selectedId={templateId} onSelect={selectTemplate} onChange={onTemplates} />
+      <PhotoTemplatePicker projectId={projectId} templates={templates} selectedId={templateId} onSelect={selectTemplate} />
 
       <div className="flex flex-col gap-2 rounded-md bg-surface2 px-3.5 py-3 text-sm">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">

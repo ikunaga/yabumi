@@ -99,7 +99,7 @@ export function PlanWizard(p: Props) {
       unusedPhotoNotes: p.materials.counts.unusedPhotoNotes,
     },
     p.projectId,
-    `/projects/${p.projectId}/compose`,
+    `/projects/${p.projectId}/formats`,
   );
   // おすすめのカード（シリーズは最初のフォーマット）。直すときは出さない
   const suggested = editing ? null : (cards.find((c) => c.choice.kind === p.kindSuggestion.kind && !c.off) ?? null);

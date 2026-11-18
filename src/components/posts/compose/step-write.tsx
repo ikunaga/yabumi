@@ -13,19 +13,18 @@ import { isSideBySide, type Composer } from "./use-composer";
 
 // ① 書く: 本文・AI で整える・書いたのは誰（docs/design/compose-steps.md）。見出し・リセット・保存のエラー・書きかけの帯は、どのステップでも見えるよう上の帯（compose-top.tsx）に置く
 export function ComposeStepWrite({ c, steps = false }: { c: Composer; steps?: boolean }) {
-  const { connected, addRoundId, goStep, formatUse, bodyUnused, setFormatUse, applyFormatTags, planHints, projectId, initial, formatSeed, formatRound, aiCheckEnabled, selfWrittenPosts, hasVoiceMemo, body, setBody, bodyRef, overrides, setOverrides, setFocus, setTidyAdopted, textOrigin, setTextOrigin, noteIds, markTyped, resetRound, checks, sentAny, chosen, focus, toSend, clearFieldError, showBody, editOverride, fe, focusLabel, splitSns, bodySns, countText } = c;
+  const { formatsOpen, addRoundId, goStep, formatUse, bodyUnused, setFormatUse, applyFormatTags, projectId, initial, formatSeed, formatRound, aiCheckEnabled, selfWrittenPosts, hasVoiceMemo, body, setBody, bodyRef, overrides, setOverrides, setFocus, setTidyAdopted, textOrigin, setTextOrigin, noteIds, markTyped, resetRound, checks, sentAny, chosen, focus, toSend, clearFieldError, showBody, editOverride, fe, focusLabel, splitSns, bodySns, countText } = c;
   return (
     <>
-      {/* 投稿のフォーマット（docs/design/post-formats.md の 4）。穴を埋めて本文に入れる。穴の言葉は利用者が打ったものなので、書きかけの控えに乗せる */}
+      {/* 投稿のフォーマット（docs/design/post-formats.md の 4）。「フォーマットから」を押すと出す。穴を埋めて本文に入れる。穴の言葉は利用者が打ったものなので、書きかけの控えに乗せる。
+          閉じても選んだフォーマットと穴の言葉は残す（隠すだけ） */}
       {!sentAny && (
+        <div id="compose-formats" hidden={!formatsOpen}>
         <PostFormatPicker
           // 同じ並びの TidyDraftPanel も resetRound を key にしているので、かぶらないように分ける（かぶると React が部品を重ねて描く）
           key={`format-${resetRound}-${formatRound}`}
           projectId={projectId}
           bodyHasText={body.trim() !== ""}
-          pillars={(planHints?.pillars ?? []).map((p) => p.name).filter(Boolean)}
-          planHashtags={planHints?.hashtags ?? []}
-          connected={connected}
           aiEnabled={aiCheckEnabled}
           onInsert={(text, how, hashtags) => {
             applyFormatTags(hashtags);
@@ -38,6 +37,7 @@ export function ComposeStepWrite({ c, steps = false }: { c: Composer; steps?: bo
           initialValues={formatSeed}
           onRoundAdded={addRoundId}
         />
+        </div>
       )}
 
       {initial.roadmapItem && (

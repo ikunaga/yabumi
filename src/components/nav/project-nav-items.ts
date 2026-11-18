@@ -1,6 +1,6 @@
 // プロジェクト内のナビ。まだ作っていない画面は href なし（押せない）。
 // main: 上の横並びのメニュー（PC）とスマホの下のタブに出す 5 つ（決定 D33）。ほかは「…」（その他）と、スマホの「メニュー」と、関係する画面の中から開く
-export type ProjectNavKey = "overview" | "plan" | "compose" | "auto" | "drafts" | "comments" | "notes" | "calendar" | "links" | "metrics" | "consult" | "roadmap" | "settings";
+export type ProjectNavKey = "overview" | "plan" | "compose" | "auto" | "drafts" | "comments" | "notes" | "formats" | "calendar" | "links" | "metrics" | "consult" | "roadmap" | "settings";
 
 // barLabel: PC の上の帯に出す英語の名前（2026-10-31 オーナーの指示）。画面の見出し・スマホのタブ・メニューの説明は日本語（label・tabLabel）のまま
 export type ProjectNavItem = { key: ProjectNavKey; label: string; barLabel: string; tabLabel: string; href: string | null; main: boolean };
@@ -24,6 +24,8 @@ export function projectNavItems(projectId: string): ProjectNavItem[] {
     { key: "plan", label: "アカウント設計", barLabel: "Strategy", tabLabel: "設計", href: `${base}/plan`, main: false },
     // ネタ帳（4.26）。メモを残すのは上の「＋ メモ」、スマホは右下の「＋ メモ」
     { key: "notes", label: "ネタ帳", barLabel: "Notes", tabLabel: "ネタ帳", href: `${base}/notes`, main: false },
+    // フォーマット（投稿の文と絵の説明の型。2026-11-18 オーナーの了承で、投稿をつくるの中の「フォーマットを管理」から移した）。投稿をつくるの「フォーマットから」・自動の投稿からも開く
+    { key: "formats", label: "フォーマット", barLabel: "Formats", tabLabel: "フォーマット", href: `${base}/formats`, main: false },
     // 短縮リンク（4.22）
     { key: "links", label: "短縮リンク", barLabel: "Links", tabLabel: "短縮リンク", href: `${base}/links`, main: false },
     // ロードマップ（4.23）
@@ -48,6 +50,8 @@ export function activeNavKey(segment: string | null): ProjectNavKey {
       return "comments";
     case "notes":
       return "notes";
+    case "formats":
+      return "formats";
     case "calendar":
       return "calendar";
     case "plan":

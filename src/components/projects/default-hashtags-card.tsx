@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { FormatTagsFields } from "@/components/posts/post-format-picker";
+import { FormatTagsFields } from "@/components/formats/format-manager";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { ErrorBanner } from "@/components/ui/feedback";

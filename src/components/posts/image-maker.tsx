@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { Input, Textarea } from "@/components/ui/field";
 import { draftImageText } from "@/lib/ai/image-brief-actions";
+import { photoModel, photoUnitYen } from "@/lib/ai/photo";
 import type { ImageBrief } from "@/lib/ai/image-brief";
 import { MAX_ALT_LENGTH } from "@/lib/media/rules";
 import { bitmapToJpeg } from "@/lib/media/client-upload";
@@ -41,6 +42,26 @@ import { BriefBar, FooterField, HeadlineFields, LabelField, PhotoFitField, SizeF
 // plain: 文字のない写真（AI の写真をそのまま）。text: 文字が主役の画像（文字のカード・図解・note のヘッダー）。
 // headline: 写真に見出し。敷いた写真（photo。AI の写真なら photoAi にその記録の ID）と設定を渡し、「見出しを直す」の元にする
 export type MadeImage = { kind: "plain" } | { kind: "text" } | { kind: "headline"; photo: Blob; photoAi?: string; settings: HeadlineSettings };
+
+type MakerMode = "template" | "photo";
+const modeKey = (projectId: string) => `yabumi-image-maker-mode:${projectId}`;
+
+// 前に選んだつくり方（この端末だけ。読めなければテンプレート）
+function loadMakerMode(projectId: string): MakerMode {
+  try {
+    return localStorage.getItem(modeKey(projectId)) === "photo" ? "photo" : "template";
+  } catch {
+    return "template";
+  }
+}
+
+function saveMakerMode(projectId: string, mode: MakerMode) {
+  try {
+    localStorage.setItem(modeKey(projectId), mode);
+  } catch {
+    // 覚えられなくても、選んだつくり方で続ける
+  }
+}
 
 export type ImageMakerProps = {
   projectId: string;
@@ -92,15 +113,22 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
     { title: "", text: "" },
     { title: "", text: "" },
   ]);
-  const [mode, setMode] = useState<"template" | "photo">("template");
+  // つくり方は、プロジェクトごとに前回のものを覚えておく（AI で写真をつくる人が、毎回テンプレートから切り替えなくて済むように。
+  // 2026-11-18 オーナーの通しの指摘 18）。開くだけでは AI を呼ばない（押した「つくる」だけが費用になる）
+  const [mode, setModeState] = useState<MakerMode>(() => loadMakerMode(projectId));
   // 「AI で写真・絵をつくる」を一度開いたら、タブを切り替えても外さない（作った候補・絵の説明を残す）
-  const [photoOpened, setPhotoOpened] = useState(false);
+  const [photoOpened, setPhotoOpened] = useState(mode === "photo");
+  function setMode(m: MakerMode) {
+    setModeState(m);
+    saveMakerMode(projectId, m);
+  }
   // フォーマットの画像で開き直した seq（見出しの文は、写真に見出しを重ねるときに入れる）
   const [presetSeq, setPresetSeq] = useState<number | null>(null);
   if (preset && preset.seq !== presetSeq) {
     setPresetSeq(preset.seq);
     setPhotoOpened(true);
-    setMode("photo");
+    // フォーマットの画像で開いたときは、覚えたつくり方は書き換えない（その投稿のフォーマットのため）
+    setModeState("photo");
     if (preset.size !== "auto") setSize(preset.size);
   }
   // aiJobId: 写真が AI で作ったものなら、その記録の ID（添えるときに AI の印を付ける）。scene はその絵の説明（説明文に使う）
@@ -262,7 +290,8 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
     if (preset?.headline) setHeadline((h) => h || preset.headline || "");
     setKind("screen");
     setPhotoFit("cover");
-    setMode("template");
+    // 文字を入れる画面に移るだけ（覚えたつくり方は AI の写真のまま）
+    setModeState("template");
   }
 
   const tall = kind !== "note" && size !== "landscape";
@@ -274,13 +303,9 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
         <h3 id="image-maker-heading" className="text-[15px] font-bold">
           {nextIndex > 1 ? `${nextIndex} 枚目をつくる` : "画像をつくる"}
         </h3>
-        <span className="text-xs text-muted">
-          {nextIndex > 1 && instagram && first
-            ? `Instagram のカルーセルなら、1 枚目と同じ縦横（${TEMPLATE_SIZES[closestSize(first.width, first.height)].label}）にそろえます`
-            : mode === "template"
-              ? "テンプレートに文字を入れて作ります。画像の費用はかかりません"
-              : "絵の説明から、AI が写真や絵をつくります（1 枚 5 円ほど）"}
-        </span>
+        {nextIndex > 1 && instagram && first && (
+          <span className="text-xs text-muted">{`Instagram のカルーセルなら、1 枚目と同じ縦横（${TEMPLATE_SIZES[closestSize(first.width, first.height)].label}）にそろえます`}</span>
+        )}
         <Button type="button" variant="text" size="sm" className="ml-auto" onClick={onClose}>
           {added ? "閉じる" : "やめる"}
         </Button>
@@ -298,13 +323,10 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
         </p>
       )}
 
-      <div role="group" aria-label="つくり方" className="flex flex-wrap gap-2">
-        <Choice on={mode === "template"} onClick={() => setMode("template")}>
-          テンプレート
-        </Choice>
-        <Choice on={mode === "photo"} onClick={openPhoto}>
-          AI で写真・絵をつくる
-        </Choice>
+      {/* つくり方は 2 つを同じ大きさで並べ、何ができて費用がかかるかを 1 行で添える（AI の写真がテンプレートの横の小さなタブで見つけにくかった。指摘 18） */}
+      <div role="group" aria-label="つくり方" className="grid grid-cols-2 gap-2">
+        <ModeCard on={mode === "template"} onClick={() => setMode("template")} title="テンプレート" note="文字のカード・図解など（無料）" />
+        <ModeCard on={mode === "photo"} onClick={openPhoto} title="AI で写真・絵" note={`絵の説明から AI がつくる（1 枚 約 ${photoUnitYen(photoModel({}))} 円）`} />
       </div>
 
       {photoOpened && (
@@ -321,12 +343,12 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
                 <Button type="button" variant="text" size="sm" className="-ml-2" onClick={() => setMode("photo")}>
                   ← 候補に戻る
                 </Button>
-                <span className="text-xs text-muted">AI で作った画像に見出しを重ねています</span>
+                <span className="text-xs text-muted">AI で作った画像に文字を入れています</span>
               </div>
               {/* スマホの幅では 2 行にする（1 行だと 320 幅で枠からはみ出す） */}
               <Button type="button" variant="secondary" size="sm" className="h-auto min-h-8 gap-0 py-1.5 max-sm:flex-col max-sm:items-start" disabled={adding} onClick={() => void addShotAsIs()}>
-                <span>見出しなしで添える</span>
-                <span className="max-sm:text-xs max-sm:font-normal">（AI の画像をそのまま）</span>
+                <span>文字を入れずにそのまま使う</span>
+                <span className="max-sm:text-xs max-sm:font-normal">（AI の画像を添える）</span>
               </Button>
             </div>
           )}
@@ -461,5 +483,20 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
         </>
       )}
     </section>
+  );
+}
+
+// つくり方の選択（テンプレート／AI で写真・絵）。名前と、何ができて費用がかかるかの 1 行
+function ModeCard({ on, onClick, title, note }: { on: boolean; onClick: () => void; title: string; note: string }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      onClick={onClick}
+      className={`flex min-w-0 flex-col items-start gap-0.5 rounded-md border px-3 py-2.5 text-left transition-colors ${on ? "border-primary bg-primary-soft" : "border-border bg-surface hover:border-primary"}`}
+    >
+      <span className={`text-sm font-bold ${on ? "text-primary" : "text-fg"}`}>{title}</span>
+      <span className="text-xs leading-[1.6] text-muted">{note}</span>
+    </button>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import type { SnsKey } from "@/lib/sns";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { AiThinking } from "@/components/ui/ai-thinking";
 import { Button, NotReadyButton } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/feedback";
@@ -62,12 +62,14 @@ export function PhotoMaker({
   // 投稿のフォーマットの画像（docs/design/format-image.md の 2.1）。seq が変わるたびに、絵の説明・描き方を入れ直し、auto なら 1 枚つくる
   preset?: FormatPhotoPreset | null;
 }) {
+  const sceneId = useId();
   const [state, setState] = useState<PhotoPanelState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ideas, setIdeas] = useState<PhotoIdea[]>([]);
   const [scene, setScene] = useState("");
   const [style, setStyle] = useState<PhotoStyle>("photo");
-  const [count, setCount] = useState(2);
+  // 枚数の最初は 1 枚（2 枚だと気づかずに費用が倍になる。2026-11-18 オーナーの通しの指摘 19）
+  const [count, setCount] = useState(1);
   const [candidates, setCandidates] = useState<Candidates | null>(null);
   // 選んだ候補（まとめて添えられる）と、もう添えた候補（同じ候補を 2 回添えない）
   const [picked, setPicked] = useState<string[]>([]);
@@ -324,15 +326,21 @@ export function PhotoMaker({
       )}
       <PhotoTemplatePicker projectId={projectId} templates={templates} examples={examples} selectedId={templateId} onSelect={selectTemplate} onChange={onTemplates} />
 
-      <div className="flex flex-col gap-2 rounded-md bg-surface2 px-3.5 py-3 text-sm">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      {error && <ErrorBanner>{error}</ErrorBanner>}
+
+      {/* 絵の説明と「本文から案を出す」を並べる（案のボタンが離れた灰色の箱にあり、自分で書くしかないように見えた。指摘 18）。押したときだけ AI を呼ぶ */}
+      <div className="flex flex-col gap-1.5">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <label htmlFor={sceneId} className="text-[14px] font-bold">
+            絵の説明
+          </label>
           {state.ideasEnabled ? (
             <Button type="button" variant="secondary" size="sm" disabled={drafting || !hasText} onClick={draft}>
-              {drafting ? "考えています…" : ideas.length ? "別の案を出してもらう" : "AI に絵の説明の案を出してもらう"}
+              {drafting ? "考えています…" : ideas.length ? "別の案を出す" : "本文から案を出す"}
             </Button>
           ) : (
             <NotReadyButton variant="secondary" size="sm">
-              AI に絵の説明の案を出してもらう
+              本文から案を出す
             </NotReadyButton>
           )}
           <span className="text-xs text-muted">
@@ -348,7 +356,7 @@ export function PhotoMaker({
                   type="button"
                   aria-pressed={lastIdea === idea.scene}
                   onClick={() => pickIdea(idea.scene)}
-                  className={`flex w-full flex-col gap-0.5 rounded-md border px-3 py-2 text-left transition-colors ${lastIdea === idea.scene ? "border-primary bg-primary-soft" : "border-border bg-surface hover:border-primary"}`}
+                  className={`flex w-full flex-col gap-0.5 rounded-md border px-3 py-2 text-left text-sm transition-colors ${lastIdea === idea.scene ? "border-primary bg-primary-soft" : "border-border bg-surface hover:border-primary"}`}
                 >
                   <span className="font-bold">{idea.title}</span>
                   <span className="text-xs leading-[1.7] text-muted">{idea.why}</span>
@@ -357,17 +365,11 @@ export function PhotoMaker({
             ))}
           </ul>
         )}
-      </div>
-
-      {error && <ErrorBanner>{error}</ErrorBanner>}
-
-      <label className="flex flex-col gap-1.5">
-        <span className="text-[14px] font-bold">絵の説明</span>
-        <Textarea value={scene} rows={4} maxLength={MAX_SCENE_CHARS} onChange={(e) => setScene(e.target.value)} placeholder="例: 朝の光が入る木のカウンターに、焼きたてのパンが並んでいる。近くから少し斜めに" className="py-2 text-sm" />
+        <Textarea id={sceneId} value={scene} rows={4} maxLength={MAX_SCENE_CHARS} onChange={(e) => setScene(e.target.value)} placeholder="例: 朝の光が入る木のカウンターに、焼きたてのパンが並んでいる。近くから少し斜めに" className="py-2 text-sm" />
         <span className={`text-xs ${slotLeft ? "font-bold text-signal" : "text-muted"}`}>
-          {slotLeft ? `${SCENE_SLOT} を、写したいもの（例: 焼きたてのパンが並んだカウンター）に書き換えてください` : "何が・どこで・どんな光と雰囲気か。文字は入れずに作り、見出しはあとで重ねられます"}
+          {slotLeft ? `${SCENE_SLOT} を、写したいもの（例: 焼きたてのパンが並んだカウンター）に書き換えてください` : "何が・どこで・どんな光と雰囲気か。文字は入れずに作り、文字はあとで入れられます"}
         </span>
-      </label>
+      </div>
       {slotTemplate && (
         <label className="flex flex-col gap-1.5">
           <span className="text-[14px] font-bold">
@@ -465,22 +467,24 @@ export function PhotoMaker({
             })}
           </ul>
           <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" disabled={pickedItems.length !== 1 || using} onClick={() => void use(false)}>
-              見出しを重ねる
-            </Button>
-            <Button type="button" variant="secondary" disabled={pickedItems.length === 0 || using} onClick={() => void use(true)}>
+            {/* 押すと何が起きるかがわかる名前にする（「見出しを重ねる」「このまま添える」の違いがわからなかった。指摘 20） */}
+            <Button type="button" disabled={pickedItems.length === 0 || using} onClick={() => void use(true)}>
               {using
                 ? "添えています…"
                 : pickedItems.length > 1
-                  ? `選んだ ${pickedItems.length} 枚を添える（${nextIndex}〜${nextIndex + pickedItems.length - 1} 枚目）`
-                  : `このまま添える（${nextIndex} 枚目）`}
+                  ? `選んだ ${pickedItems.length} 枚をそのまま使う（${nextIndex}〜${nextIndex + pickedItems.length - 1} 枚目）`
+                  : `そのまま使う（${nextIndex} 枚目）`}
+            </Button>
+            <Button type="button" variant="secondary" disabled={pickedItems.length !== 1 || using} onClick={() => void use(false)}>
+              文字を入れる
             </Button>
           </div>
+          <p className="text-xs leading-[1.7] text-muted">そのまま使う: 文字なしで投稿に添えます。文字を入れる: 画像に見出しの文字を重ねる画面に進み、そこで添えます。</p>
           <p className="text-xs leading-[1.7] text-muted">
             {/* 見出しを重ねるが押せない理由（添えた画像には、その画像の行の「見出しを付ける」から付けられる。4.58） */}
             {remainingCandidates.length === 0
-              ? "候補はすべて添えました。見出しは、下の添えた画像の行の「見出しを付ける」から付けられます。続けてつくるときは、場面を変えて「つくる」を押してください。"
-              : `${pickedItems.length === 0 ? "見出しを重ねるときは、候補を 1 枚選んでください。" : pickedItems.length > 1 ? "見出しを重ねるのは 1 枚ずつです。" : ""}選ばなかった画像は 1 日で消えます。`}
+              ? "候補はすべて添えました。文字は、下の添えた画像の行の「見出しを付ける」から入れられます。続けてつくるときは、場面を変えて「つくる」を押してください。"
+              : `${pickedItems.length === 0 ? "文字を入れるときは、候補を 1 枚選んでください。" : pickedItems.length > 1 ? "文字を入れるのは 1 枚ずつです。" : ""}選ばなかった画像は 1 日で消えます。`}
           </p>
         </div>
       )}

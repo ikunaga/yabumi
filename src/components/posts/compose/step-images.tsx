@@ -10,7 +10,7 @@ import { formatDuration } from "@/lib/media/video-rules";
 import { VIDEO_REMOVED_TEXT } from "@/lib/posts/compose-steps";
 import { type Composer } from "./use-composer";
 import { FormatImageBand } from "./format-image-band";
-import type { FormatPhotoPreset } from "@/lib/post-formats/image";
+import { formatPhotoTexts, type FormatPhotoPreset } from "@/lib/post-formats/image";
 
 // ③ 画像・動画: 添える・つくる・整える（compose-steps.md）。1 つの投稿は、画像か動画 1 本のどちらか（docs/design/video.md の 4.）
 export function ComposeStepImages({ c }: { c: Composer }) {
@@ -22,6 +22,23 @@ export function ComposeStepImages({ c }: { c: Composer }) {
   // 下書きから開き直したとき、フォーマットの欄は空なので、投稿に結びついたシリーズの記録の言葉を使う（欄に何か入れたらそちらを使う）
   const restored = formatUse && formatUse.format.id === initial.formatId && !Object.values(formatUse.values).some((v) => v.trim()) && !formatUse.answer?.trim() ? initial.formatValues : null;
   const imageUse = formatUse?.format.image ? { ...formatUse, ...(restored ?? {}), format: { ...formatUse.format, image: formatUse.format.image } } : null;
+  // フォーマットの画像の設定を、画像をつくる画面に渡す（auto: すぐ 1 枚つくる。帯の「つくる」だけ）
+  function makePreset(auto: boolean, texts: { text: string; headline: string | null }) {
+    if (!imageUse) return;
+    setPreset((p) => ({
+      seq: (p?.seq ?? 0) + 1,
+      auto,
+      formatId: imageUse.format.id,
+      name: imageUse.format.name,
+      scene: imageUse.format.image.scene,
+      text: texts.text,
+      values: imageUse.values,
+      answer: imageUse.answer ?? "",
+      style: imageUse.format.image.style,
+      size: imageUse.format.image.size,
+      headline: texts.headline,
+    }));
+  }
   // 動画を添えたが、yabumi からはまだ動画を送れない送り先
   const noVideo = video ? chosen.filter((s) => !isLocked(s) && checks[s].issues.includes("video_unsupported")) : [];
   return (
@@ -59,26 +76,17 @@ export function ComposeStepImages({ c }: { c: Composer }) {
         <FormatImageBand
           use={imageUse}
           disabled={pending || videoBusy || Boolean(video)}
-          onMake={(auto, texts) =>
-            setPreset((p) => ({
-              seq: (p?.seq ?? 0) + 1,
-              auto,
-              formatId: imageUse.format.id,
-              name: imageUse.format.name,
-              scene: imageUse.format.image.scene,
-              text: texts.text,
-              values: imageUse.values,
-              answer: imageUse.answer ?? "",
-              style: imageUse.format.image.style,
-              size: imageUse.format.image.size,
-              headline: texts.headline,
-            }))
-          }
+          onMake={makePreset}
         />
       )}
       <div className="flex flex-col gap-1.5">
         <ImageAttachments
           preset={preset}
+          // 帯を使わずに「画像をつくる」を押したときも、はじめの 1 回はフォーマットの画像の設定（絵の説明・描き方・縦横）を入れて開く。
+          // つくるのは押したときだけ（指摘 18。押していないのに AI を呼ばない）
+          onOpenMaker={() => {
+            if (imageUse && !preset) makePreset(false, formatPhotoTexts(imageUse.format, imageUse.values, imageUse.answer));
+          }}
           images={images}
           disabled={pending || videoBusy}
           maker={{ projectId, projectName, aiEnabled: aiCheckEnabled, text: bodyFor(focus), targets: chosen }}

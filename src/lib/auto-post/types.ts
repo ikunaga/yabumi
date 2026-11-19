@@ -1,3 +1,4 @@
+import type { ReviewMedia } from "./review-media";
 import type { SnsKey } from "@/lib/sns";
 
 // 自動の投稿の型（docs/design/auto-post.md の 2.2。DB は 20261116100000_auto_post）。
@@ -135,6 +136,8 @@ export type AutoReviewItem = {
   postId: string;
   dueAt: string;
   targets: AutoTargetPreview[];
+  // その回に添えた画像・動画（SNS ごとに届くものは review-media.ts の mediaForSns で決める）
+  media: ReviewMedia;
 };
 
 // カレンダーと概要に出す、これからの自動の回（作る前の回は postId が null）

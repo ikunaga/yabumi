@@ -10,11 +10,13 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { SnsTag } from "@/components/ui/marks";
 import { approveAutoTarget, declineAutoTarget, reviewAutoRun } from "@/lib/auto-post/actions";
+import { mediaForSns, type ReviewMedia } from "@/lib/auto-post/review-media";
 import type { AutoReviewItem, AutoTargetPreview } from "@/lib/auto-post/types";
-import { SNS } from "@/lib/sns";
+import { formatDuration } from "@/lib/media/video-rules";
+import { SNS, type SnsKey } from "@/lib/sns";
 
 // 確かめ待ちの 1 回（docs/design/auto-post.md の 1.6、src/lib/auto-post/README.md の「確かめる」）。
-// 送る中身（題・本文）を SNS ごとにそのまま見せる（X の開発者ポリシー「Show exactly what will be published」）。
+// 送る中身（題・本文・画像と画像の説明・動画）を SNS ごとにそのまま見せる（X の開発者ポリシー「Show exactly what will be published」）。
 // first_review: 回ごとに「送る」「直す」「この回は送らない」。approval: 確かめ待ちの SNS ごとに「送る」「直す」「この SNS には送らない」
 export function ReviewCard({ projectId, item, dueLabel }: { projectId: string; item: AutoReviewItem; dueLabel: string }) {
   const router = useRouter();
@@ -58,6 +60,7 @@ export function ReviewCard({ projectId, item, dueLabel }: { projectId: string; i
           </div>
           {t.title && <p className="text-[15px] font-bold whitespace-pre-wrap">{t.title}</p>}
           <p className="text-[15px] leading-[1.8] break-words whitespace-pre-wrap">{t.body}</p>
+          <TargetMedia sns={t.sns} media={item.media} />
           {!first && (
             <div className="flex flex-wrap justify-end gap-2 max-sm:grid max-sm:grid-cols-3">
               <Button type="button" size="sm" disabled={pending} onClick={() => run(() => approveAutoTarget(t.targetId, t.fingerprint))}>
@@ -128,5 +131,53 @@ export function ReviewCard({ projectId, item, dueLabel }: { projectId: string; i
         <p>この回の送り先から外します。ほかの SNS は予約のまま送ります。</p>
       </ConfirmDialog>
     </Card>
+  );
+}
+
+// その SNS に届く画像（と画像の説明）・動画。どれが届くかは送信ジョブと同じ決まり（mediaForSns）
+function TargetMedia({ sns, media }: { sns: SnsKey; media: ReviewMedia }) {
+  const m = mediaForSns(sns, media);
+  if (m.kind === "none") return null;
+  const label = SNS[sns].label;
+  if (m.kind === "video") {
+    return (
+      <div className="flex flex-col gap-1.5">
+        {m.video.url ? (
+          <video src={m.video.url} controls playsInline preload="metadata" aria-label={`${label} に添える動画`} className="max-h-[320px] w-full rounded-md bg-surface2 object-contain" />
+        ) : (
+          <p className="text-sm text-muted">動画を読み込めませんでした。読み込み直してください。</p>
+        )}
+        <p className="num text-xs text-muted">動画 {formatDuration(m.video.durationMs)}</p>
+        {m.unsupported && (
+          <p className="text-sm">
+            <span className="text-signal">●</span> {label} には、yabumi からはまだ動画を送れません。直す画面で動画を外すか、{label} を送り先から外してください。
+          </p>
+        )}
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-2">
+      <ul className="grid grid-cols-4 gap-2 max-sm:grid-cols-2" aria-label={`${label} に添える画像`}>
+        {m.images.map((image, i) => (
+          <li key={image.id} className="flex flex-col gap-1">
+            <div className="flex aspect-square items-center justify-center overflow-hidden rounded-md border border-line bg-surface2">
+              {image.url ? (
+                // eslint-disable-next-line @next/next/no-img-element -- 署名つきの URL は期限があり、next/image の最適化を通さない
+                <img src={image.url} alt={image.altText || `${i + 1} 枚目の画像`} className="size-full object-contain" />
+              ) : (
+                <span className="px-2 text-center text-xs text-muted">読み込めませんでした</span>
+              )}
+            </div>
+            <p className="text-xs leading-[1.6] break-words text-muted">{image.altText ? `画像の説明: ${image.altText}` : "画像の説明なし"}</p>
+          </li>
+        ))}
+      </ul>
+      {m.overLimit && (
+        <p className="text-sm">
+          <span className="text-signal">●</span> {label} に添えられる画像は {m.max} 枚までです。直す画面で画像を減らしてください（このままでは送れません）。
+        </p>
+      )}
+    </div>
   );
 }

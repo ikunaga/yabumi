@@ -23,7 +23,7 @@
 - `listAutoPlans(projectId)`・`getAutoPlan(planId)`: 回し方
 - `listAutoRuns(planId, limit)`: 回の一覧（新しい順。結果を見る画面）
 - `listUpcomingAutoRuns(projectId, from, until)`: カレンダー・概要に出す、これからの回。ジョブがまだ作っていない回は規則から出す（postId が null・status が waiting）。止めた・飛ばした回は出さない
-- `listAutoReviewItems(projectId)`・`countAutoReviewItems(projectId)`: 確かめ待ち（送る時刻の前のもの）
+- `listAutoReviewItems(projectId, { media })`・`countAutoReviewItems(projectId)`: 確かめ待ち（送る時刻の前のもの）。回ごとに、添えた画像（画像の説明つき）・動画を `media` に持つ（`loadReviewMedia`。数えるだけのときは `media: false` で URL を作らない）。SNS ごとに何が届くかは `review-media.ts` の `mediaForSns`（送信ジョブ publisher.ts と同じ決まり）
 - `listProjectEvents(projectId)`: お知らせ・季節の予定
 
 ## 操作（actions.ts）。どれも `AutoResult`（`{ ok: true, data }` か `{ ok: false, error }`。error は画面にそのまま出せる文）

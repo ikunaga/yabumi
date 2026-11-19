@@ -1,9 +1,14 @@
 import "server-only";
 import { isSnsKey, type SnsKey } from "@/lib/sns";
+import { PREVIEW_URL_SECONDS } from "@/lib/media/rules";
+import { signedUrls } from "@/lib/media/store";
+import { signedVideoUrl } from "@/lib/media/video-store";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { myAutoPostHold } from "./holds";
 import { dueTimes } from "./schedule";
 import { toPlan, toRun, type PlanRow, type RunRow } from "./plan-row";
+import { NO_MEDIA, type ReviewMedia } from "./review-media";
 import type { AutoPlan, AutoReviewItem, AutoRun, AutoTargetPreview, ProjectEvent, UpcomingAutoRun } from "./types";
 
 // 自動の投稿の読み取り（利用者の権限のクライアントで。RLS で本人のものだけ）。画面とカレンダー・概要から呼ぶ
@@ -86,8 +91,34 @@ export async function loadTargetPreviews(client: Db, postId: string): Promise<Au
     .map((r) => ({ targetId: r.target_id, sns: r.sns as SnsKey, status: r.status, title: r.title, body: r.body, fingerprint: r.fingerprint, approvedAt: r.approved_at }));
 }
 
-// 確かめ待ち（送る時刻の前のもの）。最初の回の確かめ（A3）と、確かめて送る SNS の承認待ち
-export async function listAutoReviewItems(projectId: string): Promise<AutoReviewItem[]> {
+// その回の投稿に添えた画像・動画（確かめる画面で、送る中身をそのまま見せる）。行は利用者の権限で読み（RLS で本人のものだけ）、
+// 見る URL はそのあとにサーバーの権限で作る（1 時間で切れる。いまの作成画面と同じ）。承認の指紋（post_target_approval_fingerprint）と同じく、消した動画は数えない
+export async function loadReviewMedia(client: Db, postId: string): Promise<ReviewMedia> {
+  const { data, error } = await client
+    .from("media_files")
+    .select("id, kind, storage_path, alt_text, width, height, duration_ms, position")
+    .eq("post_id", postId)
+    .is("removed_at", null)
+    .order("position")
+    .order("id");
+  if (error) throw new Error(`media_files: ${error.message}`);
+  const rows = data ?? [];
+  const imageRows = rows.filter((r) => r.kind === "image");
+  const videoRow = rows.find((r) => r.kind === "video") ?? null;
+  if (!imageRows.length && !videoRow) return NO_MEDIA;
+  const admin = createAdminClient();
+  const urls = await signedUrls(admin, imageRows.map((r) => r.storage_path), PREVIEW_URL_SECONDS);
+  return {
+    images: imageRows.map((r) => ({ id: r.id, url: urls.get(r.storage_path) ?? null, altText: r.alt_text, width: r.width, height: r.height })),
+    video: videoRow
+      ? { id: videoRow.id, url: await signedVideoUrl(admin, videoRow.storage_path, PREVIEW_URL_SECONDS), width: videoRow.width, height: videoRow.height, durationMs: videoRow.duration_ms ?? 0 }
+      : null,
+  };
+}
+
+// 確かめ待ち（送る時刻の前のもの）。最初の回の確かめ（A3）と、確かめて送る SNS の承認待ち。
+// media: false なら画像・動画を読まない（数を数えるだけのとき。URL を作らない）
+export async function listAutoReviewItems(projectId: string, { media = true }: { media?: boolean } = {}): Promise<AutoReviewItem[]> {
   const client = await db();
   const now = new Date().toISOString();
   const { data, error } = await client
@@ -112,6 +143,7 @@ export async function listAutoReviewItems(projectId: string): Promise<AutoReview
       postId: r.post_id!,
       dueAt: r.due_at,
       targets,
+      media: media ? await loadReviewMedia(client, r.post_id!) : NO_MEDIA,
     });
   }
   return items;
@@ -119,7 +151,7 @@ export async function listAutoReviewItems(projectId: string): Promise<AutoReview
 
 // 確かめ待ちの数（一覧の上と概要の帯）
 export async function countAutoReviewItems(projectId: string): Promise<number> {
-  return (await listAutoReviewItems(projectId)).length;
+  return (await listAutoReviewItems(projectId, { media: false })).length;
 }
 
 // お知らせ・季節の予定（日付の順）

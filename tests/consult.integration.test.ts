@@ -1,7 +1,7 @@
 // AI と相談（F09、docs/architecture.md の 4.23）: 会話、「いまの状況」、提案の採用（設計・目標・やること・下書き）。1 回の返事は 1 つの項目の案 2〜3 個（2026-10-12）。
 // AI は callModel をモックし、本物の Claude API は呼ばない
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { GOAL_REVIEW_NOT_FOUND, LEGACY_GOAL_PROPOSAL, closeConsultThread, consultStep, type ConsultInput } from "@/lib/ai/consult";
+import { GOAL_RESCUE_NOT_FOUND, GOAL_REVIEW_NOT_FOUND, LEGACY_GOAL_PROPOSAL, closeConsultThread, consultStep, type ConsultInput } from "@/lib/ai/consult";
 import { normalizeConsultTurn, reviewHeadingOf, roadmapStepOf, roadmapStepState } from "@/lib/ai/consult-schema";
 import { scopeAiBudget } from "./helpers/ai-budget";
 import type { CallModel, ModelResult } from "@/lib/ai/plan-coach";
@@ -503,3 +503,69 @@ describe("ロードマップづくりの段", () => {
     expect(reviewHeadingOf(normalizeConsultTurn(kgiTurn)!.proposal!, "review")).toBeNull();
   });
 });
+
+describe("目標の立て直し（goal_rescue。docs/design/goals-model.md の 13.2）", () => {
+  let rProject: string;
+  let rGoal: string;
+  const rStep = (callModel: CallModel, threadId: string | null, input: ConsultInput) => consultStep(alice, admin, { callModel, loadKpiValues }, { userId: aliceId, projectId: rProject, threadId, input });
+
+  beforeAll(async () => {
+    rProject = (await alice.from("projects").insert({ name: "テストの教室", product_type: "shop" }).select("id").single()).data!.id;
+    const { data, error } = await alice.rpc("start_goal", {
+      p_project_id: rProject,
+      p_goal: { statement: "3 か月で予約 20 件", metric: "outcomes", action: "booking", target: 20, weeks: 12 } as never,
+      p_milestones: [4, 6, 10] as never,
+      p_kpis: [{ metric: "link_clicks", action: null, sns: null, per_week: 15 }] as never,
+      p_actions: [{ sns: "threads", per_week: 2 }] as never,
+      p_source: "manual",
+    });
+    if (error) throw error;
+    rGoal = data as string;
+  });
+
+  it("届かない見込みでなければ始めない（会話を作らない）。他人も始められない", async () => {
+    const callModel = reply(plain());
+    expect(await rStep(callModel, null, { kind: "start", topic: "goal_rescue" })).toMatchObject({ ok: false, message: GOAL_RESCUE_NOT_FOUND });
+    expect(callModel).not.toHaveBeenCalled();
+    const { count } = await admin.from("ai_threads").select("id", { count: "exact", head: true }).eq("project_id", rProject);
+    expect(count).toBe(0);
+  });
+
+  it("届かない見込みなら始められ、差・要るペース・直近 4 週の流れ・KPI と投稿の本数の実績を渡す。目標の見直しを採用すると目標が変わる", async () => {
+    // 17 日前に始めた目標で、予約 2 件（見込み 10〜11 件 →「このままでは届かない」）。サーバーの権限で日付だけ動かす
+    const today = toYmd(new Date());
+    const startsOn = addDays(today, -17);
+    await admin.from("goal_milestones").delete().eq("goal_id", rGoal);
+    await admin.from("goals").update({ starts_on: startsOn, ends_on: addDays(startsOn, 83) }).eq("id", rGoal);
+    for (const day of [addDays(today, -15), addDays(today, -2)]) {
+      const { error } = await admin.from("project_outcomes_daily").insert({ owner_id: aliceId, project_id: rProject, day, action: "booking", count: 1 });
+      if (error) throw error;
+    }
+    const other = await consultStep(bob, admin, { callModel: reply(plain()), loadKpiValues }, { userId: bobId, projectId: rProject, threadId: null, input: { kind: "start", topic: "goal_rescue" } });
+    expect(other.ok).toBe(false);
+
+    const first = { message: "このままだと期限までに 11 件の見込みで、目標の 20 件に届きません。", choices: ["やり方を変える", "投稿を少し増やす", "目標を見直す"], proposal: null };
+    const callModel = reply(first);
+    const r = await rStep(callModel, null, { kind: "start", topic: "goal_rescue" });
+    expect(r.ok).toBe(true);
+    const threadId = (r as { threadId: string }).threadId;
+    const ctx = contextOf(callModel);
+    expect(ctx).toContain("届かない見込み: このままでは届かない");
+    expect(ctx).toContain("# 目標の立て直し");
+    expect(ctx).toMatch(/届くのに要るペース: 残り \d+ 日で、1 週あたり \d+（いまは週 [\d.]+）/);
+    expect(ctx).toContain("直近 4 週の流れ（投稿 → 閲覧 → クリック → 成果。どこが細いかの見当に使う）:");
+    expect(ctx).toContain("- 予約（手で記録）: 2");
+    expect(ctx).toContain("KPI の直近 4 週（実績 / 4 週分の目標）:");
+    expect(ctx).toMatch(/- 行き先へのクリック: [^\n]* \/ 60/);
+    expect(ctx).toMatch(/- 投稿した回数（Threads）: [^\n]* \/ 8/);
+    expect(JSON.stringify(vi.mocked(callModel).mock.calls[0][0].system)).toContain("# 目標の立て直し");
+
+    const revise = proposalTurn("revise_goal", [opt("目標を 11 件に下げる", { statement: "3 か月で予約 11 件", target: 11, extend_weeks: 0 }), opt("期限を 8 週のばす", { statement: null, target: null, extend_weeks: 8 })]);
+    expect((await rStep(reply(revise), threadId, { kind: "text", text: "目標を見直す" })).ok).toBe(true);
+    const wrap = { message: "今回の目標の立て直しはここまでです。", choices: [], proposal: null, wrap_up: { summary: "目標を予約 11 件に見直した" } };
+    expect((await rStep(reply(wrap), threadId, { kind: "adopt", messageId: await lastAssistantId(threadId), actionIndex: 0 })).ok).toBe(true);
+    const { data: g } = await alice.from("goals").select("statement, target, status").eq("id", rGoal).single();
+    expect(g).toMatchObject({ statement: "3 か月で予約 11 件", target: 11, status: "active" });
+  });
+});
+

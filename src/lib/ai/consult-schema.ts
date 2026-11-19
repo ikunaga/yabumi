@@ -258,6 +258,9 @@ export function reviewHeadingOf(p: ConsultProposal, topic: string | null): strin
   if (topic === "month_review" && p.kind === "milestone") return "次の 1 か月の目標と週の本数";
   if (topic === "month_review" && p.kind === "revise_goal") return "目標の見直し";
   if (topic === "goal_review" && p.kind === "kgi") return "次の目標";
+  if (topic === "goal_rescue" && p.kind === "roadmap_items") return "立て直しのやること";
+  if (topic === "goal_rescue" && p.kind === "action_targets") return "立て直しの週の本数";
+  if (topic === "goal_rescue" && p.kind === "revise_goal") return "目標の見直し";
   if (topic === "month_review" && p.kind === "plan_section" && p.options.every((o) => o.kind === "plan_section" && o.section === "first_month")) return "次の 1 か月の週の回数";
   return null;
 }

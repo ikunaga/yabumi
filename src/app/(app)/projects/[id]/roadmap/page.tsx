@@ -148,7 +148,7 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
           endsOn={goal.endsOn}
           risk={risk}
           choices={choices}
-          rescueHref={null}
+          rescueHref={ai ? `/projects/${id}/consult/new?start=goal_rescue` : null}
           openRevise={revise === "1"}
         />
       )}

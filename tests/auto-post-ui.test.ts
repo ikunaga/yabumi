@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import { scheduleText } from "@/components/auto-post/format";
 import { choiceKey, kindCards } from "@/components/auto-post/kind-picker";
 import { projectNavItems, activeNavKey } from "@/components/nav/project-nav-items";
+import { isReviewOnlySns, REVIEW_ONLY_SNS, REVIEW_REASON_DETAIL, REVIEW_REASON_SHORT } from "@/lib/auto-post/labels";
+import { AUTO_SNS_STAGE_A, TARGET_MODES } from "@/lib/auto-post/types";
+import { SNS_KEYS } from "@/lib/sns";
 
 // 自動の投稿の画面（feat/auto-post-ui）の、画面の文とメニューの項目
 describe("scheduleText", () => {
@@ -70,5 +73,21 @@ describe("「何を」のカード", () => {
     expect(choiceKey({ kind: "series", formatId: "f1" })).toBe("series:f1");
     expect(choiceKey({ kind: "notes" })).toBe("notes");
     expect(choiceKey(null)).toBe("");
+  });
+});
+
+describe("「確かめて送る」だけの SNS の理由", () => {
+  it("理由を出す SNS は、送り方が「確かめて送る」だけの SNS と同じ（DB の is_review_sns も X・TikTok・YouTube）", () => {
+    for (const s of SNS_KEYS) expect(isReviewOnlySns(s), s).toBe(TARGET_MODES[s].length === 1 && TARGET_MODES[s][0] === "review");
+    expect([...REVIEW_ONLY_SNS].sort()).toEqual(["tiktok", "x", "youtube"]);
+  });
+  it("どの SNS にも 1 行と「?」の説明がある", () => {
+    for (const s of REVIEW_ONLY_SNS) {
+      expect(REVIEW_REASON_SHORT[s].length).toBeGreaterThan(0);
+      expect(REVIEW_REASON_DETAIL[s].length).toBeGreaterThan(REVIEW_REASON_SHORT[s].length);
+    }
+  });
+  it("段階 A で選べないのは TikTok・YouTube（画面の「準備中」の行と合わせる）", () => {
+    expect(SNS_KEYS.filter((s) => !AUTO_SNS_STAGE_A.includes(s)).sort()).toEqual(["tiktok", "youtube"]);
   });
 });

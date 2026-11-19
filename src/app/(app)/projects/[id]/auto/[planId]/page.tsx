@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { scheduleText } from "@/components/auto-post/format";
 import { PlanControls } from "@/components/auto-post/plan-controls";
 import { PlanStatusMark } from "@/components/auto-post/status-mark";
+import { ReviewFlow } from "@/components/auto-post/review-why";
 import { Card, CardHeader, EmptyState } from "@/components/ui/card";
 import { Badge } from "@/components/ui/chip";
 import { Disclosure } from "@/components/ui/help";
@@ -39,6 +40,7 @@ export default async function AutoPlanPage(props: PageProps<"/projects/[id]/auto
   const avgViews = views.length ? Math.round(views.reduce((a, b) => a + b, 0) / sentRuns.length) : null;
   const sns = Object.keys(plan.targets) as SnsKey[];
   const base = `/projects/${project.id}`;
+  const reviewSns = sns.filter((s) => plan.targets[s] === "review");
 
   return (
     <div className="flex flex-col gap-5 max-sm:gap-4">
@@ -96,6 +98,7 @@ export default async function AutoPlanPage(props: PageProps<"/projects/[id]/auto
               </span>
             ))}
             {plan.targets.x && <span className="text-sm text-muted">X は{plan.xLink === "always" ? "リンクあり" : "リンクなし"}</span>}
+            {reviewSns.length > 0 && <ReviewFlow sns={reviewSns} />}
           </dd>
           <dt className="text-muted">規則</dt>
           <dd className="num">

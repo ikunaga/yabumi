@@ -57,6 +57,17 @@ export const CONSULT_TOPIC_META = {
       back: { path: "", label: "概要に戻る" },
     },
   },
+  // 目標（KGI）に届かない見込みのとき（ロードマップの「届かない見込み」・概要の 1 行の「立て直す」。src/lib/goals/risk.ts）
+  goal_rescue: {
+    button: "目標に届かない見込みなので、立て直したい",
+    listTitle: "目標の立て直し",
+    entryOnly: true,
+    entry: {
+      title: "目標を AI と立て直す",
+      lead: "AI が目標との差と、直近 4 週の投稿・クリック・成果の流れを読み、どこが詰まっているかの見当と、立て直しの案（やり方を変える・投稿を少し増やす・目標を見直す）を出します。選んだ案だけが、ロードマップと目標に入ります。",
+      back: { path: "roadmap", label: "ロードマップに戻る" },
+    },
+  },
 } as const satisfies Record<string, ConsultTopicMeta>;
 
 export type ConsultTopicKey = keyof typeof CONSULT_TOPIC_META;

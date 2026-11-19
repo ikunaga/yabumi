@@ -35,7 +35,7 @@ export function GoalRiskPanel({
   endsOn: string;
   risk: GoalRisk;
   choices: ReviseChoice[];
-  // 立て直す相談の入口（まだないときは null で「準備中」）
+  // 立て直す相談の入口（AI が使えないときは null で「準備中」）
   rescueHref: string | null;
   openRevise?: boolean;
 }) {

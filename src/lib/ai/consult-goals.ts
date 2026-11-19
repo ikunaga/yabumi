@@ -182,6 +182,8 @@ export type GoalContext = {
     actions: { sns: SnsKey | null; perWeek: number }[];
     // 期限が来た・届いた（goalNeedsReview）
     review: "reached" | "ended" | null;
+    // 届かない見込み（src/lib/goals/risk.ts）。なければ null
+    risk?: { level: "maybe" | "off"; needPerWeek: number; nowPerWeek: number } | null;
   } | null;
   // これまでの目標（新しい順に 3 つまで）
   past: { statement: string | null; label: string; metric: GoalMetric | null; target: number | null; result: number | null; status: GoalStatus; startsOn: string; endsOn: string | null }[];
@@ -212,6 +214,11 @@ export function goalContextLines(g: GoalContext): string[] {
       );
     }
     if (a.review) lines.push(a.review === "reached" ? "KGI に届いた（期限の前）" : "KGI の期限が来た");
+    if (a.risk) {
+      lines.push(
+        `届かない見込み: ${a.risk.level === "off" ? "このままでは届かない（見込みが目標の 7 割に届かない）" : "届かないかもしれない（見込みが目標に少し足りない）"}。届くには残りで 1 週あたり ${formatGoalValue(a.metric, a.risk.needPerWeek)}、いまは週 ${formatGoalValue(a.metric, a.risk.nowPerWeek)}`,
+      );
+    }
   }
   if (a?.milestones.length) {
     lines.push(
@@ -240,3 +247,20 @@ export function goalContextLines(g: GoalContext): string[] {
   );
   return lines;
 }
+
+// 目標の立て直し（goal_rescue）の材料: 直近 4 週の流れ（投稿 → 閲覧 → クリック → 成果）と、KPI・行動の目標の実績と目標。
+// 数は goal_metric_total の値だけ。数えていないものは「数えていない」と書く（AI が推測で語らないように）
+export type RescueFlowRow = { label: string; total: number | null; target?: number | null };
+
+export function goalRescueLines(args: { metric: GoalMetric | null; daysLeft: number; needPerWeek: number; nowPerWeek: number; flow: RescueFlowRow[]; kpis: RescueFlowRow[]; actions: RescueFlowRow[] }): string {
+  const v = (row: RescueFlowRow, metric: GoalMetric | null = null) => (row.total === null ? "数えていない（推測で語らない）" : formatGoalValue(metric, row.total));
+  const lines = [
+    `届くのに要るペース: 残り ${args.daysLeft} 日で、1 週あたり ${formatGoalValue(args.metric, args.needPerWeek)}（いまは週 ${formatGoalValue(args.metric, args.nowPerWeek)}）`,
+    "直近 4 週の流れ（投稿 → 閲覧 → クリック → 成果。どこが細いかの見当に使う）:",
+    ...args.flow.map((r) => `- ${r.label}: ${v(r)}`),
+  ];
+  if (args.kpis.length) lines.push("KPI の直近 4 週（実績 / 4 週分の目標）:", ...args.kpis.map((r) => `- ${r.label}: ${v(r)}${r.target != null ? ` / ${formatGoalValue(null, r.target)}` : ""}`));
+  if (args.actions.length) lines.push("投稿の本数の直近 4 週（実績 / 4 週分の目標）:", ...args.actions.map((r) => `- ${r.label}: ${v(r)}${r.target != null ? ` / ${formatGoalValue(null, r.target)}` : ""}`));
+  return lines.join("\n");
+}
+

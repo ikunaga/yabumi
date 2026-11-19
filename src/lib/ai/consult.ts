@@ -11,7 +11,8 @@ import { addItems, RoadmapError } from "@/lib/roadmap/write";
 import { loadGoals, metricTotal } from "@/lib/goals/load";
 import { kgiMetricFor, goalNeedsReview, isLegacyActionGoal, type MetricRef } from "@/lib/goals/schema";
 import { GoalError, reviseGoal, setGoalActions, setGoalKpis, startGoal, startMilestone } from "@/lib/goals/write";
-import { goalMetricLabel, type GoalContext } from "./consult-goals";
+import { goalMetricLabel, goalRescueLines, type GoalContext, type RescueFlowRow } from "./consult-goals";
+import { goalRisk } from "@/lib/goals/risk";
 import { isManualSns, isSnsKey, SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
 import { tidyDraftHashtags } from "@/lib/sns/hashtags";
 import type { Database } from "@/lib/supabase/database.types";
@@ -46,6 +47,8 @@ export const CONSULT_TOPICS = {
   month_review: "1 か月が終わりました。結果を一緒に振り返って、次の 1 か月の目標と週の本数を決めたいです。",
   // 目標（KGI）の期限が来た・届いたとき（概要の帯の「AI と振り返る」。docs/design/goals-model.md の 6.）
   goal_review: "目標の期限が来た（または届いた）ので、結果を一緒に振り返って、次の目標を決めたいです。",
+  // 目標（KGI）に届かない見込みのとき（ロードマップ・概要の「立て直す」。docs/design/goals-model.md の 13.2）。この会話だけ、直近 4 週の流れを「いまの状況」に足す
+  goal_rescue: "このままだと目標に届かない見込みです。どこを変えればいいか、一緒に立て直したいです。",
   // 入口ごとの名前と見出しは consult-topics.ts（同じ入口が両方にあることを型で確かめる）
 } as const satisfies Record<ConsultTopicKey, string>;
 export type ConsultTopic = keyof typeof CONSULT_TOPICS;
@@ -142,6 +145,8 @@ export async function gatherConsultContext(
   monthReview = false,
   // 入口が「目標の振り返り」の会話: 期限が来たか届いたか（と、次の 1 か月もまとめるか）を足す
   goalReview = false,
+  // 入口が「目標の立て直し」の会話: 直近 4 週の流れと、KPI・投稿の本数の実績と目標を足す
+  goalRescue = false,
 ): Promise<ConsultContext | null> {
   const { data: project } = await user
     .from("projects")
@@ -199,7 +204,9 @@ export async function gatherConsultContext(
   const review = loadReview ? await loadReview(user, projectId) : undefined;
   const steps = roadmapSteps ? goalStepState(goalsView, view.items.filter((i) => i.weekStart >= view.thisWeek).map((i) => weeksBetween(view.thisWeek, i.weekStart))) : null;
   const coach = monthReview ? await loadCoachView(user, projectId, { now }) : null;
+  const rescue = goalRescue ? await loadGoalRescue(user, projectId, goalsView) : null;
   return {
+    ...(rescue ? { goalRescue: rescue } : {}),
     ...(review ? { review } : {}),
     ...(coach ? { monthReview: coachSummaryLines(coach) } : {}),
     ...(goalReview ? { goalReview: goalReviewLines(goalsView, today) } : {}),
@@ -261,6 +268,10 @@ export async function loadGoalContext(user: Db, projectId: string, goalType: Ret
           kpis: a.kpis.map((k) => ({ label: goalMetricLabel(k), perWeek: k.perWeek })),
           actions: a.actions.map((k) => ({ sns: k.sns, perWeek: k.perWeek })),
           review: goalNeedsReview(a.goal, a.progress, today),
+          risk: (() => {
+            const r = goalRisk(a.goal, a.progress);
+            return r ? { level: r.level, needPerWeek: r.needPerWeek, nowPerWeek: r.nowPerWeek } : null;
+          })(),
         }
       : null,
     past: goalsView.past.slice(0, 3).map((g) => ({ statement: g.statement, label: goalMetricLabel(g), metric: g.metric, target: g.target, result: g.resultValue, status: g.status, startsOn: g.startsOn, endsOn: g.endsOn })),
@@ -278,6 +289,32 @@ export function goalStepState(v: GoalsView, itemWeeks: number[]) {
     hasActions: (a?.actions.length ?? 0) > 0,
     itemWeeks,
   });
+}
+
+// 目標の立て直しの材料（直近 4 週。数は goal_metric_total）。届かない見込みでなければ null（始めるときにも確かめる）
+const RESCUE_DAYS = 28;
+async function loadGoalRescue(user: Db, projectId: string, v: GoalsView): Promise<string | null> {
+  const a = v.active;
+  const risk = a ? goalRisk(a.goal, a.progress) : null;
+  if (!a || !risk || !a.goal.metric) return null;
+  const from = addDays(v.today, -(RESCUE_DAYS - 1));
+  const total = async (ref: MetricRef) => {
+    const t = await metricTotal(user, projectId, ref, from, v.today);
+    return t.available ? t.value : null;
+  };
+  const kgiRef: MetricRef = { metric: a.goal.metric, action: a.goal.action, sns: a.goal.sns };
+  const flowRefs: MetricRef[] = [
+    { metric: "posts", action: null, sns: null },
+    { metric: "views", action: null, sns: null },
+    { metric: "link_clicks", action: null, sns: null },
+    ...(["posts", "views", "link_clicks"].includes(kgiRef.metric) ? [] : [kgiRef]),
+  ];
+  const flow: RescueFlowRow[] = await Promise.all(flowRefs.map(async (ref) => ({ label: goalMetricLabel(ref), total: await total(ref) })));
+  const kpis: RescueFlowRow[] = await Promise.all(a.kpis.map(async (k) => ({ label: goalMetricLabel(k), total: await total(k), target: k.perWeek * 4 })));
+  const actions: RescueFlowRow[] = await Promise.all(
+    a.actions.map(async (k) => ({ label: goalMetricLabel({ metric: "posts", action: null, sns: k.sns }), total: await total({ metric: "posts", action: null, sns: k.sns }), target: k.perWeek * 4 })),
+  );
+  return goalRescueLines({ metric: a.goal.metric, daysLeft: risk.daysLeft, needPerWeek: risk.needPerWeek, nowPerWeek: risk.nowPerWeek, flow, kpis, actions });
 }
 
 // 伴走の区切りと KGI の期限が 7 日以内に重なるとき、目標の振り返りの中で次の 1 か月もまとめて決める
@@ -399,6 +436,13 @@ export async function applyConsultAction(user: Db, projectId: string, action: Ac
 
 export const LEGACY_GOAL_PROPOSAL = "この案は前の形の目標のため、いまは採用できません。もう一度、目標の案を出してもらってください。";
 export const GOAL_REVIEW_NOT_FOUND = "振り返る目標が見つかりません。概要から開き直してください。";
+export const GOAL_RESCUE_NOT_FOUND = "いまは、目標に届かない見込みではありません。ロードマップを開き直してください。";
+
+// 目標の立て直しを始めてよいか（本人の、このプロジェクトの active な目標が、届かない見込み）
+async function goalRescueAllowed(user: Db, projectId: string, now: Date): Promise<boolean> {
+  const a = (await loadGoals(user, projectId, now)).active;
+  return Boolean(a && goalRisk(a.goal, a.progress));
+}
 
 // 目標の振り返りを始めてよい目標か（本人の、このプロジェクトの active な目標で、期限が来たか届いたか）
 async function goalReviewAllowed(user: Db, projectId: string, goalId: string, now: Date): Promise<boolean> {
@@ -456,6 +500,11 @@ export async function consultStep(
     if (input.topic !== "goal_review" || !input.goalId || args.threadId || !(await goalReviewAllowed(user, projectId, input.goalId, now))) {
       return { ok: false, threadId: args.threadId, message: GOAL_REVIEW_NOT_FOUND };
     }
+  }
+
+  // 目標の立て直しは、届かない見込みのときだけ始める
+  if (input.kind === "start" && input.topic === "goal_rescue" && (args.threadId || !(await goalRescueAllowed(user, projectId, now)))) {
+    return { ok: false, threadId: args.threadId, message: GOAL_RESCUE_NOT_FOUND };
   }
 
   let threadId = args.threadId;
@@ -526,7 +575,7 @@ export async function consultStep(
 
   // 振り返りの会話だけ、数字をくわしく足す（ふだんの相談は短く保ち、費用を抑える）
   const topic = threadTopic(history);
-  const ctx = await gatherConsultContext(user, projectId, now, deps.loadKpiValues, isReviewThread(history) ? deps.loadReview : undefined, topic === "roadmap", topic === "month_review", topic === "goal_review");
+  const ctx = await gatherConsultContext(user, projectId, now, deps.loadKpiValues, isReviewThread(history) ? deps.loadReview : undefined, topic === "roadmap", topic === "month_review", topic === "goal_review", topic === "goal_rescue");
   if (!ctx) return fail("プロジェクトが見つかりません。");
   ctx.turns = history.filter((m) => m.role === "user").length;
 

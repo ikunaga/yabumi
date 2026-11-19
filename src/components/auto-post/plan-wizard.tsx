@@ -7,14 +7,14 @@ import { Button, ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge, Chip } from "@/components/ui/chip";
 import { ErrorBanner } from "@/components/ui/feedback";
-import { Field, Input, Textarea } from "@/components/ui/field";
+import { Field, Input } from "@/components/ui/field";
 import { Disclosure, HelpTip } from "@/components/ui/help";
 import { SnsTag } from "@/components/ui/marks";
 import { Steps } from "@/components/ui/steps";
-import { makeAutoSample, saveAutoPlan } from "@/lib/auto-post/actions";
-import { isReviewOnlySns, KIND_LABELS, RUN_REASON_TEXT, TARGET_MODE_LABELS } from "@/lib/auto-post/labels";
+import { saveAutoPlan } from "@/lib/auto-post/actions";
+import { isReviewOnlySns, KIND_LABELS, TARGET_MODE_LABELS } from "@/lib/auto-post/labels";
 import { runsPerMonth } from "@/lib/auto-post/schedule";
-import { AUTO_NAME_MAX, AUTO_TONE_MAX, DEFAULT_LEAD_HOURS } from "@/lib/auto-post/schema";
+import { AUTO_NAME_MAX, DEFAULT_LEAD_HOURS } from "@/lib/auto-post/schema";
 import { suggestSchedules, type KindSuggestion, type SuggestMaterials } from "@/lib/auto-post/suggest";
 import {
   AUTO_KINDS_STAGE_A,
@@ -32,10 +32,10 @@ import {
 import type { SeriesFormatCard } from "@/lib/auto-post/ui-queries";
 import type { TimeTrends } from "@/lib/metrics/time-bands";
 import { SNS, type SnsKey } from "@/lib/sns";
-import { withHashtags } from "@/lib/sns/hashtags";
 import { scheduleText } from "./format";
 import { choiceKey, kindCards, KindPicker, type KindChoice, type WinnersCard } from "./kind-picker";
 import { ReviewFlow, ReviewReason, StageCSns } from "./review-why";
+import { SampleCard } from "./sample-card";
 
 // 自動の投稿を始める・直す（docs/design/auto-post.md の 1.4・1.5・1.7）。
 // 「1 何を › 2 どこに › 3 どのくらい › 4 確かめる」。いまのステップの項目だけ出す。何を・どのくらいの案は AI を呼ばずに決まりで出す（suggest.ts）
@@ -133,13 +133,13 @@ export function PlanWizard(p: Props) {
   const [xLink, setXLink] = useState<"never" | "always">(p.plan?.xLink ?? "never");
   const [schedule, setSchedule] = useState<AutoSchedule | null>(p.plan?.schedule ?? null);
   const [custom, setCustom] = useState(false);
-  const [tone, setTone] = useState(p.plan?.tone ?? "");
+  const [instructions, setInstructions] = useState<string[]>(p.plan?.instructions ?? []);
   const [name, setName] = useState(p.plan?.name ?? "");
   const [consent, setConsent] = useState(false);
   const [sample, setSample] = useState<AutoSample | null>(null);
+  const [adopt, setAdopt] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
-  const [sampling, startSample] = useTransition();
 
   const snsList = Object.keys(targets) as SnsKey[];
   // 「確かめて送る」にした SNS（X・TikTok・YouTube は決まりで、Threads などは利用者が選んだとき）
@@ -177,7 +177,7 @@ export function PlanWizard(p: Props) {
           targets,
           xLink: targets.x ? xLink : "never",
           schedule: effectiveSchedule,
-          tone: tone.trim(),
+          instructions,
           leadHours: p.plan?.leadHours ?? DEFAULT_LEAD_HOURS,
         }
       : null;
@@ -358,10 +358,7 @@ export function PlanWizard(p: Props) {
             />
           </Disclosure>
           <Card className="flex flex-col gap-3 px-6 py-5 max-sm:px-4 max-sm:py-4">
-            <Field label="口調の指示" htmlFor="auto-tone" optional hint={`空なら、アカウント設計の口調で書きます（${AUTO_TONE_MAX} 字まで）`}>
-              <Textarea id="auto-tone" rows={2} maxLength={AUTO_TONE_MAX} value={tone} onChange={(e) => setTone(e.target.value)} placeholder="例: 季節の話から入る。絵文字は 1 つまで" />
-            </Field>
-            <p className="text-sm text-muted">送る {DEFAULT_LEAD_HOURS} 時間前に文を作り、カレンダーと通知でお知らせします。</p>
+            <p className="text-sm text-muted">送る {DEFAULT_LEAD_HOURS} 時間前に文を作り、カレンダーと通知でお知らせします。書き方（長さ・絵文字・口調など）は、次の「確かめる」の見本を見ながら直せます。</p>
           </Card>
           <Nav
             back={
@@ -409,32 +406,18 @@ export function PlanWizard(p: Props) {
             </dl>
           </Card>
 
-          <Card className="flex flex-col gap-3 px-6 py-5 max-sm:px-4 max-sm:py-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <h2 className="text-[18px] font-bold max-sm:text-[16px]">見本の 1 回</h2>
-                <HelpTip label="見本について">次の回と同じ作り方で 1 回分を作って見せます（AI を 1 回使います。約 12 円）。見本は保存しません。</HelpTip>
-              </div>
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={sampling}
-                onClick={() =>
-                  startSample(async () => {
-                    setError(null);
-                    const i = input();
-                    if (!i) return;
-                    const r = await makeAutoSample(p.projectId, i);
-                    if (r.ok) setSample(r.data);
-                    else setError(r.error);
-                  })
-                }
-              >
-                {sampling ? "つくっています…" : sample ? "もう一度つくる" : "見本をつくる"}
-              </Button>
-            </div>
-            {sample && <SampleView sample={sample} />}
-          </Card>
+          <SampleCard
+            projectId={p.projectId}
+            input={input}
+            instructions={instructions}
+            onInstructions={async (next) => {
+              setInstructions(next);
+              return null;
+            }}
+            series={kind === "series"}
+            adopt={editing ? undefined : { on: adopt, set: setAdopt }}
+            onSample={setSample}
+          />
 
           <Card className="flex flex-col gap-4 px-6 py-5 max-sm:px-4 max-sm:py-4">
             <div className="flex flex-wrap gap-x-8 gap-y-2">
@@ -469,12 +452,15 @@ export function PlanWizard(p: Props) {
                     const r = await saveAutoPlan(p.projectId, {
                       ...i,
                       consent: true,
+                      ...(!editing && adopt && sample?.sampleId ? { sampleId: sample.sampleId } : {}),
                     });
                     if (!r.ok) {
                       setError(r.error);
                       return;
                     }
-                    router.push(editing ? `/projects/${p.projectId}/auto/${r.data.id}?saved=1` : `/projects/${p.projectId}/auto?started=1`);
+                    // 見本を最初の回にできなかったときは、回し方の画面で理由を 1 回だけ出す
+                    const note = r.data.sampleNote ? "&sample=failed" : r.data.firstDueAt ? "&sample=used" : "";
+                    router.push(editing ? `/projects/${p.projectId}/auto/${r.data.id}?saved=1` : `/projects/${p.projectId}/auto?started=1${note}`);
                   })
                 }
               >
@@ -668,47 +654,6 @@ function CustomSchedule({ value, onChange }: { value: AutoSchedule; onChange: (s
         </label>
       </div>
       {value.weekdays.length === 0 && <p className="text-sm font-semibold text-danger">曜日を 1 つ以上選んでください。</p>}
-    </div>
-  );
-}
-
-function SampleView({ sample }: { sample: AutoSample }) {
-  const entries = Object.entries(sample.texts) as [SnsKey, string][];
-  // texts が空なら書けなかった（engine の makeAutoSample）。そのときは「書けませんでした」の 1 行と理由だけにする（同じ文を 2 度出さない）
-  const cannot = entries.length === 0;
-  const reasons = cannot ? sample.issues.map((i) => i.detail || RUN_REASON_TEXT[i.kind]) : [];
-  const issues = cannot ? [] : sample.issues;
-  return (
-    <div className="flex flex-col gap-3">
-      {sample.materialLabel && <p className="text-sm text-muted">材料: {sample.materialLabel}</p>}
-      {cannot && (
-        <div className="flex flex-col gap-1">
-          <p className="text-[15px] font-bold">この材料では書けませんでした。本番の回なら、この回は飛ばします。</p>
-          {reasons.map((r, n) => (
-            <p key={n} className="text-[14px] text-muted">
-              {r}
-            </p>
-          ))}
-        </div>
-      )}
-      {issues.length > 0 && (
-        <ul className="flex flex-col gap-1 rounded-md bg-signal-soft px-4 py-3 text-[14px]">
-          {issues.map((i, n) => (
-            <li key={n}>
-              <span className="font-bold text-signal">● </span>
-              {RUN_REASON_TEXT[i.kind]}
-              {i.detail && <span className="text-muted">（{i.detail}）</span>}
-            </li>
-          ))}
-        </ul>
-      )}
-      {entries.map(([s, text]) => (
-        <div key={s} className="flex flex-col items-start gap-1.5 rounded-md border border-border px-4 py-3">
-          <SnsTag sns={s} />
-          {/* 送る文そのまま（本文＋空行＋本文とは別に付くタグの行） */}
-          <p className="text-[15px] leading-[1.8] whitespace-pre-wrap">{withHashtags(text, sample.tags?.[s] ?? [])}</p>
-        </div>
-      ))}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { VOICE_MEMO_DAILY_RUNS } from "@/lib/plan/voice-rules";
 import { POST_FORMAT_DAILY_RUNS } from "@/lib/post-formats/schema";
 import { SERIES_DAILY_RUNS } from "@/lib/post-formats/series";
+import { AUTO_SAMPLE_DAILY_RUNS } from "@/lib/auto-post/schema";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { alertIfNearBudgetSafely } from "@/lib/notify/budget";
 import type { Database } from "@/lib/supabase/database.types";
@@ -51,7 +52,7 @@ export const AI_MAX_RESERVATION_USD = 1;
 export const AI_GLOBAL_MONTHLY_USD = 10;
 // 自動の投稿の全体の月の上限（reserve_ai_usage の c_auto_global_monthly_usd と同じ値。docs/design/auto-post.md の A4）
 export const AI_AUTO_GLOBAL_MONTHLY_USD = 5;
-const AUTO_PURPOSES = ["auto_post", "auto_post_check"];
+const AUTO_PURPOSES = ["auto_post", "auto_post_check", "auto_post_sample"];
 
 // count_tokens で数えたトークン数に掛けるゆとり。数えるのは呼ぶモデル（Opus 5.5）のトークン数だが、安全のための判定で別のモデルに回ったとき
 // （fallbacks）は、トークンの切り方が違って数が増えうる（モデルの世代でおよそ 1.35 倍まで違う）ため
@@ -106,7 +107,7 @@ export const TOO_LARGE_MESSAGE = "AI に送る内容が長すぎます。会話�
 export type ModelLike = { model: string; usage: TokenUsage };
 export type BudgetDenied = { ok: false; message: string };
 
-type ReserveStatus = "ok" | "global_limit" | "new_global_limit" | "user_limit" | "new_user_limit" | "daily_limit" | "voice_memo_limit" | "post_format_limit" | "post_format_round_limit" | "auto_post_hold";
+type ReserveStatus = "ok" | "global_limit" | "new_global_limit" | "user_limit" | "new_user_limit" | "daily_limit" | "voice_memo_limit" | "post_format_limit" | "post_format_round_limit" | "auto_post_hold" | "auto_sample_limit";
 
 // 「11/10」（日本時間の月/日）
 function monthDay(ymd: string): string {
@@ -137,6 +138,9 @@ export function limitMessage(status: Exclude<ReserveStatus, "ok">, newUntil: str
     // 運営者が利用者ごとに自動の投稿を止めている（20261118100000_auto_post_holds。自動の投稿の用途だけ）
     case "auto_post_hold":
       return "運営者が、あなたのアカウントの自動の投稿を止めています。";
+    // 見本を作るのは 1 人 1 日 5 回まで（20261119100000_auto_sample_instructions）
+    case "auto_sample_limit":
+      return `見本をつくるのは、1 日 ${AUTO_SAMPLE_DAILY_RUNS} 回までです。明日またお試しください。`;
   }
 }
 

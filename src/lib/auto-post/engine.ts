@@ -223,12 +223,23 @@ export type Draft = { ok: true; texts: Texts; tags: Partial<Record<SnsKey, strin
 export async function draftRun(
   admin: Db,
   deps: EngineDeps,
-  args: { plan: AutoPlan & { ownerId: string }; sns: SnsKey[]; dueAt: Date; past: PastRef[]; recent: { bySns: Partial<Record<SnsKey, string[]>>; mine: string[] } },
+  args: {
+    plan: AutoPlan & { ownerId: string };
+    sns: SnsKey[];
+    dueAt: Date;
+    past: PastRef[];
+    recent: { bySns: Partial<Record<SnsKey, string[]>>; mine: string[] };
+    // 見本: AI の用途（auto_post_sample）・その 1 回だけの指示・同じ材料で作り直すときの材料（前の見本のもの。サーバーに置いた行から）
+    purpose?: "auto_post" | "auto_post_sample";
+    extraInstructions?: string[];
+    material?: Material;
+  },
 ): Promise<Draft> {
   const loaded = await loadContext(admin, args.plan.projectId, args.plan.ownerId, args.sns);
   if (!loaded) return { ok: false, reason: "error", detail: "プロジェクトが見つかりません" };
-  const material = await pickMaterial(admin, { plan: args.plan, planData: loaded.planData, project: loaded.project, past: args.past, dueAt: args.dueAt }, deps);
+  const material = args.material ?? (await pickMaterial(admin, { plan: args.plan, planData: loaded.planData, project: loaded.project, past: args.past, dueAt: args.dueAt }, deps));
   if (isNoMaterial(material)) return { ok: false, reason: material.reason, detail: material.detail };
+  const purpose = args.purpose ?? "auto_post";
   const ref: Record<string, unknown> = { ...material.ref };
   // 本文とは別に付くタグ（シリーズのフォーマット → なければいつものタグ。materials.ts）。字数はタグの行の分を引いて書かせ、数えるときは足す（2026-11-17）
   const fixedTags = material.fixedTags ?? {};
@@ -246,7 +257,8 @@ export async function draftRun(
       material: material.text,
       materialLabel: material.label,
       context: ideaContextText(loaded.ctx),
-      tone: args.plan.tone,
+      instructions: [...args.plan.instructions, ...(args.extraInstructions ?? [])],
+      purpose,
       recentBodies: args.recent.mine,
       maxLength: Object.fromEntries(args.sns.map((s) => [s, Math.max(1, (SNS[s].maxLength ?? 10_000) - reserveOf(s))])),
       fixedTags,
@@ -266,7 +278,7 @@ export async function draftRun(
   // 送る文（本文＋タグの行）で数え、縮める目標はタグの行の分を引く
   const over = (Object.entries(texts) as [SnsKey, string][]).filter(([k, t]) => overLimit(k, withHashtags(t, splitTagsByText(t, fixedTags[k] ?? []).keep)) > 0);
   if (over.length && deps.callShorten) {
-    const call = budgeted(admin, { userId: args.plan.ownerId, purpose: "auto_post", call: "shorten" }, deps.callShorten);
+    const call = budgeted(admin, { userId: args.plan.ownerId, purpose, call: "shorten" }, deps.callShorten);
     const { texts: short } = await shortenOverDrafts(call, over.map(([sns, text]) => ({ id: sns, sns, text, reserve: reserveOf(sns) })));
     for (const [id, t] of short) texts[id as SnsKey] = t;
   }
@@ -331,7 +343,7 @@ async function processRun(admin: Db, deps: EngineDeps, run: ClaimedRun, now: Dat
     return "skipped";
   }
   const counts = await autoCountsOnDay(admin, plan.ownerId, due, run.id);
-  let sns = connected.filter((s) => (counts[s] ?? 0) < DAILY_PER_SNS);
+  const sns = connected.filter((s) => (counts[s] ?? 0) < DAILY_PER_SNS);
   if (!sns.length) {
     await finish(admin, run.id, { status: "skipped", reason: "daily_limit" });
     return "skipped";
@@ -352,6 +364,23 @@ async function processRun(admin: Db, deps: EngineDeps, run: ClaimedRun, now: Dat
     await finish(admin, run.id, { status: "skipped", reason: draft.reason, detail: draft.detail, ref: draft.ref });
     return "skipped";
   }
+  return placeDraft(admin, plan, { id: run.id, due }, draft, sns, accounts, now);
+}
+
+// 作った文から、その回の投稿と配信先を作る（ジョブの回と「この見本を最初の回にする」で同じ道）。
+// asReviewed: 利用者が見本を見て決めた回（最初の回の確かめ〈A3〉を済ませたことにする。確かめて送る SNS は、いつもどおり承認が要る）
+async function placeDraft(
+  admin: Db,
+  plan: AutoPlan & { ownerId: string },
+  run: { id: string; due: Date },
+  draft: Extract<Draft, { ok: true }>,
+  snsIn: SnsKey[],
+  accounts: Partial<Record<SnsKey, string>>,
+  now: Date,
+  opts: { asReviewed?: boolean } = {},
+): Promise<AutoRunStatus> {
+  const due = run.due;
+  let sns = snsIn.filter((s) => draft.texts[s]);
   // Instagram は画像が要る（段階 A はネタ帳の写真だけ）。写真がなければ Instagram は外す
   const photo = draft.material.noteIds?.length ? (await admin.from("media_files").select("id").in("note_id", draft.material.noteIds).eq("kind", "image").limit(1)).data?.length : 0;
   if (!photo) sns = sns.filter((s) => s !== "instagram");
@@ -360,7 +389,7 @@ async function processRun(admin: Db, deps: EngineDeps, run: ClaimedRun, now: Dat
     return "skipped";
   }
 
-  const status: AutoRunStatus = draft.hold ? "held" : plan.firstReview ? "review" : "scheduled";
+  const status: AutoRunStatus = draft.hold ? "held" : plan.firstReview && !opts.asReviewed ? "review" : "scheduled";
   const body = draft.texts[sns[0]]!;
   const { data: post, error } = await admin
     .from("posts")
@@ -606,17 +635,163 @@ export function engineDeps(admin: Db): EngineDeps | null {
 // 偽の AI のときの AI っぽさチェック（指摘なし。費用は 0 として記録する）
 const fakeCheck: CallCheck = async () => ({ output: { summary: "（偽の AI）", findings: [] }, stopReason: "end_turn", model: "fake", usage: { inputTokens: 0, cacheWriteTokens: 0, cacheReadTokens: 0, outputTokens: 0 } });
 
-// 見本の 1 回（保存しない。材料は使ったことにしない）。文とチェックの結果を返す
-export async function makeSample(admin: Db, deps: EngineDeps, args: { ownerId: string; projectId: string; plan: AutoPlan }): Promise<{ ok: true; texts: Texts; tags: Partial<Record<SnsKey, string[]>>; label: string; issues: Issue[] } | { ok: false; reason: AutoRunReason; detail: string }> {
+// ===== 見本（docs/design/auto-sample-image.md の 1.）=====
+// 見本は auto_samples に 1 日だけ置く（画面には返事で見せ、画面から文は受け取らない）。材料は使ったことにしない。
+// 置いた見本は「同じ材料で作り直す」と「この見本を最初の回にする」に使う
+
+export const SAMPLE_TTL_MS = 86_400_000;
+
+// 見本を作ったときの設定（最初の回にするとき、保存した回し方と同じかを確かめる）。並びをそろえて比べる
+export function sampleSettings(plan: Pick<AutoPlan, "kind" | "materials" | "targets" | "xLink" | "instructions">): Record<string, unknown> {
+  const sort = (o: Record<string, unknown>) => Object.fromEntries(Object.keys(o).sort().map((k) => [k, o[k]]));
+  const materials = sort(plan.materials as Record<string, unknown>);
+  if (Array.isArray(materials.destination_ids)) materials.destination_ids = [...(materials.destination_ids as string[])].sort();
+  return { kind: plan.kind, materials, targets: sort(plan.targets as Record<string, unknown>), xLink: plan.xLink, instructions: plan.instructions };
+}
+// DB（jsonb）はキーの並びを変えるので、キーを並べ直してから比べる
+const canonical = (v: unknown): unknown =>
+  Array.isArray(v) ? v.map(canonical) : v && typeof v === "object" ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canonical((v as Record<string, unknown>)[k])])) : v;
+export const sameSettings = (a: unknown, b: unknown) => JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
+
+export type SampleOutcome =
+  | { ok: true; sampleId: string | null; texts: Texts; tags: Partial<Record<SnsKey, string[]>>; label: string; issues: Issue[] }
+  | { ok: false; reason: AutoRunReason; detail: string };
+
+// 見本の 1 回。oneTime はその 1 回だけの指示。fromSampleId なら、その見本（本人の、1 日以内の、同じプロジェクトのもの）と同じ材料で作る
+export async function makeSample(
+  admin: Db,
+  deps: EngineDeps,
+  args: { ownerId: string; projectId: string; plan: AutoPlan; oneTime?: string[]; fromSampleId?: string; now?: Date },
+): Promise<SampleOutcome> {
+  const now = args.now ?? new Date();
   const plan = { ...args.plan, projectId: args.projectId, ownerId: args.ownerId };
   const sns = Object.keys(plan.targets) as SnsKey[];
-  const { data: pastRows } = plan.id
+  let material: Material | undefined;
+  if (args.fromSampleId) {
+    const { data: prev } = await admin
+      .from("auto_samples")
+      .select("material")
+      .eq("id", args.fromSampleId)
+      .eq("owner_id", args.ownerId)
+      .eq("project_id", args.projectId)
+      .gt("created_at", new Date(now.getTime() - SAMPLE_TTL_MS).toISOString())
+      .maybeSingle();
+    // 見つからなければ（1 日たった・ほかの人の見本）材料を選び直す
+    if (prev?.material) material = prev.material as unknown as Material;
+  }
+  const realId = !!plan.id && plan.id !== NO_PLAN_ID;
+  const { data: pastRows } = realId
     ? await admin.from("auto_runs").select("material_ref").eq("plan_id", plan.id).eq("owner_id", args.ownerId).in("status", PAST_STATUSES).order("due_at", { ascending: false }).limit(20)
     : { data: [] };
-  const recent = await recentTexts(admin, args.projectId, args.ownerId, plan.id, new Date());
-  const draft = await draftRun(admin, deps, { plan, sns, dueAt: new Date(Date.now() + 86_400_000), past: (pastRows ?? []).map((r) => (r.material_ref ?? {}) as PastRef), recent });
+  const recent = await recentTexts(admin, args.projectId, args.ownerId, plan.id, now);
+  const draft = await draftRun(admin, deps, {
+    plan,
+    sns,
+    dueAt: new Date(now.getTime() + 86_400_000),
+    past: (pastRows ?? []).map((r) => (r.material_ref ?? {}) as PastRef),
+    recent,
+    purpose: "auto_post_sample",
+    extraInstructions: args.oneTime,
+    material,
+  });
   if (!draft.ok) return draft;
-  return { ok: true, texts: draft.texts, tags: draft.tags, label: draft.material.label, issues: draft.hold ? [draft.hold] : [] };
+  const issues = draft.hold ? [draft.hold] : [];
+  const { data: row, error } = await admin
+    .from("auto_samples")
+    .insert({
+      owner_id: args.ownerId,
+      project_id: args.projectId,
+      plan_id: realId ? plan.id : null,
+      settings: sampleSettings(plan) as never,
+      material: draft.material as never,
+      texts: draft.texts as never,
+      tags: draft.tags as never,
+      hold: (draft.hold ?? null) as never,
+    })
+    .select("id")
+    .single();
+  // 置けなくても見本は見せる（同じ材料での作り直しと、最初の回にするのができないだけ）
+  if (error) console.error("[auto-post] 見本を置けませんでした", error.message);
+  return { ok: true, sampleId: row?.id ?? null, texts: draft.texts, tags: draft.tags, label: draft.material.label, issues };
+}
+
+// 回し方を保存する前の見本で使う、仮の回し方の id（auto_runs を読まない）
+export const NO_PLAN_ID = "00000000-0000-0000-0000-000000000000";
+
+export type AdoptOutcome = { ok: true; status: AutoRunStatus; dueAt: string } | { ok: false; detail: string };
+
+// この見本を最初の回にする（新しく作った回し方だけ。Q8）。見本は 1 回だけ使える（使ったら消す）。
+// 保存した回し方と、見本を作ったときの設定が同じで、確かめで引っかかっていない見本だけ。最初の送る時刻の回として投稿を作り、
+// 最初の回の確かめ（A3）を済ませたことにする（利用者が見本を見て決めたため）。確かめて送る SNS は、いつもどおり承認が要る
+export async function adoptSample(admin: Db, args: { ownerId: string; planId: string; sampleId: string; now?: Date }): Promise<AdoptOutcome> {
+  const now = args.now ?? new Date();
+  const { data: row } = await admin.from("auto_plans").select("*").eq("id", args.planId).eq("owner_id", args.ownerId).maybeSingle();
+  if (!row || row.status !== "active") return { ok: false, detail: "自動の投稿が見つかりません" };
+  if (await isAutoPostHeld(admin, args.ownerId)) return { ok: false, detail: "運営者が自動の投稿を止めています" };
+  const plan = { ...toPlan(row), ownerId: args.ownerId };
+  // 1 回だけ使う（同時に押されても 1 つの回にしかならない）
+  const { data: samples, error } = await admin
+    .from("auto_samples")
+    .delete()
+    .eq("id", args.sampleId)
+    .eq("owner_id", args.ownerId)
+    .eq("project_id", plan.projectId)
+    .is("plan_id", null)
+    .gt("created_at", new Date(now.getTime() - SAMPLE_TTL_MS).toISOString())
+    .select("settings, material, texts, tags, hold");
+  if (error) throw error;
+  const sample = samples?.[0];
+  if (!sample) return { ok: false, detail: "見本が見つかりませんでした（作ってから 1 日たつと使えません）" };
+  if (sample.hold) return { ok: false, detail: "見本が送る前の確かめで引っかかっていたので、最初の回にしませんでした" };
+  if (!sameSettings(sample.settings, sampleSettings(plan))) return { ok: false, detail: "見本を作ったあとに設定を変えたので、最初の回にしませんでした" };
+
+  const due = dueTimes(plan.schedule, now, new Date(now.getTime() + AHEAD_DAYS * 86_400_000))[0];
+  if (!due) return { ok: false, detail: "最初の送る時刻が見つかりませんでした" };
+  const accounts = await connectedAccounts(admin, plan.projectId, plan.ownerId);
+  const wanted = Object.keys(plan.targets) as SnsKey[];
+  const counts = await autoCountsOnDay(admin, plan.ownerId, due, NO_PLAN_ID);
+  const sns = wanted.filter((s) => (isManualSns(s) || accounts[s]) && (counts[s] ?? 0) < DAILY_PER_SNS);
+  if (!sns.length) return { ok: false, detail: "送れる SNS がありませんでした（つながり・1 日の本数）" };
+  // その時刻の回をこの見本で作る。ジョブがもう「作る前の回」（waiting）を足していたら、それを使う
+  const { data: inserted, error: e2 } = await admin
+    .from("auto_runs")
+    .insert({ plan_id: plan.id, owner_id: plan.ownerId, project_id: plan.projectId, due_at: due.toISOString(), generate_at: now.toISOString(), status: "generating", locked_at: now.toISOString() })
+    .select("id")
+    .maybeSingle();
+  let run = inserted;
+  if (e2) {
+    if (e2.code !== "23505") throw e2;
+    const { data: claimed, error: e3 } = await admin
+      .from("auto_runs")
+      .update({ status: "generating", locked_at: now.toISOString(), updated_at: now.toISOString() })
+      .eq("plan_id", plan.id)
+      .eq("due_at", due.toISOString())
+      .eq("status", "waiting")
+      .select("id")
+      .maybeSingle();
+    if (e3) throw e3;
+    run = claimed;
+  }
+  if (!run) return { ok: false, detail: "最初の回を、もう作り始めていました" };
+  const material = sample.material as unknown as Material;
+  const draft: Extract<Draft, { ok: true }> = {
+    ok: true,
+    texts: sample.texts as Texts,
+    tags: (sample.tags ?? {}) as Partial<Record<SnsKey, string[]>>,
+    material,
+    ref: { ...material.ref, from_sample: true },
+    hold: null,
+  };
+  const status = await placeDraft(admin, plan, { id: run.id, due }, draft, sns, accounts, now, { asReviewed: true });
+  if (status === "scheduled") await admin.from("auto_plans").update({ first_review: false, updated_at: now.toISOString() }).eq("id", plan.id).eq("owner_id", plan.ownerId);
+  return { ok: true, status, dueAt: due.toISOString() };
+}
+
+// 1 日たった見本を消す（ジョブの 1 回ごと）
+export async function purgeSamples(admin: Db, now: Date, opts: EngineOpts = {}): Promise<number> {
+  const { data, error } = await scope(admin.from("auto_samples").delete().lt("created_at", new Date(now.getTime() - SAMPLE_TTL_MS).toISOString()), opts).select("id");
+  if (error) throw error;
+  return data.length;
 }
 
 // ===== ジョブの 1 回 =====
@@ -629,6 +804,7 @@ export async function runAutoPostJob(admin: Db, deps: EngineDeps, opts: EngineOp
   const notified = await notifyMade(admin, deps, now, opts);
   const reminded = await remindApprovals(admin, deps, now, opts);
   const holdNotices = await notifyHolds(admin, deps, now, opts);
+  await purgeSamples(admin, now, opts);
   return { added, expired, made, stopped, notified, reminded, holdNotices };
 }
 

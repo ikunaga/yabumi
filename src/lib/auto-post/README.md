@@ -32,7 +32,9 @@
 - `setAutoPlanStatus(projectId, planId, "paused" | "active", toDraft)`・`pauseAllAutoPlans(projectId, toDraft)`: 止める・再開・全部止める。toDraft が true なら、作り終えてまだ送っていない予約を下書きに戻す（false ならそのまま送る）。画面で選んでもらう（初期値 true）
 - `skipNextAutoRun(planId)`: 次の回を飛ばす（次の回がまだ決まっていなければ dueAt が null）
 - `deleteAutoPlan(planId, toDraft)`: 消す
-- `makeAutoSample(projectId, input)`: 見本の 1 回（保存しない。材料は使ったことにしない）。次の回と同じ道（材料 → AI → チェック）で作り、AI を 1〜2 回使う（自動の投稿の枠）
+- `makeAutoSample(projectId, input, { oneTime, fromSampleId })`: 見本の 1 回（材料は使ったことにしない）。次の回と同じ道（材料 → AI → チェック）で作り、AI を 1〜2 回使う（自動の投稿の枠。作るのは用途 auto_post_sample で 1 人 1 日 5 回まで）。作った見本は auto_samples に 1 日だけ置き、`sampleId` を返す。`oneTime` はその 1 回だけの指示、`fromSampleId` は前の見本と同じ材料で作る（docs/design/auto-sample-image.md の 1.）
+- `setAutoPlanInstructions(planId, instructions)`: 書き方の指示だけを直す（回し方の画面の見本から）
+- `saveAutoPlan` の `sampleId`（新しく作るときだけ）: その見本を最初の回にする（engine の adoptSample）
 - `listEvents`・`saveEvent(projectId, { id?, onDate, body })`・`deleteEvent(projectId, id)`: お知らせ・季節の予定
 - `loadAutoPlan(planId)`・`loadAutoTargetPreviews(postId)`: 開き直したときの読み直し
 

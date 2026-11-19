@@ -3,6 +3,11 @@ import type { AutoKind, AutoMaterials, AutoPlan, AutoRun, AutoRunReason, AutoRun
 
 // DB の行を型にする（読み取り〈queries.ts〉とジョブ〈engine.ts〉で共通）
 
+// 書き方の指示（DB の check で形は決まっているが、文字でないものは捨てる）
+export function readInstructions(v: unknown): string[] {
+  return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim() !== "").map((x) => x.trim()) : [];
+}
+
 export type PlanRow = {
   id: string;
   project_id: string;
@@ -12,7 +17,7 @@ export type PlanRow = {
   targets: unknown;
   x_link: string;
   schedule: unknown;
-  tone: string;
+  instructions: unknown;
   lead_hours: number;
   first_review: boolean;
   status: string;
@@ -37,7 +42,7 @@ export function toPlan(r: PlanRow): AutoPlan {
     targets,
     xLink: r.x_link === "always" ? "always" : "never",
     schedule: r.schedule as AutoSchedule,
-    tone: r.tone,
+    instructions: readInstructions(r.instructions),
     leadHours: r.lead_hours,
     firstReview: r.first_review,
     status: r.status as AutoPlan["status"],

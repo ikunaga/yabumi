@@ -3,10 +3,10 @@
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { engineDeps, makeSample } from "./engine";
+import { adoptSample, engineDeps, makeSample, NO_PLAN_ID } from "./engine";
 import { HOLD_REFUSED, myAutoPostHold } from "./holds";
 import { getAutoPlan, listProjectEvents, loadTargetPreviews } from "./queries";
-import { autoPlanInputSchema, eventInputSchema } from "./schema";
+import { autoPlanInputSchema, eventInputSchema, instructionSchema, instructionsSchema } from "./schema";
 import type { AutoPlan, AutoPlanInput, AutoResult, AutoSample, ProjectEvent } from "./types";
 
 // 自動の投稿の操作（利用者の権限で。書き込みは DB の関数が確かめる。docs/design/auto-post.md、src/lib/auto-post/README.md）
@@ -27,6 +27,7 @@ const HINT_TEXT: Record<string, string> = {
   auto_plan_operator_stop: "運営者がこのプロジェクトの自動の投稿を止めています。再開・作る・直す・消すはできません。問い合わせ先にご連絡ください。",
   // 運営者が利用者ごとに止めている（20261118100000_auto_post_holds）
   auto_post_hold: HOLD_REFUSED,
+  auto_instructions_invalid: "指示は 1 つ 100 字まで・8 個までです（1 行で書いてください）。",
 };
 
 type DbError = { code?: string; hint?: string | null; message: string };
@@ -50,8 +51,9 @@ const SIGN_IN = { ok: false as const, error: "ログインし直してくださ�
 const NO_PLAN = "自動の投稿が見つかりません。画面を読み込み直してください。";
 const NO_TARGET = "確かめる投稿が見つかりません。画面を読み込み直してください。";
 
-// 作る・直す（保存のたびに同意が要る。直したら、まだ作っていない回は新しい設定で作り直す）。保存した id を返す
-export async function saveAutoPlan(projectId: string, input: AutoPlanInput): Promise<AutoResult<{ id: string }>> {
+// 作る・直す（保存のたびに同意が要る。直したら、まだ作っていない回は新しい設定で作り直す）。保存した id を返す。
+// 新しく作るときに sampleId があれば、その見本を最初の回にする（できなかったときは sampleNote に理由。回し方の保存はそのまま）
+export async function saveAutoPlan(projectId: string, input: AutoPlanInput): Promise<AutoResult<{ id: string; sampleNote?: string; firstDueAt?: string }>> {
   if (!uuid.safeParse(projectId).success) return { ok: false, error: BAD };
   const p = autoPlanInputSchema.safeParse(input);
   if (!p.success) return { ok: false, error: p.error.issues[0]?.message ?? BAD };
@@ -67,12 +69,36 @@ export async function saveAutoPlan(projectId: string, input: AutoPlanInput): Pro
     p_targets: v.targets,
     p_x_link: v.xLink,
     p_schedule: v.schedule,
-    p_tone: v.tone,
+    p_instructions: v.instructions,
     p_lead_hours: v.leadHours,
     p_consent: v.consent,
   });
   if (error) return { ok: false, error: errorText(error, NO_PLAN) };
-  return { ok: true, data: { id: data as string } };
+  const id = data as string;
+  if (!v.sampleId || v.id) return { ok: true, data: { id } };
+  // 見本を最初の回にする（サーバーの権限で、本人の見本と、いま保存した回し方だけ）
+  const { data: claims } = await db.auth.getClaims();
+  const userId = claims?.claims?.sub;
+  if (!userId) return { ok: true, data: { id } };
+  try {
+    const r = await adoptSample(createAdminClient(), { ownerId: userId, planId: id, sampleId: v.sampleId });
+    return r.ok ? { ok: true, data: { id, firstDueAt: r.dueAt } } : { ok: true, data: { id, sampleNote: `${r.detail}。最初の回は、いつもどおり送る前に作ってお知らせします。` } };
+  } catch (e) {
+    console.error("[auto-post] 見本を最初の回にできませんでした", e instanceof Error ? e.message : e);
+    return { ok: true, data: { id, sampleNote: "見本を最初の回にできませんでした。最初の回は、いつもどおり送る前に作ってお知らせします。" } };
+  }
+}
+
+// 書き方の指示だけを直す（回し方の画面の見本から。同意の取り直しはしない）。直したあとの一覧を返す
+export async function setAutoPlanInstructions(planId: string, instructions: string[]): Promise<AutoResult<string[]>> {
+  if (!uuid.safeParse(planId).success) return { ok: false, error: BAD };
+  const p = instructionsSchema.safeParse(instructions);
+  if (!p.success) return { ok: false, error: p.error.issues[0]?.message ?? BAD };
+  const db = await signedIn();
+  if (!db) return SIGN_IN;
+  const { data, error } = await db.rpc("set_auto_plan_instructions", { p_plan_id: planId, p_instructions: p.data });
+  if (error) return { ok: false, error: errorText(error, NO_PLAN) };
+  return { ok: true, data: Array.isArray(data) ? (data as unknown[]).filter((x): x is string => typeof x === "string") : p.data };
 }
 
 // 止める（paused）・再開する（active）。止めるとき toDraft なら、作り終えてまだ送っていない予約を下書きに戻す（false ならそのまま送る）
@@ -156,8 +182,12 @@ export async function loadAutoTargetPreviews(postId: string) {
 
 // ===== 見本の 1 回（保存しない） =====
 // 次の回と同じ道（材料を選ぶ → AI が作る → チェック）で 1 回分を作って見せる。AI を 1〜2 回使う（自動の投稿の枠）。材料は使ったことにしない
-export async function makeAutoSample(projectId: string, input: Omit<AutoPlanInput, "consent">): Promise<AutoResult<AutoSample>> {
+// opts.oneTime: その 1 回だけの指示（覚えない）。opts.fromSampleId: 前の見本と同じ材料で作る（サーバーに置いた見本から読む）
+export async function makeAutoSample(projectId: string, input: Omit<AutoPlanInput, "consent">, opts: { oneTime?: string; fromSampleId?: string } = {}): Promise<AutoResult<AutoSample>> {
   if (!uuid.safeParse(projectId).success) return { ok: false, error: BAD };
+  const oneTime = opts.oneTime?.trim() ? instructionSchema.safeParse(opts.oneTime) : null;
+  if (oneTime && !oneTime.success) return { ok: false, error: oneTime.error.issues[0]?.message ?? BAD };
+  if (opts.fromSampleId !== undefined && !uuid.safeParse(opts.fromSampleId).success) return { ok: false, error: BAD };
   const p = autoPlanInputSchema.safeParse({ ...input, consent: true });
   if (!p.success) return { ok: false, error: p.error.issues[0]?.message ?? BAD };
   const db = await createClient();
@@ -182,7 +212,7 @@ export async function makeAutoSample(projectId: string, input: Omit<AutoPlanInpu
     targets: v.targets,
     xLink: v.xLink,
     schedule: v.schedule,
-    tone: v.tone,
+    instructions: v.instructions,
     leadHours: v.leadHours,
     firstReview: true,
     status: "active",
@@ -193,12 +223,20 @@ export async function makeAutoSample(projectId: string, input: Omit<AutoPlanInpu
     updatedAt: "",
   };
   try {
-    const r = await makeSample(admin, deps, { ownerId: userId, projectId, plan: v.id ? plan : { ...plan, id: "00000000-0000-0000-0000-000000000000" } });
+    // 直すときは、本人の回し方か確かめる（ほかの人の回し方の記録を読ませない）
+    if (v.id && !(await getAutoPlan(v.id))) return { ok: false, error: NO_PLAN };
+    const r = await makeSample(admin, deps, {
+      ownerId: userId,
+      projectId,
+      plan: v.id ? plan : { ...plan, id: NO_PLAN_ID },
+      oneTime: oneTime?.success ? [oneTime.data] : undefined,
+      fromSampleId: opts.fromSampleId,
+    });
     if (!r.ok) {
       if (r.reason === "ai_limit") return { ok: false, error: r.detail || "今月の自動の投稿の AI の枠を使い切りました。" };
-      return { ok: true, data: { texts: {}, materialLabel: "", issues: [{ kind: r.reason, detail: r.detail }] } };
+      return { ok: true, data: { sampleId: null, texts: {}, materialLabel: "", issues: [{ kind: r.reason, detail: r.detail }] } };
     }
-    return { ok: true, data: { texts: r.texts, tags: r.tags, materialLabel: r.label, issues: r.issues } };
+    return { ok: true, data: { sampleId: r.sampleId, texts: r.texts, tags: r.tags, materialLabel: r.label, issues: r.issues } };
   } catch (e) {
     console.error("[auto-post] 見本を作れませんでした", e instanceof Error ? e.message : e);
     return { ok: false, error: FAILED };

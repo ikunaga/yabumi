@@ -24,7 +24,7 @@ const DAY_MS = 86_400_000;
 // 自動の投稿の一覧（docs/design/auto-post.md の 1.6・1.7）。上に確かめ待ちと次の回、下に回し方ごとに 1 行。
 // 入口は「…」（その他）・概要の帯・カレンダー（投稿をつくるには置かない。2026-11-18 オーナーの指示）
 export default async function AutoListPage(props: PageProps<"/projects/[id]/auto">) {
-  const [{ id }, { started }] = await Promise.all([props.params, props.searchParams]);
+  const [{ id }, { started, sample }] = await Promise.all([props.params, props.searchParams]);
   const project = await getProject(id);
   if (!project) notFound();
   const now = new Date();
@@ -74,7 +74,12 @@ export default async function AutoListPage(props: PageProps<"/projects/[id]/auto
       {started === "1" && (
         <SuccessBanner>
           自動の投稿をはじめました。
-          {firstReview ? "最初の回ができたら、送る前に確かめてください。" : "最初の回ができたら、通知でお知らせします。"}
+          {sample === "used"
+            ? "見本を最初の回にしました。"
+            : sample === "failed"
+              ? "見本は最初の回にできませんでした（作ってから時間がたった・設定を変えた・送れる SNS がない、など）。"
+              : ""}
+          {sample === "used" ? "" : firstReview ? "最初の回ができたら、送る前に確かめてください。" : "最初の回ができたら、通知でお知らせします。"}
         </SuccessBanner>
       )}
 

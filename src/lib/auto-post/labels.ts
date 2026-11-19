@@ -110,3 +110,6 @@ export const STAGE_C_SNS_DETAIL =
 export function isReviewOnlySns(sns: string): sns is ReviewOnlySns {
   return (REVIEW_ONLY_SNS as readonly string[]).includes(sns);
 }
+
+// 見本を直す指示のチップ（docs/design/auto-sample-image.md の 1.1。押すと指示に足す。自分で書く欄もある）
+export const INSTRUCTION_PRESETS = ["もっと短く", "絵文字なし", "やわらかく", "宣伝っぽさを減らす", "ハッシュタグなし", "季節の話から入る"] as const;

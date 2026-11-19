@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { scheduleText } from "@/components/auto-post/format";
 import { PlanControls } from "@/components/auto-post/plan-controls";
+import { PlanSample } from "@/components/auto-post/plan-sample";
 import { PlanStatusMark } from "@/components/auto-post/status-mark";
 import { ReviewFlow } from "@/components/auto-post/review-why";
 import { Card, CardHeader, EmptyState } from "@/components/ui/card";
@@ -104,14 +105,17 @@ export default async function AutoPlanPage(props: PageProps<"/projects/[id]/auto
           <dd className="num">
             {scheduleText(plan.schedule)} ／ 作るのは {plan.leadHours} 時間前
           </dd>
-          {plan.tone && (
+          {plan.instructions.length > 0 && (
             <>
-              <dt className="text-muted">口調</dt>
-              <dd>{plan.tone}</dd>
+              <dt className="text-muted">書き方</dt>
+              <dd>{plan.instructions.join("・")}</dd>
             </>
           )}
         </dl>
       </Card>
+
+      {/* 見本を見ながら書き方を直す（運営者が止めている間・運営者が止めた回し方では出さない。作るのも DB が断る） */}
+      {!hold && plan.stopReason !== "operator" && <PlanSample plan={plan} />}
     </div>
   );
 }

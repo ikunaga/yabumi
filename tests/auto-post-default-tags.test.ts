@@ -39,9 +39,9 @@ describe("自動の投稿の本文とは別に付くタグ", () => {
   });
 
   it("AI には、別に付くタグと「本文にハッシュタグを書かない」を渡す（タグがなければ出さない）", () => {
-    const req = JSON.stringify(buildAutoPostRequest({ context: "", material: "メモ", tone: "", recentBodies: [], fixedTags: { x: ["パン屋"] } }).messages);
+    const req = JSON.stringify(buildAutoPostRequest({ context: "", material: "メモ", instructions: [], recentBodies: [], fixedTags: { x: ["パン屋"] } }).messages);
     expect(req).toContain("本文の後ろに別に付くタグ");
     expect(req).toContain("X: #パン屋");
-    expect(JSON.stringify(buildAutoPostRequest({ context: "", material: "メモ", tone: "", recentBodies: [] }).messages)).not.toContain("別に付くタグ");
+    expect(JSON.stringify(buildAutoPostRequest({ context: "", material: "メモ", instructions: [], recentBodies: [] }).messages)).not.toContain("別に付くタグ");
   });
 });

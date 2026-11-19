@@ -118,6 +118,23 @@ describe("知らせの中身", () => {
     expect(m.push.tag).toBe("weekly:p1");
   });
 
+  it("月曜の振り返りに目標の数字（2026-11-19）。届かない見込みなら、要るペースと立て直しの入口。通知は数字だけで目標の文を入れない", () => {
+    const base = { lastWeek: null, thisWeekTargets: { x: 2 }, streak: 0, cycle: null, justEnded: false };
+    const goal = { statement: "3 か月で予約 20 件", metric: "outcomes" as const, value: 2, target: 20, projected: 11, endsOn: "2027-01-24", risk: null };
+    const ok = weeklyMessage({ ...base, goal }, ctx);
+    expect(ok.email.text).toContain("■ 目標「3 か月で予約 20 件」: いま 2 / 20。このままだと期限（1/24）に 11 の見込み");
+    expect(ok.email.text).not.toContain("立て直す");
+    expect(ok.push.body).toBe("かけいぼ日和: 目標 2/20。今週は X 週 2 本");
+    const risk = { level: "off" as const, value: 2, target: 20, projected: 11, daysLeft: 66, needPerWeek: 2, nowPerWeek: 0.9 };
+    const off = weeklyMessage({ ...base, goal: { ...goal, risk } }, ctx);
+    expect(off.email.text).toContain("このままでは届かない見込みです。届くには 1 週あたり 2（いまは週 0.9）。立て直す・見直す: https://yabumi.app/projects/p1/roadmap#goal-risk");
+    expect(off.push.body).toContain("目標 2/20（このままでは届かない見込み）");
+    expect(off.push.body).not.toContain("予約 20 件");
+    // 目標を数えていなければ入れない
+    expect(weeklyMessage({ ...base, goal: null }, ctx).email.text).not.toContain("■ 目標");
+    expect(mailFooter(ctx)).toContain("あなたが決めた目標と、SNS ごとの週の投稿の回数をもとに");
+  });
+
   it("予定日を過ぎたやること: 件数・やること（5 件まで）・ロードマップへ。遅れそうな日は同じ知らせに入れる。月曜は先週の件数", () => {
     const items = Array.from({ length: 6 }, (_, i) => ({ id: `i${i}`, title: `やること ${i}`, plannedOn: "2026-10-13" }));
     const m = overdueMessage(items, ctx);

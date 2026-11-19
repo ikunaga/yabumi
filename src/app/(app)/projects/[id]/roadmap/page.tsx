@@ -5,6 +5,7 @@ import { AddItemForm } from "@/components/roadmap/add-item-form";
 import { ActionsCard, KgiCard, KpisCard, MilestonesCard, PastGoals } from "@/components/roadmap/goal-cards";
 import { GoalForm } from "@/components/roadmap/goal-form";
 import { RoadmapItemRow } from "@/components/roadmap/item-row";
+import { GoalRiskPanel } from "@/components/roadmap/goal-risk";
 import { SettleGoalButton } from "@/components/roadmap/settle-goal-button";
 import { ActionBar } from "@/components/ui/action-bar";
 import { ButtonLink, NotReadyButton } from "@/components/ui/button";
@@ -17,7 +18,8 @@ import { Term } from "@/components/ui/term";
 import { aiConfigured } from "@/lib/ai/anthropic";
 import { getGoals, kpiWeekTotals } from "@/lib/goals/queries";
 import { isLegacyActionGoal, kgiMetricFor } from "@/lib/goals/schema";
-import { formatMetric, md } from "@/lib/goals/view";
+import { goalRisk, reviseChoices } from "@/lib/goals/risk";
+import { formatMetric, md, metricLabel } from "@/lib/goals/view";
 import { getAccountPlan } from "@/lib/plan/queries";
 import { getProject } from "@/lib/projects/queries";
 import { itemState, loadRoadmap, thisWeekCounts, type RoadmapItem } from "@/lib/roadmap/queries";
@@ -39,7 +41,7 @@ function weekLabel(weekStart: string, thisWeek: string): string {
 // ロードマップ（F10、docs/architecture.md の 4.23・docs/design/goals-model.md の 5.）: いまの目標（KGI）・中間の目標・KPI・週の投稿の本数、
 // 週ごとのやること、これまでの目標
 export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadmap">) {
-  const [{ id }, { done, items: doneItems, reviewed }] = await Promise.all([props.params, props.searchParams]);
+  const [{ id }, { done, items: doneItems, reviewed, revise }] = await Promise.all([props.params, props.searchParams]);
   // id だけで読めるので、プロジェクトと並べて読む（待ち時間を縮める）
   const [project, view, plan, goals] = await Promise.all([getProject(id), loadRoadmap(id), getAccountPlan(id), getGoals(id)]);
   if (!project) notFound();
@@ -52,6 +54,9 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
   const legacy = goal ? isLegacyActionGoal(goal) : false;
   const hasKgi = Boolean(goal?.metric && goal.target !== null) && !legacy;
   const p = hasKgi ? (active?.progress ?? null) : null;
+  // 届かない見込み（数え始めて 14 日から。src/lib/goals/risk.ts）と、AI なしで選べる見直しの案
+  const risk = hasKgi && goal ? goalRisk(goal, p) : null;
+  const choices = risk && goal ? reviseChoices(goal, risk) : [];
 
   // いまの目標のやること（目標を替えたとき、今週以降のまだのものは新しい目標に移る）。前の目標のものは「これまでの目標」に
   const items = allItems.filter((i) => !goal || i.goalId === null || i.goalId === goal.id);
@@ -132,6 +137,21 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
           }
         />
       </div>
+
+      {risk && goal?.metric && goal.endsOn && (
+        <GoalRiskPanel
+          projectId={id}
+          goalId={goal.id}
+          metric={goal.metric}
+          metricName={metricLabel({ metric: goal.metric, action: goal.action, sns: goal.sns }, project.product_type)}
+          statement={goal.statement ?? ""}
+          endsOn={goal.endsOn}
+          risk={risk}
+          choices={choices}
+          rescueHref={null}
+          openRevise={revise === "1"}
+        />
+      )}
 
       <Columns
         main={

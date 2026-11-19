@@ -75,6 +75,8 @@ export type GoalProgress = MetricTotal & {
   daysLeft: number;
   // このままのペース（数え始めから数えた最後の日までの 1 日あたり）で期限まで続けた見込み。7 日分たまるまで null
   projected: number | null;
+  // 数え始めから数えた最後の日までの日数（届かない見込みの判定に使う。src/lib/goals/risk.ts）
+  countedDays: number;
 };
 
 export function progressOf(goal: Goal, total: MetricTotal, today: string): GoalProgress | null {
@@ -83,10 +85,10 @@ export function progressOf(goal: Goal, total: MetricTotal, today: string): GoalP
   const daysLeft = Math.max(0, day(goal.endsOn) - day(today));
   const counted = total.countedThrough ? day(total.countedThrough) - day(goal.startsOn) + 1 : 0;
   const span = day(goal.endsOn) - day(goal.startsOn) + 1;
-  // followers・revenue は累計ではない（増えた人数・直近 28 日）ので、ペースの見込みは出さない
+  // revenue は累計ではない（数えた最後の日の直近 28 日）ので、ペースの見込みは出さない（followers は期間中に増えた人数なので出す）
   const paced = goal.metric !== "revenue";
   const projected = paced && total.available && counted >= 7 ? Math.round((total.value / counted) * span) : null;
-  return { ...total, target: goal.target, ratio: goal.target > 0 ? total.value / goal.target : 0, daysLeft, projected };
+  return { ...total, target: goal.target, ratio: goal.target > 0 ? total.value / goal.target : 0, daysLeft, projected, countedDays: Math.max(0, counted) };
 }
 
 export type ActiveGoalView = {

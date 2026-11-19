@@ -5,7 +5,9 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { saveManualGoal } from "./manual";
 import { goalInputSchema, kpiInputSchema, MAX_KPIS_PER_GOAL, type GoalInput, type KpiInput } from "./schema";
-import { GoalError, settleGoal } from "./write";
+import { loadGoals } from "./load";
+import { goalRisk, reviseChoices } from "./risk";
+import { GoalError, reviseGoal, settleGoal } from "./write";
 
 // ロードマップで目標（KGI）・中間の目標・KPI を手で決める・直す（段階 ②。docs/design/goals-model.md の 5.）。
 // 書くのは DB の関数だけ（状態・結果・区切りの日付はサーバーが決める）。利用者の権限のクライアントで書く
@@ -83,3 +85,25 @@ export async function settleGoalAction(projectId: string, goalId: string): Promi
   revalidatePath(`/projects/${projectId}`, "layout");
   return {};
 }
+
+// 届かない見込みのときの見直し（AI なしで、計算した案から選ぶ。src/lib/goals/risk.ts）。
+// 値は送らせず、いまの目標と進み具合を読み直して、ここで案を計算し直す（画面を開いたあとに数字が変わっても、そのときの案で書く）。
+// 文は利用者が直せる（1〜120 字）
+export async function reviseFromChoiceAction(projectId: string, goalId: string, kind: "lower" | "extend", statement: string): Promise<{ error?: string }> {
+  if (!z.array(uuid).safeParse([projectId, goalId]).success || (kind !== "lower" && kind !== "extend")) return { error: "入力の形式が正しくありません。" };
+  const text = statement.trim();
+  if (text.length < 1 || text.length > 120) return { error: "目標の文を 1〜120 字で入れてください。" };
+  const db = await createClient();
+  try {
+    const { active } = await loadGoals(db, projectId);
+    const risk = active && active.goal.id === goalId ? goalRisk(active.goal, active.progress) : null;
+    const choice = risk && active ? reviseChoices(active.goal, risk).find((c) => c.kind === kind) : undefined;
+    if (!active || !choice) return { error: "いまは見直しの案を出せません（数字が変わったかもしれません）。画面を読み込み直してください。" };
+    await reviseGoal(db, goalId, choice.kind === "lower" ? { statement: text, target: choice.target } : { statement: text, endsOn: choice.endsOn });
+  } catch (e) {
+    return { error: failed(e).error };
+  }
+  revalidatePath(`/projects/${projectId}`, "layout");
+  return {};
+}
+

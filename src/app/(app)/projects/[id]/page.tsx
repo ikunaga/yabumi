@@ -24,6 +24,7 @@ import { aiConfigured } from "@/lib/ai/anthropic";
 import { loadCoachView } from "@/lib/coach/load";
 import { loadGoals } from "@/lib/goals/load";
 import { loadGoalReview } from "@/lib/goals/review";
+import { goalRisk } from "@/lib/goals/risk";
 import { cycleMergedIntoGoal, kpiCardKeys } from "@/lib/goals/view";
 import { DEFAULT_BEHIND_WEEKDAY } from "@/lib/coach/pace";
 import { githubConfigured } from "@/lib/github/config";
@@ -148,6 +149,11 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
     </>
   );
 
+  // 届かない見込みの目標（帯の下の 1 行。src/lib/goals/risk.ts）。前の作りの投稿の本数の KGI は数えない
+  const activeGoal = goals.active?.goal ?? null;
+  const risk = activeGoal ? goalRisk(activeGoal, goals.active?.progress ?? null) : null;
+  const atRisk = risk && activeGoal?.metric ? { risk, metric: activeGoal.metric } : null;
+
   return (
     <div className="flex flex-col gap-4 max-sm:gap-3">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
@@ -177,6 +183,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
         aiEnabled={aiConfigured()}
         goalReview={goalReview}
         cycleMerged={cycleMergedIntoGoal(goals.active?.goal ?? null, coach?.cycle?.ended ? coach.cycle.endsOn : null)}
+        goalRisk={atRisk}
       />
 
       {/* コンセプトのおすすめ（4.50）: 4 段階が済んで、コンセプトがまだで、この端末で閉じていない人だけ */}

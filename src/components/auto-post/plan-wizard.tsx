@@ -261,7 +261,7 @@ export function PlanWizard(p: Props) {
                     ) : (
                       <ModePicker sns={s} value={targets[s] ?? TARGET_MODES[s][0]} disabled={!on} onChange={(m) => setTargets({ ...targets, [s]: m })} />
                     )}
-                    {s === "instagram" && on && <p className="w-full text-xs text-muted">Instagram は画像が要るので、写真つきのメモ・シリーズの画像がある回だけ送ります。</p>}
+                    {s === "instagram" && on && <p className="w-full text-xs text-muted">Instagram は画像が要るので、写真つきのネタ帳のメモから作る回だけ送ります（ほかの回は Instagram には送りません）。</p>}
                     {isReviewOnlySns(s) && <ReviewReason sns={s} />}
                   </li>
                 );

@@ -30,7 +30,7 @@ export default async function AutoListPage(props: PageProps<"/projects/[id]/auto
   const now = new Date();
   const [plans, reviews, upcoming, hold] = await Promise.all([
     listAutoPlans(project.id),
-    listAutoReviewItems(project.id),
+    listAutoReviewItems(project.id, { media: false }),
     listUpcomingAutoRuns(project.id, now, new Date(now.getTime() + 30 * DAY_MS)),
     getAutoPostHold(),
   ]);

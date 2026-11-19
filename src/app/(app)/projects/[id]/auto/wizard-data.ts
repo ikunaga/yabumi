@@ -5,21 +5,26 @@ import { suggestKind } from "@/lib/auto-post/suggest";
 import type { AutoPlan } from "@/lib/auto-post/types";
 import { loadMaterialCounts } from "@/lib/auto-post/ui-queries";
 import { loadTimeTrends } from "@/lib/metrics/time-trends";
+import { winnersCardText } from "@/lib/metrics/winners";
+import { loadWinners } from "@/lib/metrics/winners-queries";
+import { SNS, type SnsKey } from "@/lib/sns";
+import { createClient } from "@/lib/supabase/server";
 import { getAccountPlan } from "@/lib/plan/queries";
 import { connectedAccounts } from "@/lib/posts/queries";
 import { isAppProject } from "@/lib/projects/product-types";
 import { getProject } from "@/lib/projects/queries";
-import type { SnsKey } from "@/lib/sns";
 import { toYmd } from "@/lib/time";
 
 // 始める・直す画面に渡すもの（材料の数・つないだ SNS・設計の役割と頻度・時間帯の傾向）。AI は呼ばない
 export async function wizardProps(projectId: string, plan: AutoPlan | null): Promise<ComponentProps<typeof PlanWizard>> {
-  const [counts, accounts, account, trends, project] = await Promise.all([
+  const [counts, accounts, account, trends, project, winners] = await Promise.all([
     loadMaterialCounts(projectId),
     connectedAccounts(projectId),
     getAccountPlan(projectId),
     loadTimeTrends(projectId),
     getProject(projectId),
+    // 伸びた投稿は、始めるときだけ読む（決まりで判定するだけで、AI は呼ばない）
+    plan ? Promise.resolve(null) : createClient().then((db) => loadWinners(db, projectId)),
   ]);
   const roles = account ? (Object.keys(account.plan.cadence.roles) as SnsKey[]).filter((k) => account.plan.cadence.roles[k]?.trim()) : [];
   const pillarNames = account ? account.plan.pillars.items.map((i) => i.name.trim()).filter(Boolean) : [];
@@ -48,5 +53,6 @@ export async function wizardProps(projectId: string, plan: AutoPlan | null): Pro
     trends,
     planFrequency: account?.plan.cadence.frequency ?? null,
     today: toYmd(new Date()),
+    winners: winners ? winnersCardText(winners, (s) => SNS[s].label) : null,
   };
 }

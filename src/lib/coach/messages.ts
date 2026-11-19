@@ -109,6 +109,8 @@ export function weeklyMessage(
     justEnded: boolean;
     // 先週が予定日で、まだ投稿を予約も送信もしていない、済んでいないやることの数
     lastWeekOverdue?: number;
+    // 先週、新しく伸びたとわかった投稿（docs/design/winning-posts.md の 3. の C）
+    grown?: { title: string; text: string } | null;
   },
   c: MessageContext,
 ): CoachMessage {
@@ -121,6 +123,7 @@ export function weeklyMessage(
     lines.push("");
   }
   if (args.streak > 0) lines.push(`■ 続けた週: ${args.streak} 週`, "");
+  if (args.grown) lines.push(`■ いつもより伸びた投稿: 「${args.grown.title}」（${args.grown.text}）。この形で自動で回せます: ${base}/auto/winners`, "");
   if (args.lastWeekOverdue) lines.push(`■ 先週、予定日を過ぎたやること: ${args.lastWeekOverdue} 件（投稿をつくるか、予定を見直す: ${base}/roadmap）`, "");
   if (args.justEnded && args.cycle) {
     lines.push(

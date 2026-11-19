@@ -2,11 +2,13 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadActiveActions, type ActiveActions } from "@/lib/goals/load";
 import { weeklyTargetsOf } from "@/lib/goals/schema";
-import { SNS_KEYS, type SnsKey } from "@/lib/sns";
+import { SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
 import type { Database } from "@/lib/supabase/database.types";
 import { addDays, toYmd } from "@/lib/time";
 import { ITEM_COLUMNS, loadItemPostCounts, overdueItems, toItem, type ItemRow } from "@/lib/roadmap/load";
 import { countsByWeek, parseTargets } from "./load";
+import { SETTLE_DAYS, hitText } from "@/lib/metrics/winners";
+import { loadWinners } from "@/lib/metrics/winners-queries";
 import { behindMessage, overdueMessage, unsubscribeHeaders, weeklyMessage, type MessageContext, type OverdueItem } from "./messages";
 import { deliverCoachMessage, ensurePrefs, unsentOverdue, wants, type DeliverDeps, type DeliverResult, type Prefs } from "./notify";
 import { computeWeekPace, cycleInfo, CYCLE_WEEKS, hasTargets, isoWeekday, mondayOf, shouldNudgeBehind, streakWeeks, type SnsCounts, type WeeklyTargets } from "./pace";
@@ -48,6 +50,20 @@ function scheduledOf(c: SnsCounts | undefined): Partial<Record<SnsKey, number>> 
 function achieved(targets: WeeklyTargets, published: Partial<Record<SnsKey, number>>): boolean {
   const keys = SNS_KEYS.filter((s) => (targets[s] ?? 0) > 0);
   return keys.length > 0 && keys.every((s) => (published[s] ?? 0) >= targets[s]!);
+}
+
+// 先週、数字が落ち着いて新しく「伸びた」とわかった投稿（送って 7〜13 日のもの。同じ投稿は 1 週だけ出る）。
+// 決まりで判定するだけで、AI は呼ばない（docs/design/winning-posts.md の 3. の C）。読めなくても振り返りは送る
+async function newlyGrown(admin: Db, projectId: string, now: Date): Promise<{ title: string; text: string } | null> {
+  try {
+    const view = await loadWinners(admin, projectId, now);
+    const since = now.getTime() - (SETTLE_DAYS + 7) * 86_400_000;
+    const w = view.winners.find((x) => Date.parse(x.publishedAt) > since);
+    return w ? { title: w.title, text: `${SNS[w.best.sns].label} で${hitText(w.best)}` } : null;
+  } catch (e) {
+    console.error("[coach] 伸びた投稿を読めませんでした", e instanceof Error ? e.message : e);
+    return null;
+  }
 }
 
 export async function runCoachJob(
@@ -174,6 +190,7 @@ export async function runCoachJob(
           cycle: info ? { ...info, achievedWeeks: cycleWeeks.filter(Boolean).length } : null,
           justEnded,
           lastWeekOverdue,
+          grown: await newlyGrown(admin, t.projectId, opts.now ?? new Date()),
         };
       }
     }

@@ -23,6 +23,10 @@ export type PickerMaterials = {
   unusedPhotoNotes: number;
 };
 
+// 伸びた投稿から（docs/design/winning-posts.md の 3. の A）。選ぶカードではなく、伸びた投稿の画面へのリンク。
+// text は「Threads でいつもの 2.4 倍見られた投稿が 2 本あります」、off は「あと 3 本送ると、伸びた投稿がわかります」
+export type WinnersCard = { text: string; off: boolean };
+
 export const choiceKey = (c: KindChoice | null) => (c ? (c.kind === "series" ? `series:${c.formatId ?? ""}` : c.kind) : "");
 
 type Card = {
@@ -116,12 +120,16 @@ export function KindPicker({
   value,
   suggestedKey,
   isApp,
+  winners,
+  winnersHref,
   onChange,
 }: {
   cards: Card[];
   value: string;
   suggestedKey: string | null;
   isApp: boolean;
+  winners?: WinnersCard | null;
+  winnersHref?: string;
   onChange: (c: KindChoice) => void;
 }) {
   // おすすめを先頭（横いっぱい）に、選べるもの、選べないものの順
@@ -133,6 +141,21 @@ export function KindPicker({
         <h2 className="text-[18px] font-bold">何を投稿する？</h2>
         <p className="text-[14px] text-muted">投稿のネタをどこから作るかを、1 つ選びます。ほかのネタでも回したいときは、あとで自動の投稿をもう 1 つ作れます。</p>
       </div>
+      {winners && winnersHref && (
+        <Link
+          href={winnersHref}
+          className={`flex flex-col gap-1 rounded-lg px-4 py-3.5 text-fg hover:no-underline ${winners.off ? "border border-dashed border-border" : "border border-border bg-surface hover:bg-subtle"}`}
+        >
+          <span className={`flex flex-wrap items-center gap-2 text-[16px] font-bold ${winners.off ? "text-faint" : ""}`}>
+            伸びた投稿から
+            <span aria-hidden className="ml-auto text-[14px] font-normal text-muted">
+              →
+            </span>
+          </span>
+          <span className={`text-[14px] ${winners.off ? "text-faint" : "text-muted"}`}>いつもより見られた・押された投稿の組み立てを AI が型にして、シリーズとして回します。</span>
+          <span className="num mt-0.5 text-[13px] text-faint">{winners.off ? `いまは選べません：${winners.text}` : winners.text}</span>
+        </Link>
+      )}
       <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1" role="radiogroup" aria-label="投稿のネタ">
         {ordered.map((c) => {
           const on = !c.off && c.key === value;

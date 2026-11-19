@@ -18,6 +18,8 @@ import { tabClass, tabListClass } from "@/components/ui/tabs";
 import { Term } from "@/components/ui/term";
 import { aiConfigured } from "@/lib/ai/anthropic";
 import { loadDailyNumbers } from "@/lib/metrics/daily";
+import { hitText, type WinnerHit } from "@/lib/metrics/winners";
+import { loadWinners } from "@/lib/metrics/winners-queries";
 import { campaignTotal, sumPlayUtm, utmEnd, type PlayUtmTotals } from "@/lib/metrics/play-utm";
 import { compareLabel, NOT_ARRIVED, periodLabel } from "@/lib/metrics/store-period";
 import { confirmedUntil, MIN_DAYS, POST_EFFECT_DAYS, postEffect, type PostEffect } from "@/lib/metrics/post-effect";
@@ -164,14 +166,17 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
   if (!project) notFound();
   const supabase = await createClient();
   const today = toYmd(new Date());
-  const [account, overview, manual, accounts, daily, goals] = await Promise.all([
+  const [account, overview, manual, accounts, daily, goals, winners] = await Promise.all([
     getAccountPlan(project.id),
     loadMetricsOverview(project.id, undefined, days),
     listManualTargets(project.id),
     connectedAccounts(project.id),
     loadDailyNumbers(supabase, project.id, today, POST_EFFECT_DAYS),
     loadGoals(supabase, project.id),
+    // 伸びた投稿（docs/design/winning-posts.md の 3. の B。決まりで判定するだけで、AI は呼ばない）
+    loadWinners(supabase, project.id),
   ]);
+  const grown = new Map(winners.winners.map((w) => [w.postId, w.best]));
   const [needReconnect, xOver] = await Promise.all([snsNeedingInsightsReconnect(accounts), xMetricsOverLimit(accounts, xMetricsUserMonthlyUsd())]);
   const plan = account?.plan ?? null;
   const base = `/projects/${project.id}`;
@@ -431,7 +436,14 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
             </Panel>
             <Panel title="よく見られた投稿" aside="30 日">
               {overview.topViewed.length ? (
-                <Ranked projectId={project.id} rows={overview.topViewed.map((p) => ({ ...p, value: `${formatCount(p.views)} 回表示`, playDl: playDlOf(p.postId), appleDl: appleDlOf(p.postId) }))} />
+                <>
+                  <Ranked projectId={project.id} grown={grown} rows={overview.topViewed.map((p) => ({ ...p, value: `${formatCount(p.views)} 回表示`, playDl: playDlOf(p.postId), appleDl: appleDlOf(p.postId) }))} />
+                  {winners.winners.length > 0 && (
+                    <Link href={`/projects/${project.id}/auto/winners`} className="mt-2 block border-t border-line pt-3 text-[14px] font-bold text-fg underline">
+                      ↗ いつもより伸びた投稿が {winners.winners.length} 本あります。この形で自動で回す →
+                    </Link>
+                  )}
+                </>
               ) : (
                 <p className="text-sm text-muted">
                   Threads・Instagram・Facebook・X を数字の権限つきでつなぐと、送ってから 1・3・7・30 日目の閲覧数を取り込み、ここに並べます。
@@ -445,7 +457,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
             </Panel>
             <Panel title="クリックの多い投稿" aside="30 日">
               {overview.topPosts.length ? (
-                <Ranked projectId={project.id} rows={overview.topPosts.map((p) => ({ ...p, value: `${formatCount(p.clicks)} クリック`, playDl: playDlOf(p.postId), appleDl: appleDlOf(p.postId) }))} />
+                <Ranked projectId={project.id} grown={grown} rows={overview.topPosts.map((p) => ({ ...p, value: `${formatCount(p.clicks)} クリック`, playDl: playDlOf(p.postId), appleDl: appleDlOf(p.postId) }))} />
               ) : (
                 <p className="text-sm text-muted">投稿の本文の{isApp ? "ストア" : "行き先"}の URL を短縮リンクにして送ると、どの投稿からクリックされたかが並びます。</p>
               )}
@@ -516,7 +528,8 @@ function Notice({ children }: { children: ReactNode }) {
 }
 
 // 順位つきの投稿の一覧（よく見られた・クリックの多い）。同じ書き出しの投稿を見分けられるように、送った日と SNS の札を添える
-function Ranked({ projectId, rows }: { projectId: string; rows: (PostMeta & { postId: string; value: string; playDl?: number; appleDl?: number })[] }) {
+// grown: 伸びた投稿（いつもの何倍か。X の数字は使わない）。あれば「↗ 2.4 倍」を添える
+function Ranked({ projectId, rows, grown }: { projectId: string; rows: (PostMeta & { postId: string; value: string; playDl?: number; appleDl?: number })[]; grown?: Map<string, WinnerHit> }) {
   return (
     <ol>
       {rows.map((r, i) => (
@@ -534,6 +547,11 @@ function Ranked({ projectId, rows }: { projectId: string; rows: (PostMeta & { po
             </span>
             <span className="flex shrink-0 flex-col items-end gap-0.5">
               <span className="num text-muted">{r.value}</span>
+              {grown?.get(r.postId) && (
+                <span className="num text-xs font-bold text-fg" title={`${SNS[grown.get(r.postId)!.sns].label} で${hitText(grown.get(r.postId)!)}`}>
+                  ↗ {grown.get(r.postId)!.ratio} 倍
+                </span>
+              )}
               {r.playDl ? <span className="num text-xs text-faint">DL {formatCount(r.playDl)}（Google Play が数えた）</span> : null}
               {r.appleDl ? <span className="num text-xs text-faint">DL {formatCount(r.appleDl)}（Apple が数えた・少しずれます）</span> : null}
             </span>

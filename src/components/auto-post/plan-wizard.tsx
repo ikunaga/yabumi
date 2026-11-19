@@ -34,7 +34,7 @@ import type { TimeTrends } from "@/lib/metrics/time-bands";
 import { SNS, type SnsKey } from "@/lib/sns";
 import { withHashtags } from "@/lib/sns/hashtags";
 import { scheduleText } from "./format";
-import { choiceKey, kindCards, KindPicker, type KindChoice } from "./kind-picker";
+import { choiceKey, kindCards, KindPicker, type KindChoice, type WinnersCard } from "./kind-picker";
 import { ReviewFlow, ReviewReason, StageCSns } from "./review-why";
 
 // 自動の投稿を始める・直す（docs/design/auto-post.md の 1.4・1.5・1.7）。
@@ -60,7 +60,13 @@ type Props = {
   planFrequency: string | null;
   today: string; // 日本時間の YYYY-MM-DD（数え始めの日）
   isApp: boolean; // 宣伝するものがアプリか（「開発の進み」を出すか）
+  // 伸びた投稿から来たとき（docs/design/winning-posts.md の 5.）。そのシリーズのフォーマット・伸びた SNS・時刻を選んでおく（始めるのは利用者）
+  preset?: WizardPreset | null;
+  // 「伸びた投稿から」のカード（始めるときだけ。docs/design/winning-posts.md の 3. の A）
+  winners?: WinnersCard | null;
 };
+
+export type WizardPreset = { formatId: string; sns: SnsKey[]; time: string | null; timeReason: string };
 
 type Step = "what" | "where" | "when" | "confirm";
 const STEPS: { key: Step; label: string }[] = [
@@ -103,7 +109,8 @@ export function PlanWizard(p: Props) {
     `/projects/${p.projectId}/formats`,
   );
   // おすすめのカード（シリーズは最初のフォーマット）。直すときは出さない
-  const suggested = editing ? null : (cards.find((c) => c.choice.kind === p.kindSuggestion.kind && !c.off) ?? null);
+  const presetCard = editing || !p.preset ? null : (cards.find((c) => c.choice.kind === "series" && c.choice.formatId === p.preset!.formatId && !c.off) ?? null);
+  const suggested = editing ? null : (presetCard ?? cards.find((c) => c.choice.kind === p.kindSuggestion.kind && !c.off) ?? null);
   // 始めるときは、おすすめを初めから選んでおく
   const [kind, setKind] = useState<AutoKind | null>(p.plan?.kind ?? suggested?.choice.kind ?? null);
   const [materials, setMaterials] = useState<AutoMaterials>(p.plan?.materials ?? (suggested?.choice.formatId ? { format_id: suggested.choice.formatId } : {}));
@@ -118,7 +125,8 @@ export function PlanWizard(p: Props) {
   const autoSns = AUTO_SNS_STAGE_A.filter((s) => p.connected.includes(s));
   const [targets, setTargets] = useState<AutoTargets>(() => {
     if (p.plan) return p.plan.targets;
-    const preferred = autoSns.filter((s) => p.planRoles.includes(s));
+    const fromPreset = presetCard ? autoSns.filter((s) => p.preset!.sns.includes(s)) : [];
+    const preferred = fromPreset.length ? fromPreset : autoSns.filter((s) => p.planRoles.includes(s));
     const picked = preferred.length ? preferred : autoSns.filter((s) => s !== "note" && s !== "substack");
     return Object.fromEntries(picked.map((s) => [s, TARGET_MODES[s][0]]));
   });
@@ -145,6 +153,7 @@ export function PlanWizard(p: Props) {
         trends: p.trends,
         planFrequency: p.planFrequency,
         start: p.today,
+        fromWinner: presetCard && p.preset?.time && kind === "series" && materials.format_id === p.preset.formatId ? { time: p.preset.time, reason: p.preset.timeReason } : undefined,
       })
     : [];
   const withStart = (s: AutoSchedule): AutoSchedule => ({
@@ -201,6 +210,8 @@ export function PlanWizard(p: Props) {
             value={kind ? choiceKey({ kind, formatId: materials.format_id }) : ""}
             suggestedKey={suggested?.key ?? null}
             isApp={p.isApp}
+            winners={editing ? null : p.winners}
+            winnersHref={`/projects/${p.projectId}/auto/winners`}
             onChange={pick}
           />
 

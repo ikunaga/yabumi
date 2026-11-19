@@ -3,7 +3,8 @@
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { aiConfigured, callFormatRound, callPostFormat } from "./anthropic";
+import { aiConfigured, callFormatFromPosts, callFormatRound, callPostFormat } from "./anthropic";
+import { runFormatFromPosts, type FromPostsFit, type FromPostsProposal } from "./format-from-posts";
 import { runFormatRound, type RoundProposal } from "./format-round-ai";
 import { runPostFormatDraft, type FormatProposal } from "./post-format-ai";
 
@@ -37,6 +38,27 @@ export async function draftFormatRound(projectId: string, formatId: string, wish
     return r.ok ? { proposals: r.proposals, left: r.left, dropped: r.dropped } : { error: r.message, left: r.left, empty: r.empty };
   } catch (e) {
     console.error("[draftFormatRound]", e instanceof Error ? e.message : e);
+    return { error: "うまくいきませんでした。時間をおいてもう一度お試しください。" };
+  }
+}
+
+// 伸びた投稿からフォーマットの案（docs/design/winning-posts.md の 4.1）。案は保存しない（選んで直して「保存する」）。
+// 送る投稿は、サーバーで判定し直した伸びた投稿のうち、選んだ id のものだけ
+export async function draftFormatsFromPosts(
+  projectId: string,
+  postIds: unknown,
+): Promise<{ error?: string; fit?: FromPostsFit; fitReason?: string; proposals?: FromPostsProposal[] }> {
+  if (!z.uuid().safeParse(projectId).success) return { error: "入力の形式が正しくありません。" };
+  if (!aiConfigured()) return { error: "AI はまだ準備中です。" };
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  const userId = data?.claims?.sub;
+  if (!userId) return { error: "ログインし直してください。" };
+  try {
+    const r = await runFormatFromPosts(supabase, createAdminClient(), { callFormatFromPosts }, { userId, projectId, postIds });
+    return r.ok ? { fit: r.fit, fitReason: r.fitReason, proposals: r.proposals } : { error: r.message };
+  } catch (e) {
+    console.error("[draftFormatsFromPosts]", e instanceof Error ? e.message : e);
     return { error: "うまくいきませんでした。時間をおいてもう一度お試しください。" };
   }
 }

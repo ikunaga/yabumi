@@ -79,3 +79,34 @@ export const CALENDAR_CHIP = {
   scheduled: "↻",
   expired: "! 失敗",
 } as const;
+
+// 「確かめて送る」だけの SNS（DB の is_review_sns と同じ。X・TikTok・YouTube）が、なぜ自動で送れないか。
+// 根拠は docs/design/auto-post.md の 4.2（X）・4.4（TikTok）・4.5（YouTube）。言い換えるときも、そこに書いた決まりの範囲を出ない
+export const REVIEW_ONLY_SNS = ["x", "tiktok", "youtube"] as const;
+export type ReviewOnlySns = (typeof REVIEW_ONLY_SNS)[number];
+
+// 画面にそのまま出す 1 行（「自動で送る」が選べない理由）
+export const REVIEW_REASON_SHORT: Record<ReviewOnlySns, string> = {
+  x: "X の決まりで、送る前にあなたが中身を見る必要があります",
+  tiktok: "TikTok の決まりで、送るたびにあなたの同意が要ります",
+  youtube: "YouTube の決まりで、送るたびにあなたの同意が要ります",
+};
+
+// 「?」で開く説明（各社の決まりの中身）
+export const REVIEW_REASON_DETAIL: Record<ReviewOnlySns, string> = {
+  x: "X の開発者向けの決まりでは、X に投稿するサービスは、送る前に「送る中身をそのまま」あなたに見せることになっています。見ないまま AI の文を送ると、この決まりに反するおそれがあり、yabumi から X に送る仕組みごと止められると、ほかの利用者も X に送れなくなります。そこで X は、中身を見て「送る」を押したものだけ送ります。",
+  tiktok: "TikTok の決まりでは、送るたびに、送る前の見た目を見せ、公開範囲（だれに見せるか）をあなたが選び、あなたがはっきり同意してから送ることになっています。決めた時刻に、人の操作なしで送ることはできません。",
+  youtube: "YouTube の開発者向けの決まりでは、アップロードは 1 本ごとに、行う前にあなたがはっきり同意すること、公開する中身はあなたが最後に決めることになっています。決めた時刻に、人の操作なしで送ることはできません。",
+};
+
+// 確かめ待ちになったときの流れ（1 行）
+export const REVIEW_FLOW = "送る 24 時間前に作って通知します → 押して中身を見る → 「送る」を押したものだけ、決めた時刻に送ります（押さなければ送りません）";
+
+// 段階 A で自動の投稿の送り先に選べない SNS の理由（TikTok・YouTube。docs/design/auto-post.md の A6・2.9 の段階 C）
+export const STAGE_C_SNS_SHORT = "送るたびに同意が要る SNS なので、自動の投稿ではまだ選べません（準備中）";
+export const STAGE_C_SNS_DETAIL =
+  "TikTok・YouTube は、どちらも決まりで、送るたびにあなたがはっきり同意してから送ることになっているので、「自動で送る」にはできません。自動の投稿では「確かめて送る」（作った下書きを通知から開き、投稿の画面の同意の欄で確かめて送る）にする予定ですが、どちらも画像や動画が要るので、画像を自動で添えられるようになってから選べるようにします。それまでは、投稿をつくるの画面から送ってください。";
+
+export function isReviewOnlySns(sns: string): sns is ReviewOnlySns {
+  return (REVIEW_ONLY_SNS as readonly string[]).includes(sns);
+}

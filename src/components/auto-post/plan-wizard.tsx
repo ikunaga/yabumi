@@ -12,7 +12,7 @@ import { Disclosure, HelpTip } from "@/components/ui/help";
 import { SnsTag } from "@/components/ui/marks";
 import { Steps } from "@/components/ui/steps";
 import { makeAutoSample, saveAutoPlan } from "@/lib/auto-post/actions";
-import { KIND_LABELS, RUN_REASON_TEXT, TARGET_MODE_LABELS } from "@/lib/auto-post/labels";
+import { isReviewOnlySns, KIND_LABELS, RUN_REASON_TEXT, TARGET_MODE_LABELS } from "@/lib/auto-post/labels";
 import { runsPerMonth } from "@/lib/auto-post/schedule";
 import { AUTO_NAME_MAX, AUTO_TONE_MAX, DEFAULT_LEAD_HOURS } from "@/lib/auto-post/schema";
 import { suggestSchedules, type KindSuggestion, type SuggestMaterials } from "@/lib/auto-post/suggest";
@@ -35,6 +35,7 @@ import { SNS, type SnsKey } from "@/lib/sns";
 import { withHashtags } from "@/lib/sns/hashtags";
 import { scheduleText } from "./format";
 import { choiceKey, kindCards, KindPicker, type KindChoice } from "./kind-picker";
+import { ReviewFlow, ReviewReason, StageCSns } from "./review-why";
 
 // 自動の投稿を始める・直す（docs/design/auto-post.md の 1.4・1.5・1.7）。
 // 「1 何を › 2 どこに › 3 どのくらい › 4 確かめる」。いまのステップの項目だけ出す。何を・どのくらいの案は AI を呼ばずに決まりで出す（suggest.ts）
@@ -133,6 +134,8 @@ export function PlanWizard(p: Props) {
   const [sampling, startSample] = useTransition();
 
   const snsList = Object.keys(targets) as SnsKey[];
+  // 「確かめて送る」にした SNS（X・TikTok・YouTube は決まりで、Threads などは利用者が選んだとき）
+  const reviewSns = snsList.filter((s) => targets[s] === "review");
   // 決まりで出すだけなので、描くたびに出し直す（安い）
   const options = kind
     ? suggestSchedules({
@@ -225,9 +228,8 @@ export function PlanWizard(p: Props) {
             <div className="flex items-center gap-2">
               <h2 className="text-[18px] font-bold max-sm:text-[16px]">送る SNS</h2>
               <HelpTip label="送り方の違い">
-                「自動で送る」は、作った文をあなたが見なくても、決めた時刻に送ります。X
-                は、送る前にあなたが中身を見ることを決まりにしているので「確かめて送る」だけです（通知から中身を見て、押したものだけ送ります）。note・Substack
-                は送る仕組みがないので、下書きに置き、コピーして貼ります。
+                「自動で送る」は、作った文をあなたが見なくても、決めた時刻に送ります。「確かめて送る」は、作ったら通知するので、中身を見て「送る」を押したものだけ送ります。X・TikTok・YouTube
+                は各社の決まりで「確かめて送る」だけです（理由は SNS ごとの「?」）。note・Substack は送る仕組みがないので、下書きに置き、コピーして貼ります。
               </HelpTip>
             </div>
             <ul className="flex flex-col divide-y divide-border">
@@ -260,10 +262,13 @@ export function PlanWizard(p: Props) {
                       <ModePicker sns={s} value={targets[s] ?? TARGET_MODES[s][0]} disabled={!on} onChange={(m) => setTargets({ ...targets, [s]: m })} />
                     )}
                     {s === "instagram" && on && <p className="w-full text-xs text-muted">Instagram は画像が要るので、写真つきのメモ・シリーズの画像がある回だけ送ります。</p>}
+                    {isReviewOnlySns(s) && <ReviewReason sns={s} />}
                   </li>
                 );
               })}
             </ul>
+            <StageCSns />
+            {reviewSns.length > 0 && <ReviewFlow sns={reviewSns} />}
             {targets.x && (
               <fieldset className="flex flex-col gap-2 rounded-md border border-border px-4 py-3">
                 <legend className="px-1 text-[14px] font-bold">X にリンクを付けるか</legend>
@@ -383,6 +388,7 @@ export function PlanWizard(p: Props) {
                   </span>
                 ))}
                 <EditLink onClick={() => go("where")} />
+                {reviewSns.length > 0 && <ReviewFlow sns={reviewSns} />}
               </dd>
               <dt className="text-muted">どのくらい</dt>
               <dd className="num flex flex-wrap items-center gap-2">

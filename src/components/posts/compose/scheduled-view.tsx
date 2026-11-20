@@ -37,7 +37,7 @@ export function ComposeScheduledView({ c }: { c: Composer }) {
   const canSkip = !!autoRun && (autoRun.status === "scheduled" || autoRun.status === "review");
 
   const stateOf = (s: SnsKey) =>
-    awaiting.includes(s) ? { text: "確認すると送ります", tone: "font-bold text-signal" } : isManualSns(s) ? { text: "この SNS には、自分で投稿します", tone: "text-muted" } : { text: "予約済み", tone: "font-bold text-success" };
+    awaiting.includes(s) ? { text: "確認待ち。確認すると送ります", tone: "font-bold text-signal" } : isManualSns(s) ? { text: "この SNS には、自分で投稿します", tone: "text-muted" } : { text: "予約済み", tone: "font-bold text-success" };
   // 確認が要る SNS があるときは、「予約済み」と言い切らない（確認しないと送らないため）
   const sentence = awaiting.length > 0 ? scheduledSentence(savedAt, names).replace("予約済みです。", "送る予定です。") : scheduledSentence(savedAt, names);
 
@@ -46,14 +46,13 @@ export function ComposeScheduledView({ c }: { c: Composer }) {
     setError(null);
     startSkip(async () => {
       const out = await callAction(() => skipScheduledAutoRun(autoRun.runId));
-      const message = out.ok ? (out.value.ok ? null : out.value.error) : out.failure.message;
-      if (message) {
-        setError(message);
+      if (!out.ok || !out.value.ok) {
+        setError(out.ok ? (out.value.ok ? null : out.value.error) : out.failure.message);
         setSkipAsk(false);
         return;
       }
-      router.replace(`/projects/${projectId}/posts/${postId}?done=skipped`);
-      router.refresh();
+      // 飛ばしたら、自動投稿の設定の画面に戻す（飛ばした日時と次の投稿を出し、下書きに残した投稿へのリンクを置く。2026-11-21 PM の指摘）
+      router.replace(`/projects/${projectId}/auto/${autoRun.planId}?skipped=${encodeURIComponent(out.value.data.dueAt)}&post=${postId}`);
     });
   }
 

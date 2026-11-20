@@ -128,6 +128,14 @@ describe("確かめ待ちは予約に見せない（カレンダーの数と同�
     expect(postWarning(p)).toBe("X は確認待ちです");
   });
 
+  it("飛ばした自動投稿（下書きに戻った投稿）の確認待ちは出さない。札は投稿の画面へ（2026-11-21 PM の指摘）", () => {
+    const skipped = post({ id: "post-3", status: "draft", targets: [target("threads"), target("x", "awaiting_approval")] });
+    expect(postWarning(skipped)).toBeNull();
+    expect(postChipHref(skipped, base, new Set())).toBe("/projects/p1/posts/post-3");
+    // 1 回目の確認待ち（下書きのまま回が review）は、今までどおり確認の画面へ
+    expect(postChipHref(post({ id: "post-3", status: "draft" }), base, new Set(["post-3"]))).toBe("/projects/p1/auto/review");
+  });
+
   it("確かめ待ちのない投稿は今までどおり", () => {
     expect(displayStatus(post({}))).toBe("scheduled");
     expect(displayStatus(post({ targets: [target("threads", "published")] }))).toBe("posted");

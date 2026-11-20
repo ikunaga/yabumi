@@ -34,7 +34,8 @@ export function firstReviewPostIds(runs: UpcomingAutoRun[]): Set<string> {
 // 自動の回の投稿が確かめ待ちか（最初の回の確かめ、または確かめて送る SNS の承認待ちがある）
 export function isAutoAwaitingReview(post: PostRow, firstReview: Set<string>): boolean {
   if (!post.autoRunId) return false;
-  return firstReview.has(post.id) || post.targets.some((t) => t.status === "awaiting_approval");
+  // 下書きに戻した投稿（飛ばした回など）の送り先の確認待ちは、送らないので数えない
+  return firstReview.has(post.id) || (post.status === "scheduled" && post.targets.some((t) => t.status === "awaiting_approval"));
 }
 
 // 投稿の札の行き先: 確かめ待ちなら確かめ待ちの画面、ほかは投稿の画面

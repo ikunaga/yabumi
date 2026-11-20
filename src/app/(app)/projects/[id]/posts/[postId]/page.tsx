@@ -52,8 +52,6 @@ const NOTICES: Record<string, { text: string; tone: "success" | "error" }> = {
   send_failed: { text: "送れなかった SNS があります。下の「送信の結果」で理由を確認してください。", tone: "error" },
   deleted_sns: { text: "SNS から取り消しました。yabumi の下書きは残っています。", tone: "success" },
   manual_posted: { text: "投稿したことを記録しました。", tone: "success" },
-  // 予約済みの投稿の詳細の「この日の投稿を飛ばす」（2026-11-21）
-  skipped: { text: "この日の投稿を飛ばしました。投稿は下書きに残っています。", tone: "success" },
   removed_on_sns: { text: "SNS で消したことを記録しました。消えた投稿へのリンクは、yabumi からも消しました。", tone: "success" },
 };
 
@@ -118,7 +116,9 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
       t.sns,
       {
         id: t.id,
-        status: t.status,
+        // 下書きの投稿（飛ばした自動投稿・予約をやめた投稿）の確認待ちは、送らないので「確認待ち」と出さない。DB の状態は変えない
+        // （確認待ちのまま残すので、あとで予約し直しても X などは確認してから送る）。1 回目の確認待ちの回の投稿は、確認待ちのまま
+        status: t.status === "awaiting_approval" && post.status !== "scheduled" && runRow?.status !== "review" ? ("pending" as const) : t.status,
         externalUrl: t.external_url,
         errorMessage: t.error_message,
         publishedAt: t.published_at,

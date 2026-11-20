@@ -27,21 +27,21 @@ export function DraftRestoreBar({
       <span className={`min-w-0 ${compact ? "flex-[1_1_12rem]" : "flex-[1_1_16rem]"}`}>
         <b>保存していない{what}があります</b>
         {/* 一言を添えるときは、スマホの幅では時刻を省く（帯が 3 行になって、下の欄に重ならないように） */}
-        <span className={note ? "max-sm:hidden" : ""}>（{draftTimeLabel(at)}）</span>
-        {compact ? "" : "。この端末に残っていたものです。"}
+        <span className={note ? "max-sm:hidden" : ""}>。{draftTimeLabel(at)} に書いたものです</span>
+        {compact ? "。" : "。この端末に残っていたものです。"}
         {note && <span className="text-muted max-sm:ml-1">{note}</span>}
         {/* いつ消えるかを添える（2026-11-09 オーナーの指摘「端末に残ってる書きかけのやついつ消える」） */}
         <HelpTip label="書きかけはいつ消えるか" align="right">
           {compact && "この端末に残っていたものです。"}
-          欄に書いた（キーボード・音声）内容が開いたときと違うと、保存するまでの書きかけを、この端末（ブラウザー）にだけ残します。ボタンで入れた文（URL・AI の案など）だけのときは残しません。ほかの端末には出ません。次のときに消えます。書いてから {FORM_DRAFT_DAYS} 日たったとき、ログアウト・退会したとき、「捨てる」を押したとき、保存・予約したとき。そのあとほかの画面や AI の案で保存し直したときも、前の書きかけは出しません。
+          欄に書いた内容が開いたときと違うと、保存するまでの書きかけを残します。キーボードでも声でも同じです。残すのは、この端末のブラウザーの中だけです。ボタンで入れた文だけのときは残しません。URL や AI の案などです。ほかの端末には出ません。書いてから {FORM_DRAFT_DAYS} 日たつと消えます。ログアウト・退会したときと、「書きかけを消す」を押したときも消えます。保存・予約したときも消えます。そのあとほかの画面や AI の案で保存し直したときも、前の書きかけは出しません。
         </HelpTip>
       </span>
       <span className="flex shrink-0 items-center gap-2">
         <Button type="button" size="sm" onClick={onRestore}>
-          戻す
+          書きかけを入れる
         </Button>
         <Button type="button" variant="text" size="sm" onClick={onDiscard}>
-          捨てる
+          書きかけを消す
         </Button>
       </span>
     </div>

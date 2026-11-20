@@ -17,7 +17,7 @@ export function ComposeShortLinks({ c }: { c: Composer }) {
       {/* 「行き先」「短縮リンク」が何かを 1 行で（2026-11-18 PMO の付箋 22。短縮リンクの説明は用語の点線から） */}
       {mode !== "all_sent" && (
         <p className="text-[13px] leading-[1.7] text-muted">
-          行き先は、見た人に開いてほしいページです（お店の予約・商品・アプリのストアのページなど）。本文に URL を入れると、<Term k="shortLink">短縮リンク</Term>で押された回数を数えられます。要らなければ、このまま次へ。
+          リンク先は、見た人に開いてほしいページです。お店の予約や商品、アプリのストアのページなどです。本文に URL を入れると、<Term k="shortLink">短縮リンク</Term>で押された回数を数えられます。要らなければ、このまま次へ進んでください。
         </p>
       )}
       {(chosen.length === 0 || toSend.length > 0) && (
@@ -35,7 +35,7 @@ export function ComposeShortLinks({ c }: { c: Composer }) {
           <span aria-hidden className="mr-1 font-bold text-success">
             ✓
           </span>
-          行き先の URL を本文に入れました。送るとき、SNS ごとの短縮リンクに置き換えます。
+          リンク先の URL を本文に入れました。送るときに、SNS ごとの短縮リンクに置き換わります。
         </p>
       )}
       {/* 本文の URL の「ひとこと」（短縮リンクのすすめ）。短縮リンクがオンなら、もう入っているので出さない（PMO の確かめ。前は ② に、X の上限の知らせと並んで出ていた） */}

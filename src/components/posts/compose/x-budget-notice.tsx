@@ -13,11 +13,11 @@ export function XBudgetNotice({ c }: { c: Composer }) {
     <div role="status" className="flex flex-col gap-2 rounded-md border border-line bg-surface2 px-3.5 py-3 text-[13px] leading-[1.7]">
       <p>
         <span className="font-bold text-signal">● X</span> {xOverMessage(xVerdict.over, xVerdict)}。
-        {xVerdict.over === "user" ? "月が替わると戻ります。" : ""}
+        {xVerdict.over === "user" ? "来月 1 日から、また X に送れます。" : ""}
       </p>
       {xByHand ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <span className="text-muted">X は手で投稿します。ほかの SNS を送ったあと、送信の結果の「X に手で投稿する」から投稿して記録できます。</span>
+          <span className="text-muted">X は手で投稿します。ほかの SNS に送ったら、「送信の結果」を開きます。「X に手で投稿する」から投稿してください。</span>
           <Button type="button" variant="text" size="sm" onClick={() => setXByHand(false)}>
             やめる
           </Button>
@@ -25,7 +25,7 @@ export function XBudgetNotice({ c }: { c: Composer }) {
       ) : (
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="secondary" size="sm" onClick={() => toggle("x")}>
-            X を外す
+            X には送らない
           </Button>
           <Button
             type="button"

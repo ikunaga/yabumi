@@ -227,7 +227,7 @@ function VideoRow({ video, postId, disabled, onRemove }: { video: AttachedVideo;
           </span>
           <span className="ml-auto">
             <button type="button" disabled={disabled} onClick={onRemove} className="text-muted hover:text-fg hover:underline">
-              外す
+              削除
             </button>
           </span>
         </div>
@@ -247,10 +247,10 @@ export function VideoBox({ video, postId }: { video: Pick<AttachedVideo, "durati
     <div className="flex flex-col gap-1">
       <button
         type="button"
-        aria-label={`動画を再生する（${formatDuration(video.durationMs)}）`}
+        aria-label={`${formatDuration(video.durationMs)} の動画を再生する`}
         onClick={async () => {
           if (video.localUrl) return setSrc(video.localUrl);
-          if (!postId) return setFailed("保存すると再生できます。");
+          if (!postId) return setFailed("投稿を保存すると、再生できます。");
           const r = await videoPlaybackUrl(postId);
           if (r.url) setSrc(r.url);
           else setFailed(r.error ?? "動画を読めませんでした。");
@@ -320,14 +320,14 @@ function RangePicker({
         </label>
       ))}
       <p className="num text-sm font-semibold">
-        {formatDuration(range.startMs)}〜{formatDuration(range.endMs)}（{length} 秒）を使います
+        {formatDuration(range.startMs)}〜{formatDuration(range.endMs)} の {length} 秒を使います
       </p>
       <div className="flex justify-end gap-2">
         <Button type="button" variant="text" onClick={onCancel}>
           やめる
         </Button>
         <Button type="button" onClick={onConfirm}>
-          この範囲で整える
+          この範囲で切り取る
         </Button>
       </div>
     </div>

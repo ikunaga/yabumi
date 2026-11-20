@@ -42,7 +42,7 @@ export function ComposeSummary({ c }: { c: Composer }) {
     { n: 1, text: firstLine ? (firstLine.length > 40 ? `${firstLine.slice(0, 40)}…` : firstLine) : "まだ書いていません" },
     { n: 2, text: chosen.length ? chosen.map((s) => `${SNS[s].label}${sentState(s) ? `（${sentState(s)!.plain}）` : ""}`).join("・") : "まだ選んでいません", sub: tagLines },
     { n: 3, text: video ? `動画 ${formatDuration(video.durationMs)}` : images.length ? `画像 ${images.length} 枚` : "画像・動画なし" },
-    { n: 4, text: hasLink ? (shortLinks ? "リンクあり（短縮リンクで押された回数を数える）" : "リンクあり") : "リンクなし" },
+    { n: 4, text: hasLink ? (shortLinks ? "リンクあり・押された回数を数える" : "リンクあり") : "リンクなし" },
   ];
   return (
     <section aria-labelledby="compose-summary" className="flex flex-col gap-1">

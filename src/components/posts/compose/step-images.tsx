@@ -57,19 +57,19 @@ export function ComposeStepImages({ c }: { c: Composer }) {
       {noVideo.length > 0 && (
         <p className="text-[13px] leading-[1.7]">
           <span className="mr-1.5 font-bold text-signal">● 要確認</span>
-          {noVideo.map((s) => SNS[s].label).join("・")} には動画を送れません。{noVideo.map((s) => SNS[s].label).join("・")} を送り先から外すか、動画を外してください。
+          {noVideo.map((s) => SNS[s].label).join("・")} には動画を送れません。「2 送り先」で {noVideo.map((s) => SNS[s].label).join("・")} を選ばないか、動画を削除してください。
         </p>
       )}
       {videoRemovedBlocks ? (
         <p className="text-[13px] leading-[1.7]">
           <span className="mr-1.5 font-bold text-signal">● 要確認</span>
-          {VIDEO_REMOVED_TEXT}（前の動画は <span className="num">{formatDuration(initial.videoRemoved!.durationMs)}</span>）。
+          {VIDEO_REMOVED_TEXT}。前の動画は <span className="num">{formatDuration(initial.videoRemoved!.durationMs)}</span> でした。
         </p>
       ) : (
         !video &&
         initial.videoRemoved && (
           <p className="text-[13px] text-muted">
-            動画（<span className="num">{formatDuration(initial.videoRemoved.durationMs)}</span>）は送り終えたので消しました。
+            送り終えた <span className="num">{formatDuration(initial.videoRemoved.durationMs)}</span> の動画を、yabumi から消しました。
           </p>
         )
       )}
@@ -93,8 +93,8 @@ export function ComposeStepImages({ c }: { c: Composer }) {
           disabled={pending || videoBusy}
           maker={{ projectId, projectName, aiEnabled: aiCheckEnabled, text: bodyFor(focus), targets: chosen }}
           instagram={chosen.includes("instagram")}
-          addBlocked={video ? "動画を外すと画像を選べます" : null}
-          buttonsNote={images.length > 0 ? "画像を外すと動画を選べます" : null}
+          addBlocked={video ? "動画を削除すると、画像を選べます" : null}
+          buttonsNote={images.length > 0 ? "画像を削除すると、動画を選べます" : null}
           extraButtons={
             <Button type="button" variant="secondary" size="sm" disabled={pending || videoBusy || images.length > 0} onClick={() => videoInputRef.current?.click()}>
               動画を選ぶ

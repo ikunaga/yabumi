@@ -49,7 +49,7 @@ export function AiCheckPanel({ projectId, aiEnabled, texts, onApply }: Props) {
 
   // 使わなくても送れるので、閉じて置く（開くとボタンと説明が出る）。見てもらったあとは開いたまま
   return (
-    <DisclosureBox label="AI が書いたように見えないか確認する欄を表示" className="text-sm" bodyClassName="mt-3">
+    <DisclosureBox label="AI っぽい文になっていないか見る" className="text-sm" bodyClassName="mt-3">
       <section className="flex flex-col gap-3" aria-label="AI っぽさチェック">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           {aiEnabled ? (
@@ -64,7 +64,7 @@ export function AiCheckPanel({ projectId, aiEnabled, texts, onApply }: Props) {
         </div>
         {pending && <AiThinking kind="check" note="10〜20 秒ほどかかります" />}
         <p className="text-xs leading-[1.7] text-muted">
-          決まり文句、大げさな言葉、書いた人しか知らない事実（本当かどうか）、ハッシュタグ（宣伝だけのもの・本文の途中に並べたもの・Instagram の 6 個以上）、設計の口調とのずれを見ます。書き換えるかどうかはあなたが選べます。送るのは止めません（1 回 5 円ほど）。
+          決まり文句や大げさな言葉がないかを見ます。本当かわからない事実や、ハッシュタグの付けすぎも見ます。アカウントの方針の口調とずれていないかも見ます。書き換えるかどうかは、あなたが選べます。確認しなくても送れます。1 回 5 円ほどです。
         </p>
 
         {error && <ErrorBanner>{error}</ErrorBanner>}
@@ -136,7 +136,7 @@ function FindingItem({
       <p className="text-muted">{f.why}</p>
       <p>
         <span className="text-muted">書き換えた案: </span>
-        {f.fix ? `「${f.fix}」` : "このところを消す"}
+        {f.fix ? `「${f.fix}」` : "この部分を消す"}
       </p>
       {overAfter > 0 && state !== "applied" && (
         <p className="text-xs font-semibold text-danger">
@@ -147,7 +147,7 @@ function FindingItem({
         {state === "applied" ? (
           <span className="text-xs font-bold text-success">✓ 書き換えました</span>
         ) : state === "missing" ? (
-          <span className="text-xs text-muted">文面が変わっていて、当てられませんでした。手で編集してください。</span>
+          <span className="text-xs text-muted">文面が変わっていたので、書き換えを使えませんでした。手で編集してください。</span>
         ) : (
           <>
             <Button type="button" variant="secondary" size="sm" onClick={onApply}>

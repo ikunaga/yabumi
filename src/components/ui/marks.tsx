@@ -13,18 +13,6 @@ export const SNS_COLOR: Record<SnsKey, { text: string; bg: string; border: strin
   substack: { text: "text-sns-substack", bg: "bg-sns-substack", border: "border-sns-substack" },
 };
 
-// 狭いところに出す短い名前（カレンダーの札、予約の一覧）
-export const SNS_SHORT: Record<SnsKey, string> = {
-  x: "X",
-  instagram: "IG",
-  threads: "TH",
-  facebook: "FB",
-  tiktok: "TT",
-  youtube: "YT",
-  note: "note",
-  substack: "SS",
-};
-
 // SNS 札: ロゴは使わず名前で表す。SNS ごとの色の点を添える
 export function SnsTag({ sns }: { sns: SnsKey }) {
   return (
@@ -35,18 +23,26 @@ export function SnsTag({ sns }: { sns: SnsKey }) {
   );
 }
 
-// SNS の小さな印（X・IG など）。SNS ごとの色の枠と字。短い名前の意味は title と読み上げで補う
-// byHand: 自動では送らず、利用者が手で投稿する（「X は手で投稿する」を選んだ X）。点線の枠と「手で」を添える
-export function SnsMark({ sns, byHand = false }: { sns: SnsKey; byHand?: boolean }) {
+// SNS の小さな印。SNS ごとの色の点と、名前を全部書く（「● Threads」）。略（IG・TH など）は使わない（2026-11-21 PM・オーナー）
+// dotOnly: 幅が足りないところ（カレンダーの日ごとの札・予約の一覧の行・概要の次の予約）だけ、色の点だけにして、名前は title と読み上げで伝える
+// byHand: 自動では送らず、利用者が手で投稿する（「X は手で投稿する」を選んだ X）。点に点線の輪を付け、「手で」を添える
+export function SnsMark({ sns, byHand = false, dotOnly = false }: { sns: SnsKey; byHand?: boolean; dotOnly?: boolean }) {
   const c = SNS_COLOR[sns];
+  const name = byHand ? `${SNS[sns].label}・手で投稿` : SNS[sns].label;
+  const dot = <span aria-hidden className={`size-2 shrink-0 rounded-full ${c.bg} ${byHand ? "ring-1 ring-current ring-offset-1 ring-offset-surface" : ""}`} />;
+  if (dotOnly) {
+    return (
+      <span title={name} className="inline-flex h-5 shrink-0 items-center px-0.5 text-muted">
+        {dot}
+        <span className="sr-only">{name}</span>
+      </span>
+    );
+  }
   return (
-    <span
-      title={byHand ? `${SNS[sns].label}・手で投稿` : SNS[sns].label}
-      className={`inline-flex h-5 shrink-0 items-center rounded-sm border px-1.5 text-[11px] leading-none font-bold ${byHand ? "border-dashed" : ""} ${c.border} ${c.text}`}
-    >
-      <span aria-hidden>{SNS_SHORT[sns]}</span>
-      {byHand && <span className="ml-1 font-normal">手で</span>}
-      <span className="sr-only">{byHand ? `${SNS[sns].label}・手で投稿` : SNS[sns].label}</span>
+    <span title={name} className="inline-flex h-5 shrink-0 items-center gap-1 text-[12px] leading-none font-bold whitespace-nowrap text-fg">
+      {dot}
+      {SNS[sns].label}
+      {byHand && <span className="font-normal text-muted">・手で</span>}
     </span>
   );
 }

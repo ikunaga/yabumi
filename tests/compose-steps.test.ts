@@ -97,7 +97,7 @@ describe("問題のあるステップ", () => {
     const problems = problemsByStep({ ...base, needsTime: true, issues: [{ sns: "x", label: "X", issues: ["too_long"], override: true, issueLabel }] });
     expect(blockerStep(`X: ${ISSUE_LABEL.too_long}`, problems)).toBe(2);
     expect(blockerStep("送る日時を決めてください", problems)).toBe(5);
-    expect(blockerStep("引用は X の画面で送ります（yabumi からは予約・送信できません）", problems)).toBeNull();
+    expect(blockerStep("引用は X の画面で送ります。yabumi からは予約も送信もできません", problems)).toBeNull();
     expect(blockerStep(null, problems)).toBeNull();
   });
 

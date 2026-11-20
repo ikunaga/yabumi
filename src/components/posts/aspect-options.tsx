@@ -7,8 +7,8 @@ import { Choice, Group } from "./maker-parts";
 
 export const MODES: { key: AspectMode; label: string; hint: string }[] = [
   { key: "crop", label: "切り取る", hint: "はみ出したところを切ります。" },
-  { key: "pad", label: "余白を足す", hint: "切らずに、まわりに地を足して収めます。" },
-  { key: "phone", label: "スマホの枠に入れる", hint: "アプリの画面などを、スマホの形の枠の画面に入れ、まわりに地を足します。" },
+  { key: "pad", label: "余白を足す", hint: "切らずに、まわりに余白を足して収めます。" },
+  { key: "phone", label: "スマホの枠に入れる", hint: "アプリの画面などを、スマホの枠に入れます。まわりには余白を足します。" },
 ];
 
 // 足す地（画像の中身の色。画面の色ではない）
@@ -62,7 +62,7 @@ export function FrameColorGroup({ frame, onChange }: { frame: "black" | "white";
 
 export function FillGroup({ fill, custom, onFill, onCustom }: { fill: FillKey; custom: string; onFill: (f: FillKey) => void; onCustom: (c: string) => void }) {
   return (
-    <Group label="足す地">
+    <Group label="余白の中身">
       {FILLS.map((f) => (
         <Choice key={f.key} on={fill === f.key} onClick={() => onFill(f.key)}>
           {f.label}
@@ -71,7 +71,7 @@ export function FillGroup({ fill, custom, onFill, onCustom }: { fill: FillKey; c
       <span className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-sm ${fill === "custom" ? "border-primary bg-primary-soft font-bold text-primary" : "border-border"}`}>
         <input
           type="color"
-          aria-label="地の色を選ぶ"
+          aria-label="余白の色を選ぶ"
           value={custom}
           onChange={(e) => {
             onCustom(e.target.value);

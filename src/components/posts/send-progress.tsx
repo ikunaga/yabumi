@@ -59,7 +59,7 @@ export function SendProgress({ postId, sns, hasImages }: Props) {
         <span>{finished ? "送り終えました。結果の画面に移ります…" : postId ? `${names} に送っています` : "保存しています…"}</span>
       </p>
       {!finished && (
-        <p className="text-[13px] leading-[1.7] text-muted">数秒〜数十秒かかります。このまま待ってください（画面を閉じても、送るのは続きます）。</p>
+        <p className="text-[13px] leading-[1.7] text-muted">数秒〜数十秒かかります。画面を閉じても、送るのは続きます。</p>
       )}
       <ul className="flex flex-col gap-1.5 text-[14px]">
         {sns.map((s) => (
@@ -77,14 +77,14 @@ function Row({ label, tiktok = false, youtube = false, status, hasImages }: { la
     case "published":
       return <span className="font-bold text-success">✓ {label} に送りました</span>;
     case "failed":
-      return <span className="font-bold text-danger">! {label} に送れませんでした（理由は次の画面に出ます）</span>;
+      return <span className="font-bold text-danger">! {label} に送れませんでした。理由は次の画面に出ます</span>;
     case "preparing":
       // TikTok は、TikTok の側で写真を取りに来て処理する（下書きのときは受信箱に届く。docs/design/tiktok.md の 6.）
       return tiktok ? (
-        <span className="text-fg">● TikTok で処理しています（数分かかることがあります）</span>
+        <span className="text-fg">● TikTok で処理しています。数分かかることがあります</span>
       ) : youtube ? (
         // YouTube は、動画を何回かに分けて送る（docs/design/youtube.md の 3.）
-        <span className="text-fg">● YouTube に動画を上げています（数分かかることがあります）</span>
+        <span className="text-fg">● YouTube に動画を上げています。数分かかることがあります</span>
       ) : (
         <span className="text-fg">● {label} が画像を受け取っています。このあと自動で投稿されます</span>
       );
@@ -98,7 +98,7 @@ function Row({ label, tiktok = false, youtube = false, status, hasImages }: { la
         </>
       );
     default:
-      return <span className="text-muted">○ {label}（順番を待っています）</span>;
+      return <span className="text-muted">○ {label}・順番を待っています</span>;
   }
 }
 

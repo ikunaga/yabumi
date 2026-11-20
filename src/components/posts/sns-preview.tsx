@@ -45,7 +45,7 @@ export function SnsPreview({ sns, text, title, projectName, images, length, acco
       )}
     </p>
   ) : (
-    <p className="text-muted">（本文なし）</p>
+    <p className="text-muted">本文なし</p>
   );
 
   return (
@@ -60,7 +60,7 @@ export function SnsPreview({ sns, text, title, projectName, images, length, acco
               <span className="min-w-0 shrink truncate text-[14px]">
                 <span aria-hidden className="text-faint">› </span>
                 {topic.topic}
-                <span className="sr-only">（トピック）</span>
+                <span className="sr-only">・トピック</span>
               </span>
             )}
             <span className="shrink-0 text-[13px] text-faint">· 今</span>
@@ -69,12 +69,12 @@ export function SnsPreview({ sns, text, title, projectName, images, length, acco
         {spec.layout === "before" && <Images images={shownImages} layout="before" />}
         {spec.layout === "video" && (
           <div className={`flex items-center justify-center rounded-md bg-surface2 text-xs text-muted ${sns === "tiktok" ? "mx-auto aspect-[9/16] w-1/2" : "aspect-video w-full"}`}>
-            動画（添付は準備中）
+            動画はここには出せません
           </div>
         )}
         {spec.layout === "article" ? (
           <div className="flex flex-col gap-2">
-            <b className="text-lg leading-snug break-words">{title || <span className="text-muted">（タイトルなし）</span>}</b>
+            <b className="text-lg leading-snug break-words">{title || <span className="text-muted">タイトルなし</span>}</b>
             <span className="text-xs text-muted">{projectName}</span>
             {body}
           </div>
@@ -87,7 +87,7 @@ export function SnsPreview({ sns, text, title, projectName, images, length, acco
       <p className="flex flex-wrap items-baseline gap-x-2 text-[13px]">
         <span className={`num ${max !== null && length > max ? "font-bold text-danger" : "text-faint"}`}>
           {length.toLocaleString("ja-JP")}
-          {max !== null ? ` / ${max.toLocaleString("ja-JP")} 字` : " 字（上限なし）"}
+          {max !== null ? ` / ${max.toLocaleString("ja-JP")} 字` : " 字・上限なし"}
         </span>
         {max !== null && length > max && <span className="font-bold text-danger">{(length - max).toLocaleString("ja-JP")} 字多いので送れません</span>}
       </p>

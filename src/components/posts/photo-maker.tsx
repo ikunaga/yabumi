@@ -201,18 +201,18 @@ export function PhotoMaker({
 
   // 鍵（GEMINI_API_KEY）がない間は、注意も絵の説明の案も出さない（規約・ポリシーの施行の前に、新しい使い道の情報を預からない・送らない）
   if (!state.enabled) {
-    return <p className="rounded-md border border-dashed border-line px-4 py-3.5 text-sm text-muted">AI で写真・絵をつくる機能は準備中です。</p>;
+    return <p className="rounded-md border border-dashed border-line px-4 py-3.5 text-sm text-muted">AI で写真・絵をつくる機能は、まだ使えません。</p>;
   }
 
   if (!state.acknowledged) {
     return (
       <div className="flex flex-col gap-3 rounded-md border border-line bg-surface2 px-4 py-3.5 text-sm leading-[1.8]">
-        <p className="font-bold">AI でつくる画像について（はじめの 1 回だけ出します）</p>
+        <p className="font-bold">AI でつくる画像について</p>
         <ul className="list-disc space-y-1 pl-5">
-          <li>作った画像には「AI で作った画像」の印を付けます（この画面の札と、画像の中の情報）。</li>
-          <li>実在の人に似せたり、自分の商品・お店・顧客を本物の写真のように見せたりすると、見た人の誤解を招いたり、景品表示法（実際よりよく見せる表示）の問題になったりすることがあります。</li>
-          <li>Instagram・Facebook・Threads などは、写真のような AI の画像に「AI で作った」ことの表示を求めています。投稿するときは、各 SNS の AI の表示も付けてください。</li>
-          <li>絵の説明は、画像をつくる Google に送ります（学習には使われません）。何をつくるかと使い方は、あなたの責任になります。</li>
+          <li>つくった画像には、「AI で作った画像」の印が付きます。印は、画面の札と画像のデータに付きます。</li>
+          <li>実在の人に似せると、見た人の誤解を招くことがあります。商品やお店を、本物の写真のように見せるのも同じです。実際よりよく見せると、景品表示法に触れることがあります。</li>
+          <li>AI でつくった写真のような画像には、表示が要ります。Instagram・Facebook・Threads などの決まりです。投稿するときは、各 SNS で「AI で作った」表示も付けてください。</li>
+          <li>絵の説明は、画像をつくる Google の AI に送ります。AI の学習には使われません。何をつくり、どう使うかは、あなたの責任です。</li>
         </ul>
         {error && <ErrorBanner>{error}</ErrorBanner>}
         <Button
@@ -272,7 +272,7 @@ export function PhotoMaker({
       setCandidates({ jobId: r.jobId, items: r.candidates, scene: sc, signedAt: Date.now() });
       setPicked(r.candidates[0] ? [r.candidates[0].path] : []);
       setUsedPaths([]);
-      if (r.partial) setNotice("頼んだうちの一部だけできました（できなかった分は数えません）。");
+      if (r.partial) setNotice("頼んだ枚数の一部だけできました。できなかった分は、今月の枚数に数えません。");
     }
   }
 
@@ -317,8 +317,8 @@ export function PhotoMaker({
     <div className="flex flex-col gap-4">
       {preset && (
         <p className="text-[13px] leading-[1.7]">
-          <span className="font-bold">フォーマット「{preset.name}」の画像</span>
-          <span className="ml-1.5 text-muted">{preset.scene === "ai" ? `AI が絵の説明を書いてからつくります（その分 約 ${SCENE_YEN.one[0]}〜${SCENE_YEN.one[1]} 円が足されます）` : "空欄の言葉を入れた絵の説明でつくります"}</span>
+          <span className="font-bold">フォーマット「{preset.name}」で決めた画像</span>
+          <span className="ml-1.5 text-muted">{preset.scene === "ai" ? `AI が絵の説明を書いてからつくります。その分、約 ${SCENE_YEN.one[0]}〜${SCENE_YEN.one[1]} 円が足されます。` : "フォーマットで決めた絵の説明でつくります。空欄には「1 書く」の言葉が入ります。"}</span>
         </p>
       )}
       <PhotoTemplatePicker projectId={projectId} templates={templates} selectedId={templateId} onSelect={selectTemplate} />
@@ -341,7 +341,7 @@ export function PhotoMaker({
             </NotReadyButton>
           )}
           <span className="text-xs text-muted">
-            {hasText ? `本文とアカウント設計${template ? "・フォーマット" : ""}から 2〜3 案（1 回 ${SCENE_YEN.ideas[0]}〜${SCENE_YEN.ideas[1]} 円ほど）` : "本文を書くと、AI が場面を考えます。手で書いても作れます"}
+            {hasText ? `本文とアカウントの方針${template ? "・フォーマット" : ""}から、2〜3 案を出します。1 回 ${SCENE_YEN.ideas[0]}〜${SCENE_YEN.ideas[1]} 円ほどです。` : "本文を書くと、AI が絵の説明を考えます。自分で書いてもつくれます。"}
           </span>
         </div>
         {drafting && <AiThinking kind="scene" note="10〜20 秒ほどかかります" />}
@@ -364,13 +364,13 @@ export function PhotoMaker({
         )}
         <Textarea id={sceneId} value={scene} rows={4} maxLength={MAX_SCENE_CHARS} onChange={(e) => setScene(e.target.value)} placeholder="例: 朝の光が入る木のカウンターに、焼きたてのパンが並んでいる。近くから少し斜めに" className="py-2 text-sm" />
         <span className={`text-xs ${slotLeft ? "font-bold text-signal" : "text-muted"}`}>
-          {slotLeft ? `${SCENE_SLOT} を、写したいもの（例: 焼きたてのパンが並んだカウンター）に書き換えてください` : "何が・どこで・どんな光と雰囲気か。文字は入れずに作り、文字はあとで入れられます"}
+          {slotLeft ? `${SCENE_SLOT} を、写したいものに書き換えてください。例: 焼きたてのパンが並んだカウンター` : "何が、どこで、どんな光と雰囲気かを書きます。画像に文字は入りません。文字は、あとで入れられます。"}
         </span>
       </div>
       {slotTemplate && (
         <label className="flex flex-col gap-1.5">
           <span className="text-[14px] font-bold">
-            場面だけ変える<span className="ml-1.5 text-xs font-normal text-muted">フォーマット「{slotTemplate.name}」の {SCENE_SLOT} に入ります</span>
+            絵の説明だけ変える<span className="ml-1.5 text-xs font-normal text-muted">ここに書いた言葉が、フォーマット「{slotTemplate.name}」の {SCENE_SLOT} に入ります</span>
           </span>
           <Input
             value={lastIdea}
@@ -411,23 +411,23 @@ export function PhotoMaker({
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         {state.enabled ? (
           <Button type="button" disabled={!canMake || making || !scene.trim() || slotLeft} onClick={make}>
-            {making ? "つくっています…" : `つくる（${n} 枚・約 ${n * state.unitYen} 円）`}
+            {making ? "つくっています…" : `${n} 枚つくる・約 ${n * state.unitYen} 円`}
           </Button>
         ) : (
           <NotReadyButton>つくる</NotReadyButton>
         )}
         <span className="num text-sm text-muted">
           {state.globalReached
-            ? "今月は yabumi 全体の上限に達しました。来月 1 日にまたつくれます"
+            ? "今月は、AI で画像をつくれる数がいっぱいです。来月 1 日から、またつくれます"
             : state.newUsersFull
-              ? `登録して ${PHOTO_LIMITS.newUserDays} 日までの方が使える今月の枠が、いっぱいになりました。${state.newUntil} からつくれます`
+              ? `登録してまもない方の今月の枠が、いっぱいです。${state.newUntil} から、またつくれます`
               : state.remainingImages > 0
                 ? state.newUntil
-                  ? `今月はあと ${state.remainingImages} 枚つくれます（登録して ${PHOTO_LIMITS.newUserDays} 日までは月 ${state.monthlyImages} 枚です。${state.newUntil} から ${PHOTO_LIMITS.userMonthlyImages} 枚になります）`
-                  : `今月はあと ${state.remainingImages} 枚つくれます（1 人 月 ${state.monthlyImages} 枚まで）`
+                  ? `今月は、あと ${state.remainingImages} 枚つくれます。登録して ${PHOTO_LIMITS.newUserDays} 日までは、月 ${state.monthlyImages} 枚までです。${state.newUntil} からは ${PHOTO_LIMITS.userMonthlyImages} 枚になります。`
+                  : `今月は、あと ${state.remainingImages} 枚つくれます。1 か月に ${state.monthlyImages} 枚までです。`
                 : state.newUntil
                   ? `登録して ${PHOTO_LIMITS.newUserDays} 日までは月 ${state.monthlyImages} 枚です。${state.newUntil} から ${PHOTO_LIMITS.userMonthlyImages} 枚になります`
-                  : `今月の上限（${state.monthlyImages} 枚）に達しました。来月 1 日にまたつくれます`}
+                  : `今月の ${state.monthlyImages} 枚を使い切りました。来月 1 日から、またつくれます`}
         </span>
       </div>
       {making && <AiThinking kind="photo" note="30 秒ほどかかることがあります" />}
@@ -448,7 +448,7 @@ export function PhotoMaker({
                     type="button"
                     aria-pressed={on}
                     disabled={used}
-                    aria-label={used ? `${i + 1} 枚目の候補（添えました）` : `${i + 1} 枚目の候補を選ぶ`}
+                    aria-label={used ? `${i + 1} 枚目の候補・添えました` : `${i + 1} 枚目の候補を選ぶ`}
                     onClick={() => togglePick(c.path)}
                     className={`relative block w-full overflow-hidden rounded-md border-2 ${on ? "border-primary" : "border-transparent"} ${used ? "opacity-50" : ""}`}
                   >
@@ -469,18 +469,18 @@ export function PhotoMaker({
               {using
                 ? "添えています…"
                 : pickedItems.length > 1
-                  ? `選んだ ${pickedItems.length} 枚をそのまま使う（${nextIndex}〜${nextIndex + pickedItems.length - 1} 枚目）`
-                  : `そのまま使う（${nextIndex} 枚目）`}
+                  ? `選んだ ${pickedItems.length} 枚を、${nextIndex}〜${nextIndex + pickedItems.length - 1} 枚目にそのまま添える`
+                  : `${nextIndex} 枚目にそのまま添える`}
             </Button>
             <Button type="button" variant="secondary" disabled={pickedItems.length !== 1 || using} onClick={() => void use(false)}>
               文字を入れる
             </Button>
           </div>
-          <p className="text-xs leading-[1.7] text-muted">そのまま使う: 文字なしで投稿に添えます。文字を入れる: 画像に見出しの文字を重ねる画面に進み、そこで添えます。</p>
+          <p className="text-xs leading-[1.7] text-muted">「そのまま添える」は、文字なしで添えます。「文字を入れる」は、画像に文字を重ねてから添えます。</p>
           <p className="text-xs leading-[1.7] text-muted">
             {/* 見出しを重ねるが押せない理由（添えた画像には、その画像の行の「見出しを付ける」から付けられる。4.58） */}
             {remainingCandidates.length === 0
-              ? "候補はすべて添えました。文字は、下の添えた画像の行の「見出しを付ける」から入れられます。続けてつくるときは、場面を変えて「つくる」を押してください。"
+              ? "候補は、すべて添えました。文字は、下の画像の「画像の文字を付ける」から入れられます。続けてつくるときは、絵の説明を変えて「つくる」を押してください。"
               : `${pickedItems.length === 0 ? "文字を入れるときは、候補を 1 枚選んでください。" : pickedItems.length > 1 ? "文字を入れるのは 1 枚ずつです。" : ""}選ばなかった画像は 1 日で消えます。`}
           </p>
         </div>

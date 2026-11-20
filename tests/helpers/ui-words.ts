@@ -44,7 +44,16 @@ export const UI_WORD_RULES: UiWordRule[] = [
   { id: "sekkei", pattern: /設計/ },
   { id: "kisoku", pattern: /規則/ },
   { id: "ugoku", pattern: /動いて(いる|います)/ },
+  // 「秘密鍵」（.p8 ファイル）は Apple の画面の呼び方なので使ってよい
+  { id: "junbichu", pattern: /準備中/ },
+  { id: "kagi", pattern: /(?<!秘密)鍵/ },
+  { id: "sashikomu", pattern: /差し込/ },
+  { id: "kata", pattern: /(投稿|説明)の型|型にして/ },
+  { id: "tashikameru", pattern: /確かめ/ },
+  { id: "midashi", pattern: /見出し/ },
+  { id: "shirushi", pattern: /印を外/ },
+  { id: "gazoai", pattern: /画像の ?AI/ },
 ];
 
 // 表にあるが、見つける形を決められない行（確認役が文の意味から見る）
-export const UI_WORD_RULES_WITHOUT_PATTERN = ["sakujo", "unei", "project"];
+export const UI_WORD_RULES_WITHOUT_PATTERN = ["sakujo", "unei", "project", "term", "okane", "hazusu", "moji"];

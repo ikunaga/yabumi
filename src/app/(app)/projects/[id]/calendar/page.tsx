@@ -265,7 +265,7 @@ function UndatedDrafts({ posts: undated, base }: { posts: PostRow[]; base: strin
                   <span className="truncate">{postTitle(p.body, 40)}</span>
                   <span className="flex gap-1">
                     {p.targets.map((t) => (
-                      <SnsMark key={t.id} sns={t.sns} />
+                      <SnsMark key={t.id} sns={t.sns} dotOnly />
                     ))}
                   </span>
                 </Link>
@@ -394,7 +394,7 @@ function MobilePostCard({ post, href, extraWarning, highlight }: { post: PostRow
       <span className="flex items-center gap-1.5 text-[13px]">
         <span className="num text-faint">{post.planned_at ? formatTime(post.planned_at) : ""}</span>
         {post.targets.map((t) => (
-          <SnsMark key={t.id} sns={t.sns} />
+          <SnsMark key={t.id} sns={t.sns} dotOnly />
         ))}
         <span className="ml-auto">
           <StatusMark status={status} />

@@ -36,12 +36,12 @@ const ImageAdjustEditor = dynamic(() => import("./image-adjust-editor").then((m)
 // 見出しを付ける欄（4.58）も、開いたときに読み込む（書体とテンプレートの処理）
 const ImageHeadlineEditor = dynamic(() => import("./image-headline-editor").then((m) => m.ImageHeadlineEditor), {
   ssr: false,
-  loading: () => <p className="text-sm text-muted">見出しを付ける欄を開いています…</p>,
+  loading: () => <p className="text-sm text-muted">画像の文字を付ける欄を開いています…</p>,
 });
 
 const ImageAspectBulk = dynamic(() => import("./image-aspect-bulk").then((m) => m.ImageAspectBulk), {
   ssr: false,
-  loading: () => <p className="text-sm text-muted">まとめて整える欄を開いています…</p>,
+  loading: () => <p className="text-sm text-muted">縦横をまとめて整える欄を開いています…</p>,
 });
 
 // 画像をつくる画面は、開いたときに読み込む（書体とテンプレートの処理を、作成画面の最初の読み込みに入れない）
@@ -200,7 +200,7 @@ export function ImageAttachments({
     setBusy((n) => n + 1);
     try {
       if (made.kind === "headline") {
-        const photo = { ...(await uploadJpeg(made.photo, "敷いた写真", made.photoAi ? { jobId: made.photoAi, source: "generated" } : undefined)), text: false };
+        const photo = { ...(await uploadJpeg(made.photo, "背景にした写真", made.photoAi ? { jobId: made.photoAi, source: "generated" } : undefined)), text: false };
         try {
           const image = await uploadJpeg(jpeg, "作った画像", ai);
           onChange((prev) => [...prev, { ...image, altText, text: true, original: photo, edit: { kind: "headline", base: photo, headline: made.settings } }]);
@@ -373,7 +373,7 @@ export function ImageAttachments({
         </Button>
         {maker && (
           <Button type="button" variant="secondary" size="sm" disabled={disabled || room <= 0 || making || full || Boolean(addBlocked)} onClick={openMaker}>
-            {images.length > 0 ? `次の画像（${images.length + 1} 枚目）をつくる` : "画像をつくる"}
+            {images.length > 0 ? `${images.length + 1} 枚目の画像をつくる` : "画像をつくる"}
           </Button>
         )}
         {extraButtons}
@@ -381,20 +381,20 @@ export function ImageAttachments({
           {images.length > 0 && <span className="mr-1 font-bold text-muted">{images.length} 枚</span>}
           {/* 画像のボタンが押せないとき（動画を添えている・枚数がいっぱい）は、ドラッグの案内も出さない */}
           {!disabled && !addBlocked && room > 0 && !full && <span className="hidden sm:inline">この枠に画像をドラッグしても追加できます・</span>}
-          {MAX_IMAGES_PER_POST} 枚まで（X は 4 枚）{extraButtons ? "・動画は 1 本（3〜90 秒）" : ""}
+          画像は {MAX_IMAGES_PER_POST} 枚まで。X だけは 4 枚までです。{extraButtons ? "動画は 1 本で、3〜90 秒です。" : ""}
         </span>
         <HelpTip label="画像の扱い" align="right">
-          送る前に JPEG に縮め、撮った場所などの情報は消します。
-          {extraButtons && <p className="mt-2">動画は、どの SNS でも通る形に、この端末で整えてから上げます。撮った場所などの情報は残しません。送り終えた動画はすぐに消えます。1 か月 20 本まで。</p>}
+          送る前に、画像のサイズを小さくします。撮った場所などの情報は消します。
+          {extraButtons && <p className="mt-2">動画は、どの SNS でも送れる形に、この端末で整えてから上げます。撮った場所などの情報は残しません。上げた動画は、送り終えるとすぐに消えます。スマホの動画は消えません。1 か月 20 本までです。</p>}
           <p className="mt-2">
-            保存していない画像（どの投稿にも添えていない画像）は、ほかの書きかけ・閉じた画面の分も合わせて {MAX_UNATTACHED} 枚までです。{MAX_UNATTACHED} 枚になると新しい画像を上げられません。投稿を保存するか、この画面の要らない画像を外すと減ります。使わなかった画像は、上げてから 1 日で消えます。
+            投稿に保存していない画像は、全部で {MAX_UNATTACHED} 枚までです。ほかの書きかけの分も数えます。{MAX_UNATTACHED} 枚になると、新しい画像を追加できません。投稿を保存するか、要らない画像を削除してください。使わなかった画像は、1 日で消えます。
           </p>
         </HelpTip>
         {/* 保存していない画像が多くなったら、数を出す（つまずく前にわかるように。説明は左の「?」） */}
         {unattached !== null && unattached > SHOW_UNATTACHED_ABOVE && (
           <span className={`num text-[13px] font-bold ${unattached >= MAX_UNATTACHED ? "text-signal" : "text-muted"}`}>
             保存していない画像 {Math.min(unattached, MAX_UNATTACHED)}/{MAX_UNATTACHED}
-            {full && <span className="font-normal text-muted">・要らない画像を外すと追加できます</span>}
+            {full && <span className="font-normal text-muted">・要らない画像を削除すると、追加できます</span>}
           </span>
         )}
       </div>
@@ -419,7 +419,7 @@ export function ImageAttachments({
           {error}
         </p>
       )}
-      {busy > 0 && <p className="text-sm text-muted">画像を上げています（{busy} 枚）…</p>}
+      {busy > 0 && <p className="text-sm text-muted">{busy} 枚の画像を上げています…</p>}
 
       {showBand && (
         <div className="flex flex-col items-start gap-2 rounded-md bg-surface2 px-3 py-2.5 text-[13px] sm:flex-row sm:items-center sm:gap-3">
@@ -433,7 +433,7 @@ export function ImageAttachments({
             {mismatches.length > 0 && (
               <p>
                 <span className="mr-1.5 font-bold text-signal">● 要確認</span>
-                Instagram では、2 枚目からは 1 枚目の縦横（{ratioLabel(images[0].width, images[0].height)}）に合わせて切られます。
+                Instagram では、2 枚目から 1 枚目の縦横 {ratioLabel(images[0].width, images[0].height)} に切られます。
                 <ImageNumbers indexes={mismatches} />
                 が違います。
               </p>
@@ -442,7 +442,7 @@ export function ImageAttachments({
           {/* まとめて整える欄を開いている間は、欄のボタンだけにする */}
           {bulkOpen ? null : warnings.length >= 2 ? (
             <Button type="button" variant="secondary" size="sm" className="shrink-0" disabled={locked || busy > 0} onClick={() => setBulkOpen(true)}>
-              まとめて整える
+              縦横をまとめて整える
             </Button>
           ) : (
             // 合わない画像が 1 枚だけ（1 枚目は範囲の中）なら、その場で 1 枚目にそろえる
@@ -523,18 +523,18 @@ export function ImageAttachments({
                       ↓ 後ろへ
                     </button>
                     <button type="button" disabled={locked} onClick={() => remove(image)} className="text-muted hover:text-fg hover:underline">
-                      外す
+                      削除
                     </button>
                   </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs">
                   {bulkResult?.failedIds.includes(image.id) && <span className="font-bold text-danger">整えられませんでした</span>}
                   {instagram && !instagramRatioOk(image.width, image.height) && (
-                    <span className="font-bold text-signal">● Instagram には縦横比が合いません（{ratioLabel(image.width, image.height)}）</span>
+                    <span className="font-bold text-signal">● Instagram には縦横比が合いません。いまは {ratioLabel(image.width, image.height)} です</span>
                   )}
                   {image.original && (
                     <span className="num text-muted">
-                      {image.edit?.kind === "headline" ? "見出しを付けました" : "整えました"}（元 {image.original.width}×{image.original.height}）
+                      {image.edit?.kind === "headline" ? "画像の文字を付けました" : "整えました"}・元は {image.original.width}×{image.original.height}
                     </span>
                   )}
                   <button
@@ -561,7 +561,7 @@ export function ImageAttachments({
                     }}
                     className={rowAction}
                   >
-                    調整する
+                    明るさや色を調整する
                   </button>
                   {maker && headlineAction(image) && (
                     <button
@@ -575,7 +575,7 @@ export function ImageAttachments({
                       }}
                       className={rowAction}
                     >
-                      {headlineAction(image) === "edit" ? "見出しを編集" : "見出しを付ける"}
+                      {headlineAction(image) === "edit" ? "画像の文字を編集" : "画像の文字を付ける"}
                     </button>
                   )}
                   {image.original && (
@@ -585,7 +585,7 @@ export function ImageAttachments({
                   )}
                 </div>
                 <label htmlFor={`alt-${image.id}`} className="text-xs font-bold">
-                  画像の説明文<span className="ml-1 font-normal text-muted">何が写っているか（任意）</span>
+                  画像の説明文<span className="ml-1 font-normal text-muted">何が写っているか・なくてもよい</span>
                 </label>
                 <textarea
                   id={`alt-${image.id}`}
@@ -655,7 +655,7 @@ export function ImageAttachments({
       )}
       {images.length > 0 && (
         <p className="text-xs leading-[1.7] text-muted">
-          画像の説明文は、目の見えにくい人のスマホが読み上げたり、画像が表示されないときに代わりに出たりする文です（alt）。投稿の本文には出ません。X では 1 枚につき $0.005（1 円ほど）の<Term k="payPerUse">API の料金</Term>がかかります。
+          画像の説明文は、目の見えにくい人のスマホが読み上げる文です。画像が出ないときにも、代わりに出ます。投稿の本文には出ません。X では、1 枚につき 1 円ほどの<Term k="payPerUse">料金</Term>がかかります。
         </p>
       )}
     </div>

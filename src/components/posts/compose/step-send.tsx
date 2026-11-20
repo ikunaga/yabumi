@@ -77,11 +77,11 @@ export function ComposeStepSend({ c, steps = false, previewBelow = false }: { c:
           aria-invalid={fe.plannedAt ? true : undefined}
           className={`num h-9 rounded-md border bg-surface px-3 text-[14px] text-fg outline-none max-sm:text-[16px] ${fe.plannedAt ? "border-danger shadow-[0_0_0_1px_var(--danger)]" : "border-border focus:border-primary"}`}
         />
-        <span className="inline-flex h-9 items-center rounded-md border border-border px-3 text-[14px] text-muted">日本時間</span>
+        <span className="inline-flex h-9 items-center text-[13px] text-muted">日本の時刻です</span>
       </div>
       {timeHint && mode !== "all_sent" && (
         <div className="-mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted">
-          <span>{timeHint.kind === "views" ? "この時間帯がよく見られています（傾向）" : "この時間帯によくクリックされています（傾向）"}</span>
+          <span>{timeHint.kind === "views" ? "この時間帯に、よく見られています" : "この時間帯に、リンクがよく押されています"}</span>
           <button
             type="button"
             onClick={() => {
@@ -95,7 +95,7 @@ export function ComposeStepSend({ c, steps = false, previewBelow = false }: { c:
             {BAND_INFO[timeHint.band].label}（{BAND_INFO[timeHint.band].hours}）· {BAND_INFO[timeHint.band].at} {nowMain ? "に予約する" : "にする"}
           </button>
           <HelpTip label="時間帯の傾向">
-           yabumi が数えた、直近 90 日のあなたの数字です（{timeHint.kind === "views" ? "送った時間帯ごとの 1 本あたりの閲覧数" : "短縮リンクが押された時間帯"}）。傾向であって、この時間に送れば必ず見られるわけではありません。
+           直近 90 日の、あなたの投稿の数字です。{timeHint.kind === "views" ? "送った時間帯で分けた、1 本あたりの閲覧数です。" : "短縮リンクが押された時間帯です。"}この時間に送っても、必ず見られるわけではありません。
           </HelpTip>
         </div>
       )}
@@ -111,7 +111,7 @@ export function ComposeStepSend({ c, steps = false, previewBelow = false }: { c:
         <div className="flex flex-col gap-2">
           {mode === "partial" && (
             <p className="text-[13px] text-muted">
-              {sentLabels} には送信済みです（送り直しません）。残りの SNS の分だけ予約・送信できます。
+              {sentLabels} には投稿済みです。もう一度は送りません。残りの SNS だけ、予約や送信ができます。
             </p>
           )}
           {sending && <SendProgress postId={sending.postId} sns={sending.sns} hasImages={images.length > 0} />}
@@ -169,7 +169,7 @@ export function ComposeStepSend({ c, steps = false, previewBelow = false }: { c:
               <>
                 {" "}
                 <button type="button" onClick={() => goStep(fixAt)} className="font-semibold text-fg underline">
-                  編集（{fixAt} {COMPOSE_STEPS[fixAt - 1].label}）→
+                  「{fixAt} {COMPOSE_STEPS[fixAt - 1].label}」を編集 →
                 </button>
               </>
             )}

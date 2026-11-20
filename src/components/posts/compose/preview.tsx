@@ -11,7 +11,7 @@ import { PREVIEW, PREVIEW_DISCLAIMER } from "@/lib/sns/preview";
 import { SNS, hasTitleField, titleLimit, instagramRatioOk, ignoresImages, isManualSns } from "@/lib/sns";
 import { formatCount, type Composer } from "./use-composer";
 
-// SNS ごとの見え方と文面（タブ）と、SNS ごとの注意のカード（compose-steps.md。PC は右の列）
+// SNS ごとの見え方と文面（タブ。compose-steps.md。PC は右の列）。切り替えはタブだけ（2026-11-21 オーナーの指摘で、下のカードはなくした）
 export function ComposePreview({ c }: { c: Composer }) {
   const { projectName, accountNames, shownText, linkPreview, images, video, shortLinks, body, overrideRef, overrides, setOverrides, setFocus, titles, setTitles, markTyped, textFor, checks, isLocked, previewSns, focus, focusLabel, hasOverride } = c;
   return (
@@ -24,7 +24,7 @@ export function ComposePreview({ c }: { c: Composer }) {
                 {SNS[sns].label}
                 {overrides[sns] !== undefined && (
                   <span className="ml-1">
-                    ✎<span className="sr-only">（文面を変えています）</span>
+                    ✎<span className="sr-only">文面を変えています</span>
                   </span>
                 )}
               </button>
@@ -36,13 +36,18 @@ export function ComposePreview({ c }: { c: Composer }) {
           </HelpTip>
         </div>
         <div role="tabpanel" className="flex flex-col gap-3 px-6 py-5 max-sm:px-4 max-sm:py-4">
-          {isManualSns(focus) && <p className="text-[13px] text-muted">{focusLabel} には、投稿の画面から手で投稿します。</p>}
+          {/* SNS ごとの説明（字数・画像の並び）は、選んだタブの見え方の上に 1 行で出す。下のカードでの切り替えはなくした（2026-11-21 オーナーの指摘「タブの切り替えだけでいい」） */}
+          <p className="text-[13px] text-muted">
+            {SNS[focus].maxLength ? `${formatCount(SNS[focus].maxLength!)} 字まで・` : ""}
+            {PREVIEW[focus].short}
+          </p>
+          {isManualSns(focus) && <p className="text-[13px] text-muted">{focusLabel} には、「投稿」の画面から手で投稿します。</p>}
           {hasTitleField(focus) && (
             <div className="flex flex-col gap-1.5">
               <label htmlFor="target-title" className="text-[13px] font-bold">
                 {focusLabel} のタイトル
-                {focus === "tiktok" && <span className="ml-1.5 font-normal text-muted">任意・90 字まで（TikTok の写真のタイトル）</span>}
-                {focus === "youtube" && <span className="ml-1.5 font-normal text-muted">必須・100 字まで（&lt; と &gt; は使えません）</span>}
+                {focus === "tiktok" && <span className="ml-1.5 font-normal text-muted">TikTok の写真のタイトル。なくてもよい・90 字まで</span>}
+                {focus === "youtube" && <span className="ml-1.5 font-normal text-muted">必須・100 字まで。&lt; と &gt; は使えません</span>}
               </label>
               <input
                 id="target-title"
@@ -64,14 +69,14 @@ export function ComposePreview({ c }: { c: Composer }) {
             !isManualSns(focus) &&
             (SNS[focus].video ? (
               <p className="text-[13px] text-muted">
-                ▶ 動画（<span className="num">{formatDuration(video.durationMs)}</span>）を添えて送ります
+                ▶ <span className="num">{formatDuration(video.durationMs)}</span> の動画を添えて送ります
               </p>
             ) : (
               <p className="text-[13px] font-semibold text-danger">{focusLabel} には動画を送れません</p>
             ))}
           {images.length > 0 && ignoresImages(focus) && (
             <p className="text-[13px] text-muted">
-              {isManualSns(focus) ? `${focusLabel} には、画像は投稿の画面で手で添えてください。` : `${focusLabel} には画像を送りません（動画だけの SNS です）。`}
+              {isManualSns(focus) ? `${focusLabel} には、「投稿」の画面で画像を手で添えてください。` : `${focusLabel} は動画だけの SNS です。画像は送りません。`}
             </p>
           )}
           {images.length > SNS[focus].maxImages && !ignoresImages(focus) && (
@@ -81,16 +86,16 @@ export function ComposePreview({ c }: { c: Composer }) {
           )}
           {focus === "instagram" && images.some((i) => !instagramRatioOk(i.width, i.height)) && (
             <p className="text-[13px] font-semibold text-danger">
-              Instagram に送れる画像の縦横比は、4:5（縦長）から 1.91:1（横長）までです。
+              Instagram に送れる画像は、縦長 4:5 から横長 1.91:1 までです。
               {images
-                .map((i, n) => (instagramRatioOk(i.width, i.height) ? null : `${n + 1} 枚目（${i.width}×${i.height}）`))
+                .map((i, n) => (instagramRatioOk(i.width, i.height) ? null : `${n + 1} 枚目・${i.width}×${i.height}`))
                 .filter(Boolean)
                 .join("、")}
-              が範囲の外です。画像の欄の「縦横を整える」で、切り取るか余白を足して収められます。
+              は、この形に入りません。「3 画像・動画」の「縦横を整える」で、切り取るか余白を足してください。
             </p>
           )}
           {focus === "instagram" && checks.instagram.issues.includes("too_many_hashtags") && (
-            <p className="text-[13px] font-semibold text-danger">Instagram のハッシュタグは 5 個までです（2025 年 12 月から）。</p>
+            <p className="text-[13px] font-semibold text-danger">Instagram のハッシュタグは 5 個までです。2025 年 12 月からの決まりです。</p>
           )}
           {hasOverride ? (
             <div className="flex flex-col gap-1.5 border-t border-line pt-3">
@@ -138,29 +143,6 @@ export function ComposePreview({ c }: { c: Composer }) {
         </div>
       </section>
 
-      {/* SNS ごとの注意の小さなカード（見本 B の右下）。いま見ている SNS のほかに、選んだ SNS */}
-      {previewSns.length > 1 && (
-        <ul className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
-          {previewSns
-            .filter((s) => s !== focus)
-            .slice(0, 4)
-            .map((sns) => (
-              <li key={sns}>
-                <button
-                  type="button"
-                  onClick={() => setFocus(sns)}
-                  className="flex h-full w-full flex-col gap-0.5 rounded-lg border border-border bg-surface px-4 py-3 text-left hover:border-input"
-                >
-                  <b className="text-[15px]">{SNS[sns].label}</b>
-                  <span className="text-[13px] leading-[1.6] text-muted">
-                    {SNS[sns].maxLength ? `${formatCount(SNS[sns].maxLength!)} 字まで・` : ""}
-                    {PREVIEW[sns].short}
-                  </span>
-                </button>
-              </li>
-            ))}
-        </ul>
-      )}
     </>
   );
 }

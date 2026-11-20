@@ -143,7 +143,7 @@ const ISSUE_TONE: Record<TargetIssue, string> = {
 };
 
 // 引用の投稿の、送れない理由（X の画面で送る。4.52）
-const QUOTE_BLOCKER = "引用は X の画面で送ります（yabumi からは予約・送信できません）";
+const QUOTE_BLOCKER = "引用は X の画面で送ります。yabumi からは予約も送信もできません";
 
 // まだ何も書いていないときの、送れない理由（朱にしない）
 export const QUIET_BLOCKER = "本文を書くと、予約・送信できます";
@@ -575,7 +575,7 @@ export function useComposer({
   const videoRemovedBlocks = Boolean(initial.videoRemoved) && !video && images.length === 0 && toSend.some((s) => !isManualSns(s));
   const sendBlocker = (() => {
     if (chosen.length === 0) return "送り先の SNS を選んでください";
-    if (quoting && chosen.some((s) => s !== "x")) return "引用の投稿は X だけに送れます。ほかの SNS を外すか、引用を外してください";
+    if (quoting && chosen.some((s) => s !== "x")) return "引用の投稿は X だけに送れます。X だけを選ぶか、引用をやめてください";
     if (quoting) return QUOTE_BLOCKER;
     if (toSend.length === 0) return "選んだ SNS にはすべて送信済みです";
     if (quiet) return QUIET_BLOCKER;
@@ -618,8 +618,8 @@ export function useComposer({
     (toSend.some((s) => !byHandOrManual(s))
       ? null
       : toSend.some(isManualSns)
-        ? "note・Substack は手で投稿します。予約するか下書きに保存すると、投稿の画面から手で投稿できます"
-        : "手で投稿する SNS だけです。予約するか下書きに保存すると、投稿の画面から手で投稿できます");
+        ? "note・Substack は手で投稿します。予約するか下書きに保存すると、「投稿」の画面から投稿できます"
+        : "手で投稿する SNS だけです。予約するか下書きに保存すると、「投稿」の画面から投稿できます");
   // X の上限を調べ直している途中か（押したときの調べ直しが済むまで、「本当に今すぐ送る」と予約は押せない。PMO2 の 3 回目の 02b）
   const xChecking = xKey !== null && xCheck?.key !== xKey;
   // 調べ直して上限に当たった（ほかの送れない理由が出た）ら、「本当に今すぐ送る」の確かめを閉じて、知らせだけにする
@@ -649,10 +649,10 @@ export function useComposer({
     setNoteIds((ids) => (mode === "replace" ? [note.id] : [...ids, note.id]));
     clearFieldError("body");
     if (!note.image) return null;
-    if (video) return "動画を添えているので、メモの写真は添えませんでした（本文は入れました）。";
-    if (images.length >= MAX_IMAGES_PER_POST) return `画像は ${MAX_IMAGES_PER_POST} 枚までなので、メモの写真は添えませんでした（本文は入れました）。`;
+    if (video) return "動画を添えているので、メモの写真は添えませんでした。本文は入れました。";
+    if (images.length >= MAX_IMAGES_PER_POST) return `画像は ${MAX_IMAGES_PER_POST} 枚までなので、メモの写真は添えませんでした。本文は入れました。`;
     const r = await noteImageForCompose(projectId, note.id);
-    if (r.error) return `${r.error}（本文は入れました）`;
+    if (r.error) return `${r.error}。本文は入れました。`;
     if (r.image) setImages((prev) => [...prev, r.image!]);
     return null;
   }

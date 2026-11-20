@@ -30,17 +30,17 @@ export function composeChanges(initial: ComposeSnapshot, now: ComposeSnapshot, {
 
   if (now.body !== initial.body) out.push(saved ? "本文の変更" : "本文");
   const overrides = changed(initial.overrides, now.overrides);
-  if (overrides.length) out.push(`SNS ごとの文面（${labels(overrides)}）`);
+  if (overrides.length) out.push(`SNS ごとの文面: ${labels(overrides)}`);
   const titles = changed(initial.titles, now.titles).filter((s) => (now.titles[s] ?? "") !== (initial.titles[s] ?? ""));
   if (titles.length) out.push(`${labels(titles)} のタイトル`);
   const tags = SNS_KEYS.filter((s) => (now.hashtags?.[s] ?? "").trim() !== (initial.hashtags?.[s] ?? "").trim());
-  if (tags.length) out.push(`SNS ごとのタグ（${labels(tags)}）`);
+  if (tags.length) out.push(`SNS ごとのタグ: ${labels(tags)}`);
   if (now.imageIds.join() !== initial.imageIds.join()) {
     out.push(saved || initial.imageIds.length ? "添えた画像の変更" : `添えた画像 ${now.imageIds.length} 枚`);
   }
   if ((now.videoId ?? null) !== (initial.videoId ?? null)) out.push(saved || initial.videoId ? "添えた動画の変更" : "添えた動画");
   if (now.plannedAt !== initial.plannedAt) out.push(saved || initial.plannedAt ? "送る日時の変更" : "送る日時");
-  if ([...now.targets].sort().join() !== [...initial.targets].sort().join()) out.push(saved ? "送り先の選び直し" : "送り先の選び直し（最初の選び方に戻します）");
+  if ([...now.targets].sort().join() !== [...initial.targets].sort().join()) out.push(saved ? "送り先の選び直し" : "選び直した送り先。最初の選び方に戻します");
   if (now.shortLinks !== initial.shortLinks) out.push("短縮リンクのオン・オフ");
   if (now.noteIds.length) out.push(`ネタ帳のメモ ${now.noteIds.length} 件に「投稿にした」の印を付ける予定`);
   return out;

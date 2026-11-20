@@ -20,7 +20,7 @@ describe("一覧の 1 行の題", () => {
   it("本文が空なら SNS ごとの文面・題、なければ画像の枚数か「（本文なし）」", () => {
     expect(draftHeadline({ ...base, body: "  ", overrides: [null, "X だけの文"] })).toEqual({ text: "X だけの文", empty: false });
     expect(draftHeadline({ ...base, body: "", titles: ["YouTube の題"] })).toEqual({ text: "YouTube の題", empty: false });
-    expect(draftHeadline({ ...base, body: "", images: 2 })).toEqual({ text: "画像 2 枚（本文なし）", empty: true });
-    expect(draftHeadline({ ...base, body: "" })).toEqual({ text: "（本文なし）", empty: true });
+    expect(draftHeadline({ ...base, body: "", images: 2 })).toEqual({ text: "画像 2 枚・本文なし", empty: true });
+    expect(draftHeadline({ ...base, body: "" })).toEqual({ text: "本文なし", empty: true });
   });
 });

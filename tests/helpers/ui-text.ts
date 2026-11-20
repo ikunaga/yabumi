@@ -64,7 +64,13 @@ function stringText(node: ts.Node): string | null {
 }
 
 // JSX の子をつないだ文。インラインの要素は中までつなぐ。ブロックの要素が来たら、そこで文を切る
-function jsxRuns(children: ts.NodeArray<ts.JsxChild>, runs: string[][]): void {
+// 縦に並べる要素（className に flex-col・grid がある）の子は、1 つずつ別の行として読む
+function stacked(node: ts.JsxElement): boolean {
+  const cls = node.openingElement.attributes.properties.find((p) => ts.isJsxAttribute(p) && p.name.getText() === "className");
+  return !!cls && ts.isJsxAttribute(cls) && /\b(flex-col|grid)\b/.test(cls.initializer?.getText() ?? "");
+}
+
+function jsxRuns(children: ts.NodeArray<ts.JsxChild>, runs: string[][], vertical = false): void {
   let current: string[] = [];
   const flush = () => {
     if (current.length) runs.push(current);
@@ -78,8 +84,10 @@ function jsxRuns(children: ts.NodeArray<ts.JsxChild>, runs: string[][]): void {
         const s = stringText(child.expression);
         current.push(s === null ? "{…}" : s.replace(/\n/g, "⏎"));
       } else if ((ts.isJsxElement(child) || ts.isJsxSelfClosingElement(child)) && INLINE_TAGS.has(tagName(child))) {
+        if (vertical && list === children) flush();
         if (ts.isJsxElement(child)) walk(child.children);
         else current.push("{…}");
+        if (vertical && list === children) flush();
       } else {
         flush();
       }
@@ -107,14 +115,18 @@ export function collectUiTexts(root = "src"): UiText[] {
     // JSX の要素の中で、つないで読んだ文字列（あとで二重に数えないため）
     const done = new Set<ts.Node>();
     const visit = (node: ts.Node) => {
-      if (ts.isJsxElement(node) && !INLINE_TAGS.has(tagName(node))) {
+      // インラインの要素でも、ブロックの要素の文につながなかったもの（{条件 && <span>…</span>} など）は、それだけで 1 つの文にする
+      if (ts.isJsxElement(node) && (!INLINE_TAGS.has(tagName(node)) || !done.has(node))) {
         const runs: string[][] = [];
-        jsxRuns(node.children, runs);
+        jsxRuns(node.children, runs, stacked(node));
         for (const run of runs) push(node, run.join(""));
         const mark = (list: ts.NodeArray<ts.JsxChild>) => {
           for (const c of list) {
             if (ts.isJsxExpression(c) && c.expression && stringText(c.expression) !== null) done.add(c.expression);
-            if (ts.isJsxElement(c) && INLINE_TAGS.has(tagName(c))) mark(c.children);
+            if (ts.isJsxElement(c) && INLINE_TAGS.has(tagName(c))) {
+              done.add(c);
+              mark(c.children);
+            }
           }
         };
         mark(node.children);

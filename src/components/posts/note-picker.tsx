@@ -96,7 +96,7 @@ export function NotePicker({
       ) : notes === null ? (
         <p className="text-[14px] text-muted">読み込んでいます…</p>
       ) : notes.length === 0 ? (
-        <p className="text-[14px] text-muted">ネタ帳にメモがありません。「＋ メモ」から書けます。</p>
+        <p className="text-[14px] text-muted">ネタ帳にメモがありません。「ネタ帳」の「＋ メモ」から書けます。</p>
       ) : left.length === 0 ? (
         <p className="text-[14px] text-muted">まだ投稿にしていないメモは、全部本文に入れました。</p>
       ) : (
@@ -108,7 +108,7 @@ export function NotePicker({
                 <img src={n.image.previewUrl} alt="" className="size-11 shrink-0 rounded-sm border border-line object-cover" />
               ) : null}
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <p className="line-clamp-2 text-[14px] leading-[1.6] break-words">{n.body || <span className="text-muted">（写真だけのメモ）</span>}</p>
+                <p className="line-clamp-2 text-[14px] leading-[1.6] break-words">{n.body || <span className="text-muted">写真だけのメモ</span>}</p>
                 <p className="text-[12px] text-faint">
                   <span className="num">{formatShort(n.createdAt)}</span>
                   {n.image && <span className="ml-2">写真あり</span>}

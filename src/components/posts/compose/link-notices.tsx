@@ -43,21 +43,21 @@ function XUrlCostNotice({ onEdit, onRemove }: { onEdit: () => void; onRemove: ()
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
       <span className="font-bold text-signal">● 費用</span>
       <span>
-        X は本文に URL があると 1 本 {formatUsd(X_PRICE_USD.post_with_url)}（約 30 円。なければ約 2 円）
+        X は、本文に URL があると 1 本 {formatUsd(X_PRICE_USD.post_with_url)} かかります。約 30 円です。URL がなければ、約 2 円です。
       </span>
       <HelpTip label="X の URL の費用">
         <ul className="list-disc pl-4">
           <li>
-            URL があると、X の <Term k="payPerUse">API の料金</Term>が 1 本 {formatUsd(X_PRICE_USD.post_with_url)}、なければ {formatUsd(X_PRICE_USD.post)} です
+            X は、本文に URL があると 1 本 {formatUsd(X_PRICE_USD.post_with_url)}、なければ {formatUsd(X_PRICE_USD.post)} の<Term k="payPerUse">料金</Term>がかかります
           </li>
           <li>URL は X のプロフィールに置き、本文は「プロフィールのリンクから」とする</li>
-          <li>X 用に文面を変えて URL を外す（Threads など、ほかの SNS には URL を残せる）</li>
-          <li>「example.com」のように https:// を付けなくても、X は URL として数えます</li>
-          <li>短縮リンクも URL なので、料金は同じです。X で押された回数は、プロフィールのリンクを短縮リンクにして数えるのがおすすめです</li>
+          <li>X の文面だけ URL を消す。Threads などには URL を残せる</li>
+          <li>https:// がなくても、X は「example.com」を URL として数えます</li>
+          <li>短縮リンクも URL なので、料金は同じです。X で押された回数を数えるなら、プロフィールに短縮リンクを置いてください</li>
         </ul>
       </HelpTip>
       <button type="button" onClick={onRemove} className="font-semibold underline">
-        X だけ URL を外す
+        X の文面だけ URL を消す
       </button>
       <button type="button" onClick={onEdit} className="font-semibold underline">
         X 用に文面を変える
@@ -106,7 +106,7 @@ function InstagramLinkNotice({
             <span aria-hidden className="mr-1 font-bold text-success">
               ✓
             </span>
-            Instagram 用の文面の URL を外し、最後に「{text.split("\n").find(hasProfileLinkLine)?.trim()}」を入れました。
+            Instagram の文面から URL を消し、最後に「{text.split("\n").find(hasProfileLinkLine)?.trim()}」を入れました。
           </span>
           <button type="button" onClick={onEdit} className="font-semibold underline">
             Instagram 用の文面を編集
@@ -122,11 +122,11 @@ function InstagramLinkNotice({
       )}
       {needLink && (
         <p className="text-muted">
-          Instagram のプロフィールに置くリンクがまだありません。
+          Instagram のプロフィールに置くリンクが、まだありません。
           <Link href={`/projects/${projectId}/links#profile-instagram`} className="font-semibold text-fg underline">
-            プロフィールに置くリンクを作る（短縮リンク）
+            プロフィール用の短縮リンクをつくる
           </Link>
-          （作ったら、Instagram のプロフィールに自分で貼ります）
+          つくったら、プロフィールに貼ってください。
         </p>
       )}
     </div>

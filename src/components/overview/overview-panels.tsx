@@ -62,7 +62,7 @@ export function NextScheduled({ projectId, posts, now }: { projectId: string; po
                 {sns.length >= 4 ? (
                   <span className="inline-flex h-5 items-center rounded-sm border border-input px-1.5 text-[11px] font-bold text-muted">{sns.length} つの SNS</span>
                 ) : (
-                  sns.map((s) => <SnsMark key={s} sns={s} byHand={byHand.has(s)} />)
+                  sns.map((s) => <SnsMark key={s} sns={s} byHand={byHand.has(s)} dotOnly />)
                 )}
               </span>
               <span className="min-w-0 flex-1 truncate">{postTitle(p.body, 40)}</span>

@@ -4,10 +4,10 @@ import type { SnsKey, TargetIssue } from "@/lib/sns";
 
 export const COMPOSE_STEPS = [
   { key: "write", label: "書く", title: "何を伝えるか" },
-  { key: "targets", label: "送り先", title: "どこに出すか" },
+  { key: "targets", label: "送り先", title: "どこに送るか" },
   { key: "images", label: "画像・動画", title: "画像か動画を添えるか" },
-  { key: "links", label: "リンク", title: "行き先へ案内するか" },
-  { key: "send", label: "送る", title: "いつ出すか" },
+  { key: "links", label: "リンク", title: "リンクを付けるか" },
+  { key: "send", label: "送る", title: "いつ送るか" },
 ] as const;
 export type ComposeStepKey = (typeof COMPOSE_STEPS)[number]["key"];
 // 1 から数えたステップの番号
@@ -131,5 +131,5 @@ export function imagesStepNext(a: { hasMedia: boolean; needImage: string[]; need
   const parts = [a.needImage.length ? `${a.needImage.join("・")} は画像か動画` : "", a.needVideo.length ? `${a.needVideo.join("・")} は動画` : ""].filter(Boolean);
   if (!parts.length) return { label: "画像・動画なしで次へ", note: null };
   const labels = [...a.needImage, ...a.needVideo].join("・");
-  return { label: "付けずに次へ", note: `${parts.join("、")}が要ります。付けないと ${labels} には送れません` };
+  return { label: "付けずに次へ", note: `${parts.join("、")}が要ります。付けないまま ${labels} を選んでいると、送れません` };
 }

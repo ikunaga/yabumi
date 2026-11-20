@@ -114,7 +114,7 @@ export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace, 
     } catch (e) {
       if (controller.signal.aborted) return;
       console.error("[tidy-draft]", e);
-      setError("AI とのやりとりがうまくいきませんでした。通信をたしかめて、もう一度お試しください。");
+      setError("AI とのやりとりがうまくいきませんでした。通信を確認して、もう一度お試しください。");
     } finally {
       if (abort.current === controller) {
         abort.current = null;
@@ -210,14 +210,14 @@ export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace, 
             </span>
           </button>
         )}
-        <span className="text-xs text-muted">{!hasText ? (format ? "本文を書くか、フォーマットの空欄を埋めると押せます" : "本文を話すか書くと押せます") : !hasSns ? "送り先の SNS（note・Substack 以外）を選ぶと押せます" : format ? "フォーマットに沿って・1 回 5〜15 円ほど" : "1 回 5〜15 円ほど"}</span>
+        <span className="text-xs text-muted">{!hasText ? (format ? "本文を書くか、フォーマットの空欄を埋めると押せます" : "本文を話すか書くと押せます") : !hasSns ? "送り先の SNS を選ぶと押せます。note と Substack では使えません" : format ? "フォーマットに沿って・1 回 5〜15 円ほど" : "1 回 5〜15 円ほど"}</span>
         {hasText && !hasSns && onPickSns && (
           <button type="button" onClick={onPickSns} className="text-xs font-semibold text-primary hover:underline">
             送り先を選ぶ →
           </button>
         )}
         <HelpTip label="AI で投稿に整える">
-          話した言葉や思いつくままに書いた文から、言いたいことを 1 つに絞り、選んだ SNS ごとの字数に収めた案を 2〜3 個出します。そのまままとめる・伝えたいことを先に置くなど、形の違う案から選べます。案はその場で編集してから使えます。あなたが言っていないこと（数字・できごと・感想）は足しません。口調とやらないこと、ハッシュタグはアカウント設計に合わせます（口調・長さ・ねらい・絵文字は「整え方を選ぶ」で変えられます。やらないことはどの整え方でも守ります）。AI はいまはやっている言葉や話題を知らない（その時々のデータを見ていない）ので、はやりには合わせません。1 回 5〜15 円ほどかかります。
+          話した言葉や、思いつくまま書いた文を、投稿の案にします。言いたいことを 1 つに絞り、SNS ごとの字数に収めます。形の違う案を 2〜3 個出します。案は編集してから使えます。あなたが言っていない数字・できごと・感想は足しません。口調・やらないこと・ハッシュタグは、アカウントの方針に合わせます。口調・長さ・ねらい・絵文字は「整え方を選ぶ」で変えられます。AI は最近のはやりを知らないので、はやりには合わせません。1 回 5〜15 円ほどかかります。
         </HelpTip>
       </div>
 
@@ -238,7 +238,7 @@ export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace, 
         >
           {adopted.kept ? (
             <p>
-              「{adoptedOption.label}」の案を使いました。SNS ごとに文面が違うので、{split.map((s) => SNS[s].label).join("・")} の文面に入れました（共通の本文はそのままです）。
+              「{adoptedOption.label}」の案を使いました。SNS ごとに文面が違うので、{split.map((s) => SNS[s].label).join("・")} の文面に入れました。共通の本文は変わりません。
               {split.map((s) => (
                 <button key={s} type="button" className={`ml-2 ${linkClass}`} onClick={() => onEditOverride(s)}>
                   {SNS[s].label} 用の文面を見る
@@ -247,16 +247,15 @@ export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace, 
             </p>
           ) : (
             <p>
-              「{adoptedOption.label}」の案を使いました。本文に入れました（
+              「{adoptedOption.label}」の案を使いました。本文に入れました。{" "}
               <button type="button" className={linkClass} onClick={onShowBody}>
                 本文を見る
               </button>
-              ）
             </p>
           )}
           {!adopted.kept && split.length > 0 && adopted.main && (
             <p className="text-[13px] text-muted">
-              {split.map((s) => SNS[s].label).join("・")} には SNS ごとの文面を入れました（{SNS[adopted.main].label} と字数が違うため）。
+              {split.map((s) => SNS[s].label).join("・")} は {SNS[adopted.main].label} と字数が違うので、SNS ごとの文面に入れました。
               {split.map((s) => (
                 <button key={s} type="button" className={`ml-2 ${linkClass}`} onClick={() => onEditOverride(s)}>
                   {SNS[s].label} 用の文面を編集
@@ -352,7 +351,7 @@ function DirectionPicker({ value, onChange, onClose }: { value: TidyDirection; o
       <div className="flex flex-col gap-1.5">
         <div className="flex items-baseline justify-between gap-2">
           <label htmlFor={noteId} className="text-[13px] font-bold">
-            ほかに一言<span className="ml-1 font-normal text-muted">（なくてもよい）</span>
+            ほかに伝えたいこと<span className="ml-1 font-normal text-muted">なくてもよい</span>
           </label>
           <span className="num text-xs text-faint">
             {[...value.note].length}/{MAX_DIRECTION_NOTE}
@@ -368,12 +367,12 @@ function DirectionPicker({ value, onChange, onClose }: { value: TidyDirection; o
         />
       </div>
       <p className="text-xs leading-[1.7] text-muted">
-        どの整え方でも、書いていないことは足さず、設計の「やらないこと」は守ります。選んだものはこの端末に覚え、次もここから始まります。
+        どの整え方でも、書いていないことは足しません。アカウントの方針の「やらないこと」も守ります。選んだ整え方は、この端末で次も使います。
       </p>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px]">
         {!isDefaultDirection(value) && (
           <button type="button" onClick={() => onChange(DEFAULT_DIRECTION)} className="font-semibold text-muted underline-offset-2 hover:text-fg hover:underline">
-            設計どおりに戻す
+            アカウントの方針どおりに戻す
           </button>
         )}
         <button type="button" onClick={onClose} className="font-semibold text-fg underline-offset-2 hover:underline">
@@ -447,7 +446,7 @@ function DraftEditor({
       <div className="flex items-baseline justify-between gap-2">
         <label htmlFor={id} className="text-xs font-semibold text-muted">
           {showSns ? label : "文面"}
-          {readOnly ? "（本文と SNS ごとの文面に入れました）" : "（ここで編集してから使えます）"}
+          {readOnly ? "本文と SNS ごとの文面に入れました" : "ここで編集してから使えます"}
         </label>
         <span className={`num shrink-0 text-xs ${over ? "font-bold text-danger" : "text-faint"}`}>
           {length}

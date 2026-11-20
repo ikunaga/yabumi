@@ -22,7 +22,7 @@ describe("保存の形（cleanFormatImage）", () => {
   it("絵の説明が空なら画像なし。形の違う値は既定にそろえる", () => {
     expect(cleanFormatImage(null, BODY, SERIES)).toEqual({ image: null });
     expect(cleanFormatImage({ ...base, prompt: "  " }, BODY, SERIES)).toEqual({ image: null });
-    expect(cleanFormatImage({ prompt: "机の上", scene: "x", style: 1, size: "huge", headline: "  " }, BODY, EMPTY_SERIES).image).toEqual({ prompt: "机の上", scene: "fill", style: "photo", size: "auto", headline: null });
+    expect(cleanFormatImage({ prompt: "机の上", scene: "x", style: 1, size: "huge", headline: "  " }, BODY, EMPTY_SERIES).image).toEqual({ prompt: "机の上", scene: "fill", style: "photo", size: "auto", headline: null, label: null });
   });
 
   it("型の文にない穴・空の {} は断る。長すぎる絵の説明・見出しも断る", () => {
@@ -73,13 +73,29 @@ describe("埋め方", () => {
 
 describe("③ の帯の絵の説明と見出し", () => {
   it("この回の穴の言葉と答えで埋める。答えはシリーズのときだけ", () => {
-    const image = { prompt: "{映画}を思わせる{キーワード}", scene: "ai" as const, style: "photo" as const, size: "auto" as const, headline: "連想映画クイズ {ひとこと}" };
-    expect(formatPhotoTexts({ body: BODY, series: SERIES, image }, { キーワード: "王女", ひとこと: "第 3 回" }, "ローマの休日")).toEqual({ text: "ローマの休日を思わせる王女", headline: "連想映画クイズ 第 3 回" });
-    expect(formatPhotoTexts({ body: BODY, series: EMPTY_SERIES, image: { ...image, headline: null } }, {}, "ローマの休日")).toEqual({ text: "【映画】を思わせる【キーワード】", headline: null });
+    const image = { prompt: "{映画}を思わせる{キーワード}", scene: "ai" as const, style: "photo" as const, size: "auto" as const, headline: "連想映画クイズ {ひとこと}", label: null };
+    expect(formatPhotoTexts({ body: BODY, series: SERIES, image }, { キーワード: "王女", ひとこと: "第 3 回" }, "ローマの休日")).toEqual({ text: "ローマの休日を思わせる王女", headline: "連想映画クイズ 第 3 回", label: null });
+    expect(formatPhotoTexts({ body: BODY, series: EMPTY_SERIES, image: { ...image, headline: null } }, {}, "ローマの休日")).toEqual({ text: "【映画】を思わせる【キーワード】", headline: null, label: null });
   });
 
   it("記録の穴の言葉は文字の値だけ読む", () => {
     expect(readRoundValues({ a: "x", b: 1, c: null })).toEqual({ a: "x" });
     expect(readRoundValues(["x"])).toEqual({});
+  });
+});
+
+describe("見出しの上の小さい文（label。2026-11-20 オーナーの指示。見出しを 2 段にする）", () => {
+  const withHead = { ...base, headline: "この画像から連想される映画は？", label: "連想映画クイズ" };
+  it("20 字まで。型の文にない空欄は断る。空欄の言葉は使える", () => {
+    expect(cleanFormatImage(withHead, BODY, SERIES).image?.label).toBe("連想映画クイズ");
+    expect(cleanFormatImage({ ...withHead, label: "あ".repeat(21) }, BODY, SERIES).problem).toContain("20 字まで");
+    expect(cleanFormatImage({ ...withHead, label: "{ない空欄}" }, BODY, SERIES).problem).toContain("{ない空欄}");
+    expect(cleanFormatImage({ ...withHead, label: "{ひとこと}" }, BODY, SERIES).image?.label).toBe("{ひとこと}");
+    expect(cleanFormatImage({ ...withHead, label: "  " }, BODY, SERIES).image?.label).toBeNull();
+  });
+  it("帯に渡すとき、空欄を埋める。見出しがなければ小さい文も描かない", () => {
+    const image = { ...withHead, scene: "fill" as const, style: "photo" as const, size: "auto" as const, label: "連想映画クイズ {ひとこと}" };
+    expect(formatPhotoTexts({ body: BODY, series: SERIES, image }, { ひとこと: "第 3 回" }, "ローマの休日").label).toBe("連想映画クイズ 第 3 回");
+    expect(formatPhotoTexts({ body: BODY, series: SERIES, image: { ...image, headline: null } }, {}, "ローマの休日").label).toBeNull();
   });
 });

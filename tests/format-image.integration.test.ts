@@ -36,7 +36,7 @@ afterAll(async () => {
 
 describe("フォーマットの画像の設定", () => {
   it("保存して読める。AI の空欄を使っていても、選んだ fill のまま保存する（2026-11-20 から固定しない）。image を渡さずに直すと画像なしになる", async () => {
-    expect((await getFormat(alice, projectId, formatId))?.image).toEqual(image);
+    expect((await getFormat(alice, projectId, formatId))?.image).toEqual({ ...image, label: null });
     await updateFormat(alice, projectId, formatId, { name: "連想映画クイズ", body: BODY, series });
     expect((await getFormat(alice, projectId, formatId))?.image).toBeNull();
     const { data } = await admin.from("post_formats").select("image").eq("id", formatId).single();
@@ -69,6 +69,14 @@ describe("フォーマットの画像の設定", () => {
     expect((await set({ ...ok, headline: null })).error).toBeNull();
     expect((await set({ ...ok, headline: "あ".repeat(40), prompt: "あ".repeat(600) })).error).toBeNull();
     expect((await set({})).error).toBeNull();
+  });
+
+  it("見出しの上の小さい文（label）は 1〜20 字の文字で保存できる。21 字・文字でない値は DB が断る（20261120110000）", async () => {
+    const set = (v: unknown) => alice.from("post_formats").update({ image: v as never }).eq("id", formatId);
+    expect((await set({ ...image, label: "連想映画クイズ" })).error).toBeNull();
+    expect((await getFormat(alice, projectId, formatId))?.image?.label).toBe("連想映画クイズ");
+    expect((await set({ ...image, label: null })).error).toBeNull();
+    for (const bad of ["あ".repeat(21), " ", 3]) expect((await set({ ...image, label: bad })).error?.code, String(bad)).toBe("23514");
   });
 
   it("他人は読めず、image を変えられない。ログインしていない人も変えられない", async () => {

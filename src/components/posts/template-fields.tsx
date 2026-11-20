@@ -92,7 +92,7 @@ export function LabelField({ value, onChange }: { value: string; onChange: (v: s
       <span className="text-[14px] font-bold">
         ラベル<span className="ml-1.5 text-xs font-normal text-muted">任意。例: 新機能、お知らせ</span>
       </span>
-      <Input value={value} maxLength={12} onChange={(e) => onChange(e.target.value)} className="py-2" />
+      <Input value={value} maxLength={20} onChange={(e) => onChange(e.target.value)} className="py-2" />
     </label>
   );
 }

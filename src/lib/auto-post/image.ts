@@ -13,7 +13,7 @@ import { renderTemplateJpeg } from "@/lib/media/template-render-server";
 import { MAX_ALT_LENGTH, MAX_IMAGES_PER_POST, MEDIA_BUCKET, USER_QUOTA_BYTES, mediaPath } from "@/lib/media/rules";
 import { defaultSizeFor, type TemplateSizeKey } from "@/lib/media/templates";
 import { normalizePlan } from "@/lib/plan/schema";
-import { answerSlotName, fillImageText, hasUnfilled } from "@/lib/post-formats/image";
+import { answerSlotName, fillImageText, hasUnfilled, MAX_IMAGE_LABEL } from "@/lib/post-formats/image";
 import { getFormat } from "@/lib/post-formats/store";
 import type { SnsKey } from "@/lib/sns";
 import type { Database } from "@/lib/supabase/database.types";
@@ -49,6 +49,17 @@ async function writeScene(admin: Db, deps: AutoImageDeps, ownerId: string, reque
   return ideas?.[0]?.scene ?? null;
 }
 
+// フォーマットの見出しと、その上の小さい文（空欄を埋め、描ける形にそろえる。小さい文は見出しがあるときだけ・20 字まで）
+export function formatHeadlineTexts(
+  image: { headline: string | null; label: string | null },
+  values: Record<string, string>,
+  answer: { name: string; value: string } | null,
+): { headline: string; label: string } {
+  const headline = image.headline ? cleanHeadline(fillImageText(image.headline, values, answer)) : "";
+  const label = headline && image.label ? [...cleanHeadline(fillImageText(image.label, values, answer))].slice(0, MAX_IMAGE_LABEL).join("").trim() : "";
+  return { headline, label };
+}
+
 // その回の画像を 1 枚つくる（候補の置き場所 <持ち主>/gen/ に置く。添えるのは attachImage）
 export async function makeAutoImage(
   admin: Db,
@@ -66,6 +77,8 @@ export async function makeAutoImage(
   let style = img.style;
   let size = img.size;
   let headlineText = img.headline === "ai" ? cleanHeadline(args.headline) : "";
+  // 見出しの上の小さい文（フォーマットの見出しのときだけ。2026-11-20 オーナーの指示。見出しを 2 段にする）
+  let labelText = "";
   if (img.source === "format") {
     const formatId = args.material.series?.formatId ?? args.plan.materials.format_id;
     const format = formatId ? await getFormat(admin, args.plan.projectId, formatId) : null;
@@ -77,7 +90,7 @@ export async function makeAutoImage(
     scene = format.image.scene === "ai" ? await writeScene(admin, deps, args.plan.ownerId, buildFormatSceneRequest(ctx, filled)) : filled;
     style = format.image.style;
     size = format.image.size;
-    if (img.headline === "format" && format.image.headline) headlineText = cleanHeadline(fillImageText(format.image.headline, args.material.series?.values ?? {}, name && answer ? { name, value: answer } : null));
+    if (img.headline === "format") ({ headline: headlineText, label: labelText } = formatHeadlineTexts(format.image, args.material.series?.values ?? {}, name && answer ? { name, value: answer } : null));
   } else {
     const text = args.sns.map((s) => args.texts[s]).find((t) => t?.trim());
     if (!text) return { ok: false, detail: "画像の場面を書く本文がありません" };
@@ -91,7 +104,7 @@ export async function makeAutoImage(
   if (!headlineText) return { ok: true, image: plain };
   // 見出しを重ねる（サーバーで描く。④）。描けなかったときは、見出しなしの写真を添える（回は止めない）
   try {
-    return { ok: true, image: await overlayHeadline(admin, args.plan.ownerId, r.photo, headlineText, img.look, plain.alt) };
+    return { ok: true, image: await overlayHeadline(admin, args.plan.ownerId, r.photo, { headline: headlineText, label: labelText }, img.look, plain.alt) };
   } catch (e) {
     console.error("[auto-post] 見出しを重ねられませんでした", e instanceof Error ? e.message : e);
     return { ok: true, image: plain };
@@ -100,10 +113,11 @@ export async function makeAutoImage(
 
 // 見出しを重ねる。並べ方・色・書体・置き方は画面の「文字を入れる」と同じ（headlineInput。写真を全面に敷く screen）。
 // 描いた画像も候補の置き場所に置く（添えるときに印を入れて上げ直す）。画像の説明の先頭に、描いたのと同じ見出しの文を入れる
-async function overlayHeadline(admin: Db, ownerId: string, photo: AutoPhoto, text: string, look: AutoImageLook | undefined, scene: string): Promise<MadeImage> {
+async function overlayHeadline(admin: Db, ownerId: string, photo: AutoPhoto, texts: { headline: string; label: string }, look: AutoImageLook | undefined, scene: string): Promise<MadeImage> {
+  const text = texts.headline;
   const { data: blob, error } = await admin.storage.from(MEDIA_BUCKET).download(photo.path);
   if (error || !blob) throw error ?? new Error("download");
-  const settings: HeadlineSettings = { ...initialHeadline(photo, "", look ?? null), headline: text };
+  const settings: HeadlineSettings = { ...initialHeadline(photo, "", look ?? null), label: texts.label, headline: text };
   const { bytes } = await renderTemplateJpeg(headlineInput(settings, SERVER_FONTS[settings.font], photo), new Uint8Array(await blob.arrayBuffer()));
   const clean = sanitizeJpeg(bytes);
   const path = candidatePath(ownerId, crypto.randomUUID(), "jpg");
@@ -114,7 +128,8 @@ async function overlayHeadline(admin: Db, ownerId: string, photo: AutoPhoto, tex
     width: clean.width,
     height: clean.height,
     jobId: photo.jobId,
-    alt: [...`見出し「${text}」。${scene}`].slice(0, MAX_ALT_LENGTH).join(""),
+    // 画像の説明にも、描いたのと同じ文（上の小さい文があれば「小さい文／見出し」）
+    alt: [...`見出し「${texts.label ? `${texts.label}／` : ""}${text}」。${scene}`].slice(0, MAX_ALT_LENGTH).join(""),
     base: { path: photo.path, width: photo.width, height: photo.height },
     headline: settings,
   };

@@ -288,6 +288,8 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
     setShot({ bitmap: photo.bitmap, name: `ai:${photo.jobId}:${photo.bitmap.width}`, aiJobId: photo.jobId, scene: photo.scene });
     // フォーマットに見出しの文があれば入れておく（まだ何も書いていないときだけ）
     if (preset?.headline) setHeadline((h) => h || preset.headline || "");
+    // 見出しの上の小さい文（ラベル）も、フォーマットにあれば入れておく（まだ何も書いていないときだけ）
+    if (preset?.label) setLabel((l) => l || preset.label || "");
     setKind("screen");
     setPhotoFit("cover");
     // 文字を入れる画面に移るだけ（覚えたつくり方は AI の写真のまま）

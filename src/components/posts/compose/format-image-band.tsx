@@ -15,11 +15,11 @@ export function FormatImageBand({
 }: {
   use: FormatUse & { format: { image: FormatImage } };
   disabled: boolean;
-  onMake: (auto: boolean, texts: { text: string; headline: string | null }) => void;
+  onMake: (auto: boolean, texts: { text: string; headline: string | null; label: string | null }) => void;
 }) {
   const { format, values, answer } = use;
   const texts = formatPhotoTexts(format, values, answer);
-  const left = hasUnfilled(texts.text) || (texts.headline !== null && hasUnfilled(texts.headline));
+  const left = hasUnfilled(texts.text) || (texts.headline !== null && hasUnfilled(texts.headline)) || (texts.label !== null && hasUnfilled(texts.label));
   // 1 枚の目安（押す前に出す）。AI が場面に書き換えるときは、Claude の場面の分（SCENE_YEN.one）を足す
   const unit = photoUnitYen(photoModel({}));
   const cost = format.image.scene === "ai" ? `約 ${unit + SCENE_YEN.one[0]}〜${unit + SCENE_YEN.one[1]} 円` : `約 ${unit} 円`;
@@ -28,7 +28,12 @@ export function FormatImageBand({
       <p className="font-bold">フォーマット「{format.name}」の画像</p>
       <DisclosureBox label="絵の説明を表示">
         <p className="rounded-md bg-surface2 px-3 py-2 leading-[1.7] whitespace-pre-wrap">{texts.text}</p>
-        {texts.headline && <p className="mt-1 text-xs text-muted">重ねる見出し: {texts.headline}</p>}
+        {texts.headline && (
+          <p className="mt-1 text-xs text-muted">
+            重ねる見出し: {texts.label && <span>{texts.label} ／ </span>}
+            {texts.headline}
+          </p>
+        )}
       </DisclosureBox>
       {left && <p className="text-xs leading-[1.7]"><span className="mr-1.5 font-bold text-signal">● 要確認</span>【】のところは、「1 書く」でフォーマットの空欄を埋めると入ります。</p>}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">

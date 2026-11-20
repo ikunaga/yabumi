@@ -451,8 +451,9 @@ function layoutPhotoStyled(ctx: Ctx, style: Exclude<TextStyle, "big">) {
   const textW = w - m * 2 - padB * 2;
   const landscape = w > h;
   const headMax = (style === "bottom" ? 52 : landscape ? 64 : 68) * u;
-  const label = fitText(input.label, { maxWidth: textW, maxLines: 1, maxSize: 26 * u, minSize: 20 * u, font: input.fonts.bodyBold }, measure);
   const headline = fitText(input.headline, { maxWidth: textW, maxLines: landscape ? 2 : 3, maxSize: headMax, minSize: 36 * u, font: headFont, lineHeight: 1.45, balance: true }, measure);
+  // 見出しの上の小さい文（ラベル）は、描く見出しの半分くらいの大きさ・色の文字（2026-11-20 オーナーの指示。お手本は連想映画クイズ）
+  const label = fitText(input.label, { maxWidth: textW, maxLines: 1, maxSize: Math.max(20 * u, headline.size * 0.5), minSize: 20 * u, font: input.fonts.bodyBold }, measure);
   const sub = fitText(input.subline, { maxWidth: textW, maxLines: 2, maxSize: 30 * u, minSize: 20 * u, font: input.fonts.body, lineHeight: 1.7 }, measure);
   const gap = 20 * u;
   const textH = (label.lines.length ? blockHeight(label) + gap : 0) + blockHeight(headline) + (sub.lines.length ? gap + blockHeight(sub) : 0);
@@ -462,7 +463,8 @@ function layoutPhotoStyled(ctx: Ctx, style: Exclude<TextStyle, "big">) {
 
   let fg = "#ffffff";
   let subC = "rgba(255,255,255,0.9)";
-  let labelC = "rgba(255,255,255,0.9)";
+  // ラベルは palette の accent（白い帯の上でも、暗くした写真の上でも同じ色）
+  const labelC = input.palette.accent;
   let y: number;
   if (band) {
     const bh = textH + padB * 2;
@@ -470,7 +472,6 @@ function layoutPhotoStyled(ctx: Ctx, style: Exclude<TextStyle, "big">) {
     ops.push({ type: "rect", x: m, y: by, w: w - m * 2, h: bh, r: 0, fill: "rgba(255,255,255,0.94)" });
     fg = "#1f1f1f";
     subC = "#4a4a4a";
-    labelC = "#4a4a4a";
     y = by + padB;
   } else if (style === "quiet") {
     // 左上に置き、上だけを薄く暗くする

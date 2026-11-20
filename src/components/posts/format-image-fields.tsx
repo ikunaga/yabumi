@@ -6,7 +6,7 @@ import { PHOTO_STYLES, PHOTO_STYLE_LABEL, SCENE_YEN, photoModel, photoUnitYen } 
 import { TEMPLATE_SIZES } from "@/lib/media/templates";
 import { listPhotoTemplates } from "@/lib/photo-templates/actions";
 import type { PhotoTemplate } from "@/lib/photo-templates/schema";
-import { IMAGE_SCENES, IMAGE_SCENE_LABEL, IMAGE_SIZES, MAX_IMAGE_HEADLINE, MAX_IMAGE_PROMPT, imageSlotNames, needsAiScene, usesAnswer, type FormatImage } from "@/lib/post-formats/image";
+import { IMAGE_SCENES, IMAGE_SCENE_LABEL, IMAGE_SIZES, MAX_IMAGE_HEADLINE, MAX_IMAGE_LABEL, MAX_IMAGE_PROMPT, imageSlotNames, needsAiScene, usesAnswer, type FormatImage } from "@/lib/post-formats/image";
 import type { FormatSeries } from "@/lib/post-formats/series";
 import { Choice } from "./maker-parts";
 import { DisclosureBox } from "@/components/ui/disclosure";
@@ -166,7 +166,7 @@ export function FormatImageFields({
         <fieldset className="flex min-w-0 flex-col gap-1.5">
           <legend className="mb-1 font-bold">見出しを重ねる</legend>
           <div className="flex flex-wrap gap-2">
-            <Choice on={image.headline === null} onClick={() => setImage({ ...image, headline: null })}>
+            <Choice on={image.headline === null} onClick={() => setImage({ ...image, headline: null, label: null })}>
               なし
             </Choice>
             <Choice on={image.headline !== null} onClick={() => setImage({ ...image, headline: image.headline ?? "" })}>
@@ -174,14 +174,31 @@ export function FormatImageFields({
             </Choice>
           </div>
           {image.headline !== null && (
-            <Input
-              aria-label="見出しの文"
-              value={image.headline}
-              maxLength={MAX_IMAGE_HEADLINE}
-              onChange={(e) => setImage({ ...image, headline: e.target.value })}
-              placeholder="例: 連想映画クイズ（{ } で空欄も使えます）"
-              className="py-2 text-sm"
-            />
+            <>
+              {/* 見出しを 2 段にする（2026-11-20 オーナーの指示）。上の小さい文は色の文字で、見出しの半分くらいの大きさで描く */}
+              <label className="flex flex-col gap-1">
+                <span className="text-xs text-muted">上の小さい文（任意・{MAX_IMAGE_LABEL} 字まで。色の文字で、見出しの半分くらいの大きさ）</span>
+                <Input
+                  aria-label="見出しの上の小さい文"
+                  value={image.label ?? ""}
+                  maxLength={MAX_IMAGE_LABEL}
+                  onChange={(e) => setImage({ ...image, label: e.target.value })}
+                  placeholder="例: 連想映画クイズ"
+                  className="py-2 text-sm"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs text-muted">見出し（{MAX_IMAGE_HEADLINE} 字まで。{"{ }"} で空欄も使えます）</span>
+                <Input
+                  aria-label="見出しの文"
+                  value={image.headline}
+                  maxLength={MAX_IMAGE_HEADLINE}
+                  onChange={(e) => setImage({ ...image, headline: e.target.value })}
+                  placeholder="例: この画像から連想される映画は？"
+                  className="py-2 text-sm"
+                />
+              </label>
+            </>
           )}
         </fieldset>
 

@@ -12,7 +12,7 @@ export const MAX_IMAGE_HEADLINE = 40;
 // fill: 穴の言葉をそのまま入れて画像の AI に渡す（Claude を使わない）。ai: 穴の言葉と絵の説明を材料に、Claude が場面を 1 つ書く
 export const IMAGE_SCENES = ["fill", "ai"] as const;
 export type ImageScene = (typeof IMAGE_SCENES)[number];
-export const IMAGE_SCENE_LABEL: Record<ImageScene, string> = { fill: "穴の言葉をそのまま使う", ai: "AI が場面に直す" };
+export const IMAGE_SCENE_LABEL: Record<ImageScene, string> = { fill: "穴の言葉をそのまま使う", ai: "AI が場面に書き換える" };
 
 // auto: 送り先に合わせる（いまの画像をつくる画面の既定と同じ）
 export type ImageSize = "auto" | TemplateSizeKey;
@@ -103,7 +103,7 @@ export const hasUnfilled = (text: string) => /【[^【】\n]+】/.test(text);
 
 // 一覧の行の 1 行（「画像: イラスト・見出しあり」）
 export function imageSummary(img: FormatImage): string {
-  return ["画像: " + PHOTO_STYLE_LABEL[img.style].replace(/のように|で$/g, ""), img.scene === "ai" ? "AI が場面に直す" : null, img.headline ? "見出しあり" : null].filter(Boolean).join("・");
+  return ["画像: " + PHOTO_STYLE_LABEL[img.style].replace(/のように|で$/g, ""), img.scene === "ai" ? "AI が場面に書き換える" : null, img.headline ? "見出しあり" : null].filter(Boolean).join("・");
 }
 
 // ③ の帯から画像をつくる画面に渡すもの（docs/design/format-image.md の 2.1）。seq が変わるたびに開き直す。

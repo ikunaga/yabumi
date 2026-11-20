@@ -21,7 +21,7 @@ import type { Material } from "./materials";
 import type { AutoImageLook, AutoPlan } from "./types";
 
 // 自動の回の画像（docs/design/auto-sample-image.md の 2.。2026-11-19 オーナーが Q3・Q5・Q6 をおすすめで了承）。
-// 絵の説明はサーバーが作る（画面から受け取らない）: フォーマットの画像の設定にその回の穴の言葉・答えを入れたもの（「AI が場面に直す」なら Claude が場面を書く）か、
+// 絵の説明はサーバーが作る（画面から受け取らない）: フォーマットの画像の設定にその回の穴の言葉・答えを入れたもの（「AI が場面に書き換える」なら Claude が場面を書く）か、
 // その回の本文から Claude が書いた場面。画像は自動の投稿の分の枠（reserve_ai_images の p_auto）で 1 枚つくる。
 // 場面の Claude は用途 auto_post_scene（自動の投稿の AI の枠）
 

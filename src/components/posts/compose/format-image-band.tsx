@@ -19,7 +19,7 @@ export function FormatImageBand({
   const { format, values, answer } = use;
   const texts = formatPhotoTexts(format, values, answer);
   const left = hasUnfilled(texts.text) || (texts.headline !== null && hasUnfilled(texts.headline));
-  // 1 枚の目安（押す前に出す）。AI が場面に直すときは、Claude の場面の分（SCENE_YEN.one）を足す
+  // 1 枚の目安（押す前に出す）。AI が場面に書き換えるときは、Claude の場面の分（SCENE_YEN.one）を足す
   const unit = photoUnitYen(photoModel({}));
   const cost = format.image.scene === "ai" ? `約 ${unit + SCENE_YEN.one[0]}〜${unit + SCENE_YEN.one[1]} 円` : `約 ${unit} 円`;
   return (

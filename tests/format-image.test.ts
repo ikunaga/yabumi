@@ -64,7 +64,7 @@ describe("埋め方", () => {
   it("DB から読んだ値をそろえ、一覧の 1 行を作る", () => {
     expect(readFormatImage({})).toBeNull();
     const img = readFormatImage({ ...base, scene: "ai", headline: "連想映画クイズ" })!;
-    expect(imageSummary(img)).toBe("画像: イラスト・AI が場面に直す・見出しあり");
+    expect(imageSummary(img)).toBe("画像: イラスト・AI が場面に書き換える・見出しあり");
     expect(imageSummary({ ...img, style: "photo", scene: "fill", headline: null })).toBe("画像: 写真");
   });
 });

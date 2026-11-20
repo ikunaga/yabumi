@@ -94,9 +94,10 @@ describe("文の集め方と数え方", () => {
     expect(hit("設定で直せます")).toContain("naosu");
     expect(hit("↻ 右に 90° 回す")).toEqual([]);
     expect(hit("よく使う言い回し。ダウンロードは 1 回しかできません")).toEqual([]);
-    expect(hit("画像の数を確かめ、文面を変えます")).toEqual([]);
+    expect(hit("画像の数を確かめ、文面を変えます")).toEqual(["tashikameru"]);
     expect(hit("送る前の確かめで引っかかった見本")).toEqual(expect.arrayContaining(["tashikame", "hikkakaru"]));
-    expect(hit("中身を確かめてください")).toEqual([]);
+    // 動詞の「確かめる」は tashikame（名詞）には当たらない。2026-11-20 から「確認」にそろえる（tashikameru）
+    expect(hit("中身を確かめてください")).toEqual(["tashikameru"]);
     expect(hit("種類")).toContain("shurui");
     expect(hit("宣伝するものの種類")).toEqual([]);
   });

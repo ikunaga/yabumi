@@ -207,6 +207,9 @@
   ]
  },
  "src/app/(app)/projects/[id]/consult/page.tsx": {
+  "AI との相談は準備中です。ロードマップは手で決められます。": [
+   "junbichu"
+  ],
   "運用の悩みを相談できます。AI はアカウント設計・最近の投稿・数字・ロードマップを見たうえで、案を 2〜3 個出します。選んだ案だけが、設計やロードマップに入ります。": [
    "sekkei",
    "long"
@@ -222,6 +225,9 @@
   ]
  },
  "src/app/(app)/projects/[id]/github/page.tsx": {
+  "GitHub をつなぐ機能は準備中です。": [
+   "junbichu"
+  ],
   "組織（Organization）の管理者の承認待ちです。承認されたら「GitHub をつなぎ直す」を押してください。": [
    "paren"
   ],
@@ -246,6 +252,9 @@
   ],
   "・読むだけで、書き込みはしません（権限は「中身の読み取り」のみ）": [
    "paren"
+  ],
+  "・.env、鍵、証明書など、秘密が入りがちなファイル": [
+   "kagi"
   ]
  },
  "src/app/(app)/projects/[id]/ideas/page.tsx": {
@@ -397,7 +406,8 @@
    "sekkei"
   ],
   "AI との相談は準備中です。設計の画面で手で入力できます。": [
-   "sekkei"
+   "sekkei",
+   "junbichu"
   ],
   "設計の画面へ": [
    "sekkei"
@@ -504,11 +514,18 @@
    "long",
    "paren"
   ],
+  "預ける鍵は読むためだけに使い、暗号化して保存します。アプリの情報を書き換えることはありません。いつでも外せて、退会すると消えます。": [
+   "kagi"
+  ],
+  "ストアと課金の取り込みは準備中です。": [
+   "junbichu"
+  ],
   "画面の名前は、App Store Connect の表示の言語や更新で少し違うことがあります。Team キーはチームのすべてのアプリに届くので、yabumi はこのプロジェクトの App Store の URL（id の数字）のアプリだけを数えます。": [
    "long",
    "paren"
   ],
   "外す（預けた鍵を消す。取り込んだ数字は残ります）": [
+   "kagi",
    "paren"
   ],
   "ストアのページの閲覧数（任意） {…}": [
@@ -524,7 +541,11 @@
   "外す（読み取り用のアカウントを消す。取り込んだ数字は残ります）": [
    "paren"
   ],
+  "Google Play の取り込みは準備中です。": [
+   "junbichu"
+  ],
   "yabumi が、このプロジェクト専用の読み取り用のアカウント（メールアドレスの形）を用意します。それを Play Console に招待すると、毎日のインストールとストアのページの閲覧の数を読めるようになります。鍵を預ける必要はありません。": [
+   "kagi",
    "long",
    "paren"
   ],
@@ -595,6 +616,11 @@
    "paren"
   ]
  },
+ "src/app/api/ai/tidy-draft/route.ts": {
+  "AI はまだ準備中です。": [
+   "junbichu"
+  ]
+ },
  "src/app/page.tsx": {
   "生活の中で思いついたことや、あったことを、どの画面からでも「＋ メモ」でさっと残せます。あとで AI が、メモから投稿の案を出します（アプリや Web のサービスなら GitHub の更新からも）。": [
    "long",
@@ -633,11 +659,17 @@
   "アカウント設計の画面。項目ごとの決めたこと": [
    "sekkei"
   ],
+  "文字のカード、図解、写真に見出しを添えた画像を、テンプレートでつくれます。": [
+   "midashi"
+  ],
   "アプリを宣伝するときは、リポジトリをつなぐと、紹介文や更新を伝える投稿の案をつくります。": [
    "long"
   ],
   "アプリを宣伝するときは、App Store・Google Play・RevenueCat の数字を取り込み、投稿の効果と並べて見られます。": [
    "long"
+  ],
+  "準備中": [
+   "junbichu"
   ],
   "note・Substack（文面を用意）": [
    "paren"
@@ -654,6 +686,7 @@
    "long"
   ],
   "X・Threads・Instagram（プロアカウント）・Facebook ページに、yabumi から投稿・予約できます。note・Substack は文面を用意して、手で投稿する形です。TikTok・YouTube は準備中です。": [
+   "junbichu",
    "long",
    "paren"
   ],
@@ -805,11 +838,21 @@
  },
  "src/components/auto-post/image-picker.tsx": {
   "画像を自動でつくる機能は準備中です（ネタ帳の写真つきのメモは、写真を添えます）。": [
+   "junbichu",
    "paren"
   ],
   "商品・サービスの紹介では、イラストだけです（実物と違う商品を、本物の写真のように見せないため）。": [
    "long",
    "paren"
+  ],
+  "見出し": [
+   "midashi"
+  ],
+  "見出しを重ねる": [
+   "midashi"
+  ],
+  "投稿の文に合う見出しを AI が書いて、画像に重ねます。見出しは 20 字ほどです。 絵文字は画像に入れられないので、除きます。": [
+   "midashi"
   ],
   "AI でつくる画像について（はじめの 1 回だけ出します）": [
    "paren"
@@ -1073,6 +1116,9 @@
   ],
   "材料を変える": [
    "zairyo"
+  ],
+  ".env や鍵などのファイルは読まず、コミットの中身は yabumi に残しません。": [
+   "kagi"
   ],
   "（画像だけのメモ。ネタ帳でひとこと書き足すと使えます）": [
    "paren"
@@ -1576,12 +1622,17 @@
   ]
  },
  "src/components/posts/compose/step-write.tsx": {
-  "最初の {…} 本は、自分の言葉で書くのがおすすめです。 自分で書いて送った投稿は、いま {…} 本です。": [
-   "zumi"
-  ],
   "AI まかせの投稿は、どうしても人間らしさが出にくくなります。自分で書いた送信済みの投稿が {…} 本たまると、AI があなたの書き方（文の長さ・語尾・絵文字・改行など）を読み取り、ネタ出しや「AI で整える」の文をあなたの書き方に寄せられるようになります。AI で整える・ネタ出しは、いつでも使えます。": [
    "long",
    "paren"
+  ]
+ },
+ "src/components/posts/format-image-fields.tsx": {
+  "見出しの見た目": [
+   "midashi"
+  ],
+  "このフォーマットの画像には、見出しがこの見た目で入ります。自動投稿も同じです。投稿をつくるときは、あとから変えられます。": [
+   "midashi"
   ]
  },
  "src/components/posts/post-format-picker.tsx": {
@@ -1742,16 +1793,31 @@
   ]
  },
  "src/components/projects/sns-result-banner.tsx": {
+  "Threads をつなぐ機能は準備中です。": [
+   "junbichu"
+  ],
+  "Instagram をつなぐ機能は準備中です。": [
+   "junbichu"
+  ],
   "このアカウントはプロアカウントではないため、つなげませんでした。Instagram のアプリの「設定とアクティビティ」→「アカウントの種類とツール」→「プロアカウントに切り替える」で切り替えてから、もう一度つないでください（無料です）。": [
    "long",
    "paren"
+  ],
+  "Facebook ページをつなぐ機能は準備中です。": [
+   "junbichu"
   ],
   "投稿を作れる役割のある Facebook ページがありませんでした。ページの管理者に、投稿を作れる役割（管理者・編集者など）をもらってから、もう一度つないでください。Facebook の画面で、つなぐページにチェックが入っているかも確認してください。": [
    "long",
    "paren"
   ],
+  "YouTube をつなぐ機能は準備中です。": [
+   "junbichu"
+  ],
   "YouTube への投稿と、チャンネルの確認を許可されなかったため、つなぎませんでした。もう一度つなぎ、Google の画面で 2 つとも許可してください。": [
    "long"
+  ],
+  "X をつなぐ機能は準備中です。": [
+   "junbichu"
   ]
  },
  "src/components/push/push-settings.tsx": {
@@ -1920,6 +1986,11 @@
    "paren"
   ]
  },
+ "src/lib/ai/ai-check-actions.ts": {
+  "AI はまだ準備中です。": [
+   "junbichu"
+  ]
+ },
  "src/lib/ai/ai-check.ts": {
   "# 利用者が書いた事実（この中にあることは made_up にしない）⏎<facts>⏎{…}⏎</facts>": [
    "paren"
@@ -1945,6 +2016,11 @@
  "src/lib/ai/budget.ts": {
   "登録して 7 日までは、AI の利用は少なめです（今月の分に届きました）。{…}{…}": [
    "paren"
+  ]
+ },
+ "src/lib/ai/consult-actions.ts": {
+  "AI はまだ準備中です。": [
+   "junbichu"
   ]
  },
  "src/lib/ai/consult-goals.ts": {
@@ -2127,9 +2203,19 @@
    "paren"
   ]
  },
+ "src/lib/ai/image-brief-actions.ts": {
+  "AI はまだ準備中です。": [
+   "junbichu"
+  ]
+ },
  "src/lib/ai/image-brief.ts": {
   "本文が長すぎます（{…} 字まで）。": [
    "paren"
+  ]
+ },
+ "src/lib/ai/photo-actions.ts": {
+  "AI の画像はまだ準備中です。": [
+   "junbichu"
   ]
  },
  "src/lib/ai/photo-gen.ts": {
@@ -2155,6 +2241,7 @@
    "bamen"
   ],
   "この説明では、画像の AI の安全の決まりに当たって作れませんでした。説明を変えてお試しください（枚数には数えません）。": [
+   "gazoai",
    "paren"
   ],
   "画像をつくれませんでした。時間をおいてもう一度お試しください（枚数には数えません）。": [
@@ -2169,7 +2256,8 @@
  },
  "src/lib/ai/plan-coach-actions.ts": {
   "AI はまだ準備中です。設計の画面で手で入力できます。": [
-   "sekkei"
+   "sekkei",
+   "junbichu"
   ]
  },
  "src/lib/ai/plan-coach-prompt.ts": {
@@ -2207,6 +2295,24 @@
   ],
   "{…}⏎⏎（案をうまく表示できませんでした。「もう一度案を出して」と送ってください）": [
    "paren"
+  ]
+ },
+ "src/lib/ai/post-format-actions.ts": {
+  "AI はまだ準備中です。": [
+   "junbichu"
+  ]
+ },
+ "src/lib/ai/post-format-ai.ts": {
+  "何の投稿の型をつくるかを選んでください。": [
+   "kata"
+  ]
+ },
+ "src/lib/ai/post-ideas-actions.ts": {
+  "GitHub をつなぐ機能は準備中です。": [
+   "junbichu"
+  ],
+  "AI はまだ準備中です。": [
+   "junbichu"
   ]
  },
  "src/lib/ai/post-ideas.ts": {
@@ -2433,27 +2539,35 @@
    "paren"
   ],
   "Google AI Studio で、鍵（GEMINI_API_KEY）を作った Google Cloud のプロジェクトの課金（支払いの設定・前払いの残高）を確認してください（docs/deploy.md の 24）。": [
+   "kagi",
    "long",
    "paren"
   ],
   "Google Cloud のそのプロジェクトで Generative Language API が有効か、鍵の制限（使える API・接続元）で弾かれていないかを確認してください。": [
    "renkei",
+   "kagi",
    "long",
    "paren"
   ],
   "Vercel の環境変数 GEMINI_API_KEY の値が、Google AI Studio の鍵と同じか（消した・作り直した鍵でないか）を確認してください。": [
+   "kagi",
    "long",
    "paren"
   ],
   "Vercel の環境変数 ANTHROPIC_API_KEY の値が、Claude Console の鍵と同じか（消した・作り直した鍵でないか）を確認してください。": [
+   "kagi",
    "long",
    "paren"
   ],
   "Claude Console で、鍵のワークスペースの権限と、使っているモデルを使えるかを確認してください。": [
+   "kagi",
    "long"
   ],
   "Claude Console の Billing で、クレジットの残高と支払い方法を確認してください。": [
    "long"
+  ],
+  "{…}が状態番号 {…} を返しました。支払い・鍵の問題で、時間をおいても直りません。": [
+   "kagi"
   ],
   "利用者の画面には「いま使えません（yabumi の運営に知らせました）」と出しています（枚数・費用には数えていません）。": [
    "long",
@@ -2536,6 +2650,11 @@
    "paren"
   ]
  },
+ "src/lib/ai/voice-memo-actions.ts": {
+  "AI はまだ準備中です。": [
+   "junbichu"
+  ]
+ },
  "src/lib/ai/voice-memo.ts": {
   "自分で書いた送信済みの投稿が {…} 本たまると、書き方を読み取れます（いま {…} 本）。": [
    "paren"
@@ -2550,6 +2669,12 @@
   ],
   "AI の画像を使うには、先に AI の画像の注意を読んで「わかりました」を押してください。": [
    "long"
+  ],
+  "テストでつくる機能は準備中です。": [
+   "junbichu"
+  ],
+  "AI の画像はまだ準備中です。": [
+   "junbichu"
   ]
  },
  "src/lib/auto-post/ai.ts": {
@@ -2604,11 +2729,17 @@
   ]
  },
  "src/lib/auto-post/image.ts": {
+  "AI の画像は準備中です": [
+   "junbichu"
+  ],
   "画像の場面を書く本文がありません": [
    "bamen"
   ],
   "画像の場面を書けませんでした": [
    "bamen"
+  ],
+  "見出し「{…}{…}」。{…}": [
+   "midashi"
   ]
  },
  "src/lib/auto-post/labels.ts": {
@@ -2652,11 +2783,18 @@
    "paren"
   ],
   "送るたびに同意が要る SNS なので、自動投稿ではまだ選べません（準備中）": [
+   "junbichu",
    "paren"
   ],
   "TikTok・YouTube は、どちらも決まりで、送るたびにあなたがはっきり同意してから送ることになっているので、「自動で送る」にはできません。自動投稿では「確認して送る」（作った下書きを通知から開き、投稿の画面の同意の欄で確認して送る）にする予定ですが、どちらも画像や動画が要るので、画像を自動で添えられるようになってから選べるようにします。それまでは、投稿をつくるの画面から送ってください。": [
    "long",
    "paren"
+  ],
+  "・見出しは AI が書く": [
+   "midashi"
+  ],
+  "・フォーマットの見出し": [
+   "midashi"
   ],
   "AI がつくる（{…}・{…}）{…}": [
    "paren"
@@ -2798,10 +2936,12 @@
    "paren"
   ],
   "預かった鍵の形式が正しくありません": [
-   "azukaru"
+   "azukaru",
+   "kagi"
   ],
   "預かった鍵を開く鍵が見つかりません（CREDENTIAL_ENCRYPTION_KEY を入れ替えたあと、古い鍵を CREDENTIAL_ENCRYPTION_KEYS_OLD に残していない）": [
    "azukaru",
+   "kagi",
    "long",
    "paren"
   ]
@@ -2821,8 +2961,14 @@
   ]
  },
  "src/lib/github/actions.ts": {
+  "GitHub をつなぐ機能は準備中です。": [
+   "junbichu"
+  ],
   "そのリポジトリは読めません。GitHub の設定で、yabumi に読ませるリポジトリに入っているか確認してください。": [
    "long"
+  ],
+  "AI はまだ準備中です。": [
+   "junbichu"
   ]
  },
  "src/lib/github/api.ts": {
@@ -3064,6 +3210,7 @@
    "paren"
   ],
   "オーガニック投稿は、お金を払わずにふつうに投稿すること。広告は、お金を払って、まだフォローしていない人にも投稿を見せてもらうことです。yabumi はいま、オーガニック投稿を続けるのを助ける道具です（広告を出す機能は準備中）。": [
+   "junbichu",
    "long",
    "paren"
   ],
@@ -3195,6 +3342,9 @@
    "long",
    "paren"
   ],
+  "この機能は準備中です。": [
+   "junbichu"
+  ],
   "このドメインは、ほかのサービス（Vercel のほかのプロジェクト）で使われているため足せません。別のサブドメイン（例: go2.<あなたのドメイン>）にしてください。": [
    "long",
    "paren"
@@ -3272,14 +3422,22 @@
   ]
  },
  "src/lib/media/templates.ts": {
+  "写真に見出し": [
+   "midashi"
+  ],
   "商品・お店・アプリの画面などの写真に見出しを添える（写真は選ぶか、AI でつくる）": [
+   "midashi",
    "paren"
   ],
   "note の記事の見出し画像（1280×670）": [
+   "midashi",
    "paren"
   ],
   "、。，．,.・：；:;？！?!ー〜…‥）)］]｝}」』】〉》〕’”ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ々": [
    "long"
+  ],
+  "見出しを書いてください": [
+   "midashi"
   ],
   "{…}の図解（{…}）": [
    "paren"
@@ -3471,8 +3629,17 @@
   ]
  },
  "src/lib/post-formats/image.ts": {
+  "見出しは {…} 字までです": [
+   "midashi"
+  ],
+  "見出しの上の小さい文は {…} 字までです": [
+   "midashi"
+  ],
   "絵の説明に、型の文にない空欄 {{…}} があります": [
    "katanobun"
+  ],
+  "見出しあり": [
+   "midashi"
   ]
  },
  "src/lib/post-formats/schema.ts": {
@@ -3579,6 +3746,7 @@
  },
  "src/lib/sns/adapters/tiktok.ts": {
   "TikTok には写真が要ります。投稿に写真を添えてから送ってください（動画は準備中です）。": [
+   "junbichu",
    "paren"
   ],
   "TikTok の配信先がわかりません。": [
@@ -3682,13 +3850,16 @@
    "long"
   ],
   "TikTok の写真の投稿は、写真が先に出て、めくって見ます。説明は 2 行ほどで折りたたまれます（動画は準備中）。": [
+   "junbichu",
    "paren"
   ],
   "YouTube は動画の下の説明が 3 行ほどで折りたたまれます（動画の添付は準備中）。": [
+   "junbichu",
    "long",
    "paren"
   ],
   "動画が必要（準備中）": [
+   "junbichu",
    "paren"
   ],
   "Substack はタイトルと本文の記事（メールでも届きます）になります。画像は投稿の画面で手で添えます。": [
@@ -3699,6 +3870,9 @@
   ]
  },
  "src/lib/sns/publisher.ts": {
+  "{…} への送信はまだ準備中です。": [
+   "junbichu"
+  ],
   "{…} 側の準備（画像・動画の処理）に時間がかかっています。最初から送り直します。": [
    "paren"
   ],
@@ -3707,6 +3881,9 @@
   ],
   "今月の {…} の上限（yabumi 全体で ${…}）に達しました。来月まで自動では送りません。送信の結果から、手で投稿して記録できます。": [
    "paren"
+  ],
+  "{…} の取り消しはまだ準備中です。": [
+   "junbichu"
   ]
  },
  "src/lib/sns/threads/api.ts": {
@@ -3782,6 +3959,11 @@
    "renkei"
   ]
  },
+ "src/lib/sns/x/search-actions.ts": {
+  "yabumi の中で探すのは準備中です。": [
+   "junbichu"
+  ]
+ },
  "src/lib/sns/x/search.ts": {
   "登録して 7 日までは月 1 回です（{…} から月 3 回）": [
    "paren"
@@ -3794,6 +3976,9 @@
   ],
   "登録して 7 日までの方が探せる今月の分は、いっぱいになりました（{…} から探せます）": [
    "paren"
+  ],
+  "yabumi の中で探すのは準備中です": [
+   "junbichu"
   ]
  },
  "src/lib/sns/x/send-rules.ts": {
@@ -3838,6 +4023,9 @@
   ]
  },
  "src/lib/stores/actions.ts": {
+  "ストアと課金の取り込みは準備中です。": [
+   "junbichu"
+  ],
   "一括レポートの置き場所は pubsite_prod_ で始まる名前です（Play Console の「Cloud Storage の URI をコピー」）。": [
    "long",
    "paren"
@@ -3850,6 +4038,9 @@
   ]
  },
  "src/lib/stores/app-store-analytics.ts": {
+  "{…}: 鍵が使えませんでした。Issuer ID・Key ID・秘密鍵が同じキーのものか確認してください。": [
+   "kagi"
+  ],
   "{…}: App Store Connect から読めませんでした（{…}）。時間をおいて読み直します。": [
    "paren"
   ]
@@ -3870,6 +4061,7 @@
    "paren"
   ],
   "鍵が使えませんでした。Issuer ID・Key ID・秘密鍵が同じキーのものか、キーが取り消されていないかを確認してください。": [
+   "kagi",
    "long"
   ],
   "このキーには売上のレポートを読む権限がありません。役割が「Sales and Reports」（または Admin・Finance）の Team キーを作ってください。": [
@@ -3881,6 +4073,9 @@
   ]
  },
  "src/lib/stores/google.ts": {
+  "Google Play をつなぐ機能は準備中です。": [
+   "junbichu"
+  ],
   "yabumi （yabumi）が Google Play の一括レポートを読むためのアカウント": [
    "long",
    "paren"
@@ -3907,6 +4102,9 @@
   ]
  },
  "src/lib/stores/play-store.ts": {
+  "Google Play の取り込みは準備中です。": [
+   "junbichu"
+  ],
   "Google Play のつなぎ直しが続いています（30 日に 5 回まで）。しばらくたってからお試しください。yabumi の運営に知らせてもかまいません。": [
    "paren"
   ],
@@ -3954,6 +4152,7 @@
    "paren"
   ],
   "App Store の売上の鍵（Sales and Reports）を先に入れてください。": [
+   "kagi",
    "long",
    "paren"
   ]
@@ -3984,6 +4183,7 @@
  },
  "src/lib/voice/speech.ts": {
   "マイクを使うのが許可されていません。アドレス欄の左のマーク（鍵など）を押してマイクを「許可」にしてから、もう一度マイクのボタンを押してください。スマホは、設定のアプリ（ブラウザ）の欄でマイクを許可します。": [
+   "kagi",
    "long",
    "paren"
   ],

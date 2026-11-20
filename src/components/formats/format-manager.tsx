@@ -680,6 +680,7 @@ function SeriesRounds({ projectId, format, open = false }: { projectId: string; 
     // 開いたときの 1 回だけ（key で作り直される）
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  const label = format.series.answer?.name || "";
   const answerName = format.series.answer?.name || DEFAULT_ANSWER_NAME;
   return (
     <DisclosureBox

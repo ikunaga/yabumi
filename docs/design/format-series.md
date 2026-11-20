@@ -29,7 +29,13 @@
 - 記録（post_format_rounds.values）: 画像だけで使う空欄の言葉も残す（cleanRoundValues に series を渡す）。自動の回はもとから案の値をそのまま残す
 - 投稿をつくる: 空欄の欄に「画像だけで使う・本文には入りません」として出し、編集できる。「本文に入れる」では本文に入らない（fillFormat は型の文の空欄だけ）。画像をつくるとき（そのまま使う・AI が絵の説明を書く）に使う。サーバーで絵の説明を埋めるとき（runFormatPhotoScene）も、型の文の空欄と画像だけで使う空欄の言葉だけを受け取る
 - 自動の回・見本: 案の値に入るので、画像（src/lib/auto-post/image.ts）の絵の説明・見出しに入る
-- 気をつけること: 本文に空欄がない型は、毎回同じ本文になる。SNS によっては同じ文の投稿を続けて断ることがある（X など）。答えの回数などを本文に入れる型をおすすめする
+- 本文が毎回同じ型（型の文に AI の空欄がないシリーズ。fixedBodySeries）（2026-11-20 PM の判断）
+  - 自動の投稿の送る前の確かめ「前の投稿と似ています（similar）」は、本文が毎回同じなので毎回止まっていた。この型では本文で見ない（plainIssues の skipSimilar）。重なりは、次の回の案を選ぶときに、答え（答えがなければ空欄の言葉の組み合わせ。画像だけで使う空欄を含む）で見ている（normalizeRoundProposals）
+  - X は選べない。ウィザードで X の印を押せなくし、その場に「X は同じ文の投稿を続けて送れないため、本文が毎回同じフォーマットでは選べません。」を出す。保存（saveAutoPlan）でも断る。あとからフォーマットを固定の本文に変えたときは、自動の回で材料なし（cannot_write）にする
+    - 出どころ: X の自動化の決まり（https://help.x.com/en/rules-and-policies/x-automation）は、1 つのアカウントで重複した・ほぼ同じ投稿をすることを禁じている。X の API は、同じ文の投稿を「duplicate content」で断る（v2 は 403）。2026-11-20 に確かめた。help.x.com はこの環境から 403 で本文を直接読めず、検索結果の要約で文面を確かめた。API の断り方は、X の API の文書（https://docs.x.com/x-api/posts/create-post）には書いていない。外部の連携サービスの文書の記載で確かめた
+  - Threads・Instagram は選べるまま。Threads の API の文書（https://developers.facebook.com/docs/threads/overview）と Instagram のコンテンツ公開の文書（https://developers.facebook.com/docs/instagram-platform/content-publishing）には、同じ文の投稿の決まりはない（上限は本数だけ）。Meta のスパムの決まり（https://transparency.meta.com/policies/community-standards/spam/）は、とても高い頻度の投稿を禁じ、同じ中身のくり返しをスパムの目安の 1 つに挙げている。自動の投稿は 1 日に SNS ごと 2 本までで、画像は毎回違うので、当たらないと判断した
+  - フォーマットの編集の欄に「● 本文に AI が埋める空欄がないので、本文は毎回同じになります。X は同じ文の投稿を続けて送れないため、自動の投稿では X を選べません。」を出す
+- 画像だけで使う空欄を、絵の説明でも見出しでも使っていないときは、編集の欄に注意を 1 行出す（保存は断らない）
 - 法務: 預かる情報（シリーズの設定・回ごとの空欄に入れた言葉）・送り先（Anthropic・Google）・使い道は変わらない。docs/legal.md に記録
 
 ## 2. シリーズの記録（post_format_rounds）

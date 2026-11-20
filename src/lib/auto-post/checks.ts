@@ -96,7 +96,11 @@ export function foreignLinks(text: string, allowed: readonly string[]): string[]
 // 字数（縮めたあとも超えていれば）・【】・材料にない URL・ハッシュタグの数・前の投稿との重なり。
 // tags: 本文とは別に付くタグ（シリーズのフォーマット・いつものタグ）。字数とタグの数は、送る文（本文＋空行＋タグの行。本文にもあるタグは行に付けない）で数える。
 // 重なりは本文だけで比べる（毎回同じタグの行で「似すぎ」にならないように。前の投稿の本文もタグなし）
-export function plainIssues(texts: Texts, opts: { allowedUrls: readonly string[]; recent: Partial<Record<SnsKey, string[]>>; tags?: Partial<Record<SnsKey, string[]>> }): Issue[] {
+// skipSimilar: 本文が毎回同じシリーズ（重なりは答えと空欄の言葉で見ているので、本文が同じことを理由にしない）
+export function plainIssues(
+  texts: Texts,
+  opts: { allowedUrls: readonly string[]; recent: Partial<Record<SnsKey, string[]>>; tags?: Partial<Record<SnsKey, string[]>>; skipSimilar?: boolean },
+): Issue[] {
   const issues: Issue[] = [];
   for (const [k, body] of Object.entries(texts) as [SnsKey, string][]) {
     if (!body.trim()) {
@@ -110,7 +114,7 @@ export function plainIssues(texts: Texts, opts: { allowedUrls: readonly string[]
     if (foreignLinks(body, opts.allowedUrls).length) issues.push({ kind: "check_failed", detail: `${k} に、行き先として登録していない URL があります` });
     // 利用者が決めたタグ（keep）は、目安より多くても止めない（投稿をつくると同じく目安の注意だけ）。AI が本文に足した分で目安を超えたら止める
     if (extractHashtags(sent).length > Math.max(HASHTAG_RULES[k].max, keep.length)) issues.push({ kind: "check_failed", detail: `${k} のハッシュタグが多すぎます` });
-    if (maxSimilarity(body, opts.recent[k] ?? []) >= thresholdOf(k)) issues.push({ kind: "similar", detail: `${k} の文が、前に送った投稿と似ています` });
+    if (!opts.skipSimilar && maxSimilarity(body, opts.recent[k] ?? []) >= thresholdOf(k)) issues.push({ kind: "similar", detail: `${k} の文が、前に送った投稿と似ています` });
   }
   return issues;
 }

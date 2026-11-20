@@ -67,6 +67,13 @@ export function imageOnlySlots(body: string, series: FormatSeries | null | undef
   return Object.keys(series?.slots ?? {}).filter((n) => !inBody.includes(n));
 }
 
+// 本文が毎回同じシリーズ（型の文に AI の空欄がない。画像だけで使う空欄と答えだけが変わる）。
+// 自動の投稿で X を選べない（X は同じ文の投稿を続けて送れない）・前の投稿と似ているかを本文で見ない（2026-11-20 PM の指示。format-series.md の 1.1）
+export function fixedBodySeries(body: string, series: FormatSeries | null | undefined): boolean {
+  return isSeries(series) && !formatSlots(body).some((n) => n in (series?.slots ?? {}));
+}
+export const X_FIXED_BODY = "X は同じ文の投稿を続けて送れないため、本文が毎回同じフォーマットでは選べません";
+
 // その回に言葉が入る空欄（型の文の空欄 + 画像だけで使う空欄）
 export const roundSlotNames = (body: string, series: FormatSeries | null | undefined) => [...formatSlots(body), ...imageOnlySlots(body, series)];
 

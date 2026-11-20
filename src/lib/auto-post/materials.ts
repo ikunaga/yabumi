@@ -4,7 +4,7 @@ import { budgeted } from "@/lib/ai/budget";
 import { callFormatRound } from "@/lib/ai/anthropic";
 import type { PlanData } from "@/lib/plan/schema";
 import { listRounds, usedAnswerKeys } from "@/lib/post-formats/rounds";
-import { answerKey, isSeries, ROUNDS_FOR_AI } from "@/lib/post-formats/series";
+import { X_FIXED_BODY, answerKey, fixedBodySeries, isSeries, ROUNDS_FOR_AI } from "@/lib/post-formats/series";
 import { fillFormat, formatSlots, formatTagsFor } from "@/lib/post-formats/schema";
 import { getFormat } from "@/lib/post-formats/store";
 import type { SnsKey } from "@/lib/sns";
@@ -30,7 +30,8 @@ export type Material = {
   // シリーズは AI で文を作らず、型に入れた文をそのまま使う（SNS ごとに同じ文。タグはフォーマットの毎回付けるタグ）
   fixedTexts?: Partial<Record<SnsKey, string>>;
   fixedTags?: Partial<Record<SnsKey, string[]>>;
-  series?: { formatId: string; answer: string; values: Record<string, string> };
+  // fixedBody: 本文が毎回同じシリーズ（前の投稿と似ているかを本文で見ない。重なりは答えと空欄の言葉で、案を選ぶときに見ている）
+  series?: { formatId: string; answer: string; values: Record<string, string>; fixedBody?: boolean };
 };
 
 export type NoMaterial = { none: true; reason: AutoRunReason; detail: string };
@@ -152,6 +153,9 @@ async function pickSeries(admin: Db, plan: AutoPlan & { ownerId: string }, planD
   if (!format || !isSeries(format.series)) return { none: true, reason: "no_material", detail: "シリーズのフォーマットが見つかりません" };
   const handSlots = formatSlots(format.body).filter((s) => !(s in format.series.slots));
   if (handSlots.length) return { none: true, reason: "cannot_write", detail: "自分で埋める空欄があるフォーマットは、自動では書けません" };
+  // 本文が毎回同じフォーマットは X に送れない（ウィザードと保存で選べないようにしている。あとからフォーマットを変えたとき）
+  const fixedBody = fixedBodySeries(format.body, format.series);
+  if (fixedBody && plan.targets.x) return { none: true, reason: "cannot_write", detail: X_FIXED_BODY };
   const rounds = await listRounds(admin, format.id);
   const used = usedAnswerKeys(rounds);
   if (!format.series.answer) for (const r of rounds) used.add(answerKey(Object.keys(format.series.slots).map((n) => r.values[n] ?? "").join("|")));
@@ -178,7 +182,7 @@ async function pickSeries(admin: Db, plan: AutoPlan & { ownerId: string }, planD
     allowedUrls: [],
     fixedTexts: Object.fromEntries(sns.map((s) => [s, text])),
     fixedTags: Object.fromEntries(sns.map((s) => [s, formatTagsFor(format.hashtags, s)])),
-    series: { formatId: format.id, answer: p.answer, values: p.values },
+    series: { formatId: format.id, answer: p.answer, values: p.values, fixedBody },
   };
 }
 

@@ -10,6 +10,8 @@ import { readFormatImage } from "@/lib/post-formats/image";
 import { fakeAiMode } from "./ai";
 import { fitImageToFormat } from "./format-image";
 import { HOLD_REFUSED, myAutoPostHold } from "./holds";
+import { getFormat } from "@/lib/post-formats/store";
+import { X_FIXED_BODY, fixedBodySeries } from "@/lib/post-formats/series";
 import { getAutoPlan, listProjectEvents, loadTargetPreviews } from "./queries";
 import { autoPlanInputSchema, eventInputSchema, instructionSchema, instructionsSchema } from "./schema";
 import type { AutoPlan, AutoPlanInput, AutoResult, AutoSample, ProjectEvent } from "./types";
@@ -67,6 +69,11 @@ export async function saveAutoPlan(projectId: string, input: AutoPlanInput): Pro
   const db = await signedIn();
   if (!db) return SIGN_IN;
   const v = { ...p.data, image: await imageForFormat(db, projectId, p.data) };
+  // 本文が毎回同じシリーズのフォーマットは X に送れない（画面でも選べない。2026-11-20 PM の指示）
+  if (v.kind === "series" && v.targets.x && v.materials.format_id) {
+    const f = await getFormat(db, projectId, v.materials.format_id);
+    if (f && fixedBodySeries(f.body, f.series)) return { ok: false, error: `${X_FIXED_BODY}。X の印を外してください。` };
+  }
   const { data, error } = await db.rpc("save_auto_plan", {
     p_plan_id: (v.id ?? null) as string,
     p_project_id: projectId,

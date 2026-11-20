@@ -307,7 +307,7 @@ export async function draftRun(
     for (const [id, t] of short) texts[id as SnsKey] = t;
   }
 
-  const checkArgs = { allowedUrls: material.allowedUrls, recent: args.recent.bySns, tags: fixedTags };
+  const checkArgs = { allowedUrls: material.allowedUrls, recent: args.recent.bySns, tags: fixedTags, skipSimilar: !!material.series?.fixedBody };
   hold ??= plainIssues(texts, checkArgs)[0] ?? null;
   if (!hold) {
     // AI っぽさチェック（自動の投稿の枠。用途 auto_post_check）

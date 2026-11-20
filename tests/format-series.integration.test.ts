@@ -1,10 +1,13 @@
 // シリーズ投稿（20261113140000_format_series。docs/design/format-series.md）: 設定の保存・記録の RLS と列の権限・結びつけ（付け替えない）・
 // 300 回と 3,000 回・リセットで消す・貼る・次の回の案の流れ（偽の AI）・1 日 20 回。本物の AI は呼ばない
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+vi.mock("server-only", () => ({}));
 import { runFormatRound, type CallFormatRound } from "@/lib/ai/format-round-ai";
 import { addFormat, getFormat } from "@/lib/post-formats/store";
 import { addRound, attachRounds, discardRounds, listRounds, pasteRounds } from "@/lib/post-formats/rounds";
-import { SERIES_DAILY_RUNS } from "@/lib/post-formats/series";
+import { SERIES_DAILY_RUNS, X_FIXED_BODY, fixedBodySeries } from "@/lib/post-formats/series";
+import { pickMaterial } from "@/lib/auto-post/materials";
+import { normalizePlan } from "@/lib/plan/schema";
 import { scopeAiBudget } from "./helpers/ai-budget";
 import { adminClient, anonClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
 
@@ -151,6 +154,17 @@ describe("画像だけで使う空欄（2026-11-20）", () => {
     const r = await runFormatRound(alice, admin, { callFormatRound: call }, { userId: aliceId, projectId, formatId: id, wish: "" });
     expect(r).toMatchObject({ ok: true, proposals: [{ answer: "ジョーズ", values: { キーワード: "海・背びれ・浜辺" } }] });
     expect(JSON.stringify(vi.mocked(call).mock.calls[0][0].messages)).toContain("AI が埋める空欄 {キーワード}（本文には出さず、画像の絵の説明だけに使う）");
+
+    // 本文が毎回同じ型: 自動の回は X に送らない（材料なし）。X がなければ、本文はそのまま・fixedBody の印つき（前の投稿と似ているかを本文で見ない）
+    const f = (await getFormat(alice, projectId, id))!;
+    expect(fixedBodySeries(f.body, f.series)).toBe(true);
+    const plan = (targets: Record<string, string>) => ({ id: "p", projectId, ownerId: aliceId, kind: "series", materials: { format_id: id }, targets, instructions: [] }) as never;
+    const project = { name: "ねむり日和", description: null, target_audience: null, product_type: "app" };
+    const pick = (targets: Record<string, string>) =>
+      pickMaterial(admin, { plan: plan(targets), planData: normalizePlan({}, ""), project, past: [], dueAt: new Date() }, { callFormatRound: call });
+    expect(await pick({ x: "review", threads: "auto" })).toMatchObject({ none: true, detail: X_FIXED_BODY });
+    expect(await pick({ threads: "auto" })).toMatchObject({ fixedTexts: { threads: fixed }, series: { fixedBody: true, values: { キーワード: "海・背びれ・浜辺" } } });
+    await admin.from("ai_usage").delete().eq("owner_id", aliceId);
     await alice.from("post_formats").delete().eq("id", id);
   });
 });

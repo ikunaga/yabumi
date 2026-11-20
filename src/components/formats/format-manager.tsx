@@ -22,6 +22,7 @@ import {
   MAX_PASTE_ROUNDS,
   MAX_ROUNDS,
   MAX_SERIES_INSTRUCTION,
+  fixedBodySeries,
   imageOnlySlots,
   isSeries,
   okSlotName,
@@ -262,7 +263,12 @@ export function FormatEditor({
       </label>
       {/* 毎回 AI に変えてもらう（シリーズ）は本文のすぐ下に出す（前はいちばん下に畳まれていて見つからなかった。パワポの 1・3・8） */}
       {/* 本文に空欄がなくても、画像だけで使う空欄は足せる（本文は決まった文のまま、絵だけ毎回変える。2026-11-20） */}
-      <SeriesFields slots={slots} series={series} setSeries={(x) => (setSeries(x), setProblem(null))} />
+      <SeriesFields
+        slots={slots}
+        series={series}
+        usedInImage={image.prompt.trim() ? formatSlots(`${image.prompt}\n${image.headline ?? ""}`) : []}
+        setSeries={(x) => (setSeries(x), setProblem(null))}
+      />
       <label className="flex flex-col gap-1">
         <span className="text-xs font-bold">
           埋めた例<span className="ml-1.5 font-normal text-muted">任意</span>
@@ -469,7 +475,7 @@ function FormatAiMaker({ projectId, kinds, onPick, onCancel }: { projectId: stri
 
 // フォーマットの編集の「シリーズ」（docs/design/format-series.md の 1）。穴ごとに「AI が埋める」を選び、短い指示を書く。
 // 本文に出さない答え（例: 映画）も 1 つ持てる。AI の穴が 1 つでもあれば、投稿をつくるで「AI に次の回を出してもらう」が出る
-function SeriesFields({ slots, series, setSeries }: { slots: string[]; series: FormatSeries; setSeries: (s: FormatSeries) => void }) {
+function SeriesFields({ slots, series, usedInImage, setSeries }: { slots: string[]; series: FormatSeries; usedInImage: string[]; setSeries: (s: FormatSeries) => void }) {
   const on = Object.keys(series.slots).length > 0;
   const imageOnly = imageOnlySlots(slots.map((n) => `{${n}}`).join(""), series);
   return (
@@ -554,14 +560,30 @@ function SeriesFields({ slots, series, setSeries }: { slots: string[]; series: F
             <span className="text-muted">答えは前の回と重ならないように使います。投稿には入りません。</span>
           </div>
         )}
-        <ImageOnlySlots slots={slots} imageOnly={imageOnly} series={series} setSeries={setSeries} />
+        <ImageOnlySlots slots={slots} imageOnly={imageOnly} usedInImage={usedInImage} series={series} setSeries={setSeries} />
+        {/* 本文に AI の空欄がないシリーズは、本文が毎回同じ（X に自動で送れない。2026-11-20 PM の指示） */}
+        {fixedBodySeries(slots.map((n) => `{${n}}`).join(""), series) && (
+          <p className="font-semibold leading-[1.7] text-signal">● 本文に AI が埋める空欄がないので、本文は毎回同じになります。X は同じ文の投稿を続けて送れないため、自動の投稿では X を選べません。</p>
+        )}
       </div>
     </section>
   );
 }
 
 // 画像だけで使う空欄（本文には入れず、画像の絵の説明・見出しでだけ使う。毎回 AI が埋める。2026-11-20 オーナーの指示。format-series.md の 1.1）
-function ImageOnlySlots({ slots, imageOnly, series, setSeries }: { slots: string[]; imageOnly: string[]; series: FormatSeries; setSeries: (s: FormatSeries) => void }) {
+function ImageOnlySlots({
+  slots,
+  imageOnly,
+  usedInImage,
+  series,
+  setSeries,
+}: {
+  slots: string[];
+  imageOnly: string[];
+  usedInImage: string[];
+  series: FormatSeries;
+  setSeries: (s: FormatSeries) => void;
+}) {
   const [name, setName] = useState("");
   const [why, setWhy] = useState<string | null>(null);
   const full = Object.keys(series.slots).length >= MAX_FORMAT_SLOTS;
@@ -606,6 +628,9 @@ function ImageOnlySlots({ slots, imageOnly, series, setSeries }: { slots: string
             placeholder="AI への指示（例: 答えの映画を連想できる言葉を 5 つ。・でつなぐ）"
             className="min-h-[3.75rem] py-2 text-sm [field-sizing:content]"
           />
+          {!usedInImage.includes(n) && (
+            <span className="font-semibold text-signal">● 下の「画像の設定」の絵の説明でも見出しでも使っていません。使わないと、AI が埋めてもどこにも出ません。</span>
+          )}
         </div>
       ))}
       {full ? (

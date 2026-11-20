@@ -27,7 +27,7 @@ export function ErrorFallback({
       <div role="alert" className="flex flex-1 flex-col items-center justify-center gap-4 px-5 py-16 text-center">
         <h1 className="font-heading text-2xl font-bold">yabumi が新しくなりました</h1>
         <p className="max-w-[480px] text-[14px] leading-7 text-muted">
-          画面を開いたあとに yabumi が新しくなったため、続きができませんでした。「読み込み直す」を押してください。投稿をつくるの本文・設計・ネタ帳のメモは、読み込み直しても戻ります。
+          画面を開いたあとに yabumi が新しくなったため、続きができませんでした。「読み込み直す」を押してください。書きかけの投稿・アカウントの方針・ネタ帳のメモは、読み込み直しても戻ります。
         </p>
         <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
           <Button type="button" onClick={() => window.location.reload()}>

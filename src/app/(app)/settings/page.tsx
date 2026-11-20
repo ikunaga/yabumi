@@ -75,7 +75,9 @@ export default async function SettingsPage() {
               <div className="flex flex-col gap-4 px-6 pt-1 pb-5 text-[14px] leading-7">
                 <p>退会すると、yabumi に保存しているあなたのデータをすべて消します。元に戻せません。</p>
                 <ul className="list-disc pl-5">
-                  <li>消えるもの: アカウント、プロジェクト、アカウント設計、投稿（下書き・予約・送信の記録）、AI との会話、つないだ SNS とそのトークン、GitHub のつながり</li>
+                  <li>消えるもの: アカウント・プロジェクト・アカウントの方針・投稿</li>
+                  <li>投稿は、下書き・予約・送信の記録がすべて消えます</li>
+                  <li>AI との会話、つないだ SNS とそのトークン、GitHub のつながりも消えます</li>
                   <li>X は、X の側でも yabumi を外します。GitHub は、yabumi の GitHub App を外します</li>
                   <li>
                     SNS への送信済みの投稿は消しません。消したい投稿があれば、退会の前に、投稿の画面の「SNS から取り消す」を使ってください

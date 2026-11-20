@@ -9,7 +9,7 @@ export const MAX_DIRECTION_NOTE = 100;
 type Choice<K extends string> = { key: K; label: string; hint: string };
 
 export const TIDY_TONES = [
-  { key: "plan", label: "設計どおり", hint: "アカウント設計の口調のまま" },
+  { key: "plan", label: "方針どおり", hint: "アカウントの方針の口調のまま" },
   { key: "polite", label: "ていねい", hint: "です・ます調で、きちんと" },
   { key: "casual", label: "くだけた", hint: "友だちに話すように、やわらかく" },
   { key: "passionate", label: "熱を込めて", hint: "思いが伝わるように、言い切って" },
@@ -25,13 +25,13 @@ export const TIDY_LENGTHS = [
 export const TIDY_AIMS = [
   { key: "auto", label: "おまかせ", hint: "元の文に合わせて" },
   { key: "awareness", label: "知ってもらう", hint: "まず名前や中身を覚えてもらう" },
-  { key: "action", label: "やってもらう", hint: "行き先に行く・買う・予約など、設計の「してほしいこと」へ" },
+  { key: "action", label: "やってもらう", hint: "リンク先を開く・買う・予約など、方針の「してほしいこと」へ" },
   { key: "empathy", label: "共感してもらう", hint: "気持ちや体験に「わかる」と思ってもらう" },
   { key: "question", label: "問いかけて反応をもらう", hint: "答えたくなる問いで、返事をもらう" },
 ] as const satisfies readonly Choice<string>[];
 
 export const TIDY_EMOJIS = [
-  { key: "auto", label: "設計どおり", hint: "設計の口調どおり（決めていなければ使わない）" },
+  { key: "auto", label: "方針どおり", hint: "アカウントの方針の口調どおり。決めていなければ使わない" },
   { key: "none", label: "なし", hint: "絵文字を使わない" },
   { key: "some", label: "少し", hint: "1〜2 個まで" },
 ] as const satisfies readonly Choice<string>[];

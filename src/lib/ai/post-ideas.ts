@@ -548,7 +548,7 @@ export async function generatePostIdeas(
     if (!x.ok) return { ok: false, message: x.message };
     xPost = x.value;
   } else if (!hasPlanMaterial(ctx)) {
-    return { ok: false, message: "アカウント設計か、プロジェクトの説明を先に書いてください。何もないところからだと、事実でないネタになりやすいためです。" };
+    return { ok: false, message: "アカウントの方針か、プロジェクトの説明を先に書いてください。何もないところからだと、事実でないネタになりやすいためです。" };
   }
 
   let req: IdeasRequest;

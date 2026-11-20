@@ -51,7 +51,7 @@ export type CallModel = (req: ModelRequest) => Promise<ModelResult>;
 export function userContentToText(c: UserContent): string {
   switch (c.kind) {
     case "start":
-      return c.focus ? `アカウント設計を手伝ってください。「${sectionLabel(c.focus)}」から一緒に考えたいです。` : "アカウント設計を手伝ってください。";
+      return c.focus ? `アカウントの方針を決めるのを手伝ってください。「${sectionLabel(c.focus)}」から一緒に考えたいです。` : "アカウントの方針を決めるのを手伝ってください。";
     case "text":
       return c.text;
     case "focus":
@@ -143,7 +143,7 @@ export async function coachStep(
 
   const history = await loadHistory(admin, threadId);
   if (history.length >= MAX_TURNS_PER_THREAD * 2) {
-    return { ok: false, threadId, message: "この会話は長くなったので、ここまでにしましょう。「最初から相談する」で新しい会話を始められます（決まった設計は残ります）。" };
+    return { ok: false, threadId, message: "この会話は長くなったので、ここまでにしましょう。「最初から相談する」で新しい会話を始められます。決まったアカウントの方針は残ります。" };
   }
 
   // 宣伝するものの種類（「何を宣伝するか」の案を採用したら、AI にはすぐ新しい種類を渡す）

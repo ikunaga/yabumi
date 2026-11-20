@@ -39,7 +39,7 @@ export function suggestKind(m: SuggestMaterials): KindSuggestion {
   }
   if (m.seriesFormats > 0) return { kind: "series", reason: `シリーズのフォーマットが ${m.seriesFormats} つあります。毎回、前と重ならない投稿を作ります` };
   if (m.destinations > 0) return { kind: "product", reason: `行き先が ${m.destinations} 件あります。行き先と切り口を順に変えて紹介します` };
-  return { kind: "pillars", reason: "設計の柱を順に回して、定番の投稿を作ります" };
+  return { kind: "pillars", reason: "アカウントの方針の投稿のテーマを順に使って、定番の投稿を作ります" };
 }
 
 // ===== どのくらい: 回数 =====
@@ -151,10 +151,10 @@ export function suggestSchedules(input: ScheduleInput): ScheduleSuggestion[] {
         weeks >= 1
           ? `メモが ${remaining} 件あるので ${weeks} 週間続けられます`
           : `メモが ${remaining} 件なので、1 週間もたずに使い切ります`;
-      if (plan) reason = `設計の頻度（${perWeekLabel(n)}）に合わせました。${reason}`;
+      if (plan) reason = `アカウントの方針の頻度、${perWeekLabel(n)} に合わせました。${reason}`;
     } else {
       reason = plan
-        ? `設計の頻度（${perWeekLabel(n)}）に合わせました`
+        ? `アカウントの方針の頻度、${perWeekLabel(n)} に合わせました`
         : input.fromWinner && n <= 2
           ? "同じ型を出しすぎると似てくるので、少なめにします"
           : n >= 7 ? "毎日出して、見てもらう回数を増やします" : `無理なく続けられる回数です`;

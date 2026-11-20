@@ -21,7 +21,7 @@ export function projectNavItems(projectId: string): ProjectNavItem[] {
     { key: "drafts", label: "下書き", barLabel: "Drafts", tabLabel: "下書き", href: `${base}/drafts`, main: false },
     // SNS のコメント（4.70）。概要の「新しいコメント」の帯・スマホの通知・投稿の画面からも開く
     { key: "comments", label: "コメント", barLabel: "Comments", tabLabel: "コメント", href: `${base}/comments`, main: false },
-    { key: "plan", label: "アカウント設計", barLabel: "Strategy", tabLabel: "設計", href: `${base}/plan`, main: false },
+    { key: "plan", label: "アカウントの方針", barLabel: "Strategy", tabLabel: "方針", href: `${base}/plan`, main: false },
     // ネタ帳（4.26）。メモを残すのは上の「＋ メモ」、スマホは右下の「＋ メモ」
     { key: "notes", label: "ネタ帳", barLabel: "Notes", tabLabel: "ネタ帳", href: `${base}/notes`, main: false },
     // フォーマット（投稿の文と絵の説明の型。2026-11-18 オーナーの了承で、投稿をつくるの中の「フォーマットを管理」から移した）。投稿をつくるの「フォーマットから」・自動の投稿からも開く

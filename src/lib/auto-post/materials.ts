@@ -100,7 +100,7 @@ async function pickDestination(admin: Db, plan: AutoPlan & { ownerId: string }, 
 function pickPillar(plan: AutoPlan, planData: PlanData, past: PastRef[]): Material | NoMaterial {
   const sns = Object.keys(plan.targets) as SnsKey[];
   const pillars = planData.pillars.items.filter((p) => p.name.trim() && (p.sns.length === 0 || p.sns.some((s) => sns.includes(s))));
-  if (!pillars.length) return { none: true, reason: "no_material", detail: "アカウント設計の投稿の柱が決まっていません" };
+  if (!pillars.length) return { none: true, reason: "no_material", detail: "アカウントの方針で、投稿のテーマが決まっていません" };
   const last = past.find((r) => typeof r.pillar === "string")?.pillar;
   const i = pillars.findIndex((p) => p.name === last);
   const p = pillars[(i + 1) % pillars.length];

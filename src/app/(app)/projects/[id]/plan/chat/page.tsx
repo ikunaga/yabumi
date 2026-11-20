@@ -13,7 +13,7 @@ import { getLatestPlanThread } from "@/lib/ai/plan-coach-queries";
 import { isSectionKey } from "@/lib/plan/schema";
 import { getProject } from "@/lib/projects/queries";
 
-export const metadata: Metadata = { title: "AI と考える アカウント設計" };
+export const metadata: Metadata = { title: "AI と考える アカウントの方針" };
 
 // アカウント設計を AI と話しながら進める（要求 F15、決定 D13）
 export default async function PlanChatPage(props: PageProps<"/projects/[id]/plan/chat">) {
@@ -26,9 +26,9 @@ export default async function PlanChatPage(props: PageProps<"/projects/[id]/plan
     return (
       <div className="flex flex-col items-start gap-4">
         <PageHeader title="AI と考える" />
-        <p className="text-base text-muted">AI との相談は準備中です。設計の画面で手で入力できます。</p>
+        <p className="text-base text-muted">AI との相談は、まだ使えません。「アカウントの方針」の画面で、手で入力できます。</p>
         <ButtonLink href={planHref} variant="secondary">
-          設計の画面へ
+          「アカウントの方針」の画面へ
         </ButtonLink>
       </div>
     );
@@ -41,7 +41,7 @@ export default async function PlanChatPage(props: PageProps<"/projects/[id]/plan
     <div className="flex flex-col gap-5 max-sm:gap-4">
       <PageHeader
         title="AI と考える"
-        help="アカウント設計を、AI と話しながら 1 つずつ決めます。AI の案を採用すると、設計の欄に入ります。"
+        help="アカウントの方針を、AI と話しながら 1 つずつ決めます。AI の案を採用すると、アカウントの方針の欄に入ります。"
         actions={
           <>
             <ButtonLink href={planHref} variant="secondary" size="sm">
@@ -53,13 +53,13 @@ export default async function PlanChatPage(props: PageProps<"/projects/[id]/plan
                 projectId={id}
                 threadId={thread.id}
                 backPath={`/projects/${id}/plan/chat`}
-                keeps="設計に採用した内容は残ります。会話は、最後のやり取りから 1 年たつと自動で消えます。"
+                keeps="アカウントの方針に採用した内容は残ります。会話は、最後のやり取りから 1 年たつと自動で消えます。"
               />
             )}
           </>
         }
       />
-      {sp.done === "thread_deleted" && <SuccessBanner>会話を消しました。設計に採用した内容は残っています。</SuccessBanner>}
+      {sp.done === "thread_deleted" && <SuccessBanner>会話を消しました。アカウントの方針に採用した内容は残っています。</SuccessBanner>}
       <Columns
         main={<PlanCoachChat key={thread?.id ?? "new"} projectId={id} threadId={thread?.id ?? null} messages={thread?.messages ?? []} initialFocus={focus} />}
         side={plan && <PlanProgressCard plan={plan.plan} planHref={planHref} />}

@@ -610,7 +610,7 @@ function StoryFields({ v, ex }: { v: PlanData["story"]; ex: PlanExamples }) {
   return (
     <>
       <p className="-mb-1 text-xs leading-[1.7] text-muted">
-        どれも任意です。病気や家族のことなど、知られたくないことは書かなくて大丈夫です。「投稿に使ってよい」をオフにした項目は、ネタ出しや下書きの AI には渡さず、設計の相棒がまとめるときだけ使います。
+        どれも任意です。病気や家族のことなど、知られたくないことは書かなくて大丈夫です。「投稿に使ってよい」をオフにした項目は、ネタ出しや下書きの AI には渡しません。方針を一緒に決める AI が、まとめるときだけ使います。
       </p>
       {STORY_FIELDS.map((f) => (
         <div key={f} className="flex flex-col gap-1.5">

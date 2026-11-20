@@ -44,7 +44,7 @@ export function ConsultHeader({
               projectId={projectId}
               threadId={threadId}
               backPath={`${base}/consult`}
-              keeps="採用した案（設計・ロードマップ・下書き）は残ります。会話は、最後のやり取りから 1 年たつと自動で消えます。"
+              keeps="採用した案は残ります。アカウントの方針・ロードマップ・下書きです。会話は、最後のやり取りから 1 年たつと自動で消えます。"
             />
           )
         }

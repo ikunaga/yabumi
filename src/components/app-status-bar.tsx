@@ -114,7 +114,7 @@ export function AppStatusBar() {
               ? "下書きに保存できませんでした。本文は読み込み直しても戻ります。画像などは、コピーや控えを取ってから読み込み直してください。"
               : saver
                 ? "書きかけを下書きに保存してから、読み込み直してください。"
-                : "保存や送信ができないことがあるので、読み込み直してください（書きかけの投稿の本文・設計・メモは戻ります）。"}
+                : "保存や送信ができないことがあるので、読み込み直してください。書きかけの投稿・アカウントの方針・メモは戻ります。"}
           </span>
           {saver && saving !== "failed" ? (
             <button type="button" onClick={saveThenReload} disabled={saving === "saving"} className={button}>

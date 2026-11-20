@@ -76,7 +76,7 @@ export default async function IdeasPage(props: PageProps<"/projects/[id]/ideas">
           </span>
         </nav>
         <HelpTip label="どんなネタが出るか">
-          ネタは、宣伝するものの種類と、アカウント設計の <Term k="contentPillar" /> と口調に沿います。
+          ネタは、宣伝するものの種類と、アカウントの方針の <Term k="contentPillar" /> と口調に沿います。
         </HelpTip>
       </div>
       {done === "thread_deleted" && <SuccessBanner>ネタの会話を消しました。下書きにした投稿は残っています。</SuccessBanner>}

@@ -50,7 +50,7 @@ export function DescriptionDrafter({ projectId, aiEnabled, hasAudience }: { proj
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm leading-[1.8] text-muted">
-        AI がリポジトリを読んで、<b className="text-fg">紹介文（どんなアプリ・サービスか）</b>を下書きします。紹介文は、アカウント設計の相談や、投稿のネタを考えるときの材料になります。確認して編集してから使えます。
+        AI がリポジトリを読んで、<b className="text-fg">紹介文</b>を下書きします。どんなアプリ・サービスかを書いた文です。アカウントの方針の相談や、ネタを考えるときに AI が読みます。確認して編集してから使えます。
       </p>
       {!draft && (
         <div className="flex flex-wrap items-center gap-3">
@@ -125,7 +125,7 @@ export function DescriptionDrafter({ projectId, aiEnabled, hasAudience }: { proj
             </section>
           )}
 
-          <Field label="紹介文（どんなアプリ・サービスか）" htmlFor="draft-description" hint="プロジェクトの説明に入ります。アカウント設計の AI や、投稿のネタを考えるときの材料になります">
+          <Field label="紹介文（どんなアプリ・サービスか）" htmlFor="draft-description" hint="プロジェクトの説明に入ります。アカウントの方針の相談や、ネタを考えるときに AI が読みます">
             <Textarea id="draft-description" rows={6} maxLength={2000} value={description} onChange={(e) => setDescription(e.target.value)} />
           </Field>
 

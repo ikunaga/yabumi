@@ -19,7 +19,7 @@ import { getProject } from "@/lib/projects/queries";
 import type { SnsKey } from "@/lib/sns";
 import { listProjectSnsAccounts } from "@/lib/sns/queries";
 
-export const metadata: Metadata = { title: "アカウント設計" };
+export const metadata: Metadata = { title: "アカウントの方針" };
 
 // アカウント設計（要求 F15）。セクションごとに保存でき、どれも任意
 export default async function PlanPage(props: PageProps<"/projects/[id]/plan">) {
@@ -71,7 +71,7 @@ export default async function PlanPage(props: PageProps<"/projects/[id]/plan">) 
     <div className="flex flex-col gap-5 max-sm:gap-4">
       {/* 主な入口は AI との会話。空欄を自分で埋めるのは、中身を確かめて直すとき */}
       <PageHeader
-        title="アカウント設計"
+        title="アカウントの方針"
         help="「AI と考える」では、AI が 1 つずつ質問し、長所・短所とおすすめの理由をつけた案を出します。選んだ案は下の欄に入り、あとからいつでも手で編集できます。"
         actions={
           aiEnabled ? (

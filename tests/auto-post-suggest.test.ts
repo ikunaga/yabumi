@@ -102,11 +102,11 @@ describe("どのくらい: 3 案", () => {
   it("設計の頻度が読めれば、それを先にする（3 案のまま）", () => {
     const s = suggestSchedules({ ...base, targets: [...base.targets], kind: "pillars", materials: none, planFrequency: "週に1回" });
     expect(s.map((x) => x.label)).toEqual(["週 1", "毎日", "週 3"]);
-    expect(s[0]).toMatchObject({ fromPlan: true, reason: "設計の頻度（週 1）に合わせました", schedule: { weekdays: [3], every_weeks: 1 } });
+    expect(s[0]).toMatchObject({ fromPlan: true, reason: "アカウントの方針の頻度、週 1 に合わせました", schedule: { weekdays: [3], every_weeks: 1 } });
     expect(s[0].schedule.start).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     const n = suggestSchedules({ ...base, targets: [...base.targets], kind: "notes", materials: { ...none, unusedNotes: 9 }, planFrequency: "週 3" });
     expect(n.map((x) => x.label)).toEqual(["週 3", "週 2", "毎日"]);
-    expect(n[0].reason).toBe("設計の頻度（週 3）に合わせました。メモが 9 件あるので 3 週間続けられます");
+    expect(n[0].reason).toBe("アカウントの方針の頻度、週 3 に合わせました。メモが 9 件あるので 3 週間続けられます");
   });
 
   it("曜日と時刻（週 2 は火・金。時刻はどの案も同じ）", () => {

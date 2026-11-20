@@ -13,7 +13,7 @@ export function WeekSlotsCard({ week, base }: { week: WeekPace | null; base: str
         title={
           <span className="flex items-center gap-1.5">
             今週の投稿
-            <HelpTip label="今週の投稿">アカウント設計で決めた週の回数まで、あと何本かです。予約した分も出したものとして数えます。</HelpTip>
+            <HelpTip label="今週の投稿">アカウントの方針で決めた週の回数まで、あと何本かです。予約した分も出したものとして数えます。</HelpTip>
           </span>
         }
       />
@@ -21,7 +21,7 @@ export function WeekSlotsCard({ week, base }: { week: WeekPace | null; base: str
         <div className="flex flex-col items-start gap-2 px-6 pb-5 max-sm:px-4">
           <p className="text-[15px] text-faint">週の回数を決めると出ます</p>
           <Link href={`${base}/plan`} className="text-[14px] text-muted underline hover:text-fg">
-            アカウント設計で決める
+            「アカウントの方針」で決める
           </Link>
         </div>
       ) : (

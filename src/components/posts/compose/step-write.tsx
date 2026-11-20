@@ -182,7 +182,7 @@ function SelfWrittenHint({ projectId, count }: { projectId: string; count: numbe
       {/* 「?」が行の頭に 1 つだけ回らないよう、本数と「?」をひとまとまりにする */}
       <span className="ml-0.5 inline-flex items-center gap-2 whitespace-nowrap align-middle">
         <span>
-          自分で書いて送った投稿は、いま <span className="num">{count}</span> 本です。
+          自分で書いた送信済みの投稿は、いま <span className="num">{count}</span> 本です。
         </span>
         <HelpTip label="自分の言葉で書く理由">
           AI まかせの投稿は、どうしても人間らしさが出にくくなります。自分で書いた送信済みの投稿が {SELF_WRITTEN_ENOUGH} 本たまると、AI があなたの書き方（文の長さ・語尾・絵文字・改行など）を読み取り、ネタ出しや「AI で整える」の文をあなたの書き方に寄せられるようになります。AI で整える・ネタ出しは、いつでも使えます。

@@ -1,8 +1,7 @@
 import type { SnsKey } from "@/lib/sns";
 import { getTemplate } from "@/lib/photo-templates/store";
 import { answerSlotName, fillImageText, hasUnfilled } from "@/lib/post-formats/image";
-import { cleanSlotValues } from "@/lib/post-formats/schema";
-import { cleanAnswer } from "@/lib/post-formats/series";
+import { cleanAnswer, cleanRoundValues } from "@/lib/post-formats/series";
 import { getFormat } from "@/lib/post-formats/store";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizePlan } from "@/lib/plan/schema";
@@ -179,7 +178,7 @@ export async function runFormatPhotoScene(
   if (!img || img.scene !== "ai") return { ok: false, message: "このフォーマットには、AI が絵の説明を書く画像の設定がありません。" };
   const name = answerSlotName(format.series);
   const answer = cleanAnswer(args.answer);
-  const filled = fillImageText(img.prompt, cleanSlotValues(format.body, args.values), name && answer ? { name, value: answer } : null);
+  const filled = fillImageText(img.prompt, cleanRoundValues(format.body, args.values, format.series), name && answer ? { name, value: answer } : null);
   if (hasUnfilled(filled)) return { ok: false, message: "絵の説明に、まだ埋まっていない空欄（【】）があります。「1 書く」で空欄を埋めて本文に入れてから押してください。" };
   const { data: project } = await user.from("projects").select("*").eq("id", args.projectId).maybeSingle();
   if (!project) return { ok: false, message: "プロジェクトが見つかりません。" };

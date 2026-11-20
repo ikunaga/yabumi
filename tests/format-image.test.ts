@@ -16,6 +16,14 @@ describe("答えと使える穴", () => {
     expect(imageSlotNames(BODY, SERIES)).toEqual(["キーワード", "ひとこと", "映画"]);
     expect(imageSlotNames(BODY, EMPTY_SERIES)).toEqual(["キーワード", "ひとこと"]);
   });
+
+  it("画像だけで使う空欄（型の文にない AI の空欄）も使える。使えば AI の空欄として扱い、保存もできる（2026-11-20）", () => {
+    const s = { ...SERIES, slots: { ...SERIES.slots, 絵の言葉: "連想できる物を 3 つ" } };
+    expect(imageSlotNames(BODY, s)).toEqual(["キーワード", "ひとこと", "絵の言葉", "映画"]);
+    expect(needsAiScene({ prompt: "{絵の言葉}の机", headline: null }, BODY, s)).toBe(true);
+    expect(cleanFormatImage({ ...base, prompt: "{絵の言葉}の机" }, BODY, s).image?.prompt).toBe("{絵の言葉}の机");
+    expect(cleanFormatImage({ ...base, prompt: "{絵の言葉}の机" }, BODY, SERIES).problem).toContain("{絵の言葉}");
+  });
 });
 
 describe("保存の形（cleanFormatImage）", () => {

@@ -300,14 +300,14 @@ export async function draftRun(
   // シリーズの本文（fixedTexts）は利用者が決めたフォーマットの文なので縮めない。超えるときは下書きに回す（2026-11-20 オーナーの本番の不具合）
   const over = (Object.entries(texts) as [SnsKey, string][]).filter(([k, t]) => overLimit(k, withHashtags(t, splitTagsByText(t, fixedTags[k] ?? []).keep)) > 0);
   if (over.length && material.fixedTexts) {
-    hold ??= { kind: "too_long", detail: `フォーマットの文が長すぎて ${SNS[over[0][0]].label} に送れません。下書きに残しました。` };
+    hold ??= { kind: "too_long", detail: `フォーマットの文が長すぎて ${SNS[over[0][0]].label} に送れません。下書きに残しました。下書きを編集して、文を短くしてください。` };
   } else if (over.length && deps.callShorten) {
     const call = budgeted(admin, { userId: args.plan.ownerId, purpose, call: "shorten" }, deps.callShorten);
     const { texts: short } = await shortenOverDrafts(call, over.map(([sns, text]) => ({ id: sns, sns, text, reserve: reserveOf(sns) })));
     for (const [id, t] of short) texts[id as SnsKey] = t;
   }
 
-  const checkArgs = { allowedUrls: material.allowedUrls, recent: args.recent.bySns, tags: fixedTags };
+  const checkArgs = { allowedUrls: material.allowedUrls, recent: args.recent.bySns, tags: fixedTags, skipSimilar: !!material.series?.fixedBody };
   hold ??= plainIssues(texts, checkArgs)[0] ?? null;
   if (!hold) {
     // AI っぽさチェック（自動の投稿の枠。用途 auto_post_check）

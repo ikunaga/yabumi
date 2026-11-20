@@ -11,7 +11,7 @@ import { ErrorBanner } from "@/components/ui/feedback";
 import { HelpTip } from "@/components/ui/help";
 import { Input, Textarea } from "@/components/ui/field";
 import { addFormatRound, listPostFormats } from "@/lib/post-formats/actions";
-import { DEFAULT_ANSWER_NAME, MAX_ROUND_ANSWER, MAX_ROUND_WISH, ROUND_PROPOSALS, SERIES_DAILY_RUNS, isSeries, type FormatSeries } from "@/lib/post-formats/series";
+import { DEFAULT_ANSWER_NAME, MAX_ROUND_ANSWER, MAX_ROUND_WISH, ROUND_PROPOSALS, SERIES_DAILY_RUNS, imageOnlySlots, isSeries, roundSlotNames, type FormatSeries } from "@/lib/post-formats/series";
 import { MAX_SLOT_VALUE, fillFormat, unfilledSlots, formatSlots, hasFormatHashtags, type FormatHashtags, type PostFormat } from "@/lib/post-formats/schema";
 import { FormatTagsLine } from "@/components/formats/format-manager";
 import { DisclosureBox } from "@/components/ui/disclosure";
@@ -70,7 +70,7 @@ export function PostFormatPicker({
         // 書きかけの控えから戻したときは、穴の言葉と答えも戻す（型の文にない穴は捨てる）
         const first = initialFormatId ? r.formats.find((f) => f.id === initialFormatId) : undefined;
         if (first) {
-          const slotNames = formatSlots(first.body);
+          const slotNames = roundSlotNames(first.body, first.series);
           const v = Object.fromEntries(Object.entries(initialValues?.values ?? {}).filter(([k]) => slotNames.includes(k)));
           const a = first.series.answer || isSeries(first.series) ? (initialValues?.answer ?? "") : "";
           setSelectedId(first.id);
@@ -136,6 +136,8 @@ export function PostFormatPicker({
     );
   }
   const slots = selected ? formatSlots(selected.body) : [];
+  // 画像だけで使う空欄（本文には入らない。画像をつくるときに使う。2026-11-20）
+  const imageOnly = selected ? imageOnlySlots(selected.body, selected.series) : [];
   // 本文に入れたとき、まだ埋めていない穴（【穴の名前】のまま本文に入る）
   const unfilled = selected ? unfilledSlots(selected.body, values) : [];
 
@@ -194,7 +196,7 @@ export function PostFormatPicker({
           {!isSeries(selected.series) && formatSlots(selected.body).length > 0 && (
             // AI に穴を埋めさせる設定がどこにあるかわからなかった（パワポの 1・8）
             <p className="text-xs text-muted">
-              毎回 AI に変えてもらうには →{" "}
+              空欄の言葉を毎回 AI に考えてもらうには →{" "}
               <Link href={formatsHref} className="font-bold text-fg underline">
                 フォーマットの設定
               </Link>
@@ -229,15 +231,19 @@ export function PostFormatPicker({
               <Input value={answer} maxLength={MAX_ROUND_ANSWER} onChange={(e) => (setAnswer(e.target.value), setInserted(false), onUseChange?.({ format: selected, values, answer: e.target.value }))} className="py-2 text-sm" />
             </label>
           )}
-          {slots.length > 0 && (
+          {slots.length + imageOnly.length > 0 && (
             // 穴の欄は横いっぱいにし、長い言葉は折り返して全部見えるようにする（前は 2 列の 1 行の欄で、「キーワード5つ」の言葉が途中で切れた。通しテスト 02）。
             // 改行は入れない（Enter では改行しない。言い換えの確定の Enter はそのまま）
             <div className="flex flex-col gap-2">
-              {slots.map((s) => (
+              {[...slots, ...imageOnly].map((s) => (
                 <label key={s} className="flex min-w-0 flex-col gap-1">
                   <span className="text-xs font-bold">
                     {s}
-                    {s in selected.series.slots && <span className="ml-1.5 font-normal text-muted">AI が埋める空欄・編集できます</span>}
+                    {imageOnly.includes(s) ? (
+                      <span className="ml-1.5 font-normal text-muted">画像だけで使う・本文には入りません</span>
+                    ) : (
+                      s in selected.series.slots && <span className="ml-1.5 font-normal text-muted">AI が埋める空欄・編集できます</span>
+                    )}
                   </span>
                   <Textarea
                     rows={1}

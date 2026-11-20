@@ -37,6 +37,8 @@ describe("AI を呼ばないチェック", () => {
     expect(plainIssues({ threads: " " }, ok)[0].kind).toBe("cannot_write");
     const text = "今週から冬の新メニューが始まりました。あたたかいスープをどうぞ。";
     expect(plainIssues({ x: text }, { allowedUrls: [], recent: { x: [text] } })[0].kind).toBe("similar");
+    // 本文が毎回同じシリーズ（skipSimilar）は、本文が同じことを理由にしない（重なりは答えと空欄の言葉で、案を選ぶときに見ている。2026-11-20）
+    expect(plainIssues({ x: text }, { allowedUrls: [], recent: { x: [text] }, skipSimilar: true })).toEqual([]);
     // ほかの SNS に送った文とは比べない
     expect(plainIssues({ x: text }, { allowedUrls: [], recent: { threads: [text] } })).toEqual([]);
   });

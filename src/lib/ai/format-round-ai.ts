@@ -11,6 +11,7 @@ import {
   SERIES_DAILY_RUNS,
   answerKey,
   cleanAnswer,
+  imageOnlySlots,
   isSeries,
   roundLine,
   type FormatRound,
@@ -59,6 +60,7 @@ export const FORMAT_ROUND_SYSTEM = `あなたは「yabumi」の中で、利用�
 - 答えは、<past> のどの回とも、案どうしでも重ならない（同じ作品・同じものを、言い方を変えて出さない）
 - 空欄に入れる言葉も、前の回と同じ組み合わせにしない
 - 空欄に入れる言葉は 1 行。型の文の前後とつながる形にする（型の文に「・」でつなぐとあれば「・」で）
+- 「本文には出さず、画像の絵の説明だけに使う」空欄も、ほかの空欄と同じく埋める。答えに合う、絵にしやすい具体的なもの（物・場所・天気・時間など）にし、作品の題名・登場人物の名前・ロゴは書かない
 - 空欄に入れる言葉の中に、区切りの記号（・）を入れない。言葉そのものに「・」が入るときは、別の書き方にする（例: 「スペース・レンジャー」→「宇宙のおもちゃ」）。言葉の数の指示（「5 つ」など）があれば、区切ったときにちょうどその数になるようにする
 - 3 つの案は、答えの種類や年代・ジャンルを散らす
 
@@ -85,6 +87,7 @@ export function buildFormatRoundRequest(input: {
   const { series, body } = input.format;
   const aiSlots = Object.entries(series.slots);
   const handSlots = formatSlots(body).filter((s) => !(s in series.slots));
+  const imageOnly = new Set(imageOnlySlots(body, series));
   const lines = [
     `# プロジェクト\n名前: ${input.project.name}\n宣伝するもの: ${PRODUCT_TYPE_DEFS[type].label}${input.project.description?.trim() ? `\n説明: ${input.project.description.trim()}` : ""}${input.project.targetAudience?.trim() ? `\n届けたい相手: ${input.project.targetAudience.trim()}` : ""}\n口調: ${input.plan.pillars.tone.trim() || "（未設定）"}`,
     `# シリーズのフォーマット「${escapeData(input.format.name)}」\n<format>\n${escapeData(body)}\n</format>`,
@@ -92,7 +95,11 @@ export function buildFormatRoundRequest(input: {
       "# 空欄と答えの指示",
       "<instruction>",
       series.answer ? `答え（本文には出さない）「${escapeData(series.answer.name)}」: ${escapeData(series.answer.instruction) || "（指示なし）"}` : "答え: 決まりなし（この回が何についてか、作品やものの名前が 1 つに決まるなら answer に短く。決まらなければ空文字）",
-      ...aiSlots.map(([name, inst]) => `AI が埋める空欄 {${escapeData(name)}}: ${escapeData(inst) || "（指示なし。型の文に合う言葉）"}`),
+      ...aiSlots.map(([name, inst]) =>
+        imageOnly.has(name)
+          ? `AI が埋める空欄 {${escapeData(name)}}（本文には出さず、画像の絵の説明だけに使う）: ${escapeData(inst) || "（指示なし。答えに合う言葉）"}`
+          : `AI が埋める空欄 {${escapeData(name)}}: ${escapeData(inst) || "（指示なし。型の文に合う言葉）"}`,
+      ),
       ...(handSlots.length ? [`利用者が埋める空欄（あなたは埋めない）: ${handSlots.map((s) => `{${escapeData(s)}}`).join("・")}`] : []),
       "</instruction>",
     ].join("\n"),

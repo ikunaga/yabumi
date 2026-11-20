@@ -33,6 +33,7 @@ import {
 } from "@/lib/auto-post/types";
 import type { SeriesFormatCard } from "@/lib/auto-post/ui-queries";
 import type { TimeTrends } from "@/lib/metrics/time-bands";
+import { X_FIXED_BODY } from "@/lib/post-formats/series";
 import { SNS, type SnsKey } from "@/lib/sns";
 import { scheduleText } from "./format";
 import { choiceKey, kindCards, KindPicker, type KindChoice, type WinnersCard } from "./kind-picker";
@@ -132,13 +133,17 @@ export function PlanWizard(p: Props) {
     setSchedule(null);
   };
   const autoSns = AUTO_SNS_STAGE_A.filter((s) => p.connected.includes(s));
-  const [targets, setTargets] = useState<AutoTargets>(() => {
+  const [rawTargets, setTargets] = useState<AutoTargets>(() => {
     if (p.plan) return p.plan.targets;
     const fromPreset = presetCard ? autoSns.filter((s) => p.preset!.sns.includes(s)) : [];
     const preferred = fromPreset.length ? fromPreset : autoSns.filter((s) => p.planRoles.includes(s));
     const picked = preferred.length ? preferred : autoSns.filter((s) => s !== "note" && s !== "substack");
-    return Object.fromEntries(picked.map((s) => [s, TARGET_MODES[s][0]]));
+    const fixed = suggested?.choice.kind === "series" && !!p.materials.seriesFormats.find((f) => f.id === suggested.choice.formatId)?.fixedBody;
+    return Object.fromEntries(picked.filter((s) => !(fixed && s === "x")).map((s) => [s, TARGET_MODES[s][0]]));
   });
+  // 本文が毎回同じシリーズのフォーマット（X を選べない。X_FIXED_BODY）。直すときに前から X があっても、送り先から外して見せ・保存する
+  const fixedBody = kind === "series" && !!p.materials.seriesFormats.find((f) => f.id === materials.format_id)?.fixedBody;
+  const targets: AutoTargets = fixedBody && rawTargets.x ? Object.fromEntries(Object.entries(rawTargets).filter(([s]) => s !== "x")) : rawTargets;
   const [xLink, setXLink] = useState<"never" | "always">(p.plan?.xLink ?? "never");
   const [schedule, setSchedule] = useState<AutoSchedule | null>(p.plan?.schedule ?? null);
   const [custom, setCustom] = useState(false);
@@ -265,16 +270,17 @@ export function PlanWizard(p: Props) {
             </div>
             <ul className="flex flex-col divide-y divide-border">
               {AUTO_SNS_STAGE_A.map((s) => {
+                const blocked = s === "x" && fixedBody;
                 const on = !!targets[s];
                 const connected = p.connected.includes(s);
                 return (
                   <li key={s} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 py-3 first:pt-0 last:pb-0">
-                    <label className={`flex items-center gap-2.5 ${connected ? "cursor-pointer" : "text-muted"}`}>
+                    <label className={`flex items-center gap-2.5 ${connected && !blocked ? "cursor-pointer" : "text-muted"}`}>
                       <input
                         type="checkbox"
                         className="size-5 accent-[var(--primary)]"
                         checked={on}
-                        disabled={!connected}
+                        disabled={!connected || blocked}
                         onChange={(e) => {
                           const next = { ...targets };
                           if (e.target.checked) next[s] = TARGET_MODES[s][0];
@@ -299,7 +305,7 @@ export function PlanWizard(p: Props) {
                           : "Instagram は画像が要るので、写真つきのネタ帳のメモから作る回だけ送ります（ほかの回は Instagram には送りません）。下の「画像」で AI の画像を選ぶと、毎回送れます。"}
                       </p>
                     )}
-                    {isReviewOnlySns(s) && <ReviewReason sns={s} />}
+                    {blocked && connected ? <p className="w-full text-xs text-muted">{X_FIXED_BODY}フォーマットの本文に AI が埋める空欄を置くと、選べます。</p> : isReviewOnlySns(s) && <ReviewReason sns={s} />}
                   </li>
                 );
               })}

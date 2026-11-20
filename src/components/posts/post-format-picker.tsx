@@ -187,7 +187,7 @@ export function PostFormatPicker({
           {selected.purpose && <p className="text-xs text-muted">{selected.purpose}</p>}
           {hasFormatHashtags(selected.hashtags) && <FormatTagsLine h={selected.hashtags} className="text-xs text-muted" />}
           {selected.example && (
-            <DisclosureBox label="埋めた例を表示" className="text-xs" onSubtle>
+            <DisclosureBox label="できあがりの例を表示" className="text-xs" onSubtle>
               <p className="rounded-md bg-surface2 px-3 py-2 text-[13px] leading-[1.7] whitespace-pre-wrap">{selected.example}</p>
             </DisclosureBox>
           )}

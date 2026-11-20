@@ -8,7 +8,8 @@ import { LinkDomainCard } from "@/components/links/link-domain-card";
 import { CopyButton, CustomLinkForm, ProfileLinkForm, ProviderTokenForm } from "@/components/links/link-forms";
 import { Card, CardHeader, EmptyState } from "@/components/ui/card";
 import { Columns } from "@/components/ui/columns";
-import { Disclosure, HelpTip } from "@/components/ui/help";
+import { HelpTip } from "@/components/ui/help";
+import { DisclosureBox } from "@/components/ui/disclosure";
 import { SnsMark } from "@/components/ui/marks";
 import { Metric } from "@/components/ui/metric";
 import { PageHeader } from "@/components/ui/page-header";
@@ -123,7 +124,7 @@ export default async function LinksPage(props: PageProps<"/projects/[id]/links">
       </div>
 
       {/* 「この画面のリンクは投稿と連動するのか、手で貼るのか」で迷わないよう、2 種類あることを開く欄に置く */}
-      <Disclosure summary="2 種類のリンク（プロフィールに置く・投稿の本文から自動で作る）">
+      <DisclosureBox label="2 種類のリンクの説明を表示" size="sm">
         <ul className="flex flex-col gap-2">
           <li>
             <b className="text-fg">プロフィールに置くリンク</b>: この画面で作り、コピーして SNS のプロフィールに<b className="text-fg">自分で貼ります</b>。yabumi がプロフィールを書き換えることはありません。
@@ -133,7 +134,7 @@ export default async function LinksPage(props: PageProps<"/projects/[id]/links">
             。この画面のリンクを本文に貼る必要はありません。
           </li>
         </ul>
-      </Disclosure>
+      </DisclosureBox>
 
       <Columns
         main={
@@ -267,7 +268,7 @@ export default async function LinksPage(props: PageProps<"/projects/[id]/links">
               <Card>
                 <CardHeader title="App Store のキャンペーンの印（任意）" />
                 <div className="flex flex-col gap-3 px-6 pt-1 pb-5 text-sm leading-[1.8] max-sm:px-4">
-                  <Disclosure summary="入れるとできること・入れ方">
+                  <DisclosureBox label="キャンペーンの印でわかることと入れ方を表示" size="sm">
                     <p>
                       入れておくと、App Store Connect の「キャンペーン」で、SNS ごとのストアの閲覧やダウンロードが見られるようになります（数が少ないうちは表示されません）。
                     </p>
@@ -276,15 +277,15 @@ export default async function LinksPage(props: PageProps<"/projects/[id]/links">
                       <li>「キャンペーンリンクを作成」で、名前を何か入れてリンクを作る（アプリに分析のデータがまだないと作れません）</li>
                       <li>できたリンクの「pt=」のあとの数字を、下に入れる</li>
                     </ol>
-                  </Disclosure>
+                  </DisclosureBox>
                   <ProviderTokenForm projectId={project.id} current={project.app_store_provider_token ?? null} />
                 </div>
               </Card>
             )}
-            <Disclosure summary="数えないクリック">
+            <DisclosureBox label="数えないクリックの説明を表示" size="sm">
               SNS がリンクのプレビューを作るための自動の読み込み、ブラウザの先読み、同じ人が 10 分以内にもう一度押したもの
               {totalExcluded > 0 && `（これまで ${formatCount(totalExcluded)} 回）`}は数えません。押した人の IP アドレスは保存しません。
-            </Disclosure>
+            </DisclosureBox>
 
           </>
         }

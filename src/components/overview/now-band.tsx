@@ -3,7 +3,8 @@ import type { ReactNode } from "react";
 import { SkipPlanForm } from "@/components/projects/skip-plan-form";
 import { ActionBar } from "@/components/ui/action-bar";
 import { ButtonLink, NotReadyButton } from "@/components/ui/button";
-import { Disclosure, HelpTip } from "@/components/ui/help";
+import { HelpTip } from "@/components/ui/help";
+import { DisclosureBox } from "@/components/ui/disclosure";
 import { dismissGithubPrompt } from "@/lib/github/actions";
 import type { CoachView } from "@/lib/coach/load";
 import type { GoalReview } from "@/lib/goals/review";
@@ -237,7 +238,7 @@ function MainBand({
         }
       />
       {others.length > 0 && (
-        <Disclosure summary={`今週のやることの残り ${others.length} 件`} className="px-1">
+        <DisclosureBox label="今週のやることの残りを表示" count={others.length} bodyClassName="mt-2 text-[14px] leading-[1.75] text-muted">
           <ul className="flex flex-col gap-1">
             {others.map((t) => (
               <li key={t.id} className="flex flex-wrap items-baseline gap-x-3">
@@ -253,7 +254,7 @@ function MainBand({
               </li>
             ))}
           </ul>
-        </Disclosure>
+        </DisclosureBox>
       )}
     </div>
   );

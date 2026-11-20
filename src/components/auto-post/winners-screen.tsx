@@ -186,7 +186,7 @@ export function WinnersScreen({
                         </p>
                       )}
                       {p.example && (
-                        <DisclosureBox label="埋めた例を表示">
+                        <DisclosureBox label="できあがりの例を表示">
                           <p className="text-[13px] leading-[1.7] whitespace-pre-wrap">{p.example}</p>
                         </DisclosureBox>
                       )}

@@ -242,7 +242,7 @@ export function PushSettings() {
         </div>
       )}
 
-      <DisclosureBox label="ホーム画面に追加する手順を表示（iPhone・Android）">
+      <DisclosureBox label="ホーム画面に追加する手順を表示">
         <div className="flex flex-col gap-4">
           <div>
             <p className="font-bold">iPhone・iPad（iOS 16.4 以降）</p>

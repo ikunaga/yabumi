@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/chip";
+import { DisclosureChevron } from "@/components/ui/disclosure";
 import { DismissableDetails } from "@/components/ui/dismissable-details";
 import { SNS_COLOR } from "@/components/ui/marks";
 import { BarRow } from "@/components/ui/metric";
@@ -218,8 +219,10 @@ export function PastGoals({ past, items, productType, renderItems }: { past: Goa
           const status = g.status === "active" ? null : g.status;
           return (
             <li key={g.id} className="border-t border-line">
-              <DismissableDetails className="px-6 py-3 max-sm:px-4">
-                <summary className="flex cursor-pointer list-none flex-wrap items-baseline gap-x-3 gap-y-1 [&::-webkit-details-marker]:hidden">
+              <DismissableDetails>
+                {/* 行ぜんぶが押せる（ホバーで地を変え、右端に ⌄。開くと ⌃）（2026-11-20 オーナーの指示） */}
+                <summary className="flex cursor-pointer list-none items-center gap-3 px-6 py-3 hover:bg-subtle max-sm:px-4 [&::-webkit-details-marker]:hidden">
+                  <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-3 gap-y-1">
                   <span className="min-w-0 flex-1 font-bold">{g.statement ?? "目標を決めていなかった期間"}</span>
                   <span className="num text-[13px] text-faint">{spanText(g.startsOn, g.endsOn ?? (g.closedAt ? g.closedAt.slice(0, 10) : null))}</span>
                   {g.metric && g.target !== null && (
@@ -229,8 +232,10 @@ export function PastGoals({ past, items, productType, renderItems }: { past: Goa
                     </span>
                   )}
                   {status && <Badge tone={STATUS_TONE[status]}>{GOAL_STATUS_LABEL[status]}</Badge>}
+                  </span>
+                  <DisclosureChevron />
                 </summary>
-                <div className="pt-2">
+                <div className="px-6 pb-3 max-sm:px-4">
                   {g.metric && <p className="text-[13px] text-muted">{metricLabel({ metric: g.metric, action: g.action, sns: g.sns }, productType)}</p>}
                   {own.length ? <ul>{renderItems(own)}</ul> : <p className="py-2 text-[14px] text-muted">この目標のやることはありません。</p>}
                 </div>

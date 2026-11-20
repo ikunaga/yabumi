@@ -37,10 +37,22 @@ describe("DisclosureBox", () => {
     expect(html({})).toContain("bg-subtle hover:bg-subtle-hover");
     expect(html({ onSubtle: true })).toContain("bg-surface hover:bg-subtle");
   });
+
+  it("枠は一段濃い border-input（ライトで地と区別がつくように）", () => {
+    expect(html({})).toContain("border-input");
+  });
+
+  it("size=sm は高さを抑えて文字を小さくし、中身を補足の文の見た目にする", () => {
+    const sm = html({ size: "sm" });
+    expect(sm).toContain("py-1.5 text-xs");
+    expect(sm).toContain('<div class="mt-2 text-[14px] leading-[1.75] text-muted"><p>中身</p></div>');
+    expect(html({})).toContain('<div class="mt-2"><p>中身</p></div>');
+    expect(html({ size: "sm", bodyClassName: "mt-3" })).toContain('<div class="mt-3">');
+  });
 });
 
 describe("画面の開く欄", () => {
-  // 案 E にそろえた（対象外: HelpTip・help.tsx の「くわしく」・トップのよくある質問・メニュー類・行ごとに開く欄）
+  // 案 E にそろえた（対象外: トップのよくある質問・メニュー類（DismissableDetails）・アカウント設計の SNS ごとの行（右端に DisclosureChevron））
   const files = (dir: string): string[] =>
     readdirSync(dir).flatMap((f) => {
       const p = join(dir, f);
@@ -50,9 +62,13 @@ describe("画面の開く欄", () => {
     "src/app/page.tsx",
     "src/components/ui/disclosure.tsx",
     "src/components/ui/dismissable-details.tsx",
-    "src/components/ui/help.tsx",
     "src/components/plan/profile-fields.tsx",
   ]);
+
+  it("help.tsx の「くわしく」の Disclosure は無くし、DisclosureBox にそろえた", () => {
+    const uses = files("src").filter((p) => /<Disclosure[\s>]/.test(readFileSync(p, "utf8")));
+    expect(uses).toEqual([]);
+  });
 
   it("<details> を直接書くのは、決めた例外のファイルだけ", () => {
     const raw = files("src")

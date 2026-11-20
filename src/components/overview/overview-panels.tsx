@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { BarRow } from "@/components/ui/metric";
 import { SNS_COLOR, SnsMark } from "@/components/ui/marks";
-import { Disclosure } from "@/components/ui/help";
+import { DisclosureBox } from "@/components/ui/disclosure";
 import { AttentionFrame } from "./attention-close";
 import { attentionItems } from "@/lib/attention/dismissals";
 import type { ClicksBySns } from "@/lib/metrics/queries";
@@ -136,13 +136,13 @@ export function AttentionStrip({
   return (
     // × で、いま出している項目を閉じる（4.71。新しく出たものだけがまた出る）
     <AttentionFrame projectId={projectId} items={attentionItems({ failed, overdue, manualDue, overdueTodos })}>
-      <Disclosure
+      <DisclosureBox
         open={open}
-        summary={
-          <span className="flex flex-wrap items-baseline gap-x-2">
-            <b className="text-signal">● 要確認 {total}</b>
-            <span>{parts.join("・")}</span>
-          </span>
+        bodyClassName="mt-2 text-[14px] leading-[1.75] text-muted"
+        label={
+          <>
+            <b className="text-signal">● 要確認 {total}</b>　{parts.join("・")}
+          </>
         }
       >
         <div className="flex flex-col gap-3 text-fg">
@@ -210,7 +210,7 @@ export function AttentionStrip({
             </Group>
           )}
         </div>
-      </Disclosure>
+      </DisclosureBox>
     </AttentionFrame>
   );
 }

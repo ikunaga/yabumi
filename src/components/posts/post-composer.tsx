@@ -188,7 +188,7 @@ function StepsLayout({ c, wide, start, notePicker, headingRef }: { c: ReturnType
             </div>
           )}
           {!wide && !inlinePreview && (
-            <DisclosureBox label="見え方を表示">
+            <DisclosureBox label="SNS での見え方を表示">
               <ComposePreview c={c} />
             </DisclosureBox>
           )}

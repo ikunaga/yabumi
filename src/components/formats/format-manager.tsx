@@ -449,7 +449,7 @@ function FormatAiMaker({ projectId, kinds, onPick, onCancel }: { projectId: stri
                 <p className="rounded-md bg-surface2 px-3 py-2 text-[13px] leading-[1.7] whitespace-pre-wrap">{p.body}</p>
                 {p.why && <p className="text-xs leading-[1.7] text-muted">{p.why}</p>}
                 {p.example && (
-                  <DisclosureBox label="埋めた例を表示" className="text-xs">
+                  <DisclosureBox label="できあがりの例を表示" className="text-xs">
                     <p className="text-[13px] leading-[1.7] whitespace-pre-wrap">{p.example}</p>
                   </DisclosureBox>
                 )}
@@ -581,7 +581,7 @@ function SeriesRounds({ projectId, format, open = false }: { projectId: string; 
   const answerName = format.series.answer?.name || DEFAULT_ANSWER_NAME;
   return (
     <DisclosureBox
-      label="シリーズのこれまでの回を表示"
+      label="シリーズのこれまでの投稿を表示"
       count={rounds ? `${rounds.length} / ${MAX_ROUNDS}` : undefined}
       className="text-xs"
       open={open || undefined}

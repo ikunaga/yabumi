@@ -21,7 +21,7 @@ import {
 } from "@/lib/plan/profile";
 import { type PlanData, type ProfileOverride, type ProfileOverrideField } from "@/lib/plan/schema";
 import { SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
-import { DisclosureBox } from "@/components/ui/disclosure";
+import { DisclosureBox, DisclosureChevron } from "@/components/ui/disclosure";
 
 // 名前とプロフィール（アカウント設計の 5）。共通を土台に、SNS ごとに上書きできる（決定 D26、docs/architecture.md の 4.8）
 
@@ -173,7 +173,7 @@ export function ProfileFields({ v, roles, ctx }: { v: PlanData["profile"]; roles
           <SnsRow key={sns} sns={sns} profile={profile} role={roles[sns]} ctx={ctx} onChange={setOverride} />
         ))}
         {others.length > 0 && (
-          <DisclosureBox label={targets.length ? "ほかの SNS を表示" : "SNS を表示"} count={others.length} className="text-sm">
+          <DisclosureBox label={targets.length ? "ほかの SNS を表示" : "SNS ごとに変える欄を表示"} count={others.length} className="text-sm">
             <div className="flex flex-col gap-2">
               {others.map((sns) => (
                 <SnsRow key={sns} sns={sns} profile={profile} role={roles[sns]} ctx={ctx} onChange={setOverride} />
@@ -252,14 +252,15 @@ function SnsRow({
     sns === "threads" ? (threadsBase ? `Instagram と同じ: ${threadsBase}` : "空欄なら Instagram と同じ") : commonOf.handle ? `共通: ${commonOf.handle}` : "空欄なら共通を使います";
 
   return (
-    <details className="group/sns rounded-md border border-line bg-surface text-sm">
-      <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-0.5 px-4 py-2.5">
-        <span aria-hidden className="text-muted transition-transform group-open/sns:rotate-90">
-          ▸
+    <details className="rounded-md border border-input bg-surface text-sm">
+      {/* 行ぜんぶが押せる（ホバーで地を変え、右端に ⌄。開くと ⌃）。▸ はやめた（2026-11-20 オーナーの指示） */}
+      <summary className="flex cursor-pointer list-none items-center gap-3 rounded-md px-4 py-2.5 hover:bg-subtle [&::-webkit-details-marker]:hidden">
+        <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-0.5">
+          <b className="w-[84px] max-sm:w-auto">{SNS[sns].label}</b>
+          <span className="min-w-0 flex-1 text-muted">{changed.length ? `${changed.join("・")}を変えています` : "共通と同じ"}</span>
+          {issues.length > 0 && <span className="text-xs font-bold text-danger">決まりに合わないところがあります</span>}
         </span>
-        <b className="w-[84px] max-sm:w-auto">{SNS[sns].label}</b>
-        <span className="min-w-0 flex-1 text-muted">{changed.length ? `${changed.join("・")}を変えています` : "共通と同じ"}</span>
-        {issues.length > 0 && <span className="text-xs font-bold text-danger">決まりに合わないところがあります</span>}
+        <DisclosureChevron />
       </summary>
       <div className="flex flex-col gap-4 border-t border-line px-4 py-4">
         {role?.trim() && (

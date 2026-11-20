@@ -8,7 +8,8 @@ import { ManualMetricForm } from "@/components/metrics/manual-metric-form";
 import { ChartEmpty, DailyBars } from "@/components/overview/daily-chart";
 import { Panel } from "@/components/overview/overview-panels";
 import { ButtonLink, NotReadyButton } from "@/components/ui/button";
-import { Disclosure, HelpTip } from "@/components/ui/help";
+import { HelpTip } from "@/components/ui/help";
+import { DisclosureBox } from "@/components/ui/disclosure";
 import { BarRow, Delta } from "@/components/ui/metric";
 import { chipSolidClass } from "@/components/ui/chip";
 import { Columns } from "@/components/ui/columns";
@@ -366,7 +367,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
               {overview.clicksBySns.some((c) => c.thisWeek > 0 || c.lastWeek > 0 || c.last30d > 0) ? (
                 <>
                   <SnsClicksCompared rows={overview.clicksBySns} prevKnown={linksPrevKnown} />
-                  {days !== 30 && <Disclosure summary="30 日の数" className="mt-4">
+                  {days !== 30 && <DisclosureBox label={`30 日間の${clickLabel(project.product_type)}を表示`} size="sm" className="mt-4">
                     <table className="num w-full text-sm text-fg">
                       <tbody>
                         {overview.clicksBySns.map((c) => (
@@ -377,7 +378,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
                         ))}
                       </tbody>
                     </table>
-                  </Disclosure>}
+                  </DisclosureBox>}
                 </>
               ) : (
                 <p className="text-sm text-muted">
@@ -502,7 +503,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
       />
 
       {later.length > 0 && (
-        <Disclosure summary="これから出る数字" className="px-1">
+        <DisclosureBox label="まだ集まっていない数字を表示" count={later.length} size="sm">
           <ul>
             {later.map((k) => (
               <li key={k}>
@@ -511,7 +512,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
               </li>
             ))}
           </ul>
-        </Disclosure>
+        </DisclosureBox>
       )}
     </div>
   );

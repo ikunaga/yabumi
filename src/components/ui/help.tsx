@@ -7,7 +7,7 @@ import { placePopover } from "./term";
 const noopSubscribe = () => () => {};
 
 // 「?」を押すと出る短い説明（説明を画面に並べずに畳む。2026-10-30 オーナーの決定）。
-// 用語の解説は <Term />（点線）、長い説明や手順は <Disclosure />（開く欄）を使う。
+// 用語の解説は <Term />（点線）、長い説明や手順は <DisclosureBox />（ui/disclosure.tsx の開く欄）を使う。
 // 見出し（h2）や段落（p）の中にも置けるよう、押すところは button、説明は body 直下に出す（Term と同じ。
 // details や div を見出し・段落の中に入れると HTML の入れ子の決まりに反し、hydration のエラーになる）。
 // PC は「?」のそばに暗いポップアップ、スマホは下からシート。Esc と外側のクリックで閉じる（ブラウザ標準の popover）
@@ -84,21 +84,5 @@ export function HelpTip({ label = "説明", children }: { label?: string; childr
           document.body,
         )}
     </>
-  );
-}
-
-// 開くと出る欄（「くわしく」）。手順や長い説明をしまっておく。段落の中には置かない（中身は div）
-// open: はじめから開いておく（ほかの画面から「一覧を見る」で来たときなど）
-export function Disclosure({ summary = "くわしく", children, className = "", open }: { summary?: ReactNode; children: ReactNode; className?: string; open?: boolean }) {
-  return (
-    <details className={`group ${className}`} open={open}>
-      <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-sm text-muted hover:text-fg [&::-webkit-details-marker]:hidden">
-        <svg aria-hidden viewBox="0 0 12 12" className="size-3 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M4.5 3 7.5 6 4.5 9" />
-        </svg>
-        {summary}
-      </summary>
-      <div className="mt-2 text-[14px] leading-[1.75] text-muted">{children}</div>
-    </details>
   );
 }

@@ -3,7 +3,8 @@ import type { ReactNode } from "react";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/chip";
-import { Disclosure, HelpTip } from "@/components/ui/help";
+import { HelpTip } from "@/components/ui/help";
+import { DisclosureBox } from "@/components/ui/disclosure";
 import { SnsMark } from "@/components/ui/marks";
 import { projectSettingsHref } from "@/lib/projects/paths";
 import { SNS, type SnsKey } from "@/lib/sns";
@@ -37,9 +38,9 @@ function CommentRow({ c, now }: { c: CommentView; now: Date }) {
       </div>
       <p className="text-[15px] break-words whitespace-pre-wrap">{long ? `${chars.slice(0, PREVIEW_CHARS).join("")}…` : c.body}</p>
       {long && (
-        <Disclosure summary="全文を見る">
-          <p className="mt-1 text-[15px] break-words whitespace-pre-wrap">{c.body}</p>
-        </Disclosure>
+        <DisclosureBox label="全文を表示" size="sm" bodyClassName="mt-2">
+          <p className="text-[15px] break-words whitespace-pre-wrap">{c.body}</p>
+        </DisclosureBox>
       )}
     </li>
   );

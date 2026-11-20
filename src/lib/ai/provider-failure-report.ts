@@ -12,13 +12,13 @@ const PROVIDER_NAME: Record<AiProvider, string> = { gemini: "AI の画像（Gemi
 // 直す場所の手がかり（状態番号ごと）
 function hint(provider: AiProvider, status: number): string {
   if (provider === "gemini") {
-    if (status === 402) return "Google AI Studio で、鍵（GEMINI_API_KEY）を作った Google Cloud のプロジェクトの課金（支払いの設定・前払いの残高）を確かめてください（docs/deploy.md の 24）。";
-    if (status === 403) return "Google Cloud のそのプロジェクトで Generative Language API が有効か、鍵の制限（使える API・接続元）で弾かれていないかを確かめてください。";
-    return "Vercel の環境変数 GEMINI_API_KEY の値が、Google AI Studio の鍵と同じか（消した・作り直した鍵でないか）を確かめてください。";
+    if (status === 402) return "Google AI Studio で、鍵（GEMINI_API_KEY）を作った Google Cloud のプロジェクトの課金（支払いの設定・前払いの残高）を確認してください（docs/deploy.md の 24）。";
+    if (status === 403) return "Google Cloud のそのプロジェクトで Generative Language API が有効か、鍵の制限（使える API・接続元）で弾かれていないかを確認してください。";
+    return "Vercel の環境変数 GEMINI_API_KEY の値が、Google AI Studio の鍵と同じか（消した・作り直した鍵でないか）を確認してください。";
   }
-  if (status === 401) return "Vercel の環境変数 ANTHROPIC_API_KEY の値が、Claude Console の鍵と同じか（消した・作り直した鍵でないか）を確かめてください。";
-  if (status === 403) return "Claude Console で、鍵のワークスペースの権限と、使っているモデルを使えるかを確かめてください。";
-  return "Claude Console の Billing で、クレジットの残高と支払い方法を確かめてください。";
+  if (status === 401) return "Vercel の環境変数 ANTHROPIC_API_KEY の値が、Claude Console の鍵と同じか（消した・作り直した鍵でないか）を確認してください。";
+  if (status === 403) return "Claude Console で、鍵のワークスペースの権限と、使っているモデルを使えるかを確認してください。";
+  return "Claude Console の Billing で、クレジットの残高と支払い方法を確認してください。";
 }
 
 export function unavailableMail(provider: AiProvider, status: number): OperatorMail {

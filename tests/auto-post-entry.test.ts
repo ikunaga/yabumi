@@ -100,7 +100,7 @@ describe("カレンダーの自動の回", () => {
     const first = firstReviewPostIds([run({ status: "review", postId: "post-1" }), run({ status: "scheduled", postId: "post-2" })]);
     expect([...first]).toEqual(["post-1"]);
     expect(postChipHref(post({ status: "draft" }), base, first)).toBe("/projects/p1/auto/review");
-    expect(autoReviewWarning(post({ status: "draft" }), first)).toBe("最初の回の確かめ待ちです");
+    expect(autoReviewWarning(post({ status: "draft" }), first)).toBe("最初の回の確認待ちです");
     expect(postChipHref(post({ id: "post-2", targets: [target("threads"), target("x", "awaiting_approval")] }), base, first)).toBe("/projects/p1/auto/review");
     expect(postChipHref(post({ id: "post-2" }), base, first)).toBe("/projects/p1/posts/post-2");
     // 手で作った投稿は、回の状態に関係なく投稿の画面
@@ -119,13 +119,13 @@ describe("確かめ待ちは予約に見せない（カレンダーの数と同�
   it("送り先がどれも確かめ待ちなら下書きの見え方で、注意に出す", () => {
     const p = post({ targets: [target("x", "awaiting_approval")] });
     expect(displayStatus(p)).toBe("draft");
-    expect(postWarning(p)).toBe("X は確かめ待ちです");
+    expect(postWarning(p)).toBe("X は確認待ちです");
   });
 
   it("ほかの SNS が予約なら予約のまま、確かめ待ちの SNS を注意に出す", () => {
     const p = post({ targets: [target("threads"), target("x", "awaiting_approval")] });
     expect(displayStatus(p)).toBe("scheduled");
-    expect(postWarning(p)).toBe("X は確かめ待ちです");
+    expect(postWarning(p)).toBe("X は確認待ちです");
   });
 
   it("確かめ待ちのない投稿は今までどおり", () => {

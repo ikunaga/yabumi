@@ -14,7 +14,7 @@ import { repoAccess, reposForInstallation } from "./service";
 
 // GitHub は開発しているもの（アプリ・Web のサービス）のときだけ（isDevProject。2026-11-02 PM の決定）。
 // 画面に出さないだけでなく、サーバーでも断る。本人のプロジェクトでなければ（RLS で読めなければ）見つからないと返す
-const NOT_DEV = "GitHub は、宣伝するものがアプリか Web のサービスのときに使えます。プロジェクトの設定で種類を確かめてください。";
+const NOT_DEV = "GitHub は、宣伝するものがアプリか Web のサービスのときに使えます。プロジェクトの設定で種類を確認してください。";
 async function devProjectError(supabase: Awaited<ReturnType<typeof createClient>>, projectId: string): Promise<string | null> {
   const { data } = await supabase.from("projects").select("product_type").eq("id", projectId).maybeSingle();
   if (!data) return "プロジェクトが見つかりません。";
@@ -42,7 +42,7 @@ export async function connectRepo(projectId: string, installationId: number, rep
   const { data: project } = await supabase.from("projects").select("id").eq("id", projectId).maybeSingle();
   const { data: inst } = await supabase.from("github_installations").select("installation_id").eq("installation_id", installationId).maybeSingle();
   if (!project || !inst) return { error: "プロジェクトか、つないだ GitHub が見つかりません。画面を読み込み直してください。" };
-  const notReadable = "そのリポジトリは読めません。GitHub の設定で、yabumi に読ませるリポジトリに入っているか確かめてください。";
+  const notReadable = "そのリポジトリは読めません。GitHub の設定で、yabumi に読ませるリポジトリに入っているか確認してください。";
   if (!(await userCanReadRepo(supabase, userId, installationId, repoId))) return { error: notReadable };
 
   try {

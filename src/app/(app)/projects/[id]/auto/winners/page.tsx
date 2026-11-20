@@ -32,7 +32,7 @@ export default async function WinnersPage(props: PageProps<"/projects/[id]/auto/
         help={
           <>
             同じ SNS の、この 90 日の投稿のまん中の数（中央値）と比べて、1.5 倍以上{view.metric === "clicks" ? "押された" : "見られた"}投稿を出します。送って 7
-            日たった投稿だけを見ます。X の数字は使いません（X の決まりで、X から読んだ数字を AI の会社に渡せるか確かめられないため）。
+            日たった投稿だけを見ます。X の数字は使いません（X の決まりで、X から読んだ数字を AI の会社に渡せるか確認できないため）。
           </>
         }
       />

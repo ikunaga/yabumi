@@ -80,7 +80,7 @@ const STEPS: { key: Step; label: string }[] = [
   { key: "what", label: "何を" },
   { key: "where", label: "どこに" },
   { key: "when", label: "どのくらい" },
-  { key: "confirm", label: "確かめる" },
+  { key: "confirm", label: "確認する" },
 ];
 
 const WEEKDAYS: { n: number; label: string }[] = [
@@ -264,8 +264,8 @@ export function PlanWizard(p: Props) {
             <div className="flex items-center gap-2">
               <h2 className="text-[18px] font-bold max-sm:text-[16px]">送る SNS</h2>
               <HelpTip label="送り方の違い">
-                「自動で送る」は、作った文をあなたが見なくても、決めた時刻に送ります。「確かめて送る」は、作ったら通知するので、中身を見て「送る」を押したものだけ送ります。X・TikTok・YouTube
-                は各社の決まりで「確かめて送る」だけです（理由は SNS ごとの「?」）。note・Substack は送る仕組みがないので、下書きに置き、コピーして貼ります。
+                「自動で送る」は、作った文をあなたが見なくても、決めた時刻に送ります。「確認して送る」は、作ったら通知するので、中身を見て「送る」を押したものだけ送ります。X・TikTok・YouTube
+                は各社の決まりで「確認して送る」だけです（理由は SNS ごとの「?」）。note・Substack は送る仕組みがないので、下書きに置き、コピーして貼ります。
               </HelpTip>
             </div>
             <ul className="flex flex-col divide-y divide-border">
@@ -405,7 +405,7 @@ export function PlanWizard(p: Props) {
             />
           </DisclosureBox>
           <Card className="flex flex-col gap-3 px-6 py-5 max-sm:px-4 max-sm:py-4">
-            <p className="text-sm text-muted">送る {DEFAULT_LEAD_HOURS} 時間前に文を作り、できたらカレンダーと通知でお知らせします。長さ・絵文字・口調などの書き方は、次の「確かめる」で編集できます。テストで 1 件つくって、見ながら決められます。</p>
+            <p className="text-sm text-muted">送る {DEFAULT_LEAD_HOURS} 時間前に文を作り、できたらカレンダーと通知でお知らせします。長さ・絵文字・口調などの書き方は、次の「確認する」で編集できます。テストで 1 件つくって、見ながら決められます。</p>
           </Card>
           <Nav
             back={
@@ -415,7 +415,7 @@ export function PlanWizard(p: Props) {
             }
             next={
               <Button type="button" disabled={!whenOk} onClick={() => go("confirm")}>
-                次へ: 確かめる
+                次へ: 確認する
               </Button>
             }
           />
@@ -476,7 +476,7 @@ export function PlanWizard(p: Props) {
             <label className="flex items-start gap-2.5 text-[15px] leading-[1.7]">
               <input type="checkbox" className="mt-1 size-5 shrink-0 accent-[var(--primary)]" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
               <span>
-                AI が作った文を、あなたが確かめずに、あなたのアカウントから送ります（X などの「確かめて送る」SNS は、押したものだけ送ります）。送った投稿の責任はあなたにあります。送る{" "}
+                AI が作った文を、あなたが確認せずに、あなたのアカウントから送ります（X などの「確認して送る」SNS は、押したものだけ送ります）。送った投稿の責任はあなたにあります。送る{" "}
                 {DEFAULT_LEAD_HOURS} 時間前に、カレンダーと通知でお知らせします。気になれば、編集・その回を飛ばす・止めるができます。
               </span>
             </label>

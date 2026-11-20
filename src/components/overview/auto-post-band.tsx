@@ -36,7 +36,7 @@ export function AutoPostBand({ projectId, band }: { projectId: string; band: Ove
         <span className="flex flex-wrap gap-2">
           {band.review > 0 && (
             <ButtonLink href={`${base}/review`} size="sm">
-              確かめ待ち {band.review} 件
+              確認待ち {band.review} 件
             </ButtonLink>
           )}
           <ButtonLink href={base} variant="secondary" size="sm">

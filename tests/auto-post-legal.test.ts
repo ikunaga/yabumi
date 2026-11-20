@@ -34,7 +34,7 @@ describe("自動の投稿の版", () => {
     expect(privacy).toContain('"自動の投稿",');
     expect(privacy).toContain("承認したときの文の指紋（元の文には戻せない値）");
     expect(privacy).toContain("X・TikTok・YouTube は、利用者が中身を見て承認したものだけを送ります");
-    expect(privacy).toContain("自動の投稿の文を作り確かめること");
+    expect(privacy).toContain("自動の投稿の文を作り確認すること");
     expect(privacy).toContain("利用者がその場で押していないときにも、設定した曜日と時刻の前に送ります");
     // 通知には投稿の本文を入れない（送り先の SNS と時刻など）
     expect(privacy).toContain("自動の投稿の知らせでは、送り先の SNS と時刻・件数、設定の名前と止めた理由");

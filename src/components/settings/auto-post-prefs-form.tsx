@@ -17,14 +17,14 @@ export function AutoPostPrefsForm({ on }: { on: boolean }) {
           <input type="radio" name="auto_post_push" value="on" defaultChecked={on} className="mt-1 size-4 accent-[var(--primary)]" />
           <span>
             受け取る
-            <span className="block text-xs text-muted">文を作ったとき（1 日 1 通にまとめます）・確かめ待ちになったとき・止まったときに、スマホに送ります</span>
+            <span className="block text-xs text-muted">文を作ったとき（1 日 1 通にまとめます）・確認待ちになったとき・止まったときに、スマホに送ります</span>
           </span>
         </label>
         <label className="flex items-start gap-2 leading-[1.7]">
           <input type="radio" name="auto_post_push" value="off" defaultChecked={!on} className="mt-1 size-4 accent-[var(--primary)]" />
           <span>
             受け取らない
-            <span className="block text-xs text-muted">確かめ待ちは、自動の投稿の画面と概要で見られます</span>
+            <span className="block text-xs text-muted">確認待ちは、自動の投稿の画面と概要で見られます</span>
           </span>
         </label>
       </fieldset>

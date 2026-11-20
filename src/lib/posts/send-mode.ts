@@ -24,7 +24,7 @@ export const TARGET_STATE: Partial<Record<SentStatus, { text: string; plain: str
   deleted: { text: "取り消し済み", plain: "取り消し済み", tone: "text-muted" },
   failed: { text: "! 失敗", plain: "失敗", tone: "font-bold text-danger" },
   // 自動の投稿の「確かめて送る」SNS（X など）で、まだ承認していないもの（docs/design/auto-post.md の 1.6）
-  awaiting_approval: { text: "確かめ待ち", plain: "確かめ待ち", tone: "font-bold text-signal" },
+  awaiting_approval: { text: "確認待ち", plain: "確認待ち", tone: "font-bold text-signal" },
 };
 const RETRY_STATE = { text: "送り直し待ち", plain: "送り直し待ち", tone: "font-bold text-signal" };
 // 月の上限で「X は手で投稿する」を選んだ X（失敗ではない。送信の結果から手で投稿して記録する）

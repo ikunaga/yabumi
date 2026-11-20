@@ -50,7 +50,7 @@ export default async function AutoListPage(props: PageProps<"/projects/[id]/auto
         help={
           <>
             決めた間隔で、AI が投稿の文を作って予約します。送る 24 時間前にカレンダーと通知でお知らせするので、気になれば編集・飛ばす・止めるができます。X
-            は送る前にあなたが中身を確かめ、押したものだけ送ります。
+            は送る前にあなたが中身を確認し、押したものだけ送ります。
           </>
         }
         actions={
@@ -79,7 +79,7 @@ export default async function AutoListPage(props: PageProps<"/projects/[id]/auto
             : sample === "failed"
               ? "テストでつくった投稿は、1 回目に使えませんでした。"
               : ""}
-          {sample === "used" ? "" : firstReview ? "最初の回ができたら、送る前に確かめてください。" : "最初の回ができたら、通知でお知らせします。"}
+          {sample === "used" ? "" : firstReview ? "最初の回ができたら、送る前に確認してください。" : "最初の回ができたら、通知でお知らせします。"}
         </SuccessBanner>
       )}
 
@@ -89,13 +89,13 @@ export default async function AutoListPage(props: PageProps<"/projects/[id]/auto
             <span className="text-signal" aria-hidden="true">
               ●{" "}
             </span>
-            確かめ待ち <span className="num">{reviews.length}</span> 件
+            確認待ち <span className="num">{reviews.length}</span> 件
             <span className="ml-2 text-sm font-normal text-muted">
-              {firstReview ? `最初の回を確かめてください（${formatShort(firstReview.dueAt)} まで）` : `次は ${formatShort(reviews[0].dueAt)} まで`}
+              {firstReview ? `最初の回を確認してください（${formatShort(firstReview.dueAt)} まで）` : `次は ${formatShort(reviews[0].dueAt)} まで`}
             </span>
           </p>
           <ButtonLink href={`${base}/review`} size="sm" className="max-sm:w-full">
-            確かめる
+            確認する
           </ButtonLink>
         </Card>
       )}

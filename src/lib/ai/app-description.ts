@@ -75,7 +75,7 @@ ${DATA_RULES}
 - 一覧にないパスは書かない`;
 
 export const APP_DESCRIPTION_SYSTEM = `あなたは「yabumi」の中で、利用者が開発しているアプリや Web のサービスの紹介文（どんなものか）を下書きする係です。
-紹介文は、yabumi がアカウント設計の相談や投稿のネタを考えるときの材料になります。相手はマーケティングの素人で、下書きを確かめて直してから使います。
+紹介文は、yabumi がアカウント設計の相談や投稿のネタを考えるときの材料になります。相手はマーケティングの素人で、下書きを確認して直してから使います。
 
 ${DATA_RULES}
 
@@ -202,9 +202,9 @@ export async function draftAppDescription(
   if (!project) return { ok: false, message: "プロジェクトが見つかりません。" };
   // 読む直前に、本人がいまも読めるリポジトリかを確かめる
   const link: RepoLink | null = await readableRepoLink(user, args.userId, args.projectId);
-  if (!link) return { ok: false, message: "リポジトリがつながっていないか、読む権限が確かめられません。GitHub の画面で「GitHub をつなぎ直す」を押してから、もう一度お試しください。" };
+  if (!link) return { ok: false, message: "リポジトリがつながっていないか、読む権限が確認できません。GitHub の画面で「GitHub をつなぎ直す」を押してから、もう一度お試しください。" };
 
-  const repoError = "リポジトリを読めませんでした。GitHub の設定で、このリポジトリを yabumi に読ませているか確かめてください。";
+  const repoError = "リポジトリを読めませんでした。GitHub の設定で、このリポジトリを yabumi に読ませているか確認してください。";
   let entries: TreeEntry[];
   try {
     entries = await deps.repo.listFiles(link);

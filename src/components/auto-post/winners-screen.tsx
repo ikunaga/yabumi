@@ -81,7 +81,7 @@ export function WinnersScreen({
       const r = await addPostFormat(projectId, v);
       if (r.error) return setError(r.error);
       const f = r.formats?.find((x) => x.name === v.name);
-      if (!f) return setError("保存したフォーマットが見つかりませんでした。フォーマットの画面で確かめてください。");
+      if (!f) return setError("保存したフォーマットが見つかりませんでした。フォーマットの画面で確認してください。");
       setSaved({ id: f.id, name: f.name, series: isSeries(f.series) });
       setEditing(null);
     });
@@ -222,7 +222,7 @@ export function WinnersScreen({
             <span>フォーマット「{saved.name}」を保存しました。</span>
             {saved.series && !held ? (
               <span className="flex flex-col gap-2">
-                <span>この型で自動の投稿を始めると、{lead ? `伸びた ${lead.hits.map((h) => SNS[h.sns].label).join("・")} と時間帯を` : "SNS と時間帯を"}選んだ状態で開きます。始めるのは、中身を確かめたあとです。</span>
+                <span>この型で自動の投稿を始めると、{lead ? `伸びた ${lead.hits.map((h) => SNS[h.sns].label).join("・")} と時間帯を` : "SNS と時間帯を"}選んだ状態で開きます。始めるのは、中身を確認したあとです。</span>
                 <ButtonLink href={`${base}/auto/new?format=${saved.id}${lead ? `&post=${lead.postId}` : ""}`} className="self-start max-sm:w-full">
                   この型で自動で回す
                 </ButtonLink>

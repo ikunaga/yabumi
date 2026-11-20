@@ -145,7 +145,7 @@ export async function addLinkDomain(admin: Admin, input: { ownerId: string; proj
     if (e instanceof VercelApiError && (e.status === 409 || e.status === 403)) {
       return { ok: false, error: "このドメインは、ほかのサービス（Vercel のほかのプロジェクト）で使われているため足せません。別のサブドメイン（例: go2.<あなたのドメイン>）にしてください。" };
     }
-    if (e instanceof VercelApiError && e.status === 400) return { ok: false, error: "このドメインは足せませんでした。綴りを確かめてください。" };
+    if (e instanceof VercelApiError && e.status === 400) return { ok: false, error: "このドメインは足せませんでした。綴りを確認してください。" };
     console.error("[link-domain] Vercel にドメインを足せませんでした", e instanceof Error ? e.message : e);
     return { ok: false, error: "いまドメインを足せませんでした。時間をおいてもう一度お試しください。" };
   }
@@ -213,7 +213,7 @@ export async function checkLinkDomain(admin: Admin, input: { ownerId: string; pr
   if (!row) return { ok: false, error: `ドメインが見つかりません（${PENDING_DAYS} 日のうちにつながらなかったものは取り消します）。もう一度入れてください。` };
   const now = (deps.now ?? (() => new Date()))();
   if (row.last_checked_at && now.getTime() - new Date(row.last_checked_at).getTime() < LINK_DOMAIN_CHECK_INTERVAL_MS) {
-    return { ok: false, error: "いま確かめたところです。10 秒ほどおいてから押してください。" };
+    return { ok: false, error: "いま確認したところです。10 秒ほどおいてから押してください。" };
   }
 
   let check: LinkCheck;
@@ -243,7 +243,7 @@ export async function checkLinkDomain(admin: Admin, input: { ownerId: string; pr
     else check = await classifyDns(row.domain, cnameTarget, lookup);
     if (verified && txt.value && check !== "txt_missing") txt = { name: "", value: "" };
   } catch (e) {
-    console.error("[link-domain] つながりを確かめられませんでした", e instanceof Error ? e.message : e);
+    console.error("[link-domain] つながりを確認できませんでした", e instanceof Error ? e.message : e);
     check = "error";
   }
 
@@ -370,11 +370,11 @@ export async function recheckLinkDomains(admin: Admin, deps: LinkDomainDeps, max
       `link_domains_unconfirmed:${now.toISOString().slice(0, 10)}`,
       1,
       {
-        subject: "利用者のドメインの DNS を確かめられません",
+        subject: "利用者のドメインの DNS を確認できません",
         text: [
-          `毎日の見回りで、DNS over HTTPS（Cloudflare・Google）が答えないまま ${UNCONFIRMED_DAYS} 日を超えたドメインを ${report.unconfirmed} 件、yabumi のドメインに戻しました（確かめた ${report.checked} 件、答えがなかった ${report.unknown} 件）。`,
+          `毎日の見回りで、DNS over HTTPS（Cloudflare・Google）が答えないまま ${UNCONFIRMED_DAYS} 日を超えたドメインを ${report.unconfirmed} 件、yabumi のドメインに戻しました（確認した ${report.checked} 件、答えがなかった ${report.unknown} 件）。`,
           "yabumi の側（Vercel から cloudflare-dns.com・dns.google に届かない）の異常の可能性があります。Vercel のログの [jobs/check-link-domains] を見てください（docs/architecture.md の 4.22）。",
-          "直ったら、利用者が「確かめる」を押せば、またつながります。",
+          "直ったら、利用者が「確認する」を押せば、またつながります。",
         ].join("\n"),
       },
       deps.notify,

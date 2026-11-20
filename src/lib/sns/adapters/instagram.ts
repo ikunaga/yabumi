@@ -40,7 +40,7 @@ export function toInstagramError(e: unknown, stage: "prepare" | "publish"): SnsP
     }
     if (e.transient) {
       if (stage === "publish") {
-        return new SnsPublishError("unknown", "Instagram 側でエラーが起きました。Instagram に投稿されているか確かめてから、必要ならもう一度送ってください。", {
+        return new SnsPublishError("unknown", "Instagram 側でエラーが起きました。Instagram に投稿されているか確認してから、必要ならもう一度送ってください。", {
           cause: e,
         });
       }
@@ -51,7 +51,7 @@ export function toInstagramError(e: unknown, stage: "prepare" | "publish"): SnsP
   if (stage === "publish") {
     return new SnsPublishError(
       "unknown",
-      "Instagram への公開の途中で通信が切れました。Instagram に投稿されているか確かめてから、必要ならもう一度送ってください。",
+      "Instagram への公開の途中で通信が切れました。Instagram に投稿されているか確認してから、必要ならもう一度送ってください。",
       { cause: e },
     );
   }
@@ -71,7 +71,7 @@ export function createInstagramAdapter({
       const { status, detail } = await getContainerStatus(token, containerId);
       if (status === "FINISHED") return;
       if (status === "ERROR" || status === "EXPIRED") {
-        throw new SnsPublishError("permanent", `Instagram が投稿を受け付けませんでした（${detail ?? status}）。画像の縦横比や大きさを確かめてください。`);
+        throw new SnsPublishError("permanent", `Instagram が投稿を受け付けませんでした（${detail ?? status}）。画像の縦横比や大きさを確認してください。`);
       }
       if (i + 1 >= maxPolls) {
         // 公開していないコンテナは投稿されないので、やり直しても二重にはならない

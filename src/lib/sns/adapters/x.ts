@@ -45,7 +45,7 @@ export function toXPublishError(e: unknown, stage: "prepare" | "publish"): SnsPu
       if (stage === "publish") {
         return new SnsPublishError(
           "unknown",
-          "X 側でエラーが起きました。X に投稿されているか確かめてから、必要ならもう一度送ってください。",
+          "X 側でエラーが起きました。X に投稿されているか確認してから、必要ならもう一度送ってください。",
           { cause: e },
         );
       }
@@ -63,7 +63,7 @@ export function toXPublishError(e: unknown, stage: "prepare" | "publish"): SnsPu
   if (stage === "publish") {
     return new SnsPublishError(
       "unknown",
-      "X への投稿の途中で通信が切れました。X に投稿されているか確かめてから、必要ならもう一度送ってください。",
+      "X への投稿の途中で通信が切れました。X に投稿されているか確認してから、必要ならもう一度送ってください。",
       { cause: e },
     );
   }

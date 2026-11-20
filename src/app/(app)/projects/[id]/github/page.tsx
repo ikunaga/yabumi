@@ -121,7 +121,7 @@ export default async function GithubPage(props: PageProps<"/projects/[id]/github
                     </p>
                     {stale.length > 0 && (
                       <p className="leading-[1.8] text-muted">
-                        {stale.map((i) => i.account_login).join("、")} のリポジトリは、あなたが今も読めるかを確かめ直す必要があります（組織や共同作業のリポジトリは 7 日ごとに確かめます）。「GitHub をつなぎ直す」を押してください。
+                        {stale.map((i) => i.account_login).join("、")} のリポジトリは、あなたが今も読めるかを確認し直す必要があります（組織や共同作業のリポジトリは 7 日ごとに確認します）。「GitHub をつなぎ直す」を押してください。
                       </p>
                     )}
                     <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm">

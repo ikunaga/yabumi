@@ -46,7 +46,7 @@ const FIELD_LABEL: Record<ProfileOverrideField, string> = { displayName: "表示
 const HANDLE_CHECK_STEPS: { sns: string; how: string }[] = [
   { sns: "X", how: "設定 → アカウント情報 → ユーザー名 に入力すると、使えるかどうかがその場で出ます" },
   { sns: "Instagram", how: "プロフィールを編集 → ユーザーネーム に入力すると、使えるかどうかが出ます" },
-  { sns: "Threads", how: "Instagram とつないだ Threads は、Instagram のユーザーネームがそのまま使われます。Instagram で確かめれば十分です" },
+  { sns: "Threads", how: "Instagram とつないだ Threads は、Instagram のユーザーネームがそのまま使われます。Instagram で確認すれば十分です" },
   { sns: "TikTok", how: "プロフィールを編集 → ユーザー名 に入力すると、使えるかどうかが出ます" },
   { sns: "YouTube", how: "チャンネルのカスタマイズ（YouTube Studio）→ ハンドル に入力すると、使えるかどうかが出ます" },
   { sns: "Facebook", how: "Facebook ページを作る場合だけ。ページの設定 → ユーザーネーム に入力すると出ます。使わないなら飛ばして構いません" },
@@ -188,10 +188,10 @@ export function ProfileFields({ v, roles, ctx }: { v: PlanData["profile"]; roles
 
 function HandleCheckSteps() {
   return (
-    <DisclosureBox label="同じユーザー名が取れるかの確かめ方を表示" className="text-sm">
+    <DisclosureBox label="同じユーザー名が取れるかの確認のしかたを表示" className="text-sm">
       <div className="flex flex-col gap-3 leading-[1.8]">
         <p>
-          それぞれの SNS に<b>ログインした状態</b>で、ユーザー名を変える画面に候補を入力してみます。使えるかどうかがその場で出ます。保存しなければ、今のユーザー名は変わりません。新しくアカウントを作る場合は、新規登録の画面で入力しても確かめられます。
+          それぞれの SNS に<b>ログインした状態</b>で、ユーザー名を変える画面に候補を入力してみます。使えるかどうかがその場で出ます。保存しなければ、今のユーザー名は変わりません。新しくアカウントを作る場合は、新規登録の画面で入力しても確認できます。
         </p>
         <ul className="flex flex-col gap-1.5">
           {HANDLE_CHECK_STEPS.map((s) => (

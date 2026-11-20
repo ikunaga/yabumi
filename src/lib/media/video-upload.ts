@@ -96,7 +96,7 @@ export async function uploadVideoBlob(
   }
   opts.onUploaded?.();
   const confirmed = await confirmVideoUpload(ticket.path);
-  if (!confirmed.video) throw new VideoUploadError(confirmed.error ?? "動画を確かめられませんでした。もう一度選び直してください。");
+  if (!confirmed.video) throw new VideoUploadError(confirmed.error ?? "動画を確認できませんでした。もう一度選び直してください。");
   // 確かめている間にやめていたら、添えずに外す（前は、やめたのに添えられたままになることがあった）
   if (opts.signal?.aborted) {
     void discardVideo(confirmed.video.id);

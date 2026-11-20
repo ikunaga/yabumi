@@ -37,7 +37,7 @@ function rejected(ops: StagedOps, detail?: string, video = false): SnsPublishErr
     "permanent",
     video
       ? `${ops.label} が動画を受け付けませんでした（${detail ?? "ERROR"}）。動画を選び直して、もう一度送ってください。`
-      : `${ops.label} が投稿を受け付けませんでした（${detail ?? "ERROR"}）。画像の縦横比や大きさを確かめてください。`,
+      : `${ops.label} が投稿を受け付けませんでした（${detail ?? "ERROR"}）。画像の縦横比や大きさを確認してください。`,
   );
 }
 

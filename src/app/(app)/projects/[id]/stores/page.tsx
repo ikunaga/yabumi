@@ -259,7 +259,7 @@ export default async function StoresPage(props: PageProps<"/projects/[id]/stores
                 「アカウントの権限」で<b>「アプリ情報の表示と一括レポートのダウンロード（読み取り専用）」だけ</b>に印を付ける（ほかは付けない）→「ユーザーを招待」
               </li>
               <li>「レポートをダウンロード」→「統計情報」を開き、「Cloud Storage の URI をコピー」で出る値（gs://pubsite_prod_rev_…）を下に貼る</li>
-              <li>アプリのパッケージ名を確かめて「確かめて保存する」（招待が反映されるまで数分かかることがあります）</li>
+              <li>アプリのパッケージ名を確認して「確認して保存する」（招待が反映されるまで数分かかることがあります）</li>
             </Steps>
             <GooglePlayForm projectId={project.id} defaultPackage={play.package_name ?? packageFromUrl(project.play_store_url) ?? ""} defaultBucket={play.bucket ?? ""} />
           </PlaySetup>

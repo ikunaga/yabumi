@@ -198,7 +198,7 @@ function StatCards({ stats, period, base }: { stats: CalendarStats; period: stri
       <Metric label={`${period}の投稿済み`} value={stats.posted} unit="件" />
       <Metric label="下書き" value={stats.drafts} unit="件" href={`${base}/drafts`} />
       {/* 送れなかった投稿は、いつのものでも直すか送り直すまで数える（週・月で区切ると、ほかの週の直していない失敗が見えなくなる）。
-          ほかのカード（この週の… / n 月の…）と範囲が違うことがわかる名前にする（2026-11-13 PMO2 の 3 回目の確かめ）。
+          ほかのカード（この週の… / n 月の…）と範囲が違うことがわかる名前にする（2026-11-13 PMO2 の 3 回目の確認）。
           押すと、1 件ならその投稿、2 件以上なら概要の「要確認」（開いた形）へ */}
       <Metric
         label="直していない失敗"

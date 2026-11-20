@@ -111,7 +111,7 @@ export function toPublishError(e: unknown): SnsPublishError {
       return new SnsPublishError("auth", `YouTube に動画を上げる許可がありません。${RECONNECT}`, { cause: e });
     }
     if (e.status === 429 || e.status >= 500) return new SnsPublishError("retryable", "YouTube が混み合っています。少しあとで続きから送ります。", { cause: e });
-    if (e.status === 400) return new SnsPublishError("permanent", `YouTube が動画の情報を受け付けませんでした（${e.message}）。投稿の画面で確かめてください。`, { cause: e });
+    if (e.status === 400) return new SnsPublishError("permanent", `YouTube が動画の情報を受け付けませんでした（${e.message}）。投稿の画面で確認してください。`, { cause: e });
     return new SnsPublishError("permanent", `YouTube に送れませんでした（${e.status}）。`, { cause: e });
   }
   // 通信の失敗・動画を読めなかった（Storage）など。続きから送れるのでやり直す
@@ -187,15 +187,15 @@ export function createYouTubeAdapter(deps: YouTubeAdapterDeps): SnsAdapter {
     // 初めて送る: 同意したときと変わっていないかを確かめてから（docs/design/youtube.md の 5.）
     if (text === null || rawText === null) throw new SnsPublishError("retryable", "YouTube の送信の途中の情報が見つかりません。最初から送り直します。");
     const s = target.settings;
-    if (!s) throw new SnsPublishError("permanent", "YouTube の公開範囲などを選んで同意してから送ってください。投稿の画面で確かめてください。");
+    if (!s) throw new SnsPublishError("permanent", "YouTube の公開範囲などを選んで同意してから送ってください。投稿の画面で確認してください。");
     const problem = youtubeTitleProblem(target.title) ?? youtubeDescriptionProblem(text);
     if (problem) throw new SnsPublishError("permanent", problem);
     if (consentHash(target.title, rawText) !== s.consent_text_hash) {
-      throw new SnsPublishError("permanent", "YouTube のタイトルか説明が、同意したあとに変わっていたので、送りませんでした。投稿の画面で確かめてから、もう一度送ってください。");
+      throw new SnsPublishError("permanent", "YouTube のタイトルか説明が、同意したあとに変わっていたので、送りませんでした。投稿の画面で確認してから、もう一度送ってください。");
     }
     const channel = await fetchMyChannel(account.accessToken);
     if (!channel || channel.id !== account.externalId || channel.title !== s.consent_channel) {
-      throw new SnsPublishError("permanent", "つないでいる YouTube のチャンネルが、予約のときと違っていたので、送りませんでした。投稿の画面で確かめてから、もう一度送ってください。");
+      throw new SnsPublishError("permanent", "つないでいる YouTube のチャンネルが、予約のときと違っていたので、送りませんでした。投稿の画面で確認してから、もう一度送ってください。");
     }
     return { done: false, target, row: await newSession(account, target, targetId, video, text), video };
   }

@@ -70,7 +70,7 @@ async function limitMessage(admin: Admin, ownerId: string, status: string): Prom
     console.error("[video] 全体の動画の量が上限に達しました");
     return "いま動画を受け付けられません。時間をおいてもう一度お試しください。";
   }
-  throw new Error(`上限を確かめられませんでした（${status}）`);
+  throw new Error(`上限を確認できませんでした（${status}）`);
 }
 
 // 本人の「使った印つき・記録のない引換券の場所」に残っているファイルを消す（docs/design/video.md の 11.）。
@@ -164,7 +164,7 @@ export async function verifyVideoUpload(admin: Admin, ownerId: string, path: str
       info = checkMp4(new Uint8Array(await blob.arrayBuffer()));
     } catch (e) {
       if (e instanceof Mp4CheckError) {
-        console.error("[video] 確かめで受け付けませんでした", e.problem);
+        console.error("[video] 確認で受け付けませんでした", e.problem);
         throw new MediaError(mp4ProblemMessage(e.problem));
       }
       throw e;

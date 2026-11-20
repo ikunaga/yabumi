@@ -123,7 +123,7 @@ export function playCapacityMail(count: number, threshold: number) {
         ? "上限に達したので、いま利用者が新しく Google Play をつなぐと「混み合っています」と出ます（つないである人の取り込みは続きます）。"
         : `このしきい値（${threshold}）を超えました。上限に達すると、新しくつなげなくなります。`,
       "",
-      "確かめること（docs/deploy.md の 15 の「運営者の見方」）:",
+      "確認すること（docs/deploy.md の 15 の「運営者の見方」）:",
       "1. Supabase の SQL Editor で、作った数の多い利用者がいないかを見る:",
       "   select owner_id, count(*) from play_account_creations where created_at > now() - interval '30 days' group by 1 order by 2 desc limit 10;",
       "2. 1 人が何度も作っている・登録し直しを繰り返しているなら、悪用として止める",

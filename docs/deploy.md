@@ -330,7 +330,7 @@ yabumi.app は Cloudflare Registrar で取る（オーナー）。DNS も Cloudf
 
 | # | 誰が | やること |
 |---|---|---|
-| 13-8 | オーナー | yabumi で ddy のプロジェクトを開き、「指標」→「ストアと課金をつなぐ」の App Store の案内のとおりに、App Store Connect で**役割が Sales and Reports の Team キー**を作って入れる → 「確かめて保存する」で「使えました」と出る |
+| 13-8 | オーナー | yabumi で ddy のプロジェクトを開き、「指標」→「ストアと課金をつなぐ」の App Store の案内のとおりに、App Store Connect で**役割が Sales and Reports の Team キー**を作って入れる → 「確認して保存する」で「使えました」と出る |
 | 13-9 | オーナー | すぐに直近の数日分が取り込まれ、「指標」の「ダウンロード」に数字が出る（売上やダウンロードがない日は 0）。App Store Connect の「売上とトレンド」の同じ日の数と見比べる |
 | 13-10 | オーナー | RevenueCat を使っていれば、同じように Charts & metrics だけを読めるキーを作って入れる。「課金（売上）」に直近 28 日の売上が出る。RevenueCat の Overview の Revenue と見比べる |
 | 13-11 | Claude | 翌日、`select provider, status, last_error, last_imported_day from store_credentials;` で、毎日の取り込みが進んでいることを確かめる（鍵の中身は出さない） |
@@ -385,7 +385,7 @@ yabumi は利用者ごとに「読み取り用のサービスアカウント」�
 | # | 誰が | やること |
 |---|---|---|
 | 15-8 | オーナー | yabumi のプロジェクトの「ストアと課金をつなぐ」→「Google Play をつなぐ」→ 出たメールアドレスを、Play Console の「ユーザーと権限」→「新しいユーザーを招待」に貼り、「アプリ情報の表示と一括レポートのダウンロード（読み取り専用）」だけに印を付けて招待 |
-| 15-9 | オーナー | Play Console の「レポートをダウンロード」→「統計情報」の「Cloud Storage の URI をコピー」を貼り、パッケージ名を確かめて「確かめて保存する」→「読めました」 |
+| 15-9 | オーナー | Play Console の「レポートをダウンロード」→「統計情報」の「Cloud Storage の URI をコピー」を貼り、パッケージ名を確かめて「確認して保存する」→「読めました」 |
 | 15-10 | オーナー | 「指標」の「ダウンロード」と「ストアのページの閲覧」に Google Play の分が足される（Play のレポートは 3〜7 日遅れる）。Play Console の統計情報と見比べる |
 
 ## 16. App Store のストアのページの閲覧数（F07 の段取り ⑤）
@@ -408,7 +408,7 @@ yabumi は利用者ごとに「読み取り用のサービスアカウント」�
 | 17-1 | オーナー | Vercel → 右上のアイコン → Account Settings → **Tokens** → Create Token。名前 `yabumi-link-domains`、Scope は yabumi のプロジェクトがあるチーム（Hobby なら自分のチーム）、Expiration は 1 年（切れる前に作り直す。カレンダーに入れておく）。出た値を控える（あとから見られない） |
 | 17-2 | オーナー | yabumi の Vercel のプロジェクト → Settings → General の **Project ID**（`prj_` で始まる）と、チームの Settings → General の **Team ID**（`team_` で始まる）を控える |
 | 17-3 | オーナー | Vercel → yabumi のプロジェクト → Settings → Environment Variables に `VERCEL_API_TOKEN`（**Sensitive**）、`VERCEL_PROJECT_ID`、`VERCEL_TEAM_ID` を足し（Environment は Production だけ。プレビューから本番のドメインを触らないように）、Redeploy |
-| 17-4 | 確かめ | 「短縮リンク」の画面の「自分のドメインで作る（任意）」の「設定する」が押せる。オーナーの持っているドメインで go.<ドメイン> を足し、DNS に出た CNAME と TXT（_yabumi.go）を入れて「確かめる」→「つながりました」。そのドメインの短縮リンクを押すとストアが開き、`https://go.<ドメイン>/login` は「このアドレスは短縮リンク用です。」になる。Vercel の Domains にそのドメインが並んでいる |
+| 17-4 | 確かめ | 「短縮リンク」の画面の「自分のドメインで作る（任意）」の「設定する」が押せる。オーナーの持っているドメインで go.<ドメイン> を足し、DNS に出た CNAME と TXT（_yabumi.go）を入れて「確認する」→「つながりました」。そのドメインの短縮リンクを押すとストアが開き、`https://go.<ドメイン>/login` は「このアドレスは短縮リンク用です。」になる。Vercel の Domains にそのドメインが並んでいる |
 | 17-5 | 確かめ | 「このドメインを外す」で、Vercel の Domains からそのドメインが消える |
 
 - **上限**: Vercel Hobby は 1 プロジェクトにドメイン 50 まで（yabumi の yabumi.app・www・go・vercel.app を含む）。利用者の分は `LINK_DOMAIN_LIMIT`（既定 40）まで。32 に達すると `OPERATOR_EMAIL` に「短縮リンクの利用者のドメインが上限に近づいています」が届く（7 日に 1 回）。そのときは Pro にして `LINK_DOMAIN_LIMIT` を上げるかを決める。なお Hobby は個人・非商用のみ（9 の費用の表）なので、他の人に提供する時点で Pro になる見込み
@@ -423,7 +423,7 @@ yabumi は利用者ごとに「読み取り用のサービスアカウント」�
 |---|---|---|
 | 18-1 | オーナー | ターミナルで、yabumi のフォルダで `npx web-push generate-vapid-keys` を実行する。出た Public Key と Private Key を控える（ローカルとは**別の組**を作る。Private Key は人に見せない） |
 | 18-2 | オーナー | Vercel → Settings → Environment Variables に `VAPID_PUBLIC_KEY`（公開してよい値）、`VAPID_PRIVATE_KEY`（**Sensitive**）、`VAPID_SUBJECT`（`mailto:` と運営者のメールアドレス。例 `mailto:ops@yabumi.app`。push サービスが問題のあるときに連絡してくる先）を足し（Environment は Production。Preview に入れるときは本番と別の組）、Redeploy |
-| 18-3 | 確かめ | 下の「実機で確かめる」 |
+| 18-3 | 確かめ | 下の「実機で確認する」 |
 
 - **鍵を作り直すと**（漏れた疑いがあるときなど）、登録済みの端末には届かなくなる（古い鍵で登録した宛先は、新しい鍵の署名を受け付けない）。利用者が「お知らせの設定」を開き、「この端末で通知を受け取る」を押し直すと、新しい鍵で登録し直す。作り直したら、お知らせで登録し直すよう案内する
 - **費用**: 0 円。push サービス（Apple・Google・Mozilla・Microsoft）は無料で、送るのは Vercel の関数の中（伴走のジョブ）なので、追加の費用はない
@@ -520,7 +520,7 @@ yabumi は、画面を開くたびに proxy.ts（とページ）で `supabase.au
 - **出した日時**: 2026-11-02 12 時台（日本時間）。main **f7d4ccb** を本番に出した（オーナーの git push）
 - **DB**: マイグレーション 20261102100000_general_product・20261102210000_destinations_limit_lock を本番に当てた（PM）
 - **規約・ポリシー**: D34 の版の施行日を 2026-11-02 にした（LEGAL_VERSIONS）。入れ替える前の本文（2026-10-30 の版）は、タグ **legal-2026-10-30**（23f12da）に残した
-- **本番の確かめ（PM が curl で）**: LP の一言、/terms と /privacy の施行日、音声入力の文、ページに「矢書」が残っていないこと、ログイン、ジョブの入口。下の「本番で確かめること」の表のうち、ログインして画面を見る行は、オーナーの作業のあとに確かめる
+- **本番の確かめ（PM が curl で）**: LP の一言、/terms と /privacy の施行日、音声入力の文、ページに「矢書」が残っていないこと、ログイン、ジョブの入口。下の「本番で確認すること」の表のうち、ログインして画面を見る行は、オーナーの作業のあとに確かめる
 - **オーナーの作業の残り**（2026-11-02 の時点で、まだ）:
 
 | # | やること | 状態 |
@@ -557,7 +557,7 @@ yabumi は、画面を開くたびに proxy.ts（とページ）で `supabase.au
 | 22-5 | PM | D 日（オーナーの了承のあと） | `supabase db push`。当たったら `supabase migration list --linked` で、20261102100000 と 20261102210000 の本番の列が埋まっていること。**`supabase db reset` は本番では使わない** |
 | 22-6 | PM | D 日 | 当たった中身を数だけで確かめる（SQL Editor か `supabase db`。個人情報は見ない）: `select product_type, count(*) from projects group by 1;`（前のプロジェクトがすべて app）、`select count(*) from project_destinations;` と `select count(*) from project_outcomes_daily;`（どちらも 0） |
 | 22-7 | オーナー | D 日（22-5 のすぐあと） | `git push origin main`。Vercel → Deployments で、いちばん上のデプロイが main の最新のコミットで **Ready** になるまで待つ（数分）。Error になったら Build Logs を PM に渡す（このときは本番は前のデプロイのまま動いている） |
-| 22-8 | PM とオーナー | D 日（22-7 のあと） | 本番で確かめる（下の「本番で確かめること」）。問題があれば 22-13 で戻す |
+| 22-8 | PM とオーナー | D 日（22-7 のあと） | 本番で確かめる（下の「本番で確認すること」）。問題があれば 22-13 で戻す |
 | 22-9 | オーナー | D 日 | ログインすると、画面の上に**同意の帯**が出る（今の版が D 日の版に変わったため）。規約とポリシーを開いて、第 1 条などが新しい文になっていること・施行日が D 日になっていることを見てから、同意する。同意すると帯が消える |
 | 22-10 | オーナー | D 日（22-9 のあと） | 認証のメール 5 通の**本文と件名**を貼り直す（20 の 20-1。件名も「【矢書】…」から「【yabumi】…」に変わったので、件名も 20 の表どおりに直す）。そのあと 20-2 のとおり「パスワードを忘れた」で 1 通送って、件名が【yabumi】で始まり、本文に「矢書」が残っていないこと |
 | 22-11 | オーナー | D 日以降、いつでも | GitHub App のロゴ（20-3。10-7・10-8 の手順）。あわせて Description を「yabumi: 開発しているアプリや Web のサービスのリポジトリを読んで、紹介文と SNS の投稿のネタを作ります。読み取りだけで、書き込みはしません。」に（D34 で GitHub をアプリ以外の開発もの（Web のサービス）でも使うため。10-3 の例文はアプリだけの書き方） |

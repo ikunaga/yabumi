@@ -126,7 +126,7 @@ function HoldListRow({ hold, heldAt, onResult }: { hold: HoldRow; heldAt: string
             <Input id={id} value={reason} maxLength={200} onChange={(e) => setReason(e.target.value)} />
           </Field>
           <div className="flex flex-wrap items-center gap-3">
-            <span>解除すると、動いている自動の投稿は、最初の回を確かめてから送ります。</span>
+            <span>解除すると、動いている自動の投稿は、最初の回を確認してから送ります。</span>
             <Button type="button" size="sm" disabled={pending || !reason.trim()} onClick={release}>
               {pending ? "解除しています…" : "解除する"}
             </Button>

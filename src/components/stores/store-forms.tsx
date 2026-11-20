@@ -49,7 +49,7 @@ export function AppStoreConnectForm({ projectId }: { projectId: string }) {
       </Field>
       <div>
         <Button type="submit" disabled={pending}>
-          {pending ? "確かめています…" : "確かめて保存する"}
+          {pending ? "確認しています…" : "確認して保存する"}
         </Button>
       </div>
     </form>
@@ -70,7 +70,7 @@ export function RevenueCatForm({ projectId }: { projectId: string }) {
       </Field>
       <div>
         <Button type="submit" disabled={pending}>
-          {pending ? "確かめています…" : "確かめて保存する"}
+          {pending ? "確認しています…" : "確認して保存する"}
         </Button>
       </div>
     </form>
@@ -107,7 +107,7 @@ export function GooglePlayForm({ projectId, defaultPackage, defaultBucket }: { p
       </Field>
       <div>
         <Button type="submit" disabled={pending}>
-          {pending ? "確かめています…" : "確かめて保存する"}
+          {pending ? "確認しています…" : "確認して保存する"}
         </Button>
       </div>
     </form>

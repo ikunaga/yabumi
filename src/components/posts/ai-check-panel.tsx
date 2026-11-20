@@ -49,16 +49,16 @@ export function AiCheckPanel({ projectId, aiEnabled, texts, onApply }: Props) {
 
   // 使わなくても送れるので、閉じて置く（開くとボタンと説明が出る）。見てもらったあとは開いたまま
   return (
-    <DisclosureBox label="AI が書いたように見えないか確かめる欄を表示" className="text-sm" bodyClassName="mt-3">
+    <DisclosureBox label="AI が書いたように見えないか確認する欄を表示" className="text-sm" bodyClassName="mt-3">
       <section className="flex flex-col gap-3" aria-label="AI っぽさチェック">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           {aiEnabled ? (
             <Button type="button" variant="secondary" size="sm" disabled={pending || !hasText} onClick={run}>
-              {pending ? "確かめています…" : result ? "もう一度確かめる" : "AI っぽくないか確かめる"}
+              {pending ? "確認しています…" : result ? "もう一度確認する" : "AI っぽくないか確認する"}
             </Button>
           ) : (
             <NotReadyButton variant="secondary" size="sm">
-              AI っぽくないか確かめる
+              AI っぽくないか確認する
             </NotReadyButton>
           )}
         </div>
@@ -75,7 +75,7 @@ export function AiCheckPanel({ projectId, aiEnabled, texts, onApply }: Props) {
               <span className="shrink-0 rounded-full bg-primary-soft px-2 py-0.5 text-xs font-bold text-primary">AI の見立て</span>
               <span>{result.summary || (result.findings.length ? "" : "気になるところは見つかりませんでした。")}</span>
             </p>
-            {result.findings.length > 0 && visible.length === 0 && <p className="text-muted">指摘はすべて確かめました。</p>}
+            {result.findings.length > 0 && visible.length === 0 && <p className="text-muted">指摘はすべて確認しました。</p>}
             <ul className="flex flex-col gap-3">
               {visible.map(({ f, i }) => (
                 <FindingItem

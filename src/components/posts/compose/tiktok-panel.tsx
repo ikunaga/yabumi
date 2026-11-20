@@ -40,7 +40,7 @@ export function ComposeTikTok({ c }: { c: Composer }) {
   return (
     <section aria-labelledby="tiktok-panel" className="flex flex-col gap-3 rounded-md border border-line px-4 py-3.5">
       <h3 id="tiktok-panel" className="text-[15px] font-bold">
-        TikTok に送る内容の確かめ
+        TikTok に送る内容の確認
       </h3>
 
       {/* TikTok は手で投稿する（docs/design/tiktok.md の 17.）。審査の前に公開で出したいとき・音楽を付けたいとき・送れないときの逃げ道 */}

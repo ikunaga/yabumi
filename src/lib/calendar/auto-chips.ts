@@ -44,7 +44,7 @@ export function postChipHref(post: PostRow, base: string, firstReview: Set<strin
 
 // 最初の回の確かめ待ちの注意（送り先の確かめ待ちは postWarning が出す）
 export function autoReviewWarning(post: PostRow, firstReview: Set<string>): string | null {
-  return post.autoRunId && firstReview.has(post.id) ? "最初の回の確かめ待ちです" : null;
+  return post.autoRunId && firstReview.has(post.id) ? "最初の回の確認待ちです" : null;
 }
 
 // カレンダーで読む自動の回の範囲。過ぎた時刻の回は出さない（作る前のまま過ぎた回を、規則から作り出さないため）

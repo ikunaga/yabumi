@@ -72,7 +72,7 @@ export function fakeGenerator(mode: FakeMode = "ok"): AutoPostGenerator {
     }
     const headline = input.headline ? "（偽の AI）今朝の焙煎の話" : undefined;
     return mode === "held"
-      ? { ok: true, texts, headline, issues: [{ kind: "made_up", detail: "（偽の AI）事実か確かめてほしいところがあります" }] }
+      ? { ok: true, texts, headline, issues: [{ kind: "made_up", detail: "（偽の AI）事実か確認してほしいところがあります" }] }
       : { ok: true, texts, pillar: "", concern: "none", headline };
   };
 }

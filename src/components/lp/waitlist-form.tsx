@@ -20,7 +20,7 @@ export function WaitlistForm() {
       <div role="status" className="flex flex-col gap-2 self-start rounded-lg border border-success bg-success-soft px-5 py-4 text-[15px] leading-[1.8] text-success">
         <p className="font-bold">申し込みを受け付けました。ありがとうございます。</p>
         <p className="text-fg">
-          {state.mailed ? "確認のメールをお送りしました。届かないときは、迷惑メールのフォルダも確かめてください。" : ""}
+          {state.mailed ? "確認のメールをお送りしました。届かないときは、迷惑メールのフォルダも確認してください。" : ""}
           申し込みの順にご案内します（時期は決まっていません。お断りすることもあります）。招待するときは、件名「yabumi への招待」のメールをお送りします。
         </p>
       </div>

@@ -30,7 +30,7 @@ describe("TikTok の連携の版", () => {
     expect(privacy).toContain("シンガポールには個人情報保護法（PDPA）があります");
     expect(privacy).toContain("1 時間で使えなくなり、送り終えたら消す（残ったものも毎日消す）");
     expect(privacy).toContain("https://www.tiktok.com/legal/page/row/privacy-policy/ja-JP");
-    expect(privacy).toContain("TikTok に問い合わせて外されたことを確かめ");
+    expect(privacy).toContain("TikTok に問い合わせて外されたことを確認");
     // 入口の期限は 1 時間（書いた文と同じ）
     expect(TICKET_TTL_MS).toBe(60 * 60 * 1000);
     // 同意の記録は配信先と一緒に消える（「送り先を消すか、投稿を消すか、退会まで」）

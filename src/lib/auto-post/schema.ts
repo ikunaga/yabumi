@@ -88,7 +88,7 @@ export const autoPlanInputSchema = z
     instructions: instructionsSchema,
     image: autoImageSchema,
     leadHours: z.number().int().min(1).max(48),
-    consent: z.literal(true, { message: "「AI が作った文を、確かめずに送ります」に同意してください。" }),
+    consent: z.literal(true, { message: "「AI が作った文を、確認せずに送ります」に同意してください。" }),
     sampleId: z.uuid().optional(),
   })
   .refine((p) => p.kind !== "series" || !!p.materials.format_id, { message: "シリーズのフォーマットを選んでください。", path: ["materials"] })

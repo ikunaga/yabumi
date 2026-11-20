@@ -85,7 +85,7 @@ export async function confirmVideoUpload(path: string): Promise<{ video?: Upload
     // プレビューは、上げた直後は手元の動画を使う（ここの URL は、あとから開いたとき用）
     return { video: { ...file, previewUrl: null } };
   } catch (e) {
-    return failure(e, "動画を確かめられませんでした。もう一度選び直してください。");
+    return failure(e, "動画を確認できませんでした。もう一度選び直してください。");
   }
 }
 

@@ -107,14 +107,18 @@ export function collectUiTexts(root = "src"): UiText[] {
     // JSX の要素の中で、つないで読んだ文字列（あとで二重に数えないため）
     const done = new Set<ts.Node>();
     const visit = (node: ts.Node) => {
-      if (ts.isJsxElement(node) && !INLINE_TAGS.has(tagName(node))) {
+      // インラインの要素でも、ブロックの要素の文につながなかったもの（{条件 && <span>…</span>} など）は、それだけで 1 つの文にする
+      if (ts.isJsxElement(node) && (!INLINE_TAGS.has(tagName(node)) || !done.has(node))) {
         const runs: string[][] = [];
         jsxRuns(node.children, runs);
         for (const run of runs) push(node, run.join(""));
         const mark = (list: ts.NodeArray<ts.JsxChild>) => {
           for (const c of list) {
             if (ts.isJsxExpression(c) && c.expression && stringText(c.expression) !== null) done.add(c.expression);
-            if (ts.isJsxElement(c) && INLINE_TAGS.has(tagName(c))) mark(c.children);
+            if (ts.isJsxElement(c) && INLINE_TAGS.has(tagName(c))) {
+              done.add(c);
+              mark(c.children);
+            }
           }
         };
         mark(node.children);

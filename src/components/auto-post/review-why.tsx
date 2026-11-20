@@ -8,7 +8,7 @@ export function ReviewReason({ sns }: { sns: ReviewOnlySns }) {
   return (
     <p className="w-full text-xs leading-[1.7] text-muted">
       {REVIEW_REASON_SHORT[sns]}{" "}
-      <HelpTip label={`${SNS[sns].label}が「確かめて送る」だけの理由`}>{REVIEW_REASON_DETAIL[sns]}</HelpTip>
+      <HelpTip label={`${SNS[sns].label}が「確認して送る」だけの理由`}>{REVIEW_REASON_DETAIL[sns]}</HelpTip>
     </p>
   );
 }
@@ -18,9 +18,9 @@ export function ReviewFlow({ sns }: { sns: SnsKey[] }) {
   const why = sns.filter(isReviewOnlySns);
   return (
     <p className="w-full text-xs leading-[1.7] text-muted">
-      <span className="font-bold">確かめて送る:</span> {REVIEW_FLOW}{" "}
+      <span className="font-bold">確認して送る:</span> {REVIEW_FLOW}{" "}
       {why.length > 0 && (
-        <HelpTip label="確かめて送る理由">
+        <HelpTip label="確認して送る理由">
           {why.map((s) => (
             <span key={s} className="mb-2 block last:mb-0">
               {REVIEW_REASON_DETAIL[s]}

@@ -29,7 +29,7 @@ export const KIND_DESCRIPTIONS: Record<Exclude<AutoKind, "pillars">, string> = {
 
 export const TARGET_MODE_LABELS: Record<TargetMode, string> = {
   auto: "自動で送る",
-  review: "確かめて送る",
+  review: "確認して送る",
   by_hand: "手で投稿",
 };
 
@@ -37,7 +37,7 @@ export const RUN_STATUS_LABELS: Record<AutoRunStatus, string> = {
   waiting: "作る前",
   generating: "作っています",
   scheduled: "予約",
-  review: "確かめ待ち",
+  review: "確認待ち",
   held: "下書きに回した",
   skipped: "飛ばした",
   canceled: "止めた",
@@ -46,9 +46,9 @@ export const RUN_STATUS_LABELS: Record<AutoRunStatus, string> = {
 export const RUN_REASON_TEXT: Record<AutoRunReason, string> = {
   no_material: "使える材料がありませんでした",
   cannot_write: "材料だけでは書けませんでした",
-  check_failed: "送る前の確かめで引っかかりました",
+  check_failed: "送る前の確認で引っかかりました",
   similar: "前の投稿と似ています",
-  made_up: "事実か確かめたいところがあります",
+  made_up: "事実か確認したいところがあります",
   avoid: "アカウント設計の「やらないこと」に当たります",
   too_long: "字数の上限を超えました",
   ai_limit: "AI の今月の枠を使い切りました",
@@ -69,7 +69,7 @@ export const STOP_REASON_TEXT: Record<AutoStopReason, string> = {
 };
 
 // 送る時刻を過ぎても確かめなかった配信先の理由（post_targets.error_message。engine.ts の EXPIRED_MESSAGE と同じ）と、短い言葉
-export const EXPIRED_TARGET_LABEL = "確かめられなかったので送りませんでした";
+export const EXPIRED_TARGET_LABEL = "確認できなかったので送りませんでした";
 
 // カレンダーの自動の回の言葉（数え方: 確かめ待ちは承認するまで予約に数えない）。
 // PC の週・月のマスは札の文字が 6〜8 字ほどで切れるので、札には回し方の名前・投稿の題を出し、この言葉は吹き出し・注意・読み上げ・スマホの一覧に出す
@@ -81,7 +81,7 @@ export const EXPIRED_TARGET_LABEL = "確かめられなかったので送りま�
 // - expired: 確かめないまま送る時刻を過ぎた（! 失敗。error_message に長い文、短くは EXPIRED_TARGET_LABEL）
 export const CALENDAR_CHIP = {
   before: "↻ 自動（作る前）",
-  awaiting: "↻ 確かめ待ち",
+  awaiting: "↻ 確認待ち",
   scheduled: "↻",
   expired: "! 失敗",
 } as const;
@@ -111,7 +111,7 @@ export const REVIEW_FLOW = "送る 24 時間前に作って通知します → �
 // 段階 A で自動の投稿の送り先に選べない SNS の理由（TikTok・YouTube。docs/design/auto-post.md の A6・2.9 の段階 C）
 export const STAGE_C_SNS_SHORT = "送るたびに同意が要る SNS なので、自動の投稿ではまだ選べません（準備中）";
 export const STAGE_C_SNS_DETAIL =
-  "TikTok・YouTube は、どちらも決まりで、送るたびにあなたがはっきり同意してから送ることになっているので、「自動で送る」にはできません。自動の投稿では「確かめて送る」（作った下書きを通知から開き、投稿の画面の同意の欄で確かめて送る）にする予定ですが、どちらも画像や動画が要るので、画像を自動で添えられるようになってから選べるようにします。それまでは、投稿をつくるの画面から送ってください。";
+  "TikTok・YouTube は、どちらも決まりで、送るたびにあなたがはっきり同意してから送ることになっているので、「自動で送る」にはできません。自動の投稿では「確認して送る」（作った下書きを通知から開き、投稿の画面の同意の欄で確認して送る）にする予定ですが、どちらも画像や動画が要るので、画像を自動で添えられるようになってから選べるようにします。それまでは、投稿をつくるの画面から送ってください。";
 
 export function isReviewOnlySns(sns: string): sns is ReviewOnlySns {
   return (REVIEW_ONLY_SNS as readonly string[]).includes(sns);

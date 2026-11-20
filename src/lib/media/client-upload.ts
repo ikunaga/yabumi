@@ -60,7 +60,7 @@ export async function uploadJpeg(blob: Blob, name: string, ai?: AiOrigin): Promi
   const { error: upError } = await browserClient().storage.from(MEDIA_BUCKET).upload(ticket.path, blob, { contentType: "image/jpeg", upsert: false });
   if (upError) throw new Error(`${name}を上げられませんでした。時間をおいてもう一度お試しください。`);
   const confirmed = await confirmImageUpload(ticket.path, ai);
-  if (!confirmed.image) throw new Error(confirmed.error ?? "画像を確かめられませんでした。");
+  if (!confirmed.image) throw new Error(confirmed.error ?? "画像を確認できませんでした。");
   const { id, previewUrl, altText, width, height, sizeBytes, aiGenerated } = confirmed.image;
   return { id, previewUrl, altText, width, height, sizeBytes, aiGenerated };
 }

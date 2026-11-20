@@ -29,7 +29,7 @@ describe("自動の回の画像と見出しの版", () => {
   it("プライバシーポリシーに、画像の設定・使い道・Anthropic と Google に送るもの・SNS に送る AI の印を書いた", () => {
     const privacy = read("src/app/privacy/page.tsx");
     expect(privacy).toContain("画像の設定（どこから作るか・写真かイラストか・縦横・見出しを重ねるか・見出しの見た目〈色・書体・置き方〉）");
-    expect(privacy).toContain("AI が投稿の文を作り、設定に応じて画像をつくって添え、送る前の確かめ");
+    expect(privacy).toContain("AI が投稿の文を作り、設定に応じて画像をつくって添え、送る前の確認");
     expect(privacy).toContain("自動の回の画像の場面を AI が書くときは、その回の本文と、フォーマットの絵の説明・空欄に入れた言葉を送ります。");
     expect(privacy).toContain("自動の投稿では、利用者がその場で押していないときにも、設定に沿って作った絵の説明〈AI がその回の本文から書いた場面、フォーマットの空欄に入れた言葉を埋めたもの〉を送ります");
     // Threads・Instagram・X の 3 つの行に AI の印。Facebook の行は変えない（欄がない）

@@ -46,7 +46,7 @@ export function ReviewCard({ projectId, item, dueLabel }: { projectId: string; i
         <p className="num text-sm text-muted">{dueLabel} に送ります</p>
       </div>
       {first && (
-        <p className="text-[14px] text-muted">最初の回だけ、送る前に確かめてください。押さなければ送りません。次の回からは確かめずに送ります（X などの「確かめて送る」SNS は、毎回確かめます）。</p>
+        <p className="text-[14px] text-muted">最初の回だけ、送る前に確認してください。押さなければ送りません。次の回からは確認せずに送ります（X などの「確認して送る」SNS は、毎回確認します）。</p>
       )}
       {error && <ErrorBanner>{error}</ErrorBanner>}
 
@@ -55,7 +55,7 @@ export function ReviewCard({ projectId, item, dueLabel }: { projectId: string; i
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="inline-flex items-center gap-2">
               <SnsTag sns={t.sns} />
-              <span className="text-sm text-muted">{t.status === "awaiting_approval" ? "確かめて送る" : "予約"}</span>
+              <span className="text-sm text-muted">{t.status === "awaiting_approval" ? "確認して送る" : "予約"}</span>
             </span>
           </div>
           {t.title && <p className="text-[15px] font-bold whitespace-pre-wrap">{t.title}</p>}
@@ -102,8 +102,8 @@ export function ReviewCard({ projectId, item, dueLabel }: { projectId: string; i
           </Button>
         </div>
       )}
-      {first && <p className="text-xs text-muted">編集したら、この画面に戻って確かめてください。投稿の画面でそのまま予約しても送れます。</p>}
-      {!first && waiting.length > 0 && <p className="text-xs text-muted">編集すると、確かめ待ちに戻ります。編集したら、この画面で確かめ直してください。</p>}
+      {first && <p className="text-xs text-muted">編集したら、この画面に戻って確認してください。投稿の画面でそのまま予約しても送れます。</p>}
+      {!first && waiting.length > 0 && <p className="text-xs text-muted">編集すると、確認待ちに戻ります。編集したら、この画面で確認し直してください。</p>}
 
       <ConfirmDialog
         open={confirm === "skip"}
@@ -115,7 +115,7 @@ export function ReviewCard({ projectId, item, dueLabel }: { projectId: string; i
           run(() => reviewAutoRun(item.runId, false));
         }}
       >
-        <p>この回を取り消します。作った文は下書きに残ります。次の回も、送る前に確かめてもらいます。</p>
+        <p>この回を取り消します。作った文は下書きに残ります。次の回も、送る前に確認してもらいます。</p>
       </ConfirmDialog>
       <ConfirmDialog
         open={!!confirm && confirm !== "skip"}

@@ -363,7 +363,7 @@ async function publishOne(admin: Admin, t: ClaimedTarget, deps: PublisherDeps): 
     const err =
       e instanceof SnsPublishError
         ? e
-        : new SnsPublishError("unknown", "送信中に予期しないエラーが起きました。SNS 側に投稿されているか確かめてください。", { cause: e });
+        : new SnsPublishError("unknown", "送信中に予期しないエラーが起きました。SNS 側に投稿されているか確認してください。", { cause: e });
     if (!(e instanceof SnsPublishError)) console.error("[publish] 予期しないエラー", e);
 
     if (err.kind === "auth") await markAccountExpired(admin, t.social_account_id);

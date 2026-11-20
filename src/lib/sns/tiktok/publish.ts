@@ -118,8 +118,8 @@ export function failureOf(reason: string): { kind: FailKind; message: string } {
     case "spam_risk_user_banned_from_posting":
     case "spam_risk_text":
     case "spam_risk":
-      return { kind: "permanent", message: "TikTok がこの投稿を受け付けませんでした。TikTok のアプリで、アカウントの状態を確かめてください。" };
+      return { kind: "permanent", message: "TikTok がこの投稿を受け付けませんでした。TikTok のアプリで、アカウントの状態を確認してください。" };
     default:
-      return { kind: "permanent", message: `TikTok に送れませんでした（${reason || "理由はわかりません"}）。投稿の画面で確かめてから、もう一度送ってください。` };
+      return { kind: "permanent", message: `TikTok に送れませんでした（${reason || "理由はわかりません"}）。投稿の画面で確認してから、もう一度送ってください。` };
   }
 }

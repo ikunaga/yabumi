@@ -66,6 +66,6 @@ describe("PMO の確かめ（2026-11-15）での直し", () => {
 
   it("上げ終えて確かめている間は「動画を確かめています」（％を出さない）", async () => {
     const { progressLabel } = await import("@/lib/media/video-plan");
-    expect(progressLabel("confirm", 1)).toBe("動画を確かめています");
+    expect(progressLabel("confirm", 1)).toBe("動画を確認しています");
   });
 });

@@ -41,19 +41,19 @@ type Props = {
 };
 
 const CHECK_MESSAGE: Record<string, { tone: "wait" | "fix" | "ok"; text: string }> = {
-  dns_missing: { tone: "wait", text: "まだ DNS が届いていません。足してから届くまで、数分〜数時間かかることがあります。少しおいてから、もう一度「確かめる」を押してください。" },
+  dns_missing: { tone: "wait", text: "まだ DNS が届いていません。足してから届くまで、数分〜数時間かかることがあります。少しおいてから、もう一度「確認する」を押してください。" },
   wrong_value: {
     tone: "fix",
-    text: "DNS の値が違います。下の表の「種類」「名前」「値」と同じになっているか確かめてください。同じ名前の古い行（A や CNAME）があれば消してください。",
+    text: "DNS の値が違います。下の表の「種類」「名前」「値」と同じになっているか確認してください。同じ名前の古い行（A や CNAME）があれば消してください。",
   },
   proxied: { tone: "fix", text: "Cloudflare の Proxy がオン（オレンジの雲）になっています。その行の雲を押して、灰色（DNS only）にしてから保存してください。" },
-  owner_txt_missing: { tone: "fix", text: "あなたのドメインだと確かめる行（2 行目の TXT）がまだ見えません。足したばかりなら、数分おいてからもう一度「確かめる」を押してください。" },
+  owner_txt_missing: { tone: "fix", text: "あなたのドメインだと確認する行（2 行目の TXT）がまだ見えません。足したばかりなら、数分おいてからもう一度「確認する」を押してください。" },
   txt_missing: { tone: "fix", text: "Vercel の持ち主の確認の行（3 行目の TXT）がまだ見えません。3 行目も足してください。" },
   cert_pending: {
     tone: "wait",
-    text: "DNS は届きました。いま、安全につなぐための証明書（https）を用意しています（数分〜1 時間ほど）。少しおいてから、もう一度「確かめる」を押してください。",
+    text: "DNS は届きました。いま、安全につなぐための証明書（https）を用意しています（数分〜1 時間ほど）。少しおいてから、もう一度「確認する」を押してください。",
   },
-  error: { tone: "fix", text: "いま確かめられませんでした。時間をおいてもう一度お試しください。" },
+  error: { tone: "fix", text: "いま確認できませんでした。時間をおいてもう一度お試しください。" },
 };
 
 export function LinkDomainCard({ projectId, ready, domain, defaultHost, profileLinks }: Props) {
@@ -106,7 +106,7 @@ export function LinkDomainCard({ projectId, ready, domain, defaultHost, profileL
 }
 
 function Steps({ step }: { step: number }) {
-  const items = ["ドメインを入れる", "DNS に行を足す", "確かめる"];
+  const items = ["ドメインを入れる", "DNS に行を足す", "確認する"];
   return (
     <ol className="grid grid-cols-3 gap-2" aria-label="手順">
       {items.map((label, i) => {
@@ -181,9 +181,9 @@ function records(domain: LinkDomainView): DnsRecord[] {
   const apex = apexOf(domain.domain);
   const list: DnsRecord[] = [
     { type: "CNAME", name: dnsRecordName(domain.domain, apex), value: domain.cnameTarget, why: "yabumi につなぐため" },
-    { type: "TXT", name: dnsRecordName(ownershipRecordName(domain.domain), apex), value: ownershipRecordValue(domain.ownershipToken), why: "あなたのドメインだと確かめるため" },
+    { type: "TXT", name: dnsRecordName(ownershipRecordName(domain.domain), apex), value: ownershipRecordValue(domain.ownershipToken), why: "あなたのドメインだと確認するため" },
   ];
-  if (domain.txtValue) list.push({ type: "TXT", name: dnsRecordName(domain.txtName || `_vercel.${apex}`, apex), value: domain.txtValue, why: "Vercel（yabumi の置き場所）が確かめるため" });
+  if (domain.txtValue) list.push({ type: "TXT", name: dnsRecordName(domain.txtName || `_vercel.${apex}`, apex), value: domain.txtValue, why: "Vercel（yabumi の置き場所）が確認するため" });
   return list;
 }
 
@@ -309,12 +309,12 @@ function DnsStep({ projectId, domain, defaultHost }: { projectId: string; domain
         <ErrorBanner>
           {domain.lastCheck === "error" ? (
             <>
-              {domain.domain} の DNS の行を、何日か確かめられなかったので、念のため短縮リンクを yabumi のドメインに戻しました。下の行が入っていることを確かめて「確かめる」を押すと、また使えます。
+              {domain.domain} の DNS の行を、何日か確認できなかったので、念のため短縮リンクを yabumi のドメインに戻しました。下の行が入っていることを確認して「確認する」を押すと、また使えます。
             </>
           ) : (
             <>
-              {domain.domain} の DNS の行（{domain.lastCheck === "owner_txt_missing" ? "あなたのドメインだと確かめる TXT" : "yabumi につなぐ CNAME"}
-              ）が見えなくなったので、短縮リンクを yabumi のドメインに戻しました。下の行を足し直して「確かめる」を押すと、また使えます。
+              {domain.domain} の DNS の行（{domain.lastCheck === "owner_txt_missing" ? "あなたのドメインだと確認する TXT" : "yabumi につなぐ CNAME"}
+              ）が見えなくなったので、短縮リンクを yabumi のドメインに戻しました。下の行を足し直して「確認する」を押すと、また使えます。
             </>
           )}
         </ErrorBanner>
@@ -325,8 +325,8 @@ function DnsStep({ projectId, domain, defaultHost }: { projectId: string; domain
         </h3>
         <p className="text-sm leading-[1.8] text-muted">
           ドメインを買ったサービス（お名前.com や Cloudflare など）の管理画面で、{domain.txtValue ? "3" : "2"} 行とも足します。1 行目（<Term k="cname">CNAME</Term>
-          ）は <b className="text-fg">{domain.domain}</b> を yabumi につなぐため、2 行目（TXT）はあなたのドメインだと確かめるためです（ほかの人が勝手に使えないように）。
-          {domain.txtValue && "このドメインでは、yabumi の置き場所（Vercel）の確かめの 3 行目も要ります。"}
+          ）は <b className="text-fg">{domain.domain}</b> を yabumi につなぐため、2 行目（TXT）はあなたのドメインだと確認するためです（ほかの人が勝手に使えないように）。
+          {domain.txtValue && "このドメインでは、yabumi の置き場所（Vercel）の確認の 3 行目も要ります。"}
         </p>
         <RecordTable domain={domain} />
         <p className="text-xs leading-[1.7] text-muted">
@@ -360,7 +360,7 @@ function DnsStep({ projectId, domain, defaultHost }: { projectId: string; domain
       </div>
 
       <form action={action} className="flex flex-col gap-3">
-        <h3 className="text-[15px] font-bold">③ 足したら、確かめる</h3>
+        <h3 className="text-[15px] font-bold">③ 足したら、確認する</h3>
         {state.error && <ErrorBanner>{state.error}</ErrorBanner>}
         {message && !state.error && (
           <p className={`rounded-md border px-4 py-3 text-sm leading-[1.7] ${message.tone === "fix" ? "border-danger text-fg" : "border-border text-fg"}`} role="status">
@@ -370,10 +370,10 @@ function DnsStep({ projectId, domain, defaultHost }: { projectId: string; domain
         )}
         <div className="flex flex-wrap items-center gap-3">
           <Button type="submit" disabled={pending}>
-            {pending ? "確かめています…" : "確かめる"}
+            {pending ? "確認しています…" : "確認する"}
           </Button>
           {domain.lastCheckedAt && (
-            <span className="text-xs text-muted">最後に確かめた時刻: {new Date(domain.lastCheckedAt).toLocaleTimeString("ja-JP", { timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit" })}</span>
+            <span className="text-xs text-muted">最後に確認した時刻: {new Date(domain.lastCheckedAt).toLocaleTimeString("ja-JP", { timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit" })}</span>
           )}
         </div>
         <p className="text-xs leading-[1.7] text-muted">つながるまでは、今のまま {defaultHost} で短縮リンクを作ります。</p>

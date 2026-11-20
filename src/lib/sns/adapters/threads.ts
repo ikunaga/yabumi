@@ -36,7 +36,7 @@ export function toPublishError(e: unknown, stage: "prepare" | "publish"): SnsPub
   if (stage === "publish") {
     return new SnsPublishError(
       "unknown",
-      "Threads への公開の途中で通信が切れました。Threads に投稿されているか確かめてから、必要ならもう一度送ってください。",
+      "Threads への公開の途中で通信が切れました。Threads に投稿されているか確認してから、必要ならもう一度送ってください。",
       { cause: e },
     );
   }

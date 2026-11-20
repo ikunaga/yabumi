@@ -626,9 +626,9 @@ function StoryFields({ v, ex }: { v: PlanData["story"]; ex: PlanExamples }) {
           <Textarea id={`story-${f}`} name={f} defaultValue={v[f].text} maxLength={STORY_ROWS[f].max} rows={STORY_ROWS[f].rows} placeholder={`例: ${ex.story[f]}`} />
           {STORY_ROWS[f].hint && <p className="text-xs text-muted">{STORY_ROWS[f].hint}</p>}
           {storyNeedsCheck(v, f) === "turn_on" && (
-            <p className="text-xs font-bold text-signal">● 「投稿に使わない」項目が入っていないか確かめてから、「投稿に使ってよい」をオンにしてください</p>
+            <p className="text-xs font-bold text-signal">● 「投稿に使わない」項目が入っていないか確認してから、「投稿に使ってよい」をオンにしてください</p>
           )}
-          {storyNeedsCheck(v, f) === "content" && <p className="text-xs font-bold text-signal">● 確かめてください（投稿に使わない項目の中身が入っていないか）。確かめて保存するまで、投稿をつくる AI には渡しません</p>}
+          {storyNeedsCheck(v, f) === "content" && <p className="text-xs font-bold text-signal">● 確認してください（投稿に使わない項目の中身が入っていないか）。確認して保存するまで、投稿をつくる AI には渡しません</p>}
         </div>
       ))}
     </>

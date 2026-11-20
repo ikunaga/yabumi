@@ -28,9 +28,9 @@ export async function fetchOverview(
     signal: AbortSignal.timeout(20_000),
   });
   if (!res.ok) {
-    if (res.status === 401) throw new StoreApiError("RevenueCat のシークレットキーが使えませんでした。v2 のキーか、取り消されていないかを確かめてください。", 401);
+    if (res.status === 401) throw new StoreApiError("RevenueCat のシークレットキーが使えませんでした。v2 のキーか、取り消されていないかを確認してください。", 401);
     if (res.status === 403) throw new StoreApiError("このキーには数字を読む権限がありません。キーの権限で「Charts & Metrics」を読めるようにしてください。", 403);
-    if (res.status === 404) throw new StoreApiError("RevenueCat のプロジェクトが見つかりませんでした。プロジェクトの ID を確かめてください。", 404);
+    if (res.status === 404) throw new StoreApiError("RevenueCat のプロジェクトが見つかりませんでした。プロジェクトの ID を確認してください。", 404);
     if (res.status === 429) throw new StoreApiError("RevenueCat の回数の上限にかかりました。時間をおいて読み直します。", 429);
     throw new StoreApiError(`RevenueCat から読めませんでした（${res.status}）。時間をおいて読み直します。`, res.status);
   }

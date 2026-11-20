@@ -65,9 +65,9 @@ export async function fetchDailySales(cred: AscCredential, reportDate: string, f
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { errors?: { detail?: string }[] };
     const detail = body.errors?.[0]?.detail ?? "";
-    if (res.status === 401) throw new StoreApiError("鍵が使えませんでした。Issuer ID・Key ID・秘密鍵が同じキーのものか、キーが取り消されていないかを確かめてください。", 401);
+    if (res.status === 401) throw new StoreApiError("鍵が使えませんでした。Issuer ID・Key ID・秘密鍵が同じキーのものか、キーが取り消されていないかを確認してください。", 401);
     if (res.status === 403) throw new StoreApiError("このキーには売上のレポートを読む権限がありません。役割が「Sales and Reports」（または Admin・Finance）の Team キーを作ってください。", 403);
-    if (res.status === 400) throw new StoreApiError(`App Store Connect が受け付けませんでした。ベンダー番号を確かめてください。${detail ? `（${detail}）` : ""}`, 400);
+    if (res.status === 400) throw new StoreApiError(`App Store Connect が受け付けませんでした。ベンダー番号を確認してください。${detail ? `（${detail}）` : ""}`, 400);
     if (res.status === 429) throw new StoreApiError("App Store Connect の回数の上限にかかりました。時間をおいて読み直します。", 429);
     throw new StoreApiError(`App Store Connect から読めませんでした（${res.status}）。時間をおいて読み直します。`, res.status);
   }

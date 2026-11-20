@@ -140,7 +140,7 @@ describe("知らせの文（本文は入れない。送り先の SNS と時刻�
 
   it("1 件: 予約・確かめが要る SNS・最初の回・下書き", () => {
     expect(generatedMessage([{ due_at: due, status: "scheduled", posts: post([["threads", "pending"]]) }]).body).toBe("11/17 19:00 に Threads に送ります");
-    expect(generatedMessage([{ due_at: due, status: "scheduled", posts: post([["threads", "pending"], ["x", "awaiting_approval"]]) }]).body).toBe("11/17 19:00 に X・Threads に送ります（X は確かめが要ります）");
+    expect(generatedMessage([{ due_at: due, status: "scheduled", posts: post([["threads", "pending"], ["x", "awaiting_approval"]]) }]).body).toBe("11/17 19:00 に X・Threads に送ります（X は確認が要ります）");
     expect(generatedMessage([{ due_at: due, status: "review", posts: post([["threads", "pending"]]) }]).title).toContain("最初の回");
     expect(generatedMessage([{ due_at: due, status: "held", posts: post([["threads", "pending"]]) }]).title).toContain("下書き");
   });
@@ -150,6 +150,6 @@ describe("知らせの文（本文は入れない。送り先の SNS と時刻�
       { due_at: due, status: "scheduled", posts: post([["x", "awaiting_approval"]]) },
       { due_at: due, status: "held", posts: post([["threads", "pending"]]) },
     ]);
-    expect(m.body).toBe("2 件を作りました（確かめ待ち 1 件）（下書きに回した 1 件）");
+    expect(m.body).toBe("2 件を作りました（確認待ち 1 件）（下書きに回した 1 件）");
   });
 });

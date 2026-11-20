@@ -20,7 +20,7 @@ export function isStaleError(e: unknown): boolean {
 
 export const STALE_MESSAGE = "yabumi が新しくなったため、保存や送信ができませんでした。画面を読み込み直してから、もう一度押してください。";
 export const OFFLINE_MESSAGE = "通信がつながっていないので、保存や送信ができませんでした。つながってから、もう一度押してください。";
-export const FAILED_MESSAGE = "保存や送信ができませんでした。通信を確かめて、もう一度押してください。";
+export const FAILED_MESSAGE = "保存や送信ができませんでした。通信を確認して、もう一度押してください。";
 
 // 失敗の理由と、知らせの文。kept を渡すと「入力は残しています」などを後ろに足す
 export function actionFailure(e: unknown, online: boolean, kept = ""): ActionFailure {

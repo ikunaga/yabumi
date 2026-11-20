@@ -63,7 +63,7 @@ export async function confirmImageUpload(path: string, ai?: AiOrigin): Promise<{
     const urls = await signedUrls(admin, [file.storagePath], PREVIEW_URL_SECONDS);
     return { image: { ...file, previewUrl: urls.get(file.storagePath) ?? null } };
   } catch (e) {
-    return failure(e, "画像を確かめられませんでした。もう一度選び直してください。");
+    return failure(e, "画像を確認できませんでした。もう一度選び直してください。");
   }
 }
 

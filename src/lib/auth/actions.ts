@@ -21,7 +21,7 @@ export type AuthFormState = {
 };
 
 const credentialsSchema = z.object({
-  email: z.email("メールアドレスの形式が正しくありません。もう一度お確かめください。"),
+  email: z.email("メールアドレスの形式が正しくありません。もう一度ご確認ください。"),
   password: z.string().min(8, "パスワードは 8 文字以上にしてください。").max(72, "パスワードは 72 文字以内にしてください。"),
 });
 
@@ -131,7 +131,7 @@ export async function signup(_prev: AuthFormState, formData: FormData): Promise<
   // すでに登録済みのアドレスでも Supabase は同じ応答を返す（登録の有無を他人に知られないため）ので、文面もどちらにも合うようにする
   if (!data.session) {
     return {
-      message: "確認メールを送りました。メール内のリンクを開くと登録が完了します。届かないときは、迷惑メールのフォルダも確かめてください。",
+      message: "確認メールを送りました。メール内のリンクを開くと登録が完了します。届かないときは、迷惑メールのフォルダも確認してください。",
       email,
     };
   }
@@ -150,7 +150,7 @@ export async function logout() {
   redirect("/login");
 }
 
-const emailSchema = z.email("メールアドレスの形式が正しくありません。もう一度お確かめください。");
+const emailSchema = z.email("メールアドレスの形式が正しくありません。もう一度ご確認ください。");
 
 // 「パスワードを忘れた」: 再設定のメールを送る。登録されていないアドレスでも同じ文面を返す（登録の有無を他人に知られないため）
 export async function requestPasswordReset(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
@@ -168,7 +168,7 @@ export async function requestPasswordReset(_prev: AuthFormState, formData: FormD
   }
   if (error) console.error("[auth] 再設定のメールを送れませんでした", error.code ?? error.message);
   return {
-    message: "このメールアドレスで登録があれば、パスワードを再設定するメールを送りました。届かないときは、迷惑メールのフォルダも確かめてください。",
+    message: "このメールアドレスで登録があれば、パスワードを再設定するメールを送りました。届かないときは、迷惑メールのフォルダも確認してください。",
     email,
   };
 }

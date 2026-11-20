@@ -20,7 +20,7 @@ async function asc<T>(cred: AscCredential, path: string, init: RequestInit = {},
 }
 
 function ascError(status: number, what: string): StoreApiError {
-  if (status === 401) return new StoreApiError(`${what}: 鍵が使えませんでした。Issuer ID・Key ID・秘密鍵が同じキーのものか確かめてください。`, 401);
+  if (status === 401) return new StoreApiError(`${what}: 鍵が使えませんでした。Issuer ID・Key ID・秘密鍵が同じキーのものか確認してください。`, 401);
   if (status === 403) return new StoreApiError(`${what}: このキーには権限がありません。`, 403);
   return new StoreApiError(`${what}: App Store Connect から読めませんでした（${status}）。時間をおいて読み直します。`, status);
 }
@@ -31,8 +31,8 @@ type Resource = { id: string; attributes?: Record<string, unknown> };
 export async function ensureOngoingRequest(adminCred: AscCredential, appAppleId: string, fetchImpl: Fetch = fetch, now = new Date()): Promise<string> {
   const existing = await asc<{ data?: Resource[] }>(adminCred, `/v1/apps/${encodeURIComponent(appAppleId)}/analyticsReportRequests?filter[accessType]=ONGOING`, {}, fetchImpl, now);
   if (existing.status === 403) throw new StoreApiError("このキーでは依頼を作れません。役割が「Admin」のキーを使ってください（保存はしません）。", 403);
-  if (existing.status === 404) throw new StoreApiError("App Store のアプリが見つかりませんでした。プロジェクトの App Store の URL（id の数字）を確かめてください。", 404);
-  if (existing.status >= 300) throw ascError(existing.status, "依頼を確かめられませんでした");
+  if (existing.status === 404) throw new StoreApiError("App Store のアプリが見つかりませんでした。プロジェクトの App Store の URL（id の数字）を確認してください。", 404);
+  if (existing.status >= 300) throw ascError(existing.status, "依頼を確認できませんでした");
   const found = existing.json.data?.find((r) => !(r.attributes as { stoppedDueToInactivity?: boolean } | undefined)?.stoppedDueToInactivity);
   if (found) return found.id;
   const created = await asc<{ data?: Resource }>(

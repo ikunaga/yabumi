@@ -236,6 +236,6 @@ export function mp4ProblemMessage(p: Mp4Problem): string {
     case "audio_codec":
       return "この動画の音声は扱えません。別の動画を選んでください。";
     default:
-      return "動画を確かめられませんでした。yabumi の画面からもう一度選び直してください。";
+      return "動画を確認できませんでした。yabumi の画面からもう一度選び直してください。";
   }
 }

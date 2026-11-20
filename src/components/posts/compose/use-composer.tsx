@@ -808,7 +808,7 @@ export function useComposer({
     const onClick = (e: MouseEvent) => {
       const a = (e.target as Element | null)?.closest?.("a[href]");
       if (!a) return;
-      if (!window.confirm("送っている途中です。画面を離れても送信は続き、結果は投稿の画面で確かめられます。離れますか？")) {
+      if (!window.confirm("送っている途中です。画面を離れても送信は続き、結果は投稿の画面で確認できます。離れますか？")) {
         e.preventDefault();
         e.stopPropagation();
       }

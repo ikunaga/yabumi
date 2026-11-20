@@ -44,7 +44,7 @@ export default async function ConnectTikTokPage(props: PageProps<"/projects/[id]
             <section className="flex flex-col gap-1">
               <h2 className="text-[16px] font-bold">yabumi ができること</h2>
               <ul className="list-disc pl-5">
-                <li>yabumi でつくった写真の投稿を、今すぐ、または予約した日時に TikTok へ送る（タイトルと説明は、TikTok 用に確かめてから送ります）</li>
+                <li>yabumi でつくった写真の投稿を、今すぐ、または予約した日時に TikTok へ送る（タイトルと説明は、TikTok 用に確認してから送ります）</li>
                 <li>TikTok のアプリで仕上げたいときは、TikTok の受信箱に下書きとして送る</li>
                 <li>投稿の画面に、つないだ TikTok のニックネームとアイコンを出す</li>
               </ul>

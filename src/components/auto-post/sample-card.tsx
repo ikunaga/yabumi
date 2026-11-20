@@ -207,7 +207,7 @@ export function SampleCard(p: Props) {
             この投稿を 1 回目として送る
             <span className="block text-sm text-muted">
               {canAdopt
-                ? "1 回目の日時に、この投稿をそのまま送ります。「確かめて送る」にした SNS は、いつもどおり送る前に中身を見てください。"
+                ? "1 回目の日時に、この投稿をそのまま送ります。「確認して送る」にした SNS は、いつもどおり送る前に中身を見てください。"
                 : sample?.issues.length
                   ? "この投稿には注意が出たので、1 回目として送れません。もう一度つくると、送れるようになることがあります。"
                   : wantsImage && !sample?.image && !stale

@@ -43,8 +43,8 @@ export const MATERIALS_OUT_STOP = 3;
 export const REMIND_BEFORE_MS = 2 * 3_600_000;
 // 送る時刻のあと、結果を見るまで待つ（送信ジョブの 3 回のやり直し〈1 分・5 分〉と、準備中の公開が済むまで）
 export const SETTLE_AFTER_MS = 15 * 60_000;
-export const EXPIRED_MESSAGE = "確かめられないまま送る時刻を過ぎたので、送りませんでした。送るときは、日時を直して確かめてください。";
-export const REVIEW_EXPIRED_DETAIL = "最初の回を確かめないまま、送る時刻を過ぎました";
+export const EXPIRED_MESSAGE = "確認できないまま送る時刻を過ぎたので、送りませんでした。送るときは、日時を直して確認してください。";
+export const REVIEW_EXPIRED_DETAIL = "最初の回を確認しないまま、送る時刻を過ぎました";
 
 export type EngineDeps = {
   generator: AutoPostGenerator;
@@ -328,7 +328,7 @@ export async function draftRun(
     // 確かめられないものは送らない
     if (!b.ok) return { ok: false, reason: "ai_limit", detail: b.message };
     const result = b.result.stopReason === "end_turn" ? normalizeAiCheck(b.result.output, checkTexts) : null;
-    if (!result) hold = { kind: "check_failed", detail: "送る前の確かめが、うまくいきませんでした" };
+    if (!result) hold = { kind: "check_failed", detail: "送る前の確認が、うまくいきませんでした" };
     else {
       // シリーズの本文（fixedTexts）は利用者が決めたフォーマットの文なので、書き換えの案は当てない（数だけ記録する）。
       // 止める指摘（事実か確かめて・やらないこと）はいままでどおり hold にする（2026-11-20 オーナーの本番の不具合: 「答えはコメントで！」が「答えはリプで。」に変わった）
@@ -582,12 +582,12 @@ export function generatedMessage(rows: Pick<NotifyRow, "due_at" | "status" | "po
     const r = rows[0];
     const sns = (r.posts?.post_targets ?? []).map((t) => t.sns as SnsKey);
     const at = jstHm(new Date(r.due_at));
-    if (r.status === "held") return { title: "自動の投稿を下書きに回しました", body: `${at} の回（${labels(sns)}）。確かめてから予約してください` };
-    if (r.status === "review") return { title: "自動の投稿: 最初の回を確かめてください", body: `${at} に ${labels(sns)} に送ります。確かめるまで送りません` };
+    if (r.status === "held") return { title: "自動の投稿を下書きに回しました", body: `${at} の回（${labels(sns)}）。確認してから予約してください` };
+    if (r.status === "review") return { title: "自動の投稿: 最初の回を確認してください", body: `${at} に ${labels(sns)} に送ります。確認するまで送りません` };
     const review = (r.posts?.post_targets ?? []).filter((t) => t.status === "awaiting_approval").map((t) => t.sns as SnsKey);
-    return { title: "自動の投稿を予約しました", body: `${at} に ${labels(sns)} に送ります${review.length ? `（${labels(review)} は確かめが要ります）` : ""}` };
+    return { title: "自動の投稿を予約しました", body: `${at} に ${labels(sns)} に送ります${review.length ? `（${labels(review)} は確認が要ります）` : ""}` };
   }
-  return { title: "自動の投稿を予約しました", body: `${rows.length} 件を作りました${waiting.length ? `（確かめ待ち ${waiting.length} 件）` : ""}${held.length ? `（下書きに回した ${held.length} 件）` : ""}` };
+  return { title: "自動の投稿を予約しました", body: `${rows.length} 件を作りました${waiting.length ? `（確認待ち ${waiting.length} 件）` : ""}${held.length ? `（下書きに回した ${held.length} 件）` : ""}` };
 }
 
 export async function notifyMade(admin: Db, deps: EngineDeps, now: Date, opts: EngineOpts = {}): Promise<number> {
@@ -634,8 +634,8 @@ export async function remindApprovals(admin: Db, deps: EngineDeps, now: Date, op
     if (r.status !== "review" && !waiting.length) continue;
     const at = jstHm(new Date(r.due_at));
     await notify(admin, deps, r.owner_id, {
-      title: "自動の投稿が確かめ待ちです",
-      body: r.status === "review" ? `${at} の最初の回を、まだ確かめていません` : `${at} に ${labels(waiting)} に送る投稿を、まだ確かめていません`,
+      title: "自動の投稿が確認待ちです",
+      body: r.status === "review" ? `${at} の最初の回を、まだ確認していません` : `${at} に ${labels(waiting)} に送る投稿を、まだ確認していません`,
       url: `/projects/${r.project_id}/auto`,
       tag: `auto-remind:${r.id}`,
     });

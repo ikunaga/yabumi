@@ -380,7 +380,7 @@ function SeriesNextRound({
             <span aria-hidden className="mr-1 text-signal">
               ●
             </span>
-            AI は作品やものごとの中身を間違えることがあります。出す前に確かめてください。
+            AI は作品やものごとの中身を間違えることがあります。出す前に確認してください。
           </p>
           {!failedOnce && dropped > 0 && proposals.length < ROUND_PROPOSALS && (
             <p className="text-xs leading-[1.7] text-muted">
@@ -422,7 +422,7 @@ function SeriesNextRound({
                 </dl>
                 {p.checks.length > 0 && (
                   <div className="text-xs leading-[1.7] text-muted">
-                    <span className="font-bold text-fg">確かめてほしいところ</span>
+                    <span className="font-bold text-fg">確認してほしいところ</span>
                     <ul className="list-disc pl-5">
                       {p.checks.map((c) => (
                         <li key={c}>{c}</li>

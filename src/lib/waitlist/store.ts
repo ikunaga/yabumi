@@ -138,7 +138,7 @@ export async function verifyTurnstileToken(secret: string, token: string | null,
     const json = (await res.json()) as { success?: boolean };
     return json.success === true;
   } catch (e) {
-    console.error("[waitlist] Turnstile を確かめられませんでした", e instanceof Error ? e.message : e);
+    console.error("[waitlist] Turnstile を確認できませんでした", e instanceof Error ? e.message : e);
     return false;
   }
 }

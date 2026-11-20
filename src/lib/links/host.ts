@@ -66,5 +66,5 @@ export function shortLinkRoute(url: URL, shortLinkBaseUrl?: string, appUrl?: str
   // 利用者のドメイン
   if (url.pathname === LINK_CHECK_PATH) return { type: "respond", status: 200, body: LINK_CHECK_BODY };
   if (CODE_PATTERN.test(code)) return { type: "rewrite", pathname: goPath(code, false, host) };
-  return { type: "respond", status: 404, body: "このアドレスは短縮リンク用です。リンクが正しいか確かめてください。" };
+  return { type: "respond", status: 404, body: "このアドレスは短縮リンク用です。リンクが正しいか確認してください。" };
 }

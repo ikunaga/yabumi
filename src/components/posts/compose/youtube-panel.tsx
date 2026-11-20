@@ -35,7 +35,7 @@ export function ComposeYouTube({ c }: { c: Composer }) {
   return (
     <section aria-labelledby="youtube-panel" className="flex flex-col gap-3 rounded-md border border-line px-4 py-3.5">
       <h3 id="youtube-panel" className="text-[15px] font-bold">
-        YouTube に送る内容の確かめ
+        YouTube に送る内容の確認
       </h3>
 
       {/* YouTube は手で投稿する（docs/design/youtube.md の 12.。Y4）。1 日の上限に当たったとき・YouTube のアプリで仕上げたいときの逃げ道 */}

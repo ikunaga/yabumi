@@ -32,7 +32,7 @@ async function ownProjectWithType(projectId: string) {
 
 // ストアと課金は、宣伝するものがアプリのときだけ（決定 D34）。画面に出さないだけでなく、つなぐ操作はサーバーでも断る（github/actions.ts と同じ形）。
 // 外す操作は、種類を変えたあとでも預かった鍵を消せるように断らない
-const NOT_APP = "ストアと課金の取り込みは、宣伝するものがアプリのときに使えます。プロジェクトの設定で種類を確かめてください。";
+const NOT_APP = "ストアと課金の取り込みは、宣伝するものがアプリのときに使えます。プロジェクトの設定で種類を確認してください。";
 async function appProjectUser(projectId: string): Promise<{ userId: string; error?: undefined } | { userId?: undefined; error: string }> {
   const own = await ownProjectWithType(projectId);
   if (!own) return { error: "ログインし直してください。" };
@@ -48,8 +48,8 @@ async function verifySaveImport(projectId: string, userId: string, provider: Pro
     verified = await verifyCredential(provider, secret);
   } catch (e) {
     if (e instanceof StoreApiError) return { error: e.userMessage };
-    console.error("[stores] 確かめられませんでした", e instanceof Error ? e.message : e);
-    return { error: "確かめられませんでした。時間をおいてもう一度お試しください。" };
+    console.error("[stores] 確認できませんでした", e instanceof Error ? e.message : e);
+    return { error: "確認できませんでした。時間をおいてもう一度お試しください。" };
   }
   const admin = createAdminClient();
   const id = await saveCredential(admin, { ownerId: userId, projectId, provider, secret, hint });
@@ -102,7 +102,7 @@ export async function startGooglePlay(projectId: string): Promise<StoreFormState
   const { userId, error: notApp } = await appProjectUser(projectId);
   if (!userId) return { error: notApp };
   // 作ったあと（上限で断られたときも）、全員の作成数を数え、しきい値に達していれば運営者に知らせる（返事は待たせない）
-  after(() => checkPlayCapacity(createAdminClient()).catch((e) => console.error("[stores] 作成数を確かめられませんでした", e instanceof Error ? e.message : e)));
+  after(() => checkPlayCapacity(createAdminClient()).catch((e) => console.error("[stores] 作成数を確認できませんでした", e instanceof Error ? e.message : e)));
   try {
     await startPlayConnection(createAdminClient(), userId, projectId);
   } catch (e) {
@@ -129,8 +129,8 @@ export async function saveGooglePlay(projectId: string, _prev: StoreFormState, f
     return { ok: `${verified}。これから毎日、自動で取り込みます。` };
   } catch (e) {
     if (e instanceof StoreApiError) return { error: e.userMessage };
-    console.error("[stores] Google Play を確かめられませんでした", e instanceof Error ? e.message : e);
-    return { error: "確かめられませんでした。時間をおいてもう一度お試しください。" };
+    console.error("[stores] Google Play を確認できませんでした", e instanceof Error ? e.message : e);
+    return { error: "確認できませんでした。時間をおいてもう一度お試しください。" };
   }
 }
 

@@ -45,9 +45,9 @@ export default async function ConnectYouTubePage(props: PageProps<"/projects/[id
             <section className="flex flex-col gap-1">
               <h2 className="text-[16px] font-bold">yabumi ができること</h2>
               <ul className="list-disc pl-5">
-                <li>yabumi で選んだ動画を、今すぐ、または予約した日時に、あなたの YouTube のチャンネルへ上げる（タイトル・説明・公開範囲などは、送る前に確かめます）</li>
+                <li>yabumi で選んだ動画を、今すぐ、または予約した日時に、あなたの YouTube のチャンネルへ上げる（タイトル・説明・公開範囲などは、送る前に確認します）</li>
                 <li>投稿の画面に、つないだチャンネルの名前を出す</li>
-                <li>上げた動画の YouTube での処理が終わったかを確かめる</li>
+                <li>上げた動画の YouTube での処理が終わったかを確認する</li>
               </ul>
               <p className="text-muted">あなたが公開範囲を選んで「送る」「予約」を押していない動画を、yabumi が勝手に上げることはありません。チャンネルにある動画を編集したり消したりはしません。</p>
             </section>

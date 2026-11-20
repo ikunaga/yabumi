@@ -10,7 +10,7 @@ export type OverviewAutoBand = {
   active: number; // 動いている回し方
   paused: number; // 利用者が止めた回し方
   next: { label: string; sns: SnsKey[] } | null; // 次の回（「明日 09:00」と送り先）
-  review: number; // 確かめ待ち
+  review: number; // 確認待ち
   stopped: { id: string; name: string; reason: string }[]; // yabumi が止めた回し方（要確認）
   held?: boolean; // 運営者が、利用者ごとに自動の投稿を止めている（要確認。概要が auto_post_holds から足す）
 };

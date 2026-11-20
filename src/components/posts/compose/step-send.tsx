@@ -123,7 +123,7 @@ export function ComposeStepSend({ c, steps = false, previewBelow = false }: { c:
               onClick={() => document.getElementById("compose-preview")?.scrollIntoView({ behavior: "smooth", block: "start" })}
               className="self-start text-[13px] font-semibold text-fg underline underline-offset-2"
             >
-              送る前に、SNS ごとの見え方を確かめる ↓
+              送る前に、SNS ごとの見え方を確認する ↓
             </button>
           )}
           {nowMain && confirmSend ? (
@@ -135,7 +135,7 @@ export function ComposeStepSend({ c, steps = false, previewBelow = false }: { c:
               <div className="flex flex-wrap items-center gap-2">
                 {/* 押したときの X の上限の調べ直しが済むまで押せない（上限に当たったら、この確かめは閉じて知らせだけになる） */}
                 <Button type="button" disabled={pending || xChecking} onClick={() => submit("now")}>
-                  {xChecking ? "上限を確かめています…" : `本当に${labels.now}`}
+                  {xChecking ? "上限を確認しています…" : `本当に${labels.now}`}
                 </Button>
                 <Button type="button" variant="text" disabled={pending} onClick={() => setConfirmSend(false)}>
                   やめる
@@ -150,7 +150,7 @@ export function ComposeStepSend({ c, steps = false, previewBelow = false }: { c:
               onClick={() => (nowMain ? (recheckX(), setConfirmSend(true)) : askSchedule())}
               className="w-full"
             >
-              {nowMain ? (busy === "now" ? "送っています…" : labels.now) : scheduleAsked ? "上限を確かめています…" : busy === "schedule" ? "予約しています…" : labels.schedule}
+              {nowMain ? (busy === "now" ? "送っています…" : labels.now) : scheduleAsked ? "上限を確認しています…" : busy === "schedule" ? "予約しています…" : labels.schedule}
             </Button>
           )}
           <p className={`text-[13px] ${fe.plannedAt || (mainBlocker && mainBlocker !== QUIET_BLOCKER) ? "text-signal" : "text-faint"}`}>

@@ -452,7 +452,7 @@ describe("利用者のドメイン", () => {
       expect(await projectLinkBase(admin, u.project)).toBe(shortLinkBase());
     }
     expect(sent).toHaveLength(1);
-    expect(sent[0]).toContain("DNS を確かめられません");
+    expect(sent[0]).toContain("DNS を確認できません");
     // 同じ日にもう一度戻っても、知らせは 1 回
     await recheckLinkDomains(admin, deps);
     expect(sent).toHaveLength(1);

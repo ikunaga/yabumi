@@ -34,7 +34,7 @@ export function postWarning(post: PostRow): string | null {
   if (status !== "scheduled" && status !== "draft") return null;
   // 確かめて送る SNS の承認待ち（押すまで送られない）を先に知らせる
   const waiting = post.targets.filter((t) => t.status === "awaiting_approval");
-  if (waiting.length > 0) return `${waiting.map((t) => SNS[t.sns].label).join("・")} は確かめ待ちです`;
+  if (waiting.length > 0) return `${waiting.map((t) => SNS[t.sns].label).join("・")} は確認待ちです`;
   for (const t of post.targets) {
     if (t.status !== "pending") continue;
     const issue = checkTarget(t.sns, targetText(post.body, t), { images: post.images, videos: 0 }).issues[0];

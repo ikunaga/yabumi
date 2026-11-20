@@ -27,7 +27,7 @@ export function processingFailureMessage(p: VideoProcessing): string | null {
       trademark: "商標の申し立てがあったため",
       claim: "権利の申し立てがあったため",
     };
-    return `YouTube が動画を受け付けませんでした（${why[p.rejectionReason] ?? "理由は YouTube Studio で確かめてください"}）。YouTube Studio で確かめてください。`;
+    return `YouTube が動画を受け付けませんでした（${why[p.rejectionReason] ?? "理由は YouTube Studio で確認してください"}）。YouTube Studio で確認してください。`;
   }
   if (p.uploadStatus === "failed" || p.processingStatus === "failed" || p.processingStatus === "terminated") {
     const why: Record<string, string> = {
@@ -38,7 +38,7 @@ export function processingFailureMessage(p: VideoProcessing): string | null {
       tooSmall: "動画が小さすぎるため",
       uploadAborted: "アップロードが途中で止まったため",
     };
-    return `YouTube で動画の処理に失敗しました（${why[p.failureReason] ?? "理由は YouTube Studio で確かめてください"}）。動画を添え直して送り直すか、YouTube Studio で確かめてください。`;
+    return `YouTube で動画の処理に失敗しました（${why[p.failureReason] ?? "理由は YouTube Studio で確認してください"}）。動画を添え直して送り直すか、YouTube Studio で確認してください。`;
   }
   return null;
 }
@@ -83,7 +83,7 @@ export async function checkYouTubeProcessing(admin: Admin, adapter: SnsAdapter |
         continue;
       }
       const p = await fetchVideoProcessing(account.accessToken, row.video_id!);
-      const message = p ? processingFailureMessage(p) : "YouTube に動画が見つかりませんでした。YouTube Studio で確かめてください。";
+      const message = p ? processingFailureMessage(p) : "YouTube に動画が見つかりませんでした。YouTube Studio で確認してください。";
       if (message) {
         const { error: e } = await admin.from("post_targets").update({ status: "failed", error_message: message }).eq("id", t.id).eq("status", "published");
         if (e) throw e;

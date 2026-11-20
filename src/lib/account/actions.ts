@@ -17,7 +17,7 @@ export type WithdrawState = { error?: string };
 
 // 退会（docs/architecture.md の 4.14）。他人に勝手に退会されないよう、パスワードを入れ直してもらう
 export async function withdraw(_prev: WithdrawState, formData: FormData): Promise<WithdrawState> {
-  if (formData.get("understood") !== "on") return { error: "消えるものを確かめて、チェックを入れてください。" };
+  if (formData.get("understood") !== "on") return { error: "消えるものを確認して、チェックを入れてください。" };
   const password = String(formData.get("password") ?? "");
   if (!password) return { error: "パスワードを入れてください。" };
 

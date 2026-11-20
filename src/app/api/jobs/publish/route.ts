@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     const changed = processing.filter((o) => o.result === "failed" || o.result === "ok");
     if (changed.length) console.info("[jobs/publish] youtube processing", JSON.stringify(changed.map(({ targetId, result }) => ({ targetId, result }))));
   } catch (e) {
-    console.error("[jobs/publish] YouTube の処理を確かめられませんでした", e instanceof Error ? e.message : e);
+    console.error("[jobs/publish] YouTube の処理を確認できませんでした", e instanceof Error ? e.message : e);
   }
   return NextResponse.json({ processed: outcomes.length, outcomes, youtubeProcessing: processing.length });
 }

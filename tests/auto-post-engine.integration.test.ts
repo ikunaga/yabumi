@@ -489,7 +489,7 @@ describe("状態の見直しと知らせ", () => {
     push.mockClear();
     expect(await notifyMade(admin, deps(), new Date(), scopeOpts())).toBe(1);
     const msg = (push.mock.calls[0] as unknown[])[2] as { title: string; body: string; url: string };
-    expect(msg.body).toMatch(/に X・Threads に送ります（X は確かめが要ります）$/);
+    expect(msg.body).toMatch(/に X・Threads に送ります（X は確認が要ります）$/);
     expect(msg.body).not.toContain("知らせのテスト");
     expect(msg.url).toBe(`/projects/${p}/auto`);
     expect(await notifyMade(admin, deps(), new Date(), scopeOpts())).toBe(0);

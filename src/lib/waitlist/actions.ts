@@ -13,8 +13,8 @@ import { applyWaitlist, cancelWaitlist, declineWaitlist, inviteFromWaitlist, ver
 export type ApplyState = { status: "idle" } | { status: "done"; mailed: boolean } | { status: "error"; message: string; email: string; appNote: string; snsNote: string };
 
 const MESSAGES = {
-  invalid_email: "メールアドレスの形が正しくありません。もう一度お確かめください。",
-  bot: "ロボットではないことを確かめられませんでした。画面を読み込み直して、もう一度お試しください。",
+  invalid_email: "メールアドレスの形が正しくありません。もう一度ご確認ください。",
+  bot: "ロボットではないことを確認できませんでした。画面を読み込み直して、もう一度お試しください。",
   rate_limited: "申し込みが混み合っています。1 時間ほどたってから、もう一度お試しください。",
   failed: "受け付けられませんでした。時間をおいてもう一度お試しください。",
 } as const;

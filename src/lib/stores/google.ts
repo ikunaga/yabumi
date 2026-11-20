@@ -101,9 +101,9 @@ const GCS = "https://storage.googleapis.com/storage/v1";
 
 function storageError(status: number): StoreApiError {
   if (status === 401 || status === 403) {
-    return new StoreApiError("一括レポートを読めませんでした。Play Console で、表示されたアカウントを招待し、「アプリ情報の表示と一括レポートのダウンロード」の権限を付けたかを確かめてください（反映まで数分かかることがあります）。", status);
+    return new StoreApiError("一括レポートを読めませんでした。Play Console で、表示されたアカウントを招待し、「アプリ情報の表示と一括レポートのダウンロード」の権限を付けたかを確認してください（反映まで数分かかることがあります）。", status);
   }
-  if (status === 404) return new StoreApiError("一括レポートの置き場所（pubsite_prod_rev_…）が見つかりませんでした。Play Console の「Cloud Storage の URI をコピー」の値を確かめてください。", status);
+  if (status === 404) return new StoreApiError("一括レポートの置き場所（pubsite_prod_rev_…）が見つかりませんでした。Play Console の「Cloud Storage の URI をコピー」の値を確認してください。", status);
   return new StoreApiError(`Google Play の一括レポートを読めませんでした（${status}）。時間をおいて読み直します。`, status);
 }
 

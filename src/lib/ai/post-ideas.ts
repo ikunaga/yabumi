@@ -533,7 +533,7 @@ export async function generatePostIdeas(
     if (!usesDevTalk(ctx.project.productType)) return { ok: false, message: "最近の開発（GitHub）からのネタは、宣伝するものがアプリか Web のサービスのときだけ使えます。「最近のできごと」から出してください。" };
     // 読む直前に、本人がいまも読めるリポジトリかを確かめる
     link = await readableRepoLink(user, args.userId, args.projectId);
-    if (!link) return { ok: false, message: "リポジトリがつながっていないか、読む権限が確かめられません。GitHub の画面で「GitHub をつなぎ直す」を押してから、もう一度お試しください。" };
+    if (!link) return { ok: false, message: "リポジトリがつながっていないか、読む権限が確認できません。GitHub の画面で「GitHub をつなぎ直す」を押してから、もう一度お試しください。" };
   } else if (input.source === "news") {
     news = cleanNews(input.news);
     if (news.length === 0) return { ok: false, message: "質問のどれか 1 つに答えてください。" };
@@ -560,7 +560,7 @@ export async function generatePostIdeas(
       read = await deps.readCommits(link!, new Date(now.getTime() - input.days * 86_400_000));
     } catch (e) {
       console.error("[post-ideas] コミットを読めませんでした", e instanceof Error ? e.message : e);
-      return { ok: false, message: "コミットを読めませんでした。GitHub の設定で、このリポジトリを yabumi に読ませているか確かめてください。" };
+      return { ok: false, message: "コミットを読めませんでした。GitHub の設定で、このリポジトリを yabumi に読ませているか確認してください。" };
     }
     if (read.commits.length === 0) {
       return { ok: false, message: `直近 ${input.days} 日のコミットが見つかりませんでした。期間を長くするか、「最近のできごとから」を試してください。` };

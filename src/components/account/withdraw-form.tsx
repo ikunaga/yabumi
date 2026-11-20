@@ -23,7 +23,7 @@ export function WithdrawForm() {
           onChange={(e) => setUnderstood(e.target.checked)}
           className="mt-1.5 size-4 accent-[var(--primary)]"
         />
-        上のデータが消え、元に戻せないことを確かめました
+        上のデータが消え、元に戻せないことを確認しました
       </label>
       <Field label="パスワード（本人の確認のため）" htmlFor="withdraw-password">
         <Input id="withdraw-password" name="password" type="password" autoComplete="current-password" required />

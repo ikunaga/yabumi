@@ -124,7 +124,7 @@ export async function checkLinkDomainAction(projectId: string): Promise<LinkDoma
     if (!r.ok) return { error: r.error };
   } catch (e) {
     console.error("[checkLinkDomain]", e instanceof Error ? e.message : e);
-    return { error: "いま確かめられませんでした。時間をおいてもう一度お試しください。" };
+    return { error: "いま確認できませんでした。時間をおいてもう一度お試しください。" };
   }
   revalidatePath(`/projects/${projectId}/links`);
   return {};

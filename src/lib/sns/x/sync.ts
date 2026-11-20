@@ -46,7 +46,7 @@ export async function readXPostState(token: string, postId: string): Promise<Pos
   const notFound = (t?: string) => Boolean(t && t.endsWith("/resource-not-found"));
   if (res.ok && json.data?.id) return "exists";
   if ((res.ok || res.status === 404) && (json.errors?.some((e) => notFound(e.type)) || notFound(json.type))) return "removed";
-  throw new XReadError(`X の投稿を確かめられませんでした（${res.status}）`, res.status);
+  throw new XReadError(`X の投稿を確認できませんでした（${res.status}）`, res.status);
 }
 
 // 手で投稿して記録した X の投稿は、URL（https://x.com/<名前>/status/<ID>）から ID を取る

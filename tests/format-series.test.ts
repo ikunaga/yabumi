@@ -133,7 +133,7 @@ describe("次の回の案の AI への指示", () => {
     const sys = FORMAT_ROUND_SYSTEM;
     expect(sys).toContain("広く知られた作品・ものごと");
     expect(sys).toContain("利用者の商売・お店・商品・サービス・利用者や知り合いの人についての事実は、空欄にも答えにも書かない");
-    expect(sys).toContain("checks に、利用者が確かめるとよいところを 1〜3 個書く");
+    expect(sys).toContain("checks に、利用者が確認するとよいところを 1〜3 個書く");
     expect(sys.indexOf("# 作品やものごとの事実")).toBeLessThan(sys.indexOf(CONTENT_RULES));
     expect(sys.indexOf(CONTENT_RULES)).toBeLessThan(sys.indexOf(JAPANESE_STYLE_RULES));
   });

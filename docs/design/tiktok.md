@@ -18,7 +18,7 @@
   - [Login Kit for Web](https://developers.tiktok.com/doc/login-kit-web)
   - [Webhooks](https://developers.tiktok.com/doc/webhooks-overview)・[Webhook events](https://developers.tiktok.com/doc/webhooks-events)
   - [Rate limits](https://developers.tiktok.com/doc/tiktok-api-v2-rate-limit)
-  - 2026-11-14 の読み直しで読めなかったページ（トークンの取得・更新・取り消し、Webhook の署名）は、同じ日に PM が公式の資料で確かめた（下の「確かめた窓口」）
+  - 2026-11-14 の読み直しで読めなかったページ（トークンの取得・更新・取り消し、Webhook の署名）は、同じ日に PM が公式の資料で確かめた（下の「確認した窓口」）
 
 ## 0. オーナーに決めてもらうこと（おすすめ順）
 
@@ -27,7 +27,7 @@
 | A | 写真を渡す入口の URL を「一回きり」にするか | ① 1 回読まれたら無効 ② 1 時間で無効、送り終えたらその場で無効 | **②** | TikTok は取りに来るのを失敗するとやり直すことがあり、取りに来る回数は資料に書かれていない。① だと、やり直しのたびに送れなくなるおそれがある。② でも、推測できないトークン・他人の画像を返さない・送り終えたら無効、で守れる |
 | B | 「TikTok は手で投稿する」を選べるようにするか（X と同じ） | ① 作る ② 作らない | **① 作る** | 審査の前は、API の投稿が「自分だけ」に限られる。審査を待つ間（数週間）に TikTok に出したい人は、手で投稿するしかない。X の手で投稿する作り（X_BY_HAND）をそのまま広げられ、手間は小さい |
 | C | 審査の前の画面の伝え方 | 送る画面の上に帯を出す（下の 9.） | 帯の文の案（下）でよいか | 利用者のせいではなく yabumi の準備の都合だと、はっきり書く |
-| D | Webhook を何に使うか | ① 外されたとき（authorization.removed）だけ ② 投稿の状態も | **①** | 署名は確かめる（下の「確かめた窓口」）が、投稿の状態は status/fetch（1 分 30 回まで）で確かめられる。Webhook の中身は信じず、きっかけとしてだけ使う |
+| D | Webhook を何に使うか | ① 外されたとき（authorization.removed）だけ ② 投稿の状態も | **①** | 署名は確かめる（下の「確認した窓口」）が、投稿の状態は status/fetch（1 分 30 回まで）で確かめられる。Webhook の中身は信じず、きっかけとしてだけ使う |
 
 ## 1. つなぐ・外す（Login Kit）
 
@@ -40,7 +40,7 @@
   - 戻ってくるもの: code・scopes・state・error・error_description
 - **スコープ**: `user.info.basic`・`video.publish`・`video.upload` だけ
   - 戻ってきた scopes に video.publish がなければ、つなげはするが「直接投稿が使えません」と出し、下書き（8.）だけにする
-- **トークンを取る**（2026-11-14 に確かめた。下の「確かめた窓口」）
+- **トークンを取る**（2026-11-14 に確かめた。下の「確認した窓口」）
   - `POST https://open.tiktokapis.com/v2/oauth/token/`（client_key・client_secret・code・grant_type=authorization_code・redirect_uri）。返ってくるもの: access_token・expires_in・refresh_token・refresh_expires_in・open_id・scope
   - サーバーでだけ呼ぶ。client_secret は画面に出さない
 - **トークンの期限**: 資料が食い違っている
@@ -125,7 +125,7 @@ TikTok を送り先に選んだ投稿の、⑤ 送る（と ② 送り先の Tik
     - 投稿できない状態（上の 3 つの理由）
     - ニックネームが変わっていた（別のアカウントにつなぎ直したなど）
     - 同意したときのタイトル・説明の指紋と、いまの文が違う（同意のあとに文を変えた）
-  - 理由は「TikTok の設定が予約のときと変わったので、送りませんでした。投稿の画面で確かめてから、もう一度送ってください」のように、直し方まで書く
+  - 理由は「TikTok の設定が予約のときと変わったので、送りませんでした。投稿の画面で確認してから、もう一度送ってください」のように、直し方まで書く
 - 同意の記録の改ざん（画面から公開範囲や同意の時刻を書き換える）を防ぐため、post_targets.tiktok は、保存のサーバー関数だけが書き、利用者の権限では書けない列にする（11.）
 
 ## 5. 「他の SNS の写し」と見られない作り
@@ -299,7 +299,7 @@ TikTok を送り先に選んだ投稿の、⑤ 送る（と ② 送り先の Tik
 ## 18. 作ったもの（段 1〜5。2026-11-14、feat/tiktok）
 
 - 段 1〜2: 11. のとおり。同意の設定は post_targets の列ではなく、別の表 **post_target_tiktok** に置いた（post_targets は画面が `select *` で読むので、列の権限で隠すと読みがすべて止まる。PM の了承）
-- 段 3 送る画面: ⑤ 送るに「TikTok に送る内容の確かめ」（src/components/posts/compose/tiktok-panel.tsx）。開くたびに creator_info を読み（getTikTokCreator）、ニックネームと @ の名前、審査の前の帯、送り方（そのまま投稿する／TikTok のアプリで仕上げる。許可のスコープがないほうは押せない）、公開範囲（最初は選んでいない。審査の前は「自分だけ」だけ）、コメント（最初はオフ。TikTok 側で止めていれば押せない）、宣伝の内容（自分のブランド・ブランドコンテンツ。ブランドコンテンツと「自分だけ」は同時に選べない）、TikTok だけの見え方、同意の文（英語の原文とリンク・日本語の添え書き）。タイトル（90 字）は ② 送り先の TikTok の欄
+- 段 3 送る画面: ⑤ 送るに「TikTok に送る内容の確認」（src/components/posts/compose/tiktok-panel.tsx）。開くたびに creator_info を読み（getTikTokCreator）、ニックネームと @ の名前、審査の前の帯、送り方（そのまま投稿する／TikTok のアプリで仕上げる。許可のスコープがないほうは押せない）、公開範囲（最初は選んでいない。審査の前は「自分だけ」だけ）、コメント（最初はオフ。TikTok 側で止めていれば押せない）、宣伝の内容（自分のブランド・ブランドコンテンツ。ブランドコンテンツと「自分だけ」は同時に選べない）、TikTok だけの見え方、同意の文（英語の原文とリンク・日本語の添え書き）。タイトル（90 字）は ② 送り先の TikTok の欄
 - 保存（savePost）: 画面から受け取るのは選んだもの（posts/schema.ts の tiktok）だけ。サーバーが creator_info を読み直して確かめ（checkTikTokChoice）、いったん下書きで保存してから、同意の記録（writeTikTokConsent）を書き、予約に戻す（記録の前に送信ジョブが取り出さないように。X の手で投稿すると同じ順）。同意の時刻・文の指紋（タイトルと、送信ジョブが送る文 post_target_text の SHA-256）・AI の印・ニックネームはサーバーが決める
 - 段 4 送信の部品（src/lib/sns/adapters/tiktok.ts）: preparing の 2 段（startPublish で creator_info → 確かめ → 入口の URL → content/init、continuePublish で status/fetch）。配信先ごとの設定を読むため、startPublish に配信先（PublishTarget: id と、短縮リンクに置き換える前の文）を渡すようにした。入口は送り終えたとき・失敗したときに閉じる。失敗の理由は failureOf で retryable・auth・permanent に分ける
 - 段 5 予約の守り: 送る直前に checkBeforeSend（同意がない・公開範囲が選べなくなった・アカウントが変わった・タイトルか説明が変わった → 送らずに失敗にする）。投稿できない状態（CANNOT_POST_CODES）は creator_info の時点で止め、入口も作らない
@@ -324,7 +324,7 @@ TikTok を送り先に選んだ投稿の、⑤ 送る（と ② 送り先の Tik
 
 ## 作る前に確かめること（読めなかった資料）
 
-2026-11-14 に PM が公式の資料で確かめたもの（下の「確かめた窓口」）を除き、残りは次のとおり。
+2026-11-14 に PM が公式の資料で確かめたもの（下の「確認した窓口」）を除き、残りは次のとおり。
 
 - is_aigc の置き場所（写真と動画で違うか）。サンドボックスで確かめる
 - 宣伝のスイッチ（brand_content_toggle・brand_organic_toggle）が必須か

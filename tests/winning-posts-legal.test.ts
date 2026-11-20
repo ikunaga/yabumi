@@ -31,7 +31,7 @@ describe("伸びた投稿からの提案の版", () => {
   it("本文に、使い道と Anthropic・Resend に送るものの文がある。件数と字数はアプリと同じ", () => {
     const privacy = read("src/app/privacy/page.tsx");
     expect(privacy).toContain("投稿のフォーマットの案を作ること（いつもより伸びた自分の投稿から作ることを含む）");
-    expect(privacy).toContain(`利用者が選んだ自分の送った投稿の本文（${MAX_SOURCE_POSTS} 件まで、1 件 ${SOURCE_POST_CHARS} 字まで）`);
+    expect(privacy).toContain(`利用者が選んだ自分の送信済みの投稿の本文（${MAX_SOURCE_POSTS} 件まで、1 件 ${SOURCE_POST_CHARS} 字まで）`);
     expect(privacy).toContain("倍率だけで、数字そのものは送りません。X から読んだ数字は使いません");
     expect(privacy).toContain("いつもより伸びた自分の投稿があれば、その本文の 1 行目〈40 字まで〉と、いつもの何倍か");
   });

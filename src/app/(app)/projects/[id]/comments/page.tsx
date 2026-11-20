@@ -39,7 +39,7 @@ export default async function CommentsPage(props: PageProps<"/projects/[id]/comm
         sub={`直近 30 日${newCount > 0 ? `・新しい ${newCount} 件` : ""}`}
         help={
           <>
-            Threads・Instagram・Facebook に yabumi から送った投稿のコメントを、送ってから 7 日まで、3 時間ごとに読みます。返信は「SNS で開いて返信する」から SNS の画面で行います。コメントは 30 日で消し、AI には送りません。X は返信の数だけを出します（毎日の数字の取り込みの数）。
+            Threads・Instagram・Facebook に yabumi で送信済みの投稿のコメントを、送ってから 7 日まで、3 時間ごとに読みます。返信は「SNS で開いて返信する」から SNS の画面で行います。コメントは 30 日で消し、AI には送りません。X は返信の数だけを出します（毎日の数字の取り込みの数）。
           </>
         }
       />

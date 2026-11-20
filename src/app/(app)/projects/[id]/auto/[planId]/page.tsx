@@ -175,7 +175,7 @@ function RunRow({ run, results, projectId }: { run: AutoRun; results: RunTargetR
   const published = results.filter((t) => t.status === "published");
   const failed = results.some((t) => t.status === "failed");
   const expired = results.filter((t) => t.expired);
-  const label = published.length ? "投稿済み" : failed ? "送れなかった" : RUN_STATUS_LABELS[run.status];
+  const label = published.length ? "送信済み" : failed ? "送れなかった" : RUN_STATUS_LABELS[run.status];
   const tone = published.length ? "success" : failed || run.status === "held" || run.status === "review" ? "signal" : "neutral";
   return (
     <li className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 px-6 py-3.5 max-sm:px-4">

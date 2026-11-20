@@ -74,7 +74,7 @@ describe("SNS アカウントの保存", () => {
     const { data: postId, error } = await alice.rpc("save_post", {
       p_post_id: null as unknown as string,
       p_project_id: project!.id,
-      p_body: "送った投稿",
+      p_body: "送信済みの投稿",
       p_planned_at: null as unknown as string,
       p_status: "draft",
       p_targets: [{ sns: "threads", social_account_id: accountId }],
@@ -95,7 +95,7 @@ describe("SNS アカウントの保存", () => {
     expect((await admin.from("account_metrics").select("day").eq("social_account_id", accountId)).data).toEqual([]);
     const { data: after } = await admin.from("post_targets").select("status, external_post_id, external_url, social_account_id").eq("id", target!.id).single();
     expect(after).toEqual({ status: "published", external_post_id: null, external_url: null, social_account_id: null });
-    expect((await admin.from("posts").select("body").eq("id", postId!).single()).data?.body).toBe("送った投稿");
+    expect((await admin.from("posts").select("body").eq("id", postId!).single()).data?.body).toBe("送信済みの投稿");
   });
 });
 
@@ -105,7 +105,7 @@ async function publishedWithMetrics(sns: "x" | "threads", accountId: string) {
   const { data: postId, error } = await alice.rpc("save_post", {
     p_post_id: null as unknown as string,
     p_project_id: project!.id,
-    p_body: `${sns} に送った投稿`,
+    p_body: `${sns} に送信済みの投稿`,
     p_planned_at: null as unknown as string,
     p_status: "draft",
     p_targets: [{ sns, social_account_id: accountId }],
@@ -141,7 +141,7 @@ describe("アクセスがなくなったら、その SNS から受け取った�
     const { postId, targetId } = await publishedWithMetrics("x", x);
     await purgeSnsDataOf(admin, [x]);
     expect(await metricsOf(targetId, x)).toEqual({ post: [], account: [], target: { external_post_id: null, external_url: null } });
-    expect((await admin.from("posts").select("body").eq("id", postId).single()).data?.body).toBe("x に送った投稿");
+    expect((await admin.from("posts").select("body").eq("id", postId).single()).data?.body).toBe("x に送信済みの投稿");
   });
 
   it("SNS の側で外されたとき（Meta の Deauthorize）も同じように消す。アカウントは「解除済み」で残る", async () => {

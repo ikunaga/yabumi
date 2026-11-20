@@ -128,7 +128,7 @@ export function PlanControls({ projectId, planId, status, nextLabel, held = fals
           });
         }}
       >
-        <p>設定と回の記録を削除します。送った投稿は残ります。元に戻せません。</p>
+        <p>設定と回の記録を削除します。送信済みの投稿は残ります。元に戻せません。</p>
         <ToDraftChoice value={toDraft} onChange={setToDraft} />
       </ConfirmDialog>
     </div>

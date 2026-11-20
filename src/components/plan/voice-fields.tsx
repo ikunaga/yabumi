@@ -63,7 +63,7 @@ export function VoiceFields({ v, projectId, aiEnabled, selfWritten, exampleHeads
   return (
     <>
       <p className="-mb-1 text-xs leading-[1.7] text-muted">
-        自分で書いて送った投稿から、AI があなたの書き方（文の長さ・語尾・絵文字・改行など）を読み取ります。ネタ出し・「AI で整える」・見直し・相談の AI が、この書き方に寄せます。「AI の文をもとにした」投稿は使いません。
+        自分で書いた送信済みの投稿から、AI があなたの書き方（文の長さ・語尾・絵文字・改行など）を読み取ります。ネタ出し・「AI で整える」・見直し・相談の AI が、この書き方に寄せます。「AI の文をもとにした」投稿は使いません。
       </p>
 
       {/* 材料の一覧と、AI に読み取ってもらう */}
@@ -71,11 +71,11 @@ export function VoiceFields({ v, projectId, aiEnabled, selfWritten, exampleHeads
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
           {enough ? (
             <span>
-              自分で書いて送った投稿: <b className="num">{selfWritten}</b> 本
+              自分で書いた送信済みの投稿: <b className="num">{selfWritten}</b> 本
             </span>
           ) : (
             <span>
-              自分で書いて送った投稿が {SELF_WRITTEN_ENOUGH} 本たまると、AI があなたの書き方を読み取れます（いま <b className="num">{selfWritten}</b> 本）
+              自分で書いた送信済みの投稿が {SELF_WRITTEN_ENOUGH} 本たまると、AI があなたの書き方を読み取れます（いま <b className="num">{selfWritten}</b> 本）
             </span>
           )}
           {enough && !items && (

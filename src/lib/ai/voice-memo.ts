@@ -32,7 +32,7 @@ export const voiceMemoSchema = z.object({
 
 export type VoiceMemoDraft = { memo: Record<VoiceMemoField, string>; conflicts: string[]; examples: string[] };
 
-export const VOICE_MEMO_SYSTEM = `あなたは「yabumi」の中で、利用者が自分で書いて SNS に送った投稿を読み、その人の書き方の癖（文調）を短く書き出す係です。
+export const VOICE_MEMO_SYSTEM = `あなたは「yabumi」の中で、利用者が自分で書いて SNS に送信した投稿を読み、その人の書き方の癖（文調）を短く書き出す係です。
 書き出したメモは、あとで投稿の下書きを手伝う AI に渡し、その人の書き方に寄せるのに使います。
 
 # 投稿の扱い（重要）
@@ -61,7 +61,7 @@ export function buildVoiceMemoRequest(input: { productType: string | null; plan:
     `# 宣伝するもの\n${PRODUCT_TYPE_DEFS[product].label}`,
     `# アカウント設計の口調（利用者が決めた方針）\n${tone || "（まだ決めていない）"}${bySns.length ? `\nSNS ごと:\n${bySns.join("\n")}` : ""}`,
     `# 数えた値（${input.material.length} 本）\n- 1 本の字数: 平均 ${stats.avgChars} 字（${stats.minChars}〜${stats.maxChars} 字）\n- 1 本の行数: 平均 ${stats.avgLines} 行\n- 絵文字: 平均 ${stats.avgEmoji} 個（絵文字のある投稿 ${stats.withEmoji} 本）\n- ハッシュタグ: 平均 ${stats.avgHashtags} 個（ある投稿 ${stats.withHashtags} 本）\n- 空行のある投稿: ${stats.withBlankLines} 本`,
-    `# 本人が書いて送った投稿（新しい順）\n${input.material.map((m, i) => `<post n="${i + 1}" sns="${SNS[m.sns].label}">\n${escapeData(m.text)}\n</post>`).join("\n")}`,
+    `# 本人が書いて送信済みの投稿（新しい順）\n${input.material.map((m, i) => `<post n="${i + 1}" sns="${SNS[m.sns].label}">\n${escapeData(m.text)}\n</post>`).join("\n")}`,
     "この人の書き方の癖を書き出してください。",
   ];
   return { system: [{ type: "text", text: VOICE_MEMO_SYSTEM }], messages: [{ role: "user", content: [{ type: "text", text: lines.join("\n\n") }] }] };
@@ -99,7 +99,7 @@ export async function runVoiceMemo(
   const { data: project } = await user.from("projects").select("*").eq("id", args.projectId).maybeSingle();
   if (!project) return { ok: false, message: "プロジェクトが見つかりません。" };
   const material = (await loadVoiceMaterial(user, args.projectId)).filter((m) => !(args.exclude ?? []).includes(m.targetId));
-  if (material.length < SELF_WRITTEN_ENOUGH) return { ok: false, message: `自分で書いて送った投稿が ${SELF_WRITTEN_ENOUGH} 本たまると、書き方を読み取れます（いま ${material.length} 本）。` };
+  if (material.length < SELF_WRITTEN_ENOUGH) return { ok: false, message: `自分で書いた送信済みの投稿が ${SELF_WRITTEN_ENOUGH} 本たまると、書き方を読み取れます（いま ${material.length} 本）。` };
 
   // 1 日 3 回まで（日本時間の今日の、この利用者の書き方の読み取りの利用量の記録。利用者が消せない ai_usage で数える。上限で断った分は記録がないので数えない）。
   // ai_usage はプロジェクトを持たないので、利用者ごとに数える（プロジェクトごとの 3 回より厳しい側。2026-11-09 PM の了承）。

@@ -322,7 +322,7 @@ function PaceChip({ projectId, view }: { projectId: string; view: CoachView }) {
           ))}
         </ul>
         {streak > 0 && <p className="mt-1">続けた週: {streak} 週</p>}
-        <p className="mt-2 text-xs opacity-80">送った投稿と予約した投稿を数えます（週は月曜から）。遅れそうなときと毎週月曜に、メールでもお知らせします。</p>
+        <p className="mt-2 text-xs opacity-80">送信済みの投稿と予約した投稿を数えます（週は月曜から）。遅れそうなときと毎週月曜に、メールでもお知らせします。</p>
         <p className="mt-2 flex gap-4 text-xs">
           <Link href={`/projects/${projectId}/plan?open=first_month`} className="font-bold text-on-pop underline">
             週の回数を変える

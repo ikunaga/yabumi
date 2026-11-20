@@ -159,7 +159,7 @@ function TargetHashtags({ c }: { c: Composer }) {
                   className="min-w-0 flex-1 py-2 text-sm"
                 />
               </label>
-              {locked && <span className="pl-[108px] text-xs text-muted max-sm:pl-0">{sentState(sns)?.plain ?? "投稿済み"}（直しても送り直しません）</span>}
+              {locked && <span className="pl-[108px] text-xs text-muted max-sm:pl-0">{sentState(sns)?.plain ?? "送信済み"}（直しても送り直しません）</span>}
               {problem ? (
                 <span className="pl-[108px] text-xs font-semibold text-danger max-sm:pl-0">{problem}</span>
               ) : (

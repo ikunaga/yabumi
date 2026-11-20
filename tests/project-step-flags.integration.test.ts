@@ -19,7 +19,7 @@ let bobProject: string;
 beforeAll(async () => {
   ({ client: alice, userId: aliceId } = await signUpNewUser());
   ({ client: bob, userId: bobId } = await signUpNewUser());
-  posted = (await alice.from("projects").insert({ name: "投稿済み" }).select("id").single()).data!.id;
+  posted = (await alice.from("projects").insert({ name: "送信済み" }).select("id").single()).data!.id;
   fresh = (await alice.from("projects").insert({ name: "これから" }).select("id").single()).data!.id;
   bobProject = (await bob.from("projects").insert({ name: "B" }).select("id").single()).data!.id;
 });

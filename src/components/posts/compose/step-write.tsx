@@ -169,7 +169,7 @@ function SelfWrittenHint({ projectId, count }: { projectId: string; count: numbe
   if (count >= SELF_WRITTEN_ENOUGH) {
     return (
       <p className="text-[13px] text-muted">
-        自分で書いて送った投稿が {SELF_WRITTEN_ENOUGH} 本たまりました。AI があなたの書き方を読み取れます。
+        自分で書いた送信済みの投稿が {SELF_WRITTEN_ENOUGH} 本たまりました。AI があなたの書き方を読み取れます。
         <Link href={`/projects/${projectId}/plan?open=voice`} className="ml-1 font-semibold text-fg underline underline-offset-2">
           書き方を読み取る
         </Link>
@@ -185,7 +185,7 @@ function SelfWrittenHint({ projectId, count }: { projectId: string; count: numbe
           （いま <span className="num">{count}/{SELF_WRITTEN_ENOUGH}</span> 本）
         </span>
         <HelpTip label="自分の言葉で書く理由">
-          AI まかせの投稿は、どうしても人間らしさが出にくくなります。自分で書いて送った投稿が {SELF_WRITTEN_ENOUGH} 本たまると、AI があなたの書き方（文の長さ・語尾・絵文字・改行など）を読み取り、ネタ出しや「AI で整える」の文をあなたの書き方に寄せられるようになります。AI で整える・ネタ出しは、いつでも使えます。
+          AI まかせの投稿は、どうしても人間らしさが出にくくなります。自分で書いた送信済みの投稿が {SELF_WRITTEN_ENOUGH} 本たまると、AI があなたの書き方（文の長さ・語尾・絵文字・改行など）を読み取り、ネタ出しや「AI で整える」の文をあなたの書き方に寄せられるようになります。AI で整える・ネタ出しは、いつでも使えます。
         </HelpTip>
       </span>
     </div>

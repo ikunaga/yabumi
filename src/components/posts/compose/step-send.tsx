@@ -102,7 +102,7 @@ export function ComposeStepSend({ c, steps = false, previewBelow = false }: { c:
       {mode === "all_sent" ? (
         <div className="flex flex-col gap-2 border-t border-line pt-3.5">
           <p className="text-[14px] leading-[1.7] text-muted">
-            {steps ? "まだ送る SNS を選んでいません。「2 送り先」で、ほかの SNS を選んでください。" : "送った投稿です。編集するときは各 SNS で、取り消すときは上の「送信の結果」から。ほかの SNS にも送るときは、送り先のチップで選んでください。"}
+            {steps ? "まだ送る SNS を選んでいません。「2 送り先」で、ほかの SNS を選んでください。" : "送信済みの投稿です。編集するときは各 SNS で、取り消すときは上の「送信の結果」から。ほかの SNS にも送るときは、送り先のチップで選んでください。"}
           </p>
           {deleteRow(true)}
         </div>

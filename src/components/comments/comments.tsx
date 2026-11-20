@@ -164,7 +164,7 @@ export function CommentsReconnectNotice({ projectId, sns }: { projectId: string;
         つないだ SNS へ
       </Link>
       <HelpTip label="つなぎ直すと変わること">
-        つなぎ直すと、SNS の画面で「コメントを読む権限」を許可できます。許可すると、yabumi から送った投稿のコメント（書いた人の名前・本文・日時）を、送ってから 7 日まで読みに行きます。コメントは yabumi に 30 日だけ置いて消し、AI には送りません。
+        つなぎ直すと、SNS の画面で「コメントを読む権限」を許可できます。許可すると、yabumi で送信済みの投稿のコメント（書いた人の名前・本文・日時）を、送ってから 7 日まで読みに行きます。コメントは yabumi に 30 日だけ置いて消し、AI には送りません。
       </HelpTip>
     </div>
   );

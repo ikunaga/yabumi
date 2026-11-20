@@ -137,7 +137,7 @@ describe("退会", () => {
     const { data: xPost, error: xPostError } = await carol.rpc("save_post", {
       p_post_id: null as unknown as string,
       p_project_id: carolProject,
-      p_body: "X に送った投稿",
+      p_body: "X に送信済みの投稿",
       p_planned_at: null as unknown as string,
       p_status: "draft",
       p_targets: [{ sns: "x", social_account_id: xAccount }],

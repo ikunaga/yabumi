@@ -476,7 +476,7 @@ export function PlanWizard(p: Props) {
             <label className="flex items-start gap-2.5 text-[15px] leading-[1.7]">
               <input type="checkbox" className="mt-1 size-5 shrink-0 accent-[var(--primary)]" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
               <span>
-                AI が作った文を、あなたが確認せずに、あなたのアカウントから送ります（X などの「確認して送る」SNS は、押したものだけ送ります）。送った投稿の責任はあなたにあります。送る{" "}
+                AI が作った文を、あなたが確認せずに、あなたのアカウントから送ります（X などの「確認して送る」SNS は、押したものだけ送ります）。送信済みの投稿の責任はあなたにあります。送る{" "}
                 {DEFAULT_LEAD_HOURS} 時間前に、カレンダーと通知でお知らせします。気になれば、編集・その回を飛ばす・止めるができます。
               </span>
             </label>

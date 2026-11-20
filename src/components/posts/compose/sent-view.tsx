@@ -47,7 +47,7 @@ export function ComposeSentView({ c, onExtend }: { c: Composer; onExtend: () => 
           動画（<span className="num">{formatDuration(initial.videoRemoved.durationMs)}</span>）は送り終えたので消しました。
         </p>
       )}
-      <p className="text-[14px] leading-[1.7] text-muted">送った投稿です。編集するときは各 SNS で、取り消すときは上の「送信の結果」から。</p>
+      <p className="text-[14px] leading-[1.7] text-muted">送信済みの投稿です。編集するときは各 SNS で、取り消すときは上の「送信の結果」から。</p>
       <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3.5">
         {more && (
           <>

@@ -29,7 +29,7 @@ describe("sentStateOf（② の送り先と ⑤ のまとめに出す、送っ�
   });
   it("失敗・投稿済み・取り消し済みは、それぞれの言葉", () => {
     expect(sentStateOf(r("failed", "上限に達しました"))?.plain).toBe("失敗");
-    expect(sentStateOf(r("published"))?.plain).toBe("投稿済み");
+    expect(sentStateOf(r("published"))?.plain).toBe("送信済み");
     expect(sentStateOf(r("deleted"))?.plain).toBe("取り消し済み");
   });
   it("送り直しを待っているものは「送り直し待ち」、まだ送っていないものは出さない", () => {
@@ -45,7 +45,7 @@ describe("投稿をつくるの見出し", () => {
     expect(composeHeading({ postId: null, sentAny: false, mode: "new", savedStatus: null })).toBe("投稿をつくる");
     expect(composeHeading({ postId: "p", sentAny: false, mode: "new", savedStatus: "draft" })).toBe("下書き");
     expect(composeHeading({ postId: "p", sentAny: false, mode: "new", savedStatus: "scheduled" })).toBe("予約した投稿");
-    expect(composeHeading({ postId: "p", sentAny: true, mode: "partial", savedStatus: "scheduled" })).toBe("一部送った投稿");
-    expect(composeHeading({ postId: "p", sentAny: true, mode: "all_sent", savedStatus: "draft" })).toBe("送った投稿");
+    expect(composeHeading({ postId: "p", sentAny: true, mode: "partial", savedStatus: "scheduled" })).toBe("一部送信済みの投稿");
+    expect(composeHeading({ postId: "p", sentAny: true, mode: "all_sent", savedStatus: "draft" })).toBe("送信済みの投稿");
   });
 });

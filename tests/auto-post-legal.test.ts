@@ -62,7 +62,7 @@ describe("自動の投稿の版", () => {
     const terms = read("src/app/terms/page.tsx");
     expect(terms).toContain("決めた曜日と時刻に AI が投稿を作って送る（自動の投稿）");
     expect(terms).toContain("自動で送ることに同意したときだけ動きます");
-    expect(terms).toContain("自動の投稿で送った投稿の内容と結果の責任は、利用者にあります");
+    expect(terms).toContain("自動の投稿で送信済みの投稿の内容と結果の責任は、利用者にあります");
     expect(terms).toContain("自動の投稿を止めることがあります");
   });
 });

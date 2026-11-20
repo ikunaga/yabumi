@@ -55,7 +55,7 @@ export type PostStatus = "scheduled" | "posted" | "draft" | "failed";
 
 const statusStyle: Record<PostStatus, { text: string; className: string }> = {
   scheduled: { text: "● 予約", className: "font-bold text-signal" },
-  posted: { text: "✓ 投稿済み", className: "font-bold text-success" },
+  posted: { text: "✓ 送信済み", className: "font-bold text-success" },
   draft: { text: "○ 下書き", className: "text-muted" },
   failed: { text: "! 失敗", className: "font-bold text-danger" },
 };

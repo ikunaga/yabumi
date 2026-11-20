@@ -47,7 +47,7 @@ export default async function ConnectInstagramPage(props: PageProps<"/projects/[
                 <li>ブラウザで今 Instagram にログインしているアカウントでつながります。別のアカウントにするときは、先に instagram.com で切り替えてください</li>
                 <li>このプロジェクトでつなげる Instagram のアカウントは 1 つです。別のアカウントでつなぎ直すと、前のアカウントは外れ、予約中の投稿は新しいアカウントから送ります</li>
                 <li>Instagram には画像が必要です。yabumi で投稿をつくるときに、画像を 1 枚以上添えてください（縦横比は 4:5〜1.91:1）</li>
-                <li>yabumi から送った投稿は、yabumi からは取り消せません。消すときは Instagram のアプリから消します</li>
+                <li>yabumi で送信済みの投稿は、yabumi からは取り消せません。消すときは Instagram のアプリから消します</li>
               </ul>
             </section>
           </Card>

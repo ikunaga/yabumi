@@ -106,7 +106,7 @@ export const REVIEW_REASON_DETAIL: Record<ReviewOnlySns, string> = {
 };
 
 // 確かめ待ちになったときの流れ（1 行）
-export const REVIEW_FLOW = "送る 24 時間前に作って通知します → 押して中身を見る → 「送る」を押したものだけ、決めた時刻に送ります（押さなければ送りません）";
+export const REVIEW_FLOW = "送る 24 時間前に通知します。中身を見て「送る」を押した投稿だけ、決めた時刻に送ります。";
 
 // 段階 A で自動の投稿の送り先に選べない SNS の理由（TikTok・YouTube。docs/design/auto-post.md の A6・2.9 の段階 C）
 export const STAGE_C_SNS_SHORT = "送るたびに同意が要る SNS なので、自動投稿ではまだ選べません（準備中）";

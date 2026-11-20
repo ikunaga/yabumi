@@ -13,7 +13,7 @@ import { loadTemplateStyle, StyleFields } from "./template-fields";
 import { DEFAULT_LOOK, readLook, type HeadlineLook } from "@/lib/media/look";
 import { DisclosureBox } from "@/components/ui/disclosure";
 
-const SIZE_LABEL = (s: FormatImage["size"]) => (s === "auto" ? "送り先に合わせる" : TEMPLATE_SIZES[s].label);
+const SIZE_LABEL = (s: FormatImage["size"]) => (s === "auto" ? "送る SNS に合わせる" : TEMPLATE_SIZES[s].label);
 
 // フォーマットの編集の「画像」（docs/design/format-image.md の 1.・4.）。絵の説明（穴と答えを使える）・場面のつくり方・描き方・縦横・重ねる見出し。
 // 絵の説明が空なら画像なし。保存の形とそろえ方の正はサーバー（store.ts の checkFormat）
@@ -71,12 +71,12 @@ export function FormatImageFields({
   return (
     <DisclosureBox label="画像の設定を表示" className="text-xs" open={image.prompt.trim() ? true : undefined}>
       <div className="flex flex-col gap-3">
-        <p className="text-muted">決めておくと、投稿をつくるの「3 画像」で、押すだけでつくれます。</p>
+        <p className="text-muted">決めておくと、投稿をつくるときの「3 画像」の手順で、押すだけで画像をつくれます。</p>
         <label className="flex flex-col gap-1">
           <span className="font-bold">絵の説明</span>
           {names.length > 0 && (
             <span className="flex flex-wrap items-center gap-1.5">
-              <span className="text-muted">押すと差し込みます</span>
+              <span className="text-muted">押すと、その空欄を絵の説明に入れます</span>
               {names.map((n) => (
                 <button key={n} type="button" onClick={() => insertSlot(n)} className="rounded-full border border-line bg-surface px-2 py-0.5 text-xs hover:border-primary">
                   {`{${n}}`}
@@ -95,7 +95,7 @@ export function FormatImageFields({
           />
           {templates.length > 0 && (
             <select
-              aria-label="絵の説明のフォーマットから写す"
+              aria-label="保存した絵の説明から選んで入れる"
               value=""
               onChange={(e) => {
                 const t = templates.find((x) => x.id === e.target.value);
@@ -103,7 +103,7 @@ export function FormatImageFields({
               }}
               className="self-start rounded-md border border-input bg-surface px-2.5 py-1.5 text-sm max-sm:text-[16px]"
             >
-              <option value="">絵の説明のフォーマットから写す</option>
+              <option value="">保存した絵の説明から選んで入れる</option>
               {templates.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
@@ -111,8 +111,9 @@ export function FormatImageFields({
               ))}
             </select>
           )}
-          {image.prompt.includes("{場面}") && !names.includes("場面") && <span className="font-bold text-signal">{"{場面}"} を、上の空欄（例: {`{${names[0] ?? "キーワード"}}`}）か言葉に書き換えてください</span>}
-          {usesAnswer(image.prompt, body, series) && <span className="text-muted">クイズでは、絵で答えがわかってしまうことがあります。</span>}
+          {/* ui-wording-ignore: {場面} は、保存した絵の説明に入っている差し込みの名前（データ）。名前を変えるかは別に決める */}
+          {image.prompt.includes("{場面}") && !names.includes("場面") && <span className="font-bold text-signal">{"{場面}"} は、ここでは使えません。上の空欄の {`{${names[0] ?? "キーワード"}}`} などか、言葉に書き換えてください</span>}
+          {usesAnswer(image.prompt, body, series) && <span className="text-muted">クイズでは、絵で答えがわかってしまうことがあります。答えの空欄は、絵の説明に入れないでください。</span>}
         </label>
 
         <fieldset className="flex min-w-0 flex-col gap-1.5">
@@ -166,7 +167,7 @@ export function FormatImageFields({
         </fieldset>
 
         <fieldset className="flex min-w-0 flex-col gap-1.5">
-          <legend className="mb-1 font-bold">見出しを重ねる</legend>
+          <legend className="mb-1 font-bold">画像に見出しの文字を重ねる</legend>
           <div className="flex flex-wrap gap-2">
             <Choice on={image.headline === null} onClick={() => setImage({ ...image, headline: null, label: null, look: null })}>
               なし
@@ -214,7 +215,8 @@ export function FormatImageFields({
         </fieldset>
 
         <p className="leading-[1.7] text-muted">
-          つくるときに 1 枚 約 {unit} 円{scene === "ai" ? `（AI が絵の説明を書くので、合わせて 約 ${unit + SCENE_YEN.one[0]}〜${unit + SCENE_YEN.one[1]} 円）` : ""}。「つくる」を押したときだけかかります。
+          {scene === "ai" ? `画像は 1 枚 約 ${unit} 円です。AI が絵の説明も書くので、合わせて約 ${unit + SCENE_YEN.one[0]}〜${unit + SCENE_YEN.one[1]} 円です。` : `画像は 1 枚 約 ${unit} 円です。`}
+          お金は「つくる」を押したときだけかかります。
         </p>
       </div>
     </DisclosureBox>

@@ -110,7 +110,7 @@ export function FormatManager({
   return (
     <div className="flex flex-col gap-3 text-sm">
         <p className="text-[14px] leading-[1.7] text-muted">
-          くり返し出す投稿の型です。投稿をつくるの「フォーマットから」で使います。本文に {"{何が}"} のように空欄を置くと、投稿をつくるときに空欄ごとの欄が出ます（{MAX_FORMAT_SLOTS} 種類まで。<span className="num">{formats.length}</span> / {MAX_POST_FORMATS}）。
+          毎回くり返し使う投稿のひな形です。「投稿をつくる」の「フォーマットから」で選べます。本文に {"{何が}"} のように書いたところが空欄になります。投稿をつくるとき、空欄ごとに言葉を入れる欄が出ます。空欄は {MAX_FORMAT_SLOTS} 個まで置けます。フォーマットは {MAX_POST_FORMATS} 個までつくれます。いまは <span className="num">{formats.length}</span> 個です。
         </p>
         {formats.length > 0 && (
           <ul className="flex flex-col divide-y divide-line">
@@ -123,7 +123,7 @@ export function FormatManager({
                 <li key={f.id} className="flex flex-col gap-1 py-2">
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                     <span className="font-bold">{f.name}</span>
-                    {f.pillar && <span className="text-xs text-muted">柱: {pillars.includes(f.pillar) ? f.pillar : "なし"}</span>}
+                    {f.pillar && <span className="text-xs text-muted">テーマ: {pillars.includes(f.pillar) ? f.pillar : "なし"}</span>}
                     <span className="ml-auto flex gap-1">
                       <Button size="sm" variant="secondary" onClick={() => (setEditing(f.id), setSaved(null))}>
                         編集
@@ -131,7 +131,7 @@ export function FormatManager({
                       {confirmDelete === f.id ? (
                         <>
                           <Button size="sm" variant="danger" disabled={pending} onClick={() => run(() => deletePostFormat(projectId, f.id), () => setConfirmDelete(null))}>
-                            本当に削除する
+                            このフォーマットを削除する
                           </Button>
                           <Button size="sm" variant="text" onClick={() => setConfirmDelete(null)}>
                             やめる
@@ -193,15 +193,15 @@ export function FormatManager({
               <span className="flex flex-wrap gap-2">
                 {aiEnabled ? (
                   <Button size="sm" variant="secondary" onClick={() => setEditing("ai")}>
-                    AI とつくる
+                    AI と新しいフォーマットをつくる
                   </Button>
                 ) : (
                   <NotReadyButton size="sm" variant="secondary">
-                    AI とつくる
+                    AI と新しいフォーマットをつくる
                   </NotReadyButton>
                 )}
                 <Button size="sm" variant="secondary" onClick={() => (setDraft(null), setEditing("new"))}>
-                  手で書く
+                  新しいフォーマットを自分で書く
                 </Button>
               </span>
             </div>
@@ -273,15 +273,15 @@ export function FormatEditor({
         <span className="text-xs font-bold">
           できあがる投稿の例<span className="ml-1.5 font-normal text-muted">任意</span>
         </span>
-        <Textarea value={v.example} maxLength={MAX_FORMAT_EXAMPLE} rows={3} onChange={(e) => set("example", e.target.value)} placeholder="空欄を埋めた投稿の例。何を書けばいいかの手がかりになります" className="py-2 text-sm" />
+        <Textarea value={v.example} maxLength={MAX_FORMAT_EXAMPLE} rows={3} onChange={(e) => set("example", e.target.value)} placeholder="空欄に言葉を入れた、できあがりの投稿の例。投稿をつくるときの手本になります" className="py-2 text-sm" />
       </label>
       {pillars.length > 0 && (
         <label className="flex flex-col gap-1">
           <span className="text-xs font-bold">
-            投稿の柱<span className="ml-1.5 font-normal text-muted">任意</span>
+            投稿のテーマ<span className="ml-1.5 font-normal text-muted">任意</span>
           </span>
           <select value={pillars.includes(v.pillar) ? v.pillar : ""} onChange={(e) => set("pillar", e.target.value)} className="rounded-md border border-input bg-surface px-2.5 py-1.5 text-sm max-sm:text-[16px]">
-            <option value="">柱なし</option>
+            <option value="">テーマなし</option>
             {pillars.map((p) => (
               <option key={p} value={p}>
                 {p}
@@ -299,7 +299,7 @@ export function FormatEditor({
           disabled={pending || !v.name.trim() || !v.body.trim()}
           onClick={() => {
             const p = formatInputSchema.safeParse({ ...v, pillar: pillars.includes(v.pillar) ? v.pillar : "", hashtags: tags, series });
-            if (!p.success) return setProblem(p.error.issues[0]?.message ?? "入力の形式が正しくありません。");
+            if (!p.success) return setProblem(p.error.issues[0]?.message ?? "保存できませんでした。入れた内容を見直してください。");
             // 画像の穴の決まりも画面で先に確かめる（正はサーバー）
             const img = cleanFormatImage(image, p.data.body, series);
             if (img.problem) return setProblem(img.problem);
@@ -360,12 +360,12 @@ export function FormatTagsFields({
         <span className="ml-1.5 font-normal text-muted">任意</span>
       </legend>
       <label className="flex flex-col gap-1">
-        <span className="text-xs text-muted">全部の SNS（{MAX_TARGET_HASHTAGS} 個まで）</span>
+        <span className="text-xs text-muted">全部の SNS に付けるハッシュタグ。{MAX_TARGET_HASHTAGS} 個まで</span>
         <Input value={tags.all ?? ""} maxLength={400} onChange={(e) => setTag("all", e.target.value)} placeholder="例: #個人開発 #indiedev" className="py-2 text-sm" />
       </label>
       {candidates.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-xs text-muted">設計の候補:</span>
+          <span className="text-xs text-muted">アカウントの方針で決めたタグ:</span>
           {candidates.map((t) => (
             <Button key={t} type="button" size="sm" variant="text" onClick={() => setTag("all", `${(tags.all ?? "").trim()} #${t}`.trim())}>
               ＋ #{t}
@@ -401,14 +401,14 @@ function FormatAiMaker({ projectId, kinds, onPick, onCancel }: { projectId: stri
     start(async () => {
       setError(null);
       const r = await draftPostFormats(projectId, { kind: chosen, must, refine: withRefine ? refine : "" });
-      if (r.error || !r.proposals) setError(r.error ?? "うまくいきませんでした。");
+      if (r.error || !r.proposals) setError(r.error ?? "案を出せませんでした。少し待ってから、もう一度押してください。");
       else setProposals(r.proposals);
     });
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1.5">
-        <span className="text-xs font-bold">何の投稿の型をつくりますか</span>
+        <span className="text-xs font-bold">何の投稿のひな形をつくりますか</span>
         <div className="flex flex-wrap gap-2">
           {kinds.map((k) => (
             <Choice key={k} on={kind === k} onClick={() => setKind(k)}>
@@ -423,7 +423,7 @@ function FormatAiMaker({ projectId, kinds, onPick, onCancel }: { projectId: stri
       </div>
       <label className="flex flex-col gap-1">
         <span className="text-xs font-bold">
-          決まって入れたいこと<span className="ml-1.5 font-normal text-muted">任意</span>
+          毎回かならず入れたいこと<span className="ml-1.5 font-normal text-muted">任意</span>
         </span>
         <Input value={must} maxLength={MAX_FORMAT_MUST} onChange={(e) => setMust(e.target.value)} placeholder="例: 最後に予約の案内を入れたい" className="py-2 text-sm" />
       </label>
@@ -431,7 +431,7 @@ function FormatAiMaker({ projectId, kinds, onPick, onCancel }: { projectId: stri
         <Button size="sm" disabled={pending || !chosen} onClick={() => ask(false)}>
           {pending ? "考えています…" : proposals ? "案を出し直す" : "AI に案を出してもらう"}
         </Button>
-        <span className="text-xs text-muted">1 回 5〜10 円ほど。1 日 {POST_FORMAT_DAILY_RUNS} 回まで</span>
+        <span className="text-xs text-muted">案を出すたびに 5〜10 円ほどかかります。1 日 {POST_FORMAT_DAILY_RUNS} 回までです。</span>
         <Button size="sm" variant="text" onClick={onCancel}>
           やめる
         </Button>
@@ -440,7 +440,8 @@ function FormatAiMaker({ projectId, kinds, onPick, onCancel }: { projectId: stri
       {error && <ErrorBanner>{error}</ErrorBanner>}
       {proposals && !pending && (
         <div className="flex flex-col gap-2">
-          <span className="text-xs font-bold">案（選ぶと下の欄に入ります。編集してから保存します）</span>
+          <span className="text-xs font-bold">案</span>
+          <span className="text-xs text-muted">選ぶと下の欄に入ります。編集してから保存してください。</span>
           <ul className="flex flex-col gap-2">
             {proposals.map((p) => (
               <li key={p.name} className="flex flex-col gap-1.5 rounded-md border border-line px-3 py-2.5">
@@ -462,7 +463,7 @@ function FormatAiMaker({ projectId, kinds, onPick, onCancel }: { projectId: stri
             ))}
           </ul>
           <div className="flex flex-wrap items-center gap-2">
-            <Input aria-label="案への希望" value={refine} maxLength={MAX_FORMAT_REFINE} onChange={(e) => setRefine(e.target.value)} placeholder="もう少しこうしたい（例: もっと短く）" className="min-w-0 flex-1 py-2 text-sm max-sm:basis-full" />
+            <Input aria-label="案への希望" value={refine} maxLength={MAX_FORMAT_REFINE} onChange={(e) => setRefine(e.target.value)} placeholder="もう少しこうしたい。例: もっと短く" className="min-w-0 flex-1 py-2 text-sm max-sm:basis-full" />
             <Button size="sm" variant="secondary" disabled={pending || !refine.trim() || !chosen} onClick={() => ask(true)}>
               この希望で出し直す
             </Button>
@@ -516,7 +517,7 @@ function SeriesFields({ slots, series, usedInImage, setSeries }: { slots: string
                   maxLength={MAX_SERIES_INSTRUCTION}
                   rows={2}
                   onChange={(e) => setSeries({ ...series, slots: { ...series.slots, [name]: e.target.value } })}
-                  placeholder="AI への指示（例: 答えの映画を連想できる言葉を 5 つ。・でつなぐ）"
+                  placeholder="例: 答えの映画を連想できる言葉を 5 つ。「・」でつなぐ"
                   className="min-h-[3.75rem] py-2 text-sm [field-sizing:content]"
                 />
               )}
@@ -537,11 +538,11 @@ function SeriesFields({ slots, series, usedInImage, setSeries }: { slots: string
             {series.answer && (
               <div className="grid grid-cols-[minmax(0,10rem)_1fr] gap-2 max-sm:grid-cols-1">
                 <Input
-                  aria-label="答えの名前"
+                  aria-label="答えを何と呼ぶか"
                   value={series.answer.name}
                   maxLength={MAX_ANSWER_NAME}
                   onChange={(e) => setSeries({ ...series, answer: { ...series.answer!, name: e.target.value } })}
-                  placeholder="名前（例: 映画。空なら「答え」）"
+                  placeholder="答えの呼び方。例: 映画"
                   className="py-2 text-sm"
                 />
                 <Textarea
@@ -550,7 +551,7 @@ function SeriesFields({ slots, series, usedInImage, setSeries }: { slots: string
                   maxLength={MAX_SERIES_INSTRUCTION}
                   rows={2}
                   onChange={(e) => setSeries({ ...series, answer: { ...series.answer!, instruction: e.target.value } })}
-                  placeholder="AI への指示（例: だれでも知っている映画を 1 つ）"
+                  placeholder="例: だれでも知っている映画を 1 つ"
                   className="min-h-[3.75rem] py-2 text-sm [field-sizing:content]"
                 />
               </div>
@@ -673,7 +674,6 @@ function SeriesRounds({ projectId, format, open = false }: { projectId: string; 
       if (r.rounds) setRounds(r.rounds);
       after?.(r);
     });
-  const label = format.series.answer?.name || "";
   // シリーズにしたばかりのときは開いて出し、すぐ読む（toggle を待たない）
   useEffect(() => {
     if (open) run(() => listFormatRounds(projectId, format.id));
@@ -683,7 +683,7 @@ function SeriesRounds({ projectId, format, open = false }: { projectId: string; 
   const answerName = format.series.answer?.name || DEFAULT_ANSWER_NAME;
   return (
     <DisclosureBox
-      label="シリーズのこれまでの投稿を表示"
+      label="このフォーマットで出した投稿を表示"
       count={rounds ? `${rounds.length} / ${MAX_ROUNDS}` : undefined}
       className="text-xs"
       open={open || undefined}
@@ -693,7 +693,7 @@ function SeriesRounds({ projectId, format, open = false }: { projectId: string; 
     >
       <div className="flex flex-col gap-2">
         {rounds === null && !error && <p className="text-faint">読み込んでいます…</p>}
-        {rounds && rounds.length === 0 && <p className="text-muted">まだありません。投稿をつくるで本文に入れると、ここに残ります。</p>}
+        {rounds && rounds.length === 0 && <p className="text-muted">まだありません。「投稿をつくる」でこのフォーマットを使うと、ここに残ります。</p>}
         {rounds && rounds.length > 0 && (
           <ul className="flex max-h-60 flex-col divide-y divide-line overflow-y-auto rounded-md border border-line">
             {rounds.map((r) => (
@@ -713,7 +713,7 @@ function SeriesRounds({ projectId, format, open = false }: { projectId: string; 
                   <span className="ml-1.5 text-faint">{r.source === "pasted" ? "貼った投稿" : r.postId ? "送信済みの投稿" : "本文に入れた案"}</span>
                 </span>
                 <Button size="sm" variant="secondary" disabled={pending} onClick={() => run(() => deleteFormatRound(projectId, format.id, r.id))}>
-                  消す
+                  削除
                 </Button>
               </li>
             ))}

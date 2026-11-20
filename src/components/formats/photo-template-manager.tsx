@@ -37,7 +37,7 @@ export function PhotoTemplateManager({ projectId }: { projectId: string }) {
     <>
       <div className="flex flex-col gap-3 text-sm">
         <p className="text-[14px] leading-[1.7] text-muted">
-          AI に画像を作ってもらうときの、絵の説明の型です。投稿をつくるの「画像」で使います（<span className="num">{templates.length}</span> / {MAX_PHOTO_TEMPLATES}）。
+          AI に画像をつくってもらうときの、絵の説明のひな形です。「投稿をつくる」の「画像」の手順で使います。{MAX_PHOTO_TEMPLATES} 個までつくれます。いまは <span className="num">{templates.length}</span> 個です。
         </p>
           {templates.length > 0 && (
             <ul className="flex flex-col divide-y divide-line">
@@ -70,7 +70,7 @@ export function PhotoTemplateManager({ projectId }: { projectId: string }) {
                           onChange={() => run(() => setDefaultPhotoTemplate(projectId, t.isDefault ? null : t.id))}
                           className="size-4 accent-[var(--primary)]"
                         />
-                        いつも使う
+                        投稿をつくるとき最初に選ぶ
                       </label>
                       <span className="ml-auto flex gap-1">
                         <Button size="sm" variant="secondary" onClick={() => setRenaming({ id: t.id, name: t.name })}>
@@ -79,7 +79,7 @@ export function PhotoTemplateManager({ projectId }: { projectId: string }) {
                         {confirmDelete === t.id ? (
                           <>
                             <Button size="sm" variant="danger" disabled={pending} onClick={() => run(async () => (setConfirmDelete(null), deletePhotoTemplate(projectId, t.id)))}>
-                              本当に削除する
+                              この絵の説明を削除する
                             </Button>
                             <Button size="sm" variant="text" onClick={() => setConfirmDelete(null)}>
                               やめる
@@ -100,7 +100,7 @@ export function PhotoTemplateManager({ projectId }: { projectId: string }) {
           )}
           {addable.length > 0 && left > 0 && (
             <div className="flex flex-col gap-1.5">
-              <span className="text-xs font-bold">例から追加</span>
+              <span className="text-xs font-bold">例から足す</span>
               <div className="flex flex-wrap gap-2">
                 {addable.map((e) => (
                   <Button key={e.name} size="sm" variant="secondary" disabled={pending} onClick={() => run(() => addPhotoTemplate(projectId, e))}>
@@ -110,8 +110,9 @@ export function PhotoTemplateManager({ projectId }: { projectId: string }) {
               </div>
             </div>
           )}
+          {/* ui-wording-ignore: {場面} は差し込みの名前（データ）。名前を変えるかは別に決める */}
           <p className="text-xs leading-[1.7] text-muted">
-            本文に {"{場面}"} を入れると、AI の案や書いた場面がそこに入ります。投稿をつくるの「画像」で書いた絵の説明は、「フォーマットとして保存」で足せます。
+            本文に {"{場面}"} を入れると、そこに投稿ごとの絵の説明が入ります。「投稿をつくる」の「画像」で書いた絵の説明も、ここに足せます。そのときは「フォーマットとして保存」を押します。
           </p>
       </div>
       {error && <ErrorBanner>{error}</ErrorBanner>}

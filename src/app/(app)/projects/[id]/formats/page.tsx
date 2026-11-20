@@ -44,7 +44,7 @@ export default async function FormatsPage(props: PageProps<"/projects/[id]/forma
           投稿の文
         </Link>
         <Link href={`${base}?tab=photo${keep ? `&${keep}` : ""}`} aria-current={tab === "photo" ? "page" : undefined} className={`${chipClass({ on: tab === "photo" })} hover:no-underline`}>
-          絵の説明
+          AI がつくる絵の説明
         </Link>
       </nav>
       <section className="rounded-lg border border-border bg-surface px-6 py-5 max-sm:px-4 max-sm:py-4">

@@ -99,7 +99,8 @@ describe("週ごとの合計（DB の関数）", () => {
       const post = await publishedPost([{ sns: "threads", publishedAt: daysAgo(1) }], "クリックの多い投稿");
       const postLink = await createShortLink(admin, { ownerId: aliceId, projectId: p, destinationUrl: STORE, sns: "threads", kind: "post", postTargetId: post.ids.threads });
       for (const [link, ip] of [[xLink.id, "203.0.113.1"], [xLink.id, "203.0.113.2"], [postLink.id, "203.0.113.3"]] as const) {
-        await recordClick(admin, { linkId: link, ip, userAgent: IPHONE, device: "ios", country: "JP", excluded: null });
+        // 数えられなかったとき（重なり・除外）は、その場で理由がわかるようにする（2026-11-21 に全体のテストで 1 回だけ落ちた）
+        expect(await recordClick(admin, { linkId: link, ip, userAgent: IPHONE, device: "ios", country: "JP", excluded: null })).toBe("counted");
       }
       const { data: bySns } = await alice.rpc("link_clicks_by_sns", { p_project_id: p, p_today: today() });
       expect(Object.fromEntries(bySns!.map((r) => [r.sns, r.this_week]))).toEqual({ x: 2, threads: 1 });

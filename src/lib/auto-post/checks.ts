@@ -119,8 +119,11 @@ export function plainIssues(texts: Texts, opts: { allowedUrls: readonly string[]
 // 事実か確かめて（made_up）・やらないこと（avoid）は直さずに下書きへ。それ以外（決まり文句・誇張〈あおり・効き目の約束を含む〉・口調・タグ・そのほか）は、
 // 指摘の直しを当てる。当てられない直しは、下書きへ（人が見ないで出すので、直せないものは出さない）
 
+// 止める指摘（直さずに下書き・確かめ待ちへ）
+export const isHardFinding = (f: Pick<AiCheckResult["findings"][number], "kind">) => f.kind === "made_up" || f.kind === "avoid";
+
 export function applyAiCheck(texts: Texts, result: AiCheckResult): { texts: Texts; hold: Issue | null; fixed: number } {
-  const hard = result.findings.find((f) => f.kind === "made_up" || f.kind === "avoid");
+  const hard = result.findings.find(isHardFinding);
   if (hard) return { texts, hold: { kind: hard.kind === "made_up" ? "made_up" : "avoid", detail: hard.why.slice(0, 200) }, fixed: 0 };
   const out: Texts = { ...texts };
   let fixed = 0;

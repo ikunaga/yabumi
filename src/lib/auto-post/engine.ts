@@ -13,7 +13,7 @@ import { splitTagsByText, withHashtags } from "@/lib/sns/hashtags";
 import type { Database } from "@/lib/supabase/database.types";
 import { autoPostGenerator, fakeAiMode, type AutoPostGenerator } from "./ai";
 import { callAiCheck, callShortenDrafts } from "@/lib/ai/anthropic";
-import { applyAiCheck, plainIssues, tagReserve, type Issue, type Texts } from "./checks";
+import { applyAiCheck, isHardFinding, plainIssues, tagReserve, type Issue, type Texts } from "./checks";
 export { tagReserve } from "./checks";
 import { isNoMaterial, pickMaterial, type Material, type MaterialDeps, type PastRef, type ProjectRow } from "./materials";
 import { readAutoImage, toPlan } from "./plan-row";
@@ -296,9 +296,12 @@ export async function draftRun(
   }
 
   // 長すぎるものは縮める（自動の投稿の枠で数える）
-  // 送る文（本文＋タグの行）で数え、縮める目標はタグの行の分を引く
+  // 送る文（本文＋タグの行）で数え、縮める目標はタグの行の分を引く。
+  // シリーズの本文（fixedTexts）は利用者が決めたフォーマットの文なので縮めない。超えるときは下書きに回す（2026-11-20 オーナーの本番の不具合）
   const over = (Object.entries(texts) as [SnsKey, string][]).filter(([k, t]) => overLimit(k, withHashtags(t, splitTagsByText(t, fixedTags[k] ?? []).keep)) > 0);
-  if (over.length && deps.callShorten) {
+  if (over.length && material.fixedTexts) {
+    hold ??= { kind: "too_long", detail: `フォーマットの文が ${SNS[over[0][0]].label} の字数の上限を超えています（フォーマットの文は変えずに、下書きに回しました）` };
+  } else if (over.length && deps.callShorten) {
     const call = budgeted(admin, { userId: args.plan.ownerId, purpose, call: "shorten" }, deps.callShorten);
     const { texts: short } = await shortenOverDrafts(call, over.map(([sns, text]) => ({ id: sns, sns, text, reserve: reserveOf(sns) })));
     for (const [id, t] of short) texts[id as SnsKey] = t;
@@ -327,9 +330,14 @@ export async function draftRun(
     const result = b.result.stopReason === "end_turn" ? normalizeAiCheck(b.result.output, checkTexts) : null;
     if (!result) hold = { kind: "check_failed", detail: "送る前の確かめが、うまくいきませんでした" };
     else {
-      const applied = applyAiCheck(texts, result);
+      // シリーズの本文（fixedTexts）は利用者が決めたフォーマットの文なので、書き換えの案は当てない（数だけ記録する）。
+      // 止める指摘（事実か確かめて・やらないこと）はいままでどおり hold にする（2026-11-20 オーナーの本番の不具合: 「答えはコメントで！」が「答えはリプで。」に変わった）
+      const applied = material.fixedTexts ? { ...applyAiCheck(texts, { ...result, findings: result.findings.filter(isHardFinding) }), fixed: 0 } : applyAiCheck(texts, result);
       hold = applied.hold;
-      if (!hold && applied.fixed) {
+      if (material.fixedTexts) {
+        const soft = result.findings.filter((f) => !isHardFinding(f)).length;
+        if (!hold && soft) ref.suggested = soft;
+      } else if (!hold && applied.fixed) {
         texts = applied.texts;
         ref.fixed = applied.fixed;
         hold = plainIssues(texts, checkArgs)[0] ?? null;

@@ -7,7 +7,7 @@ vi.mock("server-only", () => ({}));
 import type { CallCheck } from "@/lib/ai/ai-check";
 import { setAiBudgetTestScope } from "@/lib/ai/budget";
 import type { AutoPostGenerator } from "@/lib/auto-post/ai";
-import { addUpcomingRuns, EXPIRED_MESSAGE, makeDueRuns, makeSample, notifyMade, remindApprovals, reviewPlans, runAutoPostJob, settleApprovals, tagReserve, type EngineDeps } from "@/lib/auto-post/engine";
+import { addUpcomingRuns, draftRun, EXPIRED_MESSAGE, makeDueRuns, makeSample, notifyMade, remindApprovals, reviewPlans, runAutoPostJob, settleApprovals, tagReserve, type EngineDeps } from "@/lib/auto-post/engine";
 import { saveConnectedAccount } from "@/lib/sns/accounts";
 import type { SnsAdapter } from "@/lib/sns/adapters/types";
 import { publishDueTargets } from "@/lib/sns/publisher";
@@ -347,6 +347,45 @@ describe("見本の 1 回（makeSample）", () => {
     findings = [{ sns: "x", kind: "made_up", quote: "の話", why: "本当ですか", fix: "" }];
     const held = await makeSample(admin, deps(), { ownerId: aliceId, projectId: p, plan: toPlan(row!) });
     expect(held.ok && held.issues[0]?.kind).toBe("made_up");
+  });
+});
+
+describe("シリーズの本文（フォーマットの文）は変えない（2026-11-20 本番の不具合）", () => {
+  const FIXED = "この5つから連想される映画は？答えはコメントで！";
+  const material = (text: string) => ({ text: "シリーズ", label: "シリーズ: テスト", ref: {}, allowedUrls: [], fixedTexts: { threads: text, x: text }, series: { formatId: randomUUID(), answer: "ジョーズ", values: {} } });
+  async function draft(text: string) {
+    const p = await project();
+    const id = await plan(p);
+    const { data: row } = await admin.from("auto_plans").select("*").eq("id", id).single();
+    const { toPlan } = await import("@/lib/auto-post/plan-row");
+    return draftRun(admin, deps(), { plan: { ...toPlan(row!), ownerId: aliceId }, sns: ["threads", "x"], dueAt: new Date(Date.now() + 20 * HOUR), past: [], recent: { bySns: {}, mine: [] }, material: material(text) });
+  }
+
+  it("AI っぽさチェックの書き換えの案は当てず、数だけ記録する。止める指摘（事実か確かめて）は、いままでどおり止める", async () => {
+    findings = [{ sns: "x", kind: "cliche", quote: "答えはコメントで！", why: "決まり文句", fix: "答えはリプで。" }];
+    const r = await draft(FIXED);
+    expect(r.ok && r.texts).toEqual({ threads: FIXED, x: FIXED });
+    expect(r.ok && r.hold).toBeNull();
+    expect(r.ok && r.ref.suggested).toBe(1);
+    expect(r.ok && r.ref.fixed).toBeUndefined();
+    findings = [{ sns: "x", kind: "made_up", quote: "映画", why: "本当ですか", fix: "" }];
+    const held = await draft(FIXED);
+    expect(held.ok && held.hold?.kind).toBe("made_up");
+    expect(held.ok && held.texts.x).toBe(FIXED);
+    findings = [];
+  });
+
+  it("字数の上限を超えるときは縮めず、下書きに回して理由を出す", async () => {
+    const callShorten = vi.fn();
+    const long = "あ".repeat(300);
+    const p = await project();
+    const id = await plan(p);
+    const { data: row } = await admin.from("auto_plans").select("*").eq("id", id).single();
+    const { toPlan } = await import("@/lib/auto-post/plan-row");
+    const r = await draftRun(admin, { ...deps(), callShorten }, { plan: { ...toPlan(row!), ownerId: aliceId }, sns: ["threads", "x"], dueAt: new Date(Date.now() + 20 * HOUR), past: [], recent: { bySns: {}, mine: [] }, material: material(long) });
+    expect(callShorten).not.toHaveBeenCalled();
+    expect(r.ok && r.texts.x).toBe(long);
+    expect(r.ok && r.hold).toMatchObject({ kind: "too_long", detail: expect.stringContaining("フォーマットの文") });
   });
 });
 

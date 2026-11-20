@@ -43,7 +43,7 @@ export function imageSlotNames(body: string, series: FormatSeries | null | undef
 
 const namesIn = (text: string) => [...new Set([...text.matchAll(SLOT)].map((m) => m[1].trim()))];
 
-// 答えか AI が埋める穴を使っているか（使っていれば、場面は AI が直すだけにする。1.1）
+// 答えか AI が埋める空欄を使っているか（使っていれば、初めは「AI が絵の説明を書く」を選んでおき、「そのまま使う」には注意を出す。1.1。2026-11-20 から固定しない）
 export function needsAiScene(img: Pick<FormatImage, "prompt" | "headline">, body: string, series: FormatSeries | null | undefined): boolean {
   const slots = formatSlots(body);
   const answer = answerSlotName(series);
@@ -74,7 +74,7 @@ export function readFormatImage(raw: unknown): FormatImage | null {
 }
 
 // 編集の欄から来た値を、保存する形にする。絵の説明が空なら「画像なし」（null）。
-// 型の文にない穴は断る（problem）。答えか AI の穴を使うなら、場面は AI が直すにそろえる
+// 型の文にない空欄は断る（problem）。場面のつくり方は利用者が選んだとおりに保存する（2026-11-20 オーナーの決定で、AI に固定しない）
 export function cleanFormatImage(raw: unknown, body: string, series: FormatSeries | null | undefined): { image: FormatImage | null; problem?: string } {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { image: null };
   const r = raw as Record<string, unknown>;
@@ -86,7 +86,7 @@ export function cleanFormatImage(raw: unknown, body: string, series: FormatSerie
   const unknown = [...namesIn(img.prompt), ...namesIn(img.headline ?? "")].filter((n) => !allowed.includes(n));
   if (unknown.some((n) => !n)) return { image: null, problem: "絵の説明の { } の中に、空欄の名前を入れてください" };
   if (unknown.length) return { image: null, problem: `絵の説明に、型の文にない空欄 {${unknown[0]}} があります` };
-  return { image: needsAiScene(img, body, series) ? { ...img, scene: "ai" } : img };
+  return { image: img };
 }
 
 // 穴の言葉と答えを入れる。埋まらなかった穴は【穴の名前】で残す（残ったままではつくれない）

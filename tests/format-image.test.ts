@@ -35,10 +35,12 @@ describe("保存の形（cleanFormatImage）", () => {
     expect(cleanFormatImage({ ...base, prompt: "{映画}" }, BODY, EMPTY_SERIES).problem).toContain("{映画}");
   });
 
-  it("答えか AI が埋める穴を使うと、場面は AI が直すにそろえる（題名をそのまま画像の AI に渡さない）", () => {
-    expect(cleanFormatImage({ ...base, prompt: "{映画}を思わせる小物" }, BODY, SERIES).image?.scene).toBe("ai");
-    expect(cleanFormatImage({ ...base, prompt: "{キーワード}が並ぶ机" }, BODY, SERIES).image?.scene).toBe("ai");
-    expect(cleanFormatImage({ ...base, prompt: "{ひとこと}の机" }, BODY, SERIES).image?.scene).toBe("fill");
+  it("答えか AI が埋める空欄を使っても、絵の説明のつくり方は選んだとおりに保存する（2026-11-20 から固定しない）。使っているかは needsAiScene で見る", () => {
+    expect(cleanFormatImage({ ...base, prompt: "{映画}を思わせる小物", scene: "fill" }, BODY, SERIES).image?.scene).toBe("fill");
+    expect(cleanFormatImage({ ...base, prompt: "{キーワード}が並ぶ机", scene: "ai" }, BODY, SERIES).image?.scene).toBe("ai");
+    expect(cleanFormatImage({ ...base, prompt: "{ひとこと}の机", scene: "fill" }, BODY, SERIES).image?.scene).toBe("fill");
+    expect(needsAiScene({ prompt: "{映画}を思わせる小物", headline: null }, BODY, SERIES)).toBe(true);
+    expect(needsAiScene({ prompt: "{キーワード}", headline: null }, BODY, SERIES)).toBe(true);
     expect(needsAiScene({ prompt: "{ひとこと}", headline: null }, BODY, SERIES)).toBe(false);
     expect(usesAnswer("{映画}の小物", BODY, SERIES)).toBe(true);
     expect(usesAnswer("{キーワード}", BODY, SERIES)).toBe(false);
@@ -46,7 +48,7 @@ describe("保存の形（cleanFormatImage）", () => {
 
   it("checkFormat は image を必ず入れる（なければ {}）。型の文にない穴は FormatError", () => {
     expect(checkFormat({ name: "a", body: BODY }).image).toEqual({});
-    expect(checkFormat({ name: "a", body: BODY, series: SERIES, image: { ...base, prompt: "{映画}" } }).image).toMatchObject({ prompt: "{映画}", scene: "ai" });
+    expect(checkFormat({ name: "a", body: BODY, series: SERIES, image: { ...base, prompt: "{映画}" } }).image).toMatchObject({ prompt: "{映画}", scene: "fill" });
     expect(() => checkFormat({ name: "a", body: BODY, image: { ...base, prompt: "{ない}" } })).toThrow(FormatError);
   });
 });

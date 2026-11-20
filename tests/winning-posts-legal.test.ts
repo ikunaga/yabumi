@@ -1,5 +1,5 @@
-// 伸びた投稿からの提案の版（docs/legal.md の「伸びた投稿からの提案の版」。② として扱う。オーナーの了承待ち）: 版の並び・1 日 1 版・本文の新しい文。
-// 施行日は【仮】。本番に出す日に PM が合わせる（ここの日付も一緒に直す）
+// 伸びた投稿からの提案の版（docs/legal.md の「伸びた投稿からの提案の版」。② として扱い、2026-11-20 にオーナーが了承）: 版の並び・1 日 1 版・本文の新しい文。
+// 施行日は 2026-11-20 で確定。同じ日のほかの ② の変更はこの版にまとめるので、要約は「含む」で確かめる
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { MAX_SOURCE_POSTS, SOURCE_POST_CHARS } from "@/lib/post-formats/from-posts";

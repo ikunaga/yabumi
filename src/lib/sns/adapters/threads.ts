@@ -75,7 +75,7 @@ export function createThreadsAdapter({
       const { status, errorMessage } = await getContainerStatus(token, id);
       return { status, detail: errorMessage };
     },
-    createCarousel: (children, text) => createCarouselContainer(token, children, text),
+    createCarousel: (children, text, ai) => createCarouselContainer(token, children, text, ai),
     publish: (id) => publishContainer(token, id),
     permalink: (mediaId) => getPermalink(token, mediaId),
     toError: toPublishError,
@@ -89,13 +89,14 @@ export function createThreadsAdapter({
       try {
         if (images.length === 1) {
           const [image] = images;
-          return { kind: "single", id: await createImageContainer(account.accessToken, image.url, { text, altText: image.altText || undefined }) };
+          return { kind: "single", id: await createImageContainer(account.accessToken, image.url, { text, altText: image.altText || undefined, aiMade: image.aiGenerated === true }) };
         }
         const children: string[] = [];
         for (const image of images) {
           children.push(await createImageContainer(account.accessToken, image.url, { carouselItem: true, altText: image.altText || undefined }));
         }
-        return { kind: "carousel", children, text };
+        // AI で作った画像が 1 枚でもあれば、親に AI の印を付ける（staged.ts が親を作るときに渡す）
+        return { kind: "carousel", children, text, ...(images.some((i) => i.aiGenerated) ? { ai: true } : {}) };
       } catch (e) {
         throw toPublishError(e, "prepare");
       }
@@ -123,7 +124,7 @@ export function createThreadsAdapter({
           await waitFinished(account.accessToken, containerId, maxPolls);
         } else if (images.length === 1) {
           const [image] = images;
-          containerId = await createImageContainer(account.accessToken, image.url, { text, altText: image.altText || undefined });
+          containerId = await createImageContainer(account.accessToken, image.url, { text, altText: image.altText || undefined, aiMade: image.aiGenerated === true });
           await waitFinished(account.accessToken, containerId, maxImagePolls);
         } else {
           // カルーセル: 1 枚ずつのコンテナを作り、まとめたコンテナの準備を待つ
@@ -131,7 +132,7 @@ export function createThreadsAdapter({
           for (const image of images) {
             children.push(await createImageContainer(account.accessToken, image.url, { carouselItem: true, altText: image.altText || undefined }));
           }
-          containerId = await createCarouselContainer(account.accessToken, children, text);
+          containerId = await createCarouselContainer(account.accessToken, children, text, images.some((i) => i.aiGenerated));
           await waitFinished(account.accessToken, containerId, maxImagePolls);
         }
       } catch (e) {

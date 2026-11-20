@@ -23,6 +23,7 @@ export function PlanSample({ plan }: { plan: AutoPlan }) {
         xLink: plan.xLink,
         schedule: plan.schedule,
         instructions,
+        image: plan.image,
         leadHours: plan.leadHours,
       })}
       instructions={instructions}

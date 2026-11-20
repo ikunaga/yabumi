@@ -37,8 +37,8 @@ describe("「何を」のカード", () => {
       {
         ...empty,
         seriesFormats: [
-          { id: "f1", name: "連想映画クイズ", example: "連想映画クイズ🎬\nデロリアン・雷\n\nこの映画は？", rounds: 3 },
-          { id: "f2", name: "今日の一枚", example: "", rounds: 0 },
+          { id: "f1", name: "連想映画クイズ", example: "連想映画クイズ🎬\nデロリアン・雷\n\nこの映画は？", rounds: 3, hasImage: true },
+          { id: "f2", name: "今日の一枚", example: "", rounds: 0, hasImage: false },
         ],
       },
       "p1",

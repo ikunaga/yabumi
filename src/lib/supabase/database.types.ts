@@ -109,6 +109,7 @@ export type Database = {
       }
       ai_image_jobs: {
         Row: {
+          auto: boolean
           by_new_user: boolean
           cost_usd: number
           created_at: string
@@ -120,6 +121,7 @@ export type Database = {
           status: string
         }
         Insert: {
+          auto?: boolean
           by_new_user?: boolean
           cost_usd?: number
           created_at?: string
@@ -131,6 +133,7 @@ export type Database = {
           status?: string
         }
         Update: {
+          auto?: boolean
           by_new_user?: boolean
           cost_usd?: number
           created_at?: string
@@ -411,6 +414,7 @@ export type Database = {
           fail_streak: number
           first_review: boolean
           id: string
+          image: Json
           instructions: Json
           kind: string
           lead_hours: number
@@ -433,6 +437,7 @@ export type Database = {
           fail_streak?: number
           first_review?: boolean
           id?: string
+          image?: Json
           instructions?: Json
           kind: string
           lead_hours?: number
@@ -455,6 +460,7 @@ export type Database = {
           fail_streak?: number
           first_review?: boolean
           id?: string
+          image?: Json
           instructions?: Json
           kind?: string
           lead_hours?: number
@@ -606,6 +612,7 @@ export type Database = {
           created_at: string
           hold: Json | null
           id: string
+          image: Json | null
           material: Json
           owner_id: string
           plan_id: string | null
@@ -618,6 +625,7 @@ export type Database = {
           created_at?: string
           hold?: Json | null
           id?: string
+          image?: Json | null
           material: Json
           owner_id: string
           plan_id?: string | null
@@ -630,6 +638,7 @@ export type Database = {
           created_at?: string
           hold?: Json | null
           id?: string
+          image?: Json | null
           material?: Json
           owner_id?: string
           plan_id?: string | null
@@ -3073,7 +3082,12 @@ export type Database = {
     }
     Functions: {
       ai_image_quota: {
-        Args: { p_as_of?: string; p_owner_id: string; p_scope_owner?: string }
+        Args: {
+          p_as_of?: string
+          p_auto?: boolean
+          p_owner_id: string
+          p_scope_owner?: string
+        }
         Returns: {
           attempts_today: number
           global_month_usd: number
@@ -3108,6 +3122,7 @@ export type Database = {
         }
         Returns: number
       }
+      auto_image_valid: { Args: { p: Json; p_kind: string }; Returns: boolean }
       auto_instructions_clean: { Args: { p: Json }; Returns: Json }
       auto_instructions_valid: { Args: { p: Json }; Returns: boolean }
       auto_post_held: { Args: { p_uid: string }; Returns: boolean }
@@ -3508,6 +3523,7 @@ export type Database = {
       reserve_ai_images: {
         Args: {
           p_as_of?: string
+          p_auto?: boolean
           p_cost_usd: number
           p_images: number
           p_model: string
@@ -3646,6 +3662,7 @@ export type Database = {
         | {
             Args: {
               p_consent: boolean
+              p_image?: Json
               p_instructions: Json
               p_kind: string
               p_lead_hours: number

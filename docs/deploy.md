@@ -809,4 +809,5 @@ yabumi 運営 YuXport Labs
 | # | だれが | やること | 状態 |
 |---|---|---|---|
 | 33-1 | PM | マイグレーション 20261119100000_auto_sample_instructions を本番に当てる（auto_plans.instructions・save_auto_plan の新しい形〈p_instructions〉と、古い形〈p_tone〉の薄い関数・set_auto_plan_instructions・reserve_ai_usage の auto_post_sample・auto_samples の表）。当てたあと git push までの間も、古いアプリは古い形の save_auto_plan と tone の列で動く | まだ |
+| 33-1b | PM | マイグレーション 20261119110000_auto_post_images を本番に当てる（③ 自動の回の画像。auto_plans.image・save_auto_plan の p_image・AI の画像の自動の分の枠〈ai_image_jobs.auto、ai_image_quota・reserve_ai_images の p_auto〉・auto_post_scene・image_failed・auto_samples.image）。今のアプリ（p_auto・p_image を渡さない）はそのまま動く。法務の ③ の版の了承の前は、画像の機能を本番に出さない（取り込む時期は PM が決める） | まだ |
 | 33-2 | 実装担当 | **次のデプロイのあと**に、tone の列（auto_plans.tone）と古い形の save_auto_plan(uuid, uuid, text, text, jsonb, jsonb, text, jsonb, text, integer, boolean) を消すマイグレーションを作る（33-1 を当てて、新しいアプリが本番で動いてから。消す前に、本番のアプリが新しい形だけを呼んでいることを確かめる） | まだ |

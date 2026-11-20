@@ -167,11 +167,16 @@ export async function deleteMedia(token: string, mediaId: string): Promise<void>
 export async function createImageContainer(
   token: string,
   imageUrl: string,
-  options: { text?: string; altText?: string; carouselItem?: boolean } = {},
+  // aiMade: AI で作った画像を含む（is_made_with_ai で AI の印を付ける。カルーセルの子には付けられないので、親に付ける。
+  // https://developers.facebook.com/documentation/threads/reference/publishing 。docs/design/auto-sample-image.md の 2.3）
+  options: { text?: string; altText?: string; carouselItem?: boolean; aiMade?: boolean } = {},
 ): Promise<string> {
   const params: Record<string, string> = { media_type: "IMAGE", image_url: imageUrl, access_token: token };
   if (options.carouselItem) params.is_carousel_item = "true";
-  else if (options.text) params.text = options.text;
+  else {
+    if (options.text) params.text = options.text;
+    if (options.aiMade) params.is_made_with_ai = "true";
+  }
   if (options.altText) params.alt_text = options.altText;
   const json = await call<{ id: string }>(`${THREADS_GRAPH_URL}/v1.0/me/threads`, form(params));
   return String(json.id);
@@ -184,10 +189,10 @@ export async function createVideoContainer(token: string, videoUrl: string, text
 }
 
 // カルーセル（2〜20 枚）。children はカルーセルの中の 1 枚のコンテナ
-export async function createCarouselContainer(token: string, children: string[], text: string): Promise<string> {
+export async function createCarouselContainer(token: string, children: string[], text: string, aiMade = false): Promise<string> {
   const json = await call<{ id: string }>(
     `${THREADS_GRAPH_URL}/v1.0/me/threads`,
-    form({ media_type: "CAROUSEL", children: children.join(","), text, access_token: token }),
+    form({ media_type: "CAROUSEL", children: children.join(","), text, ...(aiMade ? { is_made_with_ai: "true" } : {}), access_token: token }),
   );
   return String(json.id);
 }

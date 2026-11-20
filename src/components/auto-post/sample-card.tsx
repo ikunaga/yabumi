@@ -8,7 +8,7 @@ import { ErrorBanner } from "@/components/ui/feedback";
 import { Field, Input } from "@/components/ui/field";
 import { HelpTip } from "@/components/ui/help";
 import { SnsTag } from "@/components/ui/marks";
-import { makeAutoSample } from "@/lib/auto-post/actions";
+import { makeAutoSample, makeAutoSampleImage } from "@/lib/auto-post/actions";
 import { INSTRUCTION_PRESETS, RUN_REASON_TEXT } from "@/lib/auto-post/labels";
 import { AUTO_INSTRUCTION_MAX, AUTO_INSTRUCTIONS_MAX, AUTO_SAMPLE_DAILY_RUNS } from "@/lib/auto-post/schema";
 import type { AutoPlanInput, AutoSample } from "@/lib/auto-post/types";
@@ -36,7 +36,9 @@ type Props = {
 };
 
 const settingsKey = (i: Omit<AutoPlanInput, "consent"> | null) =>
-  i ? JSON.stringify({ kind: i.kind, materials: i.materials, targets: i.targets, xLink: i.xLink, instructions: i.instructions }) : "";
+  i ? JSON.stringify({ kind: i.kind, materials: i.materials, targets: i.targets, xLink: i.xLink, instructions: i.instructions, image: i.image }) : "";
+// 見本の画像の見込み（1 枚 約 5 円。AI が場面を考えるときは 約 7〜8 円。docs/design/auto-sample-image.md の 4.）
+const IMAGE_YEN = "5〜8";
 
 export function SampleCard(p: Props) {
   const [sample, setSampleState] = useState<AutoSample | null>(null);
@@ -46,6 +48,7 @@ export function SampleCard(p: Props) {
   const [remember, setRemember] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sampling, startSample] = useTransition();
+  const [drawing, startDraw] = useTransition();
 
   const setSample = (s: AutoSample | null, key: string) => {
     setSampleState(s);
@@ -102,8 +105,24 @@ export function SampleCard(p: Props) {
   };
 
   const wrote = !!sample && Object.keys(sample.texts).length > 0;
+  const wantsImage = !!p.input()?.image;
+  const draw = () =>
+    startDraw(async () => {
+      setError(null);
+      if (!sample?.sampleId) return;
+      const r = await makeAutoSampleImage(p.projectId, sample.sampleId);
+      if (!r.ok) {
+        setError(r.error);
+        return;
+      }
+      const next = { ...sample, image: r.data };
+      setSampleState(next);
+      p.onSample?.(next);
+      if (p.adopt) p.adopt.set(next.issues.length === 0);
+    });
   const stale = !!sample && madeWith !== settingsKey(p.input() ? { ...p.input()!, instructions: p.instructions } : null);
-  const canAdopt = !!p.adopt && wrote && !!sample?.sampleId && sample.issues.length === 0 && !stale;
+  // 画像を選んだ回し方は、見本の画像もつくってから（画像なしの見本は、実際の回と同じではないため）
+  const canAdopt = !!p.adopt && wrote && !!sample?.sampleId && sample.issues.length === 0 && !stale && (!wantsImage || !!sample.image);
 
   return (
     <Card className="flex flex-col gap-4 px-6 py-5 max-sm:px-4 max-sm:py-4">
@@ -120,6 +139,14 @@ export function SampleCard(p: Props) {
       </div>
       {error && <ErrorBanner>{error}</ErrorBanner>}
       {sample && <SampleView sample={sample} />}
+      {wrote && wantsImage && !sample!.image && sample!.issues.length === 0 && sample!.sampleId && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-dashed border-line px-4 py-3">
+          <p className="text-sm text-muted">画像は、押したときだけつくります（文を作り直しても、画像はつくり直しません）。</p>
+          <Button type="button" variant="secondary" size="sm" disabled={drawing || sampling} onClick={draw}>
+            {drawing ? "つくっています…" : `画像もつくる（約 ${IMAGE_YEN} 円）`}
+          </Button>
+        </div>
+      )}
       {stale && <p className="text-sm text-muted">見本を作ったあとに設定を変えました。いまの設定の見本は、作り直すと見られます。</p>}
 
       {wrote && p.series && <p className="text-sm text-muted">シリーズは、フォーマットの型の文で書きます。書き方を変えるときは、フォーマットを直してください。</p>}
@@ -175,7 +202,9 @@ export function SampleCard(p: Props) {
                 ? "最初の回の確かめは要りません（X などの「確かめて送る」SNS は、送る前にいつもどおり確かめます）。"
                 : sample?.issues.length
                   ? "送る前の確かめで引っかかった見本は、最初の回にできません。"
-                  : "いまの設定で作り直すと選べます。"}
+                  : wantsImage && !sample?.image && !stale
+                    ? "画像もつくると選べます。"
+                    : "いまの設定で作り直すと選べます。"}
             </span>
           </span>
         </label>
@@ -220,6 +249,15 @@ export function SampleView({ sample }: { sample: AutoSample }) {
           <p className="text-[15px] leading-[1.8] whitespace-pre-wrap">{withHashtags(text, sample.tags?.[s] ?? [])}</p>
         </div>
       ))}
+      {sample.image && (
+        <figure className="flex flex-col gap-1.5">
+          <div className="flex max-w-[360px] items-center justify-center overflow-hidden rounded-md border border-line bg-surface2">
+            {/* eslint-disable-next-line @next/next/no-img-element -- 署名つきの URL は期限があり、next/image の最適化を通さない */}
+            <img src={sample.image.url} alt={sample.image.alt || "見本の画像"} className="h-auto w-full object-contain" />
+          </div>
+          <figcaption className="text-xs leading-[1.6] text-muted">AI で作った画像{sample.image.alt ? `（画像の説明: ${sample.image.alt}）` : ""}</figcaption>
+        </figure>
+      )}
     </div>
   );
 }

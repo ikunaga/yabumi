@@ -58,6 +58,18 @@ const targetsSchema = z
   .refine((t) => Object.keys(t).every((k) => AUTO_SNS_STAGE_A.includes(k as SnsKey)), "この SNS には、まだ自動で送れません。")
   .refine((t) => Object.entries(t).every(([k, m]) => TARGET_MODES[k as SnsKey].includes(m!)), "この SNS では選べない送り方です。");
 
+// 自動の回の画像（DB の auto_image_valid と同じ決まり。kind との組み合わせは下の refine）
+export const autoImageSchema = z
+  .object({
+    source: z.enum(["format", "ai"]),
+    style: z.enum(["photo", "illustration"]),
+    size: z.enum(["auto", "portrait", "square", "landscape"]),
+    headline: z.enum(["none", "format", "ai"]),
+  })
+  .strict()
+  .refine((i) => i.headline !== "format" || i.source === "format", { message: "フォーマットの見出しは、フォーマットの画像を使うときだけ選べます。" })
+  .nullable();
+
 export const autoPlanInputSchema = z
   .object({
     id: z.uuid().optional(),
@@ -68,11 +80,14 @@ export const autoPlanInputSchema = z
     xLink: z.enum(["never", "always"]),
     schedule: scheduleSchema,
     instructions: instructionsSchema,
+    image: autoImageSchema,
     leadHours: z.number().int().min(1).max(48),
     consent: z.literal(true, { message: "「AI が作った文を、確かめずに送ります」に同意してください。" }),
     sampleId: z.uuid().optional(),
   })
-  .refine((p) => p.kind !== "series" || !!p.materials.format_id, { message: "シリーズのフォーマットを選んでください。", path: ["materials"] }) as unknown as z.ZodType<AutoPlanInput>;
+  .refine((p) => p.kind !== "series" || !!p.materials.format_id, { message: "シリーズのフォーマットを選んでください。", path: ["materials"] })
+  .refine((p) => !p.image || p.image.source !== "format" || p.kind === "series", { message: "フォーマットの画像は、シリーズのときだけ使えます。", path: ["image"] })
+  .refine((p) => !p.image || p.kind !== "product" || p.image.style === "illustration", { message: "商品・サービスの紹介では、AI の画像はイラストだけです（実物と違う商品を、本物の写真のように見せないため）。", path: ["image"] }) as unknown as z.ZodType<AutoPlanInput>;
 
 export const eventInputSchema = z.object({
   onDate: z.iso.date({ message: "日付を選んでください。" }),

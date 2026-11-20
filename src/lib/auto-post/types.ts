@@ -44,6 +44,14 @@ export type AutoMaterials = {
   skip_if_empty?: boolean;
 };
 
+// 自動の回の画像（docs/design/auto-sample-image.md の 2.。DB の auto_image_valid と同じ決まり）。null は画像なし。
+// - source: format（シリーズのフォーマットの画像の設定。絵の説明・場面のつくり方・写真かイラスト・縦横はフォーマットのものを使う）/ ai（本文から AI が場面を書く）
+// - style・size: source が ai のときに使う（format のときはフォーマットの値を写して持つ）。商品の紹介はイラストだけ
+// - headline: none / format / ai（見出しを重ねる。段取り ④）
+export type AutoImageSource = "format" | "ai";
+export type AutoImageSize = "auto" | "portrait" | "square" | "landscape";
+export type AutoImage = { source: AutoImageSource; style: "photo" | "illustration"; size: AutoImageSize; headline: "none" | "format" | "ai" };
+
 export type AutoPlanStatus = "active" | "paused" | "stopped";
 // yabumi が止めた理由（status が stopped のとき）。画面の文は STOP_REASON_TEXT
 export type AutoStopReason = "fail_streak" | "disconnected" | "materials_out" | "operator";
@@ -59,6 +67,7 @@ export type AutoPlan = {
   schedule: AutoSchedule;
   // 書き方の指示の一覧（毎回の AI の指示に入れる。見本の画面で足す・外す。前の「口調の指示」を含む）
   instructions: string[];
+  image: AutoImage | null;
   leadHours: number;
   firstReview: boolean;
   status: AutoPlanStatus;
@@ -79,6 +88,7 @@ export type AutoPlanInput = {
   xLink: "never" | "always";
   schedule: AutoSchedule;
   instructions: string[];
+  image: AutoImage | null;
   leadHours: number;
   consent: boolean;
   // 新しく作るとき: この見本（auto_samples）を最初の回にする（A3 の最初の確かめを済ませたことにする。docs/design/auto-sample-image.md の Q8）
@@ -104,7 +114,8 @@ export type AutoRunReason =
   | "error"
   | "user_skipped"
   | "plan_paused"
-  | "operator_hold";
+  | "operator_hold"
+  | "image_failed";
 
 export type AutoRun = {
   id: string;
@@ -161,6 +172,8 @@ export type ProjectEvent = { id: string; onDate: string; body: string };
 // sampleId は「同じ材料で作り直す」「この見本を最初の回にする」に使う（作れなかったときは null）
 export type AutoSample = {
   sampleId: string | null;
+  // 見本の画像（「画像もつくる」を押したとき。url は 1 時間で切れる）
+  image?: { url: string; width: number; height: number; alt: string } | null;
   texts: Partial<Record<SnsKey, string>>;
   // 本文とは別に、送るときに本文の後ろに付くタグ（シリーズのフォーマット・いつものタグ。2026-11-17）
   tags?: Partial<Record<SnsKey, string[]>>;

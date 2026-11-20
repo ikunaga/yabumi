@@ -1,4 +1,4 @@
-import type { AutoKind, AutoRunReason, AutoRunStatus, AutoStopReason, TargetMode } from "./types";
+import type { AutoImage, AutoKind, AutoRunReason, AutoRunStatus, AutoStopReason, TargetMode } from "./types";
 
 // 自動の投稿の画面の言葉（画面の担当はここを使う。用語をそろえるため）
 
@@ -53,6 +53,7 @@ export const RUN_REASON_TEXT: Record<AutoRunReason, string> = {
   user_skipped: "飛ばしました",
   plan_paused: "止めました",
   operator_hold: "運営者が止めました",
+  image_failed: "画像をつくれませんでした",
 };
 
 export const STOP_REASON_TEXT: Record<AutoStopReason, string> = {
@@ -113,3 +114,11 @@ export function isReviewOnlySns(sns: string): sns is ReviewOnlySns {
 
 // 見本を直す指示のチップ（docs/design/auto-sample-image.md の 1.1。押すと指示に足す。自分で書く欄もある）
 export const INSTRUCTION_PRESETS = ["もっと短く", "絵文字なし", "やわらかく", "宣伝っぽさを減らす", "ハッシュタグなし", "季節の話から入る"] as const;
+
+// 自動の回の画像の設定の 1 行（回し方の画面の「画像」）
+export function autoImageLabel(image: AutoImage | null): string {
+  if (!image) return "付けない";
+  if (image.source === "format") return "フォーマットの画像";
+  const size = { auto: "送り先に合わせる", portrait: "縦 4:5", square: "正方形 1:1", landscape: "横 16:9" }[image.size];
+  return `AI がつくる（${image.style === "photo" ? "写真のように" : "イラストで"}・${size}）`;
+}

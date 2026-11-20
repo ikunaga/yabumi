@@ -24,6 +24,7 @@ function plan(over: Partial<AutoPlan>): AutoPlan {
     xLink: "never",
     schedule: { weekdays: [2, 5], time: "19:00", every_weeks: 1, start: "2026-11-16" },
     instructions: [],
+    image: null,
     leadHours: 24,
     firstReview: false,
     status: "active",

@@ -52,7 +52,7 @@ export const AI_MAX_RESERVATION_USD = 1;
 export const AI_GLOBAL_MONTHLY_USD = 10;
 // 自動の投稿の全体の月の上限（reserve_ai_usage の c_auto_global_monthly_usd と同じ値。docs/design/auto-post.md の A4）
 export const AI_AUTO_GLOBAL_MONTHLY_USD = 5;
-const AUTO_PURPOSES = ["auto_post", "auto_post_check", "auto_post_sample"];
+const AUTO_PURPOSES = ["auto_post", "auto_post_check", "auto_post_sample", "auto_post_scene"];
 
 // count_tokens で数えたトークン数に掛けるゆとり。数えるのは呼ぶモデル（Opus 5.5）のトークン数だが、安全のための判定で別のモデルに回ったとき
 // （fallbacks）は、トークンの切り方が違って数が増えうる（モデルの世代でおよそ 1.35 倍まで違う）ため

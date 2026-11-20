@@ -16,11 +16,15 @@ import { callAiCheck, callShortenDrafts } from "@/lib/ai/anthropic";
 import { applyAiCheck, plainIssues, tagReserve, type Issue, type Texts } from "./checks";
 export { tagReserve } from "./checks";
 import { isNoMaterial, pickMaterial, type Material, type MaterialDeps, type PastRef, type ProjectRow } from "./materials";
-import { toPlan } from "./plan-row";
+import { readAutoImage, toPlan } from "./plan-row";
 import { dueTimes } from "./schedule";
 import type { AutoPlan, AutoRunReason, AutoRunStatus, AutoStopReason } from "./types";
 import { STOP_REASON_TEXT } from "./labels";
 import { heldUserIds, HOLD_PUSH, isAutoPostHeld, RELEASE_PUSH } from "./holds";
+import { attachImage, makeAutoImage, type AutoImageDeps, type MadeImage } from "./image";
+import { callPhotoIdeas } from "@/lib/ai/anthropic";
+import { generateWithGemini, photoConfigured, type GenerateImage } from "@/lib/ai/gemini-image";
+import { photoModel } from "@/lib/ai/photo";
 
 // 自動の投稿のジョブ（docs/design/auto-post.md の 2.3・2.7）。サーバーの権限（admin）で動くので、読むものは必ず持ち主とプロジェクトで絞る。
 // 1 回の流れ: ① 14 日先までの回を足す → ② 送る時刻を過ぎた確かめ待ちを失敗にする・最初の回の確かめの後始末 → ③ 作る時刻が来た回を作る →
@@ -47,6 +51,8 @@ export type EngineDeps = {
   callShorten?: CallShorten;
   push?: (admin: Db, userId: string, msg: PushMessage) => Promise<unknown>;
   now?: () => Date;
+  // 自動の回の画像（docs/design/auto-sample-image.md の 2.）。ないとき（鍵がない）は、画像を選んだ回し方の回を下書きに回す
+  image?: AutoImageDeps;
 } & MaterialDeps;
 
 // ownerIds: 結合テストで、テストの利用者だけを扱う（共有のローカル DB のほかの人の行に触らない）。ジョブは渡さない
@@ -217,7 +223,17 @@ async function loadContext(admin: Db, projectId: string, ownerId: string, sns: S
   return { project: project as ProjectRow & { name: string }, planData, ctx };
 }
 
-export type Draft = { ok: true; texts: Texts; tags: Partial<Record<SnsKey, string[]>>; material: Material; ref: Record<string, unknown>; hold: Issue | null } | { ok: false; reason: AutoRunReason; detail: string; ref?: Record<string, unknown> };
+export type Draft =
+  | { ok: true; texts: Texts; tags: Partial<Record<SnsKey, string[]>>; material: Material; ref: Record<string, unknown>; hold: Issue | null; image?: MadeImage }
+  | { ok: false; reason: AutoRunReason; detail: string; ref?: Record<string, unknown> };
+
+// 画像を選んだ回し方なら、文のあとに画像を 1 枚つくる（確かめで引っかかった回はつくらない。費用をかけない）。
+// つくれなければ、その回は下書きに回す（画像が前提の文が、画像なしで出ないように。Q5 の i）
+async function withImage(admin: Db, deps: EngineDeps, plan: AutoPlan & { ownerId: string }, draft: Extract<Draft, { ok: true }>, sns: SnsKey[]): Promise<Extract<Draft, { ok: true }>> {
+  if (!plan.image || draft.hold) return draft;
+  const r = await makeAutoImage(admin, deps.image, { plan, texts: draft.texts, sns, material: draft.material });
+  return r.ok ? { ...draft, image: r.image } : { ...draft, hold: { kind: "image_failed", detail: r.detail } };
+}
 
 // 材料を選び、文を作り、チェックする（見本と回の作成で同じ道）。投稿は作らない
 export async function draftRun(
@@ -364,7 +380,7 @@ async function processRun(admin: Db, deps: EngineDeps, run: ClaimedRun, now: Dat
     await finish(admin, run.id, { status: "skipped", reason: draft.reason, detail: draft.detail, ref: draft.ref });
     return "skipped";
   }
-  return placeDraft(admin, plan, { id: run.id, due }, draft, sns, accounts, now);
+  return placeDraft(admin, plan, { id: run.id, due }, await withImage(admin, deps, plan, draft, sns), sns, accounts, now);
 }
 
 // 作った文から、その回の投稿と配信先を作る（ジョブの回と「この見本を最初の回にする」で同じ道）。
@@ -381,15 +397,18 @@ async function placeDraft(
 ): Promise<AutoRunStatus> {
   const due = run.due;
   let sns = snsIn.filter((s) => draft.texts[s]);
-  // Instagram は画像が要る（段階 A はネタ帳の写真だけ）。写真がなければ Instagram は外す
-  const photo = draft.material.noteIds?.length ? (await admin.from("media_files").select("id").in("note_id", draft.material.noteIds).eq("kind", "image").limit(1)).data?.length : 0;
+  // Instagram は画像が要る（ネタ帳の写真か、自動の回の画像）。どちらもなければ Instagram は外す
+  const photo =
+    !!draft.image ||
+    (draft.material.noteIds?.length ? !!(await admin.from("media_files").select("id").in("note_id", draft.material.noteIds).eq("kind", "image").limit(1)).data?.length : false);
   if (!photo) sns = sns.filter((s) => s !== "instagram");
   if (!sns.length) {
     await finish(admin, run.id, { status: "skipped", reason: "no_material", detail: "Instagram に添える写真がありません" });
     return "skipped";
   }
 
-  const status: AutoRunStatus = draft.hold ? "held" : plan.firstReview && !opts.asReviewed ? "review" : "scheduled";
+  let hold = draft.hold;
+  let status: AutoRunStatus = hold ? "held" : plan.firstReview && !opts.asReviewed ? "review" : "scheduled";
   const body = draft.texts[sns[0]]!;
   const { data: post, error } = await admin
     .from("posts")
@@ -397,6 +416,12 @@ async function placeDraft(
     .select("id")
     .single();
   if (error) throw error;
+  // 画像は配信先を作る前に添える（確かめて送る SNS の指紋に画像が入る。添えられなければ、その回は下書きに回す）
+  if (draft.image && !(await attachImage(admin, plan.ownerId, post.id, draft.image)) && status !== "held") {
+    hold = { kind: "image_failed", detail: "画像を投稿に添えられませんでした" };
+    status = "held";
+    await admin.from("posts").update({ status: "draft" }).eq("id", post.id);
+  }
   const targets = sns.map((s) => ({
     post_id: post.id,
     owner_id: plan.ownerId,
@@ -418,7 +443,7 @@ async function placeDraft(
     const { error: e3 } = await admin.from("post_format_rounds").insert({ format_id: s.formatId, owner_id: plan.ownerId, post_id: post.id, answer: s.answer, values: s.values, source: "ai" });
     if (e3) console.error("[auto-post] シリーズの記録を残せませんでした", e3.message);
   }
-  await finish(admin, run.id, { status, postId: post.id, ref: draft.ref, reason: draft.hold?.kind ?? null, detail: draft.hold?.detail ?? null });
+  await finish(admin, run.id, { status, postId: post.id, ref: draft.ref, reason: hold?.kind ?? null, detail: hold?.detail ?? null });
   return status;
 }
 
@@ -457,7 +482,8 @@ async function runOutcomes(admin: Db, planId: string, now: Date): Promise<Outcom
     .limit(5);
   if (error) throw error;
   return data.map((r) => {
-    if (r.status === "held") return "bad";
+    // 画像をつくれなかった回は、続けての失敗に数えない（画像の AI の障害で回し方が止まらないように）
+    if (r.status === "held") return r.reason === "image_failed" ? "neutral" : "bad";
     if (r.status === "skipped") return r.reason === "no_material" ? "no_material" : r.reason === "disconnected" ? "disconnected" : "neutral";
     if (new Date(r.due_at).getTime() > now.getTime() - SETTLE_AFTER_MS) return "pending";
     const ts = ((r.posts as { post_targets: { status: string }[] } | null)?.post_targets ?? []).map((t) => t.status);
@@ -629,8 +655,24 @@ export async function notifyHolds(admin: Db, deps: EngineDeps, now: Date, opts: 
 export function engineDeps(admin: Db): EngineDeps | null {
   const generator = autoPostGenerator(admin);
   if (!generator) return null;
-  return { generator, callCheck: fakeAiMode() ? fakeCheck : callAiCheck, callShorten: callShortenDrafts };
+  const fake = !!fakeAiMode();
+  const image: AutoImageDeps | undefined = fake
+    ? { generate: fakeImage, model: photoModel(), callScene: fakeScene }
+    : photoConfigured()
+      ? { generate: generateWithGemini, model: photoModel(), callScene: callPhotoIdeas }
+      : undefined;
+  return { generator, callCheck: fake ? fakeCheck : callAiCheck, callShorten: callShortenDrafts, image };
 }
+
+// 偽の AI のときの画像（灰色の 1 枚）と場面。画面の確かめで、本物の AI を使わずに画像つきの回を見るため（Vercel の上では使わない。fakeAiMode）
+const FAKE_JPEG = "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==";
+const fakeImage: GenerateImage = async () => ({ bytes: Uint8Array.from(Buffer.from(FAKE_JPEG, "base64")), mimeType: "image/jpeg", inputTokens: 0 });
+const fakeScene: AutoImageDeps["callScene"] = async () => ({
+  output: { ideas: [{ title: "（偽の AI）", scene: "（偽の AI）木の机の上に、焙煎したコーヒー豆が広がっている", why: "" }] },
+  stopReason: "end_turn",
+  model: "fake",
+  usage: { inputTokens: 0, cacheWriteTokens: 0, cacheReadTokens: 0, outputTokens: 0 },
+});
 
 // 偽の AI のときの AI っぽさチェック（指摘なし。費用は 0 として記録する）
 const fakeCheck: CallCheck = async () => ({ output: { summary: "（偽の AI）", findings: [] }, stopReason: "end_turn", model: "fake", usage: { inputTokens: 0, cacheWriteTokens: 0, cacheReadTokens: 0, outputTokens: 0 } });
@@ -642,11 +684,11 @@ const fakeCheck: CallCheck = async () => ({ output: { summary: "（偽の AI）"
 export const SAMPLE_TTL_MS = 86_400_000;
 
 // 見本を作ったときの設定（最初の回にするとき、保存した回し方と同じかを確かめる）。並びをそろえて比べる
-export function sampleSettings(plan: Pick<AutoPlan, "kind" | "materials" | "targets" | "xLink" | "instructions">): Record<string, unknown> {
+export function sampleSettings(plan: Pick<AutoPlan, "kind" | "materials" | "targets" | "xLink" | "instructions"> & { image?: AutoPlan["image"] }): Record<string, unknown> {
   const sort = (o: Record<string, unknown>) => Object.fromEntries(Object.keys(o).sort().map((k) => [k, o[k]]));
   const materials = sort(plan.materials as Record<string, unknown>);
   if (Array.isArray(materials.destination_ids)) materials.destination_ids = [...(materials.destination_ids as string[])].sort();
-  return { kind: plan.kind, materials, targets: sort(plan.targets as Record<string, unknown>), xLink: plan.xLink, instructions: plan.instructions };
+  return { kind: plan.kind, materials, targets: sort(plan.targets as Record<string, unknown>), xLink: plan.xLink, instructions: plan.instructions, image: plan.image ?? null };
 }
 // DB（jsonb）はキーの並びを変えるので、キーを並べ直してから比べる
 const canonical = (v: unknown): unknown =>
@@ -738,12 +780,15 @@ export async function adoptSample(admin: Db, args: { ownerId: string; planId: st
     .eq("project_id", plan.projectId)
     .is("plan_id", null)
     .gt("created_at", new Date(now.getTime() - SAMPLE_TTL_MS).toISOString())
-    .select("settings, material, texts, tags, hold");
+    .select("settings, material, texts, tags, hold, image");
   if (error) throw error;
   const sample = samples?.[0];
   if (!sample) return { ok: false, detail: "見本が見つかりませんでした（作ってから 1 日たつと使えません）" };
   if (sample.hold) return { ok: false, detail: "見本が送る前の確かめで引っかかっていたので、最初の回にしませんでした" };
   if (!sameSettings(sample.settings, sampleSettings(plan))) return { ok: false, detail: "見本を作ったあとに設定を変えたので、最初の回にしませんでした" };
+  // 画像を選んだ回し方は、見本の画像も要る（画像なしの見本は、画像なしで出るものと同じではないため）
+  const sampleImage = readSampleImage(sample.image);
+  if (plan.image && !sampleImage) return { ok: false, detail: "見本の画像をつくっていなかったので、最初の回にしませんでした" };
 
   const due = dueTimes(plan.schedule, now, new Date(now.getTime() + AHEAD_DAYS * 86_400_000))[0];
   if (!due) return { ok: false, detail: "最初の送る時刻が見つかりませんでした" };
@@ -781,10 +826,50 @@ export async function adoptSample(admin: Db, args: { ownerId: string; planId: st
     material,
     ref: { ...material.ref, from_sample: true },
     hold: null,
+    ...(plan.image && sampleImage ? { image: sampleImage } : {}),
   };
   const status = await placeDraft(admin, plan, { id: run.id, due }, draft, sns, accounts, now, { asReviewed: true });
   if (status === "scheduled") await admin.from("auto_plans").update({ first_review: false, updated_at: now.toISOString() }).eq("id", plan.id).eq("owner_id", plan.ownerId);
   return { ok: true, status, dueAt: due.toISOString() };
+}
+
+function readSampleImage(v: unknown): MadeImage | null {
+  const r = (v ?? null) as Partial<MadeImage> | null;
+  return r && typeof r.path === "string" && typeof r.jobId === "string" && typeof r.width === "number" && typeof r.height === "number"
+    ? { path: r.path, jobId: r.jobId, width: r.width, height: r.height, alt: typeof r.alt === "string" ? r.alt : "" }
+    : null;
+}
+
+// 見本の画像をつくる（「画像もつくる」を押したとき。文の作り直しとは別。docs/design/auto-sample-image.md の 2.1）。
+// 本人の、1 日以内の、このプロジェクトの見本だけ。画像の設定と文は見本の行から読む（画面から受け取らない）
+export async function makeSampleImage(
+  admin: Db,
+  deps: EngineDeps,
+  args: { ownerId: string; projectId: string; sampleId: string; now?: Date },
+): Promise<{ ok: true; image: MadeImage } | { ok: false; detail: string }> {
+  const now = args.now ?? new Date();
+  const { data: sample } = await admin
+    .from("auto_samples")
+    .select("settings, material, texts, hold, image")
+    .eq("id", args.sampleId)
+    .eq("owner_id", args.ownerId)
+    .eq("project_id", args.projectId)
+    .gt("created_at", new Date(now.getTime() - SAMPLE_TTL_MS).toISOString())
+    .maybeSingle();
+  if (!sample) return { ok: false, detail: "見本が見つかりませんでした（作ってから 1 日たつと使えません）。見本を作り直してください" };
+  const existing = readSampleImage(sample.image);
+  if (existing) return { ok: true, image: existing };
+  if (sample.hold) return { ok: false, detail: "送る前の確かめで引っかかった見本には、画像をつくりません" };
+  const settings = sample.settings as { kind?: AutoPlan["kind"]; materials?: AutoPlan["materials"]; targets?: AutoPlan["targets"]; image?: AutoPlan["image"] };
+  const image = readAutoImage(settings.image);
+  if (!image) return { ok: false, detail: "画像の設定がありません" };
+  const texts = (sample.texts ?? {}) as Texts;
+  const sns = (Object.keys(settings.targets ?? {}) as SnsKey[]).filter((s) => texts[s]);
+  const plan = { projectId: args.projectId, ownerId: args.ownerId, materials: settings.materials ?? {}, image } as AutoPlan & { ownerId: string };
+  const r = await makeAutoImage(admin, deps.image, { plan, texts, sns, material: sample.material as unknown as Material });
+  if (!r.ok) return r;
+  await admin.from("auto_samples").update({ image: r.image as never }).eq("id", args.sampleId).eq("owner_id", args.ownerId);
+  return { ok: true, image: r.image };
 }
 
 // 1 日たった見本を消す（ジョブの 1 回ごと）

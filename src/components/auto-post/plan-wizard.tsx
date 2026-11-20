@@ -21,6 +21,7 @@ import {
   AUTO_SNS_STAGE_A,
   TARGET_MODES,
   type AutoKind,
+  type AutoImage,
   type AutoMaterials,
   type AutoPlan,
   type AutoPlanInput,
@@ -35,6 +36,7 @@ import { SNS, type SnsKey } from "@/lib/sns";
 import { scheduleText } from "./format";
 import { choiceKey, kindCards, KindPicker, type KindChoice, type WinnersCard } from "./kind-picker";
 import { ReviewFlow, ReviewReason, StageCSns } from "./review-why";
+import { ImagePicker } from "./image-picker";
 import { SampleCard } from "./sample-card";
 
 // 自動の投稿を始める・直す（docs/design/auto-post.md の 1.4・1.5・1.7）。
@@ -64,6 +66,7 @@ type Props = {
   preset?: WizardPreset | null;
   // 「伸びた投稿から」のカード（始めるときだけ。docs/design/winning-posts.md の 3. の A）
   winners?: WinnersCard | null;
+  photo: { enabled: boolean; acknowledged: boolean }; // 自動の回の画像（鍵があるか・AI の画像の注意を読んだか）
 };
 
 export type WizardPreset = { formatId: string; sns: SnsKey[]; time: string | null; timeReason: string };
@@ -91,6 +94,7 @@ const TIMES = Array.from({ length: 96 }, (_, i) => `${String(Math.floor(i / 4)).
 const AI_USD_PER_RUN = 0.08;
 const X_USD = { never: 0.015, always: 0.205 } as const;
 const YEN = 150;
+const IMAGE_USD_PER_RUN = 0.05;
 
 export function PlanWizard(p: Props) {
   const router = useRouter();
@@ -120,6 +124,8 @@ export function PlanWizard(p: Props) {
     const original = p.plan && choiceKey({ kind: p.plan.kind, formatId: p.plan.materials.format_id }) === choiceKey(c);
     setKind(c.kind);
     setMaterials(original ? p.plan!.materials : c.formatId ? { format_id: c.formatId } : {});
+    // 種類を選び直したら、画像の設定も選び直してもらう（フォーマットの画像・商品の紹介の写真は、種類で選べるかが変わる）
+    setImage(original ? (p.plan!.image ?? null) : null);
     setSchedule(null);
   };
   const autoSns = AUTO_SNS_STAGE_A.filter((s) => p.connected.includes(s));
@@ -134,6 +140,8 @@ export function PlanWizard(p: Props) {
   const [schedule, setSchedule] = useState<AutoSchedule | null>(p.plan?.schedule ?? null);
   const [custom, setCustom] = useState(false);
   const [instructions, setInstructions] = useState<string[]>(p.plan?.instructions ?? []);
+  const [image, setImage] = useState<AutoImage | null>(p.plan?.image ?? null);
+  const [photoAck, setPhotoAck] = useState(p.photo.acknowledged);
   const [name, setName] = useState(p.plan?.name ?? "");
   const [consent, setConsent] = useState(false);
   const [sample, setSample] = useState<AutoSample | null>(null);
@@ -163,7 +171,9 @@ export function PlanWizard(p: Props) {
   const effectiveSchedule = schedule ?? (options[0] ? withStart(options[0].schedule) : null);
 
   const whatOk = !!kind && AUTO_KINDS_STAGE_A.includes(kind) && (kind !== "series" || !!materials.format_id);
-  const whereOk = snsList.length > 0;
+  const formatHasImage = kind === "series" && !!p.materials.seriesFormats.find((f) => f.id === materials.format_id)?.hasImage;
+  // 画像を選んだら、AI の画像の注意を読んでから次へ（DB の save_auto_plan も断る）
+  const whereOk = snsList.length > 0 && (!image || photoAck);
   const whenOk = !!effectiveSchedule && effectiveSchedule.weekdays.length > 0;
 
   const defaultName = kind === "series" ? (p.materials.seriesFormats.find((f) => f.id === materials.format_id)?.name ?? KIND_LABELS.series) : kind ? KIND_LABELS[kind] : "";
@@ -178,6 +188,7 @@ export function PlanWizard(p: Props) {
           xLink: targets.x ? xLink : "never",
           schedule: effectiveSchedule,
           instructions,
+          image,
           leadHours: p.plan?.leadHours ?? DEFAULT_LEAD_HOURS,
         }
       : null;
@@ -189,6 +200,8 @@ export function PlanWizard(p: Props) {
 
   const monthly = effectiveSchedule ? runsPerMonth(effectiveSchedule) : 0;
   const aiYen = Math.round(monthly * AI_USD_PER_RUN * YEN);
+  // 画像は 1 枚 約 $0.035、場面を Claude が書くと 約 $0.05（docs/design/auto-sample-image.md の 4.）。多めの $0.05 で数える
+  const imageYen = image ? Math.round(monthly * IMAGE_USD_PER_RUN * YEN) : 0;
   const xYen = targets.x ? Math.round(monthly * X_USD[xLink] * YEN) : 0;
 
   return (
@@ -272,7 +285,13 @@ export function PlanWizard(p: Props) {
                     ) : (
                       <ModePicker sns={s} value={targets[s] ?? TARGET_MODES[s][0]} disabled={!on} onChange={(m) => setTargets({ ...targets, [s]: m })} />
                     )}
-                    {s === "instagram" && on && <p className="w-full text-xs text-muted">Instagram は画像が要るので、写真つきのネタ帳のメモから作る回だけ送ります（ほかの回は Instagram には送りません）。</p>}
+                    {s === "instagram" && on && (
+                      <p className="w-full text-xs text-muted">
+                        {image
+                          ? "Instagram には、AI がつくった画像を添えて毎回送ります（画像をつくれなかった回は、下書きに回します）。"
+                          : "Instagram は画像が要るので、写真つきのネタ帳のメモから作る回だけ送ります（ほかの回は Instagram には送りません）。下の「画像」で AI の画像を選ぶと、毎回送れます。"}
+                      </p>
+                    )}
                     {isReviewOnlySns(s) && <ReviewReason sns={s} />}
                   </li>
                 );
@@ -295,6 +314,17 @@ export function PlanWizard(p: Props) {
             )}
             {p.connected.length === 0 && <p className="text-sm text-muted">SNS をつなぐと選べます。</p>}
           </Card>
+          {kind && (
+            <ImagePicker
+              projectId={p.projectId}
+              kind={kind}
+              formatHasImage={formatHasImage}
+              value={image}
+              onChange={setImage}
+              photo={{ enabled: p.photo.enabled, acknowledged: photoAck }}
+              onAcknowledged={() => setPhotoAck(true)}
+            />
+          )}
           <Nav
             back={
               <Button type="button" variant="text" onClick={() => go("what")}>
@@ -423,6 +453,7 @@ export function PlanWizard(p: Props) {
             <div className="flex flex-wrap gap-x-8 gap-y-2">
               <Estimate label="月" value={`約 ${monthly}`} unit="本" />
               <Estimate label="AI" value={`約 ${aiYen}`} unit="円" />
+              {image && <Estimate label="画像" value={`約 ${imageYen}`} unit="円" />}
               {targets.x && <Estimate label="X" value={`約 ${xYen}`} unit="円" />}
             </div>
             <label className="flex items-start gap-2.5 text-[15px] leading-[1.7]">

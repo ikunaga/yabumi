@@ -43,7 +43,7 @@ export function isUnavailableResponse(provider: AiProvider, status: number, mess
 }
 
 export const AI_UNAVAILABLE_MESSAGE: Record<AiProvider, string> = {
-  gemini: "AI の画像はいま使えません（yabumi の運営に知らせました）。テンプレートの画像と、手持ちの写真は使えます。",
+  gemini: "AI の画像がいま使えません。yabumi の運営に知らせました。しばらくしてから、もう一度試してください。テンプレートの画像と、手持ちの写真は使えます。",
   anthropic: "AI がいま使えません。yabumi の運営に知らせました。しばらくしてから、もう一度試してください。",
 };
 

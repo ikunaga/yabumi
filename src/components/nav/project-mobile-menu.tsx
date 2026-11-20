@@ -65,7 +65,7 @@ export function ProjectMobileMenu({
                 <li key={item.key}>
                   <span className="flex items-center justify-between px-4 py-3 opacity-55" aria-disabled="true">
                     {item.label}
-                    <span className="text-[11px]">準備中</span>
+                    <span className="text-[11px]">まだ使えません</span>
                   </span>
                 </li>
               ),

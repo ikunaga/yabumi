@@ -40,7 +40,7 @@ export function ProjectNavLinks({ projectId, variant, glossary = false }: { proj
                 {item.barLabel}
               </Link>
             ) : (
-              <span className="block px-3 py-1.5 whitespace-nowrap text-faint" aria-disabled="true" title="準備中">
+              <span className="block px-3 py-1.5 whitespace-nowrap text-faint" aria-disabled="true" title="まだ使えません">
                 {item.barLabel}
               </span>
             )}
@@ -68,9 +68,10 @@ export function ProjectNavLinks({ projectId, variant, glossary = false }: { proj
               {item.tabLabel}
             </Link>
           ) : (
-            <span className="flex flex-1 flex-col items-center justify-center gap-1 leading-none text-faint" aria-disabled="true">
+            // 下のタブは幅がないので、名前を薄く出し、まだ使えないことは title で伝える（「準備中」は 2026-11-20 に「まだ使えません」へ）
+            <span className="flex flex-1 flex-col items-center justify-center gap-1 leading-none text-faint" aria-disabled="true" title="まだ使えません">
               <NavIcon k={item.key} />
-              準備中
+              {item.tabLabel}
             </span>
           )}
         </li>
@@ -118,7 +119,7 @@ function MoreMenu({ items, active, onPress }: { items: ProjectNavItem[]; active:
               ) : (
                 <span className="flex items-center justify-between px-4 py-2.5 text-faint" aria-disabled="true">
                   {item.barLabel}
-                  <span className="text-[11px]">準備中</span>
+                  <span className="text-[11px]">まだ使えません</span>
                 </span>
               )}
             </li>

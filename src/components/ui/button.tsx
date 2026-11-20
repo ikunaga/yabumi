@@ -47,7 +47,7 @@ export function ButtonLink({ variant, size, className, ...props }: ComponentProp
   return <Link className={buttonClass({ variant, size, className })} {...props} />;
 }
 
-// まだ使えない機能のボタン。押せない状態で「準備中」を添える（CLAUDE.md の「デザイン」）。
+// まだ使えない機能のボタン。押せない状態で「まだ使えません」を添える（CLAUDE.md の「デザイン」。前は「準備中」。自分の書きかけの意味に取られるので 2026-11-20 に改めた）。
 // stack: ボタンの下に添える（黒の帯の中の主ボタンなど）。ふだんは右に添える
 export function NotReadyButton({
   variant = "primary",
@@ -62,7 +62,7 @@ export function NotReadyButton({
       <button type="button" disabled className={buttonClass({ variant, size, className })}>
         {children}
       </button>
-      <span className={`text-xs ${note} ${stack ? "text-center" : ""}`}>準備中</span>
+      <span className={`text-xs ${note} ${stack ? "text-center" : ""}`}>まだ使えません</span>
     </span>
   );
 }

@@ -72,7 +72,7 @@ export function imageOnlySlots(body: string, series: FormatSeries | null | undef
 export function fixedBodySeries(body: string, series: FormatSeries | null | undefined): boolean {
   return isSeries(series) && !formatSlots(body).some((n) => n in (series?.slots ?? {}));
 }
-export const X_FIXED_BODY = "X は同じ文の投稿を続けて送れないため、本文が毎回同じフォーマットでは選べません";
+export const X_FIXED_BODY = "選んだフォーマットは、本文が毎回同じです。X は同じ文を続けて送れないため、選べません。";
 
 // その回に言葉が入る空欄（型の文の空欄 + 画像だけで使う空欄）
 export const roundSlotNames = (body: string, series: FormatSeries | null | undefined) => [...formatSlots(body), ...imageOnlySlots(body, series)];

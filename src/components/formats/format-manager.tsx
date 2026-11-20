@@ -485,10 +485,8 @@ function SeriesFields({ slots, series, usedInImage, setSeries }: { slots: string
       </p>
       <div className="flex flex-col gap-2.5">
         <p className="leading-[1.7] text-muted">
-          {slots.length > 0
-            ? "{ } で囲んだところ（空欄）のうち、毎回ちがう言葉にしたいものを選びます。"
-            : "本文に { } で囲んだところ（空欄）を置くと、そこを毎回ちがう言葉にできます。"}
-          投稿をつくるときに、前の回と重ならない言葉を AI が考えます（例: 連想映画クイズの映画とキーワード）。こうしたフォーマットを「シリーズ」と呼びます。
+          {slots.length > 0 ? "本文で { } で囲んだところが空欄です。毎回ちがう言葉を入れたい空欄を選んでください。" : "本文に { } で囲んだ空欄を置くと、そこを毎回ちがう言葉にできます。"}
+          投稿をつくるたびに、前と重ならない言葉を AI が考えます。たとえば、クイズの答えと手がかりの言葉です。こうしたフォーマットを「シリーズ」と呼びます。
         </p>
         {slots.map((name) => {
           const ai = name in series.slots;
@@ -563,7 +561,7 @@ function SeriesFields({ slots, series, usedInImage, setSeries }: { slots: string
         <ImageOnlySlots slots={slots} imageOnly={imageOnly} usedInImage={usedInImage} series={series} setSeries={setSeries} />
         {/* 本文に AI の空欄がないシリーズは、本文が毎回同じ（X に自動で送れない。2026-11-20 PM の指示） */}
         {fixedBodySeries(slots.map((n) => `{${n}}`).join(""), series) && (
-          <p className="font-semibold leading-[1.7] text-signal">● 本文に AI が埋める空欄がないので、本文は毎回同じになります。X は同じ文の投稿を続けて送れないため、自動の投稿では X を選べません。</p>
+          <p className="font-semibold leading-[1.7] text-signal">● 本文に AI が埋める空欄がないので、本文は毎回同じになります。X は同じ文を続けて送れないため、自動の投稿では選べません。X にも送るなら、本文に AI が埋める空欄を置いてください。</p>
         )}
       </div>
     </section>
@@ -591,7 +589,7 @@ function ImageOnlySlots({
     const n = name.trim();
     const answerName = series.answer ? series.answer.name.trim() || DEFAULT_ANSWER_NAME : DEFAULT_ANSWER_NAME;
     const problem = !okSlotName(n)
-      ? "名前は 1〜12 字で、{ } は入れられません"
+      ? "名前は 12 字までです。{ } は入れられません"
       : slots.includes(n) || n in series.slots
         ? "同じ名前の空欄があります"
         : n === answerName
@@ -610,13 +608,13 @@ function ImageOnlySlots({
   return (
     <div className="flex flex-col gap-1.5 border-t border-line pt-2.5">
       <p className="font-bold">画像だけで使う空欄</p>
-      <p className="leading-[1.7] text-muted">本文には入れず、画像の絵の説明と見出しでだけ使う空欄です。毎回 AI が埋めます（例: 映画を思わせるキーワード）。</p>
+      <p className="leading-[1.7] text-muted">本文には入らず、画像をつくるときだけ使う空欄です。画像の設定の、絵の説明と見出しで使います。毎回 AI が言葉を入れます。たとえば、答えを思わせるキーワードです。</p>
       {imageOnly.map((n) => (
         <div key={n} className="flex flex-col gap-1">
           <span className="flex items-center gap-2">
             <span className="font-bold">{`{${n}}`}</span>
             <button type="button" onClick={() => remove(n)} className="text-muted underline">
-              外す
+              削除する
             </button>
           </span>
           <Textarea
@@ -625,11 +623,11 @@ function ImageOnlySlots({
             maxLength={MAX_SERIES_INSTRUCTION}
             rows={2}
             onChange={(e) => setSeries({ ...series, slots: { ...series.slots, [n]: e.target.value } })}
-            placeholder="AI への指示（例: 答えの映画を連想できる言葉を 5 つ。・でつなぐ）"
+            placeholder="AI への指示。例: 答えを思わせる言葉を 3 つ"
             className="min-h-[3.75rem] py-2 text-sm [field-sizing:content]"
           />
           {!usedInImage.includes(n) && (
-            <span className="font-semibold text-signal">● 下の「画像の設定」の絵の説明でも見出しでも使っていません。使わないと、AI が埋めてもどこにも出ません。</span>
+            <span className="font-semibold text-signal">● この空欄は、画像の絵の説明にも見出しにも入っていません。このままでは、AI が言葉を入れてもどこにも出ません。</span>
           )}
         </div>
       ))}
@@ -647,7 +645,7 @@ function ImageOnlySlots({
               e.preventDefault();
               add();
             }}
-            placeholder="名前（例: キーワード）"
+            placeholder="例: キーワード"
             className="w-48 py-2 text-sm"
           />
           <Button type="button" size="sm" variant="secondary" onClick={add}>

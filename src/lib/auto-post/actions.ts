@@ -72,7 +72,7 @@ export async function saveAutoPlan(projectId: string, input: AutoPlanInput): Pro
   // 本文が毎回同じシリーズのフォーマットは X に送れない（画面でも選べない。2026-11-20 PM の指示）
   if (v.kind === "series" && v.targets.x && v.materials.format_id) {
     const f = await getFormat(db, projectId, v.materials.format_id);
-    if (f && fixedBodySeries(f.body, f.series)) return { ok: false, error: `${X_FIXED_BODY}。X の印を外してください。` };
+    if (f && fixedBodySeries(f.body, f.series)) return { ok: false, error: `${X_FIXED_BODY}X を選ばずに保存してください。` };
   }
   const { data, error } = await db.rpc("save_auto_plan", {
     p_plan_id: (v.id ?? null) as string,

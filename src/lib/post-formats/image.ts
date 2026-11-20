@@ -1,6 +1,7 @@
 import { PHOTO_STYLES, PHOTO_STYLE_LABEL, type PhotoStyle } from "@/lib/ai/photo";
 import { TEMPLATE_SIZES, type TemplateSizeKey } from "@/lib/media/templates";
 import { formatSlots } from "./schema";
+import { readLook, type HeadlineLook } from "@/lib/media/look";
 import { DEFAULT_ANSWER_NAME, isSeries, type FormatSeries } from "./series";
 
 // 投稿のフォーマットの画像の設定（docs/design/format-image.md の 1.、2026-11-17 オーナーの了承）。画面とサーバーの両方から読む。
@@ -21,9 +22,10 @@ export type ImageSize = "auto" | TemplateSizeKey;
 export const IMAGE_SIZES: ImageSize[] = ["auto", ...(Object.keys(TEMPLATE_SIZES) as TemplateSizeKey[])];
 
 // label: 見出しの上に重ねる小さい文（見出しがあるときだけ描く。{空欄} を使える）
-export type FormatImage = { prompt: string; scene: ImageScene; style: PhotoStyle; size: ImageSize; headline: string | null; label: string | null };
+// look: 見出しの見た目（色・書体・置き方。見出しがあるときだけ。null は既定の見た目か、「文字を入れる」で前に使った見た目）
+export type FormatImage = { prompt: string; scene: ImageScene; style: PhotoStyle; size: ImageSize; headline: string | null; label: string | null; look: HeadlineLook | null };
 
-export const EMPTY_IMAGE: FormatImage = { prompt: "", scene: "fill", style: "photo", size: "auto", headline: null, label: null };
+export const EMPTY_IMAGE: FormatImage = { prompt: "", scene: "fill", style: "photo", size: "auto", headline: null, label: null, look: null };
 
 const SLOT = /\{([^{}\n]*)\}/g;
 
@@ -75,6 +77,8 @@ export function readFormatImage(raw: unknown): FormatImage | null {
     size: (IMAGE_SIZES as unknown[]).includes(r.size) ? (r.size as ImageSize) : "auto",
     headline: headline || null,
     label: label || null,
+    // 見た目は見出しがあるときだけ持つ
+    look: headline ? readLook(r.look) : null,
   };
 }
 
@@ -134,6 +138,7 @@ export type FormatPhotoPreset = {
   size: ImageSize;
   headline: string | null;
   label: string | null;
+  look: HeadlineLook | null;
 };
 
 // 選んでいるフォーマットと穴の言葉から、帯に出す絵の説明と見出しを作る（答えはシリーズのときだけ）

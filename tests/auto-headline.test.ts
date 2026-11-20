@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import { createCanvas, loadImage } from "@napi-rs/canvas";
-import { formatHeadlineTexts } from "@/lib/auto-post/image";
+import { formatHeadlineTexts, pickLook } from "@/lib/auto-post/image";
 import { autoImageLabel } from "@/lib/auto-post/labels";
 import { readAutoImage } from "@/lib/auto-post/plan-row";
 import { buildAutoPostRequest, HEADLINE_MAX } from "@/lib/auto-post/prompt";
@@ -97,5 +97,15 @@ describe("フォーマットの見出しと上の小さい文（自動の回。2
     expect(formatHeadlineTexts({ ...image, headline: null }, {}, null)).toEqual({ headline: "", label: "" });
     expect(formatHeadlineTexts({ ...image, label: "あ".repeat(30) }, { キーワード: "画像" }, null).label).toHaveLength(20);
     expect(formatHeadlineTexts({ ...image, label: null }, { キーワード: "画像" }, null).label).toBe("");
+  });
+});
+
+describe("自動の回の見出しの見た目（フォーマットで決めたとおりに。2026-11-21）", () => {
+  const f = { palette: "kinari", brand: "#e4572e", font: "mincho" as const, textStyle: "band" as const };
+  const p = { palette: "ai", brand: "#e4572e", font: "gothic" as const, textStyle: "quiet" as const };
+  it("フォーマットの見た目 → 回し方の見た目 → なし（既定）の順", () => {
+    expect(pickLook(f, p)).toEqual(f);
+    expect(pickLook(null, p)).toEqual(p);
+    expect(pickLook(null, undefined)).toBeUndefined();
   });
 });

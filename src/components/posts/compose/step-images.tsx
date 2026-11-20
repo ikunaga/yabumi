@@ -38,6 +38,7 @@ export function ComposeStepImages({ c }: { c: Composer }) {
       size: imageUse.format.image.size,
       headline: texts.headline,
       label: texts.label,
+      look: imageUse.format.image.look,
     }));
   }
   // 動画を添えたが、yabumi からはまだ動画を送れない送り先

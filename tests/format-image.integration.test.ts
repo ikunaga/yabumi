@@ -36,7 +36,7 @@ afterAll(async () => {
 
 describe("フォーマットの画像の設定", () => {
   it("保存して読める。AI の空欄を使っていても、選んだ fill のまま保存する（2026-11-20 から固定しない）。image を渡さずに直すと画像なしになる", async () => {
-    expect((await getFormat(alice, projectId, formatId))?.image).toEqual({ ...image, label: null });
+    expect((await getFormat(alice, projectId, formatId))?.image).toEqual({ ...image, label: null, look: null });
     await updateFormat(alice, projectId, formatId, { name: "連想映画クイズ", body: BODY, series });
     expect((await getFormat(alice, projectId, formatId))?.image).toBeNull();
     const { data } = await admin.from("post_formats").select("image").eq("id", formatId).single();
@@ -77,6 +77,23 @@ describe("フォーマットの画像の設定", () => {
     expect((await getFormat(alice, projectId, formatId))?.image?.label).toBe("連想映画クイズ");
     expect((await set({ ...image, label: null })).error).toBeNull();
     for (const bad of ["あ".repeat(21), " ", 3]) expect((await set({ ...image, label: bad })).error?.code, String(bad)).toBe("23514");
+  });
+
+  it("見出しの見た目（look）は、見出しがあるときだけ、決まった値で保存できる（20261121100000）", async () => {
+    const set = (v: unknown) => alice.from("post_formats").update({ image: v as never }).eq("id", formatId);
+    const look = { palette: "sakura", brand: "#123456", font: "rounded", textStyle: "bottom" };
+    expect((await set({ ...image, look })).error).toBeNull();
+    expect((await getFormat(alice, projectId, formatId))?.image?.look).toEqual(look);
+    expect((await set({ ...image, look: null })).error).toBeNull();
+    for (const bad of [
+      { ...image, headline: null, look },
+      { ...image, look: { ...look, palette: "rainbow" } },
+      { ...image, look: { ...look, brand: "red" } },
+      { ...image, look: { ...look, extra: 1 } },
+      { ...image, look: "kinari" },
+    ]) {
+      expect((await set(bad)).error?.code, JSON.stringify(bad)).toBe("23514");
+    }
   });
 
   it("他人は読めず、image を変えられない。ログインしていない人も変えられない", async () => {

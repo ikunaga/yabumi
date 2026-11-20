@@ -290,6 +290,8 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
     if (preset?.headline) setHeadline((h) => h || preset.headline || "");
     // 見出しの上の小さい文（ラベル）も、フォーマットにあれば入れておく（まだ何も書いていないときだけ）
     if (preset?.label) setLabel((l) => l || preset.label || "");
+    // 見出しの見た目もフォーマットで決めてあれば、そのとおりにする（色・書体・置き方）
+    if (preset?.look) setStyle(preset.look);
     setKind("screen");
     setPhotoFit("cover");
     // 文字を入れる画面に移るだけ（覚えたつくり方は AI の写真のまま）

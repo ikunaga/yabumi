@@ -441,6 +441,12 @@
 - 本番の本文に git のタグ legal-（施行日）を打つ（PM）
 - 伴走のメールの最後の説明を「あなたが決めた目標と、SNS ごとの週の投稿の回数をもとに」に直した（src/lib/coach/messages.ts の mailFooter）
 
+### 自動の回の画像と見出しの版（2026-11-21 に出す。② として扱った。2026-11-20 オーナーが了承。実装担当1 の feat/auto-image・feat/auto-headline。docs/design/auto-sample-image.md の 6.・10.・11.）
+
+- 下の「②の変更案」の「案: 自動の回の画像」の表のとおりに、/privacy（預かる情報の画像の設定・使い道・Anthropic と Google の送るもの・Threads・Instagram・X の送るもの〈AI の印〉）と /terms（自動の投稿の項に AI の画像と重ねた見出し・AI の印の項に本サービスが付ける印）を書き換え、src/lib/legal/version.ts の LEGAL_VERSIONS に 2026-11-21 の版（docs は terms と privacy、noticeWaived）を足した。summary は案の知らせの文
+- 2026-11-20 の版は施行済み（タグ legal-2026-11-20）なので、1 日 1 版で 2026-11-21 にした（PM）
+- 確かめるテストは tests/auto-image-legal.test.ts
+
 ### ① そのまま直してよい書き足し（いまの扱いを詳しく書くだけ。利用者に不利でない）
 
 | 例 | ①の理由 |
@@ -519,7 +525,7 @@ git push origin legal-2026-10-12
 - 知らせ方: noticeWaived の案（使うかどうかを選べる、利用者に不利でない書き足し）。省いてよいかはオーナーに決めてもらう
 - /privacy の本文（上の表の 4 か所）と LEGAL_VERSIONS の 2026-11-20 の summary の 1 行は、2026-11-20 に入れた（feat/auto-sample-image の rebase のとき。PM の指示）
 
-#### 案: 自動の回の画像（2026-11-19 に書いた。**オーナーの了承待ち**（PM 経由）。② の見本・指示とは別の日の版にする〈PM〉。実装担当1 の feat/auto-image（③）。docs/design/auto-sample-image.md の 6.・10.）
+#### 案: 自動の回の画像（2026-11-19 に書いた。**2026-11-20 オーナーが了承**（PM 経由。④ の見出しとまとめて）。**版は 2026-11-21**（2026-11-20 の版は施行済みなので、1 日 1 版。src/lib/legal/version.ts。docs は privacy と terms。noticeWaived）。実装担当1 の feat/auto-image（③）。docs/design/auto-sample-image.md の 6.・10.）
 
 - **何が変わるか**: 自動の回に、フォーマットの画像の設定か、本文から AI が書いた場面で、AI の画像を 1 枚つくって添える。見出しを重ねるときは、本サービスのサーバーで画像に文字を描く（段取り ④）
 - **② に当たる理由**: Google に、利用者がその場で押していないときにも送る（自動の回の画像の絵の説明。今の /privacy の Google の行は「利用者が選んで直した絵の説明」だけ）。Anthropic に送る中身が増える（自動の回の画像の場面を書くときの、その回の本文）。新しく預かる情報（自動の投稿の画像の設定）。使い道が広がる（自動の投稿で画像をつくり、文字を重ねる）

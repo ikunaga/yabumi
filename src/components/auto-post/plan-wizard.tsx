@@ -477,13 +477,24 @@ export function PlanWizard(p: Props) {
               {image && <Estimate label="画像の料金" value={`約 ${imageYen}`} unit="円" />}
               {targets.x && <Estimate label="X の料金" value={`約 ${xYen}`} unit="円" />}
             </div>
-            <label className="flex items-start gap-2.5 text-[15px] leading-[1.7]">
-              <input type="checkbox" className="mt-1 size-5 shrink-0 accent-[var(--primary)]" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-              <span>
-                AI が作った文を、あなたが確認せずに、あなたのアカウントから送ります。「確認して送る」にした SNS は、押したものだけ送ります。送信済みの投稿の責任はあなたにあります。送る{" "}
-                {DEFAULT_LEAD_HOURS} 時間前に、カレンダーと通知でお知らせします。気になったら、その投稿を編集したり、飛ばしたり、止めたりできます。
-              </span>
-            </label>
+            {/* 規約（/terms の自動投稿の項）と同じ中身を、1 行ずつ短く（2026-11-21 PM の指摘）。箇条書きは label に入れられないので、説明として結ぶ */}
+            <div className="flex items-start gap-2.5 text-[15px] leading-[1.7]">
+              <input id="auto-consent" type="checkbox" aria-describedby="auto-consent-list" className="mt-1 size-5 shrink-0 accent-[var(--primary)]" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+              <div className="flex flex-col gap-1">
+              <label htmlFor="auto-consent" className="font-bold">
+                次のことに同意します
+              </label>
+              <ul id="auto-consent-list" className="flex list-disc flex-col gap-1 pl-5">
+                <li>AI が書いた投稿を、あなたのアカウントから送ります。</li>
+                <li>「確認して送る」の SNS は、「送る」を押した投稿だけ送ります。</li>
+                <li>ほかの SNS は、確認せずに送ります。</li>
+                <li>送信済みの投稿の責任は、あなたにあります。</li>
+                <li>送る {DEFAULT_LEAD_HOURS} 時間前に、カレンダーと通知で知らせます。</li>
+                <li>気になる投稿は、編集するか、送らずに飛ばせます。</li>
+                <li>自動投稿そのものを止めることもできます。</li>
+              </ul>
+              </div>
+            </div>
           </Card>
 
           <Nav

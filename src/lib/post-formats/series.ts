@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { formatSlots, MAX_SLOT_VALUE } from "./schema";
+import { formatSlots, MAX_FORMAT_SLOTS, MAX_SLOT_NAME, MAX_SLOT_VALUE } from "./schema";
 
 // シリーズ投稿（フォーマットの一部を AI が毎回埋める。docs/design/format-series.md）。画面とサーバーの両方から読む。
 // 字数と数の正は DB（20261113140000_format_series の check とトリガー）。ここはその写しと、決まりの関数
@@ -31,20 +31,15 @@ export type FormatRound = { id: string; answer: string; values: Record<string, s
 
 const oneLine = (s: unknown, max: number) => (typeof s === "string" ? [...s.replace(/[\u0000-\u001f\u007f]+/g, " ").trim()].slice(0, max).join("") : "");
 
-// DB から読んだ値・画面から来た値を、決まった形にそろえる。body を渡すと、型の文にない穴の指示を捨てる（AI の穴は 8 つまで）
+// 空欄の名前に使えるか（12 字まで・「{」「}」と改行なし）
+export const okSlotName = (name: string) => !!name && [...name].length <= MAX_SLOT_NAME && !/[{}\n\r]/.test(name);
+
+// DB から読んだ値・画面から来た値を、決まった形にそろえる（AI の空欄は 8 つまで）。
+// 型の文にない AI の空欄は「画像だけで使う空欄」（本文には入れず、絵の説明・見出しでだけ使う。2026-11-20 オーナーの指示。format-series.md の 1.1）。
+// body を渡すと、画像だけで使う空欄の名前が答えの名前と同じものは捨てる（答えと区別できないため）
 export function cleanSeries(raw: unknown, body?: string): FormatSeries {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { ...EMPTY_SERIES, slots: {} };
   const r = raw as { answer?: unknown; slots?: unknown };
-  const slotNames = body === undefined ? null : formatSlots(body);
-  const slots: Record<string, string> = {};
-  if (r.slots && typeof r.slots === "object" && !Array.isArray(r.slots)) {
-    for (const [k, v] of Object.entries(r.slots as Record<string, unknown>)) {
-      const name = k.trim();
-      if (!name || [...name].length > 12 || (slotNames && !slotNames.includes(name))) continue;
-      if (Object.keys(slots).length >= 8) break;
-      slots[name] = oneLine(v, MAX_SERIES_INSTRUCTION);
-    }
-  }
   let answer: FormatSeries["answer"] = null;
   if (r.answer && typeof r.answer === "object" && !Array.isArray(r.answer)) {
     const a = r.answer as { name?: unknown; instruction?: unknown };
@@ -52,8 +47,28 @@ export function cleanSeries(raw: unknown, body?: string): FormatSeries {
     const name = oneLine(a.name, MAX_ANSWER_NAME) || DEFAULT_ANSWER_NAME;
     answer = { name, instruction: oneLine(a.instruction, MAX_SERIES_INSTRUCTION) };
   }
+  const bodySlots = body === undefined ? null : formatSlots(body);
+  const slots: Record<string, string> = {};
+  if (r.slots && typeof r.slots === "object" && !Array.isArray(r.slots)) {
+    for (const [k, v] of Object.entries(r.slots as Record<string, unknown>)) {
+      const name = k.trim();
+      if (!okSlotName(name) || name in slots) continue;
+      if (bodySlots && !bodySlots.includes(name) && name === (answer?.name ?? DEFAULT_ANSWER_NAME)) continue;
+      if (Object.keys(slots).length >= MAX_FORMAT_SLOTS) break;
+      slots[name] = oneLine(v, MAX_SERIES_INSTRUCTION);
+    }
+  }
   return { answer, slots };
 }
+
+// 画像だけで使う空欄（AI が埋めるが、型の文にはない）
+export function imageOnlySlots(body: string, series: FormatSeries | null | undefined): string[] {
+  const inBody = formatSlots(body);
+  return Object.keys(series?.slots ?? {}).filter((n) => !inBody.includes(n));
+}
+
+// その回に言葉が入る空欄（型の文の空欄 + 画像だけで使う空欄）
+export const roundSlotNames = (body: string, series: FormatSeries | null | undefined) => [...formatSlots(body), ...imageOnlySlots(body, series)];
 
 // AI の穴が 1 つでもあれば、シリーズのフォーマット
 export const isSeries = (s: FormatSeries | null | undefined) => Object.keys(s?.slots ?? {}).length > 0;
@@ -69,11 +84,11 @@ export function answerKey(answer: string): string {
     .replace(/[\s・･·、。,.!?！？「」『』"'“”‘’\-ー―~〜:：]/gu, "");
 }
 
-// 穴の言葉をそろえる（型の文にある穴だけ・1 行・200 字まで・空は捨てる）
-export function cleanRoundValues(body: string, raw: unknown): Record<string, string> {
+// 空欄の言葉をそろえる（型の文の空欄と画像だけで使う空欄・1 行・200 字まで・空は捨てる）
+export function cleanRoundValues(body: string, raw: unknown, series?: FormatSeries | null): Record<string, string> {
   const out: Record<string, string> = {};
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
-  for (const name of formatSlots(body)) {
+  for (const name of roundSlotNames(body, series)) {
     const v = oneLine((raw as Record<string, unknown>)[name], MAX_SLOT_VALUE);
     if (v) out[name] = v;
   }

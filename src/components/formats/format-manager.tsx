@@ -22,7 +22,9 @@ import {
   MAX_PASTE_ROUNDS,
   MAX_ROUNDS,
   MAX_SERIES_INSTRUCTION,
+  imageOnlySlots,
   isSeries,
+  okSlotName,
   type FormatRound,
   type FormatSeries,
 } from "@/lib/post-formats/series";
@@ -259,11 +261,8 @@ export function FormatEditor({
         <span className="text-xs text-muted">{slots.length ? `空欄: ${slots.join("・")}` : "{ } で囲んだところが空欄になります"}</span>
       </label>
       {/* 毎回 AI に変えてもらう（シリーズ）は本文のすぐ下に出す（前はいちばん下に畳まれていて見つからなかった。パワポの 1・3・8） */}
-      {slots.length > 0 ? (
-        <SeriesFields slots={slots} series={series} setSeries={(x) => (setSeries(x), setProblem(null))} />
-      ) : (
-        <p className="text-xs text-muted">{"{ }"} で囲んだところ（空欄）を置くと、毎回 AI に変えてもらう設定ができます。</p>
-      )}
+      {/* 本文に空欄がなくても、画像だけで使う空欄は足せる（本文は決まった文のまま、絵だけ毎回変える。2026-11-20） */}
+      <SeriesFields slots={slots} series={series} setSeries={(x) => (setSeries(x), setProblem(null))} />
       <label className="flex flex-col gap-1">
         <span className="text-xs font-bold">
           埋めた例<span className="ml-1.5 font-normal text-muted">任意</span>
@@ -471,7 +470,8 @@ function FormatAiMaker({ projectId, kinds, onPick, onCancel }: { projectId: stri
 // フォーマットの編集の「シリーズ」（docs/design/format-series.md の 1）。穴ごとに「AI が埋める」を選び、短い指示を書く。
 // 本文に出さない答え（例: 映画）も 1 つ持てる。AI の穴が 1 つでもあれば、投稿をつくるで「AI に次の回を出してもらう」が出る
 function SeriesFields({ slots, series, setSeries }: { slots: string[]; series: FormatSeries; setSeries: (s: FormatSeries) => void }) {
-  const on = Object.keys(series.slots).some((k) => slots.includes(k));
+  const on = Object.keys(series.slots).length > 0;
+  const imageOnly = imageOnlySlots(slots.map((n) => `{${n}}`).join(""), series);
   return (
     <section className={`flex flex-col gap-2.5 rounded-md border px-3 py-2.5 text-xs ${on ? "border-primary" : "border-line"}`} aria-label="毎回 AI に変えてもらう">
       <p className="text-[13px] font-bold">
@@ -479,7 +479,10 @@ function SeriesFields({ slots, series, setSeries }: { slots: string[]; series: F
       </p>
       <div className="flex flex-col gap-2.5">
         <p className="leading-[1.7] text-muted">
-          {"{ }"} で囲んだところ（空欄）のうち、毎回ちがう言葉にしたいものを選びます。投稿をつくるときに、前の回と重ならない言葉を AI が考えます（例: 連想映画クイズの映画とキーワード）。こうしたフォーマットを「シリーズ」と呼びます。
+          {slots.length > 0
+            ? "{ } で囲んだところ（空欄）のうち、毎回ちがう言葉にしたいものを選びます。"
+            : "本文に { } で囲んだところ（空欄）を置くと、そこを毎回ちがう言葉にできます。"}
+          投稿をつくるときに、前の回と重ならない言葉を AI が考えます（例: 連想映画クイズの映画とキーワード）。こうしたフォーマットを「シリーズ」と呼びます。
         </p>
         {slots.map((name) => {
           const ai = name in series.slots;
@@ -551,8 +554,84 @@ function SeriesFields({ slots, series, setSeries }: { slots: string[]; series: F
             <span className="text-muted">答えは前の回と重ならないように使います。投稿には入りません。</span>
           </div>
         )}
+        <ImageOnlySlots slots={slots} imageOnly={imageOnly} series={series} setSeries={setSeries} />
       </div>
     </section>
+  );
+}
+
+// 画像だけで使う空欄（本文には入れず、画像の絵の説明・見出しでだけ使う。毎回 AI が埋める。2026-11-20 オーナーの指示。format-series.md の 1.1）
+function ImageOnlySlots({ slots, imageOnly, series, setSeries }: { slots: string[]; imageOnly: string[]; series: FormatSeries; setSeries: (s: FormatSeries) => void }) {
+  const [name, setName] = useState("");
+  const [why, setWhy] = useState<string | null>(null);
+  const full = Object.keys(series.slots).length >= MAX_FORMAT_SLOTS;
+  function add() {
+    const n = name.trim();
+    const answerName = series.answer ? series.answer.name.trim() || DEFAULT_ANSWER_NAME : DEFAULT_ANSWER_NAME;
+    const problem = !okSlotName(n)
+      ? "名前は 1〜12 字で、{ } は入れられません"
+      : slots.includes(n) || n in series.slots
+        ? "同じ名前の空欄があります"
+        : n === answerName
+          ? "答えと同じ名前は使えません"
+          : null;
+    setWhy(problem);
+    if (problem) return;
+    setSeries({ ...series, slots: { ...series.slots, [n]: "" } });
+    setName("");
+  }
+  function remove(n: string) {
+    const next = { ...series.slots };
+    delete next[n];
+    setSeries({ ...series, slots: next });
+  }
+  return (
+    <div className="flex flex-col gap-1.5 border-t border-line pt-2.5">
+      <p className="font-bold">画像だけで使う空欄</p>
+      <p className="leading-[1.7] text-muted">本文には入れず、画像の絵の説明と見出しでだけ使う空欄です。毎回 AI が埋めます（例: 映画を思わせるキーワード）。</p>
+      {imageOnly.map((n) => (
+        <div key={n} className="flex flex-col gap-1">
+          <span className="flex items-center gap-2">
+            <span className="font-bold">{`{${n}}`}</span>
+            <button type="button" onClick={() => remove(n)} className="text-muted underline">
+              外す
+            </button>
+          </span>
+          <Textarea
+            aria-label={`${n} の AI への指示`}
+            value={series.slots[n]}
+            maxLength={MAX_SERIES_INSTRUCTION}
+            rows={2}
+            onChange={(e) => setSeries({ ...series, slots: { ...series.slots, [n]: e.target.value } })}
+            placeholder="AI への指示（例: 答えの映画を連想できる言葉を 5 つ。・でつなぐ）"
+            className="min-h-[3.75rem] py-2 text-sm [field-sizing:content]"
+          />
+        </div>
+      ))}
+      {full ? (
+        <span className="text-muted">AI が埋める空欄は {MAX_FORMAT_SLOTS} つまでです。</span>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          <Input
+            aria-label="画像だけで使う空欄の名前"
+            value={name}
+            maxLength={12}
+            onChange={(e) => (setName(e.target.value), setWhy(null))}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
+              e.preventDefault();
+              add();
+            }}
+            placeholder="名前（例: キーワード）"
+            className="w-48 py-2 text-sm"
+          />
+          <Button type="button" size="sm" variant="secondary" onClick={add}>
+            足す
+          </Button>
+        </div>
+      )}
+      {why && <span className="font-semibold text-danger">{why}</span>}
+    </div>
   );
 }
 

@@ -40,7 +40,7 @@ export async function addRound(db: Db, projectId: string, formatId: string, inpu
   if (!format) throw new FormatError("フォーマットが見つかりません。画面を読み込み直してください。");
   if (!isSeries(format.series)) return null;
   const answer = cleanAnswer(input.answer);
-  const values = cleanRoundValues(format.body, input.values);
+  const values = cleanRoundValues(format.body, input.values, format.series);
   if (!answer && Object.keys(values).length === 0) return null;
   const { data, error } = await db.from("post_format_rounds").insert({ format_id: formatId, answer, values, source: input.source }).select("id").single();
   if (error) {

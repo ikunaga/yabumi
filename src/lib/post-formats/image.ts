@@ -2,7 +2,7 @@ import { PHOTO_STYLES, PHOTO_STYLE_LABEL, type PhotoStyle } from "@/lib/ai/photo
 import { TEMPLATE_SIZES, type TemplateSizeKey } from "@/lib/media/templates";
 import { formatSlots } from "./schema";
 import { readLook, type HeadlineLook } from "@/lib/media/look";
-import { DEFAULT_ANSWER_NAME, isSeries, type FormatSeries } from "./series";
+import { DEFAULT_ANSWER_NAME, imageOnlySlots, isSeries, type FormatSeries } from "./series";
 
 // 投稿のフォーマットの画像の設定（docs/design/format-image.md の 1.、2026-11-17 オーナーの了承）。画面とサーバーの両方から読む。
 // 自動の投稿の段階 C でも同じ関数で絵の説明を埋める（3.）。字数と値の正は DB（20261117120000_format_image の check）。ここはその写しと決まりの関数
@@ -39,9 +39,9 @@ export function answerSlotName(series: FormatSeries | null | undefined): string 
   return isSeries(series) ? DEFAULT_ANSWER_NAME : null;
 }
 
-// 絵の説明・見出しで使える穴（型の文の穴 + 答え）。答えの名前が型の文の穴と同じなら、型の文の穴として扱う
+// 絵の説明・見出しで使える空欄（型の文の空欄 + 画像だけで使う空欄 + 答え）。答えの名前が型の文の空欄と同じなら、型の文の空欄として扱う
 export function imageSlotNames(body: string, series: FormatSeries | null | undefined): string[] {
-  const names = formatSlots(body);
+  const names = [...formatSlots(body), ...imageOnlySlots(body, series)];
   const a = answerSlotName(series);
   return a && !names.includes(a) ? [...names, a] : names;
 }

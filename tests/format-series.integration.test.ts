@@ -17,7 +17,7 @@ let projectId: string;
 let bobProject: string;
 let formatId: string;
 const BODY = "連想映画クイズ\n{キーワード}\nこの 5 つから連想する映画は？答えはリプで";
-const series = { slots: { キーワード: "答えの映画を連想できる言葉を 5 つ", ない穴: "捨てる" }, answer: { name: "映画", instruction: "だれでも知っている映画を 1 つ" } };
+const series = { slots: { キーワード: "答えの映画を連想できる言葉を 5 つ", "{壊れた}": "捨てる" }, answer: { name: "映画", instruction: "だれでも知っている映画を 1 つ" } };
 
 const newPost = async (client: TestClient, project: string) =>
   (await client.rpc("save_post", { p_post_id: null as unknown as string, p_project_id: project, p_body: "本文", p_planned_at: null as unknown as string, p_status: "draft", p_targets: [] })).data!;
@@ -42,7 +42,7 @@ afterAll(async () => {
 });
 
 describe("フォーマットのシリーズの設定", () => {
-  it("保存のときに、型の文にない穴の指示を捨てる。DB の check は形と字数を縛る", async () => {
+  it("保存のときに、名前の決まりに合わない空欄の指示を捨てる。DB の check は形と字数を縛る", async () => {
     expect((await getFormat(alice, projectId, formatId))?.series).toEqual({ slots: { キーワード: "答えの映画を連想できる言葉を 5 つ" }, answer: { name: "映画", instruction: "だれでも知っている映画を 1 つ" } });
     const set = (v: unknown) => alice.from("post_formats").update({ series: v as never }).eq("id", formatId);
     for (const bad of [[], { other: 1 }, { slots: { キーワード: 1 } }, { slots: { キーワード: "あ".repeat(61) } }, { slots: { ["あ".repeat(13)]: "" } }, { answer: { name: "", instruction: "" } }, { answer: { name: "映画" } }, { answer: { instruction: "有名な映画" } }, { answer: { name: 1, instruction: "" } }]) {
@@ -123,6 +123,35 @@ describe("これまでの回を貼る・上限", () => {
     expect(left).toBe(0);
     await expect(addRound(alice, projectId, formats[9], { answer: "3001 回目", values: {}, source: "hand" })).rejects.toMatchObject({ userMessage: expect.stringContaining("1 人 3,000 回まで") });
     for (const f of formats) await alice.from("post_formats").delete().eq("id", f);
+  });
+});
+
+describe("画像だけで使う空欄（2026-11-20）", () => {
+  it("型の文にない AI の空欄は、画像だけで使う空欄として保存し、記録にも残す。答えと同じ名前は捨てる。次の回の案では埋めさせ、埋めていない案は捨てる", async () => {
+    const fixed = "今日の映画クイズ！この絵から連想する映画は？答えはリプで";
+    const id = await addFormat(alice, projectId, {
+      name: "絵で連想クイズ",
+      body: fixed,
+      series: { slots: { キーワード: "答えの映画を連想できる言葉を 3 つ", 映画: "x" }, answer: { name: "映画", instruction: "だれでも知っている映画を 1 つ" } },
+    });
+    expect((await getFormat(alice, projectId, id))?.series.slots).toEqual({ キーワード: "答えの映画を連想できる言葉を 3 つ" });
+    const roundId = await addRound(alice, projectId, id, { answer: "ローマの休日", values: { キーワード: "スクーター・真実の口・王女", ない: "捨てる" }, source: "hand" });
+    expect((await admin.from("post_format_rounds").select("values").eq("id", roundId!).single()).data?.values).toEqual({ キーワード: "スクーター・真実の口・王女" });
+    const call = vi.fn<CallFormatRound>(async () => ({
+      output: {
+        proposals: [
+          { answer: "タイタニック", slots: [], checks: [] },
+          { answer: "ジョーズ", slots: [{ slot: "キーワード", text: "海・背びれ・浜辺" }], checks: [] },
+        ],
+      },
+      stopReason: "end_turn",
+      model: "claude-opus-5-5",
+      usage: { inputTokens: 4000, cacheWriteTokens: 0, cacheReadTokens: 0, outputTokens: 800 },
+    }));
+    const r = await runFormatRound(alice, admin, { callFormatRound: call }, { userId: aliceId, projectId, formatId: id, wish: "" });
+    expect(r).toMatchObject({ ok: true, proposals: [{ answer: "ジョーズ", values: { キーワード: "海・背びれ・浜辺" } }] });
+    expect(JSON.stringify(vi.mocked(call).mock.calls[0][0].messages)).toContain("AI が埋める空欄 {キーワード}（本文には出さず、画像の絵の説明だけに使う）");
+    await alice.from("post_formats").delete().eq("id", id);
   });
 });
 

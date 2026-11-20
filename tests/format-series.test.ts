@@ -4,14 +4,19 @@ import { FORMAT_ROUND_SYSTEM, buildFormatRoundRequest, expectedWordCount, normal
 import { CONTENT_RULES } from "@/lib/ai/content-rules";
 import { JAPANESE_STYLE_RULES } from "@/lib/ai/japanese-style";
 import { normalizePlan } from "@/lib/plan/schema";
-import { MAX_PASTE_ROUNDS, answerKey, cleanRoundValues, cleanSeries, isSeries, parsePastedAnswers, roundLine } from "@/lib/post-formats/series";
+import { MAX_PASTE_ROUNDS, answerKey, cleanRoundValues, cleanSeries, imageOnlySlots, isSeries, parsePastedAnswers, roundLine, roundSlotNames } from "@/lib/post-formats/series";
+import { formatSlots } from "@/lib/post-formats/schema";
 
 const BODY = "連想映画クイズ\n{キーワード}\nこの 5 つから連想する映画は？答えは{答え方}で";
 
 describe("フォーマットのシリーズの設定", () => {
-  it("型の文にない穴の指示は捨て、指示は 60 字・名前は 12 字まで。答えを持つで名前が空なら「答え」（黙って答えなしにしない。PMO2 の 3 回目の n1）", () => {
-    const s = cleanSeries({ slots: { キーワード: " 答えの映画を連想できる言葉を 5 つ ", ない穴: "x", 答え方: "あ".repeat(80) }, answer: { name: "映画", instruction: "だれでも知っている映画を 1 つ" } }, BODY);
-    expect(s.slots).toEqual({ キーワード: "答えの映画を連想できる言葉を 5 つ", 答え方: "あ".repeat(60) });
+  it("型の文にない空欄は画像だけで使う空欄として残す（答えと同じ名前・{ } 入り・13 字以上は捨てる）。指示は 60 字・名前は 12 字まで。答えを持つで名前が空なら「答え」（黙って答えなしにしない。PMO2 の 3 回目の n1）", () => {
+    const s = cleanSeries({ slots: { キーワード: " 答えの映画を連想できる言葉を 5 つ ", 絵の言葉: "x", 映画: "y", "{x}": "z", ["あ".repeat(13)]: "", 答え方: "あ".repeat(80) }, answer: { name: "映画", instruction: "だれでも知っている映画を 1 つ" } }, BODY);
+    expect(s.slots).toEqual({ キーワード: "答えの映画を連想できる言葉を 5 つ", 絵の言葉: "x", 答え方: "あ".repeat(60) });
+    expect(imageOnlySlots(BODY, s)).toEqual(["絵の言葉"]);
+    expect(roundSlotNames(BODY, s)).toEqual([...formatSlots(BODY), "絵の言葉"]);
+    expect(cleanRoundValues(BODY, { キーワード: "a", 絵の言葉: "b", ない: "c" }, s)).toEqual({ キーワード: "a", 絵の言葉: "b" });
+    expect(cleanRoundValues(BODY, { キーワード: "a", 絵の言葉: "b" })).toEqual({ キーワード: "a" });
     expect(s.answer).toEqual({ name: "映画", instruction: "だれでも知っている映画を 1 つ" });
     expect(cleanSeries({ slots: {}, answer: { name: " ", instruction: "x" } }, BODY).answer).toEqual({ name: "答え", instruction: "x" });
     expect(cleanSeries({ slots: {}, answer: { name: "", instruction: "" } }, BODY).answer).toEqual({ name: "答え", instruction: "" });

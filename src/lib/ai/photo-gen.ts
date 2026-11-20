@@ -166,7 +166,7 @@ export async function runPhotoIdeas(
 export type FormatSceneOutcome = { ok: true; scene: string } | { ok: false; message: string };
 
 // フォーマットはサーバーが利用者の権限で読み直す（本人の、このプロジェクトのものだけ。RLS）。画面から絵の説明の文は受け取らない。
-// 穴の言葉は型の文の穴だけ・1 行 200 字まで、答えは 100 字までにそろえる。場面のつくり方が「AI が場面に直す」のフォーマットだけ
+// 穴の言葉は型の文の穴だけ・1 行 200 字まで、答えは 100 字までにそろえる。場面のつくり方が「AI が場面に書き換える」のフォーマットだけ
 export async function runFormatPhotoScene(
   user: Db,
   admin: Db,
@@ -176,7 +176,7 @@ export async function runFormatPhotoScene(
   const format = await getFormat(user, args.projectId, args.formatId);
   if (!format) return { ok: false, message: "フォーマットが見つかりません。画面を読み込み直してください。" };
   const img = format.image;
-  if (!img || img.scene !== "ai") return { ok: false, message: "このフォーマットには、AI が場面に直す画像の設定がありません。" };
+  if (!img || img.scene !== "ai") return { ok: false, message: "このフォーマットには、AI が場面に書き換える画像の設定がありません。" };
   const name = answerSlotName(format.series);
   const answer = cleanAnswer(args.answer);
   const filled = fillImageText(img.prompt, cleanSlotValues(format.body, args.values), name && answer ? { name, value: answer } : null);

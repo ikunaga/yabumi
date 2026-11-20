@@ -19,7 +19,7 @@ export const STEPS: Step[] = [
     key: "plan",
     title: "アカウントを設計する",
     shortTitle: "アカウントを設計する",
-    description: "誰に・何のために・どんな名前で・どんな投稿をするかを先に決めます。あとからいつでも直せます。",
+    description: "誰に・何のために・どんな名前で・どんな投稿をするかを先に決めます。あとからいつでも編集できます。",
     cta: "設計する",
     available: true,
   },

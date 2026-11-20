@@ -119,7 +119,7 @@ export function FormatImageFields({
           </div>
           <p className="leading-[1.7] text-muted">
             {forcedAi
-              ? "答えや AI が埋める穴を使っているので、AI が場面に直します（作品の題名や登場人物をそのまま描かせないため）。"
+              ? "答えや AI が埋める穴を使っているので、AI が場面に書き換えます（作品の題名や登場人物をそのまま描かせないため）。"
               : scene === "ai"
                 ? "穴の言葉と絵の説明から、AI が画像の AI に渡す場面を書きます。"
                 : "穴の言葉を入れた絵の説明を、そのまま画像の AI に渡します。"}
@@ -171,7 +171,7 @@ export function FormatImageFields({
         </fieldset>
 
         <p className="leading-[1.7] text-muted">
-          つくるときに 1 枚 約 {unit} 円{scene === "ai" ? `（AI が場面に直すので、合わせて 約 ${unit + SCENE_YEN.one[0]}〜${unit + SCENE_YEN.one[1]} 円）` : ""}。「つくる」を押したときだけかかります。
+          つくるときに 1 枚 約 {unit} 円{scene === "ai" ? `（AI が場面に書き換えるので、合わせて 約 ${unit + SCENE_YEN.one[0]}〜${unit + SCENE_YEN.one[1]} 円）` : ""}。「つくる」を押したときだけかかります。
         </p>
       </div>
     </details>

@@ -60,7 +60,7 @@ export default async function AutoPlanPage(props: PageProps<"/projects/[id]/auto
           <PlanControls projectId={project.id} planId={plan.id} status={plan.status} nextLabel={next && !hold ? formatShort(next.dueAt) : null} held={hold !== null} />
         </div>
       </div>
-      {saved === "1" && <SuccessBanner>直しました。まだ作っていない回から、新しい設定で作ります。</SuccessBanner>}
+      {saved === "1" && <SuccessBanner>編集しました。まだ作っていない回から、新しい設定で作ります。</SuccessBanner>}
 
       <div className="grid grid-cols-3 gap-3 max-sm:grid-cols-3 max-sm:gap-2">
         <Metric label="送った" value={sentRuns.length} unit="回" className="max-sm:px-3" />

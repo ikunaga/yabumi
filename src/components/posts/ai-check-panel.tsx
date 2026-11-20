@@ -70,7 +70,7 @@ export function AiCheckPanel({ projectId, aiEnabled, texts, onApply }: Props) {
         </div>
         {pending && <AiThinking kind="check" note="10〜20 秒ほどかかります" />}
         <p className="text-xs leading-[1.7] text-muted">
-          決まり文句、大げさな言葉、書いた人しか知らない事実（本当かどうか）、ハッシュタグ（宣伝だけのもの・本文の途中に並べたもの・Instagram の 6 個以上）、設計の口調とのずれを見ます。直すかどうかはあなたが選べます。送るのは止めません（1 回 5 円ほど）。
+          決まり文句、大げさな言葉、書いた人しか知らない事実（本当かどうか）、ハッシュタグ（宣伝だけのもの・本文の途中に並べたもの・Instagram の 6 個以上）、設計の口調とのずれを見ます。書き換えるかどうかはあなたが選べます。送るのは止めません（1 回 5 円ほど）。
         </p>
 
         {error && <ErrorBanner>{error}</ErrorBanner>}
@@ -141,23 +141,23 @@ function FindingItem({
       <p>「{f.quote}」</p>
       <p className="text-muted">{f.why}</p>
       <p>
-        <span className="text-muted">直した案: </span>
+        <span className="text-muted">書き換えた案: </span>
         {f.fix ? `「${f.fix}」` : "このところを消す"}
       </p>
       {overAfter > 0 && state !== "applied" && (
         <p className="text-xs font-semibold text-danger">
-          この直しを使うと、{SNS[f.sns].label} の上限を {overAfter.toLocaleString("ja-JP")} 字超えます。使ったあと、ほかのところを縮めてください。
+          この書き換えを使うと、{SNS[f.sns].label} の上限を {overAfter.toLocaleString("ja-JP")} 字超えます。使ったあと、ほかのところを縮めてください。
         </p>
       )}
       <div className="flex flex-wrap items-center gap-2">
         {state === "applied" ? (
-          <span className="text-xs font-bold text-success">✓ 直しました</span>
+          <span className="text-xs font-bold text-success">✓ 書き換えました</span>
         ) : state === "missing" ? (
-          <span className="text-xs text-muted">文面が変わっていて、当てられませんでした。手で直してください。</span>
+          <span className="text-xs text-muted">文面が変わっていて、当てられませんでした。手で編集してください。</span>
         ) : (
           <>
             <Button type="button" variant="secondary" size="sm" onClick={onApply}>
-              この直しを使う
+              この書き換えを使う
             </Button>
             <Button type="button" variant="text" size="sm" onClick={onDismiss}>
               そのままにする

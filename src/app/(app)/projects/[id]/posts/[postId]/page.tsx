@@ -41,8 +41,8 @@ export async function generateMetadata(props: PageProps<"/projects/[id]/posts/[p
 
 const NOTICES: Record<string, { text: string; tone: "success" | "error" }> = {
   saved: { text: "下書きを保存しました。", tone: "success" },
-  idea: { text: "ネタから下書きをつくりました。文面を確かめて直してから（【】で囲んだところがあれば、自分の言葉に書き換えてから）、予約か送信をしてください。", tone: "success" },
-  note: { text: "ネタ帳のメモから下書きをつくりました。送り先と文面を確かめて直してから、予約か送信をしてください。", tone: "success" },
+  idea: { text: "ネタから下書きをつくりました。文面を確かめて編集してから（【】で囲んだところがあれば、自分の言葉に書き換えてから）、予約か送信をしてください。", tone: "success" },
+  note: { text: "ネタ帳のメモから下書きをつくりました。送り先と文面を確かめて編集してから、予約か送信をしてください。", tone: "success" },
   note_images_skipped: { text: "ネタ帳のメモから下書きをつくりました。画像は、置ける合計か 1 つの投稿の枚数を超えるため、添えられなかったものがあります。", tone: "error" },
   idea_images_skipped: { text: "ネタから下書きをつくりました。メモの画像は、置ける合計か 1 つの投稿の枚数を超えるため、添えられなかったものがあります。", tone: "error" },
   sent: { text: "送信しました。", tone: "success" },

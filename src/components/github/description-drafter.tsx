@@ -49,7 +49,7 @@ export function DescriptionDrafter({ projectId, aiEnabled, hasAudience }: { proj
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm leading-[1.8] text-muted">
-        AI がリポジトリを読んで、<b className="text-fg">紹介文（どんなアプリ・サービスか）</b>を下書きします。紹介文は、アカウント設計の相談や、投稿のネタを考えるときの材料になります。確かめて直してから使えます。
+        AI がリポジトリを読んで、<b className="text-fg">紹介文（どんなアプリ・サービスか）</b>を下書きします。紹介文は、アカウント設計の相談や、投稿のネタを考えるときの材料になります。確かめて編集してから使えます。
       </p>
       {!draft && (
         <div className="flex flex-wrap items-center gap-3">

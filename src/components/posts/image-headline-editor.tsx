@@ -135,7 +135,7 @@ export function ImageHeadlineEditor({
   return (
     <section aria-label={`${index + 1} 枚目に見出しを付ける`} className="mt-1 flex flex-col gap-4 rounded-md border border-line bg-surface p-3.5 max-sm:p-3">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <h4 className="text-sm font-bold">{initial ? "見出しを直す" : "見出しを付ける"}</h4>
+        <h4 className="text-sm font-bold">{initial ? "見出しを編集" : "見出しを付ける"}</h4>
         <span className="text-xs text-muted">{initial ? "見出しのない元の写真から描き直します" : "写真に見出しを重ねて、この画像と差し替えます。元に戻すこともできます"}</span>
       </div>
 
@@ -173,7 +173,7 @@ export function ImageHeadlineEditor({
 
       <div className="flex flex-wrap items-center gap-3 border-t border-line pt-3">
         <Button type="button" disabled={Boolean(notReady) || busy || !bitmap || renderError} onClick={() => void apply()}>
-          {busy ? "差し替えています…" : initial ? "見出しを直して差し替える" : "見出しを付けて差し替える"}
+          {busy ? "差し替えています…" : initial ? "見出しを編集して差し替える" : "見出しを付けて差し替える"}
         </Button>
         <Button type="button" variant="text" onClick={onClose}>
           やめる

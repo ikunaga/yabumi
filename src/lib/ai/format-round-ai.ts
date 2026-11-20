@@ -179,7 +179,7 @@ export async function runFormatRound(
   if (!project) return { ok: false, message: "プロジェクトが見つかりません。" };
   const format = await getFormat(user, args.projectId, args.formatId);
   if (!format) return { ok: false, message: "フォーマットが見つかりません。画面を読み込み直してください。" };
-  if (!isSeries(format.series)) return { ok: false, message: "このフォーマットには、AI が埋める穴がありません。フォーマットを管理の「直す」で選べます。" };
+  if (!isSeries(format.series)) return { ok: false, message: "このフォーマットには、AI が埋める穴がありません。フォーマットを管理の「編集」で選べます。" };
 
   // 1 日 20 回まで（ここは先に断るため。本当の判定は予約（reserve_ai_usage）の lock の中で行う）
   const dayStart = new Date(`${toYmd(now)}T00:00:00+09:00`).toISOString();

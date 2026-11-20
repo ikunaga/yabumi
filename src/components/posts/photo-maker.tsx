@@ -174,7 +174,7 @@ export function PhotoMaker({
     return items;
   }
 
-  // フォーマットの画像の「つくる」: 注意を読んでいて、つくれるときだけ。AI が場面に直す設定なら、先に Claude が場面を 1 つ書く（2 つ続けて 1 回の「つくる」）
+  // フォーマットの画像の「つくる」: 注意を読んでいて、つくれるときだけ。AI が場面に書き換える設定なら、先に Claude が場面を 1 つ書く（2 つ続けて 1 回の「つくる」）
   useEffect(() => {
     const p = presetRef.current;
     if (!state?.enabled || !state.acknowledged || !p || pendingAuto.current !== p.seq) return;
@@ -318,7 +318,7 @@ export function PhotoMaker({
       {preset && (
         <p className="text-[13px] leading-[1.7]">
           <span className="font-bold">フォーマット「{preset.name}」の画像</span>
-          <span className="ml-1.5 text-muted">{preset.scene === "ai" ? `AI が絵の説明を場面に直してからつくります（場面の分 約 ${SCENE_YEN.one[0]}〜${SCENE_YEN.one[1]} 円が足されます）` : "穴の言葉を入れた絵の説明でつくります"}</span>
+          <span className="ml-1.5 text-muted">{preset.scene === "ai" ? `AI が絵の説明を場面に書き換えてからつくります（場面の分 約 ${SCENE_YEN.one[0]}〜${SCENE_YEN.one[1]} 円が足されます）` : "穴の言葉を入れた絵の説明でつくります"}</span>
         </p>
       )}
       <PhotoTemplatePicker projectId={projectId} templates={templates} selectedId={templateId} onSelect={selectTemplate} />

@@ -149,12 +149,12 @@ export function SampleCard(p: Props) {
       )}
       {stale && <p className="text-sm text-muted">見本を作ったあとに設定を変えました。いまの設定の見本は、作り直すと見られます。</p>}
 
-      {wrote && p.series && <p className="text-sm text-muted">シリーズは、フォーマットの型の文で書きます。書き方を変えるときは、フォーマットを直してください。</p>}
+      {wrote && p.series && <p className="text-sm text-muted">シリーズは、フォーマットの型の文で書きます。書き方を変えるときは、フォーマットを編集してください。</p>}
 
       {wrote && !p.series && (
         <div className="flex flex-col gap-3 border-t border-line pt-4">
-          <p className="text-[15px] font-bold">直したいところ</p>
-          <div className="flex flex-wrap gap-2" role="group" aria-label="直したいところ">
+          <p className="text-[15px] font-bold">変えたいところ</p>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="変えたいところ">
             {INSTRUCTION_PRESETS.map((t) => (
               <Chip key={t} on={picked.includes(t)} disabled={sampling} onClick={() => setPicked(picked.includes(t) ? picked.filter((x) => x !== t) : [...picked, t])}>
                 {t}

@@ -25,7 +25,7 @@ const HINT_TEXT: Record<string, string> = {
   project_events_limit: "予定は 1 つのプロジェクトに 50 件までです。終わった予定を消してください。",
   approval_expired: "送る時刻を過ぎたので、送れません。投稿の画面で日時を直してから予約してください。",
   content_changed: "確かめたあとに文が変わりました。もう一度確かめてください。",
-  auto_plan_operator_stop: "運営者がこのプロジェクトの自動の投稿を止めています。再開・作る・直す・消すはできません。問い合わせ先にご連絡ください。",
+  auto_plan_operator_stop: "運営者がこのプロジェクトの自動の投稿を止めています。再開・作る・編集・消すはできません。問い合わせ先にご連絡ください。",
   // 運営者が利用者ごとに止めている（20261118100000_auto_post_holds）
   auto_post_hold: HOLD_REFUSED,
   auto_instructions_invalid: "指示は 1 つ 100 字まで・8 個までです（1 行で書いてください）。",

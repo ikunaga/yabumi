@@ -71,7 +71,7 @@ export type ConsultMessage =
   | { id: string; role: "assistant"; content: ConsultAssistantContent; created_at: string };
 
 const ADOPTED_TEXT: Record<ActionKind, string> = {
-  plan_section: "アカウント設計を直しました",
+  plan_section: "アカウント設計を編集しました",
   goal_plan: "新しい目標を始めました",
   goal_keep: "いまの目標を期限まで続けます",
   goal_kpis: "KPI の週の目標を入れました",

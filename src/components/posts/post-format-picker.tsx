@@ -144,7 +144,7 @@ export function PostFormatPicker({
         <p className="text-[14px] text-muted">いつもの型を選んで、穴を埋めます</p>
         {/* 書きかけは控え（tab-drafts）に残るので、戻ると続きから書ける */}
         <Link href={formatsHref} className="text-[14px] font-bold text-fg underline">
-          フォーマットを作る・直す →
+          フォーマットを作る・編集 →
         </Link>
       </div>
       {formats.length === 0 ? (
@@ -237,7 +237,7 @@ export function PostFormatPicker({
                 <label key={s} className="flex min-w-0 flex-col gap-1">
                   <span className="text-xs font-bold">
                     {s}
-                    {s in selected.series.slots && <span className="ml-1.5 font-normal text-muted">AI が埋める穴・直せます</span>}
+                    {s in selected.series.slots && <span className="ml-1.5 font-normal text-muted">AI が埋める穴・編集できます</span>}
                   </span>
                   <Textarea
                     rows={1}
@@ -278,7 +278,7 @@ export function PostFormatPicker({
             <p className="text-xs font-semibold text-success">
               {/* 全部埋めたときは【】の案内を出さない（前は埋めても「【】で残っています」と出た。通しテスト 02） */}
               {unfilled.length > 0 ? `本文に入れました。埋めなかったところ（${unfilled.join("・")}）は【】で残っているので、書き換えてください。` : "本文に入れました。"}
-              {hasFormatHashtags(selected.hashtags) && "タグは本文の下に付き、「2 送り先」で SNS ごとに直せます。"}
+              {hasFormatHashtags(selected.hashtags) && "タグは本文の下に付き、「2 送り先」で SNS ごとに編集できます。"}
             </p>
           )}
         </div>

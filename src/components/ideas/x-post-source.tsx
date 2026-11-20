@@ -53,7 +53,7 @@ export function XPostSource({ projectId, words: initialWords, value, onChange, r
 
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-2 flex flex-wrap items-baseline gap-x-2 text-[15px] font-bold">
-          検索の言葉<span className="text-[13px] font-normal text-faint">直してから開けます</span>
+          検索の言葉<span className="text-[13px] font-normal text-faint">編集してから開けます</span>
         </legend>
         <ul className="flex flex-col gap-2">
           {words.map((w, i) => {

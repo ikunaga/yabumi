@@ -49,7 +49,7 @@ export default async function ConnectYouTubePage(props: PageProps<"/projects/[id
                 <li>投稿の画面に、つないだチャンネルの名前を出す</li>
                 <li>上げた動画の YouTube での処理が終わったかを確かめる</li>
               </ul>
-              <p className="text-muted">あなたが公開範囲を選んで「送る」「予約」を押していない動画を、yabumi が勝手に上げることはありません。チャンネルにある動画を直したり消したりはしません。</p>
+              <p className="text-muted">あなたが公開範囲を選んで「送る」「予約」を押していない動画を、yabumi が勝手に上げることはありません。チャンネルにある動画を編集したり消したりはしません。</p>
             </section>
 
             <section className="flex flex-col gap-1">

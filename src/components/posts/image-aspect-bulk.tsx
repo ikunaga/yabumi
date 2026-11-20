@@ -8,7 +8,7 @@ import { DEFAULT_CUSTOM_FILL, FillGroup, FrameColorGroup, ImageNumbers, ModeGrou
 import { Choice, Group } from "./maker-parts";
 
 const BULK_HINTS = {
-  crop: "はみ出したところを切ります。真ん中を残すので、残す場所はあとで 1 枚ずつ直せます。",
+  crop: "はみ出したところを切ります。真ん中を残すので、残す場所はあとで 1 枚ずつ編集できます。",
   phone: "アプリの画面などを、スマホの形の枠の画面に入れ、まわりに地を足します。スマホの向きは画像ごとに決めます（縦長の画像は縦、横長の画像は横）。",
 };
 

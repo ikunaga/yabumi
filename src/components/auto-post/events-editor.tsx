@@ -98,7 +98,7 @@ export function EventsEditor({ projectId, initial, today }: { projectId: string;
                   </p>
                   <span className="flex gap-1">
                     <Button type="button" variant="text" size="sm" onClick={() => open(e)}>
-                      直す
+                      編集
                     </Button>
                     <Button type="button" variant="text" size="sm" onClick={() => setRemoving(e)}>
                       削除する

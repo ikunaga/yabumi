@@ -201,7 +201,7 @@ export function WinnersScreen({
 
       {editing && (
         <Card className="flex flex-col gap-3 px-5 py-4 max-sm:px-4">
-          <h2 className="text-[18px] font-bold">直して保存する</h2>
+          <h2 className="text-[18px] font-bold">編集して保存する</h2>
           <FormatEditor
             key={editing.name}
             projectId={projectId}

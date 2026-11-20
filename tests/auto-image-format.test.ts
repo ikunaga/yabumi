@@ -144,4 +144,13 @@ describe("「確かめる」の画面の言葉（2026-11-20 オーナーの指�
     expect(shown).not.toContain("見本");
     expect(shown).not.toContain("最初の回に");
   });
+
+  it("プライバシーポリシーも同じ言い方（① として。過去の版の知らせの文は当時の記録のまま）", async () => {
+    const { readFileSync } = await import("node:fs");
+    const privacy = readFileSync("src/app/privacy/page.tsx", "utf8");
+    expect(privacy).not.toContain("見本");
+    expect(privacy).not.toContain("最初の回");
+    expect(privacy).toContain("利用者が選んだテストでつくった投稿をそのまま 1 回目の投稿として送ったりする");
+    expect(readFileSync("src/lib/legal/version.ts", "utf8")).toContain("見本はそのまま最初の回にもできます");
+  });
 });

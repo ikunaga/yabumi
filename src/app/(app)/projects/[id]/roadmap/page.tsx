@@ -11,7 +11,6 @@ import { ActionBar } from "@/components/ui/action-bar";
 import { ButtonLink, NotReadyButton } from "@/components/ui/button";
 import { Card, CardHeader, EmptyState } from "@/components/ui/card";
 import { Columns } from "@/components/ui/columns";
-import { DismissableDetails } from "@/components/ui/dismissable-details";
 import { Metric } from "@/components/ui/metric";
 import { PageHeader } from "@/components/ui/page-header";
 import { Term } from "@/components/ui/term";
@@ -26,6 +25,7 @@ import { itemState, loadRoadmap, thisWeekCounts, type RoadmapItem } from "@/lib/
 import { itemProgress, notCountedYet, weekValue } from "@/lib/roadmap/schema";
 import { SNS_KEYS } from "@/lib/sns";
 import { addDays, dayOfMonth, monthOf } from "@/lib/time";
+import { DisclosureBox } from "@/components/ui/disclosure";
 
 export const metadata: Metadata = { title: "ロードマップ" };
 
@@ -175,10 +175,9 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
                 <AddItemForm projectId={id} weeks={weeks} />
               </div>
               {past.length > 0 && (
-                <DismissableDetails className="border-t border-line px-6 py-3 max-sm:px-4">
-                  <summary className="cursor-pointer text-[14px] font-semibold text-primary">済んだこと・やらないことにしたこと（{past.length} 件）</summary>
+                <DisclosureBox label="済んだこと・やらないことにしたことを表示" count={past.length} className="border-t border-line px-6 py-3 max-sm:px-4">
                   <ul>{past.map(row)}</ul>
-                </DismissableDetails>
+                </DisclosureBox>
               )}
             </Card>
           </>
@@ -217,9 +216,7 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
               productType={project.product_type}
               today={goals.today}
               footer={
-                <DismissableDetails id="goal-form" className="border-t border-line px-6 py-3 max-sm:px-4">
-                  <summary className="cursor-pointer text-[14px] font-semibold text-primary">目標と数字を手で決める・編集する</summary>
-                  <div className="pt-3" />
+                <DisclosureBox label="目標と数字を手で決める欄を表示" id="goal-form" className="border-t border-line px-6 py-3 max-sm:px-4" bodyClassName="mt-3">
                   <GoalForm
                     projectId={id}
                     goal={goal}
@@ -229,7 +226,7 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
                     productType={project.product_type}
                     today={goals.today}
                   />
-                </DismissableDetails>
+                </DisclosureBox>
               }
             />
             <ActionsCard actions={active?.actions ?? []} thisWeek={postsThisWeek} projectId={id} />

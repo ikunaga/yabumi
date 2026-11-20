@@ -19,6 +19,7 @@ import { POST_FORMAT_DAILY_RUNS, type PostFormatInput } from "@/lib/post-formats
 import { isSeries } from "@/lib/post-formats/series";
 import { SNS, type SnsKey } from "@/lib/sns";
 import { formatShort } from "@/lib/time";
+import { DisclosureBox } from "@/components/ui/disclosure";
 
 // 伸びた投稿 → 型の案（AI。押したときだけ）→ 選んで直して保存 → 自動の投稿を始める画面へ（docs/design/winning-posts.md の 5.）。
 // どの段も、利用者が押したときだけ進む。保存したあとも、自動の投稿は「始める」の画面で確かめて同意するまで作らない
@@ -185,10 +186,9 @@ export function WinnersScreen({
                         </p>
                       )}
                       {p.example && (
-                        <details className="text-xs">
-                          <summary className="cursor-pointer text-muted">埋めた例を見る</summary>
-                          <p className="mt-1.5 text-[13px] leading-[1.7] whitespace-pre-wrap">{p.example}</p>
-                        </details>
+                        <DisclosureBox label="埋めた例を表示">
+                          <p className="text-[13px] leading-[1.7] whitespace-pre-wrap">{p.example}</p>
+                        </DisclosureBox>
                       )}
                     </li>
                   );

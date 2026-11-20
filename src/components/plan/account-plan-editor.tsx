@@ -25,6 +25,7 @@ import { PLAN_EXAMPLES, type PlanExamples } from "@/lib/ai/product-guide";
 import { hasToneBySns, isSplitBySns, pillarsBySns, pillarViewSns, type Pillar } from "@/lib/plan/pillars";
 import { ProfileFields, type ProfileContext } from "./profile-fields";
 import { VoiceFields } from "./voice-fields";
+import { DisclosureBox } from "@/components/ui/disclosure";
 
 // 見出しはボタンの中に置くので、用語解説（これもボタン）は説明文のほうに付ける
 type Meta = { title: string; lead: ReactNode };
@@ -454,29 +455,17 @@ function ToneBySnsFields({ toneBySns, main }: { toneBySns: PlanData["pillars"]["
     </div>
   );
   return (
-    <details open={hasToneBySns({ toneBySns })} className="group/tone -mt-2 rounded-md border border-line text-sm">
-      <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-2.5 font-bold">
-        <span aria-hidden className="text-muted transition-transform group-open/tone:rotate-90">
-          ▸
-        </span>
-        口調を SNS ごとに変える（任意）
-      </summary>
-      <div className="flex flex-col gap-2.5 border-t border-line p-3">
+    <DisclosureBox label="SNS ごとの口調を表示（任意）" open={hasToneBySns({ toneBySns })} className="-mt-2 text-sm">
+      <div className="flex flex-col gap-2.5">
         <p className="text-xs leading-[1.7] text-muted">空欄の SNS は、上の共通の口調で書きます。</p>
         {main.map(row)}
         {others.length > 0 && (
-          <details className="group/others rounded-md border border-line">
-            <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-2.5 font-bold">
-              <span aria-hidden className="text-muted transition-transform group-open/others:rotate-90">
-                ▸
-              </span>
-              ほかの SNS（{others.length}）
-            </summary>
-            <div className="flex flex-col gap-2.5 border-t border-line p-3">{others.map(row)}</div>
-          </details>
+          <DisclosureBox label="ほかの SNS を表示" count={others.length}>
+            <div className="flex flex-col gap-2.5">{others.map(row)}</div>
+          </DisclosureBox>
         )}
       </div>
-    </details>
+    </DisclosureBox>
   );
 }
 
@@ -909,14 +898,13 @@ function FirstMonthFields({ v, projectId, cycle, mainSns }: { v: PlanData["first
           ))}
         </div>
         {otherSns.length > 0 && (
-          <details className="text-sm">
-            <summary className="cursor-pointer text-primary">{mainSns.length ? `ほかの SNS（${otherSns.length}）` : "SNS を選んで回数を決める"}</summary>
-            <div className="mt-2 grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2">
+          <DisclosureBox label={mainSns.length ? "ほかの SNS を表示" : "SNS を表示"} count={otherSns.length} className="text-sm">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2">
               {otherSns.map((sns) => (
                 <WeeklyInput key={sns} sns={sns} value={v.weekly[sns]} />
               ))}
             </div>
-          </details>
+          </DisclosureBox>
         )}
         {cycle && (
           <div className="flex flex-col gap-1 rounded-md border border-line bg-surface2 px-3 py-2 text-xs leading-[1.7]">

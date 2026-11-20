@@ -9,6 +9,7 @@ import type { PhotoTemplate } from "@/lib/photo-templates/schema";
 import { IMAGE_SCENES, IMAGE_SCENE_LABEL, IMAGE_SIZES, MAX_IMAGE_HEADLINE, MAX_IMAGE_PROMPT, imageSlotNames, needsAiScene, usesAnswer, type FormatImage } from "@/lib/post-formats/image";
 import type { FormatSeries } from "@/lib/post-formats/series";
 import { Choice } from "./maker-parts";
+import { DisclosureBox } from "@/components/ui/disclosure";
 
 const SIZE_LABEL = (s: FormatImage["size"]) => (s === "auto" ? "送り先に合わせる" : TEMPLATE_SIZES[s].label);
 
@@ -66,11 +67,9 @@ export function FormatImageFields({
   }
 
   return (
-    <details className="text-xs" open={image.prompt.trim() ? true : undefined}>
-      <summary className="cursor-pointer font-bold">
-        画像も決めておく<span className="ml-1.5 font-normal text-muted">任意・投稿をつくるの「3 画像」で、押すだけでつくれます</span>
-      </summary>
-      <div className="mt-2 flex flex-col gap-3">
+    <DisclosureBox label="画像の設定を表示（任意）" className="text-xs" open={image.prompt.trim() ? true : undefined}>
+      <div className="flex flex-col gap-3">
+        <p className="text-muted">決めておくと、投稿をつくるの「3 画像」で、押すだけでつくれます。</p>
         <label className="flex flex-col gap-1">
           <span className="font-bold">絵の説明</span>
           {names.length > 0 && (
@@ -190,6 +189,6 @@ export function FormatImageFields({
           つくるときに 1 枚 約 {unit} 円{scene === "ai" ? `（AI が絵の説明を書くので、合わせて 約 ${unit + SCENE_YEN.one[0]}〜${unit + SCENE_YEN.one[1]} 円）` : ""}。「つくる」を押したときだけかかります。
         </p>
       </div>
-    </details>
+    </DisclosureBox>
   );
 }

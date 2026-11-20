@@ -14,6 +14,7 @@ import { addFormatRound, listPostFormats } from "@/lib/post-formats/actions";
 import { DEFAULT_ANSWER_NAME, MAX_ROUND_ANSWER, MAX_ROUND_WISH, ROUND_PROPOSALS, SERIES_DAILY_RUNS, isSeries, type FormatSeries } from "@/lib/post-formats/series";
 import { MAX_SLOT_VALUE, fillFormat, unfilledSlots, formatSlots, hasFormatHashtags, type FormatHashtags, type PostFormat } from "@/lib/post-formats/schema";
 import { FormatTagsLine } from "@/components/formats/format-manager";
+import { DisclosureBox } from "@/components/ui/disclosure";
 
 // 投稿のフォーマットを選んだ状態（整えるに渡す。docs/design/post-formats.md の 4）
 // answer: シリーズのこの回の答え（本文には出ない。書きかけの控えに乗せる）
@@ -186,10 +187,9 @@ export function PostFormatPicker({
           {selected.purpose && <p className="text-xs text-muted">{selected.purpose}</p>}
           {hasFormatHashtags(selected.hashtags) && <FormatTagsLine h={selected.hashtags} className="text-xs text-muted" />}
           {selected.example && (
-            <details className="text-xs">
-              <summary className="cursor-pointer text-muted">埋めた例を見る</summary>
-              <p className="mt-1.5 rounded-md bg-surface2 px-3 py-2 text-[13px] leading-[1.7] whitespace-pre-wrap">{selected.example}</p>
-            </details>
+            <DisclosureBox label="埋めた例を表示" className="text-xs" onSubtle>
+              <p className="rounded-md bg-surface2 px-3 py-2 text-[13px] leading-[1.7] whitespace-pre-wrap">{selected.example}</p>
+            </DisclosureBox>
           )}
           {!isSeries(selected.series) && formatSlots(selected.body).length > 0 && (
             // AI に穴を埋めさせる設定がどこにあるかわからなかった（パワポの 1・8）

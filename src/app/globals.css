@@ -65,6 +65,8 @@
   /* ホバー。ライトの黒は少し明るく、危険の赤は暗く寄せる */
   --primary-hover: color-mix(in oklch, var(--primary), white 18%);
   --danger-hover: color-mix(in oklch, var(--danger), black 12%);
+  /* 開く欄（Disclosure）の地のホバー。bg-subtle より一段濃く（ダークは明るく） */
+  --subtle-hover: color-mix(in oklch, var(--subtle), black 6%);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -115,6 +117,7 @@
     --sns-substack: #fb923c;
     --primary-hover: color-mix(in oklch, var(--primary), black 14%);
     --danger-hover: color-mix(in oklch, var(--danger), white 14%);
+    --subtle-hover: color-mix(in oklch, var(--subtle), white 7%);
   }
 }
 
@@ -166,6 +169,7 @@
   --sns-substack: #fb923c;
   --primary-hover: color-mix(in oklch, var(--primary), black 14%);
   --danger-hover: color-mix(in oklch, var(--danger), white 14%);
+  --subtle-hover: color-mix(in oklch, var(--subtle), white 7%);
 }
 
 @theme inline {
@@ -173,6 +177,7 @@
   --color-surface: var(--surface);
   --color-surface2: var(--surface2);
   --color-subtle: var(--subtle);
+  --color-subtle-hover: var(--subtle-hover);
   --color-fg: var(--fg);
   --color-muted: var(--muted);
   --color-faint: var(--faint);

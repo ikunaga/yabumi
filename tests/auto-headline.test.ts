@@ -51,11 +51,11 @@ describe("見出しの見た目の設定", () => {
 
 describe("AI に見出しを頼む", () => {
   it("見出しを重ねるときだけ頼み、決まり（字数・絵文字なし）を渡す", () => {
-    const ask = JSON.stringify(buildAutoPostRequest({ context: "", material: "メモ", instructions: [], recentBodies: [], headline: true }).messages);
+    const ask = JSON.stringify(buildAutoPostRequest({ context: "", material: "メモ", instructions: [], recentBodies: [], headline: true, dueAt: new Date() }).messages);
     expect(ask).toContain("画像に重ねる見出し");
     expect(ask).toContain(`${HEADLINE_MAX} 字まで`);
     expect(ask).toContain("絵文字");
-    const no = JSON.stringify(buildAutoPostRequest({ context: "", material: "メモ", instructions: [], recentBodies: [] }).messages);
+    const no = JSON.stringify(buildAutoPostRequest({ context: "", material: "メモ", instructions: [], recentBodies: [], dueAt: new Date() }).messages);
     expect(no).toContain("headline は null");
   });
 });

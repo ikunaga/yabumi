@@ -441,6 +441,12 @@
 - 本番の本文に git のタグ legal-（施行日）を打つ（PM）
 - 伴走のメールの最後の説明を「あなたが決めた目標と、SNS ごとの週の投稿の回数をもとに」に直した（src/lib/coach/messages.ts の mailFooter）
 
+### 自動の投稿の AI に送る日を渡すことを書き足した（2026-11-21、① として扱った。実装担当1 の fix/auto-post-season。docs/design/auto-sample-image.md の 12.）
+
+- /privacy の Anthropic の送るもの（自動の投稿の部分）に「その回を送る日（月・日・曜日と季節）」を足した
+- 本物の AI での確かめ（2026-11-21）で、書き方の指示「季節の話から入る」が効かなかった（AI が送る日を知らない）ための直し
+- **① とした理由**: 送り先（Anthropic）・使い道（自動の投稿の文を作る）は同じ。送る日は、利用者が決めた自動の投稿の設定（くり返しの曜日と時刻。預かる情報に書いてある）から決まる日付で、個人の情報ではない。お知らせ・季節の使い道では、すでに材料として「送る日から見た予定の日付」「季節のあいさつの月」を送っている（docs/design/auto-post.md の 2.1、src/lib/auto-post/materials.ts）。新しい送り先・新しい種類の預かる情報・新しい使い道はなく、いまの扱いを詳しく書くだけ。年は送らない。利用者に不利でもない。LEGAL_VERSIONS には足さない
+
 ### 自動の回の画像と見出しの版（2026-11-21 に出す。② として扱った。2026-11-20 オーナーが了承。実装担当1 の feat/auto-image・feat/auto-headline。docs/design/auto-sample-image.md の 6.・10.・11.）
 
 - 下の「②の変更案」の「案: 自動の回の画像」の表のとおりに、/privacy（預かる情報の画像の設定・使い道・Anthropic と Google の送るもの・Threads・Instagram・X の送るもの〈AI の印〉）と /terms（自動の投稿の項に AI の画像と重ねた見出し・AI の印の項に本サービスが付ける印）を書き換え、src/lib/legal/version.ts の LEGAL_VERSIONS に 2026-11-21 の版（docs は terms と privacy、noticeWaived）を足した。summary は案の知らせの文

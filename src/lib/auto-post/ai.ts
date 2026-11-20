@@ -31,6 +31,8 @@ export type GenerateInput = {
   context: string;
   // 書き方の指示（回し方に覚えた指示＋見本のその 1 回だけの指示）
   instructions: string[];
+  // 送る日（AI に月・日・曜日と季節を渡す。見本は翌日）
+  dueAt: Date;
   // 画像に重ねる見出しも書く（回し方の画像で「見出しを AI が書く」）
   headline?: boolean;
   // AI の用途（ジョブの回は auto_post、見本は auto_post_sample。どちらも自動の投稿の枠）
@@ -78,7 +80,7 @@ export function fakeGenerator(mode: FakeMode = "ok"): AutoPostGenerator {
 // 本物の AI（Claude）。予約（reserve_ai_usage の auto_post）→ 呼ぶ → 実際の額に直す
 export function realGenerator(admin: Db, call = callAutoPost): AutoPostGenerator {
   return async (input) => {
-    const request = buildAutoPostRequest({ context: input.context, material: input.material, instructions: input.instructions, recentBodies: input.recentBodies, fixedTags: input.fixedTags, headline: input.headline });
+    const request = buildAutoPostRequest({ context: input.context, material: input.material, instructions: input.instructions, recentBodies: input.recentBodies, fixedTags: input.fixedTags, headline: input.headline, dueAt: input.dueAt });
     try {
       const b = await withAiBudget(admin, { userId: input.ownerId, purpose: input.purpose ?? "auto_post", call: "auto_post" }, request, call);
       if (!b.ok) return { ok: false, reason: "ai_limit", detail: b.message };

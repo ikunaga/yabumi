@@ -143,6 +143,8 @@ describe("書き方の指示（auto_plans.instructions）", () => {
     expect(r.ok).toBe(true);
     expect(inputs.at(-1)?.instructions).toEqual(["絵文字なし", "もっと短く"]);
     expect(inputs.at(-1)?.purpose).toBe("auto_post_sample");
+    // 見本は翌日に送る回として作る（AI に送る日と季節を渡す）
+    expect(Math.abs(inputs.at(-1)!.dueAt.getTime() - (Date.now() + 86_400_000))).toBeLessThan(60_000);
   });
 });
 

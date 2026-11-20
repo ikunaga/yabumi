@@ -5,6 +5,7 @@ import { READER_CONCERNS_RULES } from "@/lib/ai/reader-concerns";
 import { LENGTH_RULES } from "@/lib/ai/shorten";
 import { SNS, type SnsKey } from "@/lib/sns";
 import { hashtagLine } from "@/lib/sns/hashtags";
+import { dueDayText } from "./season";
 
 // 自動の投稿の文を作る指示（docs/design/auto-post.md の 2.4）。投稿のネタ出し（post-ideas.ts）の決まりを土台に、
 // 人が見ないで送ることを前提にした決まり（【】を使わない・質問しない・書けなければ書かない・URL は材料の行き先だけ）を足す
@@ -33,7 +34,7 @@ export const AUTO_POST_SYSTEM = `あなたは「yabumi」の中で、利用者�
 - ハッシュタグは、アカウント設計の「ハッシュタグ」の中から、この投稿に合うものだけを本文の最後に付ける（SNS ごとの数まで）。決まっていなければ付けない。ただし「本文の後ろに別に付くタグ」に書かれた SNS では、本文にハッシュタグを書かない（タグは yabumi が本文の後ろに付ける。字数はその分を引いて書く）
 - 下書きの本文では「顧客」と書かない。来てくれた方・買ってくれた方など、読む人に向けた呼び方にする
 - 見た人にしてほしいこと（予約・購入など）は、毎回入れない。自然につながるときだけ、押しつけずに
-- トレンドの話題や時事のできごとに乗らない。季節の話題は、季節そのもの（気温・行事の一般的なこと）にとどめ、特定の日付の催しや割引を作らない
+- トレンドの話題や時事のできごとに乗らない。季節の話題は、「送る日」の季節そのもの（気温・旬・行事の一般的なこと）にとどめ、特定の日付の催しや割引を作らない。送る日の日付・曜日は、材料にあるお知らせとつなげるときのほかは書かない
 
 ${CONTENT_RULES}
 
@@ -62,12 +63,15 @@ export function buildAutoPostRequest(input: {
   recentBodies: string[];
   fixedTags?: Partial<Record<SnsKey, string[]>>;
   headline?: boolean;
+  // 送る日（日本時間の月・日・曜日と季節を渡す。見本は翌日）
+  dueAt: Date;
 }): AutoPostRequest {
   const instructions = input.instructions.map((t) => t.trim()).filter(Boolean);
   const tagLines = (Object.entries(input.fixedTags ?? {}) as [SnsKey, string[]][]).filter(([, t]) => t.length).map(([s, t]) => `- ${SNS[s].label}: ${escapeData(hashtagLine(t))}`);
   const parts = [
     input.context,
     ...(tagLines.length ? [`# 本文の後ろに別に付くタグ（この SNS の本文にはハッシュタグを書かない）\n${tagLines.join("\n")}`] : []),
+    `# 送る日\n${dueDayText(input.dueAt)}`,
     `# この回の材料\n<material>\n${escapeData(input.material)}\n</material>`,
     `# この自動の投稿の書き方の指示\n${instructions.length ? `<instructions>\n${instructions.map((t) => `<item>${escapeData(t)}</item>`).join("\n")}\n</instructions>` : "（なし。アカウント設計の口調に従う）"}`,
     input.recentBodies.length

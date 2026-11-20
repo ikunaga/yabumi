@@ -96,7 +96,7 @@ function compared(key: "downloads" | "link_clicks" | "posts", label: string, row
   const period = periodLabel(OVERVIEW_DAYS);
   if (!prevKnown(since, today)) {
     const from = since ? addDays(since, OVERVIEW_DAYS * 2 - 1) : undefined;
-    return { key, label, value: now, unit, deltaPct: null, note: `${period}・${notComparedLabel(OVERVIEW_DAYS, from)}` };
+    return { key, label, value: now, unit, deltaPct: null, note: notComparedLabel(period, OVERVIEW_DAYS, from, today) };
   }
   const deltaPct = pctChange(now, before);
   const cmp = deltaPct === null ? (before === 0 && now > 0 ? `前の ${OVERVIEW_DAYS} 日は 0` : null) : compareLabel(OVERVIEW_DAYS);
@@ -108,7 +108,7 @@ function compared(key: "downloads" | "link_clicks" | "posts", label: string, row
 function delayedCard(base: Pick<OverviewCard, "key" | "kpi" | "label">, v: WeekValue, days: number): OverviewCard {
   if (v.notArrived) return { ...base, value: 0, notArrived: true, deltaPct: null, note: NOT_ARRIVED };
   const prefix = `${periodLabel(days, v.until)}・`;
-  if (v.noPrev) return { ...base, value: v.thisWeek, deltaPct: null, note: `${prefix}${notComparedLabel(days, v.comparableFrom)}` };
+  if (v.noPrev) return { ...base, value: v.thisWeek, deltaPct: null, note: notComparedLabel(periodLabel(days, v.until), days, v.comparableFrom) };
   const deltaPct = pctChange(v.thisWeek, v.lastWeek);
   const zero = v.lastWeek === 0 && v.thisWeek > 0 ? `${v.until ? "その" : ""}前の ${days} 日は 0` : null;
   const note = deltaPct !== null ? `${prefix}${compareLabel(days, v.until)}` : zero ? `${prefix}${zero}` : periodLabel(days, v.until);
@@ -126,7 +126,7 @@ export function pickOverviewCards(input: OverviewInput, max = 4): OverviewCard[]
   const postsAt = cards.length;
   // SNS ごとに数える（1 本の投稿を 2 つの SNS に出すと 2 本。分析・伴走・ロードマップの「投稿した回数」と同じ）。
   // 前は「投稿数 2 件」で、投稿 1 件の数と読めた（2026-11-12 PMO のローカルでの確かめ）
-  cards.push(compared("posts", "SNS への投稿", input.published, today, input.since?.posts));
+  cards.push(compared("posts", "送信済みの投稿", input.published, today, input.since?.posts));
 
   for (const k of input.kpis) {
     if (cards.length >= max) break;
@@ -147,7 +147,7 @@ export function pickOverviewCards(input: OverviewInput, max = 4): OverviewCard[]
       currency: v.unit,
       // 売上は 28 日の合計、ほかは直近 7 日（分析の画面と同じ値）
       deltaPct: v.noPrev ? null : pctChange(v.thisWeek, v.lastWeek),
-      note: v.noPrev ? `${v.unit ? "直近 28 日" : "直近 7 日"}・${notComparedLabel(v.unit ? 28 : 7, v.comparableFrom)}` : v.unit ? "直近 28 日・1 週間前比" : "直近 7 日・先週比",
+      note: v.noPrev ? notComparedLabel(v.unit ? "直近 28 日" : "直近 7 日", v.unit ? 28 : 7, v.comparableFrom, today) : v.unit ? "直近 28 日・1 週間前比" : "直近 7 日・先週比",
     });
   }
 
@@ -163,8 +163,8 @@ export function pickOverviewCards(input: OverviewInput, max = 4): OverviewCard[]
 
   const fillers: OverviewCard[] = [
     // 30 日の数のカードと並ぶので、いまの数だとわかるように書く
-    { key: "scheduled", label: "予約中", value: input.scheduledCount, unit: "件", deltaPct: null, note: "いまの数" },
-    { key: "drafts", label: "下書き", value: input.draftCount, unit: "件", deltaPct: null, note: "いまの数" },
+    { key: "scheduled", label: "予約中", value: input.scheduledCount, unit: "件", deltaPct: null, note: "いま予約している投稿" },
+    { key: "drafts", label: "下書き", value: input.draftCount, unit: "件", deltaPct: null, note: "いまある下書き" },
   ];
   for (const f of fillers) if (cards.length < max) cards.push(f);
 

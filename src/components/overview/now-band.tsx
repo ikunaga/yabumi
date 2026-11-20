@@ -47,9 +47,8 @@ function PaceLine({ projectId, coach }: { projectId: string; coach: CoachView | 
       ) : (
         // 押せるものは下線つき（前は灰色の地の文に見え、押せるとわからなかった。2026-11-12 PMO のローカルでの確かめ）
         <span>
-          投稿のペース:{" "}
           <Link href={`/projects/${projectId}/plan?open=first_month`} className="font-bold text-fg underline">
-            週の回数を決める
+            週に何本投稿するか決める
           </Link>
         </span>
       )}
@@ -69,7 +68,7 @@ function GoalRiskLine({ projectId, risk, metric, aiEnabled }: { projectId: strin
       </Link>
       {aiEnabled ? (
         <Link href={`/projects/${projectId}/consult/new?start=goal_rescue`} className="font-bold text-fg underline">
-          AI と立て直す
+          届く方法を AI と考える
         </Link>
       ) : (
         <NotReadyButton variant="text" size="sm">
@@ -208,7 +207,7 @@ function MainBand({
         title={phase === "done" ? "今週のやることは、すべて完了しました" : "今週のやることを決めましょう"}
         action={
           <ButtonLink href={roadmapHref} size="sm" variant={phase === "done" ? "secondary" : "primary"}>
-            {phase === "done" ? "来週を見る" : "決める"}
+            {phase === "done" ? "来週のやることを見る" : "決める"}
           </ButtonLink>
         }
       />
@@ -244,7 +243,7 @@ function MainBand({
           <ul className="flex flex-col gap-1">
             {others.map((t) => (
               <li key={t.id} className="flex flex-wrap items-baseline gap-x-3">
-                {/* 題名は地の文（押せるものは右の下線つきのリンクだけ）。行き先と「済みにする」は同じ見た目の小さなリンクにそろえる。
+                {/* 題名は地の文（押せるものは右の下線つきのリンクだけ）。行き先と「完了にする」は同じ見た目の小さなリンクにそろえる。
                     前は題名が太字のリンク（押せるように見えない）で、行き先の名前は押せない灰色の文字だった。下の「ロードマップを見る」は
                     行の「ロードマップで見る」とかぶるのでなくした（ロードマップはメニューからも開ける）（2026-11-12 PM の指摘） */}
                 <span className="font-bold text-fg">{t.title}</span>
@@ -262,11 +261,16 @@ function MainBand({
   );
 }
 
+// やることの数の単位（売上は formatValue が「円」を付ける）
+const KPI_UNIT: Partial<Record<RoadmapItem["kpi"] & string, string>> = { link_clicks: " 回", views: " 回", followers: " 人", store_page_views: " 回", downloads: " 件", outcomes: " 件" };
+
 function TodoText({ item, progress, only }: { item: RoadmapItem; progress: { actual: number; target: number } | null | undefined; only?: "progress" }): ReactNode {
   const p =
     item.kpi && progress ? (
       <span className="num ml-2 text-xs font-normal text-muted">
-        {kpiLabel(item.kpi, item.sns)} {formatValue(item.kpi, progress.actual)} / {formatValue(item.kpi, progress.target)}
+        {item.kpi === "posts"
+          ? `${formatValue(item.kpi, progress.target)} 本のうち ${formatValue(item.kpi, progress.actual)} 本`
+          : `${kpiLabel(item.kpi, item.sns)}は ${formatValue(item.kpi, progress.target)}${KPI_UNIT[item.kpi] ?? ""} のうち ${formatValue(item.kpi, progress.actual)}${KPI_UNIT[item.kpi] ?? ""}`}
       </span>
     ) : null;
   if (only === "progress") return p;

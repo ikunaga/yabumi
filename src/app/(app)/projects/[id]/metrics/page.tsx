@@ -106,7 +106,7 @@ function KpiCard({ k, value, projectId, days, productType }: { k: KpiKey; value?
   const period = value.unit ? "直近 28 日" : periodLabel(days, value.until);
   const before = value.unit ? "1 週間前比" : compareLabel(days, value.until);
   const zeroBefore = value.until ? `その前の ${days} 日` : days === 7 && !value.unit ? "先週" : "前";
-  const note = value.noPrev ? `${period}・${notComparedLabel(value.unit ? 28 : days, value.comparableFrom)}` : delta !== null ? `${period}・${before}` : value.lastWeek === 0 && value.thisWeek > 0 ? `${period}・${zeroBefore}は 0` : period;
+  const note = value.noPrev ? notComparedLabel(period, value.unit ? 28 : days, value.comparableFrom) : delta !== null ? `${period}・${before}` : value.lastWeek === 0 && value.thisWeek > 0 ? `${period}・${zeroBefore}は 0` : period;
   if (value.notArrived) {
     return frame(
       <>

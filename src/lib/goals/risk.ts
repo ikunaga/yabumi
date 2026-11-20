@@ -50,9 +50,13 @@ export const RISK_TITLE: Record<GoalRisk["level"], string> = {
   maybe: "目標に届かないかもしれません",
 };
 
-// 「届くには週 3、いまは週 1.5」
+// 数の単位（売上は formatMetric が「円」を付ける）
+const UNIT: Partial<Record<GoalMetric, string>> = { posts: " 本", link_clicks: " 回", outcomes: " 件", followers: " 人", views: " 回", downloads: " 件", store_page_views: " 回" };
+
+// 「届くには週 3 件のペースが要ります。いまは週 1.5 件です」（ja-copy-reviewer: 単位がないと何の数かわからない）
 export function paceText(metric: GoalMetric, risk: GoalRisk): string {
-  return `届くには週 ${formatMetric(metric, risk.needPerWeek)}、いまは週 ${formatMetric(metric, risk.nowPerWeek)}`;
+  const u = UNIT[metric] ?? "";
+  return `届くには週 ${formatMetric(metric, risk.needPerWeek)}${u}のペースが要ります。いまは週 ${formatMetric(metric, risk.nowPerWeek)}${u}です`;
 }
 
 export type ReviseChoice =

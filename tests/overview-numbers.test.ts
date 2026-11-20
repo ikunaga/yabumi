@@ -56,7 +56,7 @@ describe("概要: 数字のカード 4 枚（出せるものから。準備中�
       kpis: ["posts", "followers", "views"],
       kpiValues: { followers: { thisWeek: 120, lastWeek: 100 }, views: { thisWeek: 900, lastWeek: 0 } },
     });
-    expect(cards.map((c) => c.label)).toEqual(["ダウンロード", "ストアへのクリック", "SNS への投稿", "フォロワーの増え方"]);
+    expect(cards.map((c) => c.label)).toEqual(["ダウンロード", "ストアへのクリック", "送信済みの投稿", "フォロワーの増え方"]);
     expect(cards[0]).toMatchObject({ value: 112, deltaPct: 12, note: "直近 30 日・前の 30 日比" });
     expect(cards[1]).toMatchObject({ value: 30, deltaPct: null, note: "直近 30 日・前の 30 日は 0" });
     expect(cards[2]).toMatchObject({ value: 4, deltaPct: 100, note: "直近 30 日・前の 30 日比・ほかに予約中 3 件", unit: "本" });
@@ -86,7 +86,7 @@ describe("概要: Google Play が数えた SNS からの DL", () => {
 });
 
 describe("概要: 前の期間が数え始める前なら比べない", () => {
-  it("短縮リンクを作った日・ストアを取り込み始めた日・プロジェクトを作った日が前の 30 日の始まりより後なら「前の 30 日と比べられるのは 〇/〇 から」", () => {
+  it("短縮リンクを作った日・ストアを取り込み始めた日・プロジェクトを作った日が前の 30 日の始まりより後なら「前の 30 日との比べは 〇 月 〇 日から出ます」", () => {
     const cards = pickOverviewCards({
       ...empty,
       downloads: { thisWeek: 10, lastWeek: 10, noPrev: true },
@@ -96,20 +96,23 @@ describe("概要: 前の期間が数え始める前なら比べない", () => {
     });
     // 比べられるのは、数え始めた日から 60 日目（5 日前 + 59 日）。ストアは数え始めた日がここではわからない
     const [, m, d] = addDays(today, 54).split("-");
-    expect(cards[0]).toMatchObject({ deltaPct: null, note: "直近 30 日・前の 30 日の記録はまだありません" });
-    for (const c of cards.slice(1, 3)) expect(c).toMatchObject({ deltaPct: null, note: `直近 30 日・前の 30 日と比べられるのは ${Number(m)}/${Number(d)} から` });
+    expect(cards[0]).toMatchObject({ deltaPct: null, note: "直近 30 日の数です。前の 30 日の記録はまだありません" });
+    for (const c of cards.slice(1, 3)) expect(c).toMatchObject({ deltaPct: null, note: `直近 30 日の数です。前の 30 日との比べは ${Number(m)} 月 ${Number(d)} 日から出ます` });
+    // 年が変わるなら「来年」と書く（12 月に数え始めたら、比べられるのは翌年）
+    const dec = pickOverviewCards({ ...empty, today: "2026-12-20", published: [], since: { posts: "2026-12-01" } });
+    expect(dec.find((c) => c.key === "posts")?.note).toBe("直近 30 日の数です。前の 30 日との比べは 来年 1 月 29 日から出ます");
     expect(cards.map((c) => c.value).slice(0, 3)).toEqual([10, 14, 2]);
   });
 
   it("前の 30 日の始まり（59 日前）かそれより前から数えていれば、いつもどおり比べる。数え始めた日がわからない（null）なら比べない", () => {
     const rows = [at(1, 12), at(40, 10)];
     expect(pickOverviewCards({ ...empty, clicks: rows, since: { clicks: addDays(today, -59) } })[0]).toMatchObject({ deltaPct: 20, note: "直近 30 日・前の 30 日比" });
-    expect(pickOverviewCards({ ...empty, clicks: rows, since: { clicks: null } })[0]).toMatchObject({ deltaPct: null, note: "直近 30 日・前の 30 日の記録はまだありません" });
+    expect(pickOverviewCards({ ...empty, clicks: rows, since: { clicks: null } })[0]).toMatchObject({ deltaPct: null, note: "直近 30 日の数です。前の 30 日の記録はまだありません" });
   });
 
   it("ストアのページの閲覧（追いかける数字）は、前の記録がなければ比べない（決めるのは読み込み。storeWeekValue）", () => {
     const base = { ...empty, kpis: ["store_page_views" as const] };
-    expect(pickOverviewCards({ ...base, kpiValues: { store_page_views: { thisWeek: 30, lastWeek: 30, noPrev: true } } })[1]).toMatchObject({ kpi: "store_page_views", deltaPct: null, note: "直近 7 日・前の 7 日の記録はまだありません" });
+    expect(pickOverviewCards({ ...base, kpiValues: { store_page_views: { thisWeek: 30, lastWeek: 30, noPrev: true } } })[1]).toMatchObject({ kpi: "store_page_views", deltaPct: null, note: "直近 7 日の数です。前の 7 日の記録はまだありません" });
     expect(pickOverviewCards({ ...base, kpiValues: { store_page_views: { thisWeek: 30, lastWeek: 20 } } })[1]).toMatchObject({ kpi: "store_page_views", deltaPct: 50, note: "直近 7 日・先週比" });
   });
 });

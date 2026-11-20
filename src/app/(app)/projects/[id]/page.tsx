@@ -209,7 +209,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
           <>
             <Panel
               className="max-sm:hidden"
-              title={numbers.chart ? `${chartName}の推移` : "日ごとの数"}
+              title={numbers.chart ? `${chartName}の推移` : `日ごとの${chartName}`}
               aside={win14 ? `${win14.until ? "" : `直近 ${CHART_DAYS} 日 / `}合計 ${total14.toLocaleString("ja-JP")} / ${latestAside(win14.rows, arrived)}` : undefined}
             >
               {win14 ? (
@@ -230,9 +230,9 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
                 <SnsClicks rows={numbers.clicksBySns} />
               ) : (
                 <p className="text-sm text-muted">
-                  {numbers.hasLinks ? "直近 30 日のクリックはまだありません。" : `SNS ごとの短縮リンクを付けて投稿すると、どの SNS から${isApp ? "ストア" : "行き先"}へ来たかが並びます。`}
+                  {numbers.hasLinks ? "直近 30 日のクリックはまだありません。" : "SNS ごとに別の短縮リンクを付けると、どの SNS から来たかがわかります。"}
                   <Link href={`${base}/links`} className="ml-1 font-bold text-fg underline">
-                    短縮リンク
+                    短縮リンクをつくる
                   </Link>
                 </p>
               )}
@@ -293,7 +293,7 @@ function MobileHero({ name, win, arrived, hero, source, today, empty }: { name: 
   }
   if (!win || !source) {
     return (
-      <Panel title="日ごとの数">
+      <Panel title={`日ごとの${name}`}>
         <ChartEmpty height="h-36">{empty}</ChartEmpty>
       </Panel>
     );
@@ -309,7 +309,7 @@ function MobileHero({ name, win, arrived, hero, source, today, empty }: { name: 
         {v.notArrived ? (
           NOT_ARRIVED
         ) : v.noPrev ? (
-          `${prefix}${notComparedLabel(CHART_DAYS_MOBILE, v.comparableFrom)}`
+          notComparedLabel(v.until ? periodLabel(CHART_DAYS_MOBILE, v.until) : `直近 ${CHART_DAYS_MOBILE} 日`, CHART_DAYS_MOBILE, v.comparableFrom, today)
         ) : delta !== null ? (
           <>
             <Delta value={delta} unit="%" /> {prefix}

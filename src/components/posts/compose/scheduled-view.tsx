@@ -74,7 +74,7 @@ export function ComposeScheduledView({ c }: { c: Composer }) {
         {!review && awaiting.length > 0 && <p>{awaiting.map((s) => SNS[s].label).join("・")} は、「確認する」を押すまで送りません。</p>}
         {autoRun && (
           <p className="text-muted">
-            自動の投稿「{autoRun.planName}」で {dayWithWeekday(savedAt.slice(0, 10)).replace(/（.）$/, "")} に送る投稿です。
+            自動投稿「{autoRun.planName}」で {dayWithWeekday(savedAt.slice(0, 10)).replace(/（.）$/, "")} に送る投稿です。
           </p>
         )}
       </div>

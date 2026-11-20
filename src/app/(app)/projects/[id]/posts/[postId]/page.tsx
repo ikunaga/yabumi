@@ -174,7 +174,7 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
       {comments.length > 0 && <MarkCommentsSeen projectId={project.id} postId={post.id} />}
       {autoRun && (
         <Link href={`/projects/${project.id}/auto/${autoRun.planId}`} className="mb-3 inline-block text-sm text-muted underline">
-          ← 自動の投稿に戻る
+          ← 自動投稿に戻る
         </Link>
       )}
       <PostComposer

@@ -557,7 +557,7 @@ function GoalFields({ v, productType }: { v: PlanData["goal"]; productType: Prod
             見た人にいちばんしてほしいこと
           </>
         }
-        hint={`「${PRODUCT_TYPE_DEFS[productType].label}」に合う選択肢を上に並べています。迷ったら「まず知ってもらう」を選んでください。選んだものが、3 か月の目標になります。目標の数は「ロードマップ」の画面で決めます。`}
+        hint={`「${PRODUCT_TYPE_DEFS[productType].label}」に合う選択肢を上に並べています。迷ったら「まず知ってもらう」を選んでください。選んだものが、3 か月の目標になります。目標の数は、あとで「ロードマップ」の画面で決めます。週ごとのやることを決める画面です。`}
         value={v.goalType}
         options={order.map((a) => ({
           value: a,

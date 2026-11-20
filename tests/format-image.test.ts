@@ -22,7 +22,7 @@ describe("保存の形（cleanFormatImage）", () => {
   it("絵の説明が空なら画像なし。形の違う値は既定にそろえる", () => {
     expect(cleanFormatImage(null, BODY, SERIES)).toEqual({ image: null });
     expect(cleanFormatImage({ ...base, prompt: "  " }, BODY, SERIES)).toEqual({ image: null });
-    expect(cleanFormatImage({ prompt: "机の上", scene: "x", style: 1, size: "huge", headline: "  " }, BODY, EMPTY_SERIES).image).toEqual({ prompt: "机の上", scene: "fill", style: "photo", size: "auto", headline: null, label: null });
+    expect(cleanFormatImage({ prompt: "机の上", scene: "x", style: 1, size: "huge", headline: "  " }, BODY, EMPTY_SERIES).image).toEqual({ prompt: "机の上", scene: "fill", style: "photo", size: "auto", headline: null, label: null, look: null });
   });
 
   it("型の文にない穴・空の {} は断る。長すぎる絵の説明・見出しも断る", () => {
@@ -73,7 +73,7 @@ describe("埋め方", () => {
 
 describe("③ の帯の絵の説明と見出し", () => {
   it("この回の穴の言葉と答えで埋める。答えはシリーズのときだけ", () => {
-    const image = { prompt: "{映画}を思わせる{キーワード}", scene: "ai" as const, style: "photo" as const, size: "auto" as const, headline: "連想映画クイズ {ひとこと}", label: null };
+    const image = { prompt: "{映画}を思わせる{キーワード}", scene: "ai" as const, style: "photo" as const, size: "auto" as const, headline: "連想映画クイズ {ひとこと}", label: null, look: null };
     expect(formatPhotoTexts({ body: BODY, series: SERIES, image }, { キーワード: "王女", ひとこと: "第 3 回" }, "ローマの休日")).toEqual({ text: "ローマの休日を思わせる王女", headline: "連想映画クイズ 第 3 回", label: null });
     expect(formatPhotoTexts({ body: BODY, series: EMPTY_SERIES, image: { ...image, headline: null } }, {}, "ローマの休日")).toEqual({ text: "【映画】を思わせる【キーワード】", headline: null, label: null });
   });
@@ -94,8 +94,18 @@ describe("見出しの上の小さい文（label。2026-11-20 オーナーの指
     expect(cleanFormatImage({ ...withHead, label: "  " }, BODY, SERIES).image?.label).toBeNull();
   });
   it("帯に渡すとき、空欄を埋める。見出しがなければ小さい文も描かない", () => {
-    const image = { ...withHead, scene: "fill" as const, style: "photo" as const, size: "auto" as const, label: "連想映画クイズ {ひとこと}" };
+    const image = { ...withHead, scene: "fill" as const, style: "photo" as const, size: "auto" as const, label: "連想映画クイズ {ひとこと}", look: null };
     expect(formatPhotoTexts({ body: BODY, series: SERIES, image }, { ひとこと: "第 3 回" }, "ローマの休日").label).toBe("連想映画クイズ 第 3 回");
     expect(formatPhotoTexts({ body: BODY, series: SERIES, image: { ...image, headline: null } }, {}, "ローマの休日").label).toBeNull();
+  });
+});
+
+describe("見出しの見た目（look。2026-11-21。フォーマットで決めたとおりに）", () => {
+  const look = { palette: "kinari", brand: "#e4572e", font: "mincho", textStyle: "band" };
+  it("見出しがあるときだけ持つ。形の違う見た目は捨てる", () => {
+    expect(readFormatImage({ ...base, headline: "今週の豆", look })?.look).toEqual(look);
+    expect(readFormatImage({ ...base, headline: null, look })?.look).toBeNull();
+    expect(readFormatImage({ ...base, headline: "今週の豆", look: { ...look, palette: "rainbow" } })?.look).toBeNull();
+    expect(cleanFormatImage({ ...base, headline: "今週の豆", look }, BODY, SERIES).image?.look).toEqual(look);
   });
 });

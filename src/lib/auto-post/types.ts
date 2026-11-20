@@ -1,5 +1,5 @@
 import type { ReviewMedia } from "./review-media";
-import type { FontKey, TextStyle } from "@/lib/media/templates";
+import type { HeadlineLook } from "@/lib/media/look";
 import type { SnsKey } from "@/lib/sns";
 
 // 自動の投稿の型（docs/design/auto-post.md の 2.2。DB は 20261116100000_auto_post）。
@@ -52,7 +52,7 @@ export type AutoMaterials = {
 export type AutoImageSource = "format" | "ai";
 export type AutoImageSize = "auto" | "portrait" | "square" | "landscape";
 // look: 見出しの見た目（色・いつもの色・書体・置き方。画面の「文字を入れる」と同じ。見出しを重ねるときだけ。なければ既定の見た目）
-export type AutoImageLook = { palette: string; brand: string; font: FontKey; textStyle: TextStyle };
+export type AutoImageLook = HeadlineLook;
 export type AutoImage = { source: AutoImageSource; style: "photo" | "illustration"; size: AutoImageSize; headline: "none" | "format" | "ai"; look?: AutoImageLook };
 
 export type AutoPlanStatus = "active" | "paused" | "stopped";

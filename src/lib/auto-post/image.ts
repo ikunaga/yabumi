@@ -60,6 +60,11 @@ export function formatHeadlineTexts(
   return { headline, label };
 }
 
+// フォーマットの画像の見出しの見た目を選ぶ: フォーマットで決めたもの → 回し方のもの → なし（既定の見た目で描く）
+export function pickLook(formatLook: AutoImageLook | null | undefined, planLook: AutoImageLook | undefined): AutoImageLook | undefined {
+  return formatLook ?? planLook;
+}
+
 // その回の画像を 1 枚つくる（候補の置き場所 <持ち主>/gen/ に置く。添えるのは attachImage）
 export async function makeAutoImage(
   admin: Db,
@@ -79,6 +84,8 @@ export async function makeAutoImage(
   let headlineText = img.headline === "ai" ? cleanHeadline(args.headline) : "";
   // 見出しの上の小さい文（フォーマットの見出しのときだけ。2026-11-20 オーナーの指示。見出しを 2 段にする）
   let labelText = "";
+  // 見出しの見た目: フォーマットの画像なら、フォーマットで決めた見た目（なければ回し方の見た目・既定）。2026-11-21 オーナーの考え「フォーマットで決めたとおりに」
+  let look = img.look;
   if (img.source === "format") {
     const formatId = args.material.series?.formatId ?? args.plan.materials.format_id;
     const format = formatId ? await getFormat(admin, args.plan.projectId, formatId) : null;
@@ -91,6 +98,7 @@ export async function makeAutoImage(
     style = format.image.style;
     size = format.image.size;
     if (img.headline === "format") ({ headline: headlineText, label: labelText } = formatHeadlineTexts(format.image, args.material.series?.values ?? {}, name && answer ? { name, value: answer } : null));
+    look = pickLook(format.image.look, img.look);
   } else {
     const text = args.sns.map((s) => args.texts[s]).find((t) => t?.trim());
     if (!text) return { ok: false, detail: "画像の場面を書く本文がありません" };
@@ -104,7 +112,7 @@ export async function makeAutoImage(
   if (!headlineText) return { ok: true, image: plain };
   // 見出しを重ねる（サーバーで描く。④）。描けなかったときは、見出しなしの写真を添える（回は止めない）
   try {
-    return { ok: true, image: await overlayHeadline(admin, args.plan.ownerId, r.photo, { headline: headlineText, label: labelText }, img.look, plain.alt) };
+    return { ok: true, image: await overlayHeadline(admin, args.plan.ownerId, r.photo, { headline: headlineText, label: labelText }, look, plain.alt) };
   } catch (e) {
     console.error("[auto-post] 見出しを重ねられませんでした", e instanceof Error ? e.message : e);
     return { ok: true, image: plain };

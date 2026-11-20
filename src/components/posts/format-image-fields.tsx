@@ -9,6 +9,8 @@ import type { PhotoTemplate } from "@/lib/photo-templates/schema";
 import { IMAGE_SCENES, IMAGE_SCENE_LABEL, IMAGE_SIZES, MAX_IMAGE_HEADLINE, MAX_IMAGE_LABEL, MAX_IMAGE_PROMPT, imageSlotNames, needsAiScene, usesAnswer, type FormatImage } from "@/lib/post-formats/image";
 import type { FormatSeries } from "@/lib/post-formats/series";
 import { Choice } from "./maker-parts";
+import { loadTemplateStyle, StyleFields } from "./template-fields";
+import { DEFAULT_LOOK, readLook, type HeadlineLook } from "@/lib/media/look";
 import { DisclosureBox } from "@/components/ui/disclosure";
 
 const SIZE_LABEL = (s: FormatImage["size"]) => (s === "auto" ? "送り先に合わせる" : TEMPLATE_SIZES[s].label);
@@ -166,7 +168,7 @@ export function FormatImageFields({
         <fieldset className="flex min-w-0 flex-col gap-1.5">
           <legend className="mb-1 font-bold">見出しを重ねる</legend>
           <div className="flex flex-wrap gap-2">
-            <Choice on={image.headline === null} onClick={() => setImage({ ...image, headline: null, label: null })}>
+            <Choice on={image.headline === null} onClick={() => setImage({ ...image, headline: null, label: null, look: null })}>
               なし
             </Choice>
             <Choice on={image.headline !== null} onClick={() => setImage({ ...image, headline: image.headline ?? "" })}>
@@ -201,6 +203,12 @@ export function FormatImageFields({
                   className="py-2 text-sm"
                 />
               </label>
+              {/* 見出しの見た目（色・書体・置き方）。「文字を入れる」と同じ部品。自動の投稿も、この見た目でつくる */}
+              <div className="flex flex-col gap-2 border-t border-line pt-3">
+                <span className="text-xs font-bold">見出しの見た目</span>
+                <span className="text-xs text-muted">このフォーマットの画像には、見出しがこの見た目で入ります。自動の投稿も同じです。投稿をつくるときは、あとから変えられます。</span>
+                <StyleFields style={image.look ?? defaultLook(projectId)} onStyle={(patch) => setImage({ ...image, look: { ...(image.look ?? defaultLook(projectId)), ...patch } })} showTextStyle />
+              </div>
             </>
           )}
         </fieldset>
@@ -211,4 +219,9 @@ export function FormatImageFields({
       </div>
     </DisclosureBox>
   );
+}
+
+// 見出しの見た目の初め: この端末で前に「文字を入れる」で使った見た目（なければ 藍・すっきり・左に控えめ）
+function defaultLook(projectId: string): HeadlineLook {
+  return (typeof window === "undefined" ? null : readLook(loadTemplateStyle(projectId))) ?? DEFAULT_LOOK;
 }

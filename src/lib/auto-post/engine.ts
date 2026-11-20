@@ -464,7 +464,10 @@ export async function makeDueRuns(admin: Db, deps: EngineDeps, now: Date, opts: 
   const { data: runs, error } = await admin.rpc("claim_due_auto_runs", { p_limit: opts.limit ?? 5, ...(opts.ownerIds ? { p_owner_ids: opts.ownerIds } : {}) });
   if (error) throw error;
   const made: Partial<Record<AutoRunStatus, number>> = {};
-  for (const run of runs ?? []) {
+  // 送る時刻の早い回から作る。claim_due_auto_runs は送る時刻の順に選ぶが、update ... returning の返す順は決まっていない。
+  // 同じ日の回が上限（1 日に SNS ごとに 2 本）を超えるとき、どの回を飛ばすかが返す順で変わっていた（2026-11-21。テストが時々落ちた原因）
+  const ordered = [...(runs ?? [])].sort((a, b) => Date.parse(a.due_at) - Date.parse(b.due_at));
+  for (const run of ordered) {
     let status: AutoRunStatus;
     try {
       status = await processRun(admin, deps, run, now);

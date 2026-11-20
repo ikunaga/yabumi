@@ -77,12 +77,17 @@ export type ComposerInitial = {
   youtube?: YouTubeChoice | null;
 };
 
+// 自動の投稿の回（status は auto_runs.status。review: 1 回目の投稿の確認待ち）
+export type AutoRunOrigin = { runId: string; planId: string; planName: string; status: string; dueAt: string };
+
 export type ComposerProps = {
   projectId: string;
   projectName: string;
   postId: string | null;
   // 保存した投稿の状態（見出しを「下書き」「予約した投稿」に分ける。新しい投稿は null）
   savedStatus?: "draft" | "scheduled" | null;
+  // 自動の投稿でつくった投稿のとき、その回と回し方（予約済みの投稿の詳細に「どこから来たか」と「この日の投稿を飛ばす」を出す）
+  autoRun?: AutoRunOrigin | null;
   // 新しい投稿のとき、保存した下書きの数（見出しの横に「下書きから続ける（n 件）」を出す）
   draftsCount?: number;
   initial: ComposerInitial;
@@ -174,6 +179,8 @@ export function useComposer({
   profileLink = null,
   selfWrittenPosts = null,
   hasVoiceMemo = false,
+  savedStatus = null,
+  autoRun = null,
 }: ComposerProps) {
   const [images, setImages] = useState<AttachedImage[]>(initial.images ?? []);
   const [video, setVideo] = useState<AttachedVideo | null>(initial.video ?? null);
@@ -873,11 +880,14 @@ export function useComposer({
   const mode = sendMode({ sentAny, toSend: toSend.length });
   // X を手で投稿するときは、自動で送る数に X を数えない
   const autoCount = toSend.filter((s) => !byHandOrManual(s)).length + toSend.filter(isManualSns).length;
-  const labels = sendLabels(mode, autoCount);
+  // 予約済みの投稿を編集しているとき（保存のボタンは「予約を変更する」。2026-11-21 オーナーの指摘）
+  const scheduledSaved = postId !== null && savedStatus === "scheduled" && !sentAny;
+  const labels = sendLabels(mode, autoCount, scheduledSaved);
   const sentLabels = chosen.filter((s) => isLocked(s)).map((s) => SNS[s].label).join("・");
 
   // 削除する（確かめてから）。送った投稿では、SNS の投稿は消えず yabumi の記録だけが消えることを書く
-  const deleteRow = (sent: boolean) => {
+  // label: ボタンの名前（予約済みの投稿の詳細では「この投稿を削除する」。「この日の投稿を飛ばす」と並ぶので、何を消すかを書く）
+  const deleteRow = (sent: boolean, label?: string) => {
     if (!postId) return null;
     return confirmDelete ? (
       <span className="ml-auto flex flex-wrap items-center justify-end gap-1">
@@ -906,7 +916,7 @@ export function useComposer({
       </span>
     ) : (
       <Button type="button" variant="text" size="sm" className="ml-auto" onClick={() => setConfirmDelete(true)}>
-        {sent ? "yabumi から削除する" : "削除する"}
+        {label ?? (sent ? "yabumi から削除する" : "削除する")}
       </Button>
     );
   };
@@ -931,6 +941,10 @@ export function useComposer({
 
   return {
     composeStep,
+    // URL に ?step があるか（予約済みの投稿は、ないときは詳細の画面、あるときは編集の画面）
+    stepInUrl: searchParams.get("step") !== null,
+    scheduledSaved,
+    autoRun,
     goStep,
     visited,
     stepProblems,

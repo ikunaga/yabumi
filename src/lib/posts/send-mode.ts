@@ -2,6 +2,8 @@
 // - new: まだどの SNS にも送っていない → 予約する・今すぐ送る・下書きに保存する
 // - partial: 一部の SNS だけ送った → 残りの SNS の分だけ予約・送る（送った SNS は送り直さない）
 // - all_sent: 選んだ SNS にすべて送った（送信中・取り消し済みを含む）→ ボタンを出さず、1 行の案内と「yabumi から削除する」
+import { weekdayLabel } from "@/lib/time";
+
 export type SendMode = "new" | "partial" | "all_sent";
 
 export function sendMode(a: { sentAny: boolean; toSend: number }): SendMode {
@@ -9,7 +11,13 @@ export function sendMode(a: { sentAny: boolean; toSend: number }): SendMode {
   return a.toSend > 0 ? "partial" : "all_sent";
 }
 
-export function sendLabels(mode: SendMode, toSend: number): { schedule: string; now: string } {
+// scheduled: 予約済みの投稿を編集しているとき。まだ予約していないように見える「予約する」「3 つの SNS に予約する」は出さない（2026-11-21 オーナーの指摘）
+export function sendLabels(mode: SendMode, toSend: number, scheduled = false): { schedule: string; now: string; when: string } {
+  if (scheduled && mode === "new") return { schedule: "予約を変更する", now: "今すぐ送る", when: "予約の日時に送る" };
+  return { ...baseLabels(mode, toSend), when: "予約する" };
+}
+
+function baseLabels(mode: SendMode, toSend: number): { schedule: string; now: string } {
   if (mode === "partial") return { schedule: `残りの ${toSend} つの SNS に予約する`, now: "残りを今すぐ送る" };
   return { schedule: toSend > 0 ? `${toSend} つの SNS に予約する` : "予約する", now: "今すぐ送る" };
 }
@@ -52,4 +60,18 @@ export const RESULT_POLL_MS = 20_000;
 export const RESULT_POLL_MAX = 30;
 export function isProcessing(status: SentStatus): boolean {
   return status === "preparing" || status === "publishing";
+}
+
+// 予約済みの投稿の 1 文（「この投稿は 11/21（土）21:00 に、X・Threads・Instagram に予約済みです。」）。
+// plannedAt は日本時間の入力の値（"YYYY-MM-DDTHH:MM"）。SNS がなければ「予約済みです」だけ
+export function scheduledSentence(plannedAt: string, snsNames: string[]): string {
+  const m = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/.exec(plannedAt);
+  const when = m ? `${dayWithWeekday(m[1])}${m[2]}` : "";
+  const to = snsNames.length ? `、${snsNames.join("・")} に` : "";
+  return when ? `この投稿は ${when} に${to}予約済みです。` : "この投稿は予約済みです。";
+}
+
+// 「11/21（土）」
+export function dayWithWeekday(ymd: string): string {
+  return `${Number(ymd.slice(5, 7))}/${Number(ymd.slice(8, 10))}（${weekdayLabel(ymd)}）`;
 }

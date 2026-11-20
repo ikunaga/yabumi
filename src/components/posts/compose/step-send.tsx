@@ -9,6 +9,7 @@ import { SendProgress } from "../send-progress";
 import { BAND_INFO, plannedAtFor } from "@/lib/metrics/time-bands";
 import { COMPOSE_STEPS, blockerStep } from "@/lib/posts/compose-steps";
 import { SNS } from "@/lib/sns";
+import { dayWithWeekday } from "@/lib/posts/send-mode";
 import { QUIET_BLOCKER, type Composer } from "./use-composer";
 import { XBudgetNotice } from "./x-budget-notice";
 import { ComposeTikTok } from "./tiktok-panel";
@@ -38,7 +39,7 @@ export function ComposeStepSend({ c, steps = false, previewBelow = false }: { c:
           {(
             [
               ["now", labels.now],
-              ["schedule", "予約する"],
+              ["schedule", labels.when],
             ] as const
           ).map(([w, text]) => {
             const on = (w === "now") === nowMain;
@@ -150,11 +151,11 @@ export function ComposeStepSend({ c, steps = false, previewBelow = false }: { c:
               onClick={() => (nowMain ? (recheckX(), setConfirmSend(true)) : askSchedule())}
               className="w-full"
             >
-              {nowMain ? (busy === "now" ? "送っています…" : labels.now) : scheduleAsked ? "上限を確認しています…" : busy === "schedule" ? "予約しています…" : labels.schedule}
+              {nowMain ? (busy === "now" ? "送っています…" : labels.now) : scheduleAsked ? "上限を確認しています…" : busy === "schedule" ? (c.scheduledSaved ? "予約を変更しています…" : "予約しています…") : labels.schedule}
             </Button>
           )}
           <p className={`text-[13px] ${fe.plannedAt || (mainBlocker && mainBlocker !== QUIET_BLOCKER) ? "text-signal" : "text-faint"}`}>
-            {fe.plannedAt ?? mainBlocker ?? (nowMain ? `${nowNames} に、押してすぐ送ります` : nowNames ? "予約すると、この日時に自動で送ります" : "この日時に、手で投稿する番として知らせます")}
+            {fe.plannedAt ?? mainBlocker ?? (nowMain ? `${nowNames} に、押してすぐ送ります` : nowNames ? (c.scheduledSaved ? `変更すると、${scheduledAt(plannedAt)} に送ります` : "予約すると、この日時に自動で送ります") : "この日時に、手で投稿する番として知らせます")}
             {!fe.plannedAt && mainBlocker === missingConnectMessage && (
               <>
                 {" "}
@@ -175,7 +176,7 @@ export function ComposeStepSend({ c, steps = false, previewBelow = false }: { c:
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <Button type="button" variant="secondary" size="sm" disabled={pending || c.videoBusy} onClick={() => submit("draft")}>
-              {busy === "draft" ? "保存しています…" : "下書きに保存する"}
+              {busy === "draft" ? "保存しています…" : c.scheduledSaved ? "予約をやめて下書きに戻す" : "下書きに保存する"}
             </Button>
             {deleteRow(mode === "partial")}
           </div>
@@ -183,6 +184,12 @@ export function ComposeStepSend({ c, steps = false, previewBelow = false }: { c:
       )}
     </>
   );
+}
+
+// 「11/24（月）19:00」（予約済みの投稿を編集しているときの、ボタンの下の 1 行）
+function scheduledAt(plannedAt: string): string {
+  const m = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/.exec(plannedAt);
+  return m ? `${dayWithWeekday(m[1])}${m[2]}` : "この日時";
 }
 
 // 日本時間のいまの日付と時刻（"YYYY-MM-DD" と "HH:MM"）

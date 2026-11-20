@@ -1,5 +1,6 @@
 import { LearningTip } from "@/components/learning/learning-tip";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { XSyncOnView } from "@/components/posts/x-sync-on-view";
 import { PostCommentsSection } from "@/components/comments/comments";
@@ -51,6 +52,8 @@ const NOTICES: Record<string, { text: string; tone: "success" | "error" }> = {
   send_failed: { text: "送れなかった SNS があります。下の「送信の結果」で理由を確認してください。", tone: "error" },
   deleted_sns: { text: "SNS から取り消しました。yabumi の下書きは残っています。", tone: "success" },
   manual_posted: { text: "投稿したことを記録しました。", tone: "success" },
+  // 予約済みの投稿の詳細の「この日の投稿を飛ばす」（2026-11-21）
+  skipped: { text: "この日の投稿を飛ばしました。投稿は下書きに残っています。", tone: "success" },
   removed_on_sns: { text: "SNS で消したことを記録しました。消えた投稿へのリンクは、yabumi からも消しました。", tone: "success" },
 };
 
@@ -90,6 +93,9 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
   const roadmapItem = post.roadmapItemId
     ? ((await supabase.from("roadmap_items").select("id, title, detail").eq("id", post.roadmapItemId).eq("project_id", project.id).maybeSingle()).data ?? null)
     : null;
+  // 自動の投稿でつくった投稿なら、その回と回し方（予約済みの投稿の詳細に「どこから来たか」と「この日の投稿を飛ばす」を出す。RLS で本人のものだけ）
+  const { data: runRow } = await supabase.from("auto_runs").select("id, plan_id, status, due_at, auto_plans(name)").eq("post_id", post.id).maybeSingle();
+  const autoRun = runRow ? { runId: runRow.id, planId: runRow.plan_id, planName: runRow.auto_plans?.name ?? "", status: runRow.status, dueAt: runRow.due_at } : null;
   // 「最初は自分で書く」のすすめに使う（docs/design/voice-from-posts.md の 3.4）
   const [selfWrittenPosts, voiceMemo, accountNames, linkBase] = await Promise.all([
     countSelfWrittenPosts(supabase, project.id),
@@ -166,6 +172,11 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
     <>
       {hasPublishedX && <XSyncOnView projectId={project.id} postId={post.id} />}
       {comments.length > 0 && <MarkCommentsSeen projectId={project.id} postId={post.id} />}
+      {autoRun && (
+        <Link href={`/projects/${project.id}/auto/${autoRun.planId}`} className="mb-3 inline-block text-sm text-muted underline">
+          ← 自動の投稿に戻る
+        </Link>
+      )}
       <PostComposer
       defaultHashtags={readDefaultHashtags(project.default_hashtags)}
       key={post.id}
@@ -173,6 +184,7 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
       projectName={project.name}
       postId={post.id}
       savedStatus={post.status}
+      autoRun={autoRun}
       connected={(Object.keys(accounts) as SnsKey[]).filter(canPublish)}
       planHints={planHints}
       afterNotice={sentTip ? <LearningTip trigger="post_sent" /> : null}

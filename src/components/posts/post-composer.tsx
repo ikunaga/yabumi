@@ -18,6 +18,7 @@ import { ComposeStepNav } from "./compose/step-nav";
 import { ComposeStepBar } from "./compose/step-bar";
 import { ComposeSummary } from "./compose/summary";
 import { ComposeSentView } from "./compose/sent-view";
+import { ComposeScheduledView } from "./compose/scheduled-view";
 import { Button } from "@/components/ui/button";
 import { COMPOSE_STEPS, nextBlockedReason, type StepNo } from "@/lib/posts/compose-steps";
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
@@ -60,7 +61,10 @@ export function PostComposer(props: ComposerProps) {
   const wide = useWide();
   // すべて送った投稿は読むだけ。「ほかの SNS にも送る」を押したら、ステップの画面にして ② から
   const [extending, setExtending] = useState(false);
-  const steps = mode !== "all_sent" || extending;
+  // 予約済み・確認待ちの投稿は、まず詳細の画面（手順を出さない）。「内容を編集する」で ?step が付いたときだけ手順の画面（2026-11-21 オーナーの指摘）
+  const waitingReview = c.autoRun?.status === "review" && !sentAny;
+  const detail = (c.scheduledSaved || waitingReview) && !c.stepInUrl;
+  const steps = (mode !== "all_sent" || extending) && !detail;
 
   // ステップを移ったら、ステップの並び（進みの札）と見出しが見えるところへ（読み上げにも、どこに来たかがわかるように、見出しにフォーカスを置く）。開いたときは動かさない。
   // 上の帯（sticky）の下に来るように位置を計って、すぐに移す。前は見出しへの scrollIntoView（smooth）で、見出しが上の帯の下に隠れたり、
@@ -91,10 +95,16 @@ export function PostComposer(props: ComposerProps) {
       <div className="flex flex-col gap-4" inert={busy !== null || undefined} aria-busy={busy !== null || undefined}>
       {/* 見出し。下書きに保存する・リセットは、どのステップでも押せるようここに置く */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <h1 className="text-[26px] font-bold max-sm:text-[22px]">{composeHeading({ postId, sentAny, mode, savedStatus: props.savedStatus ?? null })}</h1>
-        {!steps && start}
+        <h1 className="text-[26px] font-bold max-sm:text-[22px]">{waitingReview ? "送る前に見てほしい投稿" : composeHeading({ postId, sentAny, mode, savedStatus: props.savedStatus ?? null })}</h1>
+        {!steps && !detail && start}
+        {/* 予約済みの投稿を編集している間は、詳細の画面に戻れる（保存していない変更は残らない） */}
+        {c.scheduledSaved && c.stepInUrl && (
+          <Link href={`/projects/${projectId}/posts/${postId}`} className="text-[15px] font-bold text-fg underline">
+            変更せずに戻る
+          </Link>
+        )}
         {/* 送った投稿の「送った SNS には送り直さない」は、読むだけの画面の「ほかの SNS にも送る」の横に出す（2026-11-10 PM の指摘） */}
-        {postId && !sentAny && props.savedStatus !== "scheduled" && <span className="text-[15px] text-faint">保存済み</span>}
+        {postId && !sentAny && props.savedStatus !== "scheduled" && !waitingReview && <span className="text-[15px] text-faint">保存済み</span>}
         {!postId && (props.draftsCount ?? 0) > 0 && (
           <Link href={`/projects/${projectId}/drafts`} className="text-[15px] font-bold text-fg underline">
             下書きから続ける（<span className="num">{props.draftsCount}</span> 件）
@@ -106,7 +116,7 @@ export function PostComposer(props: ComposerProps) {
             {composeStep < 5 && (
               // 動画を整えている・上げている間は保存しない（途中の状態で保存されるのを防ぐ）
               <Button type="button" variant="secondary" size="sm" disabled={pending || c.videoBusy} onClick={() => submit("draft")}>
-                {busy === "draft" ? "保存しています…" : "下書きに保存する"}
+                {busy === "draft" ? "保存しています…" : c.scheduledSaved ? "予約をやめて下書きに戻す" : "下書きに保存する"}
               </Button>
             )}
           </span>
@@ -116,10 +126,12 @@ export function PostComposer(props: ComposerProps) {
       {/* 保存・送信の知らせと、送信の結果（送ったあとはこの投稿の画面に移り、ここに結果が出る） */}
       {notice && (noticeTone === "error" ? <ErrorBanner>{notice}</ErrorBanner> : <SuccessBanner>{notice}</SuccessBanner>)}
       {notice && afterNotice}
-      {postId && <SendResults projectId={projectId} postId={postId} results={results} video={c.video !== null || Boolean(c.initial.videoRemoved)} />}
+      {postId && !detail && <SendResults projectId={projectId} postId={postId} results={results} video={c.video !== null || Boolean(c.initial.videoRemoved)} />}
       <ComposeAlerts c={c} />
 
-      {steps ? (
+      {detail ? (
+        <ComposeScheduledView c={c} />
+      ) : steps ? (
         <div ref={stepsTopRef} className="relative flex flex-col gap-4">
           <ComposeDraftBar c={c} />
           <StepsLayout c={c} wide={wide} start={start} notePicker={notePicker} headingRef={headingRef} />

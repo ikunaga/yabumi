@@ -24,7 +24,7 @@ export default async function AutoEventsPage(props: PageProps<"/projects/[id]/au
       <PageHeader
         title="お知らせ・季節の予定"
         sub={events.length > 0 ? `${events.length} 件` : undefined}
-        help={<>「お知らせ・季節」の自動投稿は、その回の日付に近い予定を、前日と当日の 2 回まで知らせます。予定がない回は、季節のあいさつをします（飛ばすこともできます）。</>}
+        help={<>「お知らせ・季節」の自動投稿は、送る日に近い予定を、前日と当日の 2 回まで知らせます。予定がない日は、季節のあいさつを送ります。あいさつを飛ばすこともできます。</>}
       />
       <EventsEditor projectId={project.id} initial={events} today={toYmd(new Date())} />
     </div>

@@ -99,7 +99,7 @@ export async function saveAutoPlan(projectId: string, input: AutoPlanInput): Pro
   if (!userId) return { ok: true, data: { id } };
   try {
     const r = await adoptSample(createAdminClient(), { ownerId: userId, planId: id, sampleId: v.sampleId });
-    return r.ok ? { ok: true, data: { id, firstDueAt: r.dueAt } } : { ok: true, data: { id, sampleNote: `${r.detail}。最初の回は、いつもどおり送る前に作ってお知らせします。` } };
+    return r.ok ? { ok: true, data: { id, firstDueAt: r.dueAt } } : { ok: true, data: { id, sampleNote: `${r.detail}。1 回目の投稿は、いつもどおり送る前に作ってお知らせします。` } };
   } catch (e) {
     console.error("[auto-post] 見本を最初の回にできませんでした", e instanceof Error ? e.message : e);
     return { ok: true, data: { id, sampleNote: "テストでつくった投稿を 1 回目にできませんでした。1 回目は、いつもどおり送る前に作ってお知らせします。" } };

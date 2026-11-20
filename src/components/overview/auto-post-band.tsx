@@ -21,7 +21,7 @@ export function AutoPostBand({ projectId, band }: { projectId: string; band: Ove
             </b>
           ) : band.active > 0 ? (
             <b>
-              <span className="text-primary">↻</span> 自動投稿 <span className="num">{band.active}</span> 件が動いています
+              <span className="text-primary">↻</span> 自動投稿を <span className="num">{band.active}</span> 件運用中です
             </b>
           ) : (
             <b className="text-muted">‖ 自動投稿は止めています</b>

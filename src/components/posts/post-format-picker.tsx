@@ -176,7 +176,7 @@ export function PostFormatPicker({
                   {isSeries(f.series) && <Badge>シリーズ</Badge>}
                 </span>
                 <span className="line-clamp-2 text-xs text-muted">
-                  {isSeries(f.series) ? "AI に次の回を出してもらえます" : f.purpose || (fSlots.length ? fSlots.join("・") : "空欄なし")}
+                  {isSeries(f.series) ? "AI に次の投稿の案を出してもらえます" : f.purpose || (fSlots.length ? fSlots.join("・") : "空欄なし")}
                 </span>
               </button>
             );
@@ -345,7 +345,7 @@ function SeriesNextRound({
   if (!aiEnabled) {
     return (
       <NotReadyButton size="sm" variant="secondary" className="self-start">
-        AI に次の回を出してもらう
+        AI に次の投稿の案を出してもらう
       </NotReadyButton>
     );
   }
@@ -353,11 +353,11 @@ function SeriesNextRound({
     <div className="flex flex-col gap-2 rounded-md bg-surface2 px-3 py-2.5">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <Button type="button" size="sm" variant="secondary" disabled={pending} onClick={ask}>
-          {pending ? "考えています…" : failedOnce ? "もう一度出してもらう" : proposals ? "ほかの案を出してもらう" : "AI に次の回を出してもらう"}
+          {pending ? "考えています…" : failedOnce ? "もう一度出してもらう" : proposals ? "ほかの案を出してもらう" : "AI に次の投稿の案を出してもらう"}
         </Button>
-        <span className="text-xs text-muted">前の回と重ならない案を 3 つ。1 回 5 円ほど・1 日 {SERIES_DAILY_RUNS} 回まで</span>
+        <span className="text-xs text-muted">前の投稿と重ならない案を 3 つ出します。1 回 5 円ほどで、1 日 {SERIES_DAILY_RUNS} 回まで使えます。</span>
       </div>
-      <Input aria-label="次の回への希望" value={wish} maxLength={MAX_ROUND_WISH} onChange={(e) => setWish(e.target.value)} placeholder="希望（任意。例: 90 年代の映画で）" className="py-2 text-sm" />
+      <Input aria-label="次の投稿の案への希望" value={wish} maxLength={MAX_ROUND_WISH} onChange={(e) => setWish(e.target.value)} placeholder="希望（任意。例: 90 年代の映画で）" className="py-2 text-sm" />
       {pending && <AiThinking kind="round" note="10〜20 秒ほどかかります" />}
       {error &&
         (empty ? (
@@ -368,7 +368,7 @@ function SeriesNextRound({
             </span>
             {error}{" "}
             <HelpTip label="案が出なかったわけ">
-              AI の案が、どれも前の回と重なっていたか、空欄の決まり（言葉の数など）に合わなかったので、除きました。AI はもう使ったので、今日の {SERIES_DAILY_RUNS} 回のうち 1 回に数えています。
+              AI の案が、どれも前の投稿と重なっていたか、空欄の決まりに合いませんでした。なので、案を除きました。AI はもう使ったので、今日の {SERIES_DAILY_RUNS} 回のうち 1 回に数えています。
             </HelpTip>
           </p>
         ) : (
@@ -384,8 +384,8 @@ function SeriesNextRound({
           </p>
           {!failedOnce && dropped > 0 && proposals.length < ROUND_PROPOSALS && (
             <p className="text-xs leading-[1.7] text-muted">
-              前の回と重なる案を除いたので、案は {proposals.length} つです{left !== null ? `（今日はあと ${left} 回）` : ""}。{" "}
-              <HelpTip label="案が少ないわけ">前の回と重なる案や、空欄の決まり（言葉の数など）に合わない案を除きました。「ほかの案を出してもらう」も、1 回に数えます。</HelpTip>
+              前の投稿と重なる案を除いたので、案は {proposals.length} つです。{left !== null ? `今日はあと ${left} 回使えます。` : ""}{" "}
+              <HelpTip label="案が少ないわけ">前の投稿と重なる案や、空欄の決まりに合わない案を除きました。「ほかの案を出してもらう」も、1 回に数えます。</HelpTip>
             </p>
           )}
           <ul className="flex flex-col gap-2">

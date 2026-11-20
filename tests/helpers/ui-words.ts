@@ -41,6 +41,7 @@ export const UI_WORD_RULES: UiWordRule[] = [
   { id: "kumitate", pattern: /組み立て/ },
   { id: "sekkei", pattern: /設計/ },
   { id: "kisoku", pattern: /規則/ },
+  { id: "ugoku", pattern: /動いて(いる|います)/ },
 ];
 
 // 表にあるが、見つける形を決められない行（確認役が文の意味から見る）

@@ -63,7 +63,7 @@ export default async function AutoPlanPage(props: PageProps<"/projects/[id]/auto
               {plan.name}
               <PlanStatusMark plan={plan} held={hold !== null} />
             </h1>
-            <p className="num text-[15px] text-faint">{hold && plan.status === "active" ? "新しい回は作りません" : next ? `次は ${formatShort(next.dueAt)}` : plan.status === "active" ? "次の回はまだありません" : "止めています"}</p>
+            <p className="num text-[15px] text-faint">{hold && plan.status === "active" ? "新しい投稿はつくられません" : next ? `次は ${formatShort(next.dueAt)}` : plan.status === "active" ? "次の投稿はまだありません" : "止めています"}</p>
           </div>
           <PlanControls projectId={project.id} planId={plan.id} status={plan.status} nextLabel={next && !hold ? formatShort(next.dueAt) : null} held={hold !== null} />
         </div>
@@ -83,23 +83,23 @@ export default async function AutoPlanPage(props: PageProps<"/projects/[id]/auto
           )}
         </SuccessBanner>
       )}
-      {saved === "1" && <SuccessBanner>編集しました。まだ作っていない回から、新しい設定で作ります。</SuccessBanner>}
+      {saved === "1" && <SuccessBanner>編集しました。まだ作っていない投稿から、新しい設定で作ります。</SuccessBanner>}
 
       <div className="grid grid-cols-3 gap-3 max-sm:grid-cols-3 max-sm:gap-2">
-        <Metric label="送った" value={sentRuns.length} unit="回" className="max-sm:px-3" />
+        <Metric label="送った" value={sentRuns.length} unit="件" className="max-sm:px-3" />
         <Metric label={
             <>
-              <span className="max-sm:hidden">下書きに回した</span>
+              <span className="max-sm:hidden">下書きに残した</span>
               <span className="sm:hidden">下書き</span>
             </>
-          } value={heldCount} unit="回" className="max-sm:px-3" />
-        <Metric label="平均の表示" value={avgViews ?? "—"} className="max-sm:px-3" />
+          } value={heldCount} unit="件" className="max-sm:px-3" />
+        <Metric label="見られた数の平均" value={avgViews ?? "まだありません"} className="max-sm:px-3" />
       </div>
 
       <Card className="overflow-hidden">
-        <CardHeader title="回" />
+        <CardHeader title="これからの投稿と送信済みの投稿" />
         {runs.length === 0 ? (
-          <EmptyState description={next ? `最初の回は ${formatShort(next.dueAt)} です。送る 24 時間前に作ります。` : "まだ回はありません。"} />
+          <EmptyState description={next ? `1 回目の投稿は ${formatShort(next.dueAt)} です。送る 24 時間前に作ります。` : "まだ投稿はありません。"} />
         ) : (
           <ul className="divide-y divide-border border-t border-border">
             {runs.map((r) => (
@@ -121,12 +121,12 @@ export default async function AutoPlanPage(props: PageProps<"/projects/[id]/auto
                 <span className="text-sm text-muted">{TARGET_MODE_LABELS[plan.targets[s]!]}</span>
               </span>
             ))}
-            {plan.targets.x && <span className="text-sm text-muted">X は{plan.xLink === "always" ? "リンクあり" : "リンクなし"}</span>}
+            {plan.targets.x && <span className="text-sm text-muted">{plan.xLink === "always" ? "X にはリンクを付けます" : "X にはリンクを付けません"}</span>}
             {reviewSns.length > 0 && <ReviewFlow sns={reviewSns} />}
           </dd>
-          <dt className="text-muted">規則</dt>
+          <dt className="text-muted">いつ送るか</dt>
           <dd className="num">
-            {scheduleText(plan.schedule)} ／ 作るのは {plan.leadHours} 時間前
+            {scheduleText(plan.schedule)} に送ります。投稿の文は、送る {plan.leadHours} 時間前にできあがります
           </dd>
           <dt className="text-muted">画像</dt>
           <dd>
@@ -192,7 +192,7 @@ function RunRow({ run, results, projectId }: { run: AutoRun; results: RunTargetR
   const published = results.filter((t) => t.status === "published");
   const failed = results.some((t) => t.status === "failed");
   const expired = results.filter((t) => t.expired);
-  const label = published.length ? "送信済み" : failed ? "送れなかった" : RUN_STATUS_LABELS[run.status];
+  const label = published.length ? "送信済み" : failed ? "送れなかった" : run.status === "canceled" && run.reason === "user_skipped" ? "飛ばした" : RUN_STATUS_LABELS[run.status];
   const tone = published.length ? "success" : failed || run.status === "held" || run.status === "review" ? "signal" : "neutral";
   return (
     <li className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 px-6 py-3.5 max-sm:px-4">

@@ -80,7 +80,7 @@ export function SampleCard(p: Props) {
     if (remember) {
       const next = [...new Set([...p.instructions, ...chosen])];
       if (next.length > AUTO_INSTRUCTIONS_MAX) {
-        setError(`これからの回に使う指示は ${AUTO_INSTRUCTIONS_MAX} 個までです。下の一覧から、いらないものを外してください。`);
+        setError(`これからの投稿に使う指示は ${AUTO_INSTRUCTIONS_MAX} 個までです。下の一覧から、いらないものを外してください。`);
         return;
       }
       const e = await p.onInstructions(next);
@@ -174,7 +174,7 @@ export function SampleCard(p: Props) {
           </Field>
           <label className="flex items-start gap-2.5 text-[15px] leading-[1.7]">
             <input type="checkbox" className="mt-1 size-5 shrink-0 accent-[var(--primary)]" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
-            <span>この指示を、これからの回にも使う</span>
+            <span>この指示を、これからの投稿にも使う</span>
           </label>
           <div className="flex justify-end max-sm:flex-col max-sm:items-stretch">
             <Button type="button" disabled={sampling || chosen.length === 0} onClick={() => void redo()}>
@@ -186,7 +186,7 @@ export function SampleCard(p: Props) {
 
       {p.instructions.length > 0 && (
         <div className="flex flex-col gap-2">
-          <p className="text-sm text-muted">これからの回に使う指示</p>
+          <p className="text-sm text-muted">これからの投稿に使う指示</p>
           <ul className="flex flex-wrap gap-2">
             {p.instructions.map((t) => (
               <li key={t} className="inline-flex h-8 items-center gap-1 rounded-full border border-border bg-surface pr-1 pl-3 text-[13px]">
@@ -232,7 +232,7 @@ export function SampleView({ sample }: { sample: AutoSample }) {
       {sample.materialLabel && <p className="text-sm text-muted">材料: {sample.materialLabel}</p>}
       {cannot && (
         <div className="flex flex-col gap-1">
-          <p className="text-[15px] font-bold">この材料では書けませんでした。本番の回なら、この回は飛ばします。</p>
+          <p className="text-[15px] font-bold">この中身では書けませんでした。本番なら、この日の投稿は飛ばします。</p>
           {reasons.map((r, n) => (
             <p key={n} className="text-[14px] text-muted">
               {r}

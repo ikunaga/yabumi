@@ -134,7 +134,7 @@ export function limitMessage(status: Exclude<ReserveStatus, "ok">, newUntil: str
     case "post_format_limit":
       return `フォーマットを AI とつくるのは、1 日 ${POST_FORMAT_DAILY_RUNS} 回までです。明日またお試しください。`;
     case "post_format_round_limit":
-      return `次の回の案は、1 日 ${SERIES_DAILY_RUNS} 回までです。明日またお試しください。`;
+      return `次の投稿の案は、1 日 ${SERIES_DAILY_RUNS} 回までです。明日またお試しください。`;
     // 運営者が利用者ごとに自動の投稿を止めている（20261118100000_auto_post_holds。自動の投稿の用途だけ）
     case "auto_post_hold":
       return "運営者が、あなたのアカウントの自動投稿を止めています。";

@@ -95,7 +95,7 @@ export function photoLimitMessage(status: string, r: { newUntil: string | null }
   const back = r.newUntil ? jstMonthDay(r.newUntil) : null;
   switch (status) {
     case "attempt_limit":
-      return `AI の画像は 1 日 ${PHOTO_LIMITS.dailyAttempts} 回まで試せます（作れなかった回も数えます）。明日またお試しください。${rest}`;
+      return `AI の画像は 1 日 ${PHOTO_LIMITS.dailyAttempts} 回まで試せます。作れなかったときも 1 回に数えます。明日またお試しください。${rest}`;
     case "global_limit":
       return `今月の AI の画像が、yabumi 全体の上限に達しました。来月 1 日にまたつくれます。${rest}`;
     case "new_users_limit":

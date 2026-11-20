@@ -26,7 +26,7 @@ describe("段階の文", () => {
     expect(thinkingStage(THINKING_STAGES.chat, 31)).toBe("もう少しかかっています");
   });
 
-  it("シリーズの次の回の案は、はじめから AI を待っているとわかる文（「読み込んでいます」にしない。パワポの 9）", () => {
+  it("シリーズの次の投稿の案は、はじめから AI を待っているとわかる文（「読み込んでいます」にしない。パワポの 9）", () => {
     expect(thinkingStage(THINKING_STAGES.round, 0)).toBe("AI が案を考えています");
     expect(thinkingStage(THINKING_STAGES.round, 21)).toBe("もう少しかかっています");
   });

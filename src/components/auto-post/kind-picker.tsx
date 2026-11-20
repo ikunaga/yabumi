@@ -3,7 +3,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/chip";
-import { Term } from "@/components/ui/term";
 import { KIND_DESCRIPTIONS, KIND_LABELS } from "@/lib/auto-post/labels";
 import { AUTO_KINDS, AUTO_KINDS_STAGE_A, type AutoKind } from "@/lib/auto-post/types";
 import type { SeriesFormatCard } from "@/lib/auto-post/ui-queries";
@@ -64,7 +63,7 @@ export function kindCards(m: PickerMaterials, projectId: string, formatsHref: st
         series: true,
         description: KIND_DESCRIPTIONS.series,
         example: exampleLine(f.example),
-        count: `これまで ${f.rounds} 回`,
+        count: `これまでの投稿 ${f.rounds} 件`,
       });
   } else {
     cards.push({
@@ -91,12 +90,12 @@ export function kindCards(m: PickerMaterials, projectId: string, formatsHref: st
     title: KIND_LABELS.pillars,
     description: (
       <>
-        決めておいた<Term k="contentPillar">柱</Term>（発信するテーマ）を、1 つずつ順番に取り上げます。
+        決めておいた発信のテーマごとに、AI が投稿を書きます。テーマは 1 つずつ順番に使います。
       </>
     ),
     example: m.pillarNames[0] ? `「${m.pillarNames[0]}」の柱から、1 つ取り上げた投稿` : undefined,
     count: m.pillarNames.length ? `柱 ${m.pillarNames.length} つ` : undefined,
-    off: m.pillarNames.length ? undefined : { reason: "アカウント設計の柱がまだありません", href: `${base}/plan`, hrefLabel: "設計を進める" },
+    off: m.pillarNames.length ? undefined : { reason: "発信のテーマがまだありません", href: `${base}/plan`, hrefLabel: "発信のテーマを決める" },
   });
   cards.push({
     key: "events",
@@ -111,7 +110,7 @@ export function kindCards(m: PickerMaterials, projectId: string, formatsHref: st
     title: KIND_LABELS.product,
     description: KIND_DESCRIPTIONS.product,
     count: m.destinations.length ? `行き先 ${m.destinations.length} 件` : undefined,
-    off: m.destinations.length ? undefined : { reason: "リンク先の URL がまだありません", href: `${base}/edit`, hrefLabel: "行き先を入れる" },
+    off: m.destinations.length ? undefined : { reason: "商品のページのリンクがまだありません", href: `${base}/edit`, hrefLabel: "商品のページのリンクを入れる" },
   });
   return cards;
 }
@@ -148,12 +147,12 @@ export function KindPicker({
           className={`flex flex-col gap-1 rounded-lg px-4 py-3.5 text-fg hover:no-underline ${winners.off ? "border border-dashed border-border" : "border border-border bg-surface hover:bg-subtle"}`}
         >
           <span className={`flex flex-wrap items-center gap-2 text-[16px] font-bold ${winners.off ? "text-faint" : ""}`}>
-            伸びた投稿から
+            自分の投稿でよく見られたものから
             <span aria-hidden className="ml-auto text-[14px] font-normal text-muted">
               →
             </span>
           </span>
-          <span className={`text-[14px] ${winners.off ? "text-faint" : "text-muted"}`}>いつもより見られた・押された投稿の組み立てを AI が型にして、シリーズとして回します。</span>
+          <span className={`text-[14px] ${winners.off ? "text-faint" : "text-muted"}`}>自分の投稿で、よく見られたものの書き方をまねます。それをもとに、AI が毎回新しい投稿を書きます。</span>
           <span className="num mt-0.5 text-[13px] text-faint">{winners.off ? `いまは選べません：${winners.text}` : winners.text}</span>
         </Link>
       )}

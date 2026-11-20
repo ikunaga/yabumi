@@ -153,7 +153,7 @@ export function FormatManager({
                     </p>
                   )}
                   {isSeries(f.series) && justSeries === f.id && (
-                    <p className="mt-1 rounded-md bg-subtle px-3 py-2 text-[13px] font-bold">これまでに出した回はありますか？　貼ると、次の回の案と重なりません</p>
+                    <p className="mt-1 rounded-md bg-subtle px-3 py-2 text-[13px] font-bold">これまでに出した投稿はありますか？　貼ると、次の投稿の案と重なりません</p>
                   )}
                   {isSeries(f.series) && <SeriesRounds key={justSeries === f.id ? "open" : "closed"} projectId={projectId} format={f} open={justSeries === f.id} />}
                 </li>
@@ -271,7 +271,7 @@ export function FormatEditor({
       />
       <label className="flex flex-col gap-1">
         <span className="text-xs font-bold">
-          埋めた例<span className="ml-1.5 font-normal text-muted">任意</span>
+          できあがる投稿の例<span className="ml-1.5 font-normal text-muted">任意</span>
         </span>
         <Textarea value={v.example} maxLength={MAX_FORMAT_EXAMPLE} rows={3} onChange={(e) => set("example", e.target.value)} placeholder="空欄を埋めた投稿の例。何を書けばいいかの手がかりになります" className="py-2 text-sm" />
       </label>
@@ -331,7 +331,7 @@ export function FormatTagsFields({
   planHashtags,
   connected,
   legend = "毎回付けるタグ",
-  footnote = "本文の下に 1 行あけて付きます。投稿ごとに「2 送り先」で編集できます。",
+  footnote = "本文の下に 1 行あけて付きます。投稿ごとに編集できます。",
 }: {
   tags: Partial<Record<FormatHashtagKey, string>>;
   setTag: (k: FormatHashtagKey, x: string) => void;
@@ -555,7 +555,7 @@ function SeriesFields({ slots, series, usedInImage, setSeries }: { slots: string
                 />
               </div>
             )}
-            <span className="text-muted">答えは前の回と重ならないように使います。投稿には入りません。</span>
+            <span className="text-muted">答えは前の投稿と重ならないように使います。投稿の文には入りません。</span>
           </div>
         )}
         <ImageOnlySlots slots={slots} imageOnly={imageOnly} usedInImage={usedInImage} series={series} setSeries={setSeries} />
@@ -710,7 +710,7 @@ function SeriesRounds({ projectId, format, open = false }: { projectId: string; 
                   ) : (
                     Object.values(r.values).join(" / ")
                   )}
-                  <span className="ml-1.5 text-faint">{r.source === "pasted" ? "貼った回" : r.postId ? "投稿した回" : "本文に入れた回"}</span>
+                  <span className="ml-1.5 text-faint">{r.source === "pasted" ? "貼った投稿" : r.postId ? "送信済みの投稿" : "本文に入れた案"}</span>
                 </span>
                 <Button size="sm" variant="secondary" disabled={pending} onClick={() => run(() => deleteFormatRound(projectId, format.id, r.id))}>
                   消す
@@ -720,9 +720,9 @@ function SeriesRounds({ projectId, format, open = false }: { projectId: string; 
           </ul>
         )}
         <label className="flex flex-col gap-1">
-          <span className="font-bold">これまでの回を貼る</span>
+          <span className="font-bold">これまでの投稿を貼る</span>
           <span className="text-muted">
-            yabumi の外で出した回{label ? `の${label}` : ""}を、1 行に 1 つ（1 回に {MAX_PASTE_ROUNDS} 行まで）。次の回の案で重ならないように使います。
+            yabumi の外で出した投稿{label ? `の${label}` : ""}を、1 行に 1 つ書きます。一度に {MAX_PASTE_ROUNDS} 行まで貼れます。次の投稿の案が、これと重ならないようにします。
           </span>
           <Textarea value={text} rows={3} onChange={(e) => (setText(e.target.value), setNote(null))} placeholder={"例:\nバック・トゥ・ザ・フューチャー\nジュラシック・パーク"} className="py-2 text-sm" />
         </label>
@@ -736,7 +736,7 @@ function SeriesRounds({ projectId, format, open = false }: { projectId: string; 
               () => pasteFormatRounds(projectId, format.id, text),
               (r) => {
                 setText("");
-                setNote(`${r.added ?? 0} 回を足しました。${r.skipped ? `同じものなど ${r.skipped} 行は足していません。` : ""}${r.overflow ? `上限のため ${r.overflow} 行は足していません。` : ""}`);
+                setNote(`${r.added ?? 0} 件を足しました。${r.skipped ? `同じものなど ${r.skipped} 行は足していません。` : ""}${r.overflow ? `上限のため ${r.overflow} 行は足していません。` : ""}`);
               },
             )
           }

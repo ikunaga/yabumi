@@ -107,7 +107,7 @@ describe("これまでの回を貼る・上限", () => {
     expect((await admin.from("post_format_rounds").insert(rows)).error).toBeNull();
     const last = await Promise.allSettled([addRound(alice, projectId, f, { answer: "最後", values: {}, source: "hand" }), addRound(alice, projectId, f, { answer: "あふれ", values: {}, source: "hand" })]);
     expect(last.filter((r) => r.status === "fulfilled")).toHaveLength(1);
-    expect(last.find((r) => r.status === "rejected")).toMatchObject({ reason: { userMessage: expect.stringContaining("300 回まで") } });
+    expect(last.find((r) => r.status === "rejected")).toMatchObject({ reason: { userMessage: expect.stringContaining("300 件まで") } });
     expect((await listRounds(alice, f)).length).toBe(300);
     expect((await pasteRounds(alice, projectId, f, "もう入らない")).overflow).toBe(1);
   });
@@ -124,7 +124,7 @@ describe("これまでの回を貼る・上限", () => {
       left -= n;
     }
     expect(left).toBe(0);
-    await expect(addRound(alice, projectId, formats[9], { answer: "3001 回目", values: {}, source: "hand" })).rejects.toMatchObject({ userMessage: expect.stringContaining("1 人 3,000 回まで") });
+    await expect(addRound(alice, projectId, formats[9], { answer: "3001 回目", values: {}, source: "hand" })).rejects.toMatchObject({ userMessage: expect.stringContaining("1 人 3,000 件まで") });
     for (const f of formats) await alice.from("post_formats").delete().eq("id", f);
   });
 });
@@ -199,7 +199,7 @@ describe("次の回の案（偽の AI）", () => {
   it(`1 日 ${SERIES_DAILY_RUNS} 回まで。シリーズでないフォーマット・他人のフォーマットは断る`, async () => {
     await admin.from("ai_usage").insert(Array.from({ length: SERIES_DAILY_RUNS }, () => ({ owner_id: aliceId, purpose: "post_format_round", model: "claude-opus-5-5", cost_usd: 0.001, status: "done" })));
     const call = caller({ proposals: [] });
-    expect(await runFormatRound(alice, admin, { callFormatRound: call }, { userId: aliceId, projectId, formatId })).toEqual({ ok: false, message: `次の回の案は、1 日 ${SERIES_DAILY_RUNS} 回までです。明日またお試しください。` });
+    expect(await runFormatRound(alice, admin, { callFormatRound: call }, { userId: aliceId, projectId, formatId })).toEqual({ ok: false, message: `次の投稿の案は、1 日 ${SERIES_DAILY_RUNS} 回までです。明日またお試しください。` });
     expect(call).not.toHaveBeenCalled();
     await admin.from("ai_usage").delete().eq("owner_id", aliceId);
     const plain = await addFormat(alice, projectId, { name: "ふつうの型 2", body: "{何か}" });

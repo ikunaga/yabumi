@@ -19,8 +19,8 @@ export function kindSummary(kind: AutoKind, formatName?: string | null): string 
 
 // 始める画面の「何を」のカードの 1 行の説明（何が起きるか）。柱は用語の説明を付けるので画面の側で組む
 export const KIND_DESCRIPTIONS: Record<Exclude<AutoKind, "pillars">, string> = {
-  series: "毎回 AI が新しいお題を考えます。前の回と同じお題は出しません。",
-  product: "行き先（商品のページなど）へのリンクをつけて、1 つずつ紹介します。",
+  series: "毎回 AI が新しいお題を考えます。前の投稿と同じお題は出しません。",
+  product: "商品のページのリンクを付けて、1 つずつ紹介します。",
   notes: "書きためたメモを 1 つずつ投稿にします。",
   rerun: "よく見られた投稿を、言い方を変えてもう一度出します。",
   events: "登録したお知らせ（イベント・新商品など）を先に投稿します。なければ季節のあいさつにします。",
@@ -34,13 +34,13 @@ export const TARGET_MODE_LABELS: Record<TargetMode, string> = {
 };
 
 export const RUN_STATUS_LABELS: Record<AutoRunStatus, string> = {
-  waiting: "作る前",
+  waiting: "これから作る",
   generating: "作っています",
   scheduled: "予約",
   review: "確認待ち",
-  held: "下書きに回した",
+  held: "送らずに下書きに残った",
   skipped: "飛ばした",
-  canceled: "止めた",
+  canceled: "送るのをやめた",
 };
 
 export const RUN_REASON_TEXT: Record<AutoRunReason, string> = {
@@ -122,7 +122,7 @@ export const INSTRUCTION_PRESETS = ["もっと短く", "絵文字なし", "や�
 
 // 自動の回の画像の設定の 1 行（回し方の画面の「画像」）
 export function autoImageLabel(image: AutoImage | null): string {
-  if (!image) return "付けない";
+  if (!image) return "画像なしで送る";
   const head = image.headline === "ai" ? "・見出しは AI が書く" : image.headline === "format" ? "・フォーマットの見出し" : "";
   if (image.source === "format") return `フォーマットの画像${head}`;
   const size = { auto: "送り先に合わせる", portrait: "縦 4:5", square: "正方形 1:1", landscape: "横 16:9" }[image.size];

@@ -13,7 +13,7 @@ export function PlanStatusMark({ plan, held = false }: { plan: Pick<AutoPlan, "s
   if (plan.status === "active")
     return (
       <span className="inline-flex items-center gap-1 text-sm font-bold text-fg">
-        <span aria-hidden="true">↻</span>動いている
+        <span aria-hidden="true">↻</span>運用中
       </span>
     );
   if (plan.status === "paused")

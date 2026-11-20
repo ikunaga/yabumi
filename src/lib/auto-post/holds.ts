@@ -24,7 +24,7 @@ export const HOLD_PUSH: Omit<PushMessage, "url" | "tag"> = {
 };
 export const RELEASE_PUSH: Omit<PushMessage, "url" | "tag"> = {
   title: "自動投稿を再開できます",
-  body: "運営者が止めていた自動投稿を、また使えるようにしました。最初の回は確認してから送ります",
+  body: "運営者が止めていた自動投稿を、また使えるようにしました。1 回目の投稿は、確認してから送ります",
 };
 
 // 本人が、いま止められているか（利用者の権限。RLS で本人の行だけ、列は日時だけ読める）。止められていなければ null
@@ -77,7 +77,7 @@ export async function holdAutoPost(admin: Db, args: { email: string; reason: str
   if (r.already_held) return { ok: true, notice: "すでに止めています（前の理由のまま）。" };
   return {
     ok: true,
-    notice: r.canceled_runs > 0 ? `止めました。まだ送っていない自動の回を ${r.canceled_runs} 件取り消し、作り終えた投稿は下書きに戻しました。` : "止めました。まだ送っていない回はありませんでした。",
+    notice: r.canceled_runs > 0 ? `止めました。まだ送っていない自動投稿を ${r.canceled_runs} 件取り消しました。作り終えた投稿は、下書きに戻しました。` : "止めました。まだ送っていない投稿はありませんでした。",
   };
 }
 
@@ -85,5 +85,5 @@ export async function holdAutoPost(admin: Db, args: { email: string; reason: str
 export async function releaseAutoPost(admin: Db, args: { email: string; reason: string; by: string }): Promise<OperatorResult> {
   const { data, error } = await admin.rpc("operator_release_auto_post", { p_email: args.email, p_reason: args.reason, p_by: args.by });
   if (error) return { ok: false, error: operatorError(error) };
-  return data[0].released ? { ok: true, notice: "解除しました。動いている自動投稿は、最初の回を確認してから送ります。" } : { ok: false, error: "この利用者は止めていません。" };
+  return data[0].released ? { ok: true, notice: "解除しました。運用中の自動投稿は、1 回目の投稿を確認してから送ります。" } : { ok: false, error: "この利用者は止めていません。" };
 }

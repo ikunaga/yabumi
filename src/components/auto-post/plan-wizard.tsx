@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Term } from "@/components/ui/term";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Button, ButtonLink } from "@/components/ui/button";
@@ -301,8 +302,8 @@ export function PlanWizard(p: Props) {
                     {s === "instagram" && on && (
                       <p className="w-full text-xs text-muted">
                         {image
-                          ? "Instagram には、AI がつくった画像を添えて毎回送ります（画像をつくれなかった回は、下書きに回します）。"
-                          : "Instagram は画像が要るので、写真つきのネタ帳のメモから作る回だけ送ります（ほかの回は Instagram には送りません）。下の「画像」で AI の画像を選ぶと、毎回送れます。"}
+                          ? "Instagram には、AI がつくった画像を添えて毎回送ります。画像をつくれなかった投稿は、下書きに残ります。"
+                          : "Instagram は画像が要るので、写真つきのメモから作る投稿だけ送ります。ほかの投稿は、Instagram には送りません。下の「画像」で AI の画像を選ぶと、毎回送れます。"}
                       </p>
                     )}
                     {blocked && connected ? <p className="w-full text-xs text-muted">{X_FIXED_BODY}フォーマットの本文に AI が埋める空欄を置くと、選べます。</p> : isReviewOnlySns(s) && <ReviewReason sns={s} />}
@@ -314,13 +315,16 @@ export function PlanWizard(p: Props) {
             {reviewSns.length > 0 && <ReviewFlow sns={reviewSns} />}
             {targets.x && (
               <fieldset className="flex flex-col gap-2 rounded-md border border-border px-4 py-3">
-                <legend className="px-1 text-[14px] font-bold">X にリンクを付けるか</legend>
+                <legend className="px-1 text-[14px] font-bold">X の投稿に、商品のページのリンクを付けますか</legend>
+                <p className="text-xs text-muted">
+                  X は、リンクがあると <Term k="payPerUse">API の料金</Term>が高くなります。
+                </p>
                 <div className="flex flex-wrap gap-2">
                   <Chip on={xLink === "never"} onClick={() => setXLink("never")}>
-                    付けない（1 本 約 {Math.round(X_USD.never * YEN * 10) / 10} 円）
+                    リンクなしで送る・1 本 約 {Math.round(X_USD.never * YEN * 10) / 10} 円
                   </Chip>
                   <Chip on={xLink === "always"} onClick={() => setXLink("always")}>
-                    付ける（1 本 約 {Math.round(X_USD.always * YEN)} 円）
+                    リンクを付けて送る・1 本 約 {Math.round(X_USD.always * YEN)} 円
                   </Chip>
                 </div>
               </fieldset>
@@ -468,16 +472,16 @@ export function PlanWizard(p: Props) {
 
           <Card className="flex flex-col gap-4 px-6 py-5 max-sm:px-4 max-sm:py-4">
             <div className="flex flex-wrap gap-x-8 gap-y-2">
-              <Estimate label="月" value={`約 ${monthly}`} unit="本" />
-              <Estimate label="AI" value={`約 ${aiYen}`} unit="円" />
-              {image && <Estimate label="画像" value={`約 ${imageYen}`} unit="円" />}
-              {targets.x && <Estimate label="X" value={`約 ${xYen}`} unit="円" />}
+              <Estimate label="1 か月に送る投稿" value={`約 ${monthly}`} unit="本" />
+              <Estimate label="AI の料金" value={`約 ${aiYen}`} unit="円" />
+              {image && <Estimate label="画像の料金" value={`約 ${imageYen}`} unit="円" />}
+              {targets.x && <Estimate label="X の料金" value={`約 ${xYen}`} unit="円" />}
             </div>
             <label className="flex items-start gap-2.5 text-[15px] leading-[1.7]">
               <input type="checkbox" className="mt-1 size-5 shrink-0 accent-[var(--primary)]" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
               <span>
-                AI が作った文を、あなたが確認せずに、あなたのアカウントから送ります（X などの「確認して送る」SNS は、押したものだけ送ります）。送信済みの投稿の責任はあなたにあります。送る{" "}
-                {DEFAULT_LEAD_HOURS} 時間前に、カレンダーと通知でお知らせします。気になれば、編集・その回を飛ばす・止めるができます。
+                AI が作った文を、あなたが確認せずに、あなたのアカウントから送ります。「確認して送る」にした SNS は、押したものだけ送ります。送信済みの投稿の責任はあなたにあります。送る{" "}
+                {DEFAULT_LEAD_HOURS} 時間前に、カレンダーと通知でお知らせします。気になったら、その投稿を編集したり、飛ばしたり、止めたりできます。
               </span>
             </label>
           </Card>
@@ -640,7 +644,7 @@ function KindDetail({ kind, materials, setMaterials, m, projectId }: { kind: Aut
               })
             }
           />
-          予定がない回は、季節のあいさつをせずに飛ばす
+          予定がない日は、季節のあいさつの投稿を飛ばす
         </label>
       </Card>
     );

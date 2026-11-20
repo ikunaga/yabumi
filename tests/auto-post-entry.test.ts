@@ -100,7 +100,7 @@ describe("カレンダーの自動の回", () => {
     const first = firstReviewPostIds([run({ status: "review", postId: "post-1" }), run({ status: "scheduled", postId: "post-2" })]);
     expect([...first]).toEqual(["post-1"]);
     expect(postChipHref(post({ status: "draft" }), base, first)).toBe("/projects/p1/auto/review");
-    expect(autoReviewWarning(post({ status: "draft" }), first)).toBe("最初の回の確認待ちです");
+    expect(autoReviewWarning(post({ status: "draft" }), first)).toBe("1 回目の投稿の確認待ちです");
     expect(postChipHref(post({ id: "post-2", targets: [target("threads"), target("x", "awaiting_approval")] }), base, first)).toBe("/projects/p1/auto/review");
     expect(postChipHref(post({ id: "post-2" }), base, first)).toBe("/projects/p1/posts/post-2");
     // 手で作った投稿は、回の状態に関係なく投稿の画面

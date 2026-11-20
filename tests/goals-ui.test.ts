@@ -11,7 +11,7 @@ describe("数字の名前と選択肢", () => {
     expect(metricLabel({ metric: "followers", action: null, sns: "instagram" })).toBe("フォロワーの増え方（Instagram）");
     expect(metricLabel({ metric: "posts", action: null, sns: null })).toBe("投稿した回数（すべての SNS）");
     expect(metricLabel({ metric: "link_clicks", action: null, sns: null }, "app")).toBe("ストアへのクリック");
-    expect(metricLabel({ metric: "link_clicks", action: null, sns: null }, "shop")).toBe("行き先へのクリック");
+    expect(metricLabel({ metric: "link_clicks", action: null, sns: null }, "shop")).toBe("リンク先へのクリック");
     expect(formatMetric("revenue", 12345.6)).toBe("12,346 円");
     expect(formatMetric("outcomes", 30)).toBe("30");
   });

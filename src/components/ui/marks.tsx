@@ -41,12 +41,12 @@ export function SnsMark({ sns, byHand = false }: { sns: SnsKey; byHand?: boolean
   const c = SNS_COLOR[sns];
   return (
     <span
-      title={byHand ? `${SNS[sns].label}（手で投稿）` : SNS[sns].label}
+      title={byHand ? `${SNS[sns].label}・手で投稿` : SNS[sns].label}
       className={`inline-flex h-5 shrink-0 items-center rounded-sm border px-1.5 text-[11px] leading-none font-bold ${byHand ? "border-dashed" : ""} ${c.border} ${c.text}`}
     >
       <span aria-hidden>{SNS_SHORT[sns]}</span>
       {byHand && <span className="ml-1 font-normal">手で</span>}
-      <span className="sr-only">{byHand ? `${SNS[sns].label}（手で投稿）` : SNS[sns].label}</span>
+      <span className="sr-only">{byHand ? `${SNS[sns].label}・手で投稿` : SNS[sns].label}</span>
     </span>
   );
 }

@@ -44,10 +44,10 @@ export function RoadmapItemRow({
       <div className="flex items-start gap-3 max-sm:flex-wrap">
         {/* 自動で達成した（数字が目標に届いた・ここから作った投稿を送った）ものは、チェック済みで押せない四角にする。
             前は四角が空のまま横に「✓ 達成」が並び、押すべきか迷った（2026-11-12 PMO のローカルでの確認）。自動の達成は数字で決まるので手では取り消せない
-            （数字が減ればまだに戻る。もうやらないなら「やらない」）。手で済みにしたものは、押せる四角と取り消し線のまま（押すと戻る） */}
+            （数字が減ればまだに戻る。もうやらないなら「やらない」）。手で完了にしたものは、押せる四角と取り消し線のまま（押すと戻る） */}
         <input
           type="checkbox"
-          aria-label={state === "achieved" ? `「${item.title}」は自動で達成しました` : `「${item.title}」を済みにする`}
+          aria-label={state === "achieved" ? `「${item.title}」は自動で達成しました` : `「${item.title}」を完了にする`}
           checked={item.status === "done" || state === "achieved"}
           disabled={pending || state === "achieved"}
           onChange={(e) => run(() => setItemStatus(projectId, item.id, e.target.checked ? "done" : "todo"))}

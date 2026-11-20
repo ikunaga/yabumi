@@ -21,8 +21,8 @@ const SETUP_TARGETS: { re: RegExp; target: SetupTarget }[] = [
   { re: /(?:プロフィール|自己紹介)[^\n]*(?:リンク|URL)|(?:リンク|URL)[^\n]*(?:プロフィール|自己紹介)/i, target: { path: (b) => `${b}/plan?open=profile#plan-profile-head`, label: "置くリンクを見る" } },
   { re: /プロフィール|自己紹介|アイコン|表示名|ユーザー名|ハンドル/, target: { path: (b) => `${b}/plan?open=profile#plan-profile-head`, label: "プロフィールの案を見る" } },
   { re: /短縮リンク/, target: { path: (b) => `${b}/links`, label: "短縮リンクを開く" } },
-  { re: /ハッシュタグ/, target: { path: (b) => `${b}/plan?open=hashtags#plan-hashtags-head`, label: "設計を開く" } },
-  { re: /投稿の柱|口調/, target: { path: (b) => `${b}/plan?open=pillars#plan-pillars-head`, label: "設計を開く" } },
+  { re: /ハッシュタグ/, target: { path: (b) => `${b}/plan?open=hashtags#plan-hashtags-head`, label: "方針を開く" } },
+  { re: /投稿の柱|口調/, target: { path: (b) => `${b}/plan?open=pillars#plan-pillars-head`, label: "方針を開く" } },
   // ストア・GitHub は、yabumi の「ストアと課金をつなぐ」「GitHub をつなぐ」の画面が役に立つやること（つなぐ・数字を取り込む）だけ、その画面へ。
   // ボタンはその画面ですることの名前（「ストアをつなぐ」「GitHub をつなぐ」）。スクリーンショットを差し替える・README を整えるなど、
   // App Store・GitHub の側でするやることは、yabumi の画面では進まないので行き先を作らない（ロードマップのその行と「済みにする」）。

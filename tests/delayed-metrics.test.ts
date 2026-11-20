@@ -47,16 +47,17 @@ describe("届いている日で終わる期間の値（storeWeekValue）", () =>
   });
 
   it("前の期間が数え始める前にかかれば比べない（終わりの日から数える）", () => {
-    expect(storeWeekValue({ since: "2026-10-20", until: "2026-10-30" }, today, 7, sum)).toEqual({ thisWeek: 536, lastWeek: 536, noPrev: true, until: "2026-10-30" });
+    expect(storeWeekValue({ since: "2026-10-20", until: "2026-10-30" }, today, 7, sum)).toEqual({ thisWeek: 536, lastWeek: 536, noPrev: true, comparableFrom: "2026-11-02", until: "2026-10-30" });
   });
 });
 
 describe("概要のカード", () => {
-  it("ダウンロードは「10/30 までの 30 日・その前の 30 日比」、今日まで届いていれば「前の 30 日比」", () => {
+  it("ダウンロードは「10/30 までの 30 日・その前の 30 日比」、今日まで届いていれば「直近 30 日・前の 30 日比」", () => {
     expect(pickOverviewCards({ ...empty, downloads: { thisWeek: 90, lastWeek: 100, until: "2026-10-30" } })[0]).toMatchObject({ key: "downloads", value: 90, deltaPct: -10, note: "10/30 までの 30 日・その前の 30 日比" });
-    expect(pickOverviewCards({ ...empty, downloads: { thisWeek: 90, lastWeek: 100 } })[0]).toMatchObject({ deltaPct: -10, note: "前の 30 日比" });
+    expect(pickOverviewCards({ ...empty, downloads: { thisWeek: 90, lastWeek: 100 } })[0]).toMatchObject({ deltaPct: -10, note: "直近 30 日・前の 30 日比" });
     expect(pickOverviewCards({ ...empty, downloads: { thisWeek: 5, lastWeek: 0, until: "2026-10-30" } })[0]).toMatchObject({ deltaPct: null, note: "10/30 までの 30 日・その前の 30 日は 0" });
-    expect(pickOverviewCards({ ...empty, downloads: { thisWeek: 5, lastWeek: 5, noPrev: true, until: "2026-10-30" } })[0]).toMatchObject({ deltaPct: null, note: "10/30 までの 30 日・前の記録はまだありません" });
+    expect(pickOverviewCards({ ...empty, downloads: { thisWeek: 5, lastWeek: 5, noPrev: true, until: "2026-10-30" } })[0]).toMatchObject({ deltaPct: null, note: "10/30 までの 30 日・前の 30 日の記録はまだありません" });
+    expect(pickOverviewCards({ ...empty, downloads: { thisWeek: 5, lastWeek: 5, noPrev: true, comparableFrom: "2026-12-20" } })[0]).toMatchObject({ note: "直近 30 日・前の 30 日と比べられるのは 12/20 から" });
   });
 
   it("どこからも届いていなければ数を出さず「まだ届いていません」", () => {

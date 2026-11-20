@@ -57,17 +57,17 @@ describe("概要: 数字のカード 4 枚（出せるものから。準備中�
       kpiValues: { followers: { thisWeek: 120, lastWeek: 100 }, views: { thisWeek: 900, lastWeek: 0 } },
     });
     expect(cards.map((c) => c.label)).toEqual(["ダウンロード", "ストアへのクリック", "SNS への投稿", "フォロワーの増え方"]);
-    expect(cards[0]).toMatchObject({ value: 112, deltaPct: 12, note: "前の 30 日比" });
-    expect(cards[1]).toMatchObject({ value: 30, deltaPct: null, note: "前の 30 日は 0" });
-    expect(cards[2]).toMatchObject({ value: 4, deltaPct: 100, note: "予約中の投稿 3 件", unit: "本" });
+    expect(cards[0]).toMatchObject({ value: 112, deltaPct: 12, note: "直近 30 日・前の 30 日比" });
+    expect(cards[1]).toMatchObject({ value: 30, deltaPct: null, note: "直近 30 日・前の 30 日は 0" });
+    expect(cards[2]).toMatchObject({ value: 4, deltaPct: 100, note: "直近 30 日・前の 30 日比・ほかに予約中 3 件", unit: "本" });
     expect(cards[3]).toMatchObject({ kpi: "followers", value: 120, deltaPct: 20, note: "直近 7 日・先週比" });
   });
 
   it("追いかける数字に値がなければ飛ばし、予約中・下書きで埋める", () => {
     const cards = pickOverviewCards({ ...empty, clicks: [], kpis: ["views", "revenue"], kpiValues: {}, scheduledCount: 1, draftCount: 0 });
     expect(cards.map((c) => c.key)).toEqual(["link_clicks", "posts", "scheduled", "drafts"]);
-    // 予約中のカードがあるので、SNS への投稿には予約中の投稿の数を添えない
-    expect(cards[1].note).toBeUndefined();
+    // 予約中のカードがあるので、SNS への投稿には予約中の投稿の数を添えない。期間だけを書く
+    expect(cards[1].note).toBe("直近 30 日");
   });
 
   it("売上は通貨と 28 日の添え書きで出す", () => {
@@ -86,7 +86,7 @@ describe("概要: Google Play が数えた SNS からの DL", () => {
 });
 
 describe("概要: 前の期間が数え始める前なら比べない", () => {
-  it("短縮リンクを作った日・ストアを取り込み始めた日・プロジェクトを作った日が前の 30 日の始まりより後なら「前の記録はまだありません」", () => {
+  it("短縮リンクを作った日・ストアを取り込み始めた日・プロジェクトを作った日が前の 30 日の始まりより後なら「前の 30 日と比べられるのは 〇/〇 から」", () => {
     const cards = pickOverviewCards({
       ...empty,
       downloads: { thisWeek: 10, lastWeek: 10, noPrev: true },
@@ -94,31 +94,34 @@ describe("概要: 前の期間が数え始める前なら比べない", () => {
       published: [at(3, 2)],
       since: { clicks: addDays(today, -5), posts: addDays(today, -5) },
     });
-    for (const c of cards.slice(0, 3)) expect(c).toMatchObject({ deltaPct: null, note: "前の記録はまだありません" });
+    // 比べられるのは、数え始めた日から 60 日目（5 日前 + 59 日）。ストアは数え始めた日がここではわからない
+    const [, m, d] = addDays(today, 54).split("-");
+    expect(cards[0]).toMatchObject({ deltaPct: null, note: "直近 30 日・前の 30 日の記録はまだありません" });
+    for (const c of cards.slice(1, 3)) expect(c).toMatchObject({ deltaPct: null, note: `直近 30 日・前の 30 日と比べられるのは ${Number(m)}/${Number(d)} から` });
     expect(cards.map((c) => c.value).slice(0, 3)).toEqual([10, 14, 2]);
   });
 
   it("前の 30 日の始まり（59 日前）かそれより前から数えていれば、いつもどおり比べる。数え始めた日がわからない（null）なら比べない", () => {
     const rows = [at(1, 12), at(40, 10)];
-    expect(pickOverviewCards({ ...empty, clicks: rows, since: { clicks: addDays(today, -59) } })[0]).toMatchObject({ deltaPct: 20, note: "前の 30 日比" });
-    expect(pickOverviewCards({ ...empty, clicks: rows, since: { clicks: null } })[0]).toMatchObject({ deltaPct: null, note: "前の記録はまだありません" });
+    expect(pickOverviewCards({ ...empty, clicks: rows, since: { clicks: addDays(today, -59) } })[0]).toMatchObject({ deltaPct: 20, note: "直近 30 日・前の 30 日比" });
+    expect(pickOverviewCards({ ...empty, clicks: rows, since: { clicks: null } })[0]).toMatchObject({ deltaPct: null, note: "直近 30 日・前の 30 日の記録はまだありません" });
   });
 
   it("ストアのページの閲覧（追いかける数字）は、前の記録がなければ比べない（決めるのは読み込み。storeWeekValue）", () => {
     const base = { ...empty, kpis: ["store_page_views" as const] };
-    expect(pickOverviewCards({ ...base, kpiValues: { store_page_views: { thisWeek: 30, lastWeek: 30, noPrev: true } } })[1]).toMatchObject({ kpi: "store_page_views", deltaPct: null, note: "直近 7 日・前の記録はまだありません" });
+    expect(pickOverviewCards({ ...base, kpiValues: { store_page_views: { thisWeek: 30, lastWeek: 30, noPrev: true } } })[1]).toMatchObject({ kpi: "store_page_views", deltaPct: null, note: "直近 7 日・前の 7 日の記録はまだありません" });
     expect(pickOverviewCards({ ...base, kpiValues: { store_page_views: { thisWeek: 30, lastWeek: 20 } } })[1]).toMatchObject({ kpi: "store_page_views", deltaPct: 50, note: "直近 7 日・先週比" });
   });
 });
 
 describe("概要: 宣伝するものの種類（決定 D34）", () => {
-  it("クリックのカードは、アプリなら「ストアへのクリック」、ほかは「行き先へのクリック」", () => {
+  it("クリックのカードは、アプリなら「ストアへのクリック」、ほかは「リンク先へのクリック」", () => {
     expect(pickOverviewCards({ ...empty, clicks: [at(1, 3)] })[0].label).toBe("ストアへのクリック");
-    expect(pickOverviewCards({ ...empty, clicks: [at(1, 3)], productType: "service" })[0].label).toBe("行き先へのクリック");
+    expect(pickOverviewCards({ ...empty, clicks: [at(1, 3)], productType: "service" })[0].label).toBe("リンク先へのクリック");
   });
   it("手で記録した成果は、追いかける数字のカードとして出す（前の期間に記録がなければ比べない）", () => {
     const cards = pickOverviewCards({ ...empty, productType: "shop", kpis: ["outcomes"], kpiValues: { outcomes: { thisWeek: 5, lastWeek: 5, noPrev: true } } });
-    expect(cards[1]).toMatchObject({ kpi: "outcomes", label: "成果（手で記録）", value: 5, deltaPct: null });
+    expect(cards[1]).toMatchObject({ kpi: "outcomes", label: "手で記録した成果", value: 5, deltaPct: null });
   });
 });
 

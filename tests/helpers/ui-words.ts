@@ -39,6 +39,8 @@ export const UI_WORD_RULES: UiWordRule[] = [
   { id: "hikkakaru", pattern: /引っかか/ },
   { id: "ikisaki", pattern: /行き先/ },
   { id: "kumitate", pattern: /組み立て/ },
+  // 終わった意味の「済み」「済んだ」。「〜しなくて済む」・「送信済み」など（zumi）は除く
+  { id: "sumi", pattern: /済みました|済んだ|済んで|済みにし|済みにする|^済み(\s|$)/ },
   { id: "sekkei", pattern: /設計/ },
   { id: "kisoku", pattern: /規則/ },
   { id: "ugoku", pattern: /動いて(いる|います)/ },

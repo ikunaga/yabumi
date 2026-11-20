@@ -13,7 +13,7 @@ import type { GoalMetric } from "@/lib/goals/schema";
 import { formatMetric, md } from "@/lib/goals/view";
 
 // ロードマップの「届かない見込み」（2026-11-19 オーナーの決定。docs/design/goals-model.md の 13.）。
-// いまの差と、届くのに要るペースを数字で出し、「立て直す（AI と相談）」と「目標を見直す」（AI なしで、計算した案から選ぶ）を置く
+// いまの差と、届くのに要るペースを数字で出し、「AI と立て直す」と「目標を見直す」（AI なしで、計算した案から選ぶ）を置く
 
 export function GoalRiskPanel({
   projectId,
@@ -57,10 +57,10 @@ export function GoalRiskPanel({
         <div className="flex flex-wrap gap-2 max-sm:flex-col">
           {rescueHref ? (
             <ButtonLink href={rescueHref} size="sm">
-              立て直す（AI と相談）
+              AI と立て直す
             </ButtonLink>
           ) : (
-            <NotReadyButton size="sm">立て直す（AI と相談）</NotReadyButton>
+            <NotReadyButton size="sm">AI と立て直す</NotReadyButton>
           )}
           {choices.length > 0 && (
             <Button type="button" variant="secondary" size="sm" onClick={() => setOpen(true)}>

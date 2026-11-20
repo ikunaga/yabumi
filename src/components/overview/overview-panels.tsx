@@ -177,7 +177,7 @@ export function AttentionStrip({
             </Group>
           )}
           {manualDue.length > 0 && (
-            <Group title="手で投稿する番です" note="note・Substack と、手で投稿すると選んだ X・TikTok は、自動では送られません。投稿の画面で本文をコピーして投稿し、投稿したことを記録してください。">
+            <Group title="手で投稿する番です" note="note・Substack は、自動では送られません。手で投稿すると選んだ X・TikTok も同じです。投稿の画面で本文をコピーして投稿し、投稿したことを記録してください。">
               {manualDue.map((p) => (
                 <li key={p.id}>
                   <Link href={`${base}/posts/${p.id}`} className="hover:underline">
@@ -198,7 +198,7 @@ export function AttentionStrip({
               {overdueTodos.slice(0, 5).map((i) => (
                 <li key={i.id} className="flex flex-wrap items-baseline gap-x-2">
                   <span className="num text-xs font-bold">
-                    {monthOf(i.plannedOn!)}/{dayOfMonth(i.plannedOn!)}（{weekdayLabel(i.plannedOn!)}）
+                    {monthOf(i.plannedOn!)}/{dayOfMonth(i.plannedOn!)} {weekdayLabel(i.plannedOn!)}
                   </span>
                   <b>{i.title}</b>
                   {/* 予定日を過ぎたやることは、投稿するやることだけ（overdueItems。4.42） */}

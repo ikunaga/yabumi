@@ -166,7 +166,8 @@ describe("分析の成果の数字", () => {
       { project_id: p, owner_id: aliceId, day: ymd(1), action: "visit", count: 4 },
       { project_id: p, owner_id: aliceId, day: ymd(2), action: "booking", count: 2 },
     ]);
-    expect((await loadMetricsOverview(p, alice, 7)).kpiValues.outcomes).toEqual({ thisWeek: 6, lastWeek: 6, noPrev: true });
+    // 比べられるのは、記録し始めた日（2 日前）から 14 日目
+    expect((await loadMetricsOverview(p, alice, 7)).kpiValues.outcomes).toEqual({ thisWeek: 6, lastWeek: 6, noPrev: true, comparableFrom: ymd(-11) });
     // 前の期間の途中から記録し始めた（9 日前）なら、まだ比べない
     await alice.from("project_outcomes_daily").insert({ project_id: p, owner_id: aliceId, day: ymd(9), action: "visit", count: 3 });
     expect((await loadMetricsOverview(p, alice, 7)).kpiValues.outcomes).toMatchObject({ thisWeek: 6, noPrev: true });

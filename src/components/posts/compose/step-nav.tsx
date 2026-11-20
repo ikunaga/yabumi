@@ -7,7 +7,7 @@ import { type Composer } from "./use-composer";
 // いまどこか・済んだか（✓）を見せるだけで、押しても移らない。移るのは下の帯の「次へ」「戻る」だけ（2026-11-14 オーナーの依頼）
 export function ComposeStepNav({ c }: { c: Composer }) {
   const { composeStep, marks } = c;
-  const markText = (n: StepNo) => (marks[n] === "problem" ? "（直すところがあります）" : marks[n] === "done" ? "（済み）" : "");
+  const markText = (n: StepNo) => (marks[n] === "problem" ? "（直すところがあります）" : marks[n] === "done" ? "・完了" : "");
   return (
     <nav aria-label="投稿をつくるステップ" className="flex flex-col gap-2">
       <ol className="flex flex-wrap items-center gap-1.5 max-sm:hidden">

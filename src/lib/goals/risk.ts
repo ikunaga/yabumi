@@ -50,9 +50,9 @@ export const RISK_TITLE: Record<GoalRisk["level"], string> = {
   maybe: "目標に届かないかもしれません",
 };
 
-// 「届くには 1 週あたり 3（いまは週 1.5）」
+// 「届くには週 3、いまは週 1.5」
 export function paceText(metric: GoalMetric, risk: GoalRisk): string {
-  return `届くには 1 週あたり ${formatMetric(metric, risk.needPerWeek)}（いまは週 ${formatMetric(metric, risk.nowPerWeek)}）`;
+  return `届くには週 ${formatMetric(metric, risk.needPerWeek)}、いまは週 ${formatMetric(metric, risk.nowPerWeek)}`;
 }
 
 export type ReviseChoice =

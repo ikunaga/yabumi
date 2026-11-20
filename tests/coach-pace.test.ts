@@ -127,7 +127,7 @@ describe("知らせの中身", () => {
     expect(ok.push.body).toBe("かけいぼ日和: 目標 2/20。今週は X 週 2 本");
     const risk = { level: "off" as const, value: 2, target: 20, projected: 11, daysLeft: 66, needPerWeek: 2, nowPerWeek: 0.9 };
     const off = weeklyMessage({ ...base, goal: { ...goal, risk } }, ctx);
-    expect(off.email.text).toContain("このままでは届かない見込みです。届くには 1 週あたり 2（いまは週 0.9）。立て直す・見直す: https://yabumi.app/projects/p1/roadmap#goal-risk");
+    expect(off.email.text).toContain("このままでは届かない見込みです。届くには週 2、いまは週 0.9。立て直す・見直す: https://yabumi.app/projects/p1/roadmap#goal-risk");
     expect(off.push.body).toContain("目標 2/20（このままでは届かない見込み）");
     expect(off.push.body).not.toContain("予約 20 件");
     // 目標を数えていなければ入れない

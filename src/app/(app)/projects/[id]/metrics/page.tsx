@@ -22,7 +22,7 @@ import { loadDailyNumbers } from "@/lib/metrics/daily";
 import { hitText, type WinnerHit } from "@/lib/metrics/winners";
 import { loadWinners } from "@/lib/metrics/winners-queries";
 import { campaignTotal, sumPlayUtm, utmEnd, type PlayUtmTotals } from "@/lib/metrics/play-utm";
-import { compareLabel, NOT_ARRIVED, periodLabel } from "@/lib/metrics/store-period";
+import { compareLabel, NOT_ARRIVED, notComparedLabel, periodLabel } from "@/lib/metrics/store-period";
 import { confirmedUntil, MIN_DAYS, POST_EFFECT_DAYS, postEffect, type PostEffect } from "@/lib/metrics/post-effect";
 import type { PostMeta } from "@/lib/metrics/post-meta";
 import { chosenKpis, clickLabel, KPIS, KPI_KEYS, type KpiKey } from "@/lib/metrics/kpis";
@@ -63,7 +63,7 @@ const CHARTS = {
   clicks: { label: "ストアへのクリック", unit: "回" },
   downloads: { label: "ダウンロード", unit: "件" },
   page_views: { label: "ストアのページの閲覧", unit: "回" },
-  outcomes: { label: "成果（手で記録）", unit: "件" },
+  outcomes: { label: "手で記録した成果", unit: "件" },
 } as const;
 type ChartKey = keyof typeof CHARTS;
 
@@ -106,7 +106,7 @@ function KpiCard({ k, value, projectId, days, productType }: { k: KpiKey; value?
   const period = value.unit ? "直近 28 日" : periodLabel(days, value.until);
   const before = value.unit ? "1 週間前比" : compareLabel(days, value.until);
   const zeroBefore = value.until ? `その前の ${days} 日` : days === 7 && !value.unit ? "先週" : "前";
-  const note = value.noPrev ? `${period}・前の記録はまだありません` : delta !== null ? `${period}・${before}` : value.lastWeek === 0 && value.thisWeek > 0 ? `${period}・${zeroBefore}は 0` : period;
+  const note = value.noPrev ? `${period}・${notComparedLabel(value.unit ? 28 : days, value.comparableFrom)}` : delta !== null ? `${period}・${before}` : value.lastWeek === 0 && value.thisWeek > 0 ? `${period}・${zeroBefore}は 0` : period;
   if (value.notArrived) {
     return frame(
       <>
@@ -391,7 +391,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
             </Panel>
             {showOutcomes && (
               <Panel
-                title="成果（手で記録）"
+                title="手で記録した成果"
                 aside={`直近 ${days} 日`}
                 help={
                   <HelpTip label="成果を手で記録する理由">

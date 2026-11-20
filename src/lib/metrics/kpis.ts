@@ -28,7 +28,7 @@ export type KpiDef = {
 export const KPIS: Record<KpiKey, KpiDef> = {
   // 手で記録する成果（決定 D34。project_outcomes_daily）。アプリ以外は、買った・予約などをストアのように自動では読めない
   outcomes: {
-    label: "成果（手で記録）",
+    label: "手で記録した成果",
     meaning: "買ってもらった・申し込み・予約・問い合わせ・来店の数。お店の帳簿や予約の画面を見て、日ごとに入れた分です。",
     availability: "partial",
     howToGet: "分析の画面の「成果を記録する」で、日ごとに入れると出ます",
@@ -36,13 +36,13 @@ export const KPIS: Record<KpiKey, KpiDef> = {
   posts: {
     label: "投稿した回数",
     // SNS ごとに数える（概要・分析の「SNS への投稿」と同じ。2026-11-12 PMO のローカルでの確かめ）
-    meaning: "続けられているかの数字。SNS ごとに数えます（1 本の投稿を 2 つの SNS に出すと 2 回）。始めたばかりのうちは、数字が小さくても続けることがいちばん大事です。",
+    meaning: "続けられているかの数字。SNS ごとに数えます。1 本の投稿を 2 つの SNS に出すと、2 と数えます。始めたばかりのうちは、数字が小さくても続けることがいちばん大事です。",
     availability: "ready",
   },
   link_clicks: {
     // アプリの画面では「ストアへのクリック」と出す（clickLabel。決定 D34）
-    label: "行き先へのクリック",
-    meaning: "投稿やプロフィールの短縮リンクから、ストア・サイト・予約のページなどの行き先に来た人の数。興味を持って一歩進んだ人です。",
+    label: "リンク先へのクリック",
+    meaning: "投稿やプロフィールの短縮リンクから、リンク先に来た人の数。リンク先は、ストア・サイト・予約のページなどです。興味を持って一歩進んだ人です。",
     term: "shortLink",
     availability: "ready",
   },
@@ -52,14 +52,14 @@ export const KPIS: Record<KpiKey, KpiDef> = {
     term: "impression",
     availability: "connect",
     connectTo: "sns",
-    howToGet: "Threads・Instagram・Facebook・X を数字の権限つきでつなぐと出ます（note・Substack は手で記録。X は読むたびに費用がかかるので、月の上限まで）",
+    howToGet: "SNS を数字の権限つきでつなぐと出ます。Threads・Instagram・Facebook・X が対象です。note・Substack は手で記録します。X は読むたびに費用がかかるので、月の上限まで読みます",
   },
   followers: {
     label: "フォロワーの増え方",
     meaning: "アカウントをフォローした人の増え方。続けて見てくれる人の数です。",
     availability: "connect",
     connectTo: "sns",
-    howToGet: "Threads・Instagram・Facebook・X を数字の権限つきでつなぐと出ます（X は週に 1 回）",
+    howToGet: "SNS を数字の権限つきでつなぐと出ます。Threads・Instagram・Facebook・X が対象です。X は週に 1 回読みます",
   },
   store_page_views: {
     label: "ストアのページの閲覧",
@@ -67,19 +67,19 @@ export const KPIS: Record<KpiKey, KpiDef> = {
     term: "storeListing",
     availability: "connect",
     connectTo: "stores",
-    howToGet: "App Store のページの閲覧数のレポートを依頼するか、Google Play をつなぐと出ます",
+    howToGet: "App Store の閲覧数のレポートを依頼すると出ます。Google Play をつないでも出ます",
   },
   downloads: {
     label: "ダウンロード",
-    meaning: "アプリを入れてくれた人の数（はじめてのダウンロード）。",
+    meaning: "アプリをはじめてダウンロードしてくれた人の数。",
     term: "conversion",
     availability: "connect",
     connectTo: "stores",
     howToGet: "App Store か Google Play をつなぐと出ます",
   },
   revenue: {
-    label: "課金（売上）",
-    meaning: "直近 28 日に払ってもらった金額（RevenueCat の数字）。",
+    label: "課金の売上",
+    meaning: "直近 28 日に払ってもらった金額。RevenueCat の数字です。",
     term: "conversion",
     availability: "connect",
     connectTo: "stores",
@@ -115,7 +115,7 @@ export function isKpiKey(v: unknown): v is KpiKey {
 
 // 「行き先へのクリック」の画面での名前（アプリならストア。決定 D34）
 export function clickLabel(productType: string | null | undefined): string {
-  return (productType ?? "app") === "app" ? "ストアへのクリック" : "行き先へのクリック";
+  return (productType ?? "app") === "app" ? "ストアへのクリック" : "リンク先へのクリック";
 }
 
 // ストア・課金をつながないと出ない数字（ストアのページの閲覧・ダウンロード・課金）。宣伝するものがアプリのときだけ（決定 D34）

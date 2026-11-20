@@ -68,7 +68,7 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
     const key = item.weekStart < thisWeek ? "overdue" : item.weekStart;
     let g = groups.find((x) => x.key === key);
     if (!g) {
-      g = { key, label: key === "overdue" ? "まだ済んでいない、前の週のこと" : weekLabel(item.weekStart, thisWeek), items: [] };
+      g = { key, label: key === "overdue" ? "まだ完了していない、前の週のこと" : weekLabel(item.weekStart, thisWeek), items: [] };
       groups.push(g);
     }
     g.items.push(item);
@@ -122,7 +122,7 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
           note={!hasKgi ? "まだ決めていません" : p?.available && goal?.metric ? `/ ${formatMetric(goal.metric, p.target)}` : "数えていません"}
         />
         <Metric label="期限まで" value={p ? p.daysLeft : "—"} unit={p ? "日" : undefined} note={hasKgi && goal?.endsOn ? md(goal.endsOn) : undefined} />
-        <Metric label="今週のやること" value={thisWeekTodo} unit="件" note={`済み ${thisWeekDone} 件`} />
+        <Metric label="今週のやること" value={thisWeekTodo} unit="件" note={`完了 ${thisWeekDone} 件`} />
         <Metric
           label="期限の見込み"
           value={p?.projected != null && goal?.metric ? formatMetric(goal.metric, p.projected) : "—"}
@@ -175,7 +175,7 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
                 <AddItemForm projectId={id} weeks={weeks} />
               </div>
               {past.length > 0 && (
-                <DisclosureBox label="済んだこと・やらないことにしたことを表示" count={past.length} className="border-t border-line px-6 py-3 max-sm:px-4">
+                <DisclosureBox label="完了したこと・やらないことにしたことを表示" count={past.length} className="border-t border-line px-6 py-3 max-sm:px-4">
                   <ul>{past.map(row)}</ul>
                 </DisclosureBox>
               )}

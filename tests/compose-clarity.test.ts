@@ -10,7 +10,7 @@ describe("③ の「次へ」（付箋 15）", () => {
   it("画像も動画もなく、画像が要る送り先があれば、名前を変えて注意を出す", () => {
     expect(imagesStepNext({ hasMedia: false, needImage: ["Instagram"], needVideo: [] })).toEqual({
       label: "付けずに次へ",
-      note: "Instagram は画像か動画が要ります。付けないと Instagram には送れません",
+      note: "Instagram は画像か動画が要ります。付けないまま Instagram を選んでいると、送れません",
     });
   });
   it("動画が要る送り先も並べる", () => {

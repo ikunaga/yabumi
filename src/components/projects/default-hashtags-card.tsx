@@ -37,7 +37,7 @@ export function DefaultHashtagsCard({ projectId, initial, planHashtags, connecte
           <span className="flex items-center gap-2">
             いつものタグ
             <HelpTip label="いつものタグについて">
-              新しい投稿をつくるとき（AI のネタ・ネタ帳・相談から下書きを作るときも）、「2 送り先」のタグの欄に最初から入ります。投稿ごとに直したり消したりできます。投稿のフォーマットにタグがあれば、その SNS はフォーマットのタグになります。
+              新しい投稿をつくるとき（AI のネタ・ネタ帳・相談から下書きを作るときも）、「2 送り先」のタグの欄に最初から入ります。投稿ごとに編集したり消したりできます。投稿のフォーマットにタグがあれば、その SNS はフォーマットのタグになります。
             </HelpTip>
           </span>
         }

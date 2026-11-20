@@ -67,7 +67,7 @@ export function ReviewCard({ projectId, item, dueLabel }: { projectId: string; i
                 送る
               </Button>
               <ButtonLink href={postHref} variant="secondary" size="sm">
-                直す
+                編集
               </ButtonLink>
               <Button type="button" variant="text" size="sm" disabled={pending} onClick={() => setConfirm({ decline: t })}>
                 送らない
@@ -95,15 +95,15 @@ export function ReviewCard({ projectId, item, dueLabel }: { projectId: string; i
             この回は送らない
           </Button>
           <ButtonLink href={postHref} variant="secondary">
-            直す
+            編集
           </ButtonLink>
           <Button type="button" disabled={pending} onClick={() => run(() => reviewAutoRun(item.runId, true, Object.fromEntries(item.targets.map((t) => [t.targetId, t.fingerprint]))))}>
             {pending ? "送っています…" : "これで送る"}
           </Button>
         </div>
       )}
-      {first && <p className="text-xs text-muted">直したら、この画面に戻って確かめてください。投稿の画面でそのまま予約しても送れます。</p>}
-      {!first && waiting.length > 0 && <p className="text-xs text-muted">直すと、確かめ待ちに戻ります。直したら、この画面で確かめ直してください。</p>}
+      {first && <p className="text-xs text-muted">編集したら、この画面に戻って確かめてください。投稿の画面でそのまま予約しても送れます。</p>}
+      {!first && waiting.length > 0 && <p className="text-xs text-muted">編集すると、確かめ待ちに戻ります。編集したら、この画面で確かめ直してください。</p>}
 
       <ConfirmDialog
         open={confirm === "skip"}
@@ -150,7 +150,7 @@ function TargetMedia({ sns, media }: { sns: SnsKey; media: ReviewMedia }) {
         <p className="num text-xs text-muted">動画 {formatDuration(m.video.durationMs)}</p>
         {m.unsupported && (
           <p className="text-sm">
-            <span className="text-signal">●</span> {label} には、yabumi からはまだ動画を送れません。直す画面で動画を外すか、{label} を送り先から外してください。
+            <span className="text-signal">●</span> {label} には、yabumi からはまだ動画を送れません。編集の画面で動画を外すか、{label} を送り先から外してください。
           </p>
         )}
       </div>
@@ -175,7 +175,7 @@ function TargetMedia({ sns, media }: { sns: SnsKey; media: ReviewMedia }) {
       </ul>
       {m.overLimit && (
         <p className="text-sm">
-          <span className="text-signal">●</span> {label} に添えられる画像は {m.max} 枚までです。直す画面で画像を減らしてください（このままでは送れません）。
+          <span className="text-signal">●</span> {label} に添えられる画像は {m.max} 枚までです。編集の画面で画像を減らしてください（このままでは送れません）。
         </p>
       )}
     </div>

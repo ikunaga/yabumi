@@ -217,7 +217,7 @@ export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace, 
           </button>
         )}
         <HelpTip label="AI で投稿に整える">
-          話した言葉や思いつくままに書いた文から、言いたいことを 1 つに絞り、選んだ SNS ごとの字数に収めた案を 2〜3 個出します。そのまままとめる・伝えたいことを先に置くなど、形の違う案から選べます。案はその場で直してから使えます。あなたが言っていないこと（数字・できごと・感想）は足しません。口調とやらないこと、ハッシュタグはアカウント設計に合わせます（口調・長さ・ねらい・絵文字は「整え方を選ぶ」で変えられます。やらないことはどの整え方でも守ります）。AI はいまはやっている言葉や話題を知らない（その時々のデータを見ていない）ので、はやりには合わせません。1 回 5〜15 円ほどかかります。
+          話した言葉や思いつくままに書いた文から、言いたいことを 1 つに絞り、選んだ SNS ごとの字数に収めた案を 2〜3 個出します。そのまままとめる・伝えたいことを先に置くなど、形の違う案から選べます。案はその場で編集してから使えます。あなたが言っていないこと（数字・できごと・感想）は足しません。口調とやらないこと、ハッシュタグはアカウント設計に合わせます（口調・長さ・ねらい・絵文字は「整え方を選ぶ」で変えられます。やらないことはどの整え方でも守ります）。AI はいまはやっている言葉や話題を知らない（その時々のデータを見ていない）ので、はやりには合わせません。1 回 5〜15 円ほどかかります。
         </HelpTip>
       </div>
 
@@ -259,7 +259,7 @@ export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace, 
               {split.map((s) => SNS[s].label).join("・")} には SNS ごとの文面を入れました（{SNS[adopted.main].label} と字数が違うため）。
               {split.map((s) => (
                 <button key={s} type="button" className={`ml-2 ${linkClass}`} onClick={() => onEditOverride(s)}>
-                  {SNS[s].label} 用の文面を直す
+                  {SNS[s].label} 用の文面を編集
                 </button>
               ))}
             </p>
@@ -447,7 +447,7 @@ function DraftEditor({
       <div className="flex items-baseline justify-between gap-2">
         <label htmlFor={id} className="text-xs font-semibold text-muted">
           {showSns ? label : "文面"}
-          {readOnly ? "（本文と SNS ごとの文面に入れました）" : "（ここで直してから使えます）"}
+          {readOnly ? "（本文と SNS ごとの文面に入れました）" : "（ここで編集してから使えます）"}
         </label>
         <span className={`num shrink-0 text-xs ${over ? "font-bold text-danger" : "text-faint"}`}>
           {length}

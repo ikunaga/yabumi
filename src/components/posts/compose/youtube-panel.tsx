@@ -140,7 +140,7 @@ export function ComposeYouTube({ c }: { c: Composer }) {
               {ch.privacyStatus ? YOUTUBE_PRIVACY_LABEL[ch.privacyStatus] : "公開範囲はまだ選んでいません"}・{ch.madeForKids === null ? "子ども向けかはまだ選んでいません" : ch.madeForKids ? "子ども向け" : "子ども向けではない"}
               {ch.syntheticMedia && "・改変・合成を申告"}
             </span>
-            <span className="text-[12px] text-muted">タイトルと説明は、② 送り先の YouTube の欄で直せます。予約の時刻にアップロードを始めるので、YouTube での公開は数分遅れることがあります。</span>
+            <span className="text-[12px] text-muted">タイトルと説明は、② 送り先の YouTube の欄で編集できます。予約の時刻にアップロードを始めるので、YouTube での公開は数分遅れることがあります。</span>
           </div>
 
           <p className="text-[12px] leading-[1.7] text-muted">

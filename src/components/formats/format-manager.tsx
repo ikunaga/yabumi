@@ -122,7 +122,7 @@ export function FormatManager({
                     {f.pillar && <span className="text-xs text-muted">柱: {pillars.includes(f.pillar) ? f.pillar : "なし"}</span>}
                     <span className="ml-auto flex gap-1">
                       <Button size="sm" variant="secondary" onClick={() => (setEditing(f.id), setSaved(null))}>
-                        直す
+                        編集
                       </Button>
                       {confirmDelete === f.id ? (
                         <>
@@ -325,7 +325,7 @@ export function FormatTagsFields({
   planHashtags,
   connected,
   legend = "毎回付けるタグ",
-  footnote = "本文の下に 1 行あけて付きます。投稿ごとに「2 送り先」で直せます。",
+  footnote = "本文の下に 1 行あけて付きます。投稿ごとに「2 送り先」で編集できます。",
 }: {
   tags: Partial<Record<FormatHashtagKey, string>>;
   setTag: (k: FormatHashtagKey, x: string) => void;
@@ -436,7 +436,7 @@ function FormatAiMaker({ projectId, kinds, onPick, onCancel }: { projectId: stri
       {error && <ErrorBanner>{error}</ErrorBanner>}
       {proposals && !pending && (
         <div className="flex flex-col gap-2">
-          <span className="text-xs font-bold">案（選ぶと下の欄に入ります。直してから保存します）</span>
+          <span className="text-xs font-bold">案（選ぶと下の欄に入ります。編集してから保存します）</span>
           <ul className="flex flex-col gap-2">
             {proposals.map((p) => (
               <li key={p.name} className="flex flex-col gap-1.5 rounded-md border border-line px-3 py-2.5">

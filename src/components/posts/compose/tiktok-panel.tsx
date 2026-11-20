@@ -178,7 +178,7 @@ export function ComposeTikTok({ c }: { c: Composer }) {
                 <span className="line-clamp-4 break-words whitespace-pre-wrap text-muted">{text}</span>
               </div>
             </div>
-            <span className="text-[12px] text-muted">タイトルと説明は、② 送り先の TikTok の欄で直せます。送ったあと、TikTok で反映されるまで数分かかることがあります。</span>
+            <span className="text-[12px] text-muted">タイトルと説明は、② 送り先の TikTok の欄で編集できます。送ったあと、TikTok で反映されるまで数分かかることがあります。</span>
           </div>
 
           <p className="text-[13px] leading-[1.7]">

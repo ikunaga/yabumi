@@ -208,7 +208,7 @@ export function PlanWizard(p: Props) {
   return (
     <div className="flex flex-col gap-5 max-sm:gap-4">
       <div className="flex flex-col gap-3">
-        <h1 className="text-[28px] leading-tight font-bold max-sm:text-[24px]">{editing ? "自動の投稿を直す" : "自動の投稿をはじめる"}</h1>
+        <h1 className="text-[28px] leading-tight font-bold max-sm:text-[24px]">{editing ? "自動の投稿を編集" : "自動の投稿をはじめる"}</h1>
         <div className="max-sm:hidden">
           {/* ステップの印は押せない。動くのは下の「次へ」「戻る」だけ（投稿をつくると同じ。2026-11-15 オーナーの指示） */}
           <Steps steps={STEPS} current={step} canGo={() => false} onGo={() => {}} label="自動の投稿の段取り" />
@@ -390,7 +390,7 @@ export function PlanWizard(p: Props) {
             />
           </Disclosure>
           <Card className="flex flex-col gap-3 px-6 py-5 max-sm:px-4 max-sm:py-4">
-            <p className="text-sm text-muted">送る {DEFAULT_LEAD_HOURS} 時間前に文を作り、カレンダーと通知でお知らせします。書き方（長さ・絵文字・口調など）は、次の「確かめる」の見本を見ながら直せます。</p>
+            <p className="text-sm text-muted">送る {DEFAULT_LEAD_HOURS} 時間前に文を作り、カレンダーと通知でお知らせします。書き方（長さ・絵文字・口調など）は、次の「確かめる」の見本を見ながら編集できます。</p>
           </Card>
           <Nav
             back={
@@ -462,7 +462,7 @@ export function PlanWizard(p: Props) {
               <input type="checkbox" className="mt-1 size-5 shrink-0 accent-[var(--primary)]" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
               <span>
                 AI が作った文を、あなたが確かめずに、あなたのアカウントから送ります（X などの「確かめて送る」SNS は、押したものだけ送ります）。送った投稿の責任はあなたにあります。送る{" "}
-                {DEFAULT_LEAD_HOURS} 時間前に、カレンダーと通知でお知らせします。気になれば、直す・その回を飛ばす・止めるができます。
+                {DEFAULT_LEAD_HOURS} 時間前に、カレンダーと通知でお知らせします。気になれば、編集・その回を飛ばす・止めるができます。
               </span>
             </label>
           </Card>
@@ -497,7 +497,7 @@ export function PlanWizard(p: Props) {
                   })
                 }
               >
-                {pending ? "保存しています…" : editing ? "直して保存する" : "はじめる"}
+                {pending ? "保存しています…" : editing ? "編集して保存する" : "はじめる"}
               </Button>
             }
           />
@@ -528,7 +528,7 @@ function Nav({ back, next, note }: { back: React.ReactNode; next: React.ReactNod
 function EditLink({ onClick }: { onClick: () => void }) {
   return (
     <button type="button" onClick={onClick} className="text-sm text-muted underline hover:text-fg">
-      直す
+      編集
     </button>
   );
 }

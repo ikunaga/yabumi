@@ -27,7 +27,7 @@ type Input = { kind: "start"; topic: ConsultTopic; itemId?: string; goalId?: str
 const TOPIC_BUTTONS = listedConsultTopics().map((topic) => ({ topic, label: CONSULT_TOPIC_META[topic].button }));
 
 const KIND_LABEL: Record<ActionKind | ProposalKind, ReactNode> = {
-  plan_section: "アカウント設計の直し",
+  plan_section: "アカウント設計の編集",
   goal_plan: (
     <>
       最終の目標（<Term k="kgi" />）と中間の目標
@@ -197,7 +197,7 @@ export function ConsultChat({
               onChoice={(c) => send({ kind: "text", text: c })}
               onAdopt={(i) => send({ kind: "adopt", messageId: m.id, actionIndex: i })}
               onRevise={(title) => {
-                setText(`案「${title}」の、ここを直したい: `);
+                setText(`案「${title}」の、ここを変えたい: `);
                 inputRef.current?.focus();
               }}
             />
@@ -422,7 +422,7 @@ function ProposalCard({
           <div className="flex flex-wrap gap-x-4 gap-y-1">
             {p.options.map((o) => (
               <button key={o.title} type="button" disabled={disabled} onClick={() => onRevise(o.title)} className="text-sm font-semibold text-primary hover:underline disabled:opacity-40">
-                「{o.title}」を直したい
+                「{o.title}」を変えたい
               </button>
             ))}
           </div>

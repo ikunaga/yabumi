@@ -141,7 +141,7 @@ export function VoiceFields({ v, projectId, aiEnabled, selfWritten, exampleHeads
           </div>
         )}
         {error && <ErrorBanner>{error}</ErrorBanner>}
-        {drafted && <p className="text-xs font-semibold text-success">下の欄に入れました。直してから「保存する」を押してください。</p>}
+        {drafted && <p className="text-xs font-semibold text-success">下の欄に入れました。編集してから「保存する」を押してください。</p>}
       </div>
 
       {conflicts.length > 0 && (
@@ -155,9 +155,9 @@ export function VoiceFields({ v, projectId, aiEnabled, selfWritten, exampleHeads
             ))}
           </ul>
           <p className="text-xs text-muted">
-            どちらに合わせるか決めて、口調か、下の書き方を直してください。
+            どちらに合わせるか決めて、口調か、下の書き方を編集してください。
             <Link href={`/projects/${projectId}/plan?open=pillars`} className="ml-1 underline">
-              口調を直す
+              口調を編集
             </Link>
           </p>
         </div>

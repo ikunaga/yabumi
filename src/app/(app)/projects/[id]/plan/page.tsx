@@ -72,7 +72,7 @@ export default async function PlanPage(props: PageProps<"/projects/[id]/plan">) 
       {/* 主な入口は AI との会話。空欄を自分で埋めるのは、中身を確かめて直すとき */}
       <PageHeader
         title="アカウント設計"
-        help="「AI と考える」では、AI が 1 つずつ質問し、長所・短所とおすすめの理由をつけた案を出します。選んだ案は下の欄に入り、あとからいつでも手で直せます。"
+        help="「AI と考える」では、AI が 1 つずつ質問し、長所・短所とおすすめの理由をつけた案を出します。選んだ案は下の欄に入り、あとからいつでも手で編集できます。"
         actions={
           aiEnabled ? (
             <ButtonLink href={`/projects/${id}/plan/chat`} className="max-sm:w-full">

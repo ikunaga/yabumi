@@ -59,11 +59,11 @@ export function PlanControls({ projectId, planId, status, nextLabel, held = fals
       <div className="flex flex-wrap gap-2 max-sm:grid max-sm:grid-cols-2">
         {held ? (
           <Button type="button" variant="secondary" size="sm" disabled>
-            直す
+            編集
           </Button>
         ) : (
           <ButtonLink href={`/projects/${projectId}/auto/${planId}/edit`} variant="secondary" size="sm">
-            直す
+            編集
           </ButtonLink>
         )}
         {status === "active" ? (

@@ -176,7 +176,7 @@ export function PlanProgressCard({ plan, planHref }: { plan: PlanData; planHref?
           <span className="flex items-center gap-2">
             進み具合
             <HelpTip label="記入の進み具合">
-              {REQUIRED_FOR_DONE.map((k) => META[k].title).join("・")}の {REQUIRED_FOR_DONE.length} つが書けたら、「いまやること」が次（SNS をつなぐ）に進みます。{RECOMMENDED_SECTIONS.map((k) => META[k].title).join("・")}も書いておくのがおすすめです。どれもあとからいつでも直せます。
+              {REQUIRED_FOR_DONE.map((k) => META[k].title).join("・")}の {REQUIRED_FOR_DONE.length} つが書けたら、「いまやること」が次（SNS をつなぐ）に進みます。{RECOMMENDED_SECTIONS.map((k) => META[k].title).join("・")}も書いておくのがおすすめです。どれもあとからいつでも編集できます。
             </HelpTip>
           </span>
         }
@@ -345,7 +345,7 @@ function SectionCard({
         ) : (
         <div className="flex flex-wrap items-center gap-3 rounded-md bg-surface2 px-4 py-3 text-sm">
           <span className="flex min-w-[14rem] flex-1 items-center gap-2">
-            {fromAi ? "AI の案から採用した内容です。下の欄で直せます。" : "迷ったら、AI が質問しながら案を出します。"}
+            {fromAi ? "AI の案から採用した内容です。下の欄で編集できます。" : "迷ったら、AI が質問しながら案を出します。"}
             <HelpTip label={`${meta.title}の説明`}>{meta.lead}</HelpTip>
           </span>
           {aiEnabled ? (
@@ -664,7 +664,7 @@ function ConceptFields({ v, audience, ex, onEditAudience }: { v: PlanData["conce
         <p className="text-xs text-muted">
           届けたい相手のセクションの値です。
           <button type="button" onClick={onEditAudience} className="font-semibold text-primary hover:underline">
-            届けたい相手を直す
+            届けたい相手を編集
           </button>
         </p>
       </div>

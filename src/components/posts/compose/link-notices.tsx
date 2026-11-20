@@ -109,7 +109,7 @@ function InstagramLinkNotice({
             Instagram 用の文面の URL を外し、最後に「{text.split("\n").find(hasProfileLinkLine)?.trim()}」を入れました。
           </span>
           <button type="button" onClick={onEdit} className="font-semibold underline">
-            Instagram 用の文面を直す
+            Instagram 用の文面を編集
           </button>
         </p>
       )}

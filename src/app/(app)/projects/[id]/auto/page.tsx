@@ -49,7 +49,7 @@ export default async function AutoListPage(props: PageProps<"/projects/[id]/auto
         sub={plans.length > 0 ? (hold ? `${plans.length} 件・運営者が止めています` : `${plans.length} 件・動いている ${active} 件`) : undefined}
         help={
           <>
-            決めた間隔で、AI が投稿の文を作って予約します。送る 24 時間前にカレンダーと通知でお知らせするので、気になれば直す・飛ばす・止めるができます。X
+            決めた間隔で、AI が投稿の文を作って予約します。送る 24 時間前にカレンダーと通知でお知らせするので、気になれば編集・飛ばす・止めるができます。X
             は送る前にあなたが中身を確かめ、押したものだけ送ります。
           </>
         }

@@ -36,7 +36,7 @@ export function PhotoTemplatePicker({
         ))}
       </div>
       <Link href={`/projects/${projectId}/formats?tab=photo`} className="self-start text-xs font-bold text-fg underline">
-        フォーマットを作る・直す →
+        フォーマットを作る・編集 →
       </Link>
     </fieldset>
   );

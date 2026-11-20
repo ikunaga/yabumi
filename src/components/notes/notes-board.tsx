@@ -257,7 +257,7 @@ function NoteCard({
               ))}
           </div>
           {mode === "edit" ? (
-            <NoteEditor note={note} projectId={projectId} onCancel={() => setMode("view")} onSaved={() => (setMode("view"), onDone("メモを直しました"))} />
+            <NoteEditor note={note} projectId={projectId} onCancel={() => setMode("view")} onSaved={() => (setMode("view"), onDone("メモを編集しました"))} />
           ) : (
             <div className="flex gap-3">
               {note.body ? (
@@ -288,7 +288,7 @@ function NoteCard({
             {pending ? "下書きにしています…" : note.usedAt ? "もう一度下書きにする" : "下書きにする"}
           </Button>
           <button type="button" onClick={() => setMode("edit")} disabled={pending} className="text-sm font-semibold text-primary hover:underline">
-            直す
+            編集
           </button>
           <button type="button" onClick={() => setMode("confirm-delete")} disabled={pending} className="text-sm text-muted hover:text-fg hover:underline">
             削除する
@@ -308,7 +308,7 @@ function NoteCard({
           </div>
         </div>
       )}
-      {!note.body && mode === "view" && <p className="text-xs text-muted">画像だけのメモは、「直す」でひとこと書くと下書きにできます。</p>}
+      {!note.body && mode === "view" && <p className="text-xs text-muted">画像だけのメモは、「編集」でひとこと書くと下書きにできます。</p>}
       {error && (
         <p role="alert" className="text-sm font-semibold text-danger">
           {error}

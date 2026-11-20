@@ -33,7 +33,7 @@ export function PlanHints({ projectId, hints, sns = [] }: { projectId: string; h
         </span>
         設計を見返す（コンセプト・投稿の柱と口調）
         <Link href={planHref} className="ml-auto shrink-0 text-xs font-semibold whitespace-nowrap text-primary hover:underline">
-          設計を直す
+          設計を編集
         </Link>
       </summary>
       <div className="flex flex-col gap-2.5 border-t border-line px-4 py-3 leading-[1.7]">

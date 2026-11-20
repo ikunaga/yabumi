@@ -396,7 +396,7 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
                     </Button>
                     {shot && <span className="text-xs text-muted">{shot.bitmap.width}×{shot.bitmap.height}</span>}
                   </div>
-                  <p className="text-xs leading-[1.7] text-muted">選んだ写真は AI には送りません。添えるときは、あとで見出しを直せるように元の写真も預かります（投稿に使わなければ 1 日で消えます）。{nextIndex > 1 && "添えた画像に見出しを付けるときは、その画像の行の「見出しを付ける」から付けられます。"}</p>
+                  <p className="text-xs leading-[1.7] text-muted">選んだ写真は AI には送りません。添えるときは、あとで見出しを編集できるように元の写真も預かります（投稿に使わなければ 1 日で消えます）。{nextIndex > 1 && "添えた画像に見出しを付けるときは、その画像の行の「見出しを付ける」から付けられます。"}</p>
                 </div>
               )}
               {kind === "screen" && (
@@ -466,7 +466,7 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
                   }}
                   className="py-2 text-sm"
                 />
-                <span className="text-xs text-muted">読み上げや、画像が出ないときに使われる文です。画像の文字から作っています。直すこともできます</span>
+                <span className="text-xs text-muted">読み上げや、画像が出ないときに使われる文です。画像の文字から作っています。編集することもできます</span>
               </label>
             </div>
           </div>

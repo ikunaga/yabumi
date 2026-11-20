@@ -96,11 +96,11 @@ export function ComposeStepWrite({ c, steps = false }: { c: Composer; steps?: bo
       {splitSns.length > 0 && (
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted">
           <span>
-            {splitSns.map((s) => SNS[s].label).join("・")} は SNS ごとの文面で送ります{bodyUnused ? "（この本文は使いません）" : ""}。本文をあとで直しても、SNS ごとの文面には届きません。
+            {splitSns.map((s) => SNS[s].label).join("・")} は SNS ごとの文面で送ります{bodyUnused ? "（この本文は使いません）" : ""}。本文をあとで編集しても、SNS ごとの文面には届きません。
           </span>
           {splitSns.map((s) => (
             <button key={s} type="button" onClick={() => editOverride(s)} className="font-semibold text-fg underline underline-offset-2">
-              {SNS[s].label} 用の文面を直す
+              {SNS[s].label} 用の文面を編集
             </button>
           ))}
         </p>
@@ -120,7 +120,7 @@ export function ComposeStepWrite({ c, steps = false }: { c: Composer; steps?: bo
             setOverrides(next.overrides);
             clearFieldError("body");
             // 本文の欄へは飛ばさない（案の欄の知らせから「本文を見る」で行く）。PC は右に見え方と文面が並んでいるので、
-            // SNS ごとの文面に入れた SNS のタブを開いておく。スマホは右の欄がずっと下にあるので開かない（知らせの「X 用の文面を直す」から）
+            // SNS ごとの文面に入れた SNS のタブを開いておく。スマホは右の欄がずっと下にあるので開かない（知らせの「X 用の文面を編集」から）
             if (edit && isSideBySide()) setFocus(edit);
           }}
           onShowBody={showBody}
@@ -203,7 +203,7 @@ function TextOriginChoice({ value, onChange }: { value: "self" | "ai"; onChange:
         </button>
       ))}
       <HelpTip label="この本文を書いたのは">
-        自分で書いた投稿だけを、あとで AI があなたの書き方を読み取る材料にします。「AI で整える」の案や、フォーマットの「AI に次の回を出してもらう」の案を使うと、「AI の文をもとにした」になります。大きく自分で直したときは「自分で書いた」に戻して構いません。
+        自分で書いた投稿だけを、あとで AI があなたの書き方を読み取る材料にします。「AI で整える」の案や、フォーマットの「AI に次の回を出してもらう」の案を使うと、「AI の文をもとにした」になります。大きく自分で編集したときは「自分で書いた」に戻して構いません。
       </HelpTip>
     </div>
   );

@@ -163,7 +163,7 @@ function ReviseChoices({
         ))}
       </fieldset>
       {pick !== "keep" && (
-        <Field label="目標の文" htmlFor="revise-statement" hint="数字を変えたら、文も合わせて直せます。120 字まで">
+        <Field label="目標の文" htmlFor="revise-statement" hint="数字を変えたら、文も合わせて編集できます。120 字まで">
           <Input id="revise-statement" value={text} maxLength={120} onChange={(e) => setText(e.target.value)} />
         </Field>
       )}

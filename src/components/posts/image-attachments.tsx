@@ -476,7 +476,7 @@ export function ImageAttachments({
           {failedCount > 0 && (
             <span className="num font-semibold text-danger">
               <ImageNumbers indexes={failedIdx} />
-              は直せませんでした。もう一度お試しいただくか、1 枚ずつ整えてください。
+              は整えられませんでした。もう一度お試しいただくか、1 枚ずつ整えてください。
             </span>
           )}
           {fixedCount > 0 && (
@@ -528,7 +528,7 @@ export function ImageAttachments({
                   </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs">
-                  {bulkResult?.failedIds.includes(image.id) && <span className="font-bold text-danger">直せませんでした</span>}
+                  {bulkResult?.failedIds.includes(image.id) && <span className="font-bold text-danger">整えられませんでした</span>}
                   {instagram && !instagramRatioOk(image.width, image.height) && (
                     <span className="font-bold text-signal">● Instagram には縦横比が合いません（{ratioLabel(image.width, image.height)}）</span>
                   )}
@@ -575,7 +575,7 @@ export function ImageAttachments({
                       }}
                       className={rowAction}
                     >
-                      {headlineAction(image) === "edit" ? "見出しを直す" : "見出しを付ける"}
+                      {headlineAction(image) === "edit" ? "見出しを編集" : "見出しを付ける"}
                     </button>
                   )}
                   {image.original && (

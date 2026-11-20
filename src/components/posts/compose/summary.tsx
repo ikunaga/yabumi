@@ -70,7 +70,7 @@ export function ComposeSummary({ c }: { c: Composer }) {
                 ))}
               </span>
               <button type="button" onClick={() => goStep(r.n)} className="shrink-0 pt-0.5 text-[13px] font-semibold text-primary hover:underline">
-                直す
+                編集
               </button>
             </li>
           );

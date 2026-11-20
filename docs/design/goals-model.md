@@ -290,7 +290,7 @@ drop function if exists public.goal_metric_valid(text, text, text, public.sns_ke
 
 | 画面 | 読み書き | 中身 |
 |---|---|---|
-| ロードマップ | loadGoals・kpiWeekTotals（goal_metric_total）・saveManualGoal・settleGoal | 上に 4 つの数字（進み具合・期限まで・今週のやること・期限の見込み）。右に「いまの目標（KGI）」（文・数字・横棒・残りの日・このままの見込み・数えた最後の日・「この目標を終える」）、「中間の目標」（4 週ごと。過ぎた区切りは結果、いまの区切りは今日までの数、先は目標だけ）、「KPI と週の目標」（今週の数。数えていない数字は「数えていません」と案内）と「目標と数字を手で決める・直す」、「週の投稿の本数」（行動の目標。今週の送った本数）。左に週ごとのやること（いまの目標のもの）と「これまでの目標」（新しい順。文・期間・結果 / 目標・達成／期限切れ／見直し、開くとその目標のやること）。前の KGI が投稿の本数なら、上に「● 要確認 いまの目標は投稿の本数です。成果の目標に変えましょう」と「AI と変える」（AI がなければ「手で決める」） |
+| ロードマップ | loadGoals・kpiWeekTotals（goal_metric_total）・saveManualGoal・settleGoal | 上に 4 つの数字（進み具合・期限まで・今週のやること・期限の見込み）。右に「いまの目標（KGI）」（文・数字・横棒・残りの日・このままの見込み・数えた最後の日・「この目標を終える」）、「中間の目標」（4 週ごと。過ぎた区切りは結果、いまの区切りは今日までの数、先は目標だけ）、「KPI と週の目標」（今週の数。数えていない数字は「数えていません」と案内）と「目標と数字を手で決める・編集する」、「週の投稿の本数」（行動の目標。今週の送った本数）。左に週ごとのやること（いまの目標のもの）と「これまでの目標」（新しい順。文・期間・結果 / 目標・達成／期限切れ／見直し、開くとその目標のやること）。前の KGI が投稿の本数なら、上に「● 要確認 いまの目標は投稿の本数です。成果の目標に変えましょう」と「AI と変える」（AI がなければ「手で決める」） |
 | 手で決める・直す | lib/goals/manual.ts の saveManualGoal | 同じ数字（成果の種類・SNS も同じ）のまま直すと revise_goal（文・目標の値・期間、まだ始まっていない区切りの目標）。KGI まだ・前の KGI（投稿の本数）・数字の種類を変えたときは start_goal（前の目標は結果を数えて「これまでの目標」に残る。KGI まだの目標は同じ行に書き入れる）。KGI の文が空なら KPI だけ（set_goal_kpis）。選べる数字に投稿の本数はない。期間は 4・8・12（既定）・16・24 週 |
 | 概要の帯 | loadGoals・loadGoalReview（lib/goals/review.ts）・loadCoachView | 帯の種類は 段階 → **goal_review** → cycle_ended → 今週のやること。goal_review は goalNeedsReview が reached・ended のとき「目標『…』に届きました」「目標『…』の期限が来ました」と「AI と振り返る」（`consult/new?start=goal_review&goal=<id>`。AI がなければ「ロードマップで終える」）。届いたあと、その目標の goal_review の会話（ai_messages の最初の発言 `{kind: "start", topic: "goal_review", goalId}`、③ の決まり）が閉じていれば、期限が来るまで出さない。cycle_ended は「過ぎたのにまだ振り返っていない区切り（settled_at が null）」で、目標の期限がその区切りの最後の日から 7 日以内なら goal_review にまとめる（cycleMergedIntoGoal）。文は「この 1 か月が終わりました。振り返って、次の 1 か月の目標と回数を決めましょう」 |
 | アカウント設計 | saveSectionValue（lib/plan/save.ts）の saveWeekly | セクションの名前を「週の回数」にし、SNS ごとの週の投稿の本数だけにした。保存すると setGoalActions。区切りがない・過ぎた・「次の 1 か月を始める」のときは startMilestone（次の区切りの目標の値は、KGI を決めたときに作った区切りのものを引き継ぐ）。JSON の first_month は goal・metrics・kpis を前の値のまま、weekly・startedOn を前の値のまま残す。欄に出す値は goals から（withGoalWeekly）。KGI と KPI はロードマップへのリンク。AI の案（plan-coach・consult の plan_section）も同じ入口を通る |
@@ -411,7 +411,7 @@ commit;
 | ロードマップ | 4 つの数字の段の下に「届かない見込み」のカード（#goal-risk）。「立て直す（AI と相談）」（13.2 の入口。AI が使えないときは準備中）と「目標を見直す」。概要の「目標を見直す」は `roadmap?revise=1#goal-risk` で、見直しの案を開いた状態で出す |
 | 見直しの案（reviseChoices） | ① いまの見込みまで目標を下げる（いまの数より 1 は上）② いまのペースで届くまで期限をのばす（12 週まで。12 週でも届かなければそう添える。ペースが 0 なら出さない）③ このまま続ける。それぞれよい点・気になる点を 1 行。目標の文は、同じ数字がちょうど 1 か所なら新しい値に置き換えた案を入れ、利用者が直せる（restateTarget） |
 | 書き込み（reviseFromChoiceAction） | 値は送らせず、サーバーがいまの目標と進み具合を読み直して案を計算し直し、revise_goal で書く（文・目標の値か期限）。中間の目標の値は変えない（AI の revise_goal と同じ） |
-| 手で直す | 前からある「目標と数字を手で決める・直す」（goal-form.tsx → manual.ts の saveManualGoal）はそのまま。案は、値を考えずに済む近道 |
+| 手で直す | 前からある「目標と数字を手で決める・編集する」（goal-form.tsx → manual.ts の saveManualGoal）はそのまま。案は、値を考えずに済む近道 |
 
 - DB の変更はない。費用は 0（AI を呼ばない）。規約・ポリシーへの影響はない（新しく預かる情報・送り先・使い道はない）
 - progressOf に countedDays（数え始めから数えた最後の日までの日数）を足した。load.ts のコメントの「followers は見込みを出さない」は、コードに合わせて直した（followers は期間中に増えた人数なので、見込みは出す）

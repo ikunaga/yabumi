@@ -218,7 +218,7 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
               today={goals.today}
               footer={
                 <DismissableDetails id="goal-form" className="border-t border-line px-6 py-3 max-sm:px-4">
-                  <summary className="cursor-pointer text-[14px] font-semibold text-primary">目標と数字を手で決める・直す</summary>
+                  <summary className="cursor-pointer text-[14px] font-semibold text-primary">目標と数字を手で決める・編集する</summary>
                   <div className="pt-3" />
                   <GoalForm
                     projectId={id}

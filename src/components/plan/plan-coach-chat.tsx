@@ -95,7 +95,7 @@ export function PlanCoachChat({
       {messages.length === 0 && !pending && (
         <div className="flex flex-col items-start gap-3 rounded-lg border border-border bg-surface px-6 py-5 max-sm:px-4">
           <p className="text-[14px] leading-[1.8]">
-            AI が 1 つずつ質問します。答えにあわせて案を 2〜3 個、長所・短所とおすすめの理由つきで出すので、選ぶか、直したいところを伝えてください。選んだ案だけが設計に保存されます。
+            AI が 1 つずつ質問します。答えにあわせて案を 2〜3 個、長所・短所とおすすめの理由つきで出すので、選ぶか、変えたいところを伝えてください。選んだ案だけが設計に保存されます。
           </p>
           <Button onClick={() => send({ kind: "start", focus: null })}>相談をはじめる</Button>
         </div>
@@ -112,7 +112,7 @@ export function PlanCoachChat({
               onChoice={(c) => send({ kind: "text", text: c })}
               onAdopt={(i, picks) => send({ kind: "adopt", messageId: m.id, optionIndex: i, ...(picks ? { picks } : {}) })}
               onRevise={(title) => {
-                setText(`案「${title}」の、ここを直したい: `);
+                setText(`案「${title}」の、ここを変えたい: `);
                 inputRef.current?.focus();
               }}
             />
@@ -336,14 +336,14 @@ function ProposalCard({
         <div className="flex flex-wrap gap-x-4 gap-y-1">
           {p.options.map((o) => (
             <button key={o.title} type="button" disabled={disabled} onClick={() => onRevise(o.title)} className="text-sm font-semibold text-primary hover:underline disabled:opacity-40">
-              「{o.title}」を直したい
+              「{o.title}」を変えたい
             </button>
           ))}
         </div>
       )}
       {adopted !== null && (
         <p className="text-xs text-muted">
-          保存した中身は、設計の画面でいつでも手で直せます。
+          保存した中身は、設計の画面でいつでも手で編集できます。
         </p>
       )}
     </section>

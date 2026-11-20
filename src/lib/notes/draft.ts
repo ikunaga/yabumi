@@ -172,7 +172,7 @@ export function mergeShared(draft: string, shared: string): string {
 }
 
 // 本文だけで残し、画像を添えられなかったときの知らせ
-export const IMAGE_SKIPPED_MESSAGE = "ネタ帳に残しました。画像は添えられなかったので、ネタ帳でメモを直して、もう一度選んでください。";
+export const IMAGE_SKIPPED_MESSAGE = "ネタ帳に残しました。画像は添えられなかったので、ネタ帳でメモを編集して、もう一度選んでください。";
 
 // 保存できなかったときの知らせ（src/lib/client-errors.ts の決まりに、本文を残していることを足す）
 export function saveFailureMessage(e: unknown, online: boolean): { message: string; reload: boolean } {

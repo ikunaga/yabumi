@@ -53,10 +53,22 @@ export const RISK_TITLE: Record<GoalRisk["level"], string> = {
 // 数の単位（売上は formatMetric が「円」を付ける）
 const UNIT: Partial<Record<GoalMetric, string>> = { posts: " 本", link_clicks: " 回", outcomes: " 件", followers: " 人", views: " 回", downloads: " 件", store_page_views: " 回" };
 
-// 「届くには週 3 件のペースが要ります。いまは週 1.5 件です」（ja-copy-reviewer: 単位がないと何の数かわからない）
-export function paceText(metric: GoalMetric, risk: GoalRisk): string {
+// 1 週あたりの数の書き方。1 以上は「週 2 件」、1 未満は整数で読める「2 週に 1 件ほど」（2026-11-21 PM の判断。「週 0.5 件」は読みにくい）。
+// 0 は「週 0 件」。売上は「週 1,200 円」
+export function perWeekText(metric: GoalMetric, v: number): string {
   const u = UNIT[metric] ?? "";
-  return `届くには週 ${formatMetric(metric, risk.needPerWeek)}${u}のペースが要ります。いまは週 ${formatMetric(metric, risk.nowPerWeek)}${u}です`;
+  if (metric !== "revenue" && v > 0 && v < 1) {
+    const n = Math.round(1 / v);
+    return n <= 1 ? `週 1${u}ほど` : `${n} 週に 1${u}ほど`;
+  }
+  return `週 ${formatMetric(metric, v)}${u}`;
+}
+
+// 「届くには週 3 件のペースが要ります。いまは 2 週に 1 件ほどです」（ja-copy-reviewer: 単位がないと何の数かわからない）
+export function paceText(metric: GoalMetric, risk: GoalRisk): string {
+  const now = perWeekText(metric, risk.nowPerWeek);
+  // 数字で始まるとき（「2 週に 1 件ほど」）だけ、前に空白を入れる
+  return `届くには${perWeekText(metric, risk.needPerWeek)}のペースが要ります。いまは${now.startsWith("週") ? "" : " "}${now}です`;
 }
 
 export type ReviseChoice =

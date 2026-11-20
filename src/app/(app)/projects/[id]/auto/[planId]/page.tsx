@@ -93,7 +93,17 @@ export default async function AutoPlanPage(props: PageProps<"/projects/[id]/auto
               <span className="sm:hidden">下書き</span>
             </>
           } value={heldCount} unit="件" className="max-sm:px-3" />
-        <Metric label="見られた数の平均" value={avgViews ?? "まだありません"} className="max-sm:px-3" />
+        <Metric
+          label={
+            <>
+              <span className="max-sm:hidden">見られた数の平均</span>
+              <span className="sm:hidden">見られた数</span>
+            </>
+          }
+          value={avgViews ?? "—"}
+          note={avgViews === null ? "まだありません" : <span className="sm:hidden">1 本の平均</span>}
+          className="max-sm:px-3"
+        />
       </div>
 
       <Card className="overflow-hidden">

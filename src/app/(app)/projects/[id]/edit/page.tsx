@@ -9,7 +9,7 @@ import { ProjectForm } from "@/components/projects/project-form";
 import { SnsAccountsCard } from "@/components/projects/sns-accounts-card";
 import { youtubeConfigured, youtubeOAuthTesting } from "@/lib/sns/youtube/config";
 import { SnsResultBanner } from "@/components/projects/sns-result-banner";
-import { Disclosure } from "@/components/ui/help";
+import { DisclosureBox } from "@/components/ui/disclosure";
 import { PageHeader } from "@/components/ui/page-header";
 import { ErrorBanner, SuccessBanner } from "@/components/ui/feedback";
 import { updateProject } from "@/lib/projects/actions";
@@ -85,12 +85,12 @@ export default async function ProjectSettingsPage(props: PageProps<"/projects/[i
       />
 
       {/* 削除は目立たせず、いちばん下に畳んで置く（2026-11-02 オーナーの指示）。開くと説明と確認の欄が出る */}
-      <Disclosure summary="プロジェクトを削除する" className="mt-6 border-t border-line pt-5">
+      <DisclosureBox label="プロジェクトを削除する欄を表示" className="mt-6 border-t border-line pt-5" bodyClassName="mt-2 text-[14px] leading-[1.75] text-muted">
         <div className="flex max-w-xl flex-col gap-4 pt-1">
           <p>削除すると、このプロジェクトの情報は元に戻せません。</p>
           <DeleteProjectButton projectId={project.id} projectName={project.name} />
         </div>
-      </Disclosure>
+      </DisclosureBox>
     </div>
   );
 }

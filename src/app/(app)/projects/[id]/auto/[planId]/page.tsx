@@ -8,7 +8,7 @@ import { PlanStatusMark } from "@/components/auto-post/status-mark";
 import { ReviewFlow } from "@/components/auto-post/review-why";
 import { Card, CardHeader, EmptyState } from "@/components/ui/card";
 import { Badge } from "@/components/ui/chip";
-import { Disclosure } from "@/components/ui/help";
+import { DisclosureBox } from "@/components/ui/disclosure";
 import { SuccessBanner } from "@/components/ui/feedback";
 import { SnsTag } from "@/components/ui/marks";
 import { Metric } from "@/components/ui/metric";
@@ -171,7 +171,7 @@ function RunReason({ run }: { run: AutoRun }) {
     return (
       <div className="flex flex-col gap-0.5 text-[14px] text-muted">
         <p>{RUN_REASON_TEXT[run.reason]}</p>
-        <Disclosure summary="くわしく">{detail}</Disclosure>
+        <DisclosureBox label="くわしい理由を表示" size="sm">{detail}</DisclosureBox>
       </div>
     );
   return (

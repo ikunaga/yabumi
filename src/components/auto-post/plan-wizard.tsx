@@ -8,7 +8,8 @@ import { Card } from "@/components/ui/card";
 import { Badge, Chip } from "@/components/ui/chip";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { Field, Input } from "@/components/ui/field";
-import { Disclosure, HelpTip } from "@/components/ui/help";
+import { HelpTip } from "@/components/ui/help";
+import { DisclosureBox } from "@/components/ui/disclosure";
 import { SnsTag } from "@/components/ui/marks";
 import { Steps } from "@/components/ui/steps";
 import { saveAutoPlan } from "@/lib/auto-post/actions";
@@ -373,7 +374,7 @@ export function PlanWizard(p: Props) {
               );
             })}
           </div>
-          <Disclosure summary="自分で決める" open={custom}>
+          <DisclosureBox label="曜日と時刻を自分で決める欄を表示" open={custom} bodyClassName="mt-2 text-[14px] leading-[1.75] text-muted">
             <CustomSchedule
               value={
                 effectiveSchedule ?? {
@@ -388,7 +389,7 @@ export function PlanWizard(p: Props) {
                 setSchedule(s);
               }}
             />
-          </Disclosure>
+          </DisclosureBox>
           <Card className="flex flex-col gap-3 px-6 py-5 max-sm:px-4 max-sm:py-4">
             <p className="text-sm text-muted">送る {DEFAULT_LEAD_HOURS} 時間前に文を作り、カレンダーと通知でお知らせします。書き方（長さ・絵文字・口調など）は、次の「確かめる」の見本を見ながら編集できます。</p>
           </Card>

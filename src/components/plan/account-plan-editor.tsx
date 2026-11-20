@@ -455,7 +455,7 @@ function ToneBySnsFields({ toneBySns, main }: { toneBySns: PlanData["pillars"]["
     </div>
   );
   return (
-    <DisclosureBox label="SNS ごとの口調を表示（任意）" open={hasToneBySns({ toneBySns })} className="-mt-2 text-sm">
+    <DisclosureBox label="SNS ごとの口調を表示" open={hasToneBySns({ toneBySns })} className="-mt-2 text-sm">
       <div className="flex flex-col gap-2.5">
         <p className="text-xs leading-[1.7] text-muted">空欄の SNS は、上の共通の口調で書きます。</p>
         {main.map(row)}
@@ -898,7 +898,7 @@ function FirstMonthFields({ v, projectId, cycle, mainSns }: { v: PlanData["first
           ))}
         </div>
         {otherSns.length > 0 && (
-          <DisclosureBox label={mainSns.length ? "ほかの SNS を表示" : "SNS を表示"} count={otherSns.length} className="text-sm">
+          <DisclosureBox label={mainSns.length ? "ほかの SNS を表示" : "SNS ごとの週の回数を表示"} count={otherSns.length} className="text-sm">
             <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2">
               {otherSns.map((sns) => (
                 <WeeklyInput key={sns} sns={sns} value={v.weekly[sns]} />

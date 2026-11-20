@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 // 小さな帯: 見出しとボタン（「いまやること」など。2026-10-30 オーナーの決定）。
-// 説明は帯に並べず、help（<HelpTip />）や <Disclosure /> に畳む。黒い大きな面は使わない
+// 説明は帯に並べず、help（<HelpTip />）や <DisclosureBox /> に畳む。黒い大きな面は使わない
 export function ActionBar({
   label,
   title,

@@ -7,7 +7,8 @@ import { CopyButton } from "@/components/links/link-forms";
 import { AppStoreConnectForm, AppStoreViewsForm, GooglePlayForm, RevenueCatForm, StartGooglePlayButton } from "@/components/stores/store-forms";
 import { ButtonLink } from "@/components/ui/button";
 import { Badge } from "@/components/ui/chip";
-import { Disclosure, HelpTip } from "@/components/ui/help";
+import { HelpTip } from "@/components/ui/help";
+import { DisclosureBox } from "@/components/ui/disclosure";
 import { PageHeader } from "@/components/ui/page-header";
 import { Term } from "@/components/ui/term";
 import { credentialsConfigured } from "@/lib/crypto/credential-cipher";
@@ -177,12 +178,12 @@ export default async function StoresPage(props: PageProps<"/projects/[id]/stores
           <>
             <Connected s={asc} remove={removeStoreCredential.bind(null, project.id, "app_store_connect")} removeLabel="外す（預けた鍵を消す。取り込んだ数字は残ります）" />
             {ready && (
-              <Disclosure summary="鍵を入れ替える">
+              <DisclosureBox label="App Store Connect のキーを入れ替える欄を表示" bodyClassName="mt-2 text-[14px] leading-[1.75] text-muted">
                 <div className="flex flex-col gap-4 text-fg">
                   {ascSteps}
                   <AppStoreConnectForm projectId={project.id} />
                 </div>
-              </Disclosure>
+              </DisclosureBox>
             )}
             <div className="flex flex-col gap-2 border-t border-line pt-4">
               <p className="flex items-center gap-2 text-sm font-bold">
@@ -200,14 +201,14 @@ export default async function StoresPage(props: PageProps<"/projects/[id]/stores
                   </form>
                 </div>
               ) : (
-                <Disclosure summary="依頼のしかた（Admin のキーを 1 回だけ使います）">
+                <DisclosureBox label="ストアのページを見た人の数を取り込む手順を表示" bodyClassName="mt-2 text-[14px] leading-[1.75] text-muted">
                   <div className="flex flex-col gap-4">
                     <p>
                       ストアのページを見た人の数は、Apple に「レポートの依頼」を一度だけ出すと、毎日読めるようになります。依頼を出せるのは役割が<b>「Admin」</b>のキーだけなので、上とは別に Admin のキーを作り、下に入れてください。yabumi は Admin のキーを依頼を出す 1 回だけ使い、<b>保存しません</b>（依頼のあとは、App Store Connect でそのキーを取り消してかまいません）。
                     </p>
                     <AppStoreViewsForm projectId={project.id} />
                   </div>
-                </Disclosure>
+                </DisclosureBox>
               )}
             </div>
           </>
@@ -270,12 +271,12 @@ export default async function StoresPage(props: PageProps<"/projects/[id]/stores
           <>
             <Connected s={rc} remove={removeStoreCredential.bind(null, project.id, "revenuecat")} removeLabel="外す（預けた鍵を消す。取り込んだ数字は残ります）" />
             {ready && (
-              <Disclosure summary="鍵を入れ替える">
+              <DisclosureBox label="RevenueCat のキーを入れ替える欄を表示" bodyClassName="mt-2 text-[14px] leading-[1.75] text-muted">
                 <div className="flex flex-col gap-4 text-fg">
                   {rcSteps}
                   <RevenueCatForm projectId={project.id} />
                 </div>
-              </Disclosure>
+              </DisclosureBox>
             )}
           </>
         ) : (
@@ -295,8 +296,8 @@ export default async function StoresPage(props: PageProps<"/projects/[id]/stores
 function PlaySetup({ open, children }: { open: boolean; children: ReactNode }) {
   if (open) return <div className="flex flex-col gap-4">{children}</div>;
   return (
-    <Disclosure summary="招待と置き場所を確かめ直す">
+    <DisclosureBox label="Google Play の数字を取り込む手順を表示" bodyClassName="mt-2 text-[14px] leading-[1.75] text-muted">
       <div className="flex flex-col gap-4 text-fg">{children}</div>
-    </Disclosure>
+    </DisclosureBox>
   );
 }

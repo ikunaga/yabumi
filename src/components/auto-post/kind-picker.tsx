@@ -216,7 +216,7 @@ export function KindPicker({
         })}
       </div>
       {soon.length > 0 && (
-        <DisclosureBox label="準備中のネタを表示" count={soon.length}>
+        <DisclosureBox label="まだ選べないネタを表示" count={soon.length}>
           <ul className="flex list-disc flex-col gap-0.5 pl-5 text-[14px] text-muted">
             {soon.map((k) => (
               <li key={k}>

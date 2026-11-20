@@ -6,7 +6,8 @@ import { Brand } from "@/components/brand";
 import { Shot } from "@/components/lp/shot";
 import { WaitlistForm } from "@/components/lp/waitlist-form";
 import { buttonClass } from "@/components/ui/button";
-import { Disclosure, HelpTip } from "@/components/ui/help";
+import { HelpTip } from "@/components/ui/help";
+import { DisclosureBox } from "@/components/ui/disclosure";
 import { SnsTag } from "@/components/ui/marks";
 import { Metric } from "@/components/ui/metric";
 import type { SnsKey } from "@/lib/sns";
@@ -221,7 +222,7 @@ export default async function Home(props: PageProps<"/">) {
                 <span className="w-fit rounded-full bg-subtle px-2.5 py-0.5 text-[13px] font-bold text-muted">「{p.pain}」</span>
                 <p className="text-[18px] leading-[1.5] font-bold [word-break:auto-phrase]">{p.answer}</p>
                 <p className="text-[14px] leading-[1.7] text-faint">{p.short}</p>
-                <Disclosure className="mt-auto">{p.body}</Disclosure>
+                <DisclosureBox label="yabumi でどう楽になるかを表示" size="sm" className="mt-auto">{p.body}</DisclosureBox>
               </li>
             ))}
           </ul>
@@ -243,7 +244,7 @@ export default async function Home(props: PageProps<"/">) {
                 <span className="num text-metric leading-none font-bold max-sm:text-[30px]">{i + 1}</span>
                 <b className="text-[18px]">{s.title}</b>
                 <p className="text-[14px] leading-[1.7] text-faint">{s.short}</p>
-                <Disclosure className="mt-auto">{s.body}</Disclosure>
+                <DisclosureBox label={`「${s.title}」の説明を表示`} size="sm" className="mt-auto">{s.body}</DisclosureBox>
               </li>
             ))}
           </ol>

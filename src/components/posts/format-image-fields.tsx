@@ -67,7 +67,7 @@ export function FormatImageFields({
   }
 
   return (
-    <DisclosureBox label="画像の設定を表示（任意）" className="text-xs" open={image.prompt.trim() ? true : undefined}>
+    <DisclosureBox label="画像の設定を表示" className="text-xs" open={image.prompt.trim() ? true : undefined}>
       <div className="flex flex-col gap-3">
         <p className="text-muted">決めておくと、投稿をつくるの「3 画像」で、押すだけでつくれます。</p>
         <label className="flex flex-col gap-1">

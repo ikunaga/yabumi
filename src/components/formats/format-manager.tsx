@@ -361,7 +361,7 @@ export function FormatTagsFields({
       </legend>
       <label className="flex flex-col gap-1">
         <span className="text-xs text-muted">全部の SNS に付けるハッシュタグ。{MAX_TARGET_HASHTAGS} 個まで</span>
-        <Input value={tags.all ?? ""} maxLength={400} onChange={(e) => setTag("all", e.target.value)} placeholder="例: #個人開発 #indiedev" className="py-2 text-sm" />
+        <Input value={tags.all ?? ""} maxLength={400} onChange={(e) => setTag("all", e.target.value)} placeholder="例: #パン屋 #焼きたて" className="py-2 text-sm" />
       </label>
       {candidates.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5">

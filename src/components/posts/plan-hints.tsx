@@ -27,7 +27,7 @@ export function PlanHints({ projectId, hints, sns = [] }: { projectId: string; h
   const toneRows = bySnsView ? [] : SNS_KEYS.filter((k) => (sns.length === 0 || sns.includes(k)) && toneBySns[k]?.trim());
 
   return (
-    <DisclosureBox label="コンセプト・投稿のテーマ・口調を表示" className="text-sm">
+    <DisclosureBox label="アカウントの方針を表示" className="text-sm">
       <div className="flex flex-col gap-2.5 leading-[1.7]">
         {!empty && (
           <Link href={planHref} className="self-end text-xs font-semibold text-primary hover:underline">

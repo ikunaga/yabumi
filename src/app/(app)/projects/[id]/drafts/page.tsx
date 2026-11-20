@@ -55,7 +55,7 @@ export default async function DraftsPage(props: PageProps<"/projects/[id]/drafts
                       ) : (
                         <span>送り先はまだ</span>
                       )}
-                      <span className="num">{d.plannedAt ? `予定 ${formatShort(d.plannedAt)}` : "日付なし"}</span>
+                      <span className="num">{d.plannedAt ? `予定 ${formatShort(d.plannedAt)}` : "送る日は未定"}</span>
                       {chars > 0 && <span className="num">全 {chars} 字</span>}
                       {d.images > 0 && <span className="num">画像 {d.images} 枚</span>}
                       <span className="num">編集した日 {formatShort(d.updatedAt)}</span>

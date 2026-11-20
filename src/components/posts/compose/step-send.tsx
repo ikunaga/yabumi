@@ -77,7 +77,7 @@ export function ComposeStepSend({ c, steps = false, previewBelow = false }: { c:
           aria-invalid={fe.plannedAt ? true : undefined}
           className={`num h-9 rounded-md border bg-surface px-3 text-[14px] text-fg outline-none max-sm:text-[16px] ${fe.plannedAt ? "border-danger shadow-[0_0_0_1px_var(--danger)]" : "border-border focus:border-primary"}`}
         />
-        <span className="inline-flex h-9 items-center rounded-md border border-border px-3 text-[14px] text-muted">日本時間</span>
+        <span className="inline-flex h-9 items-center text-[13px] text-muted">日本の時刻です</span>
       </div>
       {timeHint && mode !== "all_sent" && (
         <div className="-mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted">

@@ -22,7 +22,7 @@ export function DestinationInsert({
   if (destinations.length === 0) {
     return (
       <Link href={`${projectSettingsHref(projectId)}#destinations`} className={linkClass}>
-        「プロジェクトの設定」でリンク先の URL を足す
+        よく使うリンク先を「プロジェクトの設定」に登録する
       </Link>
     );
   }

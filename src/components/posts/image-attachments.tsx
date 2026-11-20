@@ -381,7 +381,7 @@ export function ImageAttachments({
           {images.length > 0 && <span className="mr-1 font-bold text-muted">{images.length} 枚</span>}
           {/* 画像のボタンが押せないとき（動画を添えている・枚数がいっぱい）は、ドラッグの案内も出さない */}
           {!disabled && !addBlocked && room > 0 && !full && <span className="hidden sm:inline">この枠に画像をドラッグしても追加できます・</span>}
-          {MAX_IMAGES_PER_POST} 枚まで・X は 4 枚まで{extraButtons ? "・動画は 1 本で 3〜90 秒" : ""}
+          画像は {MAX_IMAGES_PER_POST} 枚まで。X だけは 4 枚までです。{extraButtons ? "動画は 1 本で、3〜90 秒です。" : ""}
         </span>
         <HelpTip label="画像の扱い" align="right">
           送る前に、画像のサイズを小さくします。撮った場所などの情報は消します。

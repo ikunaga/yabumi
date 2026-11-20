@@ -49,7 +49,7 @@ export function AiCheckPanel({ projectId, aiEnabled, texts, onApply }: Props) {
 
   // 使わなくても送れるので、閉じて置く（開くとボタンと説明が出る）。見てもらったあとは開いたまま
   return (
-    <DisclosureBox label="AI が書いたように見えないか確認する欄を表示" className="text-sm" bodyClassName="mt-3">
+    <DisclosureBox label="AI っぽい文になっていないか見る" className="text-sm" bodyClassName="mt-3">
       <section className="flex flex-col gap-3" aria-label="AI っぽさチェック">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           {aiEnabled ? (

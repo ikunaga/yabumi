@@ -79,7 +79,7 @@ export function ComposeStepTargets({ c }: { c: Composer }) {
         </ul>
         {/* 「手で投稿」の意味（2026-11-18 PMO の付箋 14） */}
         <p className="text-xs leading-[1.6] text-muted">
-          {SNS_KEYS.filter(isManualSns).map((s) => SNS[s].label).join("・")} は手で投稿します。yabumi からは送れません。保存すると、「投稿」の画面で文面をコピーできます。
+          {SNS_KEYS.filter(isManualSns).map((s) => SNS[s].label).join("・")} には、自分で投稿してください。保存すると、「投稿」の画面で文面をコピーできます。
         </p>
         {warnings.length > 0 && (
           <ul className="flex flex-col gap-1 text-[13px] max-sm:hidden">
@@ -155,7 +155,7 @@ function TargetHashtags({ c }: { c: Composer }) {
                     clearFieldError("targets");
                     setTagInputs((o) => ({ ...o, [sns]: e.target.value }));
                   }}
-                  placeholder={locked ? "" : "例: #個人開発 #indiedev"}
+                  placeholder={locked ? "" : "例: #パン屋 #焼きたて"}
                   className="min-w-0 flex-1 py-2 text-sm"
                 />
               </label>

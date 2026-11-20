@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { chipClass } from "@/components/ui/chip";
 import { HelpTip } from "@/components/ui/help";
+import { Term } from "@/components/ui/term";
 import { SELF_WRITTEN_ENOUGH } from "@/lib/plan/voice-rules";
 import { VoiceInputButton } from "@/components/ui/voice-input";
 import { TidyDraftPanel } from "../tidy-draft-panel";
@@ -150,7 +151,7 @@ function RoadmapItemHint({ item, onInsert }: { item: { title: string; detail: st
   return (
     <div className="flex flex-col gap-1 rounded-md border border-line bg-surface2 px-4 py-3 text-[13px] leading-[1.7]">
       <p className="flex items-center gap-1.5 text-muted">
-        「ロードマップ」で決めたやることから
+        「<Term k="roadmap">ロードマップ</Term>」で決めたやることから
         <HelpTip label="ロードマップのやること">
           この投稿は、下のやることのためにつくります。送ると、「ロードマップ」でこのやることが 1 回進みます。たとえば「今週 3 回投稿する」なら、3 回のうち 1 回です。
         </HelpTip>

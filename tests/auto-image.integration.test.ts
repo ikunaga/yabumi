@@ -296,6 +296,6 @@ describe("見本の画像と、最初の回にする", () => {
     if (!s.ok || !s.sampleId) throw new Error("見本を作れませんでした");
     const id = await plan(p);
     const r = await adoptSample(admin, { ownerId: aliceId, planId: id, sampleId: s.sampleId });
-    expect(!r.ok && r.detail).toContain("テストでつくった投稿の画像");
+    expect(!r.ok && r.detail).toContain("画像がなかった");
   });
 });

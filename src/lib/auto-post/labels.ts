@@ -12,9 +12,9 @@ export const KIND_LABELS: Record<AutoKind, string> = {
   commits: "開発の進み",
 };
 
-// 「確かめる」と回し方の画面の「何を」。選んだカードと同じ言い方（シリーズはフォーマットの名前。「連想映画クイズ（シリーズ）」。2026-11-20 オーナーの指摘）
+// 「確かめる」と回し方の画面の「何を」。選んだカードと同じ言い方（シリーズはフォーマットの名前で「シリーズ「連想映画クイズ」」。2026-11-20 オーナーの指摘。かっこ書きにしない〈ui-writing.md の決まり 2〉）
 export function kindSummary(kind: AutoKind, formatName?: string | null): string {
-  return kind === "series" && formatName ? `${formatName}（${KIND_LABELS.series}）` : KIND_LABELS[kind];
+  return kind === "series" && formatName ? `${KIND_LABELS.series}「${formatName}」` : KIND_LABELS[kind];
 }
 
 // 始める画面の「何を」のカードの 1 行の説明（何が起きるか）。柱は用語の説明を付けるので画面の側で組む

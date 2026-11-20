@@ -107,10 +107,10 @@ export function fillImageText(text: string, values: Record<string, string>, answ
 // 【】が残っているか（埋まらなかった穴。つくるは押せない）
 export const hasUnfilled = (text: string) => /【[^【】\n]+】/.test(text);
 
-// 自動の投稿の「画像」に出す、フォーマットの画像の設定の要約（「写真・縦 4:5・見出しあり」）
+// 自動の投稿の「画像」に出す、フォーマットの画像の設定の要約（「写真・縦 4:5・文字入り」。文字は画像に重ねる見出し）
 export function imageSpecText(img: FormatImage): string {
   const size = img.size === "auto" ? "送り先に合わせた縦横" : TEMPLATE_SIZES[img.size].label;
-  return [PHOTO_STYLE_LABEL[img.style].replace(/のように|で$/g, ""), size, img.headline ? "見出しあり" : "見出しなし"].join("・");
+  return [PHOTO_STYLE_LABEL[img.style].replace(/のように|で$/g, ""), size, img.headline ? "文字入り" : "文字なし"].join("・");
 }
 
 // 一覧の行の 1 行（「画像: イラスト・見出しあり」）

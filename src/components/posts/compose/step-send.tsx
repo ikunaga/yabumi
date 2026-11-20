@@ -175,9 +175,12 @@ export function ComposeStepSend({ c, steps = false, previewBelow = false }: { c:
             )}
           </p>
           <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" variant="secondary" size="sm" disabled={pending || c.videoBusy} onClick={() => submit("draft")}>
-              {busy === "draft" ? "保存しています…" : c.scheduledSaved ? "予約をやめて下書きに戻す" : "下書きに保存する"}
-            </Button>
+            {/* 予約済みの自動の投稿は、下書きに戻さない（回の記録が「予約」のまま残るため。やめるときは詳細の「この日の投稿を飛ばす」） */}
+            {!(c.scheduledSaved && c.autoRun) && (
+              <Button type="button" variant="secondary" size="sm" disabled={pending || c.videoBusy} onClick={() => submit("draft")}>
+                {busy === "draft" ? "保存しています…" : c.scheduledSaved ? "予約をやめて下書きに戻す" : "下書きに保存する"}
+              </Button>
+            )}
             {deleteRow(mode === "partial")}
           </div>
         </div>

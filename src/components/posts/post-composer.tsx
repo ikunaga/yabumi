@@ -63,7 +63,9 @@ export function PostComposer(props: ComposerProps) {
   const [extending, setExtending] = useState(false);
   // 予約済み・確認待ちの投稿は、まず詳細の画面（手順を出さない）。「内容を編集する」で ?step が付いたときだけ手順の画面（2026-11-21 オーナーの指摘）
   const waitingReview = c.autoRun?.status === "review" && !sentAny;
-  const detail = (c.scheduledSaved || waitingReview) && !c.stepInUrl;
+  // どの SNS もまだ送る前（予約済み・確認待ち）のときだけ。送れなかった・送り直し待ちの SNS があれば、今までどおり送信の結果と手順を出す
+  const allWaiting = Object.values(results ?? {}).every((r) => !r || ((r.status === "pending" || r.status === "awaiting_approval") && !r.errorMessage));
+  const detail = (c.scheduledSaved || waitingReview) && allWaiting && !c.stepInUrl;
   const steps = (mode !== "all_sent" || extending) && !detail;
 
   // ステップを移ったら、ステップの並び（進みの札）と見出しが見えるところへ（読み上げにも、どこに来たかがわかるように、見出しにフォーカスを置く）。開いたときは動かさない。
@@ -113,7 +115,7 @@ export function PostComposer(props: ComposerProps) {
         {steps && (
           <span className="ml-auto flex items-center gap-3">
             <ComposeResetControl c={c} />
-            {composeStep < 5 && (
+            {composeStep < 5 && !(c.scheduledSaved && c.autoRun) && (
               // 動画を整えている・上げている間は保存しない（途中の状態で保存されるのを防ぐ）
               <Button type="button" variant="secondary" size="sm" disabled={pending || c.videoBusy} onClick={() => submit("draft")}>
                 {busy === "draft" ? "保存しています…" : c.scheduledSaved ? "予約をやめて下書きに戻す" : "下書きに保存する"}

@@ -39,7 +39,7 @@ export async function withdraw(_prev: WithdrawState, formData: FormData): Promis
         authError.code === "invalid_credentials"
           ? "パスワードが違います。"
           : authError.code === "captcha_failed"
-            ? "ロボットでないことの確認が済んでいません。チェックが終わってから、もう一度押してください。"
+            ? "ロボットでないことの確認が完了していません。チェックが終わってから、もう一度押してください。"
             : "本人の確認ができませんでした。時間をおいてもう一度お試しください。",
     };
   }

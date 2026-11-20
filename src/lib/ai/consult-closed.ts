@@ -14,8 +14,8 @@ export function consultClosedText(done: unknown, items: unknown, reviewed: Revie
   const parts = ["相談を終えました。"];
   if (goal === "kept") parts.push("いまの目標を期限まで続けます。");
   else if (goal) parts.push(`新しい目標『${goal.started}』を始めました。`);
-  if (reviewed && reviewed !== "many") parts.push(`『${reviewed.title}』を済みにしました。`);
+  if (reviewed && reviewed !== "many") parts.push(`『${reviewed.title}』を完了にしました。`);
   if (n > 0) parts.push(`来週のやることに ${n} 件入れました。`);
-  if (reviewed === "many") parts.push("今週の振り返りのやることが 2 つ以上あるので、ロードマップで済みにしてください。");
+  if (reviewed === "many") parts.push("今週の振り返りのやることが 2 つ以上あるので、ロードマップで完了にしてください。");
   return parts.join("");
 }

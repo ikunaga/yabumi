@@ -20,7 +20,8 @@ import { storeEnd, storeWeekValue, type StoreSpan } from "./store-period";
 // noPrev: 前の期間の記録がない（フォロワーを記録し始めて間もないなど）。画面では比べない（lastWeek は thisWeek と同じ値にしてある）
 // until: 遅れて届く数字（ダウンロード・ストアのページの閲覧）を、今日ではなくこの日（届いているいちばん新しい日）で終わる期間で数えたとき。
 // notArrived: ストアをつないでいるが、どのストアからもまだ届いていない（数は出さない。thisWeek・lastWeek は 0）
-export type WeekValue = { thisWeek: number; lastWeek: number; unit?: string; noPrev?: true; until?: string; notArrived?: true };
+// comparableFrom: noPrev のとき、前の期間と比べられるようになる日（わかるときだけ）
+export type WeekValue = { thisWeek: number; lastWeek: number; unit?: string; noPrev?: true; comparableFrom?: string; until?: string; notArrived?: true };
 export type KpiValues = Partial<Record<KpiKey, WeekValue>>;
 
 export type ClicksBySns = { sns: SnsKey | null; label: string; thisWeek: number; lastWeek: number; last30d: number };
@@ -114,7 +115,7 @@ export async function loadMetricsOverview(projectId: string, db?: SupabaseClient
       ...(outcomeRows?.length
         ? (() => {
             const known = Boolean(firstOutcome && firstOutcome.day <= addDays(today, -(days * 2 - 1)));
-            return { outcomes: { thisWeek: outcomeNow, lastWeek: known ? outcomePrev : outcomeNow, ...(known ? {} : { noPrev: true as const }) } };
+            return { outcomes: { thisWeek: outcomeNow, lastWeek: known ? outcomePrev : outcomeNow, ...(known ? {} : { noPrev: true as const, ...(firstOutcome ? { comparableFrom: addDays(firstOutcome.day, days * 2 - 1) } : {}) }) } };
           })()
         : {}),
       ...(sources.has("revenuecat") && t?.revenue_latest != null

@@ -16,7 +16,7 @@ export function ConceptHintBand({ projectId }: { projectId: string }) {
       <span className="shrink-0 rounded-sm bg-info-soft px-1.5 py-0.5 text-xs font-bold text-info">おすすめ</span>
       <p className="min-w-0 flex-1 leading-[1.7] max-sm:order-last max-sm:basis-full">
         <b>コンセプトを決める</b>
-        <span className="text-muted">：誰の・どんな悩みを・どう解決するかを 1 文にすると、投稿で迷いにくくなります</span>
+        <span className="text-muted">：誰のどんな悩みをどう解決するか、1 文にします。投稿で迷いにくくなります</span>
       </p>
       <Link href={href} className="shrink-0 font-semibold whitespace-nowrap text-primary hover:underline max-sm:order-last">
         決める →

@@ -223,7 +223,7 @@ export function ConsultChat({
 
       {closed ? (
         <div className="flex flex-col items-start gap-3 rounded-lg border border-border bg-surface px-6 py-5 max-sm:px-4">
-          <p className="text-[14px] leading-[1.8]">この相談は済みました。続けるなら、新しい相談を始めてください。</p>
+          <p className="text-[14px] leading-[1.8]">この相談は完了しました。続けるなら、新しい相談を始めてください。</p>
           <ButtonLink href={`/projects/${projectId}/consult/new`} size="sm">
             新しい相談
           </ButtonLink>

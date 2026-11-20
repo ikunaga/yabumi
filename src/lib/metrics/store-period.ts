@@ -33,6 +33,16 @@ export function compareLabel(days: number, until?: string): string {
   return days === 7 ? "先週比" : `前の ${days} 日比`;
 }
 
+// 前の期間と比べられないときの書き方（2026-11-21 オーナーの「前の記録はまだありません、って何？」）。
+// 期間の文と、比べられるようになる日の文の 2 文にする（ja-copy-reviewer: 1 文に 2 つのことを入れない）。
+// 「直近 30 日の数です。前の 30 日との比べは 1 月 19 日から出ます」。年が変わるなら「来年 1 月 19 日」。日がわからなければ「前の 30 日の記録はまだありません」
+export function notComparedLabel(period: string, days: number, from?: string, today?: string): string {
+  if (!from) return `${period}の数です。前の ${days} 日の記録はまだありません`;
+  const [y, m, d] = from.split("-");
+  const next = today && y > today.slice(0, 4) ? "来年 " : "";
+  return `${period}の数です。前の ${days} 日との比べは ${next}${Number(m)} 月 ${Number(d)} 日から出ます`;
+}
+
 // 数え始めた日（取り込んだいちばん古い日。取り込んだことがなければ null）と、すべてのストアから届いているいちばん新しい日（なければ null）
 export type StoreSpan = { since: string | null; until: string | null };
 
@@ -44,5 +54,5 @@ export function storeWeekValue(span: StoreSpan, today: string, days: number, sum
   const end = storeEnd(today, span.until);
   const v = sum(end) ?? { now: 0, prev: 0 };
   const known = storePrevKnown(span.since, end, days);
-  return { thisWeek: v.now, lastWeek: known ? v.prev : v.now, ...(known ? {} : { noPrev: true as const }), ...(end < today ? { until: end } : {}) };
+  return { thisWeek: v.now, lastWeek: known ? v.prev : v.now, ...(known ? {} : { noPrev: true as const, comparableFrom: addDays(span.since, days * 2 - 1) }), ...(end < today ? { until: end } : {}) };
 }

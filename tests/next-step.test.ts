@@ -39,7 +39,7 @@ describe("一覧の次にやること", () => {
   const done = { planDone: true, connectedSnsCount: 1, hasPublished: true, hasRoadmap: true };
 
   it("済んだ段階ごとに変わる", () => {
-    expect(label({})).toBe("アカウントを設計する");
+    expect(label({})).toBe("アカウントの方針を決める");
     expect(label({ planDone: true })).toBe("SNS をつなぐ");
     expect(label({ planDone: true, connectedSnsCount: 2 })).toBe("最初の投稿をつくる");
     expect(label({ planDone: true, connectedSnsCount: 2, hasPublished: true })).toBe("目標とロードマップ");
@@ -52,7 +52,7 @@ describe("一覧の次にやること", () => {
 
   // 2026-11-12 オーナーの指摘「今週のやることおわってるのにプロジェクト一覧に反映されない」: 済んだ週も、決めていない週と同じ「今週のやることを見る」だった
   it("今週のやることが全部済んだら「済みました」、まだ決めていなければ「決める」（概要の帯と同じ分け方）", () => {
-    expect(label({ ...done, thisWeek: { open: 0, finished: 3 } })).toBe("✓ 今週のやることは済みました");
+    expect(label({ ...done, thisWeek: { open: 0, finished: 3 } })).toBe("✓ 今週のやることは、すべて完了しました");
     expect(label({ ...done, thisWeek: { open: 0, finished: 0 } })).toBe("今週のやることを決める");
   });
 

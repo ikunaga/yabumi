@@ -33,7 +33,7 @@ export function ConsultSide({
         )}
         {closedAt && (
           <p className="flex items-center gap-2 text-[14px] text-muted">
-            <Badge>済み</Badge>
+            <Badge>完了</Badge>
             <span className="num">{formatShort(closedAt)}</span>
           </p>
         )}

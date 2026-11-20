@@ -8,7 +8,7 @@ import { DisclosureBox } from "@/components/ui/disclosure";
 import { dismissGithubPrompt } from "@/lib/github/actions";
 import type { CoachView } from "@/lib/coach/load";
 import type { GoalReview } from "@/lib/goals/review";
-import { paceText, type GoalRisk } from "@/lib/goals/risk";
+import { paceText, RISK_TITLE, type GoalRisk } from "@/lib/goals/risk";
 import type { GoalMetric } from "@/lib/goals/schema";
 import { CYCLE_WEEKS, remainingText, type PaceStatus } from "@/lib/coach/pace";
 import { SNS } from "@/lib/sns";
@@ -47,9 +47,8 @@ function PaceLine({ projectId, coach }: { projectId: string; coach: CoachView | 
       ) : (
         // 押せるものは下線つき（前は灰色の地の文に見え、押せるとわからなかった。2026-11-12 PMO のローカルでの確かめ）
         <span>
-          投稿のペース:{" "}
           <Link href={`/projects/${projectId}/plan?open=first_month`} className="font-bold text-fg underline">
-            週の回数を決める
+            週に何本投稿するか決める
           </Link>
         </span>
       )}
@@ -62,14 +61,14 @@ function GoalRiskLine({ projectId, risk, metric, aiEnabled }: { projectId: strin
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 text-sm text-muted">
       <span>
-        <b className="text-signal">● 要確認</b> 目標: {risk.level === "off" ? "このままでは届かない見込み" : "届かないかもしれません"}（{paceText(metric, risk)}）
+        <b className="text-signal">● 要確認</b> {RISK_TITLE[risk.level]}。{paceText(metric, risk)}
       </span>
       <Link href={`/projects/${projectId}/roadmap?revise=1#goal-risk`} className="font-bold text-fg underline">
         目標を見直す
       </Link>
       {aiEnabled ? (
         <Link href={`/projects/${projectId}/consult/new?start=goal_rescue`} className="font-bold text-fg underline">
-          立て直す（AI と相談）
+          届く方法を AI と考える
         </Link>
       ) : (
         <NotReadyButton variant="text" size="sm">
@@ -86,14 +85,16 @@ function GithubLine({ projectId, configured }: { projectId: string; configured: 
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 text-sm text-muted">
       <span>任意: GitHub をつなぐと、AI が紹介文を下書きします</span>
       <HelpTip label="GitHub をつなぐ理由">
-        作っているアプリや Web のサービスのリポジトリをつなぐと、AI がファイルを読んで紹介文を下書きします。紹介文は、アカウント設計の相談や投稿のネタの材料になります。非公開でも大丈夫です。
+        AI が、アプリや Web のサービスのリポジトリを読んで、紹介文を下書きします。紹介文は、アカウントの方針の相談と、投稿のネタのもとに使います。非公開のリポジトリもつなげます。
       </HelpTip>
       {configured ? (
         <Link href={`/projects/${projectId}/github`} className="font-bold text-fg underline">
           つなぐ
         </Link>
       ) : (
-        <span className="text-faint">つなぐ（準備中）</span>
+        <NotReadyButton variant="text" size="sm">
+          つなぐ
+        </NotReadyButton>
       )}
       <form action={dismissGithubPrompt.bind(null, projectId)}>
         <button type="submit" className="text-sm text-muted underline hover:text-fg">
@@ -203,10 +204,10 @@ function MainBand({
     return (
       <ActionBar
         label="今週のやること"
-        title={phase === "done" ? `今週のやることは済みました（${doneCount} 件）` : "今週のやることを決めましょう"}
+        title={phase === "done" ? "今週のやることは、すべて完了しました" : "今週のやることを決めましょう"}
         action={
           <ButtonLink href={roadmapHref} size="sm" variant={phase === "done" ? "secondary" : "primary"}>
-            {phase === "done" ? "来週を見る" : "決める"}
+            {phase === "done" ? "来週のやることを見る" : "決める"}
           </ButtonLink>
         }
       />
@@ -242,7 +243,7 @@ function MainBand({
           <ul className="flex flex-col gap-1">
             {others.map((t) => (
               <li key={t.id} className="flex flex-wrap items-baseline gap-x-3">
-                {/* 題名は地の文（押せるものは右の下線つきのリンクだけ）。行き先と「済みにする」は同じ見た目の小さなリンクにそろえる。
+                {/* 題名は地の文（押せるものは右の下線つきのリンクだけ）。行き先と「完了にする」は同じ見た目の小さなリンクにそろえる。
                     前は題名が太字のリンク（押せるように見えない）で、行き先の名前は押せない灰色の文字だった。下の「ロードマップを見る」は
                     行の「ロードマップで見る」とかぶるのでなくした（ロードマップはメニューからも開ける）（2026-11-12 PM の指摘） */}
                 <span className="font-bold text-fg">{t.title}</span>
@@ -260,11 +261,16 @@ function MainBand({
   );
 }
 
+// やることの数の単位（売上は formatValue が「円」を付ける）
+const KPI_UNIT: Partial<Record<RoadmapItem["kpi"] & string, string>> = { link_clicks: " 回", views: " 回", followers: " 人", store_page_views: " 回", downloads: " 件", outcomes: " 件" };
+
 function TodoText({ item, progress, only }: { item: RoadmapItem; progress: { actual: number; target: number } | null | undefined; only?: "progress" }): ReactNode {
   const p =
     item.kpi && progress ? (
       <span className="num ml-2 text-xs font-normal text-muted">
-        {kpiLabel(item.kpi, item.sns)} {formatValue(item.kpi, progress.actual)} / {formatValue(item.kpi, progress.target)}
+        {item.kpi === "posts"
+          ? `${formatValue(item.kpi, progress.target)} 本のうち ${formatValue(item.kpi, progress.actual)} 本`
+          : `${kpiLabel(item.kpi, item.sns)}は ${formatValue(item.kpi, progress.target)}${KPI_UNIT[item.kpi] ?? ""} のうち ${formatValue(item.kpi, progress.actual)}${KPI_UNIT[item.kpi] ?? ""}`}
       </span>
     ) : null;
   if (only === "progress") return p;
@@ -308,21 +314,22 @@ function PaceChip({ projectId, view }: { projectId: string; view: CoachView }) {
         {state && <span className={`font-bold ${state.cls}`}>{state.text}</span>}
       </summary>
       <div className="absolute left-0 z-30 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-lg bg-pop px-4 py-3 text-[13px] leading-[1.7] text-on-pop shadow-pop">
-        <p className="font-bold">今週の投稿のペース{cycle && !cycle.ended && `（この 1 か月の ${cycle.weekIndex}/${CYCLE_WEEKS} 週目）`}</p>
+        <p className="font-bold">今週の投稿のペース</p>
+        {cycle && !cycle.ended && <p className="text-xs opacity-80">{`1 か月の ${CYCLE_WEEKS} 週のうち、${cycle.weekIndex} 週目です`}</p>}
         {!week.achieved && !week.covered && <p>今週あと {remainingText(week)}</p>}
         <ul className="mt-1">
           {week.rows.map((r) => (
             <li key={r.sns} className="flex items-baseline gap-2">
               <b>{SNS[r.sns].label}</b>
               <span className="num">
-                {r.published}/{r.target} 本{r.scheduled > 0 && `（予約 ${r.scheduled}）`}
+                {r.published}/{r.target} 本{r.scheduled > 0 && `・予約 ${r.scheduled}`}
               </span>
               <span className={`text-xs ${PACE_STATUS[r.status].className}`}>{PACE_STATUS[r.status].text}</span>
             </li>
           ))}
         </ul>
         {streak > 0 && <p className="mt-1">続けた週: {streak} 週</p>}
-        <p className="mt-2 text-xs opacity-80">送信済みの投稿と予約した投稿を数えます（週は月曜から）。遅れそうなときと毎週月曜に、メールでもお知らせします。</p>
+        <p className="mt-2 text-xs opacity-80">送信済みの投稿と予約した投稿を数えます。週は月曜から数えます。遅れそうなときと毎週月曜に、メールでもお知らせします。</p>
         <p className="mt-2 flex gap-4 text-xs">
           <Link href={`/projects/${projectId}/plan?open=first_month`} className="font-bold text-on-pop underline">
             週の回数を変える

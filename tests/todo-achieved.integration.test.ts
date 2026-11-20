@@ -1,6 +1,6 @@
 // 数字で目標に届いたやることを、プロジェクトの一覧（DB の project_step_flags）と概要・ロードマップ（アプリの effectiveStatus）で同じに数える。
 // 週の区切り（日本時間の月曜 0 時）とクリックの数え方（roadmap_daily_totals のその週）が、DB とアプリで食い違わないこと。
-// まだの数に加えて済んだ数も突き合わせる（一覧の「✓ 今週のやることは済みました」。2026-11-12 オーナーの指摘）。予約だけ・一部の SNS だけ送れた・手で済み・やらないも
+// まだの数に加えて済んだ数も突き合わせる（一覧の「✓ 今週のやることは、すべて完了しました」。2026-11-12 オーナーの指摘）。予約だけ・一部の SNS だけ送れた・手で済み・やらないも
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { toCalendarTodo } from "@/lib/calendar/roadmap-view";
 import { listNextStep } from "@/lib/projects/next-step";
@@ -133,7 +133,7 @@ describe("数字で達成したやることを、一覧と概要で同じに数�
     await clicks("2026-10-20", 2);
     const { db, app, dbDone, appDone } = await compare();
     expect([app, db, appDone, dbDone]).toEqual([0, 0, 4, 4]);
-    expect(listNextStep({ planDone: true, connectedSnsCount: 1, hasPublished: true, hasRoadmap: true, thisWeek: { open: db, finished: dbDone } }).label).toBe("✓ 今週のやることは済みました");
+    expect(listNextStep({ planDone: true, connectedSnsCount: 1, hasPublished: true, hasRoadmap: true, thisWeek: { open: db, finished: dbDone } }).label).toBe("✓ 今週のやることは、すべて完了しました");
   });
 
   it("他人のプロジェクトは数えない", async () => {

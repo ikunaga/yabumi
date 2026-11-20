@@ -17,17 +17,17 @@ export type Step = {
 export const STEPS: Step[] = [
   {
     key: "plan",
-    title: "アカウントを設計する",
-    shortTitle: "アカウントを設計する",
+    title: "アカウントの方針を決める",
+    shortTitle: "アカウントの方針を決める",
     description: "誰に・何のために・どんな名前で・どんな投稿をするかを先に決めます。あとからいつでも編集できます。",
-    cta: "設計する",
+    cta: "方針を決める",
     available: true,
   },
   {
     key: "connect",
     title: "投稿先の SNS をつなぐ",
     shortTitle: "SNS をつなぐ",
-    description: "まずは 1 つで大丈夫です。迷ったら X（旧 Twitter）がおすすめ。",
+    description: "まずは 1 つで大丈夫です。迷ったら、旧 Twitter の X がおすすめです。",
     cta: "つなぐ",
     available: true,
   },
@@ -93,7 +93,7 @@ export function weekTodoPhase(c: WeekTodoCounts): WeekTodoPhase {
 export function listNextStep(state: StepState & { thisWeek: WeekTodoCounts }): { label: string; stepIndex: number } {
   const stepIndex = currentStepIndex(state);
   if (stepIndex < STEPS.length) return { label: STEPS[stepIndex].shortTitle, stepIndex };
-  const label = { open: `今週のやること あと ${state.thisWeek.open} 件`, done: "✓ 今週のやることは済みました", none: "今週のやることを決める" }[weekTodoPhase(state.thisWeek)];
+  const label = { open: `今週のやること あと ${state.thisWeek.open} 件`, done: "✓ 今週のやることは、すべて完了しました", none: "今週のやることを決める" }[weekTodoPhase(state.thisWeek)];
   return { label, stepIndex };
 }
 

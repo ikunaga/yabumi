@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { BarRow } from "@/components/ui/metric";
-import { SNS_COLOR, SnsMark } from "@/components/ui/marks";
+import { SNS_COLOR, SnsMark, SnsTag } from "@/components/ui/marks";
 import { DisclosureBox } from "@/components/ui/disclosure";
 import { AttentionFrame } from "./attention-close";
 import { attentionItems } from "@/lib/attention/dismissals";
@@ -95,7 +95,7 @@ export function ConnectedSnsLine({
       <span className="flex flex-wrap gap-1">
         {shown.map((s) => (
           <span key={s} className={broken.has(s) ? "opacity-50" : ""}>
-            <SnsMark sns={s} />
+            <SnsTag sns={s} />
           </span>
         ))}
       </span>
@@ -125,10 +125,10 @@ export function AttentionStrip({
   overdueTodos: RoadmapItem[];
 }) {
   const parts = [
-    failed.length && `送れなかった投稿 ${failed.length}`,
-    overdue.length && `予約を過ぎた投稿 ${overdue.length}`,
-    manualDue.length && `手で投稿する番 ${manualDue.length}`,
-    overdueTodos.length && `予定日を過ぎたやること ${overdueTodos.length}`,
+    failed.length && `送れなかった投稿 ${failed.length} 件`,
+    overdue.length && `予約を過ぎた投稿 ${overdue.length} 件`,
+    manualDue.length && `手で投稿する番の投稿 ${manualDue.length} 件`,
+    overdueTodos.length && `予定日を過ぎたやること ${overdueTodos.length} 件`,
   ].filter(Boolean);
   const total = failed.length + overdue.length + manualDue.length + overdueTodos.length;
   if (total === 0) return null;
@@ -141,7 +141,7 @@ export function AttentionStrip({
         bodyClassName="mt-2 text-[14px] leading-[1.75] text-muted"
         label={
           <>
-            <b className="text-signal">● 要確認 {total}</b>　{parts.join("・")}
+            <b className="text-signal">● 要確認</b>　{parts.join("・")}
           </>
         }
       >
@@ -177,7 +177,7 @@ export function AttentionStrip({
             </Group>
           )}
           {manualDue.length > 0 && (
-            <Group title="手で投稿する番です" note="note・Substack と、手で投稿すると選んだ X・TikTok は、自動では送られません。投稿の画面で本文をコピーして投稿し、投稿したことを記録してください。">
+            <Group title="手で投稿する番です" note="note・Substack は、自動では送られません。手で投稿すると選んだ X・TikTok も同じです。投稿の画面で本文をコピーして投稿し、投稿したことを記録してください。">
               {manualDue.map((p) => (
                 <li key={p.id}>
                   <Link href={`${base}/posts/${p.id}`} className="hover:underline">
@@ -198,7 +198,7 @@ export function AttentionStrip({
               {overdueTodos.slice(0, 5).map((i) => (
                 <li key={i.id} className="flex flex-wrap items-baseline gap-x-2">
                   <span className="num text-xs font-bold">
-                    {monthOf(i.plannedOn!)}/{dayOfMonth(i.plannedOn!)}（{weekdayLabel(i.plannedOn!)}）
+                    {monthOf(i.plannedOn!)}/{dayOfMonth(i.plannedOn!)} {weekdayLabel(i.plannedOn!)}
                   </span>
                   <b>{i.title}</b>
                   {/* 予定日を過ぎたやることは、投稿するやることだけ（overdueItems。4.42） */}

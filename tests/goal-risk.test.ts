@@ -56,7 +56,7 @@ describe("届かない見込みの判定", () => {
     expect(r.needPerWeek).toBe(3);
     expect(r.nowPerWeek).toBe(1);
     expect(r.projected).toBe(12);
-    expect(paceText("outcomes", r)).toBe("届くには 1 週あたり 3（いまは週 1）");
+    expect(paceText("outcomes", r)).toBe("届くには週 3 件のペースが要ります。いまは週 1 件です");
   });
 
   it("数えていない・仮の KGI・投稿の本数・届いた・期限が来た・見込みを出せない数字（売上）では出さない", () => {

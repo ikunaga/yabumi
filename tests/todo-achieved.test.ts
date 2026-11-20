@@ -96,7 +96,7 @@ describe("今週のやること（概要の帯・残りの一覧・件数）", (
     expect(thisWeekTodos(view, 1).map((t) => t.id)).toEqual(["b"]);
   });
 
-  it("全部が達成か済みなら、まだのやることは 0 件（帯は「今週のやることは済みました」）", () => {
+  it("全部が達成か済みなら、まだのやることは 0 件（帯は「今週のやることは、すべて完了しました」）", () => {
     const done: RoadmapView = { ...view, items: view.items.filter((i) => ["a", "d", "e"].includes(i.id)) };
     expect(thisWeekTodos(done)).toEqual([]);
     expect(thisWeekCounts(done)).toEqual({ open: 0, finished: 2 });

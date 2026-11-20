@@ -460,7 +460,7 @@ export type ConsultDeps = { callModel: CallModel; loadKpiValues: LoadKpiValues; 
 export type ConsultResult = { ok: true; threadId: string; redirect?: string } | { ok: false; threadId: string | null; message: string };
 
 const GENERIC_ERROR = "AI とのやりとりがうまくいきませんでした。時間をおいてもう一度お試しください。";
-export const CLOSED_THREAD_MESSAGE = "この相談は済みました。続けるなら、新しい相談を始めてください。";
+export const CLOSED_THREAD_MESSAGE = "この相談は完了しました。続けるなら、新しい相談を始めてください。";
 export const REVIEW_ITEM_NOT_FOUND = "振り返りのやることが見つかりません。ロードマップから開き直してください。";
 
 // 振り返りの相談に結びつけてよいやることか（本人の、このプロジェクトの、今週か来週の振り返りのやること）。user: 利用者の権限（RLS で本人のものだけ読める）
@@ -680,7 +680,7 @@ export async function closeConsultThread(user: Db, admin: Db, args: { userId: st
   const { userId, projectId, threadId } = args;
   const { data: t } = await user.from("ai_threads").select("id, closed_at").eq("id", threadId).eq("project_id", projectId).eq("purpose", "consult").maybeSingle();
   if (!t) return { ok: false, message: "会話が見つかりません。画面を読み込み直してください。" };
-  if (t.closed_at) return { ok: false, message: "この相談はもう済んでいます。" };
+  if (t.closed_at) return { ok: false, message: "この相談はもう完了しています。" };
 
   const history = await loadConsultHistory(admin, threadId);
   const last = history[history.length - 1];

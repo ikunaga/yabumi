@@ -244,6 +244,6 @@ async function postsByIds(supabase: Awaited<ReturnType<typeof createClient>>, id
 // 一覧やカレンダーに出す見出し（本文の 1 行目）
 export function postTitle(body: string, max = 24): string {
   const first = body.trim().split("\n")[0] ?? "";
-  if (!first) return "（本文なし）";
+  if (!first) return "本文なし";
   return [...first].length > max ? `${[...first].slice(0, max).join("")}…` : first;
 }

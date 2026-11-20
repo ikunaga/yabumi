@@ -81,7 +81,7 @@ describe("SNS ごとに数える（2026-10-12 の不具合: Instagram に送っ�
     expect(kpiLabel("posts", "instagram")).toBe("投稿した回数（Instagram）");
     expect(kpiLabel("posts", null)).toBe("投稿した回数（すべての SNS）");
     // 決定 D34 で、アプリ以外にも合う名前に（アプリの画面では clickLabel で「ストアへのクリック」）
-    expect(kpiLabel("link_clicks", null)).toBe("行き先へのクリック");
+    expect(kpiLabel("link_clicks", null)).toBe("リンク先へのクリック");
     expect(kpiChoiceValue("posts", "x")).toBe("posts:x");
     expect(kpiChoiceValue("link_clicks", null)).toBe("link_clicks");
     expect(parseKpiChoice("posts:x")).toEqual({ kpi: "posts", sns: "x" });

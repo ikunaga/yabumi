@@ -103,7 +103,7 @@ describe("振り返りのゴールで区切って、終える", () => {
     const first = (await admin.from("ai_messages").select("id").eq("thread_id", threadId).eq("role", "assistant").order("created_at").limit(1).single()).data!.id;
     expect((await step(callModel, threadId, { kind: "adopt", messageId: first, actionIndex: 1 })).ok).toBe(false);
     expect(callModel).not.toHaveBeenCalled();
-    expect(await close(threadId)).toEqual({ ok: false, message: "この相談はもう済んでいます。" });
+    expect(await close(threadId)).toEqual({ ok: false, message: "この相談はもう完了しています。" });
   });
 
   it("DB でも、済んだ会話への発言・返事の書き換え・済みを外すこと・まとめの書き換えを断る（サーバーの権限でも）", async () => {

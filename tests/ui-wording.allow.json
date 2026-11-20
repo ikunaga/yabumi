@@ -309,9 +309,6 @@
   ]
  },
  "src/app/(app)/projects/[id]/metrics/page.tsx": {
-  "成果（手で記録）": [
-   "paren"
-  ],
   "（{…} まで）": [
    "paren"
   ],
@@ -380,18 +377,6 @@
   ],
   "Apple が数えた（少ない数は省かれ、少しずれます）・Google Play の分は入っていません。「5 未満」は、Apple が 5 人未満の数を省いたか、まだ届いていない分です。": [
    "long",
-   "paren"
-  ]
- },
- "src/app/(app)/projects/[id]/page.tsx": {
-  "短縮リンクを付けて投稿すると、行き先に来た人の数がここに並びます。": [
-   "ikisaki"
-  ],
-  "紹介文（プロジェクトの説明）を保存しました。アカウント設計の AI にも伝わります。": [
-   "sekkei",
-   "paren"
-  ],
-  "{…}の日ごとの数（{…}）": [
    "paren"
   ]
  },
@@ -947,15 +932,6 @@
    "sekkei"
   ]
  },
- "src/components/comments/comments.tsx": {
-  "（名前なし）": [
-   "paren"
-  ],
-  "つなぎ直すと、SNS の画面で「コメントを読む権限」を許可できます。許可すると、yabumi で送信済みの投稿のコメント（書いた人の名前・本文・日時）を、送ってから 7 日まで読みに行きます。コメントは yabumi に 30 日だけ置いて消し、AI には送りません。": [
-   "long",
-   "paren"
-  ]
- },
  "src/components/error-fallback.tsx": {
   "画面を開いたあとに yabumi が新しくなったため、続きができませんでした。「読み込み直す」を押してください。投稿をつくるの本文・設計・ネタ帳のメモは、読み込み直しても戻ります。": [
    "sekkei"
@@ -1161,11 +1137,6 @@
    "paren"
   ]
  },
- "src/components/learning/today-term-band.tsx": {
-  "今日の用語を閉じる（今日はもう出しません）": [
-   "paren"
-  ]
- },
  "src/components/legal/consent-check.tsx": {
   "{…} 歳以上であり、 利用規約 と プライバシーポリシー （{…}施行）に同意します": [
    "paren"
@@ -1340,36 +1311,6 @@
    "paren"
   ]
  },
- "src/components/overview/now-band.tsx": {
-  "● 要確認 目標: {…}（{…}） 目標を見直す {…}": [
-   "paren"
-  ],
-  "作っているアプリや Web のサービスのリポジトリをつなぐと、AI がファイルを読んで紹介文を下書きします。紹介文は、アカウント設計の相談や投稿のネタの材料になります。非公開でも大丈夫です。": [
-   "zairyo",
-   "sekkei",
-   "long"
-  ],
-  "今週のやることは済みました（{…} 件）": [
-   "paren"
-  ],
-  "（この 1 か月の {…}/{…} 週目）": [
-   "paren"
-  ],
-  "（予約 {…}）": [
-   "paren"
-  ],
-  "送信済みの投稿と予約した投稿を数えます（週は月曜から）。遅れそうなときと毎週月曜に、メールでもお知らせします。": [
-   "paren"
-  ]
- },
- "src/components/overview/overview-panels.tsx": {
-  "note・Substack と、手で投稿すると選んだ X・TikTok は、自動では送られません。投稿の画面で本文をコピーして投稿し、投稿したことを記録してください。": [
-   "long"
-  ],
-  "{…}/{…}（{…}） {…} この内容で投稿をつくる": [
-   "paren"
-  ]
- },
  "src/components/plan/account-plan-editor.tsx": {
   "あなた個人のアカウントで発信するか、お店・商品・作品・アプリ専用のアカウントを作るかを決めます。ひとりで商売や制作をしている人は、作っている人・やっている人の顔が見える個人のアカウントのほうが反応を得やすいこともあります。": [
    "long"
@@ -1478,11 +1419,6 @@
   ],
   "3 か月の目標（{…}）と、途中で追いかける数字（{…}）は、 ロードマップ で決めます。": [
    "paren"
-  ]
- },
- "src/components/plan/concept-hint-band.tsx": {
-  "コンセプトを決める ：誰の・どんな悩みを・どう解決するかを 1 文にすると、投稿で迷いにくくなります": [
-   "long"
   ]
  },
  "src/components/plan/plan-coach-chat.tsx": {
@@ -1681,9 +1617,6 @@
  "src/components/posts/compose/step-nav.tsx": {
   "（直すところがあります）": [
    "naosu",
-   "paren"
-  ],
-  "（済み）": [
    "paren"
   ]
  },
@@ -2203,12 +2136,6 @@
    "ikisaki"
   ]
  },
- "src/components/projects/skip-plan-form.tsx": {
-  "あとで設計する（先に SNS をつなぐ）": [
-   "sekkei",
-   "paren"
-  ]
- },
  "src/components/projects/sns-result-banner.tsx": {
   "このアカウントはプロアカウントではないため、つなげませんでした。Instagram のアプリの「設定とアクティビティ」→「アカウントの種類とツール」→「プロアカウントに切り替える」で切り替えてから、もう一度つないでください（無料です）。": [
    "long",
@@ -2310,9 +2237,6 @@
   "{…}: いま {…} / 目標 {…}。このままだと期限（{…}）に {…} の見込み": [
    "paren"
   ],
-  "立て直す（AI と相談）": [
-   "paren"
-  ],
   "期限を {…} 週のばす（{…} → {…}）": [
    "paren"
   ]
@@ -2377,11 +2301,6 @@
   ],
   "{…} 欄に書いた（キーボード・音声）内容が開いたときと違うと、保存するまでの書きかけを、この端末（ブラウザー）にだけ残します。ボタンで入れた文（URL・AI の案など）だけのときは残しません。ほかの端末には出ません。次のときに消えます。書いてから {…} 日たったとき、ログアウト・退会したとき、「捨てる」を押したとき、保存・予約したとき。そのあとほかの画面や AI の案で保存し直したときも、前の書きかけは出しません。": [
    "long",
-   "paren"
-  ]
- },
- "src/components/ui/marks.tsx": {
-  "{…}（手で投稿）": [
    "paren"
   ]
  },
@@ -3595,11 +3514,6 @@
    "paren"
   ]
  },
- "src/lib/goals/risk.ts": {
-  "届くには 1 週あたり {…}（いまは週 {…}）": [
-   "paren"
-  ]
- },
  "src/lib/goals/view.ts": {
   "成果（{…}）": [
    "paren"
@@ -3808,41 +3722,6 @@
    "paren"
   ]
  },
- "src/lib/metrics/kpis.ts": {
-  "成果（手で記録）": [
-   "paren"
-  ],
-  "続けられているかの数字。SNS ごとに数えます（1 本の投稿を 2 つの SNS に出すと 2 回）。始めたばかりのうちは、数字が小さくても続けることがいちばん大事です。": [
-   "paren"
-  ],
-  "行き先へのクリック": [
-   "ikisaki"
-  ],
-  "投稿やプロフィールの短縮リンクから、ストア・サイト・予約のページなどの行き先に来た人の数。興味を持って一歩進んだ人です。": [
-   "ikisaki",
-   "long"
-  ],
-  "Threads・Instagram・Facebook・X を数字の権限つきでつなぐと出ます（note・Substack は手で記録。X は読むたびに費用がかかるので、月の上限まで）": [
-   "long",
-   "paren"
-  ],
-  "Threads・Instagram・Facebook・X を数字の権限つきでつなぐと出ます（X は週に 1 回）": [
-   "long",
-   "paren"
-  ],
-  "App Store のページの閲覧数のレポートを依頼するか、Google Play をつなぐと出ます": [
-   "long"
-  ],
-  "アプリを入れてくれた人の数（はじめてのダウンロード）。": [
-   "paren"
-  ],
-  "課金（売上）": [
-   "paren"
-  ],
-  "直近 28 日に払ってもらった金額（RevenueCat の数字）。": [
-   "paren"
-  ]
- },
  "src/lib/metrics/post-meta.ts": {
   "（本文なし）": [
    "paren"
@@ -4047,11 +3926,6 @@
    "paren"
   ]
  },
- "src/lib/posts/queries.ts": {
-  "（本文なし）": [
-   "paren"
-  ]
- },
  "src/lib/posts/send-actions.ts": {
   "URL は https:// から始まる形で入れてください（空でも記録できます）。": [
    "paren"
@@ -4068,17 +3942,6 @@
   ],
   "行き先の URL は {…} までにしてください": [
    "ikisaki"
-  ]
- },
- "src/lib/projects/next-step.ts": {
-  "アカウントを設計する": [
-   "sekkei"
-  ],
-  "設計する": [
-   "sekkei"
-  ],
-  "まずは 1 つで大丈夫です。迷ったら X（旧 Twitter）がおすすめ。": [
-   "paren"
   ]
  },
  "src/lib/projects/product-types.ts": {
@@ -4109,11 +3972,6 @@
   ],
   "3 か月で行き先へのクリック 300 回": [
    "ikisaki"
-  ]
- },
- "src/lib/roadmap/todo-kind.ts": {
-  "設計を開く": [
-   "sekkei"
   ]
  },
  "src/lib/sns/adapters/facebook.ts": {

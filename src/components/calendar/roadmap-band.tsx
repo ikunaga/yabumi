@@ -88,7 +88,7 @@ export function TodoButton({ todo, base, variant = "band" }: { todo: CalendarTod
         <span aria-hidden className={todo.status === "done" || todo.status === "achieved" ? "font-bold text-success" : ""}>
           {TODO_MARK[todo.status]}
         </span>
-        <span className="sr-only">{todo.status === "done" ? "済み" : todo.status === "achieved" ? "数字で達成" : todo.status === "skipped" ? "やらない" : "やること"}:</span>
+        <span className="sr-only">{todo.status === "done" ? "完了" : todo.status === "achieved" ? "数字で達成" : todo.status === "skipped" ? "やらない" : "やること"}:</span>
         <span className={`min-w-0 ${variant === "day" ? "truncate" : variant === "list" ? "line-clamp-3 break-words" : "line-clamp-2 break-words"} ${todo.status === "done" ? "line-through" : ""}`}>
           {todo.title}
         </span>
@@ -192,7 +192,7 @@ function TodoDetail({ todo, base, titleId, onClose }: { todo: CalendarTodo; base
           </Button>
         ) : (
           <Button type="button" variant="secondary" size="sm" disabled={pending} onClick={() => run(() => setItemStatus(projectId, todo.id, "done"))}>
-            済みにする
+            完了にする
           </Button>
         )}
         <a href={`${base}/roadmap#item-${todo.id}`} className="ml-auto text-sm font-semibold text-primary hover:underline">

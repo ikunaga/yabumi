@@ -38,7 +38,7 @@ function toJapaneseAuthError(code: string | undefined, fallback: string): string
     case "invalid_credentials":
       return "メールアドレスかパスワードが違います。もう一度お試しください。";
     case "email_not_confirmed":
-      return "メールアドレスの確認が済んでいません。届いた確認メールのリンクを開いてください";
+      return "メールアドレスの確認が完了していません。届いた確認メールのリンクを開いてください";
     case "user_already_exists":
     case "email_exists":
       return "このメールアドレスはすでに登録されています。ログインしてください";
@@ -48,7 +48,7 @@ function toJapaneseAuthError(code: string | undefined, fallback: string): string
     case "over_email_send_rate_limit":
       return "試行回数が多すぎます。しばらく待ってからやり直してください";
     case "captcha_failed":
-      return "ロボットでないことの確認が済んでいません。チェックが終わってから、もう一度押してください";
+      return "ロボットでないことの確認が完了していません。チェックが終わってから、もう一度押してください";
     case "same_password":
       return "いまと同じパスワードです。別のパスワードにしてください";
     case "otp_expired":

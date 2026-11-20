@@ -1,7 +1,7 @@
 // 概要の数字（見本 A。docs/architecture.md の 4.31）。読み込みは load.ts、ここは並べ方を決めるだけ（テストできるように DB を触らない）
 import { clickLabel, KPIS, type KpiKey } from "@/lib/metrics/kpis";
 import type { KpiValues, WeekValue } from "@/lib/metrics/queries";
-import { compareLabel, NOT_ARRIVED, periodLabel } from "@/lib/metrics/store-period";
+import { compareLabel, NOT_ARRIVED, notComparedLabel, periodLabel } from "@/lib/metrics/store-period";
 import { addDays, formatTime, toYmd } from "@/lib/time";
 
 // 概要は直近 30 日と、その前の 30 日を比べる（固定。切り替えは分析の画面で）
@@ -92,20 +92,26 @@ function compared(key: "downloads" | "link_clicks" | "posts", label: string, row
   const { now, before } = compareDays(rows, today);
   // 単位は予約中・下書き（件）とそろえる。ダウンロードは数だけ（「DL」と書き分けない）
   const unit = key === "posts" ? "本" : key === "link_clicks" ? "回" : undefined;
-  if (!prevKnown(since, today)) return { key, label, value: now, unit, deltaPct: null, note: "前の記録はまだありません" };
+  // 何日分の数かがわかるように、いつも期間を書く（2026-11-21 オーナーの指摘）
+  const period = periodLabel(OVERVIEW_DAYS);
+  if (!prevKnown(since, today)) {
+    const from = since ? addDays(since, OVERVIEW_DAYS * 2 - 1) : undefined;
+    return { key, label, value: now, unit, deltaPct: null, note: notComparedLabel(period, OVERVIEW_DAYS, from, today) };
+  }
   const deltaPct = pctChange(now, before);
-  return { key, label, value: now, unit, deltaPct, note: deltaPct === null ? (before === 0 && now > 0 ? "前の 30 日は 0" : undefined) : "前の 30 日比" };
+  const cmp = deltaPct === null ? (before === 0 && now > 0 ? `前の ${OVERVIEW_DAYS} 日は 0` : null) : compareLabel(OVERVIEW_DAYS);
+  return { key, label, value: now, unit, deltaPct, note: cmp ? `${period}・${cmp}` : period };
 }
 
 // 遅れて届く数字（ダウンロード・ストアのページの閲覧）のカード。届いている日で終わる期間なら「10/30 までの 30 日・その前の 30 日比」と終わりの日を書く。
-// 概要のほかのカードと同じ 30 日で今日まで届いているときは、期間を書かない（「前の 30 日比」）
+// 今日まで届いているときは「直近 30 日・前の 30 日比」（何日分の数かを、いつも書く。2026-11-21 オーナーの指摘）
 function delayedCard(base: Pick<OverviewCard, "key" | "kpi" | "label">, v: WeekValue, days: number): OverviewCard {
   if (v.notArrived) return { ...base, value: 0, notArrived: true, deltaPct: null, note: NOT_ARRIVED };
-  const prefix = v.until || days !== OVERVIEW_DAYS ? `${periodLabel(days, v.until)}・` : "";
-  if (v.noPrev) return { ...base, value: v.thisWeek, deltaPct: null, note: `${prefix}前の記録はまだありません` };
+  const prefix = `${periodLabel(days, v.until)}・`;
+  if (v.noPrev) return { ...base, value: v.thisWeek, deltaPct: null, note: notComparedLabel(periodLabel(days, v.until), days, v.comparableFrom) };
   const deltaPct = pctChange(v.thisWeek, v.lastWeek);
   const zero = v.lastWeek === 0 && v.thisWeek > 0 ? `${v.until ? "その" : ""}前の ${days} 日は 0` : null;
-  const note = deltaPct !== null ? `${prefix}${compareLabel(days, v.until)}` : zero ? `${prefix}${zero}` : prefix ? periodLabel(days, v.until) : undefined;
+  const note = deltaPct !== null ? `${prefix}${compareLabel(days, v.until)}` : zero ? `${prefix}${zero}` : periodLabel(days, v.until);
   return { ...base, value: v.thisWeek, deltaPct, note };
 }
 
@@ -120,7 +126,7 @@ export function pickOverviewCards(input: OverviewInput, max = 4): OverviewCard[]
   const postsAt = cards.length;
   // SNS ごとに数える（1 本の投稿を 2 つの SNS に出すと 2 本。分析・伴走・ロードマップの「投稿した回数」と同じ）。
   // 前は「投稿数 2 件」で、投稿 1 件の数と読めた（2026-11-12 PMO のローカルでの確かめ）
-  cards.push(compared("posts", "SNS への投稿", input.published, today, input.since?.posts));
+  cards.push(compared("posts", "送信済みの投稿", input.published, today, input.since?.posts));
 
   for (const k of input.kpis) {
     if (cards.length >= max) break;
@@ -141,7 +147,7 @@ export function pickOverviewCards(input: OverviewInput, max = 4): OverviewCard[]
       currency: v.unit,
       // 売上は 28 日の合計、ほかは直近 7 日（分析の画面と同じ値）
       deltaPct: v.noPrev ? null : pctChange(v.thisWeek, v.lastWeek),
-      note: v.noPrev ? "直近 7 日・前の記録はまだありません" : v.unit ? "直近 28 日・1 週間前比" : "直近 7 日・先週比",
+      note: v.noPrev ? notComparedLabel(v.unit ? "直近 28 日" : "直近 7 日", v.unit ? 28 : 7, v.comparableFrom, today) : v.unit ? "直近 28 日・1 週間前比" : "直近 7 日・先週比",
     });
   }
 
@@ -156,13 +162,14 @@ export function pickOverviewCards(input: OverviewInput, max = 4): OverviewCard[]
   }
 
   const fillers: OverviewCard[] = [
-    { key: "scheduled", label: "予約中", value: input.scheduledCount, unit: "件", deltaPct: null },
-    { key: "drafts", label: "下書き", value: input.draftCount, unit: "件", deltaPct: null },
+    // 30 日の数のカードと並ぶので、いまの数だとわかるように書く
+    { key: "scheduled", label: "予約中", value: input.scheduledCount, unit: "件", deltaPct: null, note: "いま予約している投稿" },
+    { key: "drafts", label: "下書き", value: input.draftCount, unit: "件", deltaPct: null, note: "いまある下書き" },
   ];
   for (const f of fillers) if (cards.length < max) cards.push(f);
 
   // 予約中のカードがなければ、SNS への投稿に予約中の投稿の数を添える（見本 A の「うち予約 84 件」。予約は投稿の数なので「件」）
-  if (!cards.some((c) => c.key === "scheduled")) cards[postsAt] = { ...cards[postsAt], note: `予約中の投稿 ${input.scheduledCount} 件` };
+  if (!cards.some((c) => c.key === "scheduled")) cards[postsAt] = { ...cards[postsAt], note: `${cards[postsAt].note}・ほかに予約中 ${input.scheduledCount} 件` };
   return cards.slice(0, max);
 }
 

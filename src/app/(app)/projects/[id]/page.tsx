@@ -30,7 +30,7 @@ import { DEFAULT_BEHIND_WEEKDAY } from "@/lib/coach/pace";
 import { githubConfigured } from "@/lib/github/config";
 import { chosenKpis, clickLabel } from "@/lib/metrics/kpis";
 import type { WeekValue } from "@/lib/metrics/queries";
-import { compareLabel, NOT_ARRIVED, periodLabel } from "@/lib/metrics/store-period";
+import { compareLabel, NOT_ARRIVED, notComparedLabel, periodLabel } from "@/lib/metrics/store-period";
 import { isAppProject, isDevProject } from "@/lib/projects/product-types";
 import { loadOverviewNumbers } from "@/lib/overview/load";
 import { CHART_DAYS, CHART_DAYS_MOBILE, chartWindow, compareDays, latestAside, pctChange, shortDay, type Daily } from "@/lib/overview/numbers";
@@ -134,7 +134,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
   const emptyChart = (
     <>
       <p>
-        {numbers.hasLinks ? "まだクリックがありません。" : isApp ? "ストアをつなぐか、短縮リンクを付けて投稿すると、日ごとの数がここに並びます。" : "短縮リンクを付けて投稿すると、行き先に来た人の数がここに並びます。"}
+        {numbers.hasLinks ? "まだクリックがありません。" : isApp ? "ストアをつなぐか、短縮リンクを付けて投稿すると、日ごとの数がここに並びます。" : "短縮リンクを付けて投稿すると、リンク先に来た人の数がここに並びます。"}
       </p>
       <span className="flex flex-wrap justify-center gap-x-4 gap-y-1 font-bold">
         {isApp && (
@@ -169,7 +169,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
       <ConnectedSnsLine projectId={project.id} accounts={snsAccounts} manualChannels={manualChannels ?? []} />
 
       <ConsultClosedBanner projectId={project.id} done={done} items={items} reviewed={reviewed} goal={goal} />
-      {done === "description" && <SuccessBanner>紹介文（プロジェクトの説明）を保存しました。アカウント設計の AI にも伝わります。</SuccessBanner>}
+      {done === "description" && <SuccessBanner>紹介文を保存しました。アカウントの方針を AI と相談するときにも使います。</SuccessBanner>}
 
       <NowBand
         projectId={project.id}
@@ -209,11 +209,11 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
           <>
             <Panel
               className="max-sm:hidden"
-              title={numbers.chart ? `${chartName}の推移` : "日ごとの数"}
+              title={numbers.chart ? `${chartName}の推移` : `日ごとの${chartName}`}
               aside={win14 ? `${win14.until ? "" : `直近 ${CHART_DAYS} 日 / `}合計 ${total14.toLocaleString("ja-JP")} / ${latestAside(win14.rows, arrived)}` : undefined}
             >
               {win14 ? (
-                <DailyBars rows={win14.rows} note={win14.note} label={`${chartName}の日ごとの数（${periodLabel(CHART_DAYS, win14.until)}）`} />
+                <DailyBars rows={win14.rows} note={win14.note} label={`${chartName}の日ごとの数・${periodLabel(CHART_DAYS, win14.until)}`} />
               ) : (
                 <ChartEmpty>{numbers.chart ? NOT_ARRIVED : emptyChart}</ChartEmpty>
               )}
@@ -230,9 +230,9 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
                 <SnsClicks rows={numbers.clicksBySns} />
               ) : (
                 <p className="text-sm text-muted">
-                  {numbers.hasLinks ? "直近 30 日のクリックはまだありません。" : `SNS ごとの短縮リンクを付けて投稿すると、どの SNS から${isApp ? "ストア" : "行き先"}へ来たかが並びます。`}
+                  {numbers.hasLinks ? "直近 30 日のクリックはまだありません。" : "SNS ごとに別の短縮リンクを付けると、どの SNS から来たかがわかります。"}
                   <Link href={`${base}/links`} className="ml-1 font-bold text-fg underline">
-                    短縮リンク
+                    短縮リンクをつくる
                   </Link>
                 </p>
               )}
@@ -293,7 +293,7 @@ function MobileHero({ name, win, arrived, hero, source, today, empty }: { name: 
   }
   if (!win || !source) {
     return (
-      <Panel title="日ごとの数">
+      <Panel title={`日ごとの${name}`}>
         <ChartEmpty height="h-36">{empty}</ChartEmpty>
       </Panel>
     );
@@ -309,7 +309,7 @@ function MobileHero({ name, win, arrived, hero, source, today, empty }: { name: 
         {v.notArrived ? (
           NOT_ARRIVED
         ) : v.noPrev ? (
-          `${prefix}前の記録はまだありません`
+          notComparedLabel(v.until ? periodLabel(CHART_DAYS_MOBILE, v.until) : `直近 ${CHART_DAYS_MOBILE} 日`, CHART_DAYS_MOBILE, v.comparableFrom, today)
         ) : delta !== null ? (
           <>
             <Delta value={delta} unit="%" /> {prefix}
@@ -320,7 +320,7 @@ function MobileHero({ name, win, arrived, hero, source, today, empty }: { name: 
         )}
       </p>
       <div className="mt-3">
-        <DailyBars rows={win.rows} note={win.note} height="h-28" label={`${name}の日ごとの数（${periodLabel(CHART_DAYS_MOBILE, win.until)}）`} />
+        <DailyBars rows={win.rows} note={win.note} height="h-28" label={`${name}の日ごとの数・${periodLabel(CHART_DAYS_MOBILE, win.until)}`} />
       </div>
     </Panel>
   );

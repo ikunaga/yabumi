@@ -27,7 +27,7 @@ export function TodayTermBand({ projectId, term }: { projectId: string; term: To
         くわしく →
       </Link>
       <BandCloseButton
-        label="今日の用語を閉じる（今日はもう出しません）"
+        label="今日の用語を閉じる。今日はもう出しません"
         className="max-sm:ml-auto"
         onClick={() => {
           setHidden(true);

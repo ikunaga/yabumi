@@ -73,7 +73,7 @@ export default async function ConsultListPage(props: PageProps<"/projects/[id]/c
                           {t.closed && t.summary && <span className="truncate text-[13px] text-muted max-sm:whitespace-normal">まとめ: {t.summary}</span>}
                         </span>
                         <span className="num flex shrink-0 items-center gap-3 text-[13px] text-faint">
-                          {t.closed && <Badge>済み</Badge>}
+                          {t.closed && <Badge>完了</Badge>}
                           {t.adopted > 0 && <Badge tone="success">採用した案 {t.adopted}</Badge>}
                           <span>{formatShort(t.updatedAt)}</span>
                         </span>

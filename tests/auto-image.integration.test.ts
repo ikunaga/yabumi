@@ -221,6 +221,9 @@ describe("自動の回に画像を添える", () => {
     expect(media).toHaveLength(1);
     expect(media![0]).toMatchObject({ ai_generated: true, alt_text: "木の机の上に、焙煎したコーヒー豆が広がっている" });
     expect(media![0].storage_path).toMatch(new RegExp(`^${aliceId}/[0-9a-f-]{36}\\.jpg$`));
+    // 手でつくった AI の画像と同じく、画像の中に AI で作ったことの印（XMP の trainedAlgorithmicMedia）を入れる
+    const { data: file } = await admin.storage.from("post-media").download(media![0].storage_path);
+    expect(Buffer.from(await file!.arrayBuffer()).toString("latin1")).toContain("trainedAlgorithmicMedia");
     const { data: targets } = await admin.from("post_targets").select("sns").eq("post_id", run!.post_id!);
     expect(targets!.map((t) => t.sns).sort()).toEqual(["instagram", "threads"]);
     // 画像の AI には、場面と決まった注文だけを送る（投稿の本文は送らない）

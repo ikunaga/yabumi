@@ -5,6 +5,7 @@ import type { GenerateImage } from "@/lib/ai/gemini-image";
 import { buildFormatSceneRequest, buildPhotoIdeasRequest, normalizePhotoIdeas } from "@/lib/ai/photo";
 import { runAutoPhoto, type AutoPhoto, type CallPhotoIdeas } from "@/lib/ai/photo-gen";
 import { productTypeOf } from "@/lib/ai/product-guide";
+import { sanitizeJpeg, withAiMark } from "@/lib/media/jpeg";
 import { MAX_ALT_LENGTH, MAX_IMAGES_PER_POST, MEDIA_BUCKET, USER_QUOTA_BYTES, mediaPath } from "@/lib/media/rules";
 import { defaultSizeFor, type TemplateSizeKey } from "@/lib/media/templates";
 import { normalizePlan } from "@/lib/plan/schema";
@@ -80,18 +81,26 @@ export async function makeAutoImage(
   return { ok: true, image: { ...r.photo, alt: [...scene].slice(0, MAX_ALT_LENGTH).join("") } };
 }
 
-// 候補の画像をその回の投稿に添える（添えた画像の置き場所に写し、AI の印を付けた記録を作る）。JPEG だけ（Gemini には JPEG で頼んでいる）
+// 候補の画像をその回の投稿に添える（添えた画像の置き場所に、AI で作ったことの印〈XMP〉を入れて上げ直し、AI の印を付けた記録を作る。
+// 手でつくった AI の画像を添えるときと同じ印。/privacy「AI で作った画像には、画像の中に AI で作ったことの印を入れます」）。JPEG だけ（Gemini には JPEG で頼んでいる）
 export async function attachImage(admin: Db, ownerId: string, postId: string, image: MadeImage): Promise<boolean> {
   if (!image.path.startsWith(`${ownerId}/gen/`) || !image.path.endsWith(".jpg")) return false;
-  const { data: listed } = await admin.storage.from(MEDIA_BUCKET).list(`${ownerId}/gen`, { search: image.path.slice(`${ownerId}/gen/`.length), limit: 1 });
-  const size = Number((listed?.[0]?.metadata as { size?: number } | undefined)?.size ?? 0);
+  let bytes: Uint8Array;
+  try {
+    const { data: blob, error: dlError } = await admin.storage.from(MEDIA_BUCKET).download(image.path);
+    if (dlError || !blob) throw dlError ?? new Error("download");
+    bytes = withAiMark(sanitizeJpeg(new Uint8Array(await blob.arrayBuffer())).bytes, "generated");
+  } catch (e) {
+    console.error("[auto-post] 画像を読めませんでした", e instanceof Error ? e.message : e);
+    return false;
+  }
   const { count } = await admin.from("media_files").select("id", { count: "exact", head: true }).eq("post_id", postId).eq("kind", "image");
   const { data: used } = await admin.rpc("media_usage_bytes", { p_owner_id: ownerId });
-  if ((count ?? 0) >= MAX_IMAGES_PER_POST || Number(used ?? 0) + size > USER_QUOTA_BYTES) return false;
+  if ((count ?? 0) >= MAX_IMAGES_PER_POST || Number(used ?? 0) + bytes.length > USER_QUOTA_BYTES) return false;
   const path = mediaPath(ownerId, crypto.randomUUID());
-  const { error: copyError } = await admin.storage.from(MEDIA_BUCKET).copy(image.path, path);
-  if (copyError) {
-    console.error("[auto-post] 画像を写せませんでした", copyError.message);
+  const { error: upError } = await admin.storage.from(MEDIA_BUCKET).upload(path, bytes, { contentType: "image/jpeg", upsert: false, cacheControl: "3600" });
+  if (upError) {
+    console.error("[auto-post] 画像を上げられませんでした", upError.message);
     return false;
   }
   const { error } = await admin.from("media_files").insert({
@@ -102,7 +111,7 @@ export async function attachImage(admin: Db, ownerId: string, postId: string, im
     alt_text: image.alt,
     width: image.width,
     height: image.height,
-    size_bytes: size,
+    size_bytes: bytes.length,
     ai_generated: true,
   });
   if (error) {

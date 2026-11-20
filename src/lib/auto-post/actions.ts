@@ -3,7 +3,8 @@
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { adoptSample, engineDeps, makeSample, NO_PLAN_ID } from "./engine";
+import { adoptSample, engineDeps, makeSample, makeSampleImage, NO_PLAN_ID } from "./engine";
+import { MEDIA_BUCKET, PREVIEW_URL_SECONDS } from "@/lib/media/rules";
 import { HOLD_REFUSED, myAutoPostHold } from "./holds";
 import { getAutoPlan, listProjectEvents, loadTargetPreviews } from "./queries";
 import { autoPlanInputSchema, eventInputSchema, instructionSchema, instructionsSchema } from "./schema";
@@ -28,6 +29,8 @@ const HINT_TEXT: Record<string, string> = {
   // 運営者が利用者ごとに止めている（20261118100000_auto_post_holds）
   auto_post_hold: HOLD_REFUSED,
   auto_instructions_invalid: "指示は 1 つ 100 字まで・8 個までです（1 行で書いてください）。",
+  auto_image_invalid: "画像の設定が正しくありません。選び直してください。",
+  ai_image_notice_missing: "AI の画像を使うには、先に AI の画像の注意を読んで「わかりました」を押してください。",
 };
 
 type DbError = { code?: string; hint?: string | null; message: string };
@@ -70,6 +73,7 @@ export async function saveAutoPlan(projectId: string, input: AutoPlanInput): Pro
     p_x_link: v.xLink,
     p_schedule: v.schedule,
     p_instructions: v.instructions,
+    p_image: v.image ?? {},
     p_lead_hours: v.leadHours,
     p_consent: v.consent,
   });
@@ -213,6 +217,7 @@ export async function makeAutoSample(projectId: string, input: Omit<AutoPlanInpu
     xLink: v.xLink,
     schedule: v.schedule,
     instructions: v.instructions,
+    image: v.image,
     leadHours: v.leadHours,
     firstReview: true,
     status: "active",
@@ -239,6 +244,31 @@ export async function makeAutoSample(projectId: string, input: Omit<AutoPlanInpu
     return { ok: true, data: { sampleId: r.sampleId, texts: r.texts, tags: r.tags, materialLabel: r.label, issues: r.issues } };
   } catch (e) {
     console.error("[auto-post] 見本を作れませんでした", e instanceof Error ? e.message : e);
+    return { ok: false, error: FAILED };
+  }
+}
+
+// 見本の画像をつくる（「画像もつくる」。文の作り直しとは別。AI の画像を 1 枚・自動の投稿の分の枠）。見る URL は 1 時間で切れる
+export async function makeAutoSampleImage(projectId: string, sampleId: string): Promise<AutoResult<NonNullable<AutoSample["image"]>>> {
+  if (!uuid.safeParse(projectId).success || !uuid.safeParse(sampleId).success) return { ok: false, error: BAD };
+  const db = await createClient();
+  const { data: claims } = await db.auth.getClaims();
+  const userId = claims?.claims?.sub;
+  if (!userId) return SIGN_IN;
+  const { data: project } = await db.from("projects").select("id").eq("id", projectId).maybeSingle();
+  if (!project) return { ok: false, error: "プロジェクトが見つかりません。" };
+  if (await myAutoPostHold(db)) return { ok: false, error: HOLD_REFUSED };
+  const admin = createAdminClient();
+  const deps = engineDeps(admin);
+  if (!deps?.image) return { ok: false, error: "AI の画像はまだ準備中です。" };
+  try {
+    const r = await makeSampleImage(admin, deps, { ownerId: userId, projectId, sampleId });
+    if (!r.ok) return { ok: false, error: `${r.detail}。` };
+    const { data: url, error } = await admin.storage.from(MEDIA_BUCKET).createSignedUrl(r.image.path, PREVIEW_URL_SECONDS);
+    if (error || !url) return { ok: false, error: FAILED };
+    return { ok: true, data: { url: url.signedUrl, width: r.image.width, height: r.image.height, alt: r.image.alt } };
+  } catch (e) {
+    console.error("[auto-post] 見本の画像をつくれませんでした", e instanceof Error ? e.message : e);
     return { ok: false, error: FAILED };
   }
 }

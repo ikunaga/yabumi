@@ -148,7 +148,7 @@ export function createXAdapter(config: () => XConfig): SnsAdapter {
 
       let id: string;
       try {
-        ({ id } = mediaIds.length ? await createPostWithMedia(account.accessToken, text, mediaIds) : await createPost(account.accessToken, text));
+        ({ id } = mediaIds.length ? await createPostWithMedia(account.accessToken, text, mediaIds, images.some((i) => i.aiGenerated)) : await createPost(account.accessToken, text));
       } catch (e) {
         throw toXPublishError(e, "publish");
       }

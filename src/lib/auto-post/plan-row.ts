@@ -1,7 +1,18 @@
 import { isSnsKey } from "@/lib/sns";
-import type { AutoKind, AutoMaterials, AutoPlan, AutoRun, AutoRunReason, AutoRunStatus, AutoSchedule, AutoStopReason, AutoTargets } from "./types";
+import { autoImageLookSchema } from "./schema";
+import type { AutoImage, AutoImageLook, AutoKind, AutoMaterials, AutoPlan, AutoRun, AutoRunReason, AutoRunStatus, AutoSchedule, AutoStopReason, AutoTargets } from "./types";
 
 // DB の行を型にする（読み取り〈queries.ts〉とジョブ〈engine.ts〉で共通）
+
+// 自動の回の画像（{} は画像なし。形が違えば画像なし）
+export function readAutoImage(v: unknown): AutoImage | null {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return null;
+  const r = v as Record<string, unknown>;
+  if ((r.source !== "format" && r.source !== "ai") || (r.style !== "photo" && r.style !== "illustration")) return null;
+  if (!["auto", "portrait", "square", "landscape"].includes(r.size as string) || !["none", "format", "ai"].includes(r.headline as string)) return null;
+  const look = autoImageLookSchema.safeParse(r.look);
+  return { source: r.source, style: r.style, size: r.size as AutoImage["size"], headline: r.headline as AutoImage["headline"], ...(look.success && r.headline !== "none" ? { look: look.data as AutoImageLook } : {}) };
+}
 
 // 書き方の指示（DB の check で形は決まっているが、文字でないものは捨てる）
 export function readInstructions(v: unknown): string[] {
@@ -18,6 +29,7 @@ export type PlanRow = {
   x_link: string;
   schedule: unknown;
   instructions: unknown;
+  image: unknown;
   lead_hours: number;
   first_review: boolean;
   status: string;
@@ -43,6 +55,7 @@ export function toPlan(r: PlanRow): AutoPlan {
     xLink: r.x_link === "always" ? "always" : "never",
     schedule: r.schedule as AutoSchedule,
     instructions: readInstructions(r.instructions),
+    image: readAutoImage(r.image),
     leadHours: r.lead_hours,
     firstReview: r.first_review,
     status: r.status as AutoPlan["status"],

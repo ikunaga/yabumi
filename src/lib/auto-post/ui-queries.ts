@@ -1,4 +1,5 @@
 import "server-only";
+import { readFormatImage } from "@/lib/post-formats/image";
 import { isSnsKey, type SnsKey } from "@/lib/sns";
 import { createClient } from "@/lib/supabase/server";
 import { EXPIRED_MESSAGE } from "./engine";
@@ -53,7 +54,8 @@ export async function loadRunResults(postIds: string[]): Promise<Map<string, Run
 }
 
 // 始める画面のシリーズのカード（名前・投稿の例・これまでの回の数）
-export type SeriesFormatCard = { id: string; name: string; example: string; rounds: number };
+// hasImage: フォーマットに画像の設定がある（自動の回の画像で「フォーマットの画像」を選べる）
+export type SeriesFormatCard = { id: string; name: string; example: string; rounds: number; hasImage: boolean; hasHeadline: boolean };
 
 // 始める画面の材料の数（suggest.ts の SuggestMaterials と、使い道のカードの「残り n 件」）
 export type AutoMaterialCounts = {
@@ -68,7 +70,7 @@ export async function loadMaterialCounts(projectId: string): Promise<AutoMateria
   const db = await createClient();
   const [notes, formats, destinations, events] = await Promise.all([
     db.from("idea_notes").select("id, media_files(id)").eq("project_id", projectId).is("used_at", null),
-    db.from("post_formats").select("id, name, series, example, post_format_rounds(count)").eq("project_id", projectId).order("created_at"),
+    db.from("post_formats").select("id, name, series, example, image, post_format_rounds(count)").eq("project_id", projectId).order("created_at"),
     db.from("project_destinations").select("id, label").eq("project_id", projectId).order("position"),
     db.from("project_events").select("id", { count: "exact", head: true }).eq("project_id", projectId),
   ]);
@@ -85,7 +87,7 @@ export async function loadMaterialCounts(projectId: string): Promise<AutoMateria
     unusedPhotoNotes: notes.data.filter((n) => (n.media_files as unknown[]).length > 0).length,
     seriesFormats: formats.data
       .filter((f) => isSeries(f.series))
-      .map((f) => ({ id: f.id, name: f.name, example: f.example, rounds: (f.post_format_rounds as { count: number }[] | null)?.[0]?.count ?? 0 })),
+      .map((f) => ({ id: f.id, name: f.name, example: f.example, rounds: (f.post_format_rounds as { count: number }[] | null)?.[0]?.count ?? 0, hasImage: !!readFormatImage(f.image), hasHeadline: !!readFormatImage(f.image)?.headline })),
     destinations: destinations.data.map((d) => ({ id: d.id, label: d.label })),
     events: events.count ?? 0,
   };

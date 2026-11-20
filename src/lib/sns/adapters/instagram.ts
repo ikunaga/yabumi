@@ -85,7 +85,7 @@ export function createInstagramAdapter({
   const staged = (token: string, igUserId: string): StagedOps => ({
     label: "Instagram",
     status: (id) => getContainerStatus(token, id),
-    createCarousel: (children, text) => createCarouselContainer(token, igUserId, children, text),
+    createCarousel: (children, text, ai) => createCarouselContainer(token, igUserId, children, text, ai),
     publish: (id) => publishContainer(token, igUserId, id),
     permalink: (mediaId) => getPermalink(token, mediaId),
     toError: toInstagramError,
@@ -103,13 +103,14 @@ export function createInstagramAdapter({
       try {
         if (images.length === 1) {
           const [image] = images;
-          return { kind: "single", id: await createImageContainer(token, igUserId, image.url, { caption: text, altText: image.altText || undefined }) };
+          return { kind: "single", id: await createImageContainer(token, igUserId, image.url, { caption: text, altText: image.altText || undefined, aiMade: image.aiGenerated === true }) };
         }
         const children: string[] = [];
         for (const image of images) {
           children.push(await createImageContainer(token, igUserId, image.url, { carouselItem: true, altText: image.altText || undefined }));
         }
-        return { kind: "carousel", children, text };
+        // AI で作った画像が 1 枚でもあれば、親に AI の印を付ける（staged.ts が親を作るときに渡す）
+        return { kind: "carousel", children, text, ...(images.some((i) => i.aiGenerated) ? { ai: true } : {}) };
       } catch (e) {
         throw toInstagramError(e, "prepare");
       }
@@ -138,7 +139,7 @@ export function createInstagramAdapter({
       try {
         if (images.length === 1) {
           const [image] = images;
-          containerId = await createImageContainer(token, igUserId, image.url, { caption: text, altText: image.altText || undefined });
+          containerId = await createImageContainer(token, igUserId, image.url, { caption: text, altText: image.altText || undefined, aiMade: image.aiGenerated === true });
         } else {
           // カルーセル: 1 枚ずつのコンテナを作り、まとめたコンテナに本文を付ける（10 枚まで。1 件として数えられる）
           const children: string[] = [];
@@ -147,7 +148,7 @@ export function createInstagramAdapter({
             await waitFinished(token, child);
             children.push(child);
           }
-          containerId = await createCarouselContainer(token, igUserId, children, text);
+          containerId = await createCarouselContainer(token, igUserId, children, text, images.some((i) => i.aiGenerated));
         }
         await waitFinished(token, containerId);
       } catch (e) {

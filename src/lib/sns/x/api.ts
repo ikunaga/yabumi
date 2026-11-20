@@ -174,11 +174,13 @@ export async function setImageAltText(token: string, mediaId: string, altText: s
   });
 }
 
-export async function createPostWithMedia(token: string, text: string, mediaIds: string[]): Promise<{ id: string }> {
+// aiMade: AI で作った画像を含む（made_with_ai で AI の印を付ける。投稿の欄で、画像のアップロードには欄がない。
+// https://docs.x.com/x-api/posts/create-post 。docs/design/auto-sample-image.md の 2.3）
+export async function createPostWithMedia(token: string, text: string, mediaIds: string[], aiMade = false): Promise<{ id: string }> {
   const json = await call<{ data: { id: string } }>(`${X_API_URL}/2/tweets`, {
     method: "POST",
     headers: { ...bearer(token), "Content-Type": "application/json" },
-    body: JSON.stringify({ text, media: { media_ids: mediaIds } }),
+    body: JSON.stringify({ text, media: { media_ids: mediaIds }, ...(aiMade ? { made_with_ai: true } : {}) }),
   });
   return { id: String(json.data.id) };
 }

@@ -12,7 +12,7 @@ import { Disclosure } from "@/components/ui/help";
 import { SuccessBanner } from "@/components/ui/feedback";
 import { SnsTag } from "@/components/ui/marks";
 import { Metric } from "@/components/ui/metric";
-import { EXPIRED_TARGET_LABEL, KIND_LABELS, RUN_REASON_TEXT, RUN_STATUS_LABELS, TARGET_MODE_LABELS } from "@/lib/auto-post/labels";
+import { autoImageLabel, EXPIRED_TARGET_LABEL, KIND_LABELS, RUN_REASON_TEXT, RUN_STATUS_LABELS, TARGET_MODE_LABELS } from "@/lib/auto-post/labels";
 import { getAutoPlan, getAutoPostHold, listAutoRuns, listUpcomingAutoRuns } from "@/lib/auto-post/queries";
 import type { AutoRun } from "@/lib/auto-post/types";
 import type { SnsKey } from "@/lib/sns";
@@ -105,6 +105,8 @@ export default async function AutoPlanPage(props: PageProps<"/projects/[id]/auto
           <dd className="num">
             {scheduleText(plan.schedule)} ／ 作るのは {plan.leadHours} 時間前
           </dd>
+          <dt className="text-muted">画像</dt>
+          <dd>{autoImageLabel(plan.image)}</dd>
           {plan.instructions.length > 0 && (
             <>
               <dt className="text-muted">書き方</dt>

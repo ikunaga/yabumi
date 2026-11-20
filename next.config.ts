@@ -3,6 +3,14 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // 開発時は 127.0.0.1 で開く（Supabase のリダイレクト先と揃えるため）
   allowedDevOrigins: ["127.0.0.1"],
+  // サーバーで画像に見出しを描く（docs/design/auto-sample-image.md の 11.）。@napi-rs/canvas はネイティブのモジュールなので束ねない。
+  // 書体（src/server-fonts/、約 49MB）は、描く処理を呼ぶ関数（自動の投稿のジョブ・自動の投稿の画面の操作・運営者の試し）にだけ入れる
+  serverExternalPackages: ["@napi-rs/canvas"],
+  outputFileTracingIncludes: {
+    "/api/jobs/auto-post": ["./src/server-fonts/**/*"],
+    "/api/admin/render-check": ["./src/server-fonts/**/*"],
+    "/projects/\\[id\\]/auto/**/*": ["./src/server-fonts/**/*"],
+  },
   // 版の名前（docs/architecture.md の 4.35）。古い画面から新しいサーバーへ画面を移ると、Next.js が読み込み直しにする。
   // ローカルでは付けない（開いたままの画面が新しい版に気づく仕組みは、src/app/layout.tsx の data-app-version と public/version.json）
   deploymentId: process.env.VERCEL_DEPLOYMENT_ID || undefined,

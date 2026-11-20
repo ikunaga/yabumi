@@ -3140,3 +3140,24 @@ yabumi のコンセプトは、使って SNS を運用するうちに、マー�
 | 上限 | 見本は用途 auto_post_sample。自動の投稿の枠（利用者 月 $3・全体 月 $5）で数え、1 人 1 日 5 回まで（ジョブの回の 1 日 10 回とは別） |
 | 守り | 指示は AI に `<instructions>` のデータとして渡す（材料にない事実・URL・【】は足せない。チェックも外せない）。最初の回にするときは、画面から文を受け取らず auto_samples の行から作る。見本を作ったときの設定と保存した設定が同じで、確かめで引っかかっていない、1 日以内の本人の見本だけ。1 回だけ使える |
 | 費用 | 見本の作り直し 1 回 約 $0.07（約 10 円）。2026-11-17 の本物の確かめ〈9 回で $0.62〉から |
+
+### 4.80 自動の回の画像（2026-11-19、オーナーが Q3・Q5・Q6 をおすすめで了承。PM の依頼。feat/auto-image。設計は docs/design/auto-sample-image.md の 2.〜5.・10.）
+
+| 項目 | 内容 |
+|---|---|
+| 何をするか | 自動の回し方で「画像」を選ぶと、回ごとに AI の画像を 1 枚つくって添える（フォーマットの画像の設定か、その回の本文から Claude が場面を書く）。つくれなかった回は下書きに回す。Instagram にも毎回送れる |
+| 表・関数 | 20261119110000_auto_post_images。auto_plans.image（auto_image_valid）・save_auto_plan の p_image・ai_image_jobs.auto・ai_image_quota と reserve_ai_images の p_auto・reserve_ai_usage の auto_post_scene・auto_runs.reason の image_failed・auto_samples.image |
+| AI の印 | Threads（is_made_with_ai）・Instagram（is_ai_generated）・X（made_with_ai）。AI で作った画像を添えた投稿なら、自動・手のどちらでも付ける。Facebook は欄がない |
+| 費用 | 画像 1 枚 $0.0336 + 指示文 約 $0.0015 ≒ **約 $0.035（約 5 円）**。場面を Claude が書くと +$0.0147（約 2 円。本物で測った値）で **約 $0.05（約 7〜8 円）**。毎日 1 回の回し方で、画像は月 約 $1.05〜1.5（約 160〜225 円） |
+| 上限（画像の AI の全体の枠。CLAUDE.md の決まり） | **手でつくる分: 1 人 月 20 枚（登録 7 日まで 3 枚）・全体 月 $6.66。自動の投稿の分: 1 人 月 31 枚（登録 7 日まで 10 枚）・全体 月 $3**。どちらも 1 日 20 回。別々に数え、それぞれ全体の 80% で運営者に知らせる（image・image_auto）。合わせると画像の AI は全体で最大 月 $9.66（約 1,450 円）。文の AI（ふだん 月 $10・自動 月 $5）と合わせた上限は、予算の 3,000 円を超えうる（自動の投稿の A4 と同じく、オーナーが了承済み。cost-review.md） |
+
+### 4.81 自動の回の画像に見出しを重ねる（サーバーで描く。2026-11-20、PM の依頼。feat/auto-headline。設計は docs/design/auto-sample-image.md の 3.・11.）
+
+| 項目 | 内容 |
+|---|---|
+| 何をするか | 自動の回の画像に、フォーマットの見出しか AI が書いた見出しを、画面の「文字を入れる」と同じ並べ方・見た目でサーバーで重ねる。重ねる前の写真を元の画像として残し、投稿の画面で直せる |
+| 依存（CLAUDE.md の決まり） | **@napi-rs/canvas@1.1.0**（固定の版。ネイティブのモジュール。linux-x64-gnu の本体は約 30MB）。費用 0（関数の CPU だけ。1 枚 約 60ms をローカルで測った） |
+| 書体 | src/server-fonts/ に画面と同じ 5 書体（Zen Kaku Gothic New・Zen Maru Gothic・しっぽり明朝・Klee One・Yomogi の、使う太さ。Google Fonts の OFL。ライセンスの文も同じ場所）。**合わせて約 49MB**。outputFileTracingIncludes で、自動の投稿のジョブ・自動の投稿の画面・運営者の試しの関数にだけ入れる（Vercel の関数の上限 250MB の内の見込み。Preview で確かめる前）。**軽くするときの案 a**: サーバーで描く書体を「すっきり」「やわらか」だけにし、ほかは近い書体で描く（約 12MB。2026-11-20 は、画面と同じ見た目を優先して全部持つ〈b〉に決めた） |
+| 絵文字 | 書体にないので取り除いて描く（画像の説明にも同じ文） |
+| 表・関数 | 20261120100000_auto_image_look（auto_image_valid に look。表の変更はない） |
+| 試し | GET /api/admin/render-check（運営者だけ。DB・AI・Storage につながない） |

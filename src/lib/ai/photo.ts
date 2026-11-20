@@ -29,6 +29,14 @@ export const PHOTO_STYLES = ["photo", "illustration"] as const;
 export type PhotoStyle = (typeof PHOTO_STYLES)[number];
 export const PHOTO_STYLE_LABEL: Record<PhotoStyle, string> = { photo: "写真のように", illustration: "イラストで" };
 
+// 自動の投稿の分の AI の画像の上限（DB の ai_image_quota・reserve_ai_images の p_auto のときの値。docs/design/auto-sample-image.md の Q6。2026-11-19 オーナーが了承）
+export const AUTO_PHOTO_LIMITS = {
+  userMonthlyImages: 31,
+  newUserMonthlyImages: 10,
+  globalMonthlyUsd: 3,
+  dailyAttempts: 20,
+} as const;
+
 // テンプレートの縦横に合わせて頼む（Nano Banana 2.1 の比率の一覧にある 4:5・1:1・16:9）
 export const PHOTO_ASPECT: Record<TemplateSizeKey, "4:5" | "1:1" | "16:9"> = { portrait: "4:5", square: "1:1", landscape: "16:9" };
 

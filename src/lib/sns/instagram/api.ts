@@ -123,10 +123,13 @@ export async function createImageContainer(
   token: string,
   igUserId: string,
   imageUrl: string,
-  opts: { caption?: string; altText?: string; carouselItem?: boolean } = {},
+  // aiMade: AI で作った画像を含む（is_ai_generated で AI の印を付ける。カルーセルは親だけに付ける。2026-06-22 の changelog
+  // https://developers.facebook.com/documentation/instagram-platform/content-publishing.md 。docs/design/auto-sample-image.md の 2.3）
+  opts: { caption?: string; altText?: string; carouselItem?: boolean; aiMade?: boolean } = {},
 ): Promise<string> {
   const params: Record<string, string> = { image_url: imageUrl, access_token: token };
   if (opts.carouselItem) params.is_carousel_item = "true";
+  else if (opts.aiMade) params.is_ai_generated = "true";
   if (opts.caption) params.caption = opts.caption;
   if (opts.altText) params.alt_text = opts.altText;
   const json = await call<{ id: string }>(graph(`${igUserId}/media`), form(params));
@@ -143,10 +146,10 @@ export async function createReelsContainer(token: string, igUserId: string, vide
   return String(json.id);
 }
 
-export async function createCarouselContainer(token: string, igUserId: string, children: string[], caption: string): Promise<string> {
+export async function createCarouselContainer(token: string, igUserId: string, children: string[], caption: string, aiMade = false): Promise<string> {
   const json = await call<{ id: string }>(
     graph(`${igUserId}/media`),
-    form({ media_type: "CAROUSEL", children: children.join(","), caption, access_token: token }),
+    form({ media_type: "CAROUSEL", children: children.join(","), caption, ...(aiMade ? { is_ai_generated: "true" } : {}), access_token: token }),
   );
   return String(json.id);
 }

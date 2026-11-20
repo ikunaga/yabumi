@@ -205,3 +205,42 @@
 - **シリーズ**は型の文をそのまま使うので、指示は効かない。見本の下に「書き方を変えるときは、フォーマットを直してください」と出す
 - **回し方の画面**にも見本を置いた（運営者が止めている間・運営者が止めた回し方では出さない）。指示はその場で保存し、まだ作っていない回から効く
 - **この見本を最初の回にする**（Q8）: 新しく作るときだけ。見本を作ったときの設定（使い道・材料・送り先と送り方・X のリンク・指示）が保存した設定と同じで、確かめで引っかかっていない、1 日以内の本人の見本だけ。最初の送る時刻の回として投稿を作り（ジョブの回と同じ道 placeDraft）、最初の回の確かめ（A3）を済ませたことにする。X など確かめて送る SNS は、いつもどおり承認が要る。見本は 1 回だけ使える（使ったら消す）。できなかったときは、回し方はそのまま保存し、一覧の帯に理由を出す
+
+## 10. 作ったもの（③ 自動の回の画像。2026-11-19、feat/auto-image）
+
+- **DB**（20261119110000_auto_post_images。PM が案を了承。当てるのは取り込む直前に PM の合図のあと）
+  - auto_plans.image（{} は画像なし）。形は auto_image_valid（表の check と save_auto_plan で同じ）: source（format・ai）・style（photo・illustration）・size（auto・portrait・square・landscape）・headline（none・format・ai。④ で描く）。フォーマットの画像はシリーズだけ、商品の紹介はイラストだけ
+  - save_auto_plan に p_image（既定 {}）。画像を選ぶなら、AI の画像の注意を読んだ印が要る（hint: ai_image_notice_missing）。古い呼び方（p_image を渡さない・p_tone の形）でも動く（結合テストで確かめた）
+  - AI の画像の自動の投稿の分の枠（Q6）: ai_image_jobs.auto、ai_image_quota・reserve_ai_images に p_auto（既定 false。今の手でつくる画面は渡さず、手でつくる分のまま）。自動の分は 1 人 月 31 枚（登録 7 日まで 10 枚）・全体 月 $3・1 日 20 回。手でつくる分は今のまま（20 枚・3 枚・$6.66・20 回）。全体の 80% で運営者に知らせる（image_auto）
+  - reserve_ai_usage の用途 auto_post_scene（画像の場面を Claude が書く。自動の投稿の AI の枠）
+  - auto_runs.reason の image_failed、auto_samples.image（見本の画像）
+- **画像のつくり方**（src/lib/auto-post/image.ts）: 絵の説明はサーバーが作る。フォーマットの画像はその回の穴の言葉・答えを入れ（「AI が場面に直す」なら Claude が場面を書く）、AI の画像はその回の本文から Claude が場面を 1 つ書く。画像は 1 枚、候補の置き場所（<持ち主>/gen/）につくり、回の投稿に写して media_files.ai_generated を付ける。配信先を作る前に添える（確かめて送る SNS の指紋に画像が入る）
+- **画像をつくれなかった回**（Q5 の i）: 下書きに回す（image_failed）。続けての失敗（2 回で止める）には数えない（画像の AI の障害で回し方が止まらないように）。鍵がないとき・注意を読んだ印がないときも同じ
+- **Instagram**: 画像のある回（ネタ帳の写真・自動の回の画像）だけ送る。画像を選んだ回し方は毎回送れる
+- **見本**: 「画像もつくる（約 5〜8 円）」を押したときだけ、見本の画像を 1 枚つくる（文の作り直しとは別。2 回目は同じ画像を返す）。画像を選んだ回し方で「この見本を最初の回にする」には、見本の画像が要る
+- **画面**: ウィザードの「どこに」に「画像」（付けない・フォーマットの画像〈シリーズで、フォーマットに画像の設定があるとき〉・AI がつくる〈描き方・縦横〉）。選んだら AI の画像の注意を読んでもらう。鍵がないときは「準備中」。回し方の画面の「画像」に設定の 1 行
+- **偽の AI**（AUTO_POST_FAKE_AI）: 灰色の 1 枚と決まった場面を返す（Vercel の上では使わない）
+- **見出し**（headline）は ③ では保存するだけ。描くのは ④
+
+### 10.1 SNS ごとの AI の印（2026-11-19 に公式の資料で確かめた。PM の依頼）
+
+| SNS | API の欄 | 付ける場所 | 出どころ |
+|---|---|---|---|
+| Threads | `is_made_with_ai`（true で AI info の印） | 画像のコンテナ（POST /{threads-user-id}/threads）。カルーセルは親のコンテナだけ（子に付けると断られる）。threads_publish には付けない | https://developers.facebook.com/documentation/threads/reference/publishing （「Set to `true` to disclose that a post contains AI-generated content and display the AI info label.」）。付けないときは自分で明かしたことにならない（「Omitting this parameter or setting it to `false` does not add an AI self-disclosure.」）。いつ足されたかは【未確認】 |
+| Instagram | `is_ai_generated`（true で AI info の印） | 画像のコンテナ（POST /{ig_user_id}/media）。カルーセルは親だけ | https://developers.facebook.com/documentation/instagram-platform/content-publishing.md の「AI Content」、changelog の「AI Info Label」（2026-06-22、どの版でも使える）https://developers.facebook.com/documentation/instagram-platform/changelog.md |
+| Facebook（ページ） | 見つからなかった | — | /{page-id}/photos・/{page-id}/feed の引数に AI の欄はない（alt_text_custom は代わりの文）https://developers.facebook.com/docs/graph-api/reference/page/photos/ 、https://developers.facebook.com/docs/pages-api/posts/ 。Graph API の changelog は【未確認】 |
+| X | `made_with_ai`（boolean。「Disclose that the tweet contains AI-generated media.」） | 投稿（POST /2/tweets）。画像のアップロード（POST /2/media/upload）には欄がない | https://docs.x.com/x-api/posts/create-post 、https://docs.x.com/x-api/media/upload-media 。X の作られた・加工された画像の決まり（https://help.x.com/en/rules-and-policies/manipulated-media ）と開発者ポリシーの AI の項は、読めなかった【未確認】 |
+
+- Meta の考え方: AI の印は、業界の決まった印（C2PA など）を見つけたとき・利用者が自分で明かしたときに付ける（「people self-disclosing that they're uploading AI-generated content」。https://about.fb.com/news/2024/04/metas-approach-to-labeling-ai-generated-content-and-manipulated-media/ 、2025-10-23 更新）。利用者に明かすことを求める決まりの本文（transparency.meta.com）は【未確認】
+- **作ったこと**: 送る画像に AI で作ったもの（media_files.ai_generated）が 1 枚でもあれば、Threads は is_made_with_ai、Instagram は is_ai_generated、X は made_with_ai を付けて送る（src/lib/sns/threads/api.ts・instagram/api.ts・x/api.ts、カルーセルは staged.ts が親に渡す）。**自動の投稿だけでなく、手でつくった AI の画像を添えた投稿にも付く**（今までは利用者に SNS の画面で付けてもらう案内だけだった）。Facebook は欄がないので付けない（利用規約の「SNS が仕組みを用意している範囲で」）。TikTok は前から is_aigc を付けている
+
+## 11. 作ったもの（④ 見出しをサーバーで描く。2026-11-20、feat/auto-headline）
+
+- **描き方**: 画面の「文字を入れる」と同じ並べ方（layoutTemplate・headlineInput。写真を全面に敷く screen）と描き方（DrawOp）を、サーバーで @napi-rs/canvas（Skia）で描く（src/lib/media/template-render-server.ts）。書体は画面と同じ 5 書体（src/server-fonts/、OFL）を決まった名前で登録する（src/lib/media/server-fonts.ts）。字の幅は Skia で測るので、画面と 1 字ほど折り返しがずれることがある
+- **依存**: @napi-rs/canvas@1.1.0（固定。2026-10-30 の版。PM が了承）。ネイティブのモジュールなので next.config.ts の serverExternalPackages。書体は outputFileTracingIncludes で、自動の投稿のジョブ・自動の投稿の画面・運営者の試しの関数にだけ入れる。ローカルの mac で 1080×1350 を描いて JPEG にするまで約 60ms
+- **見出しの文**: 回し方の「見出し」で、重ねない／フォーマットの見出し（シリーズで、フォーマットに見出しがあるとき。穴の言葉を入れる）／AI が書く（自動の投稿の AI の返事に headline の欄を足し、10〜24 字・40 字まで。材料にない事実・絵文字・URL・【】・あおりは使わない）
+- **絵文字**: サーバーの書体にないので、取り除いて描く（2026-11-20 PM の決定 a。src/lib/media/headline-text.ts の cleanHeadline。URL・【】・改行も取り除き、40 字まで）。画像の説明（alt）の先頭に、描いたのと同じ見出しの文を「見出し「…」。」で入れる（確かめる画面に出る文と描いた文が同じ）
+- **見た目**: auto_plans.image.look（色・いつもの色・書体・置き方。画面の「文字を入れる」と同じ選び方）。初めはその端末で前に使った見た目。マイグレーション 20261120100000（auto_image_valid の create or replace だけ）
+- **添え方**: 重ねる前の写真を「元の画像」として残す（4.68 の形: 元の画像の行は投稿に添えず source_of で指す。添えた画像は original_id・edit_base_id・edit〈headline の設定〉・has_text）。投稿の画面の「見出しを直す」で、ブラウザで直せる。画像の中の AI の印は、元の写真が generated、重ねたものが composite（手で見出しを付けたときと同じ）
+- **描けなかったとき**: 見出しなしの写真を添える（回は止めない。ログに残す）
+- **運営者の試し**: GET /api/admin/render-check（運営者だけ。DB・AI・Storage につながず、決まった文字を描いた JPEG を返す。?font= で書体を選べる）。Vercel の Preview で動くかを確かめるのは、オーナーが Preview の環境変数を確かめてから（PM）

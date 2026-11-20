@@ -187,6 +187,18 @@ export const LEGAL_VERSIONS: readonly LegalRevision[] = [
     noticeFrom: null,
     noticeWaived: "施行の時点で利用者は運営者だけ（招待していない）で、運営者が了承した（2026-11-19）",
   },
+  // 自動の回の画像と、サーバーで重ねる見出し・AI の印（docs/legal.md の「案: 自動の回の画像」。docs/design/auto-sample-image.md の 6.・10.・11.）。
+  // ② として扱い、2026-11-20 オーナーが了承。2026-11-20 の版は施行済みなので、1 日 1 版で 2026-11-21 に出す（PM）
+  {
+    version: "2026-11-21",
+    docs: ["terms", "privacy"],
+    summary: [
+      "自動の投稿で、設定すると回ごとに AI の画像をつくって添え、AI が書いた見出しを重ねられるようにしました。そのとき、あなたがその場で押していなくても、絵の説明を AI（Google）に、画像の場面を書くための本文を AI（Anthropic）に送ります。AI で作った画像を送るときは、Threads・Instagram・X に AI で作ったことの印を付けます（プライバシーポリシー 預かる情報・使い道・送り先、利用規約 AI の案）",
+    ],
+    adverse: false,
+    noticeFrom: null,
+    noticeWaived: "施行の時点で利用者は運営者だけ（招待していない）で、運営者が了承した（2026-11-20）",
+  },
 ];
 
 // 知らせる期間（日）。利用者に不利でない変更は 14 日以上、不利な変更は 30 日以上（2026-10-12 オーナーの決定）

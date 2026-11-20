@@ -16,6 +16,7 @@ import { ImageBlockedError, type GenerateImage } from "./gemini-image";
 import { AiUnavailableError, aiFailureMessage, isRejectedStatus, notBilled } from "./provider-failure";
 import { withAiBudget } from "./budget";
 import {
+  AUTO_PHOTO_LIMITS,
   MAX_PHOTOS_PER_RUN,
   MAX_SCENE_CHARS,
   PHOTO_ASPECT,
@@ -237,7 +238,17 @@ export async function runPhotoGeneration(
   if (!project) return { ok: false, message: "プロジェクトが見つかりません。" };
   const { data: notice } = await admin.from("ai_image_notices").select("owner_id").eq("owner_id", args.userId).maybeSingle();
   if (!notice) return { ok: false, message: "先に、AI の画像の注意を読んで「わかりました」を押してください。" };
+  return generateCandidates(admin, deps, { ...args, scene, count, auto: false });
+}
 
+// 予約 → つくる → 候補の置き場所に置く → 実際の額に直す（手でつくる画面と、自動の投稿で同じ道）。
+// auto: 自動の投稿の分の枠で数える（reserve_ai_images の p_auto。手でつくる画面は渡さず、既定の手でつくる分になる）
+async function generateCandidates(
+  admin: Db,
+  deps: { generate: GenerateImage; model: string; scopeOwner?: string; asOf?: Date },
+  args: { userId: string; projectId: string; scene: string; style: PhotoStyle; size: TemplateSizeKey; count: number; auto: boolean },
+): Promise<GenerateOutcome> {
+  const { scene, count } = args;
   // 押す前に、見込みの費用で予約する（同時に押されても上限を超えない）。見込みは、実際の額がそれを超えない最大の額（指示文の長さから）
   const prompt = buildPhotoPrompt(scene, args.style);
   const tokensPerImage = imageInputTokensBound(prompt);
@@ -250,15 +261,17 @@ export async function runPhotoGeneration(
     p_cost_usd: reserveUsd,
     ...(deps.scopeOwner ? { p_scope_owner: deps.scopeOwner } : {}),
     ...(deps.asOf ? { p_as_of: deps.asOf.toISOString() } : {}),
+    ...(args.auto ? { p_auto: true } : {}),
   });
   if (reserveError) throw reserveError;
   const r = reserved?.[0];
   if (!r) throw new Error("予約の結果がありません");
   // 全体の上限の 80% に達したら運営者に知らせる（月に 1 回。失敗しても止めない）
-  await alertIfNearBudgetSafely(admin, "image", Number(r.global_month_usd ?? 0), PHOTO_LIMITS.globalMonthlyUsd, { scope: deps.scopeOwner });
+  if (args.auto) await alertIfNearBudgetSafely(admin, "image_auto", Number(r.global_month_usd ?? 0), AUTO_PHOTO_LIMITS.globalMonthlyUsd, { scope: deps.scopeOwner });
+  else await alertIfNearBudgetSafely(admin, "image", Number(r.global_month_usd ?? 0), PHOTO_LIMITS.globalMonthlyUsd, { scope: deps.scopeOwner });
   const remainingAfter = (used: number) => Math.max(0, r.user_monthly_limit - used);
   if (r.status !== "ok" || !r.job_id) {
-    return { ok: false, message: photoLimitMessage(r.status, { newUntil: r.new_until }), remainingImages: remainingAfter(r.user_month_images ?? 0) };
+    return { ok: false, message: args.auto ? autoPhotoLimitMessage(r.status) : photoLimitMessage(r.status, { newUntil: r.new_until }), remainingImages: remainingAfter(r.user_month_images ?? 0) };
   }
   const jobId = r.job_id;
   const usedBefore = (r.user_month_images ?? count) - count;
@@ -370,4 +383,39 @@ export async function ownRecentPhotoJob(admin: Db, userId: string, jobId: string
     .gte("created_at", new Date(now.getTime() - 24 * 3600_000).toISOString())
     .maybeSingle();
   return Boolean(data);
+}
+
+// ── 自動の投稿の画像（docs/design/auto-sample-image.md の 2.。ジョブと見本から。利用者のログインの権限はない） ──
+
+export function autoPhotoLimitMessage(status: string): string {
+  switch (status) {
+    case "attempt_limit":
+      return `自動の投稿の AI の画像は、1 日 ${AUTO_PHOTO_LIMITS.dailyAttempts} 回までです`;
+    case "global_limit":
+      return "今月の自動の投稿の AI の画像が、yabumi 全体の上限に達しました";
+    case "new_users_limit":
+      return "登録して 7 日までの方が使える、今月の自動の投稿の AI の画像の枠がいっぱいになりました";
+    default:
+      return `今月の自動の投稿の AI の画像は上限（1 人 ${AUTO_PHOTO_LIMITS.userMonthlyImages} 枚。登録して 7 日までは ${AUTO_PHOTO_LIMITS.newUserMonthlyImages} 枚）に達しました`;
+  }
+}
+
+export type AutoPhoto = { path: string; width: number; height: number; jobId: string };
+
+// 1 枚つくって候補の置き場所（<持ち主>/gen/）に置く。AI の画像の注意を読んでいない人にはつくらない。
+// 呼ぶ側（engine）が、持ち主のプロジェクトであることを確かめてから渡す。絵の説明はサーバーが作ったもの（画面から受け取らない）
+export async function runAutoPhoto(
+  admin: Db,
+  deps: { generate: GenerateImage; model: string; scopeOwner?: string; asOf?: Date },
+  args: { userId: string; projectId: string; scene: string; style: PhotoStyle; size: TemplateSizeKey },
+): Promise<{ ok: true; photo: AutoPhoto } | { ok: false; message: string }> {
+  const scene = [...args.scene.replace(/\s+/g, " ").trim()].slice(0, MAX_SCENE_CHARS).join("");
+  if (!scene) return { ok: false, message: "絵の説明がありません" };
+  if (!PHOTO_STYLES.includes(args.style) || !(args.size in TEMPLATE_SIZES)) return { ok: false, message: "画像の設定が正しくありません" };
+  const { data: notice } = await admin.from("ai_image_notices").select("owner_id").eq("owner_id", args.userId).maybeSingle();
+  if (!notice) return { ok: false, message: "AI の画像の注意を読んでいません" };
+  const r = await generateCandidates(admin, deps, { ...args, scene, count: 1, auto: true });
+  if (!r.ok) return { ok: false, message: r.message };
+  const c = r.candidates[0];
+  return c ? { ok: true, photo: { path: c.path, width: c.width, height: c.height, jobId: r.jobId } } : { ok: false, message: "画像をつくれませんでした" };
 }

@@ -11,7 +11,8 @@ export type ContainerStatus = "IN_PROGRESS" | "FINISHED" | "PUBLISHED" | "ERROR"
 export type StagedOps = {
   label: string;
   status: (containerId: string) => Promise<{ status: ContainerStatus; detail?: string }>;
-  createCarousel: (children: string[], text: string) => Promise<string>;
+  // ai: AI で作った画像を含む（親のコンテナに AI の印を付ける）
+  createCarousel: (children: string[], text: string, ai: boolean) => Promise<string>;
   publish: (containerId: string) => Promise<string>;
   permalink: (mediaId: string) => Promise<string | null>;
   // SNS のエラーを送信ジョブの形に直す（stage は publish のときだけ "publish"）
@@ -19,14 +20,14 @@ export type StagedOps = {
 };
 
 type Single = { kind: "single"; id: string; video?: boolean };
-type Carousel = { kind: "carousel"; children: string[]; text: string; parent?: string };
+type Carousel = { kind: "carousel"; children: string[]; text: string; parent?: string; ai?: boolean };
 type State = Single | Carousel;
 
 function parse(state: PrepareState): State {
-  const s = state as { kind?: unknown; id?: unknown; children?: unknown; text?: unknown; parent?: unknown; video?: unknown };
+  const s = state as { kind?: unknown; id?: unknown; children?: unknown; text?: unknown; parent?: unknown; video?: unknown; ai?: unknown };
   if (s.kind === "single" && typeof s.id === "string") return { kind: "single", id: s.id, ...(s.video === true ? { video: true } : {}) };
   if (s.kind === "carousel" && Array.isArray(s.children) && typeof s.text === "string") {
-    return { kind: "carousel", children: (s.children as unknown[]).map(String), text: s.text, parent: typeof s.parent === "string" ? s.parent : undefined };
+    return { kind: "carousel", children: (s.children as unknown[]).map(String), text: s.text, parent: typeof s.parent === "string" ? s.parent : undefined, ...(s.ai === true ? { ai: true } : {}) };
   }
   throw new SnsPublishError("permanent", "送信の途中の記録が読めませんでした。もう一度送ってください。");
 }
@@ -57,7 +58,7 @@ export async function continueStaged(ops: StagedOps, raw: PrepareState): Promise
         if (status !== "FINISHED") return { state };
       }
       // 子がすべて準備できたので、親（カルーセル）を作る。親の準備は次に確かめる
-      return { state: { ...state, parent: await ops.createCarousel(state.children, state.text) } };
+      return { state: { ...state, parent: await ops.createCarousel(state.children, state.text, state.ai === true) } };
     } else {
       const { status, detail } = await ops.status(state.parent);
       if (status === "ERROR" || status === "EXPIRED") throw rejected(ops, detail ?? status);

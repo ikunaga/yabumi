@@ -30,7 +30,7 @@ import { DEFAULT_BEHIND_WEEKDAY } from "@/lib/coach/pace";
 import { githubConfigured } from "@/lib/github/config";
 import { chosenKpis, clickLabel } from "@/lib/metrics/kpis";
 import type { WeekValue } from "@/lib/metrics/queries";
-import { compareLabel, NOT_ARRIVED, notComparedLabel, periodLabel } from "@/lib/metrics/store-period";
+import { compareLabel, NOT_ARRIVED, notComparedNote, periodLabel } from "@/lib/metrics/store-period";
 import { isAppProject, isDevProject } from "@/lib/projects/product-types";
 import { loadOverviewNumbers } from "@/lib/overview/load";
 import { CHART_DAYS, CHART_DAYS_MOBILE, chartWindow, compareDays, latestAside, pctChange, shortDay, type Daily } from "@/lib/overview/numbers";
@@ -309,7 +309,7 @@ function MobileHero({ name, win, arrived, hero, source, today, empty }: { name: 
         {v.notArrived ? (
           NOT_ARRIVED
         ) : v.noPrev ? (
-          notComparedLabel(v.until ? periodLabel(CHART_DAYS_MOBILE, v.until) : `直近 ${CHART_DAYS_MOBILE} 日`, CHART_DAYS_MOBILE, v.comparableFrom, today)
+          `${v.until ? periodLabel(CHART_DAYS_MOBILE, v.until) : `直近 ${CHART_DAYS_MOBILE} 日`}・${notComparedNote(CHART_DAYS_MOBILE, v.comparableFrom)}`
         ) : delta !== null ? (
           <>
             <Delta value={delta} unit="%" /> {prefix}

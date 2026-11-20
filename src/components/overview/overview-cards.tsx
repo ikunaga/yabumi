@@ -32,7 +32,7 @@ export function OverviewCards({ cards, mobileHidden, draftsHref, className = "" 
           value={formatCardValue(c)}
           unit={c.unit}
           delta={c.deltaPct !== null ? <Delta value={c.deltaPct} unit="%" /> : undefined}
-          note={c.note}
+          note={c.subnote ? <>{c.note}<span className="block text-sm">{c.subnote}</span></> : c.note}
           href={c.key === "drafts" ? draftsHref : undefined}
           className={c.key === mobileHidden ? "max-sm:hidden" : ""}
         />

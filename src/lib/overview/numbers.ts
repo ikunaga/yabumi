@@ -1,7 +1,7 @@
 // 概要の数字（見本 A。docs/architecture.md の 4.31）。読み込みは load.ts、ここは並べ方を決めるだけ（テストできるように DB を触らない）
 import { clickLabel, KPIS, type KpiKey } from "@/lib/metrics/kpis";
 import type { KpiValues, WeekValue } from "@/lib/metrics/queries";
-import { compareLabel, NOT_ARRIVED, notComparedLabel, periodLabel } from "@/lib/metrics/store-period";
+import { compareLabel, NOT_ARRIVED, notComparedNote, periodLabel } from "@/lib/metrics/store-period";
 import { addDays, formatTime, toYmd } from "@/lib/time";
 
 // 概要は直近 30 日と、その前の 30 日を比べる（固定。切り替えは分析の画面で）
@@ -27,6 +27,8 @@ export type OverviewCard = {
   notArrived?: true;
   // 添え書き（「前の 30 日比」「予約中の投稿 3 件」「直近 7 日・先週比」）
   note?: string;
+  // 添え書きの下に小さく出す 1 行（前と比べられないときの「比べは 1/19 から」）
+  subnote?: string;
 };
 
 export type OverviewInput = {
@@ -96,7 +98,7 @@ function compared(key: "downloads" | "link_clicks" | "posts", label: string, row
   const period = periodLabel(OVERVIEW_DAYS);
   if (!prevKnown(since, today)) {
     const from = since ? addDays(since, OVERVIEW_DAYS * 2 - 1) : undefined;
-    return { key, label, value: now, unit, deltaPct: null, note: notComparedLabel(period, OVERVIEW_DAYS, from, today) };
+    return { key, label, value: now, unit, deltaPct: null, note: period, subnote: notComparedNote(OVERVIEW_DAYS, from) };
   }
   const deltaPct = pctChange(now, before);
   const cmp = deltaPct === null ? (before === 0 && now > 0 ? `前の ${OVERVIEW_DAYS} 日は 0` : null) : compareLabel(OVERVIEW_DAYS);
@@ -108,7 +110,7 @@ function compared(key: "downloads" | "link_clicks" | "posts", label: string, row
 function delayedCard(base: Pick<OverviewCard, "key" | "kpi" | "label">, v: WeekValue, days: number): OverviewCard {
   if (v.notArrived) return { ...base, value: 0, notArrived: true, deltaPct: null, note: NOT_ARRIVED };
   const prefix = `${periodLabel(days, v.until)}・`;
-  if (v.noPrev) return { ...base, value: v.thisWeek, deltaPct: null, note: notComparedLabel(periodLabel(days, v.until), days, v.comparableFrom) };
+  if (v.noPrev) return { ...base, value: v.thisWeek, deltaPct: null, note: periodLabel(days, v.until), subnote: notComparedNote(days, v.comparableFrom) };
   const deltaPct = pctChange(v.thisWeek, v.lastWeek);
   const zero = v.lastWeek === 0 && v.thisWeek > 0 ? `${v.until ? "その" : ""}前の ${days} 日は 0` : null;
   const note = deltaPct !== null ? `${prefix}${compareLabel(days, v.until)}` : zero ? `${prefix}${zero}` : periodLabel(days, v.until);
@@ -147,7 +149,8 @@ export function pickOverviewCards(input: OverviewInput, max = 4): OverviewCard[]
       currency: v.unit,
       // 売上は 28 日の合計、ほかは直近 7 日（分析の画面と同じ値）
       deltaPct: v.noPrev ? null : pctChange(v.thisWeek, v.lastWeek),
-      note: v.noPrev ? notComparedLabel(v.unit ? "直近 28 日" : "直近 7 日", v.unit ? 28 : 7, v.comparableFrom, today) : v.unit ? "直近 28 日・1 週間前比" : "直近 7 日・先週比",
+      note: v.noPrev ? (v.unit ? "直近 28 日" : "直近 7 日") : v.unit ? "直近 28 日・1 週間前比" : "直近 7 日・先週比",
+      ...(v.noPrev ? { subnote: notComparedNote(v.unit ? 28 : 7, v.comparableFrom) } : {}),
     });
   }
 

@@ -34,13 +34,12 @@ export function compareLabel(days: number, until?: string): string {
 }
 
 // 前の期間と比べられないときの書き方（2026-11-21 オーナーの「前の記録はまだありません、って何？」）。
-// 期間の文と、比べられるようになる日の文の 2 文にする（ja-copy-reviewer: 1 文に 2 つのことを入れない）。
-// 「直近 30 日の数です。前の 30 日との比べは 1 月 19 日から出ます」。年が変わるなら「来年 1 月 19 日」。日がわからなければ「前の 30 日の記録はまだありません」
-export function notComparedLabel(period: string, days: number, from?: string, today?: string): string {
-  if (!from) return `${period}の数です。前の ${days} 日の記録はまだありません`;
-  const [y, m, d] = from.split("-");
-  const next = today && y > today.slice(0, 4) ? "来年 " : "";
-  return `${period}の数です。前の ${days} 日との比べは ${next}${Number(m)} 月 ${Number(d)} 日から出ます`;
+// 期間（「直近 30 日」）とは分けて、小さく添える 1 行（2026-11-21 PM の判断。狭いカードで折り返さないように短く）。
+// 比べられるようになる日がわかれば「比べは 1/19 から」（年をまたいでも月日だけ）、わからなければ「前の 30 日の記録はまだありません」
+export function notComparedNote(days: number, from?: string): string {
+  if (!from) return `前の ${days} 日の記録はまだありません`;
+  const [, m, d] = from.split("-");
+  return `比べは ${Number(m)}/${Number(d)} から`;
 }
 
 // 数え始めた日（取り込んだいちばん古い日。取り込んだことがなければ null）と、すべてのストアから届いているいちばん新しい日（なければ null）

@@ -23,7 +23,7 @@ function plan(over: Partial<AutoPlan>): AutoPlan {
     targets: { threads: "auto" },
     xLink: "never",
     schedule: { weekdays: [2, 5], time: "19:00", every_weeks: 1, start: "2026-11-16" },
-    tone: "",
+    instructions: [],
     leadHours: 24,
     firstReview: false,
     status: "active",

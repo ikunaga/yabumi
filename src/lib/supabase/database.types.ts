@@ -411,6 +411,7 @@ export type Database = {
           fail_streak: number
           first_review: boolean
           id: string
+          instructions: Json
           kind: string
           lead_hours: number
           materials: Json
@@ -432,6 +433,7 @@ export type Database = {
           fail_streak?: number
           first_review?: boolean
           id?: string
+          instructions?: Json
           kind: string
           lead_hours?: number
           materials?: Json
@@ -453,6 +455,7 @@ export type Database = {
           fail_streak?: number
           first_review?: boolean
           id?: string
+          instructions?: Json
           kind?: string
           lead_hours?: number
           materials?: Json
@@ -591,6 +594,60 @@ export type Database = {
           },
           {
             foreignKeyName: "auto_runs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      auto_samples: {
+        Row: {
+          created_at: string
+          hold: Json | null
+          id: string
+          material: Json
+          owner_id: string
+          plan_id: string | null
+          project_id: string
+          settings: Json
+          tags: Json
+          texts: Json
+        }
+        Insert: {
+          created_at?: string
+          hold?: Json | null
+          id?: string
+          material: Json
+          owner_id: string
+          plan_id?: string | null
+          project_id: string
+          settings: Json
+          tags?: Json
+          texts: Json
+        }
+        Update: {
+          created_at?: string
+          hold?: Json | null
+          id?: string
+          material?: Json
+          owner_id?: string
+          plan_id?: string | null
+          project_id?: string
+          settings?: Json
+          tags?: Json
+          texts?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auto_samples_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "auto_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auto_samples_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
@@ -3051,6 +3108,8 @@ export type Database = {
         }
         Returns: number
       }
+      auto_instructions_clean: { Args: { p: Json }; Returns: Json }
+      auto_instructions_valid: { Args: { p: Json }; Returns: boolean }
       auto_post_held: { Args: { p_uid: string }; Returns: boolean }
       auto_target_previews: {
         Args: { p_post_id: string }
@@ -3583,22 +3642,39 @@ export type Database = {
         }
         Returns: undefined
       }
-      save_auto_plan: {
-        Args: {
-          p_consent: boolean
-          p_kind: string
-          p_lead_hours: number
-          p_materials: Json
-          p_name: string
-          p_plan_id: string
-          p_project_id: string
-          p_schedule: Json
-          p_targets: Json
-          p_tone: string
-          p_x_link: string
-        }
-        Returns: string
-      }
+      save_auto_plan:
+        | {
+            Args: {
+              p_consent: boolean
+              p_instructions: Json
+              p_kind: string
+              p_lead_hours: number
+              p_materials: Json
+              p_name: string
+              p_plan_id: string
+              p_project_id: string
+              p_schedule: Json
+              p_targets: Json
+              p_x_link: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_consent: boolean
+              p_kind: string
+              p_lead_hours: number
+              p_materials: Json
+              p_name: string
+              p_plan_id: string
+              p_project_id: string
+              p_schedule: Json
+              p_targets: Json
+              p_tone: string
+              p_x_link: string
+            }
+            Returns: string
+          }
       save_post: {
         Args: {
           p_body: string
@@ -3610,6 +3686,10 @@ export type Database = {
           p_text_origin?: string
         }
         Returns: string
+      }
+      set_auto_plan_instructions: {
+        Args: { p_instructions: Json; p_plan_id: string }
+        Returns: Json
       }
       set_auto_plan_status: {
         Args: {

@@ -29,7 +29,10 @@ export type GenerateInput = {
   materialLabel: string;
   // 設計・プロジェクトの紹介・SNS ごとの書き方（ideaContextText）
   context: string;
-  tone: string;
+  // 書き方の指示（回し方に覚えた指示＋見本のその 1 回だけの指示）
+  instructions: string[];
+  // AI の用途（ジョブの回は auto_post、見本は auto_post_sample。どちらも自動の投稿の枠）
+  purpose?: "auto_post" | "auto_post_sample";
   // この回し方で直近に送った本文（重ならないように）
   recentBodies: string[];
   // SNS ごとの字数の上限（本文とは別に付くタグの行の分を引いたもの）
@@ -70,9 +73,9 @@ export function fakeGenerator(mode: FakeMode = "ok"): AutoPostGenerator {
 // 本物の AI（Claude）。予約（reserve_ai_usage の auto_post）→ 呼ぶ → 実際の額に直す
 export function realGenerator(admin: Db, call = callAutoPost): AutoPostGenerator {
   return async (input) => {
-    const request = buildAutoPostRequest({ context: input.context, material: input.material, tone: input.tone, recentBodies: input.recentBodies, fixedTags: input.fixedTags });
+    const request = buildAutoPostRequest({ context: input.context, material: input.material, instructions: input.instructions, recentBodies: input.recentBodies, fixedTags: input.fixedTags });
     try {
-      const b = await withAiBudget(admin, { userId: input.ownerId, purpose: "auto_post", call: "auto_post" }, request, call);
+      const b = await withAiBudget(admin, { userId: input.ownerId, purpose: input.purpose ?? "auto_post", call: "auto_post" }, request, call);
       if (!b.ok) return { ok: false, reason: "ai_limit", detail: b.message };
       const r = b.result;
       if (r.stopReason === "refusal") return { ok: false, reason: "cannot_write", detail: "AI がこの材料では書けませんでした" };

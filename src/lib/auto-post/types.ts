@@ -57,7 +57,8 @@ export type AutoPlan = {
   targets: AutoTargets;
   xLink: "never" | "always";
   schedule: AutoSchedule;
-  tone: string;
+  // 書き方の指示の一覧（毎回の AI の指示に入れる。見本の画面で足す・外す。前の「口調の指示」を含む）
+  instructions: string[];
   leadHours: number;
   firstReview: boolean;
   status: AutoPlanStatus;
@@ -77,9 +78,11 @@ export type AutoPlanInput = {
   targets: AutoTargets;
   xLink: "never" | "always";
   schedule: AutoSchedule;
-  tone: string;
+  instructions: string[];
   leadHours: number;
   consent: boolean;
+  // 新しく作るとき: この見本（auto_samples）を最初の回にする（A3 の最初の確かめを済ませたことにする。docs/design/auto-sample-image.md の Q8）
+  sampleId?: string;
 };
 
 // 自動の回の状態（DB の auto_runs.status）
@@ -154,8 +157,10 @@ export type UpcomingAutoRun = {
 // お知らせ・季節の予定
 export type ProjectEvent = { id: string; onDate: string; body: string };
 
-// 見本の 1 回（保存しない）。SNS ごとの文と、チェックで引っかかったところ
+// 見本の 1 回（サーバーの auto_samples に 1 日だけ置く。画面から文は書けない）。SNS ごとの文と、チェックで引っかかったところ。
+// sampleId は「同じ材料で作り直す」「この見本を最初の回にする」に使う（作れなかったときは null）
 export type AutoSample = {
+  sampleId: string | null;
   texts: Partial<Record<SnsKey, string>>;
   // 本文とは別に、送るときに本文の後ろに付くタグ（シリーズのフォーマット・いつものタグ。2026-11-17）
   tags?: Partial<Record<SnsKey, string[]>>;

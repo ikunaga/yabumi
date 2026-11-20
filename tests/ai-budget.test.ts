@@ -91,6 +91,7 @@ const PURPOSE_CALLS: Record<string, AiCall[]> = {
   post_format_round: ["post_format_round"],
   auto_post: ["auto_post", "shorten"],
   auto_post_check: ["ai_check"],
+  auto_post_sample: ["auto_post", "shorten"],
 };
 const SCHEMAS: Record<AiCall, z.ZodType> = {
   plan_coach: coachTurnSchema,

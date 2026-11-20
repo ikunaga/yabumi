@@ -36,7 +36,7 @@ const planArgs = (projectId: string, over: Record<string, unknown> = {}) => ({
   p_targets: { threads: "auto", x: "review" },
   p_x_link: "never",
   p_schedule: { weekdays: [1, 2, 3, 4, 5, 6, 7], time: "19:00", every_weeks: 1, start: "2026-11-16" },
-  p_tone: "",
+  p_instructions: [],
   p_lead_hours: 24,
   p_consent: true,
   ...over,

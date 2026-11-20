@@ -803,3 +803,10 @@ yabumi をご利用いただきありがとうございます。運営の YuXpor
 yabumi 運営 YuXport Labs
 ```
 
+
+## 33. 自動の投稿の見本を指示で直す・自動の回の画像（2026-11-19、feat/auto-sample-image。docs/design/auto-sample-image.md）
+
+| # | だれが | やること | 状態 |
+|---|---|---|---|
+| 33-1 | PM | マイグレーション 20261119100000_auto_sample_instructions を本番に当てる（auto_plans.instructions・save_auto_plan の新しい形〈p_instructions〉と、古い形〈p_tone〉の薄い関数・set_auto_plan_instructions・reserve_ai_usage の auto_post_sample・auto_samples の表）。当てたあと git push までの間も、古いアプリは古い形の save_auto_plan と tone の列で動く | まだ |
+| 33-2 | 実装担当 | **次のデプロイのあと**に、tone の列（auto_plans.tone）と古い形の save_auto_plan(uuid, uuid, text, text, jsonb, jsonb, text, jsonb, text, integer, boolean) を消すマイグレーションを作る（33-1 を当てて、新しいアプリが本番で動いてから。消す前に、本番のアプリが新しい形だけを呼んでいることを確かめる） | まだ |

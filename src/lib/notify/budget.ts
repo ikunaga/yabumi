@@ -25,7 +25,7 @@ const LABEL: Record<BudgetKind, { name: string; env: string; where: string }> = 
   ai_auto: {
     name: "自動の投稿の AI（Claude API）",
     env: "reserve_ai_usage の c_auto_global_monthly_usd",
-    where: "select owner_id, sum(cost_usd) from ai_usage where purpose in ('auto_post', 'auto_post_check') and created_at >= date_trunc('month', now() at time zone 'Asia/Tokyo') at time zone 'Asia/Tokyo' group by 1 order by 2 desc limit 10;",
+    where: "select owner_id, sum(cost_usd) from ai_usage where purpose in ('auto_post', 'auto_post_check', 'auto_post_sample') and created_at >= date_trunc('month', now() at time zone 'Asia/Tokyo') at time zone 'Asia/Tokyo' group by 1 order by 2 desc limit 10;",
   },
   // 画像の AI の上限は、DB の reserve_ai_images の中で固定している（D35）。上げるときはマイグレーションで変える
   image: {

@@ -7,7 +7,7 @@ import type { AutoPlan, UpcomingAutoRun } from "./types";
 // 自動の投稿の入口（docs/design/auto-post.md の 1.2）。概要の 1 行の帯を、DB に触れずに決める
 
 export type OverviewAutoBand = {
-  active: number; // 動いている回し方
+  active: number; // 運用中の回し方
   paused: number; // 利用者が止めた回し方
   next: { label: string; sns: SnsKey[] } | null; // 次の回（「明日 09:00」と送り先）
   review: number; // 確認待ち

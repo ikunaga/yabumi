@@ -141,7 +141,7 @@ describe("知らせの文（本文は入れない。送り先の SNS と時刻�
   it("1 件: 予約・確かめが要る SNS・最初の回・下書き", () => {
     expect(generatedMessage([{ due_at: due, status: "scheduled", posts: post([["threads", "pending"]]) }]).body).toBe("11/17 19:00 に Threads に送ります");
     expect(generatedMessage([{ due_at: due, status: "scheduled", posts: post([["threads", "pending"], ["x", "awaiting_approval"]]) }]).body).toBe("11/17 19:00 に X・Threads に送ります（X は確認が要ります）");
-    expect(generatedMessage([{ due_at: due, status: "review", posts: post([["threads", "pending"]]) }]).title).toContain("最初の回");
+    expect(generatedMessage([{ due_at: due, status: "review", posts: post([["threads", "pending"]]) }]).title).toContain("1 回目の投稿");
     expect(generatedMessage([{ due_at: due, status: "held", posts: post([["threads", "pending"]]) }]).title).toContain("下書き");
   });
 

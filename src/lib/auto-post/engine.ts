@@ -44,7 +44,7 @@ export const REMIND_BEFORE_MS = 2 * 3_600_000;
 // 送る時刻のあと、結果を見るまで待つ（送信ジョブの 3 回のやり直し〈1 分・5 分〉と、準備中の公開が済むまで）
 export const SETTLE_AFTER_MS = 15 * 60_000;
 export const EXPIRED_MESSAGE = "確認できないまま送る時刻を過ぎたので、送りませんでした。送るときは、日時を直して確認してください。";
-export const REVIEW_EXPIRED_DETAIL = "最初の回を確認しないまま、送る時刻を過ぎました";
+export const REVIEW_EXPIRED_DETAIL = "1 回目の投稿を確認しないまま、送る時刻を過ぎました";
 
 export type EngineDeps = {
   generator: AutoPostGenerator;
@@ -585,8 +585,8 @@ export function generatedMessage(rows: Pick<NotifyRow, "due_at" | "status" | "po
     const r = rows[0];
     const sns = (r.posts?.post_targets ?? []).map((t) => t.sns as SnsKey);
     const at = jstHm(new Date(r.due_at));
-    if (r.status === "held") return { title: "自動投稿を下書きに回しました", body: `${at} の回（${labels(sns)}）。確認してから予約してください` };
-    if (r.status === "review") return { title: "自動投稿: 最初の回を確認してください", body: `${at} に ${labels(sns)} に送ります。確認するまで送りません` };
+    if (r.status === "held") return { title: "自動投稿を下書きに残しました", body: `${at} に ${labels(sns)} に送る投稿です。確認してから予約してください` };
+    if (r.status === "review") return { title: "自動投稿: 1 回目の投稿を確認してください", body: `${at} に ${labels(sns)} に送ります。確認するまで送りません` };
     const review = (r.posts?.post_targets ?? []).filter((t) => t.status === "awaiting_approval").map((t) => t.sns as SnsKey);
     return { title: "自動投稿を予約しました", body: `${at} に ${labels(sns)} に送ります${review.length ? `（${labels(review)} は確認が要ります）` : ""}` };
   }
@@ -638,7 +638,7 @@ export async function remindApprovals(admin: Db, deps: EngineDeps, now: Date, op
     const at = jstHm(new Date(r.due_at));
     await notify(admin, deps, r.owner_id, {
       title: "自動投稿が確認待ちです",
-      body: r.status === "review" ? `${at} の最初の回を、まだ確認していません` : `${at} に ${labels(waiting)} に送る投稿を、まだ確認していません`,
+      body: r.status === "review" ? `${at} に送る 1 回目の投稿を、まだ確認していません` : `${at} に ${labels(waiting)} に送る投稿を、まだ確認していません`,
       url: `/projects/${r.project_id}/auto`,
       tag: `auto-remind:${r.id}`,
     });
@@ -834,7 +834,7 @@ export async function adoptSample(admin: Db, args: { ownerId: string; planId: st
     if (e3) throw e3;
     run = claimed;
   }
-  if (!run) return { ok: false, detail: "最初の回を、もう作り始めていました" };
+  if (!run) return { ok: false, detail: "1 回目の投稿を、もう作り始めていました" };
   const material = sample.material as unknown as Material;
   const draft: Extract<Draft, { ok: true }> = {
     ok: true,

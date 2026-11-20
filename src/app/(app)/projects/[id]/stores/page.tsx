@@ -192,7 +192,7 @@ export default async function StoresPage(props: PageProps<"/projects/[id]/stores
               </p>
               {views ? (
                 <div className="flex flex-col gap-1 text-sm">
-                  <p className="num text-faint">{views.last_imported_day ? `${views.last_imported_day} の回まで取り込みました` : "Apple がレポートを作り始めるまで 1〜2 日かかります"}</p>
+                  <p className="num text-faint">{views.last_imported_day ? `${views.last_imported_day} の分まで取り込みました` : "Apple がレポートを作り始めるまで 1〜2 日かかります"}</p>
                   {views.status === "error" && views.last_error && <p className="text-danger">{views.last_error}</p>}
                   <form action={removeAppStorePageViews.bind(null, project.id)}>
                     <button type="submit" className="text-xs text-muted hover:text-fg hover:underline">

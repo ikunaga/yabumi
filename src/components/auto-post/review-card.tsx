@@ -41,12 +41,12 @@ export function ReviewCard({ projectId, item, dueLabel }: { projectId: string; i
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
         <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <span className="text-[17px] font-bold">{item.planName}</span>
-          {first && <Badge tone="signal">最初の回</Badge>}
+          {first && <Badge tone="signal">1 回目の投稿</Badge>}
         </p>
         <p className="num text-sm text-muted">{dueLabel} に送ります</p>
       </div>
       {first && (
-        <p className="text-[14px] text-muted">最初の回だけ、送る前に確認してください。押さなければ送りません。次の回からは確認せずに送ります（X などの「確認して送る」SNS は、毎回確認します）。</p>
+        <p className="text-[14px] text-muted">1 回目の投稿だけ、送る前に確認してください。押さなければ送りません。2 回目からは、確認せずに送ります。「確認して送る」にした SNS は、毎回確認します。</p>
       )}
       {error && <ErrorBanner>{error}</ErrorBanner>}
 
@@ -92,7 +92,7 @@ export function ReviewCard({ projectId, item, dueLabel }: { projectId: string; i
       {first && (
         <div className="flex flex-wrap items-center justify-end gap-2 max-sm:flex-col-reverse max-sm:items-stretch">
           <Button type="button" variant="text" disabled={pending} onClick={() => setConfirm("skip")}>
-            この回は送らない
+            この投稿は送らない
           </Button>
           <ButtonLink href={postHref} variant="secondary">
             編集
@@ -107,7 +107,7 @@ export function ReviewCard({ projectId, item, dueLabel }: { projectId: string; i
 
       <ConfirmDialog
         open={confirm === "skip"}
-        title="この回は送りませんか"
+        title="この投稿は送りませんか"
         confirmLabel="送らない"
         onClose={() => setConfirm(null)}
         onConfirm={() => {
@@ -115,7 +115,7 @@ export function ReviewCard({ projectId, item, dueLabel }: { projectId: string; i
           run(() => reviewAutoRun(item.runId, false));
         }}
       >
-        <p>この回を取り消します。作った文は下書きに残ります。次の回も、送る前に確認してもらいます。</p>
+        <p>この投稿を取り消します。作った文は下書きに残ります。次の投稿も、送る前に確認してもらいます。</p>
       </ConfirmDialog>
       <ConfirmDialog
         open={!!confirm && confirm !== "skip"}
@@ -128,7 +128,7 @@ export function ReviewCard({ projectId, item, dueLabel }: { projectId: string; i
           if (t) run(() => declineAutoTarget(t.targetId));
         }}
       >
-        <p>この回の送り先から外します。ほかの SNS は予約のまま送ります。</p>
+        <p>この投稿の送り先から外します。ほかの SNS は予約のまま送ります。</p>
       </ConfirmDialog>
     </Card>
   );

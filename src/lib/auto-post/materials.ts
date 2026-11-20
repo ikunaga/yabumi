@@ -86,7 +86,7 @@ async function pickDestination(admin: Db, plan: AutoPlan & { ownerId: string }, 
       "種類: 商品・サービスの紹介（プロジェクトの説明・届けたい相手・アカウント設計に書かれたことだけで、この行き先を紹介する）",
       `行き先: ${d.label}`,
       `使ってよい URL: ${d.url}`,
-      lastConcern && lastConcern !== "none" ? `前の回の切り口（悩み・望み）: ${lastConcern}（今回は別の切り口にする）` : "",
+      lastConcern && lastConcern !== "none" ? `前の投稿の切り口は「${lastConcern}」でした。今回は別の悩みや望みから書く` : "",
     ]
       .filter(Boolean)
       .join("\n"),
@@ -172,11 +172,11 @@ async function pickSeries(admin: Db, plan: AutoPlan & { ownerId: string }, planD
   const proposals = r.stopReason === "end_turn" ? normalizeRoundProposals(r.output, format, used) : null;
   const p = proposals?.[0];
   // シリーズの穴は、広く知られた作品・ものごとの一般的な事実だけ（format-series.md の 4.）。「確かめてほしいところ」の数は記録だけ残し、送る前は AI っぽさチェックに任せる
-  if (!p) return { none: true, reason: "cannot_write", detail: "重ならない次の回を出せませんでした" };
+  if (!p) return { none: true, reason: "cannot_write", detail: "前と重ならない次の投稿の案を出せませんでした" };
   const text = fillFormat(format.body, p.values);
   const sns = Object.keys(plan.targets) as SnsKey[];
   return {
-    text: `シリーズ「${format.name}」の次の回`,
+    text: `シリーズ「${format.name}」の次の投稿`,
     label: `シリーズ: ${clip(p.answer || Object.values(p.values).join("・"), 20)}`,
     ref: { format_id: format.id, answer: p.answer.slice(0, 100), checks: p.checks.length },
     allowedUrls: [],

@@ -155,7 +155,7 @@ describe("試みの回数（1 人 1 日 20 回。作れなかった回も数え�
     expect(blocked).toHaveBeenCalledTimes(20);
     const last = await runPhotoGeneration(u.client, admin, { generate: blocked, model: MODEL, scopeOwner: u.userId, asOf: OLD }, { userId: u.userId, projectId: u.projectId, scene: "店先", style: "photo", size: "square", count: 1 });
     expect(last.ok).toBe(false);
-    if (!last.ok) expect(last.message).toContain("1 日 20 回まで試せます（作れなかった回も数えます）");
+    if (!last.ok) expect(last.message).toContain("1 日 20 回まで試せます。作れなかったときも 1 回に数えます");
     expect(blocked).toHaveBeenCalledTimes(20);
     // 枚数（月の上限）には数えない
     expect((await photoStatus(admin, u.userId, MODEL, { asOf: OLD, scopeOwner: u.userId })).usedImages).toBe(0);

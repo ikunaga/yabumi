@@ -197,7 +197,7 @@ export async function runFormatRound(
     .eq("purpose", "post_format_round")
     .gte("created_at", dayStart);
   if (countError) throw countError;
-  if ((count ?? 0) >= SERIES_DAILY_RUNS) return { ok: false, message: `次の回の案は、1 日 ${SERIES_DAILY_RUNS} 回までです。明日またお試しください。` };
+  if ((count ?? 0) >= SERIES_DAILY_RUNS) return { ok: false, message: `次の投稿の案は、1 日 ${SERIES_DAILY_RUNS} 回までです。明日またお試しください。` };
 
   const { data: planRow } = await user.from("account_plans").select("data").eq("project_id", args.projectId).maybeSingle();
   const plan = normalizePlan(planRow?.data, project.target_audience ?? "");

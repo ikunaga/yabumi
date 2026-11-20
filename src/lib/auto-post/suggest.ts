@@ -37,7 +37,7 @@ export function suggestKind(m: SuggestMaterials): KindSuggestion {
     const photo = m.unusedPhotoNotes > 0 ? `。写真つきは ${m.unusedPhotoNotes} 件` : "";
     return { kind: "notes", reason: `使っていないメモが ${m.unusedNotes} 件${photo}` };
   }
-  if (m.seriesFormats > 0) return { kind: "series", reason: `シリーズのフォーマットが ${m.seriesFormats} つあります。回ごとに次の回を作ります` };
+  if (m.seriesFormats > 0) return { kind: "series", reason: `シリーズのフォーマットが ${m.seriesFormats} つあります。毎回、前と重ならない投稿を作ります` };
   if (m.destinations > 0) return { kind: "product", reason: `行き先が ${m.destinations} 件あります。行き先と切り口を順に変えて紹介します` };
   return { kind: "pillars", reason: "設計の柱を順に回して、定番の投稿を作ります" };
 }

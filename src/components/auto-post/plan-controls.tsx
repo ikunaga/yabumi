@@ -77,7 +77,7 @@ export function PlanControls({ projectId, planId, status, nextLabel, held = fals
         )}
         {status === "active" && (
           <Button type="button" variant="secondary" size="sm" disabled={pending} onClick={() => setDialog("skip")}>
-            次の回を飛ばす
+            次の投稿を飛ばす
           </Button>
         )}
         <Button type="button" variant="text" size="sm" disabled={pending} onClick={() => setDialog("delete")}>
@@ -95,23 +95,23 @@ export function PlanControls({ projectId, planId, status, nextLabel, held = fals
           run(() => setAutoPlanStatus(projectId, planId, "paused", toDraft));
         }}
       >
-        <p>止めている間は、新しい回を作りません。{held ? "" : "いつでも再開できます。"}</p>
+        <p>止めている間は、新しい投稿はつくられません。{held ? "" : "いつでも再開できます。"}</p>
         <ToDraftChoice value={toDraft} onChange={setToDraft} />
       </ConfirmDialog>
       <ConfirmDialog
         open={dialog === "skip"}
-        title="次の回を飛ばしますか"
+        title="次の投稿を飛ばしますか"
         confirmLabel="飛ばす"
         onClose={() => setDialog(null)}
         onConfirm={() => {
           setDialog(null);
           run(
             () => skipNextAutoRun(planId),
-            () => setNotice("次の回を飛ばしました。"),
+            () => setNotice("次の投稿を飛ばしました。"),
           );
         }}
       >
-        <p>{nextLabel ? `${nextLabel} の回を送りません。作り終えていれば、下書きに戻します。` : "次の回を送りません。"}</p>
+        <p>{nextLabel ? `${nextLabel} の投稿を送りません。作り終えていれば、下書きに戻します。` : "次の投稿を送りません。"}</p>
       </ConfirmDialog>
       <ConfirmDialog
         open={dialog === "delete"}
@@ -128,7 +128,7 @@ export function PlanControls({ projectId, planId, status, nextLabel, held = fals
           });
         }}
       >
-        <p>設定と回の記録を削除します。送信済みの投稿は残ります。元に戻せません。</p>
+        <p>設定と、これまでの投稿の記録を削除します。送信済みの投稿は残ります。元に戻せません。</p>
         <ToDraftChoice value={toDraft} onChange={setToDraft} />
       </ConfirmDialog>
     </div>
@@ -145,7 +145,7 @@ export function PauseAllButton({ projectId, activeCount, held = false }: { proje
   const [pending, start] = useTransition();
   return (
     <>
-      <Button type="button" variant="secondary" disabled={pending || activeCount === 0} onClick={() => setOpen(true)} className="max-sm:w-full">
+      <Button type="button" variant="secondary" size="sm" disabled={pending || activeCount === 0} onClick={() => setOpen(true)}>
         全部止める
       </Button>
       {error && <ErrorBanner>{error}</ErrorBanner>}
@@ -164,7 +164,7 @@ export function PauseAllButton({ projectId, activeCount, held = false }: { proje
           });
         }}
       >
-        <p>動いている {activeCount} 件を止めます。{held ? "" : "それぞれの画面から再開できます。"}</p>
+        <p>運用中の {activeCount} 件を止めます。{held ? "" : "それぞれの画面から再開できます。"}</p>
         <ToDraftChoice value={toDraft} onChange={setToDraft} />
       </ConfirmDialog>
     </>

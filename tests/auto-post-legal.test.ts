@@ -39,7 +39,7 @@ describe("自動の投稿の版", () => {
     // 通知には投稿の本文を入れない（送り先の SNS と時刻など）
     expect(privacy).toContain("自動投稿の知らせでは、送り先の SNS と時刻・件数、設定の名前と止めた理由");
     expect(privacy).toContain('["自動投稿の設定", "利用者が消すか、プロジェクトを消すか、退会まで"]');
-    expect(privacy).toContain('"自動の回の記録・承認の記録", "13 か月で自動で消す');
+    expect(privacy).toContain('"自動投稿ごとの記録・承認の記録", "13 か月で自動で消す');
     expect(privacy).toContain('"お知らせ・季節の予定", "その日付から 1 年で自動で消す');
   });
 

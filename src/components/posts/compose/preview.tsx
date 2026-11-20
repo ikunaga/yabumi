@@ -11,7 +11,7 @@ import { PREVIEW, PREVIEW_DISCLAIMER } from "@/lib/sns/preview";
 import { SNS, hasTitleField, titleLimit, instagramRatioOk, ignoresImages, isManualSns } from "@/lib/sns";
 import { formatCount, type Composer } from "./use-composer";
 
-// SNS ごとの見え方と文面（タブ）と、SNS ごとの注意のカード（compose-steps.md。PC は右の列）
+// SNS ごとの見え方と文面（タブ。compose-steps.md。PC は右の列）。切り替えはタブだけ（2026-11-21 オーナーの指摘で、下のカードはなくした）
 export function ComposePreview({ c }: { c: Composer }) {
   const { projectName, accountNames, shownText, linkPreview, images, video, shortLinks, body, overrideRef, overrides, setOverrides, setFocus, titles, setTitles, markTyped, textFor, checks, isLocked, previewSns, focus, focusLabel, hasOverride } = c;
   return (
@@ -36,6 +36,11 @@ export function ComposePreview({ c }: { c: Composer }) {
           </HelpTip>
         </div>
         <div role="tabpanel" className="flex flex-col gap-3 px-6 py-5 max-sm:px-4 max-sm:py-4">
+          {/* SNS ごとの説明（字数・画像の並び）は、選んだタブの見え方の上に 1 行で出す。下のカードでの切り替えはなくした（2026-11-21 オーナーの指摘「タブの切り替えだけでいい」） */}
+          <p className="text-[13px] text-muted">
+            {SNS[focus].maxLength ? `${formatCount(SNS[focus].maxLength!)} 字まで・` : ""}
+            {PREVIEW[focus].short}
+          </p>
           {isManualSns(focus) && <p className="text-[13px] text-muted">{focusLabel} には、「投稿」の画面から手で投稿します。</p>}
           {hasTitleField(focus) && (
             <div className="flex flex-col gap-1.5">
@@ -138,29 +143,6 @@ export function ComposePreview({ c }: { c: Composer }) {
         </div>
       </section>
 
-      {/* SNS ごとの注意の小さなカード（見本 B の右下）。いま見ている SNS のほかに、選んだ SNS */}
-      {previewSns.length > 1 && (
-        <ul className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
-          {previewSns
-            .filter((s) => s !== focus)
-            .slice(0, 4)
-            .map((sns) => (
-              <li key={sns}>
-                <button
-                  type="button"
-                  onClick={() => setFocus(sns)}
-                  className="flex h-full w-full flex-col gap-0.5 rounded-lg border border-border bg-surface px-4 py-3 text-left hover:border-input"
-                >
-                  <b className="text-[15px]">{SNS[sns].label}</b>
-                  <span className="text-[13px] leading-[1.6] text-muted">
-                    {SNS[sns].maxLength ? `${formatCount(SNS[sns].maxLength!)} 字まで・` : ""}
-                    {PREVIEW[sns].short}
-                  </span>
-                </button>
-              </li>
-            ))}
-        </ul>
-      )}
     </>
   );
 }

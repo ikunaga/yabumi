@@ -107,7 +107,7 @@ describe("偽の AI の入口", () => {
   });
 
   it("偽の AI は、SNS ごとの文（字数の上限まで）・指摘・書けないを返す", async () => {
-    const base = { ownerId: "u", kind: "notes" as const, sns: ["threads" as const, "x" as const], material: "m", materialLabel: "メモ", context: "", instructions: [], recentBodies: [], maxLength: { x: 10 } };
+    const base = { ownerId: "u", kind: "notes" as const, sns: ["threads" as const, "x" as const], material: "m", materialLabel: "メモ", context: "", instructions: [], recentBodies: [], maxLength: { x: 10 }, dueAt: new Date() };
     const ok = await fakeGenerator("ok")(base);
     expect(ok.ok && Object.keys(ok.texts)).toEqual(["threads", "x"]);
     expect(ok.ok && ok.texts.x!.length).toBe(10);

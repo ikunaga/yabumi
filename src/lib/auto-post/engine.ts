@@ -278,6 +278,7 @@ export async function draftRun(
       instructions: [...args.plan.instructions, ...(args.extraInstructions ?? [])],
       purpose,
       headline: args.plan.image?.headline === "ai",
+      dueAt: args.dueAt,
       recentBodies: args.recent.mine,
       maxLength: Object.fromEntries(args.sns.map((s) => [s, Math.max(1, (SNS[s].maxLength ?? 10_000) - reserveOf(s))])),
       fixedTags,

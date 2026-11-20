@@ -20,7 +20,7 @@ describe("書き方の指示の入力", () => {
 });
 
 describe("AI に渡す指示", () => {
-  const req = (instructions: string[]) => JSON.stringify(buildAutoPostRequest({ context: "", material: "メモ", instructions, recentBodies: [] }).messages);
+  const req = (instructions: string[]) => JSON.stringify(buildAutoPostRequest({ context: "", material: "メモ", instructions, recentBodies: [], dueAt: new Date() }).messages);
   it("指示を 1 つずつ <instructions> に入れる。なければアカウント設計の口調に従う", () => {
     expect(req(["絵文字なし", "もっと短く"])).toContain("<instructions>\\n<item>絵文字なし</item>\\n<item>もっと短く</item>\\n</instructions>");
     expect(req([])).toContain("（なし。アカウント設計の口調に従う）");

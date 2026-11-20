@@ -25,11 +25,13 @@ export function ComposeStart({
       <span aria-current="page" className={chipSolidClass(true)}>
         自分で書く
       </span>
-      <button type="button" aria-expanded={formatsOpen} aria-controls="compose-formats" onClick={onFormats} className={chipClass({ on: formatsOpen })}>
-        フォーマットから書く
-      </button>
-      {/* yabumi の機能の名前は、初めて出るここで「?」に何をするものかを書く（用語集には入れない。2026-11-21 PM） */}
-      <HelpTip label="フォーマットとは">毎回くり返し使う投稿のひな形です。空欄に言葉を入れるだけで、いつもの形の投稿が書けます。</HelpTip>
+      <span className="inline-flex items-center gap-1.5">
+        <button type="button" aria-expanded={formatsOpen} aria-controls="compose-formats" onClick={onFormats} className={chipClass({ on: formatsOpen })}>
+          フォーマットから書く
+        </button>
+        {/* yabumi の機能の名前は、初めて出るここで「?」に何をするものかを書く（用語集には入れない。2026-11-21 PM） */}
+        <HelpTip label="フォーマットとは">毎回くり返し使う投稿のひな形です。空欄に言葉を入れるだけで、いつもの形の投稿が書けます。</HelpTip>
+      </span>
       {aiEnabled ? (
         <Link href={`/projects/${projectId}/ideas`} className={`${chipClass()} hover:no-underline`}>
           AI とネタを出す →
@@ -39,10 +41,12 @@ export function ComposeStart({
           AI とネタを出す<span className="text-xs">まだ使えません</span>
         </span>
       )}
-      <button type="button" aria-expanded={notesOpen} aria-controls="compose-notes" onClick={onNotes} className={chipClass({ on: notesOpen })}>
-        ネタ帳のメモから書く
-      </button>
-      <HelpTip label="ネタ帳とは">思いついたことを「＋ メモ」で残しておく場所です。あとでメモを選ぶと、その中身から投稿を書き始められます。</HelpTip>
+      <span className="inline-flex items-center gap-1.5">
+        <button type="button" aria-expanded={notesOpen} aria-controls="compose-notes" onClick={onNotes} className={chipClass({ on: notesOpen })}>
+          ネタ帳のメモから書く
+        </button>
+        <HelpTip label="ネタ帳とは">思いついたことを「＋ メモ」で残しておく場所です。あとでメモを選ぶと、その中身から投稿を書き始められます。</HelpTip>
+      </span>
     </nav>
   );
 }

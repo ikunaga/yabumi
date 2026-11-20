@@ -56,7 +56,7 @@ export function SnsMarksCompact({ sns }: { sns: SnsKey[] }) {
     <span title={names} className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap">
       <span aria-hidden className="inline-flex items-center gap-1">
         <SnsMark sns={sns[0]} />
-        {sns.length > 1 && <span className="text-[12px] text-muted">ほか {sns.length - 1}</span>}
+        {sns.length > 1 && <span className="text-[12px] text-muted">ほか {sns.length - 1} つ</span>}
       </span>
       <span className="sr-only">{names}</span>
     </span>

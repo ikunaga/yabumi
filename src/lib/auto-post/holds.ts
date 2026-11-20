@@ -9,14 +9,14 @@ import type { Database } from "@/lib/supabase/database.types";
 type Db = SupabaseClient<Database>;
 
 // 画面と通知に出す文。理由は出さない（運営者のメモは、調べている途中のことや、ほかの人のことを含みうるため。理由は運営者がメールで伝える）
-export const HOLD_TITLE = "yabumi の運営が、自動投稿を止めています";
+export const HOLD_TITLE = "yabumi の運営が、あなたの自動投稿を止めています";
 export function holdBody(heldAt: string): string {
   const d = new Date(new Date(heldAt).getTime() + 9 * 3_600_000);
   const date = `${d.getUTCFullYear()}年${d.getUTCMonth() + 1}月${d.getUTCDate()}日`;
-  return `${date}から、あなたのアカウントの自動投稿を止めています。新しく作る・再開する・送ることはできません。問い合わせ先: ${orPending(LEGAL.contact)}`;
+  return `${date}から止めています。新しく作る・再開する・編集することはできません。設定の削除はできます。くわしくは ${orPending(LEGAL.contact)} にお問い合わせください。`;
 }
 // DB が断ったときの文（actions.ts の HINT_TEXT）
-export const HOLD_REFUSED = `yabumi の運営が、あなたのアカウントの自動投稿を止めています。新しく作る・再開する・送ることはできません。問い合わせ先: ${orPending(LEGAL.contact)}`;
+export const HOLD_REFUSED = `yabumi の運営が、あなたの自動投稿を止めています。新しく作る・再開する・編集することはできません。設定の削除はできます。くわしくは ${orPending(LEGAL.contact)} にお問い合わせください。`;
 
 export const HOLD_PUSH: Omit<PushMessage, "url" | "tag"> = {
   title: "自動投稿を止めました",

@@ -46,7 +46,7 @@ export function ReviewCard({ projectId, item, dueLabel }: { projectId: string; i
         <p className="num text-sm text-muted">{dueLabel} に送ります</p>
       </div>
       {first && (
-        <p className="text-[14px] text-muted">1 回目の投稿だけ、送る前に確認してください。押さなければ送りません。2 回目からは、確認せずに送ります。「確認して送る」にした SNS は、毎回確認します。</p>
+        <p className="text-[14px] text-muted">1 回目の投稿だけ、送る前に確認してください。押さなければ送りません。2 回目からは、確認せずに送ります。「確認して送る」を選んだ SNS は、毎回この画面で見てから送ります。</p>
       )}
       {error && <ErrorBanner>{error}</ErrorBanner>}
 
@@ -71,10 +71,11 @@ export function ReviewCard({ projectId, item, dueLabel }: { projectId: string; i
                 編集
               </ButtonLink>
               <Button type="button" variant="text" size="sm" disabled={pending} onClick={() => setConfirm({ decline: t })}>
-                送らない
+                {SNS[t.sns].label} には送らない
               </Button>
             </div>
           )}
+          {!first && <p className="text-xs text-muted">「{SNS[t.sns].label} には送らない」を押すと、{SNS[t.sns].label} だけ送りません。ほかの SNS は予約どおり送ります。</p>}
         </div>
       ))}
 
@@ -103,6 +104,7 @@ export function ReviewCard({ projectId, item, dueLabel }: { projectId: string; i
           </Button>
         </div>
       )}
+      {first && <p className="text-xs text-muted">「この投稿は送らない」を押すと、どの SNS にも送らず、下書きに残します。</p>}
       {first && <p className="text-xs text-muted">編集したら、この画面に戻って確認してください。投稿の画面でそのまま予約しても送れます。</p>}
       {!first && waiting.length > 0 && <p className="text-xs text-muted">編集すると、確認待ちに戻ります。編集したら、この画面で確認し直してください。</p>}
 

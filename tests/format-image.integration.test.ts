@@ -82,7 +82,7 @@ describe("フォーマットの画像の設定", () => {
   });
 });
 
-describe("AI が場面に書き換える（偽の AI）", () => {
+describe("AI が絵の説明を書く（偽の AI）", () => {
   const fake = () =>
     vi.fn(async () => ({ output: { ideas: [{ title: "机", scene: "古いスクーターの模型と地図が並ぶ机", why: "連想しやすい" }] }, stopReason: "end_turn", model: "claude-opus-5-5", usage: { inputTokens: 100, cacheWriteTokens: 0, cacheReadTokens: 0, outputTokens: 50 } }));
   const aiImage = { prompt: "{映画}を思わせる{キーワード}が並ぶ机", scene: "ai", style: "illustration", size: "auto", headline: null };

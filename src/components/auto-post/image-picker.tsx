@@ -94,7 +94,7 @@ export function ImagePicker(p: {
           </Link>
         </p>
       )}
-      {choice === "format" && <p className="text-sm text-muted">フォーマットの絵の説明に、その回の穴の言葉を入れてつくります（写真かイラスト・縦横もフォーマットのとおり）。</p>}
+      {choice === "format" && <p className="text-sm text-muted">フォーマットの絵の説明に、その回の空欄の言葉を入れてつくります（写真かイラスト・縦横もフォーマットのとおり）。</p>}
       {choice === "ai" && p.value && (
         <div className="flex flex-col gap-3">
           <p className="text-sm text-muted">その回の文から、AI が場面を考えてつくります。</p>
@@ -143,7 +143,7 @@ export function ImagePicker(p: {
           {p.value.headline !== "none" && (
             <>
               <p className="text-sm text-muted">
-                {p.value.headline === "ai" ? "その回の文に合う見出しを AI が書いて、画像に重ねます（20 字ほど）。" : "フォーマットの見出しに、その回の穴の言葉を入れて重ねます。"}
+                {p.value.headline === "ai" ? "その回の文に合う見出しを AI が書いて、画像に重ねます（20 字ほど）。" : "フォーマットの見出しに、その回の空欄の言葉を入れて重ねます。"}
                 絵文字は描けないので、取り除いて描きます。
               </p>
               <StyleFields style={p.value.look ?? defaultLook(p.projectId)} onStyle={(patch) => p.onChange({ ...p.value!, look: { ...(p.value!.look ?? defaultLook(p.projectId)), ...patch } })} showTextStyle />

@@ -17,7 +17,7 @@ export function ComposeStepWrite({ c, steps = false }: { c: Composer; steps?: bo
   return (
     <>
       {/* 投稿のフォーマット（docs/design/post-formats.md の 4）。「フォーマットから」を押すと出す。穴を埋めて本文に入れる。穴の言葉は利用者が打ったものなので、書きかけの控えに乗せる。
-          閉じても選んだフォーマットと穴の言葉は残す（隠すだけ） */}
+          閉じても選んだフォーマットと空欄に入れた言葉は残す（隠すだけ） */}
       {!sentAny && (
         <div id="compose-formats" hidden={!formatsOpen}>
         <PostFormatPicker

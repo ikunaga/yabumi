@@ -56,7 +56,7 @@ describe("返事の整え方", () => {
     const out = normalizeFormatProposals(raw, ["今日のお店"], "新メニュー")!;
     expect(out.map((o) => o.name)).toEqual(["新メニューのお知らせ", "短く", "きっかけから"]);
     expect(out[0]).toMatchObject({ pillar: "新メニュー", why: "先に何かがわかる", body: "【新メニュー】{何が}\n{いつから}から" });
-    expect(normalizeFormatProposals({ proposals: [p("穴なし", "毎日")] }, [], "")).toBeNull();
+    expect(normalizeFormatProposals({ proposals: [p("空欄なし", "毎日")] }, [], "")).toBeNull();
     expect(normalizeFormatProposals({ nope: 1 }, [], "")).toBeNull();
   });
 });

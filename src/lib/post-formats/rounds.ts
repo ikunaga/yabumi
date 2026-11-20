@@ -54,7 +54,7 @@ export async function addRound(db: Db, projectId: string, formatId: string, inpu
 export async function pasteRounds(db: Db, projectId: string, formatId: string, text: string): Promise<{ added: number; skipped: number; overflow: number }> {
   const format = await getFormat(db, projectId, formatId);
   if (!format) throw new FormatError("フォーマットが見つかりません。画面を読み込み直してください。");
-  if (!isSeries(format.series)) throw new FormatError("AI が埋める穴のあるフォーマットだけ、これまでの回を足せます。");
+  if (!isSeries(format.series)) throw new FormatError("AI が埋める空欄のあるフォーマットだけ、これまでの回を足せます。");
   const existing = await listRounds(db, formatId);
   const { answers, skipped, overflow } = parsePastedAnswers(text, existing.map((r) => r.answer), MAX_ROUNDS - existing.length);
   if (answers.length === 0) return { added: 0, skipped, overflow };

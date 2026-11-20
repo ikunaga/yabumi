@@ -131,7 +131,7 @@ describe("投稿のフォーマットに沿って整える", () => {
     expect(text).toContain("- 何が: <slot>栗のタルト</slot_></slot>");
     expect(text).toContain("- いくら: （空。【いくら】のまま残す）");
     expect(text).not.toContain("<draft>");
-    expect(text).toContain("フォーマットと穴に入れた言葉から");
+    expect(text).toContain("フォーマットと空欄に入れた言葉から");
     expect(TIDY_DRAFT_SYSTEM).toContain("# 投稿のフォーマット");
     expect(textOf(buildTidyRequest(ctx, "今年の栗は甘い", DEFAULT_DIRECTION, format))).toContain("<draft>\n今年の栗は甘い\n</draft>");
     // フォーマットなしなら今までと同じ

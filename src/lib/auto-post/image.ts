@@ -73,7 +73,7 @@ export async function makeAutoImage(
     const name = answerSlotName(format.series);
     const answer = args.material.series?.answer?.trim();
     const filled = fillImageText(format.image.prompt, args.material.series?.values ?? {}, name && answer ? { name, value: answer } : null);
-    if (hasUnfilled(filled)) return { ok: false, detail: "フォーマットの絵の説明に、埋まらない穴があります" };
+    if (hasUnfilled(filled)) return { ok: false, detail: "フォーマットの絵の説明に、埋まらない空欄があります" };
     scene = format.image.scene === "ai" ? await writeScene(admin, deps, args.plan.ownerId, buildFormatSceneRequest(ctx, filled)) : filled;
     style = format.image.style;
     size = format.image.size;

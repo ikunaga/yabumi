@@ -32,6 +32,8 @@ export const AI_MAX_TOKENS = {
   voice_memo: 4000,
   // 投稿のフォーマットの案を AI とつくる（docs/design/post-formats.md の 3）
   post_format: 3000,
+  // 伸びた投稿からフォーマットの案をつくる（docs/design/winning-posts.md の 4.1。用途は post_format と同じ枠）
+  format_from_posts: 3000,
   // シリーズの次の回の案（docs/design/format-series.md の 3）
   post_format_round: 2500,
   // 自動の投稿の文を作る（docs/design/auto-post.md の 2.4。DB の reserve_ai_usage の auto_post の下限 0.13 と合う値）。

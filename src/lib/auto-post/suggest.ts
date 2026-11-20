@@ -119,18 +119,23 @@ export type ScheduleInput = {
   trends: TimeTrends | null;
   planFrequency: string | null; // 設計の cadence.frequency（自由な文）
   start?: string; // 数え始めの日（YYYY-MM-DD）。省略は日本時間の今日
+  // 伸びた投稿から始めたとき（docs/design/winning-posts.md の 4.2）。1 つの型は週 1〜2 回にし、時刻は伸びた投稿を送った時間帯を先にする
+  fromWinner?: { time: string; reason: string };
 };
+
+// 伸びた投稿から始めたときの回数の並び（毎日だと似てくる。推測）
+const WINNER_PER_WEEK = [2, 1] as const;
 
 export function suggestSchedules(input: ScheduleInput): ScheduleSuggestion[] {
   const remaining = remainingOf(input.kind, input.materials);
-  const time = suggestTime(input.targets, input.trends);
-  const fromPlan = parseFrequency(input.planFrequency);
+  const time = input.fromWinner ? { ...input.fromWinner, source: "trend" as const } : suggestTime(input.targets, input.trends);
+  const fromPlan = input.fromWinner ? null : parseFrequency(input.planFrequency);
   const start = input.start ?? todayJst();
 
   const lasts = (n: number) => remaining === null || remaining >= n * KEEP_WEEKS;
   // 2 週間以上続けられる回数のうち多いほう。どれも足りなければ、いちばん少ない週 2
   const best = PER_WEEK_OPTIONS.find(lasts) ?? PER_WEEK_OPTIONS[PER_WEEK_OPTIONS.length - 1];
-  const order: number[] = [];
+  const order: number[] = input.fromWinner ? [...WINNER_PER_WEEK] : [];
   if (fromPlan !== null) order.push(fromPlan);
   order.push(best);
   // 残りの案も、続けられるものを先に
@@ -148,7 +153,11 @@ export function suggestSchedules(input: ScheduleInput): ScheduleSuggestion[] {
           : `メモが ${remaining} 件なので、1 週間もたずに使い切ります`;
       if (plan) reason = `設計の頻度（${perWeekLabel(n)}）に合わせました。${reason}`;
     } else {
-      reason = plan ? `設計の頻度（${perWeekLabel(n)}）に合わせました` : n >= 7 ? "毎日出して、見てもらう回数を増やします" : `無理なく続けられる回数です`;
+      reason = plan
+        ? `設計の頻度（${perWeekLabel(n)}）に合わせました`
+        : input.fromWinner && n <= 2
+          ? "同じ型を出しすぎると似てくるので、少なめにします"
+          : n >= 7 ? "毎日出して、見てもらう回数を増やします" : `無理なく続けられる回数です`;
     }
     return {
       perWeek: n,

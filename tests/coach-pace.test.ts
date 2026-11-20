@@ -133,6 +133,14 @@ describe("知らせの中身", () => {
     expect(w.email.text).toContain("■ 先週、予定日を過ぎたやること: 2 件");
   });
 
+  it("先週、新しく伸びた投稿があれば 1 行と、伸びた投稿の画面へのリンク（なければ出さない。通知の本文には入れない）", () => {
+    const base = { lastWeek: null, thisWeekTargets: { x: 1 }, streak: 0, cycle: null, justEnded: false };
+    const w = weeklyMessage({ ...base, grown: { title: "「予約はいりますか」とよく聞かれます", text: "Threads でいつもの 2.4 倍見られました" } }, ctx);
+    expect(w.email.text).toContain("■ いつもより伸びた投稿: 「「予約はいりますか」とよく聞かれます」（Threads でいつもの 2.4 倍見られました）。この形で自動で回せます: https://yabumi.app/projects/p1/auto/winners");
+    expect(w.push.body).not.toContain("予約はいりますか");
+    expect(weeklyMessage({ ...base, grown: null }, ctx).email.text).not.toContain("伸びた投稿");
+  });
+
   it("メールの最後: 何のメールか、設定、ワンクリックの停止、送信者と問い合わせ先。List-Unsubscribe の見出し", () => {
     const f = mailFooter(ctx);
     expect(f).toContain("https://yabumi.app/settings/notifications");

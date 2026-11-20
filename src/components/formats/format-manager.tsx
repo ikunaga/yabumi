@@ -207,7 +207,7 @@ export function FormatManager({
 }
 
 // フォーマットの欄（名前・いつ使う・本文・埋めた例・柱）。保存の前に画面でも確かめる（正はサーバー）
-function FormatEditor({
+export function FormatEditor({
   projectId,
   initial,
   pillars,

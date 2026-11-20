@@ -13,7 +13,8 @@ export function ComposeResetControl({ c }: { c: Composer }) {
   const { postId, resetOpen, setResetOpen, resetRound, resetChanges, resetAll, closeReset, sentAny, plannedLabel, videoBusy } = c;
   return (
     <span className="flex items-baseline gap-3">
-      {plannedLabel && <span className="num text-[15px] text-faint">{plannedLabel} {sentAny ? "に送信" : "予約"}</span>}
+      {/* 下書きには「予約」と出さない（飛ばした投稿・予約をやめた投稿に、もとの日時が残っていても予約ではない。2026-11-21 PM の指摘） */}
+      {plannedLabel && (sentAny || c.scheduledSaved) && <span className="num text-[15px] text-faint">{plannedLabel} {sentAny ? "に送信" : "予約"}</span>}
       {!sentAny && resetChanges.length > 0 && (
         // 動画を整えている・上げている間は押せない（途中の作業が残らないように）
         <button

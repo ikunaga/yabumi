@@ -19,7 +19,9 @@ import { formatsBackHref } from "@/lib/post-formats/back";
 import type { SnsKey } from "@/lib/sns";
 import { loadRunResults, loadSeriesFormatImage, type RunTargetResult } from "@/lib/auto-post/ui-queries";
 import { getProject } from "@/lib/projects/queries";
-import { formatShort } from "@/lib/time";
+import { formatShort, formatTime, toYmd } from "@/lib/time";
+import { dayWithWeekday } from "@/lib/posts/send-mode";
+import { isUuid } from "@/lib/uuid";
 
 export const metadata: Metadata = { title: "自動投稿" };
 
@@ -27,7 +29,7 @@ const DAY_MS = 86_400_000;
 
 // 回し方の画面（docs/design/auto-post.md の 1.6・1.7）。上に数字 3 つ、下に回の一覧、横（スマホは上）に操作
 export default async function AutoPlanPage(props: PageProps<"/projects/[id]/auto/[planId]">) {
-  const [{ id, planId }, { saved }] = await Promise.all([props.params, props.searchParams]);
+  const [{ id, planId }, { saved, skipped, post: skippedPost }] = await Promise.all([props.params, props.searchParams]);
   const [project, plan] = await Promise.all([getProject(id), getAutoPlan(planId)]);
   if (!project || !plan || plan.projectId !== project.id) notFound();
   const now = new Date();
@@ -66,6 +68,21 @@ export default async function AutoPlanPage(props: PageProps<"/projects/[id]/auto
           <PlanControls projectId={project.id} planId={plan.id} status={plan.status} nextLabel={next && !hold ? formatShort(next.dueAt) : null} held={hold !== null} />
         </div>
       </div>
+      {typeof skipped === "string" && !Number.isNaN(Date.parse(skipped)) && (
+        // 予約済みの投稿の詳細で「この日の投稿を飛ばす」を押したあと（2026-11-21 PM の指摘）
+        <SuccessBanner>
+          {dayWithWeekday(toYmd(new Date(skipped)))}
+          {formatTime(skipped)} の投稿を飛ばしました。{next && !hold ? `次の投稿は ${formatShort(next.dueAt)} です。` : ""}
+          {typeof skippedPost === "string" && isUuid(skippedPost) && (
+            <>
+              {" "}
+              <Link href={`/projects/${project.id}/posts/${skippedPost}`} className="font-bold underline">
+                飛ばした投稿を見る →
+              </Link>
+            </>
+          )}
+        </SuccessBanner>
+      )}
       {saved === "1" && <SuccessBanner>編集しました。まだ作っていない回から、新しい設定で作ります。</SuccessBanner>}
 
       <div className="grid grid-cols-3 gap-3 max-sm:grid-cols-3 max-sm:gap-2">

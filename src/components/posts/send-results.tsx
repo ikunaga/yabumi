@@ -178,7 +178,7 @@ function ResultRow({ sns, r, projectId, postId, video }: { sns: SnsKey; r: Targe
         {r.status === "awaiting_approval" && (
           // 自動の投稿の「確かめて送る」SNS（X など）。確かめる画面で中身を見て承認すると送る（docs/design/auto-post.md の 1.6）
           <span className="flex flex-wrap items-baseline gap-x-2">
-            <span className="font-bold text-signal">確認待ち（中身を確認すると送ります）</span>
+            <span className="font-bold text-signal">確認待ち。確認すると送ります</span>
             <Link href={`/projects/${projectId}/auto/review`} className="text-sm font-bold text-fg underline">
               確認する →
             </Link>

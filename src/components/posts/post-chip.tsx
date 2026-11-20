@@ -33,7 +33,8 @@ export function postWarning(post: PostRow): string | null {
   const status = displayStatus(post);
   if (status !== "scheduled" && status !== "draft") return null;
   // 確かめて送る SNS の承認待ち（押すまで送られない）を先に知らせる
-  const waiting = post.targets.filter((t) => t.status === "awaiting_approval");
+  // 下書きに戻した投稿（飛ばした自動投稿など）の確認待ちは送らないので出さない。1 回目の確認待ちは autoReviewWarning が出す
+  const waiting = post.status === "scheduled" ? post.targets.filter((t) => t.status === "awaiting_approval") : [];
   if (waiting.length > 0) return `${waiting.map((t) => SNS[t.sns].label).join("・")} は確認待ちです`;
   for (const t of post.targets) {
     if (t.status !== "pending") continue;

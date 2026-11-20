@@ -1,6 +1,6 @@
 // 投稿の画面の下のボタンの出し分け（送った投稿で押せない「予約する」を出さない）
 import { describe, expect, it } from "vitest";
-import { sendLabels, sendMode, sentStateOf, composeHeading } from "@/lib/posts/send-mode";
+import { sendLabels, sendMode, sentStateOf, composeHeading, scheduledSentence, dayWithWeekday } from "@/lib/posts/send-mode";
 
 describe("sendMode", () => {
   it("まだ送っていなければ new、一部だけ送ったら partial、選んだ SNS にすべて送ったら all_sent", () => {
@@ -13,11 +13,27 @@ describe("sendMode", () => {
 
 describe("sendLabels", () => {
   it("一部だけ送ったときは、残りの SNS の分だとわかる文言", () => {
-    expect(sendLabels("partial", 2)).toEqual({ schedule: "残りの 2 つの SNS に予約する", now: "残りを今すぐ送る" });
+    expect(sendLabels("partial", 2)).toMatchObject({ schedule: "残りの 2 つの SNS に予約する", now: "残りを今すぐ送る" });
   });
   it("まだ送っていないときは今までどおり", () => {
-    expect(sendLabels("new", 3)).toEqual({ schedule: "3 つの SNS に予約する", now: "今すぐ送る" });
-    expect(sendLabels("new", 0)).toEqual({ schedule: "予約する", now: "今すぐ送る" });
+    expect(sendLabels("new", 3)).toMatchObject({ schedule: "3 つの SNS に予約する", now: "今すぐ送る" });
+    expect(sendLabels("new", 0)).toMatchObject({ schedule: "予約する", now: "今すぐ送る", when: "予約する" });
+  });
+  it("予約済みの投稿を編集しているときは「予約を変更する」。まだ予約していないように見える文は出さない（2026-11-21 オーナーの指摘）", () => {
+    const l = sendLabels("new", 3, true);
+    expect(l).toEqual({ schedule: "予約を変更する", now: "今すぐ送る", when: "予約の日時に送る" });
+    expect(Object.values(l).join()).not.toMatch(/SNS に予約する|^予約する$/);
+    // 一部だけ送った投稿は、今までどおり残りの分
+    expect(sendLabels("partial", 2, true).schedule).toBe("残りの 2 つの SNS に予約する");
+  });
+});
+
+describe("予約済みの投稿の 1 文", () => {
+  it("日付・曜日・時刻と SNS をはっきり出す", () => {
+    expect(scheduledSentence("2026-11-21T21:00", ["X", "Threads", "Instagram"])).toBe("この投稿は 11/21（土）21:00 に、X・Threads・Instagram に予約済みです。");
+    expect(scheduledSentence("2026-11-21T21:00", [])).toBe("この投稿は 11/21（土）21:00 に予約済みです。");
+    expect(scheduledSentence("", ["X"])).toBe("この投稿は予約済みです。");
+    expect(dayWithWeekday("2026-11-24")).toBe("11/24（火）");
   });
 });
 

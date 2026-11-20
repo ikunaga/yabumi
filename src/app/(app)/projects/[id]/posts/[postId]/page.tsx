@@ -1,5 +1,6 @@
 import { LearningTip } from "@/components/learning/learning-tip";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { XSyncOnView } from "@/components/posts/x-sync-on-view";
 import { PostCommentsSection } from "@/components/comments/comments";
@@ -91,6 +92,9 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
   const roadmapItem = post.roadmapItemId
     ? ((await supabase.from("roadmap_items").select("id, title, detail").eq("id", post.roadmapItemId).eq("project_id", project.id).maybeSingle()).data ?? null)
     : null;
+  // 自動の投稿でつくった投稿なら、その回と回し方（予約済みの投稿の詳細に「どこから来たか」と「この日の投稿を飛ばす」を出す。RLS で本人のものだけ）
+  const { data: runRow } = await supabase.from("auto_runs").select("id, plan_id, status, due_at, auto_plans(name)").eq("post_id", post.id).maybeSingle();
+  const autoRun = runRow ? { runId: runRow.id, planId: runRow.plan_id, planName: runRow.auto_plans?.name ?? "", status: runRow.status, dueAt: runRow.due_at } : null;
   // 「最初は自分で書く」のすすめに使う（docs/design/voice-from-posts.md の 3.4）
   const [selfWrittenPosts, voiceMemo, accountNames, linkBase] = await Promise.all([
     countSelfWrittenPosts(supabase, project.id),
@@ -116,7 +120,9 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
       t.sns,
       {
         id: t.id,
-        status: t.status,
+        // 下書きの投稿（飛ばした自動投稿・予約をやめた投稿）の確認待ちは、送らないので「確認待ち」と出さない。DB の状態は変えない
+        // （確認待ちのまま残すので、あとで予約し直しても X などは確認してから送る）。1 回目の確認待ちの回の投稿は、確認待ちのまま
+        status: t.status === "awaiting_approval" && post.status !== "scheduled" && runRow?.status !== "review" ? ("pending" as const) : t.status,
         externalUrl: t.external_url,
         errorMessage: t.error_message,
         publishedAt: t.published_at,
@@ -171,6 +177,11 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
     <>
       {hasPublishedX && <XSyncOnView projectId={project.id} postId={post.id} />}
       {comments.length > 0 && <MarkCommentsSeen projectId={project.id} postId={post.id} />}
+      {autoRun && (
+        <Link href={`/projects/${project.id}/auto/${autoRun.planId}`} className="mb-3 inline-block text-sm text-muted underline">
+          ← 自動投稿に戻る
+        </Link>
+      )}
       <PostComposer
       defaultHashtags={readDefaultHashtags(project.default_hashtags)}
       key={post.id}
@@ -178,6 +189,7 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
       projectName={project.name}
       postId={post.id}
       savedStatus={post.status}
+      autoRun={autoRun}
       connected={(Object.keys(accounts) as SnsKey[]).filter(canPublish)}
       planHints={planHints}
       afterNotice={sentTip ? <LearningTip trigger="post_sent" /> : null}

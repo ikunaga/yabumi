@@ -34,6 +34,8 @@ const HINT_TEXT: Record<string, string> = {
   auto_plan_operator_stop: "運営者がこのプロジェクトの自動投稿を止めています。再開・作る・編集・消すはできません。問い合わせ先にご連絡ください。",
   // 運営者が利用者ごとに止めている（20261118100000_auto_post_holds）
   auto_post_hold: HOLD_REFUSED,
+  // 予約済みの回を飛ばそうとしたが、もう送り始めていた（20261121110000）
+  auto_run_sending: "もう送り始めているので、飛ばせません。",
   auto_instructions_invalid: "指示は 1 つ 100 字まで・8 個までです（1 行で書いてください）。",
   auto_image_invalid: "画像の設定が正しくありません。選び直してください。",
   ai_image_notice_missing: "AI の画像を使うには、先に AI の画像の注意を読んで「わかりました」を押してください。",
@@ -151,6 +153,17 @@ export async function skipNextAutoRun(planId: string): Promise<AutoResult<{ dueA
   if (!db) return SIGN_IN;
   const { data, error } = await db.rpc("skip_next_auto_run", { p_plan_id: planId });
   return error ? { ok: false, error: errorText(error, NO_PLAN) } : { ok: true, data: { dueAt: (data as string | null) ?? null } };
+}
+
+// 予約済み・確認待ちの回を、その日だけ飛ばす（予約済みの投稿の画面の「この日の投稿を飛ばす」。2026-11-21）。
+// 回は飛ばした記録になり、投稿は下書きに戻る。送り始めた SNS があれば DB が断る
+const NO_RUN = "飛ばせる投稿が見つかりません。送る時刻を過ぎたか、もう飛ばしています。画面を読み込み直してください。";
+export async function skipScheduledAutoRun(runId: string): Promise<AutoResult<{ dueAt: string }>> {
+  if (!uuid.safeParse(runId).success) return { ok: false, error: BAD };
+  const db = await signedIn();
+  if (!db) return SIGN_IN;
+  const { data, error } = await db.rpc("skip_scheduled_auto_run", { p_run_id: runId });
+  return error ? { ok: false, error: errorText(error, NO_RUN) } : { ok: true, data: { dueAt: data as string } };
 }
 
 // 消す。toDraft なら、作り終えてまだ送っていない予約を下書きに戻す（false ならふつうの予約として残り、送られる）

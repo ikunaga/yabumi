@@ -3723,6 +3723,7 @@ export type Database = {
       }
       settle_goal: { Args: { p_goal_id: string }; Returns: string }
       skip_next_auto_run: { Args: { p_plan_id: string }; Returns: string }
+      skip_scheduled_auto_run: { Args: { p_run_id: string }; Returns: string }
       sns_spend_this_month: {
         Args: { p_owner_id?: string; p_sns: unknown }
         Returns: number

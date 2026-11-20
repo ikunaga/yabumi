@@ -196,7 +196,7 @@ export function PostFormatPicker({
           {!isSeries(selected.series) && formatSlots(selected.body).length > 0 && (
             // AI に穴を埋めさせる設定がどこにあるかわからなかった（パワポの 1・8）
             <p className="text-xs text-muted">
-              毎回 AI に変えてもらうには →{" "}
+              空欄の言葉を毎回 AI に考えてもらうには →{" "}
               <Link href={formatsHref} className="font-bold text-fg underline">
                 フォーマットの設定
               </Link>

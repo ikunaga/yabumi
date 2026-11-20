@@ -385,7 +385,7 @@ describe("シリーズの本文（フォーマットの文）は変えない（2
     const r = await draftRun(admin, { ...deps(), callShorten }, { plan: { ...toPlan(row!), ownerId: aliceId }, sns: ["threads", "x"], dueAt: new Date(Date.now() + 20 * HOUR), past: [], recent: { bySns: {}, mine: [] }, material: material(long) });
     expect(callShorten).not.toHaveBeenCalled();
     expect(r.ok && r.texts.x).toBe(long);
-    expect(r.ok && r.hold).toMatchObject({ kind: "too_long", detail: expect.stringMatching(/^フォーマットの文が長すぎて .+ に送れません。下書きに残しました。$/) });
+    expect(r.ok && r.hold).toMatchObject({ kind: "too_long", detail: expect.stringMatching(/^フォーマットの文が長すぎて .+ に送れません。下書きに残しました。下書きを編集して、文を短くしてください。$/) });
   });
 });
 

@@ -479,9 +479,9 @@ function SeriesFields({ slots, series, usedInImage, setSeries }: { slots: string
   const on = Object.keys(series.slots).length > 0;
   const imageOnly = imageOnlySlots(slots.map((n) => `{${n}}`).join(""), series);
   return (
-    <section className={`flex flex-col gap-2.5 rounded-md border px-3 py-2.5 text-xs ${on ? "border-primary" : "border-line"}`} aria-label="毎回 AI に変えてもらう">
+    <section className={`flex flex-col gap-2.5 rounded-md border px-3 py-2.5 text-xs ${on ? "border-primary" : "border-line"}`} aria-label="空欄の言葉を毎回 AI に考えてもらう">
       <p className="text-[13px] font-bold">
-        毎回 AI に変えてもらう<span className="ml-1.5 font-normal text-muted">任意・シリーズ</span>
+        空欄の言葉を毎回 AI に考えてもらう<span className="ml-1.5 font-normal text-muted">任意・シリーズ</span>
       </p>
       <div className="flex flex-col gap-2.5">
         <p className="leading-[1.7] text-muted">
@@ -532,7 +532,7 @@ function SeriesFields({ slots, series, usedInImage, setSeries }: { slots: string
                 onChange={(e) => setSeries({ ...series, answer: e.target.checked ? { name: "", instruction: "" } : null })}
                 className="accent-[var(--primary)]"
               />
-              <span className="font-bold">本文に出さない答えを、AI に先に決めてもらう</span>
+              <span className="font-bold">答えを毎回 AI に決めてもらう。答えは本文に出ません</span>
             </label>
             {series.answer && (
               <div className="grid grid-cols-[minmax(0,10rem)_1fr] gap-2 max-sm:grid-cols-1">

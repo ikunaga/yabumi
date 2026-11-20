@@ -6,6 +6,7 @@ import { PhotoTemplateManager } from "@/components/formats/photo-template-manage
 import { chipClass } from "@/components/ui/chip";
 import { PageHeader } from "@/components/ui/page-header";
 import { aiConfigured } from "@/lib/ai/anthropic";
+import { readFormatsBack } from "@/lib/post-formats/back";
 import { getPlanHints } from "@/lib/plan/queries";
 import { connectedAccounts } from "@/lib/posts/queries";
 import { getProject } from "@/lib/projects/queries";
@@ -21,16 +22,28 @@ export default async function FormatsPage(props: PageProps<"/projects/[id]/forma
   const project = await getProject(id);
   if (!project) notFound();
   const tab = searchParams.tab === "photo" ? "photo" : "post";
+  // 自動の投稿の「画像」から来たときは、戻るリンクを出し、タブを替えても持ち回る
+  const back = readFormatsBack(project.id, searchParams.back);
+  const keep = back && typeof searchParams.back === "string" ? `back=${encodeURIComponent(searchParams.back)}` : "";
   const base = `/projects/${project.id}/formats`;
 
   return (
     <div className="flex flex-col gap-5 max-sm:gap-4">
-      <PageHeader title="フォーマット" />
+      <PageHeader
+        title="フォーマット"
+        actions={
+          back && (
+            <Link href={back.href} className="text-sm underline">
+              ← {back.label}
+            </Link>
+          )
+        }
+      />
       <nav aria-label="フォーマットの種類" className="flex flex-wrap gap-2">
-        <Link href={base} aria-current={tab === "post" ? "page" : undefined} className={`${chipClass({ on: tab === "post" })} hover:no-underline`}>
+        <Link href={keep ? `${base}?${keep}` : base} aria-current={tab === "post" ? "page" : undefined} className={`${chipClass({ on: tab === "post" })} hover:no-underline`}>
           投稿の文
         </Link>
-        <Link href={`${base}?tab=photo`} aria-current={tab === "photo" ? "page" : undefined} className={`${chipClass({ on: tab === "photo" })} hover:no-underline`}>
+        <Link href={`${base}?tab=photo${keep ? `&${keep}` : ""}`} aria-current={tab === "photo" ? "page" : undefined} className={`${chipClass({ on: tab === "photo" })} hover:no-underline`}>
           絵の説明
         </Link>
       </nav>

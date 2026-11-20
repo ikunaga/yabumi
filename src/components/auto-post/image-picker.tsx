@@ -14,7 +14,8 @@ import { DEFAULT_BRAND_COLOR, DEFAULT_TEXT_STYLE, PALETTES } from "@/lib/media/t
 import { loadTemplateStyle, StyleFields } from "@/components/posts/template-fields";
 
 // 自動の回の画像を選ぶ（docs/design/auto-sample-image.md の 2.1。ウィザードの「どこに」）。
-// 付けない／フォーマットの画像の設定（シリーズで、フォーマットに画像の設定があるとき）／AI がつくる（本文から場面を考える）。
+// 付けない／AI がつくる（本文から場面を考える）。シリーズでフォーマットに画像の設定があるときは選ばせず、いつもフォーマットのとおりにつくる
+// （設定の要約とフォーマットの編集への入口だけ。値はウィザードが fitImageToFormat で決める。2026-11-20 オーナーの指摘）。
 // 商品の紹介はイラストだけ（実物と違う商品を、本物の写真のように見せないため）。選んだら、AI の画像の注意を読んでもらう（DB も断る）
 
 type Choice = "none" | "format" | "ai";
@@ -31,6 +32,11 @@ export function ImagePicker(p: {
   kind: AutoKind;
   formatHasImage: boolean;
   formatHasHeadline: boolean;
+  // シリーズのフォーマットの名前と、画像の設定の要約（「写真・縦 4:5・見出しあり」）
+  formatName?: string;
+  formatImageSpec?: string | null;
+  // フォーマットの画面へ（戻ってこられるように back を付けたもの）
+  formatsHref: string;
   value: AutoImage | null;
   onChange: (v: AutoImage | null) => void;
   photo: { enabled: boolean; acknowledged: boolean };
@@ -40,6 +46,8 @@ export function ImagePicker(p: {
   const [acking, startAck] = useTransition();
   const choice: Choice = p.value?.source ?? "none";
   const product = p.kind === "product";
+  // シリーズで、フォーマットに画像の設定がある: 選ばせない（フォーマットのとおり）
+  const byFormat = p.kind === "series" && p.formatHasImage;
   const pick = (c: Choice) => {
     if (c === "none") return p.onChange(null);
     // フォーマットの画像は、写真かイラスト・縦横もフォーマットのものを使う（ここの値は使わない）
@@ -69,32 +77,38 @@ export function ImagePicker(p: {
       <div className="flex items-center gap-2">
         <h2 className="text-[16px] font-bold">画像</h2>
         <HelpTip label="画像について">
-          選ぶと、回ごとに AI の画像を 1 枚つくって添えます（1 枚 約 5 円。AI が場面を考えるときは 約 7〜8 円）。自動の投稿の画像は 1 人 月 {AUTO_PHOTO_LIMITS.userMonthlyImages} 枚までです。画像をつくれなかった回は、送らずに下書きに回します。
+          画像を付けると、回ごとに AI で 1 枚つくって添えます（1 枚 約 5 円。AI が場面を考えるときは 約 7〜8 円）。自動の投稿の画像は 1 人 月 {AUTO_PHOTO_LIMITS.userMonthlyImages} 枚までです。画像をつくれなかった回は、送らずに下書きに回します。
         </HelpTip>
       </div>
+      {byFormat && (
+        <p className="text-sm">
+          画像{p.formatHasHeadline ? "と見出し" : ""}は、フォーマット「{p.formatName}」の設定のとおりにつくります
+          {p.formatImageSpec && <span className="num text-muted">（{p.formatImageSpec}）</span>}
+          {" "}
+          <Link href={p.formatsHref} className="whitespace-nowrap underline">
+            フォーマットを編集 →
+          </Link>
+        </p>
+      )}
+      {p.kind === "series" && !p.formatHasImage && (
+        <p className="text-sm text-muted">
+          フォーマットに画像の設定がありません。{" "}
+          <Link href={p.formatsHref} className="whitespace-nowrap underline">
+            フォーマットで設定する →
+          </Link>
+        </p>
+      )}
+      {!byFormat && (
       <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="画像">
         <Chip on={choice === "none"} role="radio" aria-checked={choice === "none"} onClick={() => pick("none")}>
           付けない
         </Chip>
-        {p.kind === "series" && (
-          <Chip on={choice === "format"} role="radio" aria-checked={choice === "format"} disabled={!p.formatHasImage} onClick={() => pick("format")}>
-            フォーマットの画像
-          </Chip>
-        )}
         <Chip on={choice === "ai"} role="radio" aria-checked={choice === "ai"} onClick={() => pick("ai")}>
           AI がつくる
         </Chip>
       </div>
-      {choice === "none" && <p className="text-sm text-muted">{p.kind === "notes" ? "文だけで送ります（写真つきのメモは、写真を添えます）。" : "文だけで送ります。"}</p>}
-      {p.kind === "series" && !p.formatHasImage && (
-        <p className="text-sm text-muted">
-          このフォーマットには画像の設定がありません。{" "}
-          <Link href={`/projects/${p.projectId}/formats`} className="underline">
-            フォーマットに画像を決める
-          </Link>
-        </p>
       )}
-      {choice === "format" && <p className="text-sm text-muted">フォーマットの絵の説明に、その回の空欄の言葉を入れてつくります（写真かイラスト・縦横もフォーマットのとおり）。</p>}
+      {choice === "none" && <p className="text-sm text-muted">{p.kind === "notes" ? "文だけで送ります（写真つきのメモは、写真を添えます）。" : "文だけで送ります。"}</p>}
       {choice === "ai" && p.value && (
         <div className="flex flex-col gap-3">
           <p className="text-sm text-muted">その回の文から、AI が場面を考えてつくります。</p>
@@ -122,7 +136,7 @@ export function ImagePicker(p: {
           </div>
         </div>
       )}
-      {choice !== "none" && p.value && (
+      {choice === "ai" && p.value && (
         <div className="flex flex-col gap-3 border-t border-line pt-3">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <span className="text-sm text-muted">見出し</span>
@@ -130,11 +144,6 @@ export function ImagePicker(p: {
               <Chip on={p.value.headline === "none"} role="radio" aria-checked={p.value.headline === "none"} onClick={() => setHeadline("none")}>
                 重ねない
               </Chip>
-              {choice === "format" && (
-                <Chip on={p.value.headline === "format"} role="radio" aria-checked={p.value.headline === "format"} disabled={!p.formatHasHeadline} onClick={() => setHeadline("format")}>
-                  フォーマットの見出し
-                </Chip>
-              )}
               <Chip on={p.value.headline === "ai"} role="radio" aria-checked={p.value.headline === "ai"} onClick={() => setHeadline("ai")}>
                 AI が書く
               </Chip>
@@ -143,7 +152,7 @@ export function ImagePicker(p: {
           {p.value.headline !== "none" && (
             <>
               <p className="text-sm text-muted">
-                {p.value.headline === "ai" ? "その回の文に合う見出しを AI が書いて、画像に重ねます（20 字ほど）。" : "フォーマットの見出しに、その回の空欄の言葉を入れて重ねます。"}
+                その回の文に合う見出しを AI が書いて、画像に重ねます（20 字ほど）。
                 絵文字は描けないので、取り除いて描きます。
               </p>
               <StyleFields style={p.value.look ?? defaultLook(p.projectId)} onStyle={(patch) => p.onChange({ ...p.value!, look: { ...(p.value!.look ?? defaultLook(p.projectId)), ...patch } })} showTextStyle />

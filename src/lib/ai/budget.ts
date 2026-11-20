@@ -140,7 +140,7 @@ export function limitMessage(status: Exclude<ReserveStatus, "ok">, newUntil: str
       return "運営者が、あなたのアカウントの自動の投稿を止めています。";
     // 見本を作るのは 1 人 1 日 5 回まで（20261119100000_auto_sample_instructions）
     case "auto_sample_limit":
-      return `見本をつくるのは、1 日 ${AUTO_SAMPLE_DAILY_RUNS} 回までです。明日またお試しください。`;
+      return `テストでつくるのは、1 日 ${AUTO_SAMPLE_DAILY_RUNS} 回までです。明日またお試しください。`;
   }
 }
 

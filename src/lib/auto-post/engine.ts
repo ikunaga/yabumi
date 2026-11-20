@@ -797,12 +797,12 @@ export async function adoptSample(admin: Db, args: { ownerId: string; planId: st
     .select("settings, material, texts, tags, hold, image");
   if (error) throw error;
   const sample = samples?.[0];
-  if (!sample) return { ok: false, detail: "見本が見つかりませんでした（作ってから 1 日たつと使えません）" };
-  if (sample.hold) return { ok: false, detail: "見本が送る前の確かめで引っかかっていたので、最初の回にしませんでした" };
-  if (!sameSettings(sample.settings, sampleSettings(plan))) return { ok: false, detail: "見本を作ったあとに設定を変えたので、最初の回にしませんでした" };
+  if (!sample) return { ok: false, detail: "テストでつくった投稿が見つかりませんでした（つくってから 1 日たつと使えません）" };
+  if (sample.hold) return { ok: false, detail: "テストでつくった投稿が送る前の確かめで引っかかっていたので、1 回目にしませんでした" };
+  if (!sameSettings(sample.settings, sampleSettings(plan))) return { ok: false, detail: "テストでつくったあとに設定を変えたので、1 回目にしませんでした" };
   // 画像を選んだ回し方は、見本の画像も要る（画像なしの見本は、画像なしで出るものと同じではないため）
   const sampleImage = readSampleImage(sample.image);
-  if (plan.image && !sampleImage) return { ok: false, detail: "見本の画像をつくっていなかったので、最初の回にしませんでした" };
+  if (plan.image && !sampleImage) return { ok: false, detail: "テストでつくった投稿の画像をつくっていなかったので、1 回目にしませんでした" };
 
   const due = dueTimes(plan.schedule, now, new Date(now.getTime() + AHEAD_DAYS * 86_400_000))[0];
   if (!due) return { ok: false, detail: "最初の送る時刻が見つかりませんでした" };
@@ -878,10 +878,10 @@ export async function makeSampleImage(
     .eq("project_id", args.projectId)
     .gt("created_at", new Date(now.getTime() - SAMPLE_TTL_MS).toISOString())
     .maybeSingle();
-  if (!sample) return { ok: false, detail: "見本が見つかりませんでした（作ってから 1 日たつと使えません）。見本を作り直してください" };
+  if (!sample) return { ok: false, detail: "テストでつくった投稿が見つかりませんでした（つくってから 1 日たつと使えません）。もう一度つくってください" };
   const existing = readSampleImage(sample.image);
   if (existing) return { ok: true, image: existing };
-  if (sample.hold) return { ok: false, detail: "送る前の確かめで引っかかった見本には、画像をつくりません" };
+  if (sample.hold) return { ok: false, detail: "送る前の確かめで引っかかった投稿には、画像をつくりません" };
   const settings = sample.settings as { kind?: AutoPlan["kind"]; materials?: AutoPlan["materials"]; targets?: AutoPlan["targets"]; image?: AutoPlan["image"] };
   const image = readAutoImage(settings.image);
   if (!image) return { ok: false, detail: "画像の設定がありません" };

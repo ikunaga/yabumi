@@ -127,18 +127,26 @@ export function SampleCard(p: Props) {
   return (
     <Card className="flex flex-col gap-4 px-6 py-5 max-sm:px-4 max-sm:py-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <h2 className="text-[18px] font-bold max-sm:text-[16px]">見本の 1 回</h2>
-          <HelpTip label="見本について">
-            次の回と同じ作り方で 1 回分を作って見せます（AI を 1 回使います。約 {SAMPLE_YEN} 円。1 日 {AUTO_SAMPLE_DAILY_RUNS} 回まで）。見本は 1 日だけ預かり、最初の回にしなければ消えます。
-          </HelpTip>
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <h2 className="text-[18px] font-bold max-sm:text-[16px]">テストで 1 件つくる</h2>
+            <HelpTip label="テストでつくることについて">
+              AI を 1 回使います（約 {SAMPLE_YEN} 円。1 日 {AUTO_SAMPLE_DAILY_RUNS} 回まで）。つくった投稿は 1 日だけ預かり、1 回目として送らなければ消えます。
+            </HelpTip>
+          </div>
+          <p className="text-sm text-muted">設定どおりに 1 件つくって見せます。SNS には送りません。</p>
         </div>
         <Button type="button" variant="secondary" disabled={sampling} onClick={() => make()}>
-          {sampling ? "つくっています…" : sample ? "もう一度つくる" : "見本をつくる"}
+          {sampling ? "つくっています…" : sample ? "もう一度つくる" : "テストで 1 件つくる"}
         </Button>
       </div>
       {error && <ErrorBanner>{error}</ErrorBanner>}
-      {sample && <SampleView sample={sample} />}
+      {sample && (
+        <div className="flex flex-col gap-3 border-t border-line pt-4">
+          <p className="text-[15px] font-bold">テストでつくった投稿</p>
+          <SampleView sample={sample} />
+        </div>
+      )}
       {wrote && wantsImage && !sample!.image && sample!.issues.length === 0 && sample!.sampleId && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-dashed border-line px-4 py-3">
           <p className="text-sm text-muted">画像は、押したときだけつくります（文を作り直しても、画像はつくり直しません）。</p>
@@ -147,7 +155,7 @@ export function SampleCard(p: Props) {
           </Button>
         </div>
       )}
-      {stale && <p className="text-sm text-muted">見本を作ったあとに設定を変えました。いまの設定の見本は、作り直すと見られます。</p>}
+      {stale && <p className="text-sm text-muted">テストでつくったあとに設定を変えました。いまの設定で見るには、もう一度つくってください。</p>}
 
       {wrote && p.series && <p className="text-sm text-muted">シリーズは、フォーマットの型の文で書きます。書き方を変えるときは、フォーマットを編集してください。</p>}
 
@@ -196,12 +204,12 @@ export function SampleCard(p: Props) {
         <label className={`flex items-start gap-2.5 text-[15px] leading-[1.7] ${canAdopt ? "" : "text-muted"}`}>
           <input type="checkbox" className="mt-1 size-5 shrink-0 accent-[var(--primary)]" disabled={!canAdopt} checked={canAdopt && p.adopt.on} onChange={(e) => p.adopt!.set(e.target.checked)} />
           <span>
-            この見本を最初の回にする
+            この投稿を 1 回目として送る
             <span className="block text-sm text-muted">
               {canAdopt
-                ? "最初の回の確かめは要りません（X などの「確かめて送る」SNS は、送る前にいつもどおり確かめます）。"
+                ? "1 回目の確かめは要りません（X などの「確かめて送る」SNS は、送る前にいつもどおり確かめます）。"
                 : sample?.issues.length
-                  ? "送る前の確かめで引っかかった見本は、最初の回にできません。"
+                  ? "送る前の確かめで引っかかった投稿は、1 回目として送れません。"
                   : wantsImage && !sample?.image && !stale
                     ? "画像もつくると選べます。"
                     : "いまの設定で作り直すと選べます。"}
@@ -253,7 +261,7 @@ export function SampleView({ sample }: { sample: AutoSample }) {
         <figure className="flex flex-col gap-1.5">
           <div className="flex max-w-[360px] items-center justify-center overflow-hidden rounded-md border border-line bg-surface2">
             {/* eslint-disable-next-line @next/next/no-img-element -- 署名つきの URL は期限があり、next/image の最適化を通さない */}
-            <img src={sample.image.url} alt={sample.image.alt || "見本の画像"} className="h-auto w-full object-contain" />
+            <img src={sample.image.url} alt={sample.image.alt || "テストでつくった投稿の画像"} className="h-auto w-full object-contain" />
           </div>
           <figcaption className="text-xs leading-[1.6] text-muted">AI で作った画像{sample.image.alt ? `（画像の説明: ${sample.image.alt}）` : ""}</figcaption>
         </figure>

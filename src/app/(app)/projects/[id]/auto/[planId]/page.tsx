@@ -12,11 +12,12 @@ import { Disclosure } from "@/components/ui/help";
 import { SuccessBanner } from "@/components/ui/feedback";
 import { SnsTag } from "@/components/ui/marks";
 import { Metric } from "@/components/ui/metric";
-import { autoImageLabel, EXPIRED_TARGET_LABEL, KIND_LABELS, RUN_REASON_TEXT, RUN_STATUS_LABELS, TARGET_MODE_LABELS } from "@/lib/auto-post/labels";
+import { autoImageLabel, EXPIRED_TARGET_LABEL, kindSummary, RUN_REASON_TEXT, RUN_STATUS_LABELS, TARGET_MODE_LABELS } from "@/lib/auto-post/labels";
 import { getAutoPlan, getAutoPostHold, listAutoRuns, listUpcomingAutoRuns } from "@/lib/auto-post/queries";
-import type { AutoRun } from "@/lib/auto-post/types";
+import type { AutoImage, AutoRun } from "@/lib/auto-post/types";
+import { formatsBackHref } from "@/lib/post-formats/back";
 import type { SnsKey } from "@/lib/sns";
-import { loadRunResults, type RunTargetResult } from "@/lib/auto-post/ui-queries";
+import { loadRunResults, loadSeriesFormatImage, type RunTargetResult } from "@/lib/auto-post/ui-queries";
 import { getProject } from "@/lib/projects/queries";
 import { formatShort } from "@/lib/time";
 
@@ -30,7 +31,12 @@ export default async function AutoPlanPage(props: PageProps<"/projects/[id]/auto
   const [project, plan] = await Promise.all([getProject(id), getAutoPlan(planId)]);
   if (!project || !plan || plan.projectId !== project.id) notFound();
   const now = new Date();
-  const [runs, upcoming, hold] = await Promise.all([listAutoRuns(plan.id, 50), listUpcomingAutoRuns(project.id, now, new Date(now.getTime() + 90 * DAY_MS)), getAutoPostHold()]);
+  const [runs, upcoming, hold, seriesFormat] = await Promise.all([
+    listAutoRuns(plan.id, 50),
+    listUpcomingAutoRuns(project.id, now, new Date(now.getTime() + 90 * DAY_MS)),
+    getAutoPostHold(),
+    plan.kind === "series" && plan.materials.format_id ? loadSeriesFormatImage(project.id, plan.materials.format_id) : Promise.resolve(null),
+  ]);
   const results = await loadRunResults(runs.flatMap((r) => (r.postId ? [r.postId] : [])));
   const next = upcoming.find((u) => u.planId === plan.id) ?? null;
 
@@ -89,7 +95,7 @@ export default async function AutoPlanPage(props: PageProps<"/projects/[id]/auto
       <Card className="px-6 py-5 max-sm:px-4 max-sm:py-4">
         <dl className="grid grid-cols-[6rem_1fr] gap-x-4 gap-y-2 text-[15px] max-sm:grid-cols-[5rem_1fr]">
           <dt className="text-muted">何を</dt>
-          <dd>{KIND_LABELS[plan.kind]}</dd>
+          <dd>{kindSummary(plan.kind, seriesFormat?.name)}</dd>
           <dt className="text-muted">どこに</dt>
           <dd className="flex flex-wrap items-center gap-x-3 gap-y-1">
             {sns.map((s) => (
@@ -106,7 +112,9 @@ export default async function AutoPlanPage(props: PageProps<"/projects/[id]/auto
             {scheduleText(plan.schedule)} ／ 作るのは {plan.leadHours} 時間前
           </dd>
           <dt className="text-muted">画像</dt>
-          <dd>{autoImageLabel(plan.image)}</dd>
+          <dd>
+            <PlanImage projectId={project.id} planId={plan.id} image={plan.image} format={seriesFormat} />
+          </dd>
           {plan.instructions.length > 0 && (
             <>
               <dt className="text-muted">書き方</dt>
@@ -119,6 +127,47 @@ export default async function AutoPlanPage(props: PageProps<"/projects/[id]/auto
       {/* 見本を見ながら書き方を直す（運営者が止めている間・運営者が止めた回し方では出さない。作るのも DB が断る） */}
       {!hold && plan.stopReason !== "operator" && <PlanSample plan={plan} />}
     </div>
+  );
+}
+
+// 「画像」の行。シリーズは、フォーマットの画像の設定に合わせて出し分ける（ウィザードの「画像」の欄と同じ。2026-11-20 オーナーの指摘）
+function PlanImage({ projectId, planId, image, format }: { projectId: string; planId: string; image: AutoImage | null; format: Awaited<ReturnType<typeof loadSeriesFormatImage>> }) {
+  if (!format) return <>{autoImageLabel(image)}</>;
+  const formatsHref = formatsBackHref(projectId, { kind: "plan", planId });
+  if (!format.hasImage)
+    return (
+      <span className="flex flex-col gap-0.5">
+        <span>{autoImageLabel(image)}</span>
+        <span className="text-sm text-muted">
+          フォーマットに画像の設定がありません。{" "}
+          <Link href={formatsHref} className="whitespace-nowrap underline">
+            フォーマットで設定する →
+          </Link>
+        </span>
+      </span>
+    );
+  // 前に保存した設定が、いまのフォーマットと合わない（フォーマットにあとから画像・見出しを足した）ときは、いま保存されているとおりに出し、編集を促す
+  const matched = image?.source === "format" && (image.headline === "format") === format.hasHeadline;
+  if (!matched)
+    return (
+      <span className="flex flex-col gap-0.5">
+        <span>{autoImageLabel(image)}</span>
+        <span className="text-sm text-muted">
+          フォーマット「{format.name}」に画像の設定があります。編集して保存すると、フォーマットの設定のとおりにつくります。{" "}
+          <Link href={`/projects/${projectId}/auto/${planId}/edit`} className="whitespace-nowrap underline">
+            編集する →
+          </Link>
+        </span>
+      </span>
+    );
+  return (
+    <span>
+      画像{format.hasHeadline ? "と見出し" : ""}は、フォーマット「{format.name}」の設定のとおりにつくります
+      {format.imageSpec && <span className="num text-muted">（{format.imageSpec}）</span>}{" "}
+      <Link href={formatsHref} className="whitespace-nowrap text-sm underline">
+        フォーマットを編集 →
+      </Link>
+    </span>
   );
 }
 

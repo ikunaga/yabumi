@@ -12,6 +12,11 @@ export const KIND_LABELS: Record<AutoKind, string> = {
   commits: "開発の進み",
 };
 
+// 「確かめる」と回し方の画面の「何を」。選んだカードと同じ言い方（シリーズはフォーマットの名前。「連想映画クイズ（シリーズ）」。2026-11-20 オーナーの指摘）
+export function kindSummary(kind: AutoKind, formatName?: string | null): string {
+  return kind === "series" && formatName ? `${formatName}（${KIND_LABELS.series}）` : KIND_LABELS[kind];
+}
+
 // 始める画面の「何を」のカードの 1 行の説明（何が起きるか）。柱は用語の説明を付けるので画面の側で組む
 export const KIND_DESCRIPTIONS: Record<Exclude<AutoKind, "pillars">, string> = {
   series: "毎回 AI が新しいお題を考えます。前の回と同じお題は出しません。",

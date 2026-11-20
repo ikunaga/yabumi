@@ -149,10 +149,17 @@ export async function attachImage(admin: Db, ownerId: string, postId: string, im
     if (uploaded.length) await admin.storage.from(MEDIA_BUCKET).remove(uploaded);
   };
   let source: { id: string } | null = null;
+  // 1 人の容量（USER_QUOTA_BYTES）には、添えた画像と元の画像の両方を数える
+  let adding = 0;
   if (image.base && image.headline) {
     const b = await uploadMarked(admin, ownerId, image.base.path, "generated");
     if (!b) return false;
     uploaded.push(b.path);
+    adding += b.size;
+    if (Number(used ?? 0) + adding > USER_QUOTA_BYTES) {
+      await undo();
+      return false;
+    }
     const { data, error } = await admin
       .from("media_files")
       .insert({ owner_id: ownerId, storage_path: b.path, width: image.base.width, height: image.base.height, size_bytes: b.size, ai_generated: true })
@@ -172,7 +179,8 @@ export async function attachImage(admin: Db, ownerId: string, postId: string, im
     return false;
   }
   uploaded.push(f.path);
-  if (Number(used ?? 0) + f.size > USER_QUOTA_BYTES) {
+  adding += f.size;
+  if (Number(used ?? 0) + adding > USER_QUOTA_BYTES) {
     if (source) await admin.from("media_files").delete().eq("id", source.id);
     await undo();
     return false;

@@ -139,9 +139,9 @@ function PlanImage({ projectId, planId, image, format }: { projectId: string; pl
       <span className="flex flex-col gap-0.5">
         <span>{autoImageLabel(image)}</span>
         <span className="text-sm text-muted">
-          フォーマットに画像の設定がありません。{" "}
+          フォーマットでは、画像を決めていません。{" "}
           <Link href={formatsHref} className="whitespace-nowrap underline">
-            フォーマットで設定する →
+            フォーマットで画像を決める →
           </Link>
         </span>
       </span>
@@ -153,18 +153,18 @@ function PlanImage({ projectId, planId, image, format }: { projectId: string; pl
       <span className="flex flex-col gap-0.5">
         <span>{autoImageLabel(image)}</span>
         <span className="text-sm text-muted">
-          フォーマット「{format.name}」に画像の設定があります。編集して保存すると、フォーマットの設定のとおりにつくります。{" "}
+          いまの画像の設定は、フォーマット「{format.name}」と違います。この設定を編集して保存すると、フォーマットのとおりにつくります。{" "}
           <Link href={`/projects/${projectId}/auto/${planId}/edit`} className="whitespace-nowrap underline">
-            編集する →
+            設定を編集する →
           </Link>
         </span>
       </span>
     );
   return (
-    <span>
-      画像{format.hasHeadline ? "と見出し" : ""}は、フォーマット「{format.name}」の設定のとおりにつくります
-      {format.imageSpec && <span className="num text-muted">（{format.imageSpec}）</span>}{" "}
-      <Link href={formatsHref} className="whitespace-nowrap text-sm underline">
+    <span className="flex flex-col gap-0.5">
+      <span>画像{format.hasHeadline ? "と、画像に重ねる文字" : ""}は、フォーマット「{format.name}」で決めたとおりにつくります。</span>
+      {format.imageSpec && <span className="num text-sm text-muted">{format.imageSpec}</span>}
+      <Link href={formatsHref} className="self-start text-sm underline">
         フォーマットを編集 →
       </Link>
     </span>

@@ -82,7 +82,7 @@ export async function makeAutoImage(
   if (img.source === "format") {
     const formatId = args.material.series?.formatId ?? args.plan.materials.format_id;
     const format = formatId ? await getFormat(admin, args.plan.projectId, formatId) : null;
-    if (!format?.image) return { ok: false, detail: "フォーマットに画像の設定がありません" };
+    if (!format?.image) return { ok: false, detail: "フォーマットでは、画像を決めていません" };
     const name = answerSlotName(format.series);
     const answer = args.material.series?.answer?.trim();
     const filled = fillImageText(format.image.prompt, args.material.series?.values ?? {}, name && answer ? { name, value: answer } : null);

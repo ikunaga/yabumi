@@ -77,7 +77,7 @@ export default async function AutoListPage(props: PageProps<"/projects/[id]/auto
           {sample === "used"
             ? "テストでつくった投稿を 1 回目として送ります。"
             : sample === "failed"
-              ? "テストでつくった投稿は 1 回目にできませんでした（作ってから時間がたった・設定を変えた・送れる SNS がない、など）。"
+              ? "テストでつくった投稿は、1 回目に使えませんでした。"
               : ""}
           {sample === "used" ? "" : firstReview ? "最初の回ができたら、送る前に確かめてください。" : "最初の回ができたら、通知でお知らせします。"}
         </SuccessBanner>

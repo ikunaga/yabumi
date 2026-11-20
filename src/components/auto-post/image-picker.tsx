@@ -32,7 +32,7 @@ export function ImagePicker(p: {
   kind: AutoKind;
   formatHasImage: boolean;
   formatHasHeadline: boolean;
-  // シリーズのフォーマットの名前と、画像の設定の要約（「写真・縦 4:5・見出しあり」）
+  // シリーズのフォーマットの名前と、画像の設定の要約（「写真・縦 4:5・文字入り」）
   formatName?: string;
   formatImageSpec?: string | null;
   // フォーマットの画面へ（戻ってこられるように back を付けたもの）
@@ -77,41 +77,42 @@ export function ImagePicker(p: {
       <div className="flex items-center gap-2">
         <h2 className="text-[16px] font-bold">画像</h2>
         <HelpTip label="画像について">
-          画像を付けると、回ごとに AI で 1 枚つくって添えます（1 枚 約 5 円。AI が場面を考えるときは 約 7〜8 円）。自動の投稿の画像は 1 人 月 {AUTO_PHOTO_LIMITS.userMonthlyImages} 枚までです。画像をつくれなかった回は、送らずに下書きに回します。
+          画像を付けると、毎回 AI が 1 枚つくって添えます。画像 1 枚で、約 5 円かかります。投稿の文から AI が絵を考えるときは、約 7〜8 円です。画像は、1 か月に {AUTO_PHOTO_LIMITS.userMonthlyImages} 枚までつくれます。画像をつくれなかったときは、その投稿は送りません。下書きに残ります。
         </HelpTip>
       </div>
       {byFormat && (
-        <p className="text-sm">
-          画像{p.formatHasHeadline ? "と見出し" : ""}は、フォーマット「{p.formatName}」の設定のとおりにつくります
-          {p.formatImageSpec && <span className="num text-muted">（{p.formatImageSpec}）</span>}
-          {" "}
-          <Link href={p.formatsHref} className="whitespace-nowrap underline">
+        <div className="flex flex-col gap-1">
+          <p className="text-sm">
+            画像{p.formatHasHeadline ? "と、画像に重ねる文字" : ""}は、フォーマット「{p.formatName}」で決めたとおりにつくります。
+          </p>
+          {p.formatImageSpec && <p className="num text-sm text-muted">{p.formatImageSpec}</p>}
+          <Link href={p.formatsHref} className="self-start text-sm underline">
             フォーマットを編集 →
           </Link>
-        </p>
+        </div>
       )}
       {p.kind === "series" && !p.formatHasImage && (
         <p className="text-sm text-muted">
-          フォーマットに画像の設定がありません。{" "}
+          フォーマットでは、画像を決めていません。下から選んでください。{" "}
           <Link href={p.formatsHref} className="whitespace-nowrap underline">
-            フォーマットで設定する →
+            フォーマットで画像を決める →
           </Link>
         </p>
       )}
       {!byFormat && (
       <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="画像">
         <Chip on={choice === "none"} role="radio" aria-checked={choice === "none"} onClick={() => pick("none")}>
-          付けない
+          画像なしで送る
         </Chip>
         <Chip on={choice === "ai"} role="radio" aria-checked={choice === "ai"} onClick={() => pick("ai")}>
-          AI がつくる
+          投稿に合う画像を AI がつくる
         </Chip>
       </div>
       )}
-      {choice === "none" && <p className="text-sm text-muted">{p.kind === "notes" ? "文だけで送ります（写真つきのメモは、写真を添えます）。" : "文だけで送ります。"}</p>}
+      {choice === "none" && <p className="text-sm text-muted">{p.kind === "notes" ? "文だけで送ります。写真つきのメモからつくった投稿には、その写真を添えます。" : "文だけで送ります。"}</p>}
       {choice === "ai" && p.value && (
         <div className="flex flex-col gap-3">
-          <p className="text-sm text-muted">その回の文から、AI が場面を考えてつくります。</p>
+          <p className="text-sm text-muted">毎回、投稿の文に合う画像を AI が考えてつくります。</p>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <span className="text-sm text-muted">描き方</span>
             <div className="flex gap-1.5" role="radiogroup" aria-label="描き方">
@@ -152,8 +153,8 @@ export function ImagePicker(p: {
           {p.value.headline !== "none" && (
             <>
               <p className="text-sm text-muted">
-                その回の文に合う見出しを AI が書いて、画像に重ねます（20 字ほど）。
-                絵文字は描けないので、取り除いて描きます。
+                投稿の文に合う見出しを AI が書いて、画像に重ねます。見出しは 20 字ほどです。
+                絵文字は画像に入れられないので、除きます。
               </p>
               <StyleFields style={p.value.look ?? defaultLook(p.projectId)} onStyle={(patch) => p.onChange({ ...p.value!, look: { ...(p.value!.look ?? defaultLook(p.projectId)), ...patch } })} showTextStyle />
             </>

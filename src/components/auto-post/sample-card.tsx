@@ -131,7 +131,7 @@ export function SampleCard(p: Props) {
           <div className="flex items-center gap-2">
             <h2 className="text-[18px] font-bold max-sm:text-[16px]">テストで 1 件つくる</h2>
             <HelpTip label="テストでつくることについて">
-              AI を 1 回使います（約 {SAMPLE_YEN} 円。1 日 {AUTO_SAMPLE_DAILY_RUNS} 回まで）。つくった投稿は 1 日だけ預かり、1 回目として送らなければ消えます。
+              1 件つくるのに、約 {SAMPLE_YEN} 円かかります。1 日 {AUTO_SAMPLE_DAILY_RUNS} 回までつくれます。1 回目として送らないときは、つくった投稿は 1 日で消えます。
             </HelpTip>
           </div>
           <p className="text-sm text-muted">設定どおりに 1 件つくって見せます。SNS には送りません。</p>
@@ -207,9 +207,9 @@ export function SampleCard(p: Props) {
             この投稿を 1 回目として送る
             <span className="block text-sm text-muted">
               {canAdopt
-                ? "1 回目の確かめは要りません（X などの「確かめて送る」SNS は、送る前にいつもどおり確かめます）。"
+                ? "1 回目の日時に、この投稿をそのまま送ります。「確かめて送る」にした SNS は、いつもどおり送る前に中身を見てください。"
                 : sample?.issues.length
-                  ? "送る前の確かめで引っかかった投稿は、1 回目として送れません。"
+                  ? "この投稿には注意が出たので、1 回目として送れません。もう一度つくると、送れるようになることがあります。"
                   : wantsImage && !sample?.image && !stale
                     ? "画像もつくると選べます。"
                     : "いまの設定で作り直すと選べます。"}

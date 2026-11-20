@@ -41,8 +41,8 @@ describe("保存する画像の設定（fitImageToFormat）", () => {
 
 describe("フォーマットの画像の設定の要約", () => {
   it("写真かイラスト・縦横・見出しの有無", () => {
-    expect(imageSpecText({ ...EMPTY_IMAGE, prompt: "x", style: "photo", size: "portrait", headline: "{答え}" })).toBe("写真・縦 4:5・見出しあり");
-    expect(imageSpecText({ ...EMPTY_IMAGE, prompt: "x", style: "illustration", size: "auto", headline: null })).toBe("イラスト・送り先に合わせた縦横・見出しなし");
+    expect(imageSpecText({ ...EMPTY_IMAGE, prompt: "x", style: "photo", size: "portrait", headline: "{答え}" })).toBe("写真・縦 4:5・文字入り");
+    expect(imageSpecText({ ...EMPTY_IMAGE, prompt: "x", style: "illustration", size: "auto", headline: null })).toBe("イラスト・送り先に合わせた縦横・文字なし");
   });
 });
 
@@ -65,7 +65,7 @@ describe("ウィザードの「画像」の欄", () => {
         formatHasImage: true,
         formatHasHeadline: true,
         formatName: "連想映画クイズ",
-        formatImageSpec: "写真・縦 4:5・見出しあり",
+        formatImageSpec: "写真・縦 4:5・文字入り",
         formatsHref: "/projects/p1/formats?back=auto-new",
         value: { source: "format", style: "illustration", size: "auto", headline: "format" },
         onChange: () => {},
@@ -77,30 +77,30 @@ describe("ウィザードの「画像」の欄", () => {
 
   it("フォーマットに画像の設定があれば、選択肢は出さずに要約とフォーマットの編集への入口", () => {
     const html = render({});
-    expect(html).toContain("画像と見出しは、フォーマット「連想映画クイズ」の設定のとおりにつくります");
-    expect(html).toContain("（写真・縦 4:5・見出しあり）");
+    expect(html).toContain("画像と、画像に重ねる文字は、フォーマット「連想映画クイズ」で決めたとおりにつくります。");
+    expect(html).toContain("写真・縦 4:5・文字入り");
     expect(html).toContain('href="/projects/p1/formats?back=auto-new"');
     expect(html).toContain("フォーマットを編集 →");
-    for (const t of ["付けない", "AI がつくる", "フォーマットの画像", "重ねない", "フォーマットの見出し", "AI が書く"]) expect(html).not.toContain(t);
+    for (const t of ["画像なしで送る", "AI がつくる", "フォーマットの画像", "重ねない", "フォーマットの見出し", "AI が書く"]) expect(html).not.toContain(t);
   });
 
   it("見出しのないフォーマットは「画像は」だけ", () => {
-    expect(render({ formatHasHeadline: false, value: { source: "format", style: "illustration", size: "auto", headline: "none" } })).toContain("画像は、フォーマット「連想映画クイズ」の設定のとおりに");
+    expect(render({ formatHasHeadline: false, value: { source: "format", style: "illustration", size: "auto", headline: "none" } })).toContain("画像は、フォーマット「連想映画クイズ」で決めたとおりに");
   });
 
   it("フォーマットに画像の設定がなければ、そのことと設定への入口。選べるのは付けない・AI がつくるだけ", () => {
     const html = render({ formatHasImage: false, formatHasHeadline: false, formatImageSpec: null, value: null });
-    expect(html).toContain("フォーマットに画像の設定がありません");
-    expect(html).toContain("フォーマットで設定する →");
-    expect(html).toContain("付けない");
-    expect(html).toContain("AI がつくる");
+    expect(html).toContain("フォーマットでは、画像を決めていません。下から選んでください。");
+    expect(html).toContain("フォーマットで画像を決める →");
+    expect(html).toContain("画像なしで送る");
+    expect(html).toContain("投稿に合う画像を AI がつくる");
     expect(html).not.toContain("フォーマットの画像");
   });
 
   it("シリーズ以外は今のまま（フォーマットのことは出さない）", () => {
     const html = render({ kind: "notes", formatHasImage: false, formatHasHeadline: false, value: null });
-    expect(html).toContain("付けない");
-    expect(html).toContain("AI がつくる");
+    expect(html).toContain("画像なしで送る");
+    expect(html).toContain("投稿に合う画像を AI がつくる");
     expect(html).not.toContain("フォーマット");
   });
 
@@ -115,7 +115,7 @@ describe("ウィザードの「画像」の欄", () => {
 describe("「確かめる」の画面の言葉（2026-11-20 オーナーの指摘）", () => {
   it("「何を」は選んだカードと同じ言い方。シリーズはフォーマットの名前", async () => {
     const { kindSummary } = await import("@/lib/auto-post/labels");
-    expect(kindSummary("series", "連想映画クイズ")).toBe("連想映画クイズ（シリーズ）");
+    expect(kindSummary("series", "連想映画クイズ")).toBe("シリーズ「連想映画クイズ」");
     expect(kindSummary("series", null)).toBe("シリーズ");
     expect(kindSummary("notes")).toBe("ネタ帳のメモから");
     expect(kindSummary("pillars", "x")).toBe("テーマを順番に");

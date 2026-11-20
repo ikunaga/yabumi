@@ -30,5 +30,5 @@ export function draftHeadline(p: { body: string; overrides: readonly (string | n
   if (body) return { text: body, empty: false };
   const other = [...p.overrides, ...p.titles].map((s) => oneLine(s ?? "")).find(Boolean);
   if (other) return { text: other, empty: false };
-  return { text: p.images > 0 ? `画像 ${p.images} 枚（本文なし）` : "（本文なし）", empty: true };
+  return { text: p.images > 0 ? `画像 ${p.images} 枚・本文なし` : "本文なし", empty: true };
 }

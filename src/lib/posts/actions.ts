@@ -139,7 +139,7 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
           break;
         }
         if (!canPublish(t.sns)) {
-          fieldErrors.targets = `${label} への送信はまだ準備中です。下書きとして保存できます。`;
+          fieldErrors.targets = `${label} には、まだ送れません。下書きとして保存できます。`;
           break;
         }
         // 画像を送るのに要る権限がない（X は media.write を足す前につないだアカウント）
@@ -166,7 +166,7 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
           // 1 日 5 本まで（太平洋時間の 1 日。送信ジョブの reserve_youtube_upload と同じ日の区切り。docs/design/youtube.md の 6.）
           const at = intent === "now" ? new Date() : new Date(plannedIso!);
           if ((await youtubeSchedulesOnDay(supabase, at, postId)) >= YOUTUBE_USER_DAILY_UPLOADS) {
-            fieldErrors.targets = `YouTube: この日は YouTube の上限（1 日 ${YOUTUBE_USER_DAILY_UPLOADS} 本）を超えます。別の日にするか、「YouTube は手で投稿する」を選んでください`;
+            fieldErrors.targets = `YouTube: この日は上限の 1 日 ${YOUTUBE_USER_DAILY_UPLOADS} 本を超えます。別の日にするか、「YouTube は手で投稿する」を選んでください`;
             break;
           }
           youtubeChecked = r;

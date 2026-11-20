@@ -22,17 +22,17 @@ describe("composeChanges（投稿をつくるのリセット）", () => {
     };
     expect(composeChanges(empty, now, { saved: false })).toEqual([
       "本文",
-      "SNS ごとの文面（X）",
+      "SNS ごとの文面: X",
       "note のタイトル",
       "添えた画像 2 枚",
       "送る日時",
-      "送り先の選び直し（最初の選び方に戻します）",
+      "選び直した送り先。最初の選び方に戻します",
       "ネタ帳のメモ 1 件に「投稿にした」の印を付ける予定",
     ]);
   });
 
   it("空の SNS ごとの文面も変えたものとみなす。空のタイトルは数えない", () => {
-    expect(composeChanges(empty, { ...empty, overrides: { threads: "" }, titles: { note: "" } }, { saved: false })).toEqual(["SNS ごとの文面（Threads）"]);
+    expect(composeChanges(empty, { ...empty, overrides: { threads: "" }, titles: { note: "" } }, { saved: false })).toEqual(["SNS ごとの文面: Threads"]);
   });
 
   it("カレンダーから日付つきで開いた投稿は、日時を変えたときだけ「変更」として出す", () => {

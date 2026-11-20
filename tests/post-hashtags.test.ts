@@ -114,7 +114,7 @@ describe("書きかけの控えとリセット", () => {
   });
   it("リセットで戻るものに SNS ごとのタグを出す", () => {
     const snap: ComposeSnapshot = { ...base, imageIds: [], plannedAt: "", targets: ["x", "instagram"], shortLinks: true, noteIds: [] };
-    expect(composeChanges(snap, { ...snap, hashtags: { instagram: "#映画" } }, { saved: false })).toEqual(["SNS ごとのタグ（Instagram）"]);
+    expect(composeChanges(snap, { ...snap, hashtags: { instagram: "#映画" } }, { saved: false })).toEqual(["SNS ごとのタグ: Instagram"]);
     expect(composeChanges({ ...snap, hashtags: { x: "#a" } }, { ...snap, hashtags: { x: " #a " } }, { saved: true })).toEqual([]);
   });
 });

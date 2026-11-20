@@ -1564,11 +1564,6 @@
    "paren"
   ]
  },
- "src/components/posts/compose/link-notices.tsx": {
-  "「example.com」のように https:// を付けなくても、X は URL として数えます": [
-   "long"
-  ]
- },
  "src/components/posts/compose/step-send.tsx": {
   "{…} には投稿済みです。もう一度は送りません。残りの SNS だけ、予約や送信ができます。": [
    "zumi"
@@ -1642,14 +1637,6 @@
    "paren"
   ],
   "{…} の{…}の URL（https://…）": [
-   "paren"
-  ]
- },
- "src/components/posts/sns-preview.tsx": {
-  "（本文なし）": [
-   "paren"
-  ],
-  "（タイトルなし）": [
    "paren"
   ]
  },
@@ -3501,38 +3488,6 @@
  },
  "src/lib/post-formats/store.ts": {
   "フォーマットは 1 人 {…} 個までです（ほかのプロジェクトの分も数えます）。使わないものを削除してから足してください。": [
-   "paren"
-  ]
- },
- "src/lib/posts/actions.ts": {
-  "YouTube: この日は YouTube の上限（1 日 {…} 本）を超えます。別の日にするか、「YouTube は手で投稿する」を選んでください": [
-   "paren"
-  ]
- },
- "src/lib/posts/by-hand.ts": {
-  "{…} にはもう送ってあったので、「手で投稿する」にはしませんでした。{…} には手で出さないでください（二重になります）。ほかの SNS は保存しました。": [
-   "paren"
-  ],
-  "{…} はもう送信を始めていたので、「手で投稿する」にはしませんでした。{…} には自動で送られます。手では出さないでください（二重になります）。ほかの SNS は保存しました。": [
-   "paren"
-  ]
- },
- "src/lib/posts/compose-reset.ts": {
-  "SNS ごとの文面（{…}）": [
-   "paren"
-  ],
-  "SNS ごとのタグ（{…}）": [
-   "paren"
-  ],
-  "送り先の選び直し（最初の選び方に戻します）": [
-   "paren"
-  ]
- },
- "src/lib/posts/drafts.ts": {
-  "画像 {…} 枚（本文なし）": [
-   "paren"
-  ],
-  "（本文なし）": [
    "paren"
   ]
  },

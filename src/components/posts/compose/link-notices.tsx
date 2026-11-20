@@ -52,7 +52,7 @@ function XUrlCostNotice({ onEdit, onRemove }: { onEdit: () => void; onRemove: ()
           </li>
           <li>URL は X のプロフィールに置き、本文は「プロフィールのリンクから」とする</li>
           <li>X の文面だけ URL を消す。Threads などには URL を残せる</li>
-          <li>「example.com」のように https:// を付けなくても、X は URL として数えます</li>
+          <li>https:// がなくても、X は「example.com」を URL として数えます</li>
           <li>短縮リンクも URL なので、料金は同じです。X で押された回数を数えるなら、プロフィールに短縮リンクを置いてください</li>
         </ul>
       </HelpTip>

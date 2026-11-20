@@ -45,7 +45,7 @@ export function SnsPreview({ sns, text, title, projectName, images, length, acco
       )}
     </p>
   ) : (
-    <p className="text-muted">（本文なし）</p>
+    <p className="text-muted">本文なし</p>
   );
 
   return (
@@ -74,7 +74,7 @@ export function SnsPreview({ sns, text, title, projectName, images, length, acco
         )}
         {spec.layout === "article" ? (
           <div className="flex flex-col gap-2">
-            <b className="text-lg leading-snug break-words">{title || <span className="text-muted">（タイトルなし）</span>}</b>
+            <b className="text-lg leading-snug break-words">{title || <span className="text-muted">タイトルなし</span>}</b>
             <span className="text-xs text-muted">{projectName}</span>
             {body}
           </div>

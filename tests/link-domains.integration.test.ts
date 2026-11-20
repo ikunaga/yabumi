@@ -422,6 +422,10 @@ describe("利用者のドメイン", () => {
     }) as typeof fetch };
     let now = Date.now();
     const deps: LinkDomainDeps = { vercel, notify, limit: 100000, probe: async () => true, lookup, now: () => new Date((now += 60_000)) };
+    // 知らせの間引きの記録（operator_notifications）は、テストが進める時刻ではなく DB の本当の時刻で見る。
+    // 前の実行が途中で落ちて記録が残ると、その日のうちは知らせが間引かれて落ち続けたので、このテストが使う日付の key だけを先に消す（2026-11-21）
+    const keys = Array.from({ length: 7 }, (_, i) => `link_domains_unconfirmed:${new Date(now + i * 86_400_000).toISOString().slice(0, 10)}`);
+    await admin.from("operator_notifications").delete().in("key", keys);
     const carol = await signUpNewUser();
     const carolProject = (await carol.client.from("projects").insert({ name: "ドメイン C" }).select("id").single()).data!.id;
     const users = [
@@ -457,7 +461,7 @@ describe("利用者のドメイン", () => {
     await recheckLinkDomains(admin, deps);
     expect(sent).toHaveLength(1);
     for (const u of users) await cleanup(u.project, deps, u.id);
-    await admin.from("operator_notifications").delete().like("key", "link_domains_unconfirmed:%");
+    await admin.from("operator_notifications").delete().in("key", keys);
     await admin.from("link_domain_attempts").delete().in("owner_id", users.map((u) => u.id));
     await deleteUser(carol.userId);
   });

@@ -287,7 +287,20 @@ describe("作る（偽の AI）", () => {
     const noon = new Date(`${new Date(Date.now() + 9 * HOUR + 86_400_000).toISOString().slice(0, 10)}T12:00:00+09:00`).getTime();
     const h = (noon - Date.now()) / HOUR;
     const runs = [await dueRun(id, p, h, true), await dueRun(id, p, h + 0.5, true), await dueRun(id, p, h + 1, true)];
-    await makeDueRuns(admin, deps(), new Date(), scopeOpts());
+    // claim_due_auto_runs（update ... returning）が返す順は決まっていない。逆の順で返ってきても、送る時刻の早い 2 回を作る（2026-11-21。時々落ちた原因）
+    const reversed = new Proxy(admin, {
+      get(t, k) {
+        if (k === "rpc")
+          return async (name: string, args: unknown) => {
+            const r = await (t.rpc as unknown as (n: string, a: unknown) => Promise<{ data: unknown; error: unknown }>)(name, args);
+            if (name === "claim_due_auto_runs" && Array.isArray(r.data)) r.data = [...r.data].sort((a, b) => Date.parse(b.due_at) - Date.parse(a.due_at));
+            return r;
+          };
+        const v = Reflect.get(t, k);
+        return typeof v === "function" ? v.bind(t) : v;
+      },
+    });
+    await makeDueRuns(reversed, deps(), new Date(), scopeOpts());
     const statuses = await Promise.all(runs.map(runOf));
     expect(statuses.map((s) => s.status)).toEqual(["scheduled", "scheduled", "skipped"]);
     expect(statuses[2].reason).toBe("daily_limit");

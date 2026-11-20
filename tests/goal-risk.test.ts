@@ -2,7 +2,7 @@
 // 数え始めて 14 日以上、見込み ÷ 目標が 1 未満は「届かないかも」、0.7 未満は「このままでは届かない」）
 import { describe, expect, it } from "vitest";
 import { progressOf } from "@/lib/goals/load";
-import { goalRisk, MAX_EXTEND_WEEKS, paceText, restateTarget, reviseChoices, RISK_MIN_DAYS, RISK_OFF_RATIO } from "@/lib/goals/risk";
+import { goalRisk, MAX_EXTEND_WEEKS, paceText, perWeekText, restateTarget, reviseChoices, RISK_MIN_DAYS, RISK_OFF_RATIO } from "@/lib/goals/risk";
 import type { Goal } from "@/lib/goals/schema";
 
 // 12 週（84 日）の予約 20 件の目標。11/2 から
@@ -57,6 +57,15 @@ describe("届かない見込みの判定", () => {
     expect(r.nowPerWeek).toBe(1);
     expect(r.projected).toBe(12);
     expect(paceText("outcomes", r)).toBe("届くには週 3 件のペースが要ります。いまは週 1 件です");
+  });
+
+  it("1 週あたりの数は、1 未満なら「2 週に 1 件ほど」と整数で読める形にする（「週 0.5 件」にしない）", () => {
+    expect(perWeekText("outcomes", 2)).toBe("週 2 件");
+    expect(perWeekText("outcomes", 1.5)).toBe("週 1.5 件");
+    expect(perWeekText("outcomes", 0.5)).toBe("2 週に 1 件ほど");
+    expect(perWeekText("posts", 0.3)).toBe("3 週に 1 本ほど");
+    expect(perWeekText("link_clicks", 0.9)).toBe("週 1 回ほど");
+    expect(perWeekText("outcomes", 0)).toBe("週 0 件");
   });
 
   it("数えていない・仮の KGI・投稿の本数・届いた・期限が来た・見込みを出せない数字（売上）では出さない", () => {

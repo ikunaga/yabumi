@@ -56,8 +56,8 @@ describe("概要のカード", () => {
     expect(pickOverviewCards({ ...empty, downloads: { thisWeek: 90, lastWeek: 100, until: "2026-10-30" } })[0]).toMatchObject({ key: "downloads", value: 90, deltaPct: -10, note: "10/30 までの 30 日・その前の 30 日比" });
     expect(pickOverviewCards({ ...empty, downloads: { thisWeek: 90, lastWeek: 100 } })[0]).toMatchObject({ deltaPct: -10, note: "直近 30 日・前の 30 日比" });
     expect(pickOverviewCards({ ...empty, downloads: { thisWeek: 5, lastWeek: 0, until: "2026-10-30" } })[0]).toMatchObject({ deltaPct: null, note: "10/30 までの 30 日・その前の 30 日は 0" });
-    expect(pickOverviewCards({ ...empty, downloads: { thisWeek: 5, lastWeek: 5, noPrev: true, until: "2026-10-30" } })[0]).toMatchObject({ deltaPct: null, note: "10/30 までの 30 日の数です。前の 30 日の記録はまだありません" });
-    expect(pickOverviewCards({ ...empty, downloads: { thisWeek: 5, lastWeek: 5, noPrev: true, comparableFrom: "2026-12-20" } })[0]).toMatchObject({ note: "直近 30 日の数です。前の 30 日との比べは 12 月 20 日から出ます" });
+    expect(pickOverviewCards({ ...empty, downloads: { thisWeek: 5, lastWeek: 5, noPrev: true, until: "2026-10-30" } })[0]).toMatchObject({ deltaPct: null, note: "10/30 までの 30 日", subnote: "前の 30 日の記録はまだありません" });
+    expect(pickOverviewCards({ ...empty, downloads: { thisWeek: 5, lastWeek: 5, noPrev: true, comparableFrom: "2026-12-20" } })[0]).toMatchObject({ note: "直近 30 日", subnote: "比べは 12/20 から" });
   });
 
   it("どこからも届いていなければ数を出さず「まだ届いていません」", () => {

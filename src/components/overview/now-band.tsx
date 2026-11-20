@@ -30,9 +30,9 @@ export function NowBand(props: Parameters<typeof MainBand>[0]) {
   return (
     <div className="flex flex-col gap-2">
       <MainBand {...props} />
-      {/* 目標に届かない見込み（目標の振り返りの帯が出ているときは、そちらで扱う） */}
-      {kind !== "step" && kind !== "goal_review" && goalRisk && <GoalRiskLine projectId={projectId} aiEnabled={aiEnabled} {...goalRisk} />}
       {kind !== "step" && (coach || coachReady) && <PaceLine projectId={projectId} coach={coach} />}
+      {/* 目標に届かない見込み（目標の振り返りの帯が出ているときは、そちらで扱う）。投稿のペースの行とは別の話なので、枠で分ける（2026-11-21 PM の指摘） */}
+      {kind !== "step" && kind !== "goal_review" && goalRisk && <GoalRiskLine projectId={projectId} aiEnabled={aiEnabled} {...goalRisk} />}
       {github.show && <GithubLine projectId={projectId} configured={github.configured} />}
     </div>
   );
@@ -59,10 +59,11 @@ function PaceLine({ projectId, coach }: { projectId: string; coach: CoachView | 
 // 目標に届かない見込みの 1 行（2026-11-19 オーナーの決定）。閉じない（見込みが戻れば消える）。くわしくはロードマップの「届かない見込み」のカード
 function GoalRiskLine({ projectId, risk, metric, aiEnabled }: { projectId: string; risk: GoalRisk; metric: GoalMetric; aiEnabled: boolean }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 text-sm text-muted">
-      <span>
+    <div className="flex flex-col gap-1.5 rounded-lg border border-line bg-surface px-4 py-3 text-sm text-muted">
+      <p>
         <b className="text-signal">● 要確認</b> {RISK_TITLE[risk.level]}。{paceText(metric, risk)}
-      </span>
+      </p>
+      <p className="flex flex-wrap gap-x-4 gap-y-1">
       <Link href={`/projects/${projectId}/roadmap?revise=1#goal-risk`} className="font-bold text-fg underline">
         目標を見直す
       </Link>
@@ -72,9 +73,10 @@ function GoalRiskLine({ projectId, risk, metric, aiEnabled }: { projectId: strin
         </Link>
       ) : (
         <NotReadyButton variant="text" size="sm">
-          立て直す
+          届く方法を AI と考える
         </NotReadyButton>
       )}
+      </p>
     </div>
   );
 }

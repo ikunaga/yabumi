@@ -18,8 +18,8 @@ export type WinnerPost = Winner & {
   body: string; // 投稿の本文（伸びた SNS に SNS ごとの文があればそれ）
   formatId: string | null;
   formatName: string | null;
-  formatSeries: boolean; // そのフォーマットに AI が埋める空欄があるか（自動の投稿のシリーズで使えるか）
-  autoPlanId: string | null; // そのフォーマットで回している自動の投稿（あれば）
+  formatSeries: boolean; // そのフォーマットに AI が埋める空欄があるか（自動投稿のシリーズで使えるか）
+  autoPlanId: string | null; // そのフォーマットで回している自動投稿（あれば）
 };
 
 export type WinnersView = Omit<WinnersJudge, "winners"> & { winners: WinnerPost[] };

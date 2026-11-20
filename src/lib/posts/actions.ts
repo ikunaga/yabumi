@@ -110,7 +110,7 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
     } else if (targets.length === 0) {
       fieldErrors.targets = "送り先の SNS を 1 つ以上選んでください";
     } else if (toSend.length === 0) {
-      fieldErrors.targets = "選んだ SNS にはすべて投稿済みです";
+      fieldErrors.targets = "選んだ SNS にはすべて送信済みです";
     } else if (intent === "now" && toSend.every((t) => isManualSns(t.sns))) {
       fieldErrors.targets = "note・Substack は手で投稿します。予約するか下書きに保存すると、投稿の画面から手で投稿できます";
     } else if (intent === "now" && toSend.every((t) => isManualSns(t.sns) || (xByHand && t.sns === "x") || (tiktokByHand && t.sns === "tiktok") || (youtubeByHand && t.sns === "youtube"))) {

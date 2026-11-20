@@ -81,7 +81,7 @@ export function behindMessage(p: WeekPace, c: MessageContext, overdue: OverdueIt
       text: [
         `${c.projectName} の、今週の投稿のペースのお知らせです。`,
         "",
-        `今週の目標まで、あと ${left}です（送った投稿と、予約した投稿を数えています）。`,
+        `今週の目標まで、あと ${left}です（送信済みの投稿と、予約した投稿を数えています）。`,
         ...p.rows.map((r) => `・${SNS[r.sns].label}: ${r.published} / ${r.target} 本${r.scheduled ? `（予約 ${r.scheduled}）` : ""}`),
         "",
         "1 本だけでも、続けることがいちばん大事です。ネタに迷ったら:",

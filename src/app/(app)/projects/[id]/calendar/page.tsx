@@ -195,7 +195,7 @@ function StatCards({ stats, period, base }: { stats: CalendarStats; period: stri
   return (
     <div className="grid grid-cols-4 gap-4 max-lg:grid-cols-2 max-sm:gap-2.5">
       <Metric label={`${period}の予約`} value={stats.scheduled} unit="件" />
-      <Metric label={`${period}の投稿済み`} value={stats.posted} unit="件" />
+      <Metric label={`${period}の送信済み`} value={stats.posted} unit="件" />
       <Metric label="下書き" value={stats.drafts} unit="件" href={`${base}/drafts`} />
       {/* 送れなかった投稿は、いつのものでも直すか送り直すまで数える（週・月で区切ると、ほかの週の直していない失敗が見えなくなる）。
           ほかのカード（この週の… / n 月の…）と範囲が違うことがわかる名前にする（2026-11-13 PMO2 の 3 回目の確認）。
@@ -239,7 +239,7 @@ async function loadAutoRuns(projectId: string, fromIso: string, toIso: string): 
 function Legend() {
   return (
     <div className="ml-auto flex gap-4 text-[13px] text-muted max-md:hidden">
-      <span className="font-bold text-success">✓ 投稿済み</span>
+      <span className="font-bold text-success">✓ 送信済み</span>
       <span className="font-bold text-danger">! 失敗</span>
       <span className="inline-flex items-center gap-1.5">
         <span aria-hidden className="h-3 w-4 rounded-sm border border-dashed border-input" />
@@ -434,7 +434,7 @@ function AutoMark({ show }: { show: boolean }) {
       <span aria-hidden className="mr-1 text-primary">
         ↻
       </span>
-      <span className="sr-only">自動の投稿・</span>
+      <span className="sr-only">自動投稿・</span>
     </>
   );
 }

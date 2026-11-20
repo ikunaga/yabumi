@@ -94,7 +94,7 @@ const META: Record<SectionKey, Meta> = {
   },
   voice: {
     title: "書き方",
-    lead: "自分で書いて送った投稿から、AI があなたの書き方（文の長さ・語尾・絵文字・改行など）を読み取ったメモです。投稿の柱の「口調」は「こう書きたい」という方針で、こちらは「実際にこう書いている」という観察です。AI が投稿の案を出すとき、書き方の細部はこちらに寄せ、何を書くかは口調に従います。",
+    lead: "自分で書いた送信済みの投稿から、AI があなたの書き方（文の長さ・語尾・絵文字・改行など）を読み取ったメモです。投稿の柱の「口調」は「こう書きたい」という方針で、こちらは「実際にこう書いている」という観察です。AI が投稿の案を出すとき、書き方の細部はこちらに寄せ、何を書くかは口調に従います。",
   },
   first_month: {
     title: "週の回数",
@@ -890,7 +890,7 @@ function FirstMonthFields({ v, projectId, cycle, mainSns }: { v: PlanData["first
       <fieldset className="flex flex-col gap-2">
         <legend className="text-[14px] font-bold">SNS ごとの週の投稿の本数（伴走）</legend>
         <p className="text-xs leading-[1.7] text-muted">
-          決めると、yabumi が週ごとのペース（送った投稿と予約した投稿）を見守り、概要の「いまやること」の帯と、遅れそうなとき・毎週月曜のメールで声をかけます。迷ったら、メインの SNS に週 2、ほかは週 1。使わない SNS は空欄で構いません。
+          決めると、yabumi が週ごとのペース（送信済みの投稿と予約した投稿）を見守り、概要の「いまやること」の帯と、遅れそうなとき・毎週月曜のメールで声をかけます。迷ったら、メインの SNS に週 2、ほかは週 1。使わない SNS は空欄で構いません。
         </p>
         <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2">
           {mainSns.map((sns) => (

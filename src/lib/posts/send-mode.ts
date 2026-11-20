@@ -18,7 +18,7 @@ type SentStatus = "pending" | "awaiting_approval" | "preparing" | "publishing" |
 
 // 送った配信先の状態の出し方。text: 行やチップに出す言葉、plain: 文の中に入れるときの言葉（印を付けない。⑤ のまとめの「Threads（送信中）」など）
 export const TARGET_STATE: Partial<Record<SentStatus, { text: string; plain: string; tone: string }>> = {
-  published: { text: "✓ 投稿済み", plain: "投稿済み", tone: "font-bold text-success" },
+  published: { text: "✓ 送信済み", plain: "送信済み", tone: "font-bold text-success" },
   preparing: { text: "送信中", plain: "送信中", tone: "text-muted" },
   publishing: { text: "送信中", plain: "送信中", tone: "text-muted" },
   deleted: { text: "取り消し済み", plain: "取り消し済み", tone: "text-muted" },
@@ -42,7 +42,7 @@ export function sentStateOf(r: { status: SentStatus; errorMessage: string | null
 // 見出し: 新しい投稿・下書き・予約した投稿・一部送った投稿・送った投稿（前は予約した投稿も「下書き・保存済み」だった。2026-11-13 PMO2 の確かめ）
 export function composeHeading(a: { postId: string | null; sentAny: boolean; mode: SendMode; savedStatus: "draft" | "scheduled" | null }): string {
   if (!a.postId) return "投稿をつくる";
-  if (a.sentAny) return a.mode === "partial" ? "一部送った投稿" : "送った投稿";
+  if (a.sentAny) return a.mode === "partial" ? "一部送信済みの投稿" : "送信済みの投稿";
   return a.savedStatus === "scheduled" ? "予約した投稿" : "下書き";
 }
 

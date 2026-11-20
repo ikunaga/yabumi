@@ -78,7 +78,7 @@ export default async function SettingsPage() {
                   <li>消えるもの: アカウント、プロジェクト、アカウント設計、投稿（下書き・予約・送信の記録）、AI との会話、つないだ SNS とそのトークン、GitHub のつながり</li>
                   <li>X は、X の側でも yabumi を外します。GitHub は、yabumi の GitHub App を外します</li>
                   <li>
-                    SNS に送った投稿は消しません。消したい投稿があれば、退会の前に、投稿の画面の「SNS から取り消す」を使ってください
+                    SNS への送信済みの投稿は消しません。消したい投稿があれば、退会の前に、投稿の画面の「SNS から取り消す」を使ってください
                   </li>
                   {(snsCount ?? 0) > 0 && (
                     <li>

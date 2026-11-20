@@ -21,10 +21,10 @@ export function AutoPostBand({ projectId, band }: { projectId: string; band: Ove
             </b>
           ) : band.active > 0 ? (
             <b>
-              <span className="text-primary">↻</span> 自動の投稿 <span className="num">{band.active}</span> 件が動いています
+              <span className="text-primary">↻</span> 自動投稿 <span className="num">{band.active}</span> 件が動いています
             </b>
           ) : (
-            <b className="text-muted">‖ 自動の投稿は止めています</b>
+            <b className="text-muted">‖ 自動投稿は止めています</b>
           )}
           {band.next && !band.held && (
             <span className="text-sm text-muted">
@@ -40,7 +40,7 @@ export function AutoPostBand({ projectId, band }: { projectId: string; band: Ove
             </ButtonLink>
           )}
           <ButtonLink href={base} variant="secondary" size="sm">
-            自動の投稿を見る
+            自動投稿を見る
           </ButtonLink>
         </span>
       </div>

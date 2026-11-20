@@ -35,7 +35,7 @@ export type MonthDay = {
 // 凡例（● 予約・✓ 投稿済み・○ 下書き）と同じ印と色
 export const MARK: Record<PostDisplayStatus, { char: string; className: string; dot: string; label: string }> = {
   scheduled: { char: "●", className: "font-bold text-signal", dot: "bg-signal", label: "予約" },
-  posted: { char: "✓", className: "font-bold text-success", dot: "bg-success", label: "投稿済み" },
+  posted: { char: "✓", className: "font-bold text-success", dot: "bg-success", label: "送信済み" },
   draft: { char: "○", className: "text-muted", dot: "border border-muted", label: "下書き" },
   failed: { char: "!", className: "font-bold text-danger", dot: "bg-danger", label: "失敗あり" },
 };

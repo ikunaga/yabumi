@@ -15,7 +15,7 @@
 - AI に口調を渡すのは tonePromptLines（pillars.ts）、あなたらしさを渡すのは identityPromptLines・storyForAi（story.ts）。投稿の文を書く AI の材料の組み立ては 3 か所
   - ideaContextText（post-ideas.ts）: ネタ出しと整える
   - checkContextText（ai-check.ts）: 見直しと画像の文字の案・絵の説明の案
-  - consultContextMessage（consult-prompt.ts）: 相談。もう「最近送った投稿」10 本（頭の 140 字）を送っている
+  - consultContextMessage（consult-prompt.ts）: 相談。もう「最近の送信済みの投稿」10 本（頭の 140 字）を送っている
 - 投稿の文を書く AI には、相談のほか、本人の過去の投稿を見せていない。口調は、アカウント設計の「口調」（pillars.tone・toneBySns。利用者が決めた方針）だけ
 - SNS から本人の投稿を読む作りはない（プロフィールと数字だけ）
 
@@ -112,7 +112,7 @@
   - `voiceExampleTexts(...)`: 例の投稿の本文（実装担当3 の styleProblems の allow に渡す）
   - `loadVoiceExamples(db, projectId, ids)`: 例の投稿を利用者の権限で読む（RLS で本人のものだけ。消した・`ai` になった投稿は外す）
 - 差し込む所（3 か所。各 AI の指示の本文は変えない）
-  - ideaContextText（ネタ出し・整える）、checkContextText（見直し・画像の文字の案・絵の説明の案。絵の説明は書き方を使わないので渡さない）、consultContextMessage（相談。いまの「最近送った投稿」はそのまま）
+  - ideaContextText（ネタ出し・整える）、checkContextText（見直し・画像の文字の案・絵の説明の案。絵の説明は書き方を使わないので渡さない）、consultContextMessage（相談。いまの「最近の送信済みの投稿」はそのまま）
   - AiUse ごとに渡すかを決める表を voice.ts に置く（ideas・tidy・consult・check は渡す、image は文字の案だけ渡す、coach は渡さない）
 - SNS ごとの口調（toneBySns）がある SNS の下書きでは、文調のメモより SNS ごとの口調を先にする（例: X だけ「だ・である」）
 

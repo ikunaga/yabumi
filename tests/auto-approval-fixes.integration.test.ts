@@ -35,7 +35,7 @@ const planProject = new Map<string, string>();
 let pool: { id: string; used: number } | null = null;
 async function poolProject(): Promise<string> {
   if (!pool || pool.used >= 9) {
-    const { data, error } = await alice.from("projects").insert({ name: "自動の投稿" }).select("id").single();
+    const { data, error } = await alice.from("projects").insert({ name: "自動投稿" }).select("id").single();
     if (error) throw error;
     pool = { id: data.id, used: 0 };
   }
@@ -65,7 +65,7 @@ async function runWithPost(planId: string, opts: { status?: string; postStatus?:
   if (error) throw error;
   const { data: post, error: e2 } = await admin
     .from("posts")
-    .insert({ project_id: project, owner_id: owner, body: `自動の投稿 ${randomUUID()}`, status: opts.postStatus ?? "scheduled", planned_at: dueAt, text_origin: "ai", auto_run_id: run!.id })
+    .insert({ project_id: project, owner_id: owner, body: `自動投稿 ${randomUUID()}`, status: opts.postStatus ?? "scheduled", planned_at: dueAt, text_origin: "ai", auto_run_id: run!.id })
     .select("id")
     .single();
   if (e2) throw e2;
@@ -89,7 +89,7 @@ const statusOf = async (targetId: string) => (await admin.from("post_targets").s
 beforeAll(async () => {
   ({ client: alice, userId: aliceId } = await signUpNewUser());
   ({ userId: bobId } = await signUpNewUser());
-  projectId = (await alice.from("projects").insert({ name: "自動の投稿" }).select("id").single()).data!.id;
+  projectId = (await alice.from("projects").insert({ name: "自動投稿" }).select("id").single()).data!.id;
   const { error } = await admin.from("legal_consents").insert({ user_id: aliceId, version: "2026-11-16", via: "signup" });
   if (error) throw error;
 });

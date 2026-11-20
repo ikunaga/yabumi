@@ -87,7 +87,7 @@ export function PlanControls({ projectId, planId, status, nextLabel, held = fals
 
       <ConfirmDialog
         open={dialog === "pause"}
-        title="この自動の投稿を止めますか"
+        title="この自動投稿を止めますか"
         confirmLabel="止める"
         onClose={() => setDialog(null)}
         onConfirm={() => {
@@ -115,7 +115,7 @@ export function PlanControls({ projectId, planId, status, nextLabel, held = fals
       </ConfirmDialog>
       <ConfirmDialog
         open={dialog === "delete"}
-        title="この自動の投稿を削除しますか"
+        title="この自動投稿を削除しますか"
         confirmLabel="削除する"
         onClose={() => setDialog(null)}
         onConfirm={() => {
@@ -128,7 +128,7 @@ export function PlanControls({ projectId, planId, status, nextLabel, held = fals
           });
         }}
       >
-        <p>設定と回の記録を削除します。送った投稿は残ります。元に戻せません。</p>
+        <p>設定と回の記録を削除します。送信済みの投稿は残ります。元に戻せません。</p>
         <ToDraftChoice value={toDraft} onChange={setToDraft} />
       </ConfirmDialog>
     </div>
@@ -151,7 +151,7 @@ export function PauseAllButton({ projectId, activeCount, held = false }: { proje
       {error && <ErrorBanner>{error}</ErrorBanner>}
       <ConfirmDialog
         open={open}
-        title="自動の投稿を全部止めますか"
+        title="自動投稿を全部止めますか"
         confirmLabel="全部止める"
         onClose={() => setOpen(false)}
         onConfirm={() => {

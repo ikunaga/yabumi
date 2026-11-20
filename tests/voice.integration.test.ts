@@ -41,7 +41,7 @@ beforeAll(async () => {
   bobProject = (await bob.from("projects").insert({ name: "ほかの店" }).select("id").single()).data!.id;
   for (let i = 1; i <= 4; i++) await post(aliceId, projectId, `self${i}`, `自分で書いた投稿 ${i} 本目です🍞\n焼きたてです。`, { at: `2026-11-0${i}T03:00:00Z` });
   await post(aliceId, projectId, "legacy", "前からある投稿です", { origin: null, at: "2026-11-05T03:00:00Z" });
-  await post(aliceId, projectId, "twice", "2 つの SNS に送った投稿", { sns: ["x", "threads"], at: "2026-11-06T03:00:00Z" });
+  await post(aliceId, projectId, "twice", "2 つの SNS への送信済みの投稿", { sns: ["x", "threads"], at: "2026-11-06T03:00:00Z" });
   await post(aliceId, projectId, "ai", "AI の文をもとにした投稿", { origin: "ai" });
   await post(aliceId, projectId, "draft", "まだ送っていない投稿", { published: false });
   await post(bobId, bobProject, "bob", "ほかの人の投稿");
@@ -59,7 +59,7 @@ describe("材料と例の投稿", () => {
     expect(m).toHaveLength(6);
     expect(m.map((x) => x.text)).not.toContain("AI の文をもとにした投稿");
     expect(m.map((x) => x.text)).not.toContain("まだ送っていない投稿");
-    expect(m.filter((x) => x.text === "2 つの SNS に送った投稿")).toHaveLength(1);
+    expect(m.filter((x) => x.text === "2 つの SNS への送信済みの投稿")).toHaveLength(1);
     expect(m.map((x) => x.text)).toContain("前からある投稿です");
     expect(await loadVoiceMaterial(bob, projectId)).toEqual([]);
   });

@@ -17,7 +17,7 @@ export const SNS_TINT: Record<SnsKey, string> = {
 
 const STATUS: Record<PostDisplayStatus, { mark: string; className: string; label: string }> = {
   scheduled: { mark: "", className: "", label: "予約" },
-  posted: { mark: "✓", className: "text-success", label: "投稿済み" },
+  posted: { mark: "✓", className: "text-success", label: "送信済み" },
   failed: { mark: "!", className: "text-danger", label: "失敗あり" },
   draft: { mark: "", className: "", label: "下書き" },
 };
@@ -68,7 +68,7 @@ export function SnsLabel({
         </span>
       )}
       <span className="sr-only">
-        {auto ? "自動の投稿・" : ""}
+        {auto ? "自動投稿・" : ""}
         {s.label}
       </span>
       {time && <span className="num shrink-0 font-normal text-muted">{time}</span>}

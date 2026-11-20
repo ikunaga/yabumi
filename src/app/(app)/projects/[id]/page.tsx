@@ -337,7 +337,7 @@ async function loadAutoBand(projectId: string) {
     const band = overviewAutoBand(plans, upcoming, review, now);
     return band && { ...band, held: hold !== null };
   } catch (e) {
-    console.error("[overview] 自動の投稿", e instanceof Error ? e.message : e);
+    console.error("[overview] 自動投稿", e instanceof Error ? e.message : e);
     return null;
   }
 }

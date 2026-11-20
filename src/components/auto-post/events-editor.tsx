@@ -83,7 +83,7 @@ export function EventsEditor({ projectId, initial, today }: { projectId: string;
       )}
       <Card className="overflow-hidden">
         {sorted.length === 0 ? (
-          <EmptyState title="予定はまだありません" description="新しいメニュー・セール・休みの日などを入れると、「お知らせ・季節」の自動の投稿で、その日の前日と当日に知らせます。" />
+          <EmptyState title="予定はまだありません" description="新しいメニュー・セール・休みの日などを入れると、「お知らせ・季節」の自動投稿で、その日の前日と当日に知らせます。" />
         ) : (
           <ul className="divide-y divide-border">
             {sorted.map((e) =>

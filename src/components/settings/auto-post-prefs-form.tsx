@@ -12,7 +12,7 @@ export function AutoPostPrefsForm({ on }: { on: boolean }) {
   return (
     <form action={action} className="flex flex-col gap-4 px-6 pt-1 pb-5 text-[15px] max-sm:px-4">
       <fieldset className="flex flex-col gap-1.5">
-        <legend className="sr-only">自動の投稿の通知</legend>
+        <legend className="sr-only">自動投稿の通知</legend>
         <label className="flex items-start gap-2 leading-[1.7]">
           <input type="radio" name="auto_post_push" value="on" defaultChecked={on} className="mt-1 size-4 accent-[var(--primary)]" />
           <span>
@@ -24,7 +24,7 @@ export function AutoPostPrefsForm({ on }: { on: boolean }) {
           <input type="radio" name="auto_post_push" value="off" defaultChecked={!on} className="mt-1 size-4 accent-[var(--primary)]" />
           <span>
             受け取らない
-            <span className="block text-xs text-muted">確認待ちは、自動の投稿の画面と概要で見られます</span>
+            <span className="block text-xs text-muted">確認待ちは、自動投稿の画面と概要で見られます</span>
           </span>
         </label>
       </fieldset>

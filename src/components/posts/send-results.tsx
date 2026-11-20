@@ -111,7 +111,7 @@ function ResultRow({ sns, r, projectId, postId, video }: { sns: SnsKey; r: Targe
                   : "送信済み"
                 : r.publishedAt
                   ? `${formatShort(r.publishedAt)} に投稿`
-                  : "投稿済み"}
+                  : "送信済み"}
             </span>
             {r.externalUrl && (
               <a href={r.externalUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary hover:underline">
@@ -290,7 +290,7 @@ function ManualRow({ sns, r, projectId, postId }: { sns: SnsKey; r: TargetResult
       <li className="flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-2.5 leading-[1.6]">
         <b>{label}</b>
         <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">手で投稿</span>
-        <span className="font-bold text-success">✓ 投稿済み</span>
+        <span className="font-bold text-success">✓ 送信済み</span>
         {r.publishedAt && <span className="text-muted">{formatShort(r.publishedAt)} に記録</span>}
         {r.externalUrl && (
           <a href={r.externalUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary hover:underline">

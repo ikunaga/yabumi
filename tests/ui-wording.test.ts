@@ -30,7 +30,7 @@ describe("画面の文の決まり", () => {
   it("画面の文を集められている（集め方が壊れていない）", () => {
     expect(texts.length).toBeGreaterThan(3000);
     const wizard = texts.filter((t) => t.file === "src/components/auto-post/plan-wizard.tsx").map((t) => t.text);
-    expect(wizard).toContain("自動の投稿をはじめる");
+    expect(wizard).toContain("自動投稿をはじめる");
     // 文字と {式} が並んでいるところは、1 つの文につなぐ
     expect(wizard.some((t) => t.includes("時間前に文を作り") && t.startsWith("送る"))).toBe(true);
     // AI に送る指示は読まない

@@ -301,7 +301,7 @@ describe("退会したとき", () => {
     await removeStorage(daveId);
     await deleteUser(daveId);
     const { data: job } = await admin.from("ai_image_jobs").select("*").eq("id", r.jobId).single();
-    expect(Object.keys(job!).sort()).toEqual(["auto", "by_new_user", "cost_usd", "created_at", "id", "images", "model", "owner_id", "project_id", "status"]); // auto は自動の投稿の分か（20261119110000。中身でない）
+    expect(Object.keys(job!).sort()).toEqual(["auto", "by_new_user", "cost_usd", "created_at", "id", "images", "model", "owner_id", "project_id", "status"]); // auto は自動投稿の分か（20261119110000。中身でない）
     expect(job).toMatchObject({ owner_id: null, project_id: null, images: 1, status: "done" });
     expect(Number(job!.cost_usd)).toBeGreaterThan(0);
     // 注意を読んだ記録は消える

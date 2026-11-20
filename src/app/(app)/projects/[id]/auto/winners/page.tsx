@@ -25,7 +25,7 @@ export default async function WinnersPage(props: PageProps<"/projects/[id]/auto/
   return (
     <div className="flex flex-col gap-5 max-sm:gap-4">
       <Link href={`${base}/auto`} className="text-sm text-muted">
-        ← 自動の投稿
+        ← 自動投稿
       </Link>
       <PageHeader
         title="伸びた投稿から"

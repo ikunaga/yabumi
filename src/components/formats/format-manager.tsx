@@ -561,7 +561,7 @@ function SeriesFields({ slots, series, usedInImage, setSeries }: { slots: string
         <ImageOnlySlots slots={slots} imageOnly={imageOnly} usedInImage={usedInImage} series={series} setSeries={setSeries} />
         {/* 本文に AI の空欄がないシリーズは、本文が毎回同じ（X に自動で送れない。2026-11-20 PM の指示） */}
         {fixedBodySeries(slots.map((n) => `{${n}}`).join(""), series) && (
-          <p className="font-semibold leading-[1.7] text-signal">● 本文に AI が埋める空欄がないので、本文は毎回同じになります。X は同じ文を続けて送れないため、自動の投稿では選べません。X にも送るなら、本文に AI が埋める空欄を置いてください。</p>
+          <p className="font-semibold leading-[1.7] text-signal">● 本文に AI が埋める空欄がないので、本文は毎回同じになります。X は同じ文を続けて送れないため、自動投稿では選べません。X にも送るなら、本文に AI が埋める空欄を置いてください。</p>
         )}
       </div>
     </section>

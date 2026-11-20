@@ -167,7 +167,7 @@ export function ImagePicker(p: {
           <ul className="list-disc space-y-1 pl-5">
             <li>作った画像には「AI で作った画像」の印を付けます。Threads・Instagram・X には、送るときに「AI で作った」ことの印も付けます（Facebook は付ける欄がありません）。</li>
             <li>実在の人に似せたり、自分の商品・お店・顧客を本物の写真のように見せたりすると、見た人の誤解を招いたり、景品表示法（実際よりよく見せる表示）の問題になったりすることがあります。</li>
-            <li>絵の説明は、画像をつくる Google に送ります（学習には使われません）。自動の投稿では、あなたがその場で押していないときにも送ります。</li>
+            <li>絵の説明は、画像をつくる Google に送ります（学習には使われません）。自動投稿では、あなたがその場で押していないときにも送ります。</li>
           </ul>
           {error && <ErrorBanner>{error}</ErrorBanner>}
           <Button

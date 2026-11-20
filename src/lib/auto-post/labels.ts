@@ -52,7 +52,7 @@ export const RUN_REASON_TEXT: Record<AutoRunReason, string> = {
   avoid: "アカウント設計の「やらないこと」に当たります",
   too_long: "字数の上限を超えました",
   ai_limit: "AI の今月の枠を使い切りました",
-  daily_limit: "今日の自動の投稿の上限に届きました",
+  daily_limit: "今日の自動投稿の上限に届きました",
   disconnected: "SNS のつながりが切れています",
   error: "うまく作れませんでした",
   user_skipped: "飛ばしました",
@@ -109,9 +109,9 @@ export const REVIEW_REASON_DETAIL: Record<ReviewOnlySns, string> = {
 export const REVIEW_FLOW = "送る 24 時間前に作って通知します → 押して中身を見る → 「送る」を押したものだけ、決めた時刻に送ります（押さなければ送りません）";
 
 // 段階 A で自動の投稿の送り先に選べない SNS の理由（TikTok・YouTube。docs/design/auto-post.md の A6・2.9 の段階 C）
-export const STAGE_C_SNS_SHORT = "送るたびに同意が要る SNS なので、自動の投稿ではまだ選べません（準備中）";
+export const STAGE_C_SNS_SHORT = "送るたびに同意が要る SNS なので、自動投稿ではまだ選べません（準備中）";
 export const STAGE_C_SNS_DETAIL =
-  "TikTok・YouTube は、どちらも決まりで、送るたびにあなたがはっきり同意してから送ることになっているので、「自動で送る」にはできません。自動の投稿では「確認して送る」（作った下書きを通知から開き、投稿の画面の同意の欄で確認して送る）にする予定ですが、どちらも画像や動画が要るので、画像を自動で添えられるようになってから選べるようにします。それまでは、投稿をつくるの画面から送ってください。";
+  "TikTok・YouTube は、どちらも決まりで、送るたびにあなたがはっきり同意してから送ることになっているので、「自動で送る」にはできません。自動投稿では「確認して送る」（作った下書きを通知から開き、投稿の画面の同意の欄で確認して送る）にする予定ですが、どちらも画像や動画が要るので、画像を自動で添えられるようになってから選べるようにします。それまでは、投稿をつくるの画面から送ってください。";
 
 export function isReviewOnlySns(sns: string): sns is ReviewOnlySns {
   return (REVIEW_ONLY_SNS as readonly string[]).includes(sns);

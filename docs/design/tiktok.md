@@ -142,7 +142,7 @@ TikTok を送り先に選んだ投稿の、⑤ 送る（と ② 送り先の Tik
 - init の答えの publish_id を、配信先の sns_container に入れ、status を preparing にする（Threads・Instagram の、準備に時間がかかる送り方と同じ作り。src/lib/sns/adapters/staged.ts）
 - 送信ジョブが status/fetch で確かめる（トークン 1 つで 1 分 30 回まで。1 分ごとに 1 回）
   - PROCESSING_DOWNLOAD: まだ。preparing のまま
-  - PUBLISH_COMPLETE: published。publicaly_available_post_id（綴りは資料のまま）があれば外部の ID と URL を入れる。公開の投稿は審査（ふつう 1 分以内、数時間かかることもある）が済むまで ID が来ないので、来るまで「投稿済み（TikTok で確認中）」として、あとで取りに行く
+  - PUBLISH_COMPLETE: published。publicaly_available_post_id（綴りは資料のまま）があれば外部の ID と URL を入れる。公開の投稿は審査（ふつう 1 分以内、数時間かかることもある）が済むまで ID が来ないので、来るまで「送信済み（TikTok で確認中）」として、あとで取りに行く
   - FAILED: fail_reason ごとに分ける
     - internal・photo_pull_failed・video_pull_failed → やり直す
     - auth_removed → つなぎ直し

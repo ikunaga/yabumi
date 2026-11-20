@@ -31,14 +31,14 @@ describe("自動の投稿の版", () => {
 
   it("プライバシーポリシーに、預かる情報・使い道・Anthropic に送るもの・通知・保存期間を書いた", () => {
     const privacy = read("src/app/privacy/page.tsx");
-    expect(privacy).toContain('"自動の投稿",');
+    expect(privacy).toContain('"自動投稿",');
     expect(privacy).toContain("承認したときの文の指紋（元の文には戻せない値）");
     expect(privacy).toContain("X・TikTok・YouTube は、利用者が中身を見て承認したものだけを送ります");
-    expect(privacy).toContain("自動の投稿の文を作り確認すること");
+    expect(privacy).toContain("自動投稿の文を作り確認すること");
     expect(privacy).toContain("利用者がその場で押していないときにも、設定した曜日と時刻の前に送ります");
     // 通知には投稿の本文を入れない（送り先の SNS と時刻など）
-    expect(privacy).toContain("自動の投稿の知らせでは、送り先の SNS と時刻・件数、設定の名前と止めた理由");
-    expect(privacy).toContain('["自動の投稿の設定", "利用者が消すか、プロジェクトを消すか、退会まで"]');
+    expect(privacy).toContain("自動投稿の知らせでは、送り先の SNS と時刻・件数、設定の名前と止めた理由");
+    expect(privacy).toContain('["自動投稿の設定", "利用者が消すか、プロジェクトを消すか、退会まで"]');
     expect(privacy).toContain('"自動の回の記録・承認の記録", "13 か月で自動で消す');
     expect(privacy).toContain('"お知らせ・季節の予定", "その日付から 1 年で自動で消す');
   });
@@ -60,9 +60,9 @@ describe("自動の投稿の版", () => {
 
   it("利用規約に、できること・自動の投稿の決まりと責任・止めることを書いた", () => {
     const terms = read("src/app/terms/page.tsx");
-    expect(terms).toContain("決めた曜日と時刻に AI が投稿を作って送る（自動の投稿）");
+    expect(terms).toContain("決めた曜日と時刻に AI が投稿を作って送る（自動投稿）");
     expect(terms).toContain("自動で送ることに同意したときだけ動きます");
-    expect(terms).toContain("自動の投稿で送った投稿の内容と結果の責任は、利用者にあります");
-    expect(terms).toContain("自動の投稿を止めることがあります");
+    expect(terms).toContain("自動投稿で送信済みの投稿の内容と結果の責任は、利用者にあります");
+    expect(terms).toContain("自動投稿を止めることがあります");
   });
 });

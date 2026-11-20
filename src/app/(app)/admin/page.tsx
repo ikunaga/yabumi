@@ -56,7 +56,7 @@ export default async function AdminPage() {
             <Metric
               label={
                 <span className="flex items-center gap-1.5">
-                  自動の投稿を止める
+                  自動投稿を止める
                   <span aria-hidden className="text-faint group-hover:text-fg">→</span>
                 </span>
               }

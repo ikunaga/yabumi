@@ -18,7 +18,7 @@ export function CalendarSide({ stats, period, upcoming, base, week }: { stats: C
     <div className="flex min-w-0 flex-col gap-4">
       <WeekSlotsCard week={week} base={base} />
       <Card>
-        <CardHeader title="SNS ごと" action={`${period}の予約と投稿済み`} />
+        <CardHeader title="SNS ごと" action={`${period}の予約と送信済み`} />
         {stats.bySns.length ? (
           <div className="flex flex-col gap-3 px-6 pt-2 pb-5 [&>div]:grid-cols-[5.5rem_1fr_2.5rem] [&>div]:text-[15px]">
             {stats.bySns.map((s) => (

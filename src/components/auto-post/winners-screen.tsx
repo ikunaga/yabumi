@@ -181,8 +181,8 @@ export function WinnersScreen({
                       ) : (
                         <p className="text-xs leading-[1.7] text-muted">
                           {result.fit === "auto"
-                            ? "AI が毎回埋める指示がそろっていない空欄があるので、投稿をつくるときに自分で埋める型にしました。保存したあと、フォーマットの画面で空欄ごとに「AI が埋める」を決めると、自動の投稿に使えます。"
-                            : "空欄の中身はあなたしか知らないこと（値段・日付など）なので、投稿をつくるときに自分で埋めます。自動の投稿には使えません。"}
+                            ? "AI が毎回埋める指示がそろっていない空欄があるので、投稿をつくるときに自分で埋める型にしました。保存したあと、フォーマットの画面で空欄ごとに「AI が埋める」を決めると、自動投稿に使えます。"
+                            : "空欄の中身はあなたしか知らないこと（値段・日付など）なので、投稿をつくるときに自分で埋めます。自動投稿には使えません。"}
                         </p>
                       )}
                       {p.example && (
@@ -222,7 +222,7 @@ export function WinnersScreen({
             <span>フォーマット「{saved.name}」を保存しました。</span>
             {saved.series && !held ? (
               <span className="flex flex-col gap-2">
-                <span>この型で自動の投稿を始めると、{lead ? `伸びた ${lead.hits.map((h) => SNS[h.sns].label).join("・")} と時間帯を` : "SNS と時間帯を"}選んだ状態で開きます。始めるのは、中身を確認したあとです。</span>
+                <span>この型で自動投稿を始めると、{lead ? `伸びた ${lead.hits.map((h) => SNS[h.sns].label).join("・")} と時間帯を` : "SNS と時間帯を"}選んだ状態で開きます。始めるのは、中身を確認したあとです。</span>
                 <ButtonLink href={`${base}/auto/new?format=${saved.id}${lead ? `&post=${lead.postId}` : ""}`} className="self-start max-sm:w-full">
                   この型で自動で回す
                 </ButtonLink>

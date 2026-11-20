@@ -570,7 +570,7 @@ export function useComposer({
     if (chosen.length === 0) return "送り先の SNS を選んでください";
     if (quoting && chosen.some((s) => s !== "x")) return "引用の投稿は X だけに送れます。ほかの SNS を外すか、引用を外してください";
     if (quoting) return QUOTE_BLOCKER;
-    if (toSend.length === 0) return "選んだ SNS にはすべて投稿済みです";
+    if (toSend.length === 0) return "選んだ SNS にはすべて送信済みです";
     if (quiet) return QUIET_BLOCKER;
     for (const s of toSend) {
       const p = tagProblem(s);

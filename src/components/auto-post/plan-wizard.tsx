@@ -219,10 +219,10 @@ export function PlanWizard(p: Props) {
   return (
     <div className="flex flex-col gap-5 max-sm:gap-4">
       <div className="flex flex-col gap-3">
-        <h1 className="text-[28px] leading-tight font-bold max-sm:text-[24px]">{editing ? "自動の投稿を編集" : "自動の投稿をはじめる"}</h1>
+        <h1 className="text-[28px] leading-tight font-bold max-sm:text-[24px]">{editing ? "自動投稿を編集" : "自動投稿をはじめる"}</h1>
         <div className="max-sm:hidden">
           {/* ステップの印は押せない。動くのは下の「次へ」「戻る」だけ（投稿をつくると同じ。2026-11-15 オーナーの指示） */}
-          <Steps steps={STEPS} current={step} canGo={() => false} onGo={() => {}} label="自動の投稿の段取り" />
+          <Steps steps={STEPS} current={step} canGo={() => false} onGo={() => {}} label="自動投稿の段取り" />
         </div>
         <MobileSteps current={step} />
       </div>
@@ -476,7 +476,7 @@ export function PlanWizard(p: Props) {
             <label className="flex items-start gap-2.5 text-[15px] leading-[1.7]">
               <input type="checkbox" className="mt-1 size-5 shrink-0 accent-[var(--primary)]" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
               <span>
-                AI が作った文を、あなたが確認せずに、あなたのアカウントから送ります（X などの「確認して送る」SNS は、押したものだけ送ります）。送った投稿の責任はあなたにあります。送る{" "}
+                AI が作った文を、あなたが確認せずに、あなたのアカウントから送ります（X などの「確認して送る」SNS は、押したものだけ送ります）。送信済みの投稿の責任はあなたにあります。送る{" "}
                 {DEFAULT_LEAD_HOURS} 時間前に、カレンダーと通知でお知らせします。気になれば、編集・その回を飛ばす・止めるができます。
               </span>
             </label>
@@ -710,7 +710,7 @@ function CustomSchedule({ value, onChange }: { value: AutoSchedule; onChange: (s
 function MobileSteps({ current }: { current: Step }) {
   const i = STEPS.findIndex((s) => s.key === current);
   return (
-    <nav aria-label="自動の投稿の段取り" className="flex items-center justify-between gap-3 sm:hidden">
+    <nav aria-label="自動投稿の段取り" className="flex items-center justify-between gap-3 sm:hidden">
       <p className="text-[15px] font-bold">
         <span className="num">
           {i + 1}/{STEPS.length}

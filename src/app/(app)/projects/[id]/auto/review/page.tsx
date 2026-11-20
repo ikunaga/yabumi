@@ -23,7 +23,7 @@ export default async function AutoReviewPage(props: PageProps<"/projects/[id]/au
   return (
     <div className="flex flex-col gap-5 max-sm:gap-4">
       <Link href={base} className="text-sm text-muted underline">
-        ← 自動の投稿
+        ← 自動投稿
       </Link>
       <PageHeader
         title="確認待ち"
@@ -37,7 +37,7 @@ export default async function AutoReviewPage(props: PageProps<"/projects/[id]/au
             description="X などに送る文ができたら、通知でお知らせします。"
             action={
               <ButtonLink href={base} variant="secondary">
-                自動の投稿へ
+                自動投稿へ
               </ButtonLink>
             }
           />

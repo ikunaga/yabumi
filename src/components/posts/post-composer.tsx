@@ -23,6 +23,7 @@ import { COMPOSE_STEPS, nextBlockedReason, type StepNo } from "@/lib/posts/compo
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { ComposePreview } from "./compose/preview";
 import { useComposer, type ComposerProps } from "./compose/use-composer";
+import { DisclosureBox } from "@/components/ui/disclosure";
 
 export type { ComposerInitial } from "./compose/use-composer";
 
@@ -187,12 +188,9 @@ function StepsLayout({ c, wide, start, notePicker, headingRef }: { c: ReturnType
             </div>
           )}
           {!wide && !inlinePreview && (
-            <details className="rounded-lg border border-border bg-surface">
-              <summary className="cursor-pointer px-4 py-3 text-[14px] font-semibold">見え方を見る</summary>
-              <div className="border-t border-line">
-                <ComposePreview c={c} />
-              </div>
-            </details>
+            <DisclosureBox label="見え方を表示">
+              <ComposePreview c={c} />
+            </DisclosureBox>
           )}
           <ComposeStepBar c={c} />
         </div>

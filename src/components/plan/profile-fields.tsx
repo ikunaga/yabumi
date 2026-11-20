@@ -21,6 +21,7 @@ import {
 } from "@/lib/plan/profile";
 import { type PlanData, type ProfileOverride, type ProfileOverrideField } from "@/lib/plan/schema";
 import { SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
+import { DisclosureBox } from "@/components/ui/disclosure";
 
 // 名前とプロフィール（アカウント設計の 5）。共通を土台に、SNS ごとに上書きできる（決定 D26、docs/architecture.md の 4.8）
 
@@ -172,19 +173,13 @@ export function ProfileFields({ v, roles, ctx }: { v: PlanData["profile"]; roles
           <SnsRow key={sns} sns={sns} profile={profile} role={roles[sns]} ctx={ctx} onChange={setOverride} />
         ))}
         {others.length > 0 && (
-          <details className="group/others rounded-md border border-line text-sm">
-            <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-2.5 font-bold">
-              <span aria-hidden className="text-muted transition-transform group-open/others:rotate-90">
-                ▸
-              </span>
-              {targets.length ? `ほかの SNS（${others.length}）` : "SNS を選んで変える"}
-            </summary>
-            <div className="flex flex-col gap-2 border-t border-line p-3">
+          <DisclosureBox label={targets.length ? "ほかの SNS を表示" : "SNS を表示"} count={others.length} className="text-sm">
+            <div className="flex flex-col gap-2">
               {others.map((sns) => (
                 <SnsRow key={sns} sns={sns} profile={profile} role={roles[sns]} ctx={ctx} onChange={setOverride} />
               ))}
             </div>
-          </details>
+          </DisclosureBox>
         )}
       </fieldset>
     </div>
@@ -193,14 +188,8 @@ export function ProfileFields({ v, roles, ctx }: { v: PlanData["profile"]; roles
 
 function HandleCheckSteps() {
   return (
-    <details className="group rounded-md border border-line text-sm">
-      <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-2.5 font-bold">
-        <span aria-hidden className="text-muted transition-transform group-open:rotate-90">
-          ▸
-        </span>
-        それぞれの SNS で同じユーザー名が取れるか確かめる
-      </summary>
-      <div className="flex flex-col gap-3 border-t border-line px-4 py-3 leading-[1.8]">
+    <DisclosureBox label="同じユーザー名が取れるかの確かめ方を表示" className="text-sm">
+      <div className="flex flex-col gap-3 leading-[1.8]">
         <p>
           それぞれの SNS に<b>ログインした状態</b>で、ユーザー名を変える画面に候補を入力してみます。使えるかどうかがその場で出ます。保存しなければ、今のユーザー名は変わりません。新しくアカウントを作る場合は、新規登録の画面で入力しても確かめられます。
         </p>
@@ -216,7 +205,7 @@ function HandleCheckSteps() {
           画面の場所は各 SNS の変更で変わることがあります。ログインしていないと空いているかどうかを正しく判定できないため、yabumi では空きを自動で調べません。
         </p>
       </div>
-    </details>
+    </DisclosureBox>
   );
 }
 

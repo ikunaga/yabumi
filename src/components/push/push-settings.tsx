@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Button, NotReadyButton } from "@/components/ui/button";
 import { ErrorBanner, SuccessBanner } from "@/components/ui/feedback";
 import { type PushStatus, pushStatus, subscribeDevice, testPushDevice, unsubscribeDevice } from "@/lib/push/actions";
+import { DisclosureBox } from "@/components/ui/disclosure";
 
 // スマホの通知（Web Push）の端末の登録・外す、ホーム画面に追加する手順、試しに送る（docs/architecture.md の 4.28）。
 // お知らせの設定（/settings/notifications）の「スマホの通知」のカードに置く。
@@ -241,9 +242,8 @@ export function PushSettings() {
         </div>
       )}
 
-      <details className="rounded-md border border-line">
-        <summary className="cursor-pointer px-4 py-2.5 font-semibold text-primary">ホーム画面に追加する手順（iPhone・Android）</summary>
-        <div className="flex flex-col gap-4 border-t border-line px-4 py-3">
+      <DisclosureBox label="ホーム画面に追加する手順を表示（iPhone・Android）">
+        <div className="flex flex-col gap-4">
           <div>
             <p className="font-bold">iPhone・iPad（iOS 16.4 以降）</p>
             <IphoneSteps />
@@ -258,18 +258,17 @@ export function PushSettings() {
             </ol>
           </div>
         </div>
-      </details>
+      </DisclosureBox>
 
-      <details className="rounded-md border border-line">
-        <summary className="cursor-pointer px-4 py-2.5 font-semibold text-primary">届かないとき</summary>
-        <ul className="flex list-disc flex-col gap-1 border-t border-line py-3 pr-4 pl-9">
+      <DisclosureBox label="届かないときの確かめ方を表示">
+        <ul className="flex list-disc flex-col gap-1 pl-5">
           <li>「おやすみモード」や「集中モード」がオンだと、通知が出ないことがあります</li>
           <li>iPhone・iPad は、ホーム画面の yabumi から登録したときだけ届きます（Safari で開いた画面からは登録できません）</li>
           <li>端末の設定で、yabumi （またはブラウザ）の通知が許可されているか確かめてください</li>
           <li>ブラウザのデータを消すと、登録も消えます。もう一度「この端末で通知を受け取る」を押してください</li>
           <li>ログアウトすると、その端末には届かなくなります（同じ端末をほかの人が使っても、あなたへの通知が出ないように）</li>
         </ul>
-      </details>
+      </DisclosureBox>
     </div>
   );
 }

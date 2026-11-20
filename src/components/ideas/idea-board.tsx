@@ -25,6 +25,7 @@ import { XPostSource, xPostReady, type XPostValue } from "./x-post-source";
 import { XBuzzSearch } from "./x-buzz-search";
 import type { XSearchQuota } from "@/lib/sns/x/search";
 import { StyleNotice } from "@/components/posts/style-notice";
+import { DisclosureBox } from "@/components/ui/disclosure";
 
 const PERIOD_LABEL: Record<IdeaPeriod, string> = { 3: "3 日", 7: "1 週間", 14: "2 週間", 30: "1 か月" };
 
@@ -758,11 +759,9 @@ function IdeaCard({
       </div>
 
       {notes.length > 0 && (
-        <details className="text-sm">
-          <summary className="cursor-pointer text-[13px] text-muted">
-            元にしたメモ（{notes.length} 件{notes.some((n) => n.photo) && "。写真は下書きに添えます"}）
-          </summary>
-          <ul className="mt-2 flex flex-col gap-1.5 leading-[1.7]">
+        <DisclosureBox label="元にしたメモを表示" count={notes.length} className="text-sm">
+          {notes.some((n) => n.photo) && <p className="mb-1.5 text-[13px] text-muted">写真は下書きに添えます。</p>}
+          <ul className="flex flex-col gap-1.5 leading-[1.7]">
             {notes.map((n) => (
               <li key={n.id} className="break-words whitespace-pre-wrap">
                 {n.body}
@@ -770,13 +769,12 @@ function IdeaCard({
               </li>
             ))}
           </ul>
-        </details>
+        </DisclosureBox>
       )}
 
       {idea.commits.length > 0 && (
-        <details className="text-sm">
-          <summary className="cursor-pointer text-[13px] text-muted">元にしたコミット（{idea.commits.length} 件）</summary>
-          <ul className="mt-2 flex flex-col gap-1.5 leading-[1.7]">
+        <DisclosureBox label="元にしたコミットを表示" count={idea.commits.length} className="text-sm">
+          <ul className="flex flex-col gap-1.5 leading-[1.7]">
             {idea.commits.map((c) => (
               <li key={c.sha}>
                 {c.note}{" "}
@@ -786,7 +784,7 @@ function IdeaCard({
               </li>
             ))}
           </ul>
-        </details>
+        </DisclosureBox>
       )}
 
       {quote && (

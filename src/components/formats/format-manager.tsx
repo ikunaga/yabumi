@@ -53,6 +53,7 @@ import { FormatImageFields } from "@/components/posts/format-image-fields";
 import { Choice } from "@/components/posts/maker-parts";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { EMPTY_IMAGE, cleanFormatImage, imageSummary } from "@/lib/post-formats/image";
+import { DisclosureBox } from "@/components/ui/disclosure";
 
 // フォーマットの画面（/projects/[id]/formats。2026-11-18 オーナーの了承で、投稿をつくるの中の畳んだ「フォーマットを管理」から移した）:
 // 作る（例から足す・AI とつくる・手で書く）、一覧（直す・これまでの回・削除する）。一覧の正はサーバー（操作のたびに返った一覧に入れ替える）。
@@ -367,16 +368,14 @@ export function FormatTagsFields({
           ))}
         </div>
       )}
-      <details className="text-xs" open={perSns.some((k) => (tags[k] ?? "").trim() !== "")}>
-        <summary className="cursor-pointer text-muted">SNS ごとに変える</summary>
-        <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-2 max-sm:grid-cols-1">{shown.map(field)}</div>
+      <DisclosureBox label="SNS ごとのハッシュタグを表示" className="text-xs" open={perSns.some((k) => (tags[k] ?? "").trim() !== "")}>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-2 max-sm:grid-cols-1">{shown.map(field)}</div>
         {rest.length > 0 && (
-          <details className="mt-2" open={rest.some((k) => (tags[k] ?? "").trim() !== "")}>
-            <summary className="cursor-pointer text-muted">つないでいない SNS（{rest.map((k) => hashtagKeyLabel(k)).join("・")}）</summary>
-            <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-2 max-sm:grid-cols-1">{rest.map(field)}</div>
-          </details>
+          <DisclosureBox label="つないでいない SNS を表示" count={rest.length} className="mt-2" open={rest.some((k) => (tags[k] ?? "").trim() !== "")}>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-2 max-sm:grid-cols-1">{rest.map(field)}</div>
+          </DisclosureBox>
         )}
-      </details>
+      </DisclosureBox>
       <span className="text-xs text-muted">{footnote}</span>
     </fieldset>
   );
@@ -450,10 +449,9 @@ function FormatAiMaker({ projectId, kinds, onPick, onCancel }: { projectId: stri
                 <p className="rounded-md bg-surface2 px-3 py-2 text-[13px] leading-[1.7] whitespace-pre-wrap">{p.body}</p>
                 {p.why && <p className="text-xs leading-[1.7] text-muted">{p.why}</p>}
                 {p.example && (
-                  <details className="text-xs">
-                    <summary className="cursor-pointer text-muted">埋めた例を見る</summary>
-                    <p className="mt-1.5 text-[13px] leading-[1.7] whitespace-pre-wrap">{p.example}</p>
-                  </details>
+                  <DisclosureBox label="埋めた例を表示" className="text-xs">
+                    <p className="text-[13px] leading-[1.7] whitespace-pre-wrap">{p.example}</p>
+                  </DisclosureBox>
                 )}
               </li>
             ))}
@@ -582,15 +580,16 @@ function SeriesRounds({ projectId, format, open = false }: { projectId: string; 
   }, []);
   const answerName = format.series.answer?.name || DEFAULT_ANSWER_NAME;
   return (
-    <details
+    <DisclosureBox
+      label="シリーズのこれまでの回を表示"
+      count={rounds ? `${rounds.length} / ${MAX_ROUNDS}` : undefined}
       className="text-xs"
       open={open || undefined}
       onToggle={(e) => {
         if ((e.currentTarget as HTMLDetailsElement).open && rounds === null && !pending) run(() => listFormatRounds(projectId, format.id));
       }}
     >
-      <summary className="cursor-pointer text-muted">シリーズのこれまでの回{rounds ? `（${rounds.length} / ${MAX_ROUNDS}）` : ""}</summary>
-      <div className="mt-1.5 flex flex-col gap-2">
+      <div className="flex flex-col gap-2">
         {rounds === null && !error && <p className="text-faint">読み込んでいます…</p>}
         {rounds && rounds.length === 0 && <p className="text-muted">まだありません。投稿をつくるで本文に入れると、ここに残ります。</p>}
         {rounds && rounds.length > 0 && (
@@ -645,6 +644,6 @@ function SeriesRounds({ projectId, format, open = false }: { projectId: string; 
         {note && <p className="font-semibold text-success">{note}</p>}
         {error && <p className="font-semibold text-danger">{error}</p>}
       </div>
-    </details>
+    </DisclosureBox>
   );
 }

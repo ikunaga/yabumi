@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { SCENE_YEN, photoModel, photoUnitYen } from "@/lib/ai/photo";
 import { formatPhotoTexts, hasUnfilled, type FormatImage } from "@/lib/post-formats/image";
 import type { FormatUse } from "../post-format-picker";
+import { DisclosureBox } from "@/components/ui/disclosure";
 
 // ③ 画像の上の帯: 選んでいる投稿のフォーマットに画像の設定があれば、穴の言葉を入れた絵の説明と「つくる」を出す（docs/design/format-image.md の 2.1）。
 // 押したときだけ費用がかかる（オーナーの了承 F2）。「自分で場面を書く」は、絵の説明を入れて画像をつくる画面を開くだけ
@@ -25,11 +26,10 @@ export function FormatImageBand({
   return (
     <div className="flex flex-col gap-2 rounded-md border border-line px-4 py-3 text-[13px] max-sm:px-3">
       <p className="font-bold">フォーマット「{format.name}」の画像</p>
-      <details>
-        <summary className="cursor-pointer text-xs text-muted">絵の説明を見る</summary>
-        <p className="mt-1.5 rounded-md bg-surface2 px-3 py-2 leading-[1.7] whitespace-pre-wrap">{texts.text}</p>
+      <DisclosureBox label="絵の説明を表示">
+        <p className="rounded-md bg-surface2 px-3 py-2 leading-[1.7] whitespace-pre-wrap">{texts.text}</p>
         {texts.headline && <p className="mt-1 text-xs text-muted">重ねる見出し: {texts.headline}</p>}
-      </details>
+      </DisclosureBox>
       {left && <p className="text-xs leading-[1.7]"><span className="mr-1.5 font-bold text-signal">● 要確認</span>【】のところは、「1 書く」でフォーマットの空欄を埋めると入ります。</p>}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <Button type="button" size="sm" disabled={disabled || left} onClick={() => onMake(true, texts)}>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { hasToneBySns, isSplitBySns, pillarsBySns, pillarSnsLabel, type Pillar } from "@/lib/plan/pillars";
 import { SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
+import { DisclosureBox } from "@/components/ui/disclosure";
 
 export type PlanHintsData = {
   // コンセプトの 1 文（4.50。一番上に出す）。前の版のデータは空
@@ -26,17 +27,13 @@ export function PlanHints({ projectId, hints, sns = [] }: { projectId: string; h
   const toneRows = bySnsView ? [] : SNS_KEYS.filter((k) => (sns.length === 0 || sns.includes(k)) && toneBySns[k]?.trim());
 
   return (
-    <details className="group rounded-lg border border-border bg-surface text-sm">
-      <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-2.5 font-semibold">
-        <span aria-hidden className="text-muted transition-transform group-open:rotate-90">
-          ▸
-        </span>
-        設計を見返す（コンセプト・投稿の柱と口調）
-        <Link href={planHref} className="ml-auto shrink-0 text-xs font-semibold whitespace-nowrap text-primary hover:underline">
-          設計を編集
-        </Link>
-      </summary>
-      <div className="flex flex-col gap-2.5 border-t border-line px-4 py-3 leading-[1.7]">
+    <DisclosureBox label="設計を表示（コンセプト・柱・口調）" className="text-sm">
+      <div className="flex flex-col gap-2.5 leading-[1.7]">
+        {!empty && (
+          <Link href={planHref} className="self-end text-xs font-semibold text-primary hover:underline">
+            設計を編集
+          </Link>
+        )}
         {empty ? (
           <p className="text-muted">
             まだ設計がありません。
@@ -93,7 +90,7 @@ export function PlanHints({ projectId, hints, sns = [] }: { projectId: string; h
           </>
         )}
       </div>
-    </details>
+    </DisclosureBox>
   );
 }
 

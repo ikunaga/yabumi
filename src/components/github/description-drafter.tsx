@@ -7,6 +7,7 @@ import { ErrorBanner } from "@/components/ui/feedback";
 import { Field, Input, Textarea } from "@/components/ui/field";
 import type { AppDescriptionDraft } from "@/lib/ai/app-description";
 import { adoptDescription, draftDescription, refineDescription } from "@/lib/github/actions";
+import { DisclosureBox } from "@/components/ui/disclosure";
 
 // リポジトリを読んで AI が紹介文（どんなアプリ・サービスか）を下書きし、利用者が質問に答えたり直したりして採用する
 export function DescriptionDrafter({ projectId, aiEnabled, hasAudience }: { projectId: string; aiEnabled: boolean; hasAudience: boolean }) {
@@ -140,10 +141,9 @@ export function DescriptionDrafter({ projectId, aiEnabled, hasAudience }: { proj
           )}
 
           {filesRead.length > 0 && (
-            <details className="text-xs text-muted">
-              <summary className="cursor-pointer">AI が読んだファイル（{filesRead.length} 件）</summary>
-              <ul className="mt-1 break-all">{filesRead.map((f) => <li key={f}>{f}</li>)}</ul>
-            </details>
+            <DisclosureBox label="AI が読んだファイルを表示" count={filesRead.length}>
+              <ul className="text-xs break-all text-muted">{filesRead.map((f) => <li key={f}>{f}</li>)}</ul>
+            </DisclosureBox>
           )}
 
           <div className="flex flex-wrap gap-3">

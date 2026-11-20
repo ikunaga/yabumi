@@ -9,6 +9,7 @@ import { checkPostTexts } from "@/lib/ai/ai-check-actions";
 import { applyFix, FINDING_LABEL, type AiCheckFinding, type AiCheckResult, type CheckText } from "@/lib/ai/ai-check";
 import { overLimit } from "@/lib/ai/shorten";
 import { SNS, type SnsKey } from "@/lib/sns";
+import { DisclosureBox } from "@/components/ui/disclosure";
 
 type Props = {
   projectId: string;
@@ -48,15 +49,8 @@ export function AiCheckPanel({ projectId, aiEnabled, texts, onApply }: Props) {
 
   // 使わなくても送れるので、閉じて置く（開くとボタンと説明が出る）。見てもらったあとは開いたまま
   return (
-    <details className="group rounded-lg border border-border bg-surface text-sm">
-      <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-2.5 font-semibold">
-        <span aria-hidden className="text-muted transition-transform group-open:rotate-90">
-          ▸
-        </span>
-        <span id="ai-check-heading">送る前に AI に見てもらう</span>
-        <span className="ml-auto text-xs font-normal text-muted">1 回 5 円ほど</span>
-      </summary>
-      <section className="flex flex-col gap-3 border-t border-line px-4 py-3" aria-labelledby="ai-check-heading">
+    <DisclosureBox label="AI っぽさチェックを表示" className="text-sm" bodyClassName="mt-3">
+      <section className="flex flex-col gap-3" aria-label="AI っぽさチェック">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           {aiEnabled ? (
             <Button type="button" variant="secondary" size="sm" disabled={pending || !hasText} onClick={run}>
@@ -102,7 +96,7 @@ export function AiCheckPanel({ projectId, aiEnabled, texts, onApply }: Props) {
           </div>
         )}
       </section>
-    </details>
+    </DisclosureBox>
   );
 }
 

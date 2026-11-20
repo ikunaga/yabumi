@@ -16,6 +16,7 @@ import { IMAGE_SKIPPED_MESSAGE } from "@/lib/notes/draft";
 import { MAX_NOTE_CHARS, MAX_NOTES_FOR_IDEAS, type IdeaNote } from "@/lib/notes/rules";
 import { formatShort } from "@/lib/time";
 import { NoteForm } from "./note-form";
+import { DisclosureBox } from "@/components/ui/disclosure";
 
 type Tab = "unused" | "used";
 
@@ -444,14 +445,8 @@ function ShareHelp() {
     );
   }, [origin]);
   return (
-    <details className="group text-sm leading-[1.8]">
-      <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-muted hover:text-fg [&::-webkit-details-marker]:hidden">
-        <svg aria-hidden viewBox="0 0 12 12" className="size-3 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M4.5 3 7.5 6 4.5 9" />
-        </svg>
-        ほかのアプリから、ネタ帳に送るには
-      </summary>
-      <div className="mt-3 flex flex-col gap-3">
+    <DisclosureBox label="ほかのアプリからネタ帳に送る方法を表示" className="text-sm leading-[1.8]" bodyClassName="mt-3">
+      <div className="flex flex-col gap-3">
         <div>
           <p className="font-bold">Android</p>
           <p>
@@ -485,7 +480,7 @@ function ShareHelp() {
           </p>
         </div>
       </div>
-    </details>
+    </DisclosureBox>
   );
 }
 

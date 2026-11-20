@@ -7,6 +7,7 @@ import { Term } from "@/components/ui/term";
 import { KIND_DESCRIPTIONS, KIND_LABELS } from "@/lib/auto-post/labels";
 import { AUTO_KINDS, AUTO_KINDS_STAGE_A, type AutoKind } from "@/lib/auto-post/types";
 import type { SeriesFormatCard } from "@/lib/auto-post/ui-queries";
+import { DisclosureBox } from "@/components/ui/disclosure";
 
 // 自動の投稿の「1 何を」（docs/design/auto-post.md の 1.4。2026-11-18 オーナーの了承した見本 auto-post-step1-mock）。
 // 投稿のネタの出どころを 1 つ選ぶ（radio）。シリーズはフォーマットごとに 1 枚。おすすめは印だけで、初めから選んでおく。
@@ -215,18 +216,15 @@ export function KindPicker({
         })}
       </div>
       {soon.length > 0 && (
-        <details className="text-[14px] text-faint">
-          <summary className="cursor-pointer">
-            準備中のネタ（<span className="num">{soon.length}</span> つ）
-          </summary>
-          <ul className="mt-1.5 flex list-disc flex-col gap-0.5 pl-5">
+        <DisclosureBox label="準備中のネタを表示" count={soon.length}>
+          <ul className="flex list-disc flex-col gap-0.5 pl-5 text-[14px] text-muted">
             {soon.map((k) => (
               <li key={k}>
                 {KIND_LABELS[k]}：{KIND_DESCRIPTIONS[k as Exclude<AutoKind, "pillars">]}
               </li>
             ))}
           </ul>
-        </details>
+        </DisclosureBox>
       )}
     </div>
   );

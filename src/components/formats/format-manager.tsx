@@ -609,7 +609,7 @@ function ImageOnlySlots({
   return (
     <div className="flex flex-col gap-1.5 border-t border-line pt-2.5">
       <p className="font-bold">画像だけで使う空欄</p>
-      <p className="leading-[1.7] text-muted">本文には入らず、画像をつくるときだけ使う空欄です。画像の設定の、絵の説明と見出しで使います。毎回 AI が言葉を入れます。たとえば、答えを思わせるキーワードです。</p>
+      <p className="leading-[1.7] text-muted">本文には入らず、画像をつくるときだけ使う空欄です。画像の設定の、絵の説明と画像の文字で使います。毎回 AI が言葉を入れます。たとえば、答えを思わせるキーワードです。</p>
       {imageOnly.map((n) => (
         <div key={n} className="flex flex-col gap-1">
           <span className="flex items-center gap-2">
@@ -628,7 +628,7 @@ function ImageOnlySlots({
             className="min-h-[3.75rem] py-2 text-sm [field-sizing:content]"
           />
           {!usedInImage.includes(n) && (
-            <span className="font-semibold text-signal">● この空欄は、画像の絵の説明にも見出しにも入っていません。このままでは、AI が言葉を入れてもどこにも出ません。</span>
+            <span className="font-semibold text-signal">● この空欄は、絵の説明にも画像の文字にも入っていません。このままでは、AI が言葉を入れてもどこにも出ません。</span>
           )}
         </div>
       ))}

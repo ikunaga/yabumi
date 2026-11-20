@@ -14,6 +14,7 @@ import { loadTimeTrends } from "@/lib/metrics/time-trends";
 import { timeHintOf } from "@/lib/metrics/time-hint";
 import { connectedAccountNames, connectedAccounts, getPost, postTitle } from "@/lib/posts/queries";
 import { youtubeChoiceOf } from "@/lib/sns/youtube/consent";
+import { tiktokSentAsDraft } from "@/lib/sns/tiktok/consent";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { projectLinkBase } from "@/lib/links/domains";
 import { getProject } from "@/lib/projects/queries";
@@ -102,6 +103,9 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
   // YouTube に送るときに選んでいたもの（同意して保存した投稿を開き直したとき。サーバーだけが読める表なので、本人の投稿であることを確かめてから読む）
   const { data: claims } = await supabase.auth.getClaims();
   const youtubeChoice = post.targets.some((t) => t.sns === "youtube") && claims?.claims?.sub ? await youtubeChoiceOf(createAdminClient(), post.id, claims.claims.sub) : null;
+  // TikTok を下書き（受信箱）として送ったか（送信の結果の札を分ける）。URL のない送信済みのときだけ読む
+  const tiktokDraft =
+    post.targets.some((t) => t.sns === "tiktok" && t.status === "published" && !t.external_url) && claims?.claims?.sub ? await tiktokSentAsDraft(createAdminClient(), post.id, claims.claims.sub) : false;
   // 短縮リンクのチェックの状態: 本文に URL があるのに、送る前の配信先に短縮リンクがなければ、オフで保存したもの
   const hasUrl = [post.body, ...post.targets.map((t) => t.body_override ?? "")].some((t) => findLinkableUrls(t).length > 0);
   const shortLinks = !hasUrl || Object.keys(linkPreview).length > 0 || !post.targets.some((t) => t.status === "pending");
@@ -136,6 +140,7 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
                 ? { title: t.title, text: targetText(post.body, t), composeUrl: "https://studio.youtube.com/", downloads: youtubeDownloads }
                 : undefined,
         postedByHand: t.status === "published" && !t.external_post_id,
+        tiktokDraft: t.sns === "tiktok" && tiktokDraft,
         byHand: isByHand(t),
         removedOnSns: t.status === "deleted" && Boolean(t.sns_removed_at),
       },

@@ -42,10 +42,12 @@ describe("project_step_flags", () => {
   });
 
   it("送信済みの配信先があれば投稿済み（失敗・予約だけでは済みにしない）", async () => {
-    const { data: post } = await admin.from("posts").insert({ project_id: posted, owner_id: aliceId, body: "x", status: "scheduled", planned_at: "2026-10-20T00:00:00Z" }).select("id").single();
-    await admin.from("post_targets").insert({ post_id: post!.id, owner_id: aliceId, sns: "x", status: "failed" });
+    // 書き込みの失敗は、その場で落とす（2026-11-21 に全体のテストで 1 回だけ後ろの 2 件が落ちた。原因を追えるように）
+    const { data: post, error: postError } = await admin.from("posts").insert({ project_id: posted, owner_id: aliceId, body: "x", status: "scheduled", planned_at: "2026-10-20T00:00:00Z" }).select("id").single();
+    expect(postError).toBeNull();
+    expect((await admin.from("post_targets").insert({ post_id: post!.id, owner_id: aliceId, sns: "x", status: "failed" })).error).toBeNull();
     expect((await flags(alice)).get(posted)?.has_published).toBe(false);
-    await admin.from("post_targets").insert({ post_id: post!.id, owner_id: aliceId, sns: "threads", status: "published", published_at: "2026-10-20T00:00:00Z" });
+    expect((await admin.from("post_targets").insert({ post_id: post!.id, owner_id: aliceId, sns: "threads", status: "published", published_at: "2026-10-20T00:00:00Z" })).error).toBeNull();
     expect((await flags(alice)).get(posted)?.has_published).toBe(true);
   });
 
@@ -57,7 +59,7 @@ describe("project_step_flags", () => {
       { project_id: posted, owner_id: aliceId, title: "来週", week_start: "2026-10-26", status: "todo" },
     ]));
     expect(itemsError).toBeNull();
-    await admin.from("goals").insert({ project_id: fresh, owner_id: aliceId, statement: "SNS から 30 クリック", metric: "link_clicks", target: 30, starts_on: WEEK, ends_on: "2026-12-31" });
+    expect((await admin.from("goals").insert({ project_id: fresh, owner_id: aliceId, statement: "SNS から 30 クリック", metric: "link_clicks", target: 30, starts_on: WEEK, ends_on: "2026-12-31" })).error).toBeNull();
     const f = await flags(alice);
     expect(f.get(posted)).toMatchObject({ has_published: true, has_roadmap: true, this_week_todo: 2, this_week_done: 1 });
     expect(f.get(fresh)).toMatchObject({ has_published: false, has_roadmap: true, this_week_todo: 0, this_week_done: 0 });

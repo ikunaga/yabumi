@@ -98,3 +98,12 @@ export async function writeTikTokConsent(
   });
   if (e2) throw e2;
 }
+
+// 送った TikTok が下書き（受信箱。MEDIA_UPLOAD）だったか。投稿の画面の結果の札を分けるため（2026-11-21 PM の指示）。
+// post_target_tiktok はサーバーだけが読める表なので、本人の投稿の配信先であることを確かめてから読む（youtubeChoiceOf と同じ）
+export async function tiktokSentAsDraft(admin: SupabaseClient<Database>, postId: string, userId: string): Promise<boolean> {
+  const { data: t } = await admin.from("post_targets").select("id").eq("post_id", postId).eq("owner_id", userId).eq("sns", "tiktok").maybeSingle();
+  if (!t) return false;
+  const { data: s } = await admin.from("post_target_tiktok").select("post_mode").eq("post_target_id", t.id).eq("owner_id", userId).maybeSingle();
+  return s?.post_mode === "MEDIA_UPLOAD";
+}

@@ -17,7 +17,7 @@ import { GET, HEAD } from "@/app/tiktok-media/[file]/route";
 import { MEDIA_BUCKET } from "@/lib/media/rules";
 import { attachMedia, issueUpload, verifyUpload } from "@/lib/media/store";
 import { clearMediaTickets, cleanupExpiredTickets, hashTicketToken, issueMediaTickets } from "@/lib/sns/tiktok/media";
-import { writeTikTokConsent } from "@/lib/sns/tiktok/consent";
+import { tiktokSentAsDraft, writeTikTokConsent } from "@/lib/sns/tiktok/consent";
 import { consentHash } from "@/lib/sns/tiktok/send-check";
 import { withHashtags } from "@/lib/sns/hashtags";
 import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
@@ -133,6 +133,16 @@ describe("表の権限（利用者の権限では読めない・書けない）"
     expect((await alice.from("post_target_tiktok").insert(consent)).error).not.toBeNull();
     expect((await alice.from("post_target_tiktok").update({ privacy_level: "PUBLIC_TO_EVERYONE" }).eq("post_target_id", targetId).select()).data ?? []).toEqual([]);
     expect((await alice.from("tiktok_media_tickets").insert({ token_hash: "1".repeat(64), owner_id: aliceId, post_target_id: targetId, media_id: photo, expires_at: new Date().toISOString() })).error).not.toBeNull();
+  });
+
+  it("下書き（MEDIA_UPLOAD）として送ったかを、本人の投稿のときだけ読む（投稿の画面の札。2026-11-21）", async () => {
+    const postId = (await admin.from("post_targets").select("post_id").eq("id", targetId).single()).data!.post_id;
+    const consent = { post_target_id: targetId, owner_id: aliceId, privacy_level: "SELF_ONLY", consented_at: new Date().toISOString(), consent_text_hash: "0".repeat(64), consent_nickname: "こむぎ" };
+    expect((await admin.from("post_target_tiktok").upsert({ ...consent, post_mode: "MEDIA_UPLOAD" })).error).toBeNull();
+    expect(await tiktokSentAsDraft(admin, postId, aliceId)).toBe(true);
+    expect(await tiktokSentAsDraft(admin, postId, bobId)).toBe(false);
+    expect((await admin.from("post_target_tiktok").upsert({ ...consent, post_mode: "DIRECT_POST" })).error).toBeNull();
+    expect(await tiktokSentAsDraft(admin, postId, aliceId)).toBe(false);
   });
 
   it("ブランドコンテンツは「自分だけ」にできない（check）", async () => {

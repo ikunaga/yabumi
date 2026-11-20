@@ -27,6 +27,8 @@ export type TargetResult = {
   byHand?: boolean;
   // 手で投稿して記録したもの（SNS 上の投稿の ID がないので、yabumi からは取り消せない）
   postedByHand?: boolean;
+  // TikTok を下書き（受信箱。MEDIA_UPLOAD）として送った。札を「TikTok の下書きに送信済み」にする（2026-11-21）
+  tiktokDraft?: boolean;
   // yabumi の外（SNS の画面など）で消されていた。yabumi から取り消したときは false
   removedOnSns?: boolean;
 };
@@ -106,9 +108,13 @@ function ResultRow({ sns, r, projectId, postId, video }: { sns: SnsKey; r: Targe
             {/* TikTok の下書き（受信箱）と、TikTok の確かめが済む前の公開の投稿は、投稿の URL がない（docs/design/tiktok.md の 6. と 8.） */}
             <span className="text-muted">
               {sns === "tiktok" && !r.externalUrl && !r.postedByHand
-                ? r.publishedAt
-                  ? `${formatShort(r.publishedAt)} に送信`
-                  : "送信済み"
+                ? r.tiktokDraft
+                  ? r.publishedAt
+                    ? `${formatShort(r.publishedAt)} に TikTok の下書きへ送信`
+                    : "TikTok の下書きに送信済み"
+                  : r.publishedAt
+                    ? `${formatShort(r.publishedAt)} に送信`
+                    : "送信済み"
                 : r.publishedAt
                   ? `${formatShort(r.publishedAt)} に投稿`
                   : "送信済み"}

@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { loadActiveActions, type ActiveActions } from "@/lib/goals/load";
+import { loadActiveActions, loadGoals, type ActiveActions } from "@/lib/goals/load";
+import { goalRisk } from "@/lib/goals/risk";
 import { weeklyTargetsOf } from "@/lib/goals/schema";
 import { SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
 import type { Database } from "@/lib/supabase/database.types";
@@ -9,7 +10,7 @@ import { ITEM_COLUMNS, loadItemPostCounts, overdueItems, toItem, type ItemRow } 
 import { countsByWeek, parseTargets } from "./load";
 import { SETTLE_DAYS, hitText } from "@/lib/metrics/winners";
 import { loadWinners } from "@/lib/metrics/winners-queries";
-import { behindMessage, overdueMessage, unsubscribeHeaders, weeklyMessage, type MessageContext, type OverdueItem } from "./messages";
+import { behindMessage, overdueMessage, unsubscribeHeaders, weeklyMessage, type MessageContext, type OverdueItem, type WeeklyGoal } from "./messages";
 import { deliverCoachMessage, ensurePrefs, unsentOverdue, wants, type DeliverDeps, type DeliverResult, type Prefs } from "./notify";
 import { computeWeekPace, cycleInfo, CYCLE_WEEKS, hasTargets, isoWeekday, mondayOf, shouldNudgeBehind, streakWeeks, type SnsCounts, type WeeklyTargets } from "./pace";
 
@@ -64,6 +65,14 @@ async function newlyGrown(admin: Db, projectId: string, now: Date): Promise<{ ti
     console.error("[coach] 伸びた投稿を読めませんでした", e instanceof Error ? e.message : e);
     return null;
   }
+}
+
+// 毎週の振り返りに入れる目標の進み具合（数えている成果の KGI だけ。docs/design/goals-model.md の 13.3）。サーバーの権限でプロジェクトを絞って読む
+async function weeklyGoal(admin: Db, projectId: string, now?: Date): Promise<WeeklyGoal | null> {
+  const a = (await loadGoals(admin, projectId, now)).active;
+  const g = a?.goal;
+  if (!a || !g || g.metric === null || g.metric === "posts" || g.target === null || !g.endsOn || !a.progress?.available) return null;
+  return { statement: g.statement ?? "", metric: g.metric, value: a.progress.value, target: g.target, projected: a.progress.projected, endsOn: g.endsOn, risk: goalRisk(g, a.progress) };
 }
 
 export async function runCoachJob(
@@ -191,6 +200,7 @@ export async function runCoachJob(
           justEnded,
           lastWeekOverdue,
           grown: await newlyGrown(admin, t.projectId, opts.now ?? new Date()),
+          goal: await weeklyGoal(admin, t.projectId, opts.now),
         };
       }
     }

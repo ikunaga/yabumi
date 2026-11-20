@@ -151,7 +151,7 @@ async function pickSeries(admin: Db, plan: AutoPlan & { ownerId: string }, planD
   const format = formatId ? await getFormat(admin, plan.projectId, formatId) : null;
   if (!format || !isSeries(format.series)) return { none: true, reason: "no_material", detail: "シリーズのフォーマットが見つかりません" };
   const handSlots = formatSlots(format.body).filter((s) => !(s in format.series.slots));
-  if (handSlots.length) return { none: true, reason: "cannot_write", detail: "自分で埋める穴があるフォーマットは、自動では書けません" };
+  if (handSlots.length) return { none: true, reason: "cannot_write", detail: "自分で埋める空欄があるフォーマットは、自動では書けません" };
   const rounds = await listRounds(admin, format.id);
   const used = usedAnswerKeys(rounds);
   if (!format.series.answer) for (const r of rounds) used.add(answerKey(Object.keys(format.series.slots).map((n) => r.values[n] ?? "").join("|")));

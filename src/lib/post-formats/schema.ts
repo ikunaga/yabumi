@@ -114,10 +114,10 @@ export function formatSlots(body: string): string[] {
 // 本文の穴の決まり（8 種類まで・名前は 12 字まで・空の {} は置かない）。合っていれば null
 export function slotProblem(body: string): string | null {
   const raw = [...body.matchAll(SLOT)].map((m) => m[1].trim());
-  if (raw.some((n) => !n)) return "{ } の中に、穴の名前を入れてください";
-  if (raw.some((n) => [...n].length > MAX_SLOT_NAME)) return `穴の名前は ${MAX_SLOT_NAME} 字までです`;
-  if (formatSlots(body).length > MAX_FORMAT_SLOTS) return `穴は ${MAX_FORMAT_SLOTS} 種類までです`;
-  if (raw.length > MAX_FORMAT_SLOTS * 2) return `穴は ${MAX_FORMAT_SLOTS * 2} か所までです`;
+  if (raw.some((n) => !n)) return "{ } の中に、空欄の名前を入れてください";
+  if (raw.some((n) => [...n].length > MAX_SLOT_NAME)) return `空欄の名前は ${MAX_SLOT_NAME} 字までです`;
+  if (formatSlots(body).length > MAX_FORMAT_SLOTS) return `空欄は ${MAX_FORMAT_SLOTS} 種類までです`;
+  if (raw.length > MAX_FORMAT_SLOTS * 2) return `空欄は ${MAX_FORMAT_SLOTS * 2} か所までです`;
   return null;
 }
 

@@ -7,14 +7,14 @@ import { FORMAT_EXAMPLES, MAX_FORMAT_SLOTS, cleanSlotValues, fillFormat, formatI
 describe("穴の読み方", () => {
   it("出てくる順に、同じ名前は 1 つ。前後の空白は落とす", () => {
     expect(formatSlots("{何が}を{ いつから }に。また{何が}")).toEqual(["何が", "いつから"]);
-    expect(formatSlots("穴なし")).toEqual([]);
+    expect(formatSlots("空欄なし")).toEqual([]);
   });
 
   it("8 種類まで・名前は 12 字まで・空の {} は置かない", () => {
     expect(slotProblem("{a}{b}")).toBeNull();
-    expect(slotProblem(Array.from({ length: MAX_FORMAT_SLOTS + 1 }, (_, i) => `{穴${i}}`).join(""))).toMatch(/8 種類/);
+    expect(slotProblem(Array.from({ length: MAX_FORMAT_SLOTS + 1 }, (_, i) => `{空欄${i}}`).join(""))).toMatch(/8 種類/);
     expect(slotProblem("{あいうえおかきくけこさしす}")).toMatch(/12 字/);
-    expect(slotProblem("{}です")).toMatch(/穴の名前/);
+    expect(slotProblem("{}です")).toMatch(/空欄の名前/);
     // 同じ名前を重ねても 16 か所まで（DB の check と同じ）
     expect(slotProblem("{a}".repeat(17))).toMatch(/16 か所/);
   });

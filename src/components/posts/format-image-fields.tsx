@@ -104,12 +104,12 @@ export function FormatImageFields({
               ))}
             </select>
           )}
-          {image.prompt.includes("{場面}") && !names.includes("場面") && <span className="font-bold text-signal">{"{場面}"} を、上の穴（例: {`{${names[0] ?? "キーワード"}}`}）か言葉に書き換えてください</span>}
+          {image.prompt.includes("{場面}") && !names.includes("場面") && <span className="font-bold text-signal">{"{場面}"} を、上の空欄（例: {`{${names[0] ?? "キーワード"}}`}）か言葉に書き換えてください</span>}
           {usesAnswer(image.prompt, body, series) && <span className="text-muted">クイズでは、絵で答えがわかってしまうことがあります。</span>}
         </label>
 
         <fieldset className="flex min-w-0 flex-col gap-1.5">
-          <legend className="mb-1 font-bold">場面のつくり方</legend>
+          <legend className="mb-1 font-bold">絵の説明のつくり方</legend>
           <div className="flex flex-wrap gap-2">
             {IMAGE_SCENES.map((s) => (
               <Choice key={s} on={scene === s} onClick={() => !forcedAi && setImage({ ...image, scene: s })} className={forcedAi && s === "fill" ? "opacity-50" : ""}>
@@ -119,10 +119,10 @@ export function FormatImageFields({
           </div>
           <p className="leading-[1.7] text-muted">
             {forcedAi
-              ? "答えや AI が埋める穴を使っているので、AI が場面に書き換えます（作品の題名や登場人物をそのまま描かせないため）。"
+              ? "答えや、AI が埋める空欄を使うので、「AI が絵の説明を書く」に決まっています。作品の題名や登場人物を、そのまま描かないためです。"
               : scene === "ai"
-                ? "穴の言葉と絵の説明から、AI が画像の AI に渡す場面を書きます。"
-                : "穴の言葉を入れた絵の説明を、そのまま画像の AI に渡します。"}
+                ? `空欄の言葉から、AI が描く場面を考えて書きます（例: 苺・雪・朝 →「雪の朝、窓辺に置いた苺のケーキ」）。作品の題名や登場人物を、そのまま描かないためです。1 枚あたり約 ${SCENE_YEN.one[0]}〜${SCENE_YEN.one[1]} 円ふえます。`
+                : "空欄の言葉を入れた絵の説明を、そのまま画像の AI に渡します。"}
           </p>
         </fieldset>
 
@@ -164,14 +164,14 @@ export function FormatImageFields({
               value={image.headline}
               maxLength={MAX_IMAGE_HEADLINE}
               onChange={(e) => setImage({ ...image, headline: e.target.value })}
-              placeholder="例: 連想映画クイズ（{ } で穴も使えます）"
+              placeholder="例: 連想映画クイズ（{ } で空欄も使えます）"
               className="py-2 text-sm"
             />
           )}
         </fieldset>
 
         <p className="leading-[1.7] text-muted">
-          つくるときに 1 枚 約 {unit} 円{scene === "ai" ? `（AI が場面に書き換えるので、合わせて 約 ${unit + SCENE_YEN.one[0]}〜${unit + SCENE_YEN.one[1]} 円）` : ""}。「つくる」を押したときだけかかります。
+          つくるときに 1 枚 約 {unit} 円{scene === "ai" ? `（AI が絵の説明を書くので、合わせて 約 ${unit + SCENE_YEN.one[0]}〜${unit + SCENE_YEN.one[1]} 円）` : ""}。「つくる」を押したときだけかかります。
         </p>
       </div>
     </details>

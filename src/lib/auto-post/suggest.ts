@@ -10,7 +10,7 @@ import type { AutoKind, AutoSchedule } from "./types";
 export type SuggestMaterials = {
   unusedNotes: number; // ネタ帳の使っていないメモ
   unusedPhotoNotes: number; // そのうち写真つき
-  seriesFormats: number; // AI の穴があるシリーズのフォーマット
+  seriesFormats: number; // AI が埋める空欄があるシリーズのフォーマット
   destinations: number; // 行き先の URL
 };
 

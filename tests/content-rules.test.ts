@@ -63,11 +63,11 @@ describe("書く中身の決まり", () => {
   });
 
   it("投稿のフォーマット（実装担当2）と食い違わない: 型と穴の言葉は材料で、空の穴は【穴の名前】のまま。型の決まった言葉に事実を作らない", () => {
-    expect(CONTENT_RULES).toContain("投稿のフォーマット（型と穴に入れた言葉）");
-    expect(TIDY_DRAFT_SYSTEM).toContain("空の穴は【穴の名前】のまま残し、中身を作らない");
+    expect(CONTENT_RULES).toContain("投稿のフォーマット（型と空欄に入れた言葉）");
+    expect(TIDY_DRAFT_SYSTEM).toContain("埋まっていない空欄は【空欄の名前】のまま残し、中身を作らない");
     const req = buildTidyRequest(ctx, "", undefined, { name: "今週のパン", body: "今週は{何が}を焼きます。{いつ}に並びます。", values: { 何が: "カンパーニュ" } });
     expect(JSON.stringify(req.messages)).toContain("【いつ】のまま残す");
-    expect(POST_FORMAT_SYSTEM).toContain("穴の外の言葉は、その型で書くすべての投稿にそのまま入る。材料にない事実");
+    expect(POST_FORMAT_SYSTEM).toContain("空欄の外の言葉は、その型で書くすべての投稿にそのまま入る。材料にない事実");
   });
 
   it("【】で空けられない文（画像の文字・紹介文・自己紹介文）では【】を使わず、書かないか質問する", () => {

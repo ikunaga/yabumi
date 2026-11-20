@@ -127,7 +127,7 @@ export function WinnersScreen({
                       </Link>
                     ) : !w.formatSeries ? (
                       <Link href={`${base}/formats`} className="font-bold underline">
-                        AI が埋める穴を決めると、自動で回せます →
+                        AI が埋める空欄を決めると、自動で回せます →
                       </Link>
                     ) : null}
                   </p>
@@ -176,12 +176,12 @@ export function WinnersScreen({
                       <p className="rounded-md bg-surface2 px-3 py-2 text-[13px] leading-[1.7] whitespace-pre-wrap">{p.body}</p>
                       {p.why && <p className="text-xs leading-[1.7] text-muted">{p.why}</p>}
                       {auto ? (
-                        <p className="text-xs leading-[1.7] text-muted">穴はどれも、毎回 AI が埋めます（{Object.entries(p.series.slots).map(([k, v]) => `{${k}}: ${v}`).join("　")}）</p>
+                        <p className="text-xs leading-[1.7] text-muted">空欄はどれも、毎回 AI が埋めます（{Object.entries(p.series.slots).map(([k, v]) => `{${k}}: ${v}`).join("　")}）</p>
                       ) : (
                         <p className="text-xs leading-[1.7] text-muted">
                           {result.fit === "auto"
-                            ? "AI が毎回埋める指示がそろっていない穴があるので、投稿をつくるときに自分で埋める型にしました。保存したあと、フォーマットの画面で穴ごとに「AI が埋める」を決めると、自動の投稿に使えます。"
-                            : "穴の中身はあなたしか知らないこと（値段・日付など）なので、投稿をつくるときに自分で埋めます。自動の投稿には使えません。"}
+                            ? "AI が毎回埋める指示がそろっていない空欄があるので、投稿をつくるときに自分で埋める型にしました。保存したあと、フォーマットの画面で空欄ごとに「AI が埋める」を決めると、自動の投稿に使えます。"
+                            : "空欄の中身はあなたしか知らないこと（値段・日付など）なので、投稿をつくるときに自分で埋めます。自動の投稿には使えません。"}
                         </p>
                       )}
                       {p.example && (

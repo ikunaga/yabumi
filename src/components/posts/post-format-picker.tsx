@@ -141,7 +141,7 @@ export function PostFormatPicker({
   return (
     <section aria-label="フォーマットから" className="flex min-w-0 flex-col gap-2.5 border-t border-line pt-3.5">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <p className="text-[14px] text-muted">いつもの型を選んで、穴を埋めます</p>
+        <p className="text-[14px] text-muted">いつもの型を選んで、空欄を埋めます</p>
         {/* 書きかけは控え（tab-drafts）に残るので、戻ると続きから書ける */}
         <Link href={formatsHref} className="text-[14px] font-bold text-fg underline">
           フォーマットを作る・編集 →
@@ -173,7 +173,7 @@ export function PostFormatPicker({
                   {isSeries(f.series) && <Badge>シリーズ</Badge>}
                 </span>
                 <span className="line-clamp-2 text-xs text-muted">
-                  {isSeries(f.series) ? "AI に次の回を出してもらえます" : f.purpose || (fSlots.length ? fSlots.join("・") : "穴なし")}
+                  {isSeries(f.series) ? "AI に次の回を出してもらえます" : f.purpose || (fSlots.length ? fSlots.join("・") : "空欄なし")}
                 </span>
               </button>
             );
@@ -237,7 +237,7 @@ export function PostFormatPicker({
                 <label key={s} className="flex min-w-0 flex-col gap-1">
                   <span className="text-xs font-bold">
                     {s}
-                    {s in selected.series.slots && <span className="ml-1.5 font-normal text-muted">AI が埋める穴・編集できます</span>}
+                    {s in selected.series.slots && <span className="ml-1.5 font-normal text-muted">AI が埋める空欄・編集できます</span>}
                   </span>
                   <Textarea
                     rows={1}
@@ -362,7 +362,7 @@ function SeriesNextRound({
             </span>
             {error}{" "}
             <HelpTip label="案が出なかったわけ">
-              AI の案が、どれも前の回と重なっていたか、穴の決まり（言葉の数など）に合わなかったので、除きました。AI はもう使ったので、今日の {SERIES_DAILY_RUNS} 回のうち 1 回に数えています。
+              AI の案が、どれも前の回と重なっていたか、空欄の決まり（言葉の数など）に合わなかったので、除きました。AI はもう使ったので、今日の {SERIES_DAILY_RUNS} 回のうち 1 回に数えています。
             </HelpTip>
           </p>
         ) : (
@@ -379,7 +379,7 @@ function SeriesNextRound({
           {!failedOnce && dropped > 0 && proposals.length < ROUND_PROPOSALS && (
             <p className="text-xs leading-[1.7] text-muted">
               前の回と重なる案を除いたので、案は {proposals.length} つです{left !== null ? `（今日はあと ${left} 回）` : ""}。{" "}
-              <HelpTip label="案が少ないわけ">前の回と重なる案や、穴の決まり（言葉の数など）に合わない案を除きました。「ほかの案を出してもらう」も、1 回に数えます。</HelpTip>
+              <HelpTip label="案が少ないわけ">前の回と重なる案や、空欄の決まり（言葉の数など）に合わない案を除きました。「ほかの案を出してもらう」も、1 回に数えます。</HelpTip>
             </p>
           )}
           <ul className="flex flex-col gap-2">

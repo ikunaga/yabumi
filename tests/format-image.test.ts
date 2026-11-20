@@ -26,9 +26,9 @@ describe("保存の形（cleanFormatImage）", () => {
   });
 
   it("型の文にない穴・空の {} は断る。長すぎる絵の説明・見出しも断る", () => {
-    expect(cleanFormatImage({ ...base, prompt: "{ない穴}の机" }, BODY, SERIES).problem).toContain("{ない穴}");
-    expect(cleanFormatImage({ ...base, headline: "{ない穴}" }, BODY, SERIES).problem).toContain("{ない穴}");
-    expect(cleanFormatImage({ ...base, prompt: "{}の机" }, BODY, SERIES).problem).toContain("穴の名前");
+    expect(cleanFormatImage({ ...base, prompt: "{ない空欄}の机" }, BODY, SERIES).problem).toContain("{ない空欄}");
+    expect(cleanFormatImage({ ...base, headline: "{ない空欄}" }, BODY, SERIES).problem).toContain("{ない空欄}");
+    expect(cleanFormatImage({ ...base, prompt: "{}の机" }, BODY, SERIES).problem).toContain("空欄の名前");
     expect(cleanFormatImage({ ...base, prompt: "あ".repeat(601) }, BODY, SERIES).problem).toContain("600");
     expect(cleanFormatImage({ ...base, headline: "あ".repeat(41) }, BODY, SERIES).problem).toContain("40");
     // シリーズでなければ答えは使えない
@@ -58,13 +58,13 @@ describe("埋め方", () => {
     expect(hasUnfilled("ローマの休日と【ひとこと】")).toBe(true);
     expect(hasUnfilled("ローマの休日")).toBe(false);
     // 答えの名前が型の文の穴と同じなら、穴の言葉を先に使う
-    expect(fillImageText("{映画}", { 映画: "穴の言葉" }, answer)).toBe("穴の言葉");
+    expect(fillImageText("{映画}", { 映画: "空欄に入れた言葉" }, answer)).toBe("空欄に入れた言葉");
   });
 
   it("DB から読んだ値をそろえ、一覧の 1 行を作る", () => {
     expect(readFormatImage({})).toBeNull();
     const img = readFormatImage({ ...base, scene: "ai", headline: "連想映画クイズ" })!;
-    expect(imageSummary(img)).toBe("画像: イラスト・AI が場面に書き換える・見出しあり");
+    expect(imageSummary(img)).toBe("画像: イラスト・AI が絵の説明を書く・見出しあり");
     expect(imageSummary({ ...img, style: "photo", scene: "fill", headline: null })).toBe("画像: 写真");
   });
 });

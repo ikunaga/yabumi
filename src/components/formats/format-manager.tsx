@@ -106,7 +106,7 @@ export function FormatManager({
   return (
     <div className="flex flex-col gap-3 text-sm">
         <p className="text-[14px] leading-[1.7] text-muted">
-          くり返し出す投稿の型です。投稿をつくるの「フォーマットから」で使います。本文に {"{何が}"} のように穴を置くと、投稿をつくるときに穴ごとの欄が出ます（{MAX_FORMAT_SLOTS} 種類まで。<span className="num">{formats.length}</span> / {MAX_POST_FORMATS}）。
+          くり返し出す投稿の型です。投稿をつくるの「フォーマットから」で使います。本文に {"{何が}"} のように空欄を置くと、投稿をつくるときに空欄ごとの欄が出ます（{MAX_FORMAT_SLOTS} 種類まで。<span className="num">{formats.length}</span> / {MAX_POST_FORMATS}）。
         </p>
         {formats.length > 0 && (
           <ul className="flex flex-col divide-y divide-line">
@@ -255,19 +255,19 @@ export function FormatEditor({
       <label className="flex flex-col gap-1">
         <span className="text-xs font-bold">本文</span>
         <Textarea value={v.body} maxLength={MAX_FORMAT_BODY} rows={4} onChange={(e) => set("body", e.target.value)} placeholder={"例: 【新メニュー】{何が}\n{いつから}から、{いくら}でお出しします。"} className="py-2 text-sm" />
-        <span className="text-xs text-muted">{slots.length ? `穴: ${slots.join("・")}` : "{ } で囲んだところが穴になります"}</span>
+        <span className="text-xs text-muted">{slots.length ? `空欄: ${slots.join("・")}` : "{ } で囲んだところが空欄になります"}</span>
       </label>
       {/* 毎回 AI に変えてもらう（シリーズ）は本文のすぐ下に出す（前はいちばん下に畳まれていて見つからなかった。パワポの 1・3・8） */}
       {slots.length > 0 ? (
         <SeriesFields slots={slots} series={series} setSeries={(x) => (setSeries(x), setProblem(null))} />
       ) : (
-        <p className="text-xs text-muted">{"{ }"} で囲んだところ（穴）を置くと、毎回 AI に変えてもらう設定ができます。</p>
+        <p className="text-xs text-muted">{"{ }"} で囲んだところ（空欄）を置くと、毎回 AI に変えてもらう設定ができます。</p>
       )}
       <label className="flex flex-col gap-1">
         <span className="text-xs font-bold">
           埋めた例<span className="ml-1.5 font-normal text-muted">任意</span>
         </span>
-        <Textarea value={v.example} maxLength={MAX_FORMAT_EXAMPLE} rows={3} onChange={(e) => set("example", e.target.value)} placeholder="穴を埋めた投稿の例。何を書けばいいかの手がかりになります" className="py-2 text-sm" />
+        <Textarea value={v.example} maxLength={MAX_FORMAT_EXAMPLE} rows={3} onChange={(e) => set("example", e.target.value)} placeholder="空欄を埋めた投稿の例。何を書けばいいかの手がかりになります" className="py-2 text-sm" />
       </label>
       {pillars.length > 0 && (
         <label className="flex flex-col gap-1">
@@ -481,7 +481,7 @@ function SeriesFields({ slots, series, setSeries }: { slots: string[]; series: F
       </p>
       <div className="flex flex-col gap-2.5">
         <p className="leading-[1.7] text-muted">
-          {"{ }"} で囲んだところ（穴）のうち、毎回ちがう言葉にしたいものを選びます。投稿をつくるときに、前の回と重ならない言葉を AI が考えます（例: 連想映画クイズの映画とキーワード）。こうしたフォーマットを「シリーズ」と呼びます。
+          {"{ }"} で囲んだところ（空欄）のうち、毎回ちがう言葉にしたいものを選びます。投稿をつくるときに、前の回と重ならない言葉を AI が考えます（例: 連想映画クイズの映画とキーワード）。こうしたフォーマットを「シリーズ」と呼びます。
         </p>
         {slots.map((name) => {
           const ai = name in series.slots;

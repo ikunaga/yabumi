@@ -176,11 +176,11 @@ export async function runFormatPhotoScene(
   const format = await getFormat(user, args.projectId, args.formatId);
   if (!format) return { ok: false, message: "フォーマットが見つかりません。画面を読み込み直してください。" };
   const img = format.image;
-  if (!img || img.scene !== "ai") return { ok: false, message: "このフォーマットには、AI が場面に書き換える画像の設定がありません。" };
+  if (!img || img.scene !== "ai") return { ok: false, message: "このフォーマットには、AI が絵の説明を書く画像の設定がありません。" };
   const name = answerSlotName(format.series);
   const answer = cleanAnswer(args.answer);
   const filled = fillImageText(img.prompt, cleanSlotValues(format.body, args.values), name && answer ? { name, value: answer } : null);
-  if (hasUnfilled(filled)) return { ok: false, message: "絵の説明に、まだ埋まっていない穴（【】）があります。「1 書く」で穴を埋めて本文に入れてから押してください。" };
+  if (hasUnfilled(filled)) return { ok: false, message: "絵の説明に、まだ埋まっていない空欄（【】）があります。「1 書く」で空欄を埋めて本文に入れてから押してください。" };
   const { data: project } = await user.from("projects").select("*").eq("id", args.projectId).maybeSingle();
   if (!project) return { ok: false, message: "プロジェクトが見つかりません。" };
   const { data: planRow } = await user.from("account_plans").select("data").eq("project_id", args.projectId).maybeSingle();

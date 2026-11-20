@@ -30,7 +30,7 @@ export function FormatImageBand({
         <p className="mt-1.5 rounded-md bg-surface2 px-3 py-2 leading-[1.7] whitespace-pre-wrap">{texts.text}</p>
         {texts.headline && <p className="mt-1 text-xs text-muted">重ねる見出し: {texts.headline}</p>}
       </details>
-      {left && <p className="text-xs leading-[1.7]"><span className="mr-1.5 font-bold text-signal">● 要確認</span>【】のところは、「1 書く」でフォーマットの穴を埋めると入ります。</p>}
+      {left && <p className="text-xs leading-[1.7]"><span className="mr-1.5 font-bold text-signal">● 要確認</span>【】のところは、「1 書く」でフォーマットの空欄を埋めると入ります。</p>}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <Button type="button" size="sm" disabled={disabled || left} onClick={() => onMake(true, texts)}>
           つくる（1 枚・{cost}）

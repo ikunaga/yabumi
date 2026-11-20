@@ -318,7 +318,7 @@ export function PhotoMaker({
       {preset && (
         <p className="text-[13px] leading-[1.7]">
           <span className="font-bold">フォーマット「{preset.name}」の画像</span>
-          <span className="ml-1.5 text-muted">{preset.scene === "ai" ? `AI が絵の説明を場面に書き換えてからつくります（場面の分 約 ${SCENE_YEN.one[0]}〜${SCENE_YEN.one[1]} 円が足されます）` : "穴の言葉を入れた絵の説明でつくります"}</span>
+          <span className="ml-1.5 text-muted">{preset.scene === "ai" ? `AI が絵の説明を書いてからつくります（その分 約 ${SCENE_YEN.one[0]}〜${SCENE_YEN.one[1]} 円が足されます）` : "空欄の言葉を入れた絵の説明でつくります"}</span>
         </p>
       )}
       <PhotoTemplatePicker projectId={projectId} templates={templates} selectedId={templateId} onSelect={selectTemplate} />

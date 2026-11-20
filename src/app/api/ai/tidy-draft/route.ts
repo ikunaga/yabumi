@@ -24,7 +24,7 @@ const inputSchema = z.object({
   format: z
     .object({
       id: z.uuid(),
-      values: z.record(z.string().max(40), z.string().max(400)).refine((v) => Object.keys(v).length <= MAX_FORMAT_VALUE_KEYS, "穴の言葉が多すぎます"),
+      values: z.record(z.string().max(40), z.string().max(400)).refine((v) => Object.keys(v).length <= MAX_FORMAT_VALUE_KEYS, "空欄の言葉が多すぎます"),
     })
     .nullish(),
 });

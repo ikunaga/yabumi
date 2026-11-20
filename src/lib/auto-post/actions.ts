@@ -27,11 +27,11 @@ const FAILED = "うまくいきませんでした。時間をおいてもう一�
 const HINT_TEXT: Record<string, string> = {
   consent_required: "「AI が作った文を、確認せずに送ります」に同意してください。",
   legal_consent_missing: "利用規約とプライバシーポリシーに同意してから始めてください。",
-  auto_plans_limit: "自動の投稿は 1 つのプロジェクトに 10 個までです。使っていないものを消してください。",
+  auto_plans_limit: "自動投稿は 1 つのプロジェクトに 10 個までです。使っていないものを消してください。",
   project_events_limit: "予定は 1 つのプロジェクトに 50 件までです。終わった予定を消してください。",
   approval_expired: "送る時刻を過ぎたので、送れません。投稿の画面で日時を直してから予約してください。",
   content_changed: "確認したあとに文が変わりました。もう一度確認してください。",
-  auto_plan_operator_stop: "運営者がこのプロジェクトの自動の投稿を止めています。再開・作る・編集・消すはできません。問い合わせ先にご連絡ください。",
+  auto_plan_operator_stop: "運営者がこのプロジェクトの自動投稿を止めています。再開・作る・編集・消すはできません。問い合わせ先にご連絡ください。",
   // 運営者が利用者ごとに止めている（20261118100000_auto_post_holds）
   auto_post_hold: HOLD_REFUSED,
   auto_instructions_invalid: "指示は 1 つ 100 字まで・8 個までです（1 行で書いてください）。",
@@ -57,7 +57,7 @@ async function signedIn(): Promise<Db | null> {
 
 const uuid = z.uuid();
 const SIGN_IN = { ok: false as const, error: "ログインし直してください。" };
-const NO_PLAN = "自動の投稿が見つかりません。画面を読み込み直してください。";
+const NO_PLAN = "自動投稿が見つかりません。画面を読み込み直してください。";
 const NO_TARGET = "確認する投稿が見つかりません。画面を読み込み直してください。";
 
 // 作る・直す（保存のたびに同意が要る。直したら、まだ作っていない回は新しい設定で作り直す）。保存した id を返す。
@@ -259,7 +259,7 @@ export async function makeAutoSample(projectId: string, input: Omit<AutoPlanInpu
       fromSampleId: opts.fromSampleId,
     });
     if (!r.ok) {
-      if (r.reason === "ai_limit") return { ok: false, error: r.detail || "今月の自動の投稿の AI の枠を使い切りました。" };
+      if (r.reason === "ai_limit") return { ok: false, error: r.detail || "今月の自動投稿の AI の枠を使い切りました。" };
       return { ok: true, data: { sampleId: null, texts: {}, materialLabel: "", issues: [{ kind: r.reason, detail: r.detail }] } };
     }
     return { ok: true, data: { sampleId: r.sampleId, texts: r.texts, tags: r.tags, materialLabel: r.label, issues: r.issues } };

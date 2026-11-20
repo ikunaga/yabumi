@@ -17,7 +17,7 @@ import { SNS } from "@/lib/sns";
 import { getProject } from "@/lib/projects/queries";
 import { formatShort } from "@/lib/time";
 
-export const metadata: Metadata = { title: "自動の投稿" };
+export const metadata: Metadata = { title: "自動投稿" };
 
 const DAY_MS = 86_400_000;
 
@@ -45,7 +45,7 @@ export default async function AutoListPage(props: PageProps<"/projects/[id]/auto
   return (
     <div className="flex flex-col gap-5 max-sm:gap-4">
       <PageHeader
-        title="自動の投稿"
+        title="自動投稿"
         sub={plans.length > 0 ? (hold ? `${plans.length} 件・運営者が止めています` : `${plans.length} 件・動いている ${active} 件`) : undefined}
         help={
           <>
@@ -58,13 +58,13 @@ export default async function AutoListPage(props: PageProps<"/projects/[id]/auto
             {hold ? (
               // 運営者が止めている間は始められない（理由と問い合わせ先は上の帯）
               <Button type="button" disabled className="max-sm:w-full">
-                ＋ 自動の投稿をはじめる
+                ＋ 自動投稿をはじめる
               </Button>
             ) : full ? (
               <span className="text-sm text-muted">{MAX_AUTO_PLANS} 件までです</span>
             ) : (
               <ButtonLink href={`${base}/new`} className="max-sm:w-full">
-                ＋ 自動の投稿をはじめる
+                ＋ 自動投稿をはじめる
               </ButtonLink>
             )}
             {plans.length > 0 && <PauseAllButton projectId={project.id} activeCount={active} held={hold !== null} />}
@@ -73,7 +73,7 @@ export default async function AutoListPage(props: PageProps<"/projects/[id]/auto
       />
       {started === "1" && (
         <SuccessBanner>
-          自動の投稿をはじめました。
+          自動投稿をはじめました。
           {sample === "used"
             ? "テストでつくった投稿を 1 回目として送ります。"
             : sample === "failed"
@@ -121,9 +121,9 @@ export default async function AutoListPage(props: PageProps<"/projects/[id]/auto
       <Card className="overflow-hidden">
         {plans.length === 0 ? (
           <EmptyState
-            title="まだ自動の投稿はありません"
+            title="まだ自動投稿はありません"
             description="「何を」「どこに」「どのくらい」を選ぶだけで始められます。"
-            action={<ButtonLink href={`${base}/new`}>自動の投稿をはじめる</ButtonLink>}
+            action={<ButtonLink href={`${base}/new`}>自動投稿をはじめる</ButtonLink>}
           />
         ) : (
           <ul className="divide-y divide-border">
@@ -169,7 +169,7 @@ export default async function AutoListPage(props: PageProps<"/projects/[id]/auto
         <Link href={`${base}/events`} className="underline">
           お知らせ・季節の予定
         </Link>
-        （「お知らせ・季節」の自動の投稿の材料）
+        （「お知らせ・季節」の自動投稿の材料）
       </p>
     </div>
   );

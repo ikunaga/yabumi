@@ -389,13 +389,13 @@ export async function ownRecentPhotoJob(admin: Db, userId: string, jobId: string
 export function autoPhotoLimitMessage(status: string): string {
   switch (status) {
     case "attempt_limit":
-      return `自動の投稿の AI の画像は、1 日 ${AUTO_PHOTO_LIMITS.dailyAttempts} 回までです`;
+      return `自動投稿の AI の画像は、1 日 ${AUTO_PHOTO_LIMITS.dailyAttempts} 回までです`;
     case "global_limit":
-      return "今月の自動の投稿の AI の画像が、yabumi 全体の上限に達しました";
+      return "今月の自動投稿の AI の画像が、yabumi 全体の上限に達しました";
     case "new_users_limit":
-      return "登録して 7 日までの方が使える、今月の自動の投稿の AI の画像の枠がいっぱいになりました";
+      return "登録して 7 日までの方が使える、今月の自動投稿の AI の画像の枠がいっぱいになりました";
     default:
-      return `今月の自動の投稿の AI の画像は上限（1 人 ${AUTO_PHOTO_LIMITS.userMonthlyImages} 枚。登録して 7 日までは ${AUTO_PHOTO_LIMITS.newUserMonthlyImages} 枚）に達しました`;
+      return `今月の自動投稿の AI の画像は上限（1 人 ${AUTO_PHOTO_LIMITS.userMonthlyImages} 枚。登録して 7 日までは ${AUTO_PHOTO_LIMITS.newUserMonthlyImages} 枚）に達しました`;
   }
 }
 

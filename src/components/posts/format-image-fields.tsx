@@ -206,7 +206,7 @@ export function FormatImageFields({
               {/* 見出しの見た目（色・書体・置き方）。「文字を入れる」と同じ部品。自動の投稿も、この見た目でつくる */}
               <div className="flex flex-col gap-2 border-t border-line pt-3">
                 <span className="text-xs font-bold">見出しの見た目</span>
-                <span className="text-xs text-muted">このフォーマットの画像には、見出しがこの見た目で入ります。自動の投稿も同じです。投稿をつくるときは、あとから変えられます。</span>
+                <span className="text-xs text-muted">このフォーマットの画像には、見出しがこの見た目で入ります。自動投稿も同じです。投稿をつくるときは、あとから変えられます。</span>
                 <StyleFields style={image.look ?? defaultLook(projectId)} onStyle={(patch) => setImage({ ...image, look: { ...(image.look ?? defaultLook(projectId)), ...patch } })} showTextStyle />
               </div>
             </>

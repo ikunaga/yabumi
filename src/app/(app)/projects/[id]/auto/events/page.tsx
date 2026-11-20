@@ -19,12 +19,12 @@ export default async function AutoEventsPage(props: PageProps<"/projects/[id]/au
   return (
     <div className="flex flex-col gap-5 max-sm:gap-4">
       <Link href={`/projects/${project.id}/auto`} className="text-sm text-muted underline">
-        ← 自動の投稿
+        ← 自動投稿
       </Link>
       <PageHeader
         title="お知らせ・季節の予定"
         sub={events.length > 0 ? `${events.length} 件` : undefined}
-        help={<>「お知らせ・季節」の自動の投稿は、その回の日付に近い予定を、前日と当日の 2 回まで知らせます。予定がない回は、季節のあいさつをします（飛ばすこともできます）。</>}
+        help={<>「お知らせ・季節」の自動投稿は、その回の日付に近い予定を、前日と当日の 2 回まで知らせます。予定がない回は、季節のあいさつをします（飛ばすこともできます）。</>}
       />
       <EventsEditor projectId={project.id} initial={events} today={toYmd(new Date())} />
     </div>

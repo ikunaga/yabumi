@@ -434,7 +434,7 @@ function AutoMark({ show }: { show: boolean }) {
       <span aria-hidden className="mr-1 text-primary">
         ↻
       </span>
-      <span className="sr-only">自動の投稿・</span>
+      <span className="sr-only">自動投稿・</span>
     </>
   );
 }

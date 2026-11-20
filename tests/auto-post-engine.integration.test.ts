@@ -480,7 +480,7 @@ describe("状態の見直しと知らせ", () => {
     expect((await admin.from("auto_plans").select("status, stop_reason").eq("id", id).single()).data).toEqual({ status: "stopped", stop_reason: "fail_streak" });
     expect((await runOf(next)).status).toBe("canceled");
     expect((await admin.from("posts").select("status").eq("id", (await runOf(next)).post_id!).single()).data!.status).toBe("draft");
-    expect(push).toHaveBeenCalledWith(expect.anything(), aliceId, expect.objectContaining({ title: "自動の投稿を止めました" }));
+    expect(push).toHaveBeenCalledWith(expect.anything(), aliceId, expect.objectContaining({ title: "自動投稿を止めました" }));
   });
 
   it("材料切れが 3 回続いたら止める", async () => {

@@ -14,6 +14,7 @@ export const UI_WORD_RULES: UiWordRule[] = [
   { id: "okyaku", pattern: /お客さん/ },
   { id: "renkei", pattern: /連携|接続/ },
   { id: "zumi", pattern: /公開済み|投稿済み|送った投稿/ },
+  { id: "jidou", pattern: /自動の投稿/ },
   // 作る側の「1 回分の投稿」の意味の「回」。回数（1 回・毎回・2 回まで・回数）は使ってよい
   {
     id: "kai",

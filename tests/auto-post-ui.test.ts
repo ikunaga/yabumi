@@ -24,7 +24,7 @@ describe("scheduleText", () => {
 describe("メニューの「自動の投稿」", () => {
   it("「…」（その他）に出し、/auto 以下で選んでいる印を付ける", () => {
     const item = projectNavItems("p1").find((i) => i.key === "auto");
-    expect(item).toMatchObject({ label: "自動の投稿", barLabel: "Autopilot", href: "/projects/p1/auto", main: false });
+    expect(item).toMatchObject({ label: "自動投稿", barLabel: "Autopilot", href: "/projects/p1/auto", main: false });
     expect(activeNavKey("auto")).toBe("auto");
   });
 });
@@ -67,7 +67,7 @@ describe("「何を」のカード", () => {
   });
   it("メモの数には、使い切ったときの動きを添える", () => {
     const notes = kindCards({ ...empty, unusedNotes: 2, unusedPhotoNotes: 1 }, "p1", "/f").find((c) => c.key === "notes")!;
-    expect(notes.count).toBe("まだ使っていないメモ 2 件（写真つき 1）・使い切ったら自動の投稿は止まり、お知らせします");
+    expect(notes.count).toBe("まだ使っていないメモ 2 件（写真つき 1）・使い切ったら自動投稿は止まり、お知らせします");
   });
   it("選んだものの鍵は、シリーズだけフォーマットごとに分ける", () => {
     expect(choiceKey({ kind: "series", formatId: "f1" })).toBe("series:f1");

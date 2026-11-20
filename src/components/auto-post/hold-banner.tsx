@@ -18,9 +18,9 @@ export function AutoPostHoldBanner({ heldAt }: { heldAt: string }) {
 export function HeldNotice({ projectId }: { projectId: string }) {
   return (
     <div className="flex flex-col items-start gap-3 rounded-lg border border-border bg-surface px-6 py-5 max-sm:px-4">
-      <p className="text-[15px]">止めている間は、自動の投稿を作る・編集することはできません。</p>
+      <p className="text-[15px]">止めている間は、自動投稿を作る・編集することはできません。</p>
       <Link href={`/projects/${projectId}/auto`} className="text-sm text-muted underline">
-        ← 自動の投稿
+        ← 自動投稿
       </Link>
     </div>
   );

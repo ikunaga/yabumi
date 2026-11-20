@@ -81,7 +81,7 @@ export function kindCards(m: PickerMaterials, projectId: string, formatsHref: st
     title: KIND_LABELS.notes,
     description: KIND_DESCRIPTIONS.notes,
     count: m.unusedNotes
-      ? `まだ使っていないメモ ${m.unusedNotes} 件${m.unusedPhotoNotes ? `（写真つき ${m.unusedPhotoNotes}）` : ""}・使い切ったら自動の投稿は止まり、お知らせします`
+      ? `まだ使っていないメモ ${m.unusedNotes} 件${m.unusedPhotoNotes ? `（写真つき ${m.unusedPhotoNotes}）` : ""}・使い切ったら自動投稿は止まり、お知らせします`
       : undefined,
     off: m.unusedNotes ? undefined : { reason: "まだ使っていないメモがありません", href: `${base}/notes`, hrefLabel: "メモを書く" },
   });
@@ -140,7 +140,7 @@ export function KindPicker({
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
         <h2 className="text-[18px] font-bold">何を投稿する？</h2>
-        <p className="text-[14px] text-muted">投稿のネタをどこから作るかを、1 つ選びます。ほかのネタでも回したいときは、あとで自動の投稿をもう 1 つ作れます。</p>
+        <p className="text-[14px] text-muted">投稿のネタをどこから作るかを、1 つ選びます。ほかのネタでも回したいときは、あとで自動投稿をもう 1 つ作れます。</p>
       </div>
       {winners && winnersHref && (
         <Link

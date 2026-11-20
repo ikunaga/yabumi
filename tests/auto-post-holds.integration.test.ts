@@ -66,7 +66,7 @@ async function runWithPost(planId: string, projectId: string, opts: { status?: s
   if (error) throw error;
   const { data: post, error: e2 } = await admin
     .from("posts")
-    .insert({ project_id: projectId, owner_id: owner, body: `自動の投稿 ${randomUUID()}`, status: opts.postStatus ?? "scheduled", planned_at: dueAt, text_origin: "ai", auto_run_id: run!.id })
+    .insert({ project_id: projectId, owner_id: owner, body: `自動投稿 ${randomUUID()}`, status: opts.postStatus ?? "scheduled", planned_at: dueAt, text_origin: "ai", auto_run_id: run!.id })
     .select("id")
     .single();
   if (e2) throw e2;
@@ -305,13 +305,13 @@ describe("知らせ（ジョブ）", () => {
     expect(push).toHaveBeenCalledTimes(1);
     const [, user, msg] = push.mock.calls[0] as unknown as [unknown, string, { title: string; body: string }];
     expect(user).toBe(aliceId);
-    expect(msg.title).toBe("自動の投稿を止めました");
+    expect(msg.title).toBe("自動投稿を止めました");
     expect(JSON.stringify(msg)).not.toContain("秘密の理由");
     // 2 回目は送らない
     expect(await notifyHolds(admin, deps(), new Date(), scopeOpts())).toBe(0);
     await release();
     expect(await notifyHolds(admin, deps(), new Date(), scopeOpts())).toBe(1);
-    expect((push.mock.calls[1] as unknown as [unknown, string, { title: string }])[2].title).toBe("自動の投稿を再開できます");
+    expect((push.mock.calls[1] as unknown as [unknown, string, { title: string }])[2].title).toBe("自動投稿を再開できます");
     expect(await notifyHolds(admin, deps(), new Date(), scopeOpts())).toBe(0);
     await admin.from("auto_runs").update({ reminded_at: new Date().toISOString() }).eq("id", review.runId);
   });

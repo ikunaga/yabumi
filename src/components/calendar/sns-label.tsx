@@ -68,7 +68,7 @@ export function SnsLabel({
         </span>
       )}
       <span className="sr-only">
-        {auto ? "自動の投稿・" : ""}
+        {auto ? "自動投稿・" : ""}
         {s.label}
       </span>
       {time && <span className="num shrink-0 font-normal text-muted">{time}</span>}

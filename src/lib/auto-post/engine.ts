@@ -541,7 +541,7 @@ export async function reviewPlans(admin: Db, deps: EngineDeps, now: Date, opts: 
     if (!changed?.length) continue;
     stopped++;
     await stopUnsent(admin, p.id, now);
-    await notify(admin, deps, p.owner_id, { title: "自動の投稿を止めました", body: `「${p.name}」: ${STOP_REASON_TEXT[reason]}`, url: `/projects/${p.project_id}/auto`, tag: `auto-stop:${p.id}` });
+    await notify(admin, deps, p.owner_id, { title: "自動投稿を止めました", body: `「${p.name}」: ${STOP_REASON_TEXT[reason]}`, url: `/projects/${p.project_id}/auto`, tag: `auto-stop:${p.id}` });
   }
   return stopped;
 }
@@ -585,12 +585,12 @@ export function generatedMessage(rows: Pick<NotifyRow, "due_at" | "status" | "po
     const r = rows[0];
     const sns = (r.posts?.post_targets ?? []).map((t) => t.sns as SnsKey);
     const at = jstHm(new Date(r.due_at));
-    if (r.status === "held") return { title: "自動の投稿を下書きに回しました", body: `${at} の回（${labels(sns)}）。確認してから予約してください` };
-    if (r.status === "review") return { title: "自動の投稿: 最初の回を確認してください", body: `${at} に ${labels(sns)} に送ります。確認するまで送りません` };
+    if (r.status === "held") return { title: "自動投稿を下書きに回しました", body: `${at} の回（${labels(sns)}）。確認してから予約してください` };
+    if (r.status === "review") return { title: "自動投稿: 最初の回を確認してください", body: `${at} に ${labels(sns)} に送ります。確認するまで送りません` };
     const review = (r.posts?.post_targets ?? []).filter((t) => t.status === "awaiting_approval").map((t) => t.sns as SnsKey);
-    return { title: "自動の投稿を予約しました", body: `${at} に ${labels(sns)} に送ります${review.length ? `（${labels(review)} は確認が要ります）` : ""}` };
+    return { title: "自動投稿を予約しました", body: `${at} に ${labels(sns)} に送ります${review.length ? `（${labels(review)} は確認が要ります）` : ""}` };
   }
-  return { title: "自動の投稿を予約しました", body: `${rows.length} 件を作りました${waiting.length ? `（確認待ち ${waiting.length} 件）` : ""}${held.length ? `（下書きに回した ${held.length} 件）` : ""}` };
+  return { title: "自動投稿を予約しました", body: `${rows.length} 件を作りました${waiting.length ? `（確認待ち ${waiting.length} 件）` : ""}${held.length ? `（下書きに回した ${held.length} 件）` : ""}` };
 }
 
 export async function notifyMade(admin: Db, deps: EngineDeps, now: Date, opts: EngineOpts = {}): Promise<number> {
@@ -637,7 +637,7 @@ export async function remindApprovals(admin: Db, deps: EngineDeps, now: Date, op
     if (r.status !== "review" && !waiting.length) continue;
     const at = jstHm(new Date(r.due_at));
     await notify(admin, deps, r.owner_id, {
-      title: "自動の投稿が確認待ちです",
+      title: "自動投稿が確認待ちです",
       body: r.status === "review" ? `${at} の最初の回を、まだ確認していません` : `${at} に ${labels(waiting)} に送る投稿を、まだ確認していません`,
       url: `/projects/${r.project_id}/auto`,
       tag: `auto-remind:${r.id}`,
@@ -785,8 +785,8 @@ export type AdoptOutcome = { ok: true; status: AutoRunStatus; dueAt: string } | 
 export async function adoptSample(admin: Db, args: { ownerId: string; planId: string; sampleId: string; now?: Date }): Promise<AdoptOutcome> {
   const now = args.now ?? new Date();
   const { data: row } = await admin.from("auto_plans").select("*").eq("id", args.planId).eq("owner_id", args.ownerId).maybeSingle();
-  if (!row || row.status !== "active") return { ok: false, detail: "自動の投稿が見つかりません" };
-  if (await isAutoPostHeld(admin, args.ownerId)) return { ok: false, detail: "運営者が自動の投稿を止めています" };
+  if (!row || row.status !== "active") return { ok: false, detail: "自動投稿が見つかりません" };
+  if (await isAutoPostHeld(admin, args.ownerId)) return { ok: false, detail: "運営者が自動投稿を止めています" };
   const plan = { ...toPlan(row), ownerId: args.ownerId };
   // 1 回だけ使う（同時に押されても 1 つの回にしかならない）
   const { data: samples, error } = await admin

@@ -53,7 +53,7 @@ export default async function NotificationSettingsPage() {
               <CommentPrefsForm mode={data?.comment_push === "off" ? "off" : "daily"} />
             </Card>
             <Card className="overflow-hidden">
-              <CardHeader title="自動の投稿の通知" />
+              <CardHeader title="自動投稿の通知" />
               <AutoPostPrefsForm on={data?.auto_post_push ?? true} />
             </Card>
             <Card className="overflow-hidden">

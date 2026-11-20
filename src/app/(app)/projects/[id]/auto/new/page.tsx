@@ -10,7 +10,7 @@ import { getProject } from "@/lib/projects/queries";
 import { createClient } from "@/lib/supabase/server";
 import { wizardProps } from "../wizard-data";
 
-export const metadata: Metadata = { title: "自動の投稿をはじめる" };
+export const metadata: Metadata = { title: "自動投稿をはじめる" };
 
 // 自動の投稿を始める（docs/design/auto-post.md の 1.4・1.5）。「何を」「どこに」「どのくらい」を選び、見本と見込みを見て同意して始める。
 // 伸びた投稿から来たとき（?format=&post=。docs/design/winning-posts.md の 5.）は、そのフォーマットと、伸びた SNS・時間帯を選んでおく。

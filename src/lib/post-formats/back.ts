@@ -12,10 +12,10 @@ export function formatsBackHref(projectId: string, back: FormatsBack): string {
 // ?back= の値から、戻る先の道と文を作る。形が違えば null（戻るのリンクを出さない）
 export function readFormatsBack(projectId: string, raw: unknown): { href: string; label: string } | null {
   if (typeof raw !== "string") return null;
-  if (raw === "auto-new") return { href: `/projects/${projectId}/auto/new`, label: "自動の投稿を始める画面に戻る" };
+  if (raw === "auto-new") return { href: `/projects/${projectId}/auto/new`, label: "自動投稿を始める画面に戻る" };
   const m = /^(plan|plan-edit):(.+)$/.exec(raw);
   if (!m || !UUID.test(m[2])) return null;
   return m[1] === "plan"
-    ? { href: `/projects/${projectId}/auto/${m[2]}`, label: "自動の投稿に戻る" }
-    : { href: `/projects/${projectId}/auto/${m[2]}/edit`, label: "自動の投稿の編集に戻る" };
+    ? { href: `/projects/${projectId}/auto/${m[2]}`, label: "自動投稿に戻る" }
+    : { href: `/projects/${projectId}/auto/${m[2]}/edit`, label: "自動投稿の編集に戻る" };
 }

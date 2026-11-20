@@ -9,22 +9,22 @@ import type { Database } from "@/lib/supabase/database.types";
 type Db = SupabaseClient<Database>;
 
 // 画面と通知に出す文。理由は出さない（運営者のメモは、調べている途中のことや、ほかの人のことを含みうるため。理由は運営者がメールで伝える）
-export const HOLD_TITLE = "運営者が、自動の投稿を止めています";
+export const HOLD_TITLE = "運営者が、自動投稿を止めています";
 export function holdBody(heldAt: string): string {
   const d = new Date(new Date(heldAt).getTime() + 9 * 3_600_000);
   const date = `${d.getUTCFullYear()}年${d.getUTCMonth() + 1}月${d.getUTCDate()}日`;
-  return `${date}から、あなたのアカウントの自動の投稿を止めています。新しく作る・再開する・送ることはできません。問い合わせ先: ${orPending(LEGAL.contact)}`;
+  return `${date}から、あなたのアカウントの自動投稿を止めています。新しく作る・再開する・送ることはできません。問い合わせ先: ${orPending(LEGAL.contact)}`;
 }
 // DB が断ったときの文（actions.ts の HINT_TEXT）
-export const HOLD_REFUSED = `運営者が、あなたのアカウントの自動の投稿を止めています。新しく作る・再開する・送ることはできません。問い合わせ先: ${orPending(LEGAL.contact)}`;
+export const HOLD_REFUSED = `運営者が、あなたのアカウントの自動投稿を止めています。新しく作る・再開する・送ることはできません。問い合わせ先: ${orPending(LEGAL.contact)}`;
 
 export const HOLD_PUSH: Omit<PushMessage, "url" | "tag"> = {
-  title: "自動の投稿を止めました",
-  body: "運営者が、あなたのアカウントの自動の投稿を止めました。くわしくは問い合わせ先へ",
+  title: "自動投稿を止めました",
+  body: "運営者が、あなたのアカウントの自動投稿を止めました。くわしくは問い合わせ先へ",
 };
 export const RELEASE_PUSH: Omit<PushMessage, "url" | "tag"> = {
-  title: "自動の投稿を再開できます",
-  body: "運営者が止めていた自動の投稿を、また使えるようにしました。最初の回は確認してから送ります",
+  title: "自動投稿を再開できます",
+  body: "運営者が止めていた自動投稿を、また使えるようにしました。最初の回は確認してから送ります",
 };
 
 // 本人が、いま止められているか（利用者の権限。RLS で本人の行だけ、列は日時だけ読める）。止められていなければ null
@@ -85,5 +85,5 @@ export async function holdAutoPost(admin: Db, args: { email: string; reason: str
 export async function releaseAutoPost(admin: Db, args: { email: string; reason: string; by: string }): Promise<OperatorResult> {
   const { data, error } = await admin.rpc("operator_release_auto_post", { p_email: args.email, p_reason: args.reason, p_by: args.by });
   if (error) return { ok: false, error: operatorError(error) };
-  return data[0].released ? { ok: true, notice: "解除しました。動いている自動の投稿は、最初の回を確認してから送ります。" } : { ok: false, error: "この利用者は止めていません。" };
+  return data[0].released ? { ok: true, notice: "解除しました。動いている自動投稿は、最初の回を確認してから送ります。" } : { ok: false, error: "この利用者は止めていません。" };
 }

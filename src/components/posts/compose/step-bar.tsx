@@ -37,7 +37,7 @@ export function ComposeStepBar({ c }: { c: Composer }) {
   // ③ で画像も動画もないとき。画像（動画）が要る送り先を選んでいれば、名前を変えて注意を出す（付箋 15）
   const need = (issue: "needs_image" | "needs_video") => toSend.filter((s) => checks[s].issues.includes(issue)).map((s) => SNS[s].label);
   const imagesNext = composeStep === 3 ? imagesStepNext({ hasMedia: images.length > 0 || video !== null, needImage: need("needs_image"), needVideo: need("needs_video") }) : null;
-  const primary = imagesNext?.label ?? (composeStep === 4 && !hasLink ? "リンクなしで次へ" : `次へ（${nextLabel}）`);
+  const primary = imagesNext?.label ?? (composeStep === 4 && !hasLink ? "リンクなしで次へ" : `${nextLabel}へ進む`);
   const noteId = useId();
   return (
     <div

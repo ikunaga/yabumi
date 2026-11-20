@@ -308,7 +308,7 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
           {nextIndex > 1 ? `${nextIndex} 枚目をつくる` : "画像をつくる"}
         </h3>
         {nextIndex > 1 && instagram && first && (
-          <span className="text-xs text-muted">{`Instagram のカルーセルなら、1 枚目と同じ縦横（${TEMPLATE_SIZES[closestSize(first.width, first.height)].label}）にそろえます`}</span>
+          <span className="text-xs text-muted">{`Instagram に何枚か並べるときは、1 枚目と同じ縦横 ${TEMPLATE_SIZES[closestSize(first.width, first.height)].label} にそろえます`}</span>
         )}
         <Button type="button" variant="text" size="sm" className="ml-auto" onClick={onClose}>
           {added ? "閉じる" : "やめる"}
@@ -321,16 +321,16 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
             <span aria-hidden className="mr-1 font-bold text-success">
               ✓
             </span>
-            添えました（画像は {nextIndex - 1} 枚）。続けて {nextIndex} 枚目をつくれます
+            添えました。画像は {nextIndex - 1} 枚です。続けて {nextIndex} 枚目をつくれます
           </span>
-          {mode === "photo" && <span className="text-xs text-muted">絵の説明とフォーマットはそのまま。場面だけ変えると、同じ雰囲気でそろいます</span>}
+          {mode === "photo" && <span className="text-xs text-muted">フォーマットはそのままです。絵の説明だけ変えると、同じ雰囲気でそろいます</span>}
         </p>
       )}
 
       {/* つくり方は 2 つを同じ大きさで並べ、何ができて費用がかかるかを 1 行で添える（AI の写真がテンプレートの横の小さなタブで見つけにくかった。指摘 18） */}
       <div role="group" aria-label="つくり方" className="grid grid-cols-2 gap-2">
-        <ModeCard on={mode === "template"} onClick={() => setMode("template")} title="テンプレート" note="文字のカード・図解など（無料）" />
-        <ModeCard on={mode === "photo"} onClick={openPhoto} title="AI で写真・絵" note={`絵の説明から AI がつくる（1 枚 約 ${photoUnitYen(photoModel({}))} 円）`} />
+        <ModeCard on={mode === "template"} onClick={() => setMode("template")} title="ひな形に文字を入れる" note="文字のカードや図解をつくる。無料" />
+        <ModeCard on={mode === "photo"} onClick={openPhoto} title="AI で写真・絵" note={`絵の説明から AI がつくる。1 枚 約 ${photoUnitYen(photoModel({}))} 円`} />
       </div>
 
       {photoOpened && (
@@ -352,7 +352,6 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
               {/* スマホの幅では 2 行にする（1 行だと 320 幅で枠からはみ出す） */}
               <Button type="button" variant="secondary" size="sm" className="h-auto min-h-8 gap-0 py-1.5 max-sm:flex-col max-sm:items-start" disabled={adding} onClick={() => void addShotAsIs()}>
                 <span>文字を入れずにそのまま使う</span>
-                <span className="max-sm:text-xs max-sm:font-normal">（AI の画像を添える）</span>
               </Button>
             </div>
           )}
@@ -375,7 +374,7 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
             </div>
 
             <div className="flex min-w-0 flex-col gap-4 lg:order-1">
-              <Group label="種類" hint={TEMPLATE_KIND_HINT[kind]}>
+              <Group label="画像の種類" hint={TEMPLATE_KIND_HINT[kind]}>
                 {TEMPLATE_KINDS.map((k) => (
                   <Choice key={k} on={kind === k} onClick={() => setKind(k)}>
                     {TEMPLATE_KIND_LABEL[k]}
@@ -400,7 +399,7 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
                     </Button>
                     {shot && <span className="text-xs text-muted">{shot.bitmap.width}×{shot.bitmap.height}</span>}
                   </div>
-                  <p className="text-xs leading-[1.7] text-muted">選んだ写真は AI には送りません。添えるときは、あとで見出しを編集できるように元の写真も預かります（投稿に使わなければ 1 日で消えます）。{nextIndex > 1 && "添えた画像に見出しを付けるときは、その画像の行の「見出しを付ける」から付けられます。"}</p>
+                  <p className="text-xs leading-[1.7] text-muted">選んだ写真は、AI には送りません。添えるときは、元の写真も保存します。あとで画像の文字を編集するためです。投稿に使わなければ、1 日で消えます。{nextIndex > 1 && "画像に文字を入れるときは、下の画像の「画像の文字を付ける」を押してください。"}</p>
                 </div>
               )}
               {kind === "screen" && (
@@ -429,18 +428,18 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
                           {diagramStyle === "compare" ? (i === 0 ? "前" : "後") : `${i + 1} つ目`}
                           {diagramStyle !== "compare" && items.length > 1 && (
                             <button type="button" className="ml-auto font-normal text-muted hover:text-fg hover:underline" onClick={() => setItems((xs) => xs.filter((_, j) => j !== i))}>
-                              外す
+                              削除
                             </button>
                           )}
                         </div>
-                        <Input aria-label={`${i + 1} つ目の見出し`} placeholder="見出し（14 字まで）" value={it.title} maxLength={24} onChange={(e) => setItems((xs) => xs.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)))} className="py-2" />
-                        <Input aria-label={`${i + 1} つ目の説明`} placeholder="説明（36 字まで）" value={it.text} maxLength={60} onChange={(e) => setItems((xs) => xs.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)))} className="py-2" />
+                        <Input aria-label={`${i + 1} つ目の名前`} placeholder="項目の名前・14 字まで" value={it.title} maxLength={24} onChange={(e) => setItems((xs) => xs.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)))} className="py-2" />
+                        <Input aria-label={`${i + 1} つ目の説明`} placeholder="説明・36 字まで" value={it.text} maxLength={60} onChange={(e) => setItems((xs) => xs.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)))} className="py-2" />
                       </li>
                     ))}
                   </ol>
                   {diagramStyle === "compare" && items.length < 2 && (
                     <Button type="button" variant="text" size="sm" className="self-start" onClick={() => setItems((xs) => [...xs, { title: "", text: "" }])}>
-                      ＋ 後を足す
+                      ＋「後」の項目を足す
                     </Button>
                   )}
                   {diagramStyle !== "compare" && items.length < MAX_ITEMS && (
@@ -470,7 +469,7 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
                   }}
                   className="py-2 text-sm"
                 />
-                <span className="text-xs text-muted">読み上げや、画像が出ないときに使われる文です。画像の文字から作っています。編集することもできます</span>
+                <span className="text-xs text-muted">目の見えにくい人のスマホが読み上げる文です。画像が出ないときにも出ます。画像の文字からつくりました。編集もできます</span>
               </label>
             </div>
           </div>

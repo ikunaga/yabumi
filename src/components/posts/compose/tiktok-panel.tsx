@@ -46,7 +46,7 @@ export function ComposeTikTok({ c }: { c: Composer }) {
       {/* TikTok は手で投稿する（docs/design/tiktok.md の 17.）。審査の前に公開で出したいとき・音楽を付けたいとき・送れないときの逃げ道 */}
       {tiktokByHand ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] leading-[1.7]">
-          <span className="text-muted">TikTok は手で投稿します。yabumi からは送りません。ほかの SNS を送ったあと、送信の結果の「TikTok に手で投稿する」から、TikTok のアプリで投稿して記録できます。</span>
+          <span className="text-muted">TikTok は手で投稿します。yabumi からは送りません。ほかの SNS に送ったら、「送信の結果」を開きます。「TikTok に手で投稿する」から、TikTok のアプリで投稿してください。</span>
           <Button type="button" variant="text" size="sm" onClick={() => setTikTokByHand(false)}>
             やめる
           </Button>
@@ -86,7 +86,7 @@ export function ComposeTikTok({ c }: { c: Composer }) {
           {!creator.audited && (
             <p className="rounded-md bg-surface2 px-3 py-2 text-[13px] leading-[1.7]">
               <span className="mr-1.5 font-bold text-signal">● 要確認</span>
-              いまは、yabumi が TikTok の審査を受けている途中のため、TikTok には『自分だけ』に見える投稿しかできません（yabumi の準備の都合で、あなたのアカウントの問題ではありません）。送る前に、TikTok のアカウントを非公開にしてください。審査が終わると、公開範囲を選べるようになります。
+              いまは、TikTok には自分だけに見える投稿しかできません。yabumi が TikTok の審査を受けている途中だからです。あなたのアカウントの問題ではありません。送る前に、TikTok のアカウントを非公開にしてください。審査が終わると、公開範囲を選べます。
             </p>
           )}
 
@@ -98,10 +98,10 @@ export function ComposeTikTok({ c }: { c: Composer }) {
             </label>
             <label className="flex items-center gap-2 text-[14px]">
               <input type="radio" name="tiktok-mode" checked={!direct} disabled={!creator.canInbox} onChange={() => set({ mode: "MEDIA_UPLOAD" })} />
-              TikTok のアプリで仕上げる（受信箱に下書きとして送る）
+              TikTok のアプリに下書きとして送り、アプリで仕上げる
             </label>
             {!direct && <p className="text-[12px] leading-[1.7] text-muted">送ると TikTok のアプリに通知が届きます。通知から開いて、公開範囲などを決めて投稿してください。未完了の下書きは 24 時間で 5 件までです。</p>}
-            <p className="text-[12px] leading-[1.7] text-muted">TikTok に送れるのは 1 日 15 本ほどまでです（ほかのアプリから投稿した分も含みます）。</p>
+            <p className="text-[12px] leading-[1.7] text-muted">TikTok に送れるのは、1 日 15 本ほどまでです。ほかのアプリから投稿した分も数えます。</p>
           </fieldset>
 
           {direct && (
@@ -125,19 +125,25 @@ export function ComposeTikTok({ c }: { c: Composer }) {
               <label className={`flex items-center gap-2 text-[14px] ${creator.commentDisabled ? "text-muted" : ""}`}>
                 <input type="checkbox" checked={ch.allowComment} disabled={creator.commentDisabled} onChange={(e) => set({ allowComment: e.target.checked })} />
                 コメントを許可する
-                {creator.commentDisabled && <span className="text-[12px]">（TikTok の設定でコメントが「誰もできない」になっています）</span>}
+                {creator.commentDisabled && <span className="text-[12px]">TikTok の設定で、コメントが「誰もできない」になっています。</span>}
               </label>
 
               <div className="flex flex-col gap-1.5">
                 <label className="flex items-center gap-2 text-[14px]">
                   <input type="checkbox" role="switch" checked={ch.commercial} onChange={(e) => set({ commercial: e.target.checked, ...(e.target.checked ? {} : { brandOrganic: false, brandContent: false }) })} />
-                  宣伝の内容を含む（Commercial content disclosure）
+                  <span className="flex flex-col">
+                      <span>宣伝の内容を含む</span>
+                      <span className="text-[11px] text-muted">Commercial content disclosure</span>
+                    </span>
                 </label>
                 {ch.commercial && (
                   <div className="flex flex-col gap-1 pl-6 text-[14px]" title="You need to indicate if your content promotes yourself, a third party, or both.">
                     <label className="flex items-center gap-2">
                       <input type="checkbox" checked={ch.brandOrganic} onChange={(e) => set({ brandOrganic: e.target.checked })} />
-                      自分のブランド（Your brand）: 自分の商品・お店・サービスの宣伝
+                      <span className="flex flex-col">
+                        <span>自分のお店の宣伝: 自分の商品・お店・サービスの宣伝</span>
+                        <span className="text-[11px] text-muted">Your brand</span>
+                      </span>
                     </label>
                     {/* 審査の前は「自分だけ」しか選べず、ブランドコンテンツは「自分だけ」にできないので、押せなくして理由を見える形で出す */}
                     <label className={`flex items-center gap-2 ${creator.audited ? "" : "text-muted"}`}>
@@ -149,14 +155,17 @@ export function ComposeTikTok({ c }: { c: Composer }) {
                         title={creator.audited && ch.privacyLevel === "SELF_ONLY" ? "Branded content visibility cannot be set to private." : undefined}
                         onChange={(e) => set({ brandContent: e.target.checked })}
                       />
-                      ブランドコンテンツ（Branded content）: ほかの会社から頼まれた・お礼をもらった宣伝
+                      <span className="flex flex-col">
+                        <span>頼まれた宣伝: ほかの会社から頼まれた宣伝</span>
+                        <span className="text-[11px] text-muted">Branded content</span>
+                      </span>
                     </label>
                     {!creator.audited && (
                       <p id="tiktok-bc-unaudited" className="pl-6 text-xs text-muted">
-                        ブランドコンテンツは、yabumi の審査が終わると選べます
+                        頼まれた宣伝は、yabumi が TikTok の審査に通ると選べます
                       </p>
                     )}
-                    {label && <p className="text-[12px] text-muted">{label}（TikTok でこのラベルが付きます）</p>}
+                    {label && <p className="text-[12px] text-muted">{label}。TikTok で、このラベルが付きます</p>}
                     {!ch.brandOrganic && !ch.brandContent && <p className="text-[12px] text-signal">どちらかを選ぶと送れます</p>}
                   </div>
                 )}
@@ -178,7 +187,7 @@ export function ComposeTikTok({ c }: { c: Composer }) {
                 <span className="line-clamp-4 break-words whitespace-pre-wrap text-muted">{text}</span>
               </div>
             </div>
-            <span className="text-[12px] text-muted">タイトルと説明は、② 送り先の TikTok の欄で編集できます。送ったあと、TikTok で反映されるまで数分かかることがあります。</span>
+            <span className="text-[12px] text-muted">タイトルと説明は、「2 送り先」の TikTok の欄で編集できます。送ったあと、TikTok に出るまで数分かかることがあります。</span>
           </div>
 
           <p className="text-[13px] leading-[1.7]">

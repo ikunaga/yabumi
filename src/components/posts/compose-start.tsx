@@ -25,7 +25,7 @@ export function ComposeStart({
         自分で書く
       </span>
       <button type="button" aria-expanded={formatsOpen} aria-controls="compose-formats" onClick={onFormats} className={chipClass({ on: formatsOpen })}>
-        フォーマットから
+        フォーマットから書く
       </button>
       {aiEnabled ? (
         <Link href={`/projects/${projectId}/ideas`} className={`${chipClass()} hover:no-underline`}>
@@ -33,11 +33,11 @@ export function ComposeStart({
         </Link>
       ) : (
         <span aria-disabled className={`${chipClass()} pointer-events-none opacity-60`}>
-          AI とネタを出す<span className="text-xs">準備中</span>
+          AI とネタを出す<span className="text-xs">まだ使えません</span>
         </span>
       )}
       <button type="button" aria-expanded={notesOpen} aria-controls="compose-notes" onClick={onNotes} className={chipClass({ on: notesOpen })}>
-        ネタ帳から
+        ネタ帳のメモから書く
       </button>
     </nav>
   );

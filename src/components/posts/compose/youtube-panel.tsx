@@ -41,7 +41,7 @@ export function ComposeYouTube({ c }: { c: Composer }) {
       {/* YouTube は手で投稿する（docs/design/youtube.md の 12.。Y4）。1 日の上限に当たったとき・YouTube のアプリで仕上げたいときの逃げ道 */}
       {youtubeByHand ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] leading-[1.7]">
-          <span className="text-muted">YouTube は手で投稿します。yabumi からは送りません。ほかの SNS を送ったあと、送信の結果の「YouTube に手で投稿する」から、YouTube に投稿して記録できます。</span>
+          <span className="text-muted">YouTube は手で投稿します。yabumi からは送りません。ほかの SNS に送ったら、「送信の結果」を開きます。「YouTube に手で投稿する」から投稿してください。</span>
           <Button type="button" variant="text" size="sm" onClick={() => setYouTubeByHand(false)}>
             やめる
           </Button>
@@ -98,16 +98,16 @@ export function ComposeYouTube({ c }: { c: Composer }) {
             </label>
             <label className="flex items-center gap-2 text-[14px]">
               <input type="radio" name="youtube-kids" checked={ch.madeForKids === true} onChange={() => set({ madeForKids: true })} />
-              はい、子ども（13 歳未満）向けです
+              はい、13 歳未満の子ども向けです
             </label>
-            <p className="text-[12px] leading-[1.7] text-muted">法律（アメリカの COPPA）で、YouTube のすべての動画で決めることになっています。「はい」にすると、コメントなどの一部の機能が使えなくなります。</p>
+            <p className="text-[12px] leading-[1.7] text-muted">アメリカの法律で、YouTube のすべての動画に決めることになっています。「はい」にすると、コメントなどが使えなくなります。</p>
           </fieldset>
 
           <label className="flex items-start gap-2 text-[14px]">
             <input type="checkbox" role="switch" className="mt-1" checked={ch.syntheticMedia} onChange={(e) => set({ syntheticMedia: e.target.checked })} />
             <span>
-              改変・合成したコンテンツを含む
-              <span className="block text-[12px] leading-[1.7] text-muted">本物の人・場所・出来事と見分けにくい形で、AI などで作ったり変えたりした映像があるときは、YouTube に申告します。</span>
+              AI などで作り変えた映像を含む
+              <span className="block text-[12px] leading-[1.7] text-muted">本物と見分けにくい AI の映像のときに選びます。YouTube に申告されます。</span>
             </span>
           </label>
 
@@ -126,21 +126,21 @@ export function ComposeYouTube({ c }: { c: Composer }) {
           <p className="text-[12px] leading-[1.7] text-muted">
             {video && video.width && video.height
               ? isShortsShape({ durationMs: video.durationMs, width: video.width, height: video.height })
-                ? "この動画は YouTube ショートとして出ます（3 分以内・縦長か正方形）。"
-                : "この動画はふつうの動画として出ます（ショートにするには、3 分以内の縦長か正方形の動画にしてください）。"
+                ? "この動画は、YouTube ショートとして出ます。"
+                : "この動画は、ふつうの動画として出ます。ショートにするには、3 分以内の縦長か正方形にしてください。"
               : "3 分以内の縦長か正方形の動画は、YouTube ショートとして出ます。それより長い・横長の動画は、ふつうの動画として出ます。"}
           </p>
 
           <div className="flex flex-col gap-1 rounded-md bg-surface2 p-3 text-[13px]">
             <span className="text-[12px] font-bold text-muted">この内容で上げます</span>
             <span>
-              <b>{title || "（タイトルがまだありません）"}</b>
+              <b>{title || "タイトルがまだありません"}</b>
             </span>
             <span className="text-muted">
               {ch.privacyStatus ? YOUTUBE_PRIVACY_LABEL[ch.privacyStatus] : "公開範囲はまだ選んでいません"}・{ch.madeForKids === null ? "子ども向けかはまだ選んでいません" : ch.madeForKids ? "子ども向け" : "子ども向けではない"}
-              {ch.syntheticMedia && "・改変・合成を申告"}
+              {ch.syntheticMedia && "・AI などで作り変えた映像あり"}
             </span>
-            <span className="text-[12px] text-muted">タイトルと説明は、② 送り先の YouTube の欄で編集できます。予約の時刻にアップロードを始めるので、YouTube での公開は数分遅れることがあります。</span>
+            <span className="text-[12px] text-muted">タイトルと説明は、「2 送り先」の YouTube の欄で編集できます。予約の時刻に上げ始めるので、YouTube に出るのは数分遅れることがあります。</span>
           </div>
 
           <p className="text-[12px] leading-[1.7] text-muted">

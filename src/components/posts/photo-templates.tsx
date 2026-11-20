@@ -31,7 +31,7 @@ export function PhotoTemplatePicker({
         {templates.map((t) => (
           <Choice key={t.id} on={selectedId === t.id} onClick={() => onSelect(t)}>
             {t.name}
-            {t.isDefault && <span className="ml-1 text-xs font-normal text-muted">いつも</span>}
+            {t.isDefault && <span className="ml-1 text-xs font-normal text-muted">毎回これを使う</span>}
           </Choice>
         ))}
       </div>
@@ -56,7 +56,7 @@ export function SaveAsTemplate({ projectId, body, disabled, onSaved }: { project
   }
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Input aria-label="フォーマットの名前" value={name} maxLength={MAX_TEMPLATE_NAME} onChange={(e) => setName(e.target.value)} placeholder="名前（例: 店内の雰囲気）" className="min-w-0 flex-1 py-1.5 text-sm" />
+      <Input aria-label="フォーマットの名前" value={name} maxLength={MAX_TEMPLATE_NAME} onChange={(e) => setName(e.target.value)} placeholder="名前。例: 店内の雰囲気" className="min-w-0 flex-1 py-1.5 text-sm" />
       <Button
         size="sm"
         disabled={pending || !name.trim()}

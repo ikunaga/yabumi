@@ -73,7 +73,7 @@ export function BriefBar({ aiEnabled, hasText, drafting, brief, onDraft }: { aiE
             AI に文字の案を出してもらう
           </NotReadyButton>
         )}
-        <span className="text-xs text-muted">{hasText ? "本文とアカウント設計から考えます（1 回 2 円ほど）" : "本文を書くと、AI が画像の文字を考えます"}</span>
+        <span className="text-xs text-muted">{hasText ? "本文とアカウントの方針から考えます。1 回 2 円ほどかかります。" : "本文を書くと、AI が画像の文字を考えます"}</span>
       </div>
       {drafting && <AiThinking kind="brief" note="10〜20 秒ほどかかります" />}
       {brief && (
@@ -90,7 +90,7 @@ export function LabelField({ value, onChange }: { value: string; onChange: (v: s
   return (
     <label className="flex flex-col gap-1.5">
       <span className="text-[14px] font-bold">
-        ラベル<span className="ml-1.5 text-xs font-normal text-muted">任意。例: 新機能、お知らせ</span>
+        画像の小さい文字<span className="ml-1.5 text-xs font-normal text-muted">任意。例: 新機能、お知らせ</span>
       </span>
       <Input value={value} maxLength={20} onChange={(e) => onChange(e.target.value)} className="py-2" />
     </label>
@@ -114,12 +114,12 @@ export function HeadlineFields({
   return (
     <>
       <label className="flex flex-col gap-1.5">
-        <span className="text-[14px] font-bold">見出し</span>
+        <span className="text-[14px] font-bold">画像の文字</span>
         <Textarea value={headline} rows={2} maxLength={40} onChange={(e) => onHeadline(e.target.value)} className="py-2" />
         <span className="text-xs text-muted">22 字くらいまでが、ひと目で読めます。改行も使えます</span>
       </label>
       {brief && brief.headlines.length > 1 && (
-        <Group label="AI の見出しの案">
+        <Group label="AI が考えた画像の文字">
           {brief.headlines.map((h) => (
             <Choice key={h} on={headline === h} onClick={() => onHeadline(h)} className="text-left">
               {h}
@@ -129,7 +129,7 @@ export function HeadlineFields({
       )}
       <label className="flex flex-col gap-1.5">
         <span className="text-[14px] font-bold">
-          補足<span className="ml-1.5 text-xs font-normal text-muted">任意</span>
+          画像に添える文字<span className="ml-1.5 text-xs font-normal text-muted">任意</span>
         </span>
         <Input value={subline} maxLength={60} onChange={(e) => onSubline(e.target.value)} className="py-2" />
       </label>
@@ -208,7 +208,7 @@ export function StyleFields({ style, onStyle, showTextStyle }: { style: Template
         </Group>
       )}
 
-      <Group label="文字の形" hint="日本語の書体は、使う字のぶんだけ読み込みます">
+      <Group label="字の形">
         {FONT_KEYS.map((f) => (
           <Choice key={f} on={style.font === f} onClick={() => onStyle({ font: f })} className={FONT_CLASS[f]}>
             {FONT_LABEL[f]}

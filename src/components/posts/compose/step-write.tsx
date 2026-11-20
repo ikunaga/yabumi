@@ -96,7 +96,7 @@ export function ComposeStepWrite({ c, steps = false }: { c: Composer; steps?: bo
       {splitSns.length > 0 && (
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted">
           <span>
-            {splitSns.map((s) => SNS[s].label).join("・")} は SNS ごとの文面で送ります{bodyUnused ? "（この本文は使いません）" : ""}。本文をあとで編集しても、SNS ごとの文面には届きません。
+            {splitSns.map((s) => SNS[s].label).join("・")} は SNS ごとの文面で送ります。{bodyUnused ? "この本文は使いません。" : ""}本文をあとで編集しても、SNS ごとの文面は変わりません。
           </span>
           {splitSns.map((s) => (
             <button key={s} type="button" onClick={() => editOverride(s)} className="font-semibold text-fg underline underline-offset-2">
@@ -135,7 +135,7 @@ export function ComposeStepWrite({ c, steps = false }: { c: Composer; steps?: bo
       )}
       {/* ステップの画面では、整える SNS（いまの送り先）を 1 行で添える（送り先は ② で選ぶ。compose-steps.md の 2.） */}
       {steps && aiCheckEnabled && toSend.length > 0 && (!sentAny || toSend.length > 0) && (
-        <p className="-mt-1.5 text-[13px] text-muted">{toSend.map((s) => SNS[s].label).join("・")} 向けに整えます（送り先は次のステップで変えられます）</p>
+        <p className="-mt-1.5 text-[13px] text-muted">{toSend.map((s) => SNS[s].label).join("・")} 向けに整えます。送り先は「2 送り先」で変えられます。</p>
       )}
       <TextOriginChoice value={textOrigin} onChange={setTextOrigin} />
       {noteIds.length > 0 && (
@@ -150,9 +150,9 @@ function RoadmapItemHint({ item, onInsert }: { item: { title: string; detail: st
   return (
     <div className="flex flex-col gap-1 rounded-md border border-line bg-surface2 px-4 py-3 text-[13px] leading-[1.7]">
       <p className="flex items-center gap-1.5 text-muted">
-        ロードマップのやることから
+        「ロードマップ」で決めたやることから
         <HelpTip label="ロードマップのやること">
-          この投稿は、ロードマップに書いた下のやることのために作るものです。送ると、ロードマップの画面でこのやることが 1 回進んだことになります（たとえば「今週 3 回投稿する」なら、3 回のうち 1 回）。
+          この投稿は、下のやることのためにつくります。送ると、「ロードマップ」でこのやることが 1 回進みます。たとえば「今週 3 回投稿する」なら、3 回のうち 1 回です。
         </HelpTip>
       </p>
       <p className="text-[15px] font-bold">{item.title}</p>
@@ -178,11 +178,11 @@ function SelfWrittenHint({ projectId, count }: { projectId: string; count: numbe
   }
   return (
     <div className="text-[13px] text-muted">
-      最初の数本は、自分の言葉で書くのがおすすめです
+      最初の {SELF_WRITTEN_ENOUGH} 本は、自分の言葉で書くのがおすすめです。
       {/* 「?」が行の頭に 1 つだけ回らないよう、本数と「?」をひとまとまりにする */}
       <span className="ml-0.5 inline-flex items-center gap-2 whitespace-nowrap align-middle">
         <span>
-          （いま <span className="num">{count}/{SELF_WRITTEN_ENOUGH}</span> 本）
+          いま <span className="num">{count}</span> 本です。
         </span>
         <HelpTip label="自分の言葉で書く理由">
           AI まかせの投稿は、どうしても人間らしさが出にくくなります。自分で書いた送信済みの投稿が {SELF_WRITTEN_ENOUGH} 本たまると、AI があなたの書き方（文の長さ・語尾・絵文字・改行など）を読み取り、ネタ出しや「AI で整える」の文をあなたの書き方に寄せられるようになります。AI で整える・ネタ出しは、いつでも使えます。

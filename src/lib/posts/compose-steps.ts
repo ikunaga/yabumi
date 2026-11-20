@@ -4,10 +4,10 @@ import type { SnsKey, TargetIssue } from "@/lib/sns";
 
 export const COMPOSE_STEPS = [
   { key: "write", label: "書く", title: "何を伝えるか" },
-  { key: "targets", label: "送り先", title: "どこに出すか" },
+  { key: "targets", label: "送り先", title: "どこに送るか" },
   { key: "images", label: "画像・動画", title: "画像か動画を添えるか" },
-  { key: "links", label: "リンク", title: "行き先へ案内するか" },
-  { key: "send", label: "送る", title: "いつ出すか" },
+  { key: "links", label: "リンク", title: "リンクを付けるか" },
+  { key: "send", label: "送る", title: "いつ送るか" },
 ] as const;
 export type ComposeStepKey = (typeof COMPOSE_STEPS)[number]["key"];
 // 1 から数えたステップの番号

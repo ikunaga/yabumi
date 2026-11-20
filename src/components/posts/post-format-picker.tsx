@@ -114,7 +114,7 @@ export function PostFormatPicker({
     void addFormatRound(projectId, f.id, { answer: a, values: v, source }).then((r) => {
       if (r.error) {
         recorded.current.delete(key);
-        setRoundError(`本文には入れましたが、シリーズの記録に残せませんでした。${r.error}`);
+        setRoundError(`本文には入れました。ただ、このフォーマットで出した投稿の一覧に残せませんでした。${r.error}`);
       } else if (r.id) onRoundAdded?.(r.id);
     });
   }
@@ -144,7 +144,7 @@ export function PostFormatPicker({
   return (
     <section aria-label="フォーマットから" className="flex min-w-0 flex-col gap-2.5 border-t border-line pt-3.5">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <p className="text-[14px] text-muted">いつもの型を選んで、空欄を埋めます</p>
+        <p className="text-[14px] text-muted">いつも使うひな形を選んで、空欄を埋めます</p>
         {/* 書きかけは控え（tab-drafts）に残るので、戻ると続きから書ける */}
         <Link href={formatsHref} className="text-[14px] font-bold text-fg underline">
           フォーマットを作る・編集 →
@@ -198,7 +198,7 @@ export function PostFormatPicker({
             <p className="text-xs text-muted">
               空欄の言葉を毎回 AI に考えてもらうには →{" "}
               <Link href={formatsHref} className="font-bold text-fg underline">
-                フォーマットの設定
+                「フォーマットの設定」
               </Link>
             </p>
           )}
@@ -283,7 +283,7 @@ export function PostFormatPicker({
           {inserted && (
             <p className="text-xs font-semibold text-success">
               {/* 全部埋めたときは【】の案内を出さない（前は埋めても「【】で残っています」と出た。通しテスト 02） */}
-              {unfilled.length > 0 ? `本文に入れました。埋めなかったところ（${unfilled.join("・")}）は【】で残っているので、書き換えてください。` : "本文に入れました。"}
+              {unfilled.length > 0 ? `本文に入れました。埋めなかった ${unfilled.join("・")} は、【】のまま残っています。書き換えてください。` : "本文に入れました。"}
               {hasFormatHashtags(selected.hashtags) && "タグは本文の下に付き、「2 送り先」で SNS ごとに編集できます。"}
             </p>
           )}

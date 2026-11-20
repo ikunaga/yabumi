@@ -71,7 +71,7 @@ export function FormatImageFields({
   return (
     <DisclosureBox label="画像の設定を表示" className="text-xs" open={image.prompt.trim() ? true : undefined}>
       <div className="flex flex-col gap-3">
-        <p className="text-muted">決めておくと、投稿をつくるときの「3 画像」の手順で、押すだけで画像をつくれます。</p>
+        <p className="text-muted">決めておくと、「投稿をつくる」の「3 画像・動画」で、押すだけで画像をつくれます。</p>
         <label className="flex flex-col gap-1">
           <span className="font-bold">絵の説明</span>
           {names.length > 0 && (
@@ -167,7 +167,7 @@ export function FormatImageFields({
         </fieldset>
 
         <fieldset className="flex min-w-0 flex-col gap-1.5">
-          <legend className="mb-1 font-bold">画像に見出しの文字を重ねる</legend>
+          <legend className="mb-1 font-bold">画像に文字を重ねる</legend>
           <div className="flex flex-wrap gap-2">
             <Choice on={image.headline === null} onClick={() => setImage({ ...image, headline: null, label: null, look: null })}>
               なし
@@ -180,11 +180,11 @@ export function FormatImageFields({
             <>
               {/* 見出しを 2 段にする（2026-11-20 オーナーの指示）。上の小さい文は色の文字で、見出しの半分くらいの大きさで描く */}
               <label className="flex flex-col gap-1">
-                <span className="text-xs font-bold">見出しの上に小さく入れる文</span>
+                <span className="text-xs font-bold">画像の小さい文字</span>
                 <span className="text-xs text-muted">書かなくてもかまいません。{MAX_IMAGE_LABEL} 字まで書けます。{"{ }"} の空欄も使えます。</span>
-                <span className="text-xs text-muted">見出しの上に、小さな色付きの文字で入ります。</span>
+                <span className="text-xs text-muted">画像の文字の上に、小さな色付きの字で入ります。</span>
                 <Input
-                  aria-label="見出しの上の小さい文"
+                  aria-label="画像の小さい文字"
                   value={image.label ?? ""}
                   maxLength={MAX_IMAGE_LABEL}
                   onChange={(e) => setImage({ ...image, label: e.target.value })}
@@ -193,10 +193,10 @@ export function FormatImageFields({
                 />
               </label>
               <label className="flex flex-col gap-1">
-                <span className="text-xs font-bold">見出し</span>
+                <span className="text-xs font-bold">画像の文字</span>
                 <span className="text-xs text-muted">{MAX_IMAGE_HEADLINE} 字まで書けます。{"{ }"} の空欄には、本文の空欄と同じ言葉が入ります。</span>
                 <Input
-                  aria-label="見出しの文"
+                  aria-label="画像の文字"
                   value={image.headline}
                   maxLength={MAX_IMAGE_HEADLINE}
                   onChange={(e) => setImage({ ...image, headline: e.target.value })}

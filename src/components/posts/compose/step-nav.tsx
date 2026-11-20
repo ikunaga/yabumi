@@ -7,7 +7,7 @@ import { type Composer } from "./use-composer";
 // いまどこか・済んだか（✓）を見せるだけで、押しても移らない。移るのは下の帯の「次へ」「戻る」だけ（2026-11-14 オーナーの依頼）
 export function ComposeStepNav({ c }: { c: Composer }) {
   const { composeStep, marks } = c;
-  const markText = (n: StepNo) => (marks[n] === "problem" ? "（直すところがあります）" : marks[n] === "done" ? "・完了" : "");
+  const markText = (n: StepNo) => (marks[n] === "problem" ? "・確認が要るところがあります" : marks[n] === "done" ? "・完了" : "");
   return (
     <nav aria-label="投稿をつくるステップ" className="flex flex-col gap-2">
       <ol className="flex flex-wrap items-center gap-1.5 max-sm:hidden">
@@ -38,7 +38,7 @@ export function ComposeStepNav({ c }: { c: Composer }) {
           const on = n === composeStep;
           return (
             <li key={s.key} aria-current={on ? "step" : undefined} className="flex flex-col items-center gap-1">
-              <span className="sr-only">{`${n}/${LAST_STEP} ${s.label}${markText(n)}`}</span>
+              <span className="sr-only">{`${n}/${LAST_STEP} ${s.label}${markText(n) ? `・${markText(n)}` : ""}`}</span>
               <span aria-hidden className="flex size-4 items-center justify-center">
                 <span
                   className={`block rounded-full ${on ? "size-3 bg-primary ring-2 ring-primary ring-offset-2 ring-offset-bg" : `size-2.5 ${marks[n] === "problem" ? "bg-signal" : marks[n] === "done" ? "bg-faint" : "border border-input bg-surface"}`}`}

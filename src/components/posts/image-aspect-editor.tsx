@@ -125,7 +125,7 @@ export function ImageAspectEditor({
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <h3 className="text-[15px] font-bold">{index + 1} 枚目の縦横を整える</h3>
         <span className="num text-xs text-muted">
-          いま {ratioLabel(source.width, source.height)}（{source.width}×{source.height}）
+          いまの縦横 {ratioLabel(source.width, source.height)}・{source.width}×{source.height}
         </span>
         <Button type="button" variant="text" size="sm" className="ml-auto" onClick={onClose}>
           やめる
@@ -152,7 +152,7 @@ export function ImageAspectEditor({
               <p className="py-10 text-sm text-muted">画像を読み込んでいます…</p>
             )}
           </div>
-          {mode === "crop" && axis && bitmap && <p className="text-xs text-muted">見本を{axis === "x" ? "左右" : "上下"}にドラッグして、残す場所を決められます（スマホは指で）</p>}
+          {mode === "crop" && axis && bitmap && <p className="text-xs text-muted">見本を{axis === "x" ? "左右" : "上下"}に動かして、残す場所を決められます</p>}
         </div>
 
         <div className="flex min-w-0 flex-col gap-4 lg:order-1">

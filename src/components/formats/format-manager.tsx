@@ -110,7 +110,7 @@ export function FormatManager({
   return (
     <div className="flex flex-col gap-3 text-sm">
         <p className="text-[14px] leading-[1.7] text-muted">
-          毎回くり返し使う投稿のひな形です。「投稿をつくる」の「フォーマットから」で選べます。本文に {"{何が}"} のように書いたところが空欄になります。投稿をつくるとき、空欄ごとに言葉を入れる欄が出ます。空欄は {MAX_FORMAT_SLOTS} 個まで置けます。フォーマットは {MAX_POST_FORMATS} 個までつくれます。いまは <span className="num">{formats.length}</span> 個です。
+          毎回くり返し使う投稿のひな形です。「投稿をつくる」の「フォーマットから書く」で選べます。本文に {"{何が}"} のように書いたところが空欄になります。投稿をつくるとき、空欄ごとに言葉を入れる欄が出ます。空欄は {MAX_FORMAT_SLOTS} 個まで置けます。フォーマットは {MAX_POST_FORMATS} 個までつくれます。いまは <span className="num">{formats.length}</span> 個です。
         </p>
         {formats.length > 0 && (
           <ul className="flex flex-col divide-y divide-line">

@@ -9,7 +9,7 @@ import { Choice, Group } from "./maker-parts";
 
 const BULK_HINTS = {
   crop: "はみ出したところを切ります。真ん中を残すので、残す場所はあとで 1 枚ずつ編集できます。",
-  phone: "アプリの画面などを、スマホの形の枠の画面に入れ、まわりに地を足します。スマホの向きは画像ごとに決めます（縦長の画像は縦、横長の画像は横）。",
+  phone: "アプリの画面などを、スマホの枠に入れます。まわりには余白を足します。縦長の画像は縦向き、横長の画像は横向きのスマホに入れます。",
 };
 
 // まとめて整えるときの決めごと（スマホの向きは画像ごとに決める）
@@ -55,7 +55,7 @@ export function ImageAspectBulk({
         <Group label="枠">
           {canMatchFirst(sizes) && (
             <Choice on={choice === "first"} onClick={() => setAspect("first")}>
-              1 枚目に合わせる（{ratioLabel(sizes[0].width, sizes[0].height)}）
+              1 枚目に合わせる・{ratioLabel(sizes[0].width, sizes[0].height)}
             </Choice>
           )}
           {ASPECT_PRESETS.map((p) => (
@@ -68,7 +68,7 @@ export function ImageAspectBulk({
           {targets.length > 0 ? (
             <>
               整える画像: <ImageNumbers indexes={targets} />
-              <span className="num">（{targets.length} 枚）</span>。この枠に合っている画像はそのままです。
+              <span className="num">{targets.length} 枚</span>。この枠に合っている画像はそのままです。
             </>
           ) : (
             "どの画像もこの枠に合っています。"
@@ -88,7 +88,7 @@ export function ImageAspectBulk({
         <Button type="button" disabled={disabled || running || targets.length === 0} onClick={() => onRun({ mode, ratio, pos: 0.5, fill: padFillOf(fill, custom), frame }, targets)}>
           {running ? (
             <span className="num">
-              整えています（{progress.done} / {progress.total} 枚）…
+              整えています… {progress.done} / {progress.total} 枚
             </span>
           ) : (
             <span className="num">{targets.length} 枚をまとめて整える</span>

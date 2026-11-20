@@ -31,16 +31,16 @@ export function PlanHints({ projectId, hints, sns = [] }: { projectId: string; h
       <div className="flex flex-col gap-2.5 leading-[1.7]">
         {!empty && (
           <Link href={planHref} className="self-end text-xs font-semibold text-primary hover:underline">
-            設計を編集
+            アカウントの方針を編集
           </Link>
         )}
         {empty ? (
           <p className="text-muted">
-            まだ設計がありません。
+            まだアカウントの方針がありません。
             <Link href={planHref} className="font-semibold text-primary hover:underline">
-              アカウント設計
+              「アカウントの方針」
             </Link>
-            で投稿の柱と口調を決めると、ここに出ます。
+            で投稿のテーマと口調を決めると、ここに出ます。
           </p>
         ) : (
           <>
@@ -55,8 +55,8 @@ export function PlanHints({ projectId, hints, sns = [] }: { projectId: string; h
                 <div className="flex flex-col gap-2">
                   {pillarsBySns(hints.pillars, sns).map(({ sns: k, pillars }) => (
                     <div key={k}>
-                      <p className="text-xs font-bold text-muted">{SNS[k].label} の柱</p>
-                      {pillars.length ? <PillarList pillars={pillars} /> : <p className="text-muted">この SNS に付いた柱はありません。</p>}
+                      <p className="text-xs font-bold text-muted">{SNS[k].label} の投稿のテーマ</p>
+                      {pillars.length ? <PillarList pillars={pillars} /> : <p className="text-muted">この SNS には、投稿のテーマがありません。</p>}
                       {toneBySns[k]?.trim() && (
                         <p>
                           <span className="text-muted">口調: </span>
@@ -71,7 +71,7 @@ export function PlanHints({ projectId, hints, sns = [] }: { projectId: string; h
               ))}
             {hints.tone && (
               <p>
-                <span className="text-muted">{hasToneBySns({ toneBySns }) ? "口調（共通）: " : "口調: "}</span>
+                <span className="text-muted">{hasToneBySns({ toneBySns }) ? "共通の口調: " : "口調: "}</span>
                 {hints.tone}
               </p>
             )}

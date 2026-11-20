@@ -109,7 +109,7 @@ export function PostComposer(props: ComposerProps) {
         {postId && !sentAny && props.savedStatus !== "scheduled" && !waitingReview && <span className="text-[15px] text-faint">保存済み</span>}
         {!postId && (props.draftsCount ?? 0) > 0 && (
           <Link href={`/projects/${projectId}/drafts`} className="text-[15px] font-bold text-fg underline">
-            下書きから続ける（<span className="num">{props.draftsCount}</span> 件）
+            下書きから続ける・<span className="num">{props.draftsCount}</span> 件
           </Link>
         )}
         {steps && (

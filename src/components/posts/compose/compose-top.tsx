@@ -24,16 +24,16 @@ export function ComposeResetControl({ c }: { c: Composer }) {
           onClick={() => setResetOpen(true)}
           className="text-[13px] text-muted underline-offset-2 hover:text-fg hover:underline disabled:no-underline disabled:opacity-50"
         >
-          {postId ? "保存した内容に戻す" : "リセット"}
+          {postId ? "保存した内容に戻す" : "書いた内容を消す"}
         </button>
       )}
       <span className="sr-only" role="status" aria-live="polite">
-        {resetRound > 0 ? (postId ? "保存した内容に戻しました。" : "書いた内容をリセットしました。") : ""}
+        {resetRound > 0 ? (postId ? "保存した内容に戻しました。" : "書いた内容を消しました。") : ""}
       </span>
       <ConfirmDialog
         open={resetOpen}
-        title={postId ? "保存した内容に戻しますか？" : "書いた内容をリセットしますか？"}
-        confirmLabel={postId ? "戻す" : "リセットする"}
+        title={postId ? "保存した内容に戻しますか？" : "書いた内容を消しますか？"}
+        confirmLabel={postId ? "戻す" : "消す"}
         onConfirm={resetAll}
         onClose={closeReset}
       >
@@ -59,7 +59,7 @@ export function ComposeAlerts({ c }: { c: Composer }) {
         <p role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-line bg-surface2 px-3.5 py-2 text-[13px] leading-[1.7]">
           <span>
             <span className="mr-1.5 font-bold text-signal">● 要確認</span>
-            書きかけの画像のうち {restoreMissing} 枚は戻せませんでした（投稿に添えていない画像は 1 日で消えます）。もう一度添えてください。
+            書きかけの画像のうち {restoreMissing} 枚は戻せませんでした。もう一度添えてください。投稿に添えていない画像は、1 日で消えます。
           </span>
           <button type="button" onClick={() => setRestoreMissing(0)} className="text-muted hover:text-fg hover:underline">
             閉じる

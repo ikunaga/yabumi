@@ -79,7 +79,7 @@ export function ComposeStepTargets({ c }: { c: Composer }) {
         </ul>
         {/* 「手で投稿」の意味（2026-11-18 PMO の付箋 14） */}
         <p className="text-xs leading-[1.6] text-muted">
-          手で投稿（{SNS_KEYS.filter(isManualSns).map((s) => SNS[s].label).join("・")}）: yabumi からは送れません。保存すると、投稿の画面で文面をコピーして自分で投稿できます。
+          {SNS_KEYS.filter(isManualSns).map((s) => SNS[s].label).join("・")} は手で投稿します。yabumi からは送れません。保存すると、「投稿」の画面で文面をコピーできます。
         </p>
         {warnings.length > 0 && (
           <ul className="flex flex-col gap-1 text-[13px] max-sm:hidden">
@@ -107,7 +107,7 @@ export function ComposeStepTargets({ c }: { c: Composer }) {
         )}
         {connected.length === 0 && mode !== "all_sent" && (
           <p className="text-[13px] text-muted">
-            まだ SNS をつないでいません（下書きは保存できます）。{" "}
+            まだ SNS をつないでいません。下書きは保存できます。{" "}
             <Link href={connectHref} className="font-semibold text-fg underline">
               先に SNS をつなぐ →
             </Link>
@@ -167,7 +167,7 @@ function TargetHashtags({ c }: { c: Composer }) {
               )}
               {dup.length > 0 && (
                 <span className="pl-[108px] text-xs text-muted max-sm:pl-0">
-                  本文にもある {dup.map((t) => `#${t}`).join(" ")} は、2 回出ないよう、タグの行には付けません（保存すると、この欄からも外れます）
+                  本文にもある {dup.map((t) => `#${t}`).join(" ")} は、タグの行には付けません。2 回出ないようにするためです。保存すると、この欄からも消えます。
                 </span>
               )}
             </li>
@@ -186,10 +186,10 @@ function TargetHashtags({ c }: { c: Composer }) {
 function tagNote(sns: SnsKey, tags: number, total: number): { text: string; danger?: boolean } | null {
   if (tags === 0) return null;
   if (sns === "instagram") {
-    if (total > INSTAGRAM_MAX_HASHTAGS) return { text: `本文のタグと合わせて ${INSTAGRAM_MAX_HASHTAGS} 個までです（いま ${total} 個）`, danger: true };
+    if (total > INSTAGRAM_MAX_HASHTAGS) return { text: `本文のタグと合わせて ${INSTAGRAM_MAX_HASHTAGS} 個までです。いまは ${total} 個です。`, danger: true };
     return null;
   }
-  if (sns === "threads") return total > 1 ? { text: "Threads では 1 つ目のタグがトピック（名前の横に出る）になり、本文の # は外れます。2 つ目からはタグにならず、文字のまま出ます" } : null;
+  if (sns === "threads") return total > 1 ? { text: "Threads では、1 つ目のタグがトピックになり、名前の横に出ます。本文の # は消えます。2 つ目からはタグにならず、文字のまま出ます" } : null;
   const rule = HASHTAG_RULES[sns];
   return total > rule.max ? { text: `目安: ${rule.text}` } : null;
 }
@@ -204,7 +204,7 @@ function QuoteTag({ id, onRemove }: { id: string; onRemove: () => void }) {
         x.com/i/web/status/{id}
       </a>
       <Button type="button" variant="text" size="sm" onClick={onRemove} className="ml-auto">
-        引用を外す
+        引用をやめる
       </Button>
     </div>
   );

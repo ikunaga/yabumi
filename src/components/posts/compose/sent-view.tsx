@@ -44,7 +44,7 @@ export function ComposeSentView({ c, onExtend }: { c: Composer; onExtend: () => 
       )}
       {!video && initial.videoRemoved && (
         <p className="text-[13px] text-muted">
-          動画（<span className="num">{formatDuration(initial.videoRemoved.durationMs)}</span>）は送り終えたので消しました。
+          送り終えた動画 <span className="num">{formatDuration(initial.videoRemoved.durationMs)}</span> を、yabumi から消しました。
         </p>
       )}
       <p className="text-[14px] leading-[1.7] text-muted">送信済みの投稿です。編集するときは各 SNS で、取り消すときは上の「送信の結果」から。</p>

@@ -133,10 +133,10 @@ export function ImageHeadlineEditor({
   const tall = s.size !== "landscape";
 
   return (
-    <section aria-label={`${index + 1} 枚目に見出しを付ける`} className="mt-1 flex flex-col gap-4 rounded-md border border-line bg-surface p-3.5 max-sm:p-3">
+    <section aria-label={`${index + 1} 枚目に画像の文字を付ける`} className="mt-1 flex flex-col gap-4 rounded-md border border-line bg-surface p-3.5 max-sm:p-3">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <h4 className="text-sm font-bold">{initial ? "見出しを編集" : "見出しを付ける"}</h4>
-        <span className="text-xs text-muted">{initial ? "見出しのない元の写真から描き直します" : "写真に見出しを重ねて、この画像と差し替えます。元に戻すこともできます"}</span>
+        <h4 className="text-sm font-bold">{initial ? "画像の文字を編集" : "画像の文字を付ける"}</h4>
+        <span className="text-xs text-muted">{initial ? "文字のない元の写真から描き直します" : "写真に文字を重ねて、この画像と差し替えます。元に戻すこともできます"}</span>
       </div>
 
       <BriefBar aiEnabled={aiEnabled} hasText={text.trim().length > 0} drafting={drafting} brief={brief} onDraft={draft} />
@@ -151,7 +151,7 @@ export function ImageHeadlineEditor({
               <canvas ref={canvasRef} aria-label="できあがりの見本" role="img" className={`mx-auto block h-auto w-full ${tall ? "max-w-[360px]" : ""}`} />
             )}
           </div>
-          {unknown && <p className="text-xs leading-[1.7] text-muted">文字が入った画像だと、見出しが重なります</p>}
+          {unknown && <p className="text-xs leading-[1.7] text-muted">もとから文字が入った画像だと、文字どうしが重なります</p>}
           {ai && (
             <p className="flex flex-wrap items-center gap-2 text-xs text-muted">
               <AiBadge />
@@ -173,7 +173,7 @@ export function ImageHeadlineEditor({
 
       <div className="flex flex-wrap items-center gap-3 border-t border-line pt-3">
         <Button type="button" disabled={Boolean(notReady) || busy || !bitmap || renderError} onClick={() => void apply()}>
-          {busy ? "差し替えています…" : initial ? "見出しを編集して差し替える" : "見出しを付けて差し替える"}
+          {busy ? "差し替えています…" : initial ? "画像の文字を編集して差し替える" : "画像の文字を付けて差し替える"}
         </Button>
         <Button type="button" variant="text" onClick={onClose}>
           やめる

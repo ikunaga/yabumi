@@ -5,6 +5,10 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { adoptSample, engineDeps, makeSample, makeSampleImage, NO_PLAN_ID } from "./engine";
 import { MEDIA_BUCKET, PREVIEW_URL_SECONDS } from "@/lib/media/rules";
+import { photoConfigured } from "@/lib/ai/gemini-image";
+import { readFormatImage } from "@/lib/post-formats/image";
+import { fakeAiMode } from "./ai";
+import { fitImageToFormat } from "./format-image";
 import { HOLD_REFUSED, myAutoPostHold } from "./holds";
 import { getAutoPlan, listProjectEvents, loadTargetPreviews } from "./queries";
 import { autoPlanInputSchema, eventInputSchema, instructionSchema, instructionsSchema } from "./schema";
@@ -62,7 +66,7 @@ export async function saveAutoPlan(projectId: string, input: AutoPlanInput): Pro
   if (!p.success) return { ok: false, error: p.error.issues[0]?.message ?? BAD };
   const db = await signedIn();
   if (!db) return SIGN_IN;
-  const v = p.data;
+  const v = { ...p.data, image: await imageForFormat(db, projectId, p.data) };
   const { data, error } = await db.rpc("save_auto_plan", {
     p_plan_id: (v.id ?? null) as string,
     p_project_id: projectId,
@@ -89,8 +93,18 @@ export async function saveAutoPlan(projectId: string, input: AutoPlanInput): Pro
     return r.ok ? { ok: true, data: { id, firstDueAt: r.dueAt } } : { ok: true, data: { id, sampleNote: `${r.detail}。最初の回は、いつもどおり送る前に作ってお知らせします。` } };
   } catch (e) {
     console.error("[auto-post] 見本を最初の回にできませんでした", e instanceof Error ? e.message : e);
-    return { ok: true, data: { id, sampleNote: "見本を最初の回にできませんでした。最初の回は、いつもどおり送る前に作ってお知らせします。" } };
+    return { ok: true, data: { id, sampleNote: "テストでつくった投稿を 1 回目にできませんでした。1 回目は、いつもどおり送る前に作ってお知らせします。" } };
   }
+}
+
+// シリーズの回の画像を、いまのフォーマットの画像の設定に合わせる（画面と同じ fitImageToFormat。画面が古いままでも、保存はフォーマットのとおり）。
+// フォーマットは利用者の権限で読む（見えなければ、そのまま。DB の save_auto_plan がフォーマットを確かめる）
+async function imageForFormat(db: Db, projectId: string, v: AutoPlanInput): Promise<AutoPlanInput["image"]> {
+  if (v.kind !== "series" || !v.materials.format_id) return v.image;
+  const { data } = await db.from("post_formats").select("image").eq("id", v.materials.format_id).eq("project_id", projectId).maybeSingle();
+  if (!data) return v.image;
+  const img = readFormatImage(data.image);
+  return fitImageToFormat(v.kind, { hasImage: !!img, hasHeadline: !!img?.headline }, v.image, photoConfigured() || !!fakeAiMode());
 }
 
 // 書き方の指示だけを直す（回し方の画面の見本から。同意の取り直しはしない）。直したあとの一覧を返す
@@ -205,7 +219,7 @@ export async function makeAutoSample(projectId: string, input: Omit<AutoPlanInpu
   if (await myAutoPostHold(db)) return { ok: false, error: HOLD_REFUSED };
   const admin = createAdminClient();
   const deps = engineDeps(admin);
-  if (!deps) return { ok: false, error: "見本をつくる機能は準備中です。" };
+  if (!deps) return { ok: false, error: "テストでつくる機能は準備中です。" };
   const v = p.data;
   const plan: AutoPlan = {
     id: v.id ?? "",

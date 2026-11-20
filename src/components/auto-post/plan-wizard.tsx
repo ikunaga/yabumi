@@ -12,7 +12,7 @@ import { Disclosure, HelpTip } from "@/components/ui/help";
 import { SnsTag } from "@/components/ui/marks";
 import { Steps } from "@/components/ui/steps";
 import { saveAutoPlan } from "@/lib/auto-post/actions";
-import { isReviewOnlySns, KIND_LABELS, TARGET_MODE_LABELS } from "@/lib/auto-post/labels";
+import { isReviewOnlySns, KIND_LABELS, kindSummary, TARGET_MODE_LABELS } from "@/lib/auto-post/labels";
 import { runsPerMonth } from "@/lib/auto-post/schedule";
 import { AUTO_NAME_MAX, DEFAULT_LEAD_HOURS } from "@/lib/auto-post/schema";
 import { suggestSchedules, type KindSuggestion, type SuggestMaterials } from "@/lib/auto-post/suggest";
@@ -36,6 +36,8 @@ import { SNS, type SnsKey } from "@/lib/sns";
 import { scheduleText } from "./format";
 import { choiceKey, kindCards, KindPicker, type KindChoice, type WinnersCard } from "./kind-picker";
 import { ReviewFlow, ReviewReason, StageCSns } from "./review-why";
+import { fitImageToFormat } from "@/lib/auto-post/format-image";
+import { formatsBackHref } from "@/lib/post-formats/back";
 import { ImagePicker } from "./image-picker";
 import { SampleCard } from "./sample-card";
 
@@ -140,7 +142,7 @@ export function PlanWizard(p: Props) {
   const [schedule, setSchedule] = useState<AutoSchedule | null>(p.plan?.schedule ?? null);
   const [custom, setCustom] = useState(false);
   const [instructions, setInstructions] = useState<string[]>(p.plan?.instructions ?? []);
-  const [image, setImage] = useState<AutoImage | null>(p.plan?.image ?? null);
+  const [picked, setImage] = useState<AutoImage | null>(p.plan?.image ?? null);
   const [photoAck, setPhotoAck] = useState(p.photo.acknowledged);
   const [name, setName] = useState(p.plan?.name ?? "");
   const [consent, setConsent] = useState(false);
@@ -171,8 +173,11 @@ export function PlanWizard(p: Props) {
   const effectiveSchedule = schedule ?? (options[0] ? withStart(options[0].schedule) : null);
 
   const whatOk = !!kind && AUTO_KINDS_STAGE_A.includes(kind) && (kind !== "series" || !!materials.format_id);
-  const formatHasImage = kind === "series" && !!p.materials.seriesFormats.find((f) => f.id === materials.format_id)?.hasImage;
-  const formatHasHeadline = kind === "series" && !!p.materials.seriesFormats.find((f) => f.id === materials.format_id)?.hasHeadline;
+  const seriesFormat = kind === "series" ? (p.materials.seriesFormats.find((f) => f.id === materials.format_id) ?? null) : null;
+  const formatHasImage = !!seriesFormat?.hasImage;
+  const formatHasHeadline = !!seriesFormat?.hasHeadline;
+  // シリーズでフォーマットに画像の設定があれば、いつもフォーマットのとおり（選ばせない。保存のサーバーの操作も同じ関数で合わせる）
+  const image = fitImageToFormat(kind, seriesFormat, picked, p.photo.enabled);
   // 画像を選んだら、AI の画像の注意を読んでから次へ（DB の save_auto_plan も断る）
   const whereOk = snsList.length > 0 && (!image || photoAck);
   const whenOk = !!effectiveSchedule && effectiveSchedule.weekdays.length > 0;
@@ -321,6 +326,9 @@ export function PlanWizard(p: Props) {
               kind={kind}
               formatHasImage={formatHasImage}
               formatHasHeadline={formatHasHeadline}
+              formatName={seriesFormat?.name}
+              formatImageSpec={seriesFormat?.imageSpec}
+              formatsHref={formatsBackHref(p.projectId, p.plan ? { kind: "plan-edit", planId: p.plan.id } : { kind: "auto-new" })}
               value={image}
               onChange={setImage}
               photo={{ enabled: p.photo.enabled, acknowledged: photoAck }}
@@ -390,7 +398,7 @@ export function PlanWizard(p: Props) {
             />
           </Disclosure>
           <Card className="flex flex-col gap-3 px-6 py-5 max-sm:px-4 max-sm:py-4">
-            <p className="text-sm text-muted">送る {DEFAULT_LEAD_HOURS} 時間前に文を作り、カレンダーと通知でお知らせします。書き方（長さ・絵文字・口調など）は、次の「確かめる」の見本を見ながら編集できます。</p>
+            <p className="text-sm text-muted">送る {DEFAULT_LEAD_HOURS} 時間前に文を作り、カレンダーと通知でお知らせします。書き方（長さ・絵文字・口調など）は、次の「確かめる」でテストで 1 件つくって、見ながら編集できます。</p>
           </Card>
           <Nav
             back={
@@ -416,7 +424,7 @@ export function PlanWizard(p: Props) {
             <dl className="grid grid-cols-[6rem_1fr] gap-x-4 gap-y-2 text-[15px] max-sm:grid-cols-[5rem_1fr]">
               <dt className="text-muted">何を</dt>
               <dd className="flex flex-wrap items-center gap-2">
-                {KIND_LABELS[kind]}
+                {kindSummary(kind, seriesFormat?.name)}
                 <EditLink onClick={() => go("what")} />
               </dd>
               <dt className="text-muted">どこに</dt>

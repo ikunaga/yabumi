@@ -1,5 +1,5 @@
 import "server-only";
-import { readFormatImage } from "@/lib/post-formats/image";
+import { imageSpecText, readFormatImage } from "@/lib/post-formats/image";
 import { isSnsKey, type SnsKey } from "@/lib/sns";
 import { createClient } from "@/lib/supabase/server";
 import { EXPIRED_MESSAGE } from "./engine";
@@ -54,8 +54,8 @@ export async function loadRunResults(postIds: string[]): Promise<Map<string, Run
 }
 
 // 始める画面のシリーズのカード（名前・投稿の例・これまでの回の数）
-// hasImage: フォーマットに画像の設定がある（自動の回の画像で「フォーマットの画像」を選べる）
-export type SeriesFormatCard = { id: string; name: string; example: string; rounds: number; hasImage: boolean; hasHeadline: boolean };
+// hasImage: フォーマットに画像の設定がある（自動の回の画像は、いつもフォーマットのとおりにつくる。imageSpec はその要約）
+export type SeriesFormatCard = { id: string; name: string; example: string; rounds: number; hasImage: boolean; hasHeadline: boolean; imageSpec: string | null };
 
 // 始める画面の材料の数（suggest.ts の SuggestMaterials と、使い道のカードの「残り n 件」）
 export type AutoMaterialCounts = {
@@ -87,8 +87,22 @@ export async function loadMaterialCounts(projectId: string): Promise<AutoMateria
     unusedPhotoNotes: notes.data.filter((n) => (n.media_files as unknown[]).length > 0).length,
     seriesFormats: formats.data
       .filter((f) => isSeries(f.series))
-      .map((f) => ({ id: f.id, name: f.name, example: f.example, rounds: (f.post_format_rounds as { count: number }[] | null)?.[0]?.count ?? 0, hasImage: !!readFormatImage(f.image), hasHeadline: !!readFormatImage(f.image)?.headline })),
+      .map((f) => ({ id: f.id, name: f.name, example: f.example, rounds: (f.post_format_rounds as { count: number }[] | null)?.[0]?.count ?? 0, ...formatImageCard(f.image) })),
     destinations: destinations.data.map((d) => ({ id: d.id, label: d.label })),
     events: events.count ?? 0,
   };
+}
+
+// フォーマットの画像の設定の有無と要約（自動の投稿の「画像」の欄と、回し方の画面で使う）
+export function formatImageCard(raw: unknown): { hasImage: boolean; hasHeadline: boolean; imageSpec: string | null } {
+  const img = readFormatImage(raw);
+  return { hasImage: !!img, hasHeadline: !!img?.headline, imageSpec: img ? imageSpecText(img) : null };
+}
+
+// 回し方の画面の「画像」: シリーズのフォーマットの名前と画像の設定（本人のものだけ。RLS）。見つからなければ null
+export async function loadSeriesFormatImage(projectId: string, formatId: string): Promise<{ name: string; hasImage: boolean; hasHeadline: boolean; imageSpec: string | null } | null> {
+  const db = await createClient();
+  const { data, error } = await db.from("post_formats").select("name, image").eq("id", formatId).eq("project_id", projectId).maybeSingle();
+  if (error) throw new Error(`post_formats: ${error.message}`);
+  return data ? { name: data.name, ...formatImageCard(data.image) } : null;
 }

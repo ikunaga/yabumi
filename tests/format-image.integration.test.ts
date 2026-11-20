@@ -35,8 +35,8 @@ afterAll(async () => {
 });
 
 describe("フォーマットの画像の設定", () => {
-  it("保存して読める。AI の穴を使うので場面は ai にそろう。image を渡さずに直すと画像なしになる", async () => {
-    expect((await getFormat(alice, projectId, formatId))?.image).toEqual({ ...image, scene: "ai" });
+  it("保存して読める。AI の空欄を使っていても、選んだ fill のまま保存する（2026-11-20 から固定しない）。image を渡さずに直すと画像なしになる", async () => {
+    expect((await getFormat(alice, projectId, formatId))?.image).toEqual(image);
     await updateFormat(alice, projectId, formatId, { name: "連想映画クイズ", body: BODY, series });
     expect((await getFormat(alice, projectId, formatId))?.image).toBeNull();
     const { data } = await admin.from("post_formats").select("image").eq("id", formatId).single();

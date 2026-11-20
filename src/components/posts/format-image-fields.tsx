@@ -30,8 +30,14 @@ export function FormatImageFields({
   const ref = useRef<HTMLTextAreaElement>(null);
   const [templates, setTemplates] = useState<PhotoTemplate[]>([]);
   const names = imageSlotNames(body, series);
-  const forcedAi = needsAiScene(image, body, series);
-  const scene = forcedAi ? "ai" : image.scene;
+  // 答えか AI の空欄を使うか。初めは「AI が絵の説明を書く」を選んでおく（利用者が選んだあとは変えない）。固定はしない（2026-11-20）
+  const risky = needsAiScene(image, body, series);
+  const [picked, setPicked] = useState(false);
+  const scene = image.scene;
+  function setPrompt(prompt: string) {
+    const next = { ...image, prompt };
+    setImage(!picked && !risky && next.scene === "fill" && needsAiScene(next, body, series) ? { ...next, scene: "ai" } : next);
+  }
   const unit = photoUnitYen(photoModel({}));
 
   // 「絵の説明のフォーマットから写す」の一覧（開いたときに 1 回読む）
@@ -51,7 +57,7 @@ export function FormatImageFields({
     const at = el ? el.selectionStart : image.prompt.length;
     const end = el ? el.selectionEnd : at;
     const next = `${image.prompt.slice(0, at)}{${name}}${image.prompt.slice(end)}`;
-    setImage({ ...image, prompt: [...next].slice(0, MAX_IMAGE_PROMPT).join("") });
+    setPrompt([...next].slice(0, MAX_IMAGE_PROMPT).join(""));
     requestAnimationFrame(() => {
       el?.focus();
       const pos = at + name.length + 2;
@@ -82,7 +88,7 @@ export function FormatImageFields({
             value={image.prompt}
             rows={3}
             maxLength={MAX_IMAGE_PROMPT}
-            onChange={(e) => setImage({ ...image, prompt: e.target.value })}
+            onChange={(e) => setPrompt(e.target.value)}
             placeholder="例: {キーワード}を思わせる小物が、木の机の上に並んでいる。真上から、やわらかい自然光"
             className="py-2 text-sm"
           />
@@ -92,7 +98,7 @@ export function FormatImageFields({
               value=""
               onChange={(e) => {
                 const t = templates.find((x) => x.id === e.target.value);
-                if (t) setImage({ ...image, prompt: [...t.body].slice(0, MAX_IMAGE_PROMPT).join("") });
+                if (t) setPrompt([...t.body].slice(0, MAX_IMAGE_PROMPT).join(""));
               }}
               className="self-start rounded-md border border-input bg-surface px-2.5 py-1.5 text-sm max-sm:text-[16px]"
             >
@@ -112,18 +118,28 @@ export function FormatImageFields({
           <legend className="mb-1 font-bold">絵の説明のつくり方</legend>
           <div className="flex flex-wrap gap-2">
             {IMAGE_SCENES.map((s) => (
-              <Choice key={s} on={scene === s} onClick={() => !forcedAi && setImage({ ...image, scene: s })} className={forcedAi && s === "fill" ? "opacity-50" : ""}>
+              <Choice
+                key={s}
+                on={scene === s}
+                onClick={() => {
+                  setPicked(true);
+                  setImage({ ...image, scene: s });
+                }}
+              >
                 {IMAGE_SCENE_LABEL[s]}
               </Choice>
             ))}
           </div>
           <p className="leading-[1.7] text-muted">
-            {forcedAi
-              ? "答えや、AI が埋める空欄を使うので、「AI が絵の説明を書く」に決まっています。作品の題名や登場人物を、そのまま描かないためです。"
-              : scene === "ai"
-                ? `空欄の言葉から、AI が描く場面を考えて書きます（例: 苺・雪・朝 →「雪の朝、窓辺に置いた苺のケーキ」）。作品の題名や登場人物を、そのまま描かないためです。1 枚あたり約 ${SCENE_YEN.one[0]}〜${SCENE_YEN.one[1]} 円ふえます。`
-                : "空欄の言葉を入れた絵の説明を、そのまま画像の AI に渡します。"}
+            {scene === "ai"
+              ? `空欄の言葉から、AI が描く場面を考えて書きます（例: 苺・雪・朝 →「雪の朝、窓辺に置いた苺のケーキ」）。作品の題名や登場人物を、そのまま描かないためです。1 枚あたり約 ${SCENE_YEN.one[0]}〜${SCENE_YEN.one[1]} 円ふえます。`
+              : "空欄の言葉を入れた絵の説明を、そのまま画像の AI に渡します。"}
           </p>
+          {scene === "fill" && risky && (
+            <p className="font-semibold leading-[1.7] text-signal">
+              ● 作品の題名やキャラクターが、そのまま絵になることがあります。他人の作品に似た画像は、著作権などの問題になることがあり、画像の AI に断られることもあります。
+            </p>
+          )}
         </fieldset>
 
         <fieldset className="flex min-w-0 flex-col gap-1.5">

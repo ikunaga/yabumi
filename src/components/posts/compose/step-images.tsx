@@ -23,7 +23,7 @@ export function ComposeStepImages({ c }: { c: Composer }) {
   const restored = formatUse && formatUse.format.id === initial.formatId && !Object.values(formatUse.values).some((v) => v.trim()) && !formatUse.answer?.trim() ? initial.formatValues : null;
   const imageUse = formatUse?.format.image ? { ...formatUse, ...(restored ?? {}), format: { ...formatUse.format, image: formatUse.format.image } } : null;
   // フォーマットの画像の設定を、画像をつくる画面に渡す（auto: すぐ 1 枚つくる。帯の「つくる」だけ）
-  function makePreset(auto: boolean, texts: { text: string; headline: string | null }) {
+  function makePreset(auto: boolean, texts: { text: string; headline: string | null; label: string | null }) {
     if (!imageUse) return;
     setPreset((p) => ({
       seq: (p?.seq ?? 0) + 1,
@@ -37,6 +37,7 @@ export function ComposeStepImages({ c }: { c: Composer }) {
       style: imageUse.format.image.style,
       size: imageUse.format.image.size,
       headline: texts.headline,
+      label: texts.label,
     }));
   }
   // 動画を添えたが、yabumi からはまだ動画を送れない送り先

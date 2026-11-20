@@ -26,7 +26,8 @@ export const headlineSettingsSchema = z
     brand: z.string().regex(/^#[0-9a-fA-F]{6}$/),
     font: z.enum(FONT_KEYS),
     textStyle: z.enum(TEXT_STYLES),
-    label: z.string().max(12),
+    // 見出しの上の小さい文（2026-11-20 に 12 字から 20 字にした。フォーマットの画像の設定と同じ）
+    label: z.string().max(20),
     headline: z.string().max(40),
     subline: z.string().max(60),
     footer: z.string().max(30),

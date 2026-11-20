@@ -176,3 +176,19 @@ describe("意味の切れ目で折る", () => {
     expect(wrapLines("はい、通知の時間を自分で決められます", 10 * 10, font, 10, measure)[0]).toBe("はい、通知の時間を自");
   });
 });
+
+describe("写真に見出し（全面に敷く）の上の小さい文（2026-11-20 オーナーの指示。見出しを 2 段にする）", () => {
+  it("小さい文は palette の accent の色で、見出しの半分くらいの大きさ。見出しの上に描く", () => {
+    for (const textStyle of ["quiet", "bottom", "band", "center"] as const) {
+      const pal = PALETTES[1];
+      const layout = layoutTemplate({ ...base, kind: "screen", size: "portrait", palette: pal, label: "連想映画クイズ", headline: "この画像から連想される映画は？", subline: "", screenshot: { w: 1080, h: 1350 }, photoFit: "cover", textStyle }, measure);
+      const texts = layout.ops.filter((o): o is Extract<typeof o, { type: "text" }> => o.type === "text");
+      const label = texts.find((t) => t.text === "連想映画クイズ")!;
+      const head = texts.find((t) => t.text !== "連想映画クイズ")!;
+      expect(label.color, textStyle).toBe(pal.accent);
+      expect(label.size / head.size, textStyle).toBeGreaterThan(0.4);
+      expect(label.size / head.size, textStyle).toBeLessThanOrEqual(0.55);
+      expect(label.y).toBeLessThan(head.y);
+    }
+  });
+});

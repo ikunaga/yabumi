@@ -8,6 +8,8 @@ import { DEFAULT_ANSWER_NAME, isSeries, type FormatSeries } from "./series";
 
 export const MAX_IMAGE_PROMPT = 600;
 export const MAX_IMAGE_HEADLINE = 40;
+// 見出しの上に重ねる小さい文（ラベル。2026-11-20 オーナーの指示。見出しを 2 段にする）
+export const MAX_IMAGE_LABEL = 20;
 
 // fill: 穴の言葉をそのまま入れて画像の AI に渡す（Claude を使わない）。ai: 穴の言葉と絵の説明を材料に、Claude が場面を 1 つ書く
 export const IMAGE_SCENES = ["fill", "ai"] as const;
@@ -18,9 +20,10 @@ export const IMAGE_SCENE_LABEL: Record<ImageScene, string> = { fill: "空欄の�
 export type ImageSize = "auto" | TemplateSizeKey;
 export const IMAGE_SIZES: ImageSize[] = ["auto", ...(Object.keys(TEMPLATE_SIZES) as TemplateSizeKey[])];
 
-export type FormatImage = { prompt: string; scene: ImageScene; style: PhotoStyle; size: ImageSize; headline: string | null };
+// label: 見出しの上に重ねる小さい文（見出しがあるときだけ描く。{空欄} を使える）
+export type FormatImage = { prompt: string; scene: ImageScene; style: PhotoStyle; size: ImageSize; headline: string | null; label: string | null };
 
-export const EMPTY_IMAGE: FormatImage = { prompt: "", scene: "fill", style: "photo", size: "auto", headline: null };
+export const EMPTY_IMAGE: FormatImage = { prompt: "", scene: "fill", style: "photo", size: "auto", headline: null, label: null };
 
 const SLOT = /\{([^{}\n]*)\}/g;
 
@@ -64,12 +67,14 @@ export function readFormatImage(raw: unknown): FormatImage | null {
   const prompt = multiLine(r.prompt, MAX_IMAGE_PROMPT);
   if (!prompt) return null;
   const headline = oneLine(r.headline, MAX_IMAGE_HEADLINE);
+  const label = oneLine(r.label, MAX_IMAGE_LABEL);
   return {
     prompt,
     scene: (IMAGE_SCENES as readonly unknown[]).includes(r.scene) ? (r.scene as ImageScene) : "fill",
     style: (PHOTO_STYLES as readonly unknown[]).includes(r.style) ? (r.style as PhotoStyle) : "photo",
     size: (IMAGE_SIZES as unknown[]).includes(r.size) ? (r.size as ImageSize) : "auto",
     headline: headline || null,
+    label: label || null,
   };
 }
 
@@ -80,10 +85,11 @@ export function cleanFormatImage(raw: unknown, body: string, series: FormatSerie
   const r = raw as Record<string, unknown>;
   if (typeof r.prompt === "string" && [...r.prompt.trim()].length > MAX_IMAGE_PROMPT) return { image: null, problem: `絵の説明は ${MAX_IMAGE_PROMPT} 字までです` };
   if (typeof r.headline === "string" && [...r.headline.trim()].length > MAX_IMAGE_HEADLINE) return { image: null, problem: `見出しは ${MAX_IMAGE_HEADLINE} 字までです` };
+  if (typeof r.label === "string" && [...r.label.trim()].length > MAX_IMAGE_LABEL) return { image: null, problem: `見出しの上の小さい文は ${MAX_IMAGE_LABEL} 字までです` };
   const img = readFormatImage(raw);
   if (!img) return { image: null };
   const allowed = imageSlotNames(body, series);
-  const unknown = [...namesIn(img.prompt), ...namesIn(img.headline ?? "")].filter((n) => !allowed.includes(n));
+  const unknown = [...namesIn(img.prompt), ...namesIn(img.headline ?? ""), ...namesIn(img.label ?? "")].filter((n) => !allowed.includes(n));
   if (unknown.some((n) => !n)) return { image: null, problem: "絵の説明の { } の中に、空欄の名前を入れてください" };
   if (unknown.length) return { image: null, problem: `絵の説明に、型の文にない空欄 {${unknown[0]}} があります` };
   return { image: img };
@@ -127,6 +133,7 @@ export type FormatPhotoPreset = {
   style: PhotoStyle;
   size: ImageSize;
   headline: string | null;
+  label: string | null;
 };
 
 // 選んでいるフォーマットと穴の言葉から、帯に出す絵の説明と見出しを作る（答えはシリーズのときだけ）
@@ -134,8 +141,13 @@ export function formatPhotoTexts(
   f: { body: string; series: FormatSeries; image: FormatImage },
   values: Record<string, string>,
   answer: string | undefined,
-): { text: string; headline: string | null } {
+): { text: string; headline: string | null; label: string | null } {
   const name = answerSlotName(f.series);
   const a = name && answer?.trim() ? { name, value: answer.trim() } : null;
-  return { text: fillImageText(f.image.prompt, values, a), headline: f.image.headline ? fillImageText(f.image.headline, values, a) : null };
+  // 小さい文は見出しがあるときだけ（見出しなしで小さい文だけは描かない）
+  return {
+    text: fillImageText(f.image.prompt, values, a),
+    headline: f.image.headline ? fillImageText(f.image.headline, values, a) : null,
+    label: f.image.headline && f.image.label ? fillImageText(f.image.label, values, a) : null,
+  };
 }

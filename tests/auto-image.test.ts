@@ -42,7 +42,7 @@ describe("読み取りと表示", () => {
     expect(readAutoImage(ai)).toEqual(ai);
   });
   it("回し方の画面の 1 行", () => {
-    expect(autoImageLabel(null)).toBe("付けない");
+    expect(autoImageLabel(null)).toBe("画像なしで送る");
     expect(autoImageLabel({ ...ai, source: "format" })).toBe("フォーマットの画像");
     expect(autoImageLabel({ ...ai, style: "illustration", size: "portrait" })).toBe("AI がつくる（イラストで・縦 4:5）");
   });

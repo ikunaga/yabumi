@@ -143,7 +143,7 @@ describe("つくる", () => {
       });
       expect(r.ok).toBe(false);
       if (!r.ok) {
-        expect(r.message).toContain("AI の画像はいま使えません（yabumi の運営に知らせました");
+        expect(r.message).toContain("AI の画像がいま使えません。yabumi の運営に知らせました");
         expect(r.message).not.toContain("時間をおいて");
         expect(r.remainingImages).toBe(PHOTO_LIMITS.userMonthlyImages - 3);
       }

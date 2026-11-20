@@ -27,7 +27,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { LearningTip } from "@/components/learning/learning-tip";
 import { SuccessBanner } from "@/components/ui/feedback";
-import { SnsMark, StatusMark } from "@/components/ui/marks";
+import { SnsMark, SnsMarksCompact, StatusMark } from "@/components/ui/marks";
 import { countPostsByDay, listPostsBetween, listUndatedDrafts, postTitle, type PostRow } from "@/lib/posts/queries";
 import { CALENDAR_VIEW_COOKIE, resolveCalendarView } from "@/lib/calendar-view";
 import { getProject } from "@/lib/projects/queries";
@@ -263,11 +263,7 @@ function UndatedDrafts({ posts: undated, base }: { posts: PostRow[]; base: strin
                   className="grid grid-cols-[1fr_auto] items-center gap-3 px-6 py-3 text-[15px] hover:bg-surface2 hover:no-underline max-sm:px-4"
                 >
                   <span className="truncate">{postTitle(p.body, 40)}</span>
-                  <span className="flex gap-1">
-                    {p.targets.map((t) => (
-                      <SnsMark key={t.id} sns={t.sns} dotOnly />
-                    ))}
-                  </span>
+                  <SnsMarksCompact sns={p.targets.map((t) => t.sns)} />
                 </Link>
               </li>
             ))}

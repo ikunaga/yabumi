@@ -94,10 +94,10 @@ export function ProfileFields({ v, roles, ctx }: { v: PlanData["profile"]; roles
       {mismatches.map((m) => (
         <div key={m.sns} className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-line px-4 py-3 text-sm leading-[1.7]">
           <span className="flex-1">
-            <b>{SNS[m.sns].label}</b>: 設計では {m.planned ? <b>@{m.planned}</b> : "まだ決めていません"}、つないだのは <b>@{m.actual}</b> です。
+            <b>{SNS[m.sns].label}</b>: アカウントの方針では {m.planned ? <b>@{m.planned}</b> : "まだ決めていません"}、つないだのは <b>@{m.actual}</b> です。
           </span>
           <Button type="button" size="sm" variant="secondary" onClick={() => matchHandle(m.sns, m.actual)}>
-            設計を @{m.actual} に合わせる
+            アカウントの方針を @{m.actual} に合わせる
           </Button>
         </div>
       ))}

@@ -49,7 +49,7 @@ const pains = [
 ];
 
 const steps = [
-  { title: "設計する", short: "AI と話して誰に・何を発信するか決める", body: "AI と話しながら、誰に・何のために・どんな名前で・どんな投稿をするかを決めます。マーケティングの用語は、出てきたときに解説します。" },
+  { title: "方針を決める", short: "AI と話して誰に・何を発信するか決める", body: "AI と話しながら、誰に・何のために・どんな名前で・どんな投稿をするかを決めます。マーケティングの用語は、出てきたときに解説します。" },
   { title: "つなぐ", short: "使う SNS のアカウントをつなぐ", body: "使う SNS のアカウントをつなぎます。note・Substack は、文面を用意して手で投稿する形で使えます。" },
   { title: "投稿する", short: "下書きをつくってまとめて予約", body: "ネタ帳や AI の案から下書きをつくり、AI っぽさをチェックして、まとめて予約します。" },
   { title: "振り返る", short: "数字を見て次の週のやることを決める", body: "数字を見ながら AI と相談し、ロードマップと次の週のやることを決めます。" },
@@ -62,7 +62,7 @@ const features: Feature[] = [
   { name: "calendar", title: "カレンダー", body: "週と月の表示で、予約・送信済み・下書きを一目で。空いている日から投稿をつくれます。", shot: { name: "calendar", alt: "カレンダーの週の表示。予約と送信済みの印" } },
   { name: "notes", title: "ネタ帳と AI のネタ出し", body: "思いついたことを写真 1 枚と一緒に残し、AI がメモから投稿の案を出します（アプリや Web のサービスなら GitHub の更新からも）。", shot: { name: "notes", alt: "ネタ帳の画面。まだ使っていないメモの一覧" } },
   { name: "metrics", title: "分析と振り返り", body: "閲覧から、行き先へのクリック・成果までを 1 枚で。数字の読み方と次の一手を、やさしい言葉で添えます。", shot: { name: "metrics", alt: "分析の画面。投稿の閲覧と、行き先へのクリックの数字" } },
-  { name: "plan", title: "アカウント設計と AI と相談", body: "誰に向けて何を発信するかを、AI が質問しながら一緒に整理します。決めたことはロードマップの目標になります。", shot: { name: "plan", alt: "アカウント設計の画面。項目ごとの決めたこと" } },
+  { name: "plan", title: "アカウントの方針と AI と相談", body: "誰に向けて何を発信するかを、AI が質問しながら一緒に整理します。決めたことはロードマップの目標になります。", shot: { name: "plan", alt: "アカウントの方針の画面。項目ごとの決めたこと" } },
   { name: "coach", title: "伴走", body: "今週あと何本出せば目標に届くかを、毎日見て声をかけます。", shot: { name: "coach", alt: "概要の画面。今週のペースと声かけ" } },
 ];
 
@@ -85,7 +85,7 @@ const sns: { group: string; items: SnsKey[]; ready: boolean }[] = [
 const facts = [
   { label: "まとめて予約", value: "4", unit: "つの SNS", note: "X・Threads・Instagram・Facebook ページ" },
   { label: "手で投稿", value: "2", unit: "つの SNS", note: "note・Substack（文面を用意）" },
-  { label: "最初にやること", value: "4", unit: "段", note: "設計 → つなぐ → 投稿 → 振り返り" },
+  { label: "最初にやること", value: "4", unit: "段", note: "方針 → つなぐ → 投稿 → 振り返り" },
   { label: "いまの料金", value: "0", unit: "円", note: "招待制の試用。勝手に請求は始まりません" },
 ];
 

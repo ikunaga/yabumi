@@ -381,7 +381,7 @@ export function PlanWizard(p: Props) {
                 >
                   <span className="num text-[17px] font-bold">
                     {scheduleText(s)}
-                    {o.fromPlan && <span className="ml-2 text-sm font-normal text-muted">設計の頻度</span>}
+                    {o.fromPlan && <span className="ml-2 text-sm font-normal text-muted">アカウントの方針の頻度</span>}
                   </span>
                   <span className="text-[14px] text-muted">{o.reason}</span>
                   <span className="text-[14px] text-muted">

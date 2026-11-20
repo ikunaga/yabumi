@@ -27,7 +27,7 @@ type Input = { kind: "start"; topic: ConsultTopic; itemId?: string; goalId?: str
 const TOPIC_BUTTONS = listedConsultTopics().map((topic) => ({ topic, label: CONSULT_TOPIC_META[topic].button }));
 
 const KIND_LABEL: Record<ActionKind | ProposalKind, ReactNode> = {
-  plan_section: "アカウント設計の編集",
+  plan_section: "アカウントの方針の編集",
   goal_plan: (
     <>
       最終の目標（<Term k="kgi" />）と中間の目標
@@ -166,7 +166,7 @@ export function ConsultChat({
       {messages.length === 0 && !pending && (
         <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface px-6 py-5 max-sm:px-4">
           <p className="text-[14px] leading-[1.8]">
-            運用の悩みを相談できます。AI はアカウント設計・最近の投稿・数字・ロードマップを見たうえで、次の一手を出します。提案は「これにする」を押したものだけが、設計やロードマップに入ります。
+            運用の悩みを相談できます。AI は、アカウントの方針・最近の投稿・数字・ロードマップを見ます。そのうえで、次の一手を出します。「これにする」を押した提案だけが、方針やロードマップに入ります。
           </p>
           <div className="flex flex-wrap gap-2">
             {TOPIC_BUTTONS.map((t) => (
@@ -379,7 +379,7 @@ function ProposalCard({
         ) : reviewHeading ? (
           <b>{reviewHeading}</b>
         ) : (
-          <b>{p.kind === "plan_section" && p.options[0]?.kind === "plan_section" ? `アカウント設計: ${sectionLabel(p.options[0].section)}` : KIND_LABEL[p.kind]}</b>
+          <b>{p.kind === "plan_section" && p.options[0]?.kind === "plan_section" ? `アカウントの方針: ${sectionLabel(p.options[0].section)}` : KIND_LABEL[p.kind]}</b>
         )}
         {!readOnly && <span className="text-xs text-muted">{isDraft ? "選んだ案を下書きにします" : "選んだ案だけが保存されます"}</span>}
       </p>

@@ -144,7 +144,10 @@ export function PostFormatPicker({
   return (
     <section aria-label="フォーマットから" className="flex min-w-0 flex-col gap-2.5 border-t border-line pt-3.5">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <p className="text-[14px] text-muted">いつも使うひな形を選んで、空欄を埋めます</p>
+        <p className="flex items-center gap-1.5 text-[14px] text-muted">
+          いつも使うひな形を選んで、空欄を埋めます
+          {formats?.some((f) => isSeries(f.series)) && <HelpTip label="シリーズとは">「シリーズ」の札が付いたフォーマットは、空欄の言葉を毎回 AI が考えます。前の投稿と重ならないので、クイズのように続けて出せます。</HelpTip>}
+        </p>
         {/* 書きかけは控え（tab-drafts）に残るので、戻ると続きから書ける */}
         <Link href={formatsHref} className="text-[14px] font-bold text-fg underline">
           フォーマットを作る・編集 →

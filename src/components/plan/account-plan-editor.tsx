@@ -69,14 +69,13 @@ const META: Record<SectionKey, Meta> = {
   },
   profile: {
     title: "名前とプロフィール",
-    lead: "初めて見た人は、名前と自己紹介文だけで「フォローするか」を決めます。何者で、何を発信するのかが 1 秒で伝わるようにします。前のセクションで決めた投稿の柱をもとに考えると決めやすくなります。",
+    lead: "初めて見た人は、名前と自己紹介文だけで「フォローするか」を決めます。何者で、何を発信するのかが 1 秒で伝わるようにします。前のセクションで決めた投稿のテーマをもとに考えると決めやすくなります。",
   },
   pillars: {
-    title: "投稿の柱",
+    title: "投稿のテーマ",
     lead: (
       <>
-        毎回ゼロからネタを考えなくて済むよう、投稿の「型」（<Term k="contentPillar" />
-        ）を 3〜4 種類決めておきます。割合も決めると、宣伝ばかりになるのを防げます。
+        毎回ゼロからネタを考えなくて済むよう、<Term k="contentPillar">投稿のテーマ</Term>を 3〜4 種類決めておきます。割合も決めると、宣伝ばかりになるのを防げます。
       </>
     ),
   },
@@ -555,10 +554,10 @@ function GoalFields({ v, productType }: { v: PlanData["goal"]; productType: Prod
         name="goalType"
         legend={
           <>
-            見た人にいちばんしてほしいこと（<Term k="kgi" /> の方向）
+            見た人にいちばんしてほしいこと
           </>
         }
-        hint={`「${PRODUCT_TYPE_DEFS[productType].label}」のおすすめを先に並べています。迷ったら「まず知ってもらう」。これが 3 か月の目標（KGI）の数字になります。具体的な数字はロードマップで決めます。`}
+        hint={`「${PRODUCT_TYPE_DEFS[productType].label}」に合う選択肢を上に並べています。迷ったら「まず知ってもらう」を選んでください。選んだものが、3 か月の目標になります。目標の数は、あとで「ロードマップ」の画面で決めます。週ごとのやることを決める画面です。`}
         value={v.goalType}
         options={order.map((a) => ({
           value: a,
@@ -610,7 +609,7 @@ function StoryFields({ v, ex }: { v: PlanData["story"]; ex: PlanExamples }) {
   return (
     <>
       <p className="-mb-1 text-xs leading-[1.7] text-muted">
-        どれも任意です。病気や家族のことなど、知られたくないことは書かなくて大丈夫です。「投稿に使ってよい」をオフにした項目は、ネタ出しや下書きの AI には渡さず、設計の相棒がまとめるときだけ使います。
+        どれも任意です。病気や家族のことなど、知られたくないことは書かなくて大丈夫です。「投稿に使ってよい」をオフにした項目は、ネタ出しや下書きの AI には渡しません。方針を一緒に決める AI が、まとめるときだけ使います。
       </p>
       {STORY_FIELDS.map((f) => (
         <div key={f} className="flex flex-col gap-1.5">

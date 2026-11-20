@@ -95,7 +95,7 @@ export function PlanCoachChat({
       {messages.length === 0 && !pending && (
         <div className="flex flex-col items-start gap-3 rounded-lg border border-border bg-surface px-6 py-5 max-sm:px-4">
           <p className="text-[14px] leading-[1.8]">
-            AI が 1 つずつ質問します。答えにあわせて案を 2〜3 個、長所・短所とおすすめの理由つきで出すので、選ぶか、変えたいところを伝えてください。選んだ案だけが設計に保存されます。
+            AI が 1 つずつ質問します。答えにあわせて、案を 2〜3 個出します。長所・短所とおすすめの理由も付けます。選ぶか、変えたいところを伝えてください。選んだ案だけが、アカウントの方針に保存されます。
           </p>
           <Button onClick={() => send({ kind: "start", focus: null })}>相談をはじめる</Button>
         </div>
@@ -165,7 +165,7 @@ export function PlanCoachChat({
               onClick={() => send({ kind: "start", focus: null }, { newThread: true })}
               className="text-xs text-muted hover:text-fg hover:underline disabled:opacity-40"
             >
-              最初から相談する（決まった設計は残ります）
+              最初から相談する・決まったアカウントの方針は残ります
             </button>
             <Button className="ml-auto" size="sm" disabled={pending || !text.trim()} onClick={submitText}>
               送る
@@ -262,7 +262,7 @@ function ProposalCard({
       <p className="flex items-center gap-2 text-sm">
         <span className="rounded-full bg-primary-soft px-2.5 py-1 text-xs font-bold text-primary">AI の案</span>
         <b>{sectionLabel(p.section)}</b>
-        <span className="text-xs text-muted">{isHashtags ? "印を付けたタグだけが設計に保存されます" : "選んだ案だけが設計に保存されます"}</span>
+        <span className="text-xs text-muted">{isHashtags ? "印を付けたタグだけがアカウントの方針に保存されます" : "選んだ案だけがアカウントの方針に保存されます"}</span>
       </p>
       <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-3">
         {p.options.map((o, i) => {
@@ -343,7 +343,7 @@ function ProposalCard({
       )}
       {adopted !== null && (
         <p className="text-xs text-muted">
-          保存した中身は、設計の画面でいつでも手で編集できます。
+          保存した中身は、「アカウントの方針」の画面でいつでも手で編集できます。
         </p>
       )}
     </section>

@@ -49,7 +49,7 @@ export const RUN_REASON_TEXT: Record<AutoRunReason, string> = {
   check_failed: "送る前の確認で引っかかりました",
   similar: "前の投稿と似ています",
   made_up: "事実か確認したいところがあります",
-  avoid: "アカウント設計の「やらないこと」に当たります",
+  avoid: "アカウントの方針の「やらないこと」に当たります",
   too_long: "字数の上限を超えました",
   ai_limit: "AI の今月の枠を使い切りました",
   daily_limit: "今日の自動投稿の上限に届きました",

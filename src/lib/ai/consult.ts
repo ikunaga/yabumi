@@ -71,7 +71,7 @@ export type ConsultMessage =
   | { id: string; role: "assistant"; content: ConsultAssistantContent; created_at: string };
 
 const ADOPTED_TEXT: Record<ActionKind, string> = {
-  plan_section: "アカウント設計を編集しました",
+  plan_section: "アカウントの方針を編集しました",
   goal_plan: "新しい目標を始めました",
   goal_keep: "いまの目標を期限まで続けます",
   goal_kpis: "KPI の週の目標を入れました",
@@ -361,7 +361,7 @@ export async function applyConsultAction(user: Db, projectId: string, action: Ac
     switch (action.kind) {
       case "plan_section": {
         const saved = await saveSectionValue(user, projectId, action.section, action.value, "ai");
-        if (!saved.ok) return { ok: false, message: "アカウント設計を保存できませんでした。時間をおいてもう一度お試しください。" };
+        if (!saved.ok) return { ok: false, message: "アカウントの方針を保存できませんでした。時間をおいてもう一度お試しください。" };
         return { ok: true };
       }
       // 前の形（roadmaps の KGI・KPI。2026-11-06 まで）の案は、目標の形が違うので採用しない

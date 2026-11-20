@@ -18,11 +18,11 @@ export const CONSULT_TOPIC_META = {
   no_reaction: { button: "投稿しても反応がない", listTitle: "反応がない" },
   which_sns: { button: "どの SNS に力を入れる？", listTitle: "どの SNS に力を入れる？" },
   roadmap: {
-    button: "目標とロードマップを一緒に決めたい",
+    button: "3 か月の目標と週ごとのやることを決めたい",
     listTitle: "ロードマップづくり",
     entry: {
       title: "ロードマップを AI と作る",
-      lead: "AI がアカウント設計と数字を見て、最終の目標と週ごとのやることの案を出します。選んだ案だけが、ロードマップに入ります。",
+      lead: "AI がアカウントの方針と数字を見て、最終の目標と週ごとのやることの案を出します。選んだ案だけが、ロードマップに入ります。",
       back: { path: "roadmap", label: "ロードマップに戻る" },
     },
   },

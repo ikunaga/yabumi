@@ -24,7 +24,7 @@ export function SnsTag({ sns }: { sns: SnsKey }) {
 }
 
 // SNS の小さな印。SNS ごとの色の点と、名前を全部書く（「● Threads」）。略（IG・TH など）は使わない（2026-11-21 PM・オーナー）
-// dotOnly: 幅が足りないところ（カレンダーの日ごとの札・予約の一覧の行・概要の次の予約）だけ、色の点だけにして、名前は title と読み上げで伝える
+// dotOnly: 幅が足りないところ（カレンダーの日ごとの札・概要の次の予約）だけ、色の点だけにして、名前は title と読み上げで伝える
 // byHand: 自動では送らず、利用者が手で投稿する（「X は手で投稿する」を選んだ X）。点に点線の輪を付け、「手で」を添える
 export function SnsMark({ sns, byHand = false, dotOnly = false }: { sns: SnsKey; byHand?: boolean; dotOnly?: boolean }) {
   const c = SNS_COLOR[sns];
@@ -43,6 +43,22 @@ export function SnsMark({ sns, byHand = false, dotOnly = false }: { sns: SnsKey;
       {dot}
       {SNS[sns].label}
       {byHand && <span className="font-normal text-muted">・手で</span>}
+    </span>
+  );
+}
+
+// 幅が足りないところで、最初の SNS の印と「ほか n」だけを出す（「● X ほか 2」）。全部の名前は title と読み上げで伝える。
+// 色の点だけだと、スマホでは title が見られず、どの SNS かわからなかった（2026-11-21 確認役の指摘・PM の判断）
+export function SnsMarksCompact({ sns }: { sns: SnsKey[] }) {
+  if (sns.length === 0) return null;
+  const names = sns.map((s) => SNS[s].label).join("・");
+  return (
+    <span title={names} className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap">
+      <span aria-hidden className="inline-flex items-center gap-1">
+        <SnsMark sns={sns[0]} />
+        {sns.length > 1 && <span className="text-[12px] text-muted">ほか {sns.length - 1} つ</span>}
+      </span>
+      <span className="sr-only">{names}</span>
     </span>
   );
 }

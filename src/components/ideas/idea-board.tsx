@@ -59,11 +59,11 @@ const SOURCE_INFO: Record<IdeaSource, { title: string; summary: string; good: st
     cost: "1 回あたり 10〜20 円ほど",
   },
   plan: {
-    title: "アカウント設計から（入力なし）",
+    title: "アカウントの方針から・入力なし",
     summary: "投稿の柱と、プロジェクトの説明から、柱ごとに 1 つずつ出します。",
     good: "何も書かなくてよい。いつ出しても古くならないネタがそろう",
     note: "最近の話は入らないので、ほかの材料と交互に使うのがおすすめ",
-    button: "アカウント設計からネタを出す",
+    button: "アカウントの方針からネタを出す",
     working: { kind: "ideas", wait: "20〜60 秒ほどかかります" },
     cost: "1 回あたり 10〜20 円ほど",
   },
@@ -123,13 +123,13 @@ type Props = {
   thread: IdeasThread | null;
   // 投稿の柱がまだ決まっていない（② に一言添える）
   noPillars: boolean;
-  // 「X で人気の投稿から」の検索の言葉（アカウント設計から作ったもの。src/lib/ideas/x-post.ts）
+  // 「X で人気の投稿から」の検索の言葉（アカウントの方針から作ったもの。src/lib/ideas/x-post.ts）
   xSearchWords: string[];
   // 「yabumi の中で探す」（A 案、4.52）の残りの回数（サーバーが読んだもの。鍵がなければ not_ready）
   xSearchQuota: XSearchQuota;
 };
 
-// 材料（最近のコミット・最近のできごと・ネタ帳・アカウント設計）から AI がネタを出し、利用者が質問に答えたり、ネタを選んで下書きにしたりする。
+// 材料（最近のコミット・最近のできごと・ネタ帳・アカウントの方針）から AI がネタを出し、利用者が質問に答えたり、ネタを選んで下書きにしたりする。
 // ① 材料を選ぶ → ② 中身を入れる → ③ ネタを選んで下書きにする の 3 つのステップに分け、いまいるステップの項目だけを出す（入れたものはステップを移っても残る）
 export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, snsOptions, maxSns, defaultSns, defaultDays, defaultSource, newsQuestions, newsExample, topicExamples, sources, notes, defaultNoteIds, thread, noPillars, xSearchWords, xSearchQuota }: Props) {
   const [step, setStep] = useState<IdeaStep>(() => initialIdeaStep({ hasThread: Boolean(thread), fromNotes: defaultNoteIds.length > 0 }));
@@ -561,7 +561,7 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
                     <p className="text-[13px] text-faint">
                       思いつかないときは
                       <button type="button" onClick={() => setSource("plan")} className="mx-0.5 text-muted underline hover:text-fg">
-                        「アカウント設計から」
+                        「アカウントの方針から」
                       </button>
                       を選ぶと、柱ごとに AI が出します。
                     </p>
@@ -583,7 +583,7 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
                 <p className="flex flex-wrap items-center gap-2 rounded-md border border-line bg-surface2 px-4 py-3 text-[15px]">
                   入力はいりません
                   <Link href={`/projects/${projectId}/plan`} className="ml-auto text-[13px] text-muted underline hover:text-fg">
-                    アカウント設計を見る
+                    アカウントの方針を見る
                   </Link>
                 </p>
               )}
@@ -607,10 +607,10 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
                 <p className="flex items-center gap-1.5 text-[13px] text-faint">
                   投稿の柱がまだ決まっていません
                   <HelpTip label="投稿の柱">
-                    アカウント設計で決めると、ネタが柱に沿います（決めなくても出せます）。
+                    アカウントの方針で決めると、ネタが投稿のテーマに沿います。決めなくても出せます。
                   </HelpTip>
                   <Link href={`/projects/${projectId}/plan`} className="text-muted underline hover:text-fg">
-                    アカウント設計
+                    アカウントの方針
                   </Link>
                 </p>
               )}
@@ -682,7 +682,7 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
 function sourceLabel(thread: IdeasThread): string {
   const r = thread.request;
   if (r.source === "news") return "最近のできごとから";
-  if (r.source === "plan") return "アカウント設計から";
+  if (r.source === "plan") return "アカウントの方針から";
   if (r.source === "notes") return `ネタ帳のメモ ${r.notes?.length ?? 0} 件から`;
   if (r.source === "other") return "伝えたいことから";
   if (r.source === "x_post") return "X で人気の投稿から";

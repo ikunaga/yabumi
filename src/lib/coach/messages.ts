@@ -28,7 +28,7 @@ export function mailFooter(c: MessageContext): string {
     "このメールは、yabumi の「伴走」のお知らせです。あなたが決めた目標と、SNS ごとの週の投稿の回数をもとに、自動で送っています。",
     `お知らせの設定（毎週の振り返りだけにする・送らない）: ${c.appUrl}/settings/notifications`,
     `このお知らせのメールを止める（ワンクリック）: ${c.appUrl}/unsubscribe?t=${c.unsubscribeToken}`,
-    `送信者: yabumi （運営 ${LEGAL.operator ?? "yabumi の運営者"}）`,
+    `送信者: yabumi （運営 ${LEGAL.operator ?? "yabumi の運営"}）`,
     `問い合わせ: ${LEGAL.contact ?? `${c.appUrl}/privacy`}`,
   ].join("\n");
 }

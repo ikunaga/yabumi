@@ -41,7 +41,7 @@ describe("運営者が自動の投稿を止めた記録の版", () => {
     expect(sql).toContain("user_id uuid not null references auth.users (id) on delete cascade");
     expect(sql).toContain("grant select (id, user_id, held_at, released_at) on public.auto_post_holds to authenticated;");
     const holds = read("src/lib/auto-post/holds.ts");
-    expect(holds).toContain('body: "運営者が、あなたのアカウントの自動投稿を止めました。くわしくは問い合わせ先へ"');
+    expect(holds).toContain('body: "yabumi の運営が、あなたのアカウントの自動投稿を止めました。くわしくは問い合わせ先へ"');
     // 利用規約は変えない（「利用の停止」の条に、運営者が自動の投稿を止めることと、画面と通知で知らせることが書いてある）
     const terms = read("src/app/terms/page.tsx");
     expect(terms).toContain("自動投稿を止めることがあります。止めたときは画面と通知で知らせます");

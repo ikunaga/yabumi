@@ -43,8 +43,8 @@ export function isUnavailableResponse(provider: AiProvider, status: number, mess
 }
 
 export const AI_UNAVAILABLE_MESSAGE: Record<AiProvider, string> = {
-  gemini: "AI の画像はいま使えません（運営者に知らせました）。テンプレートの画像と、手持ちの写真は使えます。",
-  anthropic: "AI はいま使えません（運営者に知らせました）。",
+  gemini: "AI の画像はいま使えません（yabumi の運営に知らせました）。テンプレートの画像と、手持ちの写真は使えます。",
+  anthropic: "AI はいま使えません（yabumi の運営に知らせました）。",
 };
 
 // 失敗したときに利用者に出す文。支払い・鍵の問題なら「いま使えない」、それ以外は呼ぶ側の文（時間をおいて、など）

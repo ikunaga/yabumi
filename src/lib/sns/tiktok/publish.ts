@@ -111,7 +111,7 @@ export function failureOf(reason: string): { kind: FailKind; message: string } {
     case "privacy_level_option_mismatch":
       return { kind: "permanent", message: "選んだ TikTok の公開範囲は、いまのアカウントでは選べません。投稿の画面で選び直してください。" };
     case "url_ownership_unverified":
-      return { kind: "permanent", message: "TikTok に写真を渡せませんでした（yabumi の設定の問題です）。運営者に知らせました。" };
+      return { kind: "permanent", message: "TikTok に写真を渡せませんでした（yabumi の設定の問題です）。yabumi の運営に知らせました。" };
     case "picture_size_check_failed":
     case "file_format_check_failed":
       return { kind: "permanent", message: "TikTok が写真の形を受け付けませんでした。写真を選び直してから送り直してください。" };

@@ -7,7 +7,7 @@ export function PlanStatusMark({ plan, held = false }: { plan: Pick<AutoPlan, "s
   if (held && plan.status === "active")
     return (
       <span className="inline-flex items-center gap-1 text-sm text-muted">
-        <span aria-hidden="true">‖</span>運営者が止めています
+        <span aria-hidden="true">‖</span>yabumi の運営が止めています
       </span>
     );
   if (plan.status === "active")

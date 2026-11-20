@@ -28,7 +28,8 @@ function ToDraftChoice({ value, onChange }: { value: boolean; onChange: (v: bool
 type Dialog = "pause" | "skip" | "delete" | null;
 
 // 回し方の画面の右の操作: 直す・止める／再開する・次の回を飛ばす・削除する（1.6）
-// held: 運営者が止めている（直す・再開するは押せない。止める・飛ばす・削除するはできる）
+// held: 運営者が止めている（編集・止める・再開するは押せない。飛ばす・削除するはできる。止めるを押せないのは、
+// 止めている間に押せると、運営者が止めたのと利用者が止めたのが混ざってわかりにくいため。2026-11-21 確認役の通しの確認・PM の指示）
 export function PlanControls({ projectId, planId, status, nextLabel, held = false }: { projectId: string; planId: string; status: AutoPlanStatus; nextLabel: string | null; held?: boolean }) {
   const router = useRouter();
   const [dialog, setDialog] = useState<Dialog>(null);
@@ -67,7 +68,7 @@ export function PlanControls({ projectId, planId, status, nextLabel, held = fals
           </ButtonLink>
         )}
         {status === "active" ? (
-          <Button type="button" variant="secondary" size="sm" disabled={pending} onClick={() => setDialog("pause")}>
+          <Button type="button" variant="secondary" size="sm" disabled={pending || held} onClick={() => setDialog("pause")}>
             止める
           </Button>
         ) : (
@@ -84,6 +85,11 @@ export function PlanControls({ projectId, planId, status, nextLabel, held = fals
           削除する
         </Button>
       </div>
+      {held && (
+        <p className="text-sm text-muted">
+          {status === "active" ? "yabumi の運営が止めている間は、編集も、止めることもできません。" : "yabumi の運営が止めている間は、編集も、再開もできません。"}
+        </p>
+      )}
 
       <ConfirmDialog
         open={dialog === "pause"}
@@ -95,7 +101,7 @@ export function PlanControls({ projectId, planId, status, nextLabel, held = fals
           run(() => setAutoPlanStatus(projectId, planId, "paused", toDraft));
         }}
       >
-        <p>止めている間は、新しい投稿はつくられません。{held ? "" : "いつでも再開できます。"}</p>
+        <p>止めている間は、新しい投稿はつくられません。いつでも再開できます。</p>
         <ToDraftChoice value={toDraft} onChange={setToDraft} />
       </ConfirmDialog>
       <ConfirmDialog
@@ -136,7 +142,7 @@ export function PlanControls({ projectId, planId, status, nextLabel, held = fals
 }
 
 // 一覧の右上の「全部止める」
-// held: 運営者が止めている（再開できないので「再開できます」と書かない）
+// held: 運営者が止めている（押せない。理由を 1 行出す。2026-11-21 PM の指示）
 export function PauseAllButton({ projectId, activeCount, held = false }: { projectId: string; activeCount: number; held?: boolean }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -145,9 +151,10 @@ export function PauseAllButton({ projectId, activeCount, held = false }: { proje
   const [pending, start] = useTransition();
   return (
     <>
-      <Button type="button" variant="secondary" size="sm" disabled={pending || activeCount === 0} onClick={() => setOpen(true)}>
+      <Button type="button" variant="secondary" size="sm" disabled={pending || activeCount === 0 || held} onClick={() => setOpen(true)}>
         全部止める
       </Button>
+      {held && <p className="text-sm text-muted">yabumi の運営が止めているので、いまは押せません。</p>}
       {error && <ErrorBanner>{error}</ErrorBanner>}
       <ConfirmDialog
         open={open}
@@ -164,7 +171,7 @@ export function PauseAllButton({ projectId, activeCount, held = false }: { proje
           });
         }}
       >
-        <p>運用中の {activeCount} 件を止めます。{held ? "" : "それぞれの画面から再開できます。"}</p>
+        <p>運用中の {activeCount} 件を止めます。それぞれの画面から再開できます。</p>
         <ToDraftChoice value={toDraft} onChange={setToDraft} />
       </ConfirmDialog>
     </>

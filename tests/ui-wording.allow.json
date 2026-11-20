@@ -2943,9 +2943,6 @@
  "src/lib/ai/provider-failure.ts": {
   "AI の画像はいま使えません（yabumi の運営に知らせました）。テンプレートの画像と、手持ちの写真は使えます。": [
    "paren"
-  ],
-  "AI はいま使えません（yabumi の運営に知らせました）。": [
-   "paren"
   ]
  },
  "src/lib/ai/thinking.ts": {

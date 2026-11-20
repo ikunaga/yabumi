@@ -1,5 +1,6 @@
 import { createPrivateKey, randomBytes, sign } from "node:crypto";
 import { StoreApiError } from "./app-store";
+import { LEGAL, orPending } from "@/lib/legal/info";
 
 // Google Play の一括レポートを読むための Google Cloud の呼び出し（docs/architecture.md の 4.22、決定 D21）。
 // オーナーの Google Cloud のプロジェクトに「管理用」のサービスアカウントを 1 つ置き（鍵は環境変数 GOOGLE_PLAY_MANAGER_KEY）、
@@ -74,7 +75,7 @@ export async function createServiceAccount(key: ManagerKey, token: string, accou
     fetchImpl,
   );
   if (status === 429 || /quota/i.test(json.error?.message ?? "")) {
-    throw new StoreApiError("Google Play をつないでいる数が上限に達しました。yabumi の運営に知らせてください。", 429);
+    throw new StoreApiError(`このアカウントでつなげる Google Play の数が、上限に達しました。くわしくは ${orPending(LEGAL.contact)} にお問い合わせください。`, 429);
   }
   if (status >= 300 || !json.email) throw new StoreApiError("Google Play 用のアカウントを作れませんでした。時間をおいてもう一度お試しください。", status);
   return json.email;

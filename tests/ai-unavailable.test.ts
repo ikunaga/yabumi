@@ -67,7 +67,7 @@ describe("運営者への知らせの中身", () => {
 
   it("利用者に出す文は「いま使えない（運営者に知らせた）」。ほかの失敗は呼ぶ側の文のまま", () => {
     expect(aiFailureMessage(new AiUnavailableError("gemini", 402), "時間をおいて")).toBe(AI_UNAVAILABLE_MESSAGE.gemini);
-    expect(aiFailureMessage(new AiUnavailableError("anthropic", 401), "時間をおいて")).toBe("AI はいま使えません（運営者に知らせました）。");
+    expect(aiFailureMessage(new AiUnavailableError("anthropic", 401), "時間をおいて")).toBe("AI はいま使えません（yabumi の運営に知らせました）。");
     expect(aiFailureMessage(new Error("timeout"), "時間をおいて")).toBe("時間をおいて");
     for (const m of Object.values(AI_UNAVAILABLE_MESSAGE)) expect(m).not.toContain("時間をおいて");
   });

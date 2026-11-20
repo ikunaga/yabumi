@@ -57,7 +57,7 @@ export const RUN_REASON_TEXT: Record<AutoRunReason, string> = {
   error: "うまく作れませんでした",
   user_skipped: "飛ばしました",
   plan_paused: "止めました",
-  operator_hold: "運営者が止めました",
+  operator_hold: "yabumi の運営が止めました",
   image_failed: "画像をつくれませんでした",
 };
 
@@ -65,7 +65,7 @@ export const STOP_REASON_TEXT: Record<AutoStopReason, string> = {
   fail_streak: "2 回続けて送れませんでした",
   disconnected: "SNS のつながりが切れています",
   materials_out: "材料を使い切りました",
-  operator: "運営者が止めました",
+  operator: "yabumi の運営が止めました",
 };
 
 // 送る時刻を過ぎても確かめなかった配信先の理由（post_targets.error_message。engine.ts の EXPIRED_MESSAGE と同じ）と、短い言葉

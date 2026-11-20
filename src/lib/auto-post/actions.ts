@@ -31,7 +31,7 @@ const HINT_TEXT: Record<string, string> = {
   project_events_limit: "予定は 1 つのプロジェクトに 50 件までです。終わった予定を消してください。",
   approval_expired: "送る時刻を過ぎたので、送れません。投稿の画面で日時を直してから予約してください。",
   content_changed: "確認したあとに文が変わりました。もう一度確認してください。",
-  auto_plan_operator_stop: "運営者がこのプロジェクトの自動投稿を止めています。再開・作る・編集・消すはできません。問い合わせ先にご連絡ください。",
+  auto_plan_operator_stop: "yabumi の運営がこのプロジェクトの自動投稿を止めています。再開・作る・編集・消すはできません。問い合わせ先にご連絡ください。",
   // 運営者が利用者ごとに止めている（20261118100000_auto_post_holds）
   auto_post_hold: HOLD_REFUSED,
   // 予約済みの回を飛ばそうとしたが、もう送り始めていた（20261121110000）

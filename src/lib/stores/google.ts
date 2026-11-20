@@ -74,7 +74,7 @@ export async function createServiceAccount(key: ManagerKey, token: string, accou
     fetchImpl,
   );
   if (status === 429 || /quota/i.test(json.error?.message ?? "")) {
-    throw new StoreApiError("Google Play をつないでいる数が上限に達しました。運営者に知らせてください。", 429);
+    throw new StoreApiError("Google Play をつないでいる数が上限に達しました。yabumi の運営に知らせてください。", 429);
   }
   if (status >= 300 || !json.email) throw new StoreApiError("Google Play 用のアカウントを作れませんでした。時間をおいてもう一度お試しください。", status);
   return json.email;

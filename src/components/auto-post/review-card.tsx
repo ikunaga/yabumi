@@ -55,7 +55,8 @@ export function ReviewCard({ projectId, item, dueLabel }: { projectId: string; i
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="inline-flex items-center gap-2">
               <SnsTag sns={t.sns} />
-              <span className="text-sm text-muted">{t.status === "awaiting_approval" ? "確認して送る" : "予約"}</span>
+              {/* SNS ごとにどうなるか（2026-11-21 確認役の通しの確認）。1 回目の投稿は下書きのままなので、どの SNS も「これで送る」を押すまで送らない */}
+              <span className="text-sm text-muted">{first ? "「これで送る」を押すと、予約の日時に送ります" : "「送る」を押すと、予約の日時に送ります。押さないと送りません"}</span>
             </span>
           </div>
           {t.title && <p className="text-[15px] font-bold whitespace-pre-wrap">{t.title}</p>}
@@ -82,7 +83,7 @@ export function ReviewCard({ projectId, item, dueLabel }: { projectId: string; i
           {others.map((t) => (
             <SnsTag key={t.targetId} sns={t.sns} />
           ))}
-          は予約のまま送ります
+          は、{waiting.map((t) => SNS[t.sns].label).join("・")} の確認とは関係なく、予約の日時に送ります。
           <Link href={postHref} className="underline">
             中身を見る
           </Link>

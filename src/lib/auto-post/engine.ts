@@ -786,7 +786,7 @@ export async function adoptSample(admin: Db, args: { ownerId: string; planId: st
   const now = args.now ?? new Date();
   const { data: row } = await admin.from("auto_plans").select("*").eq("id", args.planId).eq("owner_id", args.ownerId).maybeSingle();
   if (!row || row.status !== "active") return { ok: false, detail: "自動投稿が見つかりません" };
-  if (await isAutoPostHeld(admin, args.ownerId)) return { ok: false, detail: "運営者が自動投稿を止めています" };
+  if (await isAutoPostHeld(admin, args.ownerId)) return { ok: false, detail: "yabumi の運営が自動投稿を止めています" };
   const plan = { ...toPlan(row), ownerId: args.ownerId };
   // 1 回だけ使う（同時に押されても 1 つの回にしかならない）
   const { data: samples, error } = await admin

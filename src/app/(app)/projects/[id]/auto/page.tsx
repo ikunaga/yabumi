@@ -51,7 +51,7 @@ export default async function AutoListPage(props: PageProps<"/projects/[id]/auto
     <div className="flex flex-col gap-5 max-sm:gap-4">
       <PageHeader
         title="自動投稿"
-        sub={plans.length > 0 ? (hold ? `${plans.length} 件・運営者が止めています` : `${plans.length} 件・運用中 ${active} 件`) : undefined}
+        sub={plans.length > 0 ? (hold ? `${plans.length} 件・yabumi の運営が止めています` : `${plans.length} 件・運用中 ${active} 件`) : undefined}
         help={
           <>
             決めた間隔で、AI が投稿の文を作って予約します。送る 24 時間前にカレンダーと通知でお知らせするので、気になれば編集・飛ばす・止めるができます。X
@@ -101,7 +101,7 @@ export default async function AutoListPage(props: PageProps<"/projects/[id]/auto
       )}
 
       {/* これからの投稿: 設定ごとに次の 1 件。枠のある 1 つの箱に、区切り線で並べる（2026-11-21 オーナーの意見「セクションを分ける」）。
-          運営者が止めている間は作らないので出さない（上の帯で知らせる） */}
+          yabumi の運営が止めている間は作らないので出さない（上の帯で知らせる） */}
       {plans.length > 0 && !hold && (
         <section className="flex flex-col gap-2" aria-labelledby="auto-upcoming">
           <h2 id="auto-upcoming" className="text-[18px] font-bold max-sm:text-[16px]">
@@ -172,7 +172,7 @@ export default async function AutoListPage(props: PageProps<"/projects/[id]/auto
         )}
         {/* 全部止めるは、押すと全部が止まるので小さく、設定の並びの下に置く */}
         {plans.length > 0 && (
-          <div className="flex justify-end">
+          <div className="flex flex-col items-end gap-1">
             <PauseAllButton projectId={project.id} activeCount={active} held={hold !== null} />
           </div>
         )}

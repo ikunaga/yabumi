@@ -9,22 +9,22 @@ import type { Database } from "@/lib/supabase/database.types";
 type Db = SupabaseClient<Database>;
 
 // 画面と通知に出す文。理由は出さない（運営者のメモは、調べている途中のことや、ほかの人のことを含みうるため。理由は運営者がメールで伝える）
-export const HOLD_TITLE = "運営者が、自動投稿を止めています";
+export const HOLD_TITLE = "yabumi の運営が、自動投稿を止めています";
 export function holdBody(heldAt: string): string {
   const d = new Date(new Date(heldAt).getTime() + 9 * 3_600_000);
   const date = `${d.getUTCFullYear()}年${d.getUTCMonth() + 1}月${d.getUTCDate()}日`;
   return `${date}から、あなたのアカウントの自動投稿を止めています。新しく作る・再開する・送ることはできません。問い合わせ先: ${orPending(LEGAL.contact)}`;
 }
 // DB が断ったときの文（actions.ts の HINT_TEXT）
-export const HOLD_REFUSED = `運営者が、あなたのアカウントの自動投稿を止めています。新しく作る・再開する・送ることはできません。問い合わせ先: ${orPending(LEGAL.contact)}`;
+export const HOLD_REFUSED = `yabumi の運営が、あなたのアカウントの自動投稿を止めています。新しく作る・再開する・送ることはできません。問い合わせ先: ${orPending(LEGAL.contact)}`;
 
 export const HOLD_PUSH: Omit<PushMessage, "url" | "tag"> = {
   title: "自動投稿を止めました",
-  body: "運営者が、あなたのアカウントの自動投稿を止めました。くわしくは問い合わせ先へ",
+  body: "yabumi の運営が、あなたのアカウントの自動投稿を止めました。くわしくは問い合わせ先へ",
 };
 export const RELEASE_PUSH: Omit<PushMessage, "url" | "tag"> = {
   title: "自動投稿を再開できます",
-  body: "運営者が止めていた自動投稿を、また使えるようにしました。1 回目の投稿は、確認してから送ります",
+  body: "yabumi の運営が止めていた自動投稿を、また使えるようにしました。1 回目の投稿は、確認してから送ります",
 };
 
 // 本人が、いま止められているか（利用者の権限。RLS で本人の行だけ、列は日時だけ読める）。止められていなければ null

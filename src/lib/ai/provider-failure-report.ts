@@ -26,7 +26,7 @@ export function unavailableMail(provider: AiProvider, status: number): OperatorM
     subject: `${PROVIDER_NAME[provider]}が ${status} を返して使えません`,
     text: [
       `${PROVIDER_NAME[provider]}が状態番号 ${status} を返しました。支払い・鍵の問題で、時間をおいても直りません。`,
-      "利用者の画面には「いま使えません（運営者に知らせました）」と出しています（枚数・費用には数えていません）。",
+      "利用者の画面には「いま使えません（yabumi の運営に知らせました）」と出しています（枚数・費用には数えていません）。",
       "",
       `直す場所: ${hint(provider, status)}`,
       "",

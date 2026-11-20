@@ -233,3 +233,14 @@
 
 - Meta の考え方: AI の印は、業界の決まった印（C2PA など）を見つけたとき・利用者が自分で明かしたときに付ける（「people self-disclosing that they're uploading AI-generated content」。https://about.fb.com/news/2024/04/metas-approach-to-labeling-ai-generated-content-and-manipulated-media/ 、2025-10-23 更新）。利用者に明かすことを求める決まりの本文（transparency.meta.com）は【未確認】
 - **作ったこと**: 送る画像に AI で作ったもの（media_files.ai_generated）が 1 枚でもあれば、Threads は is_made_with_ai、Instagram は is_ai_generated、X は made_with_ai を付けて送る（src/lib/sns/threads/api.ts・instagram/api.ts・x/api.ts、カルーセルは staged.ts が親に渡す）。**自動の投稿だけでなく、手でつくった AI の画像を添えた投稿にも付く**（今までは利用者に SNS の画面で付けてもらう案内だけだった）。Facebook は欄がないので付けない（利用規約の「SNS が仕組みを用意している範囲で」）。TikTok は前から is_aigc を付けている
+
+## 11. 作ったもの（④ 見出しをサーバーで描く。2026-11-20、feat/auto-headline）
+
+- **描き方**: 画面の「文字を入れる」と同じ並べ方（layoutTemplate・headlineInput。写真を全面に敷く screen）と描き方（DrawOp）を、サーバーで @napi-rs/canvas（Skia）で描く（src/lib/media/template-render-server.ts）。書体は画面と同じ 5 書体（src/server-fonts/、OFL）を決まった名前で登録する（src/lib/media/server-fonts.ts）。字の幅は Skia で測るので、画面と 1 字ほど折り返しがずれることがある
+- **依存**: @napi-rs/canvas@1.1.0（固定。2026-10-30 の版。PM が了承）。ネイティブのモジュールなので next.config.ts の serverExternalPackages。書体は outputFileTracingIncludes で、自動の投稿のジョブ・自動の投稿の画面・運営者の試しの関数にだけ入れる。ローカルの mac で 1080×1350 を描いて JPEG にするまで約 60ms
+- **見出しの文**: 回し方の「見出し」で、重ねない／フォーマットの見出し（シリーズで、フォーマットに見出しがあるとき。穴の言葉を入れる）／AI が書く（自動の投稿の AI の返事に headline の欄を足し、10〜24 字・40 字まで。材料にない事実・絵文字・URL・【】・あおりは使わない）
+- **絵文字**: サーバーの書体にないので、取り除いて描く（2026-11-20 PM の決定 a。src/lib/media/headline-text.ts の cleanHeadline。URL・【】・改行も取り除き、40 字まで）。画像の説明（alt）の先頭に、描いたのと同じ見出しの文を「見出し「…」。」で入れる（確かめる画面に出る文と描いた文が同じ）
+- **見た目**: auto_plans.image.look（色・いつもの色・書体・置き方。画面の「文字を入れる」と同じ選び方）。初めはその端末で前に使った見た目。マイグレーション 20261120100000（auto_image_valid の create or replace だけ）
+- **添え方**: 重ねる前の写真を「元の画像」として残す（4.68 の形: 元の画像の行は投稿に添えず source_of で指す。添えた画像は original_id・edit_base_id・edit〈headline の設定〉・has_text）。投稿の画面の「見出しを直す」で、ブラウザで直せる。画像の中の AI の印は、元の写真が generated、重ねたものが composite（手で見出しを付けたときと同じ）
+- **描けなかったとき**: 見出しなしの写真を添える（回は止めない。ログに残す）
+- **運営者の試し**: GET /api/admin/render-check（運営者だけ。DB・AI・Storage につながず、決まった文字を描いた JPEG を返す。?font= で書体を選べる）。Vercel の Preview で動くかを確かめるのは、オーナーが Preview の環境変数を確かめてから（PM）

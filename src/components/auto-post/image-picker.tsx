@@ -9,7 +9,9 @@ import { ErrorBanner } from "@/components/ui/feedback";
 import { HelpTip } from "@/components/ui/help";
 import { acknowledgePhoto } from "@/lib/ai/photo-actions";
 import { AUTO_PHOTO_LIMITS } from "@/lib/ai/photo";
-import type { AutoImage, AutoImageSize, AutoKind } from "@/lib/auto-post/types";
+import type { AutoImage, AutoImageLook, AutoImageSize, AutoKind } from "@/lib/auto-post/types";
+import { DEFAULT_BRAND_COLOR, DEFAULT_TEXT_STYLE, PALETTES } from "@/lib/media/templates";
+import { loadTemplateStyle, StyleFields } from "@/components/posts/template-fields";
 
 // 自動の回の画像を選ぶ（docs/design/auto-sample-image.md の 2.1。ウィザードの「どこに」）。
 // 付けない／フォーマットの画像の設定（シリーズで、フォーマットに画像の設定があるとき）／AI がつくる（本文から場面を考える）。
@@ -28,6 +30,7 @@ export function ImagePicker(p: {
   projectId: string;
   kind: AutoKind;
   formatHasImage: boolean;
+  formatHasHeadline: boolean;
   value: AutoImage | null;
   onChange: (v: AutoImage | null) => void;
   photo: { enabled: boolean; acknowledged: boolean };
@@ -41,6 +44,16 @@ export function ImagePicker(p: {
     if (c === "none") return p.onChange(null);
     // フォーマットの画像は、写真かイラスト・縦横もフォーマットのものを使う（ここの値は使わない）
     p.onChange({ source: c, style: product ? "illustration" : (p.value?.style ?? "illustration"), size: p.value?.size ?? "auto", headline: "none" });
+  };
+  // 見出しを重ねる（なし・フォーマットの見出し・AI が書く）。重ねるときは見た目も持つ（初めはこの端末で前に使った見た目）
+  const setHeadline = (h: AutoImage["headline"]) => {
+    if (!p.value) return;
+    if (h === "none") {
+      const { look: _drop, ...rest } = p.value;
+      void _drop;
+      return p.onChange({ ...rest, headline: "none" });
+    }
+    p.onChange({ ...p.value, headline: h, look: p.value.look ?? defaultLook(p.projectId) });
   };
 
   if (!p.photo.enabled) {
@@ -109,6 +122,35 @@ export function ImagePicker(p: {
           </div>
         </div>
       )}
+      {choice !== "none" && p.value && (
+        <div className="flex flex-col gap-3 border-t border-line pt-3">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span className="text-sm text-muted">見出し</span>
+            <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="見出しを重ねる">
+              <Chip on={p.value.headline === "none"} role="radio" aria-checked={p.value.headline === "none"} onClick={() => setHeadline("none")}>
+                重ねない
+              </Chip>
+              {choice === "format" && (
+                <Chip on={p.value.headline === "format"} role="radio" aria-checked={p.value.headline === "format"} disabled={!p.formatHasHeadline} onClick={() => setHeadline("format")}>
+                  フォーマットの見出し
+                </Chip>
+              )}
+              <Chip on={p.value.headline === "ai"} role="radio" aria-checked={p.value.headline === "ai"} onClick={() => setHeadline("ai")}>
+                AI が書く
+              </Chip>
+            </div>
+          </div>
+          {p.value.headline !== "none" && (
+            <>
+              <p className="text-sm text-muted">
+                {p.value.headline === "ai" ? "その回の文に合う見出しを AI が書いて、画像に重ねます（20 字ほど）。" : "フォーマットの見出しに、その回の穴の言葉を入れて重ねます。"}
+                絵文字は描けないので、取り除いて描きます。
+              </p>
+              <StyleFields style={p.value.look ?? defaultLook(p.projectId)} onStyle={(patch) => p.onChange({ ...p.value!, look: { ...(p.value!.look ?? defaultLook(p.projectId)), ...patch } })} showTextStyle />
+            </>
+          )}
+        </div>
+      )}
       {choice !== "none" && !p.photo.acknowledged && (
         <div className="flex flex-col gap-3 rounded-md border border-line bg-surface2 px-4 py-3.5 text-sm leading-[1.8]">
           <p className="font-bold">AI でつくる画像について（はじめの 1 回だけ出します）</p>
@@ -137,4 +179,11 @@ export function ImagePicker(p: {
       )}
     </Card>
   );
+}
+
+// 見出しの見た目の初め: この端末で前に「文字を入れる」で使った見た目（なければ 藍・すっきり・左に控えめ）
+function defaultLook(projectId: string): AutoImageLook {
+  const s = typeof window === "undefined" ? null : loadTemplateStyle(projectId);
+  const palette = s && [...PALETTES.map((p) => p.key), "brand"].includes(s.palette) ? s.palette : PALETTES[0].key;
+  return { palette, brand: s?.brand && /^#[0-9a-fA-F]{6}$/.test(s.brand) ? s.brand : DEFAULT_BRAND_COLOR, font: s?.font ?? "gothic", textStyle: s?.textStyle ?? DEFAULT_TEXT_STYLE };
 }

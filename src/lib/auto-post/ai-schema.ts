@@ -7,5 +7,7 @@ export const autoPostDraftSchema = z.object({
   pillar: z.string(),
   concern: z.enum(["health", "ambition", "relationship", "money", "none"]),
   cannot_write: z.string().nullable(),
+  // 画像に重ねる見出し（回し方で「AI が書く」を選んだときだけ。docs/design/auto-sample-image.md の 11.）。いらないときは null
+  headline: z.string().nullable(),
 });
 export type AutoPostDraft = z.infer<typeof autoPostDraftSchema>;

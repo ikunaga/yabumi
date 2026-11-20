@@ -31,6 +31,8 @@ export type GenerateInput = {
   context: string;
   // 書き方の指示（回し方に覚えた指示＋見本のその 1 回だけの指示）
   instructions: string[];
+  // 画像に重ねる見出しも書く（回し方の画像で「見出しを AI が書く」）
+  headline?: boolean;
   // AI の用途（ジョブの回は auto_post、見本は auto_post_sample。どちらも自動の投稿の枠）
   purpose?: "auto_post" | "auto_post_sample";
   // この回し方で直近に送った本文（重ならないように）
@@ -42,7 +44,7 @@ export type GenerateInput = {
 };
 
 export type GenerateOutput =
-  | { ok: true; texts: Partial<Record<SnsKey, string>>; pillar?: string; concern?: string; issues?: { kind: AutoRunReason; detail: string }[] }
+  | { ok: true; texts: Partial<Record<SnsKey, string>>; pillar?: string; concern?: string; headline?: string; issues?: { kind: AutoRunReason; detail: string }[] }
   | { ok: false; reason: "cannot_write" | "ai_limit" | "error"; detail: string };
 
 export type AutoPostGenerator = (input: GenerateInput) => Promise<GenerateOutput>;
@@ -66,14 +68,17 @@ export function fakeGenerator(mode: FakeMode = "ok"): AutoPostGenerator {
       const max = input.maxLength[sns] ?? 500;
       texts[sns] = `（偽の AI）${input.materialLabel}をもとにした ${sns} の投稿です。`.slice(0, max);
     }
-    return mode === "held" ? { ok: true, texts, issues: [{ kind: "made_up", detail: "（偽の AI）事実か確かめてほしいところがあります" }] } : { ok: true, texts, pillar: "", concern: "none" };
+    const headline = input.headline ? "（偽の AI）今朝の焙煎の話" : undefined;
+    return mode === "held"
+      ? { ok: true, texts, headline, issues: [{ kind: "made_up", detail: "（偽の AI）事実か確かめてほしいところがあります" }] }
+      : { ok: true, texts, pillar: "", concern: "none", headline };
   };
 }
 
 // 本物の AI（Claude）。予約（reserve_ai_usage の auto_post）→ 呼ぶ → 実際の額に直す
 export function realGenerator(admin: Db, call = callAutoPost): AutoPostGenerator {
   return async (input) => {
-    const request = buildAutoPostRequest({ context: input.context, material: input.material, instructions: input.instructions, recentBodies: input.recentBodies, fixedTags: input.fixedTags });
+    const request = buildAutoPostRequest({ context: input.context, material: input.material, instructions: input.instructions, recentBodies: input.recentBodies, fixedTags: input.fixedTags, headline: input.headline });
     try {
       const b = await withAiBudget(admin, { userId: input.ownerId, purpose: input.purpose ?? "auto_post", call: "auto_post" }, request, call);
       if (!b.ok) return { ok: false, reason: "ai_limit", detail: b.message };
@@ -86,7 +91,7 @@ export function realGenerator(admin: Db, call = callAutoPost): AutoPostGenerator
       const texts: Partial<Record<SnsKey, string>> = {};
       for (const t of d.texts) if (isSnsKey(t.sns) && input.sns.includes(t.sns) && t.text.trim()) texts[t.sns] = t.text.trim();
       if (!input.sns.every((s) => texts[s])) return { ok: false, reason: "error", detail: "SNS ごとの文がそろいませんでした" };
-      return { ok: true, texts, pillar: d.pillar.trim().slice(0, 50), concern: d.concern };
+      return { ok: true, texts, pillar: d.pillar.trim().slice(0, 50), concern: d.concern, ...(input.headline && d.headline?.trim() ? { headline: d.headline.trim() } : {}) };
     } catch (e) {
       console.error("[auto-post] AI の呼び出しに失敗しました", e instanceof Error ? e.message : e);
       return { ok: false, reason: "error", detail: "AI とのやりとりがうまくいきませんでした" };

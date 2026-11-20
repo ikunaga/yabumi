@@ -118,7 +118,8 @@ export const INSTRUCTION_PRESETS = ["もっと短く", "絵文字なし", "や�
 // 自動の回の画像の設定の 1 行（回し方の画面の「画像」）
 export function autoImageLabel(image: AutoImage | null): string {
   if (!image) return "付けない";
-  if (image.source === "format") return "フォーマットの画像";
+  const head = image.headline === "ai" ? "・見出しは AI が書く" : image.headline === "format" ? "・フォーマットの見出し" : "";
+  if (image.source === "format") return `フォーマットの画像${head}`;
   const size = { auto: "送り先に合わせる", portrait: "縦 4:5", square: "正方形 1:1", landscape: "横 16:9" }[image.size];
-  return `AI がつくる（${image.style === "photo" ? "写真のように" : "イラストで"}・${size}）`;
+  return `AI がつくる（${image.style === "photo" ? "写真のように" : "イラストで"}・${size}）${head}`;
 }

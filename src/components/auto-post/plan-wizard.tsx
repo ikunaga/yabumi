@@ -172,6 +172,7 @@ export function PlanWizard(p: Props) {
 
   const whatOk = !!kind && AUTO_KINDS_STAGE_A.includes(kind) && (kind !== "series" || !!materials.format_id);
   const formatHasImage = kind === "series" && !!p.materials.seriesFormats.find((f) => f.id === materials.format_id)?.hasImage;
+  const formatHasHeadline = kind === "series" && !!p.materials.seriesFormats.find((f) => f.id === materials.format_id)?.hasHeadline;
   // 画像を選んだら、AI の画像の注意を読んでから次へ（DB の save_auto_plan も断る）
   const whereOk = snsList.length > 0 && (!image || photoAck);
   const whenOk = !!effectiveSchedule && effectiveSchedule.weekdays.length > 0;
@@ -319,6 +320,7 @@ export function PlanWizard(p: Props) {
               projectId={p.projectId}
               kind={kind}
               formatHasImage={formatHasImage}
+              formatHasHeadline={formatHasHeadline}
               value={image}
               onChange={setImage}
               photo={{ enabled: p.photo.enabled, acknowledged: photoAck }}

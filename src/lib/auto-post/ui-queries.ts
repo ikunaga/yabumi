@@ -55,7 +55,7 @@ export async function loadRunResults(postIds: string[]): Promise<Map<string, Run
 
 // 始める画面のシリーズのカード（名前・投稿の例・これまでの回の数）
 // hasImage: フォーマットに画像の設定がある（自動の回の画像で「フォーマットの画像」を選べる）
-export type SeriesFormatCard = { id: string; name: string; example: string; rounds: number; hasImage: boolean };
+export type SeriesFormatCard = { id: string; name: string; example: string; rounds: number; hasImage: boolean; hasHeadline: boolean };
 
 // 始める画面の材料の数（suggest.ts の SuggestMaterials と、使い道のカードの「残り n 件」）
 export type AutoMaterialCounts = {
@@ -87,7 +87,7 @@ export async function loadMaterialCounts(projectId: string): Promise<AutoMateria
     unusedPhotoNotes: notes.data.filter((n) => (n.media_files as unknown[]).length > 0).length,
     seriesFormats: formats.data
       .filter((f) => isSeries(f.series))
-      .map((f) => ({ id: f.id, name: f.name, example: f.example, rounds: (f.post_format_rounds as { count: number }[] | null)?.[0]?.count ?? 0, hasImage: !!readFormatImage(f.image) })),
+      .map((f) => ({ id: f.id, name: f.name, example: f.example, rounds: (f.post_format_rounds as { count: number }[] | null)?.[0]?.count ?? 0, hasImage: !!readFormatImage(f.image), hasHeadline: !!readFormatImage(f.image)?.headline })),
     destinations: destinations.data.map((d) => ({ id: d.id, label: d.label })),
     events: events.count ?? 0,
   };

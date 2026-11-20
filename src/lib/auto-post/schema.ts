@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { FONT_KEYS, PALETTES, TEXT_STYLES } from "@/lib/media/templates";
 import { SNS_KEYS, type SnsKey } from "@/lib/sns";
 import { AUTO_KINDS_STAGE_A, AUTO_SNS_STAGE_A, TARGET_MODES, type AutoPlanInput } from "./types";
 
@@ -59,14 +60,26 @@ const targetsSchema = z
   .refine((t) => Object.entries(t).every(([k, m]) => TARGET_MODES[k as SnsKey].includes(m!)), "この SNS では選べない送り方です。");
 
 // 自動の回の画像（DB の auto_image_valid と同じ決まり。kind との組み合わせは下の refine）
+// 見出しの見た目（DB の auto_image_valid の look と同じ値。色は templates.ts の PALETTES と、いつもの色 brand）
+export const autoImageLookSchema = z
+  .object({
+    palette: z.enum([...PALETTES.map((p) => p.key), "brand"] as unknown as [string, ...string[]]),
+    brand: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+    font: z.enum(FONT_KEYS),
+    textStyle: z.enum(TEXT_STYLES),
+  })
+  .strict();
+
 export const autoImageSchema = z
   .object({
     source: z.enum(["format", "ai"]),
     style: z.enum(["photo", "illustration"]),
     size: z.enum(["auto", "portrait", "square", "landscape"]),
     headline: z.enum(["none", "format", "ai"]),
+    look: autoImageLookSchema.optional(),
   })
   .strict()
+  .refine((i) => !i.look || i.headline !== "none", { message: "見出しを重ねないときは、見出しの見た目を持てません。" })
   .refine((i) => i.headline !== "format" || i.source === "format", { message: "フォーマットの見出しは、フォーマットの画像を使うときだけ選べます。" })
   .nullable();
 

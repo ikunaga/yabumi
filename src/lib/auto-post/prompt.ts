@@ -46,11 +46,23 @@ export function escapeData(s: string): string {
   return s.replace(/<(\/?)(material|recent|item|instructions)\b/gi, "<$1$2_");
 }
 
+// 画像に重ねる見出しの決まり（AI が書くとき）。描くときも、絵文字・URL・【】は取り除く（src/lib/auto-post/image.ts）
+export const HEADLINE_MAX = 40;
+export const HEADLINE_RULES = `投稿の内容をひとことで伝える、10〜24 字の見出しにします（${HEADLINE_MAX} 字まで）。本文と同じく、材料に書かれていないことは書きません。絵文字・顔文字・ハッシュタグ・URL・【】・「！」の重ねは使いません。あおる言葉（今すぐ・絶対・最強など）は使いません`;
+
 export type AutoPostRequest = { system: BetaTextBlockParam[]; messages: BetaMessageParam[] };
 
 // fixedTags: 本文とは別に、送るときに本文の後ろに付くタグ（シリーズのフォーマット・プロジェクトのいつものタグ。2026-11-17）
 // instructions: 書き方の指示の一覧（回し方に覚えた指示と、見本のその 1 回だけの指示）
-export function buildAutoPostRequest(input: { context: string; material: string; instructions: string[]; recentBodies: string[]; fixedTags?: Partial<Record<SnsKey, string[]>> }): AutoPostRequest {
+// headline: 画像に重ねる見出しも書く（回し方の画像で「見出しを AI が書く」を選んだとき）
+export function buildAutoPostRequest(input: {
+  context: string;
+  material: string;
+  instructions: string[];
+  recentBodies: string[];
+  fixedTags?: Partial<Record<SnsKey, string[]>>;
+  headline?: boolean;
+}): AutoPostRequest {
   const instructions = input.instructions.map((t) => t.trim()).filter(Boolean);
   const tagLines = (Object.entries(input.fixedTags ?? {}) as [SnsKey, string[]][]).filter(([, t]) => t.length).map(([s, t]) => `- ${SNS[s].label}: ${escapeData(hashtagLine(t))}`);
   const parts = [
@@ -61,6 +73,9 @@ export function buildAutoPostRequest(input: { context: string; material: string;
     input.recentBodies.length
       ? `# 前に送った本文（新しい順。重ねない）\n<recent>\n${input.recentBodies.map((b) => `<item>${escapeData(b)}</item>`).join("\n")}\n</recent>`
       : "# 前に送った本文\nまだありません",
+    input.headline
+      ? `# 画像に重ねる見出し\nこの回の投稿に添える画像に重ねる見出しを、headline に 1 つ書いてください。${HEADLINE_RULES}`
+      : "# 画像に重ねる見出し\nいりません（headline は null）。",
     "この回の投稿を書いてください。",
   ];
   return {

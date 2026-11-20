@@ -177,24 +177,27 @@ export function FormatImageFields({
             <>
               {/* 見出しを 2 段にする（2026-11-20 オーナーの指示）。上の小さい文は色の文字で、見出しの半分くらいの大きさで描く */}
               <label className="flex flex-col gap-1">
-                <span className="text-xs text-muted">上の小さい文（任意・{MAX_IMAGE_LABEL} 字まで。色の文字で、見出しの半分くらいの大きさ）</span>
+                <span className="text-xs font-bold">見出しの上に小さく入れる文</span>
+                <span className="text-xs text-muted">書かなくてもかまいません。{MAX_IMAGE_LABEL} 字まで書けます。{"{ }"} の空欄も使えます。</span>
+                <span className="text-xs text-muted">見出しの上に、小さな色付きの文字で入ります。</span>
                 <Input
                   aria-label="見出しの上の小さい文"
                   value={image.label ?? ""}
                   maxLength={MAX_IMAGE_LABEL}
                   onChange={(e) => setImage({ ...image, label: e.target.value })}
-                  placeholder="例: 連想映画クイズ"
+                  placeholder="例: 今週のおすすめ"
                   className="py-2 text-sm"
                 />
               </label>
               <label className="flex flex-col gap-1">
-                <span className="text-xs text-muted">見出し（{MAX_IMAGE_HEADLINE} 字まで。{"{ }"} で空欄も使えます）</span>
+                <span className="text-xs font-bold">見出し</span>
+                <span className="text-xs text-muted">{MAX_IMAGE_HEADLINE} 字まで書けます。{"{ }"} の空欄には、本文の空欄と同じ言葉が入ります。</span>
                 <Input
                   aria-label="見出しの文"
                   value={image.headline}
                   maxLength={MAX_IMAGE_HEADLINE}
                   onChange={(e) => setImage({ ...image, headline: e.target.value })}
-                  placeholder="例: この画像から連想される映画は？"
+                  placeholder="例: {パン}が焼きあがりました"
                   className="py-2 text-sm"
                 />
               </label>

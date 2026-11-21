@@ -61,7 +61,7 @@ export default async function SettingsPage() {
               <Card className="overflow-hidden">
                 <CardHeader title="お知らせ" />
                 <p className="flex flex-wrap items-center gap-x-4 gap-y-1 px-6 pt-1 pb-5 text-[14px] leading-7">
-                  <span>伴走（週の投稿のペース）のメールとスマホの通知</span>
+                  <span>投稿のペースのお知らせ。メールとスマホの通知を選べます</span>
                   <Link href="/settings/notifications" className="font-semibold text-primary hover:underline">
                     お知らせの設定
                   </Link>

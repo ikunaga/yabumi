@@ -417,6 +417,7 @@ export const PLAN_EXAMPLES: Record<ProductType, PlanExamples> = {
       substack: "参加した人に、次の予定をメールで（手動で投稿）",
     },
     profile: { displayName: "まちのわ｜地域の小さなイベント", handle: "machinowa", handleBackups: "machi_no_wa\nmachinowa_event", bio: "地域の小さなイベントを開いています。次の予定と、準備のようすを発信しています。", link: "イベントの案内のページの URL" },
+    // ui-wording-ignore: 例の話の「声をかける」（話しかける意味。伴走の声かけではない）
     story: { why: "引っ越してきて知り合いがいなかったときに、地域のイベントに救われた", background: "会社員で、休みの日に仲間 3 人で活動している", struggle: "最初のイベントは、参加した人が 2 人だった", strength: "はじめての人が 1 人で来ても話せるよう、受付で必ず声をかけている", summary: "引っ越してきて知り合いがいなかったころ、地域のイベントに救われました。今度は自分たちが、はじめての人が 1 人でも来られる場を作っています。" },
     concept: { how: "はじめての人が 1 人で来ても話せる、少人数のイベントを月に 1 回開く", statement: "地域に関わりたい人の「きっかけがない」を、1 人で来られる少人数のイベントで解決する活動" },
   },

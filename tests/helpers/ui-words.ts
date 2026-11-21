@@ -74,7 +74,7 @@ export const UI_WORD_RULES: UiWordRule[] = [
   { id: "homegamen", pattern: /(?<!スマホの|「)ホーム画面/ },
   // 窓口・窓辺・窓際は使ってよい
   { id: "mado", pattern: /窓(?![口辺際])/ },
-  { id: "banso", pattern: /伴走|声かけ|声をかけ/ },
+  { id: "banso", pattern: /伴走|声かけ|声をかけ|見守/ },
   { id: "address", pattern: /アドレス欄/ },
 ];
 

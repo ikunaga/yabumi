@@ -45,7 +45,7 @@ export default async function NotificationSettingsPage() {
           main={
             <>
             <Card className="overflow-hidden">
-              <CardHeader title="伴走のお知らせ" />
+              <CardHeader title="投稿のペースのお知らせ" />
               <NotificationPrefsForm emailMode={prefs.email_mode as never} pushMode={prefs.push_mode as never} behindWeekday={prefs.behind_weekday} />
             </Card>
             <Card className="overflow-hidden">

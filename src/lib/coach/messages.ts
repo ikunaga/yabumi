@@ -25,7 +25,7 @@ function targetsText(t: WeeklyTargets): string {
 export function mailFooter(c: MessageContext): string {
   return [
     "--",
-    "このメールは、yabumi の「伴走」のお知らせです。あなたが決めた目標と、SNS ごとの週の投稿の回数をもとに、自動で送っています。",
+    "yabumi から、投稿のペースをお知らせするメールです。SNS ごとに決めた週の本数と、今週投稿した数をもとに、自動で送っています。",
     `お知らせの設定（毎週の振り返りだけにする・送らない）: ${c.appUrl}/settings/notifications`,
     `このお知らせのメールを止める（ワンクリック）: ${c.appUrl}/unsubscribe?t=${c.unsubscribeToken}`,
     `送信者: yabumi （運営 ${LEGAL.operator ?? "yabumi の運営"}）`,

@@ -64,7 +64,7 @@ export function XBuzzSearch({
       {limited ? (
         <p className="text-sm text-muted">X の画面で探す方法（上の「X で開く」）は、そのまま使えます。</p>
       ) : (
-        <p className="text-sm text-muted">「{word || "検索の言葉"}」で、直近 7 日の投稿を 10 件まで読み、反応の多い順に並べます。押すたびに 1 回と数えます。</p>
+        <p className="text-sm text-muted">「{word || "検索の言葉"}」で、直近 7 日の投稿を 10 本まで読み、反応の多い順に並べます。押すたびに 1 回と数えます。</p>
       )}
       {error && <ErrorBanner>{error}</ErrorBanner>}
 

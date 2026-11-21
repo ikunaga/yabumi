@@ -42,7 +42,7 @@ export function DisconnectSnsButton({ projectId, accountId, sns, label }: { proj
           {otherProjects > 0
             ? `このプロジェクトから ${label} を外します（ほかの ${otherProjects} 件のプロジェクトでは使い続けます）。`
             : `${label} を外し、保存しているトークンと、${label} から読んだ数字（閲覧数・フォロワーなど）、${label} 上の投稿へのリンクを消します。yabumi で書いた投稿の本文と送った記録は残ります。`}
-          {count > 0 && <b className="text-signal">予約中の投稿が {count} 件あり、送られなくなります。</b>}
+          {count > 0 && <b className="text-signal">予約中の投稿が {count} 本あり、送られなくなります。</b>}
         </span>
         <span className="flex gap-2">
           <Button type="button" variant="danger" size="sm" disabled={pending} onClick={() => run(true)}>

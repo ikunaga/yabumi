@@ -119,5 +119,8 @@ describe("文の集め方と数え方", () => {
     expect(hit("アプリの画面を、スマホの枠に入れます。空き枠のお知らせ")).toEqual([]);
     expect(hit("スマホのホーム画面に置くと、メニューの「ホーム画面に追加」を選びます。窓口・窓辺")).toEqual([]);
     expect(hit("ホーム画面の yabumi から開きます。別の窓で開く")).toEqual(expect.arrayContaining(["homegamen", "mado"]));
+    expect(hit("予約中の投稿 3 件")).toContain("hon");
+    expect(hit("4 週間で 12 回投稿する")).toContain("hon");
+    expect(hit("予約中の投稿 3 本・メモ 2 件・押すたびに 1 回・自動投稿を 2 件運用中・まだ投稿にしていないメモ 3 件")).toEqual([]);
   });
 });

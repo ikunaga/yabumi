@@ -194,16 +194,16 @@ function Header({ switcher, label, milestones, nav, navLabel }: { switcher: Reac
 function StatCards({ stats, period, base }: { stats: CalendarStats; period: string; base: string }) {
   return (
     <div className="grid grid-cols-4 gap-4 max-lg:grid-cols-2 max-sm:gap-2.5">
-      <Metric label={`${period}の予約`} value={stats.scheduled} unit="件" />
-      <Metric label={`${period}の送信済み`} value={stats.posted} unit="件" />
-      <Metric label="下書き" value={stats.drafts} unit="件" href={`${base}/drafts`} />
+      <Metric label={`${period}の予約`} value={stats.scheduled} unit="本" />
+      <Metric label={`${period}の送信済み`} value={stats.posted} unit="本" />
+      <Metric label="下書き" value={stats.drafts} unit="本" href={`${base}/drafts`} />
       {/* 送れなかった投稿は、いつのものでも直すか送り直すまで数える（週・月で区切ると、ほかの週の直していない失敗が見えなくなる）。
           ほかのカード（この週の… / n 月の…）と範囲が違うことがわかる名前にする（2026-11-13 PMO2 の 3 回目の確認）。
           押すと、1 件ならその投稿、2 件以上なら概要の「要確認」（開いた形）へ */}
       <Metric
         label="直していない失敗"
         value={<span className={stats.failed > 0 ? "text-danger" : ""}>{stats.failed}</span>}
-        unit="件"
+        unit="本"
         href={stats.failed === 1 && stats.failedPostId ? `${base}/posts/${stats.failedPostId}` : stats.failed > 1 ? `${base}?attention=open#attention` : undefined}
         linkLabel={stats.failed === 1 ? "その投稿を見る" : "一覧を見る"}
       />
@@ -254,7 +254,7 @@ function UndatedDrafts({ posts: undated, base }: { posts: PostRow[]; base: strin
     <>
       {undated.length > 0 && (
         <Card>
-          <CardHeader title="日付のない下書き" action={`${undated.length} 件`} />
+          <CardHeader title="日付のない下書き" action={`${undated.length} 本`} />
           <ul>
             {undated.map((p) => (
               <li key={p.id} className="border-b border-line last:border-b-0">

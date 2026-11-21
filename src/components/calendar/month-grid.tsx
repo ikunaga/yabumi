@@ -75,7 +75,7 @@ export function MonthGrid({ days, base, bands, today }: { days: MonthDay[]; base
                   href={`${base}/calendar?view=week&week=${d.ymd}`}
                   className="relative z-10 self-start rounded-sm px-1 text-xs leading-5 font-semibold text-muted underline hover:text-fg"
                 >
-                  ほか {more} 件
+                  ほか {more} 本
                 </Link>
               )}
             </div>

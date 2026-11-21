@@ -42,7 +42,7 @@ describe("概要: 数字のカード 4 枚（出せるものから。準備中�
       ["drafts", 5],
     ]);
     // 予約中・下書きは比べない
-    expect(cards.slice(1).every((c) => c.deltaPct === null && c.unit === "件")).toBe(true);
+    expect(cards.slice(1).every((c) => c.deltaPct === null && c.unit === "本")).toBe(true);
     expect(cards.some((c) => /SNS 経由|DL 率/.test(c.label))).toBe(false);
   });
 
@@ -59,7 +59,7 @@ describe("概要: 数字のカード 4 枚（出せるものから。準備中�
     expect(cards.map((c) => c.label)).toEqual(["ダウンロード", "ストアへのクリック", "送信済みの投稿", "フォロワーの増え方"]);
     expect(cards[0]).toMatchObject({ value: 112, deltaPct: 12, note: "直近 30 日・前の 30 日比" });
     expect(cards[1]).toMatchObject({ value: 30, deltaPct: null, note: "直近 30 日・前の 30 日は 0" });
-    expect(cards[2]).toMatchObject({ value: 4, deltaPct: 100, note: "直近 30 日・前の 30 日比・ほかに予約中 3 件", unit: "本" });
+    expect(cards[2]).toMatchObject({ value: 4, deltaPct: 100, note: "直近 30 日・前の 30 日比・ほかに予約中 3 本", unit: "本" });
     expect(cards[3]).toMatchObject({ kpi: "followers", value: 120, deltaPct: 20, note: "直近 7 日・先週比" });
   });
 

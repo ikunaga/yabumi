@@ -77,7 +77,7 @@ export async function holdAutoPost(admin: Db, args: { email: string; reason: str
   if (r.already_held) return { ok: true, notice: "すでに止めています（前の理由のまま）。" };
   return {
     ok: true,
-    notice: r.canceled_runs > 0 ? `止めました。まだ送っていない自動投稿を ${r.canceled_runs} 件取り消しました。作り終えた投稿は、下書きに戻しました。` : "止めました。まだ送っていない投稿はありませんでした。",
+    notice: r.canceled_runs > 0 ? `止めました。まだ送っていない自動投稿を ${r.canceled_runs} 本取り消しました。作り終えた投稿は、下書きに戻しました。` : "止めました。まだ送っていない投稿はありませんでした。",
   };
 }
 

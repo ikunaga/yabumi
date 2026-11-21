@@ -100,7 +100,7 @@ export function ComposeTikTok({ c }: { c: Composer }) {
               <input type="radio" name="tiktok-mode" checked={!direct} disabled={!creator.canInbox} onChange={() => set({ mode: "MEDIA_UPLOAD" })} />
               TikTok のアプリに下書きとして送り、アプリで仕上げる
             </label>
-            {!direct && <p className="text-[12px] leading-[1.7] text-muted">送ると TikTok のアプリに通知が届きます。通知から開いて、公開範囲などを決めて投稿してください。未完了の下書きは 24 時間で 5 件までです。</p>}
+            {!direct && <p className="text-[12px] leading-[1.7] text-muted">送ると TikTok のアプリに通知が届きます。通知から開いて、公開範囲などを決めて投稿してください。未完了の下書きは 24 時間で 5 本までです。</p>}
             <p className="text-[12px] leading-[1.7] text-muted">TikTok に送れるのは、1 日 15 本ほどまでです。ほかのアプリから投稿した分も数えます。</p>
           </fieldset>
 

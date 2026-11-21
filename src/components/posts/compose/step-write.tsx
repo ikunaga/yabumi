@@ -153,7 +153,7 @@ function RoadmapItemHint({ item, onInsert }: { item: { title: string; detail: st
       <p className="flex items-center gap-1.5 text-muted">
         「<Term k="roadmap">ロードマップ</Term>」で決めたやることから
         <HelpTip label="ロードマップのやること">
-          この投稿は、下のやることのためにつくります。送ると、「ロードマップ」でこのやることが 1 回進みます。たとえば「今週 3 回投稿する」なら、3 回のうち 1 回です。
+          この投稿は、下のやることのためにつくります。送ると、「ロードマップ」でこのやることが 1 回進みます。たとえば「今週 3 本投稿する」なら、3 本のうち 1 本です。
         </HelpTip>
       </p>
       <p className="text-[15px] font-bold">{item.title}</p>

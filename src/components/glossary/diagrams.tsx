@@ -181,7 +181,7 @@ export function SnsTraitsDiagram() {
 
 // KGI と KPI: 毎週の小さな数字（KPI）を積み重ねて、最終のゴール（KGI）にたどり着く
 export function KgiKpiDiagram() {
-  const steps = ["週 3 回投稿する", "短縮リンクのクリック 月 100 回", "体験の申し込み 月 10 件"];
+  const steps = ["週 3 本投稿する", "短縮リンクのクリック 月 100 回", "体験の申し込み 月 10 件"];
   return (
     <Figure title="KPI を積み重ねて、KGI にたどり着く（例: 教室）">
       <ol className="flex flex-col gap-2">

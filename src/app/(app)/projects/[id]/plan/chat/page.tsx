@@ -47,7 +47,7 @@ export default async function PlanChatPage(props: PageProps<"/projects/[id]/plan
             <ButtonLink href={planHref} variant="secondary" size="sm">
               決まった中身を見る
             </ButtonLink>
-            {/* 削除は会話の下に混ざらないように、見出しの横の「…」に（AI と相談と同じ） */}
+            {/* 削除は会話の下に混ざらないように、見出しの横の「この会話を削除する」に（AI と相談と同じ） */}
             {thread && (
               <ThreadMenu
                 projectId={id}

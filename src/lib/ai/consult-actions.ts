@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { loadMetricsOverview } from "@/lib/metrics/queries";
@@ -8,7 +9,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { aiConfigured, callConsult, callShortenDrafts } from "./anthropic";
 import { MAX_OPTIONS } from "./consult-schema";
-import { closeConsultThread, consultStep, isConsultTopic, type ConsultInput } from "./consult";
+import { closeConsultThread, consultBegin, consultReply, isConsultTopic, type ConsultDeps, type ConsultInput } from "./consult";
 import { MAX_USER_TEXT } from "./plan-coach";
 
 const inputSchema = z.discriminatedUnion("kind", [
@@ -17,9 +18,10 @@ const inputSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("adopt"), messageId: z.uuid(), actionIndex: z.number().int().min(0).max(MAX_OPTIONS - 1) }),
 ]);
 
-export type ConsultActionResult = { ok: boolean; threadId: string | null; message?: string; redirect?: string };
+// replying: 返事はサーバーが after() で作っている（画面は読み直しで待つ）
+export type ConsultActionResult = { ok: boolean; threadId: string | null; message?: string; redirect?: string; replying?: boolean };
 
-// AI と相談の会話を 1 往復進める（AI の返事を待つので、数秒〜数十秒かかる）
+// AI と相談の会話に発言を送る。発言を保存したらすぐ返し、AI の返事は after() でサーバーが作り続ける（画面を離れても止まらない。2026-11-21 オーナーの指摘）
 export async function sendConsultMessage(projectId: string, threadId: string | null, rawInput: unknown): Promise<ConsultActionResult> {
   if (!z.uuid().safeParse(projectId).success || (threadId !== null && !z.uuid().safeParse(threadId).success)) {
     return { ok: false, threadId, message: "入力の形式が正しくありません。" };
@@ -43,28 +45,29 @@ export async function sendConsultMessage(projectId: string, threadId: string | n
     // 数字は 1 往復で 1 回だけ読む（振り返りのときは KPI と材料の両方で使う）
     let overview: ReturnType<typeof loadMetricsOverview> | null = null;
     const loadOverview = (user: Parameters<typeof loadMetricsOverview>[1], id: string) => (overview ??= loadMetricsOverview(id, user));
-    const result = await consultStep(
-      supabase,
-      createAdminClient(),
-      {
-        callModel: callConsult,
-        callShorten: callShortenDrafts,
-        loadKpiValues: async (user, id) => (await loadOverview(user, id)).kpiValues,
-        // 振り返り（分析の画面の「AI と振り返る」）のときだけ読む
-        loadReview: async (user, id) => {
-          const o = await loadOverview(user, id);
-          return {
-            kpiValues: o.kpiValues,
-            clicksBySns: o.clicksBySns.map((c) => ({ label: c.label, thisWeek: c.thisWeek, lastWeek: c.lastWeek, last30d: c.last30d })),
-            topClicked: o.topPosts.map((p) => ({ title: p.title, clicks: p.clicks })),
-            topViewed: o.topViewed.map((p) => ({ title: p.title, views: p.views })),
-          };
-        },
+    const user = supabase;
+    const admin = createAdminClient();
+    const deps: ConsultDeps = {
+      callModel: callConsult,
+      callShorten: callShortenDrafts,
+      loadKpiValues: async (u, id) => (await loadOverview(u, id)).kpiValues,
+      // 振り返り（分析の画面の「AI と振り返る」）のときだけ読む
+      loadReview: async (u, id) => {
+        const o = await loadOverview(u, id);
+        return {
+          kpiValues: o.kpiValues,
+          clicksBySns: o.clicksBySns.map((c) => ({ label: c.label, thisWeek: c.thisWeek, lastWeek: c.lastWeek, last30d: c.last30d })),
+          topClicked: o.topPosts.map((p) => ({ title: p.title, clicks: p.clicks })),
+          topViewed: o.topViewed.map((p) => ({ title: p.title, views: p.views })),
+        };
       },
-      { userId, projectId, threadId, input },
-    );
+    };
+    const result = await consultBegin(user, admin, deps, { userId, projectId, threadId, input });
+    const job = result.ok ? result.job : undefined;
+    // 応答を返したあとも、このルートの maxDuration（consult のページで 120 秒）まで走る。失敗は consultReply が会話に印を付ける
+    if (job) after(() => consultReply(user, admin, deps, job).then(() => undefined));
     revalidatePath(`/projects/${projectId}`, "layout");
-    return result.ok ? { ok: true, threadId: result.threadId, redirect: result.redirect } : { ok: false, threadId: result.threadId, message: result.message };
+    return result.ok ? { ok: true, threadId: result.threadId, redirect: result.redirect, replying: Boolean(job) } : { ok: false, threadId: result.threadId, message: result.message };
   } catch (e) {
     console.error("[sendConsultMessage]", e);
     return { ok: false, threadId, message: "うまくいきませんでした。時間をおいてもう一度お試しください。" };

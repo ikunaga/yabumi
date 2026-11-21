@@ -31,7 +31,7 @@ export const CONSULT_TOPIC_META = {
     listTitle: "振り返り",
     entry: {
       title: "AI と振り返る",
-      lead: "AI が分析の画面の数字とロードマップを読み、よかった点と次の一手を出します。",
+      lead: "AI が分析の画面の数字と、目標と週ごとのやることを読みます。よかった点と、次にやることを出します。",
       back: { path: "metrics", label: "分析に戻る" },
     },
   },

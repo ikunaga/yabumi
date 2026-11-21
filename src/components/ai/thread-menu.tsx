@@ -1,42 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import { DeleteThreadButton } from "./delete-thread-button";
 
-// 会話の画面の見出しの横の「…」。会話の下に削除が混ざらないように、ここに置く
-export function ThreadMenu(props: { projectId: string; threadId: string; backPath: string; keeps: string }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent | KeyboardEvent) => {
-      if (e instanceof KeyboardEvent ? e.key === "Escape" : !ref.current?.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", close);
-    document.addEventListener("keydown", close);
-    return () => {
-      document.removeEventListener("mousedown", close);
-      document.removeEventListener("keydown", close);
-    };
-  }, [open]);
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        aria-label="この会話のメニュー"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-        className="flex size-9 items-center justify-center rounded-md border border-border bg-surface text-lg leading-none text-muted hover:bg-surface2"
-      >
-        …
-      </button>
-      {open && (
-        <div className="absolute right-0 z-20 mt-1 w-72 rounded-lg border border-border bg-surface p-2 shadow-pop max-sm:w-[calc(100vw-32px)]">
-          <DeleteThreadButton {...props} />
-        </div>
-      )}
-    </div>
-  );
+// 会話の画面の見出しの横の「この相談を削除する」（AI と考えるは「この会話を削除する」）。会話の下に削除が混ざらないように、ここに置く。
+// 前は「…」のメニューだったが、スマホで何のボタンかわからず、開くと左にはみ出した（2026-11-21 オーナーの指摘）。
+// 文字のボタンにし、押すとその下に確認を出す（浮かせない）
+export function ThreadMenu(props: { projectId: string; threadId: string; backPath: string; keeps: string; noun?: "相談" | "会話" }) {
+  return <DeleteThreadButton {...props} />;
 }

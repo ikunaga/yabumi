@@ -12,6 +12,7 @@ export function ConsultSide({
   lead,
   threadId = null,
   closedAt = null,
+  aiBlocked = false,
 }: {
   projectId: string;
   adopted: number | null;
@@ -20,6 +21,8 @@ export function ConsultSide({
   threadId?: string | null;
   // 済んだ日時（済んだ会話）
   closedAt?: string | null;
+  // AI の枠を使い切っている（新しい相談を始められない）
+  aiBlocked?: boolean;
 }) {
   const base = `/projects/${projectId}/consult`;
   return (
@@ -37,15 +40,21 @@ export function ConsultSide({
             <span className="num">{formatShort(closedAt)}</span>
           </p>
         )}
-        <p className="text-[14px] leading-[1.75] text-muted">{lead ?? "AI は、アカウントの方針・最近の投稿・数字・ロードマップを見ます。そのうえで、案を 2〜3 個出します。選んだ案だけが、方針やロードマップに入ります。"}</p>
+        <p className="text-[14px] leading-[1.75] text-muted">{lead ?? "AI は、アカウントの方針・最近の投稿と数字・目標と週ごとのやることを見ます。そのうえで、案を 2〜3 個出します。選んだ案だけを、アカウントの方針や、目標と週ごとのやることに書き足します。"}</p>
         {threadId && !closedAt && <CloseThreadButton projectId={projectId} threadId={threadId} />}
         <div className="flex flex-wrap gap-2.5">
           <Link href={base} className={buttonClass({ variant: "secondary", size: "sm" })}>
             相談の一覧へ
           </Link>
-          <Link href={`${base}/new`} className={buttonClass({ variant: "text", size: "sm" })}>
-            新しい相談
-          </Link>
+          {aiBlocked ? (
+            <span aria-disabled="true" className={buttonClass({ variant: "text", size: "sm", className: "cursor-not-allowed text-faint" })}>
+              新しい相談
+            </span>
+          ) : (
+            <Link href={`${base}/new`} className={buttonClass({ variant: "text", size: "sm" })}>
+              新しい相談
+            </Link>
+          )}
         </div>
       </div>
     </Card>

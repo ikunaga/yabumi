@@ -1,4 +1,5 @@
 import "server-only";
+import { isReplying } from "./consult-reply";
 import { createClient } from "@/lib/supabase/server";
 import { goalStepState, loadConsultHistory, type ConsultMessage } from "./consult";
 import { loadGoals } from "@/lib/goals/load";
@@ -38,13 +39,22 @@ export async function listConsultThreads(projectId: string): Promise<ConsultThre
 export async function getConsultThread(
   projectId: string,
   threadId: string,
-): Promise<{ id: string; messages: ConsultMessage[]; topic: string | null; closedAt: string | null } | null> {
+): Promise<{ id: string; messages: ConsultMessage[]; topic: string | null; closedAt: string | null; replying: boolean; failed: boolean } | null> {
   const supabase = await createClient();
-  const { data } = await supabase.from("ai_threads").select("id, closed_at").eq("id", threadId).eq("project_id", projectId).eq("purpose", "consult").maybeSingle();
+  const { data } = await supabase.from("ai_threads").select("id, closed_at, replying_since, reply_failed_at").eq("id", threadId).eq("project_id", projectId).eq("purpose", "consult").maybeSingle();
   if (!data) return null;
   const messages = await loadConsultHistory(supabase, data.id);
   const first = messages[0];
-  return { id: data.id, messages, topic: first?.role === "user" && first.content.kind === "start" ? first.content.topic : null, closedAt: data.closed_at };
+  const last = messages[messages.length - 1];
+  return {
+    id: data.id,
+    messages,
+    topic: first?.role === "user" && first.content.kind === "start" ? first.content.topic : null,
+    closedAt: data.closed_at,
+    // 返事を作っている最中か（古い印は止まった残りとして扱う）。作れなかった印は、最後が利用者の発言のときだけ出す
+    replying: isReplying(data.replying_since, new Date()),
+    failed: data.reply_failed_at !== null && last?.role === "user",
+  };
 }
 
 // ロードマップづくりの会話の見出しの段取り（いまの目標とやることから、どこまで決まったか）

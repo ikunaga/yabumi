@@ -1,5 +1,5 @@
 // 自動の投稿の AI の枠（DB の関数 reserve_ai_usage。20261116110000_auto_post_ai_budget。docs/design/auto-post.md の A4）。
-// 自動の投稿（auto_post・auto_post_check）は、ふだんの枠と別に数える: 利用者 月 $3・全体 月 $5・1 人 1 日に作る回数 10 回、新しい人は 3 分の 1。
+// 自動の投稿（auto_post・auto_post_check）は、ふだんの枠と別に数える: 利用者 月 $4.9（2026-11-21 に $3 から）・全体 月 $5・1 人 1 日に作る回数 10 回、新しい人は 3 分の 1。
 // 全体の合計は p_scope_owner で、このテストの利用者の分だけに絞る（共有のローカル DB のほかのテストに左右されない）
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { adminClient, deleteUser, signUpNewUser } from "./helpers/supabase";
@@ -44,19 +44,20 @@ afterAll(async () => {
 describe("自動の投稿の AI の枠", () => {
   it("ふだんの枠を使い切っていても、自動の投稿は使える（逆も同じ）", async () => {
     await clear();
-    await spend(aliceId, "consult", 2.95);
+    // ふだんの枠は 1 人 $9.9（全体 $10 のすぐ下。全体の上限より先に本人の上限に当たる額）
+    await spend(aliceId, "consult", 9.75);
     expect((await reserve(aliceId, "consult")).data?.[0]?.status).toBe("user_limit");
     expect((await reserve(aliceId, "auto_post")).data?.[0]?.status).toBe("ok");
     await clear();
-    await spend(aliceId, "auto_post", 2.95);
+    await spend(aliceId, "auto_post", 4.75);
     expect((await reserve(aliceId, "auto_post")).data?.[0]?.status).toBe("user_limit");
     expect((await reserve(aliceId, "auto_post_check")).data?.[0]?.status).toBe("user_limit");
     expect((await reserve(aliceId, "consult")).data?.[0]?.status).toBe("ok");
   });
 
-  it("利用者は月 $3（同時に予約しても超えない）。下限は auto_post 0.13・auto_post_check 0.15", async () => {
+  it("利用者は月 $4.9（同時に予約しても超えない）。下限は auto_post 0.13・auto_post_check 0.15", async () => {
     await clear();
-    await spend(aliceId, "auto_post", 2.6);
+    await spend(aliceId, "auto_post", 4.5);
     const results = await Promise.all(Array.from({ length: 6 }, () => reserve(aliceId, "auto_post", { cost: 0.01 })));
     expect(results.filter((r) => r.data?.[0]?.status === "ok")).toHaveLength(3);
     const rows = (await admin.from("ai_usage").select("cost_usd").eq("owner_id", aliceId).eq("status", "reserved")).data!;
@@ -88,7 +89,8 @@ describe("自動の投稿の AI の枠", () => {
 
   it("登録して 7 日までの人は、利用者・全体とも 3 分の 1", async () => {
     await clear();
-    await spend(aliceId, "auto_post", 0.95);
+    // 新しい人の枠は $4.9 の 3 分の 1（$1.63）
+    await spend(aliceId, "auto_post", 1.5);
     expect((await reserve(aliceId, "auto_post", { asOf: null })).data?.[0]?.status).toBe("new_user_limit");
     await clear();
     await spend(bobId, "auto_post", 1.6, 1, true);

@@ -29,6 +29,7 @@ import { shortenOverDrafts, type CallShorten } from "./shorten";
 import { draftStyleChecker, styleLabels, type StyleProblem } from "./japanese-style";
 import { aiFailureMessage } from "./provider-failure";
 import { loadDefaultHashtags, withDefaultTags } from "@/lib/projects/default-hashtags";
+import { REPLY_STALE_MS, REPLYING_MESSAGE } from "./consult-reply";
 
 // AI と相談（F09、docs/architecture.md の 4.23）の会話の 1 往復。作りはアカウント設計の相棒（plan-coach.ts、4.9）と同じ。
 // AI の呼び出しは callModel として外から渡す（テストではモックし、本物の API は呼ばない）
@@ -473,12 +474,30 @@ async function reviewItemAllowed(user: Db, projectId: string, itemId: string, no
 
 // user: 利用者の権限（状況の読み込みと、提案の採用。RLS で本人のものだけ）
 // admin: サーバーの権限（会話と利用量の書き込み）。呼ぶ前に userId がログイン中の利用者であることを確かめておく
+// 返事を作る仕事（consultBegin が作り、consultReply が片づける）
+export type ConsultReplyJob = { userId: string; projectId: string; threadId: string; userContent: ConsultUserContent };
+export type ConsultBeginResult = { ok: true; threadId: string; redirect?: string; job?: ConsultReplyJob } | { ok: false; threadId: string | null; message: string };
+
+// AI と相談を 1 往復進める（テストと、待ってから返すとき用）。画面からは consultBegin のあと after() で consultReply を呼ぶ（2026-11-21。画面を離れても返事を作り続ける）
 export async function consultStep(
   user: Db,
   admin: Db,
   deps: ConsultDeps,
   args: { userId: string; projectId: string; threadId: string | null; input: ConsultInput },
 ): Promise<ConsultResult> {
+  const begun = await consultBegin(user, admin, deps, args);
+  if (!begun.ok || !begun.job) return begun;
+  return consultReply(user, admin, deps, begun.job);
+}
+
+// 1. 発言を受け付ける: 確かめ・会話を作る・採用を入れる・利用者の発言を保存して、返事を作っている印を付ける（AI はまだ呼ばない）。
+// 印は「null か古い」ときだけ付けられるので、同じ会話で返事を 2 つ同時には作らない（待っている間の送信は断る）
+export async function consultBegin(
+  user: Db,
+  admin: Db,
+  deps: Partial<ConsultDeps>,
+  args: { userId: string; projectId: string; threadId: string | null; input: ConsultInput },
+): Promise<ConsultBeginResult> {
   const now = deps.now?.() ?? new Date();
   const { userId, projectId, input } = args;
 
@@ -507,127 +526,154 @@ export async function consultStep(
     return { ok: false, threadId: args.threadId, message: GOAL_RESCUE_NOT_FOUND };
   }
 
-  let threadId = args.threadId;
+  let threadId: string;
   let createdThread = false;
-  if (threadId) {
+  const lockAt = now.toISOString();
+  if (args.threadId) {
+    threadId = args.threadId;
     const { data: t } = await admin.from("ai_threads").select("id, closed_at").eq("id", threadId).eq("owner_id", userId).eq("project_id", projectId).eq("purpose", "consult").maybeSingle();
     if (!t) return { ok: false, threadId: null, message: "会話が見つかりません。画面を読み込み直してください。" };
     // 済んだ会話には送れない（採用も）。DB でも断る（ai_messages_reject_closed）
     if (t.closed_at) return { ok: false, threadId, message: CLOSED_THREAD_MESSAGE };
+    // 印を付ける。印がない行か、古い（止まった残りの）印の行だけ。どちらも 1 回の update なので、同時に送っても 1 つしか通らない
+    // （PostgREST は update の or= の絞り込みで列を見つけられないので、2 回に分ける）
+    const staleBefore = new Date(now.getTime() - REPLY_STALE_MS).toISOString();
+    const lock = (q: (b: ReturnType<ReturnType<Db["from"]>["update"]>) => typeof b) =>
+      q(admin.from("ai_threads").update({ replying_since: lockAt, reply_failed_at: null }).eq("id", threadId)).select("id");
+    let { data: locked, error: lockError } = await lock((b) => b.is("replying_since", null));
+    if (!lockError && !locked?.length) ({ data: locked, error: lockError } = await lock((b) => b.lt("replying_since", staleBefore)));
+    if (lockError) throw lockError;
+    if (!locked?.length) return { ok: false, threadId, message: REPLYING_MESSAGE };
   } else {
     if (input.kind === "adopt") return { ok: false, threadId: null, message: "提案が見つかりません。画面を読み込み直してください。" };
-    const { data: t, error } = await admin.from("ai_threads").insert({ owner_id: userId, project_id: projectId, purpose: "consult" }).select("id").single();
+    const { data: t, error } = await admin.from("ai_threads").insert({ owner_id: userId, project_id: projectId, purpose: "consult", replying_since: lockAt }).select("id").single();
     if (error) throw error;
     threadId = t.id;
     createdThread = true;
   }
-
-  const history = await loadConsultHistory(admin, threadId);
-  if (history.length >= MAX_TURNS_PER_THREAD * 2) {
-    return { ok: false, threadId, message: "この会話は長くなったので、ここまでにしましょう。「新しい相談」で続きを始められます（決めたことは残ります）。" };
-  }
-
-  // 利用者の発言を決める。採用のときは、ここで設計・ロードマップ・下書きに入れる
-  let userContent: ConsultUserContent;
-  let redirect: string | undefined;
-  if (input.kind === "start") userContent = { kind: "start", topic: input.topic, ...(input.itemId ? { itemId: input.itemId } : {}), ...(input.goalId ? { goalId: input.goalId } : {}) };
-  else if (input.kind === "text") userContent = { kind: "text", text: input.text.trim() };
-  else {
-    const target = history.find((m) => m.id === input.messageId);
-    const action = target?.role === "assistant" ? adoptableOptions(target.content)[input.actionIndex] : undefined;
-    if (!target || target.role !== "assistant" || !action) return { ok: false, threadId, message: "提案が見つかりません。画面を読み込み直してください。" };
-    // 新しい形は 1 つの提案から案を 1 つだけ選ぶ。前の形は提案ごとに採用できる
-    const adoptedBefore = target.content.adopted ?? [];
-    if (target.content.proposal ? adoptedBefore.length > 0 : adoptedBefore.includes(input.actionIndex)) return { ok: false, threadId, message: "この提案は採用済みです。" };
-    const applied = await applyConsultAction(user, projectId, action, weekStartOf(toYmd(now)));
-    if (!applied.ok) return { ok: false, threadId, message: applied.message };
-    redirect = applied.redirect;
-    await admin
-      .from("ai_messages")
-      .update({ content: { ...target.content, adopted: [...(target.content.adopted ?? []), input.actionIndex] } as never })
-      .eq("id", target.id);
-    userContent = { kind: "adopt", messageId: target.id, actionIndex: input.actionIndex, actionKind: action.kind, title: action.title };
-    // 下書きを作ったら、その画面に移る。AI の返事は待たない（下書きを直すのが先なので）
-    if (redirect) {
-      await admin.from("ai_messages").insert({ thread_id: threadId, owner_id: userId, role: "user", content: userContent as never });
-      await admin.from("ai_threads").update({ updated_at: now.toISOString() }).eq("id", threadId);
-      return { ok: true, threadId, redirect };
-    }
-  }
-
-  const { data: inserted, error: insertError } = await admin
-    .from("ai_messages")
-    .insert({ thread_id: threadId, owner_id: userId, role: "user", content: userContent as never })
-    .select("id, created_at")
-    .single();
-  if (insertError) throw insertError;
-  history.push({ id: inserted.id, role: "user", content: userContent, created_at: inserted.created_at });
-
-  const fail = async (message: string): Promise<ConsultResult> => {
+  // 返事を作らずに終えるとき: 印を外す（作ったばかりの会話は消す）
+  const stop = async (message: string): Promise<ConsultBeginResult> => {
     if (createdThread) {
       await admin.from("ai_threads").delete().eq("id", threadId);
       return { ok: false, threadId: null, message };
     }
-    // 採用は済んでいるので、採用の記録は残す
-    if (userContent.kind !== "adopt") await admin.from("ai_messages").delete().eq("id", inserted.id);
+    await admin.from("ai_threads").update({ replying_since: null }).eq("id", threadId);
     return { ok: false, threadId, message };
   };
 
-  // 振り返りの会話だけ、数字をくわしく足す（ふだんの相談は短く保ち、費用を抑える）
-  const topic = threadTopic(history);
-  const ctx = await gatherConsultContext(user, projectId, now, deps.loadKpiValues, isReviewThread(history) ? deps.loadReview : undefined, topic === "roadmap", topic === "month_review", topic === "goal_review", topic === "goal_rescue");
-  if (!ctx) return fail("プロジェクトが見つかりません。");
-  ctx.turns = history.filter((m) => m.role === "user").length;
-
-  // 呼ぶ前に上限の分を予約し、返事のあとで実際の額に直す（返事が使えなくても数える。budget.ts）
-  const budget = { userId, purpose: "consult", call: "consult" as const, threadId, now };
-  const request = buildConsultRequest(history, ctx);
-  let result: ModelResult;
   try {
-    const b = await withAiBudget(admin, budget, request, deps.callModel);
-    if (!b.ok) return fail(b.message);
-    result = b.result;
-  } catch (e) {
-    console.error("[consult] AI の呼び出しに失敗しました", e instanceof Error ? e.message : e);
-    return fail(aiFailureMessage(e, GENERIC_ERROR));
-  }
-  if (result.stopReason === "refusal") return fail("AI がこの内容には答えられませんでした。言い方を変えてもう一度お試しください。");
-  let turn = result.stopReason === "max_tokens" ? null : normalizeConsultTurn(result.turn);
-  if (!turn || !turn.message) return fail(GENERIC_ERROR);
-
-  // 提案の中身が形に合わなかったときは、理由を伝えて 1 回だけ言い直させる
-  if (turn.proposalProblem) {
-    try {
-      const retry = await budgeted(admin, budget, deps.callModel)({
-        system: request.system,
-        messages: [
-          ...request.messages,
-          { role: "assistant", content: [{ type: "text", text: JSON.stringify(result.turn) }] },
-          {
-            role: "user",
-            content: [{ type: "text", text: `（yabumi からの自動の連絡）提案の案が決められた形に合いませんでした: ${turn.proposalProblem}。「提案の中身の形」に合わせて直し（1 回の提案は 1 つの項目だけ、案は 2〜3 個）、同じ返事の形でもう一度返してください。` }],
-          },
-        ],
-      });
-      const fixed = retry.stopReason === "end_turn" ? normalizeConsultTurn(retry.turn) : null;
-      // 言い直しで案が揃えば使う。揃わなくても、最初の返事より合った案が多ければそちらを使う
-      if (fixed?.message && (!fixed.proposalProblem || (fixed.proposal?.options.length ?? 0) > (turn.proposal?.options.length ?? 0))) turn = fixed;
-    } catch (e) {
-      console.error("[consult] 言い直しの呼び出しに失敗しました", e instanceof Error ? e.message : e);
+    const history = await loadConsultHistory(admin, threadId);
+    if (history.length >= MAX_TURNS_PER_THREAD * 2) {
+      return await stop("この会話は長くなったので、ここまでにしましょう。「新しい相談」で続きを始められます（決めたことは残ります）。");
     }
-  }
 
-  const { proposalProblem: _ignored, ...rest } = turn;
-  void _ignored;
-  const tidied = tidyConsultDrafts(rest, ctx.plan.hashtags.items.map((i) => i.tag));
-  // 下書きの案が SNS の上限を超えていたら、超えた案だけを 1 回だけ縮めさせる（縮めても超えていれば、画面で「上限を n 字超えています」）
-  // 日本語の決まりに反する言い回し（japanese-style.ts）のある案も、同じ 1 回で直させる（直しても残れば、画面に出す）。書き方の例の投稿にある言い回しは指摘しない
-  const shortened = await shortenConsultDrafts(deps.callShorten && budgeted(admin, { ...budget, call: "shorten" }, deps.callShorten), tidied, draftStyleChecker(ctx.plan.pillars, { allow: voiceExampleTexts(ctx.voice) }));
-  const toSave = shortened.turn;
-  const { error } = await admin.from("ai_messages").insert({ thread_id: threadId, owner_id: userId, role: "assistant", content: { ...toSave, adopted: [] } as never });
-  if (error) throw error;
-  await admin.from("ai_threads").update({ updated_at: now.toISOString() }).eq("id", threadId);
-  return { ok: true, threadId };
+    // 利用者の発言を決める。採用のときは、ここで設計・ロードマップ・下書きに入れる
+    let userContent: ConsultUserContent;
+    let redirect: string | undefined;
+    if (input.kind === "start") userContent = { kind: "start", topic: input.topic, ...(input.itemId ? { itemId: input.itemId } : {}), ...(input.goalId ? { goalId: input.goalId } : {}) };
+    else if (input.kind === "text") userContent = { kind: "text", text: input.text.trim() };
+    else {
+      const target = history.find((m) => m.id === input.messageId);
+      const action = target?.role === "assistant" ? adoptableOptions(target.content)[input.actionIndex] : undefined;
+      if (!target || target.role !== "assistant" || !action) return stop("提案が見つかりません。画面を読み込み直してください。");
+      // 新しい形は 1 つの提案から案を 1 つだけ選ぶ。前の形は提案ごとに採用できる
+      const adoptedBefore = target.content.adopted ?? [];
+      if (target.content.proposal ? adoptedBefore.length > 0 : adoptedBefore.includes(input.actionIndex)) return stop("この提案は採用済みです。");
+      const applied = await applyConsultAction(user, projectId, action, weekStartOf(toYmd(now)));
+      if (!applied.ok) return stop(applied.message);
+      redirect = applied.redirect;
+      await admin
+        .from("ai_messages")
+        .update({ content: { ...target.content, adopted: [...(target.content.adopted ?? []), input.actionIndex] } as never })
+        .eq("id", target.id);
+      userContent = { kind: "adopt", messageId: target.id, actionIndex: input.actionIndex, actionKind: action.kind, title: action.title };
+      // 下書きを作ったら、その画面に移る。AI の返事は待たない（下書きを直すのが先なので）
+      if (redirect) {
+        await admin.from("ai_messages").insert({ thread_id: threadId, owner_id: userId, role: "user", content: userContent as never });
+        await admin.from("ai_threads").update({ updated_at: now.toISOString(), replying_since: null }).eq("id", threadId);
+        return { ok: true, threadId, redirect };
+      }
+    }
+
+    const { error: insertError } = await admin.from("ai_messages").insert({ thread_id: threadId, owner_id: userId, role: "user", content: userContent as never });
+    if (insertError) throw insertError;
+    return { ok: true, threadId, job: { userId, projectId, threadId, userContent } };
+  } catch (e) {
+    await stop(GENERIC_ERROR);
+    throw e;
+  }
+}
+
+// 2. 返事を作る: 材料を集めて AI を呼び、返事を保存して印を外す。作れなかったときは、利用者の発言は残し、作れなかった印を付ける（画面に「もう一度送ってください」）。
+// 費用の予約は、今までどおり使った分に直すか戻す（budget.ts）
+export async function consultReply(user: Db, admin: Db, deps: ConsultDeps, job: ConsultReplyJob): Promise<ConsultResult> {
+  const now = deps.now?.() ?? new Date();
+  const { userId, projectId, threadId } = job;
+  const fail = async (message: string): Promise<ConsultResult> => {
+    await admin.from("ai_threads").update({ replying_since: null, reply_failed_at: new Date().toISOString() }).eq("id", threadId);
+    return { ok: false, threadId, message };
+  };
+  try {
+    const history = await loadConsultHistory(admin, threadId);
+    // 振り返りの会話だけ、数字をくわしく足す（ふだんの相談は短く保ち、費用を抑える）
+    const topic = threadTopic(history);
+    const ctx = await gatherConsultContext(user, projectId, now, deps.loadKpiValues, isReviewThread(history) ? deps.loadReview : undefined, topic === "roadmap", topic === "month_review", topic === "goal_review", topic === "goal_rescue");
+    if (!ctx) return fail("プロジェクトが見つかりません。");
+    ctx.turns = history.filter((m) => m.role === "user").length;
+
+    // 呼ぶ前に上限の分を予約し、返事のあとで実際の額に直す（返事が使えなくても数える。budget.ts）
+    const budget = { userId, purpose: "consult", call: "consult" as const, threadId, now };
+    const request = buildConsultRequest(history, ctx);
+    let result: ModelResult;
+    try {
+      const b = await withAiBudget(admin, budget, request, deps.callModel);
+      if (!b.ok) return fail(b.message);
+      result = b.result;
+    } catch (e) {
+      console.error("[consult] AI の呼び出しに失敗しました", e instanceof Error ? e.message : e);
+      return fail(aiFailureMessage(e, GENERIC_ERROR));
+    }
+    if (result.stopReason === "refusal") return fail("AI がこの内容には答えられませんでした。言い方を変えてもう一度お試しください。");
+    let turn = result.stopReason === "max_tokens" ? null : normalizeConsultTurn(result.turn);
+    if (!turn || !turn.message) return fail(GENERIC_ERROR);
+
+    // 提案の中身が形に合わなかったときは、理由を伝えて 1 回だけ言い直させる
+    if (turn.proposalProblem) {
+      try {
+        const retry = await budgeted(admin, budget, deps.callModel)({
+          system: request.system,
+          messages: [
+            ...request.messages,
+            { role: "assistant", content: [{ type: "text", text: JSON.stringify(result.turn) }] },
+            {
+              role: "user",
+              content: [{ type: "text", text: `（yabumi からの自動の連絡）提案の案が決められた形に合いませんでした: ${turn.proposalProblem}。「提案の中身の形」に合わせて直し（1 回の提案は 1 つの項目だけ、案は 2〜3 個）、同じ返事の形でもう一度返してください。` }],
+            },
+          ],
+        });
+        const fixed = retry.stopReason === "end_turn" ? normalizeConsultTurn(retry.turn) : null;
+        // 言い直しで案が揃えば使う。揃わなくても、最初の返事より合った案が多ければそちらを使う
+        if (fixed?.message && (!fixed.proposalProblem || (fixed.proposal?.options.length ?? 0) > (turn.proposal?.options.length ?? 0))) turn = fixed;
+      } catch (e) {
+        console.error("[consult] 言い直しの呼び出しに失敗しました", e instanceof Error ? e.message : e);
+      }
+    }
+
+    const { proposalProblem: _ignored, ...rest } = turn;
+    void _ignored;
+    const tidied = tidyConsultDrafts(rest, ctx.plan.hashtags.items.map((i) => i.tag));
+    // 下書きの案が SNS の上限を超えていたら、超えた案だけを 1 回だけ縮めさせる（縮めても超えていれば、画面で「上限を n 字超えています」）
+    // 日本語の決まりに反する言い回し（japanese-style.ts）のある案も、同じ 1 回で直させる（直しても残れば、画面に出す）。書き方の例の投稿にある言い回しは指摘しない
+    const shortened = await shortenConsultDrafts(deps.callShorten && budgeted(admin, { ...budget, call: "shorten" }, deps.callShorten), tidied, draftStyleChecker(ctx.plan.pillars, { allow: voiceExampleTexts(ctx.voice) }));
+    const toSave = shortened.turn;
+    const { error } = await admin.from("ai_messages").insert({ thread_id: threadId, owner_id: userId, role: "assistant", content: { ...toSave, adopted: [] } as never });
+    if (error) throw error;
+    await admin.from("ai_threads").update({ updated_at: now.toISOString(), replying_since: null, reply_failed_at: null }).eq("id", threadId);
+    return { ok: true, threadId };
+  } catch (e) {
+    console.error("[consult] 返事を作れませんでした", e instanceof Error ? e.message : e);
+    return fail(GENERIC_ERROR);
+  }
 }
 
 // 下書きの案のハッシュタグを、設計で選んだもの・SNS の上限までにする（AI が指示を守らなかったとき用）。SNS を決めていない下書きは X の数で

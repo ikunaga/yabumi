@@ -212,6 +212,8 @@ export type Database = {
           owner_id: string
           project_id: string
           purpose: string
+          reply_failed_at: string | null
+          replying_since: string | null
           summary: string | null
           updated_at: string
         }
@@ -222,6 +224,8 @@ export type Database = {
           owner_id: string
           project_id: string
           purpose: string
+          reply_failed_at?: string | null
+          replying_since?: string | null
           summary?: string | null
           updated_at?: string
         }
@@ -232,6 +236,8 @@ export type Database = {
           owner_id?: string
           project_id?: string
           purpose?: string
+          reply_failed_at?: string | null
+          replying_since?: string | null
           summary?: string | null
           updated_at?: string
         }
@@ -3081,6 +3087,40 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      ai_budget_check: {
+        Args: {
+          p_as_of?: string
+          p_cost_usd: number
+          p_owner_id: string
+          p_purpose: string
+          p_scope_owner?: string
+        }
+        Returns: {
+          by_new_user: boolean
+          cost_usd: number
+          global_month_usd: number
+          new_until: string
+          status: string
+          user_cap_usd: number
+          user_month_usd: number
+        }[]
+      }
+      ai_budget_status: {
+        Args: { p_purpose?: string }
+        Returns: {
+          available_from: string
+          low: boolean
+          status: string
+        }[]
+      }
+      ai_budget_status_of: {
+        Args: { p_as_of?: string; p_owner_id: string; p_purpose?: string }
+        Returns: {
+          available_from: string
+          low: boolean
+          status: string
+        }[]
+      }
       ai_image_quota: {
         Args: {
           p_as_of?: string

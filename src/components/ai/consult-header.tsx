@@ -44,7 +44,8 @@ export function ConsultHeader({
               projectId={projectId}
               threadId={threadId}
               backPath={`${base}/consult`}
-              keeps="採用した案は残ります。アカウントの方針・ロードマップ・下書きです。会話は、最後のやり取りから 1 年たつと自動で消えます。"
+              noun="相談"
+              keeps="採用した案は残ります。アカウントの方針・目標と週ごとのやること・投稿の下書きです。相談は、最後のやり取りから 1 年たつと自動で消えます。"
             />
           )
         }

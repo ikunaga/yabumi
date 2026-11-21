@@ -59,7 +59,10 @@ export const UI_WORD_RULES: UiWordRule[] = [
   { id: "gazoai", pattern: /画像の ?AI/ },
   // 「時間帯」「携帯」「地帯」「包帯」「一帯」「世帯」は使ってよい
   { id: "obi", pattern: /(?<![間携地包一世])帯/ },
+  // 使える量の意味の「枠」だけ。画像のスマホの枠・空き枠・席や時間の枠は使ってよい
+  { id: "waku", pattern: /枠(が|を使い切|（)/ },
+  { id: "matatsukae", pattern: /また使えます/ },
 ];
 
 // 表にあるが、見つける形を決められない行（確認役が文の意味から見る）
-export const UI_WORD_RULES_WITHOUT_PATTERN = ["sakujo", "unei", "project", "term", "okane", "hazusu", "moji", "tsunageru", "nini", "etsuran", "yakuwari"];
+export const UI_WORD_RULES_WITHOUT_PATTERN = ["sakujo", "unei", "project", "term", "okane", "hazusu", "moji", "tsunageru", "nini", "etsuran", "yakuwari", "komiai"];

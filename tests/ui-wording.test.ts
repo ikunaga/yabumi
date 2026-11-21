@@ -112,5 +112,7 @@ describe("文の集め方と数え方", () => {
     expect(hit("宣伝するものの種類")).toEqual([]);
     expect(hit("時間帯の傾向・携帯で見る")).toEqual([]);
     expect(hit("「ホーム」のいまやることの帯")).toContain("obi");
+    expect(hit("今月の AI の枠が、いっぱいになりました")).toContain("waku");
+    expect(hit("アプリの画面を、スマホの枠に入れます。空き枠のお知らせ")).toEqual([]);
   });
 });

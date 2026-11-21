@@ -15,6 +15,8 @@ import { TEMPLATE_SIZES, type TemplateSizeKey } from "@/lib/media/templates";
 import { AiBadge } from "./ai-badge";
 import { Choice, Group } from "./maker-parts";
 import type { FormatPhotoPreset } from "@/lib/post-formats/image";
+import { AiQuotaNote } from "@/components/ai/ai-quota-note";
+import { useAiQuota } from "@/components/ai/use-ai-quota";
 
 export type PickedPhoto = { jobId: string; bitmap: ImageBitmap; scene: string };
 
@@ -62,6 +64,8 @@ export function PhotoMaker({
 }) {
   const sceneId = useId();
   const [state, setState] = useState<PhotoPanelState | null>(null);
+  // 絵の説明の案（AI）は、AI を使える量を使い切っているときは押せない（理由はボタンの下に 1 行）。画像をつくるのは別の上限
+  const quota = useAiQuota("image_photo_idea", Boolean(state?.ideasEnabled));
   const [error, setError] = useState<string | null>(null);
   const [ideas, setIdeas] = useState<PhotoIdea[]>([]);
   const [scene, setScene] = useState("");
@@ -296,13 +300,18 @@ export function PhotoMaker({
             絵の説明
           </label>
           {state.ideasEnabled ? (
-            <Button type="button" variant="secondary" size="sm" disabled={drafting || !hasText} onClick={draft}>
+            <Button type="button" variant="secondary" size="sm" disabled={drafting || !hasText || quota.blocked !== null} onClick={draft}>
               {drafting ? "考えています…" : ideas.length ? "別の案を出す" : "本文から案を出す"}
             </Button>
           ) : (
             <NotReadyButton variant="secondary" size="sm">
               本文から案を出す
             </NotReadyButton>
+          )}
+          {quota.blocked && (
+            <div className="basis-full">
+              <AiQuotaNote blocked={quota.blocked} />
+            </div>
           )}
           <span className="text-xs text-muted">
             {hasText ? `本文とアカウントの方針から、2〜3 案を出します。1 回 ${SCENE_YEN.ideas[0]}〜${SCENE_YEN.ideas[1]} 円ほどです。` : "本文を書くと、AI が絵の説明を考えます。自分で書いてもつくれます。"}

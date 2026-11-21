@@ -58,6 +58,8 @@ import { ErrorBanner } from "@/components/ui/feedback";
 import { PageHeader } from "@/components/ui/page-header";
 import { EMPTY_IMAGE, cleanFormatImage } from "@/lib/post-formats/image";
 import { DisclosureBox } from "@/components/ui/disclosure";
+import { AiQuotaNote } from "@/components/ai/ai-quota-note";
+import { useAiQuota } from "@/components/ai/use-ai-quota";
 
 // フォーマットの画面（/projects/[id]/formats。2026-11-18 オーナーの了承で、投稿をつくるの中の畳んだ「フォーマットを管理」から移した）。
 // 2026-11-21 オーナーの指摘「どこが一覧なのか分かりづらすぎる」で、一覧・編集・新しく作るの 3 つの画面に分けた（?edit=id・?new=…）:
@@ -539,6 +541,8 @@ export function FormatTagsFields({
 
 // AI とつくる（docs/design/post-formats.md の 3）: 何の投稿か → 決まって入れたいこと → 案 3 つ（理由つき）→ 選ぶと欄に入って直してから保存する。案は保存しない
 function FormatAiMaker({ projectId, kinds, onPick, onCancel }: { projectId: string; kinds: string[]; onPick: (p: PostFormatInput) => void; onCancel: () => void }) {
+  // AI を使える量を使い切っているときは押せない（理由はボタンの下に 1 行）
+  const quota = useAiQuota("post_format", true);
   const [kind, setKind] = useState<string | null>(null);
   const [other, setOther] = useState("");
   const [must, setMust] = useState("");
@@ -579,9 +583,12 @@ function FormatAiMaker({ projectId, kinds, onPick, onCancel }: { projectId: stri
         <Input value={must} maxLength={MAX_FORMAT_MUST} onChange={(e) => setMust(e.target.value)} placeholder="例: 最後に予約の案内を入れたい" className="py-2 text-sm" />
       </label>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <Button size="sm" disabled={pending || !chosen} onClick={() => ask(false)}>
+        <Button size="sm" disabled={pending || !chosen || quota.blocked !== null} onClick={() => ask(false)}>
           {pending ? "考えています…" : proposals ? "案を出し直す" : "AI に案を出してもらう"}
         </Button>
+        <span className="basis-full">
+          <AiQuotaNote blocked={quota.blocked} />
+        </span>
         <span className="text-xs text-muted">案を出すたびに 5〜10 円ほどかかります。1 日 {POST_FORMAT_DAILY_RUNS} 回までです。</span>
         <Button size="sm" variant="text" onClick={onCancel}>
           やめる
@@ -615,7 +622,7 @@ function FormatAiMaker({ projectId, kinds, onPick, onCancel }: { projectId: stri
           </ul>
           <div className="flex flex-wrap items-center gap-2">
             <Input aria-label="案への希望" value={refine} maxLength={MAX_FORMAT_REFINE} onChange={(e) => setRefine(e.target.value)} placeholder="もう少しこうしたい。例: もっと短く" className="min-w-0 flex-1 py-2 text-sm max-sm:basis-full" />
-            <Button size="sm" variant="secondary" disabled={pending || !refine.trim() || !chosen} onClick={() => ask(true)}>
+            <Button size="sm" variant="secondary" disabled={pending || !refine.trim() || !chosen || quota.blocked !== null} onClick={() => ask(true)}>
               この希望で出し直す
             </Button>
           </div>

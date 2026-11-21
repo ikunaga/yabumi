@@ -8,9 +8,13 @@ import { Field, Input, Textarea } from "@/components/ui/field";
 import type { AppDescriptionDraft } from "@/lib/ai/app-description";
 import { adoptDescription, draftDescription, refineDescription } from "@/lib/github/actions";
 import { DisclosureBox } from "@/components/ui/disclosure";
+import { AiQuotaNote } from "@/components/ai/ai-quota-note";
+import { useAiQuota } from "@/components/ai/use-ai-quota";
 
 // リポジトリを読んで AI が紹介文（どんなアプリ・サービスか）を下書きし、利用者が質問に答えたり直したりして採用する
 export function DescriptionDrafter({ projectId, aiEnabled, hasAudience }: { projectId: string; aiEnabled: boolean; hasAudience: boolean }) {
+  // AI を使える量を使い切っているときは押せない（理由はボタンの下に 1 行）
+  const quota = useAiQuota("app_description", aiEnabled);
   const [draft, setDraft] = useState<AppDescriptionDraft | null>(null);
   const [filesRead, setFilesRead] = useState<string[]>([]);
   const [description, setDescription] = useState("");
@@ -55,11 +59,16 @@ export function DescriptionDrafter({ projectId, aiEnabled, hasAudience }: { proj
       {!draft && (
         <div className="flex flex-wrap items-center gap-3">
           {aiEnabled ? (
-            <Button onClick={draftNow} disabled={pending}>
+            <Button onClick={draftNow} disabled={pending || quota.blocked !== null}>
               リポジトリを読んで、紹介文を下書きする
             </Button>
           ) : (
             <NotReadyButton>リポジトリを読んで、紹介文を下書きする</NotReadyButton>
+          )}
+          {quota.blocked && (
+            <div className="basis-full">
+              <AiQuotaNote blocked={quota.blocked} />
+            </div>
           )}
           {working === "draft" && <AiThinking kind="description" note="30〜90 秒ほどかかります" className="w-full" />}
         </div>
@@ -158,7 +167,7 @@ export function DescriptionDrafter({ projectId, aiEnabled, hasAudience }: { proj
             >
               この紹介文をプロジェクトに使う
             </Button>
-            <Button variant="text" disabled={pending} onClick={draftNow}>
+            <Button variant="text" disabled={pending || quota.blocked !== null} onClick={draftNow}>
               リポジトリを読み直して、下書きし直す
             </Button>
           </div>

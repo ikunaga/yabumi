@@ -12,10 +12,14 @@ import { MAX_VOICE_EXAMPLES, type PlanData } from "@/lib/plan/schema";
 import { VOICE_MEMO_FIELDS, VOICE_MEMO_LABEL, type VoiceMemoField } from "@/lib/plan/voice";
 import { SELF_WRITTEN_ENOUGH, VOICE_MEMO_DAILY_RUNS } from "@/lib/plan/voice-rules";
 import { SNS, isSnsKey } from "@/lib/sns";
+import { AiQuotaNote } from "@/components/ai/ai-quota-note";
+import { useAiQuota } from "@/components/ai/use-ai-quota";
 
 // 書き方（文調のメモ。docs/design/voice-from-posts.md の 3.2）。本人が書いて送った投稿から AI が書き方を読み取り、利用者が直して保存する。
 // 欄は memo-<項目>・example（例の投稿の配信先の id）・conflict（口調と違うところ）・builtAt・sourceCount
 export function VoiceFields({ v, projectId, aiEnabled, selfWritten, exampleHeads }: { v: PlanData["voice"]; projectId: string; aiEnabled: boolean; selfWritten: number; exampleHeads: Record<string, string> }) {
+  // AI を使える量を使い切っているときは押せない（理由はボタンの下に 1 行）
+  const quota = useAiQuota("voice_memo", aiEnabled);
   const [memo, setMemo] = useState<Record<VoiceMemoField, string>>(v.memo);
   const [examples, setExamples] = useState<string[]>(v.examples);
   const [conflicts, setConflicts] = useState<string[]>(v.conflicts);
@@ -129,11 +133,16 @@ export function VoiceFields({ v, projectId, aiEnabled, selfWritten, exampleHeads
             </ul>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               {aiEnabled ? (
-                <Button type="button" size="sm" disabled={drafting || included.length < SELF_WRITTEN_ENOUGH} onClick={draft}>
+                <Button type="button" size="sm" disabled={drafting || included.length < SELF_WRITTEN_ENOUGH || quota.blocked !== null} onClick={draft}>
                   {drafting ? "読み取っています…" : `AI に読み取ってもらう（${included.length} 本）`}
                 </Button>
               ) : (
                 <NotReadyButton size="sm">AI に読み取ってもらう</NotReadyButton>
+              )}
+              {quota.blocked && (
+                <div className="basis-full">
+                  <AiQuotaNote blocked={quota.blocked} />
+                </div>
               )}
               <span className="text-xs text-muted">1 回 20 円ほど。1 日 {VOICE_MEMO_DAILY_RUNS} 回まで</span>
             </div>

@@ -26,6 +26,8 @@ import {
   type TextStyle,
 } from "@/lib/media/templates";
 import { Choice, Group } from "./maker-parts";
+import { AiQuotaNote } from "@/components/ai/ai-quota-note";
+import { useAiQuota } from "@/components/ai/use-ai-quota";
 
 // 画像の文字の欄（画像をつくる画面のテンプレートと、添えた画像に見出しを付ける欄で使う）
 
@@ -61,17 +63,24 @@ export function useTemplateStyle(projectId: string, initial?: TemplateStyle) {
 
 // AI に文字の案を出してもらう帯
 export function BriefBar({ aiEnabled, hasText, drafting, brief, onDraft }: { aiEnabled: boolean; hasText: boolean; drafting: boolean; brief: ImageBrief | null; onDraft: () => void }) {
+  // AI を使える量を使い切っているときは押せない（理由はボタンの下に 1 行）
+  const quota = useAiQuota("image_brief", aiEnabled);
   return (
     <div className="flex flex-col gap-2 rounded-md bg-surface2 px-3.5 py-3 text-sm">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         {aiEnabled ? (
-          <Button type="button" variant="secondary" size="sm" disabled={drafting || !hasText} onClick={onDraft}>
+          <Button type="button" variant="secondary" size="sm" disabled={drafting || !hasText || quota.blocked !== null} onClick={onDraft}>
             {drafting ? "考えています…" : brief ? "別の案を出してもらう" : "AI に文字の案を出してもらう"}
           </Button>
         ) : (
           <NotReadyButton variant="secondary" size="sm">
             AI に文字の案を出してもらう
           </NotReadyButton>
+        )}
+        {quota.blocked && (
+          <div className="basis-full">
+            <AiQuotaNote blocked={quota.blocked} />
+          </div>
         )}
         <span className="text-xs text-muted">{hasText ? "本文とアカウントの方針から考えます。1 回 2 円ほどかかります。" : "本文を書くと、AI が画像の文字を考えます"}</span>
       </div>

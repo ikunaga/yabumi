@@ -10,6 +10,8 @@ import { applyFix, FINDING_LABEL, type AiCheckFinding, type AiCheckResult, type 
 import { overLimit } from "@/lib/ai/shorten";
 import { SNS, type SnsKey } from "@/lib/sns";
 import { DisclosureBox } from "@/components/ui/disclosure";
+import { AiQuotaNote } from "@/components/ai/ai-quota-note";
+import { useAiQuota } from "@/components/ai/use-ai-quota";
 
 type Props = {
   projectId: string;
@@ -22,6 +24,8 @@ type Props = {
 
 // AI っぽさチェック（要求 F11）: 送る前に、決まり文句・誇張・作り話になっていないかを AI が見て知らせる。送るのは止めない
 export function AiCheckPanel({ projectId, aiEnabled, texts, onApply }: Props) {
+  // AI を使える量を使い切っているときは押せない（理由はボタンの下に 1 行）
+  const quota = useAiQuota("ai_check", aiEnabled);
   const [result, setResult] = useState<AiCheckResult | null>(null);
   const [state, setState] = useState<Record<number, "applied" | "dismissed" | "missing">>({});
   const [error, setError] = useState<string | null>(null);
@@ -53,13 +57,18 @@ export function AiCheckPanel({ projectId, aiEnabled, texts, onApply }: Props) {
       <section className="flex flex-col gap-3" aria-label="AI っぽさチェック">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           {aiEnabled ? (
-            <Button type="button" variant="secondary" size="sm" disabled={pending || !hasText} onClick={run}>
+            <Button type="button" variant="secondary" size="sm" disabled={pending || !hasText || quota.blocked !== null} onClick={run}>
               {pending ? "確認しています…" : result ? "もう一度確認する" : "AI っぽくないか確認する"}
             </Button>
           ) : (
             <NotReadyButton variant="secondary" size="sm">
               AI っぽくないか確認する
             </NotReadyButton>
+          )}
+          {quota.blocked && (
+            <div className="basis-full">
+              <AiQuotaNote blocked={quota.blocked} />
+            </div>
           )}
         </div>
         {pending && <AiThinking kind="check" note="10〜20 秒ほどかかります" />}

@@ -435,7 +435,7 @@ export async function applyConsultAction(user: Db, projectId: string, action: Ac
 }
 
 export const LEGACY_GOAL_PROPOSAL = "この案は前の形の目標のため、いまは採用できません。もう一度、目標の案を出してもらってください。";
-export const GOAL_REVIEW_NOT_FOUND = "振り返る目標が見つかりません。概要から開き直してください。";
+export const GOAL_REVIEW_NOT_FOUND = "振り返る目標が見つかりません。ホームから開き直してください。";
 export const GOAL_RESCUE_NOT_FOUND = "いまは、目標に届かない見込みではありません。ロードマップを開き直してください。";
 
 // 目標の立て直しを始めてよいか（本人の、このプロジェクトの active な目標が、届かない見込み）

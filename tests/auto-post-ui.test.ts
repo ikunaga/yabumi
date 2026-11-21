@@ -91,3 +91,18 @@ describe("「確かめて送る」だけの SNS の理由", () => {
     expect(SNS_KEYS.filter((s) => !AUTO_SNS_STAGE_A.includes(s)).sort()).toEqual(["tiktok", "youtube"]);
   });
 });
+
+describe("スマホのメニューと PC の More（2026-11-21 オーナーの指摘「メニューが多すぎて探しづらい」）", () => {
+  it("下のタブ・上の帯の 5 つは main。メニューと More は、それ以外をよく使う順に", async () => {
+    const { projectNavItems } = await import("@/components/nav/project-nav-items");
+    const items = projectNavItems("p1");
+    expect(items.filter((i) => i.main).map((i) => i.label)).toEqual(["ホーム", "投稿", "カレンダー", "分析", "AI と相談"]);
+    expect(items.filter((i) => i.main).map((i) => i.barLabel)).toEqual(["Home", "Compose", "Calendar", "Analytics", "Ask AI"]);
+    expect(items.filter((i) => !i.main).map((i) => i.label)).toEqual(["自動投稿", "下書き", "ネタ帳", "フォーマット", "コメント", "アカウントの方針", "ロードマップ", "短縮リンク", "プロジェクトの設定"]);
+  });
+
+  it("スマホのメニューは、タブの 5 つを出さない", async () => {
+    const { readFileSync } = await import("node:fs");
+    expect(readFileSync("src/components/nav/project-mobile-menu.tsx", "utf8")).toContain("projectNavItems(projectId).filter((i) => !i.main)");
+  });
+});

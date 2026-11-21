@@ -8,28 +8,28 @@ export type ProjectNavItem = { key: ProjectNavKey; label: string; barLabel: stri
 export function projectNavItems(projectId: string): ProjectNavItem[] {
   const base = `/projects/${projectId}`;
   return [
-    { key: "overview", label: "概要", barLabel: "Overview", tabLabel: "概要", href: base, main: true },
+    { key: "overview", label: "ホーム", barLabel: "Home", tabLabel: "ホーム", href: base, main: true },
     { key: "compose", label: "投稿", barLabel: "Compose", tabLabel: "投稿", href: `${base}/compose`, main: true },
     { key: "calendar", label: "カレンダー", barLabel: "Calendar", tabLabel: "カレンダー", href: `${base}/calendar`, main: true },
     // 前の名前は「指標」。追いかける数字とストアの数字を見る画面
     { key: "metrics", label: "分析", barLabel: "Analytics", tabLabel: "分析", href: `${base}/metrics`, main: true },
     { key: "consult", label: "AI と相談", barLabel: "Ask AI", tabLabel: "相談", href: `${base}/consult`, main: true },
-    // ここから「…」（その他）。概要の「いまやること」「今週のやること」からも開く
+    // ここから「…」（その他）とスマホの「メニュー」。よく使う順（2026-11-21 オーナーの指摘「メニューが多すぎて探しづらい」）。ホームの「いまやること」「今週のやること」からも開く
     // 自動の投稿（docs/design/auto-post.md の 1.2。A7 の ①）。概要の帯・カレンダーからも開く（投稿をつくるには入口を置かない。2026-11-18 オーナーの指示）
     { key: "auto", label: "自動投稿", barLabel: "Autopilot", tabLabel: "自動投稿", href: `${base}/auto`, main: false },
     // 下書きの一覧（保存した下書きを探して続ける。概要とカレンダーの「下書き n 件」・投稿をつくるの「下書きから続ける」からも開く。2026-11-13 PMO2 の確かめ）
     { key: "drafts", label: "下書き", barLabel: "Drafts", tabLabel: "下書き", href: `${base}/drafts`, main: false },
-    // SNS のコメント（4.70）。概要の「新しいコメント」の帯・スマホの通知・投稿の画面からも開く
-    { key: "comments", label: "コメント", barLabel: "Comments", tabLabel: "コメント", href: `${base}/comments`, main: false },
-    { key: "plan", label: "アカウントの方針", barLabel: "Strategy", tabLabel: "方針", href: `${base}/plan`, main: false },
     // ネタ帳（4.26）。メモを残すのは上の「＋ メモ」、スマホは右下の「＋ メモ」
     { key: "notes", label: "ネタ帳", barLabel: "Notes", tabLabel: "ネタ帳", href: `${base}/notes`, main: false },
     // フォーマット（投稿の文と絵の説明の型。2026-11-18 オーナーの了承で、投稿をつくるの中の「フォーマットを管理」から移した）。投稿をつくるの「フォーマットから」・自動の投稿からも開く
     { key: "formats", label: "フォーマット", barLabel: "Formats", tabLabel: "フォーマット", href: `${base}/formats`, main: false },
-    // 短縮リンク（4.22）
-    { key: "links", label: "短縮リンク", barLabel: "Links", tabLabel: "短縮リンク", href: `${base}/links`, main: false },
+    // SNS のコメント（4.70）。概要の「新しいコメント」の帯・スマホの通知・投稿の画面からも開く
+    { key: "comments", label: "コメント", barLabel: "Comments", tabLabel: "コメント", href: `${base}/comments`, main: false },
+    { key: "plan", label: "アカウントの方針", barLabel: "Strategy", tabLabel: "方針", href: `${base}/plan`, main: false },
     // ロードマップ（4.23）
     { key: "roadmap", label: "ロードマップ", barLabel: "Roadmap", tabLabel: "ロードマップ", href: `${base}/roadmap`, main: false },
+    // 短縮リンク（4.22）
+    { key: "links", label: "短縮リンク", barLabel: "Links", tabLabel: "短縮リンク", href: `${base}/links`, main: false },
     // プロジェクトの設定（つないだ SNS・このアプリについて・削除）。概要の「つなぐ・外す」からも開く
     { key: "settings", label: "プロジェクトの設定", barLabel: "Settings", tabLabel: "設定", href: `${base}/edit`, main: false },
   ];

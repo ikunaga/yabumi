@@ -43,7 +43,7 @@ export const CONSULT_TOPIC_META = {
     entry: {
       title: "1 か月を AI と振り返る",
       lead: "AI がこの 1 か月の結果（中間の目標と、週ごとの投稿の本数）を読み、よかった点と、次の 1 か月の目標と週の本数の案を出します。選んだ案だけが、目標に入ります。",
-      back: { path: "", label: "概要に戻る" },
+      back: { path: "", label: "ホームに戻る" },
     },
   },
   // 目標（KGI）の期限が来た・届いたとき（概要の帯の「AI と振り返る」。?start=goal_review&goal=<id>）
@@ -54,7 +54,7 @@ export const CONSULT_TOPIC_META = {
     entry: {
       title: "目標を AI と振り返る",
       lead: "AI が目標の結果を読み、届いたか・よかった点・次に変えることをまとめて、次の目標の案を出します。選んだ案だけが、目標に入ります。",
-      back: { path: "", label: "概要に戻る" },
+      back: { path: "", label: "ホームに戻る" },
     },
   },
   // 目標（KGI）に届かない見込みのとき（ロードマップの「届かない見込み」・概要の 1 行の「立て直す」。src/lib/goals/risk.ts）

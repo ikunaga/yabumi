@@ -39,7 +39,7 @@ export default async function NotificationSettingsPage() {
       <main className="flex flex-col gap-5 px-12 py-10 max-lg:px-8 max-sm:gap-4 max-sm:px-4 max-sm:py-5">
         <PageHeader
           title="お知らせの設定"
-          help="アカウントの方針の「週の回数」で、SNS ごとの週の本数を決められます。決めると、週ごとのペースをお知らせします。ホームの「いまやること」に、今週の回数を出します。お知らせは、ここで選んだ方法で届きます。"
+          help="アカウントの方針の「週の回数」で、SNS ごとの週の本数を決められます。決めると、週ごとのペースをお知らせします。「ホーム」の「いまやること」に、今週の回数を出します。お知らせは、ここで選んだ方法で届きます。"
         />
         <Columns
           main={

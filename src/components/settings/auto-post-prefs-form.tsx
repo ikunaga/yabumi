@@ -24,7 +24,7 @@ export function AutoPostPrefsForm({ on }: { on: boolean }) {
           <input type="radio" name="auto_post_push" value="off" defaultChecked={!on} className="mt-1 size-4 accent-[var(--primary)]" />
           <span>
             受け取らない
-            <span className="block text-xs text-muted">確認待ちは、自動投稿の画面とホームで見られます</span>
+            <span className="block text-xs text-muted">確認待ちは、「自動投稿」と「ホーム」の画面で見られます</span>
           </span>
         </label>
       </fieldset>

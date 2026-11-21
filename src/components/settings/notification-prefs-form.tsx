@@ -11,7 +11,7 @@ type Mode = "weekly_and_behind" | "weekly" | "off";
 const MODES: { value: Mode; label: string; hint: string }[] = [
   { value: "weekly_and_behind", label: "毎週の振り返り＋遅れそうなとき", hint: "おすすめ。月曜の朝と、決めた曜日に今週まだ投稿がないとき" },
   { value: "weekly", label: "毎週の振り返りだけ", hint: "月曜の朝に、先週の結果と今週の目標" },
-  { value: "off", label: "送らない", hint: "画面の声かけ（ホームの帯）だけにする" },
+  { value: "off", label: "送らない", hint: "お知らせは送らず、「ホーム」に出る声かけだけにする" },
 ];
 
 const WEEKDAYS = ["月", "火", "水", "木", "金"];

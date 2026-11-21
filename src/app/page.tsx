@@ -63,7 +63,7 @@ const features: Feature[] = [
   { name: "notes", title: "ネタ帳と AI のネタ出し", body: "思いついたことを写真 1 枚と一緒に残し、AI がメモから投稿の案を出します（アプリや Web のサービスなら GitHub の更新からも）。", shot: { name: "notes", alt: "ネタ帳の画面。まだ使っていないメモの一覧" } },
   { name: "metrics", title: "分析と振り返り", body: "閲覧から、行き先へのクリック・成果までを 1 枚で。数字の読み方と次の一手を、やさしい言葉で添えます。", shot: { name: "metrics", alt: "分析の画面。投稿の閲覧と、行き先へのクリックの数字" } },
   { name: "plan", title: "アカウントの方針と AI と相談", body: "誰に向けて何を発信するかを、AI が質問しながら一緒に整理します。決めたことはロードマップの目標になります。", shot: { name: "plan", alt: "アカウントの方針の画面。項目ごとの決めたこと" } },
-  { name: "coach", title: "伴走", body: "今週あと何本出せば目標に届くかを、毎日見て声をかけます。", shot: { name: "coach", alt: "ホームの画面。今週のペースと声かけ" } },
+  { name: "coach", title: "伴走", body: "今週あと何本出せば目標に届くかを、毎日見て声をかけます。", shot: { name: "coach", alt: "yabumi のホームの画面。今週のペースと、次にやることの声かけ" } },
 ];
 
 const moreFeatures = [

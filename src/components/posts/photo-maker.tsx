@@ -17,6 +17,7 @@ import { Choice, Group } from "./maker-parts";
 import type { FormatPhotoPreset } from "@/lib/post-formats/image";
 import { AiQuotaNote } from "@/components/ai/ai-quota-note";
 import { useAiQuota } from "@/components/ai/use-ai-quota";
+import { COMPOSE_BLOCKED_WORDS } from "@/lib/ai/budget-status-text";
 
 export type PickedPhoto = { jobId: string; bitmap: ImageBitmap; scene: string };
 
@@ -65,7 +66,7 @@ export function PhotoMaker({
   const sceneId = useId();
   const [state, setState] = useState<PhotoPanelState | null>(null);
   // 絵の説明の案（AI）は、AI を使える量を使い切っているときは押せない（理由はボタンの下に 1 行）。画像をつくるのは別の上限
-  const quota = useAiQuota("image_photo_idea", Boolean(state?.ideasEnabled));
+  const quota = useAiQuota("image_photo_idea", Boolean(state?.ideasEnabled), COMPOSE_BLOCKED_WORDS);
   const [error, setError] = useState<string | null>(null);
   const [ideas, setIdeas] = useState<PhotoIdea[]>([]);
   const [scene, setScene] = useState("");

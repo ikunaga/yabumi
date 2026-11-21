@@ -12,6 +12,7 @@ import { SNS, type SnsKey } from "@/lib/sns";
 import { DisclosureBox } from "@/components/ui/disclosure";
 import { AiQuotaNote } from "@/components/ai/ai-quota-note";
 import { useAiQuota } from "@/components/ai/use-ai-quota";
+import { COMPOSE_BLOCKED_WORDS } from "@/lib/ai/budget-status-text";
 
 type Props = {
   projectId: string;
@@ -25,7 +26,7 @@ type Props = {
 // AI っぽさチェック（要求 F11）: 送る前に、決まり文句・誇張・作り話になっていないかを AI が見て知らせる。送るのは止めない
 export function AiCheckPanel({ projectId, aiEnabled, texts, onApply }: Props) {
   // AI を使える量を使い切っているときは押せない（理由はボタンの下に 1 行）
-  const quota = useAiQuota("ai_check", aiEnabled);
+  const quota = useAiQuota("ai_check", aiEnabled, COMPOSE_BLOCKED_WORDS);
   const [result, setResult] = useState<AiCheckResult | null>(null);
   const [state, setState] = useState<Record<number, "applied" | "dismissed" | "missing">>({});
   const [error, setError] = useState<string | null>(null);

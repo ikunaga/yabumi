@@ -7,9 +7,13 @@ export type AiBudgetState = { status: string; availableFrom: string | null; low:
 export type AiBlockedWords = { can: string; still?: string };
 export const CONSULT_BLOCKED_WORDS: AiBlockedWords = { can: "相談できます", still: "これまでの相談は読めます。" };
 // ネタを出す
-export const IDEAS_BLOCKED_WORDS: AiBlockedWords = { can: "ネタを出せます", still: "これまでに出したネタは読めます。" };
+export const IDEAS_BLOCKED_WORDS: AiBlockedWords = { can: "AI とネタを出せます", still: "「自分で書く」なら、いまも投稿をつくれます。" };
+// 投稿をつくるの中の AI のボタン（整える・AI っぽさ・画像の文字・絵の説明）
+export const COMPOSE_BLOCKED_WORDS: AiBlockedWords = { can: "AI を使えます", still: "自分で書いた文は、このまま投稿できます。" };
+// フォーマットを AI とつくる
+export const FORMAT_AI_BLOCKED_WORDS: AiBlockedWords = { can: "AI を使えます", still: "「やめる」を押して「新しいフォーマットを自分で書く」から、自分でつくれます。" };
 // アカウントの方針の「AI と考える」
-export const PLAN_COACH_BLOCKED_WORDS: AiBlockedWords = { can: "AI と考えられます", still: "アカウントの方針は、手で編集できます。" };
+export const PLAN_COACH_BLOCKED_WORDS: AiBlockedWords = { can: "AI と考えられます", still: "「決まった中身を見る」から、自分で編集できます。" };
 
 // 「12 月 1 日」（日本時間の日付 YYYY-MM-DD から）
 function dayLabel(ymd: string): string {
@@ -27,7 +31,8 @@ export function aiBlockedText(s: AiBudgetState, words: AiBlockedWords = CONSULT_
     case "user_limit":
       return `今月、AI を使える量を使い切りました。${again}${still}`;
     case "new_user_limit":
-      return `登録から 7 日間に使える AI の量を、使い切りました。${again}${still}`;
+      // 登録から 7 日間の枠。「7 日間」と書くと、そのあとお金がかかるように読めるので書かない（確認役の指摘）
+      return `AI を使える量を、使い切りました。${again}${still}`;
     case "global_limit":
     case "new_global_limit":
       return `yabumi を使う人みんなで、今月の AI の上限に達しました。あなたが使った量とは関係ありません。${again}${still}`;

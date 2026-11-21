@@ -28,6 +28,7 @@ import type { FormatUse } from "./post-format-picker";
 import { formatSlots } from "@/lib/post-formats/schema";
 import { AiQuotaNote } from "@/components/ai/ai-quota-note";
 import { useAiQuota } from "@/components/ai/use-ai-quota";
+import { COMPOSE_BLOCKED_WORDS } from "@/lib/ai/budget-status-text";
 
 type Composer = { body: string; overrides: Partial<Record<SnsKey, string>> };
 
@@ -58,7 +59,7 @@ export const TIDY_WAIT = "20〜40 秒ほど";
 // 案はカードの中でそのまま直せ、選ぶと本文と SNS ごとの文面に入る（入れたあとも直せる）。「元に戻す」で整える前の文に戻せる
 export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace, onShowBody, onEditOverride, onAdoptedChange, format = null, onPickSns }: Props) {
   // AI を使える量を使い切っているときは押せない（理由はボタンの下に 1 行）
-  const quota = useAiQuota("tidy_draft", aiEnabled);
+  const quota = useAiQuota("tidy_draft", aiEnabled, COMPOSE_BLOCKED_WORDS);
   const [options, setOptions] = useState<TidyOption[] | null>(null);
   // 整え方。このプロジェクトで前に選んだものを、この端末に覚えておいて次も同じから始める（サーバーには保存しない）
   const storageKey = `yabumi:tidy-direction:${projectId}`;

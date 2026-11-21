@@ -28,6 +28,7 @@ import {
 import { Choice, Group } from "./maker-parts";
 import { AiQuotaNote } from "@/components/ai/ai-quota-note";
 import { useAiQuota } from "@/components/ai/use-ai-quota";
+import { COMPOSE_BLOCKED_WORDS } from "@/lib/ai/budget-status-text";
 
 // 画像の文字の欄（画像をつくる画面のテンプレートと、添えた画像に見出しを付ける欄で使う）
 
@@ -64,17 +65,17 @@ export function useTemplateStyle(projectId: string, initial?: TemplateStyle) {
 // AI に文字の案を出してもらう帯
 export function BriefBar({ aiEnabled, hasText, drafting, brief, onDraft }: { aiEnabled: boolean; hasText: boolean; drafting: boolean; brief: ImageBrief | null; onDraft: () => void }) {
   // AI を使える量を使い切っているときは押せない（理由はボタンの下に 1 行）
-  const quota = useAiQuota("image_brief", aiEnabled);
+  const quota = useAiQuota("image_brief", aiEnabled, COMPOSE_BLOCKED_WORDS);
   return (
     <div className="flex flex-col gap-2 rounded-md bg-surface2 px-3.5 py-3 text-sm">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         {aiEnabled ? (
           <Button type="button" variant="secondary" size="sm" disabled={drafting || !hasText || quota.blocked !== null} onClick={onDraft}>
-            {drafting ? "考えています…" : brief ? "別の案を出してもらう" : "AI に文字の案を出してもらう"}
+            {drafting ? "考えています…" : brief ? "別の案を出してもらう" : "AI に画像の文字の案を出してもらう"}
           </Button>
         ) : (
           <NotReadyButton variant="secondary" size="sm">
-            AI に文字の案を出してもらう
+            AI に画像の文字の案を出してもらう
           </NotReadyButton>
         )}
         {quota.blocked && (

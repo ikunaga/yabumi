@@ -60,6 +60,7 @@ import { EMPTY_IMAGE, cleanFormatImage } from "@/lib/post-formats/image";
 import { DisclosureBox } from "@/components/ui/disclosure";
 import { AiQuotaNote } from "@/components/ai/ai-quota-note";
 import { useAiQuota } from "@/components/ai/use-ai-quota";
+import { FORMAT_AI_BLOCKED_WORDS } from "@/lib/ai/budget-status-text";
 
 // フォーマットの画面（/projects/[id]/formats。2026-11-18 オーナーの了承で、投稿をつくるの中の畳んだ「フォーマットを管理」から移した）。
 // 2026-11-21 オーナーの指摘「どこが一覧なのか分かりづらすぎる」で、一覧・編集・新しく作るの 3 つの画面に分けた（?edit=id・?new=…）:
@@ -542,7 +543,7 @@ export function FormatTagsFields({
 // AI とつくる（docs/design/post-formats.md の 3）: 何の投稿か → 決まって入れたいこと → 案 3 つ（理由つき）→ 選ぶと欄に入って直してから保存する。案は保存しない
 function FormatAiMaker({ projectId, kinds, onPick, onCancel }: { projectId: string; kinds: string[]; onPick: (p: PostFormatInput) => void; onCancel: () => void }) {
   // AI を使える量を使い切っているときは押せない（理由はボタンの下に 1 行）
-  const quota = useAiQuota("post_format", true);
+  const quota = useAiQuota("post_format", true, FORMAT_AI_BLOCKED_WORDS);
   const [kind, setKind] = useState<string | null>(null);
   const [other, setOther] = useState("");
   const [must, setMust] = useState("");

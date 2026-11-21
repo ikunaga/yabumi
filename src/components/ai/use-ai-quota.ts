@@ -8,7 +8,8 @@ import { aiBlockedText, type AiBlockedWords, type AiBudgetState } from "@/lib/ai
 // blocked: 使い切っていて押せない理由（使えるときは null）。読めないときも null（押したときに今までどおり断る）
 export const INLINE_BLOCKED_WORDS: AiBlockedWords = { can: "AI を使えます" };
 
-export function useAiQuota(purpose: AiPurpose, enabled = true): { state: AiBudgetState | null; blocked: string | null } {
+// words: 画面ごとの、できること・まだできること（なければ「また AI を使えます。」だけ）
+export function useAiQuota(purpose: AiPurpose, enabled = true, words: AiBlockedWords = INLINE_BLOCKED_WORDS): { state: AiBudgetState | null; blocked: string | null } {
   const [state, setState] = useState<AiBudgetState | null>(null);
   useEffect(() => {
     if (!enabled) return;
@@ -20,5 +21,5 @@ export function useAiQuota(purpose: AiPurpose, enabled = true): { state: AiBudge
       alive = false;
     };
   }, [purpose, enabled]);
-  return { state, blocked: state ? aiBlockedText(state, INLINE_BLOCKED_WORDS) : null };
+  return { state, blocked: state ? aiBlockedText(state, words) : null };
 }

@@ -60,7 +60,7 @@ const SOURCE_INFO: Record<IdeaSource, { title: string; summary: string; good: st
   },
   plan: {
     title: "アカウントの方針から・入力なし",
-    summary: "投稿の柱と、プロジェクトの説明から、柱ごとに 1 つずつ出します。",
+    summary: "方針で決めた発信のテーマと、プロジェクトの説明から出します。テーマごとに 1 つずつです。",
     good: "何も書かなくてよい。いつ出しても古くならないネタがそろう",
     note: "最近の話は入らないので、ほかの材料と交互に使うのがおすすめ",
     button: "アカウントの方針からネタを出す",
@@ -396,7 +396,7 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, aiB
                 </div>
               </fieldset>
               <div className="flex flex-wrap items-center gap-3">
-                <Button onClick={() => go(2)} className="max-sm:w-full">
+                <Button disabled={aiBlocked} onClick={() => go(2)} className="max-sm:w-full">
                   次へ: 中身を入れる
                 </Button>
               </div>

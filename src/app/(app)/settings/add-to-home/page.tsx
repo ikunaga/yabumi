@@ -38,7 +38,7 @@ export default async function AddToHomePage() {
             {pushReady && <li>iPhone・iPad で、yabumi からのお知らせを受け取れます。</li>}
             <li>Android では、ほかのアプリの「共有」から「ネタ帳」に送れます。</li>
           </ul>
-          <AddToHomeGuide />
+          <AddToHomeGuide pushReady={pushReady} />
         </Card>
       </main>
     </>

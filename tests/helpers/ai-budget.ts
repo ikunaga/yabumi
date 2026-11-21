@@ -7,6 +7,9 @@ export function scopeAiBudget() {
   setAiBudgetTestScope({ scopeSelf: true, asOf: new Date("2100-01-01T00:00:00Z") });
 }
 
+// 本人の文の AI の月の上限（DB の ai_budget_check の c_user_monthly_usd。2026-11-21 に $3 → $9.9）。上限に届いたときを試すとき、これだけ使ったことにする
+export const AI_USER_MONTHLY_USD = 9.9;
+
 // 本人の今月の利用を usd だけ足す（上限に届いたときを試す）。消すときは返した id で
 export async function spendAi(admin: ReturnType<typeof adminClient>, userId: string, usd: number, count = 1): Promise<string[]> {
   const rows = Array.from({ length: count }, () => ({ owner_id: userId, purpose: "test_fill", model: "test", cost_usd: usd / count }));

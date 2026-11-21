@@ -1,6 +1,6 @@
 // 最近のコミットから投稿のネタを出す流れと、ネタの会話の RLS。GitHub と AI はモックし、本物は呼ばない
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { spendAi, unspendAi, scopeAiBudget } from "./helpers/ai-budget";
+import { AI_USER_MONTHLY_USD, spendAi, unspendAi, scopeAiBudget } from "./helpers/ai-budget";
 import { adoptPostIdea, generatePostIdeas, KEEP_IDEA_THREADS, refinePostIdeas, type CallIdeas, type IdeasContent, type ReadCommits } from "@/lib/ai/post-ideas";
 import { MEDIA_BUCKET } from "@/lib/media/rules";
 import { issueUpload, verifyUpload } from "@/lib/media/store";
@@ -137,7 +137,7 @@ describe("投稿のネタ", () => {
     const none = await generatePostIdeas(alice, admin, deps({ readCommits: async () => ({ commits: [], truncated: false }) }), { userId: aliceId, projectId, sns: ["x"], input: { source: "commits", days: 3 } });
     expect(none).toMatchObject({ ok: false });
     vi.mocked(commits).mockClear();
-    const filled = await spendAi(admin, aliceId, 3);
+    const filled = await spendAi(admin, aliceId, AI_USER_MONTHLY_USD);
     const over = await generatePostIdeas(alice, admin, deps(), { userId: aliceId, projectId, sns: ["x"], input: { source: "commits", days: 7 } });
     await unspendAi(admin, filled);
     // コミットは読む（見込みの額を送る中身から決めるため。GitHub の API は無料）が、AI は呼ばない（呼んでいれば下の「数える」が 2 件になる）

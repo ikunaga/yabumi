@@ -69,7 +69,8 @@ export const UI_WORD_RULES: UiWordRule[] = [
   { id: "zentai", pattern: /yabumi ?全体/ },
   { id: "kiroku", pattern: /記録できます/ },
   { id: "natsujikan", pattern: /夏時間/ },
+  { id: "vercel", pattern: /Vercel/ },
 ];
 
 // 表にあるが、見つける形を決められない行（確認役が文の意味から見る）
-export const UI_WORD_RULES_WITHOUT_PATTERN = ["unei", "project", "term", "okane", "hazusu", "moji", "tsunageru", "nini", "etsuran", "yakuwari", "komiai"];
+export const UI_WORD_RULES_WITHOUT_PATTERN = ["unei", "project", "term", "okane", "hazusu", "moji", "tsunageru", "nini", "etsuran", "yakuwari", "komiai", "hinagata", "dnswords"];

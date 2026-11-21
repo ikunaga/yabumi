@@ -678,7 +678,8 @@ export function engineDeps(admin: Db): EngineDeps | null {
     : photoConfigured()
       ? { generate: generateWithGemini, model: photoModel(), callScene: callPhotoIdeas }
       : undefined;
-  return { generator, callCheck: fake ? fakeCheck : callAiCheck, callShorten: callShortenDrafts, image };
+  // 偽の AI のときは、本物の AI（Anthropic）を呼ぶものを残さない: 縮める AI は使わず、シリーズの空欄は偽の言葉で埋める（2026-11-21 PM の指摘）
+  return { generator, callCheck: fake ? fakeCheck : callAiCheck, callShorten: fake ? undefined : callShortenDrafts, image, ...(fake ? { fakeSeries: true } : {}) };
 }
 
 // 偽の AI のときの画像（灰色の 800×1000 の 1 枚。見出しを重ねたのが見えるように）と場面。画面の確かめで、本物の AI を使わずに画像つきの回を見るため（Vercel の上では使わない。fakeAiMode）

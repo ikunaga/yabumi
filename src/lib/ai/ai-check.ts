@@ -46,7 +46,7 @@ export const aiCheckSchema = z.object({
         sns: z.string().describe("指摘する文面の SNS の名前（<post sns=\"...\"> の値）"),
         kind: z.enum(FINDING_KINDS),
         quote: z.string().describe("その文面から、直したいところをそのまま抜き出した部分（1 文以内。書き換えない）"),
-        why: z.string().describe("なぜよくないか。読む人にどう見えるかを、素人にもわかる言葉で 1〜2 文"),
+        why: z.string().describe("なぜよくないか。読む人にどう見えるかを、素人にもわかる言葉で 1〜2 文。です・ます で書く（例: 値引きの話をしています）"),
         fix: z.string().describe("quote と置き換える文。消すほうがよければ空文字"),
       }),
     )

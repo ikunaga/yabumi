@@ -310,7 +310,8 @@
       "p": "AI で画像をつくる仕事（予約・できた・失敗）。月の上限の判定にも使う",
       "c": {
         "model": "モデル",
-        "images": "枚数"
+        "images": "枚数",
+        "auto": "自動投稿の画像か"
       }
     },
     "ai_image_notices": {
@@ -344,7 +345,36 @@
         "first_review": "最初の回を確かめるか",
         "stop_reason": "止まった理由",
         "fail_streak": "続けての失敗の数",
-        "consent_version": "同意した規約の版"
+        "consent_version": "同意した規約の版",
+        "instructions": "書き方の指示",
+        "image": "画像の設定"
+      }
+    },
+    "auto_samples": {
+      "n": "テストでつくった投稿",
+      "p": "自動投稿の設定で、テストで 1 件つくった投稿。サーバーだけが読み書きし、1 日で消す",
+      "c": {
+        "plan_id": "自動投稿",
+        "settings": "つくったときの設定",
+        "material": "使った投稿のもと",
+        "texts": "SNS ごとの文",
+        "tags": "SNS ごとのタグ",
+        "hold": "送る前の確認で注意が出た理由",
+        "image": "つくった画像"
+      }
+    },
+    "auto_post_holds": {
+      "n": "運営による自動投稿の停止",
+      "p": "yabumi の運営が、利用者ごとに自動投稿を止めた記録。解除した日時が空の行が、いま止めているもの。書き込みは運営者の関数とサーバーだけ",
+      "c": {
+        "reason": "止めた理由（運営者のメモ）",
+        "held_by": "止めた人",
+        "held_at": "止めた日時",
+        "released_at": "解除した日時",
+        "release_reason": "解除した理由",
+        "released_by": "解除した人",
+        "hold_notified_at": "止めたことを知らせた日時",
+        "release_notified_at": "解除したことを知らせた日時"
       }
     },
     "auto_runs": {

@@ -33,10 +33,12 @@ describe("2026-11-09 の版", () => {
     expect(read("supabase/migrations/20261107130000_project_limit.sql")).toContain("c_max_projects constant integer := 10;");
   });
 
-  it("本文に、フォーマットを預かる・Anthropic に送る・保存期間の文がある。前の「絵の説明は保存しません」は、つくるときの説明の話として残す", () => {
+  // 2026-11-21 に絵の説明のフォーマットをなくした（① として扱った。docs/legal.md）。預かる・送る・保存期間の文を消し、前に使った絵の説明の出し方を書き足した
+  it("絵の説明のフォーマットをなくしたので、預かる・Anthropic に送る・保存期間の文がない。つくるときの説明は保存しない、は残す", () => {
     const privacy = read("src/app/privacy/page.tsx");
-    expect(privacy).toContain("利用者が登録した絵の説明のフォーマット（名前と文。プロジェクトに 20 個、1 人 100 個まで）。画像をつくるときの絵の説明は保存しません");
-    expect(privacy).toContain("AI でつくる画像の絵の説明の案を作るときの投稿の本文とアカウント設計、選んだ絵の説明のフォーマット");
-    expect(privacy).toContain('["絵の説明のフォーマット", "利用者が消すか、プロジェクトを消すか、退会まで"]');
+    expect(privacy).not.toContain("絵の説明のフォーマット");
+    expect(privacy).toContain("画像をつくるときの絵の説明は保存しません");
+    expect(privacy).toContain("「前に使った絵の説明」として本人にだけ出します");
+    expect(read("supabase/migrations/20261121170000_drop_photo_prompt_templates.sql")).toContain("drop table public.photo_prompt_templates;");
   });
 });

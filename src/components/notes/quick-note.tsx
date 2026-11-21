@@ -65,7 +65,13 @@ export function QuickNote({ projects, projectId, variant }: { projects: Project[
 
   return (
     <>
-      <button type="button" onClick={show} className={variant === "topbar" ? `${TRIGGER[variant]} relative` : TRIGGER[variant]} aria-haspopup="dialog">
+      <button
+        type="button"
+        onClick={show}
+        className={variant === "topbar" ? `${TRIGGER[variant]} relative` : TRIGGER[variant]}
+        aria-haspopup="dialog"
+        data-fab={variant === "fab" ? "tab" : variant === "fabFree" ? "free" : undefined}
+      >
         <span aria-hidden>＋</span> メモ
         {hasDraft && (
           <>

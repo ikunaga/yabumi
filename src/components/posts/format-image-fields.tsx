@@ -4,8 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Input, Textarea } from "@/components/ui/field";
 import { PHOTO_STYLES, PHOTO_STYLE_LABEL, SCENE_YEN, photoModel, photoUnitYen } from "@/lib/ai/photo";
 import { TEMPLATE_SIZES } from "@/lib/media/templates";
-import { listPhotoTemplates } from "@/lib/photo-templates/actions";
-import type { PhotoTemplate } from "@/lib/photo-templates/schema";
+import { listRecentScenes } from "@/lib/ai/photo-actions";
 import { IMAGE_SCENES, IMAGE_SCENE_LABEL, IMAGE_SIZES, MAX_IMAGE_HEADLINE, MAX_IMAGE_LABEL, MAX_IMAGE_PROMPT, imageSlotNames, needsAiScene, usesAnswer, type FormatImage } from "@/lib/post-formats/image";
 import type { FormatSeries } from "@/lib/post-formats/series";
 import { Choice } from "./maker-parts";
@@ -31,7 +30,8 @@ export function FormatImageFields({
   setImage: (img: FormatImage) => void;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
-  const [templates, setTemplates] = useState<PhotoTemplate[]>([]);
+  // 前に使った絵の説明（添えた AI の画像の説明から。絵の説明のフォーマットの代わり。2026-11-21 オーナーの決定）
+  const [recent, setRecent] = useState<string[]>([]);
   const names = imageSlotNames(body, series);
   // 答えか AI の空欄を使うか。初めは「AI が絵の説明を書く」を選んでおく（利用者が選んだあとは変えない）。固定はしない（2026-11-20）
   const risky = needsAiScene(image, body, series);
@@ -43,11 +43,11 @@ export function FormatImageFields({
   }
   const unit = photoUnitYen(photoModel({}));
 
-  // 「絵の説明のフォーマットから写す」の一覧（開いたときに 1 回読む）
+  // 「前に使った絵の説明から選ぶ」の一覧（開いたときに 1 回読む）
   useEffect(() => {
     let alive = true;
-    void listPhotoTemplates(projectId).then((r) => {
-      if (alive && r.templates) setTemplates(r.templates);
+    void listRecentScenes(projectId).then((r) => {
+      if (alive && r.scenes) setRecent(r.scenes);
     });
     return () => {
       alive = false;
@@ -93,25 +93,25 @@ export function FormatImageFields({
             placeholder="例: {キーワード}を思わせる小物が、木の机の上に並んでいる。真上から、やわらかい自然光"
             className="py-2 text-sm"
           />
-          {templates.length > 0 && (
+          {recent.length > 0 && (
             <select
-              aria-label="保存した絵の説明から選んで入れる"
+              aria-label="前に使った絵の説明から選ぶ"
               value=""
               onChange={(e) => {
-                const t = templates.find((x) => x.id === e.target.value);
-                if (t) setPrompt([...t.body].slice(0, MAX_IMAGE_PROMPT).join(""));
+                const s = recent[Number(e.target.value)];
+                if (s) setPrompt([...s].slice(0, MAX_IMAGE_PROMPT).join(""));
               }}
               className="self-start rounded-md border border-input bg-surface px-2.5 py-1.5 text-sm max-sm:text-[16px]"
             >
-              <option value="">保存した絵の説明から選んで入れる</option>
-              {templates.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
+              <option value="">前に使った絵の説明から選ぶ</option>
+              {recent.map((s, i) => (
+                <option key={s} value={i}>
+                  {[...s].length > 40 ? `${[...s].slice(0, 40).join("")}…` : s}
                 </option>
               ))}
             </select>
           )}
-          {/* ui-wording-ignore: {場面} は、保存した絵の説明に入っている差し込みの名前（データ）。名前を変えるかは別に決める */}
+          {/* ui-wording-ignore: {場面} は、前の絵の説明のフォーマット（2026-11-21 に廃止）から写した文に残っていることがある差し込みの名前（データ） */}
           {image.prompt.includes("{場面}") && !names.includes("場面") && <span className="font-bold text-signal">{"{場面}"} は、ここでは使えません。上の空欄の {`{${names[0] ?? "キーワード"}}`} などか、言葉に書き換えてください</span>}
           {usesAnswer(image.prompt, body, series) && <span className="text-muted">クイズでは、絵で答えがわかってしまうことがあります。答えの空欄は、絵の説明に入れないでください。</span>}
         </label>

@@ -1571,50 +1571,6 @@ export type Database = {
           },
         ]
       }
-      photo_prompt_templates: {
-        Row: {
-          body: string
-          created_at: string
-          id: string
-          is_default: boolean
-          name: string
-          owner_id: string
-          position: number
-          project_id: string
-          updated_at: string
-        }
-        Insert: {
-          body: string
-          created_at?: string
-          id?: string
-          is_default?: boolean
-          name: string
-          owner_id?: string
-          position?: number
-          project_id: string
-          updated_at?: string
-        }
-        Update: {
-          body?: string
-          created_at?: string
-          id?: string
-          is_default?: boolean
-          name?: string
-          owner_id?: string
-          position?: number
-          project_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "photo_prompt_templates_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       play_account_creations: {
         Row: {
           created_at: string
@@ -3114,7 +3070,12 @@ export type Database = {
         }[]
       }
       ai_budget_status_of: {
-        Args: { p_as_of?: string; p_owner_id: string; p_purpose?: string }
+        Args: {
+          p_as_of?: string
+          p_owner_id: string
+          p_purpose?: string
+          p_scope_owner?: string
+        }
         Returns: {
           available_from: string
           low: boolean

@@ -6,14 +6,27 @@ import { createClient } from "@/lib/supabase/server";
 import { FORMAT_EXAMPLES, FORMAT_KINDS, type PostFormat, type PostFormatInput } from "./schema";
 import { FormatError, addFormat, deleteFormat, listFormats, updateFormat } from "./store";
 import { addRound, deleteRound, discardRounds, listRounds, pasteRounds } from "./rounds";
-import type { FormatRound } from "./series";
+import { isSeries, type FormatRound } from "./series";
 
 // 投稿をつくるの、投稿のフォーマットの操作（docs/architecture.md の 4.56）。利用者の権限で読み書きする（RLS で本人のものだけ）
 
 // kinds: AI とつくるときの「何の投稿か」の決まった選択肢（宣伝するものの種類ごと）
-export type FormatsResult = { formats?: PostFormat[]; examples?: PostFormatInput[]; kinds?: string[]; error?: string };
+// roundCounts: シリーズのフォーマットごとの、これまでの投稿の記録の数（一覧のカードの「これまで 4 件」）
+export type FormatsResult = { formats?: PostFormat[]; examples?: PostFormatInput[]; kinds?: string[]; roundCounts?: Record<string, number>; error?: string };
 
 const BAD = { error: "入力の形式が正しくありません。" };
+
+// フォーマットごとの記録の数（RLS で本人のものだけ。数だけ読む。シリーズは 20 個まで）
+async function countRounds(db: Awaited<ReturnType<typeof createClient>>, ids: string[]): Promise<Record<string, number>> {
+  const counts = await Promise.all(
+    ids.map(async (id) => {
+      const { count, error } = await db.from("post_format_rounds").select("id", { count: "exact", head: true }).eq("format_id", id);
+      if (error) throw error;
+      return [id, count ?? 0] as const;
+    }),
+  );
+  return Object.fromEntries(counts);
+}
 
 async function run(projectId: string, fn: (db: Awaited<ReturnType<typeof createClient>>) => Promise<void>): Promise<FormatsResult> {
   if (!z.uuid().safeParse(projectId).success) return BAD;
@@ -25,7 +38,8 @@ async function run(projectId: string, fn: (db: Awaited<ReturnType<typeof createC
     const { data: project } = await db.from("projects").select("product_type").eq("id", projectId).maybeSingle();
     if (!project) return { error: "プロジェクトが見つかりません。" };
     const type = productTypeOf(project.product_type);
-    return { formats: await listFormats(db, projectId), examples: FORMAT_EXAMPLES[type], kinds: FORMAT_KINDS[type] };
+    const formats = await listFormats(db, projectId);
+    return { formats, examples: FORMAT_EXAMPLES[type], kinds: FORMAT_KINDS[type], roundCounts: await countRounds(db, formats.filter((f) => isSeries(f.series)).map((f) => f.id)) };
   } catch (e) {
     if (e instanceof FormatError) return { error: e.userMessage };
     console.error("[post-formats]", e instanceof Error ? e.message : e);

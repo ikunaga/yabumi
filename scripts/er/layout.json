@@ -62,7 +62,6 @@
         "video_upload_counts",
         "ai_image_jobs",
         "ai_image_notices",
-        "photo_prompt_templates",
         "post_formats",
         "post_format_rounds",
         "idea_notes"
@@ -92,7 +91,6 @@
             ["idea_notes", 0, 250, [], "ref"],
             ["media_files", 1, 30, ["kind", "storage_path", "alt_text"]],
             ["ai_image_jobs", 2, 30, ["model", "images", "status"]],
-            ["photo_prompt_templates", 2, 230, ["name", "is_default"]],
             ["media_upload_tickets", 0, 450, ["kind", "consumed_at"]],
             ["video_upload_counts", 1, 450, ["month", "count"]],
             ["ai_image_notices", 2, 450, ["acknowledged_at"]]

@@ -186,7 +186,7 @@ export function WinnersScreen({
                       <p className="rounded-md bg-surface2 px-3 py-2 text-[13px] leading-[1.7] whitespace-pre-wrap">{p.body}</p>
                       {p.why && <p className="text-xs leading-[1.7] text-muted">{p.why}</p>}
                       {auto ? (
-                        <p className="text-xs leading-[1.7] text-muted">空欄はどれも、毎回 AI が埋めます（{Object.entries(p.series.slots).map(([k, v]) => `{${k}}: ${v}`).join("　")}）</p>
+                        <p className="text-xs leading-[1.7] text-muted">変数はどれも、毎回 AI が考えます（{p.series.vars.map((v) => `{${v.name}}: ${v.instruction}`).join("　")}）</p>
                       ) : (
                         <p className="text-xs leading-[1.7] text-muted">
                           {result.fit === "auto"

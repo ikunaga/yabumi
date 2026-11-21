@@ -86,9 +86,9 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
   // ロードマップのやることから作った投稿は、やることの題と説明を手がかりとして出す（下書きから再開したときも。PMO2 の s8。RLS で本人のものだけ）
   // シリーズのフォーマットで本文に入れた回（投稿に結びついた記録のいちばん新しいもの）。③ のフォーマットの画像の絵の説明を埋める（docs/design/format-image.md の 2.1）
   const { data: round } = post.formatId
-    ? await supabase.from("post_format_rounds").select("answer, values").eq("post_id", post.id).eq("format_id", post.formatId).order("created_at", { ascending: false }).limit(1).maybeSingle()
+    ? await supabase.from("post_format_rounds").select("values").eq("post_id", post.id).eq("format_id", post.formatId).order("created_at", { ascending: false }).limit(1).maybeSingle()
     : { data: null };
-  const formatValues = round ? { values: readRoundValues(round.values), answer: round.answer } : null;
+  const formatValues = round ? { values: readRoundValues(round.values) } : null;
   const roadmapItem = post.roadmapItemId
     ? ((await supabase.from("roadmap_items").select("id, title, detail").eq("id", post.roadmapItemId).eq("project_id", project.id).maybeSingle()).data ?? null)
     : null;

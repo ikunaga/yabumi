@@ -43,7 +43,7 @@ describe("投稿のフォーマット", () => {
   it("穴の決まり（8 種類・名前 12 字・空の {}）に合わないものは、保存の前に断る", async () => {
     await expect(addFormat(alice, p1, { name: "x", body: Array.from({ length: 9 }, (_, i) => `{空欄${i}}`).join("") })).rejects.toBeInstanceOf(FormatError);
     await expect(addFormat(alice, p1, { name: "x", body: "{あいうえおかきくけこさしす}" })).rejects.toThrow(/12 字/);
-    await expect(addFormat(alice, p1, { name: "x", body: "{ }です" })).rejects.toThrow(/空欄の名前/);
+    await expect(addFormat(alice, p1, { name: "x", body: "{ }です" })).rejects.toThrow(/変数の名前/);
   });
 
   it("他人とログインしていない人は読めず、書けない。他人のプロジェクトにも足せない", async () => {

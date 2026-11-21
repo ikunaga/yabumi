@@ -21,12 +21,16 @@ const EARLIER_KEYS = [
 ];
 const ADDED_KEYS = ["marketingFunnel", "tripleMedia", "ownedMedia", "earnedMedia", "paidMedia", "ugc", "organicVsAds", "seoVsSns", "snsTraits", "concept", "story", "milestone", "harm"];
 // SNS の分析・投稿の画面で出会う言葉（2026-11-21 オーナーの Notion のタスク）
+// フォーマットの変数（2026-11-21 オーナーの決定。挿絵はあとで描く）
+const FORMAT_WORD_KEYS = ["variable"];
+// 挿絵をまだ描いていない語（画面は挿絵なしで出す。src/components/glossary/illustration.tsx）。描いたらここから外す
+const ILLUSTRATION_PENDING = ["variable"];
 const SNS_WORD_KEYS = ["reach", "engagement", "engagementRate", "ctr", "profileVisit", "views", "nonFollowers", "retention", "avgWatchTime", "save", "share", "repost", "quote", "mention", "pin", "carousel", "follower", "algorithm", "recommended", "feed", "reels", "stories", "shorts", "topic", "insight"];
 
 describe("用語", () => {
   it("前からの key は残し、足した語もそろっている", () => {
-    for (const k of [...EARLIER_KEYS, ...ADDED_KEYS, ...SNS_WORD_KEYS]) expect(isGlossaryKey(k), k).toBe(true);
-    expect(GLOSSARY_KEYS).toHaveLength(EARLIER_KEYS.length + ADDED_KEYS.length + SNS_WORD_KEYS.length);
+    for (const k of [...EARLIER_KEYS, ...ADDED_KEYS, ...SNS_WORD_KEYS, ...FORMAT_WORD_KEYS]) expect(isGlossaryKey(k), k).toBe(true);
+    expect(GLOSSARY_KEYS).toHaveLength(EARLIER_KEYS.length + ADDED_KEYS.length + SNS_WORD_KEYS.length + FORMAT_WORD_KEYS.length);
   });
 
   it("どの語も、分類のどれか 1 つにだけ入っている", () => {
@@ -124,6 +128,10 @@ describe("挿絵", () => {
     expect(prompts.style).toMatch(/no logos/i);
     for (const k of GLOSSARY_KEYS) {
       const file = `public${illustrationSrc(k)}`;
+      if (ILLUSTRATION_PENDING.includes(k)) {
+        expect(existsSync(file), `${file} を描いたら ILLUSTRATION_PENDING から外す`).toBe(false);
+        continue;
+      }
       expect(existsSync(file), file).toBe(true);
       expect(statSync(file).size, file).toBeLessThanOrEqual(150 * 1024);
     }

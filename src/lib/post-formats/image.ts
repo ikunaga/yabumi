@@ -1,8 +1,7 @@
 import { PHOTO_STYLES, PHOTO_STYLE_LABEL, type PhotoStyle } from "@/lib/ai/photo";
 import { TEMPLATE_SIZES, type TemplateSizeKey } from "@/lib/media/templates";
-import { formatSlots } from "./schema";
 import { readLook, type HeadlineLook } from "@/lib/media/look";
-import { DEFAULT_ANSWER_NAME, imageOnlySlots, isSeries, type FormatSeries } from "./series";
+import { aiVars, varNames, type FormatSeries } from "./series";
 
 // 投稿のフォーマットの画像の設定（docs/design/format-image.md の 1.、2026-11-17 オーナーの了承）。画面とサーバーの両方から読む。
 // 自動の投稿の段階 C でも同じ関数で絵の説明を埋める（3.）。字数と値の正は DB（20261117120000_format_image の check）。ここはその写しと決まりの関数
@@ -33,33 +32,22 @@ const oneLine = (s: unknown, max: number) => (typeof s === "string" ? [...s.repl
 const multiLine = (s: unknown, max: number) =>
   typeof s === "string" ? [...s.replace(/\r\n?/g, "\n").replace(/[\u0000-\u0009\u000b-\u001f\u007f]+/g, " ").trim()].slice(0, max).join("") : "";
 
-// 答えの穴の名前（シリーズのときだけ）。答えの決まりがないシリーズでも、AI は答えを書く（format-series.md の 1）ので「答え」で使える
-export function answerSlotName(series: FormatSeries | null | undefined): string | null {
-  if (series?.answer) return series.answer.name || DEFAULT_ANSWER_NAME;
-  return isSeries(series) ? DEFAULT_ANSWER_NAME : null;
-}
-
-// 絵の説明・見出しで使える空欄（型の文の空欄 + 画像だけで使う空欄 + 答え）。答えの名前が型の文の空欄と同じなら、型の文の空欄として扱う
-export function imageSlotNames(body: string, series: FormatSeries | null | undefined): string[] {
-  const names = [...formatSlots(body), ...imageOnlySlots(body, series)];
-  const a = answerSlotName(series);
-  return a && !names.includes(a) ? [...names, a] : names;
-}
+// 絵の説明・見出しで使える変数（変数の一覧のすべて。本文に書いていない変数も使える）
+export const imageSlotNames = (series: FormatSeries | null | undefined): string[] => varNames(series);
 
 const namesIn = (text: string) => [...new Set([...text.matchAll(SLOT)].map((m) => m[1].trim()))];
 
-// 答えか AI が埋める空欄を使っているか（使っていれば、初めは「AI が絵の説明を書く」を選んでおき、「そのまま使う」には注意を出す。1.1。2026-11-20 から固定しない）
-export function needsAiScene(img: Pick<FormatImage, "prompt" | "headline">, body: string, series: FormatSeries | null | undefined): boolean {
-  const slots = formatSlots(body);
-  const answer = answerSlotName(series);
-  const aiNames = new Set([...Object.keys(series?.slots ?? {}), ...(answer && !slots.includes(answer) ? [answer] : [])]);
-  return namesIn(img.prompt).some((n) => aiNames.has(n));
+// AI が考える変数を使っているか（使っていれば、初めは「AI が絵の説明を書く」を選んでおき、「そのまま使う」には注意を出す。1.1）
+export function needsAiScene(img: Pick<FormatImage, "prompt" | "headline">, series: FormatSeries | null | undefined): boolean {
+  const ai = new Set(aiVars(series).map((v) => v.name));
+  return namesIn(img.prompt).some((n) => ai.has(n));
 }
 
-// 絵の説明で答えを使っているか（クイズでは答えが絵でわかってしまう注意を出す）
+// 絵の説明で、本文に出ない「重ならないようにする」変数（クイズの答え）を使っているか（答えが絵でわかってしまう注意を出す）
 export function usesAnswer(prompt: string, body: string, series: FormatSeries | null | undefined): boolean {
-  const a = answerSlotName(series);
-  return !!a && !formatSlots(body).includes(a) && namesIn(prompt).includes(a);
+  const inBody = new Set([...body.matchAll(SLOT)].map((m) => m[1].trim()));
+  const hidden = new Set((series?.vars ?? []).filter((v) => v.unique && !inBody.has(v.name)).map((v) => v.name));
+  return namesIn(prompt).some((n) => hidden.has(n));
 }
 
 // DB から読んだ値を決まった形にそろえる（形が違えば「画像なし」）
@@ -84,7 +72,7 @@ export function readFormatImage(raw: unknown): FormatImage | null {
 
 // 編集の欄から来た値を、保存する形にする。絵の説明が空なら「画像なし」（null）。
 // 型の文にない空欄は断る（problem）。場面のつくり方は利用者が選んだとおりに保存する（2026-11-20 オーナーの決定で、AI に固定しない）
-export function cleanFormatImage(raw: unknown, body: string, series: FormatSeries | null | undefined): { image: FormatImage | null; problem?: string } {
+export function cleanFormatImage(raw: unknown, series: FormatSeries | null | undefined): { image: FormatImage | null; problem?: string } {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { image: null };
   const r = raw as Record<string, unknown>;
   if (typeof r.prompt === "string" && [...r.prompt.trim()].length > MAX_IMAGE_PROMPT) return { image: null, problem: `絵の説明は ${MAX_IMAGE_PROMPT} 字までです` };
@@ -92,18 +80,18 @@ export function cleanFormatImage(raw: unknown, body: string, series: FormatSerie
   if (typeof r.label === "string" && [...r.label.trim()].length > MAX_IMAGE_LABEL) return { image: null, problem: `見出しの上の小さい文は ${MAX_IMAGE_LABEL} 字までです` };
   const img = readFormatImage(raw);
   if (!img) return { image: null };
-  const allowed = imageSlotNames(body, series);
+  const allowed = imageSlotNames(series);
   const unknown = [...namesIn(img.prompt), ...namesIn(img.headline ?? ""), ...namesIn(img.label ?? "")].filter((n) => !allowed.includes(n));
-  if (unknown.some((n) => !n)) return { image: null, problem: "絵の説明の { } の中に、空欄の名前を入れてください" };
-  if (unknown.length) return { image: null, problem: `絵の説明に、型の文にない空欄 {${unknown[0]}} があります` };
+  if (unknown.some((n) => !n)) return { image: null, problem: "絵の説明の { } の中に、変数の名前を入れてください" };
+  if (unknown.length) return { image: null, problem: `絵の説明の {${unknown[0]}} は、変数の一覧にありません` };
   return { image: img };
 }
 
-// 穴の言葉と答えを入れる。埋まらなかった穴は【穴の名前】で残す（残ったままではつくれない）
-export function fillImageText(text: string, values: Record<string, string>, answer: { name: string; value: string } | null): string {
+// 変数の言葉を入れる。埋まらなかった変数は【名前】で残す（残ったままではつくれない）
+export function fillImageText(text: string, values: Record<string, string>): string {
   return text.replace(SLOT, (_, raw: string) => {
     const n = raw.trim();
-    const v = values[n]?.trim() || (answer && answer.name === n ? answer.value.trim() : "");
+    const v = values[n]?.trim() ?? "";
     return v ? v : `【${n}】`;
   });
 }
@@ -133,7 +121,6 @@ export type FormatPhotoPreset = {
   scene: ImageScene;
   text: string;
   values: Record<string, string>;
-  answer: string;
   style: PhotoStyle;
   size: ImageSize;
   headline: string | null;
@@ -141,18 +128,12 @@ export type FormatPhotoPreset = {
   look: HeadlineLook | null;
 };
 
-// 選んでいるフォーマットと穴の言葉から、帯に出す絵の説明と見出しを作る（答えはシリーズのときだけ）
-export function formatPhotoTexts(
-  f: { body: string; series: FormatSeries; image: FormatImage },
-  values: Record<string, string>,
-  answer: string | undefined,
-): { text: string; headline: string | null; label: string | null } {
-  const name = answerSlotName(f.series);
-  const a = name && answer?.trim() ? { name, value: answer.trim() } : null;
+// 選んでいるフォーマットと変数の言葉から、帯に出す絵の説明と見出しを作る
+export function formatPhotoTexts(f: { image: FormatImage }, values: Record<string, string>): { text: string; headline: string | null; label: string | null } {
   // 小さい文は見出しがあるときだけ（見出しなしで小さい文だけは描かない）
   return {
-    text: fillImageText(f.image.prompt, values, a),
-    headline: f.image.headline ? fillImageText(f.image.headline, values, a) : null,
-    label: f.image.headline && f.image.label ? fillImageText(f.image.label, values, a) : null,
+    text: fillImageText(f.image.prompt, values),
+    headline: f.image.headline ? fillImageText(f.image.headline, values) : null,
+    label: f.image.headline && f.image.label ? fillImageText(f.image.label, values) : null,
   };
 }

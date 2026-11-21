@@ -158,7 +158,7 @@ export function PhotoMaker({
       let sc = p.text;
       if (p.scene === "ai") {
         setError(null);
-        const r = await draftFormatPhotoScene(projectId, p.formatId, p.values, p.answer, targets);
+        const r = await draftFormatPhotoScene(projectId, p.formatId, p.values, targets);
         if (!r.scene) {
           setError(r.error ?? "うまくいきませんでした。");
           return;

@@ -59,6 +59,7 @@ export const RUN_REASON_TEXT: Record<AutoRunReason, string> = {
   plan_paused: "止めました",
   operator_hold: "yabumi の運営が止めました",
   image_failed: "画像をつくれませんでした",
+  format_changed: "フォーマットの変数が変わったので、作りませんでした",
 };
 
 export const STOP_REASON_TEXT: Record<AutoStopReason, string> = {
@@ -66,6 +67,7 @@ export const STOP_REASON_TEXT: Record<AutoStopReason, string> = {
   disconnected: "SNS のつながりが切れています",
   materials_out: "材料を使い切りました",
   operator: "yabumi の運営が止めました",
+  format_changed: "フォーマットの変数が変わりました。設定で、変数の決め方を選び直してください",
 };
 
 // 送る時刻を過ぎても確かめなかった配信先の理由（post_targets.error_message。engine.ts の EXPIRED_MESSAGE と同じ）と、短い言葉

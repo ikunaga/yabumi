@@ -107,14 +107,13 @@ describe("書きかけを出す・残す決まり（2026-11-09 オーナーの�
 });
 
 describe("書きかけの控えのフォーマット（PMO2 の 3 回目の 03）", () => {
-  it("選んでいたフォーマット・穴の言葉・答え・記録を読む。null は「なし」、前の版（ない）・壊れた値は undefined（戻してもいまの選択のまま）", () => {
+  it("選んでいたフォーマット・変数の言葉・記録を読む（前の版の答えは読まない）。null は「なし」、前の版（ない）・壊れた値は undefined（戻してもいまの選択のまま）", () => {
     expect(readDraftFormat({ id: "f1", values: { キーワード: "時計台・稲妻", 壊れ: 1 }, answer: "バック・トゥ・ザ・フューチャー", roundIds: ["r1", 2] })).toEqual({
       id: "f1",
       values: { キーワード: "時計台・稲妻" },
-      answer: "バック・トゥ・ザ・フューチャー",
       roundIds: ["r1"],
     });
-    expect(readDraftFormat({ id: "f1" })).toEqual({ id: "f1", values: {}, answer: "", roundIds: [] });
+    expect(readDraftFormat({ id: "f1" })).toEqual({ id: "f1", values: {}, roundIds: [] });
     expect(readDraftFormat(null)).toBeNull();
     expect(readDraftFormat(undefined)).toBeUndefined();
     expect(readDraftFormat({ id: "" })).toBeUndefined();
@@ -122,7 +121,7 @@ describe("書きかけの控えのフォーマット（PMO2 の 3 回目の 03�
   });
   it("フォーマットは比べる中身に入れない（選んだだけでは控えを残さない・前の版の控えと同じ文字）", () => {
     const base = { body: "本文", overrides: {}, titles: {} };
-    const withFormat = { ...base, format: { id: "f1", values: { キーワード: "x" }, answer: "", roundIds: [] } };
+    const withFormat = { ...base, format: { id: "f1", values: { キーワード: "x" }, roundIds: [] } };
     expect(samePostDraft(withFormat, base)).toBe(true);
     expect(postDraftBase(withFormat)).toBe(postDraftBase(base));
   });

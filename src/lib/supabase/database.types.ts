@@ -1638,7 +1638,6 @@ export type Database = {
       }
       post_format_rounds: {
         Row: {
-          answer: string
           created_at: string
           format_id: string
           id: string
@@ -1648,7 +1647,6 @@ export type Database = {
           values: Json
         }
         Insert: {
-          answer?: string
           created_at?: string
           format_id: string
           id?: string
@@ -1658,7 +1656,6 @@ export type Database = {
           values?: Json
         }
         Update: {
-          answer?: string
           created_at?: string
           format_id?: string
           id?: string
@@ -3320,6 +3317,8 @@ export type Database = {
         Returns: string
       }
       expire_link_domains: { Args: never; Returns: number }
+      format_series_valid: { Args: { p: Json }; Returns: boolean }
+      format_var_modes: { Args: { p_series: Json }; Returns: Json }
       goal_metric_total: {
         Args: {
           p_action: string

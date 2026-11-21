@@ -232,6 +232,14 @@ export const glossary = {
     example: "例: 名前 go、値 cname.vercel-dns.com",
     related: ["dns", "subdomain"],
   },
+  variable: {
+    label: "変数",
+    reading: "へんすう",
+    summary:
+      "投稿ごとに変わる言葉です。本文や絵の説明に {名前} と書くと、そこに入ります。毎回 AI が考えるか、投稿をつくるときに自分で入れるかを選べます。どこにも書かない変数は投稿に出ず、前の投稿と重ならないようにする目印に使えます。",
+    example: "例: 連想映画クイズの「映画」は、どこにも書かない変数です。AI が毎回ちがう映画を決め、その映画から {キーワード} を考えます。",
+    related: [],
+  },
   subdomain: {
     label: "サブドメイン",
     summary:
@@ -547,7 +555,7 @@ export type GlossaryCategory = { id: GlossaryCategoryId; label: string; note: st
 export const GLOSSARY_CATEGORIES: GlossaryCategory[] = [
   { id: "goals", label: "目標と計画", note: "ゴールの決め方と、そこまでの道のり", cover: "kgi", keys: ["kgi", "milestone", "kpi", "roadmap", "persona"] },
   { id: "flow", label: "顧客の流れと数字", note: "知ってもらってから行動するまでと、そこで見る数字", cover: "marketingFunnel", keys: ["marketingFunnel", "awareness", "impression", "conversion", "correlation", "reach", "engagement", "engagementRate", "ctr", "profileVisit", "views", "nonFollowers", "retention", "avgWatchTime"] },
-  { id: "posting", label: "発信のしかた", note: "何を、どんな口調で投稿するか", cover: "contentPillar", keys: ["contentPillar", "concept", "harm", "story", "toneAndManner", "hashtag", "buildInPublic", "ugc", "save", "share", "repost", "quote", "mention", "pin", "carousel"] },
+  { id: "posting", label: "発信のしかた", note: "何を、どんな口調で投稿するか", cover: "contentPillar", keys: ["contentPillar", "concept", "harm", "story", "toneAndManner", "hashtag", "buildInPublic", "ugc", "save", "share", "repost", "quote", "mention", "pin", "carousel", "variable"] },
   { id: "media", label: "メディアと広告", note: "自分の場所・口コミ・広告の使い分け", cover: "tripleMedia", keys: ["tripleMedia", "ownedMedia", "earnedMedia", "paidMedia", "organicVsAds", "seoVsSns", "ownedAudience", "newsletter"] },
   { id: "sns", label: "SNS ごと", note: "SNS ごとの特徴と、つなぐときの準備", cover: "snsTraits", keys: ["snsTraits", "proAccount", "facebookPage", "payPerUse", "follower", "algorithm", "recommended", "feed", "reels", "stories", "shorts", "topic", "insight"] },
   { id: "tech", label: "リンクと技術", note: "短縮リンクと、自分のドメインの設定の言葉", cover: "shortLink", keys: ["shortLink", "campaignLink", "storeListing", "dns", "cname", "subdomain"] },

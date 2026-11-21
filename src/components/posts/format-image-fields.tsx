@@ -32,14 +32,14 @@ export function FormatImageFields({
   const ref = useRef<HTMLTextAreaElement>(null);
   // 前に使った絵の説明（添えた AI の画像の説明から。絵の説明のフォーマットの代わり。2026-11-21 オーナーの決定）
   const [recent, setRecent] = useState<string[]>([]);
-  const names = imageSlotNames(body, series);
-  // 答えか AI の空欄を使うか。初めは「AI が絵の説明を書く」を選んでおく（利用者が選んだあとは変えない）。固定はしない（2026-11-20）
-  const risky = needsAiScene(image, body, series);
+  const names = imageSlotNames(series);
+  // AI が考える変数を使うか。初めは「AI が絵の説明を書く」を選んでおく（利用者が選んだあとは変えない）。固定はしない（2026-11-20）
+  const risky = needsAiScene(image, series);
   const [picked, setPicked] = useState(false);
   const scene = image.scene;
   function setPrompt(prompt: string) {
     const next = { ...image, prompt };
-    setImage(!picked && !risky && next.scene === "fill" && needsAiScene(next, body, series) ? { ...next, scene: "ai" } : next);
+    setImage(!picked && !risky && next.scene === "fill" && needsAiScene(next, series) ? { ...next, scene: "ai" } : next);
   }
   const unit = photoUnitYen(photoModel({}));
 
@@ -54,7 +54,7 @@ export function FormatImageFields({
     };
   }, [projectId]);
 
-  // 穴のチップ: 押すと、絵の説明のカーソルの位置に {穴} を差し込む
+  // 変数のチップ: 押すと、絵の説明のカーソルの位置に {名前} を差し込む
   function insertSlot(name: string) {
     const el = ref.current;
     const at = el ? el.selectionStart : image.prompt.length;
@@ -76,7 +76,7 @@ export function FormatImageFields({
           <span className="font-bold">絵の説明</span>
           {names.length > 0 && (
             <span className="flex flex-wrap items-center gap-1.5">
-              <span className="text-muted">押すと、その空欄を絵の説明に入れます</span>
+              <span className="text-muted">押すと、その変数を絵の説明に入れます</span>
               {names.map((n) => (
                 <button key={n} type="button" onClick={() => insertSlot(n)} className="rounded-full border border-line bg-surface px-2 py-0.5 text-xs hover:border-primary">
                   {`{${n}}`}
@@ -111,9 +111,7 @@ export function FormatImageFields({
               ))}
             </select>
           )}
-          {/* ui-wording-ignore: {場面} は、前の絵の説明のフォーマット（2026-11-21 に廃止）から写した文に残っていることがある差し込みの名前（データ） */}
-          {image.prompt.includes("{場面}") && !names.includes("場面") && <span className="font-bold text-signal">{"{場面}"} は、ここでは使えません。上の空欄の {`{${names[0] ?? "キーワード"}}`} などか、言葉に書き換えてください</span>}
-          {usesAnswer(image.prompt, body, series) && <span className="text-muted">クイズでは、絵で答えがわかってしまうことがあります。答えの空欄は、絵の説明に入れないでください。</span>}
+          {usesAnswer(image.prompt, body, series) && <span className="text-muted">クイズでは、絵で答えがわかってしまうことがあります。答えの変数は、絵の説明に入れないでください。</span>}
         </label>
 
         <fieldset className="flex min-w-0 flex-col gap-1.5">

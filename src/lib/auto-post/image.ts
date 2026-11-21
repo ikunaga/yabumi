@@ -13,7 +13,7 @@ import { renderTemplateJpeg } from "@/lib/media/template-render-server";
 import { MAX_ALT_LENGTH, MAX_IMAGES_PER_POST, MEDIA_BUCKET, USER_QUOTA_BYTES, mediaPath } from "@/lib/media/rules";
 import { defaultSizeFor, type TemplateSizeKey } from "@/lib/media/templates";
 import { normalizePlan } from "@/lib/plan/schema";
-import { answerSlotName, fillImageText, hasUnfilled, MAX_IMAGE_LABEL } from "@/lib/post-formats/image";
+import { fillImageText, hasUnfilled, MAX_IMAGE_LABEL } from "@/lib/post-formats/image";
 import { getFormat } from "@/lib/post-formats/store";
 import type { SnsKey } from "@/lib/sns";
 import type { Database } from "@/lib/supabase/database.types";
@@ -53,10 +53,9 @@ async function writeScene(admin: Db, deps: AutoImageDeps, ownerId: string, reque
 export function formatHeadlineTexts(
   image: { headline: string | null; label: string | null },
   values: Record<string, string>,
-  answer: { name: string; value: string } | null,
 ): { headline: string; label: string } {
-  const headline = image.headline ? cleanHeadline(fillImageText(image.headline, values, answer)) : "";
-  const label = headline && image.label ? [...cleanHeadline(fillImageText(image.label, values, answer))].slice(0, MAX_IMAGE_LABEL).join("").trim() : "";
+  const headline = image.headline ? cleanHeadline(fillImageText(image.headline, values)) : "";
+  const label = headline && image.label ? [...cleanHeadline(fillImageText(image.label, values))].slice(0, MAX_IMAGE_LABEL).join("").trim() : "";
   return { headline, label };
 }
 
@@ -90,14 +89,12 @@ export async function makeAutoImage(
     const formatId = args.material.series?.formatId ?? args.plan.materials.format_id;
     const format = formatId ? await getFormat(admin, args.plan.projectId, formatId) : null;
     if (!format?.image) return { ok: false, detail: "フォーマットでは、画像を決めていません" };
-    const name = answerSlotName(format.series);
-    const answer = args.material.series?.answer?.trim();
-    const filled = fillImageText(format.image.prompt, args.material.series?.values ?? {}, name && answer ? { name, value: answer } : null);
-    if (hasUnfilled(filled)) return { ok: false, detail: "フォーマットの絵の説明に、埋まらない空欄があります" };
+    const filled = fillImageText(format.image.prompt, args.material.series?.values ?? {});
+    if (hasUnfilled(filled)) return { ok: false, detail: "フォーマットの絵の説明に、言葉の入らない変数があります" };
     scene = format.image.scene === "ai" ? await writeScene(admin, deps, args.plan.ownerId, buildFormatSceneRequest(ctx, filled)) : filled;
     style = format.image.style;
     size = format.image.size;
-    if (img.headline === "format") ({ headline: headlineText, label: labelText } = formatHeadlineTexts(format.image, args.material.series?.values ?? {}, name && answer ? { name, value: answer } : null));
+    if (img.headline === "format") ({ headline: headlineText, label: labelText } = formatHeadlineTexts(format.image, args.material.series?.values ?? {}));
     look = pickLook(format.image.look, img.look);
   } else {
     const text = args.sns.map((s) => args.texts[s]).find((t) => t?.trim());

@@ -91,10 +91,10 @@ export async function listFormatRounds(projectId: string, formatId: string): Pro
 }
 
 // 本文に入れたときの 1 回を記録する（AI の案を使った・自分で埋めた）。記録した id を返す（画面が、保存で投稿に結びつける・リセットで消す）
-export async function addFormatRound(projectId: string, formatId: string, input: { answer: unknown; values: unknown; source: unknown }): Promise<RoundsResult> {
+export async function addFormatRound(projectId: string, formatId: string, input: { values: unknown; source: unknown }): Promise<RoundsResult> {
   if (!z.uuid().safeParse(formatId).success) return BAD;
   const source = input?.source === "ai" ? "ai" : "hand";
-  return runRounds(projectId, async (db) => ({ id: await addRound(db, projectId, formatId, { answer: input?.answer, values: input?.values, source }) }));
+  return runRounds(projectId, async (db) => ({ id: await addRound(db, projectId, formatId, { values: input?.values, source }) }));
 }
 
 export async function pasteFormatRounds(projectId: string, formatId: string, text: unknown): Promise<RoundsResult> {

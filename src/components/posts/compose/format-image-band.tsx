@@ -17,8 +17,8 @@ export function FormatImageBand({
   disabled: boolean;
   onMake: (auto: boolean, texts: { text: string; headline: string | null; label: string | null }) => void;
 }) {
-  const { format, values, answer } = use;
-  const texts = formatPhotoTexts(format, values, answer);
+  const { format, values } = use;
+  const texts = formatPhotoTexts(format, values);
   const left = hasUnfilled(texts.text) || (texts.headline !== null && hasUnfilled(texts.headline)) || (texts.label !== null && hasUnfilled(texts.label));
   // 1 枚の目安（押す前に出す）。AI が場面に書き換えるときは、Claude の場面の分（SCENE_YEN.one）を足す
   const unit = photoUnitYen(photoModel({}));

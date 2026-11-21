@@ -3,9 +3,9 @@ import { buildFormatRoundRequest, normalizeRoundProposals, type RoundProposal } 
 import { budgeted } from "@/lib/ai/budget";
 import { callFormatRound } from "@/lib/ai/anthropic";
 import type { PlanData } from "@/lib/plan/schema";
-import { listRounds, usedAnswerKeys } from "@/lib/post-formats/rounds";
-import { X_FIXED_BODY, answerKey, fixedBodySeries, isSeries, ROUNDS_FOR_AI } from "@/lib/post-formats/series";
-import { fillFormat, formatSlots, formatTagsFor } from "@/lib/post-formats/schema";
+import { listRounds } from "@/lib/post-formats/rounds";
+import { X_FIXED_BODY, aiVars, fixedBodySeries, isSeries, readPlanVars, roundTitle, ROUNDS_FOR_AI, seriesForPlan, undecidedPlanVars, usedRoundKeys, varModesChanged } from "@/lib/post-formats/series";
+import { fillFormat, formatTagsFor } from "@/lib/post-formats/schema";
 import { getFormat } from "@/lib/post-formats/store";
 import type { SnsKey } from "@/lib/sns";
 import type { Database } from "@/lib/supabase/database.types";
@@ -30,8 +30,9 @@ export type Material = {
   // シリーズは AI で文を作らず、型に入れた文をそのまま使う（SNS ごとに同じ文。タグはフォーマットの毎回付けるタグ）
   fixedTexts?: Partial<Record<SnsKey, string>>;
   fixedTags?: Partial<Record<SnsKey, string[]>>;
-  // fixedBody: 本文が毎回同じシリーズ（前の投稿と似ているかを本文で見ない。重なりは答えと空欄の言葉で、案を選ぶときに見ている）
-  series?: { formatId: string; answer: string; values: Record<string, string>; fixedBody?: boolean };
+  // fixedBody: 本文が毎回同じシリーズ（前の投稿と似ているかを本文で見ない。重なりは変数の言葉で、案を選ぶときに見ている）
+  // values: その回の変数の言葉（どこにも出ない変数・「毎回同じ言葉」を含む。記録と画像に使う）
+  series?: { formatId: string; values: Record<string, string>; fixedBody?: boolean };
 };
 
 export type NoMaterial = { none: true; reason: AutoRunReason; detail: string };
@@ -146,51 +147,61 @@ async function pickEvent(admin: Db, plan: AutoPlan & { ownerId: string }, past: 
   };
 }
 
-// シリーズ: 次の回の中身を AI に出させ（用途は自動の投稿の枠）、型に入れる。利用者が埋める穴がある型は、自動では書けない
+// シリーズ: 次の回の変数の言葉を AI に出させ（用途は自動の投稿の枠）、型に入れる（docs/design/format-series.md の 1.2）。
+// 「自分で入れる」変数は、回し方で決めた決め方（毎回同じ言葉 / AI に考えてもらう）で入れる。
+// フォーマットの変数が保存のときから変わった・決め方のない変数がある回し方は、作らずに止めて知らせる（format_changed。黙って空のまま送らない）
 async function pickSeries(admin: Db, plan: AutoPlan & { ownerId: string }, planData: PlanData, project: ProjectRow, deps: MaterialDeps): Promise<Material | NoMaterial> {
   const formatId = plan.materials.format_id;
   const format = formatId ? await getFormat(admin, plan.projectId, formatId) : null;
-  if (!format || !isSeries(format.series)) return { none: true, reason: "no_material", detail: "シリーズのフォーマットが見つかりません" };
-  const handSlots = formatSlots(format.body).filter((s) => !(s in format.series.slots));
-  if (handSlots.length) return { none: true, reason: "cannot_write", detail: "自分で埋める空欄があるフォーマットは、自動では書けません" };
+  if (!format) return { none: true, reason: "no_material", detail: "シリーズのフォーマットが見つかりません" };
+  const choices = readPlanVars(plan.materials.format_vars);
+  // format_var_modes がない回し方は、変数の仕組みより前に保存したもの（決め方のない変数がなければ、そのまま動かす）
+  const savedModes = plan.materials.format_var_modes;
+  if ((savedModes !== undefined && varModesChanged(savedModes, format.series)) || undecidedPlanVars(format.series, choices).length)
+    return { none: true, reason: "format_changed", detail: "フォーマットの変数が変わりました。自動投稿の設定で、変数の決め方を選び直してください" };
+  const { series, fixed } = seriesForPlan(format.series, choices);
+  if (!isSeries(series)) return { none: true, reason: "cannot_write", detail: "AI が考える変数がないフォーマットは、自動では書けません" };
+  const planFormat = { ...format, series };
   // 本文が毎回同じフォーマットは X に送れない（ウィザードと保存で選べないようにしている。あとからフォーマットを変えたとき）
-  const fixedBody = fixedBodySeries(format.body, format.series);
+  const fixedBody = fixedBodySeries(format.body, series);
   if (fixedBody && plan.targets.x) return { none: true, reason: "cannot_write", detail: X_FIXED_BODY };
   const rounds = await listRounds(admin, format.id);
-  const used = usedAnswerKeys(rounds);
-  if (!format.series.answer) for (const r of rounds) used.add(answerKey(Object.keys(format.series.slots).map((n) => r.values[n] ?? "").join("|")));
+  const used = usedRoundKeys(series, rounds);
   let p: RoundProposal | undefined;
   if (deps.fakeSeries) {
-    // 偽の AI（AUTO_POST_FAKE_AI）: 空欄を偽の言葉で埋める。本物の AI（Anthropic）は呼ばない（画面の確かめで外に出ないように。2026-11-21 PM の指摘）
+    // 偽の AI（AUTO_POST_FAKE_AI）: 変数を偽の言葉で埋める。本物の AI（Anthropic）は呼ばない（画面の確かめで外に出ないように。2026-11-21 PM の指摘）
     const n = rounds.length + 1;
     // ui-wording-ignore: 偽の AI の言葉（画面の確かめ用。本番では使わない）
-    p = { answer: `（偽の AI）答え ${n}`, values: Object.fromEntries(Object.keys(format.series.slots).map((name) => [name, `（偽の AI）${name} ${n}`])), checks: [] };
+    p = { values: Object.fromEntries(aiVars(series).map((v) => [v.name, `（偽の AI）${v.name} ${n}`])), checks: [] };
   } else {
     const call = budgeted(admin, { userId: plan.ownerId, purpose: "auto_post", call: "post_format_round" }, deps.callFormatRound ?? callFormatRound);
     const r = await call(
       buildFormatRoundRequest({
         project: { name: project.name, description: project.description, targetAudience: project.target_audience, productType: project.product_type },
         plan: planData,
-        format,
+        format: planFormat,
         past: rounds.slice(0, ROUNDS_FOR_AI),
         wish: "",
+        fixed,
       }),
     );
-    const proposals = r.stopReason === "end_turn" ? normalizeRoundProposals(r.output, format, used) : null;
+    const proposals = r.stopReason === "end_turn" ? normalizeRoundProposals(r.output, planFormat, used, fixed) : null;
     p = proposals?.[0];
   }
-  // シリーズの穴は、広く知られた作品・ものごとの一般的な事実だけ（format-series.md の 4.）。「確かめてほしいところ」の数は記録だけ残し、送る前は AI っぽさチェックに任せる
+  // 変数の中身は、広く知られた作品・ものごとの一般的な事実だけ（format-series.md の 4.）。「確かめてほしいところ」の数は記録だけ残し、送る前は AI っぽさチェックに任せる
   if (!p) return { none: true, reason: "cannot_write", detail: "前と重ならない次の投稿の案を出せませんでした" };
-  const text = fillFormat(format.body, p.values);
+  const values = { ...fixed, ...p.values };
+  const text = fillFormat(format.body, values);
   const sns = Object.keys(plan.targets) as SnsKey[];
+  const title = roundTitle(series, values) || Object.values(p.values).join("・");
   return {
     text: `シリーズ「${format.name}」の次の投稿`,
-    label: `シリーズ: ${clip(p.answer || Object.values(p.values).join("・"), 20)}`,
-    ref: { format_id: format.id, answer: p.answer.slice(0, 100), checks: p.checks.length },
+    label: `シリーズ: ${clip(title, 20)}`,
+    ref: { format_id: format.id, answer: title.slice(0, 100), checks: p.checks.length },
     allowedUrls: [],
     fixedTexts: Object.fromEntries(sns.map((s) => [s, text])),
     fixedTags: Object.fromEntries(sns.map((s) => [s, formatTagsFor(format.hashtags, s)])),
-    series: { formatId: format.id, answer: p.answer, values: p.values, fixedBody },
+    series: { formatId: format.id, values, fixedBody },
   };
 }
 

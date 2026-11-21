@@ -121,7 +121,8 @@ export function normalizeFromPosts(raw: unknown, existing: string[]): FromPostsR
     if (existing.includes(v.data.name) || proposals.some((o) => o.name === v.data.name)) continue;
     const given = new Map(x.slots.map((s) => [s.name.trim(), cut(s.instruction, MAX_SERIES_INSTRUCTION)]));
     const complete = slots.every((s) => given.get(s));
-    const series: FormatSeries = p.data.fit === "auto" && complete ? { answer: null, slots: Object.fromEntries(slots.map((s) => [s, given.get(s)!])) } : { answer: null, slots: {} };
+    const auto = p.data.fit === "auto" && complete;
+    const series: FormatSeries = { vars: slots.map((s) => ({ name: s, mode: auto ? "ai" : "hand", instruction: auto ? given.get(s)! : "", unique: false })) };
     proposals.push({ ...v.data, why: cut(x.why, 200), series });
     if (proposals.length >= FROM_POSTS_PROPOSALS) break;
   }

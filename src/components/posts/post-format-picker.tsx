@@ -11,7 +11,7 @@ import { ErrorBanner } from "@/components/ui/feedback";
 import { HelpTip } from "@/components/ui/help";
 import { Input, Textarea } from "@/components/ui/field";
 import { addFormatRound, listPostFormats } from "@/lib/post-formats/actions";
-import { DEFAULT_ANSWER_NAME, MAX_ROUND_ANSWER, MAX_ROUND_WISH, ROUND_PROPOSALS, SERIES_DAILY_RUNS, imageOnlySlots, isSeries, roundSlotNames, type FormatSeries } from "@/lib/post-formats/series";
+import { MAX_ROUND_WISH, ROUND_PROPOSALS, SERIES_DAILY_RUNS, isSeries, roundTitle, varNames, varPlaces, type FormatSeries, type FormatVar, type VarPlace, type VarTexts } from "@/lib/post-formats/series";
 import { MAX_SLOT_VALUE, fillFormat, unfilledSlots, formatSlots, hasFormatHashtags, type FormatHashtags, type PostFormat } from "@/lib/post-formats/schema";
 import { FormatTagsLine } from "@/components/formats/format-manager";
 import { DisclosureBox } from "@/components/ui/disclosure";
@@ -19,8 +19,8 @@ import { AiQuotaNote } from "@/components/ai/ai-quota-note";
 import { useAiQuota } from "@/components/ai/use-ai-quota";
 
 // 投稿のフォーマットを選んだ状態（整えるに渡す。docs/design/post-formats.md の 4）
-// answer: シリーズのこの回の答え（本文には出ない。書きかけの控えに乗せる）
-export type FormatUse = { format: PostFormat; values: Record<string, string>; answer?: string };
+// values: 変数の名前 → 言葉（本文に出ない変数も含む。書きかけの控えに乗せる）
+export type FormatUse = { format: PostFormat; values: Record<string, string> };
 
 // 投稿をつくるの「フォーマットから」（docs/design/post-formats.md の 4。docs/architecture.md の 4.56）。
 // 登録したフォーマットのカード、選んだフォーマットの穴の欄、「本文に入れる」（AI を使わない）。もう一度押すと選ぶのをやめる。
@@ -44,9 +44,9 @@ export function PostFormatPicker({
   onInsert: (text: string, how: "replace" | "append", hashtags: FormatHashtags, fromAi: boolean) => void;
   onUseChange?: (use: FormatUse | null) => void;
   // 開いたときに選んでおくフォーマット（下書きから再開したとき。消したフォーマットなら「なし」）。
-  // 書きかけの控えから戻したときは、穴の言葉と答えも入れて開く（PMO2 の 3 回目の 03）
+  // 書きかけの控えから戻したときは、変数の言葉も入れて開く（PMO2 の 3 回目の 03）
   initialFormatId?: string | null;
-  initialValues?: { values: Record<string, string>; answer: string };
+  initialValues?: { values: Record<string, string> };
   // シリーズの記録を付けた（docs/design/format-series.md の 2。画面が、保存で投稿に結びつけ、リセットで消す）
   onRoundAdded?: (id: string) => void;
 }) {
@@ -56,8 +56,7 @@ export function PostFormatPicker({
   const [values, setValues] = useState<Record<string, string>>({});
   const [how, setHow] = useState<"replace" | "append">("append");
   const [inserted, setInserted] = useState(false);
-  // シリーズ: この回の答え（本文には出ない）と、AI の案を使ったか
-  const [answer, setAnswer] = useState("");
+  // シリーズ: AI の案を使ったか
   const [roundSource, setRoundSource] = useState<"ai" | "hand">("hand");
   const [roundError, setRoundError] = useState<string | null>(null);
 
@@ -69,16 +68,14 @@ export function PostFormatPicker({
       if (r.formats) {
         setFormats(r.formats);
         // 下書きから再開したときは、保存したときに選んでいたフォーマットを選んで開く（穴の言葉は本文に入っているので、欄は空）。
-        // 書きかけの控えから戻したときは、穴の言葉と答えも戻す（型の文にない穴は捨てる）
+        // 書きかけの控えから戻したときは、変数の言葉も戻す（一覧にない変数は捨てる）
         const first = initialFormatId ? r.formats.find((f) => f.id === initialFormatId) : undefined;
         if (first) {
-          const slotNames = roundSlotNames(first.body, first.series);
-          const v = Object.fromEntries(Object.entries(initialValues?.values ?? {}).filter(([k]) => slotNames.includes(k)));
-          const a = first.series.answer || isSeries(first.series) ? (initialValues?.answer ?? "") : "";
+          const names = varNames(first.series);
+          const v = Object.fromEntries(Object.entries(initialValues?.values ?? {}).filter(([k]) => names.includes(k)));
           setSelectedId(first.id);
           setValues(v);
-          setAnswer(a);
-          onUseChange?.({ format: first, values: v, answer: a });
+          onUseChange?.({ format: first, values: v });
         }
       }
     });
@@ -95,7 +92,6 @@ export function PostFormatPicker({
     setSelectedId(f?.id ?? null);
     setValues({});
     setInserted(false);
-    setAnswer("");
     setRoundSource("hand");
     setRoundError(null);
     onUseChange?.(f ? { format: f, values: {} } : null);
@@ -103,17 +99,17 @@ export function PostFormatPicker({
 
   // 本文に入れる。シリーズなら、この回を記録する（次の回の案で重ならないように）。同じ中身をもう一度入れたときは記録を重ねない
   const recorded = useRef<Set<string>>(new Set());
-  function insert(f: PostFormat, v: Record<string, string>, a: string, source: "ai" | "hand") {
+  function insert(f: PostFormat, v: Record<string, string>, source: "ai" | "hand") {
     onInsert(fillFormat(f.body, v), how, f.hashtags, source === "ai");
     setInserted(true);
     // 本文が空のところに入れたら、次に入れ直すときは置きかえる（穴を直して入れ直すと、同じ文が 2 つ並ばないように）
     if (!bodyHasText) setHow("replace");
     if (!isSeries(f.series)) return;
-    const key = JSON.stringify([f.id, a, v]);
+    const key = JSON.stringify([f.id, v]);
     if (recorded.current.has(key)) return;
     recorded.current.add(key);
     setRoundError(null);
-    void addFormatRound(projectId, f.id, { answer: a, values: v, source }).then((r) => {
+    void addFormatRound(projectId, f.id, { values: v, source }).then((r) => {
       if (r.error) {
         recorded.current.delete(key);
         setRoundError(`本文には入れました。ただ、このフォーマットで出した投稿の一覧に残せませんでした。${r.error}`);
@@ -125,7 +121,7 @@ export function PostFormatPicker({
     const next = { ...values, [slot]: v };
     setValues(next);
     setInserted(false);
-    if (selected) onUseChange?.({ format: selected, values: next, answer });
+    if (selected) onUseChange?.({ format: selected, values: next });
   }
 
   const formatsHref = `/projects/${projectId}/formats`;
@@ -137,18 +133,17 @@ export function PostFormatPicker({
       </section>
     );
   }
-  const slots = selected ? formatSlots(selected.body) : [];
-  // 画像だけで使う空欄（本文には入らない。画像をつくるときに使う。2026-11-20）
-  const imageOnly = selected ? imageOnlySlots(selected.body, selected.series) : [];
-  // 本文に入れたとき、まだ埋めていない穴（【穴の名前】のまま本文に入る）
+  // 変数の欄（本文に出ない変数・画像だけの変数も出す。AI の案が入り、編集できる）
+  const vars = selected ? selected.series.vars : [];
+  // 本文に入れたとき、まだ言葉を入れていない変数（【名前】のまま本文に入る）
   const unfilled = selected ? unfilledSlots(selected.body, values) : [];
 
   return (
     <section aria-label="フォーマットから" className="flex min-w-0 flex-col gap-2.5 border-t border-line pt-3.5">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <p className="flex items-center gap-1.5 text-[14px] text-muted">
-          いつも使うひな形を選んで、空欄を埋めます
-          {formats?.some((f) => isSeries(f.series)) && <HelpTip label="シリーズとは">「シリーズ」の札が付いたフォーマットは、空欄の言葉を毎回 AI が考えます。前の投稿と重ならないので、クイズのように続けて出せます。</HelpTip>}
+          いつも使うひな形を選んで、変数に言葉を入れます
+          {formats?.some((f) => isSeries(f.series)) && <HelpTip label="シリーズとは">「シリーズ」の札が付いたフォーマットは、変数の言葉を毎回 AI が考えます。前の投稿と重ならないので、クイズのように続けて出せます。</HelpTip>}
         </p>
         {/* 書きかけは控え（tab-drafts）に残るので、戻ると続きから書ける */}
         <Link href={formatsHref} className="text-[14px] font-bold text-fg underline">
@@ -181,7 +176,7 @@ export function PostFormatPicker({
                   {isSeries(f.series) && <Badge>シリーズ</Badge>}
                 </span>
                 <span className="line-clamp-2 text-xs text-muted">
-                  {isSeries(f.series) ? "AI に次の投稿の案を出してもらえます" : f.purpose || (fSlots.length ? fSlots.join("・") : "空欄なし")}
+                  {isSeries(f.series) ? "AI に次の投稿の案を出してもらえます" : f.purpose || (fSlots.length ? fSlots.join("・") : "変数なし")}
                 </span>
               </button>
             );
@@ -199,9 +194,9 @@ export function PostFormatPicker({
             </DisclosureBox>
           )}
           {!isSeries(selected.series) && formatSlots(selected.body).length > 0 && (
-            // AI に穴を埋めさせる設定がどこにあるかわからなかった（パワポの 1・8）
+            // AI に変数を考えさせる設定がどこにあるかわからなかった（パワポの 1・8）
             <p className="text-xs text-muted">
-              空欄の言葉を毎回 AI に考えてもらうには →{" "}
+              変数の言葉を毎回 AI に考えてもらうには →{" "}
               <Link href={formatsHref} className="font-bold text-fg underline">
                 「フォーマットの設定」
               </Link>
@@ -213,48 +208,37 @@ export function PostFormatPicker({
               projectId={projectId}
               formatId={selected.id}
               series={selected.series}
+              texts={{ body: selected.body, image: selected.image }}
+              fixed={values}
               aiEnabled={aiEnabled}
               onPick={(p) => {
                 // 「これを使う」で本文まで入れる（前は穴の欄に入るだけで、もう一度「本文に入れる」を押す必要があった。パワポの 11）。
                 // 穴の欄にも入れるので、直してから「本文に入れる」で入れ直せる
                 const next = { ...values, ...p.values };
                 setValues(next);
-                setAnswer(p.answer);
                 setRoundSource("ai");
-                onUseChange?.({ format: selected, values: next, answer: p.answer });
-                insert(selected, next, p.answer, "ai");
+                onUseChange?.({ format: selected, values: next });
+                insert(selected, next, "ai");
               }}
             />
           )}
-          {/* 答えの欄は、シリーズならいつも出す（答えの決まりがなくても、AI の案の答えが入る。直せる） */}
-          {(selected.series.answer || isSeries(selected.series)) && (
-            <label className="flex min-w-0 flex-col gap-1">
-              <span className="text-xs font-bold">
-                {selected.series.answer?.name || DEFAULT_ANSWER_NAME}
-                <span className="ml-1.5 font-normal text-muted">答え・本文には出ません</span>
-              </span>
-              <Input value={answer} maxLength={MAX_ROUND_ANSWER} onChange={(e) => (setAnswer(e.target.value), setInserted(false), onUseChange?.({ format: selected, values, answer: e.target.value }))} className="py-2 text-sm" />
-            </label>
-          )}
-          {slots.length + imageOnly.length > 0 && (
-            // 穴の欄は横いっぱいにし、長い言葉は折り返して全部見えるようにする（前は 2 列の 1 行の欄で、「キーワード5つ」の言葉が途中で切れた。通しテスト 02）。
+          {vars.length > 0 && (
+            // 変数の欄は横いっぱいにし、長い言葉は折り返して全部見えるようにする（前は 2 列の 1 行の欄で、「キーワード5つ」の言葉が途中で切れた。通しテスト 02）。
             // 改行は入れない（Enter では改行しない。言い換えの確定の Enter はそのまま）
             <div className="flex flex-col gap-2">
-              {[...slots, ...imageOnly].map((s) => (
-                <label key={s} className="flex min-w-0 flex-col gap-1">
+              {vars.map((v) => (
+                <label key={v.name} className="flex min-w-0 flex-col gap-1">
                   <span className="text-xs font-bold">
-                    {s}
-                    {imageOnly.includes(s) ? (
-                      <span className="ml-1.5 font-normal text-muted">画像だけで使う・本文には入りません</span>
-                    ) : (
-                      s in selected.series.slots && <span className="ml-1.5 font-normal text-muted">AI が埋める空欄・編集できます</span>
+                    {v.name}
+                    {varNote(v, varPlaces(v.name, { body: selected.body, image: selected.image })) && (
+                      <span className="ml-1.5 font-normal text-muted">{varNote(v, varPlaces(v.name, { body: selected.body, image: selected.image }))}</span>
                     )}
                   </span>
                   <Textarea
                     rows={1}
-                    value={values[s] ?? ""}
+                    value={values[v.name] ?? ""}
                     maxLength={MAX_SLOT_VALUE}
-                    onChange={(e) => setValue(s, e.target.value.replace(/\r?\n/g, " "))}
+                    onChange={(e) => setValue(v.name, e.target.value.replace(/\r?\n/g, " "))}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.nativeEvent.isComposing) e.preventDefault();
                     }}
@@ -269,7 +253,7 @@ export function PostFormatPicker({
               type="button"
               size="sm"
               variant="secondary"
-              onClick={() => insert(selected, values, answer, roundSource)}
+              onClick={() => insert(selected, values, roundSource)}
             >
               {inserted ? "本文に入れ直す" : "本文に入れる"}
             </Button>
@@ -288,7 +272,7 @@ export function PostFormatPicker({
           {inserted && (
             <p className="text-xs font-semibold text-success">
               {/* 全部埋めたときは【】の案内を出さない（前は埋めても「【】で残っています」と出た。通しテスト 02） */}
-              {unfilled.length > 0 ? `本文に入れました。埋めなかった ${unfilled.join("・")} は、【】のまま残っています。書き換えてください。` : "本文に入れました。"}
+              {unfilled.length > 0 ? `本文に入れました。言葉を入れていない ${unfilled.join("・")} は、【】のまま残っています。書き換えてください。` : "本文に入れました。"}
               {hasFormatHashtags(selected.hashtags) && "タグは本文の下に付き、「2 送り先」で SNS ごとに編集できます。"}
             </p>
           )}
@@ -300,17 +284,28 @@ export function PostFormatPicker({
   );
 }
 
-// 投稿をつくるの「AI に次の回を出してもらう」（docs/design/format-series.md の 3）。案は 3 つ。選ぶと穴の欄と答えに入る（直せる）
+// 変数の欄の名前に添える一言（本文に出ない・画像だけ・AI が考える）
+function varNote(v: FormatVar, places: VarPlace[]): string {
+  const where = places.length === 0 ? "本文には出ません" : !places.includes("body") ? "画像だけで使う・本文には入りません" : "";
+  return [v.mode === "ai" ? "AI が考える・編集できます" : "", where].filter(Boolean).join("・");
+}
+
+// 投稿をつくるの「AI に次の回を出してもらう」（docs/design/format-series.md の 3）。案は 3 つ。選ぶと変数の欄に入る（直せる）。
+// fixed: いま欄に入っている言葉（「自分で入れる」変数の言葉を、AI の指示の中の {名前} に入れる）
 function SeriesNextRound({
   projectId,
   formatId,
   series,
+  texts,
+  fixed,
   aiEnabled,
   onPick,
 }: {
   projectId: string;
   formatId: string;
   series: FormatSeries;
+  texts: VarTexts;
+  fixed: Record<string, string>;
   aiEnabled: boolean;
   onPick: (p: RoundProposal) => void;
 }) {
@@ -335,7 +330,7 @@ function SeriesNextRound({
     start(async () => {
       setError(null);
       setPicked(null);
-      const r = await draftFormatRound(projectId, formatId, wish);
+      const r = await draftFormatRound(projectId, formatId, wish, fixed);
       // 今日の残りの回数と、捨てた案の数（案が 1〜2 つしか残らなかったとき、なぜ少ないかを添える）
       setLeft(r.left ?? null);
       setDropped(r.dropped ?? 0);
@@ -378,7 +373,7 @@ function SeriesNextRound({
             </span>
             {error}{" "}
             <HelpTip label="案が出なかったわけ">
-              AI の案が、どれも前の投稿と重なっていたか、空欄の決まりに合いませんでした。なので、案を除きました。AI はもう使ったので、今日の {SERIES_DAILY_RUNS} 回のうち 1 回に数えています。
+              AI の案が、どれも前の投稿と重なっていたか、変数の決まりに合いませんでした。なので、案を除きました。AI はもう使ったので、今日の {SERIES_DAILY_RUNS} 回のうち 1 回に数えています。
             </HelpTip>
           </p>
         ) : (
@@ -395,20 +390,15 @@ function SeriesNextRound({
           {!failedOnce && dropped > 0 && proposals.length < ROUND_PROPOSALS && (
             <p className="text-xs leading-[1.7] text-muted">
               前の投稿と重なる案を除いたので、案は {proposals.length} つです。{left !== null ? `今日はあと ${left} 回使えます。` : ""}{" "}
-              <HelpTip label="案が少ないわけ">前の投稿と重なる案や、空欄の決まりに合わない案を除きました。「ほかの案を出してもらう」も、1 回に数えます。</HelpTip>
+              <HelpTip label="案が少ないわけ">前の投稿と重なる案や、変数の決まりに合わない案を除きました。「ほかの案を出してもらう」も、1 回に数えます。</HelpTip>
             </p>
           )}
           <ul className="flex flex-col gap-2">
             {proposals.map((p, i) => (
               <li key={i} className={`flex flex-col gap-1.5 rounded-md border bg-surface px-3 py-2.5 ${picked === i ? "border-primary" : "border-line"}`}>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  {/* 答えはいつも出す（答えの決まりがなくても AI が書いたとき。本文には出ない。PMO2 の 3 回目の n1） */}
-                  {p.answer && (
-                    <span className="font-bold">
-                      {series.answer?.name || DEFAULT_ANSWER_NAME}: {p.answer}
-                      <span className="ml-1.5 text-xs font-normal text-muted">本文には出ません</span>
-                    </span>
-                  )}
+                  {/* 重ならないようにする変数の言葉を見出しにする（本文に出ない変数でも出す。PMO2 の 3 回目の n1） */}
+                  {roundTitle(series, p.values) && <span className="font-bold">{roundTitle(series, p.values)}</span>}
                   <Button
                     type="button"
                     size="sm"
@@ -426,7 +416,10 @@ function SeriesNextRound({
                   {Object.entries(p.values).map(([k, v]) => (
                     <div key={k} className="flex gap-2">
                       <dt className="shrink-0 text-muted">{k}</dt>
-                      <dd className="min-w-0 break-words">{v}</dd>
+                      <dd className="min-w-0 break-words">
+                        {v}
+                        {varPlaces(k, texts).length === 0 && <span className="ml-1.5 text-xs text-muted">本文には出ません</span>}
+                      </dd>
                     </div>
                   ))}
                 </dl>

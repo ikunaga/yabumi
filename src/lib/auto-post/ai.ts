@@ -51,14 +51,15 @@ export type GenerateOutput =
 
 export type AutoPostGenerator = (input: GenerateInput) => Promise<GenerateOutput>;
 
-export type FakeMode = "ok" | "held" | "cannot";
+// image_failed: 文はふつうに書き、画像だけつくれない（画面の確かめで、画像をつくれなかったときを見るため）
+export type FakeMode = "ok" | "held" | "cannot" | "image_failed";
 
 // 偽の AI を使うか。Vercel の上（VERCEL_ENV がある）では使わない（本番・プレビューで偽の文が出ないように）
 export function fakeAiMode(env: NodeJS.ProcessEnv = process.env): FakeMode | null {
   const v = env.AUTO_POST_FAKE_AI?.trim();
   // 本番（Vercel・next start の本番ビルド）では、変数が残っていても偽の AI にしない
   if (!v || env.VERCEL_ENV || env.NODE_ENV === "production") return null;
-  if (v === "held" || v === "cannot") return v;
+  if (v === "held" || v === "cannot" || v === "image_failed") return v;
   return "ok";
 }
 

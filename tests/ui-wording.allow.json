@@ -747,12 +747,6 @@
  "src/components/auto-post/sample-card.tsx": {
   "シリーズは、フォーマットの型の文で書きます。書き方を変えるときは、フォーマットを編集してください。": [
    "katanobun"
-  ],
-  "この指示で作り直す（約 {…} 円）": [
-   "paren"
-  ],
-  "（画像の説明: {…}）": [
-   "paren"
   ]
  },
  "src/components/auto-post/winners-screen.tsx": {

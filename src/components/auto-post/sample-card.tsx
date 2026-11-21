@@ -118,13 +118,13 @@ export function SampleCard(p: Props) {
           <div className="flex items-center gap-2">
             <h2 className="text-[18px] font-bold max-sm:text-[16px]">テストで 1 件つくる</h2>
             <HelpTip label="テストでつくることについて">
-              1 件つくるのに、約 {wantsImage ? SAMPLE_WITH_IMAGE_YEN : SAMPLE_YEN} 円かかります。
-              {wantsImage && `画像も 1 枚つくるので、1 か月に ${AUTO_PHOTO_LIMITS.userMonthlyImages} 枚までの画像の枠に数えます。`}
-              1 日 {AUTO_SAMPLE_DAILY_RUNS} 回までつくれます。1 回目として送らないときは、つくった投稿は 1 日で消えます。
+              1 件つくるたびに、約 {wantsImage ? SAMPLE_WITH_IMAGE_YEN : SAMPLE_YEN} 円かかります。
+              {wantsImage && `画像は 1 か月に ${AUTO_PHOTO_LIMITS.userMonthlyImages} 枚までつくれます。テストの画像も 1 枚に数えます。`}
+              1 日 {AUTO_SAMPLE_DAILY_RUNS} 回までつくれます。「この投稿を 1 回目として送る」を選ばないと、つくった投稿は 1 日で消えます。
             </HelpTip>
           </div>
           <p className="text-sm text-muted">設定どおりに 1 件つくって見せます。SNS には送りません。</p>
-          {wantsImage && <p className="num text-sm text-muted">画像も一緒につくります。1 件 約 {SAMPLE_WITH_IMAGE_YEN} 円です。</p>}
+          {wantsImage && <p className="num text-sm text-muted">画像も 1 枚、一緒につくります。1 件 約 {SAMPLE_WITH_IMAGE_YEN} 円です。</p>}
         </div>
         <Button type="button" variant="secondary" disabled={sampling} onClick={() => make()}>
           {sampling ? "つくっています…" : sample ? "もう一度つくる" : "テストで 1 件つくる"}
@@ -137,7 +137,7 @@ export function SampleCard(p: Props) {
           <SampleView sample={sample} />
         </div>
       )}
-      {wrote && sample!.imageFailed && <p className="rounded-md border border-dashed border-line px-4 py-3 text-sm text-muted">画像をつくれませんでした。もう一度つくると、つくれることがあります。</p>}
+      {wrote && sample!.imageFailed && <p className="rounded-md border border-dashed border-line px-4 py-3 text-sm text-muted">画像をつくれませんでした。「もう一度つくる」を押すと、つくれることがあります。</p>}
       {stale && <p className="text-sm text-muted">テストでつくったあとに設定を変えました。いまの設定で見るには、もう一度つくってください。</p>}
 
       {wrote && p.series && <p className="text-sm text-muted">シリーズは、フォーマットの型の文で書きます。書き方を変えるときは、フォーマットを編集してください。</p>}
@@ -161,7 +161,7 @@ export function SampleCard(p: Props) {
           </label>
           <div className="flex justify-end max-sm:flex-col max-sm:items-stretch">
             <Button type="button" disabled={sampling || chosen.length === 0} onClick={() => void redo()}>
-              {sampling ? "つくっています…" : `この指示で作り直す（約 ${SAMPLE_YEN} 円）`}
+              {sampling ? "つくっています…" : "この指示で作り直す"}
             </Button>
           </div>
         </div>
@@ -192,9 +192,9 @@ export function SampleCard(p: Props) {
               {canAdopt
                 ? "1 回目の日時に、この投稿をそのまま送ります。「確認して送る」にした SNS は、いつもどおり送る前に中身を見てください。"
                 : sample?.issues.length
-                  ? "この投稿には注意が出たので、1 回目として送れません。もう一度つくると、送れるようになることがあります。"
+                  ? "注意が出た投稿は、1 回目として送れません。「もう一度つくる」を押すと、注意が消えることがあります。"
                   : wantsImage && !sample?.image && !stale
-                    ? "画像がないので、選べません。もう一度つくると、画像もできることがあります。"
+                    ? "画像がないので、1 回目として送れません。「もう一度つくる」を押すと、画像もできることがあります。"
                     : "いまの設定で作り直すと選べます。"}
             </span>
           </span>
@@ -247,7 +247,7 @@ export function SampleView({ sample }: { sample: AutoSample }) {
             {/* eslint-disable-next-line @next/next/no-img-element -- 署名つきの URL は期限があり、next/image の最適化を通さない */}
             <img src={sample.image.url} alt={sample.image.alt || "テストでつくった投稿の画像"} className="h-auto w-full object-contain" />
           </div>
-          <figcaption className="text-xs leading-[1.6] text-muted">AI で作った画像{sample.image.alt ? `（画像の説明: ${sample.image.alt}）` : ""}</figcaption>
+          <figcaption className="text-xs leading-[1.6] text-muted">AI でつくった画像です。本番の投稿にも、このような画像が付きます。</figcaption>
         </figure>
       )}
     </div>

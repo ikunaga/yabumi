@@ -36,7 +36,7 @@ export const TARGET_STATE: Partial<Record<SentStatus, { text: string; plain: str
 };
 const RETRY_STATE = { text: "送り直し待ち", plain: "送り直し待ち", tone: "font-bold text-signal" };
 // 月の上限で「X は手で投稿する」を選んだ X（失敗ではない。送信の結果から手で投稿して記録する）
-const BY_HAND_STATE = { text: "手で投稿", plain: "手で投稿", tone: "font-bold text-signal" };
+const BY_HAND_STATE = { text: "手動で投稿する番", plain: "手動で投稿する番", tone: "font-bold text-signal" };
 
 // 送った配信先のいまの本当の状態（送信中・失敗・送り直し待ち・投稿済み・取り消し済み）。まだ送っていなければ null。
 // ② の送り先と ⑤ のまとめに出す（送っている途中を「投稿済み」と出さない。2026-11-12 PMO の通しのテスト）

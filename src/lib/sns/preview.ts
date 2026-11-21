@@ -28,8 +28,8 @@ export const PREVIEW: Record<SnsKey, PreviewSpec> = {
   facebook: { layout: "after_grid", fold: { lines: 5, more: "もっと見る" }, note: "Facebook は長い本文が 5 行ほどで折りたたまれ、そのあとに画像が並びます。", short: "5 行で折りたたみ・画像はあと" },
   tiktok: { layout: "before", fold: { lines: 2, more: "もっと見る" }, note: "TikTok の写真の投稿は、写真が先に出て、めくって見ます。説明は 2 行ほどで折りたたまれます（動画は準備中）。", short: "写真が先・説明は 2 行で折りたたみ" },
   youtube: { layout: "video", fold: { lines: 3, more: "もっと見る" }, note: "YouTube は動画の下の説明が 3 行ほどで折りたたまれます（動画の添付は準備中）。", short: "動画が必要（準備中）" },
-  note: { layout: "article", fold: null, note: "note はタイトルと本文の記事になります。画像は投稿の画面で手で添えます。", short: "タイトルと記事・手で投稿" },
-  substack: { layout: "article", fold: null, note: "Substack はタイトルと本文の記事（メールでも届きます）になります。画像は投稿の画面で手で添えます。", short: "タイトルと記事・手で投稿" },
+  note: { layout: "article", fold: null, note: "note はタイトルと本文の記事になります。画像は投稿の画面で手で添えます。", short: "タイトルと記事・手動で投稿" },
+  substack: { layout: "article", fold: null, note: "Substack はタイトルと本文の記事（メールでも届きます）になります。画像は投稿の画面で手で添えます。", short: "タイトルと記事・手動で投稿" },
 };
 
 // 1 行に入るおおよその字数（プレビューの幅で、全角の字）。折りたたむかどうかの目安にだけ使う

@@ -26,7 +26,7 @@ import { createClient } from "@/lib/supabase/server";
 import { readRoundValues } from "@/lib/post-formats/series";
 import { canPublish } from "@/lib/sns/adapters";
 import { targetText } from "@/lib/sns/hashtags";
-import { isByHand } from "@/lib/sns/by-hand";
+import { BY_HAND_TEXT, isByHand, type ByHandSns } from "@/lib/sns/by-hand";
 import { getPlanHints } from "@/lib/plan/queries";
 import { loadPostImageDownloads, loadPostImages, loadPostVideo, loadPostVideoDownload, snsNeedingImageReconnect } from "@/lib/media/queries";
 import { postLinkPreview } from "@/lib/links/store";
@@ -124,7 +124,8 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
         // （確認待ちのまま残すので、あとで予約し直しても X などは確認してから送る）。1 回目の確認待ちの回の投稿は、確認待ちのまま
         status: t.status === "awaiting_approval" && post.status !== "scheduled" && runRow?.status !== "review" ? ("pending" as const) : t.status,
         externalUrl: t.external_url,
-        errorMessage: t.error_message,
+        // 「手動で投稿する」の印の文は DB の値なので、画面の文に置きかえる
+        errorMessage: isByHand(t) ? BY_HAND_TEXT[t.sns as ByHandSns] : t.error_message,
         publishedAt: t.published_at,
         nextAttemptAt: t.next_attempt_at,
         manual: isManualSns(t.sns)
@@ -141,7 +142,7 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
             ? { title: null, text: targetText(post.body, t), composeUrl: xComposeUrl(targetText(post.body, t)) }
             : t.sns === "tiktok" && t.status === "failed"
               ? { title: t.title, text: targetText(post.body, t), composeUrl: null, downloads: tiktokDownloads }
-              : // YouTube も、手で投稿するを選んだとき・送れなかったときは、YouTube Studio で投稿して記録できる（docs/design/youtube.md の 12.）。
+              : // YouTube も、手動で投稿するを選んだとき・送れなかったときは、YouTube Studio で投稿して記録できる（docs/design/youtube.md の 12.）。
                 t.sns === "youtube" && t.status === "failed"
                 ? { title: t.title, text: targetText(post.body, t), composeUrl: "https://studio.youtube.com/", downloads: youtubeDownloads }
                 : undefined,

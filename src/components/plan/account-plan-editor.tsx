@@ -869,12 +869,12 @@ function CadenceFields({ v, ex }: { v: PlanData["cadence"]; ex: PlanExamples }) 
           <label key={sns} className="grid grid-cols-[96px_1fr] items-center gap-3 max-sm:grid-cols-1 max-sm:gap-1">
             <span className="flex flex-col text-sm font-bold">
               {SNS[sns].label}
-              {SNS[sns].delivery === "manual" && <span className="text-xs font-normal text-muted">手で投稿</span>}
+              {SNS[sns].delivery === "manual" && <span className="text-xs font-normal text-muted">手動で投稿</span>}
             </span>
             <Input name={`role-${sns}`} defaultValue={v.roles[sns] ?? ""} maxLength={200} placeholder={`例: ${ex.roles[sns]}`} />
           </label>
         ))}
-        <p className="text-xs text-muted">使わない SNS は空欄で構いません。note と Substack は自動では送れず、手で投稿します（そのぶん手間がかかります）。</p>
+        <p className="text-xs text-muted">使わない SNS は空欄で構いません。note と Substack は自動では送れず、手動で投稿します（そのぶん手間がかかります）。</p>
       </fieldset>
     </>
   );

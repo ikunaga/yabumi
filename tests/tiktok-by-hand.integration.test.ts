@@ -34,7 +34,7 @@ async function post(status: "draft" | "scheduled", targets: { sns: string; statu
 beforeAll(async () => {
   ({ client: alice, userId: aliceId } = await signUpNewUser());
   ({ client: bob, userId: bobId } = await signUpNewUser());
-  projectId = (await alice.from("projects").insert({ name: "手で投稿" }).select("id").single()).data!.id;
+  projectId = (await alice.from("projects").insert({ name: "手動で投稿" }).select("id").single()).data!.id;
   current = alice;
 });
 
@@ -43,8 +43,8 @@ afterAll(async () => {
   await deleteUser(bobId);
 });
 
-describe("手で投稿するの文（TS と SQL の一致）", () => {
-  it("TS の文で作った X・TikTok の手で投稿するは、要確認の帯で閉じる対象に入らない（SQL の by_hand_message と同じ文）", async () => {
+describe("手動で投稿するの文（TS と SQL の一致）", () => {
+  it("TS の文で作った X・TikTok の手動で投稿するは、要確認の帯で閉じる対象に入らない（SQL の by_hand_message と同じ文）", async () => {
     for (const sns of BY_HAND_SNS) {
       const { targetIds: [t] } = await post("scheduled", [{ sns, status: "failed", error_message: BY_HAND_MESSAGE[sns] }]);
       const r = await alice.rpc("close_attention", { p_project_id: projectId, p_items: [{ kind: "failed", id: t }] as never });
@@ -67,7 +67,7 @@ describe("手で投稿するの文（TS と SQL の一致）", () => {
     expect((await admin.rpc("by_hand_message", { p_sns: "tiktok" })).error).not.toBeNull();
   });
 
-  it("失敗の一覧から手で投稿するを除く条件（NOT_BY_HAND_FILTER）が、X・TikTok の両方を除く", async () => {
+  it("失敗の一覧から手動で投稿するを除く条件（NOT_BY_HAND_FILTER）が、X・TikTok の両方を除く", async () => {
     const { postId } = await post("scheduled", [
       { sns: "x", status: "failed", error_message: BY_HAND_MESSAGE.x },
       { sns: "tiktok", status: "failed", error_message: BY_HAND_MESSAGE.tiktok },
@@ -79,8 +79,8 @@ describe("手で投稿するの文（TS と SQL の一致）", () => {
   });
 });
 
-describe("TikTok を手で投稿する印と記録", () => {
-  it("送信待ちの TikTok に印を付けると、手で投稿するになり、手で投稿する番に出る", async () => {
+describe("TikTok を手動で投稿する印と記録", () => {
+  it("送信待ちの TikTok に印を付けると、手動で投稿するになり、手動で投稿する番に出る", async () => {
     const { postId, targetIds: [t] } = await post("scheduled", [{ sns: "tiktok", status: "pending" }]);
     expect(await markByHand(admin, postId, aliceId, "tiktok")).toEqual({ ok: true });
     const row = (await admin.from("post_targets").select("sns, status, error_message").eq("id", t).single()).data!;
@@ -94,7 +94,7 @@ describe("TikTok を手で投稿する印と記録", () => {
     expect(byHandTooLateMessage("tiktok", "preparing")).toMatch(/TikTok には自動で送られます/);
   });
 
-  it("手で投稿するの TikTok を、本人は「投稿した」と記録できる。ほかの人はできない", async () => {
+  it("手動で投稿するの TikTok を、本人は「投稿した」と記録できる。ほかの人はできない", async () => {
     const { targetIds: [t] } = await post("scheduled", [{ sns: "tiktok", status: "failed", error_message: BY_HAND_MESSAGE.tiktok }]);
     expect((await bob.rpc("mark_manual_target_posted", { p_target_id: t, p_url: "" })).error?.code).toBe("P0002");
     expect((await alice.rpc("mark_manual_target_posted", { p_target_id: t, p_url: "https://www.tiktok.com/@komugi/photo/1" })).error).toBeNull();

@@ -28,7 +28,7 @@ export function SnsTag({ sns }: { sns: SnsKey }) {
 // byHand: 自動では送らず、利用者が手で投稿する（「X は手で投稿する」を選んだ X）。点に点線の輪を付け、「手で」を添える
 export function SnsMark({ sns, byHand = false, dotOnly = false }: { sns: SnsKey; byHand?: boolean; dotOnly?: boolean }) {
   const c = SNS_COLOR[sns];
-  const name = byHand ? `${SNS[sns].label}・手で投稿` : SNS[sns].label;
+  const name = byHand ? `${SNS[sns].label}・手動で投稿` : SNS[sns].label;
   const dot = <span aria-hidden className={`size-2 shrink-0 rounded-full ${c.bg} ${byHand ? "ring-1 ring-current ring-offset-1 ring-offset-surface" : ""}`} />;
   if (dotOnly) {
     return (
@@ -42,7 +42,7 @@ export function SnsMark({ sns, byHand = false, dotOnly = false }: { sns: SnsKey;
     <span title={name} className="inline-flex h-5 shrink-0 items-center gap-1 text-[12px] leading-none font-bold whitespace-nowrap text-fg">
       {dot}
       {SNS[sns].label}
-      {byHand && <span className="font-normal text-muted">・手で</span>}
+      {byHand && <span className="font-normal text-muted">・手動</span>}
     </span>
   );
 }

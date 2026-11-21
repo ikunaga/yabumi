@@ -155,7 +155,7 @@ export function ComposeStepSend({ c, steps = false, previewBelow = false }: { c:
             </Button>
           )}
           <p className={`text-[13px] ${fe.plannedAt || (mainBlocker && mainBlocker !== QUIET_BLOCKER) ? "text-signal" : "text-faint"}`}>
-            {fe.plannedAt ?? mainBlocker ?? (nowMain ? `${nowNames} に、押してすぐ送ります` : nowNames ? (c.scheduledSaved ? `変更すると、${scheduledAt(plannedAt)} に送ります` : "予約すると、この日時に自動で送ります") : "この日時に、手で投稿する番として知らせます")}
+            {fe.plannedAt ?? mainBlocker ?? (nowMain ? `${nowNames} に、押してすぐ送ります` : nowNames ? (c.scheduledSaved ? `変更すると、${scheduledAt(plannedAt)} に送ります` : "予約すると、この日時に自動で送ります") : "この日時に、手動で投稿する番として知らせます")}
             {!fe.plannedAt && mainBlocker === missingConnectMessage && (
               <>
                 {" "}

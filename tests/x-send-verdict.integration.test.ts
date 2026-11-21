@@ -67,7 +67,7 @@ describe("xSendVerdict（送信ジョブと同じ額・同じ比べ方）", () =
   });
 });
 
-describe("「X は手で投稿する」を選んだ X の配信先", () => {
+describe("「X は手動で投稿する」を選んだ X の配信先", () => {
   it("送らない印になり、上限が空いても送信ジョブは X を送らない。ほかの SNS は送る", async () => {
     await spend(1);
     const { data: postId, error } = await alice.rpc("save_post", {
@@ -118,7 +118,7 @@ describe("「X は手で投稿する」を選んだ X の配信先", () => {
     expect((await admin.from("post_targets").select("status").eq("post_id", postId!).single()).data!.status).toBe("published");
   });
 
-  it("概要の「送れなかった投稿」とカレンダーの失敗の数に、手で投稿の X だけの投稿は入らない。ほかの失敗は入る", async () => {
+  it("概要の「送れなかった投稿」とカレンダーの失敗の数に、手動で投稿の X だけの投稿は入らない。ほかの失敗は入る", async () => {
     const save = async () =>
       (await alice.rpc("save_post", { p_post_id: null as unknown as string, p_project_id: projectId, p_body: "数える", p_planned_at: "2099-01-15T00:00:00Z", p_status: "scheduled", p_targets: [{ sns: "x", social_account_id: xAccountId }, { sns: "threads", social_account_id: threadsAccountId }] })).data!;
     const hand = await save();
@@ -131,9 +131,9 @@ describe("「X は手で投稿する」を選んだ X の配信先", () => {
     expect((await loadCalendarStats(projectId, "2099-01", alice)).failed).toBe(1);
   });
 
-  it("送る時刻が来たら、手で投稿の X は概要の「手で投稿する番」に出る（忘れないように）。まだ先の予約は出ない", async () => {
+  it("送る時刻が来たら、手動で投稿の X は概要の「手動で投稿する番」に出る（忘れないように）。まだ先の予約は出ない", async () => {
     const save = async (at: string) =>
-      (await alice.rpc("save_post", { p_post_id: null as unknown as string, p_project_id: projectId, p_body: "手で出す", p_planned_at: at, p_status: "draft", p_targets: [{ sns: "x", social_account_id: xAccountId }] })).data!;
+      (await alice.rpc("save_post", { p_post_id: null as unknown as string, p_project_id: projectId, p_body: "手動で投稿する", p_planned_at: at, p_status: "draft", p_targets: [{ sns: "x", social_account_id: xAccountId }] })).data!;
     const past = await save(new Date(Date.now() - 3600_000).toISOString());
     const future = await save("2099-02-01T00:00:00Z");
     for (const id of [past, future]) {
@@ -158,7 +158,7 @@ describe("「X は手で投稿する」を選んだ X の配信先", () => {
     await admin.from("post_targets").update({ status: "publishing", locked_at: new Date().toISOString() }).eq("post_id", postId!).eq("sns", "x");
     expect(await markByHand(admin, postId!, aliceId, "x")).toEqual({ ok: false, status: "publishing" });
     expect((await admin.from("post_targets").select("status, error_message").eq("post_id", postId!).single()).data).toEqual({ status: "publishing", error_message: null });
-    expect(byHandTooLateMessage("x", "publishing")).toContain("手では出さないでください");
+    expect(byHandTooLateMessage("x", "publishing")).toContain("手動では投稿しないでください");
     // まだ送信待ちなら印を付ける
     await admin.from("post_targets").update({ status: "pending", locked_at: null }).eq("post_id", postId!);
     expect(await markByHand(admin, postId!, aliceId, "x")).toEqual({ ok: true });

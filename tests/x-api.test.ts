@@ -94,7 +94,7 @@ describe("エラーの分け方", () => {
     expect(toXPublishError(new XApiError("Too Many Requests", 429), "publish").kind).toBe("permanent");
     expect(toXPublishError(new XApiError("Payment Required", 402), "publish").kind).toBe("permanent");
     expect(toXPublishError(new XApiError("x", 403, "CreditsDepleted"), "publish").kind).toBe("permanent");
-    expect(toXPublishError(new XApiError("x", 429), "publish").userMessage).toContain("手で投稿");
+    expect(toXPublishError(new XApiError("x", 429), "publish").userMessage).toContain("手動で投稿");
   });
 
   it("上限・クレジット切れの文に、yabumi の X のアプリの事情（Developer Console など）を出さない", () => {

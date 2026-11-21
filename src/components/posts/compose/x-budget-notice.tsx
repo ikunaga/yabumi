@@ -17,7 +17,7 @@ export function XBudgetNotice({ c }: { c: Composer }) {
       </p>
       {xByHand ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <span className="text-muted">X は手で投稿します。ほかの SNS に送ったら、「送信の結果」を開きます。「X に手で投稿する」から投稿してください。</span>
+          <span className="text-muted">X は手動で投稿します。ほかの SNS に送ったら、「送信の結果」を開きます。「X に手動で投稿する」から投稿してください。</span>
           <Button type="button" variant="text" size="sm" onClick={() => setXByHand(false)}>
             やめる
           </Button>
@@ -36,7 +36,7 @@ export function XBudgetNotice({ c }: { c: Composer }) {
               clearFieldError("targets");
             }}
           >
-            X は手で投稿する
+            X は手動で投稿する
           </Button>
         </div>
       )}

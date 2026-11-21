@@ -31,6 +31,6 @@ export async function markByHand(admin: SupabaseClient<Database>, postId: string
 export function byHandTooLateMessage(sns: ByHandSns, status: string): string {
   const label = SNS[sns].label;
   return status === "published" || status === "deleted"
-    ? `${label} にはもう送ってあったので、「手で投稿する」にはしませんでした。二重にならないよう、${label} には手で出さないでください。ほかの SNS は保存しました。`
-    : `${label} はもう送信を始めていたので、「手で投稿する」にはしませんでした。${label} には自動で送られます。二重にならないよう、手では出さないでください。ほかの SNS は保存しました。`;
+    ? `${label} にはもう送ってあったので、「手動で投稿する」にはしませんでした。二重にならないよう、${label} には手動で投稿しないでください。ほかの SNS は保存しました。`
+    : `${label} はもう送信を始めていたので、「手動で投稿する」にはしませんでした。${label} には自動で送られます。二重にならないよう、手動では投稿しないでください。ほかの SNS は保存しました。`;
 }

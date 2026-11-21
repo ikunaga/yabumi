@@ -6,7 +6,7 @@ import { composeChanges, type ComposeSnapshot } from "@/lib/posts/compose-reset"
 import { postDraftBase, samePostDraft, type PostDraft } from "@/lib/posts/post-draft";
 
 describe("動画を送れない SNS", () => {
-  it("動画を添えると、yabumi からまだ動画を送れない自動の SNS に video_unsupported を出す。手で投稿する SNS には出さない", () => {
+  it("動画を添えると、yabumi からまだ動画を送れない自動の SNS に video_unsupported を出す。手動で投稿する SNS には出さない", () => {
     for (const sns of SNS_KEYS) {
       const issues = checkTarget(sns, "本文", { images: 0, videos: 1 }, "題").issues;
       expect(issues.includes("video_unsupported")).toBe(SNS[sns].delivery === "auto" && !SNS[sns].video);

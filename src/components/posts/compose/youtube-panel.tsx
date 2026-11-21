@@ -41,7 +41,7 @@ export function ComposeYouTube({ c }: { c: Composer }) {
       {/* YouTube は手で投稿する（docs/design/youtube.md の 12.。Y4）。1 日の上限に当たったとき・YouTube のアプリで仕上げたいときの逃げ道 */}
       {youtubeByHand ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] leading-[1.7]">
-          <span className="text-muted">YouTube は手で投稿します。yabumi からは送りません。ほかの SNS に送ったら、「送信の結果」を開きます。「YouTube に手で投稿する」から投稿してください。</span>
+          <span className="text-muted">YouTube は手動で投稿します。yabumi からは送りません。ほかの SNS に送ったら、「送信の結果」を開きます。「YouTube に手動で投稿する」から投稿してください。</span>
           <Button type="button" variant="text" size="sm" onClick={() => setYouTubeByHand(false)}>
             やめる
           </Button>
@@ -58,7 +58,7 @@ export function ComposeYouTube({ c }: { c: Composer }) {
               clearFieldError("targets");
             }}
           >
-            YouTube は手で投稿する
+            YouTube は手動で投稿する
           </Button>
         </div>
       )}

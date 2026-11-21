@@ -199,13 +199,13 @@ describe("費用と月の上限", () => {
     expect(await usageOf(targetId)).toEqual([{ operation: "post_with_url", cost_usd: 0.2 }]);
   });
 
-  it("上限を超えるなら送らず、要確認と手で投稿の案内を出す", async () => {
+  it("上限を超えるなら送らず、要確認と手動で投稿の案内を出す", async () => {
     const adapter = fakeX();
     const { postId, targetId } = await scheduledPost(`上限 ${randomUUID()}`);
     const [outcome] = await publishDueTargets(admin, deps(adapter, await spentNow()), { postId });
     expect(outcome.result).toBe("failed");
     expect(outcome.message).toContain("上限");
-    expect(outcome.message).toContain("手で投稿");
+    expect(outcome.message).toContain("手動で投稿");
     expect(adapter.publishText).not.toHaveBeenCalled();
     expect(await usageOf(targetId)).toEqual([]);
   });
@@ -229,13 +229,13 @@ describe("費用と月の上限", () => {
     expect(outcome.message).toContain("yabumi 全体");
   });
 
-  it("利用者ごとの上限に達したら、その人の X だけ送らず、手で投稿の案内を出す", async () => {
+  it("利用者ごとの上限に達したら、その人の X だけ送らず、手動で投稿の案内を出す", async () => {
     const adapter = fakeX();
     const { postId, targetId } = await scheduledPost(`本人の上限 ${randomUUID()}`);
     const [outcome] = await publishDueTargets(admin, deps(adapter, 1000, await postSpent(aliceId)), { postId });
     expect(outcome.result).toBe("failed");
     expect(outcome.message).toContain("自動投稿の上限");
-    expect(outcome.message).toContain("手で投稿");
+    expect(outcome.message).toContain("手動で投稿");
     expect(adapter.publishText).not.toHaveBeenCalled();
     expect(await usageOf(targetId)).toEqual([]);
 
@@ -390,8 +390,8 @@ describe("権限", () => {
     expect((await alice.rpc("claim_token_refresh", { p_social_account_id: accountId })).error).not.toBeNull();
   });
 
-  it("送れなかった X の配信先は、本人が手で投稿して記録できる。ほかの人や、送る前のものはできない", async () => {
-    const { postId, targetId } = await scheduledPost(`手で投稿 ${randomUUID()}`);
+  it("送れなかった X の配信先は、本人が手動で投稿して記録できる。ほかの人や、送る前のものはできない", async () => {
+    const { postId, targetId } = await scheduledPost(`手動で投稿 ${randomUUID()}`);
     const pending = await alice.rpc("mark_manual_target_posted", { p_target_id: targetId, p_url: "https://x.com/alice/status/1" });
     expect(pending.error).not.toBeNull();
 

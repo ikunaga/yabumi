@@ -212,7 +212,7 @@ export default async function LinksPage(props: PageProps<"/projects/[id]/links">
                   ))}
                 </ul>
               ) : (
-                <EmptyState description="まだありません。投稿の本文に URL を入れて保存すると、ここに並びます（Instagram と手で投稿する SNS は置き換えません）。" />
+                <EmptyState description="まだありません。投稿の本文に URL を入れて保存すると、ここに並びます（Instagram と手動で投稿する SNS は置き換えません）。" />
               )}
             </Card>
 

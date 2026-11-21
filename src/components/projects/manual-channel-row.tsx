@@ -22,7 +22,7 @@ export function ManualChannelRow({ projectId, sns, profileUrl, note }: { project
           <SnsTag sns={sns} />
         </span>
         <span className="min-w-0 flex-1 leading-[1.7] max-sm:order-last max-sm:basis-full">
-          <span className="mr-2 rounded-full border border-border px-2 py-0.5 text-xs text-muted">手で投稿</span>
+          <span className="mr-2 rounded-full border border-border px-2 py-0.5 text-xs text-muted">手動で投稿</span>
           {profileUrl ? (
             <a href={profileUrl} target="_blank" rel="noopener noreferrer" className="break-all text-primary hover:underline">
               {profileUrl.replace(/^https:\/\//, "")}

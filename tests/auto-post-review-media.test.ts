@@ -34,7 +34,7 @@ describe("mediaForSns", () => {
     expect(mediaForSns("tiktok", { images: [], video })).toMatchObject({ kind: "video", unsupported: true });
   });
 
-  it("画像を送らない SNS（YouTube）・手で投稿の SNS（note）には出さない", () => {
+  it("画像を送らない SNS（YouTube）・手動で投稿の SNS（note）には出さない", () => {
     expect(mediaForSns("youtube", { images: img(1), video: null })).toEqual({ kind: "none" });
     expect(mediaForSns("note", { images: img(1), video: null })).toEqual({ kind: "none" });
     expect(mediaForSns("note", { images: [], video })).toEqual({ kind: "none" });

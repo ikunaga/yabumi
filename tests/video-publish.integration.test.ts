@@ -195,7 +195,7 @@ describe("送り終えたらすぐ消す", () => {
     expect((await cands(8)).find((c) => c.media_id === v.mediaId)).toMatchObject({ mark_removed: true });
   });
 
-  it("「手で投稿する」の配信先が残る間は消さず（手元に落とせる）、手で投稿したと記録したら消す", async () => {
+  it("「手動で投稿する」の配信先が残る間は消さず（手元に落とせる）、手動で投稿したと記録したら消す", async () => {
     const { postId, targetIds } = await scheduledPostTo(["threads", "x"]);
     expect(await markByHand(admin, postId, aliceId, "x")).toEqual({ ok: true });
     const v = await seedPostVideo(admin, { ownerId: aliceId, postId });

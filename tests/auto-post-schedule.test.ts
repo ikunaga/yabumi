@@ -72,7 +72,7 @@ describe("入力の確かめ（autoPlanInputSchema。DB の save_auto_plan と�
     expect(autoPlanInputSchema.safeParse(input({ consent: false as true })).success).toBe(false);
   });
 
-  it("X・TikTok・YouTube は確かめて送るだけ、note・Substack は手で投稿だけ（4.1）", () => {
+  it("X・TikTok・YouTube は確かめて送るだけ、note・Substack は手動で投稿だけ（4.1）", () => {
     expect(TARGET_MODES.x).toEqual(["review"]);
     expect(TARGET_MODES.note).toEqual(["by_hand"]);
     expect(autoPlanInputSchema.safeParse(input({ targets: { x: "auto" } })).success).toBe(false);

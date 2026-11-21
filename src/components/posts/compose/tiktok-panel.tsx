@@ -46,7 +46,7 @@ export function ComposeTikTok({ c }: { c: Composer }) {
       {/* TikTok は手で投稿する（docs/design/tiktok.md の 17.）。審査の前に公開で出したいとき・音楽を付けたいとき・送れないときの逃げ道 */}
       {tiktokByHand ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] leading-[1.7]">
-          <span className="text-muted">TikTok は手で投稿します。yabumi からは送りません。ほかの SNS に送ったら、「送信の結果」を開きます。「TikTok に手で投稿する」から、TikTok のアプリで投稿してください。</span>
+          <span className="text-muted">TikTok は手動で投稿します。yabumi からは送りません。ほかの SNS に送ったら、「送信の結果」を開きます。「TikTok に手動で投稿する」から、TikTok のアプリで投稿してください。</span>
           <Button type="button" variant="text" size="sm" onClick={() => setTikTokByHand(false)}>
             やめる
           </Button>
@@ -63,7 +63,7 @@ export function ComposeTikTok({ c }: { c: Composer }) {
               clearFieldError("targets");
             }}
           >
-            TikTok は手で投稿する
+            TikTok は手動で投稿する
           </Button>
         </div>
       )}

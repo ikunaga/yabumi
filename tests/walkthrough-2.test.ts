@@ -5,7 +5,7 @@ import { adoptTidyOption, type TidyOption } from "@/lib/ai/tidy-draft-apply";
 import { problemsByStep } from "@/lib/posts/compose-steps";
 import { PREVIEW, threadsTopic } from "@/lib/sns/preview";
 import { X_PRICE_USD } from "@/lib/sns/x/pricing";
-import { BY_HAND_MESSAGE, isByHand } from "@/lib/sns/by-hand";
+import { BY_HAND_MESSAGE, BY_HAND_TEXT, isByHand } from "@/lib/sns/by-hand";
 import { X_BY_HAND_MESSAGE, inLaterJstMonth, jstMonth, judgeXSend, xOverMessage, xSendCostUsd } from "@/lib/sns/x/send-rules";
 import type { PostRow, PostTargetRow } from "@/lib/posts/queries";
 
@@ -46,7 +46,9 @@ describe("X の月の上限（送信ジョブの reserve_sns_spend と同じ比�
   it("上限に当たるのは ② で直す問題", () => {
     expect(problemsByStep({ issues: [], xBudget: "X: 上限", noTargets: false, missingConnect: [], reconnect: [], needsTime: false })).toEqual([{ step: 2, text: "X: 上限" }]);
   });
-  it("手で投稿する印の文は、送信の結果の「X に手で投稿する」に案内する", () => {
+  it("手動で投稿するの画面の文は、送信の結果の「X に手動で投稿する」に案内する。DB の印の文は前のまま（前の行を見分けるため）", () => {
+    expect(BY_HAND_TEXT.x).toContain("X に手動で投稿する");
+    expect(X_BY_HAND_MESSAGE).toBe(BY_HAND_MESSAGE.x);
     expect(X_BY_HAND_MESSAGE).toContain("X に手で投稿する");
   });
 });
@@ -94,21 +96,21 @@ describe("AI の案を使っても、共通の本文は残す", () => {
   });
 });
 
-describe("「X は手で投稿する」は失敗に数えない（判定は isByHand の 1 か所）", () => {
+describe("「X は手動で投稿する」は失敗に数えない（判定は isByHand の 1 か所）", () => {
   const t = (over: Partial<PostTargetRow>): PostTargetRow => ({ id: "t", sns: "x", status: "failed", body_override: null, title: null, external_post_id: null, external_url: null, sns_removed_at: null, error_message: X_BY_HAND_MESSAGE, published_at: null, next_attempt_at: null, quote_post_id: null, hashtags: [], ...over });
   const post = (targets: PostTargetRow[]): PostRow => ({ id: "p", body: "本文", planned_at: "2026-11-12T12:00:00Z", status: "scheduled", targets, images: 0, textOrigin: null, formatId: null, roadmapItemId: null });
-  it("X の失敗で、決まった文のときだけ手で投稿", () => {
+  it("X の失敗で、決まった文のときだけ手動で投稿", () => {
     expect(isByHand(t({}))).toBe(true);
     expect(isByHand(t({ error_message: "今月の X の自動投稿の上限（1 人 $1）に達しました。" }))).toBe(false);
     expect(isByHand(t({ sns: "threads" }))).toBe(false);
     expect(isByHand(t({ status: "published" }))).toBe(false);
   });
-  it("TikTok も、TikTok の文のときだけ手で投稿（X の文の TikTok・TikTok の文の X は違う）", () => {
+  it("TikTok も、TikTok の文のときだけ手動で投稿（X の文の TikTok・TikTok の文の X は違う）", () => {
     expect(isByHand(t({ sns: "tiktok", error_message: BY_HAND_MESSAGE.tiktok }))).toBe(true);
     expect(isByHand(t({ sns: "tiktok" }))).toBe(false);
     expect(isByHand(t({ error_message: BY_HAND_MESSAGE.tiktok }))).toBe(false);
   });
-  it("投稿の札（カレンダー・一覧）は、手で投稿の X だけなら「失敗あり」にしない（手で投稿する SNS と同じく、記録するまで予約のまま）。ほかが失敗なら失敗あり", () => {
+  it("投稿の札（カレンダー・一覧）は、手動で投稿の X だけなら「失敗あり」にしない（手動で投稿する SNS と同じく、記録するまで予約のまま）。ほかが失敗なら失敗あり", () => {
     expect(displayStatus(post([t({}), t({ id: "t2", sns: "threads", status: "published", error_message: null, published_at: "2026-11-12T12:00:00Z" })]))).toBe("scheduled");
     expect(displayStatus(post([t({}), t({ id: "t2", sns: "threads", error_message: "送れませんでした" })]))).toBe("failed");
   });

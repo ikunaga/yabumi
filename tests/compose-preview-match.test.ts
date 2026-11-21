@@ -23,7 +23,7 @@ describe("短縮リンクの見え方と字数", () => {
     const shown = shortLinkShownText(text, "threads", { enabled: true, base: BASE });
     expect(checkTarget("threads", shown, { images: 0, videos: 0 }).length).toBe(checkTarget("threads", text, { images: 0, videos: 0 }).length - LONG.length + `${BASE}/${PLACEHOLDER_CODE}`.length);
   });
-  it("短縮リンクを使わない・Instagram・手で投稿する SNS は、そのまま", () => {
+  it("短縮リンクを使わない・Instagram・手動で投稿する SNS は、そのまま", () => {
     expect(shortLinkShownText(text, "threads", { enabled: false, base: BASE })).toBe(text);
     expect(shortLinkShownText(text, "instagram", { enabled: true, base: BASE })).toBe(text);
     expect(shortLinkShownText(text, "note", { enabled: true, base: BASE })).toBe(text);

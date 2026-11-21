@@ -336,8 +336,8 @@ async function publishOne(admin: Admin, t: ClaimedTarget, deps: PublisherDeps): 
       if ("over" in reserved) {
         return fail(
           reserved.over === "user"
-            ? `今月の ${label} の自動投稿の上限（1 人 $${userBudget}）に達しました。来月まで自動では送りません。送信の結果から、手で投稿して記録できます。`
-            : `今月の ${label} の上限（yabumi 全体で $${budget}）に達しました。来月まで自動では送りません。送信の結果から、手で投稿して記録できます。`,
+            ? `今月の ${label} の自動投稿の上限（1 人 $${userBudget}）に達しました。来月まで自動では送りません。送信の結果から、手動で投稿して記録できます。`
+            : `今月の ${label} の上限（yabumi 全体で $${budget}）に達しました。来月まで自動では送りません。送信の結果から、手動で投稿して記録できます。`,
         );
       }
       usageId = reserved.usageId;

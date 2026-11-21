@@ -101,7 +101,7 @@ export function IphoneSteps({ withPush = false }: { withPush?: boolean }) {
       <li>「ホーム画面に追加」を選び、右上の「追加」を押します。見つからないときは、出てきた一覧の下のほうを見ます。</li>
       <li>スマホのホーム画面にできた yabumi のアイコンから開きます。</li>
       <li>同じメールアドレスで、もう一度ログインします。Safari でのログインは、引き継がれません。</li>
-      {withPush && <li>「お知らせの設定」の画面を開きます。「この端末で通知を受け取る」を押し、「許可」を選びます。</li>}
+      {withPush && <li>「≡ メニュー」→「ログインと退会」→「お知らせの設定」を開きます。「この端末で通知を受け取る」を押し、「許可」を選びます。</li>}
     </ol>
   );
 }
@@ -125,7 +125,7 @@ export function AndroidSteps() {
 export function PcSteps() {
   return (
     <ol className="mt-1 flex list-decimal flex-col gap-1 pl-5">
-      <li>Chrome か Edge で yabumi を開きます。アドレス欄の右端にある、小さな画面の形の印を押します。</li>
+      <li>Chrome か Edge で yabumi を開きます。アドレスバーの右端にある、インストールの印を押します。</li>
       <li>「インストール」を押すと、yabumi が別のウィンドウで開けるようになります。</li>
     </ol>
   );
@@ -160,7 +160,7 @@ export function AddToHomeBand({ pushReady }: { pushReady: boolean }) {
     <aside aria-label="スマホのホーム画面に追加する" className="flex items-center gap-x-3 gap-y-1 rounded-md border border-line bg-surface px-4 py-2 text-sm max-sm:flex-wrap max-sm:px-3">
       <p className="min-w-0 flex-1 leading-[1.7] max-sm:basis-full">
         スマホのホーム画面に yabumi を置くと、アプリのように開けます。
-        {pushReady && env.platform === "ios" && !env.iosTooOld && "追加すると、yabumi からのお知らせが iPhone に届きます。"}
+        {pushReady && env.platform === "ios" && !env.iosTooOld && "追加して設定すると、iPhone に yabumi の通知が届きます。"}
       </p>
       {install.canPrompt && env.platform !== "ios" ? (
         <Button type="button" size="sm" onClick={() => void install.prompt().then((ok) => ok && close())}>

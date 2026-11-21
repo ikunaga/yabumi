@@ -120,7 +120,8 @@ export function PushSettings() {
       if (!status?.publicKey) return;
       const result = await Notification.requestPermission();
       if (result !== "granted") {
-        setError("通知が許可されませんでした。下の「通知を許可していないとき」の手順で許可してから、もう一度押してください。");
+        // 「許可しない」を選んだときは、下に許可の手順が出る。質問を閉じただけのときは、もう一度押せば聞かれる
+        setError(result === "denied" ? "通知が許可されませんでした。下の「通知を許可していないとき」の手順で許可してください。" : "通知が許可されませんでした。もう一度押して、「許可」を選んでください。");
         return;
       }
       const reg = await registration();
@@ -175,7 +176,7 @@ export function PushSettings() {
 
   return (
     <div className="flex flex-col gap-4 text-[14px] leading-[1.7]">
-      <p className="text-muted">伴走の声かけ（投稿のペースが遅れそうなとき、毎週の振り返り）を、この端末に通知で届けます。通知は端末ごとに登録します。</p>
+      <p className="text-muted">投稿のペースが遅れそうなときと、毎週の振り返りを、通知で知らせます。受け取りたい端末ごとに、この画面で設定します。</p>
 
       {error && <ErrorBanner>{error}</ErrorBanner>}
       {notice && <SuccessBanner>{notice}</SuccessBanner>}
@@ -196,7 +197,7 @@ export function PushSettings() {
         ) : current ? (
           <div className="flex flex-col gap-3 rounded-md border border-line p-4">
             <p>
-              <span className="font-bold">この端末（{current.label}）で受け取っています。</span>
+              <span className="font-bold">この端末で受け取っています。{current.label} です。</span>
               <span className="text-muted">
                 {dateFormat.format(new Date(current.createdAt))} に登録
                 {current.lastSuccessAt && `。最後に届けたのは ${dateFormat.format(new Date(current.lastSuccessAt))}`}
@@ -216,7 +217,7 @@ export function PushSettings() {
             <Button type="button" disabled={busy} onClick={subscribe}>
               {busy ? "登録しています…" : "この端末で通知を受け取る"}
             </Button>
-            <p className="text-xs text-muted">押すと、ブラウザが「通知を許可しますか」と聞きます。「許可」を選んでください。</p>
+            <p className="text-xs text-muted">押すと、通知を許可するか聞かれます。「許可」を選んでください。</p>
           </div>
         ))}
 
@@ -243,16 +244,19 @@ export function PushSettings() {
 
       <DisclosureBox label="スマホのホーム画面に追加する手順を表示">
         <div className="flex flex-col gap-4">
-          <div>
-            <p className="font-bold">iPhone・iPad</p>
-            <p>iOS 16.4 以降で、通知を受け取れます。</p>
-            <IphoneSteps withPush />
-          </div>
+          {/* iPhone の Safari で開いているときは、上のカードに同じ手順が出ているので、ここには出さない（確認役の指摘） */}
+          {env.kind !== "ios-browser" && (
+            <div>
+              <p className="font-bold">iPhone・iPad</p>
+              <p>iOS 16.4 以降で、通知を受け取れます。</p>
+              <IphoneSteps withPush />
+            </div>
+          )}
           <div>
             <p className="font-bold">Android</p>
             <p>Chrome なら、スマホのホーム画面に追加しなくても通知を受け取れます。アプリのように開きたいときは、次の手順で追加します。</p>
             <AndroidSteps />
-            <p className="mt-1">追加したら、この画面で「この端末で通知を受け取る」を押します。</p>
+            <p className="mt-1">追加してもしなくても、この画面で「この端末で通知を受け取る」を押します。</p>
           </div>
         </div>
       </DisclosureBox>
@@ -261,9 +265,9 @@ export function PushSettings() {
         <ul className="flex list-disc flex-col gap-1 pl-5">
           <li>「おやすみモード」や「集中モード」がオンだと、通知が出ないことがあります</li>
           <li>iPhone・iPad では、スマホのホーム画面の yabumi から登録します。Safari で開いた画面からは登録できません</li>
-          <li>端末の設定で、yabumi （またはブラウザ）の通知が許可されているか確認してください</li>
+          <li>iPhone は「設定」→「通知」→「yabumi」で確認できます。Android とパソコンは、ブラウザの通知の設定を見てください</li>
           <li>ブラウザのデータを消すと、登録も消えます。もう一度「この端末で通知を受け取る」を押してください</li>
-          <li>ログアウトすると、その端末には届かなくなります（同じ端末をほかの人が使っても、あなたへの通知が出ないように）</li>
+          <li>ログアウトすると、その端末には届かなくなります。ほかの人に、あなたへの通知が見えないようにするためです。ログインし直したら、「この端末で通知を受け取る」をもう一度押してください</li>
         </ul>
       </DisclosureBox>
     </div>
@@ -275,10 +279,10 @@ function DeniedHelp({ ios, android }: { ios: boolean; android: boolean }) {
   return (
     <div className="rounded-md border border-line bg-surface2 p-4">
       <p className="font-bold">通知を許可していないとき</p>
-      <p>前に「許可しない」を選んだため、ブラウザが聞いてこない状態です。次の手順で許可してから、この画面を開き直してください。</p>
+      <p>前に「許可しない」を選んだので、もう聞かれません。次の手順で許可してください。そのあと yabumi を閉じて、もう一度開きます。</p>
       <ul className="mt-1 list-disc pl-5">
         {ios && <li>iPhone・iPad: 「設定」アプリ →「通知」→「yabumi」→「通知を許可」をオン</li>}
-        {android && <li>Android の Chrome: アドレスバーの左のアイコン →「権限」（または「サイトの設定」）→「通知」→「許可」</li>}
+        {android && <li>Android: Chrome のアドレスバーの左のアイコンを押します。「権限」か「サイトの設定」→「通知」→「許可」と進みます</li>}
         {pc && <li>パソコン: アドレスバーの左のアイコン →「通知」→「許可」</li>}
       </ul>
     </div>

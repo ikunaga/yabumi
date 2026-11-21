@@ -228,3 +228,86 @@ describe("数字で数えないやることは、ここから作った投稿を�
     expect(r.calendarOpen).toEqual([]);
   });
 });
+
+// 前の週から残っている、まだのやること（this_week_carried・carriedTodos）と、今の目標で絞ること（2026-11-21 オーナーの指摘
+// 「ロードマップでは先週のやることがまだ残っているのに、ホームでは『今週のやることは、すべて完了しました』」）。DB とアプリで同じに数える
+describe("前の週の残りと、今の目標で絞る", () => {
+  const PREV = "2026-10-12";
+  let pid: string;
+  let currentGoal: string;
+  const startGoal = async () => {
+    const { data, error } = await alice.rpc("start_goal", {
+      p_project_id: pid,
+      p_goal: { statement: "3 か月で予約 30 件", metric: "outcomes", action: "booking", target: 30, weeks: 12 } as never,
+      p_milestones: [6, 10, 14] as never,
+      p_kpis: null as never,
+      p_actions: null as never,
+      p_source: "manual",
+    });
+    if (error) throw error;
+    return data as string;
+  };
+
+  async function compareAll() {
+    const view = await loadRoadmapWith(alice, pid, NOW);
+    const { data, error } = await alice.rpc("project_step_flags", { p_project_id: pid, p_week_start: view.thisWeek });
+    if (error) throw error;
+    const app = weekTodoCounts(view, currentGoal);
+    const db = { open: Number(data[0].this_week_todo), finished: Number(data[0].this_week_done), carried: Number(data[0].this_week_carried) };
+    return { db, app, label: listNextStep({ planDone: true, connectedSnsCount: 1, hasPublished: true, hasRoadmap: true, thisWeek: db }).label };
+  }
+
+  beforeAll(async () => {
+    pid = (await alice.from("projects").insert({ name: "前の週の残り" }).select("id").single()).data!.id;
+    const insert = async (rows: { title: string; week_start: string; status: string; goal_id: string | null }[], from: number) => {
+      const { error } = await admin.from("roadmap_items").insert(rows.map((r, i) => ({ ...r, project_id: pid, owner_id: aliceId, kind: "setup", position: from + i })) as never);
+      if (error) throw new Error(`${rows.map((r) => r.title).join(",")}: ${error.message}`);
+    };
+    // 前の目標のやること（目標が生きている間につくったもの）。そのあと目標を見直して終え、今の目標を始める
+    const oldGoal = await startGoal();
+    await insert(
+      [
+        { title: "今週・前の目標", week_start: WEEK, status: "todo", goal_id: oldGoal },
+        { title: "前の週・前の目標", week_start: PREV, status: "todo", goal_id: oldGoal },
+      ],
+      100,
+    );
+    const closed = await admin.from("goals").update({ status: "replaced", closed_at: new Date().toISOString() }).eq("id", oldGoal);
+    if (closed.error) throw new Error(`goal: ${closed.error.message}`);
+    currentGoal = await startGoal();
+    await insert(
+      [
+        // 今週: 今の目標のまだ 2（goal_id なしで足したものも、今の目標に入る）・済み 1
+        { title: "今週・今の目標", week_start: WEEK, status: "todo", goal_id: currentGoal },
+        { title: "今週・済み", week_start: WEEK, status: "done", goal_id: currentGoal },
+        { title: "今週・目標を付けずに足した", week_start: WEEK, status: "todo", goal_id: null },
+        // 前の週: まだ 1（数える）・済み 1・やらない 1
+        { title: "前の週・まだ", week_start: PREV, status: "todo", goal_id: currentGoal },
+        { title: "前の週・済み", week_start: PREV, status: "done", goal_id: currentGoal },
+        { title: "前の週・やらない", week_start: PREV, status: "skipped", goal_id: currentGoal },
+      ],
+      0,
+    );
+  });
+
+  it("前の週のまだのやることを数え、前の目標のやることは数えない（DB とアプリで同じ）", async () => {
+    const r = await compareAll();
+    expect(r.app).toEqual({ open: 2, finished: 1, carried: 1 });
+    expect(r.db).toEqual(r.app);
+    expect(r.label).toBe("やること あと 3 件・前の週から 1 件");
+  });
+
+  it("今週分が済んでも、前の週の残りがあれば「すべて完了」と出さない", async () => {
+    await admin.from("roadmap_items").update({ status: "done" }).eq("project_id", pid).eq("week_start", WEEK).is("goal_id", null);
+    await admin.from("roadmap_items").update({ status: "done" }).eq("project_id", pid).eq("week_start", WEEK).eq("goal_id", currentGoal);
+    const r = await compareAll();
+    expect(r.app).toEqual({ open: 0, finished: 3, carried: 1 });
+    expect(r.db).toEqual(r.app);
+    expect(r.label).toBe("前の週のやること あと 1 件");
+    // 前の週の残りも済めば、すべて完了
+    await admin.from("roadmap_items").update({ status: "done" }).eq("project_id", pid).eq("title", "前の週・まだ");
+    const done = await compareAll();
+    expect(done.db).toEqual({ open: 0, finished: 3, carried: 0 });
+    expect(done.label).toBe("✓ 今週のやることは、すべて完了しました");
+  });
+});

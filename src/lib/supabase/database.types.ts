@@ -3070,7 +3070,12 @@ export type Database = {
         }[]
       }
       ai_budget_status_of: {
-        Args: { p_as_of?: string; p_owner_id: string; p_purpose?: string }
+        Args: {
+          p_as_of?: string
+          p_owner_id: string
+          p_purpose?: string
+          p_scope_owner?: string
+        }
         Returns: {
           available_from: string
           low: boolean

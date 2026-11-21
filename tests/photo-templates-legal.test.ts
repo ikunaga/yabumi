@@ -39,6 +39,6 @@ describe("2026-11-09 の版", () => {
     expect(privacy).not.toContain("絵の説明のフォーマット");
     expect(privacy).toContain("画像をつくるときの絵の説明は保存しません");
     expect(privacy).toContain("「前に使った絵の説明」として本人にだけ出します");
-    expect(read("supabase/migrations/20261121140000_drop_photo_prompt_templates.sql")).toContain("drop table public.photo_prompt_templates;");
+    expect(read("supabase/migrations/20261121170000_drop_photo_prompt_templates.sql")).toContain("drop table public.photo_prompt_templates;");
   });
 });

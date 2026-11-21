@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { Input, Textarea } from "@/components/ui/field";
 import { draftImageText } from "@/lib/ai/image-brief-actions";
-import { photoModel, photoUnitYen } from "@/lib/ai/photo";
+import { AI_ALT_PREFIX, photoModel, photoUnitYen } from "@/lib/ai/photo";
 import type { ImageBrief } from "@/lib/ai/image-brief";
 import { MAX_ALT_LENGTH } from "@/lib/media/rules";
 import { bitmapToJpeg } from "@/lib/media/client-upload";
@@ -275,7 +275,7 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
     setAdding(true);
     setError(null);
     try {
-      await addAsIs(shot.bitmap, shot.aiJobId, `AI で作った画像。${shot.scene ?? ""}`.slice(0, MAX_ALT_LENGTH));
+      await addAsIs(shot.bitmap, shot.aiJobId, `${AI_ALT_PREFIX}${shot.scene ?? ""}`.slice(0, MAX_ALT_LENGTH));
     } catch {
       setError("画像を添えられませんでした。もう一度お試しください。");
     } finally {

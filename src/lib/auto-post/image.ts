@@ -102,7 +102,7 @@ export async function makeAutoImage(
   } else {
     const text = args.sns.map((s) => args.texts[s]).find((t) => t?.trim());
     if (!text) return { ok: false, detail: "画像の場面を書く本文がありません" };
-    scene = await writeScene(admin, deps, args.plan.ownerId, buildPhotoIdeasRequest(ctx, text, null));
+    scene = await writeScene(admin, deps, args.plan.ownerId, buildPhotoIdeasRequest(ctx, text));
   }
   if (!scene) return { ok: false, detail: "画像の場面を書けませんでした" };
   const sizeKey: TemplateSizeKey = size === "auto" ? defaultSizeFor(args.sns).size : size;

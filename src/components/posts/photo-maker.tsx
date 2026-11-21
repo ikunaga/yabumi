@@ -3,19 +3,17 @@
 import type { SnsKey } from "@/lib/sns";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { AiThinking } from "@/components/ui/ai-thinking";
+import { DisclosureBox } from "@/components/ui/disclosure";
 import { Button, NotReadyButton } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/feedback";
-import { Input, Textarea } from "@/components/ui/field";
-import { acknowledgePhoto, draftFormatPhotoScene, draftPhotoIdeas, generatePhotos, photoPanelState, refreshPhotoCandidates, type PhotoPanelState } from "@/lib/ai/photo-actions";
-import { MAX_PHOTOS_PER_RUN, MAX_SCENE_CHARS, PHOTO_LIMITS, PHOTO_STYLES, PHOTO_STYLE_LABEL, SCENE_YEN, type PhotoIdea, type PhotoStyle } from "@/lib/ai/photo";
+import { Textarea } from "@/components/ui/field";
+import { acknowledgePhoto, draftFormatPhotoScene, draftPhotoIdeas, generatePhotos, listRecentScenes, photoPanelState, refreshPhotoCandidates, type PhotoPanelState } from "@/lib/ai/photo-actions";
+import { AI_ALT_PREFIX, MAX_PHOTOS_PER_RUN, MAX_SCENE_CHARS, PHOTO_LIMITS, PHOTO_STYLES, PHOTO_STYLE_LABEL, SCENE_YEN, type PhotoIdea, type PhotoStyle } from "@/lib/ai/photo";
 import type { PhotoCandidate } from "@/lib/ai/photo-gen";
 import { MAX_ALT_LENGTH, PREVIEW_URL_SECONDS } from "@/lib/media/rules";
 import { TEMPLATE_SIZES, type TemplateSizeKey } from "@/lib/media/templates";
 import { AiBadge } from "./ai-badge";
 import { Choice, Group } from "./maker-parts";
-import { PhotoTemplatePicker, SaveAsTemplate } from "./photo-templates";
-import { listPhotoTemplates, type TemplatesResult } from "@/lib/photo-templates/actions";
-import { SCENE_SLOT, fillTemplate, hasSceneSlot, type PhotoTemplate } from "@/lib/photo-templates/schema";
 import type { FormatPhotoPreset } from "@/lib/post-formats/image";
 
 export type PickedPhoto = { jobId: string; bitmap: ImageBitmap; scene: string };
@@ -79,10 +77,9 @@ export function PhotoMaker({
   const [drafting, startDraft] = useTransition();
   const [making, startMake] = useTransition();
   const [acking, startAck] = useTransition();
-  // 絵の説明のフォーマット（「いつも使う」をはじめから選ぶ）。lastIdea: 最後に選んだ AI の案の場面（フォーマットを替えたときに差し込み直す）
-  const [templates, setTemplates] = useState<PhotoTemplate[]>([]);
-  const [templateId, setTemplateId] = useState<string | null>(null);
+  // lastIdea: 最後に選んだ AI の案の場面（選んだ案に印を付ける）。recent: 前に使った絵の説明（新しい順。絵の説明のフォーマットの代わり。2026-11-21 オーナーの決定）
   const [lastIdea, setLastIdea] = useState("");
+  const [recent, setRecent] = useState<string[]>([]);
   // フォーマットの画像: 入れ直した seq と、まだつくっていない auto の seq（注意を読む前に押されたら、読んだあとにつくる）
   const [presetSeq, setPresetSeq] = useState<number | null>(null);
   const pendingAuto = useRef<number | null>(null);
@@ -92,7 +89,6 @@ export function PhotoMaker({
     setCount(1);
     setIdeas([]);
     setLastIdea("");
-    setTemplateId(null);
     setScene(preset.text);
     if (preset.auto) pendingAuto.current = preset.seq;
   }
@@ -109,44 +105,17 @@ export function PhotoMaker({
       if (r.state) setState(r.state);
       else setError(r.error ?? "読み込めませんでした。");
     });
-    void listPhotoTemplates(projectId).then((r) => {
-      if (!alive || !r.templates) return;
-      setTemplates(r.templates);
-      // 「いつも使う」をはじめから選び、まだ何も書いていなければ、その本文を絵の説明に入れる（{場面} は穴のまま）
-      // 投稿のフォーマットの画像で開いたときは、絵の説明のフォーマットを選ばない（絵の説明はフォーマットの画像の設定から入れる）
-      const d = presetRef.current ? null : (r.templates.find((t) => t.isDefault) ?? null);
-      setTemplateId(d?.id ?? null);
-      if (d) setScene((cur) => (cur.trim() ? cur : d.body));
+    void listRecentScenes(projectId).then((r) => {
+      if (alive && r.scenes) setRecent(r.scenes);
     });
     return () => {
       alive = false;
     };
   }, [projectId]);
 
-  const template = templates.find((t) => t.id === templateId) ?? null;
-
-  // 操作のあとの一覧に入れ替える（選んでいたものが消えたら「なし」に）
-  function onTemplates(r: TemplatesResult) {
-    if (r.error) {
-      setError(r.error);
-      return;
-    }
-    setError(null);
-    setTemplates(r.templates ?? []);
-    if (templateId && !r.templates?.some((t) => t.id === templateId)) setTemplateId(null);
-  }
-
-  // フォーマットを選ぶと、その本文を絵の説明に入れる（{場面} には、最後に選んだ AI の案の場面を差し込む）
-  function selectTemplate(t: PhotoTemplate | null) {
-    setTemplateId(t?.id ?? null);
-    // 案をまだ選んでいなければ、{場面} は穴のまま入れる（書き換えるまで作れない）
-    if (t) setScene(lastIdea || !hasSceneSlot(t.body) ? fillTemplate(t.body, lastIdea) : t.body);
-    else if (lastIdea) setScene(lastIdea);
-  }
-
   function pickIdea(ideaScene: string) {
     setLastIdea(ideaScene);
-    setScene(template ? fillTemplate(template.body, ideaScene) : ideaScene);
+    setScene(ideaScene);
   }
 
   // 候補に戻ってきたとき、表示の URL が切れかけていれば作り直す
@@ -239,13 +208,11 @@ export function PhotoMaker({
   const n = Math.min(count, Math.max(1, state.remainingImages));
   const pickedItems = candidates?.items.filter((c) => picked.includes(c.path)) ?? [];
   const remainingCandidates = candidates?.items.filter((c) => !usedPaths.includes(c.path)) ?? [];
-  // {場面} のあるフォーマットを選んでいれば、場面だけを書き換える欄を出す（2 枚目から、同じ雰囲気で場面だけ変える）
-  const slotTemplate = template && hasSceneSlot(template.body) ? template : null;
 
   function draft() {
     startDraft(async () => {
       setError(null);
-      const r = await draftPhotoIdeas(projectId, text, targets, templateId);
+      const r = await draftPhotoIdeas(projectId, text, targets);
       if (!r.ideas) {
         setError(r.error ?? "うまくいきませんでした。");
         return;
@@ -295,7 +262,7 @@ export function PhotoMaker({
           onUseInTemplate(photo);
           return;
         }
-        if (!(await onUseAsIs(photo, `AI で作った画像。${candidates.scene}`.slice(0, MAX_ALT_LENGTH)))) break;
+        if (!(await onUseAsIs(photo, `${AI_ALT_PREFIX}${candidates.scene}`.slice(0, MAX_ALT_LENGTH)))) break;
         setUsedPaths((u) => [...u, path]);
         setPicked((p) => p.filter((x) => x !== path));
       }
@@ -310,8 +277,6 @@ export function PhotoMaker({
     setPicked((p) => (p.includes(path) ? p.filter((x) => x !== path) : [...p, path]));
   }
 
-  // {場面} を書き換えないまま作らない（画像の AI に穴のまま送らない）
-  const slotLeft = hasSceneSlot(scene);
 
   return (
     <div className="flex flex-col gap-4">
@@ -321,7 +286,6 @@ export function PhotoMaker({
           <span className="ml-1.5 text-muted">{preset.scene === "ai" ? `AI が絵の説明を書いてからつくります。その分、約 ${SCENE_YEN.one[0]}〜${SCENE_YEN.one[1]} 円多くかかります。` : "フォーマットで決めた絵の説明でつくります。空欄には「1 書く」の言葉が入ります。"}</span>
         </p>
       )}
-      <PhotoTemplatePicker projectId={projectId} templates={templates} selectedId={templateId} onSelect={selectTemplate} />
 
       {error && <ErrorBanner>{error}</ErrorBanner>}
 
@@ -341,7 +305,7 @@ export function PhotoMaker({
             </NotReadyButton>
           )}
           <span className="text-xs text-muted">
-            {hasText ? `本文とアカウントの方針${template ? "・フォーマット" : ""}から、2〜3 案を出します。1 回 ${SCENE_YEN.ideas[0]}〜${SCENE_YEN.ideas[1]} 円ほどです。` : "本文を書くと、AI が絵の説明を考えます。自分で書いてもつくれます。"}
+            {hasText ? `本文とアカウントの方針から、2〜3 案を出します。1 回 ${SCENE_YEN.ideas[0]}〜${SCENE_YEN.ideas[1]} 円ほどです。` : "本文を書くと、AI が絵の説明を考えます。自分で書いてもつくれます。"}
           </span>
         </div>
         {drafting && <AiThinking kind="scene" note="10〜20 秒ほどかかります" />}
@@ -363,28 +327,9 @@ export function PhotoMaker({
           </ul>
         )}
         <Textarea id={sceneId} value={scene} rows={4} maxLength={MAX_SCENE_CHARS} onChange={(e) => setScene(e.target.value)} placeholder="例: 朝の光が入る木のカウンターに、焼きたてのパンが並んでいる。近くから少し斜めに" className="py-2 text-sm" />
-        <span className={`text-xs ${slotLeft ? "font-bold text-signal" : "text-muted"}`}>
-          {slotLeft ? `${SCENE_SLOT} を、写したいものに書き換えてください。例: 焼きたてのパンが並んだカウンター` : "何が、どこで、どんな光と雰囲気かを書きます。画像に文字は入りません。文字は、あとで入れられます。"}
-        </span>
+        <span className="text-xs text-muted">何が、どこで、どんな光と雰囲気かを書きます。画像に文字は入りません。文字は、あとで入れられます。</span>
+        {!preset && recent.length > 0 && <RecentScenes scenes={recent} onPick={(s) => setScene([...s].slice(0, MAX_SCENE_CHARS).join(""))} />}
       </div>
-      {slotTemplate && (
-        <label className="flex flex-col gap-1.5">
-          <span className="text-[14px] font-bold">
-            絵の説明だけ変える<span className="ml-1.5 text-xs font-normal text-muted">ここに書いた言葉が、フォーマット「{slotTemplate.name}」の {SCENE_SLOT} に入ります</span>
-          </span>
-          <Input
-            value={lastIdea}
-            maxLength={MAX_SCENE_CHARS}
-            onChange={(e) => {
-              setLastIdea(e.target.value);
-              setScene(fillTemplate(slotTemplate.body, e.target.value) || slotTemplate.body);
-            }}
-            placeholder="例: 紙袋からのぞくカンパーニュ"
-            className="py-2 text-sm"
-          />
-        </label>
-      )}
-      <SaveAsTemplate projectId={projectId} body={scene} disabled={!scene.trim()} onSaved={onTemplates} />
 
       <Group label="描き方">
         {PHOTO_STYLES.map((s) => (
@@ -410,7 +355,7 @@ export function PhotoMaker({
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         {state.enabled ? (
-          <Button type="button" disabled={!canMake || making || !scene.trim() || slotLeft} onClick={make}>
+          <Button type="button" disabled={!canMake || making || !scene.trim()} onClick={make}>
             {making ? "つくっています…" : `${n} 枚つくる・約 ${n * state.unitYen} 円`}
           </Button>
         ) : (
@@ -486,5 +431,27 @@ export function PhotoMaker({
         </div>
       )}
     </div>
+  );
+}
+
+// 前に使った絵の説明から選ぶ（このプロジェクトの投稿に添えた AI の画像の説明。新しい順に 5 件）。押すと、絵の説明の欄に入れる。
+// 絵の説明のフォーマット（photo_prompt_templates）の代わり（2026-11-21 オーナーの決定「機能やメニューが増えすぎて、使いこなせない」）
+function RecentScenes({ scenes, onPick }: { scenes: string[]; onPick: (scene: string) => void }) {
+  return (
+    <DisclosureBox label="前に使った絵の説明から選ぶ" count={scenes.length} size="sm" bodyClassName="mt-2">
+      <ul className="flex flex-col gap-2">
+        {scenes.map((s) => (
+          <li key={s}>
+            <button
+              type="button"
+              onClick={() => onPick(s)}
+              className="w-full rounded-md border border-border bg-surface px-3 py-2 text-left text-sm leading-[1.7] hover:border-primary"
+            >
+              {s}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </DisclosureBox>
   );
 }

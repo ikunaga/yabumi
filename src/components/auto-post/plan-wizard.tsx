@@ -63,6 +63,8 @@ type Props = {
   plan: AutoPlan | null; // 直すときだけ
   // 編集のとき: もう作った、これから送る投稿（これらは前の設定のまま送る。保存のポップアップで知らせる）
   made?: { dueAt: string; postId: string }[];
+  // もう回の行がある日時（作った・飛ばした・止めた回など。新しい設定でも作り直さない）
+  takenDueAts?: string[];
   materials: WizardMaterials;
   kindSuggestion: KindSuggestion;
   connected: SnsKey[];
@@ -161,7 +163,7 @@ export function PlanWizard(p: Props) {
   const [confirmSave, setConfirmSave] = useState(false);
   const [firstNew, setFirstNew] = useState<Date | null>(null);
   const openSaveNotice = () => {
-    setFirstNew(schedule ? firstNewDueTime(schedule, (p.made ?? []).map((m) => m.dueAt)) : null);
+    setFirstNew(schedule ? firstNewDueTime(schedule, p.takenDueAts ?? (p.made ?? []).map((m) => m.dueAt)) : null);
     setConfirmSave(true);
   };
   const [sample, setSample] = useState<AutoSample | null>(null);
@@ -580,6 +582,7 @@ function SaveNotice({
       title={made.length ? `${which} の投稿は、変える前の設定で送ります` : "次の投稿から、新しい設定でつくります"}
       confirmLabel="保存する"
       cancelLabel="編集に戻る"
+      tone="primary"
       onClose={onClose}
       onConfirm={onSave}
     >

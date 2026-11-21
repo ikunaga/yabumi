@@ -12,6 +12,7 @@ export function ConfirmDialog({
   children,
   confirmLabel,
   cancelLabel = "やめる",
+  tone = "danger",
   onConfirm,
   onClose,
 }: {
@@ -20,6 +21,8 @@ export function ConfirmDialog({
   children?: ReactNode;
   confirmLabel: string;
   cancelLabel?: string;
+  // danger: 取り返しのつかない操作（既定）。primary: 保存など、ふつうの操作の前に知らせるとき
+  tone?: "danger" | "primary";
   onConfirm: () => void;
   onClose: () => void;
 }) {
@@ -60,7 +63,7 @@ export function ConfirmDialog({
           <Button type="button" variant="secondary" autoFocus onClick={() => ref.current?.close()}>
             {cancelLabel}
           </Button>
-          <Button type="button" variant="danger" onClick={onConfirm}>
+          <Button type="button" variant={tone === "primary" ? "primary" : "danger"} onClick={onConfirm}>
             {confirmLabel}
           </Button>
         </div>

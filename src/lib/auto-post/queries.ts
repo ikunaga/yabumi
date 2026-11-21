@@ -43,18 +43,22 @@ export async function getAutoPlan(planId: string): Promise<AutoPlan | null> {
 
 // もう作った、これから送る回（予約済み・1 回目の確認待ち）。編集しても、これらは前の設定のまま送る（save_auto_plan は作っていない回だけ作り直す）。
 // 編集の保存のポップアップと、保存したあとの知らせで、いつの投稿から変わるかを出す（2026-11-21 オーナーの質問）
+// taken: これから送る日時のうち、もう回の行がある（作り直さない）もの。作った回のほか、飛ばした・止めた・下書きに回した回も含む。
+// 新しい設定で作る最初の日時は、これらを飛ばして数える（addUpcomingRuns は同じ日時の行を作り直さない）
 export type MadeAutoPost = { dueAt: string; postId: string };
-export async function listMadeAutoPosts(planId: string, now: Date = new Date()): Promise<MadeAutoPost[]> {
+export async function listMadeAutoPosts(planId: string, now: Date = new Date()): Promise<{ made: MadeAutoPost[]; taken: string[] }> {
   const { data, error } = await (await db())
     .from("auto_runs")
-    .select("due_at, post_id")
+    .select("due_at, post_id, status")
     .eq("plan_id", planId)
-    .in("status", ["scheduled", "review"])
-    .not("post_id", "is", null)
+    .neq("status", "waiting")
     .gt("due_at", now.toISOString())
     .order("due_at");
   if (error) throw new Error(`auto_runs: ${error.message}`);
-  return data.map((r) => ({ dueAt: r.due_at, postId: r.post_id! }));
+  return {
+    made: data.filter((r) => (r.status === "scheduled" || r.status === "review") && r.post_id).map((r) => ({ dueAt: r.due_at, postId: r.post_id! })),
+    taken: data.map((r) => r.due_at),
+  };
 }
 
 // 回し方の回（新しい順。結果を見る画面）

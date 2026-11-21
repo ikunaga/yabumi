@@ -32,7 +32,7 @@ export async function wizardProps(projectId: string, plan: AutoPlan | null): Pro
     // AI の画像の注意を読んだか（本人の行だけ。RLS）
     db.from("ai_image_notices").select("owner_id").maybeSingle(),
     // 編集のとき: もう作った、これから送る投稿（保存のポップアップで、いつから変わるかを出す）
-    plan ? listMadeAutoPosts(plan.id) : Promise.resolve([]),
+    plan ? listMadeAutoPosts(plan.id) : Promise.resolve({ made: [], taken: [] }),
   ]);
   const roles = account ? (Object.keys(account.plan.cadence.roles) as SnsKey[]).filter((k) => account.plan.cadence.roles[k]?.trim()) : [];
   const pillarNames = account ? account.plan.pillars.items.map((i) => i.name.trim()).filter(Boolean) : [];
@@ -64,6 +64,7 @@ export async function wizardProps(projectId: string, plan: AutoPlan | null): Pro
     winners: winners ? winnersCardText(winners, (s) => SNS[s].label) : null,
     // 自動の回の画像（鍵がないときは選べない。偽の AI の確かめでは選べる）
     photo: { enabled: photoConfigured() || !!fakeAiMode(), acknowledged: !!notice.data },
-    made,
+    made: made.made,
+    takenDueAts: made.taken,
   };
 }

@@ -17,7 +17,7 @@ export function LearningPrefsForm({ enabled }: { enabled: boolean }) {
           <input type="radio" name="learning_enabled" value="on" defaultChecked={enabled} className="mt-1 size-4 accent-[var(--primary)]" />
           <span>
             出す
-            <span className="block text-xs text-muted">概要に「今日の用語」を 1 行、作業のあとに「ひとこと」を 1 日 1 回まで</span>
+            <span className="block text-xs text-muted">「ホーム」に「今日の用語」を 1 行、作業のあとに「ひとこと」を 1 日 1 回まで</span>
           </span>
         </label>
         <label className="flex items-start gap-2 leading-[1.7]">

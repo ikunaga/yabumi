@@ -11,7 +11,7 @@ import { LogoutForm } from "@/components/notes/draft-owner";
 import { activeNavKey, GLOSSARY_NAV, projectNavItems } from "./project-nav-items";
 import { SubmitButton } from "@/components/ui/submit-button";
 
-// スマホのヘッダーの「メニュー」。下のタブに入らない画面（アカウント設計・リンク・ロードマップ）と、アカウント・ログアウトへの入口。
+// スマホのヘッダーの「メニュー」。下のタブに入らない画面（自動投稿・下書き・ネタ帳など。タブの 5 つは出さない）と、アカウント・ログアウトへの入口。
 // プロジェクトの切り替えとは役目が違うので分ける（切り替えはプロジェクト名、ここは画面の一覧）。
 // ライト・ダークの切り替えもここに入れる（320px の幅で、ロゴ・プロジェクト名・メニューを 1 行に収めるため）
 export function ProjectMobileMenu({
@@ -30,7 +30,8 @@ export function ProjectMobileMenu({
   const active = glossary ? "glossary" : activeNavKey(segment);
   const pathname = usePathname();
   const ref = useRef<HTMLDivElement>(null);
-  const items = projectNavItems(projectId);
+  // 下のタブにある 5 つ（main）は出さない（2026-11-21 オーナーの指摘「下のタブに出ているメニューは、ここに出さなくていい」）
+  const items = projectNavItems(projectId).filter((i) => !i.main);
 
   // 画面を移ったら閉じる（ヘッダーは画面をまたいで残るため）
   useEffect(() => {

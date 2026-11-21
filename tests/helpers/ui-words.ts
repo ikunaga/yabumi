@@ -70,6 +70,10 @@ export const UI_WORD_RULES: UiWordRule[] = [
   { id: "kiroku", pattern: /記録できます/ },
   { id: "natsujikan", pattern: /夏時間/ },
   { id: "vercel", pattern: /Vercel/ },
+  // 端末のメニューの名前を写す「ホーム画面に追加」（かぎかっこ）と「スマホのホーム画面」は使ってよい
+  { id: "homegamen", pattern: /(?<!スマホの|「)ホーム画面/ },
+  // 窓口・窓辺・窓際は使ってよい
+  { id: "mado", pattern: /窓(?![口辺際])/ },
 ];
 
 // 表にあるが、見つける形を決められない行（確認役が文の意味から見る）

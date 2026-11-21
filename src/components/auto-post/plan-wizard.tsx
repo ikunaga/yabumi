@@ -275,7 +275,7 @@ export function PlanWizard(p: Props) {
             />
           )}
           {formatCard && planSeries && aiVars(planSeries).length === 0 && planVarsReady(formatCard.series, materials.format_vars as PlanVars | undefined) && (
-            <p className="text-xs font-semibold text-danger">毎回同じ投稿になります。どれか 1 つの変数を「AI に考えてもらう」にしてください。</p>
+            <p className="text-xs font-semibold text-danger">毎回同じ投稿になるので、このままでは送れません。どれか 1 つの変数を「自動投稿では AI に考えてもらう」にしてください。</p>
           )}
 
           <Nav

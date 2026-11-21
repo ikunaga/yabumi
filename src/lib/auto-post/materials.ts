@@ -158,7 +158,7 @@ async function pickSeries(admin: Db, plan: AutoPlan & { ownerId: string }, planD
   // format_var_modes がない回し方は、変数の仕組みより前に保存したもの（決め方のない変数がなければ、そのまま動かす）
   const savedModes = plan.materials.format_var_modes;
   if ((savedModes !== undefined && varModesChanged(savedModes, format.series)) || undecidedPlanVars(format.series, choices).length)
-    return { none: true, reason: "format_changed", detail: "フォーマットの変数が変わりました。自動投稿の設定で、変数の決め方を選び直してください" };
+    return { none: true, reason: "format_changed", detail: "フォーマットの変数が変わりました。「編集」で、変数の決め方を選び直してください" };
   const { series, fixed } = seriesForPlan(format.series, choices);
   if (!isSeries(series)) return { none: true, reason: "cannot_write", detail: "AI が考える変数がないフォーマットは、自動では書けません" };
   const planFormat = { ...format, series };

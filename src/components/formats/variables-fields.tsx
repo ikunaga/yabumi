@@ -47,8 +47,8 @@ export function VariablesFields({ series, texts, setSeries }: { series: FormatSe
       <p className="text-[13px] font-bold">
         <Term k="variable">変数</Term>
       </p>
-      <p className="leading-[1.7] text-muted">本文や絵の説明に {"{名前}"} と書くと、投稿ごとに入れ替わります。どこに書いてあるかは、名前の横に出ます。</p>
-      {vars.length === 0 && <p className="text-muted">まだありません。本文に {"{名前}"} と書くか、下で追加してください。</p>}
+      <p className="leading-[1.7] text-muted">本文や絵の説明に {"{商品}"} のように書くと、そこに投稿ごとの言葉が入ります。書いた場所は、名前の横の札に出ます。</p>
+      {vars.length === 0 && <p className="text-muted">まだありません。本文に {"{商品}"} のように書くか、下で追加してください。</p>}
       {vars.map((v) => {
         const places = varPlaces(v.name, texts);
         return (
@@ -57,7 +57,7 @@ export function VariablesFields({ series, texts, setSeries }: { series: FormatSe
               <span className="text-sm font-bold">{`{${v.name}}`}</span>
               {places.includes("body") && <Badge tone="info">本文</Badge>}
               {places.includes("image") && <Badge tone="success">画像</Badge>}
-              {places.length === 0 && <Badge>どこにも出ない</Badge>}
+              {places.length === 0 && <Badge>投稿に出ない</Badge>}
               {/* 本文や画像に書いてある変数は、そこから {名前} を消すとなくなる（ここで消しても書いてあれば戻る） */}
               {places.length === 0 && (
                 <button type="button" onClick={() => setSeries({ vars: vars.filter((o) => o.name !== v.name) })} className="ml-auto text-muted underline">
@@ -88,14 +88,14 @@ export function VariablesFields({ series, texts, setSeries }: { series: FormatSe
                 </label>
                 <label className="flex items-center gap-2">
                   <input type="checkbox" checked={v.unique} onChange={(e) => update(v.name, { unique: e.target.checked })} className="accent-[var(--primary)]" />
-                  <span>前の投稿と重ならないようにする</span>
+                  <span>前の投稿と同じ言葉にならないようにする</span>
                 </label>
               </>
             ) : (
-              <span className="leading-[1.7] text-muted">投稿をつくるとき、この変数の欄が出ます。自動投稿では、設定で決め方を選びます。</span>
+              <span className="leading-[1.7] text-muted">投稿をつくるとき、この変数を入れる欄が出ます。自動投稿では、「自動投稿」の設定で入れ方を選びます。</span>
             )}
             {places.length === 0 && v.mode === "ai" && (
-              <span className="leading-[1.7] text-muted">投稿には出ません。重ならない目印や、ほかの変数の指示に使います。</span>
+              <span className="leading-[1.7] text-muted">投稿には出ません。前の投稿と同じ言葉を選ばないための目印です。ほかの変数の指示にも使えます。</span>
             )}
           </div>
         );
@@ -128,20 +128,19 @@ export function VariablesFields({ series, texts, setSeries }: { series: FormatSe
         <p className="border-t border-line pt-2 text-muted">
           {order.length > 0 && (
             <>
-              AI が決める順: <b className="text-fg">{order.join(" → ")}</b>
+              AI は、<b className="text-fg">{order.join("、")}</b>の順に考えます。
             </>
           )}
-          {order.length > 0 && hand.length > 0 && "　・　"}
           {hand.length > 0 && (
             <>
-              自分で入れる: <b className="text-fg">{hand.map((v) => v.name).join("・")}</b>
+              自分で入れる変数は、<b className="text-fg">{hand.map((v) => v.name).join("・")}</b>です。
             </>
           )}
         </p>
       )}
       {/* 本文に AI の変数がないシリーズは、本文が毎回同じ（X に自動で送れない。2026-11-20 PM の指示） */}
       {fixedBodySeries(texts.body, series) && (
-        <p className="font-semibold leading-[1.7] text-signal">● 本文に AI が考える変数がないので、本文は毎回同じです。X は同じ文を続けて送れないため、自動投稿では選べません。</p>
+        <p className="font-semibold leading-[1.7] text-signal">● このフォーマットは、本文が毎回同じになります。X は同じ文を続けて送れないので、自動投稿では X を選べません。</p>
       )}
     </section>
   );
@@ -152,7 +151,7 @@ export function VarChips({ series, onInsert }: { series: FormatSeries; onInsert:
   if (!series.vars.length) return null;
   return (
     <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted">
-      押すと、その変数を入れます
+      押すと、その変数を本文に入れます
       {series.vars.map((v) => (
         <button
           key={v.name}

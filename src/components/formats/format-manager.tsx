@@ -16,7 +16,7 @@ import {
   updatePostFormat,
   type FormatsResult,
 } from "@/lib/post-formats/actions";
-import { EMPTY_SERIES, MAX_PASTE_ROUNDS, MAX_ROUNDS, cleanSeries, isSeries, pasteVar, roundTitle, seriesProblem, type FormatRound, type FormatSeries } from "@/lib/post-formats/series";
+import { EMPTY_SERIES, MAX_FORMAT_VARS, MAX_PASTE_ROUNDS, MAX_ROUNDS, cleanSeries, isSeries, pasteVar, roundTitle, seriesProblem, type FormatRound, type FormatSeries } from "@/lib/post-formats/series";
 import { VarChips, VariablesFields, insertAt } from "./variables-fields";
 import {
   MAX_FORMAT_BODY,
@@ -264,7 +264,7 @@ export function FormatManager({
         sub={`毎回くり返し使う投稿のひな形です。いまは ${formats.length} 個です。`}
         help={
           <>
-            毎回くり返し使う投稿のひな形です。「投稿をつくる」の「フォーマットから書く」で選べます。本文に {"{何が}"} のように書いたところが変数になり、投稿ごとに言葉が入れ替わります。本文の変数は {MAX_FORMAT_SLOTS} 種類まで、フォーマットは {MAX_POST_FORMATS} 個までつくれます。
+            毎回くり返し使う投稿のひな形です。「投稿をつくる」の「フォーマットから書く」で選べます。本文に {"{商品}"} のように書いたところが変数になり、投稿ごとに言葉が入れ替わります。変数は {MAX_FORMAT_VARS} 個までです。本文に書けるのは {MAX_FORMAT_SLOTS} 種類までです。フォーマットは {MAX_POST_FORMATS} 個までつくれます。
           </>
         }
         actions={
@@ -419,7 +419,7 @@ export function FormatEditor({
           placeholder={"例: 【新メニュー】{何が}\n{いつから}から、{いくら}でお出しします。"}
           className="py-2 text-sm"
         />
-        {series.vars.length === 0 && <span className="text-xs text-muted">{"{名前}"} と書いたところが、投稿ごとに変わる変数になります</span>}
+        {series.vars.length === 0 && <span className="text-xs text-muted">本文に {"{商品}"} のように書くと、そこが投稿ごとに変わる変数になります</span>}
       </label>
       <VarChips series={series} onInsert={insertIntoBody} />
       </div>
@@ -432,7 +432,7 @@ export function FormatEditor({
         <span className="text-xs font-bold">
           できあがる投稿の例<span className="ml-1.5 font-normal text-muted">任意</span>
         </span>
-        <Textarea value={v.example} maxLength={MAX_FORMAT_EXAMPLE} rows={3} onChange={(e) => set("example", e.target.value)} placeholder="変数に言葉を入れた、できあがりの投稿の例。投稿をつくるときの手本になります" className="py-2 text-sm" />
+        <Textarea value={v.example} maxLength={MAX_FORMAT_EXAMPLE} rows={3} onChange={(e) => set("example", e.target.value)} placeholder="変数に言葉を入れた、できあがりの投稿の例。投稿をつくるときに、手本として出します" className="py-2 text-sm" />
       </label>
       {pillars.length > 0 && (
         <label className="flex flex-col gap-1">

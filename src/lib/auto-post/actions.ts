@@ -83,7 +83,7 @@ export async function saveAutoPlan(projectId: string, input: AutoPlanInput): Pro
       const undecided = undecidedPlanVars(f.series, choices);
       if (undecided.length) return { ok: false, error: `${undecided.map((n) => `{${n}}`).join("・")} の決め方を選んでください。` };
       const { series } = seriesForPlan(f.series, choices);
-      if (!isSeries(series)) return { ok: false, error: "毎回同じ投稿になります。どれか 1 つの変数を「AI に考えてもらう」にしてください。" };
+      if (!isSeries(series)) return { ok: false, error: "毎回同じ投稿になるので、このままでは送れません。どれか 1 つの変数を「自動投稿では AI に考えてもらう」にしてください。" };
       // 本文が毎回同じシリーズは X に送れない（画面でも選べない。2026-11-20 PM の指示）
       if (v.targets.x && fixedBodySeries(f.body, series)) return { ok: false, error: `${X_FIXED_BODY}X を選ばずに保存してください。` };
       v.materials = { ...v.materials, format_vars: Object.fromEntries(Object.entries(choices).filter(([k]) => f.series.vars.some((x) => x.name === k && x.mode === "hand"))) };

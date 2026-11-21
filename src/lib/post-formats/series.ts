@@ -136,7 +136,7 @@ export function seriesProblem(s: FormatSeries): string | null {
     if (missing) return `{${v.name}} の指示にある {${missing}} は、変数の一覧にありません。`;
   }
   const { cycle } = aiVarOrder(s);
-  if (cycle.length) return `${cycle.map((n) => `{${n}}`).join("と")}の指示が、おたがいを使っています。どちらかの指示から外してください。`;
+  if (cycle.length) return `${cycle.map((n) => `{${n}}`).join("と")}の指示に、おたがいの名前が入っています。どちらかの指示から削除してください。`;
   return null;
 }
 

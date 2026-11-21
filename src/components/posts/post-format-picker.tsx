@@ -143,7 +143,7 @@ export function PostFormatPicker({
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <p className="flex items-center gap-1.5 text-[14px] text-muted">
           いつも使うひな形を選んで、変数に言葉を入れます
-          {formats?.some((f) => isSeries(f.series)) && <HelpTip label="シリーズとは">「シリーズ」の札が付いたフォーマットは、変数の言葉を毎回 AI が考えます。前の投稿と重ならないので、クイズのように続けて出せます。</HelpTip>}
+          {formats?.some((f) => isSeries(f.series)) && <HelpTip label="シリーズとは">「シリーズ」の札が付いたフォーマットは、変数の言葉を毎回 AI が考えます。前の投稿と同じ言葉にならないので、クイズのように続けて出せます。</HelpTip>}
         </p>
         {/* 書きかけは控え（tab-drafts）に残るので、戻ると続きから書ける */}
         <Link href={formatsHref} className="text-[14px] font-bold text-fg underline">
@@ -272,7 +272,7 @@ export function PostFormatPicker({
           {inserted && (
             <p className="text-xs font-semibold text-success">
               {/* 全部埋めたときは【】の案内を出さない（前は埋めても「【】で残っています」と出た。通しテスト 02） */}
-              {unfilled.length > 0 ? `本文に入れました。言葉を入れていない ${unfilled.join("・")} は、【】のまま残っています。書き換えてください。` : "本文に入れました。"}
+              {unfilled.length > 0 ? `本文に入れました。まだ言葉を入れていない変数は、【${unfilled.join("】【")}】のように残っています。書き換えてください。` : "本文に入れました。"}
               {hasFormatHashtags(selected.hashtags) && "タグは本文の下に付き、「2 送り先」で SNS ごとに編集できます。"}
             </p>
           )}
@@ -286,7 +286,7 @@ export function PostFormatPicker({
 
 // 変数の欄の名前に添える一言（本文に出ない・画像だけ・AI が考える）
 function varNote(v: FormatVar, places: VarPlace[]): string {
-  const where = places.length === 0 ? "本文には出ません" : !places.includes("body") ? "画像だけで使う・本文には入りません" : "";
+  const where = places.length === 0 ? "投稿には出ません" : !places.includes("body") ? "画像だけで使う・本文には入りません" : "";
   return [v.mode === "ai" ? "AI が考える・編集できます" : "", where].filter(Boolean).join("・");
 }
 
@@ -373,7 +373,7 @@ function SeriesNextRound({
             </span>
             {error}{" "}
             <HelpTip label="案が出なかったわけ">
-              AI の案が、どれも前の投稿と重なっていたか、変数の決まりに合いませんでした。なので、案を除きました。AI はもう使ったので、今日の {SERIES_DAILY_RUNS} 回のうち 1 回に数えています。
+              AI の案が、前の投稿と同じ言葉か、「AI への指示」に合わないものでした。そのため、案を出していません。AI はもう使ったので、今日の {SERIES_DAILY_RUNS} 回のうち 1 回に数えています。
             </HelpTip>
           </p>
         ) : (
@@ -418,7 +418,7 @@ function SeriesNextRound({
                       <dt className="shrink-0 text-muted">{k}</dt>
                       <dd className="min-w-0 break-words">
                         {v}
-                        {varPlaces(k, texts).length === 0 && <span className="ml-1.5 text-xs text-muted">本文には出ません</span>}
+                        {varPlaces(k, texts).length === 0 && <span className="ml-1.5 text-xs text-muted">投稿には出ません</span>}
                       </dd>
                     </div>
                   ))}

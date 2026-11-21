@@ -40,7 +40,7 @@ export function MonthMobile({ days, base, initial, bands, today }: { days: Month
                 type="button"
                 onClick={() => setSelected(c.ymd)}
                 aria-pressed={isSelected}
-                aria-label={`${Number(c.ymd.slice(5, 7))} 月 ${c.day} 日${c.isToday ? "（今日）" : ""}、投稿 ${c.count} 件`}
+                aria-label={`${Number(c.ymd.slice(5, 7))} 月 ${c.day} 日${c.isToday ? "（今日）" : ""}、投稿 ${c.count} 本`}
                 className={`flex h-14 min-w-0 flex-col items-center gap-1 pt-1.5 ${i % 7 < 6 ? "border-r" : ""} ${i < 35 ? "border-b" : ""} border-line ${
                   isSelected ? "bg-primary-soft" : ""
                 }`}
@@ -116,7 +116,7 @@ export function MonthMobile({ days, base, initial, bands, today }: { days: Month
         ))}
         {rest > 0 && (
           <Link href={`${base}/calendar?view=week&week=${day.ymd}`} className="text-sm font-semibold text-primary">
-            ほか {rest} 件を週の表示で見る
+            ほか {rest} 本を週の表示で見る
           </Link>
         )}
         <Link

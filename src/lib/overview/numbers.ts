@@ -92,7 +92,7 @@ export function dailySeries(rows: Daily[], today: string, days: number): Daily[]
 // 前の 30 日と比べる数字のカード
 function compared(key: "downloads" | "link_clicks" | "posts", label: string, rows: Daily[], today: string, since?: string | null): OverviewCard {
   const { now, before } = compareDays(rows, today);
-  // 単位は予約中・下書き（件）とそろえる。ダウンロードは数だけ（「DL」と書き分けない）
+  // 単位は予約中・下書き（本）とそろえる（投稿の数は「本」。2026-11-21 オーナーの決定）。ダウンロードは数だけ（「DL」と書き分けない）
   const unit = key === "posts" ? "本" : key === "link_clicks" ? "回" : undefined;
   // 何日分の数かがわかるように、いつも期間を書く（2026-11-21 オーナーの指摘）
   const period = periodLabel(OVERVIEW_DAYS);
@@ -166,13 +166,13 @@ export function pickOverviewCards(input: OverviewInput, max = 4): OverviewCard[]
 
   const fillers: OverviewCard[] = [
     // 30 日の数のカードと並ぶので、いまの数だとわかるように書く
-    { key: "scheduled", label: "予約中", value: input.scheduledCount, unit: "件", deltaPct: null, note: "いま予約している投稿" },
-    { key: "drafts", label: "下書き", value: input.draftCount, unit: "件", deltaPct: null, note: "いまある下書き" },
+    { key: "scheduled", label: "予約中", value: input.scheduledCount, unit: "本", deltaPct: null, note: "いま予約している投稿" },
+    { key: "drafts", label: "下書き", value: input.draftCount, unit: "本", deltaPct: null, note: "いまある下書き" },
   ];
   for (const f of fillers) if (cards.length < max) cards.push(f);
 
   // 予約中のカードがなければ、SNS への投稿に予約中の投稿の数を添える（見本 A の「うち予約 84 件」。予約は投稿の数なので「件」）
-  if (!cards.some((c) => c.key === "scheduled")) cards[postsAt] = { ...cards[postsAt], note: `${cards[postsAt].note}・ほかに予約中 ${input.scheduledCount} 件` };
+  if (!cards.some((c) => c.key === "scheduled")) cards[postsAt] = { ...cards[postsAt], note: `${cards[postsAt].note}・ほかに予約中 ${input.scheduledCount} 本` };
   return cards.slice(0, max);
 }
 

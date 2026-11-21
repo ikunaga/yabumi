@@ -31,7 +31,7 @@ export function toInstagramError(e: unknown, stage: "prepare" | "publish"): SnsP
       return new SnsPublishError("auth", `Instagram とのつながりが切れています。${RECONNECT}`, { cause: e });
     }
     if (e.subcode === PUBLISH_LIMIT_SUBCODE) {
-      return new SnsPublishError("permanent", "Instagram の 24 時間に投稿できる数（100 件）を超えました。時間をおいてから送り直してください。", {
+      return new SnsPublishError("permanent", "Instagram に 24 時間で投稿できる 100 本を超えました。時間をおいてから送り直してください。", {
         cause: e,
       });
     }

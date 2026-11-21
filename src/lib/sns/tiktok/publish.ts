@@ -101,7 +101,7 @@ export function failureOf(reason: string): { kind: FailKind; message: string } {
     case "spam_risk_too_many_posts":
       return { kind: "permanent", message: "今日の TikTok の投稿の上限（1 日 15 本ほど、ほかのアプリの分も含む）に達しました。明日送るか、TikTok のアプリから投稿してください。" };
     case "spam_risk_too_many_pending_share":
-      return { kind: "permanent", message: "TikTok の受信箱に、仕上げていない下書きが多すぎます（24 時間で 5 件まで）。TikTok のアプリで、下書きを仕上げるか消してください。" };
+      return { kind: "permanent", message: "TikTok の受信箱に、仕上げていない下書きが多すぎます。24 時間で 5 本までです。TikTok のアプリで、下書きを仕上げるか消してください。" };
     case "reached_active_user_cap":
       return { kind: "permanent", message: "いまは yabumi が TikTok の審査を受けている途中のため、TikTok に送れる人数の上限に達しています（yabumi の準備の都合です）。明日送るか、TikTok のアプリから投稿してください。" };
     case "unaudited_client_can_only_post_to_private_accounts":

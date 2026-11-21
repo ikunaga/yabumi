@@ -27,7 +27,7 @@ export default async function AutoReviewPage(props: PageProps<"/projects/[id]/au
       </Link>
       <PageHeader
         title="確認待ち"
-        sub={items.length > 0 ? `${items.length} 件` : undefined}
+        sub={items.length > 0 ? `${items.length} 本` : undefined}
         help={<>送る時刻までに「送る」を押さなければ、その SNS には送らず、下書きに残します（ほかの SNS は予約のまま送ります）。X は、送る前にあなたが中身を確認することを決まりにしています。</>}
       />
       {items.length === 0 ? (

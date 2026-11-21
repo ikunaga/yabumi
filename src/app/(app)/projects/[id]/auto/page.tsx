@@ -91,7 +91,7 @@ export default async function AutoListPage(props: PageProps<"/projects/[id]/auto
       {reviews.length > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg border border-line bg-surface px-4 py-3">
           <p className="text-[15px] font-bold">
-            <span className="text-signal">● 確認待ち</span> <span className="num">{reviews.length}</span> 件
+            <span className="text-signal">● 確認待ち</span> <span className="num">{reviews.length}</span> 本
             {firstReview && <span className="ml-2 text-sm font-normal text-muted">{formatShort(firstReview.dueAt)} までに確認してください</span>}
           </p>
           <Link href={`${base}/review`} className="text-sm font-bold">

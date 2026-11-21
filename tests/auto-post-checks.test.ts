@@ -150,6 +150,6 @@ describe("知らせの文（本文は入れない。送り先の SNS と時刻�
       { due_at: due, status: "scheduled", posts: post([["x", "awaiting_approval"]]) },
       { due_at: due, status: "held", posts: post([["threads", "pending"]]) },
     ]);
-    expect(m.body).toBe("2 件を作りました（確認待ち 1 件）（下書きに回した 1 件）");
+    expect(m.body).toBe("2 本を作りました。確認待ちは 1 本です。下書きに残したのは 1 本です。");
   });
 });

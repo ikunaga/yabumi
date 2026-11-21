@@ -444,7 +444,7 @@ export function PlanWizard(p: Props) {
             />
           </DisclosureBox>
           <Card className="flex flex-col gap-3 px-6 py-5 max-sm:px-4 max-sm:py-4">
-            <p className="text-sm text-muted">送る {DEFAULT_LEAD_HOURS} 時間前に文を作り、できたらカレンダーと通知でお知らせします。長さ・絵文字・口調などの書き方は、次の「確認する」で編集できます。テストで 1 件つくって、見ながら決められます。</p>
+            <p className="text-sm text-muted">送る {DEFAULT_LEAD_HOURS} 時間前に文を作り、できたらカレンダーと通知でお知らせします。長さ・絵文字・口調などの書き方は、次の「確認する」で編集できます。テストで 1 本つくって、見ながら決められます。</p>
           </Card>
           <Nav
             back={

@@ -125,9 +125,9 @@ export function AttentionStrip({
   overdueTodos: RoadmapItem[];
 }) {
   const parts = [
-    failed.length && `送れなかった投稿 ${failed.length} 件`,
-    overdue.length && `予約を過ぎた投稿 ${overdue.length} 件`,
-    manualDue.length && `手動で投稿する番の投稿 ${manualDue.length} 件`,
+    failed.length && `送れなかった投稿 ${failed.length} 本`,
+    overdue.length && `予約を過ぎた投稿 ${overdue.length} 本`,
+    manualDue.length && `手動で投稿する番の投稿 ${manualDue.length} 本`,
     overdueTodos.length && `予定日を過ぎたやること ${overdueTodos.length} 件`,
   ].filter(Boolean);
   const total = failed.length + overdue.length + manualDue.length + overdueTodos.length;

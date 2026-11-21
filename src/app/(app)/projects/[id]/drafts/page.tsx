@@ -25,7 +25,7 @@ export default async function DraftsPage(props: PageProps<"/projects/[id]/drafts
     <div className="flex flex-col gap-5 max-sm:gap-4">
       <PageHeader
         title="下書き"
-        sub={drafts.length > 0 ? `${drafts.length} 件` : undefined}
+        sub={drafts.length > 0 ? `${drafts.length} 本` : undefined}
         actions={<ButtonLink href={`${base}/compose`}>＋ 投稿をつくる</ButtonLink>}
       />
       <Card className="overflow-hidden">
@@ -67,7 +67,7 @@ export default async function DraftsPage(props: PageProps<"/projects/[id]/drafts
           </ul>
         )}
       </Card>
-      {drafts.length >= DRAFTS_LIMIT && <p className="px-1 text-sm text-muted">新しいほうから {DRAFTS_LIMIT} 件を出しています。</p>}
+      {drafts.length >= DRAFTS_LIMIT && <p className="px-1 text-sm text-muted">新しいほうから {DRAFTS_LIMIT} 本を出しています。</p>}
     </div>
   );
 }

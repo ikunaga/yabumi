@@ -78,7 +78,7 @@ describe("写真の投稿の本文", () => {
     expect(failureOf("photo_pull_failed").kind).toBe("retryable");
     expect(failureOf("access_token_invalid").kind).toBe("auth");
     expect(failureOf("spam_risk_too_many_posts")).toMatchObject({ kind: "permanent", message: expect.stringMatching(/15 本/) });
-    expect(failureOf("spam_risk_too_many_pending_share").message).toMatch(/5 件/);
+    expect(failureOf("spam_risk_too_many_pending_share").message).toMatch(/5 本/);
     expect(failureOf("something_new")).toMatchObject({ kind: "permanent", message: expect.stringContaining("something_new") });
   });
 });

@@ -76,7 +76,9 @@ export const UI_WORD_RULES: UiWordRule[] = [
   { id: "mado", pattern: /窓(?![口辺際])/ },
   { id: "banso", pattern: /伴走|声かけ|声をかけ|見守/ },
   { id: "address", pattern: /アドレス欄/ },
+  // 投稿の数は「本」（2026-11-21 オーナーの決定）。「投稿 … 3 件」「12 回投稿」を見つける
+  { id: "hon", pattern: /投稿[がは]? ?(\d|\{…\}) ?件|(\d|\{…\}) ?回投稿/ },
 ];
 
 // 表にあるが、見つける形を決められない行（確認役が文の意味から見る）
-export const UI_WORD_RULES_WITHOUT_PATTERN = ["unei", "project", "term", "okane", "hazusu", "moji", "tsunageru", "nini", "etsuran", "yakuwari", "komiai", "hinagata", "dnswords", "kuuran", "browser", "imayaru"];
+export const UI_WORD_RULES_WITHOUT_PATTERN = ["unei", "project", "term", "okane", "hazusu", "moji", "tsunageru", "nini", "etsuran", "yakuwari", "komiai", "hinagata", "dnswords", "kuuran", "browser", "imayaru", "kasanaru"];

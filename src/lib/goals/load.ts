@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isSnsKey } from "@/lib/sns";
+import { PROJECT_MIN_DAYS } from "./view";
 import type { Database } from "@/lib/supabase/database.types";
 import { addDays, toYmd } from "@/lib/time";
 import { currentMilestone, isGoalMetric, isOutcomeAction, type Goal, type GoalKpi, type GoalStatus, type MetricRef, type MetricTotal, type Milestone } from "./schema";
@@ -87,7 +88,7 @@ export function progressOf(goal: Goal, total: MetricTotal, today: string): GoalP
   const span = day(goal.endsOn) - day(goal.startsOn) + 1;
   // revenue は累計ではない（数えた最後の日の直近 28 日）ので、ペースの見込みは出さない（followers は期間中に増えた人数なので出す）
   const paced = goal.metric !== "revenue";
-  const projected = paced && total.available && counted >= 7 ? Math.round((total.value / counted) * span) : null;
+  const projected = paced && total.available && counted >= PROJECT_MIN_DAYS ? Math.round((total.value / counted) * span) : null;
   return { ...total, target: goal.target, ratio: goal.target > 0 ? total.value / goal.target : 0, daysLeft, projected, countedDays: Math.max(0, counted) };
 }
 

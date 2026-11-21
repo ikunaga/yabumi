@@ -38,7 +38,7 @@ async function flags(client: TestClient, projectId: string | null = null) {
 describe("project_step_flags", () => {
   it("投稿もロードマップもなければ、どれも false・0", async () => {
     const f = await flags(alice);
-    expect(f.get(fresh)).toEqual({ project_id: fresh, has_published: false, has_roadmap: false, this_week_todo: 0, this_week_done: 0 });
+    expect(f.get(fresh)).toEqual({ project_id: fresh, has_published: false, has_roadmap: false, this_week_todo: 0, this_week_done: 0, this_week_carried: 0 });
   });
 
   it("送信済みの配信先があれば投稿済み（失敗・予約だけでは済みにしない）", async () => {

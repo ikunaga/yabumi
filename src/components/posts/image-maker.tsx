@@ -329,7 +329,7 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
 
       {/* つくり方は 2 つを同じ大きさで並べ、何ができて費用がかかるかを 1 行で添える（AI の写真がテンプレートの横の小さなタブで見つけにくかった。指摘 18） */}
       <div role="group" aria-label="つくり方" className="grid grid-cols-2 gap-2">
-        <ModeCard on={mode === "template"} onClick={() => setMode("template")} title="ひな形に文字を入れる" note="文字のカードや図解をつくる。無料" />
+        <ModeCard on={mode === "template"} onClick={() => setMode("template")} title="文字の画像をつくる" note="カードや図解に文字を入れる。無料" />
         <ModeCard on={mode === "photo"} onClick={openPhoto} title="AI で写真・絵" note={`絵の説明から AI がつくる。1 枚 約 ${photoUnitYen(photoModel({}))} 円`} />
       </div>
 

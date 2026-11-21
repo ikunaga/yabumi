@@ -96,11 +96,11 @@ export function IphoneSteps({ withPush = false }: { withPush?: boolean }) {
       <li>
         Safari で yabumi を開き、共有ボタン
         <ShareIcon />
-        を押します。iPhone は画面の下、iPad は上にあります。
+        を押します。iPhone は画面の下、iPad は上にあります。見当たらないときは、「…」を押すと出てきます。
       </li>
-      <li>「ホーム画面に追加」を選び、右上の「追加」を押します。見つからなければ、下にずらします。</li>
+      <li>「ホーム画面に追加」を選び、右上の「追加」を押します。見つからないときは、出てきた一覧の下のほうを見ます。</li>
       <li>ホーム画面にできた yabumi のアイコンから開きます。</li>
-      <li>もう一度ログインします。ホーム画面の yabumi と Safari では、ログインが別になります。</li>
+      <li>同じメールアドレスで、もう一度ログインします。Safari でのログインは、引き継がれません。</li>
       {withPush && <li>「お知らせの設定」の画面を開きます。「この端末で通知を受け取る」を押し、「許可」を選びます。</li>}
     </ol>
   );
@@ -115,7 +115,7 @@ export function AndroidSteps() {
         <MenuDotsIcon />
         を押します。
       </li>
-      <li>「ホーム画面に追加」か「アプリをインストール」を選びます。「インストール」を押します。</li>
+      <li>「ホーム画面に追加」か「アプリをインストール」を選びます。出てきた画面で「インストール」か「追加」を押します。</li>
       <li>ホーム画面にできた yabumi のアイコンから開きます。ログインはそのまま使えます。</li>
     </ol>
   );
@@ -125,8 +125,8 @@ export function AndroidSteps() {
 export function PcSteps() {
   return (
     <ol className="mt-1 flex list-decimal flex-col gap-1 pl-5">
-      <li>Chrome か Edge で yabumi を開きます。アドレス欄の右にある「インストール」の印を押します。</li>
-      <li>「インストール」を押すと、yabumi が別の窓で開けるようになります。</li>
+      <li>Chrome か Edge で yabumi を開きます。アドレス欄の右端にある、小さな画面の形の印を押します。</li>
+      <li>「インストール」を押すと、yabumi が別のウィンドウで開けるようになります。</li>
     </ol>
   );
 }
@@ -159,12 +159,12 @@ export function AddToHomeBand({ pushReady }: { pushReady: boolean }) {
   return (
     <aside aria-label="ホーム画面に追加する" className="flex items-center gap-x-3 gap-y-1 rounded-md border border-line bg-surface px-4 py-2 text-sm max-sm:flex-wrap max-sm:px-3">
       <p className="min-w-0 flex-1 leading-[1.7] max-sm:basis-full">
-        ホーム画面に追加すると、アプリのように開けます。
-        {pushReady && env.platform === "ios" && !env.iosTooOld && "iPhone では、通知も受け取れます。"}
+        スマホのホーム画面に yabumi を置くと、アプリのように開けます。
+        {pushReady && env.platform === "ios" && !env.iosTooOld && "追加すると、yabumi からのお知らせが iPhone に届きます。"}
       </p>
-      {install.canPrompt ? (
+      {install.canPrompt && env.platform !== "ios" ? (
         <Button type="button" size="sm" onClick={() => void install.prompt().then((ok) => ok && close())}>
-          ホーム画面に追加する
+          スマホのホーム画面に追加する
         </Button>
       ) : (
         <Link href="/settings/add-to-home" className="shrink-0 font-semibold whitespace-nowrap text-primary hover:underline">
@@ -196,7 +196,7 @@ export function AddToHomeGuide() {
       ) : (
         <section className="flex flex-col gap-2">
           <h2 className="text-[16px] font-bold">{mine.title}</h2>
-          {install.canPrompt && !added && (
+          {install.canPrompt && env.platform !== "ios" && !added && (
             <Button type="button" className="self-start" onClick={() => void install.prompt().then((ok) => setAdded(ok))}>
               ホーム画面に追加する
             </Button>

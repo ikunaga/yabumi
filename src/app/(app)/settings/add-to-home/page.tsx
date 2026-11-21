@@ -35,8 +35,8 @@ export default async function AddToHomePage() {
         <Card className="flex max-w-2xl flex-col gap-4 px-6 py-5 max-sm:px-4">
           <ul className="flex list-disc flex-col gap-1 pl-5 text-[14px] leading-[1.8]">
             <li>アプリのように、画面いっぱいで開けます。</li>
-            {pushReady && <li>iPhone・iPad では、スマホの通知を受け取れるようになります。</li>}
-            <li>Android では、ほかのアプリの「共有」から、ネタ帳にメモを送れます。</li>
+            {pushReady && <li>iPhone・iPad で、yabumi からのお知らせを受け取れます。</li>}
+            <li>Android では、ほかのアプリの「共有」から「ネタ帳」に送れます。</li>
           </ul>
           <AddToHomeGuide />
         </Card>

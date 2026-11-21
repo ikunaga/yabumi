@@ -30,7 +30,7 @@ export const KIND_DESCRIPTIONS: Record<Exclude<AutoKind, "pillars">, string> = {
 export const TARGET_MODE_LABELS: Record<TargetMode, string> = {
   auto: "自動で送る",
   review: "確認して送る",
-  by_hand: "手で投稿",
+  by_hand: "手動で投稿",
 };
 
 export const RUN_STATUS_LABELS: Record<AutoRunStatus, string> = {

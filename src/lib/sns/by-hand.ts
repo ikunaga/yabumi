@@ -4,10 +4,19 @@
 export const BY_HAND_SNS = ["x", "tiktok", "youtube"] as const;
 export type ByHandSns = (typeof BY_HAND_SNS)[number];
 
+// 印の文は DB に入っている値で、isByHand・SQL の by_hand_message・送信ジョブがこの文で見分ける。本番に前の文の行があるので、文は変えない
+// （変えると、前に「手で投稿する」にした配信先が失敗に見える）。画面には BY_HAND_TEXT を出す（2026-11-21「手動で投稿」への言い換え）
 export const BY_HAND_MESSAGE: Record<ByHandSns, string> = {
-  x: "X は手で投稿することにしたので、自動では送りません。下の「X に手で投稿する」から投稿して記録できます。",
-  tiktok: "TikTok は手で投稿することにしたので、自動では送りません。下の「TikTok に手で投稿する」から投稿して記録できます。",
-  youtube: "YouTube は手で投稿することにしたので、自動では送りません。下の「YouTube に手で投稿する」から投稿して記録できます。",
+  x: "X は手で投稿することにしたので、自動では送りません。下の「X に手で投稿する」から投稿して記録できます。", // ui-wording-ignore: DB の印の文（画面には BY_HAND_TEXT を出す）
+  tiktok: "TikTok は手で投稿することにしたので、自動では送りません。下の「TikTok に手で投稿する」から投稿して記録できます。", // ui-wording-ignore: DB の印の文（画面には BY_HAND_TEXT を出す）
+  youtube: "YouTube は手で投稿することにしたので、自動では送りません。下の「YouTube に手で投稿する」から投稿して記録できます。", // ui-wording-ignore: DB の印の文（画面には BY_HAND_TEXT を出す）
+};
+
+// 画面に出す文（送信の結果。印の文の代わりに出す）
+export const BY_HAND_TEXT: Record<ByHandSns, string> = {
+  x: "X は手動で投稿することにしたので、自動では送りません。下の「X に手動で投稿する」から投稿して記録できます。",
+  tiktok: "TikTok は手動で投稿することにしたので、自動では送りません。下の「TikTok に手動で投稿する」から投稿して記録できます。",
+  youtube: "YouTube は手動で投稿することにしたので、自動では送りません。下の「YouTube に手動で投稿する」から投稿して記録できます。",
 };
 
 export const isByHandSns = (sns: string): sns is ByHandSns => (BY_HAND_SNS as readonly string[]).includes(sns);

@@ -50,7 +50,7 @@ const pains = [
 
 const steps = [
   { title: "方針を決める", short: "AI と話して誰に・何を発信するか決める", body: "AI と話しながら、誰に・何のために・どんな名前で・どんな投稿をするかを決めます。マーケティングの用語は、出てきたときに解説します。" },
-  { title: "つなぐ", short: "使う SNS のアカウントをつなぐ", body: "使う SNS のアカウントをつなぎます。note・Substack は、文面を用意して手で投稿する形で使えます。" },
+  { title: "つなぐ", short: "使う SNS のアカウントをつなぐ", body: "使う SNS のアカウントをつなぎます。note・Substack は、文面を用意して手動で投稿する形で使えます。" },
   { title: "投稿する", short: "下書きをつくってまとめて予約", body: "ネタ帳や AI の案から下書きをつくり、AI っぽさをチェックして、まとめて予約します。" },
   { title: "振り返る", short: "数字を見て次の週のやることを決める", body: "数字を見ながら AI と相談し、ロードマップと次の週のやることを決めます。" },
 ];
@@ -77,14 +77,14 @@ const moreFeatures = [
 
 const sns: { group: string; items: SnsKey[]; ready: boolean }[] = [
   { group: "yabumi から自動で投稿", items: ["x", "threads", "instagram", "facebook"], ready: true },
-  { group: "文面を用意して手で投稿", items: ["note", "substack"], ready: true },
+  { group: "文面を用意して手動で投稿", items: ["note", "substack"], ready: true },
   { group: "準備中", items: ["tiktok", "youtube"], ready: false },
 ];
 
 // 最初の画面の下の数字（見本 A の上の 4 つの形）。どれも、いまの yabumi の決まりそのまま
 const facts = [
   { label: "まとめて予約", value: "4", unit: "つの SNS", note: "X・Threads・Instagram・Facebook ページ" },
-  { label: "手で投稿", value: "2", unit: "つの SNS", note: "note・Substack（文面を用意）" },
+  { label: "手動で投稿", value: "2", unit: "つの SNS", note: "note・Substack（文面を用意）" },
   { label: "最初にやること", value: "4", unit: "段", note: "方針 → つなぐ → 投稿 → 振り返り" },
   { label: "いまの料金", value: "0", unit: "円", note: "招待制の試用。勝手に請求は始まりません" },
 ];
@@ -112,7 +112,7 @@ const faqs: { q: string; a: ReactNode }[] = [
   },
   {
     q: "どの SNS に対応していますか？",
-    a: "X・Threads・Instagram（プロアカウント）・Facebook ページに、yabumi から投稿・予約できます。note・Substack は文面を用意して、手で投稿する形です。TikTok・YouTube は準備中です。",
+    a: "X・Threads・Instagram（プロアカウント）・Facebook ページに、yabumi から投稿・予約できます。note・Substack は文面を用意して、手動で投稿する形です。TikTok・YouTube は準備中です。",
   },
   {
     q: "招待はいつ届きますか？",

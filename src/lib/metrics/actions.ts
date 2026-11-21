@@ -32,7 +32,7 @@ export async function saveManualMetric(projectId: string, targetId: string, _pre
   if (updateError) return { error: "記録できませんでした。時間をおいてもう一度お試しください。" };
   if (!updated?.length) {
     const { error } = await supabase.from("manual_post_metrics").insert({ post_target_id: targetId, owner_id: userId, ...values });
-    if (error) return { error: "記録できませんでした。手で投稿した note・Substack の投稿だけ記録できます。" };
+    if (error) return { error: "記録できませんでした。手動で投稿した note・Substack の投稿だけ記録できます。" };
   }
   revalidatePath(`/projects/${projectId}/metrics`);
   return { ok: true };

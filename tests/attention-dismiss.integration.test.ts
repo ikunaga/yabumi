@@ -93,7 +93,7 @@ describe("送れなかった投稿", () => {
     expect(ids).toContain(fresh);
   });
 
-  it("失敗していない配信先・「X は手で投稿する」の X は、渡しても閉じない（黙って飛ばす）", async () => {
+  it("失敗していない配信先・「X は手動で投稿する」の X は、渡しても閉じない（黙って飛ばす）", async () => {
     const { targetIds: [pending, xHand] } = await post("scheduled", hoursAgo(1), [
       { sns: "threads", status: "pending" },
       { sns: "x", status: "failed", error_message: X_BY_HAND_MESSAGE },
@@ -133,7 +133,7 @@ describe("送れなかった投稿", () => {
   });
 });
 
-describe("予約を過ぎた投稿・手で投稿する番", () => {
+describe("予約を過ぎた投稿・手動で投稿する番", () => {
   it("閉じると帯から消える。予定時刻を動かすとまた出る", async () => {
     const at = hoursAgo(2);
     const { postId } = await post("scheduled", at, [{ sns: "threads", status: "pending" }]);

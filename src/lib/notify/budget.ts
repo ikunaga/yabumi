@@ -61,7 +61,7 @@ export function budgetAlertMail(kind: BudgetKind, spentUsd: number, budgetUsd: n
       `${l.name} の今月の費用（日本時間の月初から）: $${spentUsd.toFixed(2)}`,
       `yabumi 全体の月の上限（${l.env}）: $${budgetUsd.toFixed(2)}`,
       full
-        ? "上限に達したので、今月の残りは全員が自動では使えません（X は手で投稿して記録、AI は手で入力）。"
+        ? "上限に達したので、今月の残りは全員が自動では使えません（X は手動で投稿して記録、AI は手で入力）。"
         : "上限に達すると、今月の残りは全員が自動では使えなくなります。",
       "",
       "確認すること:",

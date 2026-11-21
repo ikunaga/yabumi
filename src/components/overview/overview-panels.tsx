@@ -127,7 +127,7 @@ export function AttentionStrip({
   const parts = [
     failed.length && `送れなかった投稿 ${failed.length} 件`,
     overdue.length && `予約を過ぎた投稿 ${overdue.length} 件`,
-    manualDue.length && `手で投稿する番の投稿 ${manualDue.length} 件`,
+    manualDue.length && `手動で投稿する番の投稿 ${manualDue.length} 件`,
     overdueTodos.length && `予定日を過ぎたやること ${overdueTodos.length} 件`,
   ].filter(Boolean);
   const total = failed.length + overdue.length + manualDue.length + overdueTodos.length;
@@ -177,7 +177,7 @@ export function AttentionStrip({
             </Group>
           )}
           {manualDue.length > 0 && (
-            <Group title="手で投稿する番です" note="note・Substack は、自動では送られません。手で投稿すると選んだ X・TikTok も同じです。投稿の画面で本文をコピーして投稿し、投稿したことを記録してください。">
+            <Group title="手動で投稿する番です" note="note・Substack は、自動では送られません。「手動で投稿する」を選んだ X・TikTok も同じです。投稿の画面で本文をコピーして投稿し、投稿したことを記録してください。">
               {manualDue.map((p) => (
                 <li key={p.id}>
                   <Link href={`${base}/posts/${p.id}`} className="hover:underline">

@@ -47,13 +47,13 @@ afterAll(async () => {
   await deleteUser(bobId);
 });
 
-describe("手で投稿する SNS", () => {
+describe("手動で投稿する SNS", () => {
   it("note の配信先にタイトルを保存できる", async () => {
     const postId = await savePost([{ sns: "note", title: "3 か月の振り返り", body_override: "長文" }], "2099-01-01T00:00:00Z");
     expect(await targetsOf(postId)).toMatchObject([{ sns: "note", status: "pending", title: "3 か月の振り返り" }]);
   });
 
-  it("予約ジョブは手で投稿する SNS を拾わない（同じ投稿の Threads だけを送る）", async () => {
+  it("予約ジョブは手動で投稿する SNS を拾わない（同じ投稿の Threads だけを送る）", async () => {
     const postId = await savePost(
       [{ sns: "threads", social_account_id: accountId }, { sns: "note", title: "t" }, { sns: "substack", title: "t" }],
       "2099-01-01T00:00:00Z",
@@ -66,7 +66,7 @@ describe("手で投稿する SNS", () => {
     expect(ts.find((t) => t.sns === "substack")!.status).toBe("pending");
   });
 
-  it("時刻が来た手で投稿する予定は「手で投稿する番」に出し、「止まった予約」には数えない", async () => {
+  it("時刻が来た手動で投稿する予定は「手動で投稿する番」に出し、「止まった予約」には数えない", async () => {
     const now = new Date();
     const past = new Date(now.getTime() - 60 * 60_000).toISOString();
     const postId = await savePost([{ sns: "note", title: "t" }], past);
@@ -101,7 +101,7 @@ describe("手で投稿する SNS", () => {
   });
 });
 
-describe("手で投稿する SNS のプロフィール（project_manual_channels）", () => {
+describe("手動で投稿する SNS のプロフィール（project_manual_channels）", () => {
   it("本人は登録・変更・削除できる", async () => {
     expect((await alice.from("project_manual_channels").insert({ project_id: projectId, sns: "substack", profile_url: "https://masa.substack.com" })).error).toBeNull();
     expect((await alice.from("project_manual_channels").update({ profile_url: "https://news.example.com" }).eq("project_id", projectId).eq("sns", "substack")).error).toBeNull();
@@ -116,7 +116,7 @@ describe("手で投稿する SNS のプロフィール（project_manual_channels
     expect((await bob.from("project_manual_channels").insert({ project_id: projectId, sns: "note", owner_id: bobId })).error).not.toBeNull();
   });
 
-  it("手で投稿する SNS 以外や、https でない URL は登録できない", async () => {
+  it("手動で投稿する SNS 以外や、https でない URL は登録できない", async () => {
     expect((await alice.from("project_manual_channels").insert({ project_id: projectId, sns: "x" })).error).not.toBeNull();
     expect((await alice.from("project_manual_channels").insert({ project_id: projectId, sns: "note", profile_url: "javascript:alert(1)" })).error).not.toBeNull();
   });

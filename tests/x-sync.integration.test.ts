@@ -194,7 +194,7 @@ describe("X で消された投稿の記録", () => {
     expect((await targetRow(targetId)).sns_checked_at).toBeNull();
   });
 
-  it("手で投稿して記録したものは、URL から ID を取って確かめる", async () => {
+  it("手動で投稿して記録したものは、URL から ID を取って確かめる", async () => {
     const { postId } = await publishedTarget({ externalPostId: null, externalUrl: "https://x.com/alice/status/2222?s=20" });
     const readPost = vi.fn(async (): Promise<PostState> => "exists");
     await syncXTargetsOfPost(admin, deps(readPost), postId);

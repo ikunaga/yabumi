@@ -253,7 +253,7 @@ export function consultContextMessage(ctx: ConsultContext): string {
     ...productLines({ productType: p.productType ?? "app", desiredAction: actionFromLegacyGoal(ctx.plan.goal.goalType) }),
     ...((p.productType ?? "app") === "app" ? [`ストアページ: App Store ${p.appStoreUrl ? "あり" : "なし"} / Google Play ${p.playStoreUrl ? "あり" : "なし"}`] : []),
     `つないだ SNS（yabumi から自動で送れる）: ${ctx.connectedSns.length ? ctx.connectedSns.join("、") : "まだない"}`,
-    `手で投稿する SNS: ${ctx.manualSns.join("、")}（公式の投稿のしくみがないので、利用者が手で投稿する）`,
+    `手動で投稿する SNS: ${ctx.manualSns.join("、")}（公式の投稿のしくみがないので、利用者が手動で投稿する）`,
     "アカウント設計（JSON）:",
     clip(JSON.stringify(plan), 5000),
     "あなたらしさ（発信する人の思いや経験。利用者が「投稿に使ってよい」としたものだけ。誇張しない・ここにない経験を足さない。このセクションは相談では直さない）:",

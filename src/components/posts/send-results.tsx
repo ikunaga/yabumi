@@ -125,7 +125,7 @@ function ResultRow({ sns, r, projectId, postId, video }: { sns: SnsKey; r: Targe
               </a>
             )}
             {r.postedByHand ? (
-              <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">手で投稿</span>
+              <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">手動で投稿</span>
             ) : sns === "tiktok" ? (
               // TikTok の API では投稿を消せない。受信箱に送った下書きは、利用者が TikTok のアプリで仕上げる
               <span className="ml-auto text-xs text-muted">
@@ -204,7 +204,7 @@ function ResultRow({ sns, r, projectId, postId, video }: { sns: SnsKey; r: Targe
           ) : (
             <span className="text-muted">{label} から取り消しました（yabumi の下書きは残っています）</span>
           ))}
-        {r.status === "failed" && r.byHand && <span className="font-bold text-signal">手で投稿</span>}
+        {r.status === "failed" && r.byHand && <span className="font-bold text-signal">手動で投稿する番</span>}
         {r.status === "failed" && !r.byHand && (
           <>
             <span className="font-bold text-danger">! 失敗</span>
@@ -224,7 +224,7 @@ function ResultRow({ sns, r, projectId, postId, video }: { sns: SnsKey; r: Targe
       )}
       {r.status === "failed" && r.fallback && !showManual && (
         <Button type="button" variant="secondary" size="sm" className="self-start" onClick={() => setShowManual(true)}>
-          {label} に手で投稿する
+          {label} に手動で投稿する
         </Button>
       )}
       {r.status === "failed" && r.fallback && showManual && (
@@ -295,7 +295,7 @@ function ManualRow({ sns, r, projectId, postId }: { sns: SnsKey; r: TargetResult
     return (
       <li className="flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-2.5 leading-[1.6]">
         <b>{label}</b>
-        <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">手で投稿</span>
+        <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">手動で投稿</span>
         <span className="font-bold text-success">✓ 送信済み</span>
         {r.publishedAt && <span className="text-muted">{formatShort(r.publishedAt)} に記録</span>}
         {r.externalUrl && (
@@ -311,9 +311,9 @@ function ManualRow({ sns, r, projectId, postId }: { sns: SnsKey; r: TargetResult
     <li className="flex flex-col gap-2.5 px-5 py-3 leading-[1.6]">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <b>{label}</b>
-        <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">手で投稿</span>
+        <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">手動で投稿</span>
         <span className="text-muted">
-          {r.quote ? "X の仕組みで、引用は yabumi から予約できません。X の画面で送ってください" : `${label} には公式の投稿のしくみがないので、ここから手で投稿します`}
+          {r.quote ? "X の仕組みで、引用は yabumi から予約できません。X の画面で送ってください" : `${label} には公式の投稿のしくみがないので、ここから手動で投稿します`}
         </span>
       </div>
       <ManualSteps sns={sns} info={r.manual!} targetId={r.id} projectId={projectId} postId={postId} quote={r.quote} />

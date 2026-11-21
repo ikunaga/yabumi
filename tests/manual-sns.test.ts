@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import { normalizeCoachTurn } from "@/lib/ai/plan-coach-schema";
 import { checkTarget, isManualSns, MANUAL_SNS_KEYS, manualComposeUrl, SNS_KEYS } from "@/lib/sns";
 
-describe("手で投稿する SNS", () => {
-  it("note と Substack は手で投稿する SNS で、並びの最後", () => {
+describe("手動で投稿する SNS", () => {
+  it("note と Substack は手動で投稿する SNS で、並びの最後", () => {
     expect(MANUAL_SNS_KEYS).toEqual(["note", "substack"]);
     expect(SNS_KEYS.slice(-2)).toEqual(["note", "substack"]);
     expect(isManualSns("threads")).toBe(false);

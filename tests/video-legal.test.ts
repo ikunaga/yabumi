@@ -26,7 +26,7 @@ describe("投稿に動画を添える版", () => {
     const privacy = read("src/app/privacy/page.tsx");
     expect(privacy).toContain("撮影の場所・日時・機種などの情報は、利用者の端末で形をそろえるときに取り除き");
     // 送り終えたらすぐ（送信ジョブの removeSentVideo。片付けも待たない）、送れなかった・手で投稿する送り先が残れば 7 日（2026-11-15 オーナーの了承。legal.md では ① として本文だけ直し、施行する版の summary は変えない）
-    expect(privacy).toContain(`すべての送り先に送り終えたら、すぐに消す（送れなかった送り先や、手で投稿する送り先が残っていれば ${KEEP_VIDEO_AFTER_FAILED_DAYS} 日）`);
+    expect(privacy).toContain(`すべての送り先に送り終えたら、すぐに消す（送れなかった送り先や、手動で投稿する送り先が残っていれば ${KEEP_VIDEO_AFTER_FAILED_DAYS} 日）`);
     // 送り先に書いた SNS だけが、動画を送れる（X は W2 の確かめのあとで足す）
     for (const sns of ["threads", "instagram", "facebook"] as const) expect(SNS[sns].video).toBe(true);
     // X は 29-5 の W2 の試しの間だけ true（2026-11-16 オーナー了承）。trial/x-video-off で false とこの確かめを戻す

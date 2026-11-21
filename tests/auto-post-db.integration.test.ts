@@ -123,7 +123,7 @@ describe("保存（save_auto_plan）", () => {
     expect((await bob.rpc("save_auto_plan", planArgs())).error?.code).toBe("P0002");
   });
 
-  it("SNS ごとに決まった送り方だけ（X は確かめて送る、note は手で投稿）", async () => {
+  it("SNS ごとに決まった送り方だけ（X は確かめて送る、note は手動で投稿）", async () => {
     expect((await alice.rpc("save_auto_plan", planArgs({ p_targets: { x: "auto" } }))).error?.code).toBe("22023");
     expect((await alice.rpc("save_auto_plan", planArgs({ p_targets: { note: "auto" } }))).error?.code).toBe("22023");
     expect((await alice.rpc("save_auto_plan", planArgs({ p_targets: { mastodon: "auto" } }))).error?.code).toBe("22023");

@@ -618,8 +618,8 @@ export function useComposer({
     (toSend.some((s) => !byHandOrManual(s))
       ? null
       : toSend.some(isManualSns)
-        ? "note・Substack は手で投稿します。予約するか下書きに保存すると、「投稿」の画面から投稿できます"
-        : "手で投稿する SNS だけです。予約するか下書きに保存すると、「投稿」の画面から投稿できます");
+        ? "note・Substack は手動で投稿します。予約するか下書きに保存すると、「投稿」の画面から投稿できます"
+        : "手動で投稿する SNS だけです。予約するか下書きに保存すると、「投稿」の画面から投稿できます");
   // X の上限を調べ直している途中か（押したときの調べ直しが済むまで、「本当に今すぐ送る」と予約は押せない。PMO2 の 3 回目の 02b）
   const xChecking = xKey !== null && xCheck?.key !== xKey;
   // 調べ直して上限に当たった（ほかの送れない理由が出た）ら、「本当に今すぐ送る」の確かめを閉じて、知らせだけにする
@@ -859,12 +859,12 @@ export function useComposer({
     const issue = checks[sns].issues[0];
     if (on && sentState(sns)) return sentState(sns);
     // 選んでいない送り先: 前は「オフ」と出し、意味が伝わらなかった（2026-11-18 PMO の付箋 14）。つないでいなければそう書き、つないでいれば何も出さない
-    if (!on) return isManualSns(sns) ? { text: "手で投稿", tone: "text-faint" } : connected.includes(sns) ? null : { text: "つないでいません", tone: "text-faint" };
+    if (!on) return isManualSns(sns) ? { text: "手動で投稿", tone: "text-faint" } : connected.includes(sns) ? null : { text: "つないでいません", tone: "text-faint" };
     if (quiet) return null;
     // 引用の X は X の画面で送るので、つないでいなくてよい（4.52）
     if (sns === "x" && quoting && !checks.x.issues[0]) return { text: "X の画面で送る", tone: "text-muted" };
     if (issue) return { text: ISSUE_LABEL[issue], tone: `font-bold ${ISSUE_TONE[issue]}` };
-    if (isManualSns(sns)) return { text: "手で投稿", tone: "text-muted" };
+    if (isManualSns(sns)) return { text: "手動で投稿", tone: "text-muted" };
     if (connected.includes(sns)) return { text: "OK", tone: "font-bold text-success" };
     return { text: "つないでいません", tone: "font-bold text-signal" };
   }

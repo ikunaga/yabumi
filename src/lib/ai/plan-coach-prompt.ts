@@ -80,7 +80,7 @@ export const PLAN_COACH_SYSTEM = `あなたは「yabumi」の中で、宣伝し�
   - 宣伝のためだけのタグ（例: #拡散希望 #相互フォロー #宣伝）や、投稿と関係のない人気のタグは入れない。見る人に嫌われ、SNS によっては表示を減らされる
   - when には、どの柱・どんなネタのときに付けるかを書く。毎回全部を付けるのではなく、ネタに合うものだけを 1 投稿に 0〜2 個付ける使い方だと伝える（Threads は 1 投稿に 1 つ、Instagram は 5 個まで）
   - 案は 1 つでよい（候補を 3〜6 個並べた案）。相手は画面で、案の中の候補ごとに使うかどうかを選べる。方向の違う案（例: 顧客向けの中心と、同業者にも届けるもの）を比べたいときだけ 2 つにする
-- note と Substack は、公式の投稿のしくみがないので yabumi から自動では送れず、利用者が手で投稿する。そのぶん手間がかかるので、目的に合うときだけ提案する
+- note と Substack は、公式の投稿のしくみがないので yabumi から自動では送れず、利用者が手動で投稿する。そのぶん手間がかかるので、目的に合うときだけ提案する
   - note: 日本語の長文。作り手の考えや、取り組みの振り返り、詳しい使い方が読まれやすい。短い SNS の投稿をまとめて、月に 1 本ほど長文にする使い方が向く
   - Substack: メールで届くニュースレター（登録してくれた読者に、メールで届ける定期的なお便り）。SNS のフォロワーと違い、読者のメールアドレスという「自分で持てる読者」になる（SNS の表示の仕組みが変わっても届く）。英語圏に強い。海外の利用者にも届けたいときに向く
 - 同じことを二度聞かない。プロジェクトの情報と、すでに決まった設計は、毎回あとに付く「いまの状況」に書いてある。届けたい相手がすでに書かれていれば、確認するだけでよい
@@ -118,7 +118,7 @@ export const PLAN_COACH_SYSTEM = `あなたは「yabumi」の中で、宣伝し�
 - hashtags: {"items": [{"tag": "タグ（# なし。空白や記号を入れない）", "why": "どんな人が見ているか・なぜ使うか（多すぎる・少なすぎるの目安も）", "when": "どの柱・どんなネタのときに付けるか"}]}（items は 3〜6 個。why と when は 200 字まで）
 - ownership: {"mode": "personal" | "dedicated" | "undecided" | null, "reason": "理由"}
 - profile: {"displayName": "共通の表示名", "handle": "第一候補（@ なし）", "handleBackups": "予備を改行区切りで", "bio": "共通の自己紹介文", "link": "リンク先", "bySns": {"instagram": {"displayName": "", "handle": "", "bio": "Instagram 用の自己紹介文", "link": ""}}}（bySns は変える SNS だけ。キーは x・threads・instagram・facebook・tiktok・youtube・note・substack。変えない項目は空文字。どの SNS も変えないなら {}）
-- cadence: {"frequency": "頻度", "roles": [{"sns": "x" | "threads" | "instagram" | "facebook" | "tiktok" | "youtube" | "note" | "substack", "role": "その SNS の役割"}]}（使う SNS だけ。note と Substack は手で投稿する）
+- cadence: {"frequency": "頻度", "roles": [{"sns": "x" | "threads" | "instagram" | "facebook" | "tiktok" | "youtube" | "note" | "substack", "role": "その SNS の役割"}]}（使う SNS だけ。note と Substack は手動で投稿する）
 - first_month: {"goal": "", "metrics": "", "kpis": [いまの値のまま。なければ []], "weekly": {"x": 2, "instagram": 1}}
   - 決めるのは weekly だけ。goal と metrics は空文字、kpis は「いまの状況」の今の値をそのまま入れる（3 か月の目標と追いかける数字は、ロードマップで決める）
   - weekly: SNS ごとの 1 週の投稿の回数（1〜14 の整数）。cadence の頻度と roles の SNS に合わせ、合計が頻度と食い違わないようにする（例: 頻度「週 3 回」で X と Instagram なら X 2・Instagram 1）。続けられる少なめの回数をすすめる。使わない SNS は入れない
@@ -185,7 +185,7 @@ export function coachContextMessage(ctx: CoachContext): string {
       .join("、")}（自動で送る。いま送信できるのは Threads・X・Instagram・Facebook ページ。TikTok・YouTube は準備中）、${Object.values(SNS)
       .filter((s) => s.delivery === "manual")
       .map((s) => s.label)
-      .join("、")}（手で投稿する）`,
+      .join("、")}（手動で投稿する）`,
     `つないだアカウント: ${ctx.accounts?.length ? ctx.accounts.map((a) => `${SNS[a.sns].label} @${a.handle.replace(/^@/, "")}`).join("、") : "なし"}`,
     ctx.focus ? `利用者がいま考えたいセクション: ${ctx.focus}（${SECTION_LABEL[ctx.focus]}）` : "利用者がいま考えたいセクション: 指定なし（まだ決まっていない最初のセクションから）",
     "設計の現状（JSON）:",

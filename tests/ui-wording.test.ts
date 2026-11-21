@@ -88,6 +88,11 @@ describe("文の集め方と数え方", () => {
   it("言い換えの表の形: 回数の「回」・やり直しの「直す」・画像を回すは引っかけない", () => {
     const hit = (text: string) => UI_WORD_RULES.filter((r) => r.pattern.test(text)).map((r) => r.id);
     expect(hit("次の回を飛ばす")).toContain("kai");
+    // 手で投稿する・手で出す（2026-11-21）。手動で投稿する・手で記録するは引っかけない
+    expect(hit("X は手で投稿する")).toContain("shudou");
+    expect(hit("手では出さないでください")).toContain("shudou");
+    expect(hit("X・手で")).toContain("shudou");
+    expect(hit("X は手動で投稿する。成果を手で記録する。X・手動")).toEqual([]);
     expect(hit("画像をつくれなかった回は、送らずに下書きに回します。")).toEqual(expect.arrayContaining(["kai", "mawasu"]));
     expect(hit("1 日 3 回まで。毎回付けるタグ。これまで 5 回")).toEqual([]);
     expect(hit("別のアカウントでつなぎ直すと、前のアカウントは外れます")).toEqual([]);

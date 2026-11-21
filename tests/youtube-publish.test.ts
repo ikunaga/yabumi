@@ -265,7 +265,7 @@ describe("送る直前の確かめと割り当て", () => {
     vi.stubGlobal("fetch", g.fetchMock);
     for (const [verdict, message] of [
       ["global", QUOTA_GLOBAL_MESSAGE],
-      ["user", "YouTube は 1 日 5 本まで送れます。明日送り直すか、手で投稿してください。"],
+      ["user", "YouTube は 1 日 5 本まで送れます。明日送り直すか、手動で投稿してください。"],
     ] as const) {
       const { d } = deps({ reserveUpload: vi.fn(async () => verdict) });
       await expect(start(createYouTubeAdapter(d), d)).rejects.toMatchObject({ kind: "permanent", userMessage: message });

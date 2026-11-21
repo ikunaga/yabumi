@@ -40,7 +40,7 @@ describe("sanitizeJpeg", () => {
 });
 
 describe("画像の決まり", () => {
-  it("SNS ごとの枚数: X は 4 枚まで、Threads は 20 枚まで。動画だけ・手で投稿の SNS は画像を数えない", () => {
+  it("SNS ごとの枚数: X は 4 枚まで、Threads は 20 枚まで。動画だけ・手動で投稿の SNS は画像を数えない", () => {
     expect(checkTarget("x", "本文", { images: 4, videos: 0 }).issues).toEqual([]);
     expect(checkTarget("x", "本文", { images: 5, videos: 0 }).issues).toEqual(["too_many_images"]);
     expect(checkTarget("threads", "本文", { images: 10, videos: 0 }).issues).toEqual([]);

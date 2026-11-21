@@ -163,8 +163,8 @@ describe("1 日のアップロードの数", () => {
   });
 });
 
-describe("YouTube は手で投稿する", () => {
-  it("手で投稿するの YouTube は要確認で閉じる対象に入らず（SQL と TS の文が同じ）、手で投稿したと記録できる", async () => {
+describe("YouTube は手動で投稿する", () => {
+  it("手動で投稿するの YouTube は要確認で閉じる対象に入らず（SQL と TS の文が同じ）、手動で投稿したと記録できる", async () => {
     const { targetId } = await target("youtube", aliceId, projectId, "failed", { error_message: BY_HAND_MESSAGE.youtube });
     const closed = await alice.rpc("close_attention", { p_project_id: projectId, p_items: [{ kind: "failed", id: targetId }] as never });
     expect(closed.error).toBeNull();

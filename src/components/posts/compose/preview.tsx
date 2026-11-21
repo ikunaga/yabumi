@@ -41,7 +41,7 @@ export function ComposePreview({ c }: { c: Composer }) {
             {SNS[focus].maxLength ? `${formatCount(SNS[focus].maxLength!)} 字まで・` : ""}
             {PREVIEW[focus].short}
           </p>
-          {isManualSns(focus) && <p className="text-[13px] text-muted">{focusLabel} には、「投稿」の画面から手で投稿します。</p>}
+          {isManualSns(focus) && <p className="text-[13px] text-muted">{focusLabel} には、「投稿」の画面から手動で投稿します。</p>}
           {hasTitleField(focus) && (
             <div className="flex flex-col gap-1.5">
               <label htmlFor="target-title" className="text-[13px] font-bold">

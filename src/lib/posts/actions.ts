@@ -112,9 +112,9 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
     } else if (toSend.length === 0) {
       fieldErrors.targets = "選んだ SNS にはすべて送信済みです";
     } else if (intent === "now" && toSend.every((t) => isManualSns(t.sns))) {
-      fieldErrors.targets = "note・Substack は手で投稿します。予約するか下書きに保存すると、投稿の画面から手で投稿できます";
+      fieldErrors.targets = "note・Substack は手動で投稿します。予約するか下書きに保存すると、投稿の画面から手動で投稿できます";
     } else if (intent === "now" && toSend.every((t) => isManualSns(t.sns) || (xByHand && t.sns === "x") || (tiktokByHand && t.sns === "tiktok") || (youtubeByHand && t.sns === "youtube"))) {
-      fieldErrors.targets = "手で投稿する SNS だけです。予約するか下書きに保存すると、投稿の画面から手で投稿できます";
+      fieldErrors.targets = "手動で投稿する SNS だけです。予約するか下書きに保存すると、投稿の画面から手動で投稿できます";
     } else {
       let linkBase: string | undefined;
       for (const t of toSend) {
@@ -166,7 +166,7 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
           // 1 日 5 本まで（太平洋時間の 1 日。送信ジョブの reserve_youtube_upload と同じ日の区切り。docs/design/youtube.md の 6.）
           const at = intent === "now" ? new Date() : new Date(plannedIso!);
           if ((await youtubeSchedulesOnDay(supabase, at, postId)) >= YOUTUBE_USER_DAILY_UPLOADS) {
-            fieldErrors.targets = `YouTube: この日は上限の 1 日 ${YOUTUBE_USER_DAILY_UPLOADS} 本を超えます。別の日にするか、「YouTube は手で投稿する」を選んでください`;
+            fieldErrors.targets = `YouTube: この日は上限の 1 日 ${YOUTUBE_USER_DAILY_UPLOADS} 本を超えます。別の日にするか、「YouTube は手動で投稿する」を選んでください`;
             break;
           }
           youtubeChecked = r;
@@ -176,7 +176,7 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
           const at = intent === "now" ? new Date() : new Date(plannedIso!);
           const v = await xSendVerdict(createAdminClient(), userId, { text, altCount: media.filter((m) => m.altText.trim()).length, at });
           if (v.over) {
-            fieldErrors.targets = `${xOverMessage(v.over, v)}。X を外すか、「X は手で投稿する」を選んでください`;
+            fieldErrors.targets = `${xOverMessage(v.over, v)}。X を外すか、「X は手動で投稿する」を選んでください`;
             break;
           }
         }
@@ -273,7 +273,7 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
       try {
         marked = await markByHand(createAdminClient(), savedId, userId, sns);
       } catch (e) {
-        console.error("[savePost] 手で投稿する印を付けられませんでした", sns, e);
+        console.error("[savePost] 手動で投稿する印を付けられませんでした", sns, e);
         return { error: "保存できませんでした。時間をおいてもう一度お試しください。" };
       }
       // 送信ジョブが先に取り出していた（読んだときは送信待ちだった）。自動で送られるので、手では出さないよう知らせる

@@ -130,7 +130,7 @@ export function ShortLinkToggle({
 
 // 置き換えない SNS とその理由（例: 「Instagram（本文の URL を押せないため）・note（手で投稿するため）」）
 function skippedText(skipped: ShortLinkPlan["skipped"]): string {
-  return skipped.map((s) => `${SNS[s.sns].label}（${s.reason === "instagram" ? "本文の URL を押せないため" : "手で投稿するため"}）`).join("・");
+  return skipped.map((s) => `${SNS[s.sns].label}（${s.reason === "instagram" ? "本文の URL を押せないため" : "手動で投稿するため"}）`).join("・");
 }
 
 // 見え方の欄に出す、送るときの置き換え。保存したあとは実際の短縮リンクを出す（送る前に、送る文をそのまま見せるため）

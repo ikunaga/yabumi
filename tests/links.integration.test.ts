@@ -126,7 +126,7 @@ describe("投稿の本文の置き換え", () => {
 });
 
 describe("投稿を保存したときの用意", () => {
-  it("送る前の自動の配信先にだけ用意し、オフにすると消す。手で投稿する SNS・送った配信先には触らない", async () => {
+  it("送る前の自動の配信先にだけ用意し、オフにすると消す。手動で投稿する SNS・送った配信先には触らない", async () => {
     const body = `新しくしました ${STORE}`;
     const { data: postId } = await alice.rpc("save_post", {
       p_post_id: null as unknown as string,

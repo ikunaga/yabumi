@@ -146,7 +146,7 @@ describe("作成画面に出す、置き換える URL と SNS", () => {
   it("URL がなければ、置き換えるものも置き換えない SNS もない", () => {
     expect(planShortLinks([{ sns: "x", text: "こんにちは" }, { sns: "instagram", text: "こんにちは" }])).toEqual({ replaced: [], skipped: [] });
   });
-  it("URL ごとに置き換える SNS をまとめ、Instagram と手で投稿する SNS は理由を付けて分ける", () => {
+  it("URL ごとに置き換える SNS をまとめ、Instagram と手動で投稿する SNS は理由を付けて分ける", () => {
     const plan = planShortLinks([
       { sns: "x", text: `新しい版です ${app}` },
       { sns: "threads", text: `新しい版です ${app} と https://example.com/blog。` },

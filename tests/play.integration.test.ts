@@ -225,7 +225,7 @@ describe("つなげる数の上限", () => {
       const { count } = await admin.from("play_account_creations").select("id", { count: "exact", head: true }).gt("created_at", new Date(Date.now() - 30 * 86400_000).toISOString());
       const rest = Math.max(0, 80 - (count ?? 0));
       if (rest) await admin.from("play_account_creations").insert(Array.from({ length: rest }, () => ({ owner_id: filler })));
-      await expect(startPlayConnection(admin, userId, pid!.id, deps)).rejects.toMatchObject({ userMessage: expect.stringMatching(/混み合って/) });
+      await expect(startPlayConnection(admin, userId, pid!.id, deps)).rejects.toMatchObject({ userMessage: expect.stringMatching(/新しくつなげません/) });
       expect((await admin.from("play_connections").select("project_id").eq("owner_id", userId)).data).toEqual([]);
     } finally {
       await admin.from("play_account_creations").delete().eq("owner_id", filler);

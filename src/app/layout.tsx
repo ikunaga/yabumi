@@ -11,6 +11,8 @@ export const metadata: Metadata = {
   // OGP 画像などを絶対 URL で出すため。本番は APP_URL（https://yabumi.vercel.app）
   metadataBase: new URL(process.env.APP_URL ?? "https://localhost:3100"),
   openGraph: { siteName: "yabumi", locale: "ja_JP", type: "website" },
+  // iPhone でホーム画面に追加したときの名前と、上の帯（2026-11-21 PM 了承）。全画面の表示は manifest の standalone
+  appleWebApp: { capable: true, title: "yabumi", statusBarStyle: "default" },
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

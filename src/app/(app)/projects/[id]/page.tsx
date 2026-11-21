@@ -50,6 +50,8 @@ import { listProjectSnsAccounts } from "@/lib/sns/queries";
 import { createClient } from "@/lib/supabase/server";
 import { toYmd } from "@/lib/time";
 import { isUuid } from "@/lib/uuid";
+import { AddToHomeBand } from "@/components/pwa/add-to-home";
+import { vapidPublicKey } from "@/lib/push/send";
 
 export async function generateMetadata(props: PageProps<"/projects/[id]">): Promise<Metadata> {
   const { id } = await props.params;
@@ -192,6 +194,9 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
 
       {/* コンセプトのおすすめ（4.50）: 4 段階が済んで、コンセプトがまだで、この端末で閉じていない人だけ */}
       {stepIndex >= STEPS.length && plan && !isSectionDone("concept", plan.plan.concept) && !conceptHintClosed && <ConceptHintBand projectId={project.id} />}
+
+      {/* スマホで、ホーム画面の yabumi から開いていないときだけ、1 回だけ出す（閉じたらこの端末では出さない） */}
+      <AddToHomeBand pushReady={vapidPublicKey() !== null} />
 
       {todayTerm && <TodayTermBand projectId={project.id} term={todayTerm} />}
 

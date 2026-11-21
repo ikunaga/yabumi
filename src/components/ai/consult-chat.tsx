@@ -191,7 +191,7 @@ export function ConsultChat({
       {messages.length === 0 && !waiting && (
         <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface px-6 py-5 max-sm:px-4">
           <p className="text-[14px] leading-[1.8]">
-            運用の悩みを相談できます。AI は、アカウントの方針・最近の投稿と数字・目標と週ごとのやることを見ます。そのうえで、次にやることの案を出します。「これにする」を押した案だけを追加します。追加する先は、アカウントの方針や、目標と週ごとのやることです。
+            運用の悩みを相談できます。AI は、アカウントの方針・最近の投稿と数字・目標と週ごとのやることを見ます。そのうえで、これからやることの案を出します。「これにする」を押した案だけを追加します。追加する先は、アカウントの方針や、目標と週ごとのやることです。
           </p>
           <div className="flex flex-wrap gap-2">
             {TOPIC_BUTTONS.map((t) => (

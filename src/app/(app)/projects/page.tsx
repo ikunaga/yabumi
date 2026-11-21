@@ -96,7 +96,7 @@ export default async function ProjectsPage(props: PageProps<"/projects">) {
                     href={`/projects/${p.id}`}
                     className="flex items-center gap-2 border-t border-line px-6 py-3 text-[15px] hover:bg-surface2 hover:no-underline max-sm:px-4"
                   >
-                    <span className="shrink-0 rounded-full bg-subtle px-2.5 py-0.5 text-xs font-bold text-muted">次にやること</span>
+                    <span className="shrink-0 rounded-full bg-subtle px-2.5 py-0.5 text-xs font-bold text-muted">いまやること</span>
                     <b className="line-clamp-2 min-w-0 break-words [word-break:auto-phrase]">{next.label}</b>
                     <span aria-hidden className="ml-auto text-faint">
                       →

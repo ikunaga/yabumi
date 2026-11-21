@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { FormatsScreen } from "@/components/formats/formats-screen";
-import { PageHeader } from "@/components/ui/page-header";
 import { aiConfigured } from "@/lib/ai/anthropic";
 import { readFormatsBack } from "@/lib/post-formats/back";
 import { getPlanHints } from "@/lib/plan/queries";
@@ -22,34 +20,16 @@ export default async function FormatsPage(props: PageProps<"/projects/[id]/forma
   // 自動の投稿の「画像」から来たときは、戻るリンクを出す
   const back = readFormatsBack(project.id, searchParams.back);
 
-  return (
-    <div className="flex flex-col gap-5 max-sm:gap-4">
-      <PageHeader
-        title="フォーマット"
-        actions={
-          back && (
-            <Link href={back.href} className="text-sm underline">
-              ← {back.label}
-            </Link>
-          )
-        }
-      />
-      <section className="rounded-lg border border-border bg-surface px-6 py-5 max-sm:px-4 max-sm:py-4">
-        <PostTab projectId={project.id} />
-      </section>
-    </div>
-  );
-}
-
-async function PostTab({ projectId }: { projectId: string }) {
-  const [accounts, planHints] = await Promise.all([connectedAccounts(projectId), getPlanHints(projectId)]);
+  const [accounts, planHints] = await Promise.all([connectedAccounts(project.id), getPlanHints(project.id)]);
+  // 見出し（件数と「＋ 新しいフォーマット」）は、件数を読む画面の側で出す（一覧・編集・新しく作るで見出しが変わる）
   return (
     <FormatsScreen
-      projectId={projectId}
+      projectId={project.id}
       pillars={(planHints?.pillars ?? []).map((p) => p.name).filter(Boolean)}
       planHashtags={planHints?.hashtags ?? []}
       connected={Object.keys(accounts) as SnsKey[]}
       aiEnabled={aiConfigured()}
+      back={back ? { href: back.href, label: back.label } : null}
     />
   );
 }

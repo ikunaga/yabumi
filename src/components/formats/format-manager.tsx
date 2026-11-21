@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { AiThinking } from "@/components/ui/ai-thinking";
 import { Button, NotReadyButton } from "@/components/ui/button";
@@ -43,7 +44,6 @@ import {
   FORMAT_HASHTAG_KEYS,
   formatInputSchema,
   formatSlots,
-  hasFormatHashtags,
   hashtagKeyLabel,
   type FormatHashtagKey,
   type FormatHashtags,
@@ -55,42 +55,54 @@ import { MAX_TARGET_HASHTAGS, hashtagLine, normalizeHashtag, parseHashtagInput }
 import { FormatImageFields } from "@/components/posts/format-image-fields";
 import { Choice } from "@/components/posts/maker-parts";
 import { ErrorBanner } from "@/components/ui/feedback";
-import { EMPTY_IMAGE, cleanFormatImage, imageSummary } from "@/lib/post-formats/image";
+import { PageHeader } from "@/components/ui/page-header";
+import { EMPTY_IMAGE, cleanFormatImage } from "@/lib/post-formats/image";
 import { DisclosureBox } from "@/components/ui/disclosure";
 
-// フォーマットの画面（/projects/[id]/formats。2026-11-18 オーナーの了承で、投稿をつくるの中の畳んだ「フォーマットを管理」から移した）:
-// 作る（例から足す・AI とつくる・手で書く）、一覧（直す・これまでの回・削除する）。一覧の正はサーバー（操作のたびに返った一覧に入れ替える）。
-// シリーズにして保存したとき（AI が埋める穴が 0 → 1 以上）は、その場で「これまでの回を貼る」を開いて出す（docs/design/format-series.md の 2）
+// フォーマットの画面（/projects/[id]/formats。2026-11-18 オーナーの了承で、投稿をつくるの中の畳んだ「フォーマットを管理」から移した）。
+// 2026-11-21 オーナーの指摘「どこが一覧なのか分かりづらすぎる」で、一覧・編集・新しく作るの 3 つの画面に分けた（?edit=id・?new=…）:
+// - 一覧: 見出しに件数と「＋ 新しいフォーマット」。1 件ずつカード（名前・シリーズの札・本文の 1 行目・小さな要約）。押すと編集の画面
+// - 編集: 編集の欄・これまでの投稿（シリーズ）・削除（確認つき）
+// - 新しく作る: 「白紙から」「例から選ぶ」「AI とつくる」を選ぶ
+// 一覧の正はサーバー（操作のたびに返った一覧に入れ替える）。シリーズにして保存したとき（AI が埋める空欄が 0 → 1 以上）は、
+// 編集の画面で「これまでの投稿を貼る」を開いて出す（docs/design/format-series.md の 2）
+export type FormatsView = { kind: "list" } | { kind: "edit"; id: string } | { kind: "new"; how: "choose" | "blank" | "example" | "ai" };
+
 export function FormatManager({
   projectId,
   formats,
   examples,
   kinds,
+  roundCounts,
   pillars,
   planHashtags,
   connected,
   aiEnabled,
+  view,
+  go,
+  back,
   onChange,
 }: {
   projectId: string;
   formats: PostFormat[];
   examples: PostFormatInput[];
   kinds: string[];
+  roundCounts: Record<string, number>;
   pillars: string[];
   planHashtags: string[];
   connected: SnsKey[];
   aiEnabled: boolean;
+  view: FormatsView;
+  go: (v: FormatsView) => void;
+  back: { href: string; label: string } | null;
   onChange: (r: FormatsResult) => void;
 }) {
   const [pending, start] = useTransition();
-  // 直している行の id、"new"（手で書く・AI の案を直す）、"ai"（AI とつくる）
-  const [editing, setEditing] = useState<string | "new" | "ai" | null>(null);
   // AI の案から始めるときの中身
   const [draft, setDraft] = useState<PostFormatInput | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  // シリーズにしたばかりのフォーマット（これまでの回を貼る案内を出す）
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  // シリーズにしたばかりのフォーマット（これまでの投稿を貼る案内を出す）と、保存したばかりのフォーマット（「保存しました」を出す）
   const [justSeries, setJustSeries] = useState<string | null>(null);
-  // 保存したばかりのフォーマット（その行に「保存しました」を出す。前は何も出なかった。パワポの 5）
   const [saved, setSaved] = useState<string | null>(null);
   const run = (fn: () => Promise<FormatsResult>, after?: (r: FormatsResult) => void) =>
     start(async () => {
@@ -98,71 +110,140 @@ export function FormatManager({
       onChange(r);
       if (!r.error) after?.(r);
     });
-  // 保存のあと、AI が埋める穴が 0 から 1 以上になったフォーマットを探す（新しく作ったものは、前の一覧になかった id）
-  const becameSeries = (r: FormatsResult, id: string | null, before: PostFormat | undefined) => {
-    const after = r.formats?.find((f) => (id ? f.id === id : !formats.some((o) => o.id === f.id)));
-    if (after) setSaved(after.id);
-    if (after && isSeries(after.series) && !(before && isSeries(before.series))) setJustSeries(after.id);
+  // 保存のあと、そのフォーマットの編集の画面にする（新しく作ったものは、前の一覧になかった id）。シリーズになったら案内を出す
+  const afterSave = (r: FormatsResult, before: PostFormat | undefined) => {
+    const after = r.formats?.find((f) => (before ? f.id === before.id : !formats.some((o) => o.id === f.id)));
+    if (!after) return go({ kind: "list" });
+    setSaved(after.id);
+    if (isSeries(after.series) && !(before && isSeries(before.series))) setJustSeries(after.id);
+    if (!before) go({ kind: "edit", id: after.id });
   };
   const left = MAX_POST_FORMATS - formats.length;
   const addable = examples.filter((e) => !formats.some((f) => f.name === e.name));
+  const backLink = (label: string, to: FormatsView) => (
+    <button type="button" onClick={() => (setConfirmDelete(false), go(to))} className="self-start text-sm text-muted underline hover:text-fg">
+      ← {label}
+    </button>
+  );
 
-  return (
-    <div className="flex flex-col gap-3 text-sm">
-        <p className="text-[14px] leading-[1.7] text-muted">
-          毎回くり返し使う投稿のひな形です。「投稿をつくる」の「フォーマットから書く」で選べます。本文に {"{何が}"} のように書いたところが空欄になります。投稿をつくるとき、空欄ごとに言葉を入れる欄が出ます。空欄は {MAX_FORMAT_SLOTS} 個まで置けます。フォーマットは {MAX_POST_FORMATS} 個までつくれます。いまは <span className="num">{formats.length}</span> 個です。
-        </p>
-        {formats.length > 0 && (
-          <ul className="flex flex-col divide-y divide-line">
-            {formats.map((f) =>
-              editing === f.id ? (
-                <li key={f.id} className="py-2">
-                  <FormatEditor projectId={projectId} initial={f} pillars={pillars} planHashtags={planHashtags} connected={connected} pending={pending} onCancel={() => setEditing(null)} onSave={(v) => run(() => updatePostFormat(projectId, f.id, v), (r) => (setEditing(null), becameSeries(r, f.id, f)))} />
-                </li>
-              ) : (
-                <li key={f.id} className="flex flex-col gap-1 py-2">
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <span className="font-bold">{f.name}</span>
-                    {f.pillar && <span className="text-xs text-muted">テーマ: {pillars.includes(f.pillar) ? f.pillar : "なし"}</span>}
-                    <span className="ml-auto flex gap-1">
-                      <Button size="sm" variant="secondary" onClick={() => (setEditing(f.id), setSaved(null))}>
-                        編集
-                      </Button>
-                      {confirmDelete === f.id ? (
-                        <>
-                          <Button size="sm" variant="danger" disabled={pending} onClick={() => run(() => deletePostFormat(projectId, f.id), () => setConfirmDelete(null))}>
-                            このフォーマットを削除する
-                          </Button>
-                          <Button size="sm" variant="text" onClick={() => setConfirmDelete(null)}>
-                            やめる
-                          </Button>
-                        </>
-                      ) : (
-                        <Button size="sm" variant="secondary" onClick={() => setConfirmDelete(f.id)}>
-                          削除する
-                        </Button>
-                      )}
-                    </span>
-                  </div>
-                  <p className="line-clamp-2 text-xs leading-[1.7] whitespace-pre-line text-muted">{f.body}</p>
-                  {hasFormatHashtags(f.hashtags) && <FormatTagsLine h={f.hashtags} className="text-xs text-muted" />}
-                  {f.image && <p className="text-xs text-muted">{imageSummary(f.image)}</p>}
-                  {saved === f.id && (
-                    <p role="status" className="text-xs font-semibold text-success">
-                      保存しました。
-                    </p>
-                  )}
-                  {isSeries(f.series) && justSeries === f.id && (
-                    <p className="mt-1 rounded-md bg-subtle px-3 py-2 text-[13px] font-bold">これまでに出した投稿はありますか？　貼ると、次の投稿の案と重なりません</p>
-                  )}
-                  {isSeries(f.series) && <SeriesRounds key={justSeries === f.id ? "open" : "closed"} projectId={projectId} format={f} open={justSeries === f.id} />}
-                </li>
-              ),
+  // ===== 編集の画面 =====
+  if (view.kind === "edit") {
+    const f = formats.find((x) => x.id === view.id);
+    if (!f) {
+      return (
+        <div className="flex flex-col gap-3">
+          {backLink("フォーマットの一覧", { kind: "list" })}
+          <p className="text-sm text-muted">このフォーマットは見つかりませんでした。削除されたかもしれません。</p>
+        </div>
+      );
+    }
+    return (
+      <div className="flex flex-col gap-4">
+        {backLink("フォーマットの一覧", { kind: "list" })}
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-[24px] leading-tight font-bold">{f.name}</h1>
+          {isSeries(f.series) && <SeriesTag />}
+        </div>
+        {saved === f.id && (
+          <p role="status" className="text-sm font-semibold text-success">
+            保存しました。
+          </p>
+        )}
+        <section className="rounded-lg border border-border bg-surface px-6 py-5 max-sm:px-4 max-sm:py-4">
+          <FormatEditor
+            key={f.id}
+            projectId={projectId}
+            initial={f}
+            pillars={pillars}
+            planHashtags={planHashtags}
+            connected={connected}
+            pending={pending}
+            onCancel={() => go({ kind: "list" })}
+            onSave={(v) => (setSaved(null), run(() => updatePostFormat(projectId, f.id, v), (r) => afterSave(r, f)))}
+          />
+        </section>
+        {isSeries(f.series) && (
+          <section className="flex flex-col gap-2">
+            {justSeries === f.id && <p className="rounded-md bg-subtle px-3 py-2 text-[13px] font-bold">これまでに出した投稿はありますか？　貼ると、次の投稿の案と重なりません</p>}
+            <SeriesRounds key={justSeries === f.id ? "open" : "closed"} projectId={projectId} format={f} open={justSeries === f.id} />
+          </section>
+        )}
+        <section className="flex flex-col gap-2 border-t border-line pt-4">
+          {confirmDelete ? (
+            <div className="flex flex-col gap-2">
+              <p className="text-sm">「{f.name}」を削除します。これまでの投稿の記録も消え、元に戻せません。</p>
+              <span className="flex flex-wrap gap-2">
+                <Button size="sm" variant="danger" disabled={pending} onClick={() => run(() => deletePostFormat(projectId, f.id), () => (setConfirmDelete(false), go({ kind: "list" })))}>
+                  {pending ? "削除しています…" : "このフォーマットを削除する"}
+                </Button>
+                <Button size="sm" variant="text" onClick={() => setConfirmDelete(false)}>
+                  やめる
+                </Button>
+              </span>
+            </div>
+          ) : (
+            <Button size="sm" variant="secondary" className="self-start" onClick={() => setConfirmDelete(true)}>
+              削除する
+            </Button>
+          )}
+        </section>
+      </div>
+    );
+  }
+
+  // ===== 新しく作る画面 =====
+  if (view.kind === "new") {
+    if (left <= 0) {
+      return (
+        <div className="flex flex-col gap-3">
+          {backLink("フォーマットの一覧", { kind: "list" })}
+          <p className="text-sm text-muted">フォーマットは {MAX_POST_FORMATS} 個までです。使っていないものを削除すると、新しく作れます。</p>
+        </div>
+      );
+    }
+    const choose = { kind: "new", how: "choose" } as const;
+    return (
+      <div className="flex flex-col gap-4">
+        {backLink(view.how === "choose" ? "フォーマットの一覧" : "作り方を選び直す", view.how === "choose" ? { kind: "list" } : choose)}
+        <h1 className="text-[24px] leading-tight font-bold">新しいフォーマット</h1>
+        {view.how === "choose" && (
+          <ul className="flex flex-col gap-3">
+            <NewWay title="白紙から" note="名前と本文を自分で書きます" onClick={() => (setDraft(null), go({ kind: "new", how: "blank" }))} />
+            {addable.length > 0 && <NewWay title="例から選ぶ" note="よく使う形から選んで、編集します" onClick={() => go({ kind: "new", how: "example" })} />}
+            {aiEnabled ? (
+              <NewWay title="AI とつくる" note="何の投稿かを選ぶと、AI が案を出します" onClick={() => go({ kind: "new", how: "ai" })} />
+            ) : (
+              <li>
+                <NotReadyButton variant="secondary">AI とつくる</NotReadyButton>
+              </li>
             )}
           </ul>
         )}
-        {left > 0 &&
-          (editing === "new" ? (
+        {view.how === "example" && (
+          <ul className="flex flex-col gap-3">
+            {addable.map((e) => (
+              <li key={e.name}>
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => run(() => addPostFormat(projectId, e), (r) => afterSave(r, undefined))}
+                  className="flex w-full flex-col gap-1 rounded-lg border border-border bg-surface px-5 py-4 text-left hover:border-primary disabled:opacity-60"
+                >
+                  <span className="font-bold">{e.name}</span>
+                  <span className="line-clamp-2 text-sm leading-[1.7] whitespace-pre-line text-muted">{e.body}</span>
+                  <span className="text-sm font-bold text-primary">{pending ? "追加しています…" : "これを追加して編集する →"}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {view.how === "ai" && (
+          <section className="rounded-lg border border-border bg-surface px-6 py-5 max-sm:px-4 max-sm:py-4">
+            <FormatAiMaker projectId={projectId} kinds={[...pillars, ...kinds.filter((k) => !pillars.includes(k))]} onPick={(p) => (setDraft(p), go({ kind: "new", how: "blank" }))} onCancel={() => go(choose)} />
+          </section>
+        )}
+        {view.how === "blank" && (
+          <section className="rounded-lg border border-border bg-surface px-6 py-5 max-sm:px-4 max-sm:py-4">
             <FormatEditor
               key={draft?.name ?? "new"}
               projectId={projectId}
@@ -171,46 +252,102 @@ export function FormatManager({
               planHashtags={planHashtags}
               connected={connected}
               pending={pending}
-              onCancel={() => (setEditing(null), setDraft(null))}
-              onSave={(v) => run(() => addPostFormat(projectId, v), (r) => (setEditing(null), setDraft(null), becameSeries(r, null, undefined)))}
+              onCancel={() => (setDraft(null), go({ kind: "list" }))}
+              onSave={(v) => run(() => addPostFormat(projectId, v), (r) => (setDraft(null), afterSave(r, undefined)))}
             />
-          ) : editing === "ai" ? (
-            <FormatAiMaker projectId={projectId} kinds={[...pillars, ...kinds.filter((k) => !pillars.includes(k))]} onPick={(p) => (setDraft(p), setEditing("new"))} onCancel={() => setEditing(null)} />
-          ) : (
-            <div className="flex flex-col gap-1.5">
-              {addable.length > 0 && (
-                <>
-                  <span className="text-xs font-bold">例から選んで追加</span>
-                  <div className="flex flex-wrap gap-2">
-                    {addable.map((e) => (
-                      <Button key={e.name} size="sm" variant="secondary" disabled={pending} onClick={() => run(() => addPostFormat(projectId, e))}>
-                        ＋ {e.name}
-                      </Button>
-                    ))}
-                  </div>
-                </>
-              )}
-              <span className="flex flex-wrap gap-2">
-                {aiEnabled ? (
-                  <Button size="sm" variant="secondary" onClick={() => setEditing("ai")}>
-                    AI と新しいフォーマットをつくる
-                  </Button>
-                ) : (
-                  <NotReadyButton size="sm" variant="secondary">
-                    AI と新しいフォーマットをつくる
-                  </NotReadyButton>
-                )}
-                <Button size="sm" variant="secondary" onClick={() => (setDraft(null), setEditing("new"))}>
-                  新しいフォーマットを自分で書く
-                </Button>
-              </span>
-            </div>
+          </section>
+        )}
+      </div>
+    );
+  }
+
+  // ===== 一覧 =====
+  const add = (
+    <Button disabled={left <= 0} onClick={() => go({ kind: "new", how: "choose" })} className="max-sm:w-full">
+      ＋ 新しいフォーマット
+    </Button>
+  );
+  return (
+    <div className="flex flex-col gap-5 max-sm:gap-4">
+      <PageHeader
+        title="フォーマット"
+        sub={`${formats.length} 個`}
+        help={
+          <>
+            毎回くり返し使う投稿のひな形です。「投稿をつくる」の「フォーマットから書く」で選べます。本文に {"{何が}"} のように書いたところが空欄になり、投稿をつくるときに言葉を入れます。空欄は {MAX_FORMAT_SLOTS} 個まで、フォーマットは {MAX_POST_FORMATS} 個までつくれます。
+          </>
+        }
+        actions={
+          <>
+            {back && (
+              <Link href={back.href} className="text-sm underline">
+                ← {back.label}
+              </Link>
+            )}
+            {add}
+          </>
+        }
+      />
+      {formats.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-input px-6 py-8 text-center text-sm text-muted">まだフォーマットはありません</p>
+      ) : (
+        <ul className="flex flex-col gap-3" aria-label="フォーマットの一覧">
+          {formats.map((f) => (
+            <li key={f.id}>
+              <button
+                type="button"
+                onClick={() => (setSaved(null), setJustSeries(null), setConfirmDelete(false), go({ kind: "edit", id: f.id }))}
+                className="flex w-full items-center gap-3 rounded-lg border border-border bg-surface px-5 py-4 text-left hover:border-primary max-sm:px-4"
+              >
+                <span className="flex min-w-0 flex-1 flex-col gap-1">
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span className="font-bold">{f.name}</span>
+                    {isSeries(f.series) && <SeriesTag />}
+                  </span>
+                  <span className="truncate text-sm text-muted">{f.body.split("\n").find((l) => l.trim()) ?? ""}</span>
+                  {cardSummary(f, roundCounts[f.id] ?? 0) && <span className="text-xs text-faint">{cardSummary(f, roundCounts[f.id] ?? 0)}</span>}
+                </span>
+                <span aria-hidden className="shrink-0 text-muted">
+                  ›
+                </span>
+              </button>
+            </li>
           ))}
+        </ul>
+      )}
+      {left <= 0 && <p className="text-xs text-muted">フォーマットは {MAX_POST_FORMATS} 個までです。使っていないものを削除すると、新しく作れます。</p>}
     </div>
   );
 }
 
-// フォーマットの欄（名前・いつ使う・本文・埋めた例・柱）。保存の前に画面でも確かめる（正はサーバー）
+// カードの小さな要約（「画像あり・タグ 4 個・これまで 4 件」）。ないものは書かない
+function cardSummary(f: PostFormat, rounds: number): string {
+  const tags = new Set(Object.values(f.hashtags).flatMap((x) => x ?? [])).size;
+  const parts = [f.image ? "画像あり" : null, tags ? `タグ ${tags} 個` : null, isSeries(f.series) ? `これまで ${rounds} 件` : null].filter(Boolean);
+  return parts.join("・");
+}
+
+function SeriesTag() {
+  return <span className="rounded-sm bg-info-soft px-1.5 py-0.5 text-xs font-bold text-info">シリーズ</span>;
+}
+
+// 新しく作るときの作り方 1 つ（押すと、その作り方の画面）
+function NewWay({ title, note, onClick }: { title: string; note: string; onClick: () => void }) {
+  return (
+    <li>
+      <button type="button" onClick={onClick} className="flex w-full items-center gap-3 rounded-lg border border-border bg-surface px-5 py-4 text-left hover:border-primary max-sm:px-4">
+        <span className="flex min-w-0 flex-1 flex-col gap-1">
+          <span className="font-bold">{title}</span>
+          <span className="text-sm text-muted">{note}</span>
+        </span>
+        <span aria-hidden className="shrink-0 text-muted">
+          ›
+        </span>
+      </button>
+    </li>
+  );
+}
+
 export function FormatEditor({
   projectId,
   initial,

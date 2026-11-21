@@ -813,3 +813,20 @@ yabumi 運営 YuXport Labs
 | 33-1b | PM | マイグレーション 20261119110000_auto_post_images を本番に当てる（③ 自動の回の画像。auto_plans.image・save_auto_plan の p_image・AI の画像の自動の分の枠〈ai_image_jobs.auto、ai_image_quota・reserve_ai_images の p_auto〉・auto_post_scene・image_failed・auto_samples.image）。今のアプリ（p_auto・p_image を渡さない）はそのまま動く。法務の ③ の版の了承の前は、画像の機能を本番に出さない（取り込む時期は PM が決める） | まだ |
 | 33-1c | PM | マイグレーション 20261120100000_auto_image_look を本番に当てる（④ 見出しの見た目。auto_image_valid の create or replace だけ）。@napi-rs/canvas と src/server-fonts/ が Vercel の関数に入っているかは、出す前に Preview の /api/admin/render-check（運営者でログイン）で確かめる。法務の ③・④ の版の了承の前は出さない | まだ |
 | 33-2 | 実装担当 | **次のデプロイのあと**に、tone の列（auto_plans.tone）と古い形の save_auto_plan(uuid, uuid, text, text, jsonb, jsonb, text, jsonb, text, integer, boolean) を消すマイグレーションを作る（33-1 を当てて、新しいアプリが本番で動いてから。消す前に、本番のアプリが新しい形だけを呼んでいることを確かめる） | まだ |
+
+## 34. フォーマットの「変数」（2026-11-21、feat/format-variables。docs/design/format-series.md の 1）
+
+**このマイグレーションだけは、先に新しいコードを Vercel に出してから `supabase db push` する**（いつもと逆。2026-11-21 PM の了承）。
+
+- 古いコードのまま 20261121180000_format_variables が当たると、自動投稿のジョブが新しい形の series を読めない。「シリーズのフォーマットが見つかりません」でその回を skipped にし、その日の投稿が抜ける。古いコードは記録を足すときに answer 列に書くので、それも失敗する
+- 新しいコードは古い DB でも動く（tests/format-variables-old-db.test.ts）。古い形の series（answer・slots）を変数として読み、記録の answer 列は読まず書かない（列の既定の '' が入る）。作り方の控え（format_var_modes）のない回し方は要確認にしない
+- コードを出してから db push までの間にできないのは、フォーマットを保存すること（古い check で断られ、「保存できませんでした」と出る）だけ。数分で済ませる
+
+| # | だれが | やること | 状態 |
+|---|---|---|---|
+| 34-1 | PM | 当てる前に件数を見る（SQL Editor。中身は見ない）: `select count(*) from post_format_rounds r join post_formats f on f.id = r.format_id where r.values = '{}'::jsonb and jsonb_typeof(f.series->'answer') <> 'object' and coalesce(f.series->'slots', '{}'::jsonb) = '{}'::jsonb;`（移し先がなく消える記録。ローカルの試し当ては 0 件） | まだ |
+| 34-2 | PM | 当てる前に件数を見る: `select count(*) from auto_plans a join post_formats f on f.id = (a.materials->>'format_id')::uuid where a.kind = 'series' and f.body ~ '\{[^{}]+\}';`（本文に {名前} のあるシリーズの回し方。移したあと「自分で入れる」変数ができると、次の回で要確認になって止まり、知らせが届く） | まだ |
+| 34-3 | PM | 新しいコードを Vercel に出す（Production の切り替わりを確かめる） | まだ |
+| 34-4 | PM | `supabase db push --dry-run` で 20261121180000_format_variables だけが出ることを確かめてから `supabase db push` | まだ |
+| 34-5 | PM | 当てたあと: フォーマットの画面で連想映画クイズを開き、変数の欄に「映画（どこにも出ない・重ならない）」「キーワード」が出ること。自動投稿の一覧で、要確認の回し方がないこと（34-2 で 1 件以上なら、そのぶん要確認になっていること） | まだ |
+

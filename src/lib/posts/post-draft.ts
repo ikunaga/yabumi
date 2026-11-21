@@ -24,9 +24,9 @@ export type PostDraft = {
   step?: number;
   format?: DraftFormat | null;
 };
-// format: 選んでいたフォーマットと穴の言葉・答え・この画面で付けたシリーズの記録（PMO2 の 3 回目の 03。前の版の控えにはない。比べる中身には入れない）。
+// format: 選んでいたフォーマットと変数の言葉・この画面で付けたシリーズの記録（PMO2 の 3 回目の 03。前の版の控えにはない。比べる中身には入れない）。
 // null は「なし」を選んでいた。ないとき（前の版の控え）は、戻してもフォーマットの選択はいまのまま
-export type DraftFormat = { id: string; values: Record<string, string>; answer: string; roundIds: string[] };
+export type DraftFormat = { id: string; values: Record<string, string>; roundIds: string[] };
 
 // 控えから読んだ format を決まった形にそろえる（ほかの端末の古い版・壊れた値は「ない」と同じ）
 export function readDraftFormat(raw: unknown): DraftFormat | null | undefined {
@@ -39,7 +39,7 @@ export function readDraftFormat(raw: unknown): DraftFormat | null | undefined {
     for (const [k, v] of Object.entries(r.values as Record<string, unknown>)) if (typeof v === "string") values[k] = v;
   }
   const roundIds = Array.isArray(r.roundIds) ? r.roundIds.filter((x): x is string => typeof x === "string").slice(0, 20) : [];
-  return { id: r.id, values, answer: typeof r.answer === "string" ? r.answer : "", roundIds };
+  return { id: r.id, values, roundIds };
 }
 
 // 書き始めたときの値を、比べられる形の文字にする（空の文面・タイトルは無いのと同じ。並びもそろえる）

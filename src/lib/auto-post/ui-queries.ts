@@ -1,6 +1,7 @@
 import "server-only";
 import { imageSpecText, readFormatImage } from "@/lib/post-formats/image";
-import { cleanSeries, fixedBodySeries } from "@/lib/post-formats/series";
+import { cleanSeries, fixedBodySeries, isSeries, type FormatSeries } from "@/lib/post-formats/series";
+import { formatSlots } from "@/lib/post-formats/schema";
 import { isSnsKey, type SnsKey } from "@/lib/sns";
 import { createClient } from "@/lib/supabase/server";
 import { EXPIRED_MESSAGE } from "./engine";
@@ -57,7 +58,8 @@ export async function loadRunResults(postIds: string[]): Promise<Map<string, Run
 // 始める画面のシリーズのカード（名前・投稿の例・これまでの回の数）
 // fixedBody: 本文が毎回同じ（型の文に AI の空欄がない）。自動の投稿で X を選べない
 // hasImage: フォーマットに画像の設定がある（自動の回の画像は、いつもフォーマットのとおりにつくる。imageSpec はその要約）
-export type SeriesFormatCard = { id: string; name: string; example: string; rounds: number; hasImage: boolean; hasHeadline: boolean; imageSpec: string | null; fixedBody: boolean };
+// series: フォーマットの変数（「自分で入れる」変数の決め方を選ぶ欄に出す）。bodyVars: 本文に書いてある変数（決め方しだいで本文が毎回同じかを画面で見る）
+export type SeriesFormatCard = { id: string; name: string; example: string; rounds: number; hasImage: boolean; hasHeadline: boolean; imageSpec: string | null; fixedBody: boolean; series: FormatSeries; bodyVars: string[] };
 
 // 始める画面の材料の数（suggest.ts の SuggestMaterials と、使い道のカードの「残り n 件」）
 export type AutoMaterialCounts = {
@@ -80,16 +82,23 @@ export async function loadMaterialCounts(projectId: string): Promise<AutoMateria
   if (formats.error) throw new Error(`post_formats: ${formats.error.message}`);
   if (destinations.error) throw new Error(`project_destinations: ${destinations.error.message}`);
   if (events.error) throw new Error(`project_events: ${events.error.message}`);
-  const isSeries = (s: unknown) => {
-    const slots = (s as { slots?: Record<string, unknown> } | null)?.slots;
-    return !!slots && typeof slots === "object" && Object.keys(slots).length > 0;
-  };
   return {
     unusedNotes: notes.data.length,
     unusedPhotoNotes: notes.data.filter((n) => (n.media_files as unknown[]).length > 0).length,
+    // 変数のあるフォーマット（AI が考える変数があるか、「自分で入れる」変数を自動投稿では AI に考えてもらえば、シリーズとして回せる）
     seriesFormats: formats.data
-      .filter((f) => isSeries(f.series))
-      .map((f) => ({ id: f.id, name: f.name, example: f.example, rounds: (f.post_format_rounds as { count: number }[] | null)?.[0]?.count ?? 0, ...formatImageCard(f.image), fixedBody: fixedBodySeries(f.body, cleanSeries(f.series)) })),
+      .map((f) => ({ f, series: cleanSeries(f.series, { body: f.body, image: readFormatImage(f.image) }) }))
+      .filter(({ series }) => series.vars.length > 0)
+      .map(({ f, series }) => ({
+        id: f.id,
+        name: f.name,
+        example: f.example,
+        rounds: (f.post_format_rounds as { count: number }[] | null)?.[0]?.count ?? 0,
+        ...formatImageCard(f.image),
+        fixedBody: isSeries(series) && fixedBodySeries(f.body, series),
+        series,
+        bodyVars: formatSlots(f.body),
+      })),
     destinations: destinations.data.map((d) => ({ id: d.id, label: d.label })),
     events: events.count ?? 0,
   };

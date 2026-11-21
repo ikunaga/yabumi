@@ -115,14 +115,14 @@ export async function draftPhotoIdeas(projectId: string, text: unknown, sns: unk
 
 // 投稿のフォーマットの画像の場面を、AI が 1 つ書く（docs/design/format-image.md の 2.。「AI が場面に書き換える」のフォーマットだけ）。
 // 絵の説明はサーバーがフォーマットを読み直して埋める（画面からは穴の言葉と答えだけ）
-export async function draftFormatPhotoScene(projectId: string, formatId: string, values: unknown, answer: unknown, sns: unknown = []): Promise<{ scene?: string; error?: string }> {
+export async function draftFormatPhotoScene(projectId: string, formatId: string, values: unknown, sns: unknown = []): Promise<{ scene?: string; error?: string }> {
   const s = snsListSchema.safeParse(sns);
   if (!z.uuid().safeParse(projectId).success || !z.uuid().safeParse(formatId).success || !s.success) return { error: "入力の形式が正しくありません。" };
   if (!aiConfigured() || !photoConfigured()) return { error: "AI の画像はまだ準備中です。" };
   const { supabase, userId } = await currentUser();
   if (!userId) return { error: "ログインし直してください。" };
   try {
-    const r = await runFormatPhotoScene(supabase, createAdminClient(), { callIdeas: callPhotoIdeas }, { userId, projectId, formatId, values, answer, sns: s.data });
+    const r = await runFormatPhotoScene(supabase, createAdminClient(), { callIdeas: callPhotoIdeas }, { userId, projectId, formatId, values, sns: s.data });
     return r.ok ? { scene: r.scene } : { error: r.message };
   } catch (e) {
     console.error("[draftFormatPhotoScene]", e instanceof Error ? e.message : e);

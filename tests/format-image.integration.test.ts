@@ -17,7 +17,7 @@ let bobId: string;
 let projectId: string;
 let formatId: string;
 const BODY = "連想映画クイズ\n{キーワード}\n答えはリプで";
-const series = { slots: { キーワード: "連想できる言葉を 5 つ" }, answer: { name: "映画", instruction: "だれでも知っている映画" } };
+const series = { vars: [{ name: "映画", mode: "ai", instruction: "だれでも知っている映画", unique: true }, { name: "キーワード", mode: "ai", instruction: "{映画}を連想できる言葉を 5 つ", unique: false }] };
 const image = { prompt: "{キーワード}を思わせる小物が並ぶ机", scene: "fill", style: "illustration", size: "square", headline: "連想映画クイズ" };
 
 scopeAiBudget();
@@ -112,10 +112,10 @@ describe("AI が絵の説明を書く（偽の AI）", () => {
     vi.fn(async () => ({ output: { ideas: [{ title: "机", scene: "古いスクーターの模型と地図が並ぶ机", why: "連想しやすい" }] }, stopReason: "end_turn", model: "claude-opus-5-5", usage: { inputTokens: 100, cacheWriteTokens: 0, cacheReadTokens: 0, outputTokens: 50 } }));
   const aiImage = { prompt: "{映画}を思わせる{キーワード}が並ぶ机", scene: "ai", style: "illustration", size: "auto", headline: null };
 
-  it("サーバーが読み直したフォーマットの絵の説明に、穴の言葉と答えを入れて送る。本文と知らない穴は送らない", async () => {
+  it("サーバーが読み直したフォーマットの絵の説明に、変数の言葉を入れて送る。本文と知らない変数は送らない", async () => {
     await updateFormat(alice, projectId, formatId, { name: "連想映画クイズ", body: BODY, series, image: aiImage });
     const callIdeas = fake();
-    const r = await runFormatPhotoScene(alice, admin, { callIdeas }, { userId: aliceId, projectId, formatId, values: { キーワード: "王女・スクーター", ない穴: "送らない" }, answer: "ローマの休日" });
+    const r = await runFormatPhotoScene(alice, admin, { callIdeas }, { userId: aliceId, projectId, formatId, values: { キーワード: "王女・スクーター", 映画: "ローマの休日", ない穴: "送らない" } });
     expect(r).toEqual({ ok: true, scene: "古いスクーターの模型と地図が並ぶ机" });
     const sent = JSON.stringify(vi.mocked(callIdeas).mock.calls[0]);
     expect(sent).toContain("ローマの休日を思わせる王女・スクーターが並ぶ机");
@@ -123,14 +123,14 @@ describe("AI が絵の説明を書く（偽の AI）", () => {
     expect(sent).not.toContain("答えはリプで");
   });
 
-  it("埋まらない穴があれば呼ばない。そのまま使う設定・他人のフォーマットでも呼ばない", async () => {
+  it("言葉の入らない変数があれば呼ばない。そのまま使う設定・他人のフォーマットでも呼ばない", async () => {
     const callIdeas = fake();
-    const left = await runFormatPhotoScene(alice, admin, { callIdeas }, { userId: aliceId, projectId, formatId, values: {}, answer: "ローマの休日" });
+    const left = await runFormatPhotoScene(alice, admin, { callIdeas }, { userId: aliceId, projectId, formatId, values: { 映画: "ローマの休日" } });
     expect(left.ok).toBe(false);
-    const byBob = await runFormatPhotoScene(bob, admin, { callIdeas }, { userId: bobId, projectId, formatId, values: { キーワード: "a" }, answer: "b" });
+    const byBob = await runFormatPhotoScene(bob, admin, { callIdeas }, { userId: bobId, projectId, formatId, values: { キーワード: "a", 映画: "b" } });
     expect(byBob).toEqual({ ok: false, message: expect.stringContaining("見つかりません") });
     await updateFormat(alice, projectId, formatId, { name: "連想映画クイズ", body: "{ひとこと}", image: { ...aiImage, prompt: "{ひとこと}の机", scene: "fill" } });
-    const fill = await runFormatPhotoScene(alice, admin, { callIdeas }, { userId: aliceId, projectId, formatId, values: { ひとこと: "a" }, answer: "" });
+    const fill = await runFormatPhotoScene(alice, admin, { callIdeas }, { userId: aliceId, projectId, formatId, values: { ひとこと: "a" } });
     expect(fill.ok).toBe(false);
     expect(callIdeas).not.toHaveBeenCalled();
   });

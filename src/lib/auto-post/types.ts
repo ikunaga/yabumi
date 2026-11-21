@@ -43,6 +43,10 @@ export type AutoMaterials = {
   destination_ids?: string[];
   note_order?: "old_first" | "photo_first";
   skip_if_empty?: boolean;
+  // シリーズの「自分で入れる」変数の決め方（名前 → 毎回同じ言葉 / AI への指示。series.ts の PlanVars）
+  format_vars?: Record<string, { value: string } | { instruction: string }>;
+  // 保存したときの変数の作り方（save_auto_plan が決める。利用者からは受け取らない）
+  format_var_modes?: Record<string, "ai" | "hand">;
 };
 
 // 自動の回の画像（docs/design/auto-sample-image.md の 2.。DB の auto_image_valid と同じ決まり）。null は画像なし。
@@ -57,7 +61,7 @@ export type AutoImage = { source: AutoImageSource; style: "photo" | "illustratio
 
 export type AutoPlanStatus = "active" | "paused" | "stopped";
 // yabumi が止めた理由（status が stopped のとき）。画面の文は STOP_REASON_TEXT
-export type AutoStopReason = "fail_streak" | "disconnected" | "materials_out" | "operator";
+export type AutoStopReason = "fail_streak" | "disconnected" | "materials_out" | "operator" | "format_changed";
 
 export type AutoPlan = {
   id: string;
@@ -118,7 +122,8 @@ export type AutoRunReason =
   | "user_skipped"
   | "plan_paused"
   | "operator_hold"
-  | "image_failed";
+  | "image_failed"
+  | "format_changed";
 
 export type AutoRun = {
   id: string;

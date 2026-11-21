@@ -32,14 +32,14 @@ export function FormatImageFields({
   const ref = useRef<HTMLTextAreaElement>(null);
   // 前に使った絵の説明（添えた AI の画像の説明から。絵の説明のフォーマットの代わり。2026-11-21 オーナーの決定）
   const [recent, setRecent] = useState<string[]>([]);
-  const names = imageSlotNames(body, series);
-  // 答えか AI の空欄を使うか。初めは「AI が絵の説明を書く」を選んでおく（利用者が選んだあとは変えない）。固定はしない（2026-11-20）
-  const risky = needsAiScene(image, body, series);
+  const names = imageSlotNames(series);
+  // AI が考える変数を使うか。初めは「AI が絵の説明を書く」を選んでおく（利用者が選んだあとは変えない）。固定はしない（2026-11-20）
+  const risky = needsAiScene(image, series);
   const [picked, setPicked] = useState(false);
   const scene = image.scene;
   function setPrompt(prompt: string) {
     const next = { ...image, prompt };
-    setImage(!picked && !risky && next.scene === "fill" && needsAiScene(next, body, series) ? { ...next, scene: "ai" } : next);
+    setImage(!picked && !risky && next.scene === "fill" && needsAiScene(next, series) ? { ...next, scene: "ai" } : next);
   }
   const unit = photoUnitYen(photoModel({}));
 
@@ -54,7 +54,7 @@ export function FormatImageFields({
     };
   }, [projectId]);
 
-  // 穴のチップ: 押すと、絵の説明のカーソルの位置に {穴} を差し込む
+  // 変数のチップ: 押すと、絵の説明のカーソルの位置に {名前} を差し込む
   function insertSlot(name: string) {
     const el = ref.current;
     const at = el ? el.selectionStart : image.prompt.length;
@@ -76,7 +76,7 @@ export function FormatImageFields({
           <span className="font-bold">絵の説明</span>
           {names.length > 0 && (
             <span className="flex flex-wrap items-center gap-1.5">
-              <span className="text-muted">押すと、その空欄を絵の説明に入れます</span>
+              <span className="text-muted">押すと、その変数を絵の説明に入れます</span>
               {names.map((n) => (
                 <button key={n} type="button" onClick={() => insertSlot(n)} className="rounded-full border border-line bg-surface px-2 py-0.5 text-xs hover:border-primary">
                   {`{${n}}`}
@@ -111,9 +111,7 @@ export function FormatImageFields({
               ))}
             </select>
           )}
-          {/* ui-wording-ignore: {場面} は、前の絵の説明のフォーマット（2026-11-21 に廃止）から写した文に残っていることがある差し込みの名前（データ） */}
-          {image.prompt.includes("{場面}") && !names.includes("場面") && <span className="font-bold text-signal">{"{場面}"} は、ここでは使えません。上の空欄の {`{${names[0] ?? "キーワード"}}`} などか、言葉に書き換えてください</span>}
-          {usesAnswer(image.prompt, body, series) && <span className="text-muted">クイズでは、絵で答えがわかってしまうことがあります。答えの空欄は、絵の説明に入れないでください。</span>}
+          {usesAnswer(image.prompt, body, series) && <span className="text-muted">クイズでは、絵で答えがわかってしまうことがあります。答えの変数は、絵の説明に入れないでください。</span>}
         </label>
 
         <fieldset className="flex min-w-0 flex-col gap-1.5">
@@ -134,12 +132,12 @@ export function FormatImageFields({
           </div>
           <p className="leading-[1.7] text-muted">
             {scene === "ai"
-              ? `空欄の言葉をもとに、AI が絵の説明を書きます。たとえば、苺・雪・朝から「雪の朝、窓辺の苺のケーキ」と書きます。作品の題名や人物が、そのまま絵にならないようにします。画像 1 枚につき、費用が ${SCENE_YEN.one[0]}〜${SCENE_YEN.one[1]} 円ほど増えます。`
-              : "書いた絵の説明に空欄の言葉を入れて、そのまま画像をつくります。費用は増えません。"}
+              ? `変数の言葉をもとに、AI が絵の説明を書きます。たとえば、苺・雪・朝から「雪の朝、窓辺の苺のケーキ」と書きます。作品の題名や人物が、そのまま絵にならないようにします。画像 1 枚につき、費用が ${SCENE_YEN.one[0]}〜${SCENE_YEN.one[1]} 円ほど増えます。`
+              : "書いた絵の説明に変数の言葉を入れて、そのまま画像をつくります。費用は増えません。"}
           </p>
           {scene === "fill" && risky && (
             <p className="font-semibold leading-[1.7] text-signal">
-              ● 作品の題名やキャラクターが、そのまま絵になることがあります。他人の作品に似た画像は、著作権の問題になることがあります。画像をつくれないこともあります。心配なら「空欄の言葉から AI が絵の説明を書く」を選んでください。
+              ● 作品の題名やキャラクターが、そのまま絵になることがあります。他人の作品に似た画像は、著作権の問題になることがあります。画像をつくれないこともあります。心配なら「変数の言葉から AI が絵の説明を書く」を選んでください。
             </p>
           )}
         </fieldset>
@@ -181,7 +179,7 @@ export function FormatImageFields({
               {/* 見出しを 2 段にする（2026-11-20 オーナーの指示）。上の小さい文は色の文字で、見出しの半分くらいの大きさで描く */}
               <label className="flex flex-col gap-1">
                 <span className="text-xs font-bold">画像の小さい文字</span>
-                <span className="text-xs text-muted">書かなくてもかまいません。{MAX_IMAGE_LABEL} 字まで書けます。{"{ }"} の空欄も使えます。</span>
+                <span className="text-xs text-muted">書かなくてもかまいません。{MAX_IMAGE_LABEL} 字まで書けます。{"{ }"} の変数も使えます。</span>
                 <span className="text-xs text-muted">画像の文字の上に、小さな色付きの字で入ります。</span>
                 <Input
                   aria-label="画像の小さい文字"
@@ -194,7 +192,7 @@ export function FormatImageFields({
               </label>
               <label className="flex flex-col gap-1">
                 <span className="text-xs font-bold">画像の文字</span>
-                <span className="text-xs text-muted">{MAX_IMAGE_HEADLINE} 字まで書けます。{"{ }"} の空欄には、本文の空欄と同じ言葉が入ります。</span>
+                <span className="text-xs text-muted">{MAX_IMAGE_HEADLINE} 字まで書けます。{"{ }"} の変数には、本文と同じ言葉が入ります。</span>
                 <Input
                   aria-label="画像の文字"
                   value={image.headline}

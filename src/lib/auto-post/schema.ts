@@ -50,6 +50,16 @@ export const materialsSchema = z
     destination_ids: z.array(z.uuid()).max(20).optional(),
     note_order: z.enum(["old_first", "photo_first"]).optional(),
     skip_if_empty: z.boolean().optional(),
+    // 「自分で入れる」変数の決め方（DB の save_auto_plan でも形と、フォーマットの変数とそろっているかを確かめる）
+    format_vars: z
+      .record(
+        z.string().min(1).max(12),
+        z.union([
+          z.object({ value: z.string().trim().min(1, "毎回入れる言葉を入れてください。").max(200, "毎回入れる言葉は 200 字までです。") }).strict(),
+          z.object({ instruction: z.string().trim().min(1, "AI への指示を入れてください。").max(60, "AI への指示は 60 字までです。") }).strict(),
+        ]),
+      )
+      .optional(),
   })
   .strict();
 

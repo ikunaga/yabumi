@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { AiThinking } from "@/components/ui/ai-thinking";
 import { Button, NotReadyButton } from "@/components/ui/button";
 import { draftPostFormats } from "@/lib/ai/post-format-actions";
@@ -16,20 +16,8 @@ import {
   updatePostFormat,
   type FormatsResult,
 } from "@/lib/post-formats/actions";
-import {
-  EMPTY_SERIES,
-  MAX_ANSWER_NAME,
-  DEFAULT_ANSWER_NAME,
-  MAX_PASTE_ROUNDS,
-  MAX_ROUNDS,
-  MAX_SERIES_INSTRUCTION,
-  fixedBodySeries,
-  imageOnlySlots,
-  isSeries,
-  okSlotName,
-  type FormatRound,
-  type FormatSeries,
-} from "@/lib/post-formats/series";
+import { EMPTY_SERIES, MAX_FORMAT_VARS, MAX_PASTE_ROUNDS, MAX_ROUNDS, cleanSeries, isSeries, pasteVar, roundTitle, seriesProblem, type FormatRound, type FormatSeries } from "@/lib/post-formats/series";
+import { VarChips, VariablesFields, insertAt } from "./variables-fields";
 import {
   MAX_FORMAT_BODY,
   MAX_FORMAT_EXAMPLE,
@@ -43,7 +31,6 @@ import {
   MAX_POST_FORMATS,
   FORMAT_HASHTAG_KEYS,
   formatInputSchema,
-  formatSlots,
   hashtagKeyLabel,
   type FormatHashtagKey,
   type FormatHashtags,
@@ -67,7 +54,7 @@ import { FORMAT_AI_BLOCKED_WORDS } from "@/lib/ai/budget-status-text";
 // - 一覧: 見出しに件数と「＋ 新しいフォーマット」。1 件ずつカード（名前・シリーズの札・本文の 1 行目・小さな要約）。押すと編集の画面
 // - 編集: 編集の欄・これまでの投稿（シリーズ）・削除（確認つき）
 // - 新しく作る: 「白紙から」「例から選ぶ」「AI とつくる」を選ぶ
-// 一覧の正はサーバー（操作のたびに返った一覧に入れ替える）。シリーズにして保存したとき（AI が埋める空欄が 0 → 1 以上）は、
+// 一覧の正はサーバー（操作のたびに返った一覧に入れ替える）。シリーズにして保存したとき（AI が考える変数が 0 → 1 以上）は、
 // 編集の画面で「これまでの投稿を貼る」を開いて出す（docs/design/format-series.md の 2）
 export type FormatsView = { kind: "list" } | { kind: "edit"; id: string } | { kind: "new"; how: "choose" | "blank" | "example" | "ai" };
 
@@ -277,7 +264,7 @@ export function FormatManager({
         sub={`毎回くり返し使う投稿のひな形です。いまは ${formats.length} 個です。`}
         help={
           <>
-            毎回くり返し使う投稿のひな形です。「投稿をつくる」の「フォーマットから書く」で選べます。本文に {"{何が}"} のように書いたところが空欄になり、投稿をつくるときに言葉を入れます。空欄は {MAX_FORMAT_SLOTS} 個まで、フォーマットは {MAX_POST_FORMATS} 個までつくれます。
+            毎回くり返し使う投稿のひな形です。「投稿をつくる」の「フォーマットから書く」で選べます。本文に {"{商品}"} のように書いたところが変数になり、投稿ごとに言葉が入れ替わります。変数は {MAX_FORMAT_VARS} 個までです。本文に書けるのは {MAX_FORMAT_SLOTS} 種類までです。フォーマットは {MAX_POST_FORMATS} 個までつくれます。
           </>
         }
         actions={
@@ -345,7 +332,7 @@ function cardSummary(f: PostFormat, rounds: number): string[] {
 
 function SeriesTag() {
   // シリーズの札。「シリーズ」だけでは意味が伝わらない（ja-copy-reviewer）ので、何が起きるかを書く
-  return <span className="rounded-sm bg-info-soft px-1.5 py-0.5 text-xs font-bold text-info">空欄は毎回 AI が考える</span>;
+  return <span className="rounded-sm bg-info-soft px-1.5 py-0.5 text-xs font-bold text-info">変数を毎回 AI が考える</span>;
 }
 
 // 新しく作るときの作り方 1 つ（押すと、その作り方の画面）
@@ -389,17 +376,28 @@ export function FormatEditor({
   const [tags, setTags] = useState<Partial<Record<FormatHashtagKey, string>>>(() =>
     Object.fromEntries(FORMAT_HASHTAG_KEYS.filter((k) => initial?.hashtags?.[k]?.length).map((k) => [k, hashtagLine(initial!.hashtags[k]!)])),
   );
-  // シリーズ（AI が埋める穴と答え。docs/design/format-series.md の 1）
-  const [series, setSeries] = useState<FormatSeries>(initial?.series ?? EMPTY_SERIES);
+  // 変数（docs/design/format-series.md の 1）。本文・画像の設定に {名前} と書いた分は、一覧になければ「自分で入れる」変数として足して見せる
+  const [rawSeries, setSeries] = useState<FormatSeries>(initial?.series ?? EMPTY_SERIES);
   // 画像（docs/design/format-image.md の 1.）。絵の説明が空なら画像なしで保存する
   const [image, setImage] = useState(initial?.image ?? EMPTY_IMAGE);
   const [problem, setProblem] = useState<string | null>(null);
   const set = (k: Exclude<keyof PostFormatInput, "hashtags" | "series">, x: string) => (setV((o) => ({ ...o, [k]: x })), setProblem(null));
   const setTag = (k: FormatHashtagKey, x: string) => (setTags((o) => ({ ...o, [k]: x })), setProblem(null));
-  const slots = formatSlots(v.body);
+  const series = cleanSeries(rawSeries, { body: v.body, image: image.prompt.trim() ? image : null });
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  function insertIntoBody(token: string) {
+    const { next, caret } = insertAt(bodyRef.current, v.body, token);
+    set("body", [...next].slice(0, MAX_FORMAT_BODY).join(""));
+    requestAnimationFrame(() => {
+      bodyRef.current?.focus();
+      bodyRef.current?.setSelectionRange(caret, caret);
+    });
+  }
 
+  // スマホは 名前〜本文 → 変数 → ほかの欄の順。PC は左に名前〜本文とほかの欄、右に変数（2026-11-21 オーナーが了承した案）
   return (
-    <div className="flex flex-col gap-2.5">
+    <div className="grid gap-x-5 gap-y-2.5 [grid-template-areas:'top'_'vars'_'rest'] lg:grid-cols-2 lg:grid-rows-[auto_1fr] lg:[grid-template-areas:'top_vars'_'rest_vars']">
+      <div className="flex flex-col gap-2.5 [grid-area:top]">
       <label className="flex flex-col gap-1">
         <span className="text-xs font-bold">名前</span>
         <Input value={v.name} maxLength={MAX_FORMAT_NAME} onChange={(e) => set("name", e.target.value)} placeholder="例: 新メニューのお知らせ" className="py-2 text-sm" />
@@ -412,22 +410,29 @@ export function FormatEditor({
       </label>
       <label className="flex flex-col gap-1">
         <span className="text-xs font-bold">本文</span>
-        <Textarea value={v.body} maxLength={MAX_FORMAT_BODY} rows={4} onChange={(e) => set("body", e.target.value)} placeholder={"例: 【新メニュー】{何が}\n{いつから}から、{いくら}でお出しします。"} className="py-2 text-sm" />
-        <span className="text-xs text-muted">{slots.length ? `空欄: ${slots.join("・")}` : "{ } で囲んだところが空欄になります"}</span>
+        <Textarea
+          ref={bodyRef}
+          value={v.body}
+          maxLength={MAX_FORMAT_BODY}
+          rows={4}
+          onChange={(e) => set("body", e.target.value)}
+          placeholder={"例: 【新メニュー】{何が}\n{いつから}から、{いくら}でお出しします。"}
+          className="py-2 text-sm"
+        />
+        {series.vars.length === 0 && <span className="text-xs text-muted">本文に {"{商品}"} のように書くと、そこが投稿ごとに変わる変数になります</span>}
       </label>
-      {/* 毎回 AI に変えてもらう（シリーズ）は本文のすぐ下に出す（前はいちばん下に畳まれていて見つからなかった。パワポの 1・3・8） */}
-      {/* 本文に空欄がなくても、画像だけで使う空欄は足せる（本文は決まった文のまま、絵だけ毎回変える。2026-11-20） */}
-      <SeriesFields
-        slots={slots}
-        series={series}
-        usedInImage={image.prompt.trim() ? formatSlots(`${image.prompt}\n${image.headline ?? ""}`) : []}
-        setSeries={(x) => (setSeries(x), setProblem(null))}
-      />
+      <VarChips series={series} onInsert={insertIntoBody} />
+      </div>
+      {/* 変数は本文のすぐ下（PC は右の列）に出す（前はいちばん下に畳まれていて見つからなかった。パワポの 1・3・8） */}
+      <div className="self-start [grid-area:vars]">
+        <VariablesFields series={series} texts={{ body: v.body, image: image.prompt.trim() ? image : null }} setSeries={(x) => (setSeries(x), setProblem(null))} />
+      </div>
+      <div className="flex flex-col gap-2.5 [grid-area:rest]">
       <label className="flex flex-col gap-1">
         <span className="text-xs font-bold">
           できあがる投稿の例<span className="ml-1.5 font-normal text-muted">任意</span>
         </span>
-        <Textarea value={v.example} maxLength={MAX_FORMAT_EXAMPLE} rows={3} onChange={(e) => set("example", e.target.value)} placeholder="空欄に言葉を入れた、できあがりの投稿の例。投稿をつくるときの手本になります" className="py-2 text-sm" />
+        <Textarea value={v.example} maxLength={MAX_FORMAT_EXAMPLE} rows={3} onChange={(e) => set("example", e.target.value)} placeholder="変数に言葉を入れた、できあがりの投稿の例。投稿をつくるときに、手本として出します" className="py-2 text-sm" />
       </label>
       {pillars.length > 0 && (
         <label className="flex flex-col gap-1">
@@ -454,8 +459,10 @@ export function FormatEditor({
           onClick={() => {
             const p = formatInputSchema.safeParse({ ...v, pillar: pillars.includes(v.pillar) ? v.pillar : "", hashtags: tags, series });
             if (!p.success) return setProblem(p.error.issues[0]?.message ?? "保存できませんでした。入れた内容を見直してください。");
-            // 画像の穴の決まりも画面で先に確かめる（正はサーバー）
-            const img = cleanFormatImage(image, p.data.body, series);
+            const sp = seriesProblem(series);
+            if (sp) return setProblem(sp);
+            // 画像の変数の決まりも画面で先に確かめる（正はサーバー）
+            const img = cleanFormatImage(image, series);
             if (img.problem) return setProblem(img.problem);
             onSave({ ...p.data, image: img.image });
           }}
@@ -465,6 +472,7 @@ export function FormatEditor({
         <Button size="sm" variant="text" onClick={onCancel}>
           やめる
         </Button>
+      </div>
       </div>
     </div>
   );
@@ -633,193 +641,6 @@ function FormatAiMaker({ projectId, kinds, onPick, onCancel }: { projectId: stri
   );
 }
 
-// フォーマットの編集の「シリーズ」（docs/design/format-series.md の 1）。穴ごとに「AI が埋める」を選び、短い指示を書く。
-// 本文に出さない答え（例: 映画）も 1 つ持てる。AI の穴が 1 つでもあれば、投稿をつくるで「AI に次の回を出してもらう」が出る
-function SeriesFields({ slots, series, usedInImage, setSeries }: { slots: string[]; series: FormatSeries; usedInImage: string[]; setSeries: (s: FormatSeries) => void }) {
-  const on = Object.keys(series.slots).length > 0;
-  const imageOnly = imageOnlySlots(slots.map((n) => `{${n}}`).join(""), series);
-  return (
-    <section className={`flex flex-col gap-2.5 rounded-md border px-3 py-2.5 text-xs ${on ? "border-primary" : "border-line"}`} aria-label="空欄の言葉を毎回 AI に考えてもらう">
-      <p className="text-[13px] font-bold">
-        空欄の言葉を毎回 AI に考えてもらう<span className="ml-1.5 font-normal text-muted">任意・シリーズ</span>
-      </p>
-      <div className="flex flex-col gap-2.5">
-        <p className="leading-[1.7] text-muted">
-          {slots.length > 0 ? "本文で { } で囲んだところが空欄です。毎回ちがう言葉を入れたい空欄を選んでください。" : "本文に { } で囲んだ空欄を置くと、そこを毎回ちがう言葉にできます。"}
-          投稿をつくるたびに、前と重ならない言葉を AI が考えます。たとえば、クイズの答えと手がかりの言葉です。こうしたフォーマットを「シリーズ」と呼びます。
-        </p>
-        {/* 答えを先に出す（AI は答えを先に決め、それに合わせて空欄を埋める。下にあると「上の映画」がわからなかった。2026-11-21 オーナー） */}
-          <div className="flex flex-col gap-1">
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={series.answer !== null}
-                onChange={(e) => setSeries({ ...series, answer: e.target.checked ? { name: "", instruction: "" } : null })}
-                className="accent-[var(--primary)]"
-              />
-              <span className="font-bold">答えを毎回 AI に決めてもらう。答えは本文に出ません</span>
-            </label>
-            {series.answer && (
-              <div className="grid grid-cols-[minmax(0,10rem)_1fr] gap-2 max-sm:grid-cols-1">
-                <Input
-                  aria-label="答えを何と呼ぶか"
-                  value={series.answer.name}
-                  maxLength={MAX_ANSWER_NAME}
-                  onChange={(e) => setSeries({ ...series, answer: { ...series.answer!, name: e.target.value } })}
-                  placeholder="答えの呼び方。例: 映画"
-                  className="py-2 text-sm"
-                />
-                <Textarea
-                  aria-label="答えの AI への指示"
-                  value={series.answer.instruction}
-                  maxLength={MAX_SERIES_INSTRUCTION}
-                  rows={2}
-                  onChange={(e) => setSeries({ ...series, answer: { ...series.answer!, instruction: e.target.value } })}
-                  placeholder="例: だれでも知っている映画を 1 つ"
-                  className="min-h-[3.75rem] py-2 text-sm [field-sizing:content]"
-                />
-              </div>
-            )}
-            <span className="text-muted">
-              AI は、先に答えを決めてから、それに合う言葉を下の空欄に入れます。答えは前の投稿と重ならないように使います。投稿の文には入りません。
-              {!on && "下で空欄を 1 つ以上選ぶと使えます。"}
-            </span>
-          </div>
-        {slots.map((name) => {
-          const ai = name in series.slots;
-          return (
-            <div key={name} className="flex flex-col gap-1">
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={ai}
-                  onChange={(e) => {
-                    const next = { ...series.slots };
-                    if (e.target.checked) next[name] = "";
-                    else delete next[name];
-                    setSeries({ ...series, slots: next });
-                  }}
-                  className="accent-[var(--primary)]"
-                />
-                <span>
-                  「<span className="font-bold">{name}</span>」を毎回 AI に考えてもらう
-                </span>
-              </label>
-              {ai && (
-                // 指示は長くなるので 2 行以上の欄にし、書いた分だけ広げる（前は 1 行で切れた。パワポの 4）
-                <Textarea
-                  aria-label={`${name} の AI への指示`}
-                  value={series.slots[name]}
-                  maxLength={MAX_SERIES_INSTRUCTION}
-                  rows={2}
-                  onChange={(e) => setSeries({ ...series, slots: { ...series.slots, [name]: e.target.value } })}
-                  placeholder={series.answer?.name.trim() ? `例: ${series.answer.name.trim()}を連想できる言葉を 5 つ。「・」でつなぐ` : "例: 答えを連想できる言葉を 5 つ。「・」でつなぐ"}
-                  className="min-h-[3.75rem] py-2 text-sm [field-sizing:content]"
-                />
-              )}
-            </div>
-          );
-        })}
-        <ImageOnlySlots slots={slots} imageOnly={imageOnly} usedInImage={usedInImage} series={series} setSeries={setSeries} />
-        {/* 本文に AI の空欄がないシリーズは、本文が毎回同じ（X に自動で送れない。2026-11-20 PM の指示） */}
-        {fixedBodySeries(slots.map((n) => `{${n}}`).join(""), series) && (
-          <p className="font-semibold leading-[1.7] text-signal">● 本文に AI が埋める空欄がないので、本文は毎回同じになります。X は同じ文を続けて送れないため、自動投稿では選べません。X にも送るなら、本文に AI が埋める空欄を置いてください。</p>
-        )}
-      </div>
-    </section>
-  );
-}
-
-// 画像だけで使う空欄（本文には入れず、画像の絵の説明・見出しでだけ使う。毎回 AI が埋める。2026-11-20 オーナーの指示。format-series.md の 1.1）
-function ImageOnlySlots({
-  slots,
-  imageOnly,
-  usedInImage,
-  series,
-  setSeries,
-}: {
-  slots: string[];
-  imageOnly: string[];
-  usedInImage: string[];
-  series: FormatSeries;
-  setSeries: (s: FormatSeries) => void;
-}) {
-  const [name, setName] = useState("");
-  const [why, setWhy] = useState<string | null>(null);
-  const full = Object.keys(series.slots).length >= MAX_FORMAT_SLOTS;
-  function add() {
-    const n = name.trim();
-    const answerName = series.answer ? series.answer.name.trim() || DEFAULT_ANSWER_NAME : DEFAULT_ANSWER_NAME;
-    const problem = !okSlotName(n)
-      ? "名前は 12 字までです。{ } は入れられません"
-      : slots.includes(n) || n in series.slots
-        ? "同じ名前の空欄があります"
-        : n === answerName
-          ? "答えと同じ名前は使えません"
-          : null;
-    setWhy(problem);
-    if (problem) return;
-    setSeries({ ...series, slots: { ...series.slots, [n]: "" } });
-    setName("");
-  }
-  function remove(n: string) {
-    const next = { ...series.slots };
-    delete next[n];
-    setSeries({ ...series, slots: next });
-  }
-  return (
-    <div className="flex flex-col gap-1.5 border-t border-line pt-2.5">
-      <p className="font-bold">画像だけで使う空欄</p>
-      <p className="leading-[1.7] text-muted">本文には入らず、画像をつくるときだけ使う空欄です。画像の設定の、絵の説明と画像の文字で使います。毎回 AI が言葉を入れます。たとえば、答えを思わせるキーワードです。</p>
-      {imageOnly.map((n) => (
-        <div key={n} className="flex flex-col gap-1">
-          <span className="flex items-center gap-2">
-            <span className="font-bold">{`{${n}}`}</span>
-            <button type="button" onClick={() => remove(n)} className="text-muted underline">
-              削除する
-            </button>
-          </span>
-          <Textarea
-            aria-label={`${n} の AI への指示`}
-            value={series.slots[n]}
-            maxLength={MAX_SERIES_INSTRUCTION}
-            rows={2}
-            onChange={(e) => setSeries({ ...series, slots: { ...series.slots, [n]: e.target.value } })}
-            placeholder="AI への指示。例: 答えを思わせる言葉を 3 つ"
-            className="min-h-[3.75rem] py-2 text-sm [field-sizing:content]"
-          />
-          {!usedInImage.includes(n) && (
-            <span className="font-semibold text-signal">● この空欄は、絵の説明にも画像の文字にも入っていません。このままでは、AI が言葉を入れてもどこにも出ません。</span>
-          )}
-        </div>
-      ))}
-      {full ? (
-        <span className="text-muted">AI が埋める空欄は {MAX_FORMAT_SLOTS} つまでです。</span>
-      ) : (
-        <div className="flex flex-wrap items-center gap-2">
-          <Input
-            aria-label="画像だけで使う空欄の名前"
-            value={name}
-            maxLength={12}
-            onChange={(e) => (setName(e.target.value), setWhy(null))}
-            onKeyDown={(e) => {
-              if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
-              e.preventDefault();
-              add();
-            }}
-            placeholder="例: キーワード"
-            className="w-48 py-2 text-sm"
-          />
-          <Button type="button" size="sm" variant="secondary" onClick={add}>
-            追加
-          </Button>
-        </div>
-      )}
-      {why && <span className="font-semibold text-danger">{why}</span>}
-    </div>
-  );
-}
-
 // フォーマットを管理の「これまでの回」（docs/design/format-series.md の 2）。開いたときに読む。消す・これまでの回を貼る
 function SeriesRounds({ projectId, format, open = false }: { projectId: string; format: PostFormat; open?: boolean }) {
   const [rounds, setRounds] = useState<FormatRound[] | null>(null);
@@ -841,8 +662,8 @@ function SeriesRounds({ projectId, format, open = false }: { projectId: string; 
     // 開いたときの 1 回だけ（key で作り直される）
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const label = format.series.answer?.name || "";
-  const answerName = format.series.answer?.name || DEFAULT_ANSWER_NAME;
+  // 貼った 1 行は「重ならないようにする」最初の変数（なければ最初の AI の変数）の言葉にする
+  const label = pasteVar(format.series)?.name ?? "";
   return (
     <DisclosureBox
       label="このフォーマットで出した投稿を表示"
@@ -861,18 +682,15 @@ function SeriesRounds({ projectId, format, open = false }: { projectId: string; 
           <ul className="flex max-h-60 flex-col divide-y divide-line overflow-y-auto rounded-md border border-line">
             {rounds.map((r) => (
               <li key={r.id} className="flex items-center gap-2 px-2.5 py-1.5">
-                {/* 答えがあれば答えを先に出し、穴の言葉を添える（PMO2 の 3 回目の n2） */}
+                {/* 重ならないようにする変数の言葉を先に出し、ほかの変数の言葉を添える（PMO2 の 3 回目の n2） */}
                 <span className="min-w-0 flex-1 truncate">
-                  {r.answer ? (
-                    <>
-                      <b>
-                        {answerName}: {r.answer}
-                      </b>
-                      {Object.keys(r.values).length > 0 && <span className="ml-1.5 text-muted">{Object.values(r.values).join(" / ")}</span>}
-                    </>
-                  ) : (
-                    Object.values(r.values).join(" / ")
-                  )}
+                  <b>{roundTitle(format.series, r.values) || Object.values(r.values)[0]}</b>
+                  <span className="ml-1.5 text-muted">
+                    {Object.entries(r.values)
+                      .filter(([, x]) => x !== (roundTitle(format.series, r.values) || Object.values(r.values)[0]))
+                      .map(([, x]) => x)
+                      .join(" / ")}
+                  </span>
                   <span className="ml-1.5 text-faint">{r.source === "pasted" ? "yabumi の外で出した投稿" : r.postId ? "送信済みの投稿" : "本文に入れた案"}</span>
                 </span>
                 <Button size="sm" variant="secondary" disabled={pending} onClick={() => run(() => deleteFormatRound(projectId, format.id, r.id))}>

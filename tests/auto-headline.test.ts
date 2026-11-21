@@ -91,12 +91,12 @@ describe("サーバーで見出しを描く（@napi-rs/canvas と src/server-fon
 });
 
 describe("フォーマットの見出しと上の小さい文（自動の回。2026-11-20 オーナーの指示。見出しを 2 段にする）", () => {
-  it("空欄を埋め、絵文字を取り除く。小さい文は見出しがあるときだけ・20 字まで", () => {
+  it("変数を入れ、絵文字を取り除く。小さい文は見出しがあるときだけ・20 字まで", () => {
     const image = { headline: "この{キーワード}から連想される映画は？🎬", label: "連想映画クイズ {回}" };
-    expect(formatHeadlineTexts(image, { キーワード: "画像", 回: "第 3 回" }, null)).toEqual({ headline: "この画像から連想される映画は？", label: "連想映画クイズ 第 3 回" });
-    expect(formatHeadlineTexts({ ...image, headline: null }, {}, null)).toEqual({ headline: "", label: "" });
-    expect(formatHeadlineTexts({ ...image, label: "あ".repeat(30) }, { キーワード: "画像" }, null).label).toHaveLength(20);
-    expect(formatHeadlineTexts({ ...image, label: null }, { キーワード: "画像" }, null).label).toBe("");
+    expect(formatHeadlineTexts(image, { キーワード: "画像", 回: "第 3 回" })).toEqual({ headline: "この画像から連想される映画は？", label: "連想映画クイズ 第 3 回" });
+    expect(formatHeadlineTexts({ ...image, headline: null }, {})).toEqual({ headline: "", label: "" });
+    expect(formatHeadlineTexts({ ...image, label: "あ".repeat(30) }, { キーワード: "画像" }).label).toHaveLength(20);
+    expect(formatHeadlineTexts({ ...image, label: null }, { キーワード: "画像" }).label).toBe("");
   });
 });
 

@@ -389,6 +389,12 @@ async function processRun(admin: Db, deps: EngineDeps, run: ClaimedRun, now: Dat
   const past = (pastRows ?? []).map((r) => (r.material_ref ?? {}) as PastRef);
   const recent = await recentTexts(admin, plan.projectId, plan.ownerId, plan.id, now);
   const draft = await draftRun(admin, deps, { plan, sns, dueAt: due, past, recent });
+  // フォーマットの変数が変わった: その回は作らず、回し方を「要確認」で止めて知らせる（決め方を入れて保存すると動き出す）
+  if (!draft.ok && draft.reason === "format_changed") {
+    await finish(admin, run.id, { status: "canceled", reason: "plan_paused", detail: draft.detail });
+    await stopPlan(admin, deps, plan, "format_changed", now);
+    return "canceled";
+  }
   if (!draft.ok) {
     await finish(admin, run.id, { status: "skipped", reason: draft.reason, detail: draft.detail, ref: draft.ref });
     return "skipped";
@@ -453,7 +459,7 @@ async function placeDraft(
   }
   if (draft.material.series) {
     const s = draft.material.series;
-    const { error: e3 } = await admin.from("post_format_rounds").insert({ format_id: s.formatId, owner_id: plan.ownerId, post_id: post.id, answer: s.answer, values: s.values, source: "ai" });
+    const { error: e3 } = await admin.from("post_format_rounds").insert({ format_id: s.formatId, owner_id: plan.ownerId, post_id: post.id, values: s.values, source: "ai" });
     if (e3) console.error("[auto-post] シリーズの記録を残せませんでした", e3.message);
   }
   await finish(admin, run.id, { status, postId: post.id, ref: draft.ref, reason: hold?.kind ?? null, detail: hold?.detail ?? null });
@@ -544,6 +550,19 @@ export async function reviewPlans(admin: Db, deps: EngineDeps, now: Date, opts: 
     await notify(admin, deps, p.owner_id, { title: "自動投稿を止めました", body: `「${p.name}」: ${STOP_REASON_TEXT[reason]}`, url: `/projects/${p.project_id}/auto`, tag: `auto-stop:${p.id}` });
   }
   return stopped;
+}
+
+// 回し方を止めて知らせる（まだ作っていない回を取り消す。いまの回は呼ぶ側で取り消す）
+async function stopPlan(admin: Db, deps: EngineDeps, plan: AutoPlan & { ownerId: string }, reason: AutoStopReason, now: Date) {
+  const { data: changed } = await admin
+    .from("auto_plans")
+    .update({ status: "stopped", stop_reason: reason, updated_at: now.toISOString() })
+    .eq("id", plan.id)
+    .eq("status", "active")
+    .select("id");
+  if (!changed?.length) return;
+  await stopUnsent(admin, plan.id, now);
+  await notify(admin, deps, plan.ownerId, { title: "自動投稿を止めました", body: `「${plan.name}」: ${STOP_REASON_TEXT[reason]}`, url: `/projects/${plan.projectId}/auto`, tag: `auto-stop:${plan.id}` });
 }
 
 // 止めた回し方の、まだ作っていない回を止め、作り終えてまだ何も送っていない投稿を下書きに戻す

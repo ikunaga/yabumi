@@ -220,7 +220,7 @@ export async function runTidyDraft(
   }
   // フォーマットを選んでいれば、穴を 1 つでも埋めていれば（穴のない型なら、そのままでも）本文が空でも整えられる
   const formatOnly = format !== null && (Object.keys(format.values).length > 0 || formatSlots(format.body).length === 0);
-  if (!text && !formatOnly) return { ok: false, message: format ? "本文を書くか、フォーマットの空欄を埋めてから押してください。" : "本文に、伝えたいことを話すか書いてから押してください。" };
+  if (!text && !formatOnly) return { ok: false, message: format ? "本文を書くか、フォーマットの変数に言葉を入れてから押してください。" : "本文に、伝えたいことを話すか書いてから押してください。" };
   if ([...text].length > MAX_TIDY_CHARS) return { ok: false, message: `一度に整えられるのは ${MAX_TIDY_CHARS.toLocaleString("ja-JP")} 字までです。` };
   const sns = pickTidySns(args.sns);
   if (sns.length === 0) {

@@ -5,7 +5,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const rpc = vi.fn<(fn: string, args: unknown) => Promise<{ data: string; error: null }>>(async () => ({ data: "99999999-9999-4999-8999-999999999999", error: null }));
 let formatImage: unknown = null;
 const from = vi.fn(() => {
-  const q = { select: () => q, eq: () => q, maybeSingle: async () => ({ data: { image: formatImage }, error: null }) };
+  // フォーマットの行（保存のときに、変数の決め方を確かめるためにも読む。作品と答えは AI が考える変数）
+  const row = { id: "f", name: "連想", purpose: "", body: "{作品}は？", example: "", pillar: "", hashtags: {}, series: { vars: [{ name: "作品", mode: "ai", instruction: "", unique: true }, { name: "答え", mode: "ai", instruction: "", unique: false }] }, image: formatImage };
+  const q = { select: () => q, eq: () => q, maybeSingle: async () => ({ data: row, error: null }) };
   return q;
 });
 vi.mock("server-only", () => ({}));

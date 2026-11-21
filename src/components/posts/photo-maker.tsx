@@ -158,7 +158,7 @@ export function PhotoMaker({
       let sc = p.text;
       if (p.scene === "ai") {
         setError(null);
-        const r = await draftFormatPhotoScene(projectId, p.formatId, p.values, p.answer, targets);
+        const r = await draftFormatPhotoScene(projectId, p.formatId, p.values, targets);
         if (!r.scene) {
           setError(r.error ?? "うまくいきませんでした。");
           return;
@@ -288,7 +288,7 @@ export function PhotoMaker({
       {preset && (
         <p className="text-[13px] leading-[1.7]">
           <span className="font-bold">フォーマット「{preset.name}」で決めた画像</span>
-          <span className="ml-1.5 text-muted">{preset.scene === "ai" ? `AI が絵の説明を書いてからつくります。その分、約 ${SCENE_YEN.one[0]}〜${SCENE_YEN.one[1]} 円多くかかります。` : "フォーマットで決めた絵の説明でつくります。空欄には「1 書く」の言葉が入ります。"}</span>
+          <span className="ml-1.5 text-muted">{preset.scene === "ai" ? `AI が絵の説明を書いてからつくります。その分、約 ${SCENE_YEN.one[0]}〜${SCENE_YEN.one[1]} 円多くかかります。` : "フォーマットで決めた絵の説明でつくります。変数には「1 書く」の言葉が入ります。"}</span>
         </p>
       )}
 

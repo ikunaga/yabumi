@@ -36,7 +36,8 @@ import {
 } from "@/lib/auto-post/types";
 import type { SeriesFormatCard } from "@/lib/auto-post/ui-queries";
 import type { TimeTrends } from "@/lib/metrics/time-bands";
-import { X_FIXED_BODY } from "@/lib/post-formats/series";
+import { X_FIXED_BODY, aiVars, handVars, seriesForPlan, type PlanVars } from "@/lib/post-formats/series";
+import { PlanVarsFields, planVarsReady } from "./plan-vars";
 import { SNS, type SnsKey } from "@/lib/sns";
 import { scheduleText } from "./format";
 import { choiceKey, kindCards, KindPicker, type KindChoice, type WinnersCard } from "./kind-picker";
@@ -106,6 +107,8 @@ const AI_USD_PER_RUN = 0.08;
 const X_USD = { never: 0.015, always: 0.205 } as const;
 const YEN = 150;
 const IMAGE_USD_PER_RUN = 0.05;
+// 「自分で入れる」変数を AI に考えてもらうと、1 つにつき 1 回 約 $0.003 ふえる（3 案ぶんの言葉の出力 150 トークンほど × Opus 5.5 の $20/M。2026-11-21）
+const AI_VAR_USD_PER_RUN = 0.003;
 
 export function PlanWizard(p: Props) {
   const router = useRouter();
@@ -148,8 +151,11 @@ export function PlanWizard(p: Props) {
     const fixed = suggested?.choice.kind === "series" && !!p.materials.seriesFormats.find((f) => f.id === suggested.choice.formatId)?.fixedBody;
     return Object.fromEntries(picked.filter((s) => !(fixed && s === "x")).map((s) => [s, TARGET_MODES[s][0]]));
   });
-  // 本文が毎回同じシリーズのフォーマット（X を選べない。X_FIXED_BODY）。直すときに前から X があっても、送り先から外して見せ・保存する
-  const fixedBody = kind === "series" && !!p.materials.seriesFormats.find((f) => f.id === materials.format_id)?.fixedBody;
+  // 本文が毎回同じシリーズのフォーマット（X を選べない。X_FIXED_BODY）。直すときに前から X があっても、送り先から外して見せ・保存する。
+  // 「自分で入れる」変数を「AI に考えてもらう」にすると本文が変わるので、決め方を入れて見る
+  const formatCard = kind === "series" ? p.materials.seriesFormats.find((f) => f.id === materials.format_id) : undefined;
+  const planSeries = formatCard ? seriesForPlan(formatCard.series, (materials.format_vars ?? {}) as PlanVars).series : null;
+  const fixedBody = !!formatCard && !!planSeries && aiVars(planSeries).length > 0 && !aiVars(planSeries).some((v) => formatCard.bodyVars.includes(v.name));
   const targets: AutoTargets = fixedBody && rawTargets.x ? Object.fromEntries(Object.entries(rawTargets).filter(([s]) => s !== "x")) : rawTargets;
   const [xLink, setXLink] = useState<"never" | "always">(p.plan?.xLink ?? "never");
   const [schedule, setSchedule] = useState<AutoSchedule | null>(p.plan?.schedule ?? null);
@@ -192,7 +198,10 @@ export function PlanWizard(p: Props) {
   });
   const effectiveSchedule = schedule ?? (options[0] ? withStart(options[0].schedule) : null);
 
-  const whatOk = !!kind && AUTO_KINDS_STAGE_A.includes(kind) && (kind !== "series" || !!materials.format_id);
+  const whatOk =
+    !!kind &&
+    AUTO_KINDS_STAGE_A.includes(kind) &&
+    (kind !== "series" || (!!materials.format_id && planVarsReady(formatCard?.series, materials.format_vars as PlanVars | undefined) && !!planSeries && aiVars(planSeries).length > 0));
   const seriesFormat = kind === "series" ? (p.materials.seriesFormats.find((f) => f.id === materials.format_id) ?? null) : null;
   const formatHasImage = !!seriesFormat?.hasImage;
   const formatHasHeadline = !!seriesFormat?.hasHeadline;
@@ -225,7 +234,9 @@ export function PlanWizard(p: Props) {
   };
 
   const monthly = effectiveSchedule ? runsPerMonth(effectiveSchedule) : 0;
-  const aiYen = Math.round(monthly * AI_USD_PER_RUN * YEN);
+  // 「AI に考えてもらう」を選んだ「自分で入れる」変数の分を足す
+  const aiVarCount = formatCard ? handVars(formatCard.series).filter((v) => { const c = materials.format_vars?.[v.name]; return !!c && "instruction" in c; }).length : 0;
+  const aiYen = Math.round(monthly * (AI_USD_PER_RUN + aiVarCount * AI_VAR_USD_PER_RUN) * YEN);
   // 画像は 1 枚 約 $0.035、場面を Claude が書くと 約 $0.05（docs/design/auto-sample-image.md の 4.）。多めの $0.05 で数える
   const imageYen = image ? Math.round(monthly * IMAGE_USD_PER_RUN * YEN) : 0;
   const xYen = targets.x ? Math.round(monthly * X_USD[xLink] * YEN) : 0;
@@ -255,6 +266,17 @@ export function PlanWizard(p: Props) {
           />
 
           {kind && <KindDetail kind={kind} materials={materials} setMaterials={setMaterials} m={p.materials} projectId={p.projectId} />}
+          {formatCard && (
+            <PlanVarsFields
+              series={formatCard.series}
+              bodyVars={formatCard.bodyVars}
+              value={(materials.format_vars ?? {}) as PlanVars}
+              onChange={(v) => setMaterials({ ...materials, format_vars: v })}
+            />
+          )}
+          {formatCard && planSeries && aiVars(planSeries).length === 0 && planVarsReady(formatCard.series, materials.format_vars as PlanVars | undefined) && (
+            <p className="text-xs font-semibold text-danger">毎回同じ投稿になるので、このままでは送れません。どれか 1 つの変数を「自動投稿では AI に考えてもらう」にしてください。</p>
+          )}
 
           <Nav
             back={
@@ -319,7 +341,7 @@ export function PlanWizard(p: Props) {
                           : "Instagram は画像が要るので、写真つきのメモから作る投稿だけ送ります。ほかの投稿は、Instagram には送りません。下の「画像」で AI の画像を選ぶと、毎回送れます。"}
                       </p>
                     )}
-                    {blocked && connected ? <p className="w-full text-xs text-muted">{X_FIXED_BODY}フォーマットの本文に AI が埋める空欄を置くと、選べます。</p> : isReviewOnlySns(s) && <ReviewReason sns={s} />}
+                    {blocked && connected ? <p className="w-full text-xs text-muted">{X_FIXED_BODY}フォーマットの本文に AI が考える変数を置くと、選べます。</p> : isReviewOnlySns(s) && <ReviewReason sns={s} />}
                   </li>
                 );
               })}

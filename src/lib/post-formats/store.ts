@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { cleanFormatImage, readFormatImage, type FormatImage } from "./image";
-import { cleanSeries, type FormatSeries } from "./series";
+import { cleanSeries, seriesProblem, type FormatSeries } from "./series";
 import { MAX_POST_FORMATS, MAX_POST_FORMATS_PER_USER, formatInputSchema, readFormatHashtags, type PostFormat, type PostFormatInput } from "./schema";
 
 // 投稿のフォーマットの読み書き（利用者の権限のクライアントで。RLS で本人のものだけ。20261110120000_post_formats）
@@ -20,17 +20,23 @@ const NOT_FOUND = "フォーマットが見つかりません。画面を読み�
 const COLUMNS = "id, name, purpose, body, example, pillar, hashtags, series, image";
 
 type Row = Omit<PostFormat, "hashtags" | "series" | "image"> & { hashtags: unknown; series: unknown; image: unknown };
-const toFormat = (r: Row): PostFormat => ({ ...r, hashtags: readFormatHashtags(r.hashtags), series: cleanSeries(r.series), image: readFormatImage(r.image) });
+// 本文・画像の設定に書いてあるのに一覧にない名前は「自分で入れる」変数として足す（古い形の行・保存の前の行も同じに読む）
+const toFormat = (r: Row): PostFormat => {
+  const image = readFormatImage(r.image);
+  return { ...r, hashtags: readFormatHashtags(r.hashtags), series: cleanSeries(r.series, { body: r.body, image }), image };
+};
 
-// series は保存する形（型の文にない穴の指示を捨てる）にそろえて必ず入れる（渡さなければ空。シリーズでなくなる）。
+// series は保存する形にそろえて必ず入れる。本文・画像の設定に書いた {名前} は、一覧になければ「自分で入れる」変数として足す（変数が 0 なら {}）。
 // image も同じく必ず入れる（渡さなければ {}。画像なし）。型の文にない穴を使っていれば断る（docs/design/format-image.md の 5.1）
 export function checkFormat(input: unknown): Omit<PostFormatInput, "series" | "image"> & { series: FormatSeries; image: FormatImage | Record<string, never> } {
   const p = formatInputSchema.safeParse(input);
   if (!p.success) throw new FormatError(p.error.issues[0]?.message ?? "入力の形式が正しくありません。");
-  const series = cleanSeries(p.data.series, p.data.body);
-  const img = cleanFormatImage(p.data.image, p.data.body, series);
+  const series = cleanSeries(p.data.series, { body: p.data.body, image: readFormatImage(p.data.image) });
+  const problem = seriesProblem(series);
+  if (problem) throw new FormatError(problem);
+  const img = cleanFormatImage(p.data.image, series);
   if (img.problem) throw new FormatError(img.problem);
-  return { ...p.data, series, image: img.image ?? {} };
+  return { ...p.data, series: series.vars.length ? series : ({} as FormatSeries), image: img.image ?? {} };
 }
 
 export async function listFormats(db: Db, projectId: string): Promise<PostFormat[]> {

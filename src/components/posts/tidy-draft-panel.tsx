@@ -220,7 +220,7 @@ export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace, 
             </span>
           </button>
         )}
-        <span className="text-xs text-muted">{!hasText ? (format ? "本文を書くか、フォーマットの空欄を埋めると押せます" : "本文を話すか書くと押せます") : !hasSns ? "送り先の SNS を選ぶと押せます。note と Substack では使えません" : format ? "フォーマットに沿って・1 回 5〜15 円ほど" : "1 回 5〜15 円ほど"}</span>
+        <span className="text-xs text-muted">{!hasText ? (format ? "本文を書くか、フォーマットの変数に言葉を入れると押せます" : "本文を話すか書くと押せます") : !hasSns ? "送り先の SNS を選ぶと押せます。note と Substack では使えません" : format ? "フォーマットに沿って・1 回 5〜15 円ほど" : "1 回 5〜15 円ほど"}</span>
         {hasText && !hasSns && onPickSns && (
           <button type="button" onClick={onPickSns} className="text-xs font-semibold text-primary hover:underline">
             送り先を選ぶ →

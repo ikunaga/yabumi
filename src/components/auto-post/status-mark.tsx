@@ -23,8 +23,9 @@ export function PlanStatusMark({ plan, held = false }: { plan: Pick<AutoPlan, "s
       </span>
     );
   return (
-    <span className="inline-flex items-center gap-1 text-sm font-bold">
-      <span className="text-signal" aria-hidden="true">
+    // 理由が長いと「止まった」が折れるので、flex ではなく文の流れで折り返す（2026-11-21。変数が変わったときの理由）
+    <span className="text-sm font-bold">
+      <span className="mr-1 text-signal" aria-hidden="true">
         !
       </span>
       止まった

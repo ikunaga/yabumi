@@ -11,7 +11,7 @@ import { fakeAiMode } from "./ai";
 import { fitImageToFormat } from "./format-image";
 import { HOLD_REFUSED, myAutoPostHold } from "./holds";
 import { getFormat } from "@/lib/post-formats/store";
-import { X_FIXED_BODY, fixedBodySeries } from "@/lib/post-formats/series";
+import { X_FIXED_BODY, fixedBodySeries, isSeries, readPlanVars, seriesForPlan, undecidedPlanVars } from "@/lib/post-formats/series";
 import { getAutoPlan, listProjectEvents, loadTargetPreviews } from "./queries";
 import { autoPlanInputSchema, eventInputSchema, instructionSchema, instructionsSchema } from "./schema";
 import type { AutoPlan, AutoPlanInput, AutoResult, AutoSample, ProjectEvent } from "./types";
@@ -40,6 +40,9 @@ const HINT_TEXT: Record<string, string> = {
   auto_instructions_invalid: "指示は 1 つ 100 字まで・8 個までです（1 行で書いてください）。",
   auto_image_invalid: "画像の設定が正しくありません。選び直してください。",
   ai_image_notice_missing: "AI の画像を使うには、先に AI の画像の注意を読んで「わかりました」を押してください。",
+  // フォーマットの「自分で入れる」変数の決め方がそろっていない・変数が変わって止まった（20261121180000_format_variables）
+  auto_format_vars_undecided: "フォーマットの変数が変わりました。画面を読み込み直して、変数の決め方を選び直してください。",
+  auto_plan_format_changed: "フォーマットの変数が変わったので止めています。「編集」で変数の決め方を選び直して、保存してください。",
 };
 
 type DbError = { code?: string; hint?: string | null; message: string };
@@ -72,10 +75,19 @@ export async function saveAutoPlan(projectId: string, input: AutoPlanInput): Pro
   const db = await signedIn();
   if (!db) return SIGN_IN;
   const v = { ...p.data, image: await imageForFormat(db, projectId, p.data) };
-  // 本文が毎回同じシリーズのフォーマットは X に送れない（画面でも選べない。2026-11-20 PM の指示）
-  if (v.kind === "series" && v.targets.x && v.materials.format_id) {
+  if (v.kind === "series" && v.materials.format_id) {
     const f = await getFormat(db, projectId, v.materials.format_id);
-    if (f && fixedBodySeries(f.body, f.series)) return { ok: false, error: `${X_FIXED_BODY}X を選ばずに保存してください。` };
+    if (f) {
+      // 「自分で入れる」変数は、自動投稿での決め方をすべて選ぶ（決めていない変数を空のまま送らない。2026-11-21 オーナーの決定）
+      const choices = readPlanVars(v.materials.format_vars);
+      const undecided = undecidedPlanVars(f.series, choices);
+      if (undecided.length) return { ok: false, error: `${undecided.map((n) => `{${n}}`).join("・")} の決め方を選んでください。` };
+      const { series } = seriesForPlan(f.series, choices);
+      if (!isSeries(series)) return { ok: false, error: "毎回同じ投稿になるので、このままでは送れません。どれか 1 つの変数を「自動投稿では AI に考えてもらう」にしてください。" };
+      // 本文が毎回同じシリーズは X に送れない（画面でも選べない。2026-11-20 PM の指示）
+      if (v.targets.x && fixedBodySeries(f.body, series)) return { ok: false, error: `${X_FIXED_BODY}X を選ばずに保存してください。` };
+      v.materials = { ...v.materials, format_vars: Object.fromEntries(Object.entries(choices).filter(([k]) => f.series.vars.some((x) => x.name === k && x.mode === "hand"))) };
+    }
   }
   const { data, error } = await db.rpc("save_auto_plan", {
     p_plan_id: (v.id ?? null) as string,

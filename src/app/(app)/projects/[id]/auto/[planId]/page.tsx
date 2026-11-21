@@ -65,7 +65,7 @@ export default async function AutoPlanPage(props: PageProps<"/projects/[id]/auto
             </h1>
             <p className="num text-[15px] text-faint">{hold && plan.status === "active" ? "新しい投稿はつくられません" : next ? `次は ${formatShort(next.dueAt)}` : plan.status === "active" ? "次の投稿はまだありません" : "止めています"}</p>
           </div>
-          <PlanControls projectId={project.id} planId={plan.id} status={plan.status} nextLabel={next && !hold ? formatShort(next.dueAt) : null} held={hold !== null} />
+          <PlanControls projectId={project.id} planId={plan.id} status={plan.status} nextLabel={next && !hold ? formatShort(next.dueAt) : null} held={hold !== null} formatChanged={plan.stopReason === "format_changed"} />
         </div>
       </div>
       {typeof skipped === "string" && !Number.isNaN(Date.parse(skipped)) && (

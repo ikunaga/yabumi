@@ -1,4 +1,4 @@
-// シリーズ投稿（20261113140000_format_series。docs/design/format-series.md）: 設定の保存・記録の RLS と列の権限・結びつけ（付け替えない）・
+// フォーマットの変数（20261113140000_format_series・20261121180000_format_variables。docs/design/format-series.md）: 設定の保存・記録の RLS と列の権限・結びつけ（付け替えない）・
 // 300 回と 3,000 回・リセットで消す・貼る・次の回の案の流れ（偽の AI）・1 日 20 回。本物の AI は呼ばない
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
@@ -20,7 +20,14 @@ let projectId: string;
 let bobProject: string;
 let formatId: string;
 const BODY = "連想映画クイズ\n{キーワード}\nこの 5 つから連想する映画は？答えはリプで";
-const series = { slots: { キーワード: "答えの映画を連想できる言葉を 5 つ", "{壊れた}": "捨てる" }, answer: { name: "映画", instruction: "だれでも知っている映画を 1 つ" } };
+const series = {
+  vars: [
+    { name: "映画", mode: "ai", instruction: "だれでも知っている映画を 1 つ", unique: true },
+    { name: "キーワード", mode: "ai", instruction: "{映画}を連想できる言葉を 5 つ", unique: false },
+    { name: "{壊れた}", mode: "ai", instruction: "捨てる", unique: false },
+  ],
+};
+const SAVED = { vars: series.vars.slice(0, 2) };
 
 const newPost = async (client: TestClient, project: string) =>
   (await client.rpc("save_post", { p_post_id: null as unknown as string, p_project_id: project, p_body: "本文", p_planned_at: null as unknown as string, p_status: "draft", p_targets: [] })).data!;
@@ -44,39 +51,62 @@ afterAll(async () => {
   await deleteUser(bobId);
 });
 
-describe("フォーマットのシリーズの設定", () => {
-  it("保存のときに、名前の決まりに合わない空欄の指示を捨てる。DB の check は形と字数を縛る", async () => {
-    expect((await getFormat(alice, projectId, formatId))?.series).toEqual({ slots: { キーワード: "答えの映画を連想できる言葉を 5 つ" }, answer: { name: "映画", instruction: "だれでも知っている映画を 1 つ" } });
+describe("フォーマットの変数の設定", () => {
+  it("保存のときに、名前の決まりに合わない変数を捨てる。DB の check は形・字数・数・名前の重なりを縛る", async () => {
+    expect((await getFormat(alice, projectId, formatId))?.series).toEqual(SAVED);
     const set = (v: unknown) => alice.from("post_formats").update({ series: v as never }).eq("id", formatId);
-    for (const bad of [[], { other: 1 }, { slots: { キーワード: 1 } }, { slots: { キーワード: "あ".repeat(61) } }, { slots: { ["あ".repeat(13)]: "" } }, { answer: { name: "", instruction: "" } }, { answer: { name: "映画" } }, { answer: { instruction: "有名な映画" } }, { answer: { name: 1, instruction: "" } }]) {
-      expect((await set(bad)).error?.code, JSON.stringify(bad)).toBe("23514");
-    }
-    const nine = Object.fromEntries(Array.from({ length: 9 }, (_, i) => [`穴${i}`, ""]));
-    expect((await set({ slots: nine })).error?.code).toBe("23514");
-    expect((await set({ answer: null, slots: { キーワード: "" } })).error).toBeNull();
+    const v = (over: Record<string, unknown>) => ({ vars: [{ name: "映画", mode: "ai", instruction: "", unique: false, ...over }] });
+    const bads = [
+      [],
+      { other: 1 },
+      { vars: {} },
+      { slots: { キーワード: "" } },
+      v({ name: "" }),
+      v({ name: "あ".repeat(13) }),
+      v({ name: "{x}" }),
+      v({ name: " 映画" }),
+      v({ mode: "robot" }),
+      v({ instruction: "あ".repeat(61) }),
+      v({ instruction: 1 }),
+      v({ unique: "yes" }),
+      v({ extra: 1 }),
+      { vars: [{ name: "映画", mode: "ai", instruction: "" }] },
+      { vars: [SAVED.vars[0], SAVED.vars[0]] },
+      { vars: Array.from({ length: 13 }, (_, i) => ({ name: `v${i}`, mode: "hand", instruction: "", unique: false })) },
+      { vars: Array.from({ length: 9 }, (_, i) => ({ name: `v${i}`, mode: "ai", instruction: "", unique: false })) },
+    ];
+    for (const bad of bads) expect((await set(bad)).error?.code, JSON.stringify(bad)).toBe("23514");
+    expect((await set({ vars: Array.from({ length: 12 }, (_, i) => ({ name: `v${i}`, mode: i < 8 ? "ai" : "hand", instruction: "", unique: false })) })).error).toBeNull();
+    expect((await set({})).error).toBeNull();
     // ほかのテストのために、もとの設定に戻す
-    expect((await set({ slots: { キーワード: "答えの映画を連想できる言葉を 5 つ" }, answer: series.answer })).error).toBeNull();
+    expect((await set(SAVED)).error).toBeNull();
+  });
+
+  it("指示がおたがいを使う設定は、保存のときに断る", async () => {
+    const loop = { vars: [{ name: "a", mode: "ai", instruction: "{b}", unique: false }, { name: "b", mode: "ai", instruction: "{a}", unique: false }] };
+    await expect(addFormat(alice, projectId, { name: "ぐるぐる", body: "{a}{b}", series: loop })).rejects.toMatchObject({ userMessage: expect.stringContaining("おたがい") });
   });
 });
 
 describe("シリーズの記録の権限", () => {
   it("本人だけが読み書きできる。他人の owner_id・他人のフォーマットでは作れず、ログインしていない人は読めない", async () => {
-    const id = await addRound(alice, projectId, formatId, { answer: "バック・トゥ・ザ・フューチャー", values: { キーワード: "時計台・稲妻" }, source: "ai" });
+    const id = await addRound(alice, projectId, formatId, { values: { 映画: "バック・トゥ・ザ・フューチャー", キーワード: "時計台・稲妻" }, source: "ai" });
     expect(id).toBeTruthy();
     expect((await bob.from("post_format_rounds").select("id").eq("id", id!)).data).toEqual([]);
     expect((await anonClient().from("post_format_rounds").select("id").limit(1)).data ?? []).toEqual([]);
-    expect((await bob.from("post_format_rounds").insert({ format_id: formatId, answer: "x", source: "hand" })).error).not.toBeNull();
-    const bobFormat = await addFormat(bob, bobProject, { name: "ほかの型", body: "{何か}", series: { slots: { 何か: "" } } });
-    expect((await bob.from("post_format_rounds").insert({ format_id: bobFormat, owner_id: aliceId, answer: "x", source: "hand" })).error).not.toBeNull();
-    expect((await alice.from("post_format_rounds").insert({ format_id: formatId, answer: "x", source: "hand", post_id: await newPost(alice, projectId) } as never)).error).not.toBeNull();
+    expect((await bob.from("post_format_rounds").insert({ format_id: formatId, values: { 映画: "x" }, source: "hand" })).error).not.toBeNull();
+    const bobFormat = await addFormat(bob, bobProject, { name: "ほかの型", body: "{何か}", series: { vars: [{ name: "何か", mode: "ai", instruction: "", unique: false }] } });
+    expect((await bob.from("post_format_rounds").insert({ format_id: bobFormat, owner_id: aliceId, values: { 何か: "x" }, source: "hand" })).error).not.toBeNull();
+    expect((await alice.from("post_format_rounds").insert({ format_id: formatId, values: { 映画: "x" }, source: "hand", post_id: await newPost(alice, projectId) } as never)).error).not.toBeNull();
     expect((await bob.from("post_format_rounds").delete().eq("id", id!).select("id")).data).toEqual([]);
-    // 答えも穴の言葉も空の記録は作らない
-    expect((await alice.from("post_format_rounds").insert({ format_id: formatId, answer: "", values: {}, source: "hand" })).error?.code).toBe("23514");
+    // 言葉が空の記録は作らない。答えの列はもうない
+    expect((await alice.from("post_format_rounds").insert({ format_id: formatId, values: {}, source: "hand" })).error?.code).toBe("23514");
+    expect((await alice.from("post_format_rounds").insert({ format_id: formatId, answer: "x", values: { 映画: "x" }, source: "hand" } as never)).error).not.toBeNull();
   });
 
   it("自分の投稿にだけ結びつけられ、一度結びつけたら付け替えない。リセットでは、まだ結びついていない記録だけ消す", async () => {
-    const a = (await addRound(alice, projectId, formatId, { answer: "ジュラシック・パーク", values: {}, source: "ai" }))!;
-    const b = (await addRound(alice, projectId, formatId, { answer: "タイタニック", values: {}, source: "hand" }))!;
+    const a = (await addRound(alice, projectId, formatId, { values: { 映画: "ジュラシック・パーク" }, source: "ai" }))!;
+    const b = (await addRound(alice, projectId, formatId, { values: { 映画: "タイタニック" }, source: "hand" }))!;
     const bobPost = await newPost(bob, bobProject);
     expect((await alice.from("post_format_rounds").update({ post_id: bobPost }).eq("id", a)).error).not.toBeNull();
     const post1 = await newPost(alice, projectId);
@@ -94,18 +124,19 @@ describe("シリーズの記録の権限", () => {
 
   it("シリーズでないフォーマットには記録を付けない", async () => {
     const plain = await addFormat(alice, projectId, { name: "ふつうの型", body: "{何か}" });
-    expect(await addRound(alice, projectId, plain, { answer: "x", values: {}, source: "hand" })).toBeNull();
+    expect(await addRound(alice, projectId, plain, { values: { 何か: "x" }, source: "hand" })).toBeNull();
   });
 });
 
 describe("これまでの回を貼る・上限", () => {
-  it("同じ答えは足さず、1 つのフォーマットに 300 回まで（同時に足しても超えない）", async () => {
-    const f = await addFormat(alice, projectId, { name: "300 回", body: BODY, series: { slots: { キーワード: "" } } });
+  it("貼った行は重ならないようにする変数の言葉になる。同じ言葉は足さず、1 つのフォーマットに 300 回まで（同時に足しても超えない）", async () => {
+    const f = await addFormat(alice, projectId, { name: "300 回", body: BODY, series: SAVED });
     const first = await pasteRounds(alice, projectId, f, "映画 A\n映画 A\n映画 B");
     expect(first).toEqual({ added: 2, skipped: 1, overflow: 0 });
-    const rows = Array.from({ length: 297 }, (_, i) => ({ format_id: f, owner_id: aliceId, answer: `大量 ${i}`, source: "pasted" }));
+    expect((await listRounds(alice, f)).map((r) => r.values).sort((x, y) => x.映画.localeCompare(y.映画))).toEqual([{ 映画: "映画 A" }, { 映画: "映画 B" }]);
+    const rows = Array.from({ length: 297 }, (_, i) => ({ format_id: f, owner_id: aliceId, values: { 映画: `大量 ${i}` }, source: "pasted" }));
     expect((await admin.from("post_format_rounds").insert(rows)).error).toBeNull();
-    const last = await Promise.allSettled([addRound(alice, projectId, f, { answer: "最後", values: {}, source: "hand" }), addRound(alice, projectId, f, { answer: "あふれ", values: {}, source: "hand" })]);
+    const last = await Promise.allSettled([addRound(alice, projectId, f, { values: { 映画: "最後" }, source: "hand" }), addRound(alice, projectId, f, { values: { 映画: "あふれ" }, source: "hand" })]);
     expect(last.filter((r) => r.status === "fulfilled")).toHaveLength(1);
     expect(last.find((r) => r.status === "rejected")).toMatchObject({ reason: { userMessage: expect.stringContaining("300 件まで") } });
     expect((await listRounds(alice, f)).length).toBe(300);
@@ -114,37 +145,38 @@ describe("これまでの回を貼る・上限", () => {
 
   it("1 人の合計は 3,000 回まで", async () => {
     const formats: string[] = [];
-    for (let i = 0; i < 10; i++) formats.push(await addFormat(alice, projectId, { name: `合計 ${i}`, body: BODY, series: { slots: { キーワード: "" } } }));
+    for (let i = 0; i < 10; i++) formats.push(await addFormat(alice, projectId, { name: `合計 ${i}`, body: BODY, series: SAVED }));
     const already = (await admin.from("post_format_rounds").select("id", { count: "exact", head: true }).eq("owner_id", aliceId)).count ?? 0;
     let left = 3000 - already;
     for (const f of formats) {
       const n = Math.min(left, 299);
       if (n <= 0) break;
-      expect((await admin.from("post_format_rounds").insert(Array.from({ length: n }, (_, i) => ({ format_id: f, owner_id: aliceId, answer: `合計 ${i}`, source: "pasted" })))).error).toBeNull();
+      expect((await admin.from("post_format_rounds").insert(Array.from({ length: n }, (_, i) => ({ format_id: f, owner_id: aliceId, values: { 映画: `合計 ${i}` }, source: "pasted" })))).error).toBeNull();
       left -= n;
     }
     expect(left).toBe(0);
-    await expect(addRound(alice, projectId, formats[9], { answer: "3001 回目", values: {}, source: "hand" })).rejects.toMatchObject({ userMessage: expect.stringContaining("1 人 3,000 件まで") });
+    await expect(addRound(alice, projectId, formats[9], { values: { 映画: "3001 回目" }, source: "hand" })).rejects.toMatchObject({ userMessage: expect.stringContaining("1 人 3,000 件まで") });
     for (const f of formats) await alice.from("post_formats").delete().eq("id", f);
   });
 });
 
-describe("画像だけで使う空欄（2026-11-20）", () => {
-  it("型の文にない AI の空欄は、画像だけで使う空欄として保存し、記録にも残す。答えと同じ名前は捨てる。次の回の案では埋めさせ、埋めていない案は捨てる", async () => {
+describe("本文に出ない変数・画像だけの変数（2026-11-20・2026-11-21）", () => {
+  it("どこにも書かない変数・画像だけの変数も保存し、記録に残す。次の回の案では入れさせ、入れていない案は捨てる", async () => {
     const fixed = "今日の映画クイズ！この絵から連想する映画は？答えはリプで";
     const id = await addFormat(alice, projectId, {
       name: "絵で連想クイズ",
       body: fixed,
-      series: { slots: { キーワード: "答えの映画を連想できる言葉を 3 つ", 映画: "x" }, answer: { name: "映画", instruction: "だれでも知っている映画を 1 つ" } },
+      series: { vars: [SAVED.vars[0], { name: "キーワード", mode: "ai", instruction: "{映画}を連想できる言葉を 3 つ", unique: false }] },
+      image: { prompt: "{キーワード}が並ぶ机", scene: "fill", style: "photo", size: "auto", headline: null },
     });
-    expect((await getFormat(alice, projectId, id))?.series.slots).toEqual({ キーワード: "答えの映画を連想できる言葉を 3 つ" });
-    const roundId = await addRound(alice, projectId, id, { answer: "ローマの休日", values: { キーワード: "スクーター・真実の口・王女", ない: "捨てる" }, source: "hand" });
-    expect((await admin.from("post_format_rounds").select("values").eq("id", roundId!).single()).data?.values).toEqual({ キーワード: "スクーター・真実の口・王女" });
+    expect((await getFormat(alice, projectId, id))?.series.vars.map((v) => v.name)).toEqual(["映画", "キーワード"]);
+    const roundId = await addRound(alice, projectId, id, { values: { 映画: "ローマの休日", キーワード: "スクーター・真実の口・王女", ない: "捨てる" }, source: "hand" });
+    expect((await admin.from("post_format_rounds").select("values").eq("id", roundId!).single()).data?.values).toEqual({ 映画: "ローマの休日", キーワード: "スクーター・真実の口・王女" });
     const call = vi.fn<CallFormatRound>(async () => ({
       output: {
         proposals: [
-          { answer: "タイタニック", slots: [], checks: [] },
-          { answer: "ジョーズ", slots: [{ slot: "キーワード", text: "海・背びれ・浜辺" }], checks: [] },
+          { values: [{ name: "映画", text: "タイタニック" }], checks: [] },
+          { values: [{ name: "映画", text: "ジョーズ" }, { name: "キーワード", text: "海・背びれ・浜辺" }], checks: [] },
         ],
       },
       stopReason: "end_turn",
@@ -152,8 +184,8 @@ describe("画像だけで使う空欄（2026-11-20）", () => {
       usage: { inputTokens: 4000, cacheWriteTokens: 0, cacheReadTokens: 0, outputTokens: 800 },
     }));
     const r = await runFormatRound(alice, admin, { callFormatRound: call }, { userId: aliceId, projectId, formatId: id, wish: "" });
-    expect(r).toMatchObject({ ok: true, proposals: [{ answer: "ジョーズ", values: { キーワード: "海・背びれ・浜辺" } }] });
-    expect(JSON.stringify(vi.mocked(call).mock.calls[0][0].messages)).toContain("AI が埋める空欄 {キーワード}（本文には出さず、画像の絵の説明だけに使う）");
+    expect(r).toMatchObject({ ok: true, proposals: [{ values: { 映画: "ジョーズ", キーワード: "海・背びれ・浜辺" } }] });
+    expect(JSON.stringify(vi.mocked(call).mock.calls[0][0].messages)).toContain("AI が考える変数 {キーワード}（画像だけに使う。本文には出ない）");
 
     // 本文が毎回同じ型: 自動の回は X に送らない（材料なし）。X がなければ、本文はそのまま・fixedBody の印つき（前の投稿と似ているかを本文で見ない）
     const f = (await getFormat(alice, projectId, id))!;
@@ -163,7 +195,7 @@ describe("画像だけで使う空欄（2026-11-20）", () => {
     const pick = (targets: Record<string, string>) =>
       pickMaterial(admin, { plan: plan(targets), planData: normalizePlan({}, ""), project, past: [], dueAt: new Date() }, { callFormatRound: call });
     expect(await pick({ x: "review", threads: "auto" })).toMatchObject({ none: true, detail: X_FIXED_BODY });
-    expect(await pick({ threads: "auto" })).toMatchObject({ fixedTexts: { threads: fixed }, series: { fixedBody: true, values: { キーワード: "海・背びれ・浜辺" } } });
+    expect(await pick({ threads: "auto" })).toMatchObject({ fixedTexts: { threads: fixed }, series: { fixedBody: true, values: { 映画: "ジョーズ", キーワード: "海・背びれ・浜辺" } } });
     await admin.from("ai_usage").delete().eq("owner_id", aliceId);
     await alice.from("post_formats").delete().eq("id", id);
   });
@@ -171,7 +203,7 @@ describe("画像だけで使う空欄（2026-11-20）", () => {
 
 describe("自動投稿の偽の AI（AUTO_POST_FAKE_AI）では、シリーズの空欄も偽の言葉で埋める（2026-11-21 PM の指摘）", () => {
   it("fakeSeries のときは、次の回の案の AI を呼ばずに、空欄を偽の言葉で埋める", async () => {
-    const id = await addFormat(alice, projectId, { name: "偽の AI のシリーズ", body: "今日の一杯☕\n{豆}", series: { slots: { 豆: "その日のおすすめの豆" } } });
+    const id = await addFormat(alice, projectId, { name: "偽の AI のシリーズ", body: "今日の一杯☕\n{豆}", series: { vars: [{ name: "豆", mode: "ai", instruction: "その日のおすすめの豆", unique: false }] } });
     const call = vi.fn<CallFormatRound>();
     const plan = { id: "p", projectId, ownerId: aliceId, kind: "series", materials: { format_id: id }, targets: { threads: "auto" }, instructions: [] } as never;
     const project = { name: "ねむり日和", description: null, target_audience: null, product_type: "shop" };
@@ -190,13 +222,13 @@ describe("次の回の案（偽の AI）", () => {
   it("もう出した回を送り、重なる案を捨てて返す。利用量を post_format_round として記録する", async () => {
     const call = caller({
       proposals: [
-        { answer: "バック・トゥ・ザ・フューチャー", slots: [{ slot: "キーワード", text: "時計台・稲妻" }], checks: ["時計台の場面は第 1 作にあります"] },
-        { answer: "ローマの休日", slots: [{ slot: "キーワード", text: "スクーター・真実の口" }], checks: [] },
+        { values: [{ name: "映画", text: "バック・トゥ・ザ・フューチャー" }, { name: "キーワード", text: "時計台・稲妻" }], checks: ["時計台の場面は第 1 作にあります"] },
+        { values: [{ name: "映画", text: "ローマの休日" }, { name: "キーワード", text: "スクーター・真実の口" }], checks: [] },
       ],
     });
     const r = await runFormatRound(alice, admin, { callFormatRound: call }, { userId: aliceId, projectId, formatId, wish: "古い映画で" });
     // 2 案のうち 1 つは出した回と重なるので捨てる（捨てた数と、今日の残りの回数も返す）
-    expect(r).toEqual({ ok: true, proposals: [{ answer: "ローマの休日", values: { キーワード: "スクーター・真実の口" }, checks: [] }], left: SERIES_DAILY_RUNS - 1, dropped: 1 });
+    expect(r).toEqual({ ok: true, proposals: [{ values: { 映画: "ローマの休日", キーワード: "スクーター・真実の口" }, checks: [] }], left: SERIES_DAILY_RUNS - 1, dropped: 1 });
     const sent = JSON.stringify(vi.mocked(call).mock.calls[0][0].messages);
     expect(sent).toContain("バック・トゥ・ザ・フューチャー");
     expect(sent).toContain("古い映画で");
@@ -204,7 +236,7 @@ describe("次の回の案（偽の AI）", () => {
   });
 
   it("案がどれも前の回と重なって 0 になったら、何が起きたか・1 回に数えたこと・次にどうすればよいかを返す（利用量も記録する）", async () => {
-    const call = caller({ proposals: [{ answer: "バック・トゥ・ザ・フューチャー", slots: [{ slot: "キーワード", text: "時計台・稲妻" }], checks: [] }] });
+    const call = caller({ proposals: [{ values: [{ name: "映画", text: "バック・トゥ・ザ・フューチャー" }, { name: "キーワード", text: "時計台・稲妻" }], checks: [] }] });
     const r = await runFormatRound(alice, admin, { callFormatRound: call }, { userId: aliceId, projectId, formatId });
     expect(r).toEqual({ ok: false, left: SERIES_DAILY_RUNS - 1, empty: true, message: `出せる案がありませんでした（今日はあと ${SERIES_DAILY_RUNS - 1} 回）。希望の欄に年代やジャンルを書き加えて、もう一度出してもらってください。` });
     expect((await admin.from("ai_usage").select("purpose").eq("owner_id", aliceId)).data).toEqual([{ purpose: "post_format_round" }]);

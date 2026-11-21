@@ -91,9 +91,12 @@ describe("伸びた投稿からフォーマットの案", () => {
     const r = await runFormatFromPosts(alice, admin, { callFormatFromPosts: call }, { userId: aliceId, projectId, postIds: [bigPost] });
     expect(r).toMatchObject({ ok: true, fit: "auto" });
     if (!r.ok) return;
-    expect(r.proposals[0].series.slots).toEqual({ よく聞かれること: "パン屋によくある質問を 1 つ", 答え: "プロジェクトの説明にあることだけで答える" });
-    // 穴の指示が欠けた案は、自分で埋める型として出す
-    expect(r.proposals[1].series.slots).toEqual({});
+    expect(r.proposals[0].series.vars).toEqual([
+      { name: "よく聞かれること", mode: "ai", instruction: "パン屋によくある質問を 1 つ", unique: false },
+      { name: "答え", mode: "ai", instruction: "プロジェクトの説明にあることだけで答える", unique: false },
+    ]);
+    // 変数の指示が欠けた案は、自分で入れる型として出す
+    expect(r.proposals[1].series.vars.every((v) => v.mode === "hand")).toBe(true);
     const sent = JSON.stringify(vi.mocked(call).mock.calls[0][0]);
     expect(sent).toContain("Threads でいつもの 5 倍見られました");
     expect(sent).toContain("予約はいりますか");

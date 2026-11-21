@@ -132,7 +132,7 @@ export function WinnersScreen({
                       </Link>
                     ) : !w.formatSeries ? (
                       <Link href={`${base}/formats`} className="font-bold underline">
-                        AI が埋める空欄を決めると、自動で回せます →
+                        AI が考える変数を決めると、自動で回せます →
                       </Link>
                     ) : null}
                   </p>
@@ -186,12 +186,12 @@ export function WinnersScreen({
                       <p className="rounded-md bg-surface2 px-3 py-2 text-[13px] leading-[1.7] whitespace-pre-wrap">{p.body}</p>
                       {p.why && <p className="text-xs leading-[1.7] text-muted">{p.why}</p>}
                       {auto ? (
-                        <p className="text-xs leading-[1.7] text-muted">空欄はどれも、毎回 AI が埋めます（{Object.entries(p.series.slots).map(([k, v]) => `{${k}}: ${v}`).join("　")}）</p>
+                        <p className="text-xs leading-[1.7] text-muted">変数はどれも、毎回 AI が考えます（{p.series.vars.map((v) => `{${v.name}}: ${v.instruction}`).join("　")}）</p>
                       ) : (
                         <p className="text-xs leading-[1.7] text-muted">
                           {result.fit === "auto"
-                            ? "AI が毎回埋める指示がそろっていない空欄があるので、投稿をつくるときに自分で埋める型にしました。保存したあと、フォーマットの画面で空欄ごとに「AI が埋める」を決めると、自動投稿に使えます。"
-                            : "空欄の中身はあなたしか知らないこと（値段・日付など）なので、投稿をつくるときに自分で埋めます。自動投稿には使えません。"}
+                            ? "AI への指示がそろっていない変数があるので、投稿をつくるときに自分で入れる型にしました。保存したあと、フォーマットの画面で変数ごとに「毎回 AI が考える」を選べます。"
+                            : "変数の中身はあなたしか知らないこと（値段・日付など）なので、投稿をつくるときに自分で入れます。自動投稿では、設定で入れ方を選びます。"}
                         </p>
                       )}
                       {p.example && (

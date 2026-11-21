@@ -1,6 +1,6 @@
 import type { SnsKey } from "@/lib/sns";
-import { answerSlotName, fillImageText, hasUnfilled } from "@/lib/post-formats/image";
-import { cleanAnswer, cleanRoundValues } from "@/lib/post-formats/series";
+import { fillImageText, hasUnfilled } from "@/lib/post-formats/image";
+import { cleanRoundValues } from "@/lib/post-formats/series";
 import { getFormat } from "@/lib/post-formats/store";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizePlan } from "@/lib/plan/schema";
@@ -159,21 +159,19 @@ export async function runPhotoIdeas(
 export type FormatSceneOutcome = { ok: true; scene: string } | { ok: false; message: string };
 
 // フォーマットはサーバーが利用者の権限で読み直す（本人の、このプロジェクトのものだけ。RLS）。画面から絵の説明の文は受け取らない。
-// 穴の言葉は型の文の穴だけ・1 行 200 字まで、答えは 100 字までにそろえる。場面のつくり方が「AI が場面に書き換える」のフォーマットだけ
+// 変数の言葉は一覧にある変数だけ・1 行 200 字までにそろえる。場面のつくり方が「AI が場面に書き換える」のフォーマットだけ
 export async function runFormatPhotoScene(
   user: Db,
   admin: Db,
   deps: { callIdeas: CallPhotoIdeas; now?: () => Date },
-  args: { userId: string; projectId: string; formatId: string; values: unknown; answer: unknown; sns?: SnsKey[] },
+  args: { userId: string; projectId: string; formatId: string; values: unknown; sns?: SnsKey[] },
 ): Promise<FormatSceneOutcome> {
   const format = await getFormat(user, args.projectId, args.formatId);
   if (!format) return { ok: false, message: "フォーマットが見つかりません。画面を読み込み直してください。" };
   const img = format.image;
   if (!img || img.scene !== "ai") return { ok: false, message: "このフォーマットには、AI が絵の説明を書く画像の設定がありません。" };
-  const name = answerSlotName(format.series);
-  const answer = cleanAnswer(args.answer);
-  const filled = fillImageText(img.prompt, cleanRoundValues(format.body, args.values, format.series), name && answer ? { name, value: answer } : null);
-  if (hasUnfilled(filled)) return { ok: false, message: "絵の説明に、まだ埋まっていない空欄（【】）があります。「1 書く」で空欄を埋めて本文に入れてから押してください。" };
+  const filled = fillImageText(img.prompt, cleanRoundValues(format.series, args.values));
+  if (hasUnfilled(filled)) return { ok: false, message: "絵の説明に、まだ言葉の入っていない変数（【】）があります。「1 書く」で変数を入れて本文に入れてから押してください。" };
   const { data: project } = await user.from("projects").select("*").eq("id", args.projectId).maybeSingle();
   if (!project) return { ok: false, message: "プロジェクトが見つかりません。" };
   const { data: planRow } = await user.from("account_plans").select("data").eq("project_id", args.projectId).maybeSingle();

@@ -14,7 +14,7 @@ describe("穴の読み方", () => {
     expect(slotProblem("{a}{b}")).toBeNull();
     expect(slotProblem(Array.from({ length: MAX_FORMAT_SLOTS + 1 }, (_, i) => `{空欄${i}}`).join(""))).toMatch(/8 種類/);
     expect(slotProblem("{あいうえおかきくけこさしす}")).toMatch(/12 字/);
-    expect(slotProblem("{}です")).toMatch(/空欄の名前/);
+    expect(slotProblem("{}です")).toMatch(/変数の名前/);
     // 同じ名前を重ねても 16 か所まで（DB の check と同じ）
     expect(slotProblem("{a}".repeat(17))).toMatch(/16 か所/);
   });

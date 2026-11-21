@@ -20,7 +20,7 @@ export function ComposeStepImages({ c }: { c: Composer }) {
   const { formatUse } = c;
   const [preset, setPreset] = useState<FormatPhotoPreset | null>(null);
   // 下書きから開き直したとき、フォーマットの欄は空なので、投稿に結びついたシリーズの記録の言葉を使う（欄に何か入れたらそちらを使う）
-  const restored = formatUse && formatUse.format.id === initial.formatId && !Object.values(formatUse.values).some((v) => v.trim()) && !formatUse.answer?.trim() ? initial.formatValues : null;
+  const restored = formatUse && formatUse.format.id === initial.formatId && !Object.values(formatUse.values).some((v) => v.trim()) ? initial.formatValues : null;
   const imageUse = formatUse?.format.image ? { ...formatUse, ...(restored ?? {}), format: { ...formatUse.format, image: formatUse.format.image } } : null;
   // フォーマットの画像の設定を、画像をつくる画面に渡す（auto: すぐ 1 枚つくる。帯の「つくる」だけ）
   function makePreset(auto: boolean, texts: { text: string; headline: string | null; label: string | null }) {
@@ -33,7 +33,6 @@ export function ComposeStepImages({ c }: { c: Composer }) {
       scene: imageUse.format.image.scene,
       text: texts.text,
       values: imageUse.values,
-      answer: imageUse.answer ?? "",
       style: imageUse.format.image.style,
       size: imageUse.format.image.size,
       headline: texts.headline,
@@ -87,7 +86,7 @@ export function ComposeStepImages({ c }: { c: Composer }) {
           // 帯を使わずに「画像をつくる」を押したときも、はじめの 1 回はフォーマットの画像の設定（絵の説明・描き方・縦横）を入れて開く。
           // つくるのは押したときだけ（指摘 18。押していないのに AI を呼ばない）
           onOpenMaker={() => {
-            if (imageUse && !preset) makePreset(false, formatPhotoTexts(imageUse.format, imageUse.values, imageUse.answer));
+            if (imageUse && !preset) makePreset(false, formatPhotoTexts(imageUse.format, imageUse.values));
           }}
           images={images}
           disabled={pending || videoBusy}

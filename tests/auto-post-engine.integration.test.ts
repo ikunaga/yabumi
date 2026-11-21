@@ -365,7 +365,7 @@ describe("見本の 1 回（makeSample）", () => {
 
 describe("シリーズの本文（フォーマットの文）は変えない（2026-11-20 本番の不具合）", () => {
   const FIXED = "この5つから連想される映画は？答えはコメントで！";
-  const material = (text: string) => ({ text: "シリーズ", label: "シリーズ: テスト", ref: {}, allowedUrls: [], fixedTexts: { threads: text, x: text }, series: { formatId: randomUUID(), answer: "ジョーズ", values: {} } });
+  const material = (text: string) => ({ text: "シリーズ", label: "シリーズ: テスト", ref: {}, allowedUrls: [], fixedTexts: { threads: text, x: text }, series: { formatId: randomUUID(), values: {} } });
   async function draft(text: string) {
     const p = await project();
     const id = await plan(p);

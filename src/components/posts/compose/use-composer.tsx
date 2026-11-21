@@ -72,7 +72,7 @@ export type ComposerInitial = {
   formatId?: string | null;
   // そのフォーマットで本文に入れたシリーズの回の答えと穴の言葉（投稿に結びついた記録から）。③ のフォーマットの画像の絵の説明を埋めるだけに使う
   // （フォーマットの欄には入れない。入れると同じ回をもう一度本文に入れやすい。docs/design/format-image.md の 2.1）
-  formatValues?: { values: Record<string, string>; answer: string } | null;
+  formatValues?: { values: Record<string, string> } | null;
   // YouTube に送るときに選んでいたもの（同意して保存した投稿を開き直したとき。docs/design/youtube.md の 4.）
   youtube?: YouTubeChoice | null;
 };
@@ -200,7 +200,7 @@ export function useComposer({
   const [roundIds, setRoundIds] = useState<string[]>([]);
   const addRoundId = (id: string) => setRoundIds((ids) => (ids.includes(id) ? ids : [...ids, id]));
   // フォーマットの欄を開くときに選んでおくフォーマットと穴の言葉・答え（開いたときは保存した投稿のもの。書きかけを戻すと控えのもの。PMO2 の 3 回目の 03）
-  const [formatSeed, setFormatSeed] = useState<{ id: string | null; values: Record<string, string>; answer: string }>(() => ({ id: initial.formatId ?? null, values: {}, answer: "" }));
+  const [formatSeed, setFormatSeed] = useState<{ id: string | null; values: Record<string, string> }>(() => ({ id: initial.formatId ?? null, values: {} }));
   // 書きかけを戻すたびに、フォーマットの欄を作り直す（formatSeed で開き直す）
   const [formatRound, setFormatRound] = useState(0);
   // 「フォーマットから」の欄を開いているか。保存した投稿・控えでフォーマットを選んでいたら開いて出す（閉じても選んだものは残る）
@@ -357,7 +357,7 @@ export function useComposer({
     else if (step === "write") {
       // 選んでいるフォーマットと穴の言葉・答え・この画面で付けたシリーズの記録も控える（比べる中身には入れない。null は「なし」）。
       // フォーマットの欄が出ていない（送った投稿など）ときは、戻すときに使わない（restoreDraft）
-      const format = formatUse ? { id: formatUse.format.id, values: formatUse.values, answer: formatUse.answer ?? "", roundIds } : null;
+      const format = formatUse ? { id: formatUse.format.id, values: formatUse.values, roundIds } : null;
       writeFormDraft(draftKey, { ...now, step: composeStep, format }, draftBase);
     }
   }, [body, overrides, titles, tagInputs, images, video, found, draftKey, initialDraft, draftBase, composeStep, formatUse, roundIds]);
@@ -383,7 +383,7 @@ export function useComposer({
     if (f !== undefined && !sentAny) {
       setFormatUse(null);
       setFormatId(null);
-      setFormatSeed(f ? { id: f.id, values: f.values, answer: f.answer } : { id: null, values: {}, answer: "" });
+      setFormatSeed(f ? { id: f.id, values: f.values } : { id: null, values: {} });
       if (f) for (const id of f.roundIds) addRoundId(id);
       if (f) setFormatsOpen(true);
       setFormatRound((n) => n + 1);
@@ -454,7 +454,7 @@ export function useComposer({
     setTidyAdopted(false);
     setFormatUse(null);
     setFormatId(initial.formatId ?? null);
-    setFormatSeed({ id: initial.formatId ?? null, values: {}, answer: "" });
+    setFormatSeed({ id: initial.formatId ?? null, values: {} });
     setFormatsOpen(Boolean(initial.formatId));
     // 本文から外したので、この画面で付けた、まだ投稿に結びついていない記録は消す（残すと、使っていない回が次の回の案から外れる）
     if (roundIds.length) void discardFormatRounds(projectId, roundIds);

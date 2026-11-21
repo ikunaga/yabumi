@@ -17,8 +17,8 @@ export function FormatImageBand({
   disabled: boolean;
   onMake: (auto: boolean, texts: { text: string; headline: string | null; label: string | null }) => void;
 }) {
-  const { format, values, answer } = use;
-  const texts = formatPhotoTexts(format, values, answer);
+  const { format, values } = use;
+  const texts = formatPhotoTexts(format, values);
   const left = hasUnfilled(texts.text) || (texts.headline !== null && hasUnfilled(texts.headline)) || (texts.label !== null && hasUnfilled(texts.label));
   // 1 枚の目安（押す前に出す）。AI が場面に書き換えるときは、Claude の場面の分（SCENE_YEN.one）を足す
   const unit = photoUnitYen(photoModel({}));
@@ -35,7 +35,7 @@ export function FormatImageBand({
           </p>
         )}
       </DisclosureBox>
-      {left && <p className="text-xs leading-[1.7]"><span className="mr-1.5 font-bold text-signal">● 要確認</span>【】のところには、「1 書く」で空欄に入れた言葉が入ります。</p>}
+      {left && <p className="text-xs leading-[1.7]"><span className="mr-1.5 font-bold text-signal">● 要確認</span>【】のところには、「1 書く」で変数に入れた言葉が入ります。</p>}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <Button type="button" size="sm" disabled={disabled || left} onClick={() => onMake(true, texts)}>
           1 枚つくる・{cost}

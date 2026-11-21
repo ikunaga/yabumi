@@ -9,6 +9,8 @@ import { adminClient, anonClient, deleteUser, signUpNewUser, type TestClient } f
 const admin = adminClient();
 const OLD = "2100-01-01T00:00:00Z"; // 登録からの日数を数える時点（7 日を過ぎた人として）
 const COST = 0.25; // 予約の見込み（相談の下限 $0.15 より大きい）
+// 本人の月の上限（reserve_ai_usage の ai_budget_check の c_user_monthly_usd。2026-11-21 に $3 → $9.9。全体の上限 $10 のすぐ下）
+const CAP = 9.9;
 
 let alice: TestClient;
 let aliceId: string;
@@ -49,21 +51,26 @@ afterAll(async () => {
 });
 
 describe("予約（reserve_ai_usage）", () => {
-  it("同時に 10 回送っても、本人の月の上限（$3）を超えない。断った分は行を作らない", async () => {
+  it("同時に 10 回送っても、本人の月の上限（$9.9）を超えない。断った分は行を作らない", async () => {
     await clear(aliceId, bobId);
-    await spend(aliceId, 2.5);
+    await spend(aliceId, CAP - 0.5);
     const results = await Promise.all(Array.from({ length: 10 }, () => reserve(aliceId)));
     const statuses = results.map((r) => r.data?.[0]?.status);
     expect(statuses.filter((s) => s === "ok")).toHaveLength(2);
-    expect(statuses.filter((s) => s === "user_limit")).toHaveLength(8);
+    // 本人の上限は全体の上限（$10）のすぐ下なので、上限に届いたあとは全体の上限で断ることもある。どちらでも行は作らない
+    expect(statuses.filter((s) => s === "user_limit" || s === "global_limit")).toHaveLength(8);
     const rows = await rowsOf(aliceId);
     expect(rows.filter((r) => r.status === "reserved")).toHaveLength(2);
-    expect(rows.reduce((n, r) => n + Number(r.cost_usd), 0)).toBeCloseTo(3, 6);
+    expect(rows.reduce((n, r) => n + Number(r.cost_usd), 0)).toBeCloseTo(CAP, 6);
+    // 全体の残りがあるうちに本人の上限をこえるときは、本人の上限で断る
+    await clear(aliceId);
+    await spend(aliceId, CAP - 0.2);
+    expect((await reserve(aliceId)).data?.[0]?.status).toBe("user_limit");
   });
 
   it("同時に 10 回送っても、全体の月の上限（$10）を超えない", async () => {
     await clear(aliceId, bobId);
-    // 全体はボブとアリスの分で数える。ボブが $9.5 使っていて、アリスが同時に 10 回（$0.25 ずつ。本人の上限 $3 には届かない）
+    // 全体はボブとアリスの分で数える。ボブが $9.5 使っていて、アリスが同時に 10 回（$0.25 ずつ。本人の上限 $9.9 には届かない）
     await spend(bobId, 9.5);
     const results = await Promise.all(Array.from({ length: 10 }, () => reserve(aliceId, { scope: bobId })));
     const statuses = results.map((r) => r.data?.[0]?.status);
@@ -83,21 +90,21 @@ describe("予約（reserve_ai_usage）", () => {
     await spend(aliceId, 1.1, { count: 1100 });
     expect((await reserve(aliceId)).data?.[0]?.status).toBe("daily_limit");
     await clear(aliceId);
-    await spend(aliceId, 2.8, { count: 1100 });
+    await spend(aliceId, CAP - 0.2, { count: 1100 });
     expect((await reserve(aliceId)).data?.[0]?.status).toBe("user_limit");
   }, 30_000);
 
-  it("新しい人（登録して 7 日まで）は、本人の月の上限が 3 分の 1（$1）。いつ戻るかを返し、予約の行に印を付ける", async () => {
+  it("新しい人（登録して 7 日まで）は、本人の月の上限が 3 分の 1（$3.3）。いつ戻るかを返し、予約の行に印を付ける", async () => {
     await clear(aliceId, bobId);
     const { data: u } = await admin.auth.admin.getUserById(aliceId);
     const until = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Tokyo" }).format(new Date(new Date(u.user!.created_at).getTime() + 7 * 86_400_000));
     const ok = (await reserve(aliceId, { asOf: null })).data![0];
     expect(ok).toMatchObject({ status: "ok", new_until: until });
     expect((await rowsOf(aliceId))[0]).toMatchObject({ status: "reserved", by_new_user: true });
-    await spend(aliceId, 0.6);
-    // $0.25 + $0.6 + $0.25 > $1
+    await spend(aliceId, 2.9);
+    // $0.25 + $2.9 + $0.25 > $3.3
     expect((await reserve(aliceId, { asOf: null })).data![0]).toMatchObject({ status: "new_user_limit", new_until: until });
-    // 7 日を過ぎた人としてなら通る（普段の $3）
+    // 7 日を過ぎた人としてなら通る（普段の $9.9）
     expect((await reserve(aliceId)).data![0]).toMatchObject({ status: "ok", new_until: null });
   });
 
@@ -165,7 +172,7 @@ describe("入口（withAiBudget）", () => {
     expect(reserved).toMatchObject({ status: "reserved", cost_usd: reserveEstimateUsd("consult", request) });
     expect(await rowsOf(aliceId)).toEqual([expect.objectContaining({ status: "done", cost_usd: 0.006 })]);
 
-    await spend(aliceId, 3);
+    await spend(aliceId, CAP);
     let called = false;
     const denied = await withAiBudget(admin, opts(), request, async () => {
       called = true;
@@ -211,7 +218,7 @@ describe("入口（withAiBudget）", () => {
   it("残りが少ないときに同時に 10 回送っても、どれも最大の額がかかったとして実際の額に直したあとの合計が上限を超えない", async () => {
     await clear(aliceId, bobId);
     setAiBudgetTestScope({ scopeSelf: true, asOf: new Date(OLD) });
-    await spend(aliceId, 2); // 残り $1
+    await spend(aliceId, CAP - 1); // 残り $1
     const long = { system: [{ type: "text", text: "相談の相棒です。".repeat(500) }], messages: [{ role: "user", content: [{ type: "text", text: "長い相談".repeat(1000) }] }] };
     const bytes = Buffer.byteLength(JSON.stringify(long), "utf8");
     // 起こりうる最大: 送る中身がすべてトークン（1 バイト 1 トークン）でキャッシュへの書き込み、出力は上限まで、知らないモデル（いちばん高い）
@@ -220,7 +227,7 @@ describe("入口（withAiBudget）", () => {
     expect(results.filter((r) => r.ok).length).toBeGreaterThan(0);
     expect(results.filter((r) => !r.ok).length).toBeGreaterThan(0);
     const total = (await rowsOf(aliceId)).reduce((n, r) => n + Number(r.cost_usd), 0);
-    expect(total).toBeLessThanOrEqual(3);
+    expect(total).toBeLessThanOrEqual(CAP);
     setAiBudgetTestScope(null);
   });
 
@@ -247,7 +254,7 @@ describe("入口（withAiBudget）", () => {
   it("上限に届いた人の呼び出しでは、count_tokens を呼ばずに断る（セキュリティ確認 2026-11-06 の L4）", async () => {
     await clear(aliceId, bobId);
     setAiBudgetTestScope({ scopeSelf: true, asOf: new Date(OLD) });
-    await spend(aliceId, 3);
+    await spend(aliceId, CAP);
     const count = vi.fn(async () => 3000);
     const callModel = vi.fn(async (req: typeof request) => (void req, { model: "claude-opus-5-5", usage }));
     const r = await withAiBudget(admin, opts(), request, countable(callModel, count));
@@ -266,7 +273,7 @@ describe("入口（withAiBudget）", () => {
     const counted = reserveEstimateUsd("consult", long, 3000);
     expect(counted).toBeLessThan(byBytes);
     // 残りを、数えた値とバイト数の見込みの間にする
-    await spend(aliceId, 3 - (counted + byBytes) / 2);
+    await spend(aliceId, CAP - (counted + byBytes) / 2);
     const count = vi.fn(async () => 3000);
     const seen: number[] = [];
     const r = await withAiBudget(admin, opts(), long, countable(async (req: typeof long) => {
@@ -299,14 +306,14 @@ describe("入口（withAiBudget）", () => {
   it("数えた値で予約しても、残りが少ないときに同時に 10 回送り、どれも数えた値のゆとりの分まで入力・出力の上限まで使ったとしても、合計が上限を超えない", async () => {
     await clear(aliceId, bobId);
     setAiBudgetTestScope({ scopeSelf: true, asOf: new Date(OLD) });
-    await spend(aliceId, 2.2); // 残り $0.8
+    await spend(aliceId, CAP - 0.8); // 残り $0.8
     const counted = 5000;
     const worst = { model: "unknown-fallback-model", usage: { inputTokens: 0, cacheWriteTokens: Math.ceil(counted * COUNTED_TOKENS_MARGIN), cacheReadTokens: 0, outputTokens: AI_MAX_TOKENS.consult } };
     const results = await Promise.all(Array.from({ length: 10 }, () => withAiBudget(admin, opts(), request, countable(async (req: typeof request) => (void req, worst), async () => counted))));
     expect(results.filter((r) => r.ok).length).toBeGreaterThan(0);
     expect(results.filter((r) => !r.ok).length).toBeGreaterThan(0);
     const total = (await rowsOf(aliceId)).reduce((n, r) => n + Number(r.cost_usd), 0);
-    expect(total).toBeLessThanOrEqual(3);
+    expect(total).toBeLessThanOrEqual(CAP);
     setAiBudgetTestScope(null);
   });
 });

@@ -53,7 +53,7 @@ export default async function ConsultListPage(props: PageProps<"/projects/[id]/c
       <PageHeader
         title="AI と相談"
         sub={`これまでの相談 ${threads.length} 件`}
-        help="運用の悩みを相談できます。AI は、アカウントの方針・最近の投稿・数字・ロードマップを見ます。そのうえで、案を 2〜3 個出します。選んだ案だけが、方針やロードマップに入ります。"
+        help="運用の悩みを相談できます。AI は、アカウントの方針・最近の投稿と数字・目標と週ごとのやることを見ます。そのうえで、案を 2〜3 個出します。選んだ案だけを、アカウントの方針や、目標と週ごとのやることに書き足します。"
         actions={
           blocked ? (
             <Button type="button" disabled>
@@ -66,7 +66,7 @@ export default async function ConsultListPage(props: PageProps<"/projects/[id]/c
       />
       <AiQuotaBand state={quota} />
       <ConsultClosedBanner projectId={id} done={sp.done} items={sp.items} reviewed={sp.reviewed} />
-      {sp.done === "thread_deleted" && <SuccessBanner>相談を削除しました。採用した案は残っています。アカウントの方針・ロードマップ・下書きです。</SuccessBanner>}
+      {sp.done === "thread_deleted" && <SuccessBanner>相談を削除しました。採用した案は残っています。アカウントの方針・目標と週ごとのやること・投稿の下書きです。</SuccessBanner>}
 
       <Columns
         main={
@@ -105,7 +105,7 @@ export default async function ConsultListPage(props: PageProps<"/projects/[id]/c
               <div className="flex flex-wrap gap-2 px-6 pt-1 pb-5 max-sm:px-4">
                 {listedConsultTopics().map((t) =>
                   blocked ? (
-                    <span key={t} aria-disabled="true" className={chipClass({ className: "h-auto min-h-10 cursor-not-allowed px-4 py-1.5 text-[15px] text-faint max-sm:whitespace-normal" })}>
+                    <span key={t} aria-disabled="true" className={chipClass({ className: "h-auto min-h-10 cursor-not-allowed px-4 py-1.5 text-[15px] text-faint opacity-50 max-sm:whitespace-normal" })}>
                       {CONSULT_TOPIC_META[t].button}
                     </span>
                   ) : (

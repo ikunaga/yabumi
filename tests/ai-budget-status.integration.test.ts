@@ -29,7 +29,7 @@ async function mine(client: TestClient) {
 }
 // 7 日を過ぎた人として数える（service_role だけ）
 async function ordinary(userId: string) {
-  const { data, error } = await admin.rpc("ai_budget_status_of", { p_owner_id: userId, p_purpose: "consult", p_as_of: "2100-01-01T00:00:00Z" });
+  const { data, error } = await admin.rpc("ai_budget_status_of", { p_owner_id: userId, p_purpose: "consult", p_as_of: "2100-01-01T00:00:00Z", p_scope_owner: userId } as never);
   if (error) throw error;
   return data[0];
 }
@@ -78,22 +78,24 @@ describe("AI の枠の状態（権限）", () => {
 });
 
 describe("AI の枠の状態（数え方）", () => {
-  it("登録して 7 日までの人（枠 $1・相談の下限 $0.15）: $0.75 から残り少し、$0.85 をこえると使えない（7 日を過ぎた日から使える）", async () => {
+  it("登録して 7 日までの人（枠 $3.3・相談の下限 $0.15）: $2.82 から残り少し、$3.15 をこえると使えない（7 日を過ぎた日から使える）", async () => {
     expect(await mine(alice)).toEqual({ status: "ok", available_from: null, low: false });
-    await spend(aliceId, 0.74);
+    await spend(aliceId, 2.81);
     expect((await mine(alice)).low).toBe(false);
     await spend(aliceId, 0.01);
     expect(await mine(alice)).toEqual({ status: "ok", available_from: null, low: true });
-    await spend(aliceId, 0.11);
+    await spend(aliceId, 0.34);
     expect(await mine(alice)).toEqual({ status: "new_user_limit", available_from: jst(new Date(Date.parse(aliceCreated) + 7 * 86_400_000)), low: false });
   });
 
-  it("7 日を過ぎた人（枠 $3）: $2.55 から残り少し、$2.85 をこえると来月 1 日まで使えない", async () => {
-    await spend(bobId, 2.54);
+  it("7 日を過ぎた人（枠 $9.9）: $8.76 から残り少し、$9.75 をこえると来月 1 日まで使えない", async () => {
+    // 全体の合計は共有の DB のすべての人で数えるので、前のテストのアリスの分を消してから（全体の $10 より先に本人の $9.9 に当たるように）
+    await admin.from("ai_usage").delete().eq("owner_id", aliceId);
+    await spend(bobId, 8.75);
     expect((await ordinary(bobId)).low).toBe(false);
     await spend(bobId, 0.01);
     expect(await ordinary(bobId)).toEqual({ status: "ok", available_from: null, low: true });
-    await spend(bobId, 0.31);
+    await spend(bobId, 1);
     expect(await ordinary(bobId)).toEqual({ status: "user_limit", available_from: firstOfNextMonth(), low: false });
   });
 

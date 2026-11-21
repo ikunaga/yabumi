@@ -191,7 +191,7 @@ export function ConsultChat({
       {messages.length === 0 && !waiting && (
         <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface px-6 py-5 max-sm:px-4">
           <p className="text-[14px] leading-[1.8]">
-            運用の悩みを相談できます。AI は、アカウントの方針・最近の投稿・数字・ロードマップを見ます。そのうえで、次の一手を出します。「これにする」を押した提案だけが、方針やロードマップに入ります。
+            運用の悩みを相談できます。AI は、アカウントの方針・最近の投稿と数字・目標と週ごとのやることを見ます。そのうえで、次にやることの案を出します。「これにする」を押した案だけを書き足します。書き足す先は、アカウントの方針や、目標と週ごとのやることです。
           </p>
           <div className="flex flex-wrap gap-2">
             {TOPIC_BUTTONS.map((t) => (
@@ -296,7 +296,7 @@ export function ConsultChat({
                 submitText();
               }
             }}
-            placeholder="悩みや、聞きたいことを書いてください（⌘ / Ctrl + Enter で送る）"
+            placeholder={aiBlocked ? "AI を使える量が戻ったら、また書けます" : "悩みや、聞きたいことを書いてください（⌘ / Ctrl + Enter で送る）"}
             className="w-full resize-none rounded-md border border-input bg-surface px-3.5 py-2.5 text-[14px] outline-none focus:border-primary focus:shadow-[0_0_0_1px_var(--primary)] max-sm:text-[16px]"
           />
           <div className="flex items-start gap-3">
@@ -305,6 +305,8 @@ export function ConsultChat({
               送る
             </Button>
           </div>
+          {/* 返事を待つ間は送れない理由（確認役の指摘） */}
+          {waiting && !aiBlocked && <p className="text-xs text-muted">返事が出たら、送れます。</p>}
         </div>
       )}
     </div>

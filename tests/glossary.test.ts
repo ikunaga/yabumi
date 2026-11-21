@@ -20,11 +20,13 @@ const EARLIER_KEYS = [
   "newsletter", "ownedAudience", "payPerUse", "buildInPublic", "storeListing", "shortLink", "correlation", "campaignLink", "dns", "cname", "subdomain",
 ];
 const ADDED_KEYS = ["marketingFunnel", "tripleMedia", "ownedMedia", "earnedMedia", "paidMedia", "ugc", "organicVsAds", "seoVsSns", "snsTraits", "concept", "story", "milestone", "harm"];
+// SNS の分析・投稿の画面で出会う言葉（2026-11-21 オーナーの Notion のタスク）
+const SNS_WORD_KEYS = ["reach", "engagement", "engagementRate", "ctr", "profileVisit", "views", "nonFollowers", "retention", "avgWatchTime", "save", "share", "repost", "quote", "mention", "pin", "carousel", "follower", "algorithm", "recommended", "feed", "reels", "stories", "shorts", "topic", "insight"];
 
 describe("用語", () => {
   it("前からの key は残し、足した語もそろっている", () => {
-    for (const k of [...EARLIER_KEYS, ...ADDED_KEYS]) expect(isGlossaryKey(k), k).toBe(true);
-    expect(GLOSSARY_KEYS).toHaveLength(EARLIER_KEYS.length + ADDED_KEYS.length);
+    for (const k of [...EARLIER_KEYS, ...ADDED_KEYS, ...SNS_WORD_KEYS]) expect(isGlossaryKey(k), k).toBe(true);
+    expect(GLOSSARY_KEYS).toHaveLength(EARLIER_KEYS.length + ADDED_KEYS.length + SNS_WORD_KEYS.length);
   });
 
   it("どの語も、分類のどれか 1 つにだけ入っている", () => {

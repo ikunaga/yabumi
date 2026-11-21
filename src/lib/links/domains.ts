@@ -97,7 +97,7 @@ const CLAIM_ERRORS: Record<string, string> = {
   already: "自分のドメインは 1 人 1 つまでです（ほかのプロジェクトで使っています）。使っているものを外してから足してください。",
   taken: "このドメインは、ほかの方が使っているか、外している途中です。別のドメイン（例: go2.<あなたのドメイン>）にするか、時間をおいてお試しください。",
   daily: `ドメインを足せるのは 1 日に ${LINK_DOMAIN_DAILY_ATTEMPTS} 回までです。明日もう一度お試しください。`,
-  limit: "いま、自分のドメインを新しく受け付けられません。yabumi を使う人みんなで、上限に達しています。今のまま yabumi のドメインの短縮リンクで数えられます。",
+  limit: "いまは、自分のドメインを新しく足せません。yabumi を使う人みんなで、上限に達しています。足さなくても、リンクが押された数は今までどおり数えます。",
 };
 
 export async function addLinkDomain(admin: Admin, input: { ownerId: string; projectId: string; domain: string }, deps: LinkDomainDeps): Promise<AddResult> {

@@ -153,8 +153,9 @@ function XSpendLine({ spend }: { spend: XSpend }) {
       ) : (
         spend.budgetReached && (
           <span className="block font-bold text-signal">
-            <span className="inline-block">yabumi を使う人みんなの</span>
-            <span className="inline-block">今月の上限に達しました</span>
+            <span className="inline-block">yabumi を使う人みんなで、</span>
+            <span className="inline-block">今月の X の上限に達しました。</span>
+            <span className="inline-block">来月 1 日から、また自動で送れます。</span>
           </span>
         )
       )}

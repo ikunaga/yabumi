@@ -4,10 +4,11 @@ import path from "node:path";
 import { glossary, illustrationAlt, illustrationSrc, type GlossaryKey } from "@/lib/glossary/terms";
 
 // 用語の挿絵（public/glossary/<key>.webp。4.45）。角を丸めた生成りの枠に置き、ダークでも浮かないようにする。
-// ファイルがまだない語は、同じ枠に語の頭文字を出す（作り直しの途中でも崩れないように）
+// 挿絵がまだない語（ILLUSTRATION_PENDING）は、挿絵の欄を出さない（2026-11-21 PM。前は同じ枠に語の頭文字を出していた）
 export function Illustration({ k, size, priority = false }: { k: GlossaryKey; size: "thumb" | "thumb-square" | "large" | "small"; priority?: boolean }) {
   const term = glossary[k];
   const has = existsSync(path.join(process.cwd(), "public", illustrationSrc(k)));
+  if (!has) return null;
   const frame = {
     // 一覧のカード: 高さを横幅の 3 分の 1 にして、1 画面に多くの語が入るようにする（絵は切らずに縮め、余白は生成りの枠の色。4.48）
     thumb: "aspect-[3/1] w-full rounded-md",
@@ -19,15 +20,9 @@ export function Illustration({ k, size, priority = false }: { k: GlossaryKey; si
   return (
     // ダークでは枠ごと少し暗くする（挿絵の地と枠が同じ生成りなので、縮めた挿絵の左右が浮かない）
     <div className={`${frame} overflow-hidden border border-line bg-illust dark:brightness-[0.85]`}>
-      {has ? (
-        // 挿絵は手で縮めた webp なので、next/image は使わない（そのまま出す）
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={illustrationSrc(k)} alt={illustrationAlt(term)} loading={priority ? "eager" : "lazy"} decoding="async" className={`size-full ${size === "thumb" ? "object-contain" : "object-cover"}`} />
-      ) : (
-        <span aria-hidden className="grid size-full place-items-center text-2xl font-bold text-primary/40">
-          {term.label.slice(0, 1)}
-        </span>
-      )}
+      {/* 挿絵は手で縮めた webp なので、next/image は使わない（そのまま出す） */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={illustrationSrc(k)} alt={illustrationAlt(term)} loading={priority ? "eager" : "lazy"} decoding="async" className={`size-full ${size === "thumb" ? "object-contain" : "object-cover"}`} />
     </div>
   );
 }

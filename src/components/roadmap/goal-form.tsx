@@ -7,6 +7,7 @@ import { saveGoalForm, type GoalFormState } from "@/lib/goals/actions";
 import { DEFAULT_GOAL_WEEKS, MAX_KPIS_PER_GOAL, milestoneCount, MILESTONE_WEEKS, type Goal, type GoalKpi, type MetricRef, type Milestone } from "@/lib/goals/schema";
 import { md, metricChoices, metricChoiceValue, milestoneName } from "@/lib/goals/view";
 import { kgiExample } from "@/lib/roadmap/schema";
+import { Term } from "@/components/ui/term";
 
 const input =
   "rounded-md border border-input bg-surface px-2.5 py-1.5 text-sm text-fg outline-none focus:border-primary focus:shadow-[0_0_0_1px_var(--primary)] disabled:opacity-60 max-sm:text-[16px]";
@@ -51,7 +52,9 @@ export function GoalForm({
   return (
     <form action={action} className="flex flex-col gap-4 text-sm">
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-1 font-bold">KGI（成果の目標）</legend>
+        <legend className="mb-1 font-bold">
+          <Term k="kgi" />・成果の目標
+        </legend>
         <label className="flex flex-col gap-1">
           <span className="text-xs text-muted">何を・どれだけ（例: {kgiExample(productType)}）</span>
           <input name="statement" defaultValue={hasKgi ? (goal?.statement ?? "") : ""} maxLength={120} className={`${input} w-full`} />
@@ -100,7 +103,9 @@ export function GoalForm({
       </fieldset>
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-1 font-bold">KPI と 1 週の目標（{MAX_KPIS_PER_GOAL} つまで）</legend>
+        <legend className="mb-1 font-bold">
+          <Term k="kpi" /> と 1 週の目標・{MAX_KPIS_PER_GOAL} つまで
+        </legend>
         {kpiRows.map((k, i) => (
           <div key={i} className="flex flex-wrap items-center gap-2">
             <select name="kpi" defaultValue={k ? metricChoiceValue(k) : ""} aria-label={`${i + 1} つ目の数字`} className={input}>

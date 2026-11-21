@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { getProject } from "@/lib/projects/queries";
 import { insightsEnabled } from "@/lib/sns/insights/scopes";
 import { threadsConfigured } from "@/lib/sns/threads/config";
+import { Term } from "@/components/ui/term";
 
 export const metadata: Metadata = { title: "Threads をつなぐ" };
 
@@ -42,7 +43,11 @@ export default async function ConnectThreadsPage(props: PageProps<"/projects/[id
               <ul className="list-disc pl-5">
                 <li>yabumi でつくった投稿を、今すぐ、または予約した日時に Threads へ送る（500 字まで、画像は 20 枚まで）</li>
                 <li>送信済みの投稿を、投稿の画面の「Threads から取り消す」で Threads の上から消す</li>
-                {metrics && <li>送信済みの投稿の閲覧数などと、フォロワー数を読む（分析の画面に出します）</li>}
+                {metrics && (
+                  <li>
+                    送信済みの投稿の<Term k="views">見られた数</Term>などと、<Term k="follower">フォロワー</Term>数を読む。「分析」の画面に出します
+                  </li>
+                )}
               </ul>
               <p className="text-muted">あなたが「送る」「予約」を押していない文面を、yabumi が勝手に投稿することはありません。費用はかかりません。</p>
             </section>

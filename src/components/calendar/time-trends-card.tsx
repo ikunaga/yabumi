@@ -13,7 +13,7 @@ export function TimeTrendsCard({ trends }: { trends: TimeTrends }) {
           <span className="flex items-center gap-1.5">
             時間帯の傾向
             <HelpTip label="時間帯の傾向">
-             yabumi が数えた、直近 90 日のあなたの数字です。よく見られるは、送った時間帯ごとの 1 本あたりの閲覧数（SNS から取り込めた投稿と、手で入れた note・Substack）。クリックされるは、短縮リンクが押された時間帯です。投稿が {MIN_POSTS_PER_BAND}{" "}
+             直近 90 日の、あなたの投稿の数字です。「よく見られる」は、送った時間帯ごとの、1 本あたりの見られた数です。SNS から取り込めた投稿と、手で入れた note・Substack を数えます。「クリックされる」は、短縮リンクが押された時間帯です。投稿が {MIN_POSTS_PER_BAND}{" "}
               本未満・クリックが {MIN_CLICKS_PER_BAND} 回未満の時間帯は比べません。傾向であって、その時間に送れば必ず見られるわけではありません。
             </HelpTip>
           </span>

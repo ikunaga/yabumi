@@ -488,8 +488,8 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
                         targetId={m.targetId}
                         views={m.views}
                         reactions={m.reactions}
-                        viewsLabel={m.sns === "note" ? "ビュー" : "閲覧（Views）"}
-                        reactionsLabel={m.sns === "note" ? "スキ" : "いいね（Likes）"}
+                        viewsLabel={m.sns === "note" ? "ビュー" : "見られた数・Views"}
+                        reactionsLabel={m.sns === "note" ? "スキ" : "いいね・Likes"}
                       />
                     </li>
                   ))}

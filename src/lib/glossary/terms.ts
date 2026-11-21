@@ -55,8 +55,8 @@ export const glossary = {
   },
   impression: {
     label: "インプレッション",
-    summary: "投稿が画面に表示された回数。同じ人が 2 回見れば 2 と数えます。",
-    related: ["marketingFunnel", "awareness"],
+    summary: "投稿が画面に表示された回数。同じ人が 2 回見れば 2 と数えます。yabumi の分析では、「見られた数」と出します。",
+    related: ["marketingFunnel", "awareness", "views", "reach"],
   },
   awareness: {
     label: "認知",
@@ -407,6 +407,132 @@ export const glossary = {
     ],
     related: ["proAccount", "facebookPage", "payPerUse", "hashtag"],
   },
+  // 2026-11-21 オーナーの Notion のタスク「インプレッションとか SNS マーケで重要な用語」で足した 25 語（SNS の分析・投稿の画面で出会う言葉。PM の確認）
+  reach: {
+    label: "リーチ",
+    summary: "投稿を見た人の数です。同じ人が何回見ても、1 人と数えます。そのため、ふつうはインプレッションより少なくなります。",
+    related: ["impression", "views", "follower"],
+  },
+  engagement: {
+    label: "エンゲージメント",
+    summary: "投稿への反応のことです。いいね・コメント・保存・シェアなどを合わせて数えます。",
+    related: ["engagementRate", "save", "share"],
+  },
+  engagementRate: {
+    label: "エンゲージメント率",
+    summary: "反応の数を、見られた数で割った割合です。見られた数が違う投稿どうしでも、比べられます。",
+    related: ["engagement", "views", "impression"],
+  },
+  ctr: {
+    label: "クリック率",
+    summary: "投稿が見られた回数のうち、リンクが押された割合です。YouTube では、動画の画像が表示されたあとに、再生された割合です。",
+    related: ["shortLink", "views", "conversion"],
+  },
+  profileVisit: {
+    label: "プロフィールへのアクセス",
+    summary: "投稿を見た人が、あなたのプロフィールを開いた回数です。投稿に興味を持った人がどれくらいいるかの目安です。",
+    related: ["follower", "reach"],
+  },
+  views: {
+    label: "見られた数",
+    summary: "投稿が見られた回数です。同じ人が 2 回見ると、2 回と数えます。SNS によって、閲覧数・インプレッション・再生回数と呼びます。",
+    related: ["impression", "reach"],
+  },
+  nonFollowers: {
+    label: "フォロワー以外",
+    summary: "あなたをフォローしていない人のことです。Instagram と Threads の分析で、フォロワーと分けて出ます。フォロワー以外に見られた数が多いほど、新しい人に届いています。",
+    related: ["follower", "reach", "recommended"],
+  },
+  retention: {
+    label: "視聴者維持率",
+    summary: "動画が、どこまで見続けられたかの割合です。YouTube の分析で、この名前で出ます。最後まで見られる動画ほど、多くの人に見せられやすくなります。",
+    related: ["avgWatchTime", "algorithm"],
+  },
+  avgWatchTime: {
+    label: "平均視聴時間",
+    summary: "1 回の再生で、動画が見られた時間の平均です。YouTube と TikTok の分析で出ます。",
+    related: ["retention", "views"],
+  },
+  save: {
+    label: "保存",
+    summary: "見た人が、あとで見返すために投稿を残すことです。X では「ブックマーク」、TikTok では「お気に入り」と呼びます。役に立つ投稿ほど、保存が増えます。",
+    related: ["engagement", "share"],
+  },
+  share: {
+    label: "シェア",
+    summary: "見た人が、投稿をほかの人に送ったり、自分の投稿で紹介したりすることです。フォロワーでない人に届くきっかけになります。",
+    related: ["repost", "engagement", "nonFollowers"],
+  },
+  repost: {
+    label: "リポスト",
+    summary: "ほかの人の投稿を、そのまま自分のフォロワーにも見せることです。X・Instagram・TikTok では、「リポスト」と呼びます。Threads では「再投稿」です。X では、前は「リツイート」と呼んでいました。",
+    related: ["quote", "share"],
+  },
+  quote: {
+    label: "引用",
+    summary: "ほかの人の投稿に、自分の言葉を添えて紹介することです。X と Threads にあります。リポストは、言葉を添えずにそのまま見せます。",
+    related: ["repost", "mention"],
+  },
+  mention: {
+    label: "メンション",
+    summary: "投稿の中で「@」に続けて相手のユーザーネームを書き、相手に知らせることです。",
+    related: ["quote", "follower"],
+  },
+  pin: {
+    label: "固定",
+    summary: "選んだ投稿を、プロフィールのいちばん上に出しておくことです。X・Instagram・TikTok でできます。お知らせを残しておくのに向いています。",
+    related: ["profileVisit", "feed"],
+  },
+  carousel: {
+    label: "カルーセル",
+    summary: "写真や動画を何枚も並べて、横にめくって見せる投稿です。Instagram や Threads でできます。TikTok では、写真投稿と呼びます。",
+    related: ["feed", "reels"],
+  },
+  follower: {
+    label: "フォロワー",
+    summary: "あなたのアカウントをフォローして、新しい投稿を見られるようにした人です。YouTube では「チャンネル登録者」と呼びます。",
+    related: ["nonFollowers", "reach", "profileVisit"],
+  },
+  algorithm: {
+    label: "アルゴリズム",
+    summary: "SNS が、だれにどの投稿を見せるかを決める仕組みです。反応が多い投稿ほど、多くの人の画面に出やすくなります。",
+    related: ["recommended", "engagement", "feed"],
+  },
+  recommended: {
+    label: "おすすめ",
+    summary: "SNS が、フォローしていない人にも投稿を見せる場所です。TikTok の「おすすめ」や、Instagram の「発見」などです。",
+    related: ["algorithm", "nonFollowers", "reels"],
+  },
+  feed: {
+    label: "フィード",
+    summary: "アプリを開くと流れてくる、投稿の一覧です。Instagram では、ふつうの投稿もフィードと呼びます。リールやストーリーズと分けるためです。",
+    related: ["reels", "stories", "algorithm"],
+  },
+  reels: {
+    label: "リール",
+    summary: "Instagram と Facebook の、縦長の短い動画の投稿です。フォロワーでない人にも届きやすいのが特徴です。",
+    related: ["stories", "shorts", "recommended"],
+  },
+  stories: {
+    label: "ストーリーズ",
+    summary: "Instagram と Facebook で、24 時間で消える投稿です。気軽な近況やお知らせに向いています。",
+    related: ["reels", "feed"],
+  },
+  shorts: {
+    label: "YouTube ショート",
+    summary: "YouTube の、縦長で 3 分までの短い動画です。ふつうの動画より、知らない人に届きやすいです。",
+    related: ["reels", "retention"],
+  },
+  topic: {
+    label: "トピック",
+    summary: "Threads で、投稿に 1 つ付けられる話題の名前です。同じ話題に興味のある人に、見つけてもらいやすくなります。",
+    related: ["hashtag", "recommended"],
+  },
+  insight: {
+    label: "インサイト",
+    summary: "SNS のアプリにある、投稿の数字を見る画面です。Instagram と Threads で、この名前です。yabumi の「分析」でも、同じ数字の一部を見られます。",
+    related: ["views", "reach", "engagement"],
+  },
 } satisfies Record<string, GlossaryTerm>;
 
 export type GlossaryKey = keyof typeof glossary;
@@ -420,10 +546,10 @@ export type GlossaryCategory = { id: GlossaryCategoryId; label: string; note: st
 
 export const GLOSSARY_CATEGORIES: GlossaryCategory[] = [
   { id: "goals", label: "目標と計画", note: "ゴールの決め方と、そこまでの道のり", cover: "kgi", keys: ["kgi", "milestone", "kpi", "roadmap", "persona"] },
-  { id: "flow", label: "顧客の流れと数字", note: "知ってもらってから行動するまでと、そこで見る数字", cover: "marketingFunnel", keys: ["marketingFunnel", "awareness", "impression", "conversion", "correlation"] },
-  { id: "posting", label: "発信のしかた", note: "何を、どんな口調で投稿するか", cover: "contentPillar", keys: ["contentPillar", "concept", "harm", "story", "toneAndManner", "hashtag", "buildInPublic", "ugc"] },
+  { id: "flow", label: "顧客の流れと数字", note: "知ってもらってから行動するまでと、そこで見る数字", cover: "marketingFunnel", keys: ["marketingFunnel", "awareness", "impression", "conversion", "correlation", "reach", "engagement", "engagementRate", "ctr", "profileVisit", "views", "nonFollowers", "retention", "avgWatchTime"] },
+  { id: "posting", label: "発信のしかた", note: "何を、どんな口調で投稿するか", cover: "contentPillar", keys: ["contentPillar", "concept", "harm", "story", "toneAndManner", "hashtag", "buildInPublic", "ugc", "save", "share", "repost", "quote", "mention", "pin", "carousel"] },
   { id: "media", label: "メディアと広告", note: "自分の場所・口コミ・広告の使い分け", cover: "tripleMedia", keys: ["tripleMedia", "ownedMedia", "earnedMedia", "paidMedia", "organicVsAds", "seoVsSns", "ownedAudience", "newsletter"] },
-  { id: "sns", label: "SNS ごと", note: "SNS ごとの特徴と、つなぐときの準備", cover: "snsTraits", keys: ["snsTraits", "proAccount", "facebookPage", "payPerUse"] },
+  { id: "sns", label: "SNS ごと", note: "SNS ごとの特徴と、つなぐときの準備", cover: "snsTraits", keys: ["snsTraits", "proAccount", "facebookPage", "payPerUse", "follower", "algorithm", "recommended", "feed", "reels", "stories", "shorts", "topic", "insight"] },
   { id: "tech", label: "リンクと技術", note: "短縮リンクと、自分のドメインの設定の言葉", cover: "shortLink", keys: ["shortLink", "campaignLink", "storeListing", "dns", "cname", "subdomain"] },
 ];
 

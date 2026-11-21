@@ -884,7 +884,7 @@ export async function makeSampleImage(
   if (!sample) return { ok: false, detail: "テストでつくった投稿は、1 日たったので消えました。もう一度つくってください" };
   const existing = readSampleImage(sample.image);
   if (existing) return { ok: true, image: existing };
-  if (sample.hold) return { ok: false, detail: "注意が出た投稿なので、画像はつくりませんでした。テストで、もう一度つくってください" };
+  // 注意が出た見本でも、画像までつくる（本番でどう見えるかを確かめるためのもの。2026-11-21 オーナーの決定）。1 回目として送れないのは adoptSample が断る
   const settings = sample.settings as { kind?: AutoPlan["kind"]; materials?: AutoPlan["materials"]; targets?: AutoPlan["targets"]; image?: AutoPlan["image"] };
   const image = readAutoImage(settings.image);
   if (!image) return { ok: false, detail: "画像の設定がありません" };

@@ -175,8 +175,10 @@ export type ProjectEvent = { id: string; onDate: string; body: string };
 // sampleId は「同じ材料で作り直す」「この見本を最初の回にする」に使う（作れなかったときは null）
 export type AutoSample = {
   sampleId: string | null;
-  // 見本の画像（「画像もつくる」を押したとき。url は 1 時間で切れる）
+  // 見本の画像（画像の設定がある回し方では、文と一緒につくる。url は 1 時間で切れる）
   image?: { url: string; width: number; height: number; alt: string } | null;
+  // 画像の設定があるのに、画像をつくれなかった（文だけ出す。2026-11-21 オーナーの決定）
+  imageFailed?: boolean;
   texts: Partial<Record<SnsKey, string>>;
   // 本文とは別に、送るときに本文の後ろに付くタグ（シリーズのフォーマット・いつものタグ。2026-11-17）
   tags?: Partial<Record<SnsKey, string[]>>;

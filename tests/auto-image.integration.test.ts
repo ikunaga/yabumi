@@ -287,6 +287,39 @@ describe("見本の画像と、最初の回にする", () => {
     expect(media).toEqual([{ ai_generated: true }]);
   });
 
+  it("注意が出た見本でも、画像はつくる（本番でどう見えるかを確かめるため。2026-11-21 オーナーの決定）。1 回目としては送れない", async () => {
+    await notice();
+    const p = await project();
+    await note(p, "見本のメモ");
+    const planRow = { ...(await planOf(await plan(p))), id: NO_PLAN_ID };
+    const s = await makeSample(admin, deps(), { ownerId: aliceId, projectId: p, plan: planRow });
+    if (!s.ok || !s.sampleId) throw new Error("見本を作れませんでした");
+    // 送る前の確認で注意が出た見本にする（hold）
+    { const { error } = await admin.from("auto_samples").update({ hold: { kind: "made_up", detail: "本当ですか" } }).eq("id", s.sampleId); if (error) throw error; }
+    const before = vi.mocked(generate).mock.calls.length;
+    const img = await makeSampleImage(admin, deps(), { ownerId: aliceId, projectId: p, sampleId: s.sampleId });
+    expect(img.ok, JSON.stringify(img)).toBe(true);
+    expect(vi.mocked(generate).mock.calls.length).toBe(before + 1);
+    const r = await adoptSample(admin, { ownerId: aliceId, planId: await plan(p), sampleId: s.sampleId });
+    expect(r.ok).toBe(false);
+  });
+
+  it("画像をつくれなかったときは ok: false を返す（画面は文だけ出す）", async () => {
+    await notice();
+    const p = await project();
+    await note(p, "見本のメモ");
+    const planRow = { ...(await planOf(await plan(p))), id: NO_PLAN_ID };
+    const s = await makeSample(admin, deps(), { ownerId: aliceId, projectId: p, plan: planRow });
+    if (!s.ok || !s.sampleId) throw new Error("見本を作れませんでした");
+    imageFails = true;
+    try {
+      expect((await makeSampleImage(admin, deps(), { ownerId: aliceId, projectId: p, sampleId: s.sampleId })).ok).toBe(false);
+    } finally {
+      imageFails = false;
+    }
+    expect((await admin.from("auto_samples").select("image").eq("id", s.sampleId).single()).data!.image).toBeNull();
+  });
+
   it("画像を選んだ回し方で、見本の画像をつくっていなければ、最初の回にしない", async () => {
     await notice();
     const p = await project();

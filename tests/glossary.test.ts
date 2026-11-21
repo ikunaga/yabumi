@@ -24,7 +24,7 @@ const ADDED_KEYS = ["marketingFunnel", "tripleMedia", "ownedMedia", "earnedMedia
 // フォーマットの変数（2026-11-21 オーナーの決定。挿絵はあとで描く）
 const FORMAT_WORD_KEYS = ["variable"];
 // 挿絵をまだ描いていない語（画面は挿絵なしで出す。src/components/glossary/illustration.tsx）。描いたらここから外す
-const ILLUSTRATION_PENDING = ["variable"];
+const ILLUSTRATION_PENDING: string[] = [];
 const SNS_WORD_KEYS = ["reach", "engagement", "engagementRate", "ctr", "profileVisit", "views", "nonFollowers", "retention", "avgWatchTime", "save", "share", "repost", "quote", "mention", "pin", "carousel", "follower", "algorithm", "recommended", "feed", "reels", "stories", "shorts", "topic", "insight"];
 
 describe("用語", () => {

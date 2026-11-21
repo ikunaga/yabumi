@@ -121,13 +121,13 @@ export function AndroidSteps() {
   );
 }
 
-// PC（Chrome・Edge）。印の形はブラウザと版で変わるので、形ではなく、指を乗せたときに出る名前で書く
+// PC（Chrome・Edge）。印の形はブラウザと版で変わるので、形ではなく、マウスのポインターを乗せたときに出る名前で書く
 // （Chrome は「インストール」、Edge は「アプリを使用できます」。2026-11-21 に Google・Microsoft の案内で確かめた）
 export function PcSteps() {
   return (
     <ol className="mt-1 flex list-decimal flex-col gap-1 pl-5">
       <li>Chrome か Edge で yabumi を開きます。アドレスバーの右端にある印を押します。</li>
-      <li>印に指を乗せると、名前が出ます。Chrome は「インストール」、Edge は「アプリを使用できます」です。</li>
+      <li>印にマウスのポインターを乗せると、名前が出ます。Chrome は「インストール」、Edge は「アプリを使用できます」です。</li>
       <li>「インストール」を押すと、yabumi が別のウィンドウで開けるようになります。</li>
     </ol>
   );

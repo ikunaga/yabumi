@@ -30,7 +30,7 @@ describe("X の月の上限（送信ジョブの reserve_sns_spend と同じ比�
   });
   it("全体の上限の文は、1 人の上限の額もほかの人の額も書かない", () => {
     const g = xOverMessage("global", { costUsd: 0.2, userBudgetUsd: 1 });
-    expect(g).toContain("yabumi 全体の X の上限");
+    expect(g).toContain("yabumi を使う人みんなの、今月の X の上限");
     expect(g).not.toMatch(/\$|1 人/);
     expect(xOverMessage("user", { costUsd: 0.2, userBudgetUsd: 1 })).toBe("今月の X の自動投稿の上限（1 人 $1）に達するので、この投稿は X に自動では送れません（この投稿 $0.20）");
   });

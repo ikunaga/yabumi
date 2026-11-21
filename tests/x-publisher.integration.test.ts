@@ -226,7 +226,7 @@ describe("費用と月の上限", () => {
     const { postId } = await scheduledPost(`全体の上限 ${randomUUID()}`);
     const [outcome] = await publishDueTargets(admin, deps(fakeX(), await spentNow(), 1000), { postId });
     expect(outcome.result).toBe("failed");
-    expect(outcome.message).toContain("yabumi 全体");
+    expect(outcome.message).toContain("yabumi を使う人みんな");
   });
 
   it("利用者ごとの上限に達したら、その人の X だけ送らず、手動で投稿の案内を出す", async () => {

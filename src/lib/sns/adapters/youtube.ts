@@ -69,7 +69,7 @@ export type YouTubeAdapterDeps = {
 // 送信ジョブは 40 秒で切り上げる（JOB_DEADLINE_MS）。Vercel の 60 秒に収まるよう、1 回の呼び出しは 15 秒までにする
 export const UPLOAD_BUDGET_MS = 15_000;
 // 全体の割り当てに当たったときの文（Y3。太平洋時間の 0 時に戻る）
-export const QUOTA_GLOBAL_MESSAGE = "今日の YouTube の送信の枠（yabumi 全体）がいっぱいです。日本時間の 17 時（夏時間の間は 16 時）を過ぎてから送り直すか、手動で投稿してください。";
+export const QUOTA_GLOBAL_MESSAGE = "今日 YouTube に送れる数は、もういっぱいです。yabumi を使う人みんなで数えています。日本時間の 17 時を過ぎてから送り直すか、手動で投稿してください。夏時間の間は 16 時です。";
 export const quotaUserMessage = (n: number) => `YouTube は 1 日 ${n} 本まで送れます。明日送り直すか、手動で投稿してください。`;
 const RECONNECT = "プロジェクトの設定の「つないだ SNS」からつなぎ直してください。";
 const MAX_TITLE = 100;

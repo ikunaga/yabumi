@@ -57,7 +57,7 @@ export default async function ConnectXPage(props: PageProps<"/projects/[id]/conn
                   1 本 {formatUsd(X_PRICE_USD.post)}（約 2 円）。本文に URL があると {formatUsd(X_PRICE_USD.post_with_url)}（約 30 円）になるので、URL は X のプロフィールに置くのがおすすめです
                 </li>
                 <li>
-                  X の投稿（URL つきは 1 本 {formatUsd(X_PRICE_USD.post_with_url)}）は、1 人あたり月 {formatUsd(xPostUserMonthlyUsd())}、yabumi 全体で月 {formatUsd(xMonthlyBudgetUsd())} までです。どちらかの上限に達すると、その月の残りは X に自動では送りません。投稿の画面の「送信の結果」から、X のアプリで手動で投稿して記録できます
+                  X の投稿は、URL つきで 1 本 {formatUsd(X_PRICE_USD.post_with_url)} かかります。1 人あたり月 {formatUsd(xPostUserMonthlyUsd())} までです。yabumi を使う人みんなでは、月 {formatUsd(xMonthlyBudgetUsd())} までです。どちらかの上限に達すると、その月の残りは X に自動では送りません。「送信の結果」から、X のアプリで手動で投稿して記録できます。
                 </li>
                 {metrics && <li>数字を読むのにも費用がかかるので、1 人あたり月 {formatUsd(xMetricsUserMonthlyUsd())} までにしています（フォロワー数は週に 1 回）</li>}
               </ul>

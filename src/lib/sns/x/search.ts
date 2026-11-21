@@ -163,7 +163,7 @@ export function xSearchQuotaText(q: XSearchQuota): string {
     case "user_limit":
       return q.resetsOn ? `今月の分は使い切りました（${md(q.resetsOn)} から 3 回）` : "今月の分は使い切りました";
     case "global_limit":
-      return q.resetsOn ? `yabumi 全体の今月の分は使い切りました（${md(q.resetsOn)} から）` : "yabumi 全体の今月の分は使い切りました";
+      return q.resetsOn ? `yabumi を使う人みんなで、今月の分を使い切りました。${md(q.resetsOn)} からまた探せます` : "yabumi を使う人みんなで、今月の分を使い切りました";
     case "new_global_limit":
       return q.resetsOn ? `登録して 7 日までの方が探せる今月の分は、いっぱいになりました（${md(q.resetsOn)} から探せます）` : "登録して 7 日までの方が探せる今月の分は、いっぱいになりました";
     case "not_ready":

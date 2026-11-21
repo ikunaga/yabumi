@@ -1,3 +1,4 @@
+// ui-wording-ignore-file: 運営者あてのメールの文（利用者の画面には出ない。2026-11-21 PM）
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { notifyOperatorOnce, type OperatorNotifyDeps, type OperatorNotifyResult } from "./operator";

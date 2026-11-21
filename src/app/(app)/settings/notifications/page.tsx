@@ -70,7 +70,7 @@ export default async function NotificationSettingsPage() {
                   <PushSettings />
                   <p className="px-6 pb-5 text-[14px] max-sm:px-4">
                     <Link href="/settings/add-to-home" className="font-semibold text-primary hover:underline">
-                      ホーム画面に追加する手順を見る →
+                      スマホのホーム画面に追加する手順を見る →
                     </Link>
                   </p>
                 </div>

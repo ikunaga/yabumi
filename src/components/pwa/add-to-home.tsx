@@ -99,9 +99,9 @@ export function IphoneSteps({ withPush = false }: { withPush?: boolean }) {
         を押します。iPhone は画面の下、iPad は上にあります。見当たらないときは、「…」を押すと出てきます。
       </li>
       <li>「ホーム画面に追加」を選び、右上の「追加」を押します。見つからないときは、出てきた一覧の下のほうを見ます。</li>
-      <li>ホーム画面にできた yabumi のアイコンから開きます。</li>
+      <li>スマホのホーム画面にできた yabumi のアイコンから開きます。</li>
       <li>同じメールアドレスで、もう一度ログインします。Safari でのログインは、引き継がれません。</li>
-      {withPush && <li>「お知らせの設定」の画面を開きます。「この端末で通知を受け取る」を押し、「許可」を選びます。</li>}
+      {withPush && <li>「≡ メニュー」→「ログインと退会」→「お知らせの設定」を開きます。「この端末で通知を受け取る」を押し、「許可」を選びます。</li>}
     </ol>
   );
 }
@@ -116,7 +116,7 @@ export function AndroidSteps() {
         を押します。
       </li>
       <li>「ホーム画面に追加」か「アプリをインストール」を選びます。出てきた画面で「インストール」か「追加」を押します。</li>
-      <li>ホーム画面にできた yabumi のアイコンから開きます。ログインはそのまま使えます。</li>
+      <li>スマホのホーム画面にできた yabumi のアイコンから開きます。ログインはそのまま使えます。</li>
     </ol>
   );
 }
@@ -125,7 +125,7 @@ export function AndroidSteps() {
 export function PcSteps() {
   return (
     <ol className="mt-1 flex list-decimal flex-col gap-1 pl-5">
-      <li>Chrome か Edge で yabumi を開きます。アドレス欄の右端にある、小さな画面の形の印を押します。</li>
+      <li>Chrome か Edge で yabumi を開きます。アドレスバーの右端にある、インストールの印を押します。</li>
       <li>「インストール」を押すと、yabumi が別のウィンドウで開けるようになります。</li>
     </ol>
   );
@@ -157,10 +157,10 @@ export function AddToHomeBand({ pushReady }: { pushReady: boolean }) {
     } catch {}
   };
   return (
-    <aside aria-label="ホーム画面に追加する" className="flex items-center gap-x-3 gap-y-1 rounded-md border border-line bg-surface px-4 py-2 text-sm max-sm:flex-wrap max-sm:px-3">
+    <aside aria-label="スマホのホーム画面に追加する" className="flex items-center gap-x-3 gap-y-1 rounded-md border border-line bg-surface px-4 py-2 text-sm max-sm:flex-wrap max-sm:px-3">
       <p className="min-w-0 flex-1 leading-[1.7] max-sm:basis-full">
         スマホのホーム画面に yabumi を置くと、アプリのように開けます。
-        {pushReady && env.platform === "ios" && !env.iosTooOld && "追加すると、yabumi からのお知らせが iPhone に届きます。"}
+        {pushReady && env.platform === "ios" && !env.iosTooOld && "追加して設定すると、iPhone に yabumi の通知が届きます。"}
       </p>
       {install.canPrompt && env.platform !== "ios" ? (
         <Button type="button" size="sm" onClick={() => void install.prompt().then((ok) => ok && close())}>
@@ -171,7 +171,7 @@ export function AddToHomeBand({ pushReady }: { pushReady: boolean }) {
           やり方を見る →
         </Link>
       )}
-      <BandCloseButton label="ホーム画面に追加する案内を閉じる" className="max-sm:ml-auto" onClick={close} />
+      <BandCloseButton label="スマホのホーム画面に追加する案内を閉じる" className="max-sm:ml-auto" onClick={close} />
     </aside>
   );
 }
@@ -188,20 +188,22 @@ export function AddToHomeGuide() {
     { key: "pc", title: "パソコン", body: <PcSteps /> },
   ] as const;
   const mine = sections.find((s) => s.key === env.platform)!;
+  // パソコンでは「スマホのホーム画面」と言わない（追加すると、別のウィンドウで開けるようになる）
+  const pc = env.platform === "pc";
   const others = sections.filter((s) => s.key !== env.platform);
   return (
     <div className="flex flex-col gap-5 text-[14px] leading-[1.8]">
       {env.standalone ? (
-        <p className="rounded-md border border-line bg-surface2 px-4 py-3">この画面は、ホーム画面の yabumi から開いています。もう追加できています。</p>
+        <p className="rounded-md border border-line bg-surface2 px-4 py-3">{pc ? "この画面は、追加した yabumi のウィンドウで開いています。もう追加できています。" : "この画面は、スマホのホーム画面の yabumi から開いています。もう追加できています。"}</p>
       ) : (
         <section className="flex flex-col gap-2">
           <h2 className="text-[16px] font-bold">{mine.title}</h2>
           {install.canPrompt && env.platform !== "ios" && !added && (
             <Button type="button" className="self-start" onClick={() => void install.prompt().then((ok) => setAdded(ok))}>
-              ホーム画面に追加する
+              {pc ? "パソコンに yabumi を追加する" : "スマホのホーム画面に追加する"}
             </Button>
           )}
-          {added ? <p>追加しました。ホーム画面の yabumi から開けます。</p> : mine.body}
+          {added ? <p>{pc ? "追加しました。yabumi を別のウィンドウで開けます。" : "追加しました。スマホのホーム画面の yabumi から開けます。"}</p> : mine.body}
         </section>
       )}
       {others.map((s) => (

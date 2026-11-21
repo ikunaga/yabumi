@@ -271,7 +271,7 @@ export function FormatManager({
     <div className="flex flex-col gap-5 max-sm:gap-4">
       <PageHeader
         title="フォーマット"
-        sub={`${formats.length} 個`}
+        sub={`毎回くり返し使う投稿のひな形です。いまは ${formats.length} 個です。`}
         help={
           <>
             毎回くり返し使う投稿のひな形です。「投稿をつくる」の「フォーマットから書く」で選べます。本文に {"{何が}"} のように書いたところが空欄になり、投稿をつくるときに言葉を入れます。空欄は {MAX_FORMAT_SLOTS} 個まで、フォーマットは {MAX_POST_FORMATS} 個までつくれます。
@@ -288,7 +288,6 @@ export function FormatManager({
           </>
         }
       />
-      <p className="-mt-2 text-sm text-muted max-sm:-mt-1">毎回くり返し使う投稿のひな形です。</p>
       {formats.length === 0 ? (
         <p className="rounded-lg border border-dashed border-input px-6 py-8 text-center text-sm leading-[1.8] text-muted">
           まだフォーマットはありません。
@@ -310,7 +309,16 @@ export function FormatManager({
                     {isSeries(f.series) && <SeriesTag />}
                   </span>
                   <span className="truncate text-sm text-muted">本文: {f.body.split("\n").find((l) => l.trim()) ?? ""}</span>
-                  {cardSummary(f, roundCounts[f.id] ?? 0) && <span className="text-xs text-faint">{cardSummary(f, roundCounts[f.id] ?? 0)}</span>}
+                  {cardSummary(f, roundCounts[f.id] ?? 0).length > 0 && (
+                    <span className="flex flex-wrap gap-x-1 text-xs text-faint">
+                      {cardSummary(f, roundCounts[f.id] ?? 0).map((p, i) => (
+                        <span key={p} className="whitespace-nowrap">
+                          {i > 0 && "・"}
+                          {p}
+                        </span>
+                      ))}
+                    </span>
+                  )}
                 </span>
                 <span aria-hidden className="shrink-0 text-muted">
                   ›
@@ -326,15 +334,15 @@ export function FormatManager({
 }
 
 // カードの小さな要約（「画像も AI でつくる・ハッシュタグ 4 個・これまでの投稿 4 件」。ja-copy-reviewer: 何の数かを書く）。ないものは書かない
-function cardSummary(f: PostFormat, rounds: number): string {
+function cardSummary(f: PostFormat, rounds: number): string[] {
   const tags = new Set(Object.values(f.hashtags).flatMap((x) => x ?? [])).size;
-  const parts = [f.image ? "画像も AI でつくる" : null, tags ? `ハッシュタグ ${tags} 個` : null, isSeries(f.series) ? `これまでの投稿 ${rounds} 件` : null].filter(Boolean);
-  return parts.join("・");
+  const parts: string[] = [f.image ? "画像も AI でつくる" : null, tags ? `ハッシュタグ ${tags} 個` : null, isSeries(f.series) ? `これまでの投稿 ${rounds} 件` : null].filter((x): x is string => Boolean(x));
+  return parts;
 }
 
 function SeriesTag() {
   // シリーズの札。「シリーズ」だけでは意味が伝わらない（ja-copy-reviewer）ので、何が起きるかを書く
-  return <span className="rounded-sm bg-info-soft px-1.5 py-0.5 text-xs font-bold text-info">毎回 AI が考える</span>;
+  return <span className="rounded-sm bg-info-soft px-1.5 py-0.5 text-xs font-bold text-info">空欄は毎回 AI が考える</span>;
 }
 
 // 新しく作るときの作り方 1 つ（押すと、その作り方の画面）

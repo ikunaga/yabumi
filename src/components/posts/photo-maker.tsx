@@ -439,6 +439,7 @@ export function PhotoMaker({
 function RecentScenes({ scenes, onPick }: { scenes: string[]; onPick: (scene: string) => void }) {
   return (
     <DisclosureBox label="前に使った絵の説明から選ぶ" count={scenes.length} size="sm" bodyClassName="mt-2">
+      <p className="mb-2 text-xs text-muted">押すと、絵の説明の欄に入ります。</p>
       <ul className="flex flex-col gap-2">
         {scenes.map((s) => (
           <li key={s}>

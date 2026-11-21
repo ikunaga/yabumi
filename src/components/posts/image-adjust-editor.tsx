@@ -13,7 +13,7 @@ const TONE_SLIDERS: { key: ToneKey; label: string; low: string; high: string }[]
   { key: "brightness", label: "明るさ", low: "暗く", high: "明るく" },
   { key: "contrast", label: "コントラスト", low: "やわらかく", high: "くっきり" },
   { key: "saturation", label: "あざやかさ", low: "おだやかに", high: "あざやかに" },
-  { key: "warmth", label: "色あい", low: "青みを足す", high: "赤みを足す" },
+  { key: "warmth", label: "色あい", low: "青みを強める", high: "赤みを強める" },
 ];
 
 // 添えた画像を調整する（明るさ・コントラスト・あざやかさ・色あい、回転・まっすぐにする、切り取り。4.53）。

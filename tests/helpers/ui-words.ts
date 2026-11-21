@@ -51,6 +51,8 @@ export const UI_WORD_RULES: UiWordRule[] = [
   // 「秘密鍵」（.p8 ファイル）は Apple の画面の呼び方なので使ってよい
   { id: "junbichu", pattern: /準備中/ },
   { id: "kagi", pattern: /(?<!秘密)鍵/ },
+  // 「足りない」「足りる」は不足の意味なので除く（足り は当たらない）
+  { id: "tasu", pattern: /足[しすさせそ]/ },
   { id: "sashikomu", pattern: /差し込/ },
   { id: "kata", pattern: /(投稿|説明)の型|型にして/ },
   { id: "tashikameru", pattern: /確かめ/ },

@@ -169,7 +169,7 @@ export type FormatRoundOutcome = { ok: true; proposals: RoundProposal[]; left: n
 // 案が 1 つも残らなかったときの文（2 文まで。わけと「1 回に数える」は画面の「?」に畳む。PM の指摘）
 export function noRoundMessage(left: number): string {
   return left > 0
-    ? `出せる案がありませんでした（今日はあと ${left} 回）。希望に年代やジャンルを足して、もう一度出してもらってください。`
+    ? `出せる案がありませんでした（今日はあと ${left} 回）。希望の欄に年代やジャンルを書き加えて、もう一度出してもらってください。`
     : "出せる案がありませんでした（今日はもう出せません）。明日またお試しいただくか、空欄を自分で埋めてください。";
 }
 

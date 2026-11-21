@@ -41,11 +41,11 @@ export default async function LegalNoticeAdminPage() {
         <PageHeader
           title="規約の変更の知らせ"
           sub={`1 日に ${dailyLimit()} 通まで`}
-          help={`利用規約・プライバシーポリシーの予定の変更（src/lib/legal/version.ts の LEGAL_VERSIONS に足した、施行日が先の版）を、登録している全員にメールで知らせます。伴走のメールを止めた人にも送ります。1 日に送るのは ${dailyLimit()} 通までで、残りは毎日 9:10 のジョブが続きを送ります。手順は docs/legal.md の「②の段取り」。`}
+          help={`利用規約・プライバシーポリシーの予定の変更（src/lib/legal/version.ts の LEGAL_VERSIONS に追加した、施行日が先の版）を、登録している全員にメールで知らせます。伴走のメールを止めた人にも送ります。1 日に送るのは ${dailyLimit()} 通までで、残りは毎日 9:10 のジョブが続きを送ります。手順は docs/legal.md の「②の段取り」。`}
         />
         {!change ? (
           <Card className="overflow-hidden">
-            <EmptyState title="予定の変更はありません" description="LEGAL_VERSIONS に施行日が先の版を足してデプロイすると、ここに出ます。" />
+            <EmptyState title="予定の変更はありません" description="LEGAL_VERSIONS に施行日が先の版を追加してデプロイすると、ここに出ます。" />
           </Card>
         ) : (
           <Card className="overflow-hidden">

@@ -94,9 +94,9 @@ export type AddResult = { ok: true } | { ok: false; error: string; suggestion?: 
 
 const CLAIM_ERRORS: Record<string, string> = {
   not_found: "プロジェクトが見つかりません。ログインし直してください。",
-  already: "自分のドメインは 1 人 1 つまでです（ほかのプロジェクトで使っています）。使っているものを外してから足してください。",
+  already: "自分のドメインは 1 人 1 つまでです（ほかのプロジェクトで使っています）。使っているものを外してから追加してください。",
   taken: "このドメインは、ほかの方が使っているか、外している途中です。別のドメイン（例: go2.<あなたのドメイン>）にするか、時間をおいてお試しください。",
-  daily: `ドメインを足せるのは 1 日に ${LINK_DOMAIN_DAILY_ATTEMPTS} 回までです。明日もう一度お試しください。`,
+  daily: `ドメインを追加できるのは 1 日に ${LINK_DOMAIN_DAILY_ATTEMPTS} 回までです。明日もう一度お試しください。`,
   limit: "いまは、自分のドメインを新しく追加できません。yabumi を使う人みんなで、上限に達しています。追加しなくても、リンクが押された数は今までどおり数えます。",
 };
 
@@ -121,7 +121,7 @@ export async function addLinkDomain(admin: Admin, input: { ownerId: string; proj
   if (error) throw error;
   if (claim !== "ok") {
     if (claim === "limit") await notifyNearLimit(admin, limit, deps, true);
-    return { ok: false, error: CLAIM_ERRORS[claim] ?? "ドメインを足せませんでした。" };
+    return { ok: false, error: CLAIM_ERRORS[claim] ?? "ドメインを追加できませんでした。" };
   }
 
   try {
@@ -143,11 +143,11 @@ export async function addLinkDomain(admin: Admin, input: { ownerId: string; proj
     await admin.from("link_domains").delete().eq("project_id", input.projectId).eq("owner_id", input.ownerId);
     await drainLinkDomainRemovals(admin, deps).catch(() => undefined);
     if (e instanceof VercelApiError && (e.status === 409 || e.status === 403)) {
-      return { ok: false, error: "このドメインは、ほかのサービス（Vercel のほかのプロジェクト）で使われているため足せません。別のサブドメイン（例: go2.<あなたのドメイン>）にしてください。" };
+      return { ok: false, error: "このドメインは、ほかのサービス（Vercel のほかのプロジェクト）で使われているため追加できません。別のサブドメイン（例: go2.<あなたのドメイン>）にしてください。" };
     }
-    if (e instanceof VercelApiError && e.status === 400) return { ok: false, error: "このドメインは足せませんでした。綴りを確認してください。" };
+    if (e instanceof VercelApiError && e.status === 400) return { ok: false, error: "このドメインは追加できませんでした。綴りを確認してください。" };
     console.error("[link-domain] Vercel にドメインを足せませんでした", e instanceof Error ? e.message : e);
-    return { ok: false, error: "いまドメインを足せませんでした。時間をおいてもう一度お試しください。" };
+    return { ok: false, error: "いまドメインを追加できませんでした。時間をおいてもう一度お試しください。" };
   }
 
   await notifyNearLimit(admin, limit, deps, false);

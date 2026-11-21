@@ -71,7 +71,7 @@ export function NotePicker({
           <span className="text-[13px] text-muted">本文がもう書いてあります:</span>
           {(
             [
-              ["append", "下に足す"],
+              ["append", "下に追加"],
               ["replace", "置き換える"],
             ] as const
           ).map(([v, label]) => (

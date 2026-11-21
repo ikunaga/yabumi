@@ -24,7 +24,7 @@ export const KIND_DESCRIPTIONS: Record<Exclude<AutoKind, "pillars">, string> = {
   notes: "書きためたメモを 1 つずつ投稿にします。",
   rerun: "よく見られた投稿を、言い方を変えてもう一度出します。",
   events: "登録したお知らせ（イベント・新商品など）を先に投稿します。なければ季節のあいさつにします。",
-  commits: "アプリの開発の進み（直したこと・足したこと）を投稿にします。",
+  commits: "アプリの開発の進み（直したこと・追加したこと）を投稿にします。",
 };
 
 export const TARGET_MODE_LABELS: Record<TargetMode, string> = {

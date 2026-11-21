@@ -7,7 +7,7 @@ export function envReady(feature: string, names: readonly string[], env: Record<
   const missing = names.filter((n) => !env[n]);
   if (missing.length && !reported.has(feature)) {
     reported.add(feature);
-    const hint = process.env.NODE_ENV === "production" ? "（ホスティングの環境変数に足して、デプロイし直す）" : "（.env.local に足して、pnpm dev を起動し直す）";
+    const hint = process.env.NODE_ENV === "production" ? "（ホスティングの環境変数に追加して、デプロイし直す）" : "（.env.local に追加して、pnpm dev を起動し直す）";
     console.warn(`[env] ${feature} は「準備中」です。足りない環境変数: ${missing.join(", ")}${hint}`);
   }
   return missing.length === 0;

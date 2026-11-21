@@ -30,7 +30,7 @@ export function fillTemplate(body: string, scene: string): string {
   return s ? `${s.replace(/[。、,.\s]+$/, "")}。${body.trim()}` : body.trim();
 }
 
-// はじめから出す例（「例から追加」）。宣伝するものの種類ごとに 2〜3 個。雰囲気・光・撮り方を決め、何を写すかは {場面} に入れる
+// はじめから出す例（「例から選んで追加」）。宣伝するものの種類ごとに 2〜3 個。雰囲気・光・撮り方を決め、何を写すかは {場面} に入れる
 export const TEMPLATE_EXAMPLES: Record<ProductType, { name: string; body: string }[]> = {
   app: [
     { name: "手元とスマホ", body: "{場面}。机の上でスマホを持つ手元を近くから、顔は写さない。昼の自然光で明るく、背景はすっきり" },

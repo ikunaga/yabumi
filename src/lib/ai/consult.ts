@@ -81,7 +81,7 @@ const ADOPTED_TEXT: Record<ActionKind, string> = {
   kgi: "最終の目標をロードマップに入れました",
   kpi_targets: "毎週の目標をロードマップに入れました",
   goal: "目標をロードマップに入れました",
-  roadmap_items: "やることをロードマップに足しました",
+  roadmap_items: "やることをロードマップに追加しました",
   post_draft: "下書きを作りました",
 };
 

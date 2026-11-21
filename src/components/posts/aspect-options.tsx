@@ -7,8 +7,8 @@ import { Choice, Group } from "./maker-parts";
 
 export const MODES: { key: AspectMode; label: string; hint: string }[] = [
   { key: "crop", label: "切り取る", hint: "はみ出したところを切ります。" },
-  { key: "pad", label: "余白を足す", hint: "切らずに、まわりに余白を足して収めます。" },
-  { key: "phone", label: "スマホの枠に入れる", hint: "アプリの画面などを、スマホの枠に入れます。まわりには余白を足します。" },
+  { key: "pad", label: "余白を追加", hint: "切らずに、まわりに余白を追加して収めます。" },
+  { key: "phone", label: "スマホの枠に入れる", hint: "アプリの画面などを、スマホの枠に入れます。まわりには余白を追加します。" },
 ];
 
 // 足す地（画像の中身の色。画面の色ではない）

@@ -62,7 +62,7 @@ async function pickNote(admin: Db, plan: AutoPlan & { ownerId: string }, past: P
   const note = plan.materials.note_order === "photo_first" ? (free.find((n) => withPhoto.has(n.id)) ?? free[0]) : free[0];
   const photo = withPhoto.has(note.id);
   return {
-    text: `種類: ネタ帳のメモ（利用者が生活の中で書き留めたこと。書かれていないできごと・感想・数字は足さない）\n写真: ${photo ? "あり（投稿に添える。写っているものは見えていないので書かない）" : "なし"}\nメモ:\n${note.body.trim()}`,
+    text: `種類: ネタ帳のメモ（利用者が生活の中で書き留めたこと。書かれていないできごと・感想・数字は加えない）\n写真: ${photo ? "あり（投稿に添える。写っているものは見えていないので書かない）" : "なし"}\nメモ:\n${note.body.trim()}`,
     label: `メモ: ${clip(note.body.trim().replace(/\s+/g, " "), 20)}`,
     ref: { note_id: note.id },
     allowedUrls: [],
@@ -130,7 +130,7 @@ async function pickEvent(admin: Db, plan: AutoPlan & { ownerId: string }, past: 
   if (e) {
     const when = e.on_date === day ? "今日" : "明日";
     return {
-      text: `種類: お知らせ（利用者が書いた予定。書かれていない値段・時間・内容は足さない）\n日付: ${e.on_date}（送る日から見て${when}）\n予定: ${e.body.trim()}`,
+      text: `種類: お知らせ（利用者が書いた予定。書かれていない値段・時間・内容は加えない）\n日付: ${e.on_date}（送る日から見て${when}）\n予定: ${e.body.trim()}`,
       label: `予定: ${clip(e.body.trim(), 20)}`,
       ref: { event_id: e.id },
       allowedUrls: [],

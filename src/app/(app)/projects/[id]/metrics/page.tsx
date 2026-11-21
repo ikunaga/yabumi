@@ -303,7 +303,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
             つないだ SNS へ
           </Link>
           <HelpTip label="つなぎ直しが要る理由" align="right">
-            数字を読む権限は、あとから足した権限です。つなぎ直すと、SNS の画面で数字の権限を許可できます。
+            数字を読む権限は、あとから追加した権限です。つなぎ直すと、SNS の画面で数字の権限を許可できます。
           </HelpTip>
         </Notice>
       )}
@@ -421,7 +421,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
                 aside={periodLabel(days, appleEnd < today ? appleEnd : undefined)}
                 help={
                   <HelpTip label="Apple が数えた DL">
-                   yabumi の短縮リンク（App Store のキャンペーンリンク）から App Store に来て、はじめてダウンロードした人の数です（App Store Connect の Analytics Reports の App Store Downloads の Detailed）。Google Play の分は入っていません。Apple は 5 人未満の数を省き、少しの乱数を足すので（多くは ±2 ほど）、少しずれます。2 日ほど遅れて届きます。
+                   yabumi の短縮リンク（App Store のキャンペーンリンク）から App Store に来て、はじめてダウンロードした人の数です（App Store Connect の Analytics Reports の App Store Downloads の Detailed）。Google Play の分は入っていません。Apple は 5 人未満の数を省き、少しの乱数を加えるので（多くは ±2 ほど）、少しずれます。2 日ほど遅れて届きます。
                   </HelpTip>
                 }
               >
@@ -468,7 +468,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
               help={
                 <HelpTip label="手で記録する理由">
                   note と Substack は数字を自動で読めないので、それぞれの画面で見た数字を入れてください（投稿して数日たってからが目安）。
-                  {kpis.includes("views") && "入れた閲覧数は、上の「投稿の閲覧数」に足されます。"}
+                  {kpis.includes("views") && "入れた閲覧数は、上の「投稿の閲覧数」に加わります。"}
                 </HelpTip>
               }
               aside="手で記録"

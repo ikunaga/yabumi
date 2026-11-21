@@ -848,7 +848,7 @@ function HashtagsFields({ v, ex: examples }: { v: PlanData["hashtags"]; ex: Plan
       })}
       {rows < MAX_HASHTAGS && (
         <button type="button" onClick={() => setRows((n) => n + 1)} className="self-start text-sm font-semibold text-primary hover:underline">
-          ＋ 候補を足す
+          ＋ 候補を追加
         </button>
       )}
       <p className="text-xs text-muted">タグの欄を空にして保存すると、その候補は消えます。</p>

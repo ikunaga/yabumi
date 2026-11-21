@@ -439,12 +439,12 @@ export function ImageMaker({ projectId, projectName, aiEnabled, text, targets, o
                   </ol>
                   {diagramStyle === "compare" && items.length < 2 && (
                     <Button type="button" variant="text" size="sm" className="self-start" onClick={() => setItems((xs) => [...xs, { title: "", text: "" }])}>
-                      ＋「後」の項目を足す
+                      ＋「後」の項目を追加
                     </Button>
                   )}
                   {diagramStyle !== "compare" && items.length < MAX_ITEMS && (
                     <Button type="button" variant="text" size="sm" className="self-start" onClick={() => setItems((xs) => [...xs, { title: "", text: "" }])}>
-                      ＋ 項目を足す
+                      ＋ 項目を追加
                     </Button>
                   )}
                 </>

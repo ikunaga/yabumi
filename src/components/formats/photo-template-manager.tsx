@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/field";
 import { addPhotoTemplate, deletePhotoTemplate, listPhotoTemplates, setDefaultPhotoTemplate, updatePhotoTemplate, type TemplatesResult } from "@/lib/photo-templates/actions";
 import { MAX_PHOTO_TEMPLATES, MAX_TEMPLATE_NAME, type PhotoTemplate } from "@/lib/photo-templates/schema";
 
-// フォーマットの画面の「絵の説明」のタブ（docs/architecture.md の 4.25 の ②）: 一覧（名前を変える・いつも使う・削除する）と例から追加。
+// フォーマットの画面の「絵の説明」のタブ（docs/architecture.md の 4.25 の ②）: 一覧（名前を変える・いつも使う・削除する）と例から選んで追加。
 // 前は投稿をつくるの画像の欄の中に畳んでいた（2026-11-18 オーナーの了承で移した）。一覧の正はサーバー
 export function PhotoTemplateManager({ projectId }: { projectId: string }) {
   const [templates, setTemplates] = useState<PhotoTemplate[] | null>(null);
@@ -100,7 +100,7 @@ export function PhotoTemplateManager({ projectId }: { projectId: string }) {
           )}
           {addable.length > 0 && left > 0 && (
             <div className="flex flex-col gap-1.5">
-              <span className="text-xs font-bold">例から足す</span>
+              <span className="text-xs font-bold">例から選んで追加</span>
               <div className="flex flex-wrap gap-2">
                 {addable.map((e) => (
                   <Button key={e.name} size="sm" variant="secondary" disabled={pending} onClick={() => run(() => addPhotoTemplate(projectId, e))}>
@@ -112,7 +112,7 @@ export function PhotoTemplateManager({ projectId }: { projectId: string }) {
           )}
           {/* ui-wording-ignore: {場面} は差し込みの名前（データ）。名前を変えるかは別に決める */}
           <p className="text-xs leading-[1.7] text-muted">
-            本文に {"{場面}"} を入れると、そこに投稿ごとの絵の説明が入ります。「投稿をつくる」の「画像」で書いた絵の説明も、ここに足せます。そのときは「フォーマットとして保存」を押します。
+            本文に {"{場面}"} を入れると、そこに投稿ごとの絵の説明が入ります。「投稿をつくる」の「画像」で書いた絵の説明も、ここに追加できます。そのときは「フォーマットとして保存」を押します。
           </p>
       </div>
       {error && <ErrorBanner>{error}</ErrorBanner>}

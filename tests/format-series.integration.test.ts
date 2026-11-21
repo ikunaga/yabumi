@@ -206,7 +206,7 @@ describe("次の回の案（偽の AI）", () => {
   it("案がどれも前の回と重なって 0 になったら、何が起きたか・1 回に数えたこと・次にどうすればよいかを返す（利用量も記録する）", async () => {
     const call = caller({ proposals: [{ answer: "バック・トゥ・ザ・フューチャー", slots: [{ slot: "キーワード", text: "時計台・稲妻" }], checks: [] }] });
     const r = await runFormatRound(alice, admin, { callFormatRound: call }, { userId: aliceId, projectId, formatId });
-    expect(r).toEqual({ ok: false, left: SERIES_DAILY_RUNS - 1, empty: true, message: `出せる案がありませんでした（今日はあと ${SERIES_DAILY_RUNS - 1} 回）。希望に年代やジャンルを足して、もう一度出してもらってください。` });
+    expect(r).toEqual({ ok: false, left: SERIES_DAILY_RUNS - 1, empty: true, message: `出せる案がありませんでした（今日はあと ${SERIES_DAILY_RUNS - 1} 回）。希望の欄に年代やジャンルを書き加えて、もう一度出してもらってください。` });
     expect((await admin.from("ai_usage").select("purpose").eq("owner_id", aliceId)).data).toEqual([{ purpose: "post_format_round" }]);
   });
 

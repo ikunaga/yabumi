@@ -44,8 +44,8 @@ export async function addTemplate(db: Db, projectId: string, input: unknown): Pr
     .select("id")
     .single();
   if (error) {
-    if (error.code === "23514" && error.message.includes("1 人")) throw new TemplateError(`フォーマットは 1 人 ${MAX_PHOTO_TEMPLATES_PER_USER} 個までです（ほかのプロジェクトの分も数えます）。使わないものを消してから足してください。`);
-    if (error.code === "23514" && error.message.includes("プロジェクト")) throw new TemplateError(`フォーマットは 1 つのプロジェクトに ${MAX_PHOTO_TEMPLATES} 個までです。使わないものを消してから足してください。`);
+    if (error.code === "23514" && error.message.includes("1 人")) throw new TemplateError(`フォーマットは 1 人 ${MAX_PHOTO_TEMPLATES_PER_USER} 個までです（ほかのプロジェクトの分も数えます）。使わないものを削除してから追加してください。`);
+    if (error.code === "23514" && error.message.includes("プロジェクト")) throw new TemplateError(`フォーマットは 1 つのプロジェクトに ${MAX_PHOTO_TEMPLATES} 個までです。使わないものを削除してから追加してください。`);
     if (error.code === "42501") throw new TemplateError(NOT_FOUND);
     throw new TemplateError(FAILED);
   }

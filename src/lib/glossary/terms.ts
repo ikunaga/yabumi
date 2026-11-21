@@ -222,13 +222,13 @@ export const glossary = {
     label: "DNS",
     reading: "ディーエヌエス",
     summary:
-      "ドメイン（例: example.com）を、実際につながる先に結びつける「住所録」。ドメインを買ったサービス（お名前.com や Cloudflare など）の管理画面で、1 行ずつ書き足して設定します。書き足してから世界中に届くまで、数分〜数時間かかることがあります。",
+      "ドメイン（例: example.com）を、実際につながる先に結びつける「住所録」。ドメインを買ったサービス（お名前.com や Cloudflare など）の管理画面で、1 行ずつ追加して設定します。追加してから世界中に届くまで、数分〜数時間かかることがあります。",
     related: ["cname", "subdomain"],
   },
   cname: {
     label: "CNAME",
     reading: "シーネーム",
-    summary: "DNS の行の種類の 1 つ。「このサブドメインは、あちらの名前と同じ場所につなぐ」という意味です。yabumi の短縮リンクを自分のドメインで使うときは、この行を 1 つ足します。",
+    summary: "DNS の行の種類の 1 つ。「このサブドメインは、あちらの名前と同じ場所につなぐ」という意味です。yabumi の短縮リンクを自分のドメインで使うときは、この行を 1 つ追加します。",
     example: "例: 名前 go、値 cname.vercel-dns.com",
     related: ["dns", "subdomain"],
   },

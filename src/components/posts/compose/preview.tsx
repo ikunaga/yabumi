@@ -91,7 +91,7 @@ export function ComposePreview({ c }: { c: Composer }) {
                 .map((i, n) => (instagramRatioOk(i.width, i.height) ? null : `${n + 1} 枚目・${i.width}×${i.height}`))
                 .filter(Boolean)
                 .join("、")}
-              は、この形に入りません。「3 画像・動画」の「縦横を整える」で、切り取るか余白を足してください。
+              は、この形に入りません。「3 画像・動画」の「縦横を整える」で、切り取るか余白を追加してください。
             </p>
           )}
           {focus === "instagram" && checks.instagram.issues.includes("too_many_hashtags") && (

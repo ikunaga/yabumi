@@ -31,8 +31,8 @@ export async function listRounds(db: Db, formatId: string, limit = MAX_ROUNDS): 
 
 const limitError = (message: string) =>
   message.includes("1 人")
-    ? "シリーズの記録は 1 人 3,000 件までです。使わないフォーマットの記録を消してから足してください。"
-    : `シリーズの記録は 1 つのフォーマットに ${MAX_ROUNDS} 件までです。古い記録を消してから足してください。`;
+    ? "シリーズの記録は 1 人 3,000 件までです。使わないフォーマットの記録を削除してから追加してください。"
+    : `シリーズの記録は 1 つのフォーマットに ${MAX_ROUNDS} 件までです。古い記録を削除してから追加してください。`;
 
 // 本文に入れたときの 1 回（AI の案を使った・自分で埋めた）。シリーズのフォーマットだけ。答えも穴の言葉も空なら記録しない（null）
 export async function addRound(db: Db, projectId: string, formatId: string, input: { answer: unknown; values: unknown; source: "ai" | "hand" }): Promise<string | null> {
@@ -54,7 +54,7 @@ export async function addRound(db: Db, projectId: string, formatId: string, inpu
 export async function pasteRounds(db: Db, projectId: string, formatId: string, text: string): Promise<{ added: number; skipped: number; overflow: number }> {
   const format = await getFormat(db, projectId, formatId);
   if (!format) throw new FormatError("フォーマットが見つかりません。画面を読み込み直してください。");
-  if (!isSeries(format.series)) throw new FormatError("AI が埋める空欄のあるフォーマットだけ、これまでの投稿を足せます。");
+  if (!isSeries(format.series)) throw new FormatError("これまでの投稿を追加できるのは、AI が埋める空欄のあるフォーマットだけです。");
   const existing = await listRounds(db, formatId);
   const { answers, skipped, overflow } = parsePastedAnswers(text, existing.map((r) => r.answer), MAX_ROUNDS - existing.length);
   if (answers.length === 0) return { added: 0, skipped, overflow };

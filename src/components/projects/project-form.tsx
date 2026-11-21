@@ -344,7 +344,7 @@ export function ProjectForm({
                 onClick={() => setDests((rows) => [...rows, { key: Math.max(-1, ...rows.map((r) => r.key)) + 1, id: null, kind: RECOMMENDED_DESTINATIONS[productType][0], label: "", url: "" }])}
                 className="self-start text-sm font-bold text-fg underline"
               >
-                ＋ 行き先を足す
+                ＋ 行き先を追加
               </button>
             )}
           </fieldset>

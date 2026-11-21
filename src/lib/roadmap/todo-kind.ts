@@ -29,7 +29,7 @@ const SETUP_TARGETS: { re: RegExp; target: SetupTarget }[] = [
   // 前は「ストアを開く」「GitHub を開く」で、App Store・GitHub が開くと読め、押してもすることにつながらなかった（2026-11-12 PMO の本番での通しテスト）
   { re: /(?:ストア|App Store|Google Play|課金|RevenueCat)[^\n]*(?:つな|連携|取り込|接続)|(?:つな|連携|取り込|接続)[^\n]*(?:ストア|App Store|Google Play|課金|RevenueCat)/i, target: { path: (b) => `${b}/stores`, label: "ストアをつなぐ" } },
   { re: /(?:GitHub|リポジトリ)[^\n]*(?:つな|連携|接続)|(?:つな|連携|接続)[^\n]*(?:GitHub|リポジトリ)/i, target: { path: (b) => `${b}/github`, label: "GitHub をつなぐ" } },
-  { re: /行き先/, target: { path: (_, id) => `${projectSettingsHref(id)}#destinations`, label: "設定を開く" } },
+  { re: /リンク先/, target: { path: (_, id) => `${projectSettingsHref(id)}#destinations`, label: "設定を開く" } },
   { re: /(?:SNS|アカウント|X|Threads|Instagram|Facebook|TikTok|YouTube)\s*を?\s*(?:つな|連携)|つなぎ直/i, target: { path: (_, id) => projectSettingsHref(id, "sns"), label: "SNS をつなぐ" } },
 ];
 

@@ -159,7 +159,7 @@ export function ProfileFields({ v, roles, ctx }: { v: PlanData["profile"]; roles
           placeholder={`例: ${ex.bio}`}
         />
       </Field>
-      <Field label="リンク先" htmlFor="profile-link" hint={`プロフィールに置くリンク。迷ったら${ctx.productType && ctx.productType !== "app" ? "行き先の URL（サイト・予約・お店のページなど）" : "ストアページ"}。SNS ごとの短縮リンクにすると、どの SNS から来たかがわかります`}>
+      <Field label="リンク先" htmlFor="profile-link" hint={`プロフィールに置くリンク。迷ったら${ctx.productType && ctx.productType !== "app" ? "リンク先の URL（サイト・予約・お店のページなど）" : "ストアページ"}。SNS ごとの短縮リンクにすると、どの SNS から来たかがわかります`}>
         <Input id="profile-link" name="link" value={common.link} onChange={(e) => setCommon({ ...common, link: e.target.value })} maxLength={300} placeholder={`例: ${ex.link}`} />
       </Field>
 
@@ -353,7 +353,7 @@ function ShortLink({ sns, ctx, current, onUse }: { sns: SnsKey; ctx: ProfileCont
     return (
       <p className="text-xs leading-[1.7] text-muted">
         この SNS から何人来たかを数えるには、<Link href={`/projects/${ctx.projectId}/links`} className="text-primary hover:underline">短縮リンク</Link>
-        をリンク先にします（先にプロジェクトの設定で{ctx.productType && ctx.productType !== "app" ? "行き先の URL（サイト・予約・お店のページなど）" : "ストアの URL か行き先の URL"}を入れます）。
+        をリンク先にします（先にプロジェクトの設定で{ctx.productType && ctx.productType !== "app" ? "リンク先の URL（サイト・予約・お店のページなど）" : "ストアの URL かリンク先の URL"}を入れます）。
       </p>
     );
   }
@@ -381,7 +381,7 @@ function ShortLink({ sns, ctx, current, onUse }: { sns: SnsKey; ctx: ProfileCont
         >
           {pending ? "作っています…" : `${SNS[sns].label} 用の短縮リンクを作る`}
         </Button>
-        <span className="text-muted">どの SNS から何人来たかを数えられます。行き先: {ctx.destination}</span>
+        <span className="text-muted">どの SNS から何人来たかを数えられます。リンク先: {ctx.destination}</span>
       </div>
       {error && <p className="font-semibold text-danger">{error}</p>}
     </div>

@@ -159,7 +159,7 @@ const KGI_EXAMPLES: Record<ProductType, string> = {
   online_shop: "3 か月で 20 件売れる",
   service: "3 か月で体験の申し込み 15 件",
   creator: "3 か月でフォロワー 300 人",
-  other: "3 か月で行き先へのクリック 300 回",
+  other: "3 か月でリンク先へのクリック 300 回",
 };
 
 export function kgiExample(productType: string | null | undefined): string {

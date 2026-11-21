@@ -556,7 +556,7 @@ describe("目標の立て直し（goal_rescue。docs/design/goals-model.md の 1
     expect(ctx).toContain("直近 4 週の流れ（投稿 → 閲覧 → クリック → 成果。どこが細いかの見当に使う）:");
     expect(ctx).toContain("- 予約（手で記録）: 2");
     expect(ctx).toContain("KPI の直近 4 週（実績 / 4 週分の目標）:");
-    expect(ctx).toMatch(/- 行き先へのクリック: [^\n]* \/ 60/);
+    expect(ctx).toMatch(/- リンク先へのクリック: [^\n]* \/ 60/);
     expect(ctx).toMatch(/- 投稿した回数（Threads）: [^\n]* \/ 8/);
     expect(JSON.stringify(vi.mocked(callModel).mock.calls[0][0].system)).toContain("# 目標の立て直し");
 

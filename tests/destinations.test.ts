@@ -19,7 +19,7 @@ describe("行き先の URL のフォーム", () => {
         { id: null, kind: "shop", label: "", url: "https://shop.example" },
       ],
     });
-    expect(parseDestinationsForm(form({ "dest-0-kind": "site", "dest-0-url": "http://example.com" }))).toEqual({ ok: false, error: "行き先の URL の 1 行目: https:// から始まる URL を入れてください" });
+    expect(parseDestinationsForm(form({ "dest-0-kind": "site", "dest-0-url": "http://example.com" }))).toEqual({ ok: false, error: "リンク先の URL の 1 行目: https:// から始まる URL を入れてください" });
     expect(parseDestinationsForm(form({ "dest-0-kind": "blog", "dest-0-url": "https://example.com" })).ok).toBe(false);
   });
 

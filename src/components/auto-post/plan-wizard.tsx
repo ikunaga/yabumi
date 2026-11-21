@@ -592,7 +592,7 @@ function KindDetail({ kind, materials, setMaterials, m, projectId }: { kind: Aut
     const picked = materials.destination_ids ?? [];
     return (
       <Card className="flex flex-col gap-2 px-6 py-5 max-sm:px-4 max-sm:py-4">
-        <p className="text-[14px] font-bold">紹介する行き先</p>
+        <p className="text-[14px] font-bold">紹介するリンク先</p>
         <div className="flex flex-wrap gap-2">
           <Chip on={picked.length === 0} onClick={() => setMaterials({ ...materials, destination_ids: undefined })}>
             おまかせ（順に回す）

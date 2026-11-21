@@ -20,17 +20,17 @@ const active: NonNullable<GoalContext["active"]> = {
     { seq: 2, startsOn: "2026-11-30", endsOn: "2026-12-27", target: 10, result: null, current: false },
   ],
   current: { value: 4, countedThrough: "2026-11-05", available: true },
-  kpis: [{ label: "行き先へのクリック", perWeek: 15 }],
+  kpis: [{ label: "リンク先へのクリック", perWeek: 15 }],
   actions: [{ sns: "instagram", perWeek: 2 }],
   review: null,
 };
 
 describe("いまの状況の目標", () => {
   it("KGI まだなら、そう書く。候補の数字が数えられるかを添える", () => {
-    const lines = goalContextLines({ ...base, candidates: [{ metric: "outcomes", action: "booking", label: "予約（手で記録）", available: true, hasData: false }, { metric: "link_clicks", action: null, label: "行き先へのクリック", available: true, hasData: true }] });
+    const lines = goalContextLines({ ...base, candidates: [{ metric: "outcomes", action: "booking", label: "予約（手で記録）", available: true, hasData: false }, { metric: "link_clicks", action: null, label: "リンク先へのクリック", available: true, hasData: true }] });
     expect(lines).toContain("KGI: まだ決めていない");
     expect(lines).toContain("- 予約（手で記録）（metric: outcomes、action: booking）: 数えられるが、まだ記録がない");
-    expect(lines).toContain("- 行き先へのクリック（metric: link_clicks）: 数えている");
+    expect(lines).toContain("- リンク先へのクリック（metric: link_clicks）: 数えている");
   });
 
   it("KGI・進み具合（数えた最後の日と見込み）・中間の目標・KPI・行動の目標を書く", () => {
@@ -38,7 +38,7 @@ describe("いまの状況の目標", () => {
     expect(text).toContain("KGI: 3 か月で予約 30 件（予約（手で記録） を 30、2026-11-02〜2027-01-24）");
     expect(text).toContain("KGI の進み具合: 4（2026-11-05 まで数えた） / 30、残り 80 日、このままのペースの見込み 21");
     expect(text).toContain("- 1 つ目 2026-11-02〜2026-11-29: 目標 6（いまの区切り。いまの数 4（2026-11-05 まで数えた））");
-    expect(text).toContain("KPI の週の目標: 行き先へのクリック 週 15");
+    expect(text).toContain("KPI の週の目標: リンク先へのクリック 週 15");
     expect(text).toContain("行動の目標（投稿の週の本数）: Instagram 週 2");
   });
 

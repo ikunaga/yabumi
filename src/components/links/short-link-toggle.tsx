@@ -123,7 +123,7 @@ export function ShortLinkToggle({
           {plan.skipped.length > 0 && <p>置き換えない: {skippedText(plan.skipped)}</p>}
         </>
       )}
-      <p>どの SNS から何人が行き先（サイト・予約・お店・ストアなど）に来たかは、{linksPage}の画面で見られます。</p>
+      <p>どの SNS から何人がリンク先（サイト・予約・お店・ストアなど）に来たかは、{linksPage}の画面で見られます。</p>
     </>,
   );
 }

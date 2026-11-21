@@ -104,11 +104,11 @@ export default async function LinksPage(props: PageProps<"/projects/[id]/links">
           <>
             {isAppProject(project) ? (
               <>
-                SNS から<Term k="storeListing">ストアページ</Term>に来た人を数えるための<Term k="shortLink">短縮リンク</Term>です。SNS ごとに別のリンクを使うと、どの SNS から何人来たかがわかります。行き先には、ストアの側でも見分けられる<Term k="campaignLink">印</Term>を自動で付けます。
+                SNS から<Term k="storeListing">ストアページ</Term>に来た人を数えるための<Term k="shortLink">短縮リンク</Term>です。SNS ごとに別のリンクを使うと、どの SNS から何人来たかがわかります。リンク先には、ストアの側でも見分けられる<Term k="campaignLink">印</Term>を自動で付けます。
               </>
             ) : (
               <>
-                SNS から行き先のページ（サイト・予約・お店のページなど）に来た人を数えるための<Term k="shortLink">短縮リンク</Term>です。SNS ごとに別のリンクを使うと、どの SNS から何人来たかがわかります。行き先には、解析の道具でも見分けられる<Term k="campaignLink">印</Term>を自動で付けます。
+                SNS からリンク先のページ（サイト・予約・お店のページなど）に来た人を数えるための<Term k="shortLink">短縮リンク</Term>です。SNS ごとに別のリンクを使うと、どの SNS から何人来たかがわかります。リンク先には、解析の道具でも見分けられる<Term k="campaignLink">印</Term>を自動で付けます。
               </>
             )}
           </>
@@ -149,7 +149,7 @@ export default async function LinksPage(props: PageProps<"/projects/[id]/links">
                 <EmptyState
                   description={
                     <>
-                      先に、プロジェクトの設定で{isAppProject(project) ? "ストアの URL か行き先の URL" : "行き先の URL（サイト・予約・お店のページなど）"}を入れてください（<Link href={`/projects/${project.id}/edit`} className="text-primary hover:underline">プロジェクトの設定</Link>）。ほかの URL へのリンクは、下の「自由に作るリンク」で作れます。
+                      先に、プロジェクトの設定で{isAppProject(project) ? "ストアの URL かリンク先の URL" : "リンク先の URL（サイト・予約・お店のページなど）"}を入れてください（<Link href={`/projects/${project.id}/edit`} className="text-primary hover:underline">プロジェクトの設定</Link>）。ほかの URL へのリンクは、下の「自由に作るリンク」で作れます。
                     </>
                   }
                 />

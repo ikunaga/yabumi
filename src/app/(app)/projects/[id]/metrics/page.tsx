@@ -382,7 +382,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
                 </>
               ) : (
                 <p className="text-sm text-muted">
-                  SNS ごとの<Term k="shortLink" />を付けて投稿すると、どの SNS から{isApp ? "ストア" : "行き先のページ"}へ来たかが並びます。
+                  SNS ごとの<Term k="shortLink" />を付けて投稿すると、どの SNS から{isApp ? "ストア" : "リンク先のページ"}へ来たかが並びます。
                   <Link href={`${base}/links`} className="ml-1 font-bold text-fg underline">
                     短縮リンクを作る
                   </Link>
@@ -460,7 +460,7 @@ export default async function MetricsPage(props: PageProps<"/projects/[id]/metri
               {overview.topPosts.length ? (
                 <Ranked projectId={project.id} grown={grown} rows={overview.topPosts.map((p) => ({ ...p, value: `${formatCount(p.clicks)} クリック`, playDl: playDlOf(p.postId), appleDl: appleDlOf(p.postId) }))} />
               ) : (
-                <p className="text-sm text-muted">投稿の本文の{isApp ? "ストア" : "行き先"}の URL を短縮リンクにして送ると、どの投稿からクリックされたかが並びます。</p>
+                <p className="text-sm text-muted">投稿の本文の{isApp ? "ストア" : "リンク先"}の URL を短縮リンクにして送ると、どの投稿からクリックされたかが並びます。</p>
               )}
             </Panel>
             <Panel

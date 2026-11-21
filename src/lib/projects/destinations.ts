@@ -25,7 +25,7 @@ const httpsUrl = z
 
 const destinationSchema = z.object({
   id: z.uuid().nullable(),
-  kind: z.enum(DESTINATION_KINDS, { message: "行き先の種類を選んでください" }),
+  kind: z.enum(DESTINATION_KINDS, { message: "リンク先の種類を選んでください" }),
   label: z.string().trim().max(60, "名前は 60 文字以内にしてください"),
   url: httpsUrl,
 });
@@ -42,10 +42,10 @@ export function parseDestinationsForm(formData: FormData): { ok: true; items: De
       label: String(formData.get(`dest-${i}-label`) ?? ""),
       url,
     });
-    if (!parsed.success) return { ok: false, error: `行き先の URL の ${items.length + 1} 行目: ${parsed.error.issues[0].message}` };
+    if (!parsed.success) return { ok: false, error: `リンク先の URL の ${items.length + 1} 行目: ${parsed.error.issues[0].message}` };
     items.push(parsed.data);
   }
-  if (items.length > MAX_DESTINATIONS) return { ok: false, error: `行き先の URL は ${MAX_DESTINATIONS} までにしてください` };
+  if (items.length > MAX_DESTINATIONS) return { ok: false, error: `リンク先の URL は ${MAX_DESTINATIONS} までにしてください` };
   return { ok: true, items };
 }
 

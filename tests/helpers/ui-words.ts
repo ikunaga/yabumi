@@ -42,6 +42,8 @@ export const UI_WORD_RULES: UiWordRule[] = [
   { id: "azukaru", pattern: /預か/ },
   { id: "hikkakaru", pattern: /引っかか/ },
   { id: "ikisaki", pattern: /行き先/ },
+  // データを消すときは「削除する」（「消してから」を見つける。ほかの「消す」は文の意味で決まるので、確認役が見る）
+  { id: "sakujo", pattern: /消してから/ },
   { id: "kumitate", pattern: /組み立て/ },
   // 終わった意味の「済み」「済んだ」。「〜しなくて済む」・「送信済み」など（zumi）は除く
   { id: "sumi", pattern: /済みました|済んだ|済んで|済みにし|済みにする|^済み(\s|$)/ },
@@ -70,4 +72,4 @@ export const UI_WORD_RULES: UiWordRule[] = [
 ];
 
 // 表にあるが、見つける形を決められない行（確認役が文の意味から見る）
-export const UI_WORD_RULES_WITHOUT_PATTERN = ["sakujo", "unei", "project", "term", "okane", "hazusu", "moji", "tsunageru", "nini", "etsuran", "yakuwari", "komiai"];
+export const UI_WORD_RULES_WITHOUT_PATTERN = ["unei", "project", "term", "okane", "hazusu", "moji", "tsunageru", "nini", "etsuran", "yakuwari", "komiai"];

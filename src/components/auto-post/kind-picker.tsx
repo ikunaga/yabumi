@@ -109,7 +109,7 @@ export function kindCards(m: PickerMaterials, projectId: string, formatsHref: st
     choice: { kind: "product" },
     title: KIND_LABELS.product,
     description: KIND_DESCRIPTIONS.product,
-    count: m.destinations.length ? `行き先 ${m.destinations.length} 件` : undefined,
+    count: m.destinations.length ? `リンク先 ${m.destinations.length} 件` : undefined,
     off: m.destinations.length ? undefined : { reason: "商品のページのリンクがまだありません", href: `${base}/edit`, hrefLabel: "商品のページのリンクを入れる" },
   });
   return cards;

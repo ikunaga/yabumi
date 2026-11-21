@@ -37,18 +37,18 @@ export async function createProject(_prev: ProjectFormState, formData: FormData)
   const supabase = await createClient();
   // 1 人 10 個まで（DB のトリガーでも断る。ここは先に分かりやすい文で返すため。RLS で自分のものだけ数える）
   const { count } = await supabase.from("projects").select("id", { count: "exact", head: true });
-  if (projectLimitReached(count ?? 0)) return { error: `${PROJECT_LIMIT_TEXT}。使っていないプロジェクトを消してから作ってください。`, values: echoValues(formData) };
+  if (projectLimitReached(count ?? 0)) return { error: `${PROJECT_LIMIT_TEXT}。使っていないプロジェクトを削除してから作ってください。`, values: echoValues(formData) };
   // アプリでなければ、ストアの URL は入れない（欄も出していない）
   const row = parsed.data.product_type === "app" ? parsed.data : { ...parsed.data, app_store_url: null, play_store_url: null };
   const { data, error } = await supabase.from("projects").insert(row).select("id").single();
-  if (isProjectLimitError(error)) return { error: `${PROJECT_LIMIT_TEXT}。使っていないプロジェクトを消してから作ってください。`, values: echoValues(formData) };
+  if (isProjectLimitError(error)) return { error: `${PROJECT_LIMIT_TEXT}。使っていないプロジェクトを削除してから作ってください。`, values: echoValues(formData) };
   if (error) {
     return { error: "プロジェクトを作成できませんでした。時間をおいてもう一度お試しください。", values: echoValues(formData) };
   }
   try {
     await saveDestinations(supabase, data.id, dest.items);
   } catch (e) {
-    console.error("[createProject] 行き先の URL を保存できませんでした", e instanceof Error ? e.message : e);
+    console.error("[createProject] リンク先の URL を保存できませんでした", e instanceof Error ? e.message : e);
     redirect(`/projects/${data.id}/edit?done=destinations_failed`);
   }
 
@@ -80,8 +80,8 @@ export async function updateProject(
   try {
     await saveDestinations(supabase, id, dest.items);
   } catch (e) {
-    console.error("[updateProject] 行き先の URL を保存できませんでした", e instanceof Error ? e.message : e);
-    return { error: "行き先の URL を保存できませんでした。時間をおいてもう一度お試しください。", values: echoValues(formData) };
+    console.error("[updateProject] リンク先の URL を保存できませんでした", e instanceof Error ? e.message : e);
+    return { error: "リンク先の URL を保存できませんでした。時間をおいてもう一度お試しください。", values: echoValues(formData) };
   }
 
   revalidatePath("/projects");

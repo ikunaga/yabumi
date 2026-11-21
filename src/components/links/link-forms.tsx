@@ -35,7 +35,7 @@ function DestinationField({ destinations, id }: { destinations: Destination[]; i
   const [custom, setCustom] = useState("");
   const value = choice === "" ? custom : choice;
   return (
-    <Field label="行き先" htmlFor={`${id}-choice`} hint="押した人を、ここへ送ります。https:// で始まる URL だけです。">
+    <Field label="リンク先" htmlFor={`${id}-choice`} hint="押した人を、ここへ送ります。https:// で始まる URL だけです。">
       <select
         id={`${id}-choice`}
         value={choice}
@@ -50,7 +50,7 @@ function DestinationField({ destinations, id }: { destinations: Destination[]; i
         <option value="">ほかの URL を入れる</option>
       </select>
       {choice === "" && (
-        <Input aria-label="行き先の URL" type="url" inputMode="url" placeholder="https://" value={custom} onChange={(e) => setCustom(e.target.value)} />
+        <Input aria-label="リンク先の URL" type="url" inputMode="url" placeholder="https://" value={custom} onChange={(e) => setCustom(e.target.value)} />
       )}
       <input type="hidden" name="destination" value={value} />
     </Field>

@@ -20,8 +20,8 @@ export const TIPS: Record<TipTrigger, Tip[]> = {
   ],
   // 本文に URL を入れたとき
   url_in_body: [
-    { key: "use_short_link", term: "shortLink", text: "URL を短縮リンクにすると、この投稿から何人が行き先へ進んだかを数えられます。" },
-    { key: "click_then_conversion", term: "conversion", text: "行き先で予約や購入まで進んでもらうことを、コンバージョンと呼びます。リンクのクリックは、その手前の数字です。" },
+    { key: "use_short_link", term: "shortLink", text: "URL を短縮リンクにすると、この投稿から何人がリンク先へ進んだかを数えられます。" },
+    { key: "click_then_conversion", term: "conversion", text: "リンク先で予約や購入まで進んでもらうことを、コンバージョンと呼びます。リンクのクリックは、その手前の数字です。" },
   ],
   // 送り先に Instagram を選んだとき
   instagram_selected: [

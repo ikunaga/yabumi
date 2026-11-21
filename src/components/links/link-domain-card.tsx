@@ -397,7 +397,7 @@ function Connected({ domain, profileLinks }: { domain: LinkDomainView; profileLi
       {profileLinks.length > 0 && (
         <div className="flex flex-col gap-2">
           <p className="text-sm leading-[1.7]">
-            <b>プロフィールのリンクを貼り直してください。</b>前の URL のままでも開けますが、新しい URL のほうが、押す人に行き先が伝わりやすくなります。
+            <b>プロフィールのリンクを貼り直してください。</b>前の URL のままでも開けますが、新しい URL のほうが、押す人にリンク先が伝わりやすくなります。
           </p>
           <ul className="flex flex-col gap-1.5">
             {profileLinks.map((l) => (

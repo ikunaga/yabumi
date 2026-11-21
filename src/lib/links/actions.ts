@@ -37,7 +37,7 @@ export async function createLink(projectId: string, _prev: LinkActionState, form
   if (kind === "profile" && !sns?.success) return { error: "SNS を選んでください。" };
   if (sns && !sns.success) return { error: "SNS の選び方が正しくありません。" };
   const destination = String(formData.get("destination") ?? "").trim();
-  if (!isValidDestination(destination)) return { error: "行き先は https:// で始まる URL にしてください（IP アドレスそのものや、yabumi の URL は使えません）。" };
+  if (!isValidDestination(destination)) return { error: "リンク先は https:// で始まる URL にしてください（IP アドレスそのものや、yabumi の URL は使えません）。" };
   const label = String(formData.get("label") ?? "").trim().slice(0, 100);
 
   const admin = createAdminClient();
@@ -59,7 +59,7 @@ export async function createLink(projectId: string, _prev: LinkActionState, form
       .eq("sns", sns!.data!)
       .is("disabled_at", null)
       .limit(1);
-    if (existing?.length) return { error: "この SNS のプロフィールのリンクはもうあります。行き先を変えるときは、今のリンクを止めてから作ってください。" };
+    if (existing?.length) return { error: "この SNS のプロフィールのリンクはもうあります。リンク先を変えるときは、今のリンクを止めてから作ってください。" };
   }
   try {
     await createShortLink(admin, { ownerId: owner.userId, projectId, destinationUrl: destination, sns: sns?.data ?? null, kind, label });

@@ -22,7 +22,7 @@ import { SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
 const OUTCOME_NOUN: Record<OutcomeAction, string> = { purchase: "購入", signup: "申し込み・登録", booking: "予約", inquiry: "問い合わせ", visit: "来店" };
 const METRIC_NAME: Record<GoalMetric, string> = {
   posts: "投稿した回数",
-  link_clicks: "行き先へのクリック",
+  link_clicks: "リンク先へのクリック",
   downloads: "ダウンロード",
   store_page_views: "ストアのページの閲覧",
   revenue: "課金（売上）",

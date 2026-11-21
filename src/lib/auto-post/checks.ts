@@ -111,7 +111,7 @@ export function plainIssues(
     const sent = withHashtags(body, keep);
     if (overLimit(k, sent) > 0) issues.push({ kind: "too_long", detail: `${k} の字数の上限を超えています` });
     if (/[【】]/.test(body)) issues.push({ kind: "made_up", detail: `${k} に、あなたが書き加えるところ（【】）が残っています` });
-    if (foreignLinks(body, opts.allowedUrls).length) issues.push({ kind: "check_failed", detail: `${k} に、行き先として登録していない URL があります` });
+    if (foreignLinks(body, opts.allowedUrls).length) issues.push({ kind: "check_failed", detail: `${k} に、リンク先として登録していない URL があります` });
     // 利用者が決めたタグ（keep）は、目安より多くても止めない（投稿をつくると同じく目安の注意だけ）。AI が本文に足した分で目安を超えたら止める
     if (extractHashtags(sent).length > Math.max(HASHTAG_RULES[k].max, keep.length)) issues.push({ kind: "check_failed", detail: `${k} のハッシュタグが多すぎます` });
     if (!opts.skipSimilar && maxSimilarity(body, opts.recent[k] ?? []) >= thresholdOf(k)) issues.push({ kind: "similar", detail: `${k} の文が、前の送信済みの投稿と似ています` });

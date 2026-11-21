@@ -86,7 +86,7 @@ export default async function AutoPlanPage(props: PageProps<"/projects/[id]/auto
       {saved === "1" && <SuccessBanner>編集しました。まだ作っていない投稿から、新しい設定で作ります。</SuccessBanner>}
 
       <div className="grid grid-cols-3 gap-3 max-sm:grid-cols-3 max-sm:gap-2">
-        <Metric label="送った" value={sentRuns.length} unit="件" className="max-sm:px-3" />
+        <Metric label="送信済み" value={sentRuns.length} unit="件" className="max-sm:px-3" />
         <Metric label={
             <>
               <span className="max-sm:hidden">下書きに残した</span>

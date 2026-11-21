@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { buildFormatRoundRequest, normalizeRoundProposals } from "@/lib/ai/format-round-ai";
+import { buildFormatRoundRequest, normalizeRoundProposals, type RoundProposal } from "@/lib/ai/format-round-ai";
 import { budgeted } from "@/lib/ai/budget";
 import { callFormatRound } from "@/lib/ai/anthropic";
 import type { PlanData } from "@/lib/plan/schema";
@@ -159,18 +159,26 @@ async function pickSeries(admin: Db, plan: AutoPlan & { ownerId: string }, planD
   const rounds = await listRounds(admin, format.id);
   const used = usedAnswerKeys(rounds);
   if (!format.series.answer) for (const r of rounds) used.add(answerKey(Object.keys(format.series.slots).map((n) => r.values[n] ?? "").join("|")));
-  const call = budgeted(admin, { userId: plan.ownerId, purpose: "auto_post", call: "post_format_round" }, deps.callFormatRound ?? callFormatRound);
-  const r = await call(
-    buildFormatRoundRequest({
-      project: { name: project.name, description: project.description, targetAudience: project.target_audience, productType: project.product_type },
-      plan: planData,
-      format,
-      past: rounds.slice(0, ROUNDS_FOR_AI),
-      wish: "",
-    }),
-  );
-  const proposals = r.stopReason === "end_turn" ? normalizeRoundProposals(r.output, format, used) : null;
-  const p = proposals?.[0];
+  let p: RoundProposal | undefined;
+  if (deps.fakeSeries) {
+    // 偽の AI（AUTO_POST_FAKE_AI）: 空欄を偽の言葉で埋める。本物の AI（Anthropic）は呼ばない（画面の確かめで外に出ないように。2026-11-21 PM の指摘）
+    const n = rounds.length + 1;
+    // ui-wording-ignore: 偽の AI の言葉（画面の確かめ用。本番では使わない）
+    p = { answer: `（偽の AI）答え ${n}`, values: Object.fromEntries(Object.keys(format.series.slots).map((name) => [name, `（偽の AI）${name} ${n}`])), checks: [] };
+  } else {
+    const call = budgeted(admin, { userId: plan.ownerId, purpose: "auto_post", call: "post_format_round" }, deps.callFormatRound ?? callFormatRound);
+    const r = await call(
+      buildFormatRoundRequest({
+        project: { name: project.name, description: project.description, targetAudience: project.target_audience, productType: project.product_type },
+        plan: planData,
+        format,
+        past: rounds.slice(0, ROUNDS_FOR_AI),
+        wish: "",
+      }),
+    );
+    const proposals = r.stopReason === "end_turn" ? normalizeRoundProposals(r.output, format, used) : null;
+    p = proposals?.[0];
+  }
   // シリーズの穴は、広く知られた作品・ものごとの一般的な事実だけ（format-series.md の 4.）。「確かめてほしいところ」の数は記録だけ残し、送る前は AI っぽさチェックに任せる
   if (!p) return { none: true, reason: "cannot_write", detail: "前と重ならない次の投稿の案を出せませんでした" };
   const text = fillFormat(format.body, p.values);
@@ -188,7 +196,8 @@ async function pickSeries(admin: Db, plan: AutoPlan & { ownerId: string }, planD
 
 // default_hashtags: プロジェクトの「いつものタグ」（20261117100000。どの使い道の回にも付ける）
 export type ProjectRow = { name: string; description: string | null; target_audience: string | null; product_type: string | null; default_hashtags?: unknown };
-export type MaterialDeps = { callFormatRound?: typeof callFormatRound };
+// fakeSeries: 偽の AI のとき、シリーズの空欄を偽の言葉で埋める（本物の AI を呼ばない）
+export type MaterialDeps = { callFormatRound?: typeof callFormatRound; fakeSeries?: boolean };
 
 export async function pickMaterial(
   admin: Db,

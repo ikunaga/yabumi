@@ -77,3 +77,9 @@ describe("AI っぽさチェック", () => {
     expect(dedupeTexts([{ sns: "threads", text: "同じ" }, { sns: "x", text: "同じ" }, { sns: "facebook", text: " " }])).toEqual([{ sns: "x", text: "同じ" }]);
   });
 });
+
+describe("指摘の理由の文（2026-11-21 PM の指摘）", () => {
+  it("理由（why）は です・ます で書かせる（自動投稿の注意のうしろに、そのまま出るため）", () => {
+    expect(JSON.stringify(betaZodOutputFormat(aiCheckSchema))).toContain("です・ます で書く");
+  });
+});

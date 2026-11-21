@@ -169,6 +169,20 @@ describe("画像だけで使う空欄（2026-11-20）", () => {
   });
 });
 
+describe("自動投稿の偽の AI（AUTO_POST_FAKE_AI）では、シリーズの空欄も偽の言葉で埋める（2026-11-21 PM の指摘）", () => {
+  it("fakeSeries のときは、次の回の案の AI を呼ばずに、空欄を偽の言葉で埋める", async () => {
+    const id = await addFormat(alice, projectId, { name: "偽の AI のシリーズ", body: "今日の一杯☕\n{豆}", series: { slots: { 豆: "その日のおすすめの豆" } } });
+    const call = vi.fn<CallFormatRound>();
+    const plan = { id: "p", projectId, ownerId: aliceId, kind: "series", materials: { format_id: id }, targets: { threads: "auto" }, instructions: [] } as never;
+    const project = { name: "ねむり日和", description: null, target_audience: null, product_type: "shop" };
+    const m = await pickMaterial(admin, { plan, planData: normalizePlan({}, ""), project, past: [], dueAt: new Date() }, { callFormatRound: call, fakeSeries: true });
+    expect(call).not.toHaveBeenCalled();
+    expect(m).toMatchObject({ fixedTexts: { threads: "今日の一杯☕\n（偽の AI）豆 1" }, series: { values: { 豆: "（偽の AI）豆 1" } } });
+    expect((await admin.from("ai_usage").select("id", { count: "exact", head: true }).eq("owner_id", aliceId)).count).toBe(0);
+    await alice.from("post_formats").delete().eq("id", id);
+  });
+});
+
 describe("次の回の案（偽の AI）", () => {
   const usage = { inputTokens: 4000, cacheWriteTokens: 0, cacheReadTokens: 0, outputTokens: 800 };
   const caller = (output: unknown): CallFormatRound => vi.fn(async () => ({ output, stopReason: "end_turn", model: "claude-opus-5-5", usage }));

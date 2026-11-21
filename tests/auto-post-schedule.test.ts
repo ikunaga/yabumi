@@ -103,6 +103,8 @@ describe("偽の AI の入口", () => {
     expect(fakeAiMode({} as NodeJS.ProcessEnv)).toBeNull();
     expect(fakeAiMode({ AUTO_POST_FAKE_AI: "1" } as unknown as NodeJS.ProcessEnv)).toBe("ok");
     expect(fakeAiMode({ AUTO_POST_FAKE_AI: "held" } as unknown as NodeJS.ProcessEnv)).toBe("held");
+    // 文はふつうに書き、画像だけつくれない（画面の確かめ用）
+    expect(fakeAiMode({ AUTO_POST_FAKE_AI: "image_failed" } as unknown as NodeJS.ProcessEnv)).toBe("image_failed");
     expect(fakeAiMode({ AUTO_POST_FAKE_AI: "1", VERCEL_ENV: "preview" } as unknown as NodeJS.ProcessEnv)).toBeNull();
   });
 

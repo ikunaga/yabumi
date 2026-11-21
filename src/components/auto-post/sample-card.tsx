@@ -8,7 +8,8 @@ import { ErrorBanner } from "@/components/ui/feedback";
 import { Field, Input } from "@/components/ui/field";
 import { HelpTip } from "@/components/ui/help";
 import { SnsTag } from "@/components/ui/marks";
-import { makeAutoSample, makeAutoSampleImage } from "@/lib/auto-post/actions";
+import { makeAutoSample } from "@/lib/auto-post/actions";
+import { AUTO_PHOTO_LIMITS } from "@/lib/ai/photo";
 import { INSTRUCTION_PRESETS, RUN_REASON_TEXT } from "@/lib/auto-post/labels";
 import { AUTO_INSTRUCTION_MAX, AUTO_INSTRUCTIONS_MAX, AUTO_SAMPLE_DAILY_RUNS } from "@/lib/auto-post/schema";
 import type { AutoPlanInput, AutoSample } from "@/lib/auto-post/types";
@@ -37,8 +38,8 @@ type Props = {
 
 const settingsKey = (i: Omit<AutoPlanInput, "consent"> | null) =>
   i ? JSON.stringify({ kind: i.kind, materials: i.materials, targets: i.targets, xLink: i.xLink, instructions: i.instructions, image: i.image }) : "";
-// 見本の画像の見込み（1 枚 約 5 円。AI が場面を考えるときは 約 7〜8 円。docs/design/auto-sample-image.md の 4.）
-const IMAGE_YEN = "5〜8";
+// 画像もつくるときの、テスト 1 回の見込み（文 約 10 円 ＋ 画像 1 枚 約 5〜8 円。docs/design/auto-sample-image.md の 4.。2026-11-21 から文と一緒につくる）
+const SAMPLE_WITH_IMAGE_YEN = "15〜18";
 
 export function SampleCard(p: Props) {
   const [sample, setSampleState] = useState<AutoSample | null>(null);
@@ -48,13 +49,13 @@ export function SampleCard(p: Props) {
   const [remember, setRemember] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sampling, startSample] = useTransition();
-  const [drawing, startDraw] = useTransition();
 
   const setSample = (s: AutoSample | null, key: string) => {
     setSampleState(s);
     setMadeWith(key);
     p.onSample?.(s);
-    if (p.adopt) p.adopt.set(!!s?.sampleId && s.issues.length === 0 && Object.keys(s.texts).length > 0);
+    // 画像の設定がある回し方は、画像もできたときだけ 1 回目として送れる（画像なしの見本は、本番と同じではないため）
+    if (p.adopt) p.adopt.set(!!s?.sampleId && s.issues.length === 0 && Object.keys(s.texts).length > 0 && (!p.input()?.image || !!s.image));
   };
 
   const make = (opts: { instructions?: string[]; oneTime?: string; same?: boolean } = {}) =>
@@ -106,20 +107,6 @@ export function SampleCard(p: Props) {
 
   const wrote = !!sample && Object.keys(sample.texts).length > 0;
   const wantsImage = !!p.input()?.image;
-  const draw = () =>
-    startDraw(async () => {
-      setError(null);
-      if (!sample?.sampleId) return;
-      const r = await makeAutoSampleImage(p.projectId, sample.sampleId);
-      if (!r.ok) {
-        setError(r.error);
-        return;
-      }
-      const next = { ...sample, image: r.data };
-      setSampleState(next);
-      p.onSample?.(next);
-      if (p.adopt) p.adopt.set(next.issues.length === 0);
-    });
   const stale = !!sample && madeWith !== settingsKey(p.input() ? { ...p.input()!, instructions: p.instructions } : null);
   // 画像を選んだ回し方は、見本の画像もつくってから（画像なしの見本は、実際の回と同じではないため）
   const canAdopt = !!p.adopt && wrote && !!sample?.sampleId && sample.issues.length === 0 && !stale && (!wantsImage || !!sample.image);
@@ -131,10 +118,13 @@ export function SampleCard(p: Props) {
           <div className="flex items-center gap-2">
             <h2 className="text-[18px] font-bold max-sm:text-[16px]">テストで 1 件つくる</h2>
             <HelpTip label="テストでつくることについて">
-              1 件つくるのに、約 {SAMPLE_YEN} 円かかります。1 日 {AUTO_SAMPLE_DAILY_RUNS} 回までつくれます。1 回目として送らないときは、つくった投稿は 1 日で消えます。
+              1 件つくるたびに、約 {wantsImage ? SAMPLE_WITH_IMAGE_YEN : SAMPLE_YEN} 円かかります。
+              {wantsImage && `画像は 1 か月に ${AUTO_PHOTO_LIMITS.userMonthlyImages} 枚までつくれます。テストの画像も 1 枚に数えます。`}
+              1 日 {AUTO_SAMPLE_DAILY_RUNS} 回までつくれます。「この投稿を 1 回目として送る」を選ばないと、つくった投稿は 1 日で消えます。
             </HelpTip>
           </div>
           <p className="text-sm text-muted">設定どおりに 1 件つくって見せます。SNS には送りません。</p>
+          {wantsImage && <p className="num text-sm text-muted">画像も 1 枚、一緒につくります。1 件 約 {SAMPLE_WITH_IMAGE_YEN} 円です。</p>}
         </div>
         <Button type="button" variant="secondary" disabled={sampling} onClick={() => make()}>
           {sampling ? "つくっています…" : sample ? "もう一度つくる" : "テストで 1 件つくる"}
@@ -147,14 +137,7 @@ export function SampleCard(p: Props) {
           <SampleView sample={sample} />
         </div>
       )}
-      {wrote && wantsImage && !sample!.image && sample!.issues.length === 0 && sample!.sampleId && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-dashed border-line px-4 py-3">
-          <p className="text-sm text-muted">画像は、押したときだけつくります（文を作り直しても、画像はつくり直しません）。</p>
-          <Button type="button" variant="secondary" size="sm" disabled={drawing || sampling} onClick={draw}>
-            {drawing ? "つくっています…" : `画像もつくる（約 ${IMAGE_YEN} 円）`}
-          </Button>
-        </div>
-      )}
+      {wrote && sample!.imageFailed && <p className="rounded-md border border-dashed border-line px-4 py-3 text-sm text-muted">画像をつくれませんでした。「もう一度つくる」を押すと、つくれることがあります。</p>}
       {stale && <p className="text-sm text-muted">テストでつくったあとに設定を変えました。いまの設定で見るには、もう一度つくってください。</p>}
 
       {wrote && p.series && <p className="text-sm text-muted">シリーズは、フォーマットの型の文で書きます。書き方を変えるときは、フォーマットを編集してください。</p>}
@@ -178,7 +161,7 @@ export function SampleCard(p: Props) {
           </label>
           <div className="flex justify-end max-sm:flex-col max-sm:items-stretch">
             <Button type="button" disabled={sampling || chosen.length === 0} onClick={() => void redo()}>
-              {sampling ? "つくっています…" : `この指示で作り直す（約 ${SAMPLE_YEN} 円）`}
+              {sampling ? "つくっています…" : "この指示で作り直す"}
             </Button>
           </div>
         </div>
@@ -209,9 +192,9 @@ export function SampleCard(p: Props) {
               {canAdopt
                 ? "1 回目の日時に、この投稿をそのまま送ります。「確認して送る」にした SNS は、いつもどおり送る前に中身を見てください。"
                 : sample?.issues.length
-                  ? "この投稿には注意が出たので、1 回目として送れません。もう一度つくると、送れるようになることがあります。"
+                  ? "注意が出た投稿は、1 回目として送れません。「もう一度つくる」を押すと、注意が消えることがあります。"
                   : wantsImage && !sample?.image && !stale
-                    ? "画像もつくると選べます。"
+                    ? "画像がないので、1 回目として送れません。「もう一度つくる」を押すと、画像もできることがあります。"
                     : "いまの設定で作り直すと選べます。"}
             </span>
           </span>
@@ -229,7 +212,7 @@ export function SampleView({ sample }: { sample: AutoSample }) {
   const issues = cannot ? [] : sample.issues;
   return (
     <div className="flex flex-col gap-3">
-      {sample.materialLabel && <p className="text-sm text-muted">材料: {sample.materialLabel}</p>}
+      {sample.materialLabel && <p className="text-sm text-muted">投稿のもと: {sample.materialLabel}</p>}
       {cannot && (
         <div className="flex flex-col gap-1">
           <p className="text-[15px] font-bold">この中身では書けませんでした。本番なら、この日の投稿は飛ばします。</p>
@@ -245,8 +228,9 @@ export function SampleView({ sample }: { sample: AutoSample }) {
           {issues.map((i, n) => (
             <li key={n}>
               <span className="font-bold text-signal">● </span>
-              {RUN_REASON_TEXT[i.kind]}
-              {i.detail && <span className="text-muted">（{i.detail}）</span>}
+              {/* かっこ書きにせず、2 文に分ける（ui-writing.md の決まり 2） */}
+              {RUN_REASON_TEXT[i.kind]}。
+              {i.detail && <span className="text-muted">{/[。.!?！？]$/.test(i.detail) ? i.detail : `${i.detail}。`}</span>}
             </li>
           ))}
         </ul>
@@ -263,7 +247,7 @@ export function SampleView({ sample }: { sample: AutoSample }) {
             {/* eslint-disable-next-line @next/next/no-img-element -- 署名つきの URL は期限があり、next/image の最適化を通さない */}
             <img src={sample.image.url} alt={sample.image.alt || "テストでつくった投稿の画像"} className="h-auto w-full object-contain" />
           </div>
-          <figcaption className="text-xs leading-[1.6] text-muted">AI で作った画像{sample.image.alt ? `（画像の説明: ${sample.image.alt}）` : ""}</figcaption>
+          <figcaption className="text-xs leading-[1.6] text-muted">AI でつくった画像です。本番の投稿にも、このような画像が付きます。</figcaption>
         </figure>
       )}
     </div>

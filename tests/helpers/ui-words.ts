@@ -13,7 +13,7 @@ export const UI_WORD_RULES: UiWordRule[] = [
   { id: "naosu", pattern: /(^|[をでがはもとへ、。「」\s（])直[すしせさ]/ },
   { id: "okyaku", pattern: /お客さん/ },
   { id: "renkei", pattern: /連携|接続/ },
-  { id: "zumi", pattern: /公開済み|投稿済み|送った投稿/ },
+  { id: "zumi", pattern: /公開済み|投稿済み|送った投稿|^送った$/ },
   { id: "jidou", pattern: /自動の投稿/ },
   // 最初の画面の名前は「ホーム」（2026-11-21 オーナーの決定）。画面の名前でない「概要」は引っかけない
   { id: "home", pattern: /概要(?:へ|に戻る|の「|の帯|の画面|で見られ|から開|に「)|^Overview$/ },

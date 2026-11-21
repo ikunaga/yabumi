@@ -276,35 +276,34 @@ export async function makeAutoSample(projectId: string, input: Omit<AutoPlanInpu
       if (r.reason === "ai_limit") return { ok: false, error: r.detail || "今月の自動投稿の AI の枠を使い切りました。" };
       return { ok: true, data: { sampleId: null, texts: {}, materialLabel: "", issues: [{ kind: r.reason, detail: r.detail }] } };
     }
-    return { ok: true, data: { sampleId: r.sampleId, texts: r.texts, tags: r.tags, materialLabel: r.label, issues: r.issues } };
+    const data: AutoSample = { sampleId: r.sampleId, texts: r.texts, tags: r.tags, materialLabel: r.label, issues: r.issues };
+    // 画像の設定がある回し方は、文と一緒に画像（見出しを重ねる設定なら見出しも）をつくる。注意が出た見本でもつくる（本番でどう見えるかを確かめるため。
+    // 2026-11-21 オーナーの決定）。つくれなかったら文だけ返し、imageFailed を付ける
+    if (v.image && r.sampleId && Object.keys(r.texts).length > 0) {
+      data.image = deps.image ? await sampleImage(admin, deps, { ownerId: userId, projectId, sampleId: r.sampleId }) : null;
+      data.imageFailed = !data.image;
+    }
+    return { ok: true, data };
   } catch (e) {
     console.error("[auto-post] 見本を作れませんでした", e instanceof Error ? e.message : e);
     return { ok: false, error: FAILED };
   }
 }
 
-// 見本の画像をつくる（「画像もつくる」。文の作り直しとは別。AI の画像を 1 枚・自動の投稿の分の枠）。見る URL は 1 時間で切れる
-export async function makeAutoSampleImage(projectId: string, sampleId: string): Promise<AutoResult<NonNullable<AutoSample["image"]>>> {
-  if (!uuid.safeParse(projectId).success || !uuid.safeParse(sampleId).success) return { ok: false, error: BAD };
-  const db = await createClient();
-  const { data: claims } = await db.auth.getClaims();
-  const userId = claims?.claims?.sub;
-  if (!userId) return SIGN_IN;
-  const { data: project } = await db.from("projects").select("id").eq("id", projectId).maybeSingle();
-  if (!project) return { ok: false, error: "プロジェクトが見つかりません。" };
-  if (await myAutoPostHold(db)) return { ok: false, error: HOLD_REFUSED };
-  const admin = createAdminClient();
-  const deps = engineDeps(admin);
-  if (!deps?.image) return { ok: false, error: "AI の画像はまだ準備中です。" };
+// 見本の画像をつくり、見る URL（1 時間で切れる）を付ける。つくれなかったら null（理由はサーバーの記録だけ）
+async function sampleImage(admin: ReturnType<typeof createAdminClient>, deps: NonNullable<ReturnType<typeof engineDeps>>, args: { ownerId: string; projectId: string; sampleId: string }): Promise<AutoSample["image"]> {
   try {
-    const r = await makeSampleImage(admin, deps, { ownerId: userId, projectId, sampleId });
-    if (!r.ok) return { ok: false, error: `${r.detail}。` };
+    const r = await makeSampleImage(admin, deps, args);
+    if (!r.ok) {
+      console.error("[auto-post] 見本の画像をつくれませんでした", r.detail);
+      return null;
+    }
     const { data: url, error } = await admin.storage.from(MEDIA_BUCKET).createSignedUrl(r.image.path, PREVIEW_URL_SECONDS);
-    if (error || !url) return { ok: false, error: FAILED };
-    return { ok: true, data: { url: url.signedUrl, width: r.image.width, height: r.image.height, alt: r.image.alt } };
+    if (error || !url) return null;
+    return { url: url.signedUrl, width: r.image.width, height: r.image.height, alt: r.image.alt };
   } catch (e) {
     console.error("[auto-post] 見本の画像をつくれませんでした", e instanceof Error ? e.message : e);
-    return { ok: false, error: FAILED };
+    return null;
   }
 }
 

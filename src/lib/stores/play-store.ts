@@ -27,6 +27,7 @@ import {
 } from "./google";
 import { openStoredCredential, withoutProjectJoin } from "./store";
 import { SNS_KEYS } from "@/lib/sns";
+import { LEGAL } from "@/lib/legal/info";
 
 // yabumi の短縮リンクが Google Play の referrer に入れる utm_source（SNS の名前。SNS を決めていないリンクは "link"。links/rules.ts）
 const UTM_SOURCES = [...SNS_KEYS, "link"] as const;
@@ -59,8 +60,8 @@ export async function startPlayConnection(admin: Admin, ownerId: string, project
     // 1 人がつなげる数・30 日に作れる数の上限（DB のトリガー。Google Cloud のアカウントの数をほかの人の分まで使わないように）
     if (error.message.includes("play_connection_limit")) throw new StoreApiError("Google Play をつなげるのは 3 つのプロジェクトまでです。使っていないプロジェクトの Google Play を外してください。", 429);
     // 全員を合わせた上限（メールアドレスを変えて登録し直しても、Google Cloud のアカウントを使い切れないように）
-    if (error.message.includes("play_connection_capacity")) throw new StoreApiError("Google Play のつなぎが混み合っていて、いまは新しくつなげません。yabumi の運営が確認していますので、しばらくたってからお試しください。", 503);
-    if (error.message.includes("play_connection_rate")) throw new StoreApiError("Google Play のつなぎ直しが続いています（30 日に 5 回まで）。しばらくたってからお試しください。yabumi の運営に知らせてもかまいません。", 429);
+    if (error.message.includes("play_connection_capacity")) throw new StoreApiError("いまは、Google Play を新しくつなげません。yabumi を使う人みんなで、30 日につなげる数の上限に達しました。あなたの操作のせいではありません。遅くとも 30 日のうちに、またつなぐことができます。", 503);
+    if (error.message.includes("play_connection_rate")) throw new StoreApiError(`Google Play のつなぎ直しは、30 日に 5 回までです。いまは、この上限に達しています。最後につなぎ直した日から 30 日のうちに、またつなぐことができます。${LEGAL.contact ? `急ぐときは、${LEGAL.contact} に知らせてください。` : ""}`, 429);
     // 同時に 2 回押されたなど。先に入った方を使う
     const { data: again } = await admin.from("play_connections").select("service_account_email").eq("project_id", projectId).eq("owner_id", ownerId).maybeSingle();
     if (again) return again.service_account_email;
@@ -120,7 +121,7 @@ export function playCapacityMail(count: number, threshold: number) {
       `Google Play の読み取り用アカウントを直近 30 日に作った数: ${count}`,
       `全員を合わせた上限: ${PLAY_CAPACITY_LIMIT}（Google Cloud のサービスアカウントは既定 100 個）`,
       full
-        ? "上限に達したので、いま利用者が新しく Google Play をつなぐと「混み合っています」と出ます（つないである人の取り込みは続きます）。"
+        ? "上限に達しました。新しく Google Play をつなごうとした利用者には、つなげないと出ます。30 日のうちにつなげる、という目安も出ます。つないである人の取り込みは続きます。"
         : `このしきい値（${threshold}）を超えました。上限に達すると、新しくつなげなくなります。`,
       "",
       "確認すること（docs/deploy.md の 15 の「運営者の見方」）:",

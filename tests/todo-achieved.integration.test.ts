@@ -4,7 +4,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { toCalendarTodo } from "@/lib/calendar/roadmap-view";
 import { listNextStep } from "@/lib/projects/next-step";
-import { loadRoadmapWith, thisWeekCounts, thisWeekTodos } from "@/lib/roadmap/load";
+import { loadRoadmapWith, thisWeekTodos, weekTodoCounts } from "@/lib/roadmap/load";
 import { adminClient, deleteUser, signUpNewUser, type TestClient, goalLess } from "./helpers/supabase";
 
 const admin = adminClient();
@@ -43,7 +43,7 @@ async function compare() {
   const view = await loadRoadmapWith(alice, projectId, NOW);
   const { data, error } = await alice.rpc("project_step_flags", { p_project_id: projectId, p_week_start: view.thisWeek });
   if (error) throw error;
-  const app = thisWeekCounts(view);
+  const app = weekTodoCounts(view);
   return { view, db: Number(data[0].this_week_todo), app: app.open, dbDone: Number(data[0].this_week_done), appDone: app.finished };
 }
 
@@ -143,7 +143,7 @@ describe("数字で達成したやることを、一覧と概要で同じに数�
 });
 
 // 2026-11-12 PMO の本番での通しテスト: 数字で数えないやることは、そのやることから作った投稿（roadmap_item_id）を送っても「まだ」に残った。
-// 結びついた投稿の配信先が 1 つ以上送信済みなら済み。予約だけ・失敗だけでは済みにしない。一覧（DB）・概要とロードマップ（thisWeekCounts）・カレンダーで同じ
+// 結びついた投稿の配信先が 1 つ以上送信済みなら済み。予約だけ・失敗だけでは済みにしない。一覧（DB）・概要とロードマップ（weekTodoCounts）・カレンダーで同じ
 describe("数字で数えないやることは、ここから作った投稿を送ったら済み（一覧・概要・カレンダーで同じ）", () => {
   let pid: string;
   let profileId: string;
@@ -164,7 +164,7 @@ describe("数字で数えないやることは、ここから作った投稿を�
     const view = await loadRoadmapWith(alice, pid, NOW);
     const { data, error } = await alice.rpc("project_step_flags", { p_project_id: pid, p_week_start: view.thisWeek });
     if (error) throw error;
-    const app = thisWeekCounts(view);
+    const app = weekTodoCounts(view);
     const calendar = view.items.filter((i) => i.weekStart === view.thisWeek).map((i) => toCalendarTodo(i, view.daily, view.today));
     return {
       db: [Number(data[0].this_week_todo), Number(data[0].this_week_done)],

@@ -1,7 +1,7 @@
 // 数字の目標に届いたやることは「達成」（済みと同じに数える。DB の status は書き換えず、読むときに決める。オーナーの指摘 2026-11-03）
 import { describe, expect, it } from "vitest";
 import { toCalendarTodo } from "@/lib/calendar/roadmap-view";
-import { overdueItems, thisWeekCounts, thisWeekTodos, type RoadmapItem, type RoadmapView } from "@/lib/roadmap/load";
+import { overdueItems, weekTodoCounts, thisWeekTodos, type RoadmapItem, type RoadmapView } from "@/lib/roadmap/load";
 import { effectiveStatus, itemProgress } from "@/lib/roadmap/schema";
 
 const WEEK = "2026-11-02";
@@ -92,14 +92,14 @@ describe("今週のやること（概要の帯・残りの一覧・件数）", (
 
   it("先頭は達成していないやること。件数は達成と済みを除いた数で、上限で切らない", () => {
     expect(thisWeekTodos(view).map((t) => t.id)).toEqual(["b", "c"]);
-    expect(thisWeekCounts(view)).toEqual({ open: 2, finished: 2 });
-    expect(thisWeekTodos(view, 1).map((t) => t.id)).toEqual(["b"]);
+    expect(weekTodoCounts(view)).toEqual({ open: 2, finished: 2, carried: 0 });
+    expect(thisWeekTodos(view, null, 1).map((t) => t.id)).toEqual(["b"]);
   });
 
   it("全部が達成か済みなら、まだのやることは 0 件（帯は「今週のやることは、すべて完了しました」）", () => {
     const done: RoadmapView = { ...view, items: view.items.filter((i) => ["a", "d", "e"].includes(i.id)) };
     expect(thisWeekTodos(done)).toEqual([]);
-    expect(thisWeekCounts(done)).toEqual({ open: 0, finished: 2 });
+    expect(weekTodoCounts(done)).toEqual({ open: 0, finished: 2, carried: 0 });
   });
 });
 

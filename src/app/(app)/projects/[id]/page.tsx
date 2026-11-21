@@ -44,7 +44,7 @@ import { getProject } from "@/lib/projects/queries";
 import { loadStepStates } from "@/lib/projects/step-state";
 import { overdueItems } from "@/lib/roadmap/load";
 import { isPostDismissed, isTodoDismissed, loadAttentionDismissals } from "@/lib/attention/dismissals";
-import { loadRoadmap, thisWeekCounts, thisWeekTodos } from "@/lib/roadmap/queries";
+import { loadRoadmap, thisWeekTodos, weekTodoCounts } from "@/lib/roadmap/queries";
 import { itemProgress } from "@/lib/roadmap/schema";
 import { listProjectSnsAccounts } from "@/lib/sns/queries";
 import { createClient } from "@/lib/supabase/server";
@@ -101,7 +101,10 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
   const stepState = stepStates[project.id];
   const stepIndex = currentStepIndex(stepState);
   // 今週のまだのやること（数字で達成したものは済みと同じに数える。帯の先頭・件数・残りの一覧はどれもこれから）
-  const todos = thisWeekTodos(roadmap);
+  // 数えるのは今の目標のやること（目標のないやることを含む）。ロードマップと同じ（roadmap/load.ts の scopeToGoal）
+  const goalId = goals.active?.goal.id ?? null;
+  const todos = thisWeekTodos(roadmap, goalId);
+  const weekCounts = weekTodoCounts(roadmap, goalId);
   const now = new Date();
   const scheduled = upcoming.filter((p) => displayStatus(p) === "scheduled").slice(0, 3);
   // 今日の用語（4.47）: その人の状況に合う語を、まだ読んでいない語から。読めなくても概要は出す
@@ -179,7 +182,8 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
         coachReady={stepState.planDone && stepIndex >= STEPS.length}
         todos={todos}
         progress={Object.fromEntries(todos.map((t) => [t.id, itemProgress(t, roadmap.daily)]))}
-        doneCount={thisWeekCounts(roadmap).finished}
+        doneCount={weekCounts.finished}
+        carriedCount={weekCounts.carried}
         aiEnabled={aiConfigured()}
         goalReview={goalReview}
         cycleMerged={cycleMergedIntoGoal(goals.active?.goal ?? null, coach?.cycle?.ended ? coach.cycle.endsOn : null)}

@@ -19,10 +19,10 @@ import { aiConfigured } from "@/lib/ai/anthropic";
 import { getGoals, kpiWeekTotals } from "@/lib/goals/queries";
 import { isLegacyActionGoal, kgiMetricFor } from "@/lib/goals/schema";
 import { goalRisk, reviseChoices } from "@/lib/goals/risk";
-import { formatMetric, md, METRIC_UNIT, metricLabel, PROJECT_MIN_DAYS } from "@/lib/goals/view";
+import { formatMetric, md, METRIC_UNIT, metricLabel, notCountedText, PROJECT_MIN_DAYS } from "@/lib/goals/view";
 import { getAccountPlan } from "@/lib/plan/queries";
 import { getProject } from "@/lib/projects/queries";
-import { itemState, loadRoadmap, thisWeekCounts, type RoadmapItem } from "@/lib/roadmap/queries";
+import { itemState, loadRoadmap, scopeToGoal, weekTodoCounts, type RoadmapItem } from "@/lib/roadmap/queries";
 import { itemProgress, notCountedYet, weekValue } from "@/lib/roadmap/schema";
 import { SNS_KEYS } from "@/lib/sns";
 import { addDays, dayOfMonth, monthOf } from "@/lib/time";
@@ -63,7 +63,7 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
   const choices = risk && goal ? reviseChoices(goal, risk) : [];
 
   // いまの目標のやること（目標を替えたとき、今週以降のまだのものは新しい目標に移る）。前の目標のものは「これまでの目標」に
-  const items = allItems.filter((i) => !goal || i.goalId === null || i.goalId === goal.id);
+  const items = scopeToGoal(allItems, goal?.id ?? null);
   const stateOf = (item: RoadmapItem) => itemState(item, daily);
   const groups: { key: string; label: string; items: RoadmapItem[] }[] = [];
   for (const item of items) {
@@ -79,7 +79,7 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
   }
   groups.sort((a, b) => (a.key === "overdue" ? -1 : b.key === "overdue" ? 1 : a.key.localeCompare(b.key)));
   const past = items.filter((i) => i.weekStart < thisWeek && stateOf(i) !== "todo");
-  const { open: thisWeekTodo, finished: thisWeekDone } = thisWeekCounts(view);
+  const { open: thisWeekTodo, finished: thisWeekDone, carried } = weekTodoCounts(view, goal?.id ?? null);
   const weeks = Array.from({ length: 9 }, (_, n) => addDays(thisWeek, n * 7)).map((w) => ({ value: w, label: weekLabel(w, thisWeek) }));
   const row = (item: RoadmapItem) => (
     <RoadmapItemRow key={item.id} projectId={id} item={item} aiEnabled={ai} progress={itemProgress(item, daily)} notCounted={item.kpi ? notCountedYet(item.kpi, project.product_type) : null} />
@@ -130,38 +130,50 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
               "まだ決めていません"
             ) : (
               <>
-                {p?.available ? `目標 ${formatMetric(goal.metric, p.target)}${unitOf(goal.metric)}` : "数えていません"}
+                {p?.available ? `目標 ${formatMetric(goal.metric, p.target)}${unitOf(goal.metric)}` : notCountedText(goal.metric, project.product_type)}
                 <span className="block truncate">{metricName}</span>
               </>
             )
           }
         />
         <Metric label="期限まで" value={p ? p.daysLeft : "—"} unit={p ? "日" : undefined} note={hasKgi && goal?.endsOn ? md(goal.endsOn) : undefined} />
-        <Metric label="今週のやること" value={thisWeekTodo} unit="件" note={`完了 ${thisWeekDone} 件`} />
+        {/* 大きい数字は今週のまだの数。完了の数は「ほかに」と書いて、全部の数に読めないようにする（確認役の指摘）。前の週の残りも添える */}
+        <Metric
+          label="今週のやること"
+          value={thisWeekTodo}
+          unit="件"
+          note={
+            <>
+              ほかに完了 {thisWeekDone} 件
+              {carried > 0 && <span className="block font-bold text-signal">前の週の残り {carried} 件</span>}
+            </>
+          }
+        />
         <Metric
           label={
             <span className="inline-flex items-center gap-1.5">
-              {hasKgi && goal?.endsOn ? `${md(goal.endsOn)} の見込み` : "期限の見込み"}
-              <HelpTip label="見込みの出し方">今までの 1 日あたりの数で、期限まで続けたときの数です。数え始めて {PROJECT_MIN_DAYS} 日たつと出ます。</HelpTip>
+              {hasKgi && goal?.endsOn ? `このままなら ${md(goal.endsOn)} には` : "目標の見込み"}
+              <HelpTip label="見込みの出し方">いまの 1 日あたりの数のまま、期限まで続けたときの数です。{PROJECT_MIN_DAYS} 日分の数字がたまると出ます。</HelpTip>
             </span>
           }
           value={p?.projected != null && goal?.metric ? formatMetric(goal.metric, p.projected) : "—"}
           unit={p?.projected != null && goal?.metric ? METRIC_UNIT[goal.metric] || undefined : undefined}
           note={
             !hasKgi || !goal?.metric || !p ? (
-              "まだ決めていません"
+              "目標をまだ決めていません"
             ) : p.projected != null ? (
               <>
-                このペースなら。目標 {formatMetric(goal.metric, p.target)}
-                {unitOf(goal.metric)}{" "}
+                <span className="block truncate">{metricName}</span>
+                目標 {formatMetric(goal.metric, p.target)}
+                {unitOf(goal.metric)}に{" "}
                 {p.projected >= p.target ? <span className="font-bold text-success">届きそう</span> : <span className="font-bold text-signal">届かない見込み</span>}
               </>
             ) : !p.available ? (
-              "数えていません"
+              notCountedText(goal.metric, project.product_type)
             ) : goal.metric === "revenue" ? (
               "売上は見込みを出しません"
             ) : (
-              `あと ${Math.max(1, PROJECT_MIN_DAYS - p.countedDays)} 日数えると出ます`
+              `あと ${Math.max(1, PROJECT_MIN_DAYS - p.countedDays)} 日で出ます`
             )
           }
         />

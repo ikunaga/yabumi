@@ -114,6 +114,7 @@ function MainBand({
   todos,
   progress,
   doneCount,
+  carriedCount = 0,
   aiEnabled,
   goalReview,
   cycleMerged,
@@ -128,6 +129,8 @@ function MainBand({
   todos: RoadmapItem[];
   progress: Record<string, { actual: number; target: number } | null>;
   doneCount: number;
+  // 前の週から残っている、まだのやることの数（ロードマップの「まだ完了していない、前の週のこと」と同じ。roadmap/load.ts の carriedTodos）
+  carriedCount?: number;
   aiEnabled: boolean;
   // 目標の振り返り（期限が来た・届いた。lib/goals/review.ts）
   goalReview: GoalReview | null;
@@ -201,7 +204,21 @@ function MainBand({
 
   const roadmapHref = `${base}/roadmap`;
   // 済んだ・まだ決めていないの分け方は、プロジェクトの一覧の「次にやること」と同じ（weekTodoPhase）
-  const phase = weekTodoPhase({ open: todos.length, finished: doneCount });
+  const phase = weekTodoPhase({ open: todos.length, finished: doneCount, carried: carriedCount });
+  // 今週分は済んだが、前の週のやることが残っている: 「すべて完了」と出さず、残りを伝えてロードマップへ（2026-11-21 オーナーの指摘）
+  if (phase === "carried") {
+    return (
+      <ActionBar
+        label="今週のやること"
+        title={`${doneCount > 0 ? "今週のやることは完了しました。" : ""}前の週のやることが ${carriedCount} 件残っています`}
+        action={
+          <ButtonLink href={roadmapHref} size="sm">
+            ロードマップで見る
+          </ButtonLink>
+        }
+      />
+    );
+  }
   if (phase !== "open") {
     return (
       <ActionBar
@@ -222,7 +239,7 @@ function MainBand({
   return (
     <div className="flex flex-col gap-2">
       <ActionBar
-        label={`今週のやること ${todos.length} 件`}
+        label={carriedCount > 0 ? `やること あと ${todos.length + carriedCount} 件` : `今週のやること ${todos.length} 件`}
         title={<TodoText item={first} progress={progress[first.id]} />}
         action={
           // 数字で数えないやること（プロフィールに置く・振り返るなど）は、ここで済みにできる。数字のものは届けば自動で済み
@@ -240,6 +257,14 @@ function MainBand({
           )
         }
       />
+      {carriedCount > 0 && (
+        <p className="text-[14px] text-muted">
+          このうち {carriedCount} 件は、前の週のやることです。{" "}
+          <Link href={roadmapHref} className="underline hover:text-fg">
+            ロードマップで見る →
+          </Link>
+        </p>
+      )}
       {others.length > 0 && (
         <DisclosureBox label="今週のやることの残りを表示" count={others.length} bodyClassName="mt-2 text-[14px] leading-[1.75] text-muted">
           <ul className="flex flex-col gap-1">

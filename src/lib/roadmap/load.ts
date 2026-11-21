@@ -139,13 +139,27 @@ export function itemState(item: RoadmapItem, daily: DailyTotal[]): ItemState {
   return effectiveStatus(item, itemProgress(item, daily));
 }
 
-// 概要の「今週のやること」: 今週の済んでいない（手で済みにしていない・数字で達成していない）もの。limit を渡せばその件数まで
-export function thisWeekTodos(view: RoadmapView, limit = Infinity): RoadmapItem[] {
-  return view.items.filter((i) => i.weekStart === view.thisWeek && itemState(i, view.daily) === "todo").slice(0, limit);
+// 今の目標のやること（目標のないやることを含む）。目標がなければ全部。ロードマップに並べるもの・ホームと一覧で数えるものは、どれもこれで絞る
+// （DB の project_step_flags も同じ。2026-11-21 PM の確かめ: 前は数だけ目標で絞っていなかった）
+export function scopeToGoal(items: RoadmapItem[], goalId: string | null): RoadmapItem[] {
+  return goalId ? items.filter((i) => i.goalId === null || i.goalId === goalId) : items;
 }
 
-// 今週のやることの件数（まだ・済み（手で済みにした＋数字で達成した））。やらないことにしたものは数えない
-export function thisWeekCounts(view: RoadmapView): { open: number; finished: number } {
-  const states = view.items.filter((i) => i.weekStart === view.thisWeek).map((i) => itemState(i, view.daily));
-  return { open: states.filter((s) => s === "todo").length, finished: states.filter(isFinished).length };
+// ホームの「今週のやること」: 今週の済んでいない（手で済みにしていない・数字で達成していない）もの。limit を渡せばその件数まで
+export function thisWeekTodos(view: RoadmapView, goalId: string | null = null, limit = Infinity): RoadmapItem[] {
+  return scopeToGoal(view.items, goalId).filter((i) => i.weekStart === view.thisWeek && itemState(i, view.daily) === "todo").slice(0, limit);
+}
+
+// 前の週から残っている、まだのやること（ロードマップの「まだ完了していない、前の週のこと」と同じ）
+export function carriedTodos(view: RoadmapView, goalId: string | null = null): RoadmapItem[] {
+  return scopeToGoal(view.items, goalId).filter((i) => i.weekStart < view.thisWeek && itemState(i, view.daily) === "todo");
+}
+
+// やることの件数: 今週のまだ・今週の済み（手で済みにした＋数字で達成した）・前の週のまだ。やらないことにしたものは数えない。
+// ホームの帯と数字・ロードマップの数字・プロジェクトの一覧（DB の project_step_flags）は、どれもこの決め方（weekTodoPhase で段階に分ける）
+export function weekTodoCounts(view: RoadmapView, goalId: string | null = null): { open: number; finished: number; carried: number } {
+  const states = scopeToGoal(view.items, goalId)
+    .filter((i) => i.weekStart === view.thisWeek)
+    .map((i) => itemState(i, view.daily));
+  return { open: states.filter((s) => s === "todo").length, finished: states.filter(isFinished).length, carried: carriedTodos(view, goalId).length };
 }

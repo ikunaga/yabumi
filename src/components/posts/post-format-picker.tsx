@@ -15,6 +15,8 @@ import { DEFAULT_ANSWER_NAME, MAX_ROUND_ANSWER, MAX_ROUND_WISH, ROUND_PROPOSALS,
 import { MAX_SLOT_VALUE, fillFormat, unfilledSlots, formatSlots, hasFormatHashtags, type FormatHashtags, type PostFormat } from "@/lib/post-formats/schema";
 import { FormatTagsLine } from "@/components/formats/format-manager";
 import { DisclosureBox } from "@/components/ui/disclosure";
+import { AiQuotaNote } from "@/components/ai/ai-quota-note";
+import { useAiQuota } from "@/components/ai/use-ai-quota";
 
 // 投稿のフォーマットを選んだ状態（整えるに渡す。docs/design/post-formats.md の 4）
 // answer: シリーズのこの回の答え（本文には出ない。書きかけの控えに乗せる）
@@ -312,6 +314,8 @@ function SeriesNextRound({
   aiEnabled: boolean;
   onPick: (p: RoundProposal) => void;
 }) {
+  // AI を使える量を使い切っているときは押せない（理由はボタンの下に 1 行）
+  const quota = useAiQuota("post_format_round", aiEnabled);
   const [wish, setWish] = useState("");
   const [proposals, setProposals] = useState<RoundProposal[] | null>(null);
   const [picked, setPicked] = useState<number | null>(null);
@@ -355,9 +359,12 @@ function SeriesNextRound({
   return (
     <div className="flex flex-col gap-2 rounded-md bg-surface2 px-3 py-2.5">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <Button type="button" size="sm" variant="secondary" disabled={pending} onClick={ask}>
+        <Button type="button" size="sm" variant="secondary" disabled={pending || quota.blocked !== null} onClick={ask}>
           {pending ? "考えています…" : failedOnce ? "もう一度出してもらう" : proposals ? "ほかの案を出してもらう" : "AI に次の投稿の案を出してもらう"}
         </Button>
+        <span className="basis-full">
+          <AiQuotaNote blocked={quota.blocked} />
+        </span>
         <span className="text-xs text-muted">前の投稿と重ならない案を 3 つ出します。1 回 5 円ほどで、1 日 {SERIES_DAILY_RUNS} 回まで使えます。</span>
       </div>
       <Input aria-label="次の投稿の案への希望" value={wish} maxLength={MAX_ROUND_WISH} onChange={(e) => setWish(e.target.value)} placeholder="希望（任意。例: 90 年代の映画で）" className="py-2 text-sm" />

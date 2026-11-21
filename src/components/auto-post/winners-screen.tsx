@@ -20,6 +20,8 @@ import { isSeries } from "@/lib/post-formats/series";
 import { SNS, type SnsKey } from "@/lib/sns";
 import { formatShort } from "@/lib/time";
 import { DisclosureBox } from "@/components/ui/disclosure";
+import { AiQuotaNote } from "@/components/ai/ai-quota-note";
+import { useAiQuota } from "@/components/ai/use-ai-quota";
 
 // 伸びた投稿 → 型の案（AI。押したときだけ）→ 選んで直して保存 → 自動の投稿を始める画面へ（docs/design/winning-posts.md の 5.）。
 // どの段も、利用者が押したときだけ進む。保存したあとも、自動の投稿は「始める」の画面で確かめて同意するまで作らない
@@ -43,6 +45,8 @@ export function WinnersScreen({
   aiEnabled: boolean;
   held: boolean;
 }) {
+  // AI を使える量を使い切っているときは押せない（理由はボタンの下に 1 行）
+  const quota = useAiQuota("post_format", aiEnabled);
   const base = `/projects/${projectId}`;
   // はじめは上から 2 本を選んでおく（もうフォーマットで書いた投稿は、そのフォーマットを使えばよいので選ばない）
   const [picked, setPicked] = useState<string[]>(() =>
@@ -139,11 +143,16 @@ export function WinnersScreen({
         </ul>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           {aiEnabled ? (
-            <Button disabled={pending || !picked.length} onClick={ask} className="max-sm:w-full">
+            <Button disabled={pending || !picked.length || quota.blocked !== null} onClick={ask} className="max-sm:w-full">
               {pending ? "考えています…" : result ? "型の案を出し直す" : "型の案を作る"}
             </Button>
           ) : (
             <NotReadyButton className="max-sm:w-full">型の案を作る</NotReadyButton>
+          )}
+          {quota.blocked && (
+            <div className="basis-full">
+              <AiQuotaNote blocked={quota.blocked} />
+            </div>
           )}
           <span className="text-xs text-muted">AI を使います。1 回 10〜15 円ほど。「AI とつくる」と合わせて 1 日 {POST_FORMAT_DAILY_RUNS} 回まで</span>
         </div>

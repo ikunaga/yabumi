@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { AiQuotaBand } from "@/components/ai/ai-quota-band";
 import { IdeaBoard } from "@/components/ideas/idea-board";
 import Link from "next/link";
 import { chipClass, chipSolidClass } from "@/components/ui/chip";
@@ -7,6 +8,8 @@ import { SuccessBanner } from "@/components/ui/feedback";
 import { HelpTip } from "@/components/ui/help";
 import { Term } from "@/components/ui/term";
 import { aiConfigured } from "@/lib/ai/anthropic";
+import { getAiBudgetState } from "@/lib/ai/budget-status";
+import { IDEAS_BLOCKED_WORDS, aiBlockedText } from "@/lib/ai/budget-status-text";
 import { IDEA_SNS, MAX_IDEA_SNS, ideaSourcesFor, newsQuestionsFor, pickIdeaSns, type IdeaSource } from "@/lib/ai/post-ideas";
 import { guideFor, productTypeOf } from "@/lib/ai/product-guide";
 import { getLatestIdeasThread } from "@/lib/ai/post-ideas-queries";
@@ -63,6 +66,10 @@ export default async function IdeasPage(props: PageProps<"/projects/[id]/ideas">
     plan: plan?.plan ?? normalizePlan(null, project.target_audience ?? ""),
   });
 
+  // AI を使える量を使い切っているときは、帯で知らせ、ネタを出す・考え直すを押せない形にする（2026-11-21 オーナーの依頼。相談と同じ部品）
+  const quota = aiConfigured() ? await getAiBudgetState("post_ideas") : null;
+  const aiBlocked = quota !== null && aiBlockedText(quota, IDEAS_BLOCKED_WORDS) !== null;
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -79,12 +86,14 @@ export default async function IdeasPage(props: PageProps<"/projects/[id]/ideas">
           ネタは、宣伝するものの種類と、アカウントの方針の <Term k="contentPillar" /> と口調に沿います。
         </HelpTip>
       </div>
+      <AiQuotaBand state={quota} words={IDEAS_BLOCKED_WORDS} />
       {done === "thread_deleted" && <SuccessBanner>ネタの会話を消しました。下書きにした投稿は残っています。</SuccessBanner>}
       <IdeaBoard
         projectId={id}
         repoFullName={repoFullName}
         githubReady={githubReady}
         aiEnabled={aiConfigured()}
+        aiBlocked={aiBlocked}
         snsOptions={IDEA_SNS}
         maxSns={MAX_IDEA_SNS}
         defaultSns={defaultSns}

@@ -26,6 +26,9 @@ import { displayLength, isManualSns, SNS, type SnsKey } from "@/lib/sns";
 import { StyleNotice } from "./style-notice";
 import type { FormatUse } from "./post-format-picker";
 import { formatSlots } from "@/lib/post-formats/schema";
+import { AiQuotaNote } from "@/components/ai/ai-quota-note";
+import { useAiQuota } from "@/components/ai/use-ai-quota";
+import { COMPOSE_BLOCKED_WORDS } from "@/lib/ai/budget-status-text";
 
 type Composer = { body: string; overrides: Partial<Record<SnsKey, string>> };
 
@@ -55,6 +58,8 @@ export const TIDY_WAIT = "20〜40 秒ほど";
 // AI で投稿に整える（docs/architecture.md の 4.34）: 声で入れた話し言葉などを、言いたいことを 1 つに絞って SNS ごとの字数に収めた案にする。
 // 案はカードの中でそのまま直せ、選ぶと本文と SNS ごとの文面に入る（入れたあとも直せる）。「元に戻す」で整える前の文に戻せる
 export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace, onShowBody, onEditOverride, onAdoptedChange, format = null, onPickSns }: Props) {
+  // AI を使える量を使い切っているときは押せない（理由はボタンの下に 1 行）
+  const quota = useAiQuota("tidy_draft", aiEnabled, COMPOSE_BLOCKED_WORDS);
   const [options, setOptions] = useState<TidyOption[] | null>(null);
   // 整え方。このプロジェクトで前に選んだものを、この端末に覚えておいて次も同じから始める（サーバーには保存しない）
   const storageKey = `yabumi:tidy-direction:${projectId}`;
@@ -188,13 +193,18 @@ export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace, 
       {/* 案を使って閉じている間は、知らせの 1 行（もう一度整えるもそこ）だけ */}
       <div className={`flex flex-wrap items-center gap-x-3 gap-y-1.5 ${collapsed ? "hidden" : ""}`}>
         {aiEnabled ? (
-          <Button type="button" variant="secondary" size="sm" disabled={waiting || !hasText || !hasSns} aria-busy={waiting || undefined} onClick={run}>
+          <Button type="button" variant="secondary" size="sm" disabled={waiting || !hasText || !hasSns || quota.blocked !== null} aria-busy={waiting || undefined} onClick={run}>
             {waiting ? "整えています…" : options ? "もう一度整える" : "AI で投稿に整える"}
           </Button>
         ) : (
           <NotReadyButton variant="secondary" size="sm">
             AI で投稿に整える
           </NotReadyButton>
+        )}
+        {quota.blocked && (
+          <div className="basis-full">
+            <AiQuotaNote blocked={quota.blocked} />
+          </div>
         )}
         {aiEnabled && (
           <button
@@ -273,7 +283,7 @@ export function TidyDraftPanel({ projectId, aiEnabled, current, sns, onReplace, 
               元に戻す
             </button>
             {collapsed && aiEnabled && (
-              <button type="button" className={linkClass} disabled={!hasText || !hasSns} onClick={run}>
+              <button type="button" className={linkClass} disabled={!hasText || !hasSns || quota.blocked !== null} onClick={run}>
                 もう一度整える<span className="ml-1 text-xs font-normal text-muted">1 回 5〜15 円ほど</span>
               </button>
             )}

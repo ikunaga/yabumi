@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { AiQuotaBand } from "@/components/ai/ai-quota-band";
 import { ThreadMenu } from "@/components/ai/thread-menu";
 import { PlanProgressCard } from "@/components/plan/account-plan-editor";
 import { PlanCoachChat } from "@/components/plan/plan-coach-chat";
@@ -9,6 +10,8 @@ import { SuccessBanner } from "@/components/ui/feedback";
 import { ButtonLink } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { aiConfigured } from "@/lib/ai/anthropic";
+import { getAiBudgetState } from "@/lib/ai/budget-status";
+import { PLAN_COACH_BLOCKED_WORDS, aiBlockedText } from "@/lib/ai/budget-status-text";
 import { getLatestPlanThread } from "@/lib/ai/plan-coach-queries";
 import { isSectionKey } from "@/lib/plan/schema";
 import { getProject } from "@/lib/projects/queries";
@@ -34,7 +37,9 @@ export default async function PlanChatPage(props: PageProps<"/projects/[id]/plan
     );
   }
 
-  const [thread, plan] = await Promise.all([getLatestPlanThread(id), getAccountPlan(id)]);
+  const [thread, plan, quota] = await Promise.all([getLatestPlanThread(id), getAccountPlan(id), getAiBudgetState("account_plan")]);
+  // AI を使える量を使い切っているときは、帯で知らせ、送る・始める・選ぶを押せない形にする（2026-11-21 オーナーの依頼。相談と同じ部品）
+  const aiBlocked = quota !== null && aiBlockedText(quota, PLAN_COACH_BLOCKED_WORDS) !== null;
   const focus = typeof sp.section === "string" && isSectionKey(sp.section) ? sp.section : null;
 
   return (
@@ -59,9 +64,10 @@ export default async function PlanChatPage(props: PageProps<"/projects/[id]/plan
           </>
         }
       />
+      <AiQuotaBand state={quota} words={PLAN_COACH_BLOCKED_WORDS} />
       {sp.done === "thread_deleted" && <SuccessBanner>会話を消しました。アカウントの方針に採用した内容は残っています。</SuccessBanner>}
       <Columns
-        main={<PlanCoachChat key={thread?.id ?? "new"} projectId={id} threadId={thread?.id ?? null} messages={thread?.messages ?? []} initialFocus={focus} />}
+        main={<PlanCoachChat key={thread?.id ?? "new"} projectId={id} threadId={thread?.id ?? null} messages={thread?.messages ?? []} initialFocus={focus} aiBlocked={aiBlocked} />}
         side={plan && <PlanProgressCard plan={plan.plan} planHref={planHref} />}
       />
     </div>

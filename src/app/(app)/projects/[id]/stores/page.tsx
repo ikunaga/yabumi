@@ -21,12 +21,14 @@ import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "ストアと課金をつなぐ" };
 
-type State = "ok" | "error" | "waiting" | "none";
+// unavailable: yabumi の運営の準備（鍵）ができていない。利用者には何もできないので、つなぐ操作は出さない（2026-11-21 PM の指示）
+type State = "ok" | "error" | "waiting" | "none" | "unavailable";
 
 function StateBadge({ state }: { state: State }) {
   if (state === "ok") return <Badge tone="success">✓ つないでいます</Badge>;
   if (state === "error") return <Badge tone="signal">● 要確認</Badge>;
   if (state === "waiting") return <Badge>招待と入力を待っています</Badge>;
+  if (state === "unavailable") return <Badge>まだ使えません</Badge>;
   return <Badge>まだつないでいません</Badge>;
 }
 
@@ -45,6 +47,10 @@ function StoreCard({ title, gets, state, help, children }: { title: string; gets
       <div className="mt-3 flex flex-col gap-4">{children}</div>
     </section>
   );
+}
+
+function NotYet() {
+  return <p className="text-sm text-muted">いまは、することはありません。yabumi の運営の準備ができたら、ここでつなぐことができます。</p>;
 }
 
 function Steps({ children }: { children: ReactNode }) {
@@ -109,8 +115,8 @@ export default async function StoresPage(props: PageProps<"/projects/[id]/stores
   ]);
   const asc = statuses.app_store_connect;
   const rc = statuses.revenuecat;
-  const stateOf = (s?: CredentialStatus): State => (s ? s.status : "none");
-  const playState: State = !play ? "none" : play.status === "ok" ? "ok" : play.status === "error" ? "error" : "waiting";
+  const stateOf = (s?: CredentialStatus): State => (s ? s.status : ready ? "none" : "unavailable");
+  const playState: State = !play ? (playReady ? "none" : "unavailable") : play.status === "ok" ? "ok" : play.status === "error" ? "error" : "waiting";
 
   const ascSteps = (
     <Steps>
@@ -154,15 +160,13 @@ export default async function StoresPage(props: PageProps<"/projects/[id]/stores
             <p className="mt-2">預ける鍵は読むためだけに使い、暗号化して保存します。アプリの情報を書き換えることはありません。いつでも外せて、退会すると消えます。</p>
           </>
         }
-        sub="任意・毎日 3 時ごろに自動で取り込みます"
+        sub="つながなくても使えます。つなぐと、毎日午前 3 時ごろに数字が入ります。"
         actions={
           <ButtonLink href={`/projects/${project.id}/metrics`} variant="secondary" size="sm">
             分析を見る
           </ButtonLink>
         }
       />
-
-      {!ready && <p className="rounded-lg border border-border bg-surface px-5 py-3 text-sm text-muted">ストアと課金の取り込みは準備中です。</p>}
 
       <StoreCard
         title="App Store"
@@ -212,17 +216,17 @@ export default async function StoresPage(props: PageProps<"/projects/[id]/stores
               )}
             </div>
           </>
+        ) : ready ? (
+          <>
+            {ascSteps}
+            <AppStoreConnectForm projectId={project.id} />
+          </>
         ) : (
-          ready && (
-            <>
-              {ascSteps}
-              <AppStoreConnectForm projectId={project.id} />
-            </>
-          )
+          <NotYet />
         )}
       </StoreCard>
 
-      <StoreCard title="Google Play" gets="インストールとストアのページの閲覧" state={playState}>
+      <StoreCard title="Google Play" gets="インストールの数と、ストアのページを見た人の数" state={playState}>
         {play && (
           <div className="flex flex-col gap-1 rounded-md bg-surface2 px-4 py-3 text-sm">
             {play.package_name && <p className="text-muted">{play.package_name}</p>}
@@ -235,7 +239,7 @@ export default async function StoresPage(props: PageProps<"/projects/[id]/stores
           </div>
         )}
         {!playReady ? (
-          <p className="text-sm text-muted">Google Play の取り込みは準備中です。</p>
+          !play && <NotYet />
         ) : !play ? (
           <>
             <p className="text-sm leading-[1.8]">
@@ -266,7 +270,7 @@ export default async function StoresPage(props: PageProps<"/projects/[id]/stores
         )}
       </StoreCard>
 
-      <StoreCard title="RevenueCat" gets="課金（使っている場合）" state={stateOf(rc)}>
+      <StoreCard title="RevenueCat" gets="アプリ内課金の売上。RevenueCat を使う人向け" state={stateOf(rc)}>
         {rc ? (
           <>
             <Connected s={rc} remove={removeStoreCredential.bind(null, project.id, "revenuecat")} removeLabel="外す（預けた鍵を消す。取り込んだ数字は残ります）" />
@@ -279,13 +283,13 @@ export default async function StoresPage(props: PageProps<"/projects/[id]/stores
               </DisclosureBox>
             )}
           </>
+        ) : ready ? (
+          <>
+            {rcSteps}
+            <RevenueCatForm projectId={project.id} />
+          </>
         ) : (
-          ready && (
-            <>
-              {rcSteps}
-              <RevenueCatForm projectId={project.id} />
-            </>
-          )
+          <NotYet />
         )}
       </StoreCard>
     </div>

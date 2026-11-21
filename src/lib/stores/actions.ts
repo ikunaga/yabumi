@@ -40,7 +40,7 @@ async function appProjectUser(projectId: string): Promise<{ userId: string; erro
   return { userId: own.userId };
 }
 
-const NOT_READY = "ストアと課金の取り込みは準備中です。";
+const NOT_READY = "ストアと課金は、まだ使えません。準備ができたら、この画面でつなぐことができます。";
 
 async function verifySaveImport(projectId: string, userId: string, provider: Provider, secret: never, hint: string): Promise<StoreFormState> {
   let verified: string;

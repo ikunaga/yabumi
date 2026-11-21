@@ -8,8 +8,8 @@ export const RC_API = "https://api.revenuecat.com/v2";
 export type RevenueCatCredential = { projectId: string; secretKey: string };
 
 export function checkRevenueCatFormat(c: RevenueCatCredential): string | null {
-  if (!/^[A-Za-z0-9_-]{4,64}$/.test(c.projectId.trim())) return "プロジェクトの ID の形が違います（RevenueCat のプロジェクトの設定にある ID。例: proj1ab2c3d4）。";
-  if (!/^sk_[A-Za-z0-9]{10,}$/.test(c.secretKey.trim())) return "シークレットキーは sk_ で始まる値です（API keys の画面で作った v2 のキー）。";
+  if (!/^[A-Za-z0-9_-]{4,64}$/.test(c.projectId.trim())) return "RevenueCat の Project ID の形が違います。「Project settings」の画面にある ID です。";
+  if (!/^sk_[A-Za-z0-9]{10,}$/.test(c.secretKey.trim())) return "シークレットキーは、sk_ で始まる値です。API keys の画面で作った v2 のキーです。";
   return null;
 }
 

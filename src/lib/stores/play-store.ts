@@ -156,8 +156,8 @@ export async function verifyPlay(admin: Admin, ownerId: string, projectId: strin
   if (error) throw error;
   await importPlay(admin, { ...row, bucket, package_name: pkg }, deps).catch((e) => console.error("[play] 最初の取り込みに失敗しました", e instanceof Error ? e.message : e));
   return files.length
-    ? `読めました（${files.length} か月分のインストールのレポートがあります）`
-    : "読めました（まだレポートがありません。新しいアプリや招待した直後は、数日かかります）";
+    ? `読めました。${files.length} か月分のインストールのレポートがあります。`
+    : "読めました。まだレポートがありません。新しいアプリや招待した直後は、数日かかります。";
 }
 
 function months(now: Date): string[] {

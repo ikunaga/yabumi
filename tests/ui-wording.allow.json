@@ -436,60 +436,6 @@
  "src/app/(app)/projects/[id]/stores/page.tsx": {
   "App Store・Google Play・RevenueCat の数字の取り込みは、宣伝するものが「アプリ」のときに使えます。いまの種類は「{…}」です。 プロジェクトの設定で変える": [
    "long"
-  ],
-  "に、アカウント保持者（Account Holder）か管理（Admin）の役割でログインし、「ユーザとアクセス」→「統合」→「App Store Connect API」→「チームキー」を開く": [
-   "long",
-   "paren"
-  ],
-  "はじめてのときは「アクセスをリクエスト」を押す（アカウント保持者だけができます）": [
-   "paren"
-  ],
-  "「キーを生成」（＋）で、名前を「yabumi」、アクセスを「Sales and Reports」にして生成する（売上とダウンロードを読むだけの役割です。Admin は選ばないでください）": [
-   "long",
-   "paren"
-  ],
-  "「API キーをダウンロード」で .p8 ファイルを保存し、下で選ぶ（ダウンロードは 1 回しかできません。なくしたら、キーを取り消して作り直します）": [
-   "long",
-   "paren"
-  ],
-  "「支払いと財務報告」の画面の左上に出ている「ベンダー番号」（数字）を下に入れる": [
-   "paren"
-  ],
-  "にログインし、アプリのプロジェクトの「Project settings」→「API keys」を開く": [
-   "long"
-  ],
-  "「+ New secret API key」で、名前を「yabumi」、Version を「V2」にする": [
-   "long"
-  ],
-  "権限は「Charts &amp; metrics」だけを「Read only」にし、ほかは「No access」にして作る": [
-   "long"
-  ],
-  "作ったキー（sk_ で始まる）と、プロジェクトの ID（Project settings の画面、または URL の /projects/ のあとの部分）を下に貼る": [
-   "long",
-   "paren"
-  ],
-  "画面の名前は、App Store Connect の表示の言語や更新で少し違うことがあります。Team キーはチームのすべてのアプリに届くので、yabumi はこのプロジェクトの App Store の URL（id の数字）のアプリだけを数えます。": [
-   "long",
-   "paren"
-  ],
-  "ストアのページの閲覧数（任意） {…}": [
-   "paren"
-  ],
-  "ストアのページを見た人の数は、Apple に「レポートの依頼」を一度だけ出すと、毎日読めるようになります。依頼を出せるのは役割が「Admin」のキーだけなので、上とは別に Admin のキーを作り、下に入れてください。yabumi は Admin のキーを依頼を出す 1 回だけ使い、保存しません（依頼のあとは、App Store Connect でそのキーを取り消してかまいません）。": [
-   "long",
-   "paren"
-  ],
-  "「アカウントの権限」で「アプリ情報の表示と一括レポートのダウンロード（読み取り専用）」だけに印を付ける（ほかは付けない）→「ユーザーを招待」": [
-   "long",
-   "paren"
-  ],
-  "「レポートをダウンロード」→「統計情報」を開き、「Cloud Storage の URI をコピー」で出る値（gs://pubsite_prod_rev_…）を下に貼る": [
-   "long",
-   "paren"
-  ],
-  "アプリのパッケージ名を確認して「確認して保存する」（招待が反映されるまで数分かかることがあります）": [
-   "long",
-   "paren"
   ]
  },
  "src/app/(app)/projects/page.tsx": {
@@ -1724,35 +1670,6 @@
  "src/components/settings/notification-prefs-form.tsx": {
   "その曜日の朝 7 時ごろに、今週まだ 1 本も投稿（予約を含む）がない SNS があれば知らせます。": [
    "long",
-   "paren"
-  ]
- },
- "src/components/stores/store-forms.tsx": {
-  "秘密鍵（.p8 ファイル）": [
-   "paren"
-  ],
-  "数字だけ（例: 85123456）": [
-   "paren"
-  ],
-  "RevenueCat の Project settings にある ID（URL の /projects/ のあとの部分）": [
-   "long",
-   "paren"
-  ],
-  "シークレットキー（v2）": [
-   "paren"
-  ],
-  "Google Play をつなぐ（読み取り用のアカウントを用意する）": [
-   "paren"
-  ],
-  "Play Console の「レポートをダウンロード」→「統計情報」の「Cloud Storage の URI をコピー」の値（gs://pubsite_prod_rev_… のまま貼って大丈夫です）": [
-   "long",
-   "paren"
-  ],
-  "Google Play の URL の id= のあとの部分（例: com.example.kakeibo）": [
-   "long",
-   "paren"
-  ],
-  "Admin のキーの秘密鍵（.p8）": [
    "paren"
   ]
  },
@@ -3730,42 +3647,12 @@
    "paren"
   ]
  },
- "src/lib/stores/actions.ts": {
-  "一括レポートの置き場所は pubsite_prod_ で始まる名前です（Play Console の「Cloud Storage の URI をコピー」）。": [
-   "long",
-   "paren"
-  ],
-  "パッケージ名の形が違います（例: com.example.kakeibo）。": [
-   "paren"
-  ],
-  "レポートの依頼を作りました（Admin のキーは保存していません）。Apple がレポートを作り始めるまで 1〜2 日かかり、そのあと毎日取り込みます。": [
-   "paren"
-  ]
- },
  "src/lib/stores/app-store-analytics.ts": {
   "{…}: App Store Connect から読めませんでした（{…}）。時間をおいて読み直します。": [
    "paren"
   ]
  },
  "src/lib/stores/app-store.ts": {
-  "Issuer ID の形が違います（例: 57246542-96fe-1a63-e053-0824d011072a）。": [
-   "long",
-   "paren"
-  ],
-  "Key ID の形が違います（英大文字と数字の 10 文字ほど。例: 2X9R4HXF34）。": [
-   "paren"
-  ],
-  "ベンダー番号は数字です（例: 85123456）。": [
-   "paren"
-  ],
-  "秘密鍵は、ダウンロードした .p8 ファイルの中身（-----BEGIN PRIVATE KEY----- から -----END PRIVATE KEY----- まで）です。": [
-   "long",
-   "paren"
-  ],
-  "このキーには売上のレポートを読む権限がありません。役割が「Sales and Reports」（または Admin・Finance）の Team キーを作ってください。": [
-   "long",
-   "paren"
-  ],
   "App Store Connect から読めませんでした（{…}）。時間をおいて読み直します。": [
    "paren"
   ]
@@ -3779,17 +3666,6 @@
    "paren"
   ],
   "Google Play 用のアカウントを消せませんでした（{…}）": [
-   "paren"
-  ],
-  "Google Play 用のアカウントを使えませんでした。時間をおいてもう一度お試しください（作ったばかりなら 1〜2 分かかります）。": [
-   "paren"
-  ],
-  "一括レポートを読めませんでした。Play Console で、表示されたアカウントを招待し、「アプリ情報の表示と一括レポートのダウンロード」の権限を付けたかを確認してください（反映まで数分かかることがあります）。": [
-   "long",
-   "paren"
-  ],
-  "一括レポートの置き場所（pubsite_prod_rev_…）が見つかりませんでした。Play Console の「Cloud Storage の URI をコピー」の値を確認してください。": [
-   "long",
    "paren"
   ],
   "Google Play の一括レポートを読めませんでした（{…}）。時間をおいて読み直します。": [
@@ -3836,26 +3712,12 @@
    "long",
    "paren"
   ],
-  "読めました（{…} か月分のインストールのレポートがあります）": [
-   "paren"
-  ],
-  "読めました（まだレポートがありません。新しいアプリや招待した直後は、数日かかります）": [
-   "paren"
-  ],
   "プロジェクトに App Store の URL（id の数字が入ったもの）を入れてください。": [
    "long",
    "paren"
   ]
  },
  "src/lib/stores/revenuecat.ts": {
-  "プロジェクトの ID の形が違います（RevenueCat のプロジェクトの設定にある ID。例: proj1ab2c3d4）。": [
-   "long",
-   "paren"
-  ],
-  "シークレットキーは sk_ で始まる値です（API keys の画面で作った v2 のキー）。": [
-   "long",
-   "paren"
-  ],
   "RevenueCat から読めませんでした（{…}）。時間をおいて読み直します。": [
    "paren"
   ]

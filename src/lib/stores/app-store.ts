@@ -35,10 +35,10 @@ export function ascJwt(cred: AscCredential, now = new Date()): string {
 
 // 入れてもらった値の形を確かめる（呼ぶ前に、明らかな入れ間違いを知らせる）
 export function checkAscFormat(c: AscCredential): string | null {
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(c.issuerId.trim())) return "Issuer ID の形が違います（例: 57246542-96fe-1a63-e053-0824d011072a）。";
-  if (!/^[A-Z0-9]{8,12}$/.test(c.keyId.trim())) return "Key ID の形が違います（英大文字と数字の 10 文字ほど。例: 2X9R4HXF34）。";
-  if (!/^[0-9]{6,12}$/.test(c.vendorNumber.trim())) return "ベンダー番号は数字です（例: 85123456）。";
-  if (!/-----BEGIN PRIVATE KEY-----[\s\S]+-----END PRIVATE KEY-----/.test(c.privateKey)) return "秘密鍵は、ダウンロードした .p8 ファイルの中身（-----BEGIN PRIVATE KEY----- から -----END PRIVATE KEY----- まで）です。";
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(c.issuerId.trim())) return "Issuer ID の形が違います。英数字とハイフンの長い ID です。";
+  if (!/^[A-Z0-9]{8,12}$/.test(c.keyId.trim())) return "Key ID の形が違います。英大文字と数字の 10 文字ほどです。";
+  if (!/^[0-9]{6,12}$/.test(c.vendorNumber.trim())) return "ベンダー番号は数字です。例: 85123456";
+  if (!/-----BEGIN PRIVATE KEY-----[\s\S]+-----END PRIVATE KEY-----/.test(c.privateKey)) return "秘密鍵は、ダウンロードした .p8 ファイルの中身です。BEGIN から END までを、そのまま貼ってください。";
   try {
     createPrivateKey(c.privateKey);
   } catch {
@@ -66,7 +66,7 @@ export async function fetchDailySales(cred: AscCredential, reportDate: string, f
     const body = (await res.json().catch(() => ({}))) as { errors?: { detail?: string }[] };
     const detail = body.errors?.[0]?.detail ?? "";
     if (res.status === 401) throw new StoreApiError("キーが使えませんでした。Issuer ID・Key ID・秘密鍵が、同じキーのものか確認してください。キーが取り消されていないかも確認してください。", 401);
-    if (res.status === 403) throw new StoreApiError("このキーには売上のレポートを読む権限がありません。役割が「Sales and Reports」（または Admin・Finance）の Team キーを作ってください。", 403);
+    if (res.status === 403) throw new StoreApiError("このキーには、売上のレポートを読む権限がありません。チームキーを作り直してください。アクセスは「Sales and Reports」にします。", 403);
     if (res.status === 400) throw new StoreApiError(`App Store Connect が受け付けませんでした。ベンダー番号を確認してください。${detail ? `（${detail}）` : ""}`, 400);
     if (res.status === 429) throw new StoreApiError("App Store Connect の回数の上限にかかりました。時間をおいて読み直します。", 429);
     throw new StoreApiError(`App Store Connect から読めませんでした（${res.status}）。時間をおいて読み直します。`, res.status);

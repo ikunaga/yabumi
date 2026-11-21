@@ -130,28 +130,35 @@ export default async function StoresPage(props: PageProps<"/projects/[id]/stores
     <Steps>
       <li>
         <ExternalLink href="https://appstoreconnect.apple.com/access/integrations/api">App Store Connect</ExternalLink>
-        に、アカウント保持者（Account Holder）か管理（Admin）の役割でログインし、「ユーザとアクセス」→「統合」→「App Store Connect API」→「チームキー」を開く
+        にログインします。開発者として登録した本人なら、そのまま進めます。
       </li>
-      <li>はじめてのときは「アクセスをリクエスト」を押す（アカウント保持者だけができます）</li>
+      <li>「ユーザとアクセス」→「統合」を開きます。</li>
+      <li>「App Store Connect API」→「チームキー」を開きます。</li>
+      <li>「アクセスをリクエスト」が出ていたら、押します。押せるのは、アカウント保持者だけです。</li>
       <li>
-        「キーを生成」（＋）で、名前を「yabumi」、アクセスを<b>「Sales and Reports」</b>にして生成する（売上とダウンロードを読むだけの役割です。Admin は選ばないでください）
+        「キーを生成」の＋を押します。名前は「yabumi」にします。アクセスは<b>「Sales and Reports」</b>にして、生成します。キーのアクセスに、Admin は選ばないでください。売上とダウンロードを読むだけなら、これで足ります。
       </li>
-      <li>上のほうにある「Issuer ID」と、作ったキーの「Key ID」を下に貼る</li>
-      <li>「API キーをダウンロード」で .p8 ファイルを保存し、下で選ぶ（ダウンロードは 1 回しかできません。なくしたら、キーを取り消して作り直します）</li>
-      <li>「支払いと財務報告」の画面の左上に出ている「ベンダー番号」（数字）を下に入れる</li>
+      <li>チームキーの画面の上にある「Issuer ID」を、下の欄に貼ります。</li>
+      <li>作ったキーの行にある「Key ID」も、下の欄に貼ります。</li>
+      <li>「API キーをダウンロード」で .p8 ファイルを保存し、下の欄で選びます。ダウンロードは 1 回しかできません。なくしたら、キーを取り消して作り直します。</li>
+      <li>App Store Connect のホームに戻り、「支払いと財務報告」を開きます。</li>
+      <li>左上にある数字の「ベンダー番号」を、下の欄に入れます。</li>
     </Steps>
   );
   const rcSteps = (
     <Steps>
       <li>
         <ExternalLink href="https://app.revenuecat.com">RevenueCat</ExternalLink>
-        にログインし、アプリのプロジェクトの「Project settings」→「API keys」を開く
+        にログインします。
       </li>
-      <li>「+ New secret API key」で、名前を「yabumi」、Version を「V2」にする</li>
+      <li>アプリの「Project settings」を開きます。</li>
+      <li>その中の「API keys」を開きます。</li>
+      <li>「+ New secret API key」を押します。名前は「yabumi」、Version は「V2」にします。</li>
       <li>
-        権限は<b>「Charts &amp; metrics」だけを「Read only」</b>にし、ほかは「No access」にして作る
+        権限は<b>「Charts &amp; metrics」だけ</b>を選びます。それを「Read only」にします。ほかは「No access」にして作ります。
       </li>
-      <li>作ったキー（sk_ で始まる）と、プロジェクトの ID（Project settings の画面、または URL の /projects/ のあとの部分）を下に貼る</li>
+      <li>作ったキーを、下の欄に貼ります。sk_ で始まる値です。</li>
+      <li>「Project settings」の画面にある ID も、下の欄に貼ります。ブラウザの URL の /projects/ のあとと同じ文字です。</li>
     </Steps>
   );
 
@@ -182,7 +189,7 @@ export default async function StoresPage(props: PageProps<"/projects/[id]/stores
         state={stateOf(asc)}
         help={
           <HelpTip label="App Store のつなぎ方の注意">
-            画面の名前は、App Store Connect の表示の言語や更新で少し違うことがあります。Team キーはチームのすべてのアプリに届くので、yabumi はこのプロジェクトの App Store の URL（id の数字）のアプリだけを数えます。
+            画面の名前は、表示の言語や更新で少し違うことがあります。チームキーでは、チームのすべてのアプリの数字が読めます。取り込むのは、ここで宣伝しているアプリの数字だけです。
           </HelpTip>
         }
       >
@@ -199,7 +206,7 @@ export default async function StoresPage(props: PageProps<"/projects/[id]/stores
             )}
             <div className="flex flex-col gap-2 border-t border-line pt-4">
               <p className="flex items-center gap-2 text-sm font-bold">
-                <Term k="storeListing">ストアのページ</Term>の閲覧数（任意）
+                <Term k="storeListing">ストアのページ</Term>を見た人の数
                 {views && <StateBadge state={views.status === "ok" ? "ok" : "error"} />}
               </p>
               {views ? (
@@ -212,7 +219,7 @@ export default async function StoresPage(props: PageProps<"/projects/[id]/stores
                 <DisclosureBox label="ストアのページを見た人の数を取り込む手順を表示" bodyClassName="mt-2 text-[14px] leading-[1.75] text-muted">
                   <div className="flex flex-col gap-4">
                     <p>
-                      ストアのページを見た人の数は、Apple に「レポートの依頼」を一度だけ出すと、毎日読めるようになります。依頼を出せるのは役割が<b>「Admin」</b>のキーだけなので、上とは別に Admin のキーを作り、下に入れてください。yabumi は Admin のキーを依頼を出す 1 回だけ使い、<b>保存しません</b>（依頼のあとは、App Store Connect でそのキーを取り消してかまいません）。
+                      ここをつながなくても、ほかの数字は取り込めます。下のボタンを押すと、Apple にレポートを 1 回だけ頼みます。そのあとは、見た人の数が毎日入ります。頼むには、アクセスが<b>「Admin」</b>のキーが要ります。上の手順と同じやり方で、アクセスだけ「Admin」にして作ります。このキーは 1 回だけ使い、<b>保存しません</b>。頼んだあとは、このキーを取り消してかまいません。
                     </p>
                     <AppStoreViewsForm projectId={project.id} />
                   </div>
@@ -256,14 +263,17 @@ export default async function StoresPage(props: PageProps<"/projects/[id]/stores
             <Steps>
               <li>
                 <ExternalLink href="https://play.google.com/console/developers/users-and-permissions">Play Console</ExternalLink>
-                の「ユーザーと権限」→「新しいユーザーを招待」を開く
+                の「ユーザーと権限」→「新しいユーザーを招待」を開きます。
               </li>
-              <li>上のメールアドレスを貼る</li>
+              <li>yabumi の画面の、上のメールアドレスをコピーします。</li>
+              <li>Play Console の「メールアドレス」の欄に貼ります。</li>
               <li>
-                「アカウントの権限」で<b>「アプリ情報の表示と一括レポートのダウンロード（読み取り専用）」だけ</b>に印を付ける（ほかは付けない）→「ユーザーを招待」
+                「アカウントの権限」で、次の 1 つだけに印を付けます。<b>「アプリ情報の表示と一括レポートのダウンロード」</b>。読むだけの権限です。ほかは付けません。
               </li>
-              <li>「レポートをダウンロード」→「統計情報」を開き、「Cloud Storage の URI をコピー」で出る値（gs://pubsite_prod_rev_…）を下に貼る</li>
-              <li>アプリのパッケージ名を確認して「確認して保存する」（招待が反映されるまで数分かかることがあります）</li>
+              <li>「ユーザーを招待」を押します。</li>
+              <li>「レポートをダウンロード」→「統計情報」を開きます。</li>
+              <li>「Cloud Storage の URI をコピー」を押します。それを、下の「一括レポートの置き場所」に貼ります。</li>
+              <li>アプリのパッケージ名を確認して、「確認して保存する」を押します。招待が反映されるまで、数分かかることがあります。</li>
             </Steps>
             <GooglePlayForm projectId={project.id} defaultPackage={play.package_name ?? packageFromUrl(project.play_store_url) ?? ""} defaultBucket={play.bucket ?? ""} />
           </PlaySetup>

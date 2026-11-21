@@ -27,12 +27,15 @@ export function PlanCoachChat({
   threadId: initialThreadId,
   messages,
   initialFocus,
+  aiBlocked = false,
 }: {
   projectId: string;
   threadId: string | null;
   messages: StoredMessage[];
   // 設計の画面の「AI と考える」から来たときのセクション
   initialFocus: SectionKey | null;
+  // AI を使える量を使い切っている（送る・始める・選ぶを押せない。上の帯で知らせる）
+  aiBlocked?: boolean;
 }) {
   const router = useRouter();
   const [threadId, setThreadId] = useState(initialThreadId);
@@ -40,6 +43,7 @@ export function PlanCoachChat({
   const [sentText, setSentText] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const locked = pending || aiBlocked;
   const startedFocus = useRef(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -69,7 +73,7 @@ export function PlanCoachChat({
 
   // 設計の画面の「AI と考える」から来たら、そのセクションの相談を始める（1 回だけ）
   useEffect(() => {
-    if (!initialFocus || startedFocus.current) return;
+    if (!initialFocus || startedFocus.current || aiBlocked) return;
     startedFocus.current = true;
     router.replace(`/projects/${projectId}/plan/chat`, { scroll: false });
     send(threadId ? { kind: "focus", focus: initialFocus } : { kind: "start", focus: initialFocus });
@@ -86,7 +90,7 @@ export function PlanCoachChat({
 
   function submitText() {
     const t = text.trim();
-    if (!t || pending) return;
+    if (!t || locked) return;
     send({ kind: "text", text: t });
   }
 
@@ -97,7 +101,7 @@ export function PlanCoachChat({
           <p className="text-[14px] leading-[1.8]">
             AI が 1 つずつ質問します。答えにあわせて、案を 2〜3 個出します。長所・短所とおすすめの理由も付けます。選ぶか、変えたいところを伝えてください。選んだ案だけが、アカウントの方針に保存されます。
           </p>
-          <Button onClick={() => send({ kind: "start", focus: null })}>相談をはじめる</Button>
+          <Button disabled={aiBlocked} onClick={() => send({ kind: "start", focus: null })}>相談をはじめる</Button>
         </div>
       )}
 
@@ -108,7 +112,7 @@ export function PlanCoachChat({
               key={m.id}
               message={m}
               isLatest={m.id === lastAssistant?.id}
-              disabled={pending}
+              disabled={locked}
               onChoice={(c) => send({ kind: "text", text: c })}
               onAdopt={(i, picks) => send({ kind: "adopt", messageId: m.id, optionIndex: i, ...(picks ? { picks } : {}) })}
               onRevise={(title) => {
@@ -146,6 +150,7 @@ export function PlanCoachChat({
             rows={2}
             value={text}
             maxLength={2000}
+            disabled={aiBlocked}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
               // 日本語の変換を確定する Enter と区別するため、送るのは ⌘/Ctrl + Enter
@@ -154,20 +159,20 @@ export function PlanCoachChat({
                 submitText();
               }
             }}
-            placeholder="自由に答えても大丈夫です（⌘ / Ctrl + Enter で送る）"
+            placeholder={aiBlocked ? "AI を使える量が戻ったら、また書けます" : "自由に答えても大丈夫です（⌘ / Ctrl + Enter で送る）"}
             className="w-full resize-none rounded-md border border-input bg-surface px-3.5 py-2.5 text-[14px] outline-none focus:border-primary focus:shadow-[0_0_0_1px_var(--primary)] max-sm:text-[16px]"
           />
           <div className="flex flex-wrap items-center gap-3">
             <VoiceInputButton target={inputRef} label="返事" onChange={setText} />
             <button
               type="button"
-              disabled={pending}
+              disabled={locked}
               onClick={() => send({ kind: "start", focus: null }, { newThread: true })}
               className="text-xs text-muted hover:text-fg hover:underline disabled:opacity-40"
             >
               最初から相談する・決まったアカウントの方針は残ります
             </button>
-            <Button className="ml-auto" size="sm" disabled={pending || !text.trim()} onClick={submitText}>
+            <Button className="ml-auto" size="sm" disabled={locked || !text.trim()} onClick={submitText}>
               送る
             </Button>
           </div>

@@ -6,6 +6,10 @@ export type AiBudgetState = { status: string; availableFrom: string | null; low:
 // 画面ごとに、止まっていることと、できること（例: 相談の画面は「相談できます」「これまでの相談は読めます。」）
 export type AiBlockedWords = { can: string; still?: string };
 export const CONSULT_BLOCKED_WORDS: AiBlockedWords = { can: "相談できます", still: "これまでの相談は読めます。" };
+// ネタを出す
+export const IDEAS_BLOCKED_WORDS: AiBlockedWords = { can: "ネタを出せます", still: "これまでに出したネタは読めます。" };
+// アカウントの方針の「AI と考える」
+export const PLAN_COACH_BLOCKED_WORDS: AiBlockedWords = { can: "AI と考えられます", still: "アカウントの方針は、手で編集できます。" };
 
 // 「12 月 1 日」（日本時間の日付 YYYY-MM-DD から）
 function dayLabel(ymd: string): string {

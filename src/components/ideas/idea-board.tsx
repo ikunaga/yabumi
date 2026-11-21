@@ -105,6 +105,8 @@ type Props = {
   repoFullName: string | null;
   githubReady: boolean;
   aiEnabled: boolean;
+  // AI を使える量を使い切っている（ネタを出す・考え直すを押せない。上の帯で知らせる）
+  aiBlocked?: boolean;
   snsOptions: SnsKey[];
   maxSns: number;
   defaultSns: SnsKey[];
@@ -131,7 +133,7 @@ type Props = {
 
 // 材料（最近のコミット・最近のできごと・ネタ帳・アカウントの方針）から AI がネタを出し、利用者が質問に答えたり、ネタを選んで下書きにしたりする。
 // ① 材料を選ぶ → ② 中身を入れる → ③ ネタを選んで下書きにする の 3 つのステップに分け、いまいるステップの項目だけを出す（入れたものはステップを移っても残る）
-export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, snsOptions, maxSns, defaultSns, defaultDays, defaultSource, newsQuestions, newsExample, topicExamples, sources, notes, defaultNoteIds, thread, noPillars, xSearchWords, xSearchQuota }: Props) {
+export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, aiBlocked = false, snsOptions, maxSns, defaultSns, defaultDays, defaultSource, newsQuestions, newsExample, topicExamples, sources, notes, defaultNoteIds, thread, noPillars, xSearchWords, xSearchQuota }: Props) {
   const [step, setStep] = useState<IdeaStep>(() => initialIdeaStep({ hasThread: Boolean(thread), fromNotes: defaultNoteIds.length > 0 }));
   const [source, setSource] = useState<IdeaSource>(defaultSource);
   const [days, setDays] = useState<IdeaPeriod>(defaultDays);
@@ -267,7 +269,7 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
               </div>
             ))}
             <div className="flex flex-wrap items-center gap-3">
-              <Button variant="secondary" size="sm" disabled={pending || answered.length === 0} onClick={() => run("refine", () => refineIdeas(projectId, thread.threadId, answered))}>
+              <Button variant="secondary" size="sm" disabled={pending || aiBlocked || answered.length === 0} onClick={() => run("refine", () => refineIdeas(projectId, thread.threadId, answered))}>
                 答えて、ネタを出し直す
               </Button>
               {working === "refine" && <AiThinking kind="redo" note="20〜60 秒ほどかかります" className="w-full" />}
@@ -617,7 +619,7 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
 
               <div className="flex flex-col gap-2">
                 {aiEnabled ? (
-                  <Button size="lg" disabled={pending || !canGenerate} onClick={() => run("generate", () => generateIdeas(projectId, input, sns))} className="w-full">
+                  <Button size="lg" disabled={pending || aiBlocked || !canGenerate} onClick={() => run("generate", () => generateIdeas(projectId, input, sns))} className="w-full">
                     {info.button}
                   </Button>
                 ) : (

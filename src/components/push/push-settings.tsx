@@ -5,8 +5,10 @@ import { Button, NotReadyButton } from "@/components/ui/button";
 import { ErrorBanner, SuccessBanner } from "@/components/ui/feedback";
 import { type PushStatus, pushStatus, subscribeDevice, testPushDevice, unsubscribeDevice } from "@/lib/push/actions";
 import { DisclosureBox } from "@/components/ui/disclosure";
+import { AndroidSteps, detectInstallEnv, IphoneSteps, TooOld } from "@/components/pwa/add-to-home";
 
-// スマホの通知（Web Push）の端末の登録・外す、ホーム画面に追加する手順、試しに送る（docs/architecture.md の 4.28）。
+// スマホの通知（Web Push）の端末の登録・外す、スマホのホーム画面に追加する手順、試しに送る（docs/architecture.md の 4.28）。
+// 端末の見分けと、ホーム画面に追加する手順の文は @/components/pwa/add-to-home の 1 か所に置き、ここはそれを読む（2026-11-21）。
 // お知らせの設定（/settings/notifications）の「スマホの通知」のカードに置く。
 // 通知の許可は、利用者が「この端末で通知を受け取る」を押したときにだけ求める（開いたとたんに聞かない）
 
@@ -18,14 +20,11 @@ type Env =
   | { kind: "unsupported" }
   | { kind: "ready"; ios: boolean; android: boolean };
 
+// 端末の見分けは add-to-home の detectInstallEnv。通知を受け取れるブラウザかだけ、ここで見る
 function detectEnv(): Exclude<Env, { kind: "loading" }> {
-  const ua = navigator.userAgent;
-  const ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
-  const android = /Android/.test(ua);
-  const standalone = window.matchMedia("(display-mode: standalone)").matches || (navigator as { standalone?: boolean }).standalone === true;
-  const m = ua.match(/OS (\d+)_(\d+)/);
-  // iOS は 16.4 から（バージョンが読めないときは新しいとみなす）
-  const tooOld = ios && m !== null && (Number(m[1]) < 16 || (Number(m[1]) === 16 && Number(m[2]) < 4));
+  const { platform, standalone, iosTooOld: tooOld } = detectInstallEnv();
+  const ios = platform === "ios";
+  const android = platform === "android";
   const supported = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
   if (ios && !standalone) return { kind: "ios-browser", tooOld };
   if (ios && tooOld) return { kind: "ios-too-old" };
@@ -183,8 +182,8 @@ export function PushSettings() {
 
       {env.kind === "ios-browser" && (
         <div className="flex flex-col gap-2 rounded-md border border-line bg-surface2 p-4">
-          <p className="font-bold">iPhone・iPad では、ホーム画面に追加すると通知を受け取れます</p>
-          {env.tooOld ? <TooOld /> : <IphoneSteps />}
+          <p className="font-bold">iPhone・iPad では、スマホのホーム画面に追加すると通知を受け取れます</p>
+          {env.tooOld ? <TooOld /> : <IphoneSteps withPush />}
         </div>
       )}
       {env.kind === "ios-too-old" && <TooOld />}
@@ -242,20 +241,18 @@ export function PushSettings() {
         </div>
       )}
 
-      <DisclosureBox label="ホーム画面に追加する手順を表示">
+      <DisclosureBox label="スマホのホーム画面に追加する手順を表示">
         <div className="flex flex-col gap-4">
           <div>
-            <p className="font-bold">iPhone・iPad（iOS 16.4 以降）</p>
-            <IphoneSteps />
+            <p className="font-bold">iPhone・iPad</p>
+            <p>iOS 16.4 以降で、通知を受け取れます。</p>
+            <IphoneSteps withPush />
           </div>
           <div>
             <p className="font-bold">Android</p>
-            <p>Chrome なら、ホーム画面に追加しなくても通知を受け取れます。アプリのように開きたいときは、次の手順で追加します。</p>
-            <ol className="mt-1 list-decimal pl-5">
-              <li>Chrome で yabumi を開き、右上の「︙」を押す</li>
-              <li>「ホーム画面に追加」（または「アプリをインストール」）を選び、「インストール」を押す</li>
-              <li>ホーム画面の yabumi から開き、この画面で「この端末で通知を受け取る」を押す</li>
-            </ol>
+            <p>Chrome なら、スマホのホーム画面に追加しなくても通知を受け取れます。アプリのように開きたいときは、次の手順で追加します。</p>
+            <AndroidSteps />
+            <p className="mt-1">追加したら、この画面で「この端末で通知を受け取る」を押します。</p>
           </div>
         </div>
       </DisclosureBox>
@@ -263,28 +260,13 @@ export function PushSettings() {
       <DisclosureBox label="届かないときの確認のしかたを表示">
         <ul className="flex list-disc flex-col gap-1 pl-5">
           <li>「おやすみモード」や「集中モード」がオンだと、通知が出ないことがあります</li>
-          <li>iPhone・iPad は、ホーム画面の yabumi から登録したときだけ届きます（Safari で開いた画面からは登録できません）</li>
+          <li>iPhone・iPad は、スマホのホーム画面の yabumi から登録したときだけ届きます。Safari で開いた画面からは登録できません</li>
           <li>端末の設定で、yabumi （またはブラウザ）の通知が許可されているか確認してください</li>
           <li>ブラウザのデータを消すと、登録も消えます。もう一度「この端末で通知を受け取る」を押してください</li>
           <li>ログアウトすると、その端末には届かなくなります（同じ端末をほかの人が使っても、あなたへの通知が出ないように）</li>
         </ul>
       </DisclosureBox>
     </div>
-  );
-}
-
-function TooOld() {
-  return <p>この端末の iOS は古いため、通知を受け取れません。iOS 16.4 以降が必要です（「設定」→「一般」→「ソフトウェアアップデート」）。</p>;
-}
-
-function IphoneSteps() {
-  return (
-    <ol className="mt-1 list-decimal pl-5">
-      <li>Safari で yabumi を開き、画面の下（iPad は上）の共有ボタン（四角から矢印が出ているもの）を押す</li>
-      <li>「ホーム画面に追加」を選び（見つからなければ下にずらす）、右上の「追加」を押す</li>
-      <li>ホーム画面にできた yabumi のアイコンから開き、ログインする（Safari とは別に、もう一度ログインが要ります）</li>
-      <li>「お知らせの設定」の画面を開き、「この端末で通知を受け取る」を押して「許可」を選ぶ</li>
-    </ol>
   );
 }
 

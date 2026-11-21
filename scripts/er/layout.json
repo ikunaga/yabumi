@@ -120,13 +120,14 @@
       "color": "#7C3AED",
       "sub": "回し方と回。材料は jsonb の中で指す",
       "lead": "自動の回し方（設定）から、回（1 回ずつ）が作られ、回が投稿を作る。材料のフォーマット・行き先・メモ・予定は、回し方の材料の選び方（materials）と回の使った材料（material_ref）の jsonb の中で ID を持つだけで、外部キーではない。",
-      "tables": ["auto_plans", "auto_runs"],
+      "tables": ["auto_plans", "auto_runs", "auto_samples", "auto_post_holds"],
       "figures": [
         {
           "title": "自動の投稿",
           "boxes": [
             ["auto_plans", 1, 30, ["kind", "materials", "status", "stop_reason"]],
             ["auto_runs", 1, 330, ["due_at", "status", "material_ref", "reason"]],
+            ["auto_samples", 0, 30, ["settings", "texts", "hold", "image"]],
             ["post_formats", 2, 30, [], "ref"],
             ["project_destinations", 2, 170, [], "ref"],
             ["posts", 0, 420, ["auto_created"], "ref"],

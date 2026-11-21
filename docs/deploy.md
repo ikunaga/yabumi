@@ -73,6 +73,7 @@
 | VERCEL_API_TOKEN | 17 の Vercel のトークン（利用者のドメインで短縮リンクを作るとき。なければ画面は「準備中」） | **はい** |
 | VERCEL_PROJECT_ID / VERCEL_TEAM_ID | 17 の yabumi の Vercel のプロジェクトとチームの ID | いいえ |
 | LINK_DOMAIN_LIMIT | 入れなければ 40（利用者のドメインの、yabumi 全体の上限。Vercel Hobby の 50 から yabumi の分を除いた数）。Pro にしたら上げる | いいえ |
+| LINK_DOMAIN_TEST_SERVER | **本番には入れない**。ローカルで、偽の Vercel・偽の DNS（tests/helpers/fake-link-domain-server.mjs）を使って自分のドメインの画面を確かめるときだけ使う。本番（VERCEL_ENV=production）では入っていても無視し、サーバーのログに出す | いいえ |
 | META_APP_SECRET / INSTAGRAM_APP_SECRET | 同上 | **はい** |
 | GITHUB_APP_ID / GITHUB_APP_SLUG / GITHUB_APP_CLIENT_ID | 6-2 で作る本番用の App の値 | いいえ |
 | GITHUB_APP_CLIENT_SECRET | 同上 | **はい** |

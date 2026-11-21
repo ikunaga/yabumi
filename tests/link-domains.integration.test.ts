@@ -144,7 +144,7 @@ describe("利用者のドメイン", () => {
     expect(await addLinkDomain(admin, { ownerId: aliceId, projectId: aliceProject, domain }, deps)).toEqual({ ok: true });
     const second = (await alice.from("projects").insert({ name: "二つ目" }).select("id").single()).data!.id;
     expect(await addLinkDomain(admin, { ownerId: aliceId, projectId: second, domain: `go.d${rand()}.com` }, deps)).toMatchObject({ ok: false, error: expect.stringContaining("1 人 1 つ") });
-    expect(await addLinkDomain(admin, { ownerId: bobId, projectId: bobProject, domain }, deps)).toMatchObject({ ok: false, error: expect.stringContaining("ほかの方が使っている") });
+    expect(await addLinkDomain(admin, { ownerId: bobId, projectId: bobProject, domain }, deps)).toMatchObject({ ok: false, error: expect.stringContaining("ほかの人が使っている") });
     // 他人のプロジェクトには足せない
     expect(await addLinkDomain(admin, { ownerId: bobId, projectId: aliceProject, domain: `go.e${rand()}.com` }, deps)).toMatchObject({ ok: false });
     expect(await addLinkDomain(admin, { ownerId: bobId, projectId: bobProject, domain: "example.com" }, deps)).toMatchObject({ ok: false, suggestion: "go.example.com" });
@@ -467,6 +467,6 @@ describe("利用者のドメイン", () => {
   });
 
   it("Vercel の設定がなければ足さない（画面は準備中）", async () => {
-    expect(await addLinkDomain(admin, { ownerId: bobId, projectId: bobProject, domain: `go.n${rand()}.com` }, { vercel: null })).toMatchObject({ ok: false, error: "この機能は準備中です。" });
+    expect(await addLinkDomain(admin, { ownerId: bobId, projectId: bobProject, domain: `go.n${rand()}.com` }, { vercel: null })).toMatchObject({ ok: false, error: "まだ使えません。yabumi の運営の準備ができたら、使えるようになります。" });
   });
 });

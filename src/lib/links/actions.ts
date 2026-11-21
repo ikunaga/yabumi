@@ -113,7 +113,7 @@ export async function addLinkDomainAction(projectId: string, _prev: LinkDomainAc
     return { error: "いまドメインを追加できませんでした。時間をおいてもう一度お試しください。" };
   }
   revalidatePath(`/projects/${projectId}/links`);
-  return { ok: "ドメインを受け付けました。次に、DNS に行を追加してください（7 日のうちに）。" };
+  return { ok: "ドメインを受け付けました。次に、7 日のうちに DNS に行を追加してください。" };
 }
 
 export async function checkLinkDomainAction(projectId: string): Promise<LinkDomainActionState> {

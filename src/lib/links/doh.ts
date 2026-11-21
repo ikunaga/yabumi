@@ -5,6 +5,8 @@
 // - 「ない」は、答えたリゾルバのすべてで見えないときだけ（消した直後に片方が覚えていても、もう片方が答える）
 // - どちらも答えられなかったら「わからない」（毎日の確かめでは、つながりを外さない）
 
+import { linkDomainTestServer } from "./test-server";
+
 export const DOH_RESOLVERS = [
   { name: "cloudflare", url: "https://cloudflare-dns.com/dns-query" },
   { name: "google", url: "https://dns.google/resolve" },
@@ -44,8 +46,11 @@ async function ask(url: string, name: string, type: DnsType, fetcher: typeof fet
 }
 
 export function dohLookup(fetcher: typeof fetch = fetch): Lookup {
+  // 偽の DNS を使うとき（画面の確かめ。本番では使わない）は、その宛先 1 つに聞く
+  const test = linkDomainTestServer();
+  const resolvers = test ? [{ name: "test", url: `${test}/dns-query` }] : DOH_RESOLVERS;
   return async (name, type) => {
-    const answers = await Promise.all(DOH_RESOLVERS.map((r) => ask(r.url, name, type, fetcher)));
+    const answers = await Promise.all(resolvers.map((r) => ask(r.url, name, type, fetcher)));
     const ok = answers.filter((a): a is string[] => a !== null);
     const records = [...new Set(ok.flat())];
     return { records, answered: ok.length, missingEverywhere: ok.length > 0 && records.length === 0 };

@@ -93,6 +93,7 @@
 | 漏れたパスワードの拒否（Leaked password protection）を有効にする | オーナー | Supabase を Pro にしたとき | 0 円 | architecture.md の 4.16 の「大量の登録・ログインへの備え」、roadmap.md の 2.5 |
 | プライバシーポリシー・legal.md・architecture.md の 4.14 の「バックアップはない」を、Pro のバックアップ（毎日・7 日分）に直す。① の書き足しか ② の変更かを legal.md に記録する | 実装 | Supabase を Pro にした日 | 0 円 | cost-review.md の 2.2、architecture.md の 4.14 |
 | 動画の上限を見直す: 全体 500MB → 50GB の案、1 人 300MB・月 20 本の見直し、Storage の 1 ファイルの上限（Free は 50MB）、長さの上限（いまは一律 3〜90 秒。Pro なら送り先で変える W3 の イ） | オーナーが値を決める・実装 | Supabase を Pro にしたとき | 0 円（Pro の枠 250GB・100GB の中） | docs/design/video.md の 3・8・11、deploy.md の 29 |
+| 短縮リンクを自分のドメインで作れるようにする: Vercel のトークン・Project ID・Team ID を Production に入れ、自分のドメインで追加・確認・押す・外すを試す | オーナー | ② に進む前 | 0 円 | deploy.md の 17、owner-tasks.md の 6c |
 | 短縮リンクの利用者のドメインの上限 LINK_DOMAIN_LIMIT（いまは Hobby の 50 から 40）を、Pro の上限に合わせて上げる。Pro のドメインの数の上限は要確認 | オーナー | Vercel を Pro にしたとき | 0 円 | deploy.md の 4・17 |
 
 ### 2.3 招待と試用

@@ -62,6 +62,7 @@ export const UI_WORD_RULES: UiWordRule[] = [
   // 使える量の意味の「枠」だけ。画像のスマホの枠・空き枠・席や時間の枠は使ってよい
   { id: "waku", pattern: /枠(が|を使い切|（)/ },
   { id: "matatsukae", pattern: /また使えます/ },
+  { id: "zentai", pattern: /yabumi ?全体/ },
 ];
 
 // 表にあるが、見つける形を決められない行（確認役が文の意味から見る）

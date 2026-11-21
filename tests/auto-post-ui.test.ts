@@ -50,7 +50,7 @@ describe("「何を」のカード", () => {
       ["今日の一枚", "f2", undefined],
     ]);
     expect(series[0].example).toBe("連想映画クイズ🎬／デロリアン・雷／この映画は？");
-    expect(series[0].count).toBe("これまでの投稿 3 件");
+    expect(series[0].count).toBe("これまでの投稿 3 本");
     expect(series[1].example).toBeUndefined();
     expect(new Set(cards.map((c) => c.key)).size).toBe(cards.length);
   });

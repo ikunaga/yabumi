@@ -609,7 +609,7 @@ export function generatedMessage(rows: Pick<NotifyRow, "due_at" | "status" | "po
     const review = (r.posts?.post_targets ?? []).filter((t) => t.status === "awaiting_approval").map((t) => t.sns as SnsKey);
     return { title: "自動投稿を予約しました", body: `${at} に ${labels(sns)} に送ります${review.length ? `（${labels(review)} は確認が要ります）` : ""}` };
   }
-  return { title: "自動投稿を予約しました", body: `${rows.length} 件を作りました${waiting.length ? `（確認待ち ${waiting.length} 件）` : ""}${held.length ? `（下書きに回した ${held.length} 件）` : ""}` };
+  return { title: "自動投稿を予約しました", body: `${rows.length} 本を作りました。${waiting.length ? `確認待ちは ${waiting.length} 本です。` : ""}${held.length ? `下書きに残したのは ${held.length} 本です。` : ""}` };
 }
 
 export async function notifyMade(admin: Db, deps: EngineDeps, now: Date, opts: EngineOpts = {}): Promise<number> {

@@ -323,10 +323,10 @@ export function FormatManager({
   );
 }
 
-// カードの小さな要約（「画像も AI でつくる・ハッシュタグ 4 個・これまでの投稿 4 件」。ja-copy-reviewer: 何の数かを書く）。ないものは書かない
+// カードの小さな要約（「画像も AI でつくる・ハッシュタグ 4 個・これまでの投稿 4 本」。ja-copy-reviewer: 何の数かを書く）。ないものは書かない
 function cardSummary(f: PostFormat, rounds: number): string[] {
   const tags = new Set(Object.values(f.hashtags).flatMap((x) => x ?? [])).size;
-  const parts: string[] = [f.image ? "画像も AI でつくる" : null, tags ? `ハッシュタグ ${tags} 個` : null, isSeries(f.series) ? `これまでの投稿 ${rounds} 件` : null].filter((x): x is string => Boolean(x));
+  const parts: string[] = [f.image ? "画像も AI でつくる" : null, tags ? `ハッシュタグ ${tags} 個` : null, isSeries(f.series) ? `これまでの投稿 ${rounds} 本` : null].filter((x): x is string => Boolean(x));
   return parts;
 }
 

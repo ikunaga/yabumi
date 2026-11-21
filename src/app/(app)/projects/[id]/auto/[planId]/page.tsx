@@ -91,7 +91,7 @@ export default async function AutoPlanPage(props: PageProps<"/projects/[id]/auto
       )}
 
       <div className="grid grid-cols-3 gap-3 max-sm:grid-cols-3 max-sm:gap-2">
-        <Metric label="送信済み" value={sentRuns.length} unit="件" className="max-sm:px-3" />
+        <Metric label="送信済み" value={sentRuns.length} unit="本" className="max-sm:px-3" />
         <Metric label={
             <>
               <span className="max-sm:hidden">下書きに残した</span>

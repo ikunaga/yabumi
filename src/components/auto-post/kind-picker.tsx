@@ -63,7 +63,7 @@ export function kindCards(m: PickerMaterials, projectId: string, formatsHref: st
         series: true,
         description: KIND_DESCRIPTIONS.series,
         example: exampleLine(f.example),
-        count: `これまでの投稿 ${f.rounds} 件`,
+        count: `これまでの投稿 ${f.rounds} 本`,
       });
   } else {
     cards.push({

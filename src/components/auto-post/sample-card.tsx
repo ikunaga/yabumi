@@ -116,18 +116,18 @@ export function SampleCard(p: Props) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
-            <h2 className="text-[18px] font-bold max-sm:text-[16px]">テストで 1 件つくる</h2>
+            <h2 className="text-[18px] font-bold max-sm:text-[16px]">テストで 1 本つくる</h2>
             <HelpTip label="テストでつくることについて">
-              1 件つくるたびに、約 {wantsImage ? SAMPLE_WITH_IMAGE_YEN : SAMPLE_YEN} 円かかります。
+              1 本つくるたびに、約 {wantsImage ? SAMPLE_WITH_IMAGE_YEN : SAMPLE_YEN} 円かかります。
               {wantsImage && `画像は 1 か月に ${AUTO_PHOTO_LIMITS.userMonthlyImages} 枚までつくれます。テストの画像も 1 枚に数えます。`}
               1 日 {AUTO_SAMPLE_DAILY_RUNS} 回までつくれます。「この投稿を 1 回目として送る」を選ばないと、つくった投稿は 1 日で消えます。
             </HelpTip>
           </div>
-          <p className="text-sm text-muted">設定どおりに 1 件つくって見せます。SNS には送りません。</p>
+          <p className="text-sm text-muted">設定どおりに 1 本つくって見せます。SNS には送りません。</p>
           {wantsImage && <p className="num text-sm text-muted">画像も 1 枚、一緒につくります。1 件 約 {SAMPLE_WITH_IMAGE_YEN} 円です。</p>}
         </div>
         <Button type="button" variant="secondary" disabled={sampling} onClick={() => make()}>
-          {sampling ? "つくっています…" : sample ? "もう一度つくる" : "テストで 1 件つくる"}
+          {sampling ? "つくっています…" : sample ? "もう一度つくる" : "テストで 1 本つくる"}
         </Button>
       </div>
       {error && <ErrorBanner>{error}</ErrorBanner>}

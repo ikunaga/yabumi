@@ -1,4 +1,4 @@
-// 「テストで 1 件つくる」で、画像の設定があれば文と一緒に画像もつくる（2026-11-21 オーナーの決定）。
+// 「テストで 1 本つくる」で、画像の設定があれば文と一緒に画像もつくる（2026-11-21 オーナーの決定）。
 // サーバーの操作 makeAutoSample の組み立てだけを見る（engine は偽物。本物の AI は呼ばない。engine の中身は結合テスト）
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -39,7 +39,7 @@ beforeEach(() => {
   sampleResult.issues = [];
 });
 
-describe("テストで 1 件つくる（makeAutoSample）", () => {
+describe("テストで 1 本つくる（makeAutoSample）", () => {
   it("画像の設定があれば、文と一緒に画像もつくって返す", async () => {
     const r = await makeAutoSample(PROJECT, input(AI));
     expect(r.ok && r.data.image?.url).toBe("https://x/u/gen/a.jpg");

@@ -121,7 +121,7 @@ describe("「確かめる」の画面の言葉（2026-11-20 オーナーの指�
     expect(kindSummary("pillars", "x")).toBe("テーマを順番に");
   });
 
-  it("見本は「テストで 1 件つくる」「テストでつくった投稿」「この投稿を 1 回目として送る」。画面の文で「見本」と言わない", async () => {
+  it("見本は「テストで 1 本つくる」「テストでつくった投稿」「この投稿を 1 回目として送る」。画面の文で「見本」と言わない", async () => {
     const { readFileSync } = await import("node:fs");
     const paths = [
       "src/components/auto-post/sample-card.tsx",
@@ -134,7 +134,7 @@ describe("「確かめる」の画面の言葉（2026-11-20 オーナーの指�
     ];
     const files = paths.map((f) => readFileSync(f, "utf8"));
     const card = files[0];
-    for (const t of ["テストで 1 件つくる", "設定どおりに 1 件つくって見せます。SNS には送りません。", "もう一度つくる", "テストでつくった投稿", "この投稿を 1 回目として送る"]) expect(card).toContain(t);
+    for (const t of ["テストで 1 本つくる", "設定どおりに 1 本つくって見せます。SNS には送りません。", "もう一度つくる", "テストでつくった投稿", "この投稿を 1 回目として送る"]) expect(card).toContain(t);
     // 画面に出る文（コメントと、サーバーの記録の console.error を除く）
     const shown = files
       .flatMap((t) => t.split("\n"))

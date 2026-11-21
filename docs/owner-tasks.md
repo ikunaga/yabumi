@@ -61,8 +61,8 @@
 
 | # | やること | 元の手順 | 状態 |
 |---|---|---|---|
-| 6b-1 | VAPID の鍵を作る（`npx web-push generate-vapid-keys`） | 18-1 | 要確認 |
-| 6b-2 | Vercel の Production と Preview に `VAPID_PUBLIC_KEY`・`VAPID_PRIVATE_KEY`（Sensitive）・`VAPID_SUBJECT`（mailto: の運営者の宛先）を入れて Redeploy | 18-2 | 要確認 |
+| 6b-1 | VAPID の鍵を作る（`npx web-push generate-vapid-keys`） | 18-1 | まだ（2026-11-21 オーナー: 入っていない） |
+| 6b-2 | Vercel の Production と Preview に `VAPID_PUBLIC_KEY`・`VAPID_PRIVATE_KEY`（Sensitive）・`VAPID_SUBJECT`（mailto: の運営者の宛先）を入れて Redeploy | 18-2 | まだ |
 | 6b-3 | iPhone: Safari で yabumi を開き「ホーム画面に追加」→ ホーム画面の yabumi でログインし直す →「お知らせの設定」→「この端末で通知を受け取る」→「試しに送る」で届くかを見る（iOS 16.4 以降） | 18-4〜18-7 | まだ |
 | 6b-4 | Android・パソコンでも同じく試す（任意） | 18-4〜18-7 | まだ |
 

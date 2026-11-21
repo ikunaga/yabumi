@@ -11,6 +11,9 @@ import { consultTopicMeta } from "@/lib/ai/consult-topics";
 import { getProject } from "@/lib/projects/queries";
 import { isUuid } from "@/lib/uuid";
 
+// AI と相談の返事は、送ったあと after() で作る（AI を最大 3 回呼ぶ。長くて 90 秒ほど）。この画面の server action の上限
+export const maxDuration = 120;
+
 export async function generateMetadata(props: PageProps<"/projects/[id]/consult/new">): Promise<Metadata> {
   const sp = await props.searchParams;
   return { title: consultTopicMeta(typeof sp.start === "string" ? sp.start : null)?.entry?.title ?? "新しい相談" };

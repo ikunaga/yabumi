@@ -10,6 +10,9 @@ import { consultTopicMeta } from "@/lib/ai/consult-topics";
 import { getProject } from "@/lib/projects/queries";
 import { isUuid } from "@/lib/uuid";
 
+// AI と相談の返事は、送ったあと after() で作る（AI を最大 3 回呼ぶ。長くて 90 秒ほど）。この画面の server action の上限
+export const maxDuration = 120;
+
 export async function generateMetadata(props: PageProps<"/projects/[id]/consult/[threadId]">): Promise<Metadata> {
   const { id, threadId } = await props.params;
   const thread = isUuid(id) && isUuid(threadId) ? await getConsultThread(id, threadId) : null;
@@ -17,7 +20,7 @@ export async function generateMetadata(props: PageProps<"/projects/[id]/consult/
   return { title: meta?.entry?.title ?? meta?.listTitle ?? "AI と相談" };
 }
 
-// AI と相談の 1 つの会話（F09、4.23）。一覧は /consult。削除は見出しの横の「…」から（削除したら一覧へ）
+// AI と相談の 1 つの会話（F09、4.23）。一覧は /consult。削除は見出しの横の「この会話を削除する」から（削除したら一覧へ）
 export default async function ConsultThreadPage(props: PageProps<"/projects/[id]/consult/[threadId]">) {
   const { id, threadId } = await props.params;
   if (!aiConfigured()) redirect(`/projects/${id}/consult`);
@@ -32,7 +35,7 @@ export default async function ConsultThreadPage(props: PageProps<"/projects/[id]
     <div className="flex flex-col gap-5 max-sm:gap-4">
       <ConsultHeader projectId={id} topic={thread.topic} threadId={thread.id} roadmapSteps={thread.topic === "roadmap" ? await roadmapStepsFor(id) : null} firstText={firstText} />
       <Columns
-        main={<ConsultChat key={thread.id} projectId={id} threadId={thread.id} messages={thread.messages} initialTopic={null} closed={thread.closedAt !== null} />}
+        main={<ConsultChat key={thread.id} projectId={id} threadId={thread.id} messages={thread.messages} initialTopic={null} closed={thread.closedAt !== null} replying={thread.replying} failed={thread.failed} />}
         side={<ConsultSide projectId={id} adopted={adopted} lead={consultTopicMeta(thread.topic)?.entry?.lead} threadId={thread.id} closedAt={thread.closedAt} />}
       />
     </div>

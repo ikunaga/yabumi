@@ -212,6 +212,8 @@ export type Database = {
           owner_id: string
           project_id: string
           purpose: string
+          reply_failed_at: string | null
+          replying_since: string | null
           summary: string | null
           updated_at: string
         }
@@ -222,6 +224,8 @@ export type Database = {
           owner_id: string
           project_id: string
           purpose: string
+          reply_failed_at?: string | null
+          replying_since?: string | null
           summary?: string | null
           updated_at?: string
         }
@@ -232,6 +236,8 @@ export type Database = {
           owner_id?: string
           project_id?: string
           purpose?: string
+          reply_failed_at?: string | null
+          replying_since?: string | null
           summary?: string | null
           updated_at?: string
         }

@@ -9,6 +9,7 @@ import { VoiceInputButton } from "@/components/ui/voice-input";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { Term } from "@/components/ui/term";
 import { sendConsultMessage } from "@/lib/ai/consult-actions";
+import { REPLY_FAILED_MESSAGE } from "@/lib/ai/consult-reply";
 import type { ConsultAssistantContent, ConsultMessage, ConsultTopic } from "@/lib/ai/consult";
 import { ROADMAP_STEPS, reviewHeadingOf, roadmapStepOf, type ActionBody, type ActionKind, type ConsultOption, type LegacyConsultAction } from "@/lib/ai/consult-schema";
 import { CONSULT_TOPIC_META, listedConsultTopics } from "@/lib/ai/consult-topics";
@@ -73,6 +74,8 @@ export function ConsultChat({
   initialItemId = null,
   initialGoalId = null,
   closed = false,
+  replying = false,
+  failed = false,
 }: {
   projectId: string;
   threadId: string | null;
@@ -85,6 +88,10 @@ export function ConsultChat({
   initialGoalId?: string | null;
   // 済んだ会話: 読むだけ（送る・採用する・選ぶは出さない）
   closed?: boolean;
+  // サーバーが返事を作っている（送ったあと after() で作る。画面を離れて戻ったときも、ここで待つ）
+  replying?: boolean;
+  // 最後の返事を作れなかった
+  failed?: boolean;
 }) {
   const router = useRouter();
   const [threadId, setThreadId] = useState(initialThreadId);
@@ -98,6 +105,18 @@ export function ConsultChat({
   const closer = useCloseThread(projectId, threadId);
   // AI が区切った返事で「もう少し相談する」を押したか（押した返事の id）
   const [continuedId, setContinuedId] = useState<string | null>(null);
+  // 送って受け付けられたときの発言の数。読み直しで返事（か作れなかった印）が届くまで「考えています」を出す
+  const [awaitFrom, setAwaitFrom] = useState<number | null>(null);
+  const awaitDone = awaitFrom !== null && (messages.length >= awaitFrom + 2 || (failed && !replying && messages.length >= awaitFrom + 1));
+  const awaiting = awaitFrom !== null && !awaitDone;
+  const waiting = pending || replying || awaiting;
+
+  // 返事を待つ間は、3 秒ごとに読み直す（保存された返事を出す）
+  useEffect(() => {
+    if (!replying && !awaiting) return;
+    const t = setInterval(() => router.refresh(), 3000);
+    return () => clearInterval(t);
+  }, [replying, awaiting, router]);
 
   function send(input: Input) {
     setError(null);
@@ -122,6 +141,7 @@ export function ConsultChat({
       }
       if (res.ok) {
         if (input.kind === "text") setText("");
+        if (res.replying) setAwaitFrom(input.kind === "start" ? 0 : messages.length);
       } else {
         setError(res.message ?? "うまくいきませんでした。");
       }
@@ -141,7 +161,7 @@ export function ConsultChat({
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
-  }, [messages.length, pending]);
+  }, [messages.length, waiting]);
 
   const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
   // 入口（案の見出しを出し分ける）。入口のボタンから始めた会話は最初の発言、まだ返事がないときは渡された入口
@@ -149,7 +169,7 @@ export function ConsultChat({
   const topic = first?.role === "user" && first.content.kind === "start" ? first.content.topic : initialTopic;
   // 最後の返事が AI の区切りなら、入力欄の代わりに「これで終わる」「もう少し相談する」を出す
   const last = messages[messages.length - 1];
-  const wrapUp = !closed && !pending && last?.role === "assistant" && last.content.wrapUp && continuedId !== last.id ? last : null;
+  const wrapUp = !closed && !waiting && last?.role === "assistant" && last.content.wrapUp && continuedId !== last.id ? last : null;
 
   useEffect(() => {
     if (continuedId) inputRef.current?.focus();
@@ -157,13 +177,13 @@ export function ConsultChat({
 
   function submitText() {
     const t = text.trim();
-    if (!t || pending) return;
+    if (!t || waiting) return;
     send({ kind: "text", text: t });
   }
 
   return (
     <div className="flex flex-col gap-4">
-      {messages.length === 0 && !pending && (
+      {messages.length === 0 && !waiting && (
         <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface px-6 py-5 max-sm:px-4">
           <p className="text-[14px] leading-[1.8]">
             運用の悩みを相談できます。AI は、アカウントの方針・最近の投稿・数字・ロードマップを見ます。そのうえで、次の一手を出します。「これにする」を押した提案だけが、方針やロードマップに入ります。
@@ -193,7 +213,7 @@ export function ConsultChat({
               isLatest={m.id === lastAssistant?.id}
               topic={topic}
               readOnly={closed}
-              disabled={pending || closer.pending}
+              disabled={waiting || closer.pending}
               onChoice={(c) => send({ kind: "text", text: c })}
               onAdopt={(i) => send({ kind: "adopt", messageId: m.id, actionIndex: i })}
               onRevise={(title) => {
@@ -210,9 +230,18 @@ export function ConsultChat({
             <p className="max-w-[80%] rounded-lg bg-primary-soft px-4 py-2.5 text-[14px] leading-[1.7] whitespace-pre-wrap">{sentText}</p>
           </li>
         )}
-        {pending && (
+        {waiting && (
           <li>
-            <AiThinking kind="chat" variant="chat" note="10〜30 秒ほどかかることがあります" />
+            <AiThinking kind="chat" variant="chat" note="10〜30 秒ほどかかります。画面を離れても、返事は作り続けます。" />
+          </li>
+        )}
+        {/* 返事を作れなかった（発言は残す。費用の予約は戻してある） */}
+        {failed && !waiting && last?.role === "user" && (
+          <li>
+            <p className="text-[14px] leading-[1.7]">
+              <span className="mr-1.5 font-bold text-signal">● 要確認</span>
+              {REPLY_FAILED_MESSAGE}
+            </p>
           </li>
         )}
       </ol>
@@ -265,7 +294,7 @@ export function ConsultChat({
           />
           <div className="flex items-start gap-3">
             <VoiceInputButton className="flex-1" target={inputRef} label="相談" onChange={setText} />
-            <Button className="ml-auto" size="sm" disabled={pending || !text.trim()} onClick={submitText}>
+            <Button className="ml-auto" size="sm" disabled={waiting || !text.trim()} onClick={submitText}>
               送る
             </Button>
           </div>

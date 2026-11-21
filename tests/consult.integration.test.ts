@@ -1,7 +1,8 @@
 // AI と相談（F09、docs/architecture.md の 4.23）: 会話、「いまの状況」、提案の採用（設計・目標・やること・下書き）。1 回の返事は 1 つの項目の案 2〜3 個（2026-10-12）。
 // AI は callModel をモックし、本物の Claude API は呼ばない
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { GOAL_RESCUE_NOT_FOUND, GOAL_REVIEW_NOT_FOUND, LEGACY_GOAL_PROPOSAL, closeConsultThread, consultStep, type ConsultInput } from "@/lib/ai/consult";
+import { GOAL_RESCUE_NOT_FOUND, GOAL_REVIEW_NOT_FOUND, LEGACY_GOAL_PROPOSAL, closeConsultThread, consultBegin, consultReply, consultStep, type ConsultInput } from "@/lib/ai/consult";
+import { REPLYING_MESSAGE, REPLY_STALE_MS } from "@/lib/ai/consult-reply";
 import { normalizeConsultTurn, reviewHeadingOf, roadmapStepOf, roadmapStepState } from "@/lib/ai/consult-schema";
 import { scopeAiBudget } from "./helpers/ai-budget";
 import type { CallModel, ModelResult } from "@/lib/ai/plan-coach";
@@ -221,12 +222,46 @@ describe("AI と相談: ロードマップづくり（1 回 1 項目、順番に
     expect((await activeGoal()).statement).toBe("3 か月で 150 ダウンロード");
   });
 
-  it("断られたら、新しい会話は残さない", async () => {
-    const { count: before } = await admin.from("ai_threads").select("id", { count: "exact", head: true }).eq("project_id", projectId).eq("purpose", "consult");
+  // 返事は画面から切り離して作る（2026-11-21）。作れなかったときは、会話と発言を残し、作れなかった印を付ける（画面で「もう一度送ってください」）
+  it("返事を作れなかったら、会話と発言は残し、作れなかった印を付けて、作っている印を外す。費用の予約は残さない", async () => {
     const r = await step(alice, aliceId, reply(null, { stopReason: "refusal" }), null, { kind: "start", topic: "no_reaction" });
     expect(r.ok).toBe(false);
-    const { count } = await admin.from("ai_threads").select("id", { count: "exact", head: true }).eq("project_id", projectId).eq("purpose", "consult");
-    expect(count).toBe(before);
+    expect(r.threadId).not.toBeNull();
+    const { data: t } = await admin.from("ai_threads").select("replying_since, reply_failed_at").eq("id", r.threadId!).single();
+    expect(t!.replying_since).toBeNull();
+    expect(t!.reply_failed_at).not.toBeNull();
+    const { data: ms } = await admin.from("ai_messages").select("role").eq("thread_id", r.threadId!);
+    expect(ms!.map((m) => m.role)).toEqual(["user"]);
+    const { count: reserved } = await admin.from("ai_usage").select("id", { count: "exact", head: true }).eq("owner_id", aliceId).eq("status", "reserved");
+    expect(reserved).toBe(0);
+    // 次に送ると、作れなかった印は消え、返事が入る
+    const again = await step(alice, aliceId, reply(plain()), r.threadId, { kind: "text", text: "もう一度" });
+    expect(again.ok).toBe(true);
+    const { data: t2 } = await admin.from("ai_threads").select("replying_since, reply_failed_at").eq("id", r.threadId!).single();
+    expect(t2).toEqual({ replying_since: null, reply_failed_at: null });
+  });
+
+  it("返事を作っている間は、同じ会話に次を送れない（二重に作らない）。古い印（止まった残り）なら受け付ける", async () => {
+    const first = await step(alice, aliceId, reply(plain()), null, { kind: "start", topic: "what_to_post" });
+    const threadId = first.threadId!;
+    const deps = { callModel: reply(plain()), loadKpiValues };
+    const a = await consultBegin(alice, admin, deps, { userId: aliceId, projectId, threadId, input: { kind: "text", text: "1 つ目" } });
+    expect(a.ok && a.job).toBeTruthy();
+    const b = await consultBegin(alice, admin, deps, { userId: aliceId, projectId, threadId, input: { kind: "text", text: "2 つ目" } });
+    expect(b).toEqual({ ok: false, threadId, message: REPLYING_MESSAGE });
+    const { data: ms } = await admin.from("ai_messages").select("role").eq("thread_id", threadId).order("created_at");
+    expect(ms!.map((m) => m.role)).toEqual(["user", "assistant", "user"]);
+    // 返事ができたら印が外れ、次を送れる
+    if (a.ok && a.job) expect((await consultReply(alice, admin, deps, a.job)).ok).toBe(true);
+    const { data: t } = await admin.from("ai_threads").select("replying_since").eq("id", threadId).single();
+    expect(t!.replying_since).toBeNull();
+    // サーバーが途中で止まって印が残った（5 分より前）ときは、次を受け付ける。新しい印は受け付けない
+    await admin.from("ai_threads").update({ replying_since: new Date(Date.now() - 60_000).toISOString() }).eq("id", threadId);
+    expect((await consultBegin(alice, admin, deps, { userId: aliceId, projectId, threadId, input: { kind: "text", text: "3 つ目" } })).ok).toBe(false);
+    await admin.from("ai_threads").update({ replying_since: new Date(Date.now() - REPLY_STALE_MS - 60_000).toISOString() }).eq("id", threadId);
+    const c = await consultBegin(alice, admin, deps, { userId: aliceId, projectId, threadId, input: { kind: "text", text: "3 つ目" } });
+    expect(c.ok && c.job).toBeTruthy();
+    if (c.ok && c.job) await consultReply(alice, admin, deps, c.job);
   });
 
   it("ロードマップ以外の入口では、段取りを渡さない", async () => {

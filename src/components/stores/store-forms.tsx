@@ -22,7 +22,7 @@ export function AppStoreConnectForm({ projectId }: { projectId: string }) {
       <Field label="Key ID" htmlFor="keyId" hint="作ったキーの行にある、英大文字と数字の ID">
         <Input id="keyId" name="keyId" autoComplete="off" spellCheck={false} placeholder="2X9R4HXF34" />
       </Field>
-      <Field label="秘密鍵（.p8 ファイル）" htmlFor="privateKey" hint="ダウンロードした .p8 ファイルを選ぶか、中身をそのまま貼ります。yabumi は暗号化して保存し、二度と画面に出しません">
+      <Field label="秘密鍵の .p8 ファイル" htmlFor="privateKey" hint="ダウンロードした .p8 ファイルを選ぶか、中身をそのまま貼ります。yabumi は暗号化して保存し、二度と画面に出しません。">
         <input
           type="file"
           accept=".p8,text/plain"
@@ -44,7 +44,7 @@ export function AppStoreConnectForm({ projectId }: { projectId: string }) {
           className="font-mono text-xs"
         />
       </Field>
-      <Field label="ベンダー番号" htmlFor="vendorNumber" hint="数字だけ（例: 85123456）">
+      <Field label="ベンダー番号" htmlFor="vendorNumber" hint="数字だけを入れます。例: 85123456">
         <Input id="vendorNumber" name="vendorNumber" inputMode="numeric" autoComplete="off" className="max-w-[240px]" />
       </Field>
       <div>
@@ -62,10 +62,10 @@ export function RevenueCatForm({ projectId }: { projectId: string }) {
     <form action={action} className="flex flex-col gap-4">
       {state.error && <ErrorBanner>{state.error}</ErrorBanner>}
       {state.ok && <SuccessBanner>{state.ok}</SuccessBanner>}
-      <Field label="プロジェクトの ID" htmlFor="rcProjectId" hint="RevenueCat の Project settings にある ID（URL の /projects/ のあとの部分）">
+      <Field label="RevenueCat の Project ID" htmlFor="rcProjectId" hint="RevenueCat の Project settings にある ID です。URL の /projects/ のあとの部分です。">
         <Input id="rcProjectId" name="rcProjectId" autoComplete="off" spellCheck={false} placeholder="proj1ab2c3d4" className="max-w-[320px]" />
       </Field>
-      <Field label="シークレットキー（v2）" htmlFor="secretKey" hint="sk_ で始まる値。yabumi は暗号化して保存し、二度と画面に出しません">
+      <Field label="シークレットキー" htmlFor="secretKey" hint="sk_ で始まる v2 のキーです。yabumi は暗号化して保存し、二度と画面に出しません。">
         <Input id="secretKey" name="secretKey" type="password" autoComplete="off" spellCheck={false} placeholder="sk_…" />
       </Field>
       <div>
@@ -86,7 +86,7 @@ export function StartGooglePlayButton({ projectId }: { projectId: string }) {
       {state.error && <ErrorBanner>{state.error}</ErrorBanner>}
       <div>
         <Button type="submit" disabled={pending}>
-          {pending ? "用意しています…" : "Google Play をつなぐ（読み取り用のアカウントを用意する）"}
+          {pending ? "用意しています…" : "Google Play をつなぐ"}
         </Button>
       </div>
     </form>
@@ -99,10 +99,10 @@ export function GooglePlayForm({ projectId, defaultPackage, defaultBucket }: { p
     <form action={action} className="flex flex-col gap-4">
       {state.error && <ErrorBanner>{state.error}</ErrorBanner>}
       {state.ok && <SuccessBanner>{state.ok}</SuccessBanner>}
-      <Field label="一括レポートの置き場所" htmlFor="bucket" hint="Play Console の「レポートをダウンロード」→「統計情報」の「Cloud Storage の URI をコピー」の値（gs://pubsite_prod_rev_… のまま貼って大丈夫です）">
+      <Field label="一括レポートの置き場所" htmlFor="bucket" hint="Play Console の「統計情報」でコピーした URI を貼ります。gs:// から始まるまま貼って大丈夫です。">
         <Input id="bucket" name="bucket" autoComplete="off" spellCheck={false} defaultValue={defaultBucket} placeholder="gs://pubsite_prod_rev_01234567890987654321" />
       </Field>
-      <Field label="パッケージ名" htmlFor="package" hint="Google Play の URL の id= のあとの部分（例: com.example.kakeibo）">
+      <Field label="パッケージ名" htmlFor="package" hint="Google Play の URL の id= のあとの部分です。例: com.example.kakeibo">
         <Input id="package" name="package" autoComplete="off" spellCheck={false} defaultValue={defaultPackage} className="max-w-[360px]" />
       </Field>
       <div>
@@ -129,7 +129,7 @@ export function AppStoreViewsForm({ projectId }: { projectId: string }) {
       <Field label="Admin のキーの Key ID" htmlFor="views-keyId">
         <Input id="views-keyId" name="keyId" autoComplete="off" spellCheck={false} />
       </Field>
-      <Field label="Admin のキーの秘密鍵（.p8）" htmlFor="views-privateKey" hint="この 1 回だけ使い、保存しません">
+      <Field label="Admin のキーの .p8 ファイル" htmlFor="views-privateKey" hint="この 1 回だけ使い、保存しません">
         <input
           type="file"
           accept=".p8,text/plain"
@@ -152,7 +152,7 @@ export function AppStoreViewsForm({ projectId }: { projectId: string }) {
       </Field>
       <div>
         <Button type="submit" variant="secondary" disabled={pending}>
-          {pending ? "依頼しています…" : "閲覧数のレポートを依頼する"}
+          {pending ? "頼んでいます…" : "見た人の数のレポートを頼む"}
         </Button>
       </div>
     </form>

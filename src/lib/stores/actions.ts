@@ -120,8 +120,8 @@ export async function saveGooglePlay(projectId: string, _prev: StoreFormState, f
   // 「gs://pubsite_prod_rev_…」で貼っても、バケットの名前だけにする
   const bucket = String(formData.get("bucket") ?? "").trim().replace(/^gs:\/\//, "").replace(/\/.*$/, "");
   const pkg = String(formData.get("package") ?? "").trim();
-  if (!/^pubsite_prod_[a-z0-9_]{3,60}$/.test(bucket)) return { error: "一括レポートの置き場所は pubsite_prod_ で始まる名前です（Play Console の「Cloud Storage の URI をコピー」）。" };
-  if (!/^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+$/.test(pkg)) return { error: "パッケージ名の形が違います（例: com.example.kakeibo）。" };
+  if (!/^pubsite_prod_[a-z0-9_]{3,60}$/.test(bucket)) return { error: "一括レポートの置き場所の形が違います。「統計情報」でコピーした値を貼ってください。gs://pubsite_prod_ で始まる値です。" };
+  if (!/^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+$/.test(pkg)) return { error: "パッケージ名の形が違います。例: com.example.kakeibo" };
   try {
     const verified = await verifyPlay(createAdminClient(), userId, projectId, bucket, pkg);
     revalidatePath(`/projects/${projectId}/stores`);
@@ -163,7 +163,7 @@ export async function startAppStorePageViews(projectId: string, _prev: StoreForm
     return { error: "レポートの依頼を作れませんでした。時間をおいてもう一度お試しください。" };
   }
   revalidatePath(`/projects/${projectId}/stores`);
-  return { ok: "レポートの依頼を作りました（Admin のキーは保存していません）。Apple がレポートを作り始めるまで 1〜2 日かかり、そのあと毎日取り込みます。" };
+  return { ok: "レポートの依頼を作りました。Admin のキーは保存していません。Apple がレポートを作るまで 1〜2 日かかります。そのあとは、毎日取り込みます。" };
 }
 
 export async function removeAppStorePageViews(projectId: string): Promise<void> {

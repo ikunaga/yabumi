@@ -94,7 +94,7 @@ export async function impersonate(token: string, email: string, fetchImpl: typeo
     { method: "POST", body: JSON.stringify({ scope: ["https://www.googleapis.com/auth/devstorage.read_only"], lifetime: "600s" }) },
     fetchImpl,
   );
-  if (status >= 300 || !json.accessToken) throw new StoreApiError("Google Play 用のアカウントを使えませんでした。時間をおいてもう一度お試しください（作ったばかりなら 1〜2 分かかります）。", status);
+  if (status >= 300 || !json.accessToken) throw new StoreApiError("読み取り用のアカウントを、まだ使えませんでした。用意したばかりなら、1〜2 分待ってから、もう一度押してください。", status);
   return json.accessToken;
 }
 
@@ -102,9 +102,9 @@ const GCS = "https://storage.googleapis.com/storage/v1";
 
 function storageError(status: number): StoreApiError {
   if (status === 401 || status === 403) {
-    return new StoreApiError("一括レポートを読めませんでした。Play Console で、表示されたアカウントを招待し、「アプリ情報の表示と一括レポートのダウンロード」の権限を付けたかを確認してください（反映まで数分かかることがあります）。", status);
+    return new StoreApiError("一括レポートを読めませんでした。Play Console に、手順のメールアドレスを招待したか確認してください。「アプリ情報の表示と一括レポートのダウンロード」の権限も要ります。反映まで、数分かかることがあります。", status);
   }
-  if (status === 404) return new StoreApiError("一括レポートの置き場所（pubsite_prod_rev_…）が見つかりませんでした。Play Console の「Cloud Storage の URI をコピー」の値を確認してください。", status);
+  if (status === 404) return new StoreApiError("一括レポートの置き場所が見つかりませんでした。Play Console の「統計情報」でコピーした値を、確認してください。", status);
   return new StoreApiError(`Google Play の一括レポートを読めませんでした（${status}）。時間をおいて読み直します。`, status);
 }
 

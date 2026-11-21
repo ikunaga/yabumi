@@ -57,7 +57,9 @@ export const UI_WORD_RULES: UiWordRule[] = [
   { id: "midashi", pattern: /見出し/ },
   { id: "shirushi", pattern: /印を外/ },
   { id: "gazoai", pattern: /画像の ?AI/ },
+  // 「時間帯」「携帯」「地帯」「包帯」「一帯」「世帯」は使ってよい
+  { id: "obi", pattern: /(?<![間携地包一世])帯/ },
 ];
 
 // 表にあるが、見つける形を決められない行（確認役が文の意味から見る）
-export const UI_WORD_RULES_WITHOUT_PATTERN = ["sakujo", "unei", "project", "term", "okane", "hazusu", "moji", "tsunageru", "nini", "etsuran"];
+export const UI_WORD_RULES_WITHOUT_PATTERN = ["sakujo", "unei", "project", "term", "okane", "hazusu", "moji", "tsunageru", "nini", "etsuran", "yakuwari"];

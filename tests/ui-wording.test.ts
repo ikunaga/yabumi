@@ -110,5 +110,7 @@ describe("文の集め方と数え方", () => {
     expect(hit("中身を確かめてください")).toEqual(["tashikameru"]);
     expect(hit("種類")).toContain("shurui");
     expect(hit("宣伝するものの種類")).toEqual([]);
+    expect(hit("時間帯の傾向・携帯で見る")).toEqual([]);
+    expect(hit("「ホーム」のいまやることの帯")).toContain("obi");
   });
 });

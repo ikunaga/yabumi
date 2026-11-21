@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { runTidyDraft, type CallTidy } from "@/lib/ai/tidy-draft";
 import { addFormat } from "@/lib/post-formats/store";
 import type { CallShorten } from "@/lib/ai/shorten";
-import { spendAi, unspendAi, scopeAiBudget } from "./helpers/ai-budget";
+import { AI_USER_MONTHLY_USD, spendAi, unspendAi, scopeAiBudget } from "./helpers/ai-budget";
 import { AI_UNAVAILABLE_MESSAGE, AiUnavailableError } from "@/lib/ai/provider-failure";
 import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
 
@@ -78,7 +78,7 @@ describe("AI で投稿に整える", () => {
 
   it("上限に達していたら AI を呼ばない", async () => {
     const call = caller(good);
-    const filled = await spendAi(admin, aliceId, 3);
+    const filled = await spendAi(admin, aliceId, AI_USER_MONTHLY_USD);
     const r = await runTidyDraft(alice, admin, { callTidy: call }, { userId: aliceId, projectId, text, sns: ["x"] });
     await unspendAi(admin, filled);
     expect(r).toMatchObject({ ok: false, message: expect.stringContaining("今月") });

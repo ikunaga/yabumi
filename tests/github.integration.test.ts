@@ -2,7 +2,7 @@
 // GitHub と AI はモックし、本物は呼ばない
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { draftAppDescription, refineAppDescription, type CallDescriber, type RepoAccess } from "@/lib/ai/app-description";
-import { spendAi, unspendAi, scopeAiBudget } from "./helpers/ai-budget";
+import { AI_USER_MONTHLY_USD, spendAi, unspendAi, scopeAiBudget } from "./helpers/ai-budget";
 import { canReadRepo, readableRepoLink, syncInstallations, userCanReadRepo, verifyInstallations, type VerifiedInstallation } from "@/lib/github/installations";
 import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
 
@@ -215,7 +215,7 @@ describe("リポジトリのつなぎ", () => {
 
   it("上限に達していたら、AI を呼ばず、ファイルの中身も読まない（一覧は、見込みの額を送る中身から決めるために読む）", async () => {
     vi.mocked(repo.readFiles).mockClear();
-    const filled = await spendAi(admin, aliceId, 3);
+    const filled = await spendAi(admin, aliceId, AI_USER_MONTHLY_USD);
     const r = await draftAppDescription(alice, admin, deps(), { userId: aliceId, projectId });
     await unspendAi(admin, filled);
     expect(r).toMatchObject({ ok: false, message: expect.stringContaining("今月") });

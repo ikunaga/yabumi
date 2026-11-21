@@ -1,7 +1,7 @@
 // AI と進めるアカウント設計（会話・案の採用・上限）と、AI まわりのテーブルの RLS。
 // AI は callModel をモックし、本物の Claude API は呼ばない
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { spendAi, unspendAi, scopeAiBudget } from "./helpers/ai-budget";
+import { AI_USER_MONTHLY_USD, spendAi, unspendAi, scopeAiBudget } from "./helpers/ai-budget";
 import { coachStep, type CallModel, type ModelResult } from "@/lib/ai/plan-coach";
 import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
 
@@ -168,8 +168,8 @@ describe("AI と進めるアカウント設計", () => {
 
   it("今月の上限を超えたら AI を呼ばない（利用者ごと・全体）", async () => {
     const callModel = reply(question);
-    // 上限は DB の関数の中で固定（本人 月 $3・全体 月 $10・本人 1 日 60 回）。本人の利用を足して試す（全体は本人の分だけで数えている）
-    let filled = await spendAi(admin, aliceId, 3);
+    // 上限は DB の関数の中で固定（本人 月 $9.9・全体 月 $10・本人 1 日 60 回）。本人の利用を足して試す（全体は本人の分だけで数えている）
+    let filled = await spendAi(admin, aliceId, AI_USER_MONTHLY_USD);
     const r1 = await step(alice, aliceId, callModel, threadId, { kind: "text", text: "続き" });
     await unspendAi(admin, filled);
     expect(r1).toMatchObject({ ok: false });

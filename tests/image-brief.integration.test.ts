@@ -1,7 +1,7 @@
 // 画像の文字の案の流れ（利用量の記録、上限、他人のプロジェクト）。本物の AI は呼ばない
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { runImageBrief, type CallBrief } from "@/lib/ai/image-brief";
-import { spendAi, unspendAi, scopeAiBudget } from "./helpers/ai-budget";
+import { AI_USER_MONTHLY_USD, spendAi, unspendAi, scopeAiBudget } from "./helpers/ai-budget";
 import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
 
 const admin = adminClient();
@@ -49,7 +49,7 @@ describe("画像の文字の案", () => {
 
   it("上限に達していたら AI を呼ばない", async () => {
     const call = caller(good);
-    const filled = await spendAi(admin, aliceId, 3);
+    const filled = await spendAi(admin, aliceId, AI_USER_MONTHLY_USD);
     const r = await runImageBrief(alice, admin, { callBrief: call }, { userId: aliceId, projectId, text });
     await unspendAi(admin, filled);
     expect(r).toMatchObject({ ok: false, message: expect.stringContaining("今月") });

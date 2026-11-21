@@ -53,7 +53,7 @@ export default async function ConsultListPage(props: PageProps<"/projects/[id]/c
       <PageHeader
         title="AI と相談"
         sub={`これまでの相談 ${threads.length} 件`}
-        help="運用の悩みを相談できます。AI は、アカウントの方針・最近の投稿と数字・目標と週ごとのやることを見ます。そのうえで、案を 2〜3 個出します。選んだ案だけを、アカウントの方針や、目標と週ごとのやることに書き足します。"
+        help="運用の悩みを相談できます。AI は、アカウントの方針・最近の投稿と数字・目標と週ごとのやることを見ます。そのうえで、案を 2〜3 個出します。選んだ案だけを、アカウントの方針や、目標と週ごとのやることに追加します。"
         actions={
           blocked ? (
             <Button type="button" disabled>

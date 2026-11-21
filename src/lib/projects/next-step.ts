@@ -76,15 +76,19 @@ export function stepHref(key: StepKey, projectId: string): string {
   }
 }
 
-// 今週のやることの数（まだ・済み）。一覧は DB の project_step_flags、概要は roadmap/load.ts の thisWeekCounts から。
-// 決め方は同じ（tests/todo-achieved.integration.test.ts で突き合わせる）。済みは手で済みにしたもの＋数字で達成したもの。やらないは数えない
-export type WeekTodoCounts = { open: number; finished: number };
+// 今週のやることの数（まだ・済み）と、前の週から残っているまだのやること（carried）。一覧は DB の project_step_flags、
+// ホームとロードマップは roadmap/load.ts の weekTodoCounts から。決め方は同じ（tests/todo-achieved.integration.test.ts で突き合わせる）。
+// 済みは手で済みにしたもの＋数字で達成したもの。やらないは数えない。どれも今の目標のやること（目標のないやることを含む）だけ数える。
+// carried がないと、前の週の残りがあっても今週分が済むと「すべて完了」と出ていた（2026-11-21 オーナーの指摘）
+export type WeekTodoCounts = { open: number; finished: number; carried?: number };
 
 // 今週のやることの段階。まだのものがある（open）・全部済んだ（done）・まだ決めていない（none）。一覧と概要の帯はどちらもここで分ける
 // （2026-11-12 オーナーの指摘「今週のやることおわってるのにプロジェクト一覧に反映されない」: 一覧は済んだ週も「今週のやることを見る」だった）
-export type WeekTodoPhase = "open" | "done" | "none";
+// carried: 今週分は済んだ（または今週分がない）が、前の週のまだのやることが残っている
+export type WeekTodoPhase = "open" | "carried" | "done" | "none";
 export function weekTodoPhase(c: WeekTodoCounts): WeekTodoPhase {
   if (c.open > 0) return "open";
+  if ((c.carried ?? 0) > 0) return "carried";
   return c.finished > 0 ? "done" : "none";
 }
 
@@ -93,7 +97,13 @@ export function weekTodoPhase(c: WeekTodoCounts): WeekTodoPhase {
 export function listNextStep(state: StepState & { thisWeek: WeekTodoCounts }): { label: string; stepIndex: number } {
   const stepIndex = currentStepIndex(state);
   if (stepIndex < STEPS.length) return { label: STEPS[stepIndex].shortTitle, stepIndex };
-  const label = { open: `今週のやること あと ${state.thisWeek.open} 件`, done: "✓ 今週のやることは、すべて完了しました", none: "今週のやることを決める" }[weekTodoPhase(state.thisWeek)];
+  const carried = state.thisWeek.carried ?? 0;
+  const label = {
+    open: carried > 0 ? `やること あと ${state.thisWeek.open + carried} 件。うち ${carried} 件は前の週の分` : `今週のやること あと ${state.thisWeek.open} 件`,
+    carried: `前の週のやること あと ${carried} 件`,
+    done: "✓ 今週のやることは、すべて完了しました",
+    none: "今週のやることを決める",
+  }[weekTodoPhase(state.thisWeek)];
   return { label, stepIndex };
 }
 

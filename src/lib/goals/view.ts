@@ -29,6 +29,12 @@ export function formatMetric(metric: GoalMetric, value: number): string {
   return metric === "revenue" ? `${Math.round(value).toLocaleString("ja-JP")} 円` : (Math.round(value * 10) / 10).toLocaleString("ja-JP");
 }
 
+// 数字の単位（ロードマップの数字のカードに添える。売上は formatMetric が「円」を付けるので空）
+export const METRIC_UNIT: Record<GoalMetric, string> = { posts: "本", link_clicks: "回", downloads: "件", store_page_views: "回", revenue: "", outcomes: "件", followers: "人", views: "回" };
+
+// 期限の見込みを出すまでに数える日数（progressOf と同じ）
+export const PROJECT_MIN_DAYS = 7;
+
 // 数えていない数字の案内（数字の代わりに出す。正しくない数字を見せない）
 export function notCountedText(metric: GoalMetric, productType?: string | null): string {
   if (metric !== "outcomes" && metric !== "posts" && !kpiAllowed(metric, productType)) return "宣伝するものが「アプリ」のときだけ数えます";

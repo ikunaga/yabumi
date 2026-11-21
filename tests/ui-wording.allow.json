@@ -203,7 +203,6 @@
    "junbichu"
   ]
  },
- "src/app/(app)/projects/[id]/edit/page.tsx": {},
  "src/app/(app)/projects/[id]/github/page.tsx": {
   "GitHub をつなぐ機能は準備中です。": [
    "junbichu"
@@ -1005,7 +1004,6 @@
    "long"
   ]
  },
- "src/components/links/link-forms.tsx": {},
  "src/components/links/short-link-toggle.tsx": {
   "（保存すると決まります）": [
    "paren"
@@ -1528,11 +1526,6 @@
    "hashira"
   ],
   "数字と結びつける（任意）": [
-   "paren"
-  ]
- },
- "src/components/roadmap/goal-cards.tsx": {
-  "いまの目標（KGI）": [
    "paren"
   ]
  },
@@ -3148,8 +3141,6 @@
    "kiroku"
   ]
  },
- "src/lib/projects/actions.ts": {},
- "src/lib/projects/destinations.ts": {},
  "src/lib/projects/product-types.ts": {
   "お店（実店舗）": [
    "paren"

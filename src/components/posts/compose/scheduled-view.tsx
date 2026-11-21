@@ -37,7 +37,7 @@ export function ComposeScheduledView({ c }: { c: Composer }) {
   const canSkip = !!autoRun && (autoRun.status === "scheduled" || autoRun.status === "review");
 
   const stateOf = (s: SnsKey) =>
-    awaiting.includes(s) ? { text: "確認待ち。確認すると送ります", tone: "font-bold text-signal" } : isManualSns(s) ? { text: "この SNS には、自分で投稿します", tone: "text-muted" } : { text: "予約済み", tone: "font-bold text-success" };
+    awaiting.includes(s) ? { text: "確認待ち。確認すると送ります", tone: "font-bold text-signal" } : isManualSns(s) ? { text: "この SNS には、手動で投稿します", tone: "text-muted" } : { text: "予約済み", tone: "font-bold text-success" };
   // 確認が要る SNS があるときは、「予約済み」と言い切らない（確認しないと送らないため）
   const sentence = awaiting.length > 0 ? scheduledSentence(savedAt, names).replace("予約済みです。", "送る予定です。") : scheduledSentence(savedAt, names);
 

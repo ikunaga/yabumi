@@ -36,7 +36,7 @@ export async function loadStepStates(projects: { id: string; target_audience: st
           connectedSns,
           hasPublished: f?.has_published ?? false,
           hasRoadmap: f?.has_roadmap ?? false,
-          thisWeek: { open: Number(f?.this_week_todo ?? 0), finished: Number(f?.this_week_done ?? 0) },
+          thisWeek: { open: Number(f?.this_week_todo ?? 0), finished: Number(f?.this_week_done ?? 0), carried: Number(f?.this_week_carried ?? 0) },
         },
       ];
     }),

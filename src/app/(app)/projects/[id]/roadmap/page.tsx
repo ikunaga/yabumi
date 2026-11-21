@@ -11,17 +11,16 @@ import { ActionBar } from "@/components/ui/action-bar";
 import { ButtonLink, NotReadyButton } from "@/components/ui/button";
 import { Card, CardHeader, EmptyState } from "@/components/ui/card";
 import { Columns } from "@/components/ui/columns";
-import { Metric } from "@/components/ui/metric";
 import { PageHeader } from "@/components/ui/page-header";
 import { Term } from "@/components/ui/term";
 import { aiConfigured } from "@/lib/ai/anthropic";
 import { getGoals, kpiWeekTotals } from "@/lib/goals/queries";
 import { isLegacyActionGoal, kgiMetricFor } from "@/lib/goals/schema";
 import { goalRisk, reviseChoices } from "@/lib/goals/risk";
-import { formatMetric, md, metricLabel } from "@/lib/goals/view";
+import { metricLabel } from "@/lib/goals/view";
 import { getAccountPlan } from "@/lib/plan/queries";
 import { getProject } from "@/lib/projects/queries";
-import { itemState, loadRoadmap, thisWeekCounts, type RoadmapItem } from "@/lib/roadmap/queries";
+import { itemState, loadRoadmap, scopeToGoal, weekTodoCounts, type RoadmapItem } from "@/lib/roadmap/queries";
 import { itemProgress, notCountedYet, weekValue } from "@/lib/roadmap/schema";
 import { SNS_KEYS } from "@/lib/sns";
 import { addDays, dayOfMonth, monthOf } from "@/lib/time";
@@ -59,7 +58,7 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
   const choices = risk && goal ? reviseChoices(goal, risk) : [];
 
   // いまの目標のやること（目標を替えたとき、今週以降のまだのものは新しい目標に移る）。前の目標のものは「これまでの目標」に
-  const items = allItems.filter((i) => !goal || i.goalId === null || i.goalId === goal.id);
+  const items = scopeToGoal(allItems, goal?.id ?? null);
   const stateOf = (item: RoadmapItem) => itemState(item, daily);
   const groups: { key: string; label: string; items: RoadmapItem[] }[] = [];
   for (const item of items) {
@@ -68,14 +67,14 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
     const key = item.weekStart < thisWeek ? "overdue" : item.weekStart;
     let g = groups.find((x) => x.key === key);
     if (!g) {
-      g = { key, label: key === "overdue" ? "まだ完了していない、前の週のこと" : weekLabel(item.weekStart, thisWeek), items: [] };
+      g = { key, label: key === "overdue" ? "まだ完了していない、前の週のやること" : weekLabel(item.weekStart, thisWeek), items: [] };
       groups.push(g);
     }
     g.items.push(item);
   }
   groups.sort((a, b) => (a.key === "overdue" ? -1 : b.key === "overdue" ? 1 : a.key.localeCompare(b.key)));
   const past = items.filter((i) => i.weekStart < thisWeek && stateOf(i) !== "todo");
-  const { open: thisWeekTodo, finished: thisWeekDone } = thisWeekCounts(view);
+  const { open: thisWeekTodo, finished: thisWeekDone, carried } = weekTodoCounts(view, goal?.id ?? null);
   const weeks = Array.from({ length: 9 }, (_, n) => addDays(thisWeek, n * 7)).map((w) => ({ value: w, label: weekLabel(w, thisWeek) }));
   const row = (item: RoadmapItem) => (
     <RoadmapItemRow key={item.id} projectId={id} item={item} aiEnabled={ai} progress={itemProgress(item, daily)} notCounted={item.kpi ? notCountedYet(item.kpi, project.product_type) : null} />
@@ -114,29 +113,33 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
         />
       )}
 
-      {/* 数字の段（見本 A の上の 4 つ） */}
-      <div className="grid grid-cols-4 gap-4 max-lg:grid-cols-2 max-sm:gap-3">
-        <Metric
-          label="目標の進み具合"
-          value={p?.available && goal?.metric ? formatMetric(goal.metric, p.value) : "—"}
-          note={!hasKgi ? "まだ決めていません" : p?.available && goal?.metric ? `/ ${formatMetric(goal.metric, p.target)}` : "数えていません"}
-        />
-        <Metric label="期限まで" value={p ? p.daysLeft : "—"} unit={p ? "日" : undefined} note={hasKgi && goal?.endsOn ? md(goal.endsOn) : undefined} />
-        <Metric label="今週のやること" value={thisWeekTodo} unit="件" note={`完了 ${thisWeekDone} 件`} />
-        <Metric
-          label="期限の見込み"
-          value={p?.projected != null && goal?.metric ? formatMetric(goal.metric, p.projected) : "—"}
-          note={
-            p?.projected == null ? (
-              "続けてから見ます"
-            ) : p.projected >= p.target ? (
-              <span className="font-bold text-success">届きそう</span>
-            ) : (
-              <span className="font-bold text-signal">届かない見込み</span>
-            )
-          }
-        />
-      </div>
+      {/* いまの目標（KGI）は、いちばん上（2026-11-21 オーナーの指示）。目標の進み具合・期限・見込みもこのカードにまとめる */}
+      <KgiCard
+        view={hasKgi ? active : null}
+        productType={project.product_type}
+        today={goals.today}
+        empty={
+          <div className="flex flex-col items-start gap-3">
+            <p className="text-[15px] text-muted">
+              {legacy ? `前の目標「${goal?.statement ?? ""}」は投稿の本数です。` : "まだ決めていません。"}
+              見た人にしてほしいことに合わせた、3 か月の成果の数字にしましょう。
+            </p>
+            {ai && (
+              <ButtonLink href={consultHref} size="sm">
+                AI と目標を決める
+              </ButtonLink>
+            )}
+          </div>
+        }
+        footer={
+          hasKgi && goal ? (
+            // 押しまちがえないよう、カードのいちばん下に畳む（2026-11-21 オーナーの指示）
+            <DisclosureBox label="この目標を終える" className="border-t border-line px-6 py-3 max-sm:px-4" bodyClassName="mt-3">
+              <SettleGoalButton projectId={id} goalId={goal.id} statement={goal.statement ?? ""} />
+            </DisclosureBox>
+          ) : null
+        }
+      />
 
       {risk && goal?.metric && goal.endsOn && (
         <GoalRiskPanel
@@ -157,7 +160,15 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
         main={
           <>
             <Card className="overflow-hidden">
-              <CardHeader title="週ごとのやること" />
+              <CardHeader
+                title="週ごとのやること"
+                action={
+                  <span className="num text-[14px]">
+                    今週 あと {thisWeekTodo} 件・完了 {thisWeekDone} 件
+                    {carried > 0 && <span className="ml-2 font-bold text-signal">前の週の残り {carried} 件</span>}
+                  </span>
+                }
+              />
               {groups.length === 0 ? (
                 <EmptyState
                   title="まだやることがありません"
@@ -184,31 +195,6 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
         }
         side={
           <>
-            <KgiCard
-              view={hasKgi ? active : null}
-              productType={project.product_type}
-              today={goals.today}
-              empty={
-                <div className="flex flex-col items-start gap-3">
-                  <p className="text-[15px] text-muted">
-                    {legacy ? `前の目標「${goal?.statement ?? ""}」は投稿の本数です。` : "まだ決めていません。"}
-                    見た人にしてほしいことに合わせた、3 か月の成果の数字にしましょう。
-                  </p>
-                  {ai && (
-                    <ButtonLink href={consultHref} size="sm">
-                      AI と目標を決める
-                    </ButtonLink>
-                  )}
-                </div>
-              }
-              footer={
-                hasKgi && goal ? (
-                  <div className="border-t border-line px-6 py-3 max-sm:px-4">
-                    <SettleGoalButton projectId={id} goalId={goal.id} statement={goal.statement ?? ""} />
-                  </div>
-                ) : null
-              }
-            />
             {active && hasKgi && <MilestonesCard view={active} productType={project.product_type} today={goals.today} />}
             <KpisCard
               kpis={active?.kpis ?? []}

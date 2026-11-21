@@ -12,6 +12,7 @@ export function ConsultSide({
   lead,
   threadId = null,
   closedAt = null,
+  aiBlocked = false,
 }: {
   projectId: string;
   adopted: number | null;
@@ -20,6 +21,8 @@ export function ConsultSide({
   threadId?: string | null;
   // 済んだ日時（済んだ会話）
   closedAt?: string | null;
+  // AI の枠を使い切っている（新しい相談を始められない）
+  aiBlocked?: boolean;
 }) {
   const base = `/projects/${projectId}/consult`;
   return (
@@ -43,9 +46,15 @@ export function ConsultSide({
           <Link href={base} className={buttonClass({ variant: "secondary", size: "sm" })}>
             相談の一覧へ
           </Link>
-          <Link href={`${base}/new`} className={buttonClass({ variant: "text", size: "sm" })}>
-            新しい相談
-          </Link>
+          {aiBlocked ? (
+            <span aria-disabled="true" className={buttonClass({ variant: "text", size: "sm", className: "cursor-not-allowed text-faint" })}>
+              新しい相談
+            </span>
+          ) : (
+            <Link href={`${base}/new`} className={buttonClass({ variant: "text", size: "sm" })}>
+              新しい相談
+            </Link>
+          )}
         </div>
       </div>
     </Card>

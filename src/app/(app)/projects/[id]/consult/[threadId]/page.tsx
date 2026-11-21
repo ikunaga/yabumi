@@ -4,7 +4,10 @@ import { ConsultChat } from "@/components/ai/consult-chat";
 import { ConsultHeader } from "@/components/ai/consult-header";
 import { ConsultSide } from "@/components/ai/consult-side";
 import { Columns } from "@/components/ui/columns";
+import { AiQuotaBand } from "@/components/ai/ai-quota-band";
 import { aiConfigured } from "@/lib/ai/anthropic";
+import { getAiBudgetState } from "@/lib/ai/budget-status";
+import { aiBlockedText } from "@/lib/ai/budget-status-text";
 import { getConsultThread, roadmapStepsFor } from "@/lib/ai/consult-queries";
 import { consultTopicMeta } from "@/lib/ai/consult-topics";
 import { getProject } from "@/lib/projects/queries";
@@ -28,15 +31,18 @@ export default async function ConsultThreadPage(props: PageProps<"/projects/[id]
   if (!project || !isUuid(threadId)) notFound();
   const thread = await getConsultThread(id, threadId);
   if (!thread) notFound();
+  const quota = await getAiBudgetState();
+  const aiBlocked = quota !== null && aiBlockedText(quota) !== null;
   const adopted = thread.messages.reduce((n, m) => n + (m.role === "assistant" ? (m.content.adopted?.length ?? 0) : 0), 0);
   const first = thread.messages[0];
   const firstText = first?.role === "user" && first.content.kind === "text" ? first.content.text.replace(/\s+/g, " ").trim() : null;
   return (
     <div className="flex flex-col gap-5 max-sm:gap-4">
       <ConsultHeader projectId={id} topic={thread.topic} threadId={thread.id} roadmapSteps={thread.topic === "roadmap" ? await roadmapStepsFor(id) : null} firstText={firstText} />
+      {!thread.closedAt && <AiQuotaBand state={quota} />}
       <Columns
-        main={<ConsultChat key={thread.id} projectId={id} threadId={thread.id} messages={thread.messages} initialTopic={null} closed={thread.closedAt !== null} replying={thread.replying} failed={thread.failed} />}
-        side={<ConsultSide projectId={id} adopted={adopted} lead={consultTopicMeta(thread.topic)?.entry?.lead} threadId={thread.id} closedAt={thread.closedAt} />}
+        main={<ConsultChat key={thread.id} projectId={id} threadId={thread.id} messages={thread.messages} initialTopic={null} closed={thread.closedAt !== null} replying={thread.replying} failed={thread.failed} aiBlocked={aiBlocked} />}
+        side={<ConsultSide projectId={id} adopted={adopted} lead={consultTopicMeta(thread.topic)?.entry?.lead} threadId={thread.id} closedAt={thread.closedAt} aiBlocked={aiBlocked} />}
       />
     </div>
   );

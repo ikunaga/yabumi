@@ -76,6 +76,7 @@ export function ConsultChat({
   closed = false,
   replying = false,
   failed = false,
+  aiBlocked = false,
 }: {
   projectId: string;
   threadId: string | null;
@@ -92,6 +93,8 @@ export function ConsultChat({
   replying?: boolean;
   // 最後の返事を作れなかった
   failed?: boolean;
+  // AI の枠を使い切っている（送る・選ぶ・入口を押せない。読むことはできる。上の帯で知らせる）
+  aiBlocked?: boolean;
 }) {
   const router = useRouter();
   const [threadId, setThreadId] = useState(initialThreadId);
@@ -110,6 +113,8 @@ export function ConsultChat({
   const awaitDone = awaitFrom !== null && (messages.length >= awaitFrom + 2 || (failed && !replying && messages.length >= awaitFrom + 1));
   const awaiting = awaitFrom !== null && !awaitDone;
   const waiting = pending || replying || awaiting;
+  // 押せないとき（返事を待っている・AI の枠を使い切っている）
+  const locked = waiting || aiBlocked;
 
   // 返事を待つ間は、3 秒ごとに読み直す（保存された返事を出す）
   useEffect(() => {
@@ -152,7 +157,7 @@ export function ConsultChat({
 
   // ロードマップの画面などから来たら、その相談を始める（1 回だけ）
   useEffect(() => {
-    if (!initialTopic || started.current) return;
+    if (!initialTopic || started.current || aiBlocked) return;
     started.current = true;
     send({ kind: "start", topic: initialTopic, ...(initialItemId ? { itemId: initialItemId } : {}), ...(initialGoalId ? { goalId: initialGoalId } : {}) });
     // 最初の 1 回だけ動かす
@@ -177,7 +182,7 @@ export function ConsultChat({
 
   function submitText() {
     const t = text.trim();
-    if (!t || waiting) return;
+    if (!t || locked) return;
     send({ kind: "text", text: t });
   }
 
@@ -193,8 +198,9 @@ export function ConsultChat({
               <button
                 key={t.topic}
                 type="button"
+                disabled={aiBlocked}
                 onClick={() => send({ kind: "start", topic: t.topic })}
-                className="rounded-full border border-primary px-3.5 py-1.5 text-sm font-semibold text-primary hover:bg-primary-soft"
+                className="rounded-full border border-primary px-3.5 py-1.5 text-sm font-semibold text-primary hover:bg-primary-soft disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {t.label}
               </button>
@@ -213,7 +219,7 @@ export function ConsultChat({
               isLatest={m.id === lastAssistant?.id}
               topic={topic}
               readOnly={closed}
-              disabled={waiting || closer.pending}
+              disabled={locked || closer.pending}
               onChoice={(c) => send({ kind: "text", text: c })}
               onAdopt={(i) => send({ kind: "adopt", messageId: m.id, actionIndex: i })}
               onRevise={(title) => {
@@ -280,6 +286,7 @@ export function ConsultChat({
             ref={inputRef}
             rows={2}
             value={text}
+            disabled={aiBlocked}
             maxLength={2000}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
@@ -294,7 +301,7 @@ export function ConsultChat({
           />
           <div className="flex items-start gap-3">
             <VoiceInputButton className="flex-1" target={inputRef} label="相談" onChange={setText} />
-            <Button className="ml-auto" size="sm" disabled={waiting || !text.trim()} onClick={submitText}>
+            <Button className="ml-auto" size="sm" disabled={locked || !text.trim()} onClick={submitText}>
               送る
             </Button>
           </div>

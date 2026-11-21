@@ -4,7 +4,10 @@ import { ConsultChat } from "@/components/ai/consult-chat";
 import { ConsultHeader } from "@/components/ai/consult-header";
 import { ConsultSide } from "@/components/ai/consult-side";
 import { Columns } from "@/components/ui/columns";
+import { AiQuotaBand } from "@/components/ai/ai-quota-band";
 import { aiConfigured } from "@/lib/ai/anthropic";
+import { getAiBudgetState } from "@/lib/ai/budget-status";
+import { aiBlockedText } from "@/lib/ai/budget-status-text";
 import { isConsultTopic } from "@/lib/ai/consult";
 import { roadmapStepsFor } from "@/lib/ai/consult-queries";
 import { consultTopicMeta } from "@/lib/ai/consult-topics";
@@ -25,6 +28,8 @@ export default async function ConsultNewPage(props: PageProps<"/projects/[id]/co
   if (!aiConfigured()) redirect(`/projects/${id}/consult`);
   const project = await getProject(id);
   if (!project) notFound();
+  const quota = await getAiBudgetState();
+  const aiBlocked = quota !== null && aiBlockedText(quota) !== null;
   const topic = isConsultTopic(sp.start) ? sp.start : null;
   // 振り返りのやることから来たとき（?item=）。本人の今週・来週の振り返りのやることかは、送るときにサーバーが確かめる
   const itemId = topic === "review" && typeof sp.item === "string" && isUuid(sp.item) ? sp.item : null;
@@ -33,9 +38,10 @@ export default async function ConsultNewPage(props: PageProps<"/projects/[id]/co
   return (
     <div className="flex flex-col gap-5 max-sm:gap-4">
       <ConsultHeader projectId={id} topic={topic} threadId={null} roadmapSteps={topic === "roadmap" ? await roadmapStepsFor(id) : null} />
+      <AiQuotaBand state={quota} />
       <Columns
-        main={<ConsultChat key={`new-${topic ?? ""}-${itemId ?? ""}-${goalId ?? ""}`} projectId={id} threadId={null} messages={[]} initialTopic={topic} initialItemId={itemId} initialGoalId={goalId} />}
-        side={<ConsultSide projectId={id} adopted={null} lead={consultTopicMeta(topic)?.entry?.lead} />}
+        main={<ConsultChat key={`new-${topic ?? ""}-${itemId ?? ""}-${goalId ?? ""}`} projectId={id} threadId={null} messages={[]} initialTopic={topic} initialItemId={itemId} initialGoalId={goalId} aiBlocked={aiBlocked} />}
+        side={<ConsultSide projectId={id} adopted={null} lead={consultTopicMeta(topic)?.entry?.lead} aiBlocked={aiBlocked} />}
       />
     </div>
   );

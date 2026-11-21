@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ButtonLink } from "@/components/ui/button";
+import { AiQuotaBand } from "@/components/ai/ai-quota-band";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Badge, chipClass } from "@/components/ui/chip";
 import { Columns } from "@/components/ui/columns";
@@ -9,6 +10,8 @@ import { ConsultClosedBanner } from "@/components/ai/consult-closed-banner";
 import { SuccessBanner } from "@/components/ui/feedback";
 import { PageHeader } from "@/components/ui/page-header";
 import { aiConfigured } from "@/lib/ai/anthropic";
+import { getAiBudgetState } from "@/lib/ai/budget-status";
+import { aiBlockedText } from "@/lib/ai/budget-status-text";
 import { isConsultTopic } from "@/lib/ai/consult";
 import { listConsultThreads } from "@/lib/ai/consult-queries";
 import { CONSULT_TOPIC_META, listedConsultTopics } from "@/lib/ai/consult-topics";
@@ -41,6 +44,9 @@ export default async function ConsultListPage(props: PageProps<"/projects/[id]/c
   }
 
   const base = `/projects/${id}/consult`;
+  // AI の枠を使い切っているときは、帯で知らせ、新しい相談を始められない形にする（これまでの相談は読める。2026-11-21 オーナーの依頼）
+  const quota = await getAiBudgetState();
+  const blocked = quota !== null && aiBlockedText(quota) !== null;
 
   return (
     <div className="flex flex-col gap-5 max-sm:gap-4">
@@ -48,8 +54,17 @@ export default async function ConsultListPage(props: PageProps<"/projects/[id]/c
         title="AI と相談"
         sub={`これまでの相談 ${threads.length} 件`}
         help="運用の悩みを相談できます。AI は、アカウントの方針・最近の投稿・数字・ロードマップを見ます。そのうえで、案を 2〜3 個出します。選んだ案だけが、方針やロードマップに入ります。"
-        actions={<ButtonLink href={`${base}/new`}>自由に書いて相談する</ButtonLink>}
+        actions={
+          blocked ? (
+            <Button type="button" disabled>
+              自由に書いて相談する
+            </Button>
+          ) : (
+            <ButtonLink href={`${base}/new`}>自由に書いて相談する</ButtonLink>
+          )
+        }
       />
+      <AiQuotaBand state={quota} />
       <ConsultClosedBanner projectId={id} done={sp.done} items={sp.items} reviewed={sp.reviewed} />
       {sp.done === "thread_deleted" && <SuccessBanner>会話を削除しました。採用した案は残っています。アカウントの方針・ロードマップ・下書きです。</SuccessBanner>}
 
@@ -88,11 +103,17 @@ export default async function ConsultListPage(props: PageProps<"/projects/[id]/c
             <Card>
               <CardHeader title="新しい相談" />
               <div className="flex flex-wrap gap-2 px-6 pt-1 pb-5 max-sm:px-4">
-                {listedConsultTopics().map((t) => (
-                  <Link key={t} href={`${base}/new?start=${t}`} className={chipClass({ className: "h-auto min-h-10 px-4 py-1.5 text-[15px] text-fg hover:no-underline max-sm:whitespace-normal" })}>
-                    {CONSULT_TOPIC_META[t].button}
-                  </Link>
-                ))}
+                {listedConsultTopics().map((t) =>
+                  blocked ? (
+                    <span key={t} aria-disabled="true" className={chipClass({ className: "h-auto min-h-10 cursor-not-allowed px-4 py-1.5 text-[15px] text-faint max-sm:whitespace-normal" })}>
+                      {CONSULT_TOPIC_META[t].button}
+                    </span>
+                  ) : (
+                    <Link key={t} href={`${base}/new?start=${t}`} className={chipClass({ className: "h-auto min-h-10 px-4 py-1.5 text-[15px] text-fg hover:no-underline max-sm:whitespace-normal" })}>
+                      {CONSULT_TOPIC_META[t].button}
+                    </Link>
+                  ),
+                )}
               </div>
             </Card>
         }

@@ -2,8 +2,8 @@
 
 // 印の見切り。これより古い印は、サーバーが途中で止まった残りとして扱う（consult のページの maxDuration 120 秒の倍より長く）
 export const REPLY_STALE_MS = 5 * 60_000;
-export const REPLYING_MESSAGE = "AI が前の返事を作っています。返事が出てから送ってください。";
-export const REPLY_FAILED_MESSAGE = "返事を作れませんでした。もう一度送ってください。";
+export const REPLYING_MESSAGE = "AI が、さっき送った相談に返事を書いています。返事が出てから、もう一度送ってください。";
+export const REPLY_FAILED_MESSAGE = "返事を作れませんでした。同じ内容を、もう一度送ってください。";
 
 // 印が生きているか（作っている最中か）
 export function isReplying(replyingSince: string | null, now: Date): boolean {

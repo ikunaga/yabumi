@@ -52,16 +52,41 @@ export function adminClient(): TestClient {
 // テスト用の利用者を作ってログインする。確認メールを有効にしている（本番と同じ）ので、画面からの登録ではなく、確認済みの利用者を secret キーで作る。
 // パスワードは付けず、マジックリンク（メールは送らない）でログインする。パスワードの登録とログインは、認証サーバーでハッシュ（bcrypt）を 2 回計算するので、
 // テストを並列で流すと認証サーバーが詰まり、利用者を作るところで 5〜10 秒の時間切れが起きていた（2026-10-11、README の「テスト」）
+// 共有のローカルの Supabase が混んでいると、認証の入り口が一時的に 502・503・429 を返したり、通信が切れたりする。
+// そのときだけ少しあけて 3 回までやり直し、やり直したことをログに残す（2026-11-21。全体のテストで、1 つのファイルの準備〈beforeAll〉が
+// 落ちて、そのファイルのテストがまとめて落ちたことがあった。どの問い合わせで何が返ったかを、次に落ちたときに追えるように）
+async function retryTransient<T>(label: string, fn: () => Promise<T>): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await fn();
+    } catch (e) {
+      const status = (e as { status?: number }).status;
+      const transient = status === undefined || status === 0 || status === 429 || status >= 500;
+      console.warn(`[signUpNewUser] ${label} に失敗（${attempt} 回目）`, status ?? "", e instanceof Error ? e.message : e);
+      if (!transient || attempt >= 3) throw e;
+      await new Promise((r) => setTimeout(r, 500 * attempt));
+    }
+  }
+}
+
 export async function signUpNewUser(): Promise<{ client: TestClient; userId: string }> {
   const email = `rls-${randomUUID()}@example.com`;
   const admin = adminClient();
-  const { data: created, error: createError } = await admin.auth.admin.createUser({ email, email_confirm: true });
-  if (createError) throw createError;
-  const { data: link, error: linkError } = await admin.auth.admin.generateLink({ type: "magiclink", email });
-  if (linkError) throw linkError;
+  const created = await retryTransient("createUser", async () => {
+    const { data, error } = await admin.auth.admin.createUser({ email, email_confirm: true });
+    if (error) throw error;
+    return data;
+  });
+  const link = await retryTransient("generateLink", async () => {
+    const { data, error } = await admin.auth.admin.generateLink({ type: "magiclink", email });
+    if (error) throw error;
+    return data;
+  });
   const client = anonClient();
-  const { error } = await client.auth.verifyOtp({ token_hash: link.properties.hashed_token, type: "magiclink" });
-  if (error) throw error;
+  await retryTransient("verifyOtp", async () => {
+    const { error } = await client.auth.verifyOtp({ token_hash: link.properties.hashed_token, type: "magiclink" });
+    if (error) throw error;
+  });
   signedIn.set(created.user.id, client);
   return { client, userId: created.user.id };
 }

@@ -3240,7 +3240,8 @@
  },
  "src/lib/posts/send-actions.ts": {
   "URL は https:// から始まる形で入れてください（空でも記録できます）。": [
-   "paren"
+   "paren",
+   "kiroku"
   ]
  },
  "src/lib/projects/actions.ts": {
@@ -3459,7 +3460,8 @@
    "paren"
   ],
   "今月の {…} の自動投稿の上限（1 人 ${…}）に達しました。来月まで自動では送りません。送信の結果から、手動で投稿して記録できます。": [
-   "paren"
+   "paren",
+   "kiroku"
   ],
   "{…} の取り消しはまだ準備中です。": [
    "junbichu"
@@ -3707,6 +3709,22 @@
  "src/components/posts/photo-maker.tsx": {
   "登録してまもない方の今月の枠が、いっぱいです。{…} から、またつくれます": [
    "waku"
+  ]
+ },
+ "src/lib/metrics/actions.ts": {
+  "記録できませんでした。手動で投稿した note・Substack の投稿だけ記録できます。": [
+   "kiroku"
+  ]
+ },
+ "src/lib/sns/by-hand.ts": {
+  "X は手動で投稿することにしたので、自動では送りません。下の「X に手動で投稿する」から投稿して記録できます。": [
+   "kiroku"
+  ],
+  "TikTok は手動で投稿することにしたので、自動では送りません。下の「TikTok に手動で投稿する」から投稿して記録できます。": [
+   "kiroku"
+  ],
+  "YouTube は手動で投稿することにしたので、自動では送りません。下の「YouTube に手動で投稿する」から投稿して記録できます。": [
+   "kiroku"
   ]
  }
 }

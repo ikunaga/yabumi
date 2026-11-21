@@ -6,9 +6,14 @@
 // - GET    /v6/domains/{domain}/config               DNS の向き（misconfigured、recommendedCNAME、configuredBy）
 // - DELETE /v9/projects/{id}/domains/{domain}        外す
 
-export type VercelConfig = { token: string; projectId: string; teamId?: string };
+// base: 偽の Vercel の宛先（test-server.ts。本番では入らない）
+import { linkDomainTestServer } from "./test-server";
+
+export type VercelConfig = { token: string; projectId: string; teamId?: string; base?: string };
 
 export function vercelConfig(env: Record<string, string | undefined> = process.env): VercelConfig | null {
+  // 偽の Vercel を使うとき（画面の確かめ。本番では使わない）は、トークンがなくても動かす
+  if (linkDomainTestServer(env)) return { token: "test", projectId: env.VERCEL_PROJECT_ID?.trim() || "prj_test", teamId: undefined, base: linkDomainTestServer(env)! };
   const token = env.VERCEL_API_TOKEN?.trim();
   const projectId = env.VERCEL_PROJECT_ID?.trim();
   if (!token || !projectId) return null;
@@ -33,7 +38,7 @@ export type DomainConfig = { misconfigured: boolean; configuredBy: string | null
 type Fetch = typeof fetch;
 
 async function call<T>(cfg: VercelConfig, method: string, path: string, body: unknown, fetcher: Fetch): Promise<T> {
-  const url = new URL(`https://api.vercel.com${path}`);
+  const url = new URL(`${cfg.base ?? "https://api.vercel.com"}${path}`);
   if (cfg.teamId) url.searchParams.set("teamId", cfg.teamId);
   const res = await fetcher(url, {
     method,

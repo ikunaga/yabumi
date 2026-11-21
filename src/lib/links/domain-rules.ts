@@ -41,20 +41,20 @@ export function isApexDomain(domain: string): boolean {
 // 入れられた文字をドメインの形に直して確かめる。https:// や末尾の / は付いていてもよい
 export function normalizeLinkDomain(input: string): DomainCheck {
   let s = input.trim().toLowerCase();
-  if (!s) return { ok: false, error: "ドメインを入れてください（例: go.example.com）。" };
+  if (!s) return { ok: false, error: "ドメインを入れてください。例: go.example.com" };
   s = s.replace(/^[a-z]+:\/\//, "").replace(/\/.*$/, "").replace(/\.+$/, "");
-  if (/[@:\s]/.test(s)) return { ok: false, error: "ドメインだけを入れてください（例: go.example.com）。" };
+  if (/[@:\s]/.test(s)) return { ok: false, error: "ドメインだけを入れてください。例: go.example.com" };
   let host: string;
   try {
     // 日本語のドメインは xn-- の形に直る
     host = new URL(`https://${s}`).hostname.replace(/\.+$/, "");
   } catch {
-    return { ok: false, error: "ドメインの形になっていません（例: go.example.com）。" };
+    return { ok: false, error: "ドメインの形になっていません。例: go.example.com" };
   }
-  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.startsWith("[")) return { ok: false, error: "IP アドレスは使えません。ドメインを入れてください（例: go.example.com）。" };
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.startsWith("[")) return { ok: false, error: "IP アドレスは使えません。ドメインを入れてください。例: go.example.com" };
   const labels = host.split(".");
   if (host.length > 253 || labels.length < 2 || !labels.every((l) => LABEL.test(l)) || /^\d+$/.test(labels[labels.length - 1])) {
-    return { ok: false, error: "ドメインの形になっていません。使えるのは英数字と - と . です（例: go.example.com）。" };
+    return { ok: false, error: "ドメインの形になっていません。使えるのは英数字と - と . です。例: go.example.com" };
   }
   if (RESERVED.test(host)) return { ok: false, error: "このドメインは使えません。あなたが持っているドメインを入れてください。" };
   if (isApexDomain(host)) {

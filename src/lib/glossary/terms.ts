@@ -228,7 +228,7 @@ export const glossary = {
   cname: {
     label: "CNAME",
     reading: "シーネーム",
-    summary: "DNS の行の種類の 1 つ。「このサブドメインは、あちらの名前と同じ場所につなぐ」という意味です。yabumi の短縮リンクを自分のドメインで使うときは、この行を 1 つ追加します。",
+    summary: "DNS の行の種類の 1 つ。「このサブドメインは、あちらの名前と同じ場所につなぐ」という意味です。自分のドメインで短縮リンクを使うときは、この行を追加します。確認用の TXT の行も追加します。",
     example: "例: 名前 go、値 cname.vercel-dns.com",
     related: ["dns", "subdomain"],
   },

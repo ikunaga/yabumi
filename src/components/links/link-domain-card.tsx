@@ -2,7 +2,8 @@
 
 import { guardAction } from "@/lib/client-errors";
 import { useActionState, useState, type ReactNode } from "react";
-import { Button, NotReadyButton } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/chip";
 import { ErrorBanner, SuccessBanner } from "@/components/ui/feedback";
 import { Field, Input } from "@/components/ui/field";
 import { Term } from "@/components/ui/term";
@@ -41,17 +42,17 @@ type Props = {
 };
 
 const CHECK_MESSAGE: Record<string, { tone: "wait" | "fix" | "ok"; text: string }> = {
-  dns_missing: { tone: "wait", text: "まだ DNS が届いていません。DNS に行を追加してから届くまで、数分〜数時間かかることがあります。少しおいてから、もう一度「確認する」を押してください。" },
+  dns_missing: { tone: "wait", text: "追加した行が、まだ見えません。見えるまで、数分〜数時間かかることがあります。まだ追加していなければ、上の表の行を追加してください。少しおいてから、もう一度「確認する」を押してください。" },
   wrong_value: {
     tone: "fix",
-    text: "DNS の値が違います。下の表の「種類」「名前」「値」と同じになっているか確認してください。同じ名前の古い行（A や CNAME）があれば消してください。",
+    text: "DNS の値が違います。上の表と同じになっているか確認してください。種類が A か CNAME で、名前が同じ古い行があれば、削除してください。",
   },
-  proxied: { tone: "fix", text: "Cloudflare の Proxy がオン（オレンジの雲）になっています。その行の雲を押して、灰色（DNS only）にしてから保存してください。" },
-  owner_txt_missing: { tone: "fix", text: "あなたのドメインだと確認する行（2 行目の TXT）がまだ見えません。追加したばかりなら、数分おいてからもう一度「確認する」を押してください。" },
-  txt_missing: { tone: "fix", text: "Vercel の持ち主の確認の行（3 行目の TXT）がまだ見えません。3 行目も追加してください。" },
+  proxied: { tone: "fix", text: "Cloudflare の Proxy がオンになっています。オレンジの雲の印です。その行の雲を押して灰色の DNS only にしてから、保存してください。" },
+  owner_txt_missing: { tone: "fix", text: "あなたのドメインだと確認する、2 行目の TXT がまだ見えません。追加したばかりなら、数分おいてからもう一度「確認する」を押してください。" },
+  txt_missing: { tone: "fix", text: "3 行目の TXT が、まだ見えません。3 行目も追加してください。" },
   cert_pending: {
     tone: "wait",
-    text: "DNS は届きました。いま、安全につなぐための証明書（https）を用意しています（数分〜1 時間ほど）。少しおいてから、もう一度「確認する」を押してください。",
+    text: "行は確認できました。いま、リンクを安全に開けるように準備しています。数分〜1 時間ほどかかります。少しおいてから、もう一度「確認する」を押してください。",
   },
   error: { tone: "fix", text: "いま確認できませんでした。時間をおいてもう一度お試しください。" },
 };
@@ -65,7 +66,7 @@ export function LinkDomainCard({ projectId, ready, domain, defaultHost, profileL
       <div className="flex items-center gap-x-3 gap-y-3 px-6 py-5 max-sm:flex-col max-sm:items-start max-sm:px-4">
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <h2 id="link-domain-heading" className="text-[18px] font-bold max-sm:text-[16px]">
-            自分のドメインで作る<span className="ml-1.5 text-sm font-normal text-muted">（任意）</span>
+            自分のドメインで作る
           </h2>
           <p className="text-sm leading-[1.7] text-muted">
             {domain?.status === "active" ? (
@@ -74,8 +75,8 @@ export function LinkDomainCard({ projectId, ready, domain, defaultHost, profileL
               </>
             ) : (
               <>
-                今の短縮リンクは <b className="text-fg">{defaultHost}/…</b> です。自分のドメイン（例: go.<i>あなたのドメイン</i>
-                ）にすると、押す人に「どこへ行くリンクか」が伝わりやすくなります。ドメインがなくても、今のままで数えられます。
+                今の短縮リンクは <b className="text-fg">{defaultHost}/…</b> です。自分のドメインにすると、押す人に「どこへ行くリンクか」が伝わりやすくなります。リンクは go.
+                <i>あなたのドメイン</i>/… の形になります。ドメインがなくても、今のリンクのまま使えます。
               </>
             )}
           </p>
@@ -86,12 +87,14 @@ export function LinkDomainCard({ projectId, ready, domain, defaultHost, profileL
               {open ? "閉じる" : "設定する"}
             </Button>
           ) : (
-            <NotReadyButton variant="secondary" size="sm">
-              設定する
-            </NotReadyButton>
+            // 運営の準備（Vercel のトークン）ができていないとき。利用者にできることはないので、操作は出さない（ストアの画面と同じ。2026-11-21 PM の指示）
+            <Badge>まだ使えません</Badge>
           ))}
       </div>
 
+      {!ready && !domain && (
+        <p className="border-t border-line px-6 py-4 text-sm text-muted max-sm:px-4">いまは、することはありません。yabumi の運営の準備ができたら、ここで設定できます。</p>
+      )}
       {ready && (open || domain) && (
         <div id="link-domain-body" className="flex flex-col gap-5 border-t border-line px-6 py-5 max-sm:px-4">
           <Steps step={step} />
@@ -137,8 +140,7 @@ function DomainForm({ projectId }: { projectId: string }) {
   return (
     <form action={action} className="flex flex-col gap-3">
       <p className="text-sm leading-[1.8]">
-        持っているドメインに、短縮リンク用の<Term k="subdomain">サブドメイン</Term>を 1 つ作ります。おすすめは <b>go.</b>
-        <i>あなたのドメイン</i>（例: go.example.com）です。今のホームページやメールには影響しません。追加の料金もかかりません。
+        持っているドメインの前に <b>go.</b> を付けて、短縮リンクに使います。これを<Term k="subdomain">サブドメイン</Term>と呼びます。たとえば go.example.com です。今のホームページやメールには影響しません。追加の料金もかかりません。
       </p>
       {state.error && (
         <ErrorBanner>
@@ -150,7 +152,7 @@ function DomainForm({ projectId }: { projectId: string }) {
           )}
         </ErrorBanner>
       )}
-      <Field label="使うドメイン" htmlFor="link-domain" hint="ドメインだけを入れます（https:// は要りません）。1 人 1 つまで、ほかの人が使っているものは使えません。">
+      <Field label="短縮リンクに使う名前" htmlFor="link-domain" hint="go.あなたのドメイン の形で入れます。https:// は要りません。1 人 1 つまでです。ほかの人が使っているものは使えません。">
         <Input
           id="link-domain"
           name="domain"
@@ -167,7 +169,7 @@ function DomainForm({ projectId }: { projectId: string }) {
       </Field>
       <div>
         <Button type="submit" disabled={pending}>
-          {pending ? "受け付けています…" : "次へ（DNS の設定を出す）"}
+          {pending ? "受け付けています…" : "次へ: 追加する行を見る"}
         </Button>
       </div>
     </form>
@@ -183,7 +185,7 @@ function records(domain: LinkDomainView): DnsRecord[] {
     { type: "CNAME", name: dnsRecordName(domain.domain, apex), value: domain.cnameTarget, why: "yabumi につなぐため" },
     { type: "TXT", name: dnsRecordName(ownershipRecordName(domain.domain), apex), value: ownershipRecordValue(domain.ownershipToken), why: "あなたのドメインだと確認するため" },
   ];
-  if (domain.txtValue) list.push({ type: "TXT", name: dnsRecordName(domain.txtName || `_vercel.${apex}`, apex), value: domain.txtValue, why: "Vercel（yabumi の置き場所）が確認するため" });
+  if (domain.txtValue) list.push({ type: "TXT", name: dnsRecordName(domain.txtName || `_vercel.${apex}`, apex), value: domain.txtValue, why: "yabumi が使っているサービスの確認のため" });
   return list;
 }
 
@@ -194,7 +196,7 @@ function RecordTable({ domain }: { domain: LinkDomainView }) {
       {rows.map((r, i) => (
         <dl key={r.name} className="grid grid-cols-[72px_1fr] gap-x-3 gap-y-1.5 rounded-md border border-border bg-surface2 px-4 py-3 text-sm">
           <p className="col-span-2 text-xs font-bold text-muted">
-            {i + 1} 行目（{r.why}）
+            {i + 1} 行目: {r.why}
           </p>
           <dt className="text-muted">種類</dt>
           <dd className="font-bold">{r.type}</dd>
@@ -211,8 +213,8 @@ function RecordTable({ domain }: { domain: LinkDomainView }) {
         </dl>
       ))}
       <p className="text-xs leading-[1.7] text-muted">
-        「名前」の欄にドメインまですべて入れる形のサービスもあります。そのときは 1 行目は <code>{domain.domain}</code>、2 行目は{" "}
-        <code>{ownershipRecordName(domain.domain)}</code> と入れてください。TTL（反映の間隔）は、選べるなら「自動」か短いものにします。
+        「名前」の欄に、ドメインまですべて入れる形のサービスもあります。そのときは、1 行目は <code>{domain.domain}</code>、2 行目は{" "}
+        <code>{ownershipRecordName(domain.domain)}</code> と入れてください。TTL という欄があれば、「自動」のままでかまいません。
       </p>
     </div>
   );
@@ -230,7 +232,7 @@ const PROVIDERS: { key: string; label: string; steps: (r: { name: string; value:
         Type は <b>CNAME</b>、Name に <b>{r.name}</b>、Target に <b className="break-all">{r.value}</b> を入れる
       </>,
       <>
-        <b className="text-danger">Proxy status を押して、灰色の雲（DNS only）にする。</b>オレンジの雲（Proxied）のままだと、つながりません
+        <b className="text-danger">Proxy status を押して、灰色の雲の DNS only にする。</b>オレンジの雲の Proxied のままだと、つながりません
       </>,
       <>「Save」を押す</>,
     ],
@@ -244,7 +246,7 @@ const PROVIDERS: { key: string; label: string; steps: (r: { name: string; value:
       <>
         ホスト名に <b>{r.name}</b>、TYPE は <b>CNAME</b>、VALUE に <b className="break-all">{r.value}</b> を入れて「追加」を押す
       </>,
-      <>下の「確認画面へ進む」→「設定する」を押す（お名前.com のネームサーバーを使っているときだけ効きます）</>,
+      <>下の「確認画面へ進む」を押し、「設定する」を押す。うまくいかないときは、ホームページを作った人に聞いてください</>,
     ],
   },
   {
@@ -261,7 +263,7 @@ const PROVIDERS: { key: string; label: string; steps: (r: { name: string; value:
   },
   {
     key: "squarespace",
-    label: "Squarespace（旧 Google Domains）",
+    label: "Squarespace・旧 Google Domains",
     steps: (r) => [
       <>Squarespace にログインし、「Domains」→ ドメインを選んで「DNS」→「DNS Settings」を開く</>,
       <>「Custom records」の「Add record」を押す</>,
@@ -275,7 +277,7 @@ const PROVIDERS: { key: string; label: string; steps: (r: { name: string; value:
     key: "xserver",
     label: "Xserver",
     steps: (r) => [
-      <>サーバーパネル（または Xserver アカウントのドメインの管理）にログインし、「DNS レコード設定」を開く</>,
+      <>サーバーパネルか、Xserver アカウントのドメインの管理にログインし、「DNS レコード設定」を開く</>,
       <>ドメインを選び、「DNS レコード追加」のタブを開く</>,
       <>
         ホスト名に <b>{r.name}</b>、種別は <b>CNAME</b>、内容に <b className="break-all">{r.value}</b> を入れる
@@ -287,9 +289,9 @@ const PROVIDERS: { key: string; label: string; steps: (r: { name: string; value:
     key: "other",
     label: "そのほか",
     steps: (r) => [
-      <>ドメインを買ったサービス（または DNS を預けているサービス）の管理画面で、「DNS」「DNS レコード」「ゾーン」などの画面を開く</>,
+      <>ドメインを買ったサービスか、DNS を任せているサービスの管理画面で、「DNS」「DNS レコード」「ゾーン」などの画面を開く</>,
       <>
-        種類（タイプ）は <b>CNAME</b>、名前（ホスト）に <b>{r.name}</b>（または <b>{r.fqdn}</b>）、値（向け先・内容・Target）に <b className="break-all">{r.value}</b> を入れて追加
+        種類は <b>CNAME</b>、名前に <b>{r.name}</b> か <b>{r.fqdn}</b>、値に <b className="break-all">{r.value}</b> を入れて追加する。名前は「ホスト」、値は「向け先」「内容」「Target」と書かれていることもあります
       </>,
       <>どこで設定するかわからないときは、そのサービスのヘルプで「CNAME 設定」と探すと見つかります</>,
     ],
@@ -309,12 +311,12 @@ function DnsStep({ projectId, domain, defaultHost }: { projectId: string; domain
         <ErrorBanner>
           {domain.lastCheck === "error" ? (
             <>
-              {domain.domain} の DNS の行を、何日か確認できなかったので、念のため短縮リンクを yabumi のドメインに戻しました。下の行が入っていることを確認して「確認する」を押すと、また使えます。
+              {domain.domain} の DNS の行を、何日か確認できませんでした。そのため、念のため yabumi のドメインに戻しました。下の行が入っているか確認して、「確認する」を押してください。また {domain.domain} で短縮リンクを作れます。
             </>
           ) : (
             <>
-              {domain.domain} の DNS の行（{domain.lastCheck === "owner_txt_missing" ? "あなたのドメインだと確認する TXT" : "yabumi につなぐ CNAME"}
-              ）が見えなくなったので、短縮リンクを yabumi のドメインに戻しました。下の行を、もう一度 DNS に追加してください。そのあと「確認する」を押すと、また使えます。
+              {domain.domain} の DNS で、{domain.lastCheck === "owner_txt_missing" ? "あなたのドメインだと確認する TXT" : "yabumi につなぐ CNAME"}
+              の行が見えなくなりました。そのため、yabumi のドメインに戻しました。下の行を、もう一度 DNS に追加して、「確認する」を押してください。また {domain.domain} で短縮リンクを作れます。
             </>
           )}
         </ErrorBanner>
@@ -324,13 +326,13 @@ function DnsStep({ projectId, domain, defaultHost }: { projectId: string; domain
           ② <Term k="dns">DNS</Term> に次の行を追加
         </h3>
         <p className="text-sm leading-[1.8] text-muted">
-          ドメインを買ったサービス（お名前.com や Cloudflare など）の管理画面で、{domain.txtValue ? "3" : "2"} 行とも追加します。1 行目（<Term k="cname">CNAME</Term>
-          ）は <b className="text-fg">{domain.domain}</b> を yabumi につなぐため、2 行目（TXT）はあなたのドメインだと確認するためです（ほかの人が勝手に使えないように）。
-          {domain.txtValue && "このドメインでは、yabumi の置き場所（Vercel）の確認の 3 行目も要ります。"}
+          ドメインを買ったサービスの管理画面で、{domain.txtValue ? "3" : "2"} 行とも追加します。たとえば、お名前.com や Cloudflare です。どこで買ったかわからないときは、ホームページを作った人に聞いてください。1 行目の <Term k="cname">CNAME</Term> は、
+          <b className="text-fg">{domain.domain}</b> を yabumi につなぐためです。2 行目の TXT は、あなたのドメインだと確認するためです。ほかの人が勝手に使えないようにします。
+          {domain.txtValue && "このドメインでは、3 行目も追加します。yabumi が使っているサービスが、確認に使います。"}
         </p>
         <RecordTable domain={domain} />
         <p className="text-xs leading-[1.7] text-muted">
-          {deadline(domain.pendingSince)} までにつないでください。過ぎると取り消します（もう一度入れ直せます）。
+          {deadline(domain.pendingSince)} までに「確認する」でつながらないと、入れたドメインを削除します。削除したあとも、もう一度入れられます。
         </p>
       </div>
 
@@ -355,7 +357,9 @@ function DnsStep({ projectId, domain, defaultHost }: { projectId: string; domain
             <li key={i}>{s}</li>
           ))}
         </ol>
-        <p className="text-xs leading-[1.7] text-muted">TXT の行も、同じ画面で種類を TXT にして追加します（名前と値は上の表の {domain.txtValue ? "2・3" : "2"} 行目）。</p>
+        <p className="text-sm leading-[1.7]">
+          <b>1 行目を保存したら、もう一度追加します。</b>種類を TXT にして、表の 2 行目を入れます。{domain.txtValue ? "3 行目も同じです。" : ""}
+        </p>
         <p className="text-xs leading-[1.7] text-muted">画面の名前は、サービスの側で変わることがあります。</p>
       </div>
 
@@ -364,7 +368,7 @@ function DnsStep({ projectId, domain, defaultHost }: { projectId: string; domain
         {state.error && <ErrorBanner>{state.error}</ErrorBanner>}
         {message && !state.error && (
           <p className={`rounded-md border px-4 py-3 text-sm leading-[1.7] ${message.tone === "fix" ? "border-danger text-fg" : "border-border text-fg"}`} role="status">
-            <b className={message.tone === "fix" ? "text-danger" : "text-primary"}>{message.tone === "fix" ? "直してください: " : "待っています: "}</b>
+            <b className={message.tone === "fix" ? "text-danger" : "text-primary"}>{message.tone === "fix" ? "直してください: " : "このまま待ってください: "}</b>
             {message.text}
           </p>
         )}
@@ -391,13 +395,13 @@ function Connected({ domain, profileLinks }: { domain: LinkDomainView; profileLi
   return (
     <div className="flex flex-col gap-3">
       <SuccessBanner>
-        つながりました。これから作る短縮リンク（プロフィール用・投稿の本文用とも）は <b>{domain.domain}</b> になります。前に作ったリンクも、前のドメインと {domain.domain}{" "}
+        つながりました。これから作る短縮リンクは <b>{domain.domain}</b> になります。プロフィール用も、投稿の本文用も同じです。前に作ったリンクも、前のドメインと {domain.domain}{" "}
         の両方で開けます。
       </SuccessBanner>
       {profileLinks.length > 0 && (
         <div className="flex flex-col gap-2">
           <p className="text-sm leading-[1.7]">
-            <b>プロフィールのリンクを貼り直してください。</b>前の URL のままでも開けますが、新しい URL のほうが、押す人にリンク先が伝わりやすくなります。
+            <b>プロフィールのリンクを貼り直してください。</b>前の URL のままでも開けます。新しい URL のほうが、どこへ行くリンクか伝わります。
           </p>
           <ul className="flex flex-col gap-1.5">
             {profileLinks.map((l) => (
@@ -424,7 +428,7 @@ function RemoveDomain({ projectId, domain, defaultHost }: { projectId: string; d
       {!confirming ? (
         <div>
           <button type="button" onClick={() => setConfirming(true)} className="text-sm text-muted hover:text-fg hover:underline">
-            {domain.status === "active" ? "このドメインを外す" : "やめる（このドメインを使わない）"}
+            {domain.status === "active" ? "このドメインを外す" : "このドメインを使うのをやめる"}
           </button>
         </div>
       ) : (

@@ -1,3 +1,4 @@
+import { linkDomainTestServer } from "./test-server";
 import { randomBytes } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { notifyOperatorOnce, type OperatorNotifyDeps } from "@/lib/notify/operator";
@@ -60,7 +61,9 @@ export function defaultLinkDomainDeps(): LinkDomainDeps {
 
 async function defaultProbe(domain: string): Promise<boolean> {
   try {
-    const res = await fetch(`https://${domain}${LINK_CHECK_PATH}`, { redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(8_000) });
+    // 偽の宛先を使うとき（画面の確かめ。本番では使わない）は、その宛先に、このドメインの証明書がそろったかを聞く
+    const test = linkDomainTestServer();
+    const res = await fetch(test ? `${test}/probe/${encodeURIComponent(domain)}` : `https://${domain}${LINK_CHECK_PATH}`, { redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(8_000) });
     return res.ok && (await res.text()).trim() === LINK_CHECK_BODY;
   } catch {
     return false;
@@ -94,14 +97,14 @@ export type AddResult = { ok: true } | { ok: false; error: string; suggestion?: 
 
 const CLAIM_ERRORS: Record<string, string> = {
   not_found: "プロジェクトが見つかりません。ログインし直してください。",
-  already: "自分のドメインは 1 人 1 つまでです（ほかのプロジェクトで使っています）。使っているものを外してから追加してください。",
-  taken: "このドメインは、ほかの方が使っているか、外している途中です。別のドメイン（例: go2.<あなたのドメイン>）にするか、時間をおいてお試しください。",
+  already: "自分のドメインは 1 人 1 つまでです。別の宣伝するもので、もう使っています。そちらの「短縮リンク」の画面で外してから、追加してください。",
+  taken: "このドメインは、いま使えません。ほかの人が使っているか、外したばかりです。時間をおいてお試しいただくか、別の名前にしてください。たとえば go2.<あなたのドメイン> です。",
   daily: `ドメインを追加できるのは 1 日に ${LINK_DOMAIN_DAILY_ATTEMPTS} 回までです。明日もう一度お試しください。`,
   limit: "いまは、自分のドメインを新しく追加できません。yabumi を使う人みんなで、上限に達しています。追加しなくても、リンクが押された数は今までどおり数えます。",
 };
 
 export async function addLinkDomain(admin: Admin, input: { ownerId: string; projectId: string; domain: string }, deps: LinkDomainDeps): Promise<AddResult> {
-  if (!deps.vercel) return { ok: false, error: "この機能は準備中です。" };
+  if (!deps.vercel) return { ok: false, error: "まだ使えません。yabumi の運営の準備ができたら、使えるようになります。" };
   const checked = normalizeLinkDomain(input.domain);
   if (!checked.ok) return { ok: false, error: checked.error, suggestion: checked.suggestion };
   const domain = checked.domain;
@@ -143,7 +146,7 @@ export async function addLinkDomain(admin: Admin, input: { ownerId: string; proj
     await admin.from("link_domains").delete().eq("project_id", input.projectId).eq("owner_id", input.ownerId);
     await drainLinkDomainRemovals(admin, deps).catch(() => undefined);
     if (e instanceof VercelApiError && (e.status === 409 || e.status === 403)) {
-      return { ok: false, error: "このドメインは、ほかのサービス（Vercel のほかのプロジェクト）で使われているため追加できません。別のサブドメイン（例: go2.<あなたのドメイン>）にしてください。" };
+      return { ok: false, error: "このドメインは、ほかのサービスですでに使われています。別の名前にしてください。たとえば go2.<あなたのドメイン> です。" };
     }
     if (e instanceof VercelApiError && e.status === 400) return { ok: false, error: "このドメインは追加できませんでした。綴りを確認してください。" };
     console.error("[link-domain] Vercel にドメインを足せませんでした", e instanceof Error ? e.message : e);
@@ -205,12 +208,12 @@ async function ownerTxtFound(domain: string, token: string, lookup: Lookup): Pro
 export type CheckResult = { ok: true; row: LinkDomainRow } | { ok: false; error: string };
 
 export async function checkLinkDomain(admin: Admin, input: { ownerId: string; projectId: string }, deps: LinkDomainDeps): Promise<CheckResult> {
-  if (!deps.vercel) return { ok: false, error: "この機能は準備中です。" };
+  if (!deps.vercel) return { ok: false, error: "まだ使えません。yabumi の運営の準備ができたら、使えるようになります。" };
   const lookup = deps.lookup ?? dohLookup();
   await expireLinkDomains(admin, deps);
   const { data: row, error } = await admin.from("link_domains").select("*").eq("project_id", input.projectId).eq("owner_id", input.ownerId).maybeSingle();
   if (error) throw error;
-  if (!row) return { ok: false, error: `ドメインが見つかりません（${PENDING_DAYS} 日のうちにつながらなかったものは取り消します）。もう一度入れてください。` };
+  if (!row) return { ok: false, error: `ドメインが見つかりません。${PENDING_DAYS} 日たってもつながらなかったドメインは、削除しています。もう一度入れてください。` };
   const now = (deps.now ?? (() => new Date()))();
   if (row.last_checked_at && now.getTime() - new Date(row.last_checked_at).getTime() < LINK_DOMAIN_CHECK_INTERVAL_MS) {
     return { ok: false, error: "いま確認したところです。10 秒ほどおいてから押してください。" };

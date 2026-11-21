@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { requireUser } from "@/lib/auth/user";
 import { vapidPublicKey } from "@/lib/push/send";
 
-export const metadata: Metadata = { title: "ホーム画面に追加する" };
+export const metadata: Metadata = { title: "スマホのホーム画面に追加する" };
 
 // ホーム画面に追加する案内（2026-11-21 オーナーのタスク。PM 了承）。メニューには置かない（オーナー「メニューが多すぎる」）。
 // ホームの帯の「やり方を見る」と、「ログインと退会」「お知らせの設定」から開く
@@ -25,13 +25,13 @@ export default async function AddToHomePage() {
               プロジェクト
             </Link>
             <span className="text-muted">/</span>
-            <b>ホーム画面に追加する</b>
+            <b>スマホのホーム画面に追加する</b>
           </span>
         }
-        mobileBack={{ href: "/settings", title: "ホーム画面に追加する" }}
+        mobileBack={{ href: "/settings", title: "スマホのホーム画面に追加する" }}
       />
       <main className="flex flex-col gap-5 px-12 py-10 max-lg:px-8 max-sm:gap-4 max-sm:px-4 max-sm:py-5">
-        <PageHeader title="ホーム画面に追加する" />
+        <PageHeader title="スマホのホーム画面に追加する" />
         <Card className="flex max-w-2xl flex-col gap-4 px-6 py-5 max-sm:px-4">
           <ul className="flex list-disc flex-col gap-1 pl-5 text-[14px] leading-[1.8]">
             <li>アプリのように、画面いっぱいで開けます。</li>

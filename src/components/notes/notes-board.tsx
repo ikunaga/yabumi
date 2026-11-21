@@ -467,7 +467,7 @@ function ShareHelp() {
             </li>
           </ol>
           <p className="mt-1 text-muted">
-            ショートカットは Safari で yabumi を開くので、Safari でもログインしておいてください（ホーム画面に追加した yabumi とは、ログインと書きかけのメモが別です）。画像は送れないので、写真は yabumi の「＋ メモ」から選んでください。
+            ショートカットは、Safari で yabumi を開きます。Safari でもログインしておいてください。スマホのホーム画面の yabumi とは、ログインと書きかけのメモが別です。画像は送れないので、写真は yabumi の「＋ メモ」から選んでください。
           </p>
         </div>
         <div>

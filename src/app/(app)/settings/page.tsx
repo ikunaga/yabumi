@@ -73,7 +73,7 @@ export default async function SettingsPage() {
                 <p className="flex flex-wrap items-center gap-x-4 gap-y-1 px-6 pt-1 pb-5 text-[14px] leading-7">
                   <span>アプリのように開けるようにします</span>
                   <Link href="/settings/add-to-home" className="font-semibold text-primary hover:underline">
-                    ホーム画面に追加する
+                    スマホのホーム画面に追加する
                   </Link>
                 </p>
               </Card>

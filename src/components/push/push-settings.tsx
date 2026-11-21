@@ -260,7 +260,7 @@ export function PushSettings() {
       <DisclosureBox label="届かないときの確認のしかたを表示">
         <ul className="flex list-disc flex-col gap-1 pl-5">
           <li>「おやすみモード」や「集中モード」がオンだと、通知が出ないことがあります</li>
-          <li>iPhone・iPad は、スマホのホーム画面の yabumi から登録したときだけ届きます。Safari で開いた画面からは登録できません</li>
+          <li>iPhone・iPad では、スマホのホーム画面の yabumi から登録します。Safari で開いた画面からは登録できません</li>
           <li>端末の設定で、yabumi （またはブラウザ）の通知が許可されているか確認してください</li>
           <li>ブラウザのデータを消すと、登録も消えます。もう一度「この端末で通知を受け取る」を押してください</li>
           <li>ログアウトすると、その端末には届かなくなります（同じ端末をほかの人が使っても、あなたへの通知が出ないように）</li>

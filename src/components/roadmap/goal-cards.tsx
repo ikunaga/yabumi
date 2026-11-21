@@ -5,11 +5,11 @@ import { Badge } from "@/components/ui/chip";
 import { DisclosureChevron } from "@/components/ui/disclosure";
 import { DismissableDetails } from "@/components/ui/dismissable-details";
 import { SNS_COLOR } from "@/components/ui/marks";
-import { BarRow } from "@/components/ui/metric";
 import { Term } from "@/components/ui/term";
 import type { ActiveGoalView } from "@/lib/goals/load";
 import type { Goal, GoalKpi, MetricTotal, Milestone } from "@/lib/goals/schema";
-import { formatMetric, GOAL_STATUS_LABEL, md, metricLabel, milestoneName, notCountedText, spanText } from "@/lib/goals/view";
+import { formatMetric, GOAL_STATUS_LABEL, md, METRIC_UNIT, metricLabel, milestoneName, notCountedText, PROJECT_MIN_DAYS, spanText } from "@/lib/goals/view";
+import { HelpTip } from "@/components/ui/help";
 import type { RoadmapItem } from "@/lib/roadmap/load";
 import { SNS } from "@/lib/sns";
 
@@ -30,6 +30,9 @@ export function CountedThrough({ total, today }: { total: Pick<MetricTotal, "cou
   return <span className="num text-[13px] text-faint">{md(total.countedThrough)} まで</span>;
 }
 
+// いまの目標（KGI）。ロードマップのいちばん上に置く（2026-11-21 オーナーの指示「この KGI が何なのかは一番重要で、一番意識しないといけないところ」）。
+// 前は上に並んでいた「目標の進み具合」「期限まで」「期限の見込み」のカードも、ここにまとめる（同じことを 2 か所に出さない）。
+// 数字には名前と単位を付ける（2026-11-21 オーナーの指摘「これって何の数字？」）。見込みが出ないときは、何をすれば出るかを書く
 export function KgiCard({
   view,
   productType,
@@ -42,38 +45,66 @@ export function KgiCard({
   today: string;
   // KGI がまだのときの中身（「AI と目標を決める」など）
   empty: ReactNode;
+  // カードのいちばん下（「この目標を終える」など、押しまちがえたくないもの）
   footer?: ReactNode;
 }) {
   const goal = view?.goal;
   const p = view?.progress ?? null;
+  const metric = goal?.metric ?? null;
+  const unit = metric && METRIC_UNIT[metric] ? ` ${METRIC_UNIT[metric]}` : "";
+  const f = (v: number) => (metric ? `${formatMetric(metric, v)}${unit}` : String(v));
   return (
     <Card className="overflow-hidden">
       <CardHeader title={<Term k="kgi">いまの目標（KGI）</Term>} action={goal?.metric && goal.endsOn ? <span className="num">{spanText(goal.startsOn, goal.endsOn)}</span> : undefined} />
       <div className="flex flex-col gap-3 px-6 pt-1 pb-5 max-sm:px-4">
-        {goal?.metric && goal.target !== null ? (
+        {metric && goal && goal.target !== null ? (
           <>
             <p className="text-[19px] font-bold">{goal.statement}</p>
             <p className="flex flex-wrap items-center gap-2 text-[15px] text-muted">
-              {metricLabel({ metric: goal.metric, action: goal.action, sns: goal.sns }, productType)} {formatMetric(goal.metric, goal.target)}
+              {metricLabel({ metric, action: goal.action, sns: goal.sns }, productType)}
               {goal.provisional && <Badge tone="info">仮の目標</Badge>}
             </p>
             {p?.available ? (
               <>
-                <BarRow label="いま" value={p.value} max={p.target} barClass={p.value >= p.target ? "bg-success" : "bg-info"} display={`${formatMetric(goal.metric, p.value)} / ${formatMetric(goal.metric, p.target)}`} />
-                <p className="flex flex-wrap items-baseline gap-x-3 text-[14px] text-muted">
-                  <span>残り {p.daysLeft} 日</span>
-                  {p.projected !== null && (
-                    <span>
-                      このままだと <b className={`num ${p.projected >= p.target ? "text-success" : "text-signal"}`}>{formatMetric(goal.metric, p.projected)}</b>
+                <div className="flex flex-col gap-2">
+                  <p className="num flex flex-wrap items-baseline gap-x-3 whitespace-nowrap">
+                    <span className="text-[15px] text-muted">いま</span>
+                    <span className="text-[28px] font-bold max-sm:text-[24px]">{formatMetric(metric, p.value)}</span>
+                    <span className="text-[17px] text-muted">
+                      / {formatMetric(metric, p.target)}
+                      {unit}
                     </span>
-                  )}
+                  </p>
+                  <span className="h-2.5 overflow-hidden rounded-full bg-subtle" aria-hidden>
+                    <span className={`block h-full rounded-full ${p.value >= p.target ? "bg-success" : "bg-info"}`} style={{ width: `${Math.max(0, Math.min(100, p.target > 0 ? (p.value / p.target) * 100 : 0))}%` }} />
+                  </span>
+                </div>
+                <p className="num flex flex-wrap items-baseline gap-x-3 text-[14px] text-muted">
+                  <span>
+                    残り {p.daysLeft} 日{goal.endsOn ? `。期限は ${md(goal.endsOn)}` : ""}
+                  </span>
                   <CountedThrough total={p} today={today} />
                 </p>
+                <div className="flex flex-col gap-1 rounded-md bg-surface2 px-4 py-3 text-[15px]">
+                  <p className="flex items-center gap-1.5 text-[14px] text-muted">
+                    {goal.endsOn ? `このままなら ${md(goal.endsOn)} には` : "このままなら期限には"}
+                    <HelpTip label="見込みの出し方">いまの 1 日あたりの数のまま、期限まで続けたときの数です。{PROJECT_MIN_DAYS} 日分の数字がたまると出ます。</HelpTip>
+                  </p>
+                  {p.projected !== null ? (
+                    <p className="num flex flex-wrap items-baseline gap-x-2">
+                      <b className="text-[20px]">{f(p.projected)}</b>
+                      <span className="text-muted">目標 {f(p.target)}に</span>
+                      {p.projected >= p.target ? <b className="text-success">届きそう</b> : <b className="text-signal">届かない見込み</b>}
+                    </p>
+                  ) : (
+                    <p className="text-muted">{metric === "revenue" ? "売上は見込みを出しません" : `あと ${Math.max(1, PROJECT_MIN_DAYS - p.countedDays)} 日で出ます`}</p>
+                  )}
+                </div>
               </>
             ) : (
               <p className="flex items-center gap-2 text-[15px] text-muted">
                 <Badge>数えていません</Badge>
-                {notCountedText(goal.metric, productType)}
+                {notCountedText(metric, productType)}
               </p>
             )}
           </>

@@ -117,5 +117,7 @@ describe("文の集め方と数え方", () => {
     expect(hit("「ホーム」のいまやることの帯")).toContain("obi");
     expect(hit("今月の AI の枠が、いっぱいになりました")).toContain("waku");
     expect(hit("アプリの画面を、スマホの枠に入れます。空き枠のお知らせ")).toEqual([]);
+    expect(hit("スマホのホーム画面に置くと、メニューの「ホーム画面に追加」を選びます。窓口・窓辺")).toEqual([]);
+    expect(hit("ホーム画面の yabumi から開きます。別の窓で開く")).toEqual(expect.arrayContaining(["homegamen", "mado"]));
   });
 });

@@ -141,5 +141,5 @@ export async function removeLinkDomainAction(projectId: string): Promise<LinkDom
     return { error: "いま外せませんでした。時間をおいてもう一度お試しください。" };
   }
   revalidatePath(`/projects/${projectId}/links`);
-  return { ok: "外しました。これからの短縮リンクは、yabumi のドメインで作ります。" };
+  return { ok: "このドメインを使うのをやめました。これからの短縮リンクは、yabumi のドメインで作ります。" };
 }

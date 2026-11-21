@@ -430,23 +430,23 @@ function RemoveDomain({ projectId, domain, defaultHost }: { projectId: string; d
       {!confirming ? (
         <div>
           <button type="button" onClick={() => setConfirming(true)} className="text-sm text-muted hover:text-fg hover:underline">
-            {domain.status === "active" ? "このドメインを外す" : "このドメインを使うのをやめる"}
+            このドメインを使うのをやめる
           </button>
         </div>
       ) : (
         <form action={action} className="flex flex-col gap-2 rounded-md border border-danger px-4 py-3 text-sm leading-[1.7]">
           <p>
-            <b>{domain.domain}</b> を外すと、これからの短縮リンクは {defaultHost} で作ります。
+            <b>{domain.domain}</b> を使うのをやめると、これからの短縮リンクは {defaultHost} で作ります。
             {domain.status === "active" && (
               <>
                 <b className="text-danger"> {domain.domain} で始まる短縮リンクは開けなくなります。</b>プロフィールや投稿に貼ったものは、{defaultHost} の URL に貼り直してください。
               </>
             )}
-            外したあと、DNS に追加した行は消してかまいません。
+            やめたあと、DNS に追加した行は削除してかまいません。
           </p>
           <div className="flex flex-wrap gap-2">
             <Button type="submit" variant="danger" size="sm" disabled={pending}>
-              {pending ? "外しています…" : "外す"}
+              {pending ? "やめています…" : "使うのをやめる"}
             </Button>
             <Button type="button" variant="text" size="sm" onClick={() => setConfirming(false)}>
               やめる

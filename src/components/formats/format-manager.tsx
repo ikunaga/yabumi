@@ -171,7 +171,7 @@ export function FormatManager({
         <section className="flex flex-col gap-2 border-t border-line pt-4">
           {confirmDelete ? (
             <div className="flex flex-col gap-2">
-              <p className="text-sm">「{f.name}」を削除します。これまでの投稿の記録も消え、元に戻せません。</p>
+              <p className="text-sm leading-[1.7]">「{f.name}」を削除します。これまでの投稿の記録も削除し、元に戻せません。SNS に出した投稿は消えません。</p>
               <span className="flex flex-wrap gap-2">
                 <Button size="sm" variant="danger" disabled={pending} onClick={() => run(() => deletePostFormat(projectId, f.id), () => (setConfirmDelete(false), go({ kind: "list" })))}>
                   {pending ? "削除しています…" : "このフォーマットを削除する"}
@@ -183,7 +183,7 @@ export function FormatManager({
             </div>
           ) : (
             <Button size="sm" variant="secondary" className="self-start" onClick={() => setConfirmDelete(true)}>
-              削除する
+              このフォーマットを削除する
             </Button>
           )}
         </section>
@@ -288,8 +288,13 @@ export function FormatManager({
           </>
         }
       />
+      <p className="-mt-2 text-sm text-muted max-sm:-mt-1">毎回くり返し使う投稿のひな形です。</p>
       {formats.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-input px-6 py-8 text-center text-sm text-muted">まだフォーマットはありません</p>
+        <p className="rounded-lg border border-dashed border-input px-6 py-8 text-center text-sm leading-[1.8] text-muted">
+          まだフォーマットはありません。
+          <br />
+          新メニューのお知らせなど、よく出す投稿の形を残せます。
+        </p>
       ) : (
         <ul className="flex flex-col gap-3" aria-label="フォーマットの一覧">
           {formats.map((f) => (
@@ -304,7 +309,7 @@ export function FormatManager({
                     <span className="font-bold">{f.name}</span>
                     {isSeries(f.series) && <SeriesTag />}
                   </span>
-                  <span className="truncate text-sm text-muted">{f.body.split("\n").find((l) => l.trim()) ?? ""}</span>
+                  <span className="truncate text-sm text-muted">本文: {f.body.split("\n").find((l) => l.trim()) ?? ""}</span>
                   {cardSummary(f, roundCounts[f.id] ?? 0) && <span className="text-xs text-faint">{cardSummary(f, roundCounts[f.id] ?? 0)}</span>}
                 </span>
                 <span aria-hidden className="shrink-0 text-muted">
@@ -320,15 +325,16 @@ export function FormatManager({
   );
 }
 
-// カードの小さな要約（「画像あり・タグ 4 個・これまで 4 件」）。ないものは書かない
+// カードの小さな要約（「画像も AI でつくる・ハッシュタグ 4 個・これまでの投稿 4 件」。ja-copy-reviewer: 何の数かを書く）。ないものは書かない
 function cardSummary(f: PostFormat, rounds: number): string {
   const tags = new Set(Object.values(f.hashtags).flatMap((x) => x ?? [])).size;
-  const parts = [f.image ? "画像あり" : null, tags ? `タグ ${tags} 個` : null, isSeries(f.series) ? `これまで ${rounds} 件` : null].filter(Boolean);
+  const parts = [f.image ? "画像も AI でつくる" : null, tags ? `ハッシュタグ ${tags} 個` : null, isSeries(f.series) ? `これまでの投稿 ${rounds} 件` : null].filter(Boolean);
   return parts.join("・");
 }
 
 function SeriesTag() {
-  return <span className="rounded-sm bg-info-soft px-1.5 py-0.5 text-xs font-bold text-info">シリーズ</span>;
+  // シリーズの札。「シリーズ」だけでは意味が伝わらない（ja-copy-reviewer）ので、何が起きるかを書く
+  return <span className="rounded-sm bg-info-soft px-1.5 py-0.5 text-xs font-bold text-info">毎回 AI が考える</span>;
 }
 
 // 新しく作るときの作り方 1 つ（押すと、その作り方の画面）
@@ -834,6 +840,7 @@ function SeriesRounds({ projectId, format, open = false }: { projectId: string; 
       <div className="flex flex-col gap-2">
         {rounds === null && !error && <p className="text-faint">読み込んでいます…</p>}
         {rounds && rounds.length === 0 && <p className="text-muted">まだありません。「投稿をつくる」でこのフォーマットを使うと、ここに残ります。</p>}
+        {rounds && rounds.length > 0 && <p className="text-muted">ここで削除しても、SNS の投稿は消えません。</p>}
         {rounds && rounds.length > 0 && (
           <ul className="flex max-h-60 flex-col divide-y divide-line overflow-y-auto rounded-md border border-line">
             {rounds.map((r) => (
@@ -850,7 +857,7 @@ function SeriesRounds({ projectId, format, open = false }: { projectId: string; 
                   ) : (
                     Object.values(r.values).join(" / ")
                   )}
-                  <span className="ml-1.5 text-faint">{r.source === "pasted" ? "貼った投稿" : r.postId ? "送信済みの投稿" : "本文に入れた案"}</span>
+                  <span className="ml-1.5 text-faint">{r.source === "pasted" ? "yabumi の外で出した投稿" : r.postId ? "送信済みの投稿" : "本文に入れた案"}</span>
                 </span>
                 <Button size="sm" variant="secondary" disabled={pending} onClick={() => run(() => deleteFormatRound(projectId, format.id, r.id))}>
                   削除

@@ -68,6 +68,11 @@ export default async function NotificationSettingsPage() {
                 <CardHeader title="スマホの通知" />
                 <div className="px-6 pt-1 pb-5 max-sm:px-4">
                   <PushSettings />
+                  <p className="px-6 pb-5 text-[14px] max-sm:px-4">
+                    <Link href="/settings/add-to-home" className="font-semibold text-primary hover:underline">
+                      ホーム画面に追加する手順を見る →
+                    </Link>
+                  </p>
                 </div>
               </Card>
               <Card className="px-6 py-5 text-sm leading-[1.7] text-muted max-sm:px-4">

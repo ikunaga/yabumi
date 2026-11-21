@@ -67,6 +67,16 @@ export default async function SettingsPage() {
                   </Link>
                 </p>
               </Card>
+
+              <Card className="overflow-hidden">
+                <CardHeader title="スマホのホーム画面" />
+                <p className="flex flex-wrap items-center gap-x-4 gap-y-1 px-6 pt-1 pb-5 text-[14px] leading-7">
+                  <span>アプリのように開けるようにします</span>
+                  <Link href="/settings/add-to-home" className="font-semibold text-primary hover:underline">
+                    ホーム画面に追加する
+                  </Link>
+                </p>
+              </Card>
             </>
           }
           side={

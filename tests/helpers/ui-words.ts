@@ -63,6 +63,8 @@ export const UI_WORD_RULES: UiWordRule[] = [
   { id: "waku", pattern: /枠(が|を使い切|（)/ },
   { id: "matatsukae", pattern: /また使えます/ },
   { id: "zentai", pattern: /yabumi ?全体/ },
+  { id: "kiroku", pattern: /記録できます/ },
+  { id: "natsujikan", pattern: /夏時間/ },
 ];
 
 // 表にあるが、見つける形を決められない行（確認役が文の意味から見る）

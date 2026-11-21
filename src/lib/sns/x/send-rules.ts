@@ -37,7 +37,7 @@ export function inLaterJstMonth(at: Date, now: Date): boolean {
 export function xOverMessage(over: XOver, a: { costUsd: number; userBudgetUsd: number }): string {
   return over === "user"
     ? `今月の X の自動投稿の上限（1 人 $${a.userBudgetUsd}）に達するので、この投稿は X に自動では送れません（この投稿 ${formatUsd(a.costUsd)}）`
-    : "今月の yabumi 全体の X の上限に達しているので、この投稿は X に自動では送れません";
+    : "yabumi を使う人みんなで、今月の X の上限に達しました。この投稿は、X に自動では送れません。送ったあと、「送信の結果」から自分で投稿できます";
 }
 
 // 「X は手で投稿する」の印の文（SNS ごとの表は src/lib/sns/by-hand.ts）

@@ -74,7 +74,9 @@ export const UI_WORD_RULES: UiWordRule[] = [
   { id: "homegamen", pattern: /(?<!スマホの|「)ホーム画面/ },
   // 窓口・窓辺・窓際は使ってよい
   { id: "mado", pattern: /窓(?![口辺際])/ },
+  { id: "banso", pattern: /伴走|声かけ|声をかけ/ },
+  { id: "address", pattern: /アドレス欄/ },
 ];
 
 // 表にあるが、見つける形を決められない行（確認役が文の意味から見る）
-export const UI_WORD_RULES_WITHOUT_PATTERN = ["unei", "project", "term", "okane", "hazusu", "moji", "tsunageru", "nini", "etsuran", "yakuwari", "komiai", "hinagata", "dnswords", "kuuran"];
+export const UI_WORD_RULES_WITHOUT_PATTERN = ["unei", "project", "term", "okane", "hazusu", "moji", "tsunageru", "nini", "etsuran", "yakuwari", "komiai", "hinagata", "dnswords", "kuuran", "browser"];

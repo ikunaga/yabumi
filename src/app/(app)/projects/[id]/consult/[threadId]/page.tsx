@@ -23,7 +23,7 @@ export async function generateMetadata(props: PageProps<"/projects/[id]/consult/
   return { title: meta?.entry?.title ?? meta?.listTitle ?? "AI と相談" };
 }
 
-// AI と相談の 1 つの会話（F09、4.23）。一覧は /consult。削除は見出しの横の「この会話を削除する」から（削除したら一覧へ）
+// AI と相談の 1 つの会話（F09、4.23）。一覧は /consult。削除は見出しの横の「この相談を削除する」から（削除したら一覧へ）
 export default async function ConsultThreadPage(props: PageProps<"/projects/[id]/consult/[threadId]">) {
   const { id, threadId } = await props.params;
   if (!aiConfigured()) redirect(`/projects/${id}/consult`);

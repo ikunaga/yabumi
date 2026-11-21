@@ -66,7 +66,7 @@ export default async function ConsultListPage(props: PageProps<"/projects/[id]/c
       />
       <AiQuotaBand state={quota} />
       <ConsultClosedBanner projectId={id} done={sp.done} items={sp.items} reviewed={sp.reviewed} />
-      {sp.done === "thread_deleted" && <SuccessBanner>会話を削除しました。採用した案は残っています。アカウントの方針・ロードマップ・下書きです。</SuccessBanner>}
+      {sp.done === "thread_deleted" && <SuccessBanner>相談を削除しました。採用した案は残っています。アカウントの方針・ロードマップ・下書きです。</SuccessBanner>}
 
       <Columns
         main={

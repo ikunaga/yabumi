@@ -41,6 +41,22 @@ export async function getAutoPlan(planId: string): Promise<AutoPlan | null> {
   return data ? toPlan(data as PlanRow) : null;
 }
 
+// もう作った、これから送る回（予約済み・1 回目の確認待ち）。編集しても、これらは前の設定のまま送る（save_auto_plan は作っていない回だけ作り直す）。
+// 編集の保存のポップアップと、保存したあとの知らせで、いつの投稿から変わるかを出す（2026-11-21 オーナーの質問）
+export type MadeAutoPost = { dueAt: string; postId: string };
+export async function listMadeAutoPosts(planId: string, now: Date = new Date()): Promise<MadeAutoPost[]> {
+  const { data, error } = await (await db())
+    .from("auto_runs")
+    .select("due_at, post_id")
+    .eq("plan_id", planId)
+    .in("status", ["scheduled", "review"])
+    .not("post_id", "is", null)
+    .gt("due_at", now.toISOString())
+    .order("due_at");
+  if (error) throw new Error(`auto_runs: ${error.message}`);
+  return data.map((r) => ({ dueAt: r.due_at, postId: r.post_id! }));
+}
+
 // 回し方の回（新しい順。結果を見る画面）
 export async function listAutoRuns(planId: string, limit = 50): Promise<AutoRun[]> {
   const { data, error } = await (await db())

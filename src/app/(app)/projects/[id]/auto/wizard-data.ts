@@ -1,4 +1,5 @@
 import "server-only";
+import { listMadeAutoPosts } from "@/lib/auto-post/queries";
 import type { ComponentProps } from "react";
 import type { PlanWizard } from "@/components/auto-post/plan-wizard";
 import { fakeAiMode } from "@/lib/auto-post/ai";
@@ -20,7 +21,7 @@ import { toYmd } from "@/lib/time";
 // 始める・直す画面に渡すもの（材料の数・つないだ SNS・設計の役割と頻度・時間帯の傾向）。AI は呼ばない
 export async function wizardProps(projectId: string, plan: AutoPlan | null): Promise<ComponentProps<typeof PlanWizard>> {
   const db = await createClient();
-  const [counts, accounts, account, trends, project, winners, notice] = await Promise.all([
+  const [counts, accounts, account, trends, project, winners, notice, made] = await Promise.all([
     loadMaterialCounts(projectId),
     connectedAccounts(projectId),
     getAccountPlan(projectId),
@@ -30,6 +31,8 @@ export async function wizardProps(projectId: string, plan: AutoPlan | null): Pro
     plan ? Promise.resolve(null) : loadWinners(db, projectId),
     // AI の画像の注意を読んだか（本人の行だけ。RLS）
     db.from("ai_image_notices").select("owner_id").maybeSingle(),
+    // 編集のとき: もう作った、これから送る投稿（保存のポップアップで、いつから変わるかを出す）
+    plan ? listMadeAutoPosts(plan.id) : Promise.resolve([]),
   ]);
   const roles = account ? (Object.keys(account.plan.cadence.roles) as SnsKey[]).filter((k) => account.plan.cadence.roles[k]?.trim()) : [];
   const pillarNames = account ? account.plan.pillars.items.map((i) => i.name.trim()).filter(Boolean) : [];
@@ -61,5 +64,6 @@ export async function wizardProps(projectId: string, plan: AutoPlan | null): Pro
     winners: winners ? winnersCardText(winners, (s) => SNS[s].label) : null,
     // 自動の回の画像（鍵がないときは選べない。偽の AI の確かめでは選べる）
     photo: { enabled: photoConfigured() || !!fakeAiMode(), acknowledged: !!notice.data },
+    made,
   };
 }

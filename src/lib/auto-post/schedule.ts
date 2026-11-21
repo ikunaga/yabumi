@@ -44,3 +44,9 @@ export function nextDueTime(schedule: AutoSchedule, from: Date = new Date()): Da
 export function runsPerMonth(schedule: AutoSchedule): number {
   return Math.round(((schedule.weekdays.length / schedule.every_weeks) * 30) / 7);
 }
+
+// 編集したとき、新しい設定で作る最初の投稿の日時。もう作った投稿の日時（made）は飛ばす（同じ日時の回は作り直さない。addUpcomingRuns の重なりの扱い）
+export function firstNewDueTime(schedule: AutoSchedule, madeDueAts: string[], now: Date = new Date()): Date | null {
+  const made = new Set(madeDueAts.map((d) => new Date(d).getTime()));
+  return dueTimes(schedule, now, new Date(now.getTime() + 120 * 86_400_000)).find((d) => !made.has(d.getTime())) ?? null;
+}

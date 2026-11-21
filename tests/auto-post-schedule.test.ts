@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import { fakeAiMode, fakeGenerator } from "@/lib/auto-post/ai";
-import { dueTimes, nextDueTime, runsPerMonth } from "@/lib/auto-post/schedule";
+import { dueTimes, firstNewDueTime, nextDueTime, runsPerMonth } from "@/lib/auto-post/schedule";
 import { autoPlanInputSchema } from "@/lib/auto-post/schema";
 import { TARGET_MODES, type AutoPlanInput } from "@/lib/auto-post/types";
 
@@ -116,5 +116,17 @@ describe("偽の AI の入口", () => {
     const held = await fakeGenerator("held")(base);
     expect(held.ok && held.issues?.[0]?.kind).toBe("made_up");
     expect((await fakeGenerator("cannot")(base)).ok).toBe(false);
+  });
+});
+
+describe("編集したとき、新しい設定で作る最初の投稿（2026-11-21）", () => {
+  const daily = { weekdays: [1, 2, 3, 4, 5, 6, 7], time: "19:00", every_weeks: 1 as const, start: "2026-11-01" };
+  const now = new Date("2026-11-23T12:00:00+09:00");
+  it("もう作った投稿の日時は飛ばし、その次の投稿の日時を返す", () => {
+    expect(firstNewDueTime(daily, [], now)?.toISOString()).toBe(new Date("2026-11-23T19:00:00+09:00").toISOString());
+    expect(firstNewDueTime(daily, ["2026-11-23T10:00:00.000Z"], now)?.toISOString()).toBe(new Date("2026-11-24T19:00:00+09:00").toISOString());
+  });
+  it("時刻を変えたときは、新しい時刻で数える（もう作った投稿とは日時が重ならない）", () => {
+    expect(firstNewDueTime({ ...daily, time: "08:00" }, ["2026-11-23T10:00:00.000Z"], now)?.toISOString()).toBe(new Date("2026-11-24T08:00:00+09:00").toISOString());
   });
 });

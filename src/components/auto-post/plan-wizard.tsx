@@ -15,7 +15,9 @@ import { SnsTag } from "@/components/ui/marks";
 import { Steps } from "@/components/ui/steps";
 import { saveAutoPlan } from "@/lib/auto-post/actions";
 import { isReviewOnlySns, KIND_LABELS, kindSummary, TARGET_MODE_LABELS } from "@/lib/auto-post/labels";
-import { runsPerMonth } from "@/lib/auto-post/schedule";
+import { firstNewDueTime, runsPerMonth } from "@/lib/auto-post/schedule";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { formatShort } from "@/lib/time";
 import { AUTO_NAME_MAX, DEFAULT_LEAD_HOURS } from "@/lib/auto-post/schema";
 import { suggestSchedules, type KindSuggestion, type SuggestMaterials } from "@/lib/auto-post/suggest";
 import {
@@ -59,6 +61,8 @@ export type WizardMaterials = {
 type Props = {
   projectId: string;
   plan: AutoPlan | null; // 直すときだけ
+  // 編集のとき: もう作った、これから送る投稿（これらは前の設定のまま送る。保存のポップアップで知らせる）
+  made?: { dueAt: string; postId: string }[];
   materials: WizardMaterials;
   kindSuggestion: KindSuggestion;
   connected: SnsKey[];
@@ -153,6 +157,13 @@ export function PlanWizard(p: Props) {
   const [photoAck, setPhotoAck] = useState(p.photo.acknowledged);
   const [name, setName] = useState(p.plan?.name ?? "");
   const [consent, setConsent] = useState(false);
+  // 編集の保存の前のポップアップ。新しい設定で作る最初の投稿の日時は、押したときに計算する（描くたびに時刻を読まない）
+  const [confirmSave, setConfirmSave] = useState(false);
+  const [firstNew, setFirstNew] = useState<Date | null>(null);
+  const openSaveNotice = () => {
+    setFirstNew(schedule ? firstNewDueTime(schedule, (p.made ?? []).map((m) => m.dueAt)) : null);
+    setConfirmSave(true);
+  };
   const [sample, setSample] = useState<AutoSample | null>(null);
   const [adopt, setAdopt] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -507,7 +518,19 @@ export function PlanWizard(p: Props) {
               <Button
                 type="button"
                 disabled={!consent || pending}
-                onClick={() =>
+                onClick={() => (editing ? openSaveNotice() : save())}
+              >
+                {pending ? "保存しています…" : editing ? "編集して保存する" : "はじめる"}
+              </Button>
+            }
+          />
+          {editing && <SaveNotice open={confirmSave} projectId={p.projectId} made={p.made ?? []} firstNew={firstNew} onClose={() => setConfirmSave(false)} onSave={() => (setConfirmSave(false), save())} />}
+        </>
+      )}
+    </div>
+  );
+
+  function save() {
                   start(async () => {
                     setError(null);
                     const i = input();
@@ -523,17 +546,64 @@ export function PlanWizard(p: Props) {
                     }
                     // 見本を最初の回にできなかったときは、回し方の画面で理由を 1 回だけ出す
                     const note = r.data.sampleNote ? "&sample=failed" : r.data.firstDueAt ? "&sample=used" : "";
-                    router.push(editing ? `/projects/${p.projectId}/auto/${r.data.id}?saved=1` : `/projects/${p.projectId}/auto?started=1${note}`);
-                  })
-                }
-              >
-                {pending ? "保存しています…" : editing ? "編集して保存する" : "はじめる"}
-              </Button>
-            }
-          />
-        </>
+                    router.push(
+                      editing
+                        ? `/projects/${p.projectId}/auto/${r.data.id}?saved=1${firstNew ? `&from=${encodeURIComponent(firstNew.toISOString())}` : ""}`
+                        : `/projects/${p.projectId}/auto?started=1${note}`,
+                    );
+                  });
+  }
+}
+
+// 編集を保存する前のポップアップ: もう作った投稿は前の設定のまま送り、いつの投稿から新しい設定になるかを知らせる（2026-11-21 オーナー）
+function SaveNotice({
+  open,
+  projectId,
+  made,
+  firstNew,
+  onClose,
+  onSave,
+}: {
+  open: boolean;
+  projectId: string;
+  made: { dueAt: string; postId: string }[];
+  firstNew: Date | null;
+  onClose: () => void;
+  onSave: () => void;
+}) {
+  const from = firstNew ? formatShort(firstNew.toISOString()) : null;
+  const dates = made.map((m) => formatShort(m.dueAt));
+  const which = dates.length <= 2 ? dates.join(" と ") : `${dates[0]} など ${dates.length} 件`;
+  return (
+    <ConfirmDialog
+      open={open}
+      title={made.length ? `${which} の投稿は、変える前の設定で送ります` : "次の投稿から、新しい設定でつくります"}
+      confirmLabel="保存する"
+      cancelLabel="編集に戻る"
+      onClose={onClose}
+      onConfirm={onSave}
+    >
+      {made.length ? (
+        <div className="flex flex-col gap-2">
+          <p>
+            {made.length > 1 ? `この ${made.length} 件は、もうできています。` : "この投稿は、もうできています。"}
+            {from ? `新しい設定になるのは、${from} の投稿からです。` : ""}
+          </p>
+          <p>できている投稿の中身を変えたいときは、その投稿を開いて編集します。新しいタブで開くので、この画面の編集は消えません。</p>
+          <ul className="flex flex-col gap-1">
+            {made.map((m) => (
+              <li key={m.postId}>
+                <Link href={`/projects/${projectId}/posts/${m.postId}`} target="_blank" rel="noopener" className="font-bold text-fg underline">
+                  {formatShort(m.dueAt)} の投稿を開く
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <p>{from ? `次の投稿は ${from} です。` : "送る曜日と時刻を選ぶと、次の投稿の日時が決まります。"}</p>
       )}
-    </div>
+    </ConfirmDialog>
   );
 }
 

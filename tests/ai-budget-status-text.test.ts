@@ -24,3 +24,7 @@ describe("AI の枠の帯の文", () => {
 it("ほかの画面では、できることの言葉を変えられる", () => {
   expect(aiBlockedText({ status: "daily_limit", availableFrom: "2026-11-22", low: false }, { can: "ネタを出せます" })).toBe("今日の AI の回数を使い切りました。明日から、またネタを出せます。");
 });
+
+it("「また」のあとが英字なら、間に空白を入れる", () => {
+  expect(aiBlockedText({ status: "new_user_limit", availableFrom: "2026-11-28", low: false }, { can: "AI を使えます" })).toBe("登録から 7 日間に使える AI の量を、使い切りました。11 月 28 日から、また AI を使えます。");
+});

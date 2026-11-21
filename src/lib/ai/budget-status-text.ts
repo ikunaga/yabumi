@@ -19,7 +19,9 @@ function dayLabel(ymd: string): string {
 // 使えないときの文（使えるときは null）。全体の上限は、利用者のせいに見えない言い方にする（2026-11-21 PM の指示）
 export function aiBlockedText(s: AiBudgetState, words: AiBlockedWords = CONSULT_BLOCKED_WORDS): string | null {
   if (s.status === "ok") return null;
-  const again = `${s.availableFrom ? `${dayLabel(s.availableFrom)}から、` : ""}また${words.can}。`;
+  // 「また」のあとが英字（AI など）なら、間に空白を入れる（「また AI と考えられます」）
+  const can = /^[A-Za-z]/.test(words.can) ? ` ${words.can}` : words.can;
+  const again = `${s.availableFrom ? `${dayLabel(s.availableFrom)}から、` : ""}また${can}。`;
   const still = words.still ?? "";
   switch (s.status) {
     case "user_limit":
@@ -31,7 +33,7 @@ export function aiBlockedText(s: AiBudgetState, words: AiBlockedWords = CONSULT_
       return `yabumi を使う人みんなで、今月の AI の上限に達しました。あなたが使った量とは関係ありません。${again}${still}`;
     default:
       // 1 日の上限（往復の数・用途ごとの回数）
-      return `今日の AI の回数を使い切りました。明日から、また${words.can}。${still}`;
+      return `今日の AI の回数を使い切りました。明日から、また${can}。${still}`;
   }
 }
 

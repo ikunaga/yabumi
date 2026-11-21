@@ -24,7 +24,7 @@ export function aiBlockedText(s: AiBudgetState, words: AiBlockedWords = CONSULT_
       return `登録から 7 日間に使える AI の量を、使い切りました。${again}${still}`;
     case "global_limit":
     case "new_global_limit":
-      return `今月は利用が多く、yabumi 全体で AI の上限に達しました。あなたが使った量とは関係ありません。${again}${still}`;
+      return `yabumi を使う人みんなで、今月の AI の上限に達しました。あなたが使った量とは関係ありません。${again}${still}`;
     default:
       // 1 日の上限（往復の数・用途ごとの回数）
       return `今日の AI の回数を使い切りました。明日から、また${words.can}。${still}`;

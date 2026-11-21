@@ -410,7 +410,7 @@ yabumi は利用者ごとに「読み取り用のサービスアカウント」�
 | 17-2 | オーナー | yabumi の Vercel のプロジェクト → Settings → General の **Project ID**（`prj_` で始まる）と、チームの Settings → General の **Team ID**（`team_` で始まる）を控える |
 | 17-3 | オーナー | Vercel → yabumi のプロジェクト → Settings → Environment Variables に `VERCEL_API_TOKEN`（**Sensitive**）、`VERCEL_PROJECT_ID`、`VERCEL_TEAM_ID` を足し（Environment は Production だけ。プレビューから本番のドメインを触らないように）、Redeploy |
 | 17-4 | 確かめ | 「短縮リンク」の画面の「自分のドメインで作る（任意）」の「設定する」が押せる。オーナーの持っているドメインで go.<ドメイン> を足し、DNS に出た CNAME と TXT（_yabumi.go）を入れて「確認する」→「つながりました」。そのドメインの短縮リンクを押すとストアが開き、`https://go.<ドメイン>/login` は「このアドレスは短縮リンク用です。」になる。Vercel の Domains にそのドメインが並んでいる |
-| 17-5 | 確かめ | 「このドメインを外す」で、Vercel の Domains からそのドメインが消える |
+| 17-5 | 確かめ | 「このドメインを使うのをやめる」で、Vercel の Domains からそのドメインが消える |
 
 - **上限**: Vercel Hobby は 1 プロジェクトにドメイン 50 まで（yabumi の yabumi.app・www・go・vercel.app を含む）。利用者の分は `LINK_DOMAIN_LIMIT`（既定 40）まで。32 に達すると `OPERATOR_EMAIL` に「短縮リンクの利用者のドメインが上限に近づいています」が届く（7 日に 1 回）。そのときは Pro にして `LINK_DOMAIN_LIMIT` を上げるかを決める。なお Hobby は個人・非商用のみ（9 の費用の表）なので、他の人に提供する時点で Pro になる見込み
 - **外せなかったドメイン**: 「利用者のドメインを Vercel から外せません」のメールが届いたら、Supabase の SQL Editor で `select * from link_domain_removals order by created_at;` を見て、Vercel → Project → Settings → Domains から手で外し、その行を消す

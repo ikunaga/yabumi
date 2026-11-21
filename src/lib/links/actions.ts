@@ -100,7 +100,8 @@ export async function saveProviderToken(projectId: string, _prev: LinkActionStat
 
 // ===== 短縮リンクを自分のドメインで作る（F07、決定 D28。4.22） =====
 
-export type LinkDomainActionState = { error?: string; suggestion?: string; ok?: string };
+// cooldownUntil: 「確認する」を続けて押したとき、また押せる時刻（画面はボタンに残りの秒を出す）
+export type LinkDomainActionState = { error?: string; suggestion?: string; ok?: string; cooldownUntil?: string };
 
 export async function addLinkDomainAction(projectId: string, _prev: LinkDomainActionState, formData: FormData): Promise<LinkDomainActionState> {
   const owner = await ownProject(projectId);
@@ -121,7 +122,7 @@ export async function checkLinkDomainAction(projectId: string): Promise<LinkDoma
   if (!owner) return { error: "ログインし直してください。" };
   try {
     const r = await checkLinkDomain(createAdminClient(), { ownerId: owner.userId, projectId }, defaultLinkDomainDeps());
-    if (!r.ok) return { error: r.error };
+    if (!r.ok) return r.cooldownUntil ? { cooldownUntil: r.cooldownUntil } : { error: r.error };
   } catch (e) {
     console.error("[checkLinkDomain]", e instanceof Error ? e.message : e);
     return { error: "いま確認できませんでした。時間をおいてもう一度お試しください。" };
@@ -140,5 +141,5 @@ export async function removeLinkDomainAction(projectId: string): Promise<LinkDom
     return { error: "いま外せませんでした。時間をおいてもう一度お試しください。" };
   }
   revalidatePath(`/projects/${projectId}/links`);
-  return { ok: "外しました。これからの短縮リンクは、yabumi のドメインで作ります。" };
+  return { ok: "このドメインを使うのをやめました。これからの短縮リンクは、yabumi のドメインで作ります。" };
 }

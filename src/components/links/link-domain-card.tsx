@@ -1,14 +1,14 @@
 "use client";
 
 import { guardAction } from "@/lib/client-errors";
-import { useActionState, useState, type ReactNode } from "react";
+import { useActionState, useEffect, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/chip";
 import { ErrorBanner, SuccessBanner } from "@/components/ui/feedback";
 import { Field, Input } from "@/components/ui/field";
 import { Term } from "@/components/ui/term";
 import { addLinkDomainAction, checkLinkDomainAction, removeLinkDomainAction, type LinkDomainActionState } from "@/lib/links/actions";
-import { apexOf, dnsRecordName } from "@/lib/links/domain-rules";
+import { apexOf, checkCooldownSeconds, dnsRecordName, LINK_DOMAIN_CHECK_INTERVAL_MS } from "@/lib/links/domain-rules";
 import { ownershipRecordName, ownershipRecordValue } from "@/lib/links/doh";
 import { CopyButton } from "./link-forms";
 
@@ -304,6 +304,8 @@ function DnsStep({ projectId, domain, defaultHost }: { projectId: string; domain
   const cname = records(domain)[0];
   const current = PROVIDERS.find((p) => p.key === provider) ?? PROVIDERS[0];
   const message = CHECK_MESSAGE[domain.lastCheck];
+  // また押せるまでの秒。最後に確認した時刻（サーバーの行）と、続けて押して断られたときの時刻の、遅いほうから数える
+  const cooldown = useCooldown([domain.lastCheckedAt, state.cooldownUntil ? new Date(new Date(state.cooldownUntil).getTime() - LINK_DOMAIN_CHECK_INTERVAL_MS).toISOString() : null]);
 
   return (
     <div className="flex flex-col gap-5">
@@ -373,8 +375,8 @@ function DnsStep({ projectId, domain, defaultHost }: { projectId: string; domain
           </p>
         )}
         <div className="flex flex-wrap items-center gap-3">
-          <Button type="submit" disabled={pending}>
-            {pending ? "確認しています…" : "確認する"}
+          <Button type="submit" disabled={pending || cooldown > 0}>
+            {pending ? "確認しています…" : cooldown > 0 ? `確認する・あと ${cooldown} 秒` : "確認する"}
           </Button>
           {domain.lastCheckedAt && (
             <span className="text-xs text-muted">最後に確認した時刻: {new Date(domain.lastCheckedAt).toLocaleTimeString("ja-JP", { timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit" })}</span>
@@ -428,23 +430,23 @@ function RemoveDomain({ projectId, domain, defaultHost }: { projectId: string; d
       {!confirming ? (
         <div>
           <button type="button" onClick={() => setConfirming(true)} className="text-sm text-muted hover:text-fg hover:underline">
-            {domain.status === "active" ? "このドメインを外す" : "このドメインを使うのをやめる"}
+            このドメインを使うのをやめる
           </button>
         </div>
       ) : (
         <form action={action} className="flex flex-col gap-2 rounded-md border border-danger px-4 py-3 text-sm leading-[1.7]">
           <p>
-            <b>{domain.domain}</b> を外すと、これからの短縮リンクは {defaultHost} で作ります。
+            <b>{domain.domain}</b> を使うのをやめると、これからの短縮リンクは {defaultHost} で作ります。
             {domain.status === "active" && (
               <>
                 <b className="text-danger"> {domain.domain} で始まる短縮リンクは開けなくなります。</b>プロフィールや投稿に貼ったものは、{defaultHost} の URL に貼り直してください。
               </>
             )}
-            外したあと、DNS に追加した行は消してかまいません。
+            やめたあと、DNS に追加した行は削除してかまいません。
           </p>
           <div className="flex flex-wrap gap-2">
             <Button type="submit" variant="danger" size="sm" disabled={pending}>
-              {pending ? "外しています…" : "外す"}
+              {pending ? "やめています…" : "使うのをやめる"}
             </Button>
             <Button type="button" variant="text" size="sm" onClick={() => setConfirming(false)}>
               やめる
@@ -455,3 +457,20 @@ function RemoveDomain({ projectId, domain, defaultHost }: { projectId: string; d
     </div>
   );
 }
+
+// 「確認する」をまた押せるまでの秒を、1 秒ごとに数え直す（描くときに時刻を読まない。最初は 0 で描き、あとから数える）
+function useCooldown(checkedAts: (string | null | undefined)[]): number {
+  // DB の時刻（+00:00）と ISO（Z）が混ざるので、文字ではなく時刻で比べる
+  const times = checkedAts.filter((t): t is string => !!t).map((t) => Date.parse(t)).filter((n) => !Number.isNaN(n));
+  const latest = times.length ? new Date(Math.max(...times)).toISOString() : null;
+  const [left, setLeft] = useState(0);
+  useEffect(() => {
+    if (!latest) return;
+    const tick = () => setLeft(checkCooldownSeconds(latest, Date.now()));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [latest]);
+  return latest ? left : 0;
+}
+

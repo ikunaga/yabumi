@@ -97,8 +97,8 @@ export type AddResult = { ok: true } | { ok: false; error: string; suggestion?: 
 
 const CLAIM_ERRORS: Record<string, string> = {
   not_found: "プロジェクトが見つかりません。ログインし直してください。",
-  already: "自分のドメインは 1 人 1 つまでです。別の宣伝するもので、もう使っています。そちらの「短縮リンク」の画面で外してから、追加してください。",
-  taken: "このドメインは、いま使えません。ほかの人が使っているか、外したばかりです。時間をおいてお試しいただくか、別の名前にしてください。たとえば go2.<あなたのドメイン> です。",
+  already: "自分のドメインは 1 人 1 つまでです。別の宣伝するもので、もう使っています。そちらの「短縮リンク」の画面で使うのをやめてから、追加してください。",
+  taken: "このドメインは、いま使えません。ほかの人が使っているか、使うのをやめたばかりです。時間をおいてお試しいただくか、別の名前にしてください。たとえば go2.<あなたのドメイン> です。",
   daily: `ドメインを追加できるのは 1 日に ${LINK_DOMAIN_DAILY_ATTEMPTS} 回までです。明日もう一度お試しください。`,
   limit: "いまは、自分のドメインを新しく追加できません。yabumi を使う人みんなで、上限に達しています。追加しなくても、リンクが押された数は今までどおり数えます。",
 };
@@ -205,7 +205,8 @@ async function ownerTxtFound(domain: string, token: string, lookup: Lookup): Pro
   return txt.records.includes(ownershipRecordValue(token));
 }
 
-export type CheckResult = { ok: true; row: LinkDomainRow } | { ok: false; error: string };
+// cooldownUntil: 続けて押されたとき、また押せる時刻（画面はボタンに残りの秒を出す。エラーとしては出さない）
+export type CheckResult = { ok: true; row: LinkDomainRow } | { ok: false; error: string; cooldownUntil?: string };
 
 export async function checkLinkDomain(admin: Admin, input: { ownerId: string; projectId: string }, deps: LinkDomainDeps): Promise<CheckResult> {
   if (!deps.vercel) return { ok: false, error: "まだ使えません。yabumi の運営の準備ができたら、使えるようになります。" };
@@ -216,7 +217,11 @@ export async function checkLinkDomain(admin: Admin, input: { ownerId: string; pr
   if (!row) return { ok: false, error: `ドメインが見つかりません。${PENDING_DAYS} 日たってもつながらなかったドメインは、削除しています。もう一度入れてください。` };
   const now = (deps.now ?? (() => new Date()))();
   if (row.last_checked_at && now.getTime() - new Date(row.last_checked_at).getTime() < LINK_DOMAIN_CHECK_INTERVAL_MS) {
-    return { ok: false, error: "いま確認したところです。10 秒ほどおいてから押してください。" };
+    return {
+      ok: false,
+      error: "いま確認したところです。10 秒ほどおいてから押してください。",
+      cooldownUntil: new Date(new Date(row.last_checked_at).getTime() + LINK_DOMAIN_CHECK_INTERVAL_MS).toISOString(),
+    };
   }
 
   let check: LinkCheck;

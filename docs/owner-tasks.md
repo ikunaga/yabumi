@@ -76,7 +76,7 @@
 | 6c-2 | yabumi の Vercel のプロジェクトの **Project ID**（`prj_`）と、チームの **Team ID**（`team_`）を控える | 17-2 | まだ |
 | 6c-3 | Vercel の **Production だけ**に `VERCEL_API_TOKEN`（Sensitive）・`VERCEL_PROJECT_ID`・`VERCEL_TEAM_ID` を足して Redeploy（Preview には入れない。プレビューから本番のドメインを触らないように） | 17-3 | まだ |
 | 6c-4 | 自分のドメインで試す: 「短縮リンク」→「自分のドメインで作る」→「設定する」で go.<ドメイン> を入れ、DNS に出た行を入れて「確認する」→「つながりました」。そのドメインの短縮リンクを押すと開き、`https://go.<ドメイン>/login` は「このアドレスは短縮リンク用です。」になる。Vercel の Domains にそのドメインが並ぶ | 17-4 | まだ |
-| 6c-5 | 「このドメインを外す」で、Vercel の Domains からそのドメインが消える | 17-5 | まだ |
+| 6c-5 | 「このドメインを使うのをやめる」で、Vercel の Domains からそのドメインが消える | 17-5 | まだ |
 
 - `LINK_DOMAIN_TEST_SERVER` は、ローカルで画面を確かめるときだけ使う値です。本番の環境変数には入れない（入っていても使わず、サーバーのログに出る）
 - Vercel Hobby は 1 プロジェクトにドメイン 50 まで・個人の非商用だけ。他の人に出すときは Pro にし、`LINK_DOMAIN_LIMIT` を上げる（docs/launch-checklist.md）

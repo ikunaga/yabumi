@@ -1,6 +1,6 @@
 // 短縮リンクを利用者のドメインで作る（F07、D28。4.22）: ドメインの形、ホストの見分け、Vercel の API の呼び方（本物は呼ばない）
 import { describe, expect, it } from "vitest";
-import { apexOf, dnsRecordName, isApexDomain, linkDomainLimit, LINK_CHECK_BODY, LINK_CHECK_PATH, normalizeLinkDomain } from "@/lib/links/domain-rules";
+import { apexOf, checkCooldownSeconds, dnsRecordName, isApexDomain, linkDomainLimit, LINK_CHECK_BODY, LINK_CHECK_PATH, normalizeLinkDomain } from "@/lib/links/domain-rules";
 import { isYabumiHost, shortLinkRoute } from "@/lib/links/host";
 import { dohLookup, ownershipRecordName, ownershipRecordValue } from "@/lib/links/doh";
 import { VercelApiError, vercelConfig, vercelDomains } from "@/lib/links/vercel";
@@ -153,5 +153,21 @@ describe("DNS over HTTPS で引く", () => {
   it("持ち主の確認の TXT の名前と値", () => {
     expect(ownershipRecordName("go.example.com")).toBe("_yabumi.go.example.com");
     expect(ownershipRecordValue("tok")).toBe("yabumi-verify=tok");
+  });
+});
+
+describe("「確認する」をまた押せるまでの秒（2026-11-21）", () => {
+  const at = "2026-11-21T03:00:00.000+00:00";
+  const t = Date.parse(at);
+  it("最後に確認してから 10 秒は、残りの秒を切り上げて返す。過ぎたら 0", () => {
+    expect(checkCooldownSeconds(at, t)).toBe(10);
+    expect(checkCooldownSeconds(at, t + 1_500)).toBe(9);
+    expect(checkCooldownSeconds(at, t + 9_001)).toBe(1);
+    expect(checkCooldownSeconds(at, t + 10_000)).toBe(0);
+    expect(checkCooldownSeconds(at, t + 60_000)).toBe(0);
+  });
+  it("まだ確認していなければ 0", () => {
+    expect(checkCooldownSeconds(null, t)).toBe(0);
+    expect(checkCooldownSeconds(undefined, t)).toBe(0);
   });
 });

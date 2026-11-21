@@ -330,6 +330,7 @@ export function goalReviewLines(v: GoalsView, today: string): string {
   const endsOn = a.goal.endsOn;
   const boundary = a.current?.endsOn ?? last?.endsOn ?? null;
   if (state === "ended" || (endsOn && boundary && Math.abs(Date.parse(endsOn) - Date.parse(boundary)) <= OVERLAP_DAYS * 86_400_000 && Date.parse(boundary) - Date.parse(today) <= OVERLAP_DAYS * 86_400_000)) {
+    // ui-wording-ignore: AI にだけ送る文（相談の AI への指示）
     lines.push("次の 1 か月もこの中で決める（伴走の区切りと KGI の期限が重なるため。次の目標の案の weekly に週の本数も入れる）");
   }
   return lines.join("\n");

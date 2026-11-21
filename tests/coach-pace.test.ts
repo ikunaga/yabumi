@@ -132,7 +132,7 @@ describe("知らせの中身", () => {
     expect(off.push.body).not.toContain("予約 20 件");
     // 目標を数えていなければ入れない
     expect(weeklyMessage({ ...base, goal: null }, ctx).email.text).not.toContain("■ 目標");
-    expect(mailFooter(ctx)).toContain("あなたが決めた目標と、SNS ごとの週の投稿の回数をもとに");
+    expect(mailFooter(ctx)).toContain("SNS ごとに決めた週の本数と、今週投稿した数をもとに");
   });
 
   it("予定日を過ぎたやること: 件数・やること（5 件まで）・ロードマップへ。遅れそうな日は同じ知らせに入れる。月曜は先週の件数", () => {

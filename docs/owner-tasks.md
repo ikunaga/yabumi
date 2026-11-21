@@ -61,10 +61,10 @@
 
 | # | やること | 元の手順 | 状態 |
 |---|---|---|---|
-| 6b-1 | VAPID の鍵を作る（`npx web-push generate-vapid-keys`） | 18-1 | まだ（2026-11-21 オーナー: 入っていない） |
-| 6b-2 | Vercel の Production と Preview に `VAPID_PUBLIC_KEY`・`VAPID_PRIVATE_KEY`（Sensitive）・`VAPID_SUBJECT`（mailto: の運営者の宛先）を入れて Redeploy | 18-2 | まだ |
-| 6b-3 | iPhone: Safari で yabumi を開き「ホーム画面に追加」→ ホーム画面の yabumi でログインし直す →「お知らせの設定」→「この端末で通知を受け取る」→「試しに送る」で届くかを見る（iOS 16.4 以降） | 18-4〜18-7 | まだ |
-| 6b-4 | Android・パソコンでも同じく試す（任意） | 18-4〜18-7 | まだ |
+| 6b-1 | VAPID の鍵を作る（yabumi のフォルダで `npx web-push generate-vapid-keys`。出た Public Key と Private Key を控える。ローカルとは別の組にする。Private Key は人に見せない） | 18-1 | まだ（2026-11-21 オーナー: 入っていない） |
+| 6b-2 | Vercel の Production に `VAPID_PUBLIC_KEY`・`VAPID_PRIVATE_KEY`（Sensitive）・`VAPID_SUBJECT`（`mailto:` と運営者のメールアドレス）を入れて Redeploy。Preview にも入れるときは、本番とは別の組を作って入れる | 18-2 | まだ |
+| 6b-3 | iPhone（iOS 16.4 以降）: Safari で yabumi を開き、共有ボタン →「ホーム画面に追加」→「追加」。ホーム画面の yabumi から開いてログインし直す。「≡ メニュー」→「ログインと退会」→「お知らせ」の「お知らせの設定」→「この端末で通知を受け取る」→「許可」。「試しに送る」を押してホーム画面に戻り、数秒で届くかを見る。押すと yabumi が開く | 18-4〜18-7 | まだ |
+| 6b-4 | Android の Chrome・パソコンでも試す（任意。ホーム画面に追加しなくても受け取れる。「お知らせの設定」→「この端末で通知を受け取る」→「許可」→「試しに送る」） | 18-4〜18-7 | まだ |
 
 ## 6c. 短縮リンクを自分のドメインで
 

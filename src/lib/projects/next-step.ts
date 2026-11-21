@@ -99,7 +99,7 @@ export function listNextStep(state: StepState & { thisWeek: WeekTodoCounts }): {
   if (stepIndex < STEPS.length) return { label: STEPS[stepIndex].shortTitle, stepIndex };
   const carried = state.thisWeek.carried ?? 0;
   const label = {
-    open: carried > 0 ? `やること あと ${state.thisWeek.open + carried} 件・前の週から ${carried} 件` : `今週のやること あと ${state.thisWeek.open} 件`,
+    open: carried > 0 ? `やること あと ${state.thisWeek.open + carried} 件。うち ${carried} 件は前の週の分` : `今週のやること あと ${state.thisWeek.open} 件`,
     carried: `前の週のやること あと ${carried} 件`,
     done: "✓ 今週のやることは、すべて完了しました",
     none: "今週のやることを決める",

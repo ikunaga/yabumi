@@ -55,13 +55,14 @@ export function KgiCard({
   const f = (v: number) => (metric ? `${formatMetric(metric, v)}${unit}` : String(v));
   return (
     <Card className="overflow-hidden">
-      <CardHeader title={<Term k="kgi">いまの目標（KGI）</Term>} action={goal?.metric && goal.endsOn ? <span className="num">{spanText(goal.startsOn, goal.endsOn)}</span> : undefined} />
+      {/* 見出しに「KGI」と書かない（知らない言葉で止まる。確認役の指摘）。説明は点線の中に */}
+      <CardHeader title={<Term k="kgi">いまの目標</Term>} action={goal?.metric && goal.endsOn ? <span className="num">{spanText(goal.startsOn, goal.endsOn)}</span> : undefined} />
       <div className="flex flex-col gap-3 px-6 pt-1 pb-5 max-sm:px-4">
         {metric && goal && goal.target !== null ? (
           <>
             <p className="text-[19px] font-bold">{goal.statement}</p>
             <p className="flex flex-wrap items-center gap-2 text-[15px] text-muted">
-              {metricLabel({ metric, action: goal.action, sns: goal.sns }, productType)}
+              {metricLabel({ metric, action: goal.action, sns: goal.sns }, productType)}を数えています
               {goal.provisional && <Badge tone="info">仮の目標</Badge>}
             </p>
             {p?.available ? (
@@ -97,7 +98,7 @@ export function KgiCard({
                       {p.projected >= p.target ? <b className="text-success">届きそう</b> : <b className="text-signal">届かない見込み</b>}
                     </p>
                   ) : (
-                    <p className="text-muted">{metric === "revenue" ? "売上は見込みを出しません" : `あと ${Math.max(1, PROJECT_MIN_DAYS - p.countedDays)} 日で出ます`}</p>
+                    <p className="text-muted">{metric === "revenue" ? "売上は見込みを出しません" : `あと ${Math.max(1, PROJECT_MIN_DAYS - p.countedDays)} 日で、見込みの数が出ます`}</p>
                   )}
                 </div>
               </>

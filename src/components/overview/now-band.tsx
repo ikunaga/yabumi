@@ -213,7 +213,7 @@ function MainBand({
         title={`${doneCount > 0 ? "今週のやることは完了しました。" : ""}前の週のやることが ${carriedCount} 件残っています`}
         action={
           <ButtonLink href={roadmapHref} size="sm">
-            ロードマップで見る
+            残っているやることを見る
           </ButtonLink>
         }
       />
@@ -261,7 +261,7 @@ function MainBand({
         <p className="text-[14px] text-muted">
           このうち {carriedCount} 件は、前の週のやることです。{" "}
           <Link href={roadmapHref} className="underline hover:text-fg">
-            ロードマップで見る →
+            前の週のやることを見る →
           </Link>
         </p>
       )}

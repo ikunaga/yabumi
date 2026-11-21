@@ -67,7 +67,7 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
     const key = item.weekStart < thisWeek ? "overdue" : item.weekStart;
     let g = groups.find((x) => x.key === key);
     if (!g) {
-      g = { key, label: key === "overdue" ? "まだ完了していない、前の週のこと" : weekLabel(item.weekStart, thisWeek), items: [] };
+      g = { key, label: key === "overdue" ? "まだ完了していない、前の週のやること" : weekLabel(item.weekStart, thisWeek), items: [] };
       groups.push(g);
     }
     g.items.push(item);

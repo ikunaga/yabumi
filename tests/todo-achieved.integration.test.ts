@@ -294,7 +294,7 @@ describe("前の週の残りと、今の目標で絞る", () => {
     const r = await compareAll();
     expect(r.app).toEqual({ open: 2, finished: 1, carried: 1 });
     expect(r.db).toEqual(r.app);
-    expect(r.label).toBe("やること あと 3 件・前の週から 1 件");
+    expect(r.label).toBe("やること あと 3 件。うち 1 件は前の週の分");
   });
 
   it("今週分が済んでも、前の週の残りがあれば「すべて完了」と出さない", async () => {

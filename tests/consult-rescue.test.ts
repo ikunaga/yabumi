@@ -45,16 +45,16 @@ describe("いまの状況の、届かない見込み", () => {
       flow: [
         { label: "投稿した回数（すべての SNS）", total: 6 },
         { label: "閲覧数", total: null },
-        { label: "行き先へのクリック", total: 40 },
+        { label: "リンク先へのクリック", total: 40 },
         { label: "成果（予約）", total: 2 },
       ],
-      kpis: [{ label: "行き先へのクリック", total: 40, target: 60 }],
+      kpis: [{ label: "リンク先へのクリック", total: 40, target: 60 }],
       actions: [{ label: "投稿した回数（Threads）", total: 6, target: 8 }],
     });
     expect(text).toContain("届くのに要るペース: 残り 66 日で、1 週あたり 2（いまは週 0.9）");
     expect(text).toContain("直近 4 週の流れ（投稿 → 閲覧 → クリック → 成果。どこが細いかの見当に使う）:");
     expect(text).toContain("- 閲覧数: 数えていない（推測で語らない）");
-    expect(text).toContain("- 行き先へのクリック: 40 / 60");
+    expect(text).toContain("- リンク先へのクリック: 40 / 60");
     expect(text).toContain("- 投稿した回数（Threads）: 6 / 8");
   });
 

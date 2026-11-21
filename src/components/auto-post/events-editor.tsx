@@ -77,7 +77,7 @@ export function EventsEditor({ projectId, initial, today }: { projectId: string;
       ) : (
         <div className="flex justify-end max-sm:block">
           <Button type="button" disabled={full} onClick={() => open(null)} className="max-sm:w-full">
-            ＋ 予定を足す
+            ＋ 予定を追加
           </Button>
         </div>
       )}

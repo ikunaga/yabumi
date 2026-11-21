@@ -309,7 +309,7 @@ async function publishOne(admin: Admin, t: ClaimedTarget, deps: PublisherDeps): 
     }
     // 画像と同じ権限で動画も送る SNS（X の media.write）。つなぎ直していなければ送らない
     if (video && isSnsKey(t.sns) && lacksImageScope(t.sns, await tokenScopes(admin, t.social_account_id))) {
-      return fail(`${label} に動画を送るには、画像・動画を送る権限を足すためのつなぎ直しが要ります。${RECONNECT}`);
+      return fail(`${label} に動画を送るには、つなぎ直しが要ります。つなぎ直すと、画像・動画を送る権限を許可できます。${RECONNECT}`);
     }
 
     // 投稿の画像（docs/architecture.md の 4.18）。画像を送らない SNS（動画だけ・手で投稿）には渡さない
@@ -320,7 +320,7 @@ async function publishOne(admin: Admin, t: ClaimedTarget, deps: PublisherDeps): 
         return fail(`${label} に添えられる画像は ${SNS[t.sns].maxImages} 枚までです。投稿の画面で画像を減らしてから送り直してください。`);
       }
       if (images.length && lacksImageScope(t.sns, await tokenScopes(admin, t.social_account_id))) {
-        return fail(`${label} に画像を送るには、画像を送る権限を足すためのつなぎ直しが要ります。${RECONNECT}`);
+        return fail(`${label} に画像を送るには、つなぎ直しが要ります。つなぎ直すと、画像を送る権限を許可できます。${RECONNECT}`);
       }
     }
 

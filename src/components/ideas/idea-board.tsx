@@ -510,7 +510,7 @@ export function IdeaBoard({ projectId, repoFullName, githubReady, aiEnabled, sns
                                 className="mt-1 size-4 shrink-0 accent-[var(--primary)]"
                               />
                               <span className="flex min-w-0 flex-col gap-0.5">
-                                <span className="line-clamp-3 break-words whitespace-pre-wrap">{empty ? "（画像だけのメモ。ネタ帳でひとこと書き足すと使えます）" : n.body}</span>
+                                <span className="line-clamp-3 break-words whitespace-pre-wrap">{empty ? "（画像だけのメモ。ネタ帳でひとこと書き加えると使えます）" : n.body}</span>
                                 <span className="num text-[13px] text-faint">
                                   {formatShort(n.createdAt)}
                                   {n.hasImage && "・写真あり"}

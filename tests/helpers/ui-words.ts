@@ -42,6 +42,8 @@ export const UI_WORD_RULES: UiWordRule[] = [
   { id: "azukaru", pattern: /預か/ },
   { id: "hikkakaru", pattern: /引っかか/ },
   { id: "ikisaki", pattern: /行き先/ },
+  // データを消すときは「削除する」（「消してから」を見つける。ほかの「消す」は文の意味で決まるので、確認役が見る）
+  { id: "sakujo", pattern: /消してから/ },
   { id: "kumitate", pattern: /組み立て/ },
   // 終わった意味の「済み」「済んだ」。「〜しなくて済む」・「送信済み」など（zumi）は除く
   { id: "sumi", pattern: /済みました|済んだ|済んで|済みにし|済みにする|^済み(\s|$)/ },
@@ -51,6 +53,8 @@ export const UI_WORD_RULES: UiWordRule[] = [
   // 「秘密鍵」（.p8 ファイル）は Apple の画面の呼び方なので使ってよい
   { id: "junbichu", pattern: /準備中/ },
   { id: "kagi", pattern: /(?<!秘密)鍵/ },
+  // 「足りない」「足りる」は不足の意味なので除く（足り は当たらない）
+  { id: "tasu", pattern: /足[しすさせそ]/ },
   { id: "sashikomu", pattern: /差し込/ },
   { id: "kata", pattern: /(投稿|説明)の型|型にして/ },
   { id: "tashikameru", pattern: /確かめ/ },
@@ -68,4 +72,4 @@ export const UI_WORD_RULES: UiWordRule[] = [
 ];
 
 // 表にあるが、見つける形を決められない行（確認役が文の意味から見る）
-export const UI_WORD_RULES_WITHOUT_PATTERN = ["sakujo", "unei", "project", "term", "okane", "hazusu", "moji", "tsunageru", "nini", "etsuran", "yakuwari", "komiai"];
+export const UI_WORD_RULES_WITHOUT_PATTERN = ["unei", "project", "term", "okane", "hazusu", "moji", "tsunageru", "nini", "etsuran", "yakuwari", "komiai"];

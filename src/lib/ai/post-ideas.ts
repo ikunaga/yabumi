@@ -539,7 +539,7 @@ export async function generatePostIdeas(
     if (news.length === 0) return { ok: false, message: "質問のどれか 1 つに答えてください。" };
   } else if (input.source === "notes") {
     notes = await loadNoteMaterial(user, args.projectId, input.noteIds);
-    if (notes.length === 0) return { ok: false, message: "ネタ帳のメモを 1 つ以上選んでください（画像だけのメモは、ひとこと書き足すと使えます）。" };
+    if (notes.length === 0) return { ok: false, message: "ネタ帳のメモを 1 つ以上選んでください（画像だけのメモは、ひとこと書き加えると使えます）。" };
   } else if (input.source === "other") {
     topic = cap(input.topic, MAX_TOPIC_CHARS);
     if (!topic) return { ok: false, message: "伝えたいことを一言書いてください。" };

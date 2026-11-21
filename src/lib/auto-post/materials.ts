@@ -62,7 +62,7 @@ async function pickNote(admin: Db, plan: AutoPlan & { ownerId: string }, past: P
   const note = plan.materials.note_order === "photo_first" ? (free.find((n) => withPhoto.has(n.id)) ?? free[0]) : free[0];
   const photo = withPhoto.has(note.id);
   return {
-    text: `種類: ネタ帳のメモ（利用者が生活の中で書き留めたこと。書かれていないできごと・感想・数字は足さない）\n写真: ${photo ? "あり（投稿に添える。写っているものは見えていないので書かない）" : "なし"}\nメモ:\n${note.body.trim()}`,
+    text: `種類: ネタ帳のメモ（利用者が生活の中で書き留めたこと。書かれていないできごと・感想・数字は加えない）\n写真: ${photo ? "あり（投稿に添える。写っているものは見えていないので書かない）" : "なし"}\nメモ:\n${note.body.trim()}`,
     label: `メモ: ${clip(note.body.trim().replace(/\s+/g, " "), 20)}`,
     ref: { note_id: note.id },
     allowedUrls: [],
@@ -76,21 +76,21 @@ async function pickDestination(admin: Db, plan: AutoPlan & { ownerId: string }, 
   if (plan.materials.destination_ids?.length) q = q.in("id", plan.materials.destination_ids);
   const { data, error } = await q;
   if (error) throw error;
-  if (!data.length) return { none: true, reason: "no_material", detail: "行き先の URL がありません" };
+  if (!data.length) return { none: true, reason: "no_material", detail: "リンク先の URL がありません" };
   const lastId = past.find((r) => typeof r.destination_id === "string")?.destination_id;
   const i = data.findIndex((d) => d.id === lastId);
   const d = data[(i + 1) % data.length];
   const lastConcern = past.find((r) => typeof r.concern === "string")?.concern;
   return {
     text: [
-      "種類: 商品・サービスの紹介（プロジェクトの説明・届けたい相手・アカウント設計に書かれたことだけで、この行き先を紹介する）",
-      `行き先: ${d.label}`,
+      "種類: 商品・サービスの紹介（プロジェクトの説明・届けたい相手・アカウント設計に書かれたことだけで、このリンク先を紹介する）",
+      `リンク先: ${d.label}`,
       `使ってよい URL: ${d.url}`,
       lastConcern && lastConcern !== "none" ? `前の投稿の切り口は「${lastConcern}」でした。今回は別の悩みや望みから書く` : "",
     ]
       .filter(Boolean)
       .join("\n"),
-    label: `行き先: ${clip(d.label, 20)}`,
+    label: `リンク先: ${clip(d.label, 20)}`,
     ref: { destination_id: d.id },
     allowedUrls: [d.url],
   };
@@ -130,7 +130,7 @@ async function pickEvent(admin: Db, plan: AutoPlan & { ownerId: string }, past: 
   if (e) {
     const when = e.on_date === day ? "今日" : "明日";
     return {
-      text: `種類: お知らせ（利用者が書いた予定。書かれていない値段・時間・内容は足さない）\n日付: ${e.on_date}（送る日から見て${when}）\n予定: ${e.body.trim()}`,
+      text: `種類: お知らせ（利用者が書いた予定。書かれていない値段・時間・内容は加えない）\n日付: ${e.on_date}（送る日から見て${when}）\n予定: ${e.body.trim()}`,
       label: `予定: ${clip(e.body.trim(), 20)}`,
       ref: { event_id: e.id },
       allowedUrls: [],

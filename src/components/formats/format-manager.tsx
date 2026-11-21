@@ -180,7 +180,7 @@ export function FormatManager({
             <div className="flex flex-col gap-1.5">
               {addable.length > 0 && (
                 <>
-                  <span className="text-xs font-bold">例から足す</span>
+                  <span className="text-xs font-bold">例から選んで追加</span>
                   <div className="flex flex-wrap gap-2">
                     {addable.map((e) => (
                       <Button key={e.name} size="sm" variant="secondary" disabled={pending} onClick={() => run(() => addPostFormat(projectId, e))}>
@@ -489,42 +489,7 @@ function SeriesFields({ slots, series, usedInImage, setSeries }: { slots: string
           {slots.length > 0 ? "本文で { } で囲んだところが空欄です。毎回ちがう言葉を入れたい空欄を選んでください。" : "本文に { } で囲んだ空欄を置くと、そこを毎回ちがう言葉にできます。"}
           投稿をつくるたびに、前と重ならない言葉を AI が考えます。たとえば、クイズの答えと手がかりの言葉です。こうしたフォーマットを「シリーズ」と呼びます。
         </p>
-        {slots.map((name) => {
-          const ai = name in series.slots;
-          return (
-            <div key={name} className="flex flex-col gap-1">
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={ai}
-                  onChange={(e) => {
-                    const next = { ...series.slots };
-                    if (e.target.checked) next[name] = "";
-                    else delete next[name];
-                    setSeries({ ...series, slots: next });
-                  }}
-                  className="accent-[var(--primary)]"
-                />
-                <span>
-                  「<span className="font-bold">{name}</span>」を毎回 AI に考えてもらう
-                </span>
-              </label>
-              {ai && (
-                // 指示は長くなるので 2 行以上の欄にし、書いた分だけ広げる（前は 1 行で切れた。パワポの 4）
-                <Textarea
-                  aria-label={`${name} の AI への指示`}
-                  value={series.slots[name]}
-                  maxLength={MAX_SERIES_INSTRUCTION}
-                  rows={2}
-                  onChange={(e) => setSeries({ ...series, slots: { ...series.slots, [name]: e.target.value } })}
-                  placeholder="例: 答えの映画を連想できる言葉を 5 つ。「・」でつなぐ"
-                  className="min-h-[3.75rem] py-2 text-sm [field-sizing:content]"
-                />
-              )}
-            </div>
-          );
-        })}
-        {on && (
+        {/* 答えを先に出す（AI は答えを先に決め、それに合わせて空欄を埋める。下にあると「上の映画」がわからなかった。2026-11-21 オーナー） */}
           <div className="flex flex-col gap-1">
             <label className="flex items-center gap-2">
               <input
@@ -556,9 +521,46 @@ function SeriesFields({ slots, series, usedInImage, setSeries }: { slots: string
                 />
               </div>
             )}
-            <span className="text-muted">答えは前の投稿と重ならないように使います。投稿の文には入りません。</span>
+            <span className="text-muted">
+              AI は、先に答えを決めてから、それに合う言葉を下の空欄に入れます。答えは前の投稿と重ならないように使います。投稿の文には入りません。
+              {!on && "下で空欄を 1 つ以上選ぶと使えます。"}
+            </span>
           </div>
-        )}
+        {slots.map((name) => {
+          const ai = name in series.slots;
+          return (
+            <div key={name} className="flex flex-col gap-1">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={ai}
+                  onChange={(e) => {
+                    const next = { ...series.slots };
+                    if (e.target.checked) next[name] = "";
+                    else delete next[name];
+                    setSeries({ ...series, slots: next });
+                  }}
+                  className="accent-[var(--primary)]"
+                />
+                <span>
+                  「<span className="font-bold">{name}</span>」を毎回 AI に考えてもらう
+                </span>
+              </label>
+              {ai && (
+                // 指示は長くなるので 2 行以上の欄にし、書いた分だけ広げる（前は 1 行で切れた。パワポの 4）
+                <Textarea
+                  aria-label={`${name} の AI への指示`}
+                  value={series.slots[name]}
+                  maxLength={MAX_SERIES_INSTRUCTION}
+                  rows={2}
+                  onChange={(e) => setSeries({ ...series, slots: { ...series.slots, [name]: e.target.value } })}
+                  placeholder={series.answer?.name.trim() ? `例: ${series.answer.name.trim()}を連想できる言葉を 5 つ。「・」でつなぐ` : "例: 答えを連想できる言葉を 5 つ。「・」でつなぐ"}
+                  className="min-h-[3.75rem] py-2 text-sm [field-sizing:content]"
+                />
+              )}
+            </div>
+          );
+        })}
         <ImageOnlySlots slots={slots} imageOnly={imageOnly} usedInImage={usedInImage} series={series} setSeries={setSeries} />
         {/* 本文に AI の空欄がないシリーズは、本文が毎回同じ（X に自動で送れない。2026-11-20 PM の指示） */}
         {fixedBodySeries(slots.map((n) => `{${n}}`).join(""), series) && (
@@ -650,7 +652,7 @@ function ImageOnlySlots({
             className="w-48 py-2 text-sm"
           />
           <Button type="button" size="sm" variant="secondary" onClick={add}>
-            足す
+            追加
           </Button>
         </div>
       )}
@@ -737,12 +739,12 @@ function SeriesRounds({ projectId, format, open = false }: { projectId: string; 
               () => pasteFormatRounds(projectId, format.id, text),
               (r) => {
                 setText("");
-                setNote(`${r.added ?? 0} 件を足しました。${r.skipped ? `同じものなど ${r.skipped} 行は足していません。` : ""}${r.overflow ? `上限のため ${r.overflow} 行は足していません。` : ""}`);
+                setNote(`${r.added ?? 0} 件を追加しました。${r.skipped ? `同じものなど ${r.skipped} 行は追加していません。` : ""}${r.overflow ? `上限のため ${r.overflow} 行は追加していません。` : ""}`);
               },
             )
           }
         >
-          足す
+          追加
         </Button>
         {note && <p className="font-semibold text-success">{note}</p>}
         {error && <p className="font-semibold text-danger">{error}</p>}

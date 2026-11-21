@@ -294,9 +294,9 @@ export function ProjectForm({
 
           <fieldset id="destinations" className="flex scroll-mt-20 flex-col gap-2">
             <legend className="mb-1 flex items-center gap-2 text-sm font-bold">
-              {isApp ? "ほかの行き先の URL（任意）" : "行き先の URL（任意）"}
-              <HelpTip label="行き先の URL">
-                投稿やプロフィールから案内したいページです（サイト・予約・ネットのお店・申し込みのフォームなど）。短縮リンクの行き先になり、SNS から何人来たかを数えられます。https:// から始まる URL を入れてください。
+              {isApp ? "ほかのリンク先の URL（任意）" : "リンク先の URL（任意）"}
+              <HelpTip label="リンク先の URL">
+                投稿やプロフィールから案内したいページです（サイト・予約・ネットのお店・申し込みのフォームなど）。短縮リンクのリンク先になり、SNS から何人来たかを数えられます。https:// から始まる URL を入れてください。
               </HelpTip>
             </legend>
             {dests.map((d, i) => (
@@ -306,7 +306,7 @@ export function ProjectForm({
                   name={`dest-${i}-kind`}
                   value={d.kind}
                   onChange={(e) => updateDest(d.key, { kind: e.target.value as DestinationKind })}
-                  aria-label="行き先の種類"
+                  aria-label="リンク先の種類"
                   className="h-10 rounded-md border border-input bg-surface px-2 text-sm max-sm:col-span-2"
                 >
                   {DESTINATION_KINDS.filter((k) => isApp || k !== "store").map((k) => (
@@ -321,7 +321,7 @@ export function ProjectForm({
                   onChange={(e) => updateDest(d.key, { label: e.target.value })}
                   maxLength={60}
                   placeholder="名前（任意）"
-                  aria-label="行き先の名前"
+                  aria-label="リンク先の名前"
                   className="max-sm:col-span-2"
                 />
                 <Input
@@ -331,7 +331,7 @@ export function ProjectForm({
                   type="url"
                   inputMode="url"
                   placeholder="https://…"
-                  aria-label="行き先の URL"
+                  aria-label="リンク先の URL"
                 />
                 <button type="button" onClick={() => setDests((rows) => rows.filter((r) => r.key !== d.key))} className="text-sm text-muted hover:text-fg hover:underline">
                   外す
@@ -344,7 +344,7 @@ export function ProjectForm({
                 onClick={() => setDests((rows) => [...rows, { key: Math.max(-1, ...rows.map((r) => r.key)) + 1, id: null, kind: RECOMMENDED_DESTINATIONS[productType][0], label: "", url: "" }])}
                 className="self-start text-sm font-bold text-fg underline"
               >
-                ＋ 行き先を足す
+                ＋ リンク先を追加
               </button>
             )}
           </fieldset>

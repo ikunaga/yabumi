@@ -55,8 +55,8 @@ export async function addFormat(db: Db, projectId: string, input: unknown): Prom
     .select("id")
     .single();
   if (error) {
-    if (error.code === "23514" && error.message.includes("1 人")) throw new FormatError(`フォーマットは 1 人 ${MAX_POST_FORMATS_PER_USER} 個までです（ほかのプロジェクトの分も数えます）。使わないものを削除してから足してください。`);
-    if (error.code === "23514" && error.message.includes("プロジェクト")) throw new FormatError(`フォーマットは 1 つのプロジェクトに ${MAX_POST_FORMATS} 個までです。使わないものを削除してから足してください。`);
+    if (error.code === "23514" && error.message.includes("1 人")) throw new FormatError(`フォーマットは 1 人 ${MAX_POST_FORMATS_PER_USER} 個までです（ほかのプロジェクトの分も数えます）。使わないものを削除してから追加してください。`);
+    if (error.code === "23514" && error.message.includes("プロジェクト")) throw new FormatError(`フォーマットは 1 つのプロジェクトに ${MAX_POST_FORMATS} 個までです。使わないものを削除してから追加してください。`);
     if (error.code === "42501") throw new FormatError(NOT_FOUND);
     throw new FormatError(FAILED);
   }

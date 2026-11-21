@@ -41,14 +41,14 @@ type Props = {
 };
 
 const CHECK_MESSAGE: Record<string, { tone: "wait" | "fix" | "ok"; text: string }> = {
-  dns_missing: { tone: "wait", text: "まだ DNS が届いていません。足してから届くまで、数分〜数時間かかることがあります。少しおいてから、もう一度「確認する」を押してください。" },
+  dns_missing: { tone: "wait", text: "まだ DNS が届いていません。DNS に行を追加してから届くまで、数分〜数時間かかることがあります。少しおいてから、もう一度「確認する」を押してください。" },
   wrong_value: {
     tone: "fix",
     text: "DNS の値が違います。下の表の「種類」「名前」「値」と同じになっているか確認してください。同じ名前の古い行（A や CNAME）があれば消してください。",
   },
   proxied: { tone: "fix", text: "Cloudflare の Proxy がオン（オレンジの雲）になっています。その行の雲を押して、灰色（DNS only）にしてから保存してください。" },
-  owner_txt_missing: { tone: "fix", text: "あなたのドメインだと確認する行（2 行目の TXT）がまだ見えません。足したばかりなら、数分おいてからもう一度「確認する」を押してください。" },
-  txt_missing: { tone: "fix", text: "Vercel の持ち主の確認の行（3 行目の TXT）がまだ見えません。3 行目も足してください。" },
+  owner_txt_missing: { tone: "fix", text: "あなたのドメインだと確認する行（2 行目の TXT）がまだ見えません。追加したばかりなら、数分おいてからもう一度「確認する」を押してください。" },
+  txt_missing: { tone: "fix", text: "Vercel の持ち主の確認の行（3 行目の TXT）がまだ見えません。3 行目も追加してください。" },
   cert_pending: {
     tone: "wait",
     text: "DNS は届きました。いま、安全につなぐための証明書（https）を用意しています（数分〜1 時間ほど）。少しおいてから、もう一度「確認する」を押してください。",
@@ -106,7 +106,7 @@ export function LinkDomainCard({ projectId, ready, domain, defaultHost, profileL
 }
 
 function Steps({ step }: { step: number }) {
-  const items = ["ドメインを入れる", "DNS に行を足す", "確認する"];
+  const items = ["ドメインを入れる", "DNS に行を追加", "確認する"];
   return (
     <ol className="grid grid-cols-3 gap-2" aria-label="手順">
       {items.map((label, i) => {
@@ -289,7 +289,7 @@ const PROVIDERS: { key: string; label: string; steps: (r: { name: string; value:
     steps: (r) => [
       <>ドメインを買ったサービス（または DNS を預けているサービス）の管理画面で、「DNS」「DNS レコード」「ゾーン」などの画面を開く</>,
       <>
-        種類（タイプ）は <b>CNAME</b>、名前（ホスト）に <b>{r.name}</b>（または <b>{r.fqdn}</b>）、値（向け先・内容・Target）に <b className="break-all">{r.value}</b> を入れて足す
+        種類（タイプ）は <b>CNAME</b>、名前（ホスト）に <b>{r.name}</b>（または <b>{r.fqdn}</b>）、値（向け先・内容・Target）に <b className="break-all">{r.value}</b> を入れて追加
       </>,
       <>どこで設定するかわからないときは、そのサービスのヘルプで「CNAME 設定」と探すと見つかります</>,
     ],
@@ -314,17 +314,17 @@ function DnsStep({ projectId, domain, defaultHost }: { projectId: string; domain
           ) : (
             <>
               {domain.domain} の DNS の行（{domain.lastCheck === "owner_txt_missing" ? "あなたのドメインだと確認する TXT" : "yabumi につなぐ CNAME"}
-              ）が見えなくなったので、短縮リンクを yabumi のドメインに戻しました。下の行を足し直して「確認する」を押すと、また使えます。
+              ）が見えなくなったので、短縮リンクを yabumi のドメインに戻しました。下の行を、もう一度 DNS に追加してください。そのあと「確認する」を押すと、また使えます。
             </>
           )}
         </ErrorBanner>
       )}
       <div className="flex flex-col gap-2">
         <h3 className="text-[15px] font-bold">
-          ② <Term k="dns">DNS</Term> に次の行を足す
+          ② <Term k="dns">DNS</Term> に次の行を追加
         </h3>
         <p className="text-sm leading-[1.8] text-muted">
-          ドメインを買ったサービス（お名前.com や Cloudflare など）の管理画面で、{domain.txtValue ? "3" : "2"} 行とも足します。1 行目（<Term k="cname">CNAME</Term>
+          ドメインを買ったサービス（お名前.com や Cloudflare など）の管理画面で、{domain.txtValue ? "3" : "2"} 行とも追加します。1 行目（<Term k="cname">CNAME</Term>
           ）は <b className="text-fg">{domain.domain}</b> を yabumi につなぐため、2 行目（TXT）はあなたのドメインだと確認するためです（ほかの人が勝手に使えないように）。
           {domain.txtValue && "このドメインでは、yabumi の置き場所（Vercel）の確認の 3 行目も要ります。"}
         </p>
@@ -355,12 +355,12 @@ function DnsStep({ projectId, domain, defaultHost }: { projectId: string; domain
             <li key={i}>{s}</li>
           ))}
         </ol>
-        <p className="text-xs leading-[1.7] text-muted">TXT の行も、同じ画面で種類を TXT にして足します（名前と値は上の表の {domain.txtValue ? "2・3" : "2"} 行目）。</p>
+        <p className="text-xs leading-[1.7] text-muted">TXT の行も、同じ画面で種類を TXT にして追加します（名前と値は上の表の {domain.txtValue ? "2・3" : "2"} 行目）。</p>
         <p className="text-xs leading-[1.7] text-muted">画面の名前は、サービスの側で変わることがあります。</p>
       </div>
 
       <form action={action} className="flex flex-col gap-3">
-        <h3 className="text-[15px] font-bold">③ 足したら、確認する</h3>
+        <h3 className="text-[15px] font-bold">③ 追加したら、確認する</h3>
         {state.error && <ErrorBanner>{state.error}</ErrorBanner>}
         {message && !state.error && (
           <p className={`rounded-md border px-4 py-3 text-sm leading-[1.7] ${message.tone === "fix" ? "border-danger text-fg" : "border-border text-fg"}`} role="status">
@@ -397,7 +397,7 @@ function Connected({ domain, profileLinks }: { domain: LinkDomainView; profileLi
       {profileLinks.length > 0 && (
         <div className="flex flex-col gap-2">
           <p className="text-sm leading-[1.7]">
-            <b>プロフィールのリンクを貼り直してください。</b>前の URL のままでも開けますが、新しい URL のほうが、押す人に行き先が伝わりやすくなります。
+            <b>プロフィールのリンクを貼り直してください。</b>前の URL のままでも開けますが、新しい URL のほうが、押す人にリンク先が伝わりやすくなります。
           </p>
           <ul className="flex flex-col gap-1.5">
             {profileLinks.map((l) => (
@@ -436,7 +436,7 @@ function RemoveDomain({ projectId, domain, defaultHost }: { projectId: string; d
                 <b className="text-danger"> {domain.domain} で始まる短縮リンクは開けなくなります。</b>プロフィールや投稿に貼ったものは、{defaultHost} の URL に貼り直してください。
               </>
             )}
-            外したあと、DNS に足した行は消してかまいません。
+            外したあと、DNS に追加した行は消してかまいません。
           </p>
           <div className="flex flex-wrap gap-2">
             <Button type="submit" variant="danger" size="sm" disabled={pending}>

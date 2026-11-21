@@ -103,7 +103,7 @@ async function collect(fromServer: SharedPayload | null): Promise<Received> {
   // 前に保存しないまま閉じたもの（と、いま受け取ったもの）
   const draft = readDraft();
   if (draft && draft.body !== text) {
-    notice = text ? "保存していないメモがあります。前に書きかけたものに、いま受け取ったものを足しました。" : "保存していないメモがあります。前に書きかけたものを戻しました。";
+    notice = text ? "保存していないメモがあります。前に書きかけたものに、いま受け取ったものを追加しました。" : "保存していないメモがあります。前に書きかけたものを戻しました。";
   }
   return { text: draft?.body ?? text, projectId: draft?.projectId ?? null, file, notice, restored: Boolean(draft && draft.body !== text) };
 }
@@ -162,7 +162,7 @@ export function ShareReceiver({ projects, fromServer }: { projects: { id: string
         initialProjectId={lastProject}
         initialBody={received.text}
         initialFile={received.file}
-        notice={received.notice ?? "思いついたことを書き足してから保存できます。保存するまでは、この端末にだけ残っています。あとで AI が投稿のネタにします。"}
+        notice={received.notice ?? "思いついたことを書き加えてから保存できます。保存するまでは、この端末にだけ残っています。あとで AI が投稿のネタにします。"}
         noticeRestored={received.restored}
         onSaved={(projectId, { imageSkipped }) => {
           storage("local")?.setItem(LAST_PROJECT_KEY, projectId);

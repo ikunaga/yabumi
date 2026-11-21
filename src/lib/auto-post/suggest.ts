@@ -11,7 +11,7 @@ export type SuggestMaterials = {
   unusedNotes: number; // ネタ帳の使っていないメモ
   unusedPhotoNotes: number; // そのうち写真つき
   seriesFormats: number; // AI が埋める空欄があるシリーズのフォーマット
-  destinations: number; // 行き先の URL
+  destinations: number; // リンク先の URL
 };
 
 export type KindSuggestion = { kind: Extract<AutoKind, "notes" | "series" | "product" | "pillars">; reason: string };
@@ -38,7 +38,7 @@ export function suggestKind(m: SuggestMaterials): KindSuggestion {
     return { kind: "notes", reason: `使っていないメモが ${m.unusedNotes} 件${photo}` };
   }
   if (m.seriesFormats > 0) return { kind: "series", reason: `シリーズのフォーマットが ${m.seriesFormats} つあります。毎回、前と重ならない投稿を作ります` };
-  if (m.destinations > 0) return { kind: "product", reason: `行き先が ${m.destinations} 件あります。行き先と切り口を順に変えて紹介します` };
+  if (m.destinations > 0) return { kind: "product", reason: `リンク先が ${m.destinations} 件あります。リンク先と切り口を順に変えて紹介します` };
   return { kind: "pillars", reason: "アカウントの方針の投稿のテーマを順に使って、定番の投稿を作ります" };
 }
 

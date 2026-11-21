@@ -29,7 +29,7 @@ const DAY_MS = 86_400_000;
 
 // 回し方の画面（docs/design/auto-post.md の 1.6・1.7）。上に数字 3 つ、下に回の一覧、横（スマホは上）に操作
 export default async function AutoPlanPage(props: PageProps<"/projects/[id]/auto/[planId]">) {
-  const [{ id, planId }, { saved, skipped, post: skippedPost }] = await Promise.all([props.params, props.searchParams]);
+  const [{ id, planId }, { saved, from: savedFrom, skipped, post: skippedPost }] = await Promise.all([props.params, props.searchParams]);
   const [project, plan] = await Promise.all([getProject(id), getAutoPlan(planId)]);
   if (!project || !plan || plan.projectId !== project.id) notFound();
   const now = new Date();
@@ -83,7 +83,12 @@ export default async function AutoPlanPage(props: PageProps<"/projects/[id]/auto
           )}
         </SuccessBanner>
       )}
-      {saved === "1" && <SuccessBanner>編集しました。まだ作っていない投稿から、新しい設定で作ります。</SuccessBanner>}
+      {saved === "1" && (
+        // いつの投稿から新しい設定になるか（保存のポップアップと同じ。もう作った投稿は前の設定のまま送る。2026-11-21 オーナー）
+        <SuccessBanner>
+          {typeof savedFrom === "string" && !Number.isNaN(Date.parse(savedFrom)) ? `保存しました。${formatShort(savedFrom)} の投稿から、新しい設定になります。` : "保存しました。次の投稿から、新しい設定になります。"}
+        </SuccessBanner>
+      )}
 
       <div className="grid grid-cols-3 gap-3 max-sm:grid-cols-3 max-sm:gap-2">
         <Metric label="送信済み" value={sentRuns.length} unit="件" className="max-sm:px-3" />

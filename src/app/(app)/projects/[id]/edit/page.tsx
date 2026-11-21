@@ -55,7 +55,7 @@ export default async function ProjectSettingsPage(props: PageProps<"/projects/[i
 
       <SnsResultBanner connected={connected} error={sns_error} sns={sns} replaced={replacedNames} connectedName={connectedName} />
       {done === "saved" && <SuccessBanner>保存しました。</SuccessBanner>}
-      {done === "destinations_failed" && <ErrorBanner>プロジェクトは作りましたが、行き先の URL を保存できませんでした。下の欄で入れ直してください。</ErrorBanner>}
+      {done === "destinations_failed" && <ErrorBanner>プロジェクトは作りましたが、リンク先の URL を保存できませんでした。下の欄で入れ直してください。</ErrorBanner>}
 
       <SnsAccountsCard
         projectId={project.id}

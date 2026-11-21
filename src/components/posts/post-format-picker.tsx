@@ -276,7 +276,7 @@ export function PostFormatPicker({
                 {(["append", "replace"] as const).map((k) => (
                   <label key={k} className="flex items-center gap-1">
                     <input type="radio" name="format-insert" checked={how === k} onChange={() => setHow(k)} className="accent-[var(--primary)]" />
-                    {k === "append" ? "いまの本文の下に足す" : "いまの本文を置きかえる"}
+                    {k === "append" ? "いまの本文の下に追加" : "いまの本文を置きかえる"}
                   </label>
                 ))}
               </span>

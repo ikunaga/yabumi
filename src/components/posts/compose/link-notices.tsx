@@ -116,7 +116,7 @@ function InstagramLinkNotice({
       {canAdd && (
         <p className="text-muted">
           <button type="button" onClick={onApply} className="text-left underline hover:text-fg">
-            Instagram の文面に「プロフィールのリンクから」の一言を足す
+            Instagram の文面に「プロフィールのリンクから」の一言を追加
           </button>
         </p>
       )}

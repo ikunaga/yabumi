@@ -121,11 +121,13 @@ export function AndroidSteps() {
   );
 }
 
-// PC（Chrome・Edge）
+// PC（Chrome・Edge）。印の形はブラウザと版で変わるので、形ではなく、指を乗せたときに出る名前で書く
+// （Chrome は「インストール」、Edge は「アプリを使用できます」。2026-11-21 に Google・Microsoft の案内で確かめた）
 export function PcSteps() {
   return (
     <ol className="mt-1 flex list-decimal flex-col gap-1 pl-5">
-      <li>Chrome か Edge で yabumi を開きます。アドレスバーの右端にある、インストールの印を押します。</li>
+      <li>Chrome か Edge で yabumi を開きます。アドレスバーの右端にある印を押します。</li>
+      <li>印に指を乗せると、名前が出ます。Chrome は「インストール」、Edge は「アプリを使用できます」です。</li>
       <li>「インストール」を押すと、yabumi が別のウィンドウで開けるようになります。</li>
     </ol>
   );
@@ -177,13 +179,14 @@ export function AddToHomeBand({ pushReady }: { pushReady: boolean }) {
 }
 
 // 案内のページの中身。開いた端末の手順を先に出し、ほかの端末の手順は畳んで持つ
-export function AddToHomeGuide() {
+// pushReady: サーバーに通知の鍵（VAPID）があり、通知を送れる。そのときだけ、iPhone の手順に「お知らせの設定」の手順を足す（帯と同じ）
+export function AddToHomeGuide({ pushReady }: { pushReady: boolean }) {
   const env = useInstallEnv();
   const install = useInstallPrompt();
   const [added, setAdded] = useState(false);
   if (!env) return <p className="text-sm text-muted">読み込んでいます…</p>;
   const sections = [
-    { key: "ios", title: "iPhone・iPad", body: env.iosTooOld ? (<><IphoneSteps /><TooOld /></>) : <IphoneSteps /> },
+    { key: "ios", title: "iPhone・iPad", body: env.iosTooOld ? (<><IphoneSteps /><TooOld /></>) : <IphoneSteps withPush={pushReady} /> },
     { key: "android", title: "Android", body: <AndroidSteps /> },
     { key: "pc", title: "パソコン", body: <PcSteps /> },
   ] as const;

@@ -31,10 +31,10 @@ describe("シリーズ投稿の版", () => {
 
   it("本文に、預かる・使い道・Anthropic に送る・保存期間の文がある。上限は DB とアプリと同じ", () => {
     const privacy = read("src/app/privacy/page.tsx");
-    expect(privacy).toContain("シリーズの設定（AI が埋める空欄と、本文に出さない答えの名前、それぞれの AI への指示）");
-    expect(privacy).toContain("投稿ごとの答えと空欄に入れた言葉（シリーズの記録。本文に入れたとき・利用者が貼ったとき。1 つのフォーマットに 300 回、1 人 3,000 回まで）");
+    expect(privacy).toContain("変数の設定（投稿ごとに変わる言葉の名前・AI が考えるか自分で入れるか・AI への指示・前の投稿と同じ言葉にならないようにするか）");
+    expect(privacy).toContain("投稿ごとに変数に入れた言葉（シリーズの記録。本文に入れたとき・利用者が貼ったとき。1 つのフォーマットに 300 回、1 人 3,000 回まで）");
     expect(privacy).toContain("シリーズの次の投稿の案を作ること");
-    expect(privacy).toContain("シリーズの記録（新しい 100 回の答えと空欄に入れた言葉）");
+    expect(privacy).toContain("シリーズの記録（新しい 100 回の変数の言葉）");
     expect(privacy).toContain("投稿のフォーマット（シリーズの記録を含む）");
     const sql = read("supabase/migrations/20261113140000_format_series.sql");
     expect(sql).toContain(`>= ${MAX_ROUNDS} then`);

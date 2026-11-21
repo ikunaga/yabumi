@@ -360,7 +360,7 @@ function SeriesNextRound({
         <span className="basis-full">
           <AiQuotaNote blocked={quota.blocked} />
         </span>
-        <span className="text-xs text-muted">前の投稿と重ならない案を 3 つ出します。1 回 5 円ほどで、1 日 {SERIES_DAILY_RUNS} 回まで使えます。</span>
+        <span className="text-xs text-muted">前の投稿と同じ言葉にならない案を 3 つ出します。1 回 5 円ほどで、1 日 {SERIES_DAILY_RUNS} 回まで使えます。</span>
       </div>
       <Input aria-label="次の投稿の案への希望" value={wish} maxLength={MAX_ROUND_WISH} onChange={(e) => setWish(e.target.value)} placeholder="希望（任意。例: 90 年代の映画で）" className="py-2 text-sm" />
       {pending && <AiThinking kind="round" note="10〜20 秒ほどかかります" />}

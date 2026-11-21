@@ -14,7 +14,7 @@ export const MAX_IMAGE_LABEL = 20;
 // fill: 穴の言葉をそのまま入れて画像の AI に渡す（Claude を使わない）。ai: 穴の言葉と絵の説明を材料に、Claude が場面を 1 つ書く
 export const IMAGE_SCENES = ["fill", "ai"] as const;
 export type ImageScene = (typeof IMAGE_SCENES)[number];
-export const IMAGE_SCENE_LABEL: Record<ImageScene, string> = { fill: "書いた絵の説明に空欄の言葉を入れる", ai: "空欄の言葉から AI が絵の説明を書く" };
+export const IMAGE_SCENE_LABEL: Record<ImageScene, string> = { fill: "書いた絵の説明に変数の言葉を入れる", ai: "変数の言葉から AI が絵の説明を書く" };
 
 // auto: 送り先に合わせる（いまの画像をつくる画面の既定と同じ）
 export type ImageSize = "auto" | TemplateSizeKey;

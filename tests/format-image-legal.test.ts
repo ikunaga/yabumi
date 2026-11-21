@@ -24,8 +24,8 @@ describe("投稿のフォーマットの画像の版", () => {
   it("本文に、預かる・Anthropic に送る・Google に送るの新しい文がある", () => {
     const privacy = read("src/app/privacy/page.tsx");
     expect(privacy).toContain("画像の設定（絵の説明の文・絵の説明のつくり方・写真かイラストか・縦横・重ねる見出しの文・見出しの上に重ねる小さい文・見出しの見た目〈色・書体・置き方〉）");
-    expect(privacy).toContain("投稿のフォーマットの画像をつくるときは、そのフォーマットの絵の説明と、空欄に入れた言葉・シリーズの答え");
-    expect(privacy).toContain("投稿のフォーマットの画像では、空欄に入れた言葉やシリーズの答えが入ることがあります");
+    expect(privacy).toContain("投稿のフォーマットの画像をつくるときは、そのフォーマットの絵の説明と、変数に入れた言葉");
+    expect(privacy).toContain("投稿のフォーマットの画像では、変数に入れた言葉が入ることがあります");
     expect(privacy).toContain("投稿の本文そのもの・画像・プロジェクトの名前・利用者の名前は送りません");
     expect(privacy).not.toContain("投稿の本文・画像・プロジェクトの名前・利用者の名前は送りません");
   });

@@ -341,7 +341,7 @@ export function PlanWizard(p: Props) {
                           : "Instagram は画像が要るので、写真つきのメモから作る投稿だけ送ります。ほかの投稿は、Instagram には送りません。下の「画像」で AI の画像を選ぶと、毎回送れます。"}
                       </p>
                     )}
-                    {blocked && connected ? <p className="w-full text-xs text-muted">{X_FIXED_BODY}フォーマットの本文に AI が埋める空欄を置くと、選べます。</p> : isReviewOnlySns(s) && <ReviewReason sns={s} />}
+                    {blocked && connected ? <p className="w-full text-xs text-muted">{X_FIXED_BODY}フォーマットの本文に AI が考える変数を置くと、選べます。</p> : isReviewOnlySns(s) && <ReviewReason sns={s} />}
                   </li>
                 );
               })}

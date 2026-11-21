@@ -35,7 +35,7 @@ export function FormatImageBand({
           </p>
         )}
       </DisclosureBox>
-      {left && <p className="text-xs leading-[1.7]"><span className="mr-1.5 font-bold text-signal">● 要確認</span>【】のところには、「1 書く」で空欄に入れた言葉が入ります。</p>}
+      {left && <p className="text-xs leading-[1.7]"><span className="mr-1.5 font-bold text-signal">● 要確認</span>【】のところには、「1 書く」で変数に入れた言葉が入ります。</p>}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <Button type="button" size="sm" disabled={disabled || left} onClick={() => onMake(true, texts)}>
           1 枚つくる・{cost}

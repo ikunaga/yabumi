@@ -132,12 +132,12 @@ export function FormatImageFields({
           </div>
           <p className="leading-[1.7] text-muted">
             {scene === "ai"
-              ? `空欄の言葉をもとに、AI が絵の説明を書きます。たとえば、苺・雪・朝から「雪の朝、窓辺の苺のケーキ」と書きます。作品の題名や人物が、そのまま絵にならないようにします。画像 1 枚につき、費用が ${SCENE_YEN.one[0]}〜${SCENE_YEN.one[1]} 円ほど増えます。`
-              : "書いた絵の説明に空欄の言葉を入れて、そのまま画像をつくります。費用は増えません。"}
+              ? `変数の言葉をもとに、AI が絵の説明を書きます。たとえば、苺・雪・朝から「雪の朝、窓辺の苺のケーキ」と書きます。作品の題名や人物が、そのまま絵にならないようにします。画像 1 枚につき、費用が ${SCENE_YEN.one[0]}〜${SCENE_YEN.one[1]} 円ほど増えます。`
+              : "書いた絵の説明に変数の言葉を入れて、そのまま画像をつくります。費用は増えません。"}
           </p>
           {scene === "fill" && risky && (
             <p className="font-semibold leading-[1.7] text-signal">
-              ● 作品の題名やキャラクターが、そのまま絵になることがあります。他人の作品に似た画像は、著作権の問題になることがあります。画像をつくれないこともあります。心配なら「空欄の言葉から AI が絵の説明を書く」を選んでください。
+              ● 作品の題名やキャラクターが、そのまま絵になることがあります。他人の作品に似た画像は、著作権の問題になることがあります。画像をつくれないこともあります。心配なら「変数の言葉から AI が絵の説明を書く」を選んでください。
             </p>
           )}
         </fieldset>
@@ -179,7 +179,7 @@ export function FormatImageFields({
               {/* 見出しを 2 段にする（2026-11-20 オーナーの指示）。上の小さい文は色の文字で、見出しの半分くらいの大きさで描く */}
               <label className="flex flex-col gap-1">
                 <span className="text-xs font-bold">画像の小さい文字</span>
-                <span className="text-xs text-muted">書かなくてもかまいません。{MAX_IMAGE_LABEL} 字まで書けます。{"{ }"} の空欄も使えます。</span>
+                <span className="text-xs text-muted">書かなくてもかまいません。{MAX_IMAGE_LABEL} 字まで書けます。{"{ }"} の変数も使えます。</span>
                 <span className="text-xs text-muted">画像の文字の上に、小さな色付きの字で入ります。</span>
                 <Input
                   aria-label="画像の小さい文字"
@@ -192,7 +192,7 @@ export function FormatImageFields({
               </label>
               <label className="flex flex-col gap-1">
                 <span className="text-xs font-bold">画像の文字</span>
-                <span className="text-xs text-muted">{MAX_IMAGE_HEADLINE} 字まで書けます。{"{ }"} の空欄には、本文の空欄と同じ言葉が入ります。</span>
+                <span className="text-xs text-muted">{MAX_IMAGE_HEADLINE} 字まで書けます。{"{ }"} の変数には、本文と同じ言葉が入ります。</span>
                 <Input
                   aria-label="画像の文字"
                   value={image.headline}

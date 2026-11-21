@@ -30,7 +30,22 @@ type Dialog = "pause" | "skip" | "delete" | null;
 // 回し方の画面の右の操作: 直す・止める／再開する・次の回を飛ばす・削除する（1.6）
 // held: 運営者が止めている（編集・止める・再開するは押せない。飛ばす・削除するはできる。止めるを押せないのは、
 // 止めている間に押せると、運営者が止めたのと利用者が止めたのが混ざってわかりにくいため。2026-11-21 確認役の通しの確認・PM の指示）
-export function PlanControls({ projectId, planId, status, nextLabel, held = false }: { projectId: string; planId: string; status: AutoPlanStatus; nextLabel: string | null; held?: boolean }) {
+// formatChanged: フォーマットの変数が変わって止まった（要確認）。「再開する」は押せず、「編集」で決め方を選び直して保存すると動き出す（format-series.md の 1.2）
+export function PlanControls({
+  projectId,
+  planId,
+  status,
+  nextLabel,
+  held = false,
+  formatChanged = false,
+}: {
+  projectId: string;
+  planId: string;
+  status: AutoPlanStatus;
+  nextLabel: string | null;
+  held?: boolean;
+  formatChanged?: boolean;
+}) {
   const router = useRouter();
   const [dialog, setDialog] = useState<Dialog>(null);
   const [toDraft, setToDraft] = useState(true);
@@ -72,7 +87,7 @@ export function PlanControls({ projectId, planId, status, nextLabel, held = fals
             止める
           </Button>
         ) : (
-          <Button type="button" variant="secondary" size="sm" disabled={pending || held} onClick={() => run(() => setAutoPlanStatus(projectId, planId, "active"))}>
+          <Button type="button" variant="secondary" size="sm" disabled={pending || held || formatChanged} onClick={() => run(() => setAutoPlanStatus(projectId, planId, "active"))}>
             再開する
           </Button>
         )}
@@ -85,6 +100,7 @@ export function PlanControls({ projectId, planId, status, nextLabel, held = fals
           削除する
         </Button>
       </div>
+      {formatChanged && !held && <p className="text-sm text-muted">「編集」で変数の決め方を選び直して保存すると、動き出します。</p>}
       {held && (
         <p className="text-sm text-muted">
           {status === "active" ? "yabumi の運営が止めている間は、編集も、止めることもできません。" : "yabumi の運営が止めている間は、編集も、再開もできません。"}

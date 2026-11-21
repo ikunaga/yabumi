@@ -249,7 +249,7 @@ export async function importAppStoreViews(admin: Admin, row: ViewsRow, deps: Goo
   const now = deps.now?.() ?? new Date();
   try {
     const { data: credRow } = await admin.from("store_credentials").select("*").eq("project_id", row.project_id).eq("provider", "app_store_connect").maybeSingle();
-    if (!credRow) throw new StoreApiError("App Store の売上の鍵（Sales and Reports）を先に入れてください。", 400);
+    if (!credRow) throw new StoreApiError("App Store の売上のキーを、先に入れてください。役割が「Sales and Reports」のキーです。", 400);
     const cred = await openStoredCredential(admin, credRow as typeof credRow & { provider: "app_store_connect" }, { keys: deps.keys, now: deps.now });
     const instances = (await listDailyInstances(cred, row.request_id, row.last_imported_day, deps.fetch, now)).slice(0, 5);
     let last = row.last_imported_day;

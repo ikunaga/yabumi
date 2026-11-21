@@ -20,7 +20,7 @@ async function asc<T>(cred: AscCredential, path: string, init: RequestInit = {},
 }
 
 function ascError(status: number, what: string): StoreApiError {
-  if (status === 401) return new StoreApiError(`${what}: 鍵が使えませんでした。Issuer ID・Key ID・秘密鍵が同じキーのものか確認してください。`, 401);
+  if (status === 401) return new StoreApiError(`${what}: キーが使えませんでした。Issuer ID・Key ID・秘密鍵が同じキーのものか確認してください。`, 401);
   if (status === 403) return new StoreApiError(`${what}: このキーには権限がありません。`, 403);
   return new StoreApiError(`${what}: App Store Connect から読めませんでした（${status}）。時間をおいて読み直します。`, status);
 }

@@ -65,8 +65,20 @@ function ExternalLink({ href, children }: { href: string; children: ReactNode })
   );
 }
 
+// 外す・やめるのボタンと、押すとどうなるかの 1 行（かっこ書きにしない。2026-11-21）
+function RemoveForm({ action, label, note }: { action: () => Promise<void>; label: string; note: string }) {
+  return (
+    <form action={action} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+      <button type="submit" className="text-xs text-muted hover:text-fg hover:underline">
+        {label}
+      </button>
+      <span className="text-xs text-faint">{note}</span>
+    </form>
+  );
+}
+
 // つないだあとの状態（取り込んだ日・エラー・外す）
-function Connected({ s, remove, removeLabel }: { s: CredentialStatus; remove: () => Promise<void>; removeLabel: string }) {
+function Connected({ s, remove }: { s: CredentialStatus; remove: () => Promise<void> }) {
   return (
     <div className="flex flex-col gap-1 rounded-md bg-surface2 px-4 py-3 text-sm">
       <p>
@@ -74,11 +86,7 @@ function Connected({ s, remove, removeLabel }: { s: CredentialStatus; remove: ()
         <span className="num ml-2 text-faint">{s.lastImportedDay ? `${s.lastImportedDay} の分まで取り込みました` : "まだ取り込んでいません"}</span>
       </p>
       {s.status === "error" && s.lastError && <p className="text-danger">{s.lastError}</p>}
-      <form action={remove}>
-        <button type="submit" className="text-xs text-muted hover:text-fg hover:underline">
-          {removeLabel}
-        </button>
-      </form>
+      <RemoveForm action={remove} label="外す" note="保存したキーを消します。取り込んだ数字は残ります。" />
     </div>
   );
 }
@@ -154,10 +162,10 @@ export default async function StoresPage(props: PageProps<"/projects/[id]/stores
         help={
           <>
             <p>
-              つなぐと、ダウンロードの数と売上を毎日取り込み、分析の画面で投稿やクリックと並べて見られます（<Term k="conversion">コンバージョン</Term>
-              ）。どの投稿から来たかまではわからないので、同じ日の動きを見比べます。
+              つなぐと、ダウンロードの数と売上を毎日取り込みます。「分析」の画面で、投稿やクリックと並べて見られます。投稿を見た人がダウンロードや購入をすることを、
+              <Term k="conversion">コンバージョン</Term>と呼びます。どの投稿から来たかまではわからないので、同じ日の動きを見比べます。
             </p>
-            <p className="mt-2">預ける鍵は読むためだけに使い、暗号化して保存します。アプリの情報を書き換えることはありません。いつでも外せて、退会すると消えます。</p>
+            <p className="mt-2">保存したキーは読むためだけに使い、暗号化しておきます。アプリの情報を書き換えることはありません。いつでも外せて、退会すると消えます。</p>
           </>
         }
         sub="つながなくても使えます。つなぐと、毎日午前 3 時ごろに数字が入ります。"
@@ -180,7 +188,7 @@ export default async function StoresPage(props: PageProps<"/projects/[id]/stores
       >
         {asc ? (
           <>
-            <Connected s={asc} remove={removeStoreCredential.bind(null, project.id, "app_store_connect")} removeLabel="外す（預けた鍵を消す。取り込んだ数字は残ります）" />
+            <Connected s={asc} remove={removeStoreCredential.bind(null, project.id, "app_store_connect")} />
             {ready && (
               <DisclosureBox label="App Store Connect のキーを入れ替える欄を表示" bodyClassName="mt-2 text-[14px] leading-[1.75] text-muted">
                 <div className="flex flex-col gap-4 text-fg">
@@ -198,11 +206,7 @@ export default async function StoresPage(props: PageProps<"/projects/[id]/stores
                 <div className="flex flex-col gap-1 text-sm">
                   <p className="num text-faint">{views.last_imported_day ? `${views.last_imported_day} の分まで取り込みました` : "Apple がレポートを作り始めるまで 1〜2 日かかります"}</p>
                   {views.status === "error" && views.last_error && <p className="text-danger">{views.last_error}</p>}
-                  <form action={removeAppStorePageViews.bind(null, project.id)}>
-                    <button type="submit" className="text-xs text-muted hover:text-fg hover:underline">
-                      やめる（取り込んだ数字は残ります）
-                    </button>
-                  </form>
+                  <RemoveForm action={removeAppStorePageViews.bind(null, project.id)} label="やめる" note="取り込んだ数字は残ります。" />
                 </div>
               ) : (
                 <DisclosureBox label="ストアのページを見た人の数を取り込む手順を表示" bodyClassName="mt-2 text-[14px] leading-[1.75] text-muted">
@@ -231,11 +235,7 @@ export default async function StoresPage(props: PageProps<"/projects/[id]/stores
           <div className="flex flex-col gap-1 rounded-md bg-surface2 px-4 py-3 text-sm">
             {play.package_name && <p className="text-muted">{play.package_name}</p>}
             {play.status === "error" && play.last_error && <p className="text-danger">{play.last_error}</p>}
-            <form action={removeGooglePlay.bind(null, project.id)}>
-              <button type="submit" className="text-xs text-muted hover:text-fg hover:underline">
-                外す（読み取り用のアカウントを消す。取り込んだ数字は残ります）
-              </button>
-            </form>
+            <RemoveForm action={removeGooglePlay.bind(null, project.id)} label="外す" note="読み取り用のアカウントを消します。取り込んだ数字は残ります。" />
           </div>
         )}
         {!playReady ? (
@@ -243,7 +243,7 @@ export default async function StoresPage(props: PageProps<"/projects/[id]/stores
         ) : !play ? (
           <>
             <p className="text-sm leading-[1.8]">
-             yabumi が、このプロジェクト専用の<b>読み取り用のアカウント</b>（メールアドレスの形）を用意します。それを Play Console に招待すると、毎日のインストールとストアのページの閲覧の数を読めるようになります。鍵を預ける必要はありません。
+             yabumi が、このプロジェクト専用の<b>読み取り用のアカウント</b>を用意します。アカウントは、メールアドレスの形をしています。それを Play Console に招待してください。毎日のインストールの数と、ストアのページを見た人の数を読めるようになります。キーを保存する必要はありません。
             </p>
             <StartGooglePlayButton projectId={project.id} />
           </>
@@ -273,7 +273,7 @@ export default async function StoresPage(props: PageProps<"/projects/[id]/stores
       <StoreCard title="RevenueCat" gets="アプリ内課金の売上。RevenueCat を使う人向け" state={stateOf(rc)}>
         {rc ? (
           <>
-            <Connected s={rc} remove={removeStoreCredential.bind(null, project.id, "revenuecat")} removeLabel="外す（預けた鍵を消す。取り込んだ数字は残ります）" />
+            <Connected s={rc} remove={removeStoreCredential.bind(null, project.id, "revenuecat")} />
             {ready && (
               <DisclosureBox label="RevenueCat のキーを入れ替える欄を表示" bodyClassName="mt-2 text-[14px] leading-[1.75] text-muted">
                 <div className="flex flex-col gap-4 text-fg">

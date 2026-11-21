@@ -58,4 +58,4 @@ export const UI_WORD_RULES: UiWordRule[] = [
 ];
 
 // 表にあるが、見つける形を決められない行（確認役が文の意味から見る）
-export const UI_WORD_RULES_WITHOUT_PATTERN = ["sakujo", "unei", "project", "term", "okane", "hazusu", "moji"];
+export const UI_WORD_RULES_WITHOUT_PATTERN = ["sakujo", "unei", "project", "term", "okane", "hazusu", "moji", "tsunageru", "nini", "etsuran"];

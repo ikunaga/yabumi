@@ -95,7 +95,7 @@ describe("App Store Connect", () => {
     expect(url.searchParams.get("filter[reportDate]")).toBe("2026-10-09");
     expect(url.searchParams.get("filter[vendorNumber]")).toBe("85123456");
     expect(await fetchDailySales(cred, "2026-10-09", (async () => new Response("{}", { status: 404 })) as typeof globalThis.fetch)).toBeNull();
-    for (const [status, pattern] of [[401, /鍵が使えません/], [403, /Sales and Reports/], [400, /ベンダー番号/]] as const) {
+    for (const [status, pattern] of [[401, /キーが使えません/], [403, /Sales and Reports/], [400, /ベンダー番号/]] as const) {
       const e = await fetchDailySales(cred, "2026-10-09", (async () => new Response("{}", { status })) as typeof globalThis.fetch).catch((x) => x);
       expect(e).toBeInstanceOf(StoreApiError);
       expect(e.userMessage).toMatch(pattern);

@@ -10,6 +10,14 @@ export const LINK_DOMAIN_DAILY_ATTEMPTS = 5;
 // 「確かめる」を続けて押せる間隔（Vercel の API と DNS に問い合わせるので）
 export const LINK_DOMAIN_CHECK_INTERVAL_MS = 10_000;
 
+// 「確認する」をまた押せるまでの秒（0 なら押せる）。最後に確認した時刻から LINK_DOMAIN_CHECK_INTERVAL_MS。
+// 画面はボタンに残りの秒を出して押せない形にし、サーバーは同じ間隔で断る（2026-11-21 PM の指示。前は赤い枠で断っていた）
+export function checkCooldownSeconds(lastCheckedAt: string | null | undefined, now: number): number {
+  if (!lastCheckedAt) return 0;
+  const left = LINK_DOMAIN_CHECK_INTERVAL_MS - (now - new Date(lastCheckedAt).getTime());
+  return left > 0 ? Math.ceil(left / 1000) : 0;
+}
+
 // つながったかを確かめるときに、利用者のドメインで開くパス。proxy がこの文を返す（DNS と証明書がそろって yabumi に届いている印）
 export const LINK_CHECK_PATH = "/__yabumi/link-check";
 export const LINK_CHECK_BODY = "yabumi-link-domain-ok";

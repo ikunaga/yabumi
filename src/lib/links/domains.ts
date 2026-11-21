@@ -205,7 +205,8 @@ async function ownerTxtFound(domain: string, token: string, lookup: Lookup): Pro
   return txt.records.includes(ownershipRecordValue(token));
 }
 
-export type CheckResult = { ok: true; row: LinkDomainRow } | { ok: false; error: string };
+// cooldownUntil: 続けて押されたとき、また押せる時刻（画面はボタンに残りの秒を出す。エラーとしては出さない）
+export type CheckResult = { ok: true; row: LinkDomainRow } | { ok: false; error: string; cooldownUntil?: string };
 
 export async function checkLinkDomain(admin: Admin, input: { ownerId: string; projectId: string }, deps: LinkDomainDeps): Promise<CheckResult> {
   if (!deps.vercel) return { ok: false, error: "まだ使えません。yabumi の運営の準備ができたら、使えるようになります。" };
@@ -216,7 +217,11 @@ export async function checkLinkDomain(admin: Admin, input: { ownerId: string; pr
   if (!row) return { ok: false, error: `ドメインが見つかりません。${PENDING_DAYS} 日たってもつながらなかったドメインは、削除しています。もう一度入れてください。` };
   const now = (deps.now ?? (() => new Date()))();
   if (row.last_checked_at && now.getTime() - new Date(row.last_checked_at).getTime() < LINK_DOMAIN_CHECK_INTERVAL_MS) {
-    return { ok: false, error: "いま確認したところです。10 秒ほどおいてから押してください。" };
+    return {
+      ok: false,
+      error: "いま確認したところです。10 秒ほどおいてから押してください。",
+      cooldownUntil: new Date(new Date(row.last_checked_at).getTime() + LINK_DOMAIN_CHECK_INTERVAL_MS).toISOString(),
+    };
   }
 
   let check: LinkCheck;

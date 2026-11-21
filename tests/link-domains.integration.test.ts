@@ -220,7 +220,11 @@ describe("利用者のドメイン", () => {
 
     // 続けて押すと、間をおくよう知らせる
     now -= 60_000;
-    expect(await checkLinkDomain(admin, { ownerId: aliceId, projectId: aliceProject }, deps)).toMatchObject({ ok: false, error: expect.stringContaining("10 秒") });
+    // 続けて押したら断り、また押せる時刻を返す（画面はボタンに残りの秒を出す。赤い枠は出さない）
+    const again = await checkLinkDomain(admin, { ownerId: aliceId, projectId: aliceProject }, deps);
+    expect(again).toMatchObject({ ok: false, error: expect.stringContaining("10 秒"), cooldownUntil: expect.any(String) });
+    const row = await getLinkDomain(admin, aliceProject);
+    expect(Date.parse((again as { cooldownUntil: string }).cooldownUntil) - Date.parse(row!.last_checked_at!)).toBe(10_000);
     await cleanup(aliceProject, deps, aliceId);
   });
 

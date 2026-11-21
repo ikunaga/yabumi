@@ -9,8 +9,8 @@
 
 | # | やること | 元の手順 | 状態 |
 |---|---|---|---|
-| 1-1 | Vercel の **Preview** の環境変数に、本番の Supabase の鍵（SUPABASE_SECRET_KEY など）が入っていないかを見る。入っていれば Preview からは外す（Preview は本番の DB を触れないようにする） | — | 要確認 |
-| 1-2 | yabumi を開いて、規約の同意の帯で同意する（版 2026-11-21） | — | まだ |
+| 1-1 | Vercel の **Preview** の環境変数に、本番の Supabase の鍵（SUPABASE_SECRET_KEY など）が入っていないかを見る。入っていれば Preview からは外す（Preview は本番の DB を触れないようにする） | — | 済（2026-11-21。Preview から外して Production だけにし、Redeploy） |
+| 1-2 | yabumi を開いて、規約の同意の帯で同意する（版 2026-11-21） | — | 済（2026-11-21） |
 
 ## 2. 自動投稿を動かす
 
@@ -19,13 +19,13 @@
 | 2-1 | Anthropic の Console で、使いすぎの上限（Limits）を **$25 ほど**に上げる（自動投稿の文 $3・画像の場面・ほかの AI を合わせた目安） | 6-3 | まだ |
 | 2-2 | Vercel の **Production だけ**に `AUTO_POST_ENABLED=true` を足して Redeploy（Preview には入れない）。止めるときは値を消すか false にして Redeploy | 31-4 | まだ |
 | 2-4 | AI の上限を上げる（2026-11-21 オーナー「いま自分が使えなくなっているので、上限を上げたい」）。上限は DB の関数の中に固定していて、環境変数では変えられない（利用者が変えられないようにするため）。実装担当が 1 人あたりの上限を、みんなの合計と同じにする: 文の AI は 1 人 $3 → $10、自動投稿の文の AI は 1 人 $3 → $5。合計は変えないので、月の最大の費用は今と同じ 約 $25。**オーナーの作業は、デプロイのあとに AI を使えるかを確かめることと、2-1 の Anthropic の上限が $25 以上かを見ることだけ**。招待の最初の 1 人の前に、プランと一緒に決め直す（launch-checklist の 2.3） | — | まだ |
-| 2-3 | X の費用の上限: `X_POST_USER_MONTHLY_USD=8`・`X_MONTHLY_BUDGET_USD=10` が入っているか | — | 要確認 |
+| 2-3 | X の費用の上限: `X_POST_USER_MONTHLY_USD=8`・`X_MONTHLY_BUDGET_USD=10` が入っているか | — | 済（2026-11-21。両方入っていた） |
 
 ## 3. ストアと課金をつなぐ（App Store・RevenueCat・Google Play）
 
 | # | やること | 元の手順 | 状態 |
 |---|---|---|---|
-| 3-1 | `openssl rand -base64 32` で新しい値を作り、`CREDENTIAL_ENCRYPTION_KEY` として入れる（TOKEN_ENCRYPTION_KEY とは別の値）。入れると「ストアと課金をつなぐ」に入力の欄が出る | 13-1〜13-3 | まだ |
+| 3-1 | `openssl rand -base64 32` で新しい値を作り、`CREDENTIAL_ENCRYPTION_KEY` として入れる（TOKEN_ENCRYPTION_KEY とは別の値）。入れると「ストアと課金をつなぐ」に入力の欄が出る | 13-1〜13-3 | 済（2026-11-21） |
 | 3-2 | App Store Connect で、役割が **Sales and Reports** の Team キーを作り、yabumi の「ストアと課金をつなぐ」に入れる | 13-8〜13-9 | まだ |
 | 3-3 | RevenueCat を使うなら、Charts & metrics だけを読めるキーを作って入れる | 13-10 | まだ |
 | 3-4 | Google Cloud で yabumi 用のサービスアカウント（yabumi-manager）を作り、キーの JSON を `GOOGLE_PLAY_MANAGER_KEY` として入れる。手順が長いので、やるときは PM と一緒に進める | 15-1〜15-6 | まだ |
@@ -34,10 +34,10 @@
 
 | # | やること | 元の手順 | 状態 |
 |---|---|---|---|
-| 4-1 | Meta の画面で、数字を読む権限（threads_manage_insights・instagram_business_manage_insights・read_insights）を足す | 14-1〜14-2 | 要確認 |
-| 4-2 | `SNS_INSIGHTS`（例 `threads,instagram,facebook`）を入れて、SNS をつなぎ直す。**X を入れるかは、X の規約の見直し（launch-checklist の 1.3）が済むまで保留**（docs/review/x.md） | 14-3〜14-4 | 要確認 |
-| 4-3 | Meta の画面で、コメントを読む権限（threads_read_replies・instagram_business_manage_comments・pages_read_user_content）を足す | 28-2〜28-3 | 要確認 |
-| 4-4 | `SNS_COMMENTS`（例 `threads,instagram,facebook`）を入れて、SNS をつなぎ直す | 28-4〜28-5 | 要確認 |
+| 4-1 | Meta の画面で、数字を読む権限（threads_manage_insights・instagram_business_manage_insights・read_insights）を足す | 14-1〜14-2 | 済（2026-11-21。Threads・Instagram。Facebook ページは未設定のため外す） |
+| 4-2 | `SNS_INSIGHTS`（例 `threads,instagram,facebook`）を入れて、SNS をつなぎ直す。**X を入れるかは、X の規約の見直し（launch-checklist の 1.3）が済むまで保留**（docs/review/x.md） | 14-3〜14-4 | 済（2026-11-21。Threads・Instagram。Facebook ページは未設定のため外す） |
+| 4-3 | Meta の画面で、コメントを読む権限（threads_read_replies・instagram_business_manage_comments・pages_read_user_content）を足す | 28-2〜28-3 | 済（2026-11-21。Threads・Instagram。Facebook ページは未設定のため外す） |
+| 4-4 | `SNS_COMMENTS`（例 `threads,instagram,facebook`）を入れて、SNS をつなぎ直す | 28-4〜28-5 | 済（2026-11-21。Threads・Instagram。Facebook ページは未設定のため外す） |
 
 ## 5. AI の画像（Gemini）
 
@@ -53,7 +53,7 @@
 | 6-1 | Facebook・Instagram のアプリの設定と、`META_APP_ID`・`META_APP_SECRET`・`FACEBOOK_LOGIN_CONFIG_ID`・`INSTAGRAM_APP_ID`・`INSTAGRAM_APP_SECRET`（Instagram は済んでいるので、Facebook ページの分） | 12-1〜12-6 | 要確認 |
 | 6-2 | TikTok のアプリの設定と環境変数 | deploy.md の TikTok の節 | まだ |
 | 6-3 | YouTube: Search Console・Google Cloud・OAuth クライアントを用意し、`YOUTUBE_CLIENT_ID`・`YOUTUBE_CLIENT_SECRET` を入れて、YouTube をつなぐ | 30-2〜30-7 | まだ |
-| 6-4 | X の人気の投稿を探す: `X_BEARER_TOKEN` を入れる | 26-2〜26-3 | 要確認 |
+| 6-4 | X の人気の投稿を探す: `X_BEARER_TOKEN` を入れる | 26-2〜26-3 | 済（2026-11-21） |
 
 ## 6b. スマホの通知（Web Push）
 
@@ -61,8 +61,8 @@
 
 | # | やること | 元の手順 | 状態 |
 |---|---|---|---|
-| 6b-1 | VAPID の鍵を作る（yabumi のフォルダで `npx web-push generate-vapid-keys`。出た Public Key と Private Key を控える。ローカルとは別の組にする。Private Key は人に見せない） | 18-1 | まだ（2026-11-21 オーナー: 入っていない） |
-| 6b-2 | Vercel の Production に `VAPID_PUBLIC_KEY`・`VAPID_PRIVATE_KEY`（Sensitive）・`VAPID_SUBJECT`（`mailto:` と運営者のメールアドレス）を入れて Redeploy。Preview にも入れるときは、本番とは別の組を作って入れる | 18-2 | まだ |
+| 6b-1 | VAPID の鍵を作る（yabumi のフォルダで `npx web-push generate-vapid-keys`。出た Public Key と Private Key を控える。ローカルとは別の組にする。Private Key は人に見せない） | 18-1 | 済（2026-11-21） |
+| 6b-2 | Vercel の Production に `VAPID_PUBLIC_KEY`・`VAPID_PRIVATE_KEY`（Sensitive）・`VAPID_SUBJECT`（`mailto:` と運営者のメールアドレス）を入れて Redeploy。Preview にも入れるときは、本番とは別の組を作って入れる | 18-2 | 済（2026-11-21。Redeploy は ①〜④ のあとにまとめて） |
 | 6b-3 | iPhone（iOS 16.4 以降）: Safari で yabumi を開き、共有ボタン →「ホーム画面に追加」→「追加」。ホーム画面の yabumi から開いてログインし直す。「≡ メニュー」→「ログインと退会」→「お知らせ」の「お知らせの設定」→「この端末で通知を受け取る」→「許可」。「試しに送る」を押してホーム画面に戻り、数秒で届くかを見る。押すと yabumi が開く | 18-4〜18-7 | まだ |
 | 6b-4 | Android の Chrome・パソコンでも試す（任意。ホーム画面に追加しなくても受け取れる。「お知らせの設定」→「この端末で通知を受け取る」→「許可」→「試しに送る」） | 18-4〜18-7 | まだ |
 
@@ -72,9 +72,9 @@
 
 | # | やること | 元の手順 | 状態 |
 |---|---|---|---|
-| 6c-1 | Vercel で、短縮リンクのドメイン用のトークンを作る（名前 `yabumi-link-domains`、Expiration 1 年。切れる前に作り直す日をカレンダーに入れる） | 17-1 | まだ |
-| 6c-2 | yabumi の Vercel のプロジェクトの **Project ID**（`prj_`）と、チームの **Team ID**（`team_`）を控える | 17-2 | まだ |
-| 6c-3 | Vercel の **Production だけ**に `VERCEL_API_TOKEN`（Sensitive）・`VERCEL_PROJECT_ID`・`VERCEL_TEAM_ID` を足して Redeploy（Preview には入れない。プレビューから本番のドメインを触らないように） | 17-3 | まだ |
+| 6c-1 | Vercel で、短縮リンクのドメイン用のトークンを作る（名前 `yabumi-link-domains`、Expiration 1 年。切れる前に作り直す日をカレンダーに入れる） | 17-1 | 済（2026-11-21） |
+| 6c-2 | yabumi の Vercel のプロジェクトの **Project ID**（`prj_`）と、チームの **Team ID**（`team_`）を控える | 17-2 | 済（2026-11-21） |
+| 6c-3 | Vercel の **Production だけ**に `VERCEL_API_TOKEN`（Sensitive）・`VERCEL_PROJECT_ID`・`VERCEL_TEAM_ID` を足して Redeploy（Preview には入れない。プレビューから本番のドメインを触らないように） | 17-3 | 済（2026-11-21） |
 | 6c-4 | 自分のドメインで試す: 「短縮リンク」→「自分のドメインで作る」→「設定する」で go.<ドメイン> を入れ、DNS に出た行を入れて「確認する」→「つながりました」。そのドメインの短縮リンクを押すと開き、`https://go.<ドメイン>/login` は「このアドレスは短縮リンク用です。」になる。Vercel の Domains にそのドメインが並ぶ | 17-4 | まだ |
 | 6c-5 | 「このドメインを使うのをやめる」で、Vercel の Domains からそのドメインが消える | 17-5 | まだ |
 

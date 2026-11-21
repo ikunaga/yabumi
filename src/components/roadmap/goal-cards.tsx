@@ -24,10 +24,10 @@ function Bar({ value, max, className }: { value: number; max: number; className:
   );
 }
 
-// 数えた最後の日（「11/4 まで」）。今日まで数えていれば出さない
+// 数えた最後の日（「11/4 までの数」。前は「11/4 まで」で、何のことか読めなかった。2026-11-21 PM の指摘）。今日まで数えていれば出さない
 export function CountedThrough({ total, today }: { total: Pick<MetricTotal, "countedThrough">; today: string }) {
   if (!total.countedThrough || total.countedThrough >= today) return null;
-  return <span className="num text-[13px] text-faint">{md(total.countedThrough)} まで</span>;
+  return <span className="num text-[13px] text-faint">{md(total.countedThrough)} までの数</span>;
 }
 
 // いまの目標（KGI）。ロードマップのいちばん上に置く（2026-11-21 オーナーの指示「この KGI が何なのかは一番重要で、一番意識しないといけないところ」）。

@@ -79,6 +79,8 @@ afterEach(async () => {
   findings = [];
   inputs.length = 0;
   await admin.from("ai_usage").delete().eq("owner_id", aliceId);
+  // 見本は 1 人 1 日 5 回（20261122110000_auto_sample_runs）。テストごとに数え直す
+  await admin.from("auto_sample_runs").delete().eq("owner_id", aliceId);
   await admin.from("projects").delete().in("id", projects.splice(0));
 });
 
@@ -87,7 +89,7 @@ afterAll(async () => {
   await admin.from("ai_usage").delete().in("owner_id", [aliceId, bobId]);
   await deleteUser(aliceId);
   await deleteUser(bobId);
-  for (const table of ["auto_plans", "auto_runs", "auto_samples", "ai_usage"] as const) {
+  for (const table of ["auto_plans", "auto_runs", "auto_samples", "auto_sample_runs", "ai_usage"] as const) {
     const { count } = await admin.from(table).select("*", { count: "exact", head: true }).in("owner_id", [aliceId, bobId]);
     expect(count).toBe(0);
   }

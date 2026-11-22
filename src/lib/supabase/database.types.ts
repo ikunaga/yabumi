@@ -613,6 +613,24 @@ export type Database = {
           },
         ]
       }
+      auto_sample_runs: {
+        Row: {
+          created_at: string
+          id: number
+          owner_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: never
+          owner_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: never
+          owner_id?: string
+        }
+        Relationships: []
+      }
       auto_samples: {
         Row: {
           created_at: string
@@ -3557,6 +3575,7 @@ export type Database = {
           usage_id: string
         }[]
       }
+      reserve_auto_sample: { Args: { p_owner_id: string }; Returns: string }
       reserve_sns_read: {
         Args: {
           p_budget_usd: number

@@ -4,16 +4,13 @@ import { revalidatePath } from "next/cache";
 import { notFound } from "next/navigation";
 import { appUrl } from "@/lib/sns/threads/config";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
-import { isOperatorEmail } from "@/lib/waitlist/operator";
+import { currentOperatorEmail } from "@/lib/waitlist/operator-server";
 import { startLegalNotice } from "./notice-mail";
 
 // 運営者の画面（/admin/legal-notice）の「全員に送る」（決定 D31。docs/architecture.md の 4.30）
 export async function startLegalNoticeAction(): Promise<{ error?: string; notice?: string }> {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  const email = typeof data?.claims?.email === "string" ? data.claims.email : null;
-  if (!isOperatorEmail(email)) notFound();
+  const email = await currentOperatorEmail();
+  if (!email) notFound();
   const r = await startLegalNotice(createAdminClient(), { appUrl: appUrl(), deadlineMs: Date.now() + 45_000 });
   revalidatePath("/admin/legal-notice");
   switch (r.reason) {

@@ -9,14 +9,14 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { listWaitlist } from "@/lib/waitlist/store";
 import { listAutoPostHolds } from "@/lib/auto-post/holds";
 import { requireUser } from "@/lib/auth/user";
-import { isOperatorEmail } from "@/lib/waitlist/operator";
+import { currentOperatorEmail } from "@/lib/waitlist/operator-server";
 
 export const metadata: Metadata = { title: "運営", robots: { index: false } };
 
 // 運営者の画面の入口（OPERATOR_ADMIN_EMAILS のアドレスでログインした人だけ。ほかの人には 404）
 export default async function AdminPage() {
   const user = await requireUser();
-  if (!isOperatorEmail(user.email)) notFound();
+  if (!(await currentOperatorEmail())) notFound();
   const admin = createAdminClient();
   const [entries, holds, change] = [await listWaitlist(admin), await listAutoPostHolds(admin), upcomingLegalChange()];
   return (

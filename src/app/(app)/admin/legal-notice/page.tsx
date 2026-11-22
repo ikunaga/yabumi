@@ -9,7 +9,7 @@ import { requireUser } from "@/lib/auth/user";
 import { dailyLimit, docsLabel, noticeProgress } from "@/lib/legal/notice-mail";
 import { formatLegalDate, noticeStarted, upcomingLegalChange } from "@/lib/legal/version";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isOperatorEmail } from "@/lib/waitlist/operator";
+import { currentOperatorEmail } from "@/lib/waitlist/operator-server";
 
 export const metadata: Metadata = { title: "規約の変更の知らせ", robots: { index: false } };
 
@@ -17,7 +17,7 @@ export const metadata: Metadata = { title: "規約の変更の知らせ", robots
 // OPERATOR_ADMIN_EMAILS のアドレスでログインした人だけ。ほかの人には、ないページ（404）と同じに見せる
 export default async function LegalNoticeAdminPage() {
   const user = await requireUser();
-  if (!isOperatorEmail(user.email)) notFound();
+  if (!(await currentOperatorEmail())) notFound();
   const change = upcomingLegalChange();
   const progress = change ? await noticeProgress(createAdminClient(), change.version) : null;
   const ready = change ? noticeStarted(change) : false;

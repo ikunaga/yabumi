@@ -19,7 +19,7 @@ export async function addItems(db: Db, projectId: string, items: ItemInput[], so
   if (items.length === 0) return 0;
   const { count } = await db.from("roadmap_items").select("id", { count: "exact", head: true }).eq("project_id", projectId);
   if ((count ?? 0) + items.length > MAX_ITEMS_PER_PROJECT) {
-    throw new RoadmapError(`タスクは 1 つのプロジェクトに ${MAX_ITEMS_PER_PROJECT} 個までです。完了したものや古いものを削除してから追加してください。`);
+    throw new RoadmapError(`ロードマップに入れられるタスクは ${MAX_ITEMS_PER_PROJECT} 件までです。完了したものや古いものを削除してから追加してください。`);
   }
   const { data: last } = await db.from("roadmap_items").select("position").eq("project_id", projectId).order("position", { ascending: false }).limit(1).maybeSingle();
   const base = (last?.position ?? 0) + 1;

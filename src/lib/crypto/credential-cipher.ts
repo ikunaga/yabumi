@@ -9,7 +9,8 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:
 
 const PREFIX = "c1";
 
-export type CredentialKeys = { current: Buffer; old: Buffer[] };
+// token: SNS のトークンの鍵（TOKEN_ENCRYPTION_KEY）。current と同じ値なら保存を断る（L5）。入っていなければ比べない
+export type CredentialKeys = { current: Buffer; old: Buffer[]; token?: Buffer | null };
 
 function parseOne(base64: string, name: string): Buffer {
   const key = Buffer.from(base64.trim(), "base64");
@@ -17,7 +18,9 @@ function parseOne(base64: string, name: string): Buffer {
   return key;
 }
 
-export function credentialKeysFromEnv(env: { current?: string; old?: string } = { current: process.env.CREDENTIAL_ENCRYPTION_KEY, old: process.env.CREDENTIAL_ENCRYPTION_KEYS_OLD }): CredentialKeys {
+export function credentialKeysFromEnv(
+  env: { current?: string; old?: string; token?: string } = { current: process.env.CREDENTIAL_ENCRYPTION_KEY, old: process.env.CREDENTIAL_ENCRYPTION_KEYS_OLD, token: process.env.TOKEN_ENCRYPTION_KEY },
+): CredentialKeys {
   if (!env.current) throw new Error("環境変数 CREDENTIAL_ENCRYPTION_KEY が設定されていません。.env.example を参考に設定してください。");
   return {
     current: parseOne(env.current, "CREDENTIAL_ENCRYPTION_KEY"),
@@ -26,7 +29,26 @@ export function credentialKeysFromEnv(env: { current?: string; old?: string } = 
       .map((s) => s.trim())
       .filter(Boolean)
       .map((s) => parseOne(s, "CREDENTIAL_ENCRYPTION_KEYS_OLD")),
+    // 比べるだけなので、形が合わなくてもここでは落とさない（SNS のトークンの側で落ちる）
+    token: env.token ? Buffer.from(env.token.trim(), "base64") : null,
   };
+}
+
+// CREDENTIAL_ENCRYPTION_KEY と TOKEN_ENCRYPTION_KEY が同じ値なら、片方が漏れると両方が読める（セキュリティ確認 2026-11-21 の L5）。
+// 保存を断り、サーバーのログに出す（鍵の値は出さない）
+export class SameKeyError extends Error {
+  constructor() {
+    super("暗号化のキーが 2 つとも同じ値です。ストアのキーは保存しません。CREDENTIAL_ENCRYPTION_KEY を変えてください。");
+    this.name = "SameKeyError";
+  }
+}
+
+function assertDistinctKeys(keys: CredentialKeys) {
+  if (keys.token && keys.token.length === keys.current.length && keys.token.equals(keys.current)) {
+    const e = new SameKeyError();
+    console.error(`[credential-cipher] ${e.message}`);
+    throw e;
+  }
 }
 
 export function credentialsConfigured(): boolean {
@@ -38,6 +60,7 @@ export function keyMark(key: Buffer): string {
 }
 
 export function sealCredential(plain: string, aad: string, keys: CredentialKeys = credentialKeysFromEnv()): string {
+  assertDistinctKeys(keys);
   const iv = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", keys.current, iv);
   cipher.setAAD(Buffer.from(aad, "utf8"));

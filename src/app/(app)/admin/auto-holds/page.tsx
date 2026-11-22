@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { requireUser } from "@/lib/auth/user";
 import { listAutoPostHolds } from "@/lib/auto-post/holds";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isOperatorEmail } from "@/lib/waitlist/operator";
+import { currentOperatorEmail } from "@/lib/waitlist/operator-server";
 
 export const metadata: Metadata = { title: "自動投稿を止める", robots: { index: false } };
 
@@ -15,7 +15,7 @@ export const metadata: Metadata = { title: "自動投稿を止める", robots: {
 // OPERATOR_ADMIN_EMAILS のアドレスでログインした人だけ。ほかの人には 404
 export default async function AutoHoldsAdminPage() {
   const user = await requireUser();
-  if (!isOperatorEmail(user.email)) notFound();
+  if (!(await currentOperatorEmail())) notFound();
   const holds = await listAutoPostHolds(createAdminClient());
   const dateFormat = new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
 

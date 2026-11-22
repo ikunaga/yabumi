@@ -36,7 +36,7 @@ export async function addItemForm(projectId: string, _prev: RoadmapFormState, fo
     kpi: kpi || null,
     target: kpi ? num(formData.get("target")) : null,
   });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "タスクの形が正しくありません。" };
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "タスクを追加できませんでした。入力した内容を確認して、もう一度追加してください。" };
   try {
     await addItems(await createClient(), projectId, [parsed.data], "manual");
   } catch (e) {
@@ -76,7 +76,7 @@ export async function setItemPlannedOn(projectId: string, itemId: string, planne
   const supabase = await createClient();
   const { data: item } = await supabase.from("roadmap_items").select("week_start").eq("id", itemId).eq("project_id", projectId).maybeSingle();
   if (!item) return { error: "タスクが見つかりません。画面を読み込み直してください。" };
-  if (plannedOn !== null && (plannedOn < item.week_start || plannedOn > addDays(item.week_start, 6))) return { error: "予定日は、そのタスクの週の中の日にしてください。" };
+  if (plannedOn !== null && (plannedOn < item.week_start || plannedOn > addDays(item.week_start, 6))) return { error: "予定日は、そのタスクと同じ週の日にしてください。" };
   const { data, error } = await supabase.from("roadmap_items").update({ planned_on: plannedOn }).eq("id", itemId).eq("project_id", projectId).select("id");
   if (error || !data?.length) return { error: "更新できませんでした。画面を読み込み直してください。" };
   done(projectId);

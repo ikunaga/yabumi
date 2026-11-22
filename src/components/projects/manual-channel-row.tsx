@@ -61,7 +61,8 @@ export function ManualChannelRow({ projectId, sns, profileUrl, note }: { project
             保存する
           </Button>
           <p className="w-full text-xs text-muted">
-            任意です。{sns === "substack" ? "登録すると、投稿の画面にすぐ移れます。" : ""}あとで反応を手で記録するときにも使います。空にして保存すると消えます。
+            {label} には自動投稿できません。投稿は手動で行います。「投稿をつくる」で決めた日時に、「ホーム」でお知らせします。
+            {profileUrl ? "空にして保存すると、登録した URL は削除されます。" : "URL は空欄のままでも構いません。"}
           </p>
           {error && (
             <p role="alert" className="w-full text-sm font-semibold text-danger">

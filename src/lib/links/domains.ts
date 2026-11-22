@@ -103,6 +103,21 @@ const CLAIM_ERRORS: Record<string, string> = {
   limit: "いまは、自分のドメインを新しく追加できません。yabumi を使う人みんなで、上限に達しています。追加しなくても、リンクが押された数は今までどおり数えます。",
 };
 
+const IN_USE_ELSEWHERE = "このドメインは、ほかのサービスですでに使われています。別の名前にしてください。たとえば go2.<あなたのドメイン> です。";
+
+// claim_link_domain で取った行を、Vercel から外さずに消す。行を消すと DB のトリガーがドメインを外す列に積むので、
+// 消す前にドメインを、どこにもない名前（<行の id>.invalid）に置きかえる。積まれるのはその名前だけになり、すぐ列から消す
+// （マイグレーションを足さずに直すため。2026-11-22 セキュリティの確認 L1）
+async function discardClaim(admin: Admin, input: { ownerId: string; projectId: string }) {
+  const { data: row } = await admin.from("link_domains").select("id").eq("project_id", input.projectId).eq("owner_id", input.ownerId).maybeSingle();
+  if (!row) return;
+  const placeholder = `discard-${row.id.replace(/-/g, "")}.invalid`;
+  const { error } = await admin.from("link_domains").update({ domain: placeholder }).eq("id", row.id);
+  if (error) throw error;
+  await admin.from("link_domains").delete().eq("id", row.id);
+  await admin.from("link_domain_removals").delete().eq("domain", placeholder);
+}
+
 export async function addLinkDomain(admin: Admin, input: { ownerId: string; projectId: string; domain: string }, deps: LinkDomainDeps): Promise<AddResult> {
   if (!deps.vercel) return { ok: false, error: "まだ使えません。yabumi の運営の準備ができたら、使えるようになります。" };
   const checked = normalizeLinkDomain(input.domain);
@@ -127,6 +142,25 @@ export async function addLinkDomain(admin: Admin, input: { ownerId: string; proj
     return { ok: false, error: CLAIM_ERRORS[claim] ?? "ドメインを追加できませんでした。" };
   }
 
+  // Vercel のプロジェクトにもう付いているドメイン（運営者が手で付けたものなど）は使わない。
+  // 付けられなかったときに行を消すと、トリガーがそのドメインを外す列に積み、運営者のドメインまで外してしまうため（セキュリティの確認 L1）
+  const attached = await deps.vercel.get(domain).then(
+    () => true,
+    (e) => {
+      if (e instanceof VercelApiError && e.status === 404) return false;
+      throw e;
+    },
+  ).catch(async (e) => {
+    console.error("[link-domain] Vercel にドメインがあるかを確かめられませんでした", e instanceof Error ? e.message : e);
+    await discardClaim(admin, input);
+    return null;
+  });
+  if (attached === null) return { ok: false, error: "いまドメインを追加できませんでした。時間をおいてもう一度お試しください。" };
+  if (attached) {
+    await discardClaim(admin, input);
+    return { ok: false, error: IN_USE_ELSEWHERE };
+  }
+
   try {
     const added = await deps.vercel.add(domain);
     const txt = added.verified ? null : added.verification.find((v) => v.type.toUpperCase() === "TXT");
@@ -142,12 +176,14 @@ export async function addLinkDomain(admin: Admin, input: { ownerId: string; proj
       .eq("owner_id", input.ownerId);
     if (updateError) throw updateError;
   } catch (e) {
-    // 足せなかったら行を消す（トリガーが外す列に積むので、Vercel に半分だけ残ったものも片付く）
+    // 409・403: Vercel が「ほかで使われている」と断った。yabumi が付けたものではないので、外す列に積まずに行だけ消す（L1）
+    if (e instanceof VercelApiError && (e.status === 409 || e.status === 403)) {
+      await discardClaim(admin, input);
+      return { ok: false, error: IN_USE_ELSEWHERE };
+    }
+    // ほかの失敗は行を消す（トリガーが外す列に積むので、Vercel に半分だけ残ったものも片付く）
     await admin.from("link_domains").delete().eq("project_id", input.projectId).eq("owner_id", input.ownerId);
     await drainLinkDomainRemovals(admin, deps).catch(() => undefined);
-    if (e instanceof VercelApiError && (e.status === 409 || e.status === 403)) {
-      return { ok: false, error: "このドメインは、ほかのサービスですでに使われています。別の名前にしてください。たとえば go2.<あなたのドメイン> です。" };
-    }
     if (e instanceof VercelApiError && e.status === 400) return { ok: false, error: "このドメインは追加できませんでした。綴りを確認してください。" };
     console.error("[link-domain] Vercel にドメインを足せませんでした", e instanceof Error ? e.message : e);
     return { ok: false, error: "いまドメインを追加できませんでした。時間をおいてもう一度お試しください。" };
@@ -216,13 +252,23 @@ export async function checkLinkDomain(admin: Admin, input: { ownerId: string; pr
   if (error) throw error;
   if (!row) return { ok: false, error: `ドメインが見つかりません。${PENDING_DAYS} 日たってもつながらなかったドメインは、削除しています。もう一度入れてください。` };
   const now = (deps.now ?? (() => new Date()))();
-  if (row.last_checked_at && now.getTime() - new Date(row.last_checked_at).getTime() < LINK_DOMAIN_CHECK_INTERVAL_MS) {
-    return {
-      ok: false,
-      error: "いま確認したところです。10 秒ほどおいてから押してください。",
-      cooldownUntil: new Date(new Date(row.last_checked_at).getTime() + LINK_DOMAIN_CHECK_INTERVAL_MS).toISOString(),
-    };
-  }
+  const cooldown = (last: string) => ({
+    ok: false as const,
+    error: "いま確認したところです。10 秒ほどおいてから押してください。",
+    cooldownUntil: new Date(new Date(last).getTime() + LINK_DOMAIN_CHECK_INTERVAL_MS).toISOString(),
+  });
+  if (row.last_checked_at && now.getTime() - new Date(row.last_checked_at).getTime() < LINK_DOMAIN_CHECK_INTERVAL_MS) return cooldown(row.last_checked_at);
+  // 外に聞く前に、確認の枠を取る（last_checked_at が 10 秒より前か空のときだけ更新する条件つきの update）。
+  // 同時に押されても、枠を取れた 1 つだけが Vercel と DNS に聞く（運営者の Vercel のトークンの上限を食わせない。セキュリティの確認 L2）
+  const cutoff = new Date(now.getTime() - LINK_DOMAIN_CHECK_INTERVAL_MS).toISOString();
+  // 枠を取れたかは、更新した行の数で見る（返す行で見ると、PostgREST が更新したあとの値で or() を当て直して 0 行になる）
+  const { count: slot, error: slotError } = await admin
+    .from("link_domains")
+    .update({ last_checked_at: now.toISOString() }, { count: "exact" })
+    .eq("id", row.id)
+    .or(`last_checked_at.is.null,last_checked_at.lt."${cutoff}"`);
+  if (slotError) throw slotError;
+  if (!slot) return cooldown(now.toISOString());
 
   let check: LinkCheck;
   let cnameTarget = row.cname_target || DEFAULT_CNAME_TARGET;

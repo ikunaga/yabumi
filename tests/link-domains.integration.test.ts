@@ -47,7 +47,9 @@ function fakeVercel(opts: { needsTxt?: boolean; addError?: VercelApiError } = {}
       state.added.add(name);
       return pd(name);
     },
+    // 足していないドメインは 404（追加の前に、運営者が手で付けたものでないかを見る。L1）
     async get(name) {
+      if (!state.added.has(name)) throw new VercelApiError(404, "not_found", "not found");
       return pd(name);
     },
     async verify() {
@@ -394,6 +396,8 @@ describe("利用者のドメイン", () => {
     // TXT がなければ、Vercel が通してもつながらない
     const { vercel, state } = fakeVercel();
     state.misconfigured = false;
+    // Vercel にはもう付いている（関数を直接呼んで行だけを作ったので、まねの側にも付けておく）
+    state.added.add(domain);
     const { lookup } = fakeDns();
     const deps: LinkDomainDeps = { vercel, notify: quiet, limit: 100000, probe: async () => true, lookup };
     expect(await checkLinkDomain(admin, { ownerId: bobId, projectId: bobProject }, deps)).toMatchObject({ ok: true, row: { status: "pending", last_check: "owner_txt_missing" } });

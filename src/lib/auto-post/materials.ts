@@ -147,10 +147,10 @@ async function pickEvent(admin: Db, plan: AutoPlan & { ownerId: string }, past: 
   };
 }
 
-// シリーズ: 次の回の変数の言葉を AI に出させ（用途は自動の投稿の枠）、型に入れる（docs/design/format-series.md の 1.2）。
+// シリーズ: 次の回の変数の言葉を AI に出させ（用途は自動の投稿の枠。見本のときは auto_post_sample で、本番の 1 日 10 回に数えない）、型に入れる（docs/design/format-series.md の 1.2）。
 // 「自分で入れる」変数は、回し方で決めた決め方（毎回同じ言葉 / AI に考えてもらう）で入れる。
 // フォーマットの変数が保存のときから変わった・決め方のない変数がある回し方は、作らずに止めて知らせる（format_changed。黙って空のまま送らない）
-async function pickSeries(admin: Db, plan: AutoPlan & { ownerId: string }, planData: PlanData, project: ProjectRow, deps: MaterialDeps): Promise<Material | NoMaterial> {
+async function pickSeries(admin: Db, plan: AutoPlan & { ownerId: string }, planData: PlanData, project: ProjectRow, deps: MaterialDeps, purpose: MaterialPurpose): Promise<Material | NoMaterial> {
   const formatId = plan.materials.format_id;
   const format = formatId ? await getFormat(admin, plan.projectId, formatId) : null;
   if (!format) return { none: true, reason: "no_material", detail: "シリーズのフォーマットが見つかりません" };
@@ -174,7 +174,11 @@ async function pickSeries(admin: Db, plan: AutoPlan & { ownerId: string }, planD
     // ui-wording-ignore: 偽の AI の言葉（画面の確かめ用。本番では使わない）
     p = { values: Object.fromEntries(aiVars(series).map((v) => [v.name, `（偽の AI）${v.name} ${n}`])), checks: [] };
   } else {
-    const call = budgeted(admin, { userId: plan.ownerId, purpose: "auto_post", call: "post_format_round" }, deps.callFormatRound ?? callFormatRound);
+    const call = budgeted(
+      admin,
+      purpose === "auto_post_sample" ? { userId: plan.ownerId, purpose: "auto_post_sample", call: "post_format_round" } : { userId: plan.ownerId, purpose: "auto_post", call: "post_format_round" },
+      deps.callFormatRound ?? callFormatRound,
+    );
     const r = await call(
       buildFormatRoundRequest({
         project: { name: project.name, description: project.description, targetAudience: project.target_audience, productType: project.product_type },
@@ -209,10 +213,12 @@ async function pickSeries(admin: Db, plan: AutoPlan & { ownerId: string }, planD
 export type ProjectRow = { name: string; description: string | null; target_audience: string | null; product_type: string | null; default_hashtags?: unknown };
 // fakeSeries: 偽の AI のとき、シリーズの空欄を偽の言葉で埋める（本物の AI を呼ばない）
 export type MaterialDeps = { callFormatRound?: typeof callFormatRound; fakeSeries?: boolean };
+// 材料を選ぶときの AI の用途（本番の回は auto_post、見本は auto_post_sample。2026-11-21 のセキュリティ確認の M1）
+export type MaterialPurpose = "auto_post" | "auto_post_sample";
 
 export async function pickMaterial(
   admin: Db,
-  args: { plan: AutoPlan & { ownerId: string }; planData: PlanData; project: ProjectRow; past: PastRef[]; dueAt: Date },
+  args: { plan: AutoPlan & { ownerId: string }; planData: PlanData; project: ProjectRow; past: PastRef[]; dueAt: Date; purpose?: MaterialPurpose },
   deps: MaterialDeps = {},
 ): Promise<Material | NoMaterial> {
   const m = await pickByKind(admin, args, deps);
@@ -229,7 +235,7 @@ export async function pickMaterial(
 
 function pickByKind(
   admin: Db,
-  args: { plan: AutoPlan & { ownerId: string }; planData: PlanData; project: ProjectRow; past: PastRef[]; dueAt: Date },
+  args: { plan: AutoPlan & { ownerId: string }; planData: PlanData; project: ProjectRow; past: PastRef[]; dueAt: Date; purpose?: MaterialPurpose },
   deps: MaterialDeps,
 ): Promise<Material | NoMaterial> | Material | NoMaterial {
   switch (args.plan.kind) {
@@ -242,7 +248,7 @@ function pickByKind(
     case "events":
       return pickEvent(admin, args.plan, args.past, args.dueAt);
     case "series":
-      return pickSeries(admin, args.plan, args.planData, args.project, deps);
+      return pickSeries(admin, args.plan, args.planData, args.project, deps, args.purpose ?? "auto_post");
     default:
       // 伸びた投稿の言い直し・開発の進みは段階 B
       return { none: true, reason: "no_material", detail: "この使い道は、まだ自動では回せません" };

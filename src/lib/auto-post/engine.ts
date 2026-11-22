@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildAiCheckRequest, dedupeTexts, normalizeAiCheck, type CallCheck, type CheckText } from "@/lib/ai/ai-check";
-import { budgeted, withAiBudget } from "@/lib/ai/budget";
+import { budgeted, limitMessage, withAiBudget } from "@/lib/ai/budget";
 import { productTypeOf } from "@/lib/ai/product-guide";
 import { ideaContextText } from "@/lib/ai/post-ideas";
 import { overLimit, shortenOverDrafts, type CallShorten } from "@/lib/ai/shorten";
@@ -254,9 +254,9 @@ export async function draftRun(
 ): Promise<Draft> {
   const loaded = await loadContext(admin, args.plan.projectId, args.plan.ownerId, args.sns);
   if (!loaded) return { ok: false, reason: "error", detail: "プロジェクトが見つかりません" };
-  const material = args.material ?? (await pickMaterial(admin, { plan: args.plan, planData: loaded.planData, project: loaded.project, past: args.past, dueAt: args.dueAt }, deps));
-  if (isNoMaterial(material)) return { ok: false, reason: material.reason, detail: material.detail };
   const purpose = args.purpose ?? "auto_post";
+  const material = args.material ?? (await pickMaterial(admin, { plan: args.plan, planData: loaded.planData, project: loaded.project, past: args.past, dueAt: args.dueAt, purpose }, deps));
+  if (isNoMaterial(material)) return { ok: false, reason: material.reason, detail: material.detail };
   const ref: Record<string, unknown> = { ...material.ref };
   // 本文とは別に付くタグ（シリーズのフォーマット → なければいつものタグ。materials.ts）。字数はタグの行の分を引いて書かせ、数えるときは足す（2026-11-17）
   const fixedTags = material.fixedTags ?? {};
@@ -746,6 +746,11 @@ export async function makeSample(
   args: { ownerId: string; projectId: string; plan: AutoPlan; oneTime?: string[]; fromSampleId?: string; now?: Date },
 ): Promise<SampleOutcome> {
   const now = args.now ?? new Date();
+  // 見本は 1 人 1 日 5 回。AI を呼ぶかどうか（シリーズ・同じ材料での作り直し）に関わらず、1 本ごとに先に数える。
+  // 断ったら AI も画像も呼ばない（2026-11-21 のセキュリティ確認の M1。20261122110000_auto_sample_runs）
+  const { data: gate, error: gateError } = await admin.rpc("reserve_auto_sample", { p_owner_id: args.ownerId });
+  if (gateError) throw gateError;
+  if (gate !== "ok") return { ok: false, reason: "ai_limit", detail: limitMessage(gate === "auto_post_hold" ? "auto_post_hold" : "auto_sample_limit", null) };
   const plan = { ...args.plan, projectId: args.projectId, ownerId: args.ownerId };
   const sns = Object.keys(plan.targets) as SnsKey[];
   let material: Material | undefined;
@@ -922,10 +927,12 @@ export async function makeSampleImage(
   return { ok: true, image: r.image };
 }
 
-// 1 日たった見本を消す（ジョブの 1 回ごと）
+// 1 日たった見本を消す（ジョブの 1 回ごと）。見本を始めた記録（1 日 5 回の数え方）は 2 日たったら消す
 export async function purgeSamples(admin: Db, now: Date, opts: EngineOpts = {}): Promise<number> {
   const { data, error } = await scope(admin.from("auto_samples").delete().lt("created_at", new Date(now.getTime() - SAMPLE_TTL_MS).toISOString()), opts).select("id");
   if (error) throw error;
+  const runs = await scope(admin.from("auto_sample_runs").delete().lt("created_at", new Date(now.getTime() - 2 * SAMPLE_TTL_MS).toISOString()), opts);
+  if (runs.error) throw runs.error;
   return data.length;
 }
 

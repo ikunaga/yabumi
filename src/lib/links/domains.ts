@@ -108,14 +108,29 @@ const IN_USE_ELSEWHERE = "このドメインは、ほかのサービスですで
 // claim_link_domain で取った行を、Vercel から外さずに消す。行を消すと DB のトリガーがドメインを外す列に積むので、
 // 消す前にドメインを、どこにもない名前（<行の id>.invalid）に置きかえる。積まれるのはその名前だけになり、すぐ列から消す
 // （マイグレーションを足さずに直すため。2026-11-22 セキュリティの確認 L1）
+// どの段で失敗しても投げる（消せたことにしない。2026-11-22 自動のセキュリティレビューの指摘）
 async function discardClaim(admin: Admin, input: { ownerId: string; projectId: string }) {
-  const { data: row } = await admin.from("link_domains").select("id").eq("project_id", input.projectId).eq("owner_id", input.ownerId).maybeSingle();
+  const { data: row, error: readError } = await admin.from("link_domains").select("id").eq("project_id", input.projectId).eq("owner_id", input.ownerId).maybeSingle();
+  if (readError) throw readError;
   if (!row) return;
   const placeholder = `discard-${row.id.replace(/-/g, "")}.invalid`;
-  const { error } = await admin.from("link_domains").update({ domain: placeholder }).eq("id", row.id);
-  if (error) throw error;
-  await admin.from("link_domains").delete().eq("id", row.id);
-  await admin.from("link_domain_removals").delete().eq("domain", placeholder);
+  const { error: renameError } = await admin.from("link_domains").update({ domain: placeholder }).eq("id", row.id);
+  if (renameError) throw renameError;
+  const { error: deleteError } = await admin.from("link_domains").delete().eq("id", row.id);
+  if (deleteError) throw deleteError;
+  const { error: dequeueError } = await admin.from("link_domain_removals").delete().eq("domain", placeholder);
+  if (dequeueError) throw dequeueError;
+}
+
+// Vercel のプロジェクトにもう付いているか（404 なら付いていない）。ほかの失敗は投げる
+async function attachedInVercel(vercel: VercelDomains, domain: string): Promise<boolean> {
+  try {
+    await vercel.get(domain);
+    return true;
+  } catch (e) {
+    if (e instanceof VercelApiError && e.status === 404) return false;
+    throw e;
+  }
 }
 
 export async function addLinkDomain(admin: Admin, input: { ownerId: string; projectId: string; domain: string }, deps: LinkDomainDeps): Promise<AddResult> {
@@ -127,6 +142,25 @@ export async function addLinkDomain(admin: Admin, input: { ownerId: string; proj
 
   // 外す途中のドメインがあれば、先に Vercel から外す（枠を空ける）
   await drainLinkDomainRemovals(admin, deps).catch((e) => console.error("[link-domain] 外す途中のドメインを片付けられませんでした", e instanceof Error ? e.message : e));
+
+  // Vercel のプロジェクトにもう付いているドメイン（運営者が手で付けたもの・ほかの利用者のもの）は、枠を取る前に断る。
+  // 枠を取ってから確かめると、その間に利用者が「使うのをやめる」を同時に送ったとき、行を消すトリガーが運営者のドメインを外す列に積めてしまう
+  // （セキュリティの確認 L1。2026-11-22 自動のセキュリティレビューの指摘で、確かめるのを枠を取る前に移した）
+  let attached: boolean;
+  try {
+    attached = await attachedInVercel(deps.vercel, domain);
+  } catch (e) {
+    console.error("[link-domain] Vercel にドメインがあるかを確かめられませんでした", e instanceof Error ? e.message : e);
+    return { ok: false, error: "いまドメインを追加できませんでした。時間をおいてもう一度お試しください。" };
+  }
+  if (attached) {
+    // yabumi の利用者が使っている・外す途中のドメインなら、いままでどおり「ほかの人が使っている」と返す
+    const [{ count: used }, { count: removing }] = await Promise.all([
+      admin.from("link_domains").select("id", { count: "exact", head: true }).eq("domain", domain),
+      admin.from("link_domain_removals").select("domain", { count: "exact", head: true }).eq("domain", domain),
+    ]);
+    return { ok: false, error: (used ?? 0) + (removing ?? 0) > 0 ? CLAIM_ERRORS.taken : IN_USE_ELSEWHERE };
+  }
 
   const { data: claim, error } = await admin.rpc("claim_link_domain", {
     p_owner: input.ownerId,
@@ -140,25 +174,6 @@ export async function addLinkDomain(admin: Admin, input: { ownerId: string; proj
   if (claim !== "ok") {
     if (claim === "limit") await notifyNearLimit(admin, limit, deps, true);
     return { ok: false, error: CLAIM_ERRORS[claim] ?? "ドメインを追加できませんでした。" };
-  }
-
-  // Vercel のプロジェクトにもう付いているドメイン（運営者が手で付けたものなど）は使わない。
-  // 付けられなかったときに行を消すと、トリガーがそのドメインを外す列に積み、運営者のドメインまで外してしまうため（セキュリティの確認 L1）
-  const attached = await deps.vercel.get(domain).then(
-    () => true,
-    (e) => {
-      if (e instanceof VercelApiError && e.status === 404) return false;
-      throw e;
-    },
-  ).catch(async (e) => {
-    console.error("[link-domain] Vercel にドメインがあるかを確かめられませんでした", e instanceof Error ? e.message : e);
-    await discardClaim(admin, input);
-    return null;
-  });
-  if (attached === null) return { ok: false, error: "いまドメインを追加できませんでした。時間をおいてもう一度お試しください。" };
-  if (attached) {
-    await discardClaim(admin, input);
-    return { ok: false, error: IN_USE_ELSEWHERE };
   }
 
   try {
@@ -176,7 +191,8 @@ export async function addLinkDomain(admin: Admin, input: { ownerId: string; proj
       .eq("owner_id", input.ownerId);
     if (updateError) throw updateError;
   } catch (e) {
-    // 409・403: Vercel が「ほかで使われている」と断った。yabumi が付けたものではないので、外す列に積まずに行だけ消す（L1）
+    // 409・403: Vercel が「ほかで使われている」と断った。yabumi が付けたものではないので、外す列に積まずに行だけ消す（L1）。
+    // 枠を取る前に、このプロジェクトに付いていないことは確かめてあるので、万一ここで積まれても、外すのは付いていないもの（404）だけになる
     if (e instanceof VercelApiError && (e.status === 409 || e.status === 403)) {
       await discardClaim(admin, input);
       return { ok: false, error: IN_USE_ELSEWHERE };

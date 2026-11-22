@@ -58,13 +58,18 @@ afterAll(async () => {
 });
 
 describe("L1: yabumi が付けたのではないドメインは外さない", () => {
-  it("Vercel にもう付いている（運営者が手で付けた）ドメインは使えないと返し、行も外す列も残さず、Vercel からも外さない", async () => {
+  it("Vercel にもう付いている（運営者が手で付けた）ドメインは、枠を取る前に使えないと返す。行も外す列も残さず、Vercel からも外さない", async () => {
     const who = await owner();
     const domain = newDomain();
     await control("/__control/vercel-domain", { domain, attached: true });
     const r = await addLinkDomain(admin, { ...who, domain }, deps());
     expect(r).toMatchObject({ ok: false, error: expect.stringContaining(IN_USE) });
     expect(await getLinkDomain(admin, who.projectId)).toBeNull();
+    expect((await admin.from("link_domain_removals").select("domain").eq("domain", domain)).data).toEqual([]);
+    expect(await inVercel(domain)).toBe(true);
+    // 枠を取る前に断るので、行は一度も作られない（同時に「使うのをやめる」を送られても、消す行がなく、外す列に積まれない）
+    expect((await admin.from("link_domain_attempts").select("id", { count: "exact", head: true }).eq("owner_id", who.ownerId)).count).toBe(0);
+    await Promise.all([addLinkDomain(admin, { ...who, domain }, deps()), removeLinkDomain(admin, who, deps())]);
     expect((await admin.from("link_domain_removals").select("domain").eq("domain", domain)).data).toEqual([]);
     expect(await inVercel(domain)).toBe(true);
     expect((await calls())["DELETE /v9/projects/:p/domains/:d"] ?? 0).toBe(0);

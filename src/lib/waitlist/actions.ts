@@ -4,8 +4,7 @@ import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { appUrl } from "@/lib/sns/threads/config";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
-import { isOperatorEmail } from "./operator";
+import { currentOperatorEmail } from "./operator-server";
 import { applyWaitlist, cancelWaitlist, declineWaitlist, inviteFromWaitlist, verifyTurnstileToken } from "./store";
 
 // 招待の申し込み（F19。docs/architecture.md の 4.29）の操作
@@ -53,10 +52,8 @@ export async function cancelAction(formData: FormData) {
 // ===== 運営者の画面（/admin/waitlist） =====
 
 async function requireOperator() {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  const email = typeof data?.claims?.email === "string" ? data.claims.email : null;
-  if (!isOperatorEmail(email)) notFound();
+  const email = await currentOperatorEmail();
+  if (!email) notFound();
 }
 
 const uuid = /^[0-9a-f-]{36}$/;

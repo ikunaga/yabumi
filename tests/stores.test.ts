@@ -2,7 +2,7 @@
 import { generateKeyPairSync, randomBytes, verify } from "node:crypto";
 import { gzipSync } from "node:zlib";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { credentialKeysFromEnv, openCredential, sealCredential } from "@/lib/crypto/credential-cipher";
+import { credentialKeysFromEnv, openCredential, sealCredential, SameKeyError } from "@/lib/crypto/credential-cipher";
 import { appleIdFromUrl, ascJwt, checkAscFormat, fetchDailySales, pacificDate, parseTsv, StoreApiError, summarizeSales } from "@/lib/stores/app-store";
 import { checkRevenueCatFormat, fetchOverview } from "@/lib/stores/revenuecat";
 
@@ -43,6 +43,24 @@ describe("預かる鍵の暗号化", () => {
     const rotated = { current: randomBytes(32), old: [key] };
     expect(openCredential(sealed, "r:app_store_connect", rotated)).toEqual({ plain: "secret", needsReseal: true });
     expect(() => openCredential(sealed, "r:app_store_connect", { current: rotated.current, old: [] })).toThrow(/古い鍵/);
+  });
+
+  it("SNS のトークンの鍵と同じ値なら保存を断り、ログには鍵の値を出さない（セキュリティ確認 2026-11-21 の L5）", () => {
+    const b64 = randomBytes(32).toString("base64");
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const same = credentialKeysFromEnv({ current: b64, token: ` ${b64} ` });
+      expect(() => sealCredential("secret", "r:revenuecat", same)).toThrow(SameKeyError);
+      expect(log).toHaveBeenCalledTimes(1);
+      expect(String(log.mock.calls[0][0])).toContain("CREDENTIAL_ENCRYPTION_KEY");
+      expect(String(log.mock.calls[0][0])).not.toContain(b64);
+      // 別の値なら保存でき、トークンの鍵がなくても保存できる
+      const other = credentialKeysFromEnv({ current: b64, token: randomBytes(32).toString("base64") });
+      expect(openCredential(sealCredential("secret", "r:revenuecat", other), "r:revenuecat", other).plain).toBe("secret");
+      expect(() => sealCredential("secret", "r:revenuecat", credentialKeysFromEnv({ current: b64 }))).not.toThrow();
+    } finally {
+      log.mockRestore();
+    }
   });
 
   it("環境変数から読む（32 バイトでなければ断る）", () => {

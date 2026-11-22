@@ -7,7 +7,7 @@ import { Card, EmptyState } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireUser } from "@/lib/auth/user";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isOperatorEmail } from "@/lib/waitlist/operator";
+import { currentOperatorEmail } from "@/lib/waitlist/operator-server";
 import { listWaitlist } from "@/lib/waitlist/store";
 
 export const metadata: Metadata = { title: "招待の申し込み", robots: { index: false } };
@@ -16,7 +16,7 @@ export const metadata: Metadata = { title: "招待の申し込み", robots: { in
 // ほかの人には、ないページ（404）と同じに見せる
 export default async function WaitlistAdminPage() {
   const user = await requireUser();
-  if (!isOperatorEmail(user.email)) notFound();
+  if (!(await currentOperatorEmail())) notFound();
   const entries = await listWaitlist(createAdminClient());
   const dateFormat = new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
 

@@ -4,17 +4,14 @@ import { notFound } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
-import { isOperatorEmail } from "@/lib/waitlist/operator";
+import { currentOperatorEmail } from "@/lib/waitlist/operator-server";
 import { holdAutoPost, releaseAutoPost, type OperatorResult } from "./holds";
 
 // 運営者の画面（/admin/auto-holds）の操作。運営者（OPERATOR_ADMIN_EMAILS）でなければ 404。だれが止めた・解除したかは、運営者のメールアドレスで残す
 
 async function operatorEmail(): Promise<string> {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  const email = typeof data?.claims?.email === "string" ? data.claims.email : null;
-  if (!email || !isOperatorEmail(email)) notFound();
+  const email = await currentOperatorEmail();
+  if (!email) notFound();
   return email;
 }
 

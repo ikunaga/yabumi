@@ -3,8 +3,7 @@ import { headlineInput, initialHeadline } from "@/lib/media/headline";
 import { SERVER_FONTS } from "@/lib/media/server-fonts";
 import { renderTemplateJpeg } from "@/lib/media/template-render-server";
 import { FONT_KEYS, type FontKey } from "@/lib/media/templates";
-import { createClient } from "@/lib/supabase/server";
-import { isOperatorEmail } from "@/lib/waitlist/operator";
+import { currentOperatorEmail } from "@/lib/waitlist/operator-server";
 
 // サーバーで見出しを描けるかの試し（docs/design/auto-sample-image.md の 11.。段取り ④。Vercel の Preview で @napi-rs/canvas と書体が動くかを確かめる）。
 // 運営者（OPERATOR_ADMIN_EMAILS）だけ。ほかは 404。DB の行・AI・Storage にはつながず、決まった文字を灰色の地に描いて JPEG を返すだけ。
@@ -16,10 +15,8 @@ const W = 1080;
 const H = 1350;
 
 export async function GET(req: Request) {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  const email = typeof data?.claims?.email === "string" ? data.claims.email : null;
-  if (!email || !isOperatorEmail(email)) return new NextResponse("Not Found", { status: 404 });
+  const email = await currentOperatorEmail();
+  if (!email) return new NextResponse("Not Found", { status: 404 });
   const q = new URL(req.url).searchParams.get("font");
   const font: FontKey = (FONT_KEYS as readonly string[]).includes(q ?? "") ? (q as FontKey) : "gothic";
   const started = performance.now();

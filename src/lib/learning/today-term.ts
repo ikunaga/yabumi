@@ -9,7 +9,7 @@ export type LearningSignals = {
   planIncomplete: boolean;
   // 短縮リンクを作った
   usedShortLink: boolean;
-  // ロードマップに目標かやることがある
+  // ロードマップに目標かタスクがある
   hasRoadmap: boolean;
   // Instagram をつないだ
   connectedInstagram: boolean;

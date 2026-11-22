@@ -38,7 +38,7 @@ function weekLabel(weekStart: string, thisWeek: string): string {
 }
 
 // ロードマップ（F10、docs/architecture.md の 4.23・docs/design/goals-model.md の 5.）: いまの目標（KGI）・中間の目標・KPI・週の投稿の本数、
-// 週ごとのやること、これまでの目標
+// 週ごとのタスク、これまでの目標
 export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadmap">) {
   const [{ id }, { done, items: doneItems, reviewed, revise }] = await Promise.all([props.params, props.searchParams]);
   // id だけで読めるので、プロジェクトと並べて読む（待ち時間を縮める）
@@ -57,7 +57,7 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
   const risk = hasKgi && goal ? goalRisk(goal, p) : null;
   const choices = risk && goal ? reviseChoices(goal, risk) : [];
 
-  // いまの目標のやること（目標を替えたとき、今週以降のまだのものは新しい目標に移る）。前の目標のものは「これまでの目標」に
+  // いまの目標のタスク（目標を替えたとき、今週以降のまだのものは新しい目標に移る）。前の目標のものは「これまでの目標」に
   const items = scopeToGoal(allItems, goal?.id ?? null);
   const stateOf = (item: RoadmapItem) => itemState(item, daily);
   const groups: { key: string; label: string; items: RoadmapItem[] }[] = [];
@@ -67,7 +67,7 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
     const key = item.weekStart < thisWeek ? "overdue" : item.weekStart;
     let g = groups.find((x) => x.key === key);
     if (!g) {
-      g = { key, label: key === "overdue" ? "まだ完了していない、前の週のやること" : weekLabel(item.weekStart, thisWeek), items: [] };
+      g = { key, label: key === "overdue" ? "まだ完了していない、前の週のタスク" : weekLabel(item.weekStart, thisWeek), items: [] };
       groups.push(g);
     }
     g.items.push(item);
@@ -87,7 +87,7 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
         title={<Term k="roadmap">ロードマップ</Term>}
         help={
           <>
-            3 か月の成果の目標（<Term k="kgi" />）と 4 週ごとの<Term k="milestone">中間の目標</Term>、そこへ向かう週ごとのやること。途中の数字（<Term k="kpi" />）は、数えられるものから自動で進み具合を出します。
+            3 か月の成果の目標（<Term k="kgi" />）と 4 週ごとの<Term k="milestone">中間の目標</Term>、そこへ向かう週ごとのタスク。途中の数字（<Term k="kpi" />）は、数えられるものから自動で進み具合を出します。
           </>
         }
         actions={ai ? <ButtonLink href={consultHref}>{hasKgi ? "AI と見直す" : "AI と作る"}</ButtonLink> : <NotReadyButton>AI と作る</NotReadyButton>}
@@ -161,7 +161,7 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
           <>
             <Card className="overflow-hidden">
               <CardHeader
-                title="週ごとのやること"
+                title="週ごとのタスク"
                 action={
                   <span className="num text-[14px]">
                     今週 あと {thisWeekTodo} 件・完了 {thisWeekDone} 件
@@ -171,8 +171,8 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
               />
               {groups.length === 0 ? (
                 <EmptyState
-                  title="まだやることがありません"
-                  description="1 週に 1〜3 個、30 分ほどで済むことを置くのがおすすめです。AI と相談すると、目標から週ごとのやることを提案します。"
+                  title="まだタスクがありません"
+                  description="1 週に 1〜3 個、30 分ほどで済むことを置くのがおすすめです。AI と相談すると、目標から週ごとのタスクを提案します。"
                 />
               ) : (
                 groups.map((g) => (
@@ -219,7 +219,7 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
           </>
         }
       />
-      {/* これまでの目標（いちばん下。スマホでも、いまの目標とやることのあと） */}
+      {/* これまでの目標（いちばん下。スマホでも、いまの目標とタスクのあと） */}
       <PastGoals past={goals.past} items={allItems} productType={project.product_type} renderItems={(list) => list.map(row)} />
     </div>
   );

@@ -14,7 +14,7 @@ describe("monthCellLines（月のマスの札）", () => {
     expect(monthCellLines([], posts(5), 5)).toEqual({ todos: [], items: posts(2), more: 3 });
   });
 
-  it("やることも行に数える。やることを先に出す", () => {
+  it("タスクも行に数える。タスクを先に出す", () => {
     expect(monthCellLines(["t1"], posts(2), 2)).toEqual({ todos: ["t1"], items: posts(2), more: 0 });
     expect(monthCellLines(["t1"], posts(3), 3)).toEqual({ todos: ["t1"], items: posts(1), more: 2 });
     expect(monthCellLines(["t1", "t2", "t3", "t4"], posts(1), 1)).toEqual({ todos: ["t1", "t2"], items: [], more: 3 });

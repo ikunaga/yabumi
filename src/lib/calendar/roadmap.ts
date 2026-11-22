@@ -14,11 +14,11 @@ import { toCalendarTodo, type WeekBand, type WeekGoal } from "./roadmap-view";
 
 export type { CalendarTodo, WeekBand, WeekGoal } from "./roadmap-view";
 
-// カレンダーに出すロードマップのやることと、週の目標（F06・F10。docs/architecture.md の 4.23）。
-// やることは週の帯（月の表示は各週の行の上、週の表示は 7 日の上）に、予定日のあるものはその日のマスにも出す。
-// 進み具合は DB で数える（やること: roadmap_item_progress、週の目標: post_counts_by_day。伴走のペースと同じ計算）
+// カレンダーに出すロードマップのタスクと、週の目標（F06・F10。docs/architecture.md の 4.23）。
+// タスクは週の帯（月の表示は各週の行の上、週の表示は 7 日の上）に、予定日のあるものはその日のマスにも出す。
+// 進み具合は DB で数える（タスク: roadmap_item_progress、週の目標: post_counts_by_day。伴走のペースと同じ計算）
 
-// カレンダーで 1 度に読むやることの上限（1 プロジェクトのやることは 200 まで。6 週分なら届かない）
+// カレンダーで 1 度に読むタスクの上限（1 プロジェクトのタスクは 200 まで。6 週分なら届かない）
 const MAX_TODOS = 300;
 
 // 見出しの横に小さく出す中間の目標（その期間に重なる区切り）

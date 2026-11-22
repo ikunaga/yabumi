@@ -10,9 +10,9 @@ import { effectiveStatus, formatValue, kpiLabel } from "@/lib/roadmap/schema";
 import { todoAction } from "@/lib/roadmap/todo-kind";
 import { addDays, dayOfMonth, monthOf, weekdayLabel } from "@/lib/time";
 
-// やること 1 つ。チェックで済みにする。数字と結びついていれば、数字から進み具合を出す（済みにするのは利用者）。
-// 予定日（任意。その週の中の日）を選べ、カレンダーのその日に出る。「この内容で投稿をつくる」で、作った投稿をこのやることに結びつける。
-// 投稿しないやることは、種類に合う画面へのリンク（振り返る・プロフィールの案を見るなど。4.42）。ほかの画面の「ロードマップで見る」は、この行（#item-<id>）に来る
+// タスク 1 つ。チェックで済みにする。数字と結びついていれば、数字から進み具合を出す（済みにするのは利用者）。
+// 予定日（任意。その週の中の日）を選べ、カレンダーのその日に出る。「この内容で投稿をつくる」で、作った投稿をこのタスクに結びつける。
+// 投稿しないタスクは、種類に合う画面へのリンク（振り返る・プロフィールの案を見るなど。4.42）。ほかの画面の「ロードマップで見る」は、この行（#item-<id>）に来る
 export function RoadmapItemRow({
   projectId,
   item,
@@ -34,7 +34,7 @@ export function RoadmapItemRow({
       const res = await fn();
       if (res.error) setError(res.error);
     });
-  // 数字が目標に届いた（まだのやることでも「達成」。済みのチェックは手で付けられるまま）
+  // 数字が目標に届いた（まだのタスクでも「達成」。済みのチェックは手で付けられるまま）
   const state = effectiveStatus(item, progress);
   const action = todoAction(`/projects/${projectId}`, item, { aiEnabled });
 

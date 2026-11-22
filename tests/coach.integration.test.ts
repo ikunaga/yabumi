@@ -186,7 +186,7 @@ describe("配信の停止と RLS", () => {
   });
 });
 
-describe("予定日を過ぎたやること（ロードマップ）", () => {
+describe("予定日を過ぎたタスク（ロードマップ）", () => {
   let carol: TestClient;
   let carolId: string;
   let p3: string;
@@ -220,10 +220,10 @@ describe("予定日を過ぎたやること（ロードマップ）", () => {
     await deleteUser(carolId);
   });
 
-  it("週の回数を決めていなくても、予定日を過ぎたのに投稿のないやることを、1 通にまとめて 1 回だけ知らせる", async () => {
+  it("週の回数を決めていなくても、予定日を過ぎたのに投稿のないタスクを、1 通にまとめて 1 回だけ知らせる", async () => {
     const out = await runCoachJob(admin, { now: THU, appUrl: "https://yabumi.test", deps, ownerId: carolId });
     expect(out).toEqual([{ projectId: p3, overdue: { email: "sent", push: "sent" } }]);
-    expect(mails.at(-1)!.subject).toBe("予定日を過ぎたやることが 1 件あります（予定日のテスト）");
+    expect(mails.at(-1)!.subject).toBe("予定日を過ぎたタスクが 1 件あります（予定日のテスト）");
     const { data: log } = await admin.from("notification_log").select("kind, period_key, channel").eq("user_id", carolId).order("channel");
     expect(log).toEqual([
       { kind: "overdue", period_key: itemId, channel: "email" },

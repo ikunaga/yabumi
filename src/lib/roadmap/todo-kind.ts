@@ -1,7 +1,7 @@
 import { projectSettingsHref } from "@/lib/projects/paths";
 
-// やることの種類と、押したときの行き先（docs/architecture.md の 4.42）。
-// 2026-11-03 まで、やることはどれも「投稿をつくる」に移っていた（振り返り・プロフィールを整えるなど、投稿しないやることでも。オーナーの指摘）
+// タスクの種類と、押したときの行き先（docs/architecture.md の 4.42）。
+// 2026-11-03 まで、タスクはどれも「投稿をつくる」に移っていた（振り返り・プロフィールを整えるなど、投稿しないタスクでも。オーナーの指摘）
 
 export const TODO_KINDS = ["post", "review", "setup", "other"] as const;
 export type TodoKind = (typeof TODO_KINDS)[number];
@@ -12,10 +12,10 @@ export function isTodoKind(v: unknown): v is TodoKind {
 
 type TodoText = { kpi?: string | null; title: string; detail?: string | null };
 
-// 設定・準備のやることの行き先（題名と説明の言葉から決める）。決まらなければ null
+// 設定・準備のタスクの行き先（題名と説明の言葉から決める）。決まらなければ null
 type SetupTarget = { path: (base: string, projectId: string) => string; label: string };
 const SETUP_TARGETS: { re: RegExp; target: SetupTarget }[] = [
-  // プロフィールのやることの行き先は、yabumi のアカウント設計の「名前とプロフィール」（SNS ごとの案と、プロフィールに置く短縮リンク）。
+  // プロフィールのタスクの行き先は、yabumi のアカウント設計の「名前とプロフィール」（SNS ごとの案と、プロフィールに置く短縮リンク）。
   // 名前は「〜の案」「置くリンク」にして、SNS（Instagram など）のプロフィールが開くと読めないようにする
   // （2026-11-12 PMO の本番での通しテスト: 「…短縮リンクを、Instagram のプロフィールに置く」の横の「プロフィールを開く」が、Instagram が開くと読めた）
   { re: /(?:プロフィール|自己紹介)[^\n]*(?:リンク|URL)|(?:リンク|URL)[^\n]*(?:プロフィール|自己紹介)/i, target: { path: (b) => `${b}/plan?open=profile#plan-profile-head`, label: "置くリンクを見る" } },
@@ -23,9 +23,9 @@ const SETUP_TARGETS: { re: RegExp; target: SetupTarget }[] = [
   { re: /短縮リンク/, target: { path: (b) => `${b}/links`, label: "短縮リンクを開く" } },
   { re: /ハッシュタグ/, target: { path: (b) => `${b}/plan?open=hashtags#plan-hashtags-head`, label: "方針を開く" } },
   { re: /投稿の柱|口調/, target: { path: (b) => `${b}/plan?open=pillars#plan-pillars-head`, label: "方針を開く" } },
-  // ストア・GitHub は、yabumi の「ストアと課金をつなぐ」「GitHub をつなぐ」の画面が役に立つやること（つなぐ・数字を取り込む）だけ、その画面へ。
+  // ストア・GitHub は、yabumi の「ストアと課金をつなぐ」「GitHub をつなぐ」の画面が役に立つタスク（つなぐ・数字を取り込む）だけ、その画面へ。
   // ボタンはその画面ですることの名前（「ストアをつなぐ」「GitHub をつなぐ」）。スクリーンショットを差し替える・README を整えるなど、
-  // App Store・GitHub の側でするやることは、yabumi の画面では進まないので行き先を作らない（ロードマップのその行と「済みにする」）。
+  // App Store・GitHub の側でするタスクは、yabumi の画面では進まないので行き先を作らない（ロードマップのその行と「済みにする」）。
   // 前は「ストアを開く」「GitHub を開く」で、App Store・GitHub が開くと読め、押してもすることにつながらなかった（2026-11-12 PMO の本番での通しテスト）
   { re: /(?:ストア|App Store|Google Play|課金|RevenueCat)[^\n]*(?:つな|連携|取り込|接続)|(?:つな|連携|取り込|接続)[^\n]*(?:ストア|App Store|Google Play|課金|RevenueCat)/i, target: { path: (b) => `${b}/stores`, label: "ストアをつなぐ" } },
   { re: /(?:GitHub|リポジトリ)[^\n]*(?:つな|連携|接続)|(?:つな|連携|接続)[^\n]*(?:GitHub|リポジトリ)/i, target: { path: (b) => `${b}/github`, label: "GitHub をつなぐ" } },
@@ -41,7 +41,7 @@ const REVIEW = /振り返|数字を見|数字を確か|分析/;
 const RECHECK = /見直/;
 const POST = /投稿|ポスト|リール|ストーリーズ|ショート|動画|書く|書いて|載せ|発信/;
 
-// 種類のないやること（2026-11-03 より前に作ったもの・手で足したもの）は、数字と題名・説明から推す。
+// 種類のないタスク（2026-11-03 より前に作ったもの・手で足したもの）は、数字と題名・説明から推す。
 // 投稿した回数を追うものは投稿、振り返り・数字を見るものは振り返り、行き先の画面が決まる設定は設定。推せなければ other
 export function inferTodoKind(item: TodoText): TodoKind {
   if (item.kpi === "posts") return "post";
@@ -72,7 +72,7 @@ export function todoAction(
       return { kind: "post", href: `${base}/compose?item=${item.id}`, label: "投稿をつくる" };
     case "review":
       // 分析の期間は 7 日と 30 日。4 週・1 か月の振り返りなら 30 日。
-      // AI と振り返るときは、どのやることから来たかを渡す（相談を終えたら、そのやることを済みにする。4.23）
+      // AI と振り返るときは、どのタスクから来たかを渡す（相談を終えたら、そのタスクを済みにする。4.23）
       return aiEnabled
         ? { kind: "review", href: `${base}/consult/new?start=review&item=${item.id}`, label: "AI と振り返る" }
         : { kind: "review", href: `${base}/metrics${/[4４]\s*週|1\s*か月|ひと月|1\s*ヶ月|月の/.test(text) ? "?days=30" : ""}`, label: "分析を見る" };

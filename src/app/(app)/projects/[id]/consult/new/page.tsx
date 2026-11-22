@@ -31,7 +31,7 @@ export default async function ConsultNewPage(props: PageProps<"/projects/[id]/co
   const quota = await getAiBudgetState();
   const aiBlocked = quota !== null && aiBlockedText(quota) !== null;
   const topic = isConsultTopic(sp.start) ? sp.start : null;
-  // 振り返りのやることから来たとき（?item=）。本人の今週・来週の振り返りのやることかは、送るときにサーバーが確かめる
+  // 振り返りのタスクから来たとき（?item=）。本人の今週・来週の振り返りのタスクかは、送るときにサーバーが確かめる
   const itemId = topic === "review" && typeof sp.item === "string" && isUuid(sp.item) ? sp.item : null;
   // 目標の振り返り（概要の帯から。?goal=）。本人の active で期限が来た・届いた目標かは、送るときにサーバーが確かめる
   const goalId = topic === "goal_review" && typeof sp.goal === "string" && isUuid(sp.goal) ? sp.goal : null;

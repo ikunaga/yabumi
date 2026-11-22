@@ -61,7 +61,7 @@ export function WeekGrid({
       </div>
       {hasTodos && (
         <div className={`${cols} border-b border-line`}>
-          <div className="border-r border-line bg-surface2 px-1 py-2 text-center text-[12px] text-faint">やること</div>
+          <div className="border-r border-line bg-surface2 px-1 py-2 text-center text-[12px] text-faint">タスク</div>
           {days.map((d, i) => (
             <div key={d} className={`flex min-w-0 flex-col gap-1 p-1.5 ${i < 6 ? "border-r border-line" : ""}`}>
               {(todosByDay.get(d) ?? []).map((t) => (

@@ -12,7 +12,7 @@ const WEEKDAYS = ["月", "火", "水", "木", "金", "土", "日"];
 const MAX_DOTS = 3;
 
 // スマホの月の表示: マスには日付と印（点）だけを出し、押した日の投稿を下に並べる（マスが小さく、文字を入れると読めないため）。
-// ロードマップのやることと週の目標は、押した日の週の帯として下に出す。予定日のあるやることは、マスに四角の印、下の一覧の先頭に出す
+// ロードマップのタスクと週の目標は、押した日の週の帯として下に出す。予定日のあるタスクは、マスに四角の印、下の一覧の先頭に出す
 export function MonthMobile({ days, base, initial, bands, today }: { days: MonthDay[]; base: string; initial: string; bands: (WeekBand | undefined)[]; today: string }) {
   const [selected, setSelected] = useState(initial);
   const day = days.find((d) => d.ymd === selected) ?? days[0];
@@ -69,7 +69,7 @@ export function MonthMobile({ days, base, initial, bands, today }: { days: Month
         {days.some((c) => c.todos.length > 0) && (
           <span className="inline-flex items-center gap-1">
             <span className="size-1.5 rounded-[1px] border border-primary bg-primary-soft" />
-            やること
+            タスク
           </span>
         )}
         {(["scheduled", "posted", "draft", ...(days.some((c) => c.items.some((it) => it.status === "failed")) ? (["failed"] as const) : [])] as const).map((s) => (

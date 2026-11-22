@@ -1,4 +1,4 @@
-// 数字の目標に届いたやることは「達成」（済みと同じに数える。DB の status は書き換えず、読むときに決める。オーナーの指摘 2026-11-03）
+// 数字の目標に届いたタスクは「達成」（済みと同じに数える。DB の status は書き換えず、読むときに決める。オーナーの指摘 2026-11-03）
 import { describe, expect, it } from "vitest";
 import { toCalendarTodo } from "@/lib/calendar/roadmap-view";
 import { overdueItems, weekTodoCounts, thisWeekTodos, type RoadmapItem, type RoadmapView } from "@/lib/roadmap/load";
@@ -7,7 +7,7 @@ import { effectiveStatus, itemProgress } from "@/lib/roadmap/schema";
 const WEEK = "2026-11-02";
 const item = (over: Partial<RoadmapItem>): RoadmapItem => ({
   id: "i",
-  title: "やること",
+  title: "タスク",
   kind: "post",
   goalId: null,
   detail: "",
@@ -24,7 +24,7 @@ const item = (over: Partial<RoadmapItem>): RoadmapItem => ({
 const posts = (published: number) => ({ published, scheduled: 0, linkedPublished: 0, linkedScheduled: 0 });
 
 describe("達成の決め方（effectiveStatus）", () => {
-  it("自動で数える数字が目標に届いたまだのやることは達成。届かなければまだ", () => {
+  it("自動で数える数字が目標に届いたまだのタスクは達成。届かなければまだ", () => {
     expect(effectiveStatus({ status: "todo" }, { actual: 5, target: 3 })).toBe("achieved");
     expect(effectiveStatus({ status: "todo" }, { actual: 3, target: 3 })).toBe("achieved");
     expect(effectiveStatus({ status: "todo" }, { actual: 2, target: 3 })).toBe("todo");
@@ -47,8 +47,8 @@ describe("達成の決め方（effectiveStatus）", () => {
   });
 });
 
-// 2026-11-12 PMO の本番での通しテスト: 数字のない投稿のやることは、ここから投稿をつくって送っても「まだ」に残った
-describe("数字で数えないやることは、ここから作った投稿を送ったら達成", () => {
+// 2026-11-12 PMO の本番での通しテスト: 数字のない投稿のタスクは、ここから投稿をつくって送っても「まだ」に残った
+describe("数字で数えないタスクは、ここから作った投稿を送ったら達成", () => {
   const linked = (linkedPublished: number, linkedScheduled = 0) => ({ published: linkedPublished, scheduled: linkedScheduled, linkedPublished, linkedScheduled });
 
   it("結びついた投稿の配信先が 1 つ以上送信済みなら達成。予約だけ・なしはまだ", () => {
@@ -58,12 +58,12 @@ describe("数字で数えないやることは、ここから作った投稿を�
     expect(effectiveStatus(item({ posts: null }), null)).toBe("todo");
   });
 
-  it("手で数える数字（フォロワーなど）のやることも、ここから作った投稿を送れば達成", () => {
+  it("手で数える数字（フォロワーなど）のタスクも、ここから作った投稿を送れば達成", () => {
     const manual = item({ kind: "other", kpi: "followers", target: 10, posts: linked(1) });
     expect(effectiveStatus(manual, itemProgress(manual, []))).toBe("achieved");
   });
 
-  it("自動で数える数字があるやることは、その数字で決める（結びついた投稿を送っても、目標に届かなければまだ）", () => {
+  it("自動で数える数字があるタスクは、その数字で決める（結びついた投稿を送っても、目標に届かなければまだ）", () => {
     const three = item({ kpi: "posts", target: 3, posts: linked(1) });
     expect(effectiveStatus(three, itemProgress(three, []))).toBe("todo");
   });
@@ -74,7 +74,7 @@ describe("数字で数えないやることは、ここから作った投稿を�
   });
 });
 
-describe("今週のやること（概要の帯・残りの一覧・件数）", () => {
+describe("今週のタスク（概要の帯・残りの一覧・件数）", () => {
   // オーナーの ddy: 「X と Instagram に合わせて 3 本投稿」は 5 / 3 で達成。ほかに 2 件まだ、1 件済み、1 件やらない
   const view: RoadmapView = {
     today: "2026-11-03",
@@ -90,20 +90,20 @@ describe("今週のやること（概要の帯・残りの一覧・件数）", (
     ],
   };
 
-  it("先頭は達成していないやること。件数は達成と済みを除いた数で、上限で切らない", () => {
+  it("先頭は達成していないタスク。件数は達成と済みを除いた数で、上限で切らない", () => {
     expect(thisWeekTodos(view).map((t) => t.id)).toEqual(["b", "c"]);
     expect(weekTodoCounts(view)).toEqual({ open: 2, finished: 2, carried: 0 });
     expect(thisWeekTodos(view, null, 1).map((t) => t.id)).toEqual(["b"]);
   });
 
-  it("全部が達成か済みなら、まだのやることは 0 件（帯は「今週のやることは、すべて完了しました」）", () => {
+  it("全部が達成か済みなら、まだのタスクは 0 件（帯は「今週のタスクは、すべて完了しました」）", () => {
     const done: RoadmapView = { ...view, items: view.items.filter((i) => ["a", "d", "e"].includes(i.id)) };
     expect(thisWeekTodos(done)).toEqual([]);
     expect(weekTodoCounts(done)).toEqual({ open: 0, finished: 2, carried: 0 });
   });
 });
 
-describe("カレンダーの印と予定日を過ぎたやること", () => {
+describe("カレンダーの印と予定日を過ぎたタスク", () => {
   const reached = item({ id: "a", kpi: "posts", target: 3, posts: posts(3), plannedOn: "2026-11-02" });
 
   it("カレンダーでは達成（✓）。予定日を過ぎても、達成していれば声をかけない", () => {

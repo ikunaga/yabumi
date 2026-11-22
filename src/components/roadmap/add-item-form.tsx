@@ -9,7 +9,7 @@ import { AUTO_KPIS, kpiChoices, MAX_ITEM_TITLE } from "@/lib/roadmap/schema";
 const input =
   "rounded-md border border-input bg-surface px-2.5 py-1.5 text-sm text-fg outline-none focus:border-primary focus:shadow-[0_0_0_1px_var(--primary)] max-sm:text-[16px]";
 
-// やることを 1 つ足す。週は選べる週（今週から 8 週先まで）から
+// タスクを 1 つ足す。週は選べる週（今週から 8 週先まで）から
 export function AddItemForm({ projectId, weeks }: { projectId: string; weeks: { value: string; label: string }[] }) {
   const [state, action, pending] = useActionState<RoadmapFormState, FormData>(guardAction(addItemForm.bind(null, projectId), (m) => ({ error: m })), {});
   const form = useRef<HTMLFormElement>(null);
@@ -20,7 +20,7 @@ export function AddItemForm({ projectId, weeks }: { projectId: string; weeks: { 
     <form ref={form} action={action} className="flex flex-col gap-2 px-6 py-4 text-sm max-sm:px-4">
       <div className="flex flex-wrap items-end gap-2">
         <label className="flex min-w-[220px] flex-1 flex-col gap-1 text-xs text-muted">
-          やること
+          タスク
           <input name="title" required maxLength={MAX_ITEM_TITLE} placeholder="例: 投稿の柱「詰まった・直した」で 1 本書く" className={`${input} w-full`} />
         </label>
         <label className="flex flex-col gap-1 text-xs text-muted">

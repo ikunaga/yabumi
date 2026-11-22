@@ -135,19 +135,19 @@ describe("知らせの中身", () => {
     expect(mailFooter(ctx)).toContain("SNS ごとに決めた週の本数と、今週投稿した数をもとに");
   });
 
-  it("予定日を過ぎたやること: 件数・やること（5 件まで）・ロードマップへ。遅れそうな日は同じ知らせに入れる。月曜は先週の件数", () => {
-    const items = Array.from({ length: 6 }, (_, i) => ({ id: `i${i}`, title: `やること ${i}`, plannedOn: "2026-10-13" }));
+  it("予定日を過ぎたタスク: 件数・タスク（5 件まで）・ロードマップへ。遅れそうな日は同じ知らせに入れる。月曜は先週の件数", () => {
+    const items = Array.from({ length: 6 }, (_, i) => ({ id: `i${i}`, title: `タスク ${i}`, plannedOn: "2026-10-13" }));
     const m = overdueMessage(items, ctx);
-    expect(m.email.subject).toBe("予定日を過ぎたやることが 6 件あります（かけいぼ日和）");
-    expect(m.email.text).toContain("・10/13 やること 0");
+    expect(m.email.subject).toBe("予定日を過ぎたタスクが 6 件あります（かけいぼ日和）");
+    expect(m.email.text).toContain("・10/13 タスク 0");
     expect(m.email.text).toContain("・ほか 1 件");
     expect(m.email.text).toContain("https://yabumi.app/projects/p1/roadmap");
     expect(m.push).toMatchObject({ url: "/projects/p1/roadmap", tag: "pace:p1" });
     const p = computeWeekPace({ targets: { x: 1 }, counts: {}, today: "2026-10-14", weekStart: MON });
-    expect(behindMessage(p, ctx, items.slice(0, 1)).email.text).toContain("予定日を過ぎたやることが 1 件あります");
+    expect(behindMessage(p, ctx, items.slice(0, 1)).email.text).toContain("予定日を過ぎたタスクが 1 件あります");
     expect(behindMessage(p, ctx).email.text).not.toContain("予定日を過ぎた");
     const w = weeklyMessage({ lastWeek: null, thisWeekTargets: { x: 1 }, streak: 0, cycle: null, justEnded: false, lastWeekOverdue: 2 }, ctx);
-    expect(w.email.text).toContain("■ 先週、予定日を過ぎたやること: 2 件");
+    expect(w.email.text).toContain("■ 先週、予定日を過ぎたタスク: 2 件");
   });
 
   it("先週、新しく伸びた投稿があれば 1 行と、伸びた投稿の画面へのリンク（なければ出さない。通知の本文には入れない）", () => {

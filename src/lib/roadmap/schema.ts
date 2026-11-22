@@ -12,7 +12,7 @@ export const MAX_KPI_TARGETS = 6;
 export const MAX_ITEMS_PER_PROPOSAL = 8;
 export const MAX_ITEM_TITLE = 100;
 export const MAX_ITEM_DETAIL = 1000;
-// 1 つのプロジェクトに置けるやることの数（AI の案を何度も採用して増えすぎないように）
+// 1 つのプロジェクトに置けるタスクの数（AI の案を何度も採用して増えすぎないように）
 export const MAX_ITEMS_PER_PROJECT = 200;
 
 // いま自動で数えられる数字（roadmap_daily_totals）。ほかは取り込みができたら（4.22）
@@ -53,7 +53,7 @@ export type KpiTarget = z.infer<typeof kpiTargetsSchema>[number];
 
 export const itemSchema = z
   .object({
-    title: z.string().trim().min(1, "やることを書いてください").max(MAX_ITEM_TITLE, `やることは ${MAX_ITEM_TITLE} 字以内にしてください`),
+    title: z.string().trim().min(1, "タスクを書いてください").max(MAX_ITEM_TITLE, `タスクは ${MAX_ITEM_TITLE} 字以内にしてください`),
     detail: z.string().trim().max(MAX_ITEM_DETAIL).default(""),
     week_start: monday,
     kpi: z.enum(KPI_KEYS).nullable().default(null),
@@ -105,11 +105,11 @@ export function kpiLabel(kpi: KpiKey, sns: SnsKey | null | undefined): string {
   return kpi === "posts" ? `${KPIS.posts.label}（${sns ? SNS[sns].label : "すべての SNS"}）` : KPIS[kpi].label;
 }
 
-// やることに数える投稿（DB の roadmap_item_progress）。published・scheduled は、その週の投稿と結びついた投稿を重ならないように数えたもの。
-// linked* はそのうち、やることから作った（結びついた）投稿のもの
+// タスクに数える投稿（DB の roadmap_item_progress）。published・scheduled は、その週の投稿と結びついた投稿を重ならないように数えたもの。
+// linked* はそのうち、タスクから作った（結びついた）投稿のもの
 export type ItemPostCounts = { published: number; scheduled: number; linkedPublished: number; linkedScheduled: number };
 
-// やることの進み具合（その週の数字）。自動で数えられない数字は null。
+// タスクの進み具合（その週の数字）。自動で数えられない数字は null。
 // 投稿した回数は、DB で数えたもの（posts）があればそれを使う（結びついた投稿が週のあとに送られても数える）
 export function itemProgress(
   item: { weekStart: string; kpi: KpiKey | null; target: number | null; sns?: SnsKey | null; posts?: ItemPostCounts | null },
@@ -120,12 +120,12 @@ export function itemProgress(
   return { actual: sumBetween(daily, item.kpi, item.weekStart, addDays(item.weekStart, 6), item.sns ?? null), target: item.target };
 }
 
-// やることの、読むときの状態。自動で数える数字（AUTO_KPIS）が付いたまだのやることは、その週の数字が目標に届いたら「達成」（achieved）。
+// タスクの、読むときの状態。自動で数える数字（AUTO_KPIS）が付いたまだのタスクは、その週の数字が目標に届いたら「達成」（achieved）。
 // DB の status は書き換えない（数字があとで減ったら「まだ」に戻る）。済み（done）・やらない（skipped）は手で決めたまま。
-// 達成は「済み」と同じに数える（今週の件数・概要の帯の先頭・プロジェクトの一覧・カレンダー・予定日を過ぎたやること。オーナーの指摘 2026-11-03）。
-// 数字で数えないやること（自動で数える数字がない・目標の値がない。progress が null）は、そのやることから作った投稿（posts.roadmap_item_id で
+// 達成は「済み」と同じに数える（今週の件数・概要の帯の先頭・プロジェクトの一覧・カレンダー・予定日を過ぎたタスク。オーナーの指摘 2026-11-03）。
+// 数字で数えないタスク（自動で数える数字がない・目標の値がない。progress が null）は、そのタスクから作った投稿（posts.roadmap_item_id で
 // 結びついた投稿）の配信先が 1 つ以上送信済み（published）になったら「達成」。予約だけ・失敗だけでは達成にしない
-// （2026-11-12 PMO の本番での通しテスト: 数字のない投稿のやることは、ここから投稿をつくって送っても、手でチェックするまで「まだ」に残った）。
+// （2026-11-12 PMO の本番での通しテスト: 数字のない投稿のタスクは、ここから投稿をつくって送っても、手でチェックするまで「まだ」に残った）。
 // DB で数えるプロジェクトの一覧（project_step_flags）も同じ決め方
 export type ItemState = "todo" | "done" | "skipped" | "achieved";
 export function effectiveStatus(item: { status: "todo" | "done" | "skipped"; posts?: ItemPostCounts | null }, progress: { actual: number; target: number } | null): ItemState {

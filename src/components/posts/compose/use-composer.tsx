@@ -62,7 +62,7 @@ export type ComposerInitial = {
   videoRemoved?: { durationMs: number } | null;
   // 本文の URL を短縮リンクにするか（新しい投稿はオン。4.22、D20）
   shortLinks?: boolean;
-  // ロードマップのやることから作るとき（4.23）。題と説明を、本文の下書きの手がかりとして出す
+  // ロードマップのタスクから作るとき（4.23）。題と説明を、本文の下書きの手がかりとして出す
   roadmapItem?: { id: string; title: string; detail: string } | null;
   // 引用する X の投稿の id（X で人気の投稿から作った下書き。4.52）。X の画面で利用者が送る
   quotePostId?: string | null;
@@ -316,7 +316,7 @@ export function useComposer({
   // 書き始めたときの保存してある値（控えに添え、次に開いたときに保存し直されていないかを見る）
   const draftBase = useMemo(() => postDraftBase(initialDraft), [initialDraft]);
   // 利用者が欄に書いた（キーボード・音声）か。ボタンで入れた値（行き先の URL・プロフィールのリンクの一言・SNS ごとの文面を作る・AI で整えた案・
-  // やることやネタ帳から入れる）だけなら控えない（2026-11-09 オーナーの指摘「下書きとかした記憶ないのに、しょっちゅう残っている」）
+  // タスクやネタ帳から入れる）だけなら控えない（2026-11-09 オーナーの指摘「下書きとかした記憶ないのに、しょっちゅう残っている」）
   const typed = useRef(false);
   const markTyped = () => {
     typed.current = true;

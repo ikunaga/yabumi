@@ -26,7 +26,7 @@ function storeLabel(p: { product_type?: string | null; app_store_url: string | n
 export default async function ProjectsPage(props: PageProps<"/projects">) {
   const { sns_error, done } = await props.searchParams;
   const [user, projects] = await Promise.all([requireUser(), listProjects()]);
-  // 次にやることの判定は概要と同じ値で（まとめて取る。src/lib/projects/step-state.ts）
+  // 次のタスクの判定は概要と同じ値で（まとめて取る。src/lib/projects/step-state.ts）
   const states = await loadStepStates(projects);
 
   return (
@@ -96,7 +96,7 @@ export default async function ProjectsPage(props: PageProps<"/projects">) {
                     href={`/projects/${p.id}`}
                     className="flex items-center gap-2 border-t border-line px-6 py-3 text-[15px] hover:bg-surface2 hover:no-underline max-sm:px-4"
                   >
-                    <span className="shrink-0 rounded-full bg-subtle px-2.5 py-0.5 text-xs font-bold text-muted">いまやること</span>
+                    <span className="shrink-0 rounded-full bg-subtle px-2.5 py-0.5 text-xs font-bold text-muted">いまのタスク</span>
                     <b className="line-clamp-2 min-w-0 break-words [word-break:auto-phrase]">{next.label}</b>
                     <span aria-hidden className="ml-auto text-faint">
                       →

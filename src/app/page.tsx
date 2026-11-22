@@ -52,7 +52,7 @@ const steps = [
   { title: "方針を決める", short: "AI と話して誰に・何を発信するか決める", body: "AI と話しながら、誰に・何のために・どんな名前で・どんな投稿をするかを決めます。マーケティングの用語は、出てきたときに解説します。" },
   { title: "つなぐ", short: "使う SNS のアカウントをつなぐ", body: "使う SNS のアカウントをつなぎます。note・Substack は、文面を用意して手動で投稿する形で使えます。" },
   { title: "投稿する", short: "下書きをつくってまとめて予約", body: "ネタ帳や AI の案から下書きをつくり、AI っぽさをチェックして、まとめて予約します。" },
-  { title: "振り返る", short: "数字を見て次の週のやることを決める", body: "数字を見ながら AI と相談し、ロードマップと次の週のやることを決めます。" },
+  { title: "振り返る", short: "数字を見て次の週のタスクを決める", body: "数字を見ながら AI と相談し、ロードマップと次の週のタスクを決めます。" },
 ];
 
 type Feature = { name: string; title: string; body: string; shot?: { name: string; alt: string } };
@@ -63,14 +63,14 @@ const features: Feature[] = [
   { name: "notes", title: "ネタ帳と AI のネタ出し", body: "思いついたことを写真 1 枚と一緒に残し、AI がメモから投稿の案を出します（アプリや Web のサービスなら GitHub の更新からも）。", shot: { name: "notes", alt: "ネタ帳の画面。まだ使っていないメモの一覧" } },
   { name: "metrics", title: "分析と振り返り", body: "閲覧から、リンク先へのクリック・成果までを 1 枚で。数字の読み方と次の一手を、やさしい言葉で添えます。", shot: { name: "metrics", alt: "分析の画面。投稿の閲覧と、リンク先へのクリックの数字" } },
   { name: "plan", title: "アカウントの方針と AI と相談", body: "誰に向けて何を発信するかを、AI が質問しながら一緒に整理します。決めたことはロードマップの目標になります。", shot: { name: "plan", alt: "アカウントの方針の画面。項目ごとの決めたこと" } },
-  { name: "coach", title: "ペースのお知らせ", body: "週に何本投稿するか決めると、あと何本で届くかを毎日見ます。遅れそうなら知らせます。", shot: { name: "coach", alt: "yabumi の「ホーム」。今週のペースと「いまやること」が出ます" } },
+  { name: "coach", title: "ペースのお知らせ", body: "週に何本投稿するか決めると、あと何本で届くかを毎日見ます。遅れそうなら知らせます。", shot: { name: "coach", alt: "yabumi の「ホーム」。今週のペースと「いまのタスク」が出ます" } },
 ];
 
 const moreFeatures = [
   { title: "AI っぽさチェック", body: "AI が書いたような言い回しを見つけ、理由と書き換えの案を出します。" },
   { title: "画像をつくる", body: "文字のカード、図解、写真に見出しを添えた画像を、テンプレートでつくれます。" },
   { title: "短縮リンク", body: "SNS ごとのリンクで、どこから何人来たかを数えます。自分のドメインでも作れます。" },
-  { title: "ロードマップ", body: "目標と、週ごとにやることを並べて、進み具合を見られます。" },
+  { title: "ロードマップ", body: "目標と、週ごとにタスクを並べて、進み具合を見られます。" },
   { title: "GitHub からの下書き", body: "アプリを宣伝するときは、リポジトリをつなぐと、紹介文や更新を伝える投稿の案をつくります。" },
   { title: "ストアの数字", body: "アプリを宣伝するときは、App Store・Google Play・RevenueCat の数字を取り込み、投稿の効果と並べて見られます。" },
 ];
@@ -85,7 +85,7 @@ const sns: { group: string; items: SnsKey[]; ready: boolean }[] = [
 const facts = [
   { label: "まとめて予約", value: "4", unit: "つの SNS", note: "X・Threads・Instagram・Facebook ページ" },
   { label: "手動で投稿", value: "2", unit: "つの SNS", note: "note・Substack（文面を用意）" },
-  { label: "最初にやること", value: "4", unit: "段", note: "方針 → つなぐ → 投稿 → 振り返り" },
+  { label: "最初のステップ", value: "4", unit: "つ", note: "方針 → つなぐ → 投稿 → 振り返り" },
   { label: "いまの料金", value: "0", unit: "円", note: "招待制の試用。勝手に請求は始まりません" },
 ];
 

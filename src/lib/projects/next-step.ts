@@ -1,7 +1,7 @@
 import { projectSettingsHref } from "./paths";
 
-// プロジェクトごとの「いまやること」。最初の 4 段階を順に案内する（設計 → つなぐ → 最初の投稿 → 目標とロードマップ。要求 F15・F10、決定 D12）。
-// 4 段階が済んだら、概要は「いまやること」の代わりに「今週のやること」（ロードマップ）を出す（docs/architecture.md の 4.23）
+// プロジェクトごとの「いまのタスク」。最初の 4 段階を順に案内する（設計 → つなぐ → 最初の投稿 → 目標とロードマップ。要求 F15・F10、決定 D12）。
+// 4 段階が済んだら、概要は「いまのタスク」の代わりに「今週のタスク」（ロードマップ）を出す（docs/architecture.md の 4.23）
 export type StepKey = "plan" | "connect" | "firstPost" | "roadmap";
 
 export type Step = {
@@ -43,14 +43,14 @@ export const STEPS: Step[] = [
     key: "roadmap",
     title: "目標とロードマップを決める",
     shortTitle: "目標とロードマップ",
-    description: "最終の目標と、そこへ向かう週ごとのやることを決めます。AI と相談しながら決められます。",
+    description: "最終の目標と、そこへ向かう週ごとのタスクを決めます。AI と相談しながら決められます。",
     cta: "決める",
     available: true,
   },
 ];
 
 // 設計が済んでいない（飛ばしてもいない）なら 1 段目、SNS をつないでいなければ 2 段目、まだ 1 本も送っていなければ 3 段目、
-// ロードマップ（目標かやること）がなければ 4 段目。すべて済んだら STEPS.length（概要は「今週のやること」を出す）。
+// ロードマップ（目標かタスク）がなければ 4 段目。すべて済んだら STEPS.length（概要は「今週のタスク」を出す）。
 // 設計は「あとで設計する」で飛ばせる。済みの基準は docs/requirements.md の F15
 export type StepState = { planDone: boolean; connectedSnsCount: number; hasPublished: boolean; hasRoadmap: boolean };
 
@@ -76,15 +76,15 @@ export function stepHref(key: StepKey, projectId: string): string {
   }
 }
 
-// 今週のやることの数（まだ・済み）と、前の週から残っているまだのやること（carried）。一覧は DB の project_step_flags、
+// 今週のタスクの数（まだ・済み）と、前の週から残っているまだのタスク（carried）。一覧は DB の project_step_flags、
 // ホームとロードマップは roadmap/load.ts の weekTodoCounts から。決め方は同じ（tests/todo-achieved.integration.test.ts で突き合わせる）。
-// 済みは手で済みにしたもの＋数字で達成したもの。やらないは数えない。どれも今の目標のやること（目標のないやることを含む）だけ数える。
+// 済みは手で済みにしたもの＋数字で達成したもの。やらないは数えない。どれも今の目標のタスク（目標のないタスクを含む）だけ数える。
 // carried がないと、前の週の残りがあっても今週分が済むと「すべて完了」と出ていた（2026-11-21 オーナーの指摘）
 export type WeekTodoCounts = { open: number; finished: number; carried?: number };
 
-// 今週のやることの段階。まだのものがある（open）・全部済んだ（done）・まだ決めていない（none）。一覧と概要の帯はどちらもここで分ける
-// （2026-11-12 オーナーの指摘「今週のやることおわってるのにプロジェクト一覧に反映されない」: 一覧は済んだ週も「今週のやることを見る」だった）
-// carried: 今週分は済んだ（または今週分がない）が、前の週のまだのやることが残っている
+// 今週のタスクの段階。まだのものがある（open）・全部済んだ（done）・まだ決めていない（none）。一覧と概要の帯はどちらもここで分ける
+// （2026-11-12 オーナーの指摘「今週のタスクおわってるのにプロジェクト一覧に反映されない」: 一覧は済んだ週も「今週のタスクを見る」だった）
+// carried: 今週分は済んだ（または今週分がない）が、前の週のまだのタスクが残っている
 export type WeekTodoPhase = "open" | "carried" | "done" | "none";
 export function weekTodoPhase(c: WeekTodoCounts): WeekTodoPhase {
   if (c.open > 0) return "open";
@@ -92,22 +92,22 @@ export function weekTodoPhase(c: WeekTodoCounts): WeekTodoPhase {
   return c.finished > 0 ? "done" : "none";
 }
 
-// プロジェクト一覧の「次にやること」。4 段階のうちまだのものがあればその段階、すべて済んだら今週のやること（まだの数・済み・決める）。
-// どれも概要（いまやること・今週のやること）へ
+// プロジェクト一覧の「いまのタスク」。4 段階のうちまだのものがあればその段階、すべて済んだら今週のタスク（まだの数・済み・決める）。
+// どれも概要（いまのタスク・今週のタスク）へ
 export function listNextStep(state: StepState & { thisWeek: WeekTodoCounts }): { label: string; stepIndex: number } {
   const stepIndex = currentStepIndex(state);
   if (stepIndex < STEPS.length) return { label: STEPS[stepIndex].shortTitle, stepIndex };
   const carried = state.thisWeek.carried ?? 0;
   const label = {
-    open: carried > 0 ? `やること あと ${state.thisWeek.open + carried} 件。うち ${carried} 件は前の週の分` : `今週のやること あと ${state.thisWeek.open} 件`,
-    carried: `前の週のやること あと ${carried} 件`,
-    done: "✓ 今週のやることは、すべて完了しました",
-    none: "今週のやることを決める",
+    open: carried > 0 ? `タスク あと ${state.thisWeek.open + carried} 件。うち ${carried} 件は前の週の分` : `今週のタスク あと ${state.thisWeek.open} 件`,
+    carried: `前の週のタスク あと ${carried} 件`,
+    done: "✓ 今週のタスクは、すべて完了しました",
+    none: "今週のタスクを決める",
   }[weekTodoPhase(state.thisWeek)];
   return { label, stepIndex };
 }
 
-// 概要の「いまやること」の帯に出すもの（いつも 1 つ出す。上から順に）。GitHub をつなぐ（任意）は帯の代わりにはせず、帯の下の小さな 1 行にする
+// 概要の「いまのタスク」の帯に出すもの（いつも 1 つ出す。上から順に）。GitHub をつなぐ（任意）は帯の代わりにはせず、帯の下の小さな 1 行にする
 // （2026-10-30 通し確認: 新しい利用者に「GitHub をつなぐ」だけが出て、「アカウントを設計する」が見えなかった）
 // 目標の振り返り（goal_review: KGI の期限が来た・届いた）は 1 か月の区切り（cycle_ended）より先。
 // 区切りと目標の期限が 7 日以内に重なるときは、目標の振り返りにまとめる（cycleMergedIntoGoal。docs/design/goals-model.md の 5.）

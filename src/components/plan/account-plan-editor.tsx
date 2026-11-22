@@ -176,7 +176,7 @@ export function PlanProgressCard({ plan, planHref }: { plan: PlanData; planHref?
           <span className="flex items-center gap-2">
             進み具合
             <HelpTip label="記入の進み具合">
-              {REQUIRED_FOR_DONE.map((k) => META[k].title).join("・")}の {REQUIRED_FOR_DONE.length} つが書けたら、「いまやること」が次（SNS をつなぐ）に進みます。{RECOMMENDED_SECTIONS.map((k) => META[k].title).join("・")}も書いておくのがおすすめです。どれもあとからいつでも編集できます。
+              {REQUIRED_FOR_DONE.map((k) => META[k].title).join("・")}の {REQUIRED_FOR_DONE.length} つが書けたら、次のステップに進みます。次は「SNS をつなぐ」です。{RECOMMENDED_SECTIONS.map((k) => META[k].title).join("・")}も書いておくのがおすすめです。どれもあとからいつでも編集できます。
             </HelpTip>
           </span>
         }
@@ -557,7 +557,7 @@ function GoalFields({ v, productType }: { v: PlanData["goal"]; productType: Prod
             見た人にいちばんしてほしいこと
           </>
         }
-        hint={`「${PRODUCT_TYPE_DEFS[productType].label}」に合う選択肢を上に並べています。迷ったら「まず知ってもらう」を選んでください。選んだものが、3 か月の目標になります。目標の数は、あとで「ロードマップ」の画面で決めます。週ごとのやることを決める画面です。`}
+        hint={`「${PRODUCT_TYPE_DEFS[productType].label}」に合う選択肢を上に並べています。迷ったら「まず知ってもらう」を選んでください。選んだものが、3 か月の目標になります。目標の数は、あとで「ロードマップ」の画面で決めます。週ごとのタスクを決める画面です。`}
         value={v.goalType}
         options={order.map((a) => ({
           value: a,
@@ -889,7 +889,7 @@ function FirstMonthFields({ v, projectId, cycle, mainSns }: { v: PlanData["first
       <fieldset className="flex flex-col gap-2">
         <legend className="text-[14px] font-bold">SNS ごとに、週に何本投稿するか</legend>
         <p className="text-xs leading-[1.7] text-muted">
-          決めておくと、今週あと何本かを毎日数えます。数えるのは、送信済みの投稿と予約した投稿です。遅れそうなときは、「ホーム」の「いまやること」に出ます。メールでも届きます。毎週月曜には、振り返りのメールが届きます。迷ったら、よく使う SNS は週 2 本、ほかは週 1 本がおすすめです。使わない SNS は空欄で構いません。
+          決めておくと、今週あと何本かを毎日数えます。数えるのは、送信済みの投稿と予約した投稿です。遅れそうなときは、「ホーム」の「いまのタスク」に出ます。メールでも届きます。毎週月曜には、振り返りのメールが届きます。迷ったら、よく使う SNS は週 2 本、ほかは週 1 本がおすすめです。使わない SNS は空欄で構いません。
         </p>
         <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2">
           {mainSns.map((sns) => (

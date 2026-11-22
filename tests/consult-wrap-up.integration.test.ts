@@ -84,7 +84,7 @@ describe("振り返りのゴールで区切って、終える", () => {
     expect(await threadRow(threadId)).toEqual({ closed_at: null, summary: null });
   });
 
-  it("これで終わる: 済みにして、AI のまとめを保存し、分析の画面に戻る（来週のやることの数を添える）", async () => {
+  it("これで終わる: 済みにして、AI のまとめを保存し、分析の画面に戻る（来週のタスクの数を添える）", async () => {
     const r = await close(threadId);
     expect(r).toEqual({ ok: true, redirect: `/projects/${projectId}/metrics?done=consult_closed&items=2` });
     const row = await threadRow(threadId);

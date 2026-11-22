@@ -57,7 +57,7 @@ export async function getConsultThread(
   };
 }
 
-// ロードマップづくりの会話の見出しの段取り（いまの目標とやることから、どこまで決まったか）
+// ロードマップづくりの会話の見出しの段取り（いまの目標とタスクから、どこまで決まったか）
 export async function roadmapStepsFor(projectId: string): Promise<RoadmapStepState> {
   const [view, goals] = await Promise.all([loadRoadmap(projectId), createClient().then((db) => loadGoals(db, projectId))]);
   return goalStepState(

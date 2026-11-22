@@ -110,7 +110,7 @@ export default async function CalendarPage(props: PageProps<"/projects/[id]/cale
 
       <div className="grid grid-cols-[minmax(0,1fr)_300px] gap-4 max-xl:grid-cols-1">
         <div className="flex min-w-0 flex-col gap-4">
-          {/* PC: 時刻 × 曜日のマス目（上にロードマップのやることと週の目標の帯） */}
+          {/* PC: 時刻 × 曜日のマス目（上にロードマップのタスクと週の目標の帯） */}
           {band && (band.todos.length > 0 || band.goals.length > 0) && (
             <div className="overflow-hidden rounded-lg border border-border bg-surface">
               <WeekBandView band={band} base={base} today={today} />
@@ -435,7 +435,7 @@ function AutoMark({ show }: { show: boolean }) {
   );
 }
 
-// 予定日のあるやることを、日ごとに
+// 予定日のあるタスクを、日ごとに
 function plannedTodos(bands: { todos: CalendarTodo[] }[]): Map<string, CalendarTodo[]> {
   const out = new Map<string, CalendarTodo[]>();
   for (const b of bands) for (const t of b.todos) if (t.plannedOn) out.set(t.plannedOn, [...(out.get(t.plannedOn) ?? []), t]);

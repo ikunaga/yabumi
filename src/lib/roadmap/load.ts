@@ -28,7 +28,7 @@ export type RoadmapItem = {
   kind: TodoKind;
   // 数える投稿（DB の roadmap_item_progress）。読み込んでいなければ null
   posts: ItemPostCounts | null;
-  // どの目標のためのやることか（goals。段階 ④ までは null もある）
+  // どの目標のためのタスクか（goals。段階 ④ までは null もある）
   goalId: string | null;
 };
 
@@ -73,7 +73,7 @@ export function toItem(r: ItemRow, posts: ItemPostCounts | null = null): Roadmap
   };
 }
 
-// やることの進み具合を DB で数える（週が p_from〜p_to のやること）。行を読んで足さない
+// タスクの進み具合を DB で数える（週が p_from〜p_to のタスク）。行を読んで足さない
 export async function loadItemPostCounts(db: Db, projectId: string, from: string, to: string): Promise<Map<string, ItemPostCounts>> {
   const { data, error } = await db.rpc("roadmap_item_progress", { p_project_id: projectId, p_from: from, p_to: to });
   if (error) throw error;
@@ -85,8 +85,8 @@ export async function loadItemPostCounts(db: Db, projectId: string, from: string
   );
 }
 
-// 予定日を過ぎたのに、まだ投稿をつくっていない（結びついた投稿がない）済んでいないやること（伴走の声かけに使う）。投稿するやることだけ（4.42）。
-// 数字で達成したやることは入れない（投稿した回数は読み込んだ posts で数える。クリックの数のやることは daily を渡したときだけ）
+// 予定日を過ぎたのに、まだ投稿をつくっていない（結びついた投稿がない）済んでいないタスク（伴走の声かけに使う）。投稿するタスクだけ（4.42）。
+// 数字で達成したタスクは入れない（投稿した回数は読み込んだ posts で数える。クリックの数のタスクは daily を渡したときだけ）
 export function overdueItems(items: RoadmapItem[], today: string, daily: DailyTotal[] = []): RoadmapItem[] {
   return items.filter((i) => i.kind === "post" && itemState(i, daily) === "todo" && i.plannedOn !== null && i.plannedOn < today && (i.posts?.linkedPublished ?? 0) + (i.posts?.linkedScheduled ?? 0) === 0);
 }
@@ -94,7 +94,7 @@ export function overdueItems(items: RoadmapItem[], today: string, daily: DailyTo
 export async function loadRoadmapWith(supabase: Db, projectId: string, now = new Date()): Promise<RoadmapView> {
   const today = toYmd(now);
   const thisWeek = weekStartOf(today);
-  // 目標（KGI・KPI）は goals から読む（lib/goals。docs/design/goals-model.md）。ここはやることと、やることの週の数字だけ
+  // 目標（KGI・KPI）は goals から読む（lib/goals。docs/design/goals-model.md）。ここはタスクと、タスクの週の数字だけ
   const { data: rows, error: e2 } = await supabase
     .from("roadmap_items")
     .select(ITEM_COLUMNS)
@@ -108,7 +108,7 @@ export async function loadRoadmapWith(supabase: Db, projectId: string, now = new
   const counts = weeks.length ? await loadItemPostCounts(supabase, projectId, weeks[0], weeks[weeks.length - 1]) : new Map<string, ItemPostCounts>();
   const items = (rows ?? []).map((r) => toItem(r, counts.get(r.id) ?? { published: 0, scheduled: 0, linkedPublished: 0, linkedScheduled: 0 }));
 
-  // 数字は、いちばん古いやることの週（なければ 8 週前）から来週の終わりまで（やることの週の数字に使う）
+  // 数字は、いちばん古いタスクの週（なければ 8 週前）から来週の終わりまで（タスクの週の数字に使う）
   const from = [items[0]?.weekStart, addDays(thisWeek, -56)].filter(Boolean).sort()[0] as string;
   const to = addDays(thisWeek, 13);
   const [{ data: totals, error: e3 }, { data: bySns, error: e4 }] = await Promise.all([
@@ -134,28 +134,28 @@ export async function loadRoadmapWith(supabase: Db, projectId: string, now = new
   };
 }
 
-// やることの読むときの状態（数字で達成したら achieved。schema.ts の effectiveStatus）
+// タスクの読むときの状態（数字で達成したら achieved。schema.ts の effectiveStatus）
 export function itemState(item: RoadmapItem, daily: DailyTotal[]): ItemState {
   return effectiveStatus(item, itemProgress(item, daily));
 }
 
-// 今の目標のやること（目標のないやることを含む）。目標がなければ全部。ロードマップに並べるもの・ホームと一覧で数えるものは、どれもこれで絞る
+// 今の目標のタスク（目標のないタスクを含む）。目標がなければ全部。ロードマップに並べるもの・ホームと一覧で数えるものは、どれもこれで絞る
 // （DB の project_step_flags も同じ。2026-11-21 PM の確かめ: 前は数だけ目標で絞っていなかった）
 export function scopeToGoal(items: RoadmapItem[], goalId: string | null): RoadmapItem[] {
   return goalId ? items.filter((i) => i.goalId === null || i.goalId === goalId) : items;
 }
 
-// ホームの「今週のやること」: 今週の済んでいない（手で済みにしていない・数字で達成していない）もの。limit を渡せばその件数まで
+// ホームの「今週のタスク」: 今週の済んでいない（手で済みにしていない・数字で達成していない）もの。limit を渡せばその件数まで
 export function thisWeekTodos(view: RoadmapView, goalId: string | null = null, limit = Infinity): RoadmapItem[] {
   return scopeToGoal(view.items, goalId).filter((i) => i.weekStart === view.thisWeek && itemState(i, view.daily) === "todo").slice(0, limit);
 }
 
-// 前の週から残っている、まだのやること（ロードマップの「まだ完了していない、前の週のこと」と同じ）
+// 前の週から残っている、まだのタスク（ロードマップの「まだ完了していない、前の週のこと」と同じ）
 export function carriedTodos(view: RoadmapView, goalId: string | null = null): RoadmapItem[] {
   return scopeToGoal(view.items, goalId).filter((i) => i.weekStart < view.thisWeek && itemState(i, view.daily) === "todo");
 }
 
-// やることの件数: 今週のまだ・今週の済み（手で済みにした＋数字で達成した）・前の週のまだ。やらないことにしたものは数えない。
+// タスクの件数: 今週のまだ・今週の済み（手で済みにした＋数字で達成した）・前の週のまだ。やらないことにしたものは数えない。
 // ホームの帯と数字・ロードマップの数字・プロジェクトの一覧（DB の project_step_flags）は、どれもこの決め方（weekTodoPhase で段階に分ける）
 export function weekTodoCounts(view: RoadmapView, goalId: string | null = null): { open: number; finished: number; carried: number } {
   const states = scopeToGoal(view.items, goalId)

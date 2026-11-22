@@ -24,7 +24,7 @@ import { isYmd } from "@/lib/time";
 export const metadata: Metadata = { title: "投稿をつくる" };
 
 // 新しい投稿。カレンダーで日付を押して来たときは ?date=YYYY-MM-DD がつく。
-// ロードマップのやることから来たときは ?item=<id>: SNS（決めていれば）・予定日（あれば）・やることの題と説明（手がかり）を入れて開き、保存した投稿をやることに結びつける（4.23）
+// ロードマップのタスクから来たときは ?item=<id>: SNS（決めていれば）・予定日（あれば）・タスクの題と説明（手がかり）を入れて開き、保存した投稿をタスクに結びつける（4.23）
 export default async function ComposePage(props: PageProps<"/projects/[id]/compose">) {
   const [{ id }, searchParams] = await Promise.all([props.params, props.searchParams]);
   const project = await getProject(id);
@@ -76,7 +76,7 @@ export default async function ComposePage(props: PageProps<"/projects/[id]/compo
   );
 }
 
-// やること（RLS で本人のものだけ。同じプロジェクトのものだけ）
+// タスク（RLS で本人のものだけ。同じプロジェクトのものだけ）
 async function loadItem(projectId: string, itemId: string) {
   const supabase = await createClient();
   const { data } = await supabase.from("roadmap_items").select("id, title, detail, sns, planned_on").eq("id", itemId).eq("project_id", projectId).maybeSingle();

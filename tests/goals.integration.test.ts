@@ -1,5 +1,5 @@
 // 目標（KGI）・中間の目標・KPI（docs/design/goals-model.md）: 前の作りが goals に入らないこと（段階 ④。セキュリティ確認の DB-L1）、権限、
-// 書く関数（状態と結果はサーバーが決める）、数える関数、やることのつながり。
+// 書く関数（状態と結果はサーバーが決める）、数える関数、タスクのつながり。
 // 前の作り（roadmaps・first_month.weekly）からの写し替えと橋渡しは、段階 ④（20261107110000）で消した（写し替えは本番で確かめた。2026-11-07）
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { loadGoals, metricTotal } from "@/lib/goals/load";
@@ -60,8 +60,8 @@ describe("段階 ④ のあと: 前の作りは goals に入らない（セキ�
     expect(normalizePlan(data!.data, "").first_month.weekly).toEqual({});
   });
 
-  it("やることは必ず目標につながる（足すときに省いても、空にしても、いまの目標に入る）", async () => {
-    const p = await newProject(alice, "やること");
+  it("タスクは必ず目標につながる（足すときに省いても、空にしても、いまの目標に入る）", async () => {
+    const p = await newProject(alice, "タスク");
     const { data: item } = await alice.from("roadmap_items").insert(goalLess({ project_id: p, title: "1 本", week_start: monday })).select("id, goal_id").single();
     expect(item!.goal_id).toEqual(expect.any(String));
     // 空にしても、トリガーがいまの目標に入れ直す（null のまま残らない）
@@ -102,7 +102,7 @@ describe("権限", () => {
     await expect(reviseGoal(bob, goalId, { target: 1 })).rejects.toBeInstanceOf(GoalError);
   });
 
-  it("やることは、同じプロジェクトの active な目標にだけつなげる", async () => {
+  it("タスクは、同じプロジェクトの active な目標にだけつなげる", async () => {
     const bobProject = await newProject(bob, "ほかの人");
     const bobGoal = await startGoal(bob, bobProject, { goal: null }, "manual");
     expect((await alice.from("roadmap_items").insert({ project_id: projectId, title: "x", week_start: monday, goal_id: bobGoal })).error).not.toBeNull();
@@ -187,7 +187,7 @@ describe("書く関数", () => {
 
   it("目標を替えると、届いていれば達成・期限を過ぎていれば期限切れ・どちらでもなければ見直しとして、結果とともに残る", async () => {
     const g = { id: kgiGoalId };
-    // 今週以降のまだのやることは新しい目標へ。済み・先週より前のものは前の目標に残る
+    // 今週以降のまだのタスクは新しい目標へ。済み・先週より前のものは前の目標に残る
     const items = await alice
       .from("roadmap_items")
       .insert([
@@ -231,7 +231,7 @@ describe("書く関数", () => {
     expect(gs).toHaveLength(4);
   });
 
-  it("閉じた目標には、やることを新しく足せない（つなぎ直しも同じプロジェクトの目標だけ）", async () => {
+  it("閉じた目標には、タスクを新しく足せない（つなぎ直しも同じプロジェクトの目標だけ）", async () => {
     const closed = (await goalsOf(projectId)).find((g) => g.status !== "active")!;
     expect((await alice.from("roadmap_items").insert({ project_id: projectId, title: "z", week_start: monday, goal_id: closed.id })).error).not.toBeNull();
   });

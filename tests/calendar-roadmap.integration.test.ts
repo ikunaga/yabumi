@@ -1,5 +1,5 @@
-// ロードマップのやることをカレンダーに出す（F06・F10。docs/architecture.md の 4.23）。ローカルの Supabase を使う。
-// 予定日（その週の中だけ）、投稿とやることの結びつき（同じプロジェクトのやることだけ）、やることの進み具合（週の投稿と結びついた投稿を重ならないように数える）
+// ロードマップのタスクをカレンダーに出す（F06・F10。docs/architecture.md の 4.23）。ローカルの Supabase を使う。
+// 予定日（その週の中だけ）、投稿とタスクの結びつき（同じプロジェクトのタスクだけ）、タスクの進み具合（週の投稿と結びついた投稿を重ならないように数える）
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { adminClient, deleteUser, signUpNewUser, type TestClient, goalLess } from "./helpers/supabase";
 
@@ -79,22 +79,22 @@ describe("予定日", () => {
   });
 });
 
-describe("投稿とやることの結びつき", () => {
-  it("同じプロジェクトのやることだけに結びつけられる（他人・ほかのプロジェクトのやることは指せない）", async () => {
+describe("投稿とタスクの結びつき", () => {
+  it("同じプロジェクトのタスクだけに結びつけられる（他人・ほかのプロジェクトのタスクは指せない）", async () => {
     const id = await item({ title: "結びつける" });
-    const otherItem = await item({ title: "べつのプロジェクトのやること", project: otherProjectId });
+    const otherItem = await item({ title: "べつのプロジェクトのタスク", project: otherProjectId });
     const { data: mine } = await alice.rpc("save_post", { p_post_id: null as unknown as string, p_project_id: projectId, p_body: "下書き", p_planned_at: null as unknown as string, p_status: "draft", p_targets: [] });
     expect((await alice.from("posts").update({ roadmap_item_id: id }).eq("id", mine!)).error).toBeNull();
     expect((await alice.from("posts").update({ roadmap_item_id: otherItem }).eq("id", mine!)).error?.code).toBe("23514");
     const { data: bobs } = await bob.rpc("save_post", { p_post_id: null as unknown as string, p_project_id: bobProjectId, p_body: "B の下書き", p_planned_at: null as unknown as string, p_status: "draft", p_targets: [] });
     expect((await bob.from("posts").update({ roadmap_item_id: id }).eq("id", bobs!)).error?.code).toBe("23514");
-    // やることを消すと、結びつきだけが外れる（投稿は残る）
+    // タスクを消すと、結びつきだけが外れる（投稿は残る）
     await alice.from("roadmap_items").delete().eq("id", id);
     expect((await alice.from("posts").select("roadmap_item_id").eq("id", mine!).single()).data!.roadmap_item_id).toBeNull();
   });
 });
 
-describe("やることの進み具合", () => {
+describe("タスクの進み具合", () => {
   it("週の投稿（その SNS だけ）と結びついた投稿を、重ならないように数える。結びついた投稿は週のあとでも数える", async () => {
     const ig = await item({ title: "Instagram に 2 本", kpi: "posts", target: 2, sns: "instagram" });
     const any = await item({ title: "すべての SNS で 3 本", kpi: "posts", target: 3 });
@@ -112,9 +112,9 @@ describe("やることの進み具合", () => {
     const m = await progress();
     // Instagram の週の 2 本（うち 1 本は結びつき）＋ 週のあとの結びつき 1 本。結びついた週の中の投稿は 1 回だけ
     expect(m.get(ig)).toEqual({ published: 3, scheduled: 0, linkedPublished: 2, linkedScheduled: 0 });
-    // すべての SNS: 週の中の 3 本（ほかのやることに結びついた投稿も、週の投稿として数える）
+    // すべての SNS: 週の中の 3 本（ほかのタスクに結びついた投稿も、週の投稿として数える）
     expect(m.get(any)).toEqual({ published: 3, scheduled: 0, linkedPublished: 0, linkedScheduled: 0 });
-    // 数字のないやることは、結びついた投稿だけ
+    // 数字のないタスクは、結びついた投稿だけ
     expect(m.get(noKpi)).toEqual({ published: 0, scheduled: 1, linkedPublished: 0, linkedScheduled: 1 });
   });
 

@@ -97,7 +97,7 @@ describe("指示の文", () => {
     expect(CONSULT_SYSTEM).toContain("直近 4 週の流れ（投稿 → 閲覧 → クリック → 成果）のどこが細いか");
     expect(CONSULT_SYSTEM).toContain("choices に出す:「やり方を変える」「投稿を少し増やす」「目標を見直す」");
     expect(CONSULT_SYSTEM).toContain("増やすのは 1 SNS につき週 1 まで");
-    expect(CONSULT_SYSTEM).toContain("目標の立て直し: 選んだ方向の案（やること・週の本数・目標の見直し）を採用した");
+    expect(CONSULT_SYSTEM).toContain("目標の立て直し: 選んだ方向の案（タスク・週の本数・目標の見直し）を採用した");
   });
 });
 
@@ -123,7 +123,7 @@ describe("入口と案の見出し", () => {
 
   it("立て直しの案の見出し", () => {
     const p = (kind: string) => ({ kind, options: [] }) as unknown as ConsultProposal;
-    expect(reviewHeadingOf(p("roadmap_items"), "goal_rescue")).toBe("立て直しのやること");
+    expect(reviewHeadingOf(p("roadmap_items"), "goal_rescue")).toBe("立て直しのタスク");
     expect(reviewHeadingOf(p("action_targets"), "goal_rescue")).toBe("立て直しの週の本数");
     expect(reviewHeadingOf(p("revise_goal"), "goal_rescue")).toBe("目標の見直し");
     expect(reviewHeadingOf(p("roadmap_items"), "what_to_post")).toBeNull();

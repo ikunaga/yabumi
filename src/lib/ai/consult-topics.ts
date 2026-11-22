@@ -18,11 +18,11 @@ export const CONSULT_TOPIC_META = {
   no_reaction: { button: "投稿しても反応がない", listTitle: "反応がない" },
   which_sns: { button: "どの SNS に力を入れる？", listTitle: "どの SNS に力を入れる？" },
   roadmap: {
-    button: "3 か月の目標と週ごとのやることを決めたい",
+    button: "3 か月の目標と週ごとのタスクを決めたい",
     listTitle: "ロードマップづくり",
     entry: {
       title: "ロードマップを AI と作る",
-      lead: "AI がアカウントの方針と数字を見て、最終の目標と週ごとのやることの案を出します。選んだ案だけが、ロードマップに入ります。",
+      lead: "AI がアカウントの方針と数字を見て、最終の目標と週ごとのタスクの案を出します。選んだ案だけが、ロードマップに入ります。",
       back: { path: "roadmap", label: "ロードマップに戻る" },
     },
   },
@@ -31,7 +31,7 @@ export const CONSULT_TOPIC_META = {
     listTitle: "振り返り",
     entry: {
       title: "AI と振り返る",
-      lead: "AI が分析の画面の数字と、目標と週ごとのやることを読みます。よかった点と、これからやることを出します。",
+      lead: "AI が分析の画面の数字と、目標と週ごとのタスクを読みます。よかった点と、これからのタスクの案を出します。",
       back: { path: "metrics", label: "分析に戻る" },
     },
   },

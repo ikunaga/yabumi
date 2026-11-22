@@ -93,7 +93,7 @@ describe("文の集め方と数え方", () => {
     expect(hit("もう送ってあったので、送った SNS には送り直しません")).toEqual([]);
     // 最初の画面の名前は「ホーム」（2026-11-21）
     expect(hit("概要に戻る")).toContain("home");
-    expect(hit("概要の「いまやること」に出します")).toContain("home");
+    expect(hit("概要の「いまのタスク」に出します")).toContain("home");
     expect(hit("Overview")).toContain("home");
     expect(hit("ホームに戻る。アプリの概要を書きます")).toEqual([]);
     // 手で投稿する・手で出す（2026-11-21）。手動で投稿する・手で記録するは引っかけない
@@ -114,7 +114,7 @@ describe("文の集め方と数え方", () => {
     expect(hit("種類")).toContain("shurui");
     expect(hit("宣伝するものの種類")).toEqual([]);
     expect(hit("時間帯の傾向・携帯で見る")).toEqual([]);
-    expect(hit("「ホーム」のいまやることの帯")).toContain("obi");
+    expect(hit("「ホーム」のいまのタスクの帯")).toContain("obi");
     expect(hit("今月の AI の枠が、いっぱいになりました")).toContain("waku");
     expect(hit("アプリの画面を、スマホの枠に入れます。空き枠のお知らせ")).toEqual([]);
     expect(hit("スマホのホーム画面に置くと、メニューの「ホーム画面に追加」を選びます。窓口・窓辺")).toEqual([]);

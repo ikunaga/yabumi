@@ -31,7 +31,7 @@ export async function saveSection(projectId: string, section: string, _prev: Sec
 }
 
 // 「あとで設計する」: 設計を飛ばして次の段階（SNS をつなぐ）へ進む
-// useActionState から呼ぶ。失敗したときは { error } を返し、「いまやること」に出す
+// useActionState から呼ぶ。失敗したときは { error } を返し、「いまのタスク」に出す
 export async function skipPlan(projectId: string): Promise<{ error?: string }> {
   if (!z.uuid().safeParse(projectId).success) redirect("/projects");
   const supabase = await createClient();

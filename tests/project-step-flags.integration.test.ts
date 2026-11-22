@@ -1,4 +1,4 @@
-// 「いまやること」の判定に使う値（project_step_flags。src/lib/projects/step-state.ts）: 投稿済みか・ロードマップがあるか・今週のまだのやることの数。
+// 「いまのタスク」の判定に使う値（project_step_flags。src/lib/projects/step-state.ts）: 投稿済みか・ロードマップがあるか・今週のまだのタスクの数。
 // 一覧で、プロジェクトの数にかかわらず 1 回で取れること、ほかの人のプロジェクトは返さないこと、ログインしていない人は呼べないこと
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { listNextStep } from "@/lib/projects/next-step";
@@ -51,7 +51,7 @@ describe("project_step_flags", () => {
     expect((await flags(alice)).get(posted)?.has_published).toBe(true);
   });
 
-  it("目標かやることがあればロードマップあり。今週のまだのやることだけを数える", async () => {
+  it("目標かタスクがあればロードマップあり。今週のまだのタスクだけを数える", async () => {
     const { error: itemsError } = await admin.from("roadmap_items").insert(goalLess([
       { project_id: posted, owner_id: aliceId, title: "今週 1", week_start: WEEK, status: "todo" },
       { project_id: posted, owner_id: aliceId, title: "今週 2", week_start: WEEK, status: "todo" },
@@ -65,10 +65,10 @@ describe("project_step_flags", () => {
     expect(f.get(fresh)).toMatchObject({ has_published: false, has_roadmap: true, this_week_todo: 0, this_week_done: 0 });
   });
 
-  it("一覧の次にやること: 投稿済みでロードマップもあれば、最初の投稿ではなく今週のやること", async () => {
+  it("一覧の次のタスク: 投稿済みでロードマップもあれば、最初の投稿ではなく今週のタスク", async () => {
     const f = (await flags(alice)).get(posted)!;
     const next = listNextStep({ planDone: true, connectedSnsCount: 1, hasPublished: f.has_published, hasRoadmap: f.has_roadmap, thisWeek: { open: Number(f.this_week_todo), finished: Number(f.this_week_done) } });
-    expect(next.label).toBe("今週のやること あと 2 件");
+    expect(next.label).toBe("今週のタスク あと 2 件");
   });
 
   it("1 つのプロジェクトに絞れる", async () => {

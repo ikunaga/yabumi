@@ -41,7 +41,7 @@ export const CONSULT_TOPICS = {
   what_to_post: "何を投稿すればいいか、相談したいです。",
   no_reaction: "投稿しても反応がありません。どうすればいいですか。",
   which_sns: "どの SNS に力を入れればいいか、相談したいです。",
-  roadmap: "最終の目標（KGI）と、週ごとのやること（ロードマップ）を一緒に決めたいです。",
+  roadmap: "最終の目標（KGI）と、週ごとのタスク（ロードマップ）を一緒に決めたいです。",
   // 分析の画面の「AI と振り返る」から（4.22 の段取り ⑦）。この会話だけ、数字をくわしく「いまの状況」に足す
   review: "最近の数字を振り返って、よかった点と次の一手を教えてください。",
   // 伴走（4.27）の 4 週（中間の目標の区切り）が終わったとき（概要の「AI と振り返る」）。この会話だけ、4 週の結果を「いまの状況」に足す
@@ -59,7 +59,7 @@ export function isConsultTopic(v: unknown): v is ConsultTopic {
 }
 
 export type ConsultUserContent =
-  // itemId: 振り返りのやることから始めたときの、そのやること（終えたら済みにする）。goalId: 目標の振り返りの、その目標（概要の帯が読む）
+  // itemId: 振り返りのタスクから始めたときの、そのタスク（終えたら済みにする）。goalId: 目標の振り返りの、その目標（概要の帯が読む）
   | { kind: "start"; topic: ConsultTopic; itemId?: string; goalId?: string }
   | { kind: "text"; text: string }
   | { kind: "adopt"; messageId: string; actionIndex: number; actionKind: ActionKind; title: string };
@@ -82,7 +82,7 @@ const ADOPTED_TEXT: Record<ActionKind, string> = {
   kgi: "最終の目標をロードマップに入れました",
   kpi_targets: "毎週の目標をロードマップに入れました",
   goal: "目標をロードマップに入れました",
-  roadmap_items: "やることをロードマップに追加しました",
+  roadmap_items: "タスクをロードマップに追加しました",
   post_draft: "下書きを作りました",
 };
 
@@ -226,7 +226,7 @@ export async function gatherConsultContext(
         .filter((i) => i.weekStart === view.thisWeek || i.weekStart === nextWeek)
         .map((i) => {
           const p = itemProgress(i, view.daily);
-          // 数字が目標に届いた・ここから作った投稿を送ったまだのやることは「済み」と渡す（AI が「まだ」と取り違えて促さないように）
+          // 数字が目標に届いた・ここから作った投稿を送ったまだのタスクは「済み」と渡す（AI が「まだ」と取り違えて促さないように）
           const status = effectiveStatus(i, p) === "achieved" ? (p ? "済み（数字で達成）" : "済み（ここから作った投稿を送った）") : i.status;
           return { week: i.weekStart === view.thisWeek ? "今週" : "来週", title: i.title, status, progress: p && i.kpi ? `${kpiLabel(i.kpi, i.sns)} ${formatValue(i.kpi, p.actual)} / ${formatValue(i.kpi, p.target)}` : null };
         }),
@@ -463,9 +463,9 @@ export type ConsultResult = { ok: true; threadId: string; redirect?: string } | 
 
 const GENERIC_ERROR = "AI とのやりとりがうまくいきませんでした。時間をおいてもう一度お試しください。";
 export const CLOSED_THREAD_MESSAGE = "この相談は完了しました。続けるなら、新しい相談を始めてください。";
-export const REVIEW_ITEM_NOT_FOUND = "振り返りのやることが見つかりません。ロードマップから開き直してください。";
+export const REVIEW_ITEM_NOT_FOUND = "振り返りのタスクが見つかりません。ロードマップから開き直してください。";
 
-// 振り返りの相談に結びつけてよいやることか（本人の、このプロジェクトの、今週か来週の振り返りのやること）。user: 利用者の権限（RLS で本人のものだけ読める）
+// 振り返りの相談に結びつけてよいタスクか（本人の、このプロジェクトの、今週か来週の振り返りのタスク）。user: 利用者の権限（RLS で本人のものだけ読める）
 async function reviewItemAllowed(user: Db, projectId: string, itemId: string, now: Date): Promise<boolean> {
   const { data: item } = await user.from("roadmap_items").select("id, title, detail, kpi, kind, week_start").eq("id", itemId).eq("project_id", projectId).maybeSingle();
   if (!item) return false;
@@ -509,7 +509,7 @@ export async function consultBegin(
   }
   const { data: project } = await user.from("projects").select("id").eq("id", projectId).maybeSingle();
   if (!project) return { ok: false, threadId: args.threadId, message: "プロジェクトが見つかりません。" };
-  // やることを結びつけるのは、振り返りの始まりだけ。他人のもの・ほかの週のもの・振り返りでないものは断る
+  // タスクを結びつけるのは、振り返りの始まりだけ。他人のもの・ほかの週のもの・振り返りでないものは断る
   if (input.kind === "start" && input.itemId !== undefined) {
     if (input.topic !== "review" || args.threadId || !(await reviewItemAllowed(user, projectId, input.itemId, now))) {
       return { ok: false, threadId: args.threadId, message: REVIEW_ITEM_NOT_FOUND };
@@ -721,7 +721,7 @@ export type CloseResult = { ok: true; redirect: string } | { ok: false; message:
 
 // 済みにして、元の画面（入口の戻り先。入口がなければ相談の一覧）に戻る。AI は呼ばない。
 // まとめは、最後の返事が AI の区切り（wrapUp）のときだけ、その summary を保存する（区切ったあとに続けた会話や、区切る前に終えたときは空）。
-// 振り返りの相談なら、まとめの有無にかかわらず振り返りのやることも済みにする（closeReviewItem）。
+// 振り返りの相談なら、まとめの有無にかかわらず振り返りのタスクも済みにする（closeReviewItem）。
 // user: 利用者の権限（本人の会話であることを RLS で確かめる）。admin: サーバーの権限（書き込み）
 export async function closeConsultThread(user: Db, admin: Db, args: { userId: string; projectId: string; threadId: string; now?: Date }): Promise<CloseResult> {
   const { userId, projectId, threadId } = args;
@@ -749,11 +749,11 @@ export async function closeConsultThread(user: Db, admin: Db, args: { userId: st
   const items = nextWeekItemsAdopted(history);
   let reviewed: ReviewClosed = null;
   if (threadTopic(history) === "review") {
-    // 会話はもう済んでいるので、ここで失敗しても終えたことは取り消さない（やることは手で済みにできる）
+    // 会話はもう済んでいるので、ここで失敗しても終えたことは取り消さない（タスクは手で済みにできる）
     try {
       reviewed = await closeReviewItem(user, projectId, startItemId(history), args.now ?? new Date());
     } catch (e) {
-      console.error("[closeConsultThread] 振り返りのやることを済みにできませんでした", e instanceof Error ? e.message : e);
+      console.error("[closeConsultThread] 振り返りのタスクを済みにできませんでした", e instanceof Error ? e.message : e);
     }
   }
   const goal = threadTopic(history) === "goal_review" ? goalReviewOutcome(history) : null;
@@ -766,11 +766,11 @@ function startItemId(history: ConsultMessage[]): string | null {
   return first?.role === "user" && first.content.kind === "start" ? (first.content.itemId ?? null) : null;
 }
 
-// 振り返りのやることを済みにした結果。itemId: 済みにしたやること / many: 今週の振り返りのやることが 2 つ以上あって、どれか決められない / null: 何もしていない
+// 振り返りのタスクを済みにした結果。itemId: 済みにしたタスク / many: 今週の振り返りのタスクが 2 つ以上あって、どれか決められない / null: 何もしていない
 export type ReviewClosed = { itemId: string } | "many" | null;
 
-// 振り返りの相談を終えたときに、やることを済みにする（利用者の権限。RLS で本人のものだけ書ける）。
-// 結びつけたやることがあればそれ。なければ（分析の画面の「AI と振り返る」）今週のまだの振り返りのやることが 1 つだけのときにそれ
+// 振り返りの相談を終えたときに、タスクを済みにする（利用者の権限。RLS で本人のものだけ書ける）。
+// 結びつけたタスクがあればそれ。なければ（分析の画面の「AI と振り返る」）今週のまだの振り返りのタスクが 1 つだけのときにそれ
 export async function closeReviewItem(user: Db, projectId: string, itemId: string | null, now: Date): Promise<ReviewClosed> {
   let target = itemId;
   if (!target) {
@@ -813,7 +813,7 @@ export function goalReviewOutcome(history: ConsultMessage[]): "started" | "kept"
   return out;
 }
 
-// この会話で採用した、来週（week 1）のやることの数（「来週のやることに n 件入れました」）
+// この会話で採用した、来週（week 1）のタスクの数（「来週のタスクに n 件入れました」）
 export function nextWeekItemsAdopted(history: ConsultMessage[]): number {
   let n = 0;
   for (const m of history) {

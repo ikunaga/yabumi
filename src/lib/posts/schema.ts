@@ -48,7 +48,7 @@ export const savePostInputSchema = z.object({
   // 日本時間の "YYYY-MM-DDTHH:mm"。空なら日付なし
   plannedAt: z.string(),
   intent: saveIntent,
-  // ロードマップのやることから作った投稿（docs/architecture.md の 4.23）。同じプロジェクトのやることだけ（DB のトリガーで守る）
+  // ロードマップのタスクから作った投稿（docs/architecture.md の 4.23）。同じプロジェクトのタスクだけ（DB のトリガーで守る）
   roadmapItemId: z.uuid().nullable().optional(),
   // 「ネタ帳から」で本文に入れたメモ。保存したら「投稿にした」の印を付ける（同じプロジェクトの、まだ使っていないメモだけ）
   noteIds: z.array(z.uuid()).max(MAX_NOTES_PER_POST).default([]),

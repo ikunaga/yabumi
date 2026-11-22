@@ -21,7 +21,7 @@ type Db = SupabaseClient<Database>;
 
 export type CoachJobOutcome = { projectId: string; behind?: DeliverResult; weekly?: DeliverResult; overdue?: DeliverResult };
 
-// 予定日を過ぎたやることを知らせるのは、予定日から 7 日まで（それより前のものは、初めて動いたときにまとめて送らないように）
+// 予定日を過ぎたタスクを知らせるのは、予定日から 7 日まで（それより前のものは、初めて動いたときにまとめて送らないように）
 const OVERDUE_DAYS = 7;
 
 const PAGE = 1000;
@@ -105,7 +105,7 @@ export async function runCoachJob(
     })
     .filter((x): x is NonNullable<typeof x> => x !== null);
 
-  // 予定日を過ぎたやることの候補（ロードマップ。週の回数を決めていないプロジェクトも）。先週の分は月曜の振り返りにも数える
+  // 予定日を過ぎたタスクの候補（ロードマップ。週の回数を決めていないプロジェクトも）。先週の分は月曜の振り返りにも数える
   const overdueFrom = addDays(today, -OVERDUE_DAYS);
   const itemRows = await allRows((from, to) => {
     let q = admin
@@ -147,7 +147,7 @@ export async function runCoachJob(
     const prefs = prefsCache.get(t.ownerId) ?? (await ensurePrefs(admin, t.ownerId));
     prefsCache.set(t.ownerId, prefs);
 
-    // 予定日を過ぎたのに、結びついた投稿を予約も送信もしていない、済んでいないやること（roadmap/load.ts の overdueItems。概要のカードと同じ）
+    // 予定日を過ぎたのに、結びついた投稿を予約も送信もしていない、済んでいないタスク（roadmap/load.ts の overdueItems。概要のカードと同じ）
     const rowsOfProject = itemRows.filter((r) => r.project_id === t.projectId) as unknown as ItemRow[];
     let overdue: OverdueItem[] = [];
     if (rowsOfProject.length) {
@@ -206,7 +206,7 @@ export async function runCoachJob(
     }
 
     const nudge = pace ? shouldNudgeBehind(pace, today, prefs.behind_weekday) : false;
-    // まだ送っていない予定日を過ぎたやること（「遅れそうなとき」を選んだ人だけ。同じやることは 1 回だけ）
+    // まだ送っていない予定日を過ぎたタスク（「遅れそうなとき」を選んだ人だけ。同じタスクは 1 回だけ）
     const wantsOverdue = wants(prefs.email_mode, "behind") || wants(prefs.push_mode, "behind");
     const newOverdueIds = wantsOverdue ? await unsentOverdue(admin, t.ownerId, t.projectId, overdue.map((i) => i.id)) : [];
     const newOverdue = overdue.filter((i) => newOverdueIds.includes(i.id));
@@ -223,8 +223,8 @@ export async function runCoachJob(
     const overdueClaims = newOverdue.map((i) => ({ kind: "overdue" as const, periodKey: i.id }));
     const outcome: CoachJobOutcome = { projectId: t.projectId };
 
-    // 1 日に 2 通送らない: 予定日を過ぎたやることは、遅れそうな日はその知らせに、月曜は振り返りに入れる（振り返りには先週の件数を書く）。
-    // ほかの日は、新しく過ぎたやることがあるときだけ、それだけの知らせを送る
+    // 1 日に 2 通送らない: 予定日を過ぎたタスクは、遅れそうな日はその知らせに、月曜は振り返りに入れる（振り返りには先週の件数を書く）。
+    // ほかの日は、新しく過ぎたタスクがあるときだけ、それだけの知らせを送る
     if (weekly) {
       const claims = [{ kind: "weekly" as const, periodKey: thisWeek }, ...(nudge ? [] : overdueClaims)];
       outcome.weekly = await deliverCoachMessage(admin, { ...common, kind: "weekly", claims, message: weeklyMessage(weekly, ctx) }, opts.deps);

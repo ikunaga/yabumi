@@ -18,7 +18,7 @@ describe("週の始まり", () => {
   });
 });
 
-describe("やることと週の数字", () => {
+describe("タスクと週の数字", () => {
   const daily = days("2026-10-05", 21, (i) => ({ posts: i % 3 === 0 ? 1 : 0, link_clicks: 2 }));
 
   it("結びつけた数字の、その週の合計を出す。自動で数えられない数字は出さない", () => {
@@ -35,7 +35,7 @@ describe("やることと週の数字", () => {
 });
 
 describe("形の確かめ", () => {
-  it("やることの週は月曜だけ。数字と目標の値は両方か、両方空", () => {
+  it("タスクの週は月曜だけ。数字と目標の値は両方か、両方空", () => {
     expect(itemSchema.safeParse({ title: "1 本書く", week_start: "2026-10-12" }).success).toBe(true);
     expect(itemSchema.safeParse({ title: "1 本書く", week_start: "2026-10-13" }).success).toBe(false);
     expect(itemSchema.safeParse({ title: "1 本書く", week_start: "2026-10-12", kpi: "posts", target: null }).success).toBe(false);
@@ -59,7 +59,7 @@ describe("形の確かめ", () => {
     expect(itemsProposalSchema.safeParse({ items: [{ title: "1 本", week: 0 }] }).data?.items[0].sns).toBeNull();
   });
 
-  it("AI の提案: やること（何週目かで受け取る）", () => {
+  it("AI の提案: タスク（何週目かで受け取る）", () => {
     expect(itemsProposalSchema.safeParse({ items: [{ title: "1 本書く", week: 0 }] }).success).toBe(true);
     expect(itemsProposalSchema.safeParse({ items: [{ title: "1 本書く", week: 53 }] }).success).toBe(false);
     expect(itemsProposalSchema.safeParse({ items: [] }).success).toBe(false);
@@ -70,7 +70,7 @@ describe("SNS ごとに数える（2026-10-12 の不具合: Instagram に送っ�
   // X と Threads に 1 本ずつ
   const daily = days("2026-10-12", 7, (i) => (i === 1 ? { posts: 2, postsBySns: { x: 1, threads: 1 } } : {}));
 
-  it("やることに SNS があれば、その SNS の送信済みだけを数える。null はすべての SNS", () => {
+  it("タスクに SNS があれば、その SNS の送信済みだけを数える。null はすべての SNS", () => {
     expect(itemProgress({ weekStart: "2026-10-12", kpi: "posts", target: 1, sns: "instagram" }, daily)).toEqual({ actual: 0, target: 1 });
     expect(itemProgress({ weekStart: "2026-10-12", kpi: "posts", target: 1, sns: "x" }, daily)).toEqual({ actual: 1, target: 1 });
     expect(itemProgress({ weekStart: "2026-10-12", kpi: "posts", target: 1, sns: null }, daily)).toEqual({ actual: 2, target: 1 });
@@ -112,7 +112,7 @@ describe("目標と数字の欄を種類で絞る（決定 D34）", () => {
 });
 
 describe("ありえない日付（2026-11-06 のセキュリティ確認の M1）", () => {
-  it("KGI の期限・やることの週に、ない日は入れられない", () => {
+  it("KGI の期限・タスクの週に、ない日は入れられない", () => {
     const kgi = { statement: "x", kpi: "link_clicks", target: 10, deadline: "2026-11-31", sns: null };
     // 前の形の KGI（保存してある会話を読むときの形）
     expect(kgiSchema.safeParse(kgi).success).toBe(false);

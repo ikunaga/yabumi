@@ -39,7 +39,10 @@ const ERRORS: Record<BannerSns, Record<string, string>> = {
     failed: "X とつなげませんでした。時間をおいて、もう一度お試しください。",
   },
 };
-const STATE_ERROR = "つなぐときの確認に失敗しました。時間をおいて、もう一度「つなぐ」から始めてください。";
+// 確認（OAuth の state）が合わないとき。原因の多くは 10 分の期限切れ・2 回押した・別のブラウザで開いた、で、待っても直らない（2026-11-22 オーナーが Facebook で迷った）。
+// この受け口はどのプロジェクトか分からないので、プロジェクトの一覧に戻る。すぐやり直せる手順を書く
+const STATE_ERROR =
+  "SNS とつなげませんでした。この一覧から宣伝するものを選び、「ホーム」の「つなぐ・外す」を押してください。「つなぐ」は 1 回だけ押し、10 分以内に SNS の画面で許可してください。途中で別のアプリに移ると、つなげないことがあります。";
 
 const CONNECTED: Record<string, string> = { threads: "Threads", x: "X", instagram: "Instagram", facebook: "Facebook ページ", youtube: "YouTube" };
 

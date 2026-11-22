@@ -7,6 +7,7 @@ import { normalizePlan } from "@/lib/plan/schema";
 import { InvalidImageError, sanitizeJpeg } from "@/lib/media/jpeg";
 import { MEDIA_BUCKET, PREVIEW_URL_SECONDS } from "@/lib/media/rules";
 import { TEMPLATE_SIZES, type TemplateSizeKey } from "@/lib/media/templates";
+import { HOLD_REFUSED } from "@/lib/auto-post/holds";
 import { alertIfNearBudgetSafely } from "@/lib/notify/budget";
 import type { Database } from "@/lib/supabase/database.types";
 import type { ModelOutput } from "./app-description";
@@ -386,6 +387,9 @@ export function autoPhotoLimitMessage(status: string): string {
       return "今月の自動投稿の AI の画像が、yabumi 全体の上限に達しました";
     case "new_users_limit":
       return "登録して 7 日までの方が使える、今月の自動投稿の AI の画像の枠がいっぱいになりました";
+    // 運営者が利用者ごとに止めている（DB の reserve_ai_images が p_auto のときに断る）
+    case "auto_post_hold":
+      return HOLD_REFUSED;
     default:
       return `今月の自動投稿の AI の画像は上限（1 人 ${AUTO_PHOTO_LIMITS.userMonthlyImages} 枚。登録して 7 日までは ${AUTO_PHOTO_LIMITS.newUserMonthlyImages} 枚）に達しました`;
   }

@@ -173,3 +173,67 @@ describe("予約済みの回を、その日だけ飛ばす（skip_scheduled_auto
     expect((await admin.from("auto_runs").select("id").eq("plan_id", plan)).data!.length).toBe(before);
   });
 });
+
+// M2（docs/security/2026-11-21_セキュリティ確認.md）: 飛ばす・止めると送信のジョブ（claim_due_targets）を並べて走らせても、
+// 送られる投稿を「飛ばした・止めた」にしない。どちらが先でも、結果は「飛ばした・下書き・送らない」か「送る・回はそのまま」のどちらか
+const targetStatuses = async (postId: string) => (await admin.from("post_targets").select("status").eq("post_id", postId)).data!.map((t) => t.status);
+const claim = (postId: string) => admin.rpc("claim_due_targets", { p_limit: 10, p_post_id: postId });
+
+describe("送信のジョブと同時に飛ばす・止める（M2）", () => {
+  // 回し方は 1 プロジェクト 10 個までなので、止めるテストは別のプロジェクトで
+  let pauseProject: string;
+  beforeAll(async () => {
+    pauseProject = (await alice.from("projects").insert({ name: "止める" }).select("id").single()).data!.id;
+  });
+
+  it("飛ばすのと送るのを並べて走らせても、送った投稿を「飛ばした」にしない", async () => {
+    const plan = await newPlan(alice, projectId);
+    for (let i = 0; i < 12; i++) {
+      const r = await runWithPost(plan, { dueAt: later(30 + i), targets: [["threads", "pending"]] });
+      const [skip, claimed] = await Promise.all([alice.rpc("skip_scheduled_auto_run", { p_run_id: r.runId }), claim(r.postId)]);
+      expect(claimed.error).toBeNull();
+      const sent = (claimed.data ?? []).length > 0;
+      if (sent) {
+        expect(skip.error?.hint, `${i}`).toBe("auto_run_sending");
+        expect(await runOf(r.runId)).toMatchObject({ status: "scheduled" });
+        expect(await postStatus(r.postId)).toBe("scheduled");
+        expect(await targetStatuses(r.postId)).toEqual(["publishing"]);
+      } else {
+        expect(skip.error, `${i}`).toBeNull();
+        expect(await runOf(r.runId)).toEqual({ status: "canceled", reason: "user_skipped" });
+        expect(await postStatus(r.postId)).toBe("draft");
+        expect(await targetStatuses(r.postId)).toEqual(["pending"]);
+      }
+    }
+  });
+
+  it("回し方を止める（下書きに戻す）のと送るのを並べて走らせても、送った投稿の回は止めない", async () => {
+    for (let i = 0; i < 6; i++) {
+      const plan = await newPlan(alice, pauseProject);
+      const r = await runWithPost(plan, { project: pauseProject, dueAt: later(30 + i), targets: [["threads", "pending"]] });
+      const [pause, claimed] = await Promise.all([
+        alice.rpc("set_auto_plan_status", { p_project_id: pauseProject, p_plan_id: plan, p_status: "paused", p_to_draft: true }),
+        claim(r.postId),
+      ]);
+      expect(pause.error).toBeNull();
+      expect(claimed.error).toBeNull();
+      if ((claimed.data ?? []).length > 0) {
+        expect((await runOf(r.runId)).status, `${i}`).toBe("scheduled");
+        expect(await postStatus(r.postId)).toBe("scheduled");
+        expect(await targetStatuses(r.postId)).toEqual(["publishing"]);
+      } else {
+        expect(await runOf(r.runId), `${i}`).toEqual({ status: "canceled", reason: "plan_paused" });
+        expect(await postStatus(r.postId)).toBe("draft");
+        expect(await targetStatuses(r.postId)).toEqual(["pending"]);
+      }
+    }
+  });
+
+  it("送り始めた投稿の回は、止めても「止めた」にしない（ジョブが先に終わったとき）", async () => {
+    const plan = await newPlan(alice, pauseProject);
+    const r = await runWithPost(plan, { project: pauseProject, targets: [["threads", "publishing"]] });
+    expect((await alice.rpc("set_auto_plan_status", { p_project_id: pauseProject, p_plan_id: plan, p_status: "paused", p_to_draft: true })).error).toBeNull();
+    expect((await runOf(r.runId)).status).toBe("scheduled");
+    expect(await postStatus(r.postId)).toBe("scheduled");
+  });
+});

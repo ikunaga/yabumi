@@ -107,15 +107,16 @@ describe("書き方の指示（auto_plans.instructions）", () => {
     }
   });
 
-  it("古い形（p_tone）でも保存でき、口調の指示は指示の 1 つになる（本番の db push から git push までの間）", async () => {
+  it("古い形（p_tone）の保存は消した（L10）。指示を整える関数は中で使うだけで、利用者からは呼べない（L11）", async () => {
     const p = await project();
     const rest: Record<string, unknown> = { ...planArgs(p) };
     delete rest.p_instructions;
-    const { data, error } = await alice.rpc("save_auto_plan", { ...rest, p_tone: " 季節の話から入る " } as never);
+    expect((await alice.rpc("save_auto_plan", { ...rest, p_tone: "季節の話から入る" } as never)).error?.code).toBe("PGRST202");
+    expect((await alice.rpc("auto_instructions_clean" as never, { p: ["a", "a"] } as never)).error?.code).toBe("42501");
+    // 中で使う分は、そのまま動く（同じ指示は 1 つにまとまる）
+    const { data, error } = await alice.rpc("save_auto_plan", planArgs(p, { p_instructions: [" 季節の話から入る ", "季節の話から入る"] }));
     expect(error).toBeNull();
     expect((await planOf(data as string)).instructions).toEqual(["季節の話から入る"]);
-    const { data: empty } = await alice.rpc("save_auto_plan", { ...rest, p_tone: "" } as never);
-    expect((await planOf(empty as string)).instructions).toEqual([]);
   });
 
   it("指示だけを直せる（set_auto_plan_instructions）。ほかの人の回し方は直せない。運営者が止めている間は断る", async () => {

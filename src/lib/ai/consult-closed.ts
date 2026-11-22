@@ -16,6 +16,6 @@ export function consultClosedText(done: unknown, items: unknown, reviewed: Revie
   else if (goal) parts.push(`新しい目標『${goal.started}』を始めました。`);
   if (reviewed && reviewed !== "many") parts.push(`『${reviewed.title}』を完了にしました。`);
   if (n > 0) parts.push(`来週のタスクに ${n} 件入れました。`);
-  if (reviewed === "many") parts.push("今週の振り返りのタスクが 2 つ以上あるので、ロードマップで完了にしてください。");
+  if (reviewed === "many") parts.push("今週の振り返りのタスクが 2 件以上あるので、完了にしていません。「ロードマップ」で、終えたタスクを完了にしてください。");
   return parts.join("");
 }

@@ -74,7 +74,7 @@ describe("終えたあとの知らせ", () => {
     // 振り返りのタスクを済みにしたとき（名前はサーバーが DB から読んだもの）・済みにできなかったとき
     expect(consultClosedText("consult_closed", "2", { title: "4 週間の振り返り" })).toBe("相談を終えました。『4 週間の振り返り』を完了にしました。来週のタスクに 2 件入れました。");
     expect(consultClosedText("consult_closed", undefined, { title: "数字を見る" })).toBe("相談を終えました。『数字を見る』を完了にしました。");
-    expect(consultClosedText("consult_closed", "1", "many")).toBe("相談を終えました。来週のタスクに 1 件入れました。今週の振り返りのタスクが 2 つ以上あるので、ロードマップで完了にしてください。");
+    expect(consultClosedText("consult_closed", "1", "many")).toBe("相談を終えました。来週のタスクに 1 件入れました。今週の振り返りのタスクが 2 件以上あるので、完了にしていません。「ロードマップ」で、終えたタスクを完了にしてください。");
   });
 
   it("来週のタスクの数は、採用した案の week 1 のタスクだけを数える", () => {

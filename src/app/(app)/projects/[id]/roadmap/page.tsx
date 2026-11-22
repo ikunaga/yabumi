@@ -172,7 +172,7 @@ export default async function RoadmapPage(props: PageProps<"/projects/[id]/roadm
               {groups.length === 0 ? (
                 <EmptyState
                   title="まだタスクがありません"
-                  description="1 週に 1〜3 個、30 分ほどで済むことを置くのがおすすめです。AI と相談すると、目標から週ごとのタスクを提案します。"
+                  description="1 週に 1〜3 件、30 分ほどで終わるタスクがおすすめです。AI と相談すると、目標から週ごとのタスクを提案します。"
                 />
               ) : (
                 groups.map((g) => (

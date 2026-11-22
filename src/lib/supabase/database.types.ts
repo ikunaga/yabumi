@@ -3659,40 +3659,23 @@ export type Database = {
         }
         Returns: undefined
       }
-      save_auto_plan:
-        | {
-            Args: {
-              p_consent: boolean
-              p_image?: Json
-              p_instructions: Json
-              p_kind: string
-              p_lead_hours: number
-              p_materials: Json
-              p_name: string
-              p_plan_id: string
-              p_project_id: string
-              p_schedule: Json
-              p_targets: Json
-              p_x_link: string
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              p_consent: boolean
-              p_kind: string
-              p_lead_hours: number
-              p_materials: Json
-              p_name: string
-              p_plan_id: string
-              p_project_id: string
-              p_schedule: Json
-              p_targets: Json
-              p_tone: string
-              p_x_link: string
-            }
-            Returns: string
-          }
+      save_auto_plan: {
+        Args: {
+          p_consent: boolean
+          p_image?: Json
+          p_instructions: Json
+          p_kind: string
+          p_lead_hours: number
+          p_materials: Json
+          p_name: string
+          p_plan_id: string
+          p_project_id: string
+          p_schedule: Json
+          p_targets: Json
+          p_x_link: string
+        }
+        Returns: string
+      }
       save_post: {
         Args: {
           p_body: string

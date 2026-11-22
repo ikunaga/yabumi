@@ -162,7 +162,7 @@ describe("画像の設定（auto_image_valid・save_auto_plan）", () => {
     expect((await alice.rpc("save_auto_plan", planArgs(p, product))).error).toBeNull();
   });
 
-  it("古い呼び方（p_image を渡さない・p_tone の形）でも保存でき、画像なしになる", async () => {
+  it("古い呼び方（p_image を渡さない）でも保存でき、画像なしになる。p_tone の形は消した（L10）", async () => {
     const p = await project();
     const rest: Record<string, unknown> = { ...planArgs(p) };
     delete rest.p_image;
@@ -170,13 +170,26 @@ describe("画像の設定（auto_image_valid・save_auto_plan）", () => {
     expect(e1).toBeNull();
     expect((await planOf(a as string)).image).toBeNull();
     delete rest.p_instructions;
-    const { data: b, error: e2 } = await alice.rpc("save_auto_plan", { ...rest, p_tone: "やわらかく" } as never);
-    expect(e2).toBeNull();
-    expect((await planOf(b as string)).instructions).toEqual(["やわらかく"]);
+    const { error: e2 } = await alice.rpc("save_auto_plan", { ...rest, p_tone: "やわらかく" } as never);
+    expect(e2?.code).toBe("PGRST202");
   });
 });
 
 describe("AI の画像の枠（手でつくる分と自動の分を別に数える）", () => {
+  it("運営者が止めている人には、自動の分の画像を予約させない。手でつくる分は止めない（L7）", async () => {
+    const { error } = await admin.from("auto_post_holds").insert({ user_id: aliceId, reason: "テスト", held_by: "test@example.com" });
+    if (error) throw error;
+    try {
+      expect((await reserveImages(aliceId, 1, { p_auto: true })).data?.[0]).toMatchObject({ status: "auto_post_hold", job_id: null });
+      const { count } = await admin.from("ai_image_jobs").select("*", { count: "exact", head: true }).eq("owner_id", aliceId).eq("auto", true);
+      expect(count).toBe(0);
+      expect((await reserveImages(aliceId, 1)).data?.[0]?.status).toBe("ok");
+    } finally {
+      await admin.from("auto_post_holds").delete().eq("user_id", aliceId);
+      await admin.from("ai_image_jobs").delete().eq("owner_id", aliceId);
+    }
+  });
+
   it("自動の分は 1 人 月 31 枚。手でつくる分（20 枚）とは別に数える", async () => {
     for (let i = 0; i < 7; i++) expect((await reserveImages(aliceId, 4, { p_auto: true })).data?.[0]?.status).toBe("ok");
     expect((await reserveImages(aliceId, 3, { p_auto: true })).data?.[0]?.status).toBe("ok");

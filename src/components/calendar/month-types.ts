@@ -28,7 +28,7 @@ export type MonthDay = {
   // その日の投稿の数（DB で数えたもの。読んだ行の数ではない）
   count: number;
   items: MonthItem[];
-  // 予定日がこの日のロードマップのやること
+  // 予定日がこの日のロードマップのタスク
   todos: CalendarTodo[];
 };
 

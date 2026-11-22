@@ -1,4 +1,4 @@
-// ロードマップ（docs/architecture.md の 4.23）: RLS と権限、DB での日ごとの合計、目標とやることの書き込み
+// ロードマップ（docs/architecture.md の 4.23）: RLS と権限、DB での日ごとの合計、目標とタスクの書き込み
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { loadRoadmapWith } from "@/lib/roadmap/load";
@@ -27,8 +27,8 @@ afterAll(async () => {
   await deleteUser(bobId);
 });
 
-describe("目標とやることの書き込み", () => {
-  it("やることは週ごとに足せる（目標がなければ KGI まだの目標を作って、そこにつなぐ）", async () => {
+describe("目標とタスクの書き込み", () => {
+  it("タスクは週ごとに足せる（目標がなければ KGI まだの目標を作って、そこにつなぐ）", async () => {
     expect(await addItems(alice, projectId, [{ title: "1 本書く", detail: "", week_start: "2026-10-12", kpi: "posts", target: 1, sns: null }], "manual")).toBe(1);
     const { data: items } = await alice.from("roadmap_items").select("title, week_start, kpi, target, status, goal_id").eq("project_id", projectId);
     expect(items).toEqual([{ title: "1 本書く", week_start: "2026-10-12", kpi: "posts", target: 1, status: "todo", goal_id: expect.any(String) }]);
@@ -40,7 +40,7 @@ describe("目標とやることの書き込み", () => {
   });
 });
 
-describe("やることの種類（4.42）", () => {
+describe("タスクの種類（4.42）", () => {
   it("種類を付けて足せる。付けなければ数字と題名・説明から推して残す", async () => {
     await addItems(
       alice,
@@ -61,7 +61,7 @@ describe("やることの種類（4.42）", () => {
     expect(view.items.find((i) => i.id === old!.id)!.kind).toBe("review");
   });
 
-  it("決まった種類のほかは DB で断る。自分のやることの種類は書き換えられる（行き先が変わるだけ）", async () => {
+  it("決まった種類のほかは DB で断る。自分のタスクの種類は書き換えられる（行き先が変わるだけ）", async () => {
     const { data: row } = await alice.from("roadmap_items").select("id").eq("project_id", projectId).eq("title", "顧客の声を集める").single();
     expect((await alice.from("roadmap_items").update({ kind: "publish" }).eq("id", row!.id)).error).not.toBeNull();
     expect((await alice.from("roadmap_items").insert(goalLess({ project_id: projectId, title: "x", week_start: "2026-10-12", kind: "admin" }))).error).not.toBeNull();
@@ -85,13 +85,13 @@ describe("RLS と権限", () => {
     expect(data!.length).toBeGreaterThan(0);
   });
 
-  it("自分のやることを他人のプロジェクトへ移せない", async () => {
+  it("自分のタスクを他人のプロジェクトへ移せない", async () => {
     const { data: item } = await alice.from("roadmap_items").select("id").eq("project_id", projectId).limit(1).single();
     const { error } = await alice.from("roadmap_items").update({ project_id: bobProjectId }).eq("id", item!.id);
     expect(error).not.toBeNull();
   });
 
-  it("ログインしていない人は、やることの表も関数も使えない", async () => {
+  it("ログインしていない人は、タスクの表も関数も使えない", async () => {
     expect((await anonClient().from("roadmap_items").select("*").limit(1)).error?.code).toBe("42501");
     const r = await anonClient().rpc("roadmap_daily_totals", { p_project_id: projectId, p_from: "2026-10-01", p_to: "2026-10-31" });
     expect(r.error?.code).toBe("42501");
@@ -166,7 +166,7 @@ describe("SNS ごとの数（post_counts_by_day。指標・ロードマップ・
     expect(Number(totals![0].posts)).toBe(2);
   });
 
-  it("「Instagram に 1 本」のやることは、Instagram に送っていなければ 0 / 1（X と Threads の分は数えない）", async () => {
+  it("「Instagram に 1 本」のタスクは、Instagram に送っていなければ 0 / 1（X と Threads の分は数えない）", async () => {
     await addItems(
       alice,
       p2,
@@ -186,7 +186,7 @@ describe("SNS ごとの数（post_counts_by_day。指標・ロードマップ・
     });
   });
 
-  it("SNS を持てるのは投稿した回数のやることだけ（DB でも断る）", async () => {
+  it("SNS を持てるのは投稿した回数のタスクだけ（DB でも断る）", async () => {
     const { error } = await alice.from("roadmap_items").insert(goalLess({ project_id: p2, title: "x", week_start: "2026-10-19", kpi: "link_clicks", target: 1, sns: "x" }));
     expect(error).not.toBeNull();
   });

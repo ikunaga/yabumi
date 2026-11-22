@@ -8,8 +8,8 @@ import type { PaceStatus } from "@/lib/coach/pace";
 import { setItemPlannedOn, setItemStatus } from "@/lib/roadmap/actions";
 import { addDays, dayOfMonth, monthOf, weekdayLabel } from "@/lib/time";
 
-// カレンダーのロードマップのやることと週の目標（F06・F10。docs/architecture.md の 4.23）。
-// やることは投稿の予約と見分けられるように、薄い地に「□」で出す（注意の印の色は使わない。予約と要確認の印に使うため）
+// カレンダーのロードマップのタスクと週の目標（F06・F10。docs/architecture.md の 4.23）。
+// タスクは投稿の予約と見分けられるように、薄い地に「□」で出す（注意の印の色は使わない。予約と要確認の印に使うため）
 
 const GOAL_STATUS: Record<PaceStatus, { mark: string; className: string; label: string }> = {
   done: { mark: "✓", className: "font-bold text-success", label: "届きました" },
@@ -42,7 +42,7 @@ function Goals({ goals, isThisWeek }: { goals: WeekGoal[]; isThisWeek: boolean }
   );
 }
 
-// 週の帯。目標もやることもない週は出さない
+// 週の帯。目標もタスクもない週は出さない
 export function WeekBandView({ band, base, today, compact = false }: { band: WeekBand | undefined; base: string; today: string; compact?: boolean }) {
   if (!band || (band.todos.length === 0 && band.goals.length === 0)) return null;
   const isThisWeek = today >= band.weekStart && today <= addDays(band.weekStart, 6);
@@ -51,7 +51,7 @@ export function WeekBandView({ band, base, today, compact = false }: { band: Wee
       {band.goals.length > 0 && <Goals goals={band.goals} isThisWeek={isThisWeek} />}
       {band.todos.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-xs font-bold text-muted">やること</span>
+          <span className="text-xs font-bold text-muted">タスク</span>
           {band.todos.map((t) => (
             <TodoButton key={t.id} todo={t} base={base} />
           ))}
@@ -61,7 +61,7 @@ export function WeekBandView({ band, base, today, compact = false }: { band: Wee
   );
 }
 
-// やること 1 つ。押すと中身と「この内容で投稿をつくる」を出す。
+// タスク 1 つ。押すと中身と「この内容で投稿をつくる」を出す。
 // 題名は、PC の月・週のマス（day）だけ 1 行で切り、週の帯（band）は 2 行、スマホの日ごとの一覧（list）は 3 行まで折り返す
 export function TodoButton({ todo, base, variant = "band" }: { todo: CalendarTodo; base: string; variant?: "band" | "day" | "list" }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -88,7 +88,7 @@ export function TodoButton({ todo, base, variant = "band" }: { todo: CalendarTod
         <span aria-hidden className={todo.status === "done" || todo.status === "achieved" ? "font-bold text-success" : ""}>
           {TODO_MARK[todo.status]}
         </span>
-        <span className="sr-only">{todo.status === "done" ? "完了" : todo.status === "achieved" ? "数字で達成" : todo.status === "skipped" ? "やらない" : "やること"}:</span>
+        <span className="sr-only">{todo.status === "done" ? "完了" : todo.status === "achieved" ? "数字で達成" : todo.status === "skipped" ? "やらない" : "タスク"}:</span>
         <span className={`min-w-0 ${variant === "day" ? "truncate" : variant === "list" ? "line-clamp-3 break-words" : "line-clamp-2 break-words"} ${todo.status === "done" ? "line-through" : ""}`}>
           {todo.title}
         </span>
@@ -134,7 +134,7 @@ function TodoDetail({ todo, base, titleId, onClose }: { todo: CalendarTodo; base
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col">
           <span className="text-xs text-muted">
-            ロードマップのやること（{monthOf(todo.weekStart)}/{dayOfMonth(todo.weekStart)} の週）
+            ロードマップのタスク（{monthOf(todo.weekStart)}/{dayOfMonth(todo.weekStart)} の週）
           </span>
           <h2 id={titleId} className={`text-base font-bold ${todo.status === "done" ? "text-muted line-through" : ""}`}>
             {todo.title}
@@ -177,7 +177,7 @@ function TodoDetail({ todo, base, titleId, onClose }: { todo: CalendarTodo; base
       )}
 
       <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3">
-        {/* 種類ごとの行き先（4.42）。ほかのやることは下の「ロードマップで見る」だけ */}
+        {/* 種類ごとの行き先（4.42）。ほかのタスクは下の「ロードマップで見る」だけ */}
         {todo.action.kind !== "other" && (
           <ButtonLink href={todo.action.href} size="sm">
             {todo.action.kind === "post" ? "この内容で投稿をつくる" : todo.action.label}

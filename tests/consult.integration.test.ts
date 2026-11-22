@@ -1,4 +1,4 @@
-// AI と相談（F09、docs/architecture.md の 4.23）: 会話、「いまの状況」、提案の採用（設計・目標・やること・下書き）。1 回の返事は 1 つの項目の案 2〜3 個（2026-10-12）。
+// AI と相談（F09、docs/architecture.md の 4.23）: 会話、「いまの状況」、提案の採用（設計・目標・タスク・下書き）。1 回の返事は 1 つの項目の案 2〜3 個（2026-10-12）。
 // AI は callModel をモックし、本物の Claude API は呼ばない
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { GOAL_RESCUE_NOT_FOUND, GOAL_REVIEW_NOT_FOUND, LEGACY_GOAL_PROPOSAL, closeConsultThread, consultBegin, consultReply, consultStep, type ConsultInput } from "@/lib/ai/consult";
@@ -132,12 +132,12 @@ describe("AI と相談: ロードマップづくり（1 回 1 項目、順番に
     expect(contextOf(callModel)).toContain("3. 投稿の週の本数（action_targets）: 次に決める");
   });
 
-  it("投稿の週の本数を採用すると行動の目標になり、アカウント設計を保存しても目標は戻らない。次は今週・来週のやること", async () => {
+  it("投稿の週の本数を採用すると行動の目標になり、アカウント設計を保存しても目標は戻らない。次は今週・来週のタスク", async () => {
     const callModel = reply(proposalTurn("roadmap_items", [opt("最初の 2 週間", items), opt("今週だけ", { items: [items.items[0]] })]));
     const r = await step(alice, aliceId, callModel, threadId, { kind: "adopt", messageId: await lastAssistantId(threadId), actionIndex: 0 });
     expect(r.ok).toBe(true);
     expect((await activeGoal()).goal_kpis.filter((k) => k.role === "action")).toMatchObject([{ metric: "posts", sns: "x", per_week: 3 }]);
-    expect(contextOf(callModel)).toContain("4. 今週・来週のやること（near_items）: 次に決める");
+    expect(contextOf(callModel)).toContain("4. 今週・来週のタスク（near_items）: 次に決める");
     // 橋渡し（fix/goals-bridge）: アカウント設計のほかのセクションを保存しても、KGI と KPI は上書きされない
     await alice.from("account_plans").upsert({ project_id: projectId, data: { goal: { what: "家計簿", goalType: "download", note: "" }, first_month: { goal: "", metrics: "", kpis: [], weekly: { x: 3 } } } }, { onConflict: "project_id" });
     const g = await activeGoal();
@@ -145,7 +145,7 @@ describe("AI と相談: ロードマップづくり（1 回 1 項目、順番に
     expect(g.goal_kpis.filter((k) => k.role === "kpi")).toHaveLength(1);
   });
 
-  it("やることの案は「何週目か」から日付にして足す。済んだら次はその先の週", async () => {
+  it("タスクの案は「何週目か」から日付にして足す。済んだら次はその先の週", async () => {
     const callModel = reply(plain("ロードマップができました。"));
     const r = await step(alice, aliceId, callModel, threadId, { kind: "adopt", messageId: await lastAssistantId(threadId), actionIndex: 0 });
     expect(r.ok).toBe(true);
@@ -155,7 +155,7 @@ describe("AI と相談: ロードマップづくり（1 回 1 項目、順番に
       { title: "柱「詰まった・直した」で 1 本書く", week_start: thisWeek, source: "ai" },
       { title: "週 3 回投稿する", week_start: addDays(thisWeek, 7), source: "ai" },
     ]);
-    expect(contextOf(callModel)).toContain("5. その先のやること（later_items）: 次に決める");
+    expect(contextOf(callModel)).toContain("5. その先のタスク（later_items）: 次に決める");
   });
 
   it("下書きの案は 2〜3 本から選び、選んだ本文で下書きを作って、その画面へ移る（AI の返事は待たない）", async () => {
@@ -196,23 +196,23 @@ describe("AI と相談: ロードマップづくり（1 回 1 項目、順番に
     expect((last!.content as { proposal: { options: { title: string }[] } }).proposal.options.map((o) => o.title)).toEqual(["直した目標", "150 ダウンロード"]);
   });
 
-  it("前の形で保存された会話（1 つの返事に種類の違う提案が並ぶ）も読めて、やることは採用できる。前の形の目標は採用しない", async () => {
+  it("前の形で保存された会話（1 つの返事に種類の違う提案が並ぶ）も読めて、タスクは採用できる。前の形の目標は採用しない", async () => {
     const { data: t } = await admin.from("ai_threads").insert({ owner_id: aliceId, project_id: projectId, purpose: "consult" }).select("id").single();
     await admin.from("ai_messages").insert({ thread_id: t!.id, owner_id: aliceId, role: "user", content: { kind: "start", topic: "roadmap" } });
     const legacy = {
-      message: "目標とやることの案です。",
+      message: "目標とタスクの案です。",
       choices: [],
       adopted: [],
       actions: [
         { kind: "goal", title: "1 か月で 12 本", reason: "", kgi: legacyKgi, kpiTargets: [{ kpi: "posts", per_week: 4 }] },
-        { kind: "roadmap_items", title: "来週", reason: "", items: [{ title: "前の形のやること", detail: "", week: 1, kpi: null, target: null }] },
+        { kind: "roadmap_items", title: "来週", reason: "", items: [{ title: "前の形のタスク", detail: "", week: 1, kpi: null, target: null }] },
       ],
     };
     const { data: m } = await admin.from("ai_messages").insert({ thread_id: t!.id, owner_id: aliceId, role: "assistant", content: legacy }).select("id").single();
     const callModel = reply(plain());
     const r = await step(alice, aliceId, callModel, t!.id, { kind: "adopt", messageId: m!.id, actionIndex: 1 });
     expect(r.ok).toBe(true);
-    const { data: item } = await alice.from("roadmap_items").select("title").eq("project_id", projectId).eq("title", "前の形のやること");
+    const { data: item } = await alice.from("roadmap_items").select("title").eq("project_id", projectId).eq("title", "前の形のタスク");
     expect(item).toHaveLength(1);
     // 履歴は新しい形で渡す（前の提案は文で添える）
     expect(JSON.stringify(vi.mocked(callModel).mock.calls[0][0].messages)).toContain("このときの提案: 1 か月で 12 本（goal）、来週（roadmap_items）");
@@ -521,12 +521,12 @@ describe("ロードマップづくりの段", () => {
     }
   });
 
-  it("振り返りのゴールの案は、入口ごとの見出し（来週のやること・次の 1 か月の目標と週の本数・次の目標）", () => {
+  it("振り返りのゴールの案は、入口ごとの見出し（来週のタスク・次の 1 か月の目標と週の本数・次の目標）", () => {
     const ms = normalizeConsultTurn(proposalTurn("milestone", [opt("同じペース", { target: 50, weekly: { x: 3 } }), opt("減らす", { target: 40, weekly: { x: 2 } })]))!.proposal!;
     expect(reviewHeadingOf(ms, "month_review")).toBe("次の 1 か月の目標と週の本数");
     expect(reviewHeadingOf(normalizeConsultTurn(kgiTurn)!.proposal!, "goal_review")).toBe("次の目標");
     const near = normalizeConsultTurn(proposalTurn("roadmap_items", [opt("a", items)]))!.proposal!;
-    expect(reviewHeadingOf(near, "review")).toBe("来週のやること");
+    expect(reviewHeadingOf(near, "review")).toBe("来週のタスク");
     const firstMonth = (x: number) => opt(`週 ${x}`, { section: "first_month", value: { goal: `X に週 ${x} 本`, metrics: "", kpis: ["posts"], weekly: { x } } });
     const month = normalizeConsultTurn(proposalTurn("plan_section", [firstMonth(2), firstMonth(3)]))!.proposal!;
     expect(month.options).toHaveLength(2);

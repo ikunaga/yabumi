@@ -35,7 +35,7 @@ describe("これまでの相談の一覧の名前", () => {
   });
 
   it("まだ選んでいなければ、最後の案を「など（まだ選んでいない）」で。前の形の提案も読む", () => {
-    expect(summarizeConsultThread([{ role: "user", kind: "start", topic: "review" }, { role: "assistant", option: "来週のやること" }]).title).toBe("来週のやること など（まだ選んでいない）");
+    expect(summarizeConsultThread([{ role: "user", kind: "start", topic: "review" }, { role: "assistant", option: "来週のタスク" }]).title).toBe("来週のタスク など（まだ選んでいない）");
     expect(summarizeConsultThread([{ role: "user", kind: "start", topic: "roadmap" }, { role: "assistant", legacy: "1 か月で 12 本" }]).title).toBe("1 か月で 12 本 など（まだ選んでいない）");
   });
 

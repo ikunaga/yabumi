@@ -9,7 +9,7 @@ import type { StepState, WeekTodoCounts } from "./next-step";
 
 export type ProjectStepState = StepState & { connectedSns: SnsKey[]; thisWeek: WeekTodoCounts };
 
-// 「いまやること」（next-step.ts）の判定に使う値を、プロジェクトごとにまとめて取る。一覧と概要はどちらもここから取る
+// 「いまのタスク」（next-step.ts）の判定に使う値を、プロジェクトごとにまとめて取る。一覧と概要はどちらもここから取る
 // （2026-10-22 の不具合: 一覧が投稿済みかとロードマップの有無を渡しておらず、いつも「最初の投稿をつくる」になった）。
 // 問い合わせはプロジェクトの数にかかわらず 3 つ（設計・つないだ SNS・投稿とロードマップ）。RLS で本人のものだけ
 export async function loadStepStates(projects: { id: string; target_audience: string }[], now: Date = new Date()): Promise<Record<string, ProjectStepState>> {

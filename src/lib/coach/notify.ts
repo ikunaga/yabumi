@@ -10,9 +10,9 @@ import type { CoachMessage } from "./messages";
 // 画面の声かけは、同じ計算（pace.ts）から毎回出すので、ここを通らない
 type Db = SupabaseClient<Database>;
 
-// 設定で選ぶ種類（遅れそう・毎週の振り返り）。予定日を過ぎたやること（overdue）は「遅れそうなとき」に含める
+// 設定で選ぶ種類（遅れそう・毎週の振り返り）。予定日を過ぎたタスク（overdue）は「遅れそうなとき」に含める
 export type CoachKind = "behind" | "weekly";
-// 送った記録の種類（overdue は、やることごとに 1 回だけ）
+// 送った記録の種類（overdue は、タスクごとに 1 回だけ）
 export type LogKind = CoachKind | "overdue";
 export type Claim = { kind: LogKind; periodKey: string };
 export type NotifyMode = "weekly_and_behind" | "weekly" | "off";
@@ -47,7 +47,7 @@ async function claim(admin: Db, base: { user_id: string; project_id: string }, c
   return (data ?? []).map((r) => r.id);
 }
 
-// まだ送っていない、予定日を過ぎたやること（どの経路でも送っていないもの）
+// まだ送っていない、予定日を過ぎたタスク（どの経路でも送っていないもの）
 export async function unsentOverdue(admin: Db, userId: string, projectId: string, itemIds: string[]): Promise<string[]> {
   if (itemIds.length === 0) return [];
   const { data, error } = await admin.from("notification_log").select("period_key").eq("user_id", userId).eq("project_id", projectId).eq("kind", "overdue").in("period_key", itemIds);
@@ -58,7 +58,7 @@ export async function unsentOverdue(admin: Db, userId: string, projectId: string
 
 export async function deliverCoachMessage(
   admin: Db,
-  // kind: 設定のどの種類として送るか。claims: 入れる記録（ふつうは kind とその週。予定日を過ぎたやることは、やることごとに）。
+  // kind: 設定のどの種類として送るか。claims: 入れる記録（ふつうは kind とその週。予定日を過ぎたタスクは、タスクごとに）。
   // どれか 1 つでも新しく入れば送る（すべてすでにあれば dup）
   args: { userId: string; email: string | null; projectId: string; kind: CoachKind; claims: Claim[]; prefs: Prefs; message: CoachMessage; headers?: Record<string, string> },
   deps: DeliverDeps = {},

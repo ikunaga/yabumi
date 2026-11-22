@@ -1,6 +1,6 @@
-// 数字で目標に届いたやることを、プロジェクトの一覧（DB の project_step_flags）と概要・ロードマップ（アプリの effectiveStatus）で同じに数える。
+// 数字で目標に届いたタスクを、プロジェクトの一覧（DB の project_step_flags）と概要・ロードマップ（アプリの effectiveStatus）で同じに数える。
 // 週の区切り（日本時間の月曜 0 時）とクリックの数え方（roadmap_daily_totals のその週）が、DB とアプリで食い違わないこと。
-// まだの数に加えて済んだ数も突き合わせる（一覧の「✓ 今週のやることは、すべて完了しました」。2026-11-12 オーナーの指摘）。予約だけ・一部の SNS だけ送れた・手で済み・やらないも
+// まだの数に加えて済んだ数も突き合わせる（一覧の「✓ 今週のタスクは、すべて完了しました」。2026-11-12 オーナーの指摘）。予約だけ・一部の SNS だけ送れた・手で済み・やらないも
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { toCalendarTodo } from "@/lib/calendar/roadmap-view";
 import { listNextStep } from "@/lib/projects/next-step";
@@ -81,7 +81,7 @@ afterAll(async () => {
   await deleteUser(bobId);
 });
 
-describe("数字で達成したやることを、一覧と概要で同じに数える", () => {
+describe("数字で達成したタスクを、一覧と概要で同じに数える", () => {
   it("週の境目（日本時間の月曜 0 時）を DB とアプリで同じに区切る: 投稿 2 本で「2 本投稿」だけ達成", async () => {
     const { view, db, app } = await compare();
     expect(view.thisWeek).toBe(WEEK);
@@ -89,7 +89,7 @@ describe("数字で達成したやることを、一覧と概要で同じに数�
     expect(thisWeekTodos(view).map((t) => t.title)).toEqual(["3 本投稿", "クリック 5 回", "フォロワー 10"]);
     expect(app).toBe(3);
     expect(db).toBe(3);
-    expect(listNextStep({ planDone: true, connectedSnsCount: 1, hasPublished: true, hasRoadmap: true, thisWeek: { open: db, finished: 1 } }).label).toBe("今週のやること あと 3 件");
+    expect(listNextStep({ planDone: true, connectedSnsCount: 1, hasPublished: true, hasRoadmap: true, thisWeek: { open: db, finished: 1 } }).label).toBe("今週のタスク あと 3 件");
   });
 
   it("クリックはその週（月〜日）の合計で決める。届けば達成、DB の status は書き換えない", async () => {
@@ -133,7 +133,7 @@ describe("数字で達成したやることを、一覧と概要で同じに数�
     await clicks("2026-10-20", 2);
     const { db, app, dbDone, appDone } = await compare();
     expect([app, db, appDone, dbDone]).toEqual([0, 0, 4, 4]);
-    expect(listNextStep({ planDone: true, connectedSnsCount: 1, hasPublished: true, hasRoadmap: true, thisWeek: { open: db, finished: dbDone } }).label).toBe("✓ 今週のやることは、すべて完了しました");
+    expect(listNextStep({ planDone: true, connectedSnsCount: 1, hasPublished: true, hasRoadmap: true, thisWeek: { open: db, finished: dbDone } }).label).toBe("✓ 今週のタスクは、すべて完了しました");
   });
 
   it("他人のプロジェクトは数えない", async () => {
@@ -142,9 +142,9 @@ describe("数字で達成したやることを、一覧と概要で同じに数�
   });
 });
 
-// 2026-11-12 PMO の本番での通しテスト: 数字で数えないやることは、そのやることから作った投稿（roadmap_item_id）を送っても「まだ」に残った。
+// 2026-11-12 PMO の本番での通しテスト: 数字で数えないタスクは、そのタスクから作った投稿（roadmap_item_id）を送っても「まだ」に残った。
 // 結びついた投稿の配信先が 1 つ以上送信済みなら済み。予約だけ・失敗だけでは済みにしない。一覧（DB）・概要とロードマップ（weekTodoCounts）・カレンダーで同じ
-describe("数字で数えないやることは、ここから作った投稿を送ったら済み（一覧・概要・カレンダーで同じ）", () => {
+describe("数字で数えないタスクは、ここから作った投稿を送ったら済み（一覧・概要・カレンダーで同じ）", () => {
   let pid: string;
   let profileId: string;
   let writeId: string;
@@ -215,7 +215,7 @@ describe("数字で数えないやることは、ここから作った投稿を�
   });
 
   it("結びついていない投稿は数えない。手で済みにすれば、どこでも済み", async () => {
-    // このプロジェクトの、やることと結びついていない送った投稿
+    // このプロジェクトの、タスクと結びついていない送った投稿
     const { data: free, error } = await admin.from("posts").insert({ project_id: pid, owner_id: aliceId, body: "x", status: "draft" }).select("id").single();
     if (error) throw error;
     await admin.from("post_targets").insert({ post_id: free.id, owner_id: aliceId, sns: "x", status: "published", published_at: "2026-10-23T03:00:00Z" });
@@ -229,8 +229,8 @@ describe("数字で数えないやることは、ここから作った投稿を�
   });
 });
 
-// 前の週から残っている、まだのやること（this_week_carried・carriedTodos）と、今の目標で絞ること（2026-11-21 オーナーの指摘
-// 「ロードマップでは先週のやることがまだ残っているのに、ホームでは『今週のやることは、すべて完了しました』」）。DB とアプリで同じに数える
+// 前の週から残っている、まだのタスク（this_week_carried・carriedTodos）と、今の目標で絞ること（2026-11-21 オーナーの指摘
+// 「ロードマップでは先週のタスクがまだ残っているのに、ホームでは『今週のタスクは、すべて完了しました』」）。DB とアプリで同じに数える
 describe("前の週の残りと、今の目標で絞る", () => {
   const PREV = "2026-10-12";
   let pid: string;
@@ -263,7 +263,7 @@ describe("前の週の残りと、今の目標で絞る", () => {
       const { error } = await admin.from("roadmap_items").insert(rows.map((r, i) => ({ ...r, project_id: pid, owner_id: aliceId, kind: "setup", position: from + i })) as never);
       if (error) throw new Error(`${rows.map((r) => r.title).join(",")}: ${error.message}`);
     };
-    // 前の目標のやること（目標が生きている間につくったもの）。そのあと目標を見直して終え、今の目標を始める
+    // 前の目標のタスク（目標が生きている間につくったもの）。そのあと目標を見直して終え、今の目標を始める
     const oldGoal = await startGoal();
     await insert(
       [
@@ -290,11 +290,11 @@ describe("前の週の残りと、今の目標で絞る", () => {
     );
   });
 
-  it("前の週のまだのやることを数え、前の目標のやることは数えない（DB とアプリで同じ）", async () => {
+  it("前の週のまだのタスクを数え、前の目標のタスクは数えない（DB とアプリで同じ）", async () => {
     const r = await compareAll();
     expect(r.app).toEqual({ open: 2, finished: 1, carried: 1 });
     expect(r.db).toEqual(r.app);
-    expect(r.label).toBe("やること あと 3 件。うち 1 件は前の週の分");
+    expect(r.label).toBe("タスク あと 3 件。うち 1 件は前の週の分");
   });
 
   it("今週分が済んでも、前の週の残りがあれば「すべて完了」と出さない", async () => {
@@ -303,11 +303,11 @@ describe("前の週の残りと、今の目標で絞る", () => {
     const r = await compareAll();
     expect(r.app).toEqual({ open: 0, finished: 3, carried: 1 });
     expect(r.db).toEqual(r.app);
-    expect(r.label).toBe("前の週のやること あと 1 件");
+    expect(r.label).toBe("前の週のタスク あと 1 件");
     // 前の週の残りも済めば、すべて完了
     await admin.from("roadmap_items").update({ status: "done" }).eq("project_id", pid).eq("title", "前の週・まだ");
     const done = await compareAll();
     expect(done.db).toEqual({ open: 0, finished: 3, carried: 0 });
-    expect(done.label).toBe("✓ 今週のやることは、すべて完了しました");
+    expect(done.label).toBe("✓ 今週のタスクは、すべて完了しました");
   });
 });

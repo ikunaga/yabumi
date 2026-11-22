@@ -83,7 +83,7 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
   const comments = sent ? (await loadProjectComments(project.id, { postId: post.id })).filter((p) => p.sns !== "x") : [];
   const timeHint = timeHintOf(await loadTimeTrends(project.id));
   const profileLink = await loadProfileLinkInfo(supabase, project);
-  // ロードマップのやることから作った投稿は、やることの題と説明を手がかりとして出す（下書きから再開したときも。PMO2 の s8。RLS で本人のものだけ）
+  // ロードマップのタスクから作った投稿は、タスクの題と説明を手がかりとして出す（下書きから再開したときも。PMO2 の s8。RLS で本人のものだけ）
   // シリーズのフォーマットで本文に入れた回（投稿に結びついた記録のいちばん新しいもの）。③ のフォーマットの画像の絵の説明を埋める（docs/design/format-image.md の 2.1）
   const { data: round } = post.formatId
     ? await supabase.from("post_format_rounds").select("values").eq("post_id", post.id).eq("format_id", post.formatId).order("created_at", { ascending: false }).limit(1).maybeSingle()
@@ -224,7 +224,7 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
         shortLinks,
         quotePostId: post.targets.find((t) => t.sns === "x" && t.status === "pending")?.quote_post_id ?? null,
         textOrigin: post.textOrigin,
-        // 下書きから再開したときに、選んでいたフォーマットと「やることから」の手がかりを戻す（PMO2 の s8）
+        // 下書きから再開したときに、選んでいたフォーマットと「タスクから」の手がかりを戻す（PMO2 の s8）
         formatId: post.formatId,
         formatValues,
         roadmapItem,

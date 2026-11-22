@@ -5,7 +5,7 @@ import { consultClosedText } from "@/lib/ai/consult-closed";
 import { CONSULT_SYSTEM, SPLIT_SUGGEST_AFTER_TURNS, turnsLines } from "@/lib/ai/consult-prompt";
 import { MAX_SUMMARY_LENGTH, normalizeConsultTurn, toWireConsultTurn } from "@/lib/ai/consult-schema";
 
-const items = (weeks: number[]) => JSON.stringify({ items: weeks.map((week, i) => ({ title: `やること ${i}`, detail: "", week, kpi: null, target: null, kind: "post" })) });
+const items = (weeks: number[]) => JSON.stringify({ items: weeks.map((week, i) => ({ title: `タスク ${i}`, detail: "", week, kpi: null, target: null, kind: "post" })) });
 const opt = (title: string, value_json: string) => ({ title, summary: "", pros: [], cons: [], value_json });
 
 describe("区切り（wrap_up）の読み取り", () => {
@@ -43,7 +43,7 @@ describe("区切り（wrap_up）の読み取り", () => {
 
   it("指示に、会話ごとのゴールと区切り方がある", () => {
     expect(CONSULT_SYSTEM).toContain("# 会話の区切り");
-    expect(CONSULT_SYSTEM).toContain("振り返り: 次の一手（来週のやること）を採用した");
+    expect(CONSULT_SYSTEM).toContain("振り返り: 次の一手（来週のタスク）を採用した");
     expect(CONSULT_SYSTEM).toContain("1 か月の振り返り: 次の 1 か月の目標と週の本数（milestone）を採用した");
     expect(CONSULT_SYSTEM).toContain("目標の振り返り: 次の目標（kgi）か「期限まで続ける」を採用した");
     expect(CONSULT_SYSTEM).toContain("「わかった」「ありがとう」");
@@ -66,18 +66,18 @@ describe("長くなったときの勧め", () => {
 describe("終えたあとの知らせ", () => {
   it("決まった文だけを出す。件数は 1〜99 の数だけ読む", () => {
     expect(consultClosedText("consult_closed", undefined)).toBe("相談を終えました。");
-    expect(consultClosedText("consult_closed", "3")).toBe("相談を終えました。来週のやることに 3 件入れました。");
+    expect(consultClosedText("consult_closed", "3")).toBe("相談を終えました。来週のタスクに 3 件入れました。");
     expect(consultClosedText("consult_closed", "0")).toBe("相談を終えました。");
     expect(consultClosedText("consult_closed", "<b>")).toBe("相談を終えました。");
     expect(consultClosedText("consult_closed", "100")).toBe("相談を終えました。");
     expect(consultClosedText("saved", "3")).toBeNull();
-    // 振り返りのやることを済みにしたとき（名前はサーバーが DB から読んだもの）・済みにできなかったとき
-    expect(consultClosedText("consult_closed", "2", { title: "4 週間の振り返り" })).toBe("相談を終えました。『4 週間の振り返り』を完了にしました。来週のやることに 2 件入れました。");
+    // 振り返りのタスクを済みにしたとき（名前はサーバーが DB から読んだもの）・済みにできなかったとき
+    expect(consultClosedText("consult_closed", "2", { title: "4 週間の振り返り" })).toBe("相談を終えました。『4 週間の振り返り』を完了にしました。来週のタスクに 2 件入れました。");
     expect(consultClosedText("consult_closed", undefined, { title: "数字を見る" })).toBe("相談を終えました。『数字を見る』を完了にしました。");
-    expect(consultClosedText("consult_closed", "1", "many")).toBe("相談を終えました。来週のやることに 1 件入れました。今週の振り返りのやることが 2 つ以上あるので、ロードマップで完了にしてください。");
+    expect(consultClosedText("consult_closed", "1", "many")).toBe("相談を終えました。来週のタスクに 1 件入れました。今週の振り返りのタスクが 2 つ以上あるので、ロードマップで完了にしてください。");
   });
 
-  it("来週のやることの数は、採用した案の week 1 のやることだけを数える", () => {
+  it("来週のタスクの数は、採用した案の week 1 のタスクだけを数える", () => {
     const proposal = (weeksA: number[], weeksB: number[]) => normalizeConsultTurn({ message: "案", choices: [], proposal: { kind: "roadmap_items", options: [opt("A", items(weeksA)), opt("B", items(weeksB))], recommended: 0, reason: "" } })!;
     const { proposalProblem: _a, ...p1 } = proposal([0, 1, 1], [1]);
     const { proposalProblem: _b, ...p2 } = proposal([1], [2]);

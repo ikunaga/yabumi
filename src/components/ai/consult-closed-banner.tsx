@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isUuid } from "@/lib/uuid";
 
 // 相談を終えて戻ってきたときの知らせ（分析・概要・ロードマップ・相談の一覧）
-// roadmapLink: 振り返りのやることを済みにできなかったときの、ロードマップへのリンク（ロードマップの画面では出さない）
+// roadmapLink: 振り返りのタスクを済みにできなかったときの、ロードマップへのリンク（ロードマップの画面では出さない）
 export async function ConsultClosedBanner({
   projectId,
   done,
@@ -50,7 +50,7 @@ async function goalNotice(projectId: string, goal: unknown): Promise<GoalNotice>
   return data?.statement ? { started: data.statement } : null;
 }
 
-// 済みにしたやることの名前を DB から読む（RLS で本人のものだけ。済みでなければ出さない）
+// 済みにしたタスクの名前を DB から読む（RLS で本人のものだけ。済みでなければ出さない）
 async function reviewedNotice(projectId: string, reviewed: unknown): Promise<ReviewedNotice> {
   if (reviewed === "many") return "many";
   if (typeof reviewed !== "string" || !isUuid(reviewed)) return null;

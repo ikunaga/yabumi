@@ -74,7 +74,7 @@ export function NextScheduled({ projectId, posts, now }: { projectId: string; po
   );
 }
 
-// つないだ SNS の札の並びと「つなぐ・外す」（設定の画面へ）。1 つもなければ出さない（「いまやること」が SNS をつなぐになる）
+// つないだ SNS の札の並びと「つなぐ・外す」（設定の画面へ）。1 つもなければ出さない（「いまのタスク」が SNS をつなぐになる）
 export function ConnectedSnsLine({
   projectId,
   accounts,
@@ -107,7 +107,7 @@ export function ConnectedSnsLine({
   );
 }
 
-// 要確認（送れなかった投稿・予約を過ぎた投稿・手で投稿する番・予定日を過ぎたやること）。あるときだけ、開くと一覧。× で閉じられる（4.71）
+// 要確認（送れなかった投稿・予約を過ぎた投稿・手で投稿する番・予定日を過ぎたタスク）。あるときだけ、開くと一覧。× で閉じられる（4.71）
 export function AttentionStrip({
   projectId,
   failed,
@@ -128,7 +128,7 @@ export function AttentionStrip({
     failed.length && `送れなかった投稿 ${failed.length} 本`,
     overdue.length && `予約を過ぎた投稿 ${overdue.length} 本`,
     manualDue.length && `手動で投稿する番の投稿 ${manualDue.length} 本`,
-    overdueTodos.length && `予定日を過ぎたやること ${overdueTodos.length} 件`,
+    overdueTodos.length && `予定日を過ぎたタスク ${overdueTodos.length} 件`,
   ].filter(Boolean);
   const total = failed.length + overdue.length + manualDue.length + overdueTodos.length;
   if (total === 0) return null;
@@ -194,14 +194,14 @@ export function AttentionStrip({
             </Group>
           )}
           {overdueTodos.length > 0 && (
-            <Group title="予定日を過ぎたやること" note="やらないことにしたら、ロードマップの「やらない」で消えます。">
+            <Group title="予定日を過ぎたタスク" note="やらないことにしたら、ロードマップの「やらない」で消えます。">
               {overdueTodos.slice(0, 5).map((i) => (
                 <li key={i.id} className="flex flex-wrap items-baseline gap-x-2">
                   <span className="num text-xs font-bold">
                     {monthOf(i.plannedOn!)}/{dayOfMonth(i.plannedOn!)} {weekdayLabel(i.plannedOn!)}
                   </span>
                   <b>{i.title}</b>
-                  {/* 予定日を過ぎたやることは、投稿するやることだけ（overdueItems。4.42） */}
+                  {/* 予定日を過ぎたタスクは、投稿するタスクだけ（overdueItems。4.42） */}
                   <Link href={todoAction(base, i, { aiEnabled: false }).href} className="text-sm underline">
                     この内容で投稿をつくる
                   </Link>

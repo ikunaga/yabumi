@@ -61,7 +61,7 @@ export async function generateMetadata(props: PageProps<"/projects/[id]">): Prom
 
 const STORE_NAME = { app_store: "App Store", google_play: "Google Play" } as const;
 
-// 概要（見本 A。決定 D33、2026-10-30 オーナーの決定）。上から: 見出しの行 → つないだ SNS → いまやること（1 行の帯）→ 要確認（あるときだけ）
+// 概要（見本 A。決定 D33、2026-10-30 オーナーの決定）。上から: 見出しの行 → つないだ SNS → いまのタスク（1 行の帯）→ 要確認（あるときだけ）
 // → 数字のカード 4 枚 → 左に日ごとの棒グラフ、右に SNS ごとのストアへのクリックと次の予約。数字は直近 30 日と前の 30 日の比べ（docs/architecture.md の 4.31）
 export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
   const { id } = await props.params;
@@ -77,7 +77,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
   if (!project) notFound();
   // 数字のカード: いまの目標の KPI（なければアカウント設計の数字・目的からのおすすめ）
   const kpis = kpiCardKeys(goals.active?.kpis ?? [], project.product_type, chosenKpis(plan?.plan.first_month.kpis, plan?.plan.goal.goalType, project.product_type));
-  // 要確認の帯で閉じた項目（4.71）。予約を過ぎた投稿・手で投稿する番・予定日を過ぎたやることから除く（送れなかった投稿は読むときに除く）
+  // 要確認の帯で閉じた項目（4.71）。予約を過ぎた投稿・手で投稿する番・予定日を過ぎたタスクから除く（送れなかった投稿は読むときに除く）
   const dismissalsP = loadAttentionDismissals(supabase, project.id);
   const [numbers, upcoming, snsAccounts, attention, overdue, manualDue, { data: repoLink }, { data: manualChannels }, roadmap, stepStates, coach, goalReview, dismissals] = await Promise.all([
     loadOverviewNumbers(project.id, kpis, toYmd(new Date(project.created_at)), project.product_type),
@@ -89,7 +89,7 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
     supabase.from("project_github_repos").select("full_name").eq("project_id", project.id).maybeSingle(),
     supabase.from("project_manual_channels").select("sns").eq("project_id", project.id),
     loadRoadmap(project.id),
-    // いまやることの判定（一覧と同じ値。src/lib/projects/step-state.ts）
+    // いまのタスクの判定（一覧と同じ値。src/lib/projects/step-state.ts）
     loadStepStates([project]),
     // 伴走（4.27）: いまの目標の SNS ごとの週の本数とペース、1 か月の区切り（中間の目標）
     loadCoachView(supabase, project.id, { goals, behindWeekday: prefs?.behind_weekday ?? DEFAULT_BEHIND_WEEKDAY }),
@@ -102,8 +102,8 @@ export default async function ProjectPage(props: PageProps<"/projects/[id]">) {
   const [newComments, commentsReconnect, autoBand] = await Promise.all([loadNewCommentSummary(project.id), snsNeedingCommentsReconnect(activeAccounts), loadAutoBand(project.id)]);
   const stepState = stepStates[project.id];
   const stepIndex = currentStepIndex(stepState);
-  // 今週のまだのやること（数字で達成したものは済みと同じに数える。帯の先頭・件数・残りの一覧はどれもこれから）
-  // 数えるのは今の目標のやること（目標のないやることを含む）。ロードマップと同じ（roadmap/load.ts の scopeToGoal）
+  // 今週のまだのタスク（数字で達成したものは済みと同じに数える。帯の先頭・件数・残りの一覧はどれもこれから）
+  // 数えるのは今の目標のタスク（目標のないタスクを含む）。ロードマップと同じ（roadmap/load.ts の scopeToGoal）
   const goalId = goals.active?.goal.id ?? null;
   const todos = thisWeekTodos(roadmap, goalId);
   const weekCounts = weekTodoCounts(roadmap, goalId);

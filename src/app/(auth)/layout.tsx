@@ -3,7 +3,7 @@ import { Brand } from "@/components/brand";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { STEPS } from "@/lib/projects/next-step";
 
-// 概要の「いまやること」と同じ 4 段（src/lib/projects/next-step.ts）。最初の段の前に、宣伝したいもの（プロジェクト）を登録する
+// 概要の「いまのタスク」と同じ 4 段（src/lib/projects/next-step.ts）。最初の段の前に、宣伝したいもの（プロジェクト）を登録する
 const firstSteps = STEPS.map((s, i) => (i === 0 ? `宣伝したいものを登録して、${s.title}` : s.title));
 
 export default function AuthLayout({ children }: LayoutProps<"/">) {
@@ -15,7 +15,7 @@ export default function AuthLayout({ children }: LayoutProps<"/">) {
           <p className="font-heading text-[34px] leading-[1.5] font-bold text-fg">
             登録したら、
             <br />
-            最初にやることは {firstSteps.length} つだけ。
+            最初のステップは {firstSteps.length} つだけ。
           </p>
           <ol className="border-t border-border text-base">
             {firstSteps.map((s, i) => (

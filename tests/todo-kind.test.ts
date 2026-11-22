@@ -1,11 +1,11 @@
-// やることの種類と、押したときの行き先（src/lib/roadmap/todo-kind.ts。docs/architecture.md の 4.42）
+// タスクの種類と、押したときの行き先（src/lib/roadmap/todo-kind.ts。docs/architecture.md の 4.42）
 import { describe, expect, it } from "vitest";
 import { inferTodoKind, todoAction, todoKindOf } from "@/lib/roadmap/todo-kind";
 
 const base = "/projects/p1";
 const item = (title: string, kind: ReturnType<typeof inferTodoKind>, detail = "") => ({ id: "i1", title, detail, kind, weekStart: "2026-11-02" });
 
-describe("種類を推す（種類のない前のやること）", () => {
+describe("種類を推す（種類のない前のタスク）", () => {
   it("投稿した回数を追うものは投稿", () => {
     expect(inferTodoKind({ kpi: "posts", title: "週の振り返りも兼ねて 1 本" })).toBe("post");
   });
@@ -19,7 +19,7 @@ describe("種類を推す（種類のない前のやること）", () => {
   it("行き先の画面が決まる設定は設定。見直しでも設定の画面が決まればそちら", () => {
     expect(inferTodoKind({ title: "プロフィールを整える" })).toBe("setup");
     expect(inferTodoKind({ title: "App Store のデータをつなぐ" })).toBe("setup");
-    // ストアの側でするやること（yabumi の画面では進まない）は設定にしない
+    // ストアの側でするタスク（yabumi の画面では進まない）は設定にしない
     expect(inferTodoKind({ title: "ストアのページを直す" })).toBe("other");
     expect(inferTodoKind({ title: "ハッシュタグを見直す" })).toBe("setup");
     expect(inferTodoKind({ title: "Threads をつなぐ" })).toBe("setup");
@@ -39,7 +39,7 @@ describe("種類を推す（種類のない前のやること）", () => {
 });
 
 describe("押したときの行き先", () => {
-  it("投稿は投稿をつくる（やることに結びつける）", () => {
+  it("投稿は投稿をつくる（タスクに結びつける）", () => {
     expect(todoAction(base, item("1 本書く", "post"), { aiEnabled: true })).toEqual({ kind: "post", href: "/projects/p1/compose?item=i1", label: "投稿をつくる" });
   });
 
@@ -58,11 +58,11 @@ describe("押したときの行き先", () => {
   });
 
   // 2026-11-12 PMO の本番での通しテスト: 「Instagram のプロフィールに置く」の横の「プロフィールを開く」が、Instagram が開くと読めた
-  it("プロフィールに置くリンクのやることは、設計の「名前とプロフィール」の「置くリンクを見る」。SNS が開くと読める名前にしない", () => {
+  it("プロフィールに置くリンクのタスクは、設計の「名前とプロフィール」の「置くリンクを見る」。SNS が開くと読める名前にしない", () => {
     const a = todoAction(base, item("ddy の App Store ページの短縮リンクを、Instagram のプロフィールに置く", "setup"), { aiEnabled: true });
     expect(a).toEqual({ kind: "setup", href: "/projects/p1/plan?open=profile#plan-profile-head", label: "置くリンクを見る" });
     expect(todoAction(base, item("自己紹介に予約ページの URL を入れる", "setup"), { aiEnabled: true }).label).toBe("置くリンクを見る");
-    // プロフィールでない短縮リンクのやることは、短縮リンクの画面のまま
+    // プロフィールでない短縮リンクのタスクは、短縮リンクの画面のまま
     expect(todoAction(base, item("短縮リンクを作る", "setup"), { aiEnabled: true }).label).toBe("短縮リンクを開く");
     for (const t of ["プロフィールを整える", "Instagram のプロフィールに置く", "アイコンを変える"]) {
       expect(todoAction(base, item(t, "setup"), { aiEnabled: true }).label).not.toMatch(/Instagram|X|Threads|を開く$/);
@@ -70,7 +70,7 @@ describe("押したときの行き先", () => {
   });
 
   // 2026-11-12 PMO の本番での通しテスト: 「ストアを開く」「GitHub を開く」は App Store・GitHub が開くと読め、押してもすることにつながらなかった
-  it("ストア・GitHub は、つなぐやることだけ yabumi のつなぐ画面（「ストアをつなぐ」「GitHub をつなぐ」）。ストア・GitHub の側でするやることは行き先を作らない", () => {
+  it("ストア・GitHub は、つなぐタスクだけ yabumi のつなぐ画面（「ストアをつなぐ」「GitHub をつなぐ」）。ストア・GitHub の側でするタスクは行き先を作らない", () => {
     expect(todoAction(base, item("App Store の数字を yabumi に取り込む", "setup"), { aiEnabled: true })).toEqual({ kind: "setup", href: "/projects/p1/stores", label: "ストアをつなぐ" });
     expect(todoAction(base, item("RevenueCat をつないで課金を見る", "setup"), { aiEnabled: true }).label).toBe("ストアをつなぐ");
     expect(todoAction(base, item("GitHub のリポジトリをつなぐ", "setup"), { aiEnabled: true })).toEqual({ kind: "setup", href: "/projects/p1/github", label: "GitHub をつなぐ" });

@@ -292,10 +292,10 @@ export async function savePost(input: SavePostInput): Promise<SavePostResult> {
     if (formatError) console.error("[savePost] フォーマットを覚えられませんでした", formatError.message);
   }
 
-  // ロードマップのやることから作った投稿なら、結びつける（その投稿が送られたら、やることの進み具合に数える。4.23）
+  // ロードマップのタスクから作った投稿なら、結びつける（その投稿が送られたら、タスクの進み具合に数える。4.23）
   if (roadmapItemId) {
     const { error: linkError } = await supabase.from("posts").update({ roadmap_item_id: roadmapItemId }).eq("id", savedId).eq("project_id", projectId);
-    if (linkError) console.error("[savePost] やることに結びつけられませんでした", linkError.message);
+    if (linkError) console.error("[savePost] タスクに結びつけられませんでした", linkError.message);
   }
 
   // 画像を、渡した順と代わりの文にそろえる（外した画像は消える）。動画もそろえる（外した・入れ替えた動画は消える）。送る前に済ませる。

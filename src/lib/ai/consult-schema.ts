@@ -218,14 +218,14 @@ function wireValue(a: ActionBody): unknown {
 }
 
 // ===== ロードマップづくりの順番（入口が「ロードマップ」の会話） =====
-// ① KGI と中間の目標 → ② KPI と週の目標 → ③ 投稿の週の本数（行動の目標）→ ④ 今週・来週のやること → ⑤ その先の週。
+// ① KGI と中間の目標 → ② KPI と週の目標 → ③ 投稿の週の本数（行動の目標）→ ④ 今週・来週のタスク → ⑤ その先の週。
 // 済んだ項目は飛ばす（いまの目標を読んで決める。docs/design/goals-model.md の 6.）
 export const ROADMAP_STEPS = [
   { key: "kgi", label: "最終の目標" },
   { key: "kpi_targets", label: "毎週の目標" },
   { key: "action_targets", label: "投稿の週の本数" },
-  { key: "near_items", label: "今週・来週のやること" },
-  { key: "later_items", label: "その先のやること" },
+  { key: "near_items", label: "今週・来週のタスク" },
+  { key: "later_items", label: "その先のタスク" },
 ] as const;
 export type RoadmapStepKey = (typeof ROADMAP_STEPS)[number]["key"];
 
@@ -251,14 +251,14 @@ export function roadmapStepOf(p: ConsultProposal, topic: string | null): Roadmap
   return null;
 }
 
-// 振り返りの会話のゴールの案の見出し。振り返りの次の一手は「来週のやること」、毎月の振り返りは「次の 1 か月の目標と週の本数」、
+// 振り返りの会話のゴールの案の見出し。振り返りの次の一手は「来週のタスク」、毎月の振り返りは「次の 1 か月の目標と週の本数」、
 // 目標の振り返りは「次の目標」。前の形（1 か月の振り返りの first_month）は「次の 1 か月の週の回数」。ほかは null
 export function reviewHeadingOf(p: ConsultProposal, topic: string | null): string | null {
-  if (topic === "review" && p.kind === "roadmap_items") return "来週のやること";
+  if (topic === "review" && p.kind === "roadmap_items") return "来週のタスク";
   if (topic === "month_review" && p.kind === "milestone") return "次の 1 か月の目標と週の本数";
   if (topic === "month_review" && p.kind === "revise_goal") return "目標の見直し";
   if (topic === "goal_review" && p.kind === "kgi") return "次の目標";
-  if (topic === "goal_rescue" && p.kind === "roadmap_items") return "立て直しのやること";
+  if (topic === "goal_rescue" && p.kind === "roadmap_items") return "立て直しのタスク";
   if (topic === "goal_rescue" && p.kind === "action_targets") return "立て直しの週の本数";
   if (topic === "goal_rescue" && p.kind === "revise_goal") return "目標の見直し";
   if (topic === "month_review" && p.kind === "plan_section" && p.options.every((o) => o.kind === "plan_section" && o.section === "first_month")) return "次の 1 か月の週の回数";

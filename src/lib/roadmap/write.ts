@@ -14,12 +14,12 @@ export class RoadmapError extends Error {
   }
 }
 
-// やることを足す（すでにあるものは残す）。その週の最後に並べる
+// タスクを足す（すでにあるものは残す）。その週の最後に並べる
 export async function addItems(db: Db, projectId: string, items: ItemInput[], source: "ai" | "manual"): Promise<number> {
   if (items.length === 0) return 0;
   const { count } = await db.from("roadmap_items").select("id", { count: "exact", head: true }).eq("project_id", projectId);
   if ((count ?? 0) + items.length > MAX_ITEMS_PER_PROJECT) {
-    throw new RoadmapError(`やることは 1 つのプロジェクトに ${MAX_ITEMS_PER_PROJECT} 個までです。完了したものや古いものを削除してから追加してください。`);
+    throw new RoadmapError(`タスクは 1 つのプロジェクトに ${MAX_ITEMS_PER_PROJECT} 個までです。完了したものや古いものを削除してから追加してください。`);
   }
   const { data: last } = await db.from("roadmap_items").select("position").eq("project_id", projectId).order("position", { ascending: false }).limit(1).maybeSingle();
   const base = (last?.position ?? 0) + 1;
@@ -50,6 +50,6 @@ export async function addItems(db: Db, projectId: string, items: ItemInput[], so
       goal_id: goalId,
     })),
   );
-  if (error) throw new RoadmapError("やることを保存できませんでした。時間をおいてもう一度お試しください。");
+  if (error) throw new RoadmapError("タスクを保存できませんでした。時間をおいてもう一度お試しください。");
   return items.length;
 }

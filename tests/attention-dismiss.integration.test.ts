@@ -176,11 +176,11 @@ describe("予約を過ぎた投稿・手動で投稿する番", () => {
   });
 });
 
-describe("予定日を過ぎたやること", () => {
+describe("予定日を過ぎたタスク", () => {
   it("閉じると帯から消え、予定日を動かすとまた出る。今日より前でないものは閉じない", async () => {
     const { data, error } = await admin
       .from("roadmap_items")
-      .insert(goalLess([{ project_id: projectId, owner_id: aliceId, title: "過ぎたやること", week_start: "2026-10-19", planned_on: "2026-10-20", kind: "post", status: "todo" }]))
+      .insert(goalLess([{ project_id: projectId, owner_id: aliceId, title: "過ぎたタスク", week_start: "2026-10-19", planned_on: "2026-10-20", kind: "post", status: "todo" }]))
       .select("id")
       .single();
     if (error) throw error;
@@ -194,10 +194,10 @@ describe("予定日を過ぎたやること", () => {
 
     await admin.from("roadmap_items").update({ planned_on: "2026-10-22" }).eq("id", itemId);
     expect(isTodoDismissed(await loadAttentionDismissals(alice, projectId), { ...item, plannedOn: "2026-10-22" })).toBe(false);
-    // overdueItems と合わせても出る（予定日を過ぎた投稿するやること）
+    // overdueItems と合わせても出る（予定日を過ぎた投稿するタスク）
     expect(overdueItems([{ ...item, kind: "post", status: "todo", plannedOn: "2026-10-22" } as RoadmapItem], "2026-11-14").length).toBe(1);
   });
-  it("kind が空のやること（画面が投稿と推して出すもの）も閉じられる。済んだやることは閉じない（PMO の pc2・sp3）", async () => {
+  it("kind が空のタスク（画面が投稿と推して出すもの）も閉じられる。済んだタスクは閉じない（PMO の pc2・sp3）", async () => {
     const { data, error } = await admin
       .from("roadmap_items")
       .insert(

@@ -34,7 +34,7 @@ export type PostRow = {
   images: number;
   // 本文を書いたのは誰か（null は列を足す前からある投稿。docs/design/voice-from-posts.md の 2.3）
   textOrigin: "self" | "ai" | null;
-  // 投稿をつくったときに選んでいたフォーマットと、つないだロードマップのやること（下書きから再開したときに戻す。PMO2 の s8）
+  // 投稿をつくったときに選んでいたフォーマットと、つないだロードマップのタスク（下書きから再開したときに戻す。PMO2 の s8）
   formatId: string | null;
   roadmapItemId: string | null;
   // 自動の回で作った投稿なら、その回の id（カレンダー・一覧の「↻」。docs/design/auto-post.md の 2.2）。省略は手で作った投稿

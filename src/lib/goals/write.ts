@@ -28,7 +28,7 @@ function rpcError(error: { code?: string } | null): never {
 }
 
 export type StartGoalInput = {
-  // null は KGI まだ（週の回数とやることだけの期間）
+  // null は KGI まだ（週の回数とタスクだけの期間）
   goal: GoalInput | null;
   // 4 週ごとの中間の目標（区切りの数まで。null は目標なし）
   milestones?: (number | null)[];

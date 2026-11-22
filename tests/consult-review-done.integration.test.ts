@@ -1,5 +1,5 @@
-// 振り返りの相談を終えたら、振り返りのやることを済みにする（docs/architecture.md の 4.23）。
-// やることから始めたときはそのやること（本人の今週・来週の振り返りのやることだけ結びつける）、分析の画面から始めたときは今週の振り返りのやることが 1 つだけのとき。
+// 振り返りの相談を終えたら、振り返りのタスクを済みにする（docs/architecture.md の 4.23）。
+// タスクから始めたときはそのタスク（本人の今週・来週の振り返りのタスクだけ結びつける）、分析の画面から始めたときは今週の振り返りのタスクが 1 つだけのとき。
 // AI は callModel をモックし、本物の Claude API は呼ばない
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { closeConsultThread, consultStep, REVIEW_ITEM_NOT_FOUND, type ConsultInput } from "@/lib/ai/consult";
@@ -42,7 +42,7 @@ afterAll(async () => {
   await deleteUser(bobId);
 });
 
-describe("やることから始めた振り返り", () => {
+describe("タスクから始めた振り返り", () => {
   let projectId: string;
   let reviewId: string;
 
@@ -51,14 +51,14 @@ describe("やることから始めた振り返り", () => {
     reviewId = await addItem(alice, projectId, "4 週間の振り返り", "review");
   });
 
-  it("他人のやること・ほかの週・振り返りでないやること・振り返り以外の相談には結びつけない（会話も作らず、AI も呼ばない）", async () => {
+  it("他人のタスク・ほかの週・振り返りでないタスク・振り返り以外の相談には結びつけない（会話も作らず、AI も呼ばない）", async () => {
     const bobProject = await newProject(bob, "ほかの人の店");
     const bobItem = await addItem(bob, bobProject, "ほかの人の振り返り", "review");
     const later = await addItem(alice, projectId, "再来週の振り返り", "review", addDays(thisWeek, 14));
     const last = await addItem(alice, projectId, "先週の振り返り", "review", addDays(thisWeek, -7));
     const post = await addItem(alice, projectId, "1 本書く", "post");
     const callModel = reply();
-    // 他人のやることは、自分のプロジェクトの id で名乗っても RLS で読めない
+    // 他人のタスクは、自分のプロジェクトの id で名乗っても RLS で読めない
     for (const itemId of [bobItem, later, last, post, crypto.randomUUID()]) {
       expect(await step(projectId, { kind: "start", topic: "review", itemId }, callModel)).toEqual({ ok: false, threadId: null, message: REVIEW_ITEM_NOT_FOUND });
     }
@@ -68,8 +68,8 @@ describe("やることから始めた振り返り", () => {
     expect((await statusOf(bobItem)).status).toBe("todo");
   });
 
-  it("本人の今週の振り返りのやることを結びつけ、まとめなしで終えても済みにする（知らせ用に id を添える）", async () => {
-    // 同じ週に振り返りのやることがもう 1 つあっても、結びつけたものだけ
+  it("本人の今週の振り返りのタスクを結びつけ、まとめなしで終えても済みにする（知らせ用に id を添える）", async () => {
+    // 同じ週に振り返りのタスクがもう 1 つあっても、結びつけたものだけ
     const other = await addItem(alice, projectId, "数字を見る", "review");
     const r = await step(projectId, { kind: "start", topic: "review", itemId: reviewId });
     expect(r.ok).toBe(true);
@@ -82,7 +82,7 @@ describe("やることから始めた振り返り", () => {
     expect((await statusOf(other)).status).toBe("todo");
   });
 
-  it("来週の振り返りのやることも結びつけられる。もう済んでいたら変えず、知らせにも出さない", async () => {
+  it("来週の振り返りのタスクも結びつけられる。もう済んでいたら変えず、知らせにも出さない", async () => {
     const next = await addItem(alice, projectId, "来週の振り返り", "review", addDays(thisWeek, 7));
     const r = await step(projectId, { kind: "start", topic: "review", itemId: next });
     const threadId = (r as { threadId: string }).threadId;
@@ -92,8 +92,8 @@ describe("やることから始めた振り返り", () => {
   });
 });
 
-describe("やることなしで始めた振り返り（分析の画面の「AI と振り返る」）", () => {
-  it("今週のまだの振り返りのやることが 1 つだけなら、それを済みにする（種類のない前のやることは題名から推す）", async () => {
+describe("タスクなしで始めた振り返り（分析の画面の「AI と振り返る」）", () => {
+  it("今週のまだの振り返りのタスクが 1 つだけなら、それを済みにする（種類のない前のタスクは題名から推す）", async () => {
     const projectId = await newProject(alice);
     const review = await addItem(alice, projectId, "先週の数字を見る", null);
     const post = await addItem(alice, projectId, "1 本書く", "post");
@@ -117,7 +117,7 @@ describe("やることなしで始めた振り返り（分析の画面の「AI �
     expect((await statusOf(b)).status).toBe("todo");
   });
 
-  it("ふだんの相談を終えても、振り返りのやることは変えない", async () => {
+  it("ふだんの相談を終えても、振り返りのタスクは変えない", async () => {
     const projectId = await newProject(alice);
     const review = await addItem(alice, projectId, "数字を見る", "review");
     const threadId = ((await step(projectId, { kind: "start", topic: "what_to_post" })) as { threadId: string }).threadId;

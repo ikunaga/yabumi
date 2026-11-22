@@ -19,11 +19,11 @@ import type { RoadmapItem } from "@/lib/roadmap/load";
 import { formatValue, kpiLabel } from "@/lib/roadmap/schema";
 import { todoAction } from "@/lib/roadmap/todo-kind";
 
-// 概要の「いまやること」（1 行とボタンの小さな帯。2026-10-30 オーナーの決定）。いつも 1 つ出す（next-step.ts の nowBandKind）:
-// 最初の 4 段階 → 目標の振り返り（KGI の期限・届いた）→ 1 か月の区切り → 今週のやること（ロードマップ）。GitHub をつなぐ（任意）は帯の下の小さな 1 行。
+// 概要の「いまのタスク」（1 行とボタンの小さな帯。2026-10-30 オーナーの決定）。いつも 1 つ出す（next-step.ts の nowBandKind）:
+// 最初の 4 段階 → 目標の振り返り（KGI の期限・届いた）→ 1 か月の区切り → 今週のタスク（ロードマップ）。GitHub をつなぐ（任意）は帯の下の小さな 1 行。
 // 伴走（今週の投稿の本数）は帯の下の小さな 1 行に出す。説明は押すと開く欄に畳む。
-// 前は帯の右（やることの題名の横）にあり、「今週 5/5 本 ✓ 達成」が別のやること（プロフィールに置くなど）の達成に見えた（2026-11-12 PMO の通しテスト）
-// いまやることの帯（いつも出す）と、その下の伴走の 1 行・GitHub をつなぐ（任意。つないでいない・飛ばしていないときだけの小さな 1 行）
+// 前は帯の右（タスクの題名の横）にあり、「今週 5/5 本 ✓ 達成」が別のタスク（プロフィールに置くなど）の達成に見えた（2026-11-12 PMO の通しテスト）
+// いまのタスクの帯（いつも出す）と、その下の伴走の 1 行・GitHub をつなぐ（任意。つないでいない・飛ばしていないときだけの小さな 1 行）
 export function NowBand(props: Parameters<typeof MainBand>[0]) {
   const { projectId, github, coach, coachReady, goalRisk, aiEnabled } = props;
   const kind = nowBandKind({ stepIndex: props.stepIndex, cycleEnded: Boolean(coach?.cycle?.ended), goalReview: Boolean(props.goalReview), cycleMerged: props.cycleMerged });
@@ -129,7 +129,7 @@ function MainBand({
   todos: RoadmapItem[];
   progress: Record<string, { actual: number; target: number } | null>;
   doneCount: number;
-  // 前の週から残っている、まだのやることの数（ロードマップの「まだ完了していない、前の週のこと」と同じ。roadmap/load.ts の carriedTodos）
+  // 前の週から残っている、まだのタスクの数（ロードマップの「まだ完了していない、前の週のこと」と同じ。roadmap/load.ts の carriedTodos）
   carriedCount?: number;
   aiEnabled: boolean;
   // 目標の振り返り（期限が来た・届いた。lib/goals/review.ts）
@@ -147,10 +147,10 @@ function MainBand({
     const rest = STEPS.slice(stepIndex + 1);
     return (
       <ActionBar
-        label={`いまやること ${stepIndex + 1}/${STEPS.length}`}
+        label={`最初のステップ ${stepIndex + 1}/${STEPS.length}`}
         title={step.title}
         help={
-          <HelpTip label="いまやること" align="right">
+          <HelpTip label="最初のステップ" align="right">
             <p>{step.description}</p>
             {rest.length > 0 && <p className="mt-2 text-on-pop/70">このあと: {rest.map((s) => s.shortTitle).join(" → ")}</p>}
           </HelpTip>
@@ -176,7 +176,7 @@ function MainBand({
     const name = goalReview.goal.statement ?? "";
     return (
       <ActionBar
-        label="いまやること"
+        label="いまのタスク"
         title={goalReview.kind === "reached" ? `目標「${name}」に届きました` : `目標「${name}」の期限が来ました`}
         action={
           <ButtonLink href={aiEnabled ? `${base}/consult/new?start=goal_review&goal=${goalReview.goal.id}` : `${base}/roadmap`} size="sm">
@@ -191,7 +191,7 @@ function MainBand({
   if (kind === "cycle_ended") {
     return (
       <ActionBar
-        label="いまやること"
+        label="いまのタスク"
         title="この 1 か月が終わりました。振り返って、次の 1 か月の目標と回数を決めましょう"
         action={
           <ButtonLink href={aiEnabled ? `${base}/consult/new?start=month_review` : `${base}/plan?open=first_month`} size="sm">
@@ -203,17 +203,17 @@ function MainBand({
   }
 
   const roadmapHref = `${base}/roadmap`;
-  // 済んだ・まだ決めていないの分け方は、プロジェクトの一覧の「次にやること」と同じ（weekTodoPhase）
+  // 済んだ・まだ決めていないの分け方は、プロジェクトの一覧の「いまのタスク」と同じ（weekTodoPhase）
   const phase = weekTodoPhase({ open: todos.length, finished: doneCount, carried: carriedCount });
-  // 今週分は済んだが、前の週のやることが残っている: 「すべて完了」と出さず、残りを伝えてロードマップへ（2026-11-21 オーナーの指摘）
+  // 今週分は済んだが、前の週のタスクが残っている: 「すべて完了」と出さず、残りを伝えてロードマップへ（2026-11-21 オーナーの指摘）
   if (phase === "carried") {
     return (
       <ActionBar
-        label="今週のやること"
-        title={`${doneCount > 0 ? "今週のやることは完了しました。" : ""}前の週のやることが ${carriedCount} 件残っています`}
+        label="今週のタスク"
+        title={`${doneCount > 0 ? "今週のタスクは完了しました。" : ""}前の週のタスクが ${carriedCount} 件残っています`}
         action={
           <ButtonLink href={roadmapHref} size="sm">
-            残っているやることを見る
+            残っているタスクを見る
           </ButtonLink>
         }
       />
@@ -222,27 +222,27 @@ function MainBand({
   if (phase !== "open") {
     return (
       <ActionBar
-        label="今週のやること"
-        title={phase === "done" ? "今週のやることは、すべて完了しました" : "今週のやることを決めましょう"}
+        label="今週のタスク"
+        title={phase === "done" ? "今週のタスクは、すべて完了しました" : "今週のタスクを決めましょう"}
         action={
           <ButtonLink href={roadmapHref} size="sm" variant={phase === "done" ? "secondary" : "primary"}>
-            {phase === "done" ? "来週のやることを見る" : "決める"}
+            {phase === "done" ? "来週のタスクを見る" : "決める"}
           </ButtonLink>
         }
       />
     );
   }
   const [first, ...others] = todos;
-  // 押したときの行き先は、やることの種類ごと（投稿をつくる・振り返る・プロフィールの案を見る・ロードマップで見る。4.42）
+  // 押したときの行き先は、タスクの種類ごと（投稿をつくる・振り返る・プロフィールの案を見る・ロードマップで見る。4.42）
   const actionOf = (t: RoadmapItem) => todoAction(base, t, { aiEnabled });
   const main = actionOf(first);
   return (
     <div className="flex flex-col gap-2">
       <ActionBar
-        label={carriedCount > 0 ? `やること あと ${todos.length + carriedCount} 件` : `今週のやること ${todos.length} 件`}
+        label={carriedCount > 0 ? `タスク あと ${todos.length + carriedCount} 件` : `今週のタスク ${todos.length} 件`}
         title={<TodoText item={first} progress={progress[first.id]} />}
         action={
-          // 数字で数えないやること（プロフィールに置く・振り返るなど）は、ここで済みにできる。数字のものは届けば自動で済み
+          // 数字で数えないタスク（プロフィールに置く・振り返るなど）は、ここで済みにできる。数字のものは届けば自動で済み
           progress[first.id] ? (
             <ButtonLink href={main.href} size="sm">
               {main.label}
@@ -259,14 +259,14 @@ function MainBand({
       />
       {carriedCount > 0 && (
         <p className="text-[14px] text-muted">
-          このうち {carriedCount} 件は、前の週のやることです。{" "}
+          このうち {carriedCount} 件は、前の週のタスクです。{" "}
           <Link href={roadmapHref} className="underline hover:text-fg">
-            前の週のやることを見る →
+            前の週のタスクを見る →
           </Link>
         </p>
       )}
       {others.length > 0 && (
-        <DisclosureBox label="今週のやることの残りを表示" count={others.length} bodyClassName="mt-2 text-[14px] leading-[1.75] text-muted">
+        <DisclosureBox label="今週のタスクの残りを表示" count={others.length} bodyClassName="mt-2 text-[14px] leading-[1.75] text-muted">
           <ul className="flex flex-col gap-1">
             {others.map((t) => (
               <li key={t.id} className="flex flex-wrap items-baseline gap-x-3">
@@ -288,7 +288,7 @@ function MainBand({
   );
 }
 
-// やることの数の単位（売上は formatValue が「円」を付ける）
+// タスクの数の単位（売上は formatValue が「円」を付ける）
 const KPI_UNIT: Partial<Record<RoadmapItem["kpi"] & string, string>> = { link_clicks: " 回", views: " 回", followers: " 人", store_page_views: " 回", downloads: " 件", outcomes: " 件" };
 
 function TodoText({ item, progress, only }: { item: RoadmapItem; progress: { actual: number; target: number } | null | undefined; only?: "progress" }): ReactNode {

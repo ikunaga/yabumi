@@ -7,7 +7,7 @@ import { BandCloseButton } from "@/components/ui/band-close";
 import { dismissTodayTerm } from "@/lib/learning/actions";
 import type { TodayTerm } from "@/lib/learning/today";
 
-// 概要の「今日の用語」（4.47）。いまやることの帯の下の、小さな 1 行。「×」でその日は出さない（サーバーに閉じた日を記録する）
+// 概要の「今日の用語」（4.47）。いまのタスクの帯の下の、小さな 1 行。「×」でその日は出さない（サーバーに閉じた日を記録する）
 export function TodayTermBand({ projectId, term }: { projectId: string; term: TodayTerm }) {
   const [hidden, setHidden] = useState(false);
   const [, startTransition] = useTransition();

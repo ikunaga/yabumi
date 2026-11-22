@@ -10,8 +10,8 @@ const WEEKDAYS = ["月", "火", "水", "木", "金", "土", "日"];
 
 // PC の月の表示: 月曜はじまりの 6 週のマス。前後の月の日は薄く。
 // 日付を押すとその日の週の表示へ、投稿を押すとその投稿へ、空いているところか右上の「＋」を押すとその日の投稿をつくる。
-// やることと投稿の札は合わせて 3 行まで。多い日は「ほか n 件」でその日の週の表示へ（4.39）。
-// 各週の行の上に、ロードマップのやることと週の目標の帯を出す（bands は週の行の順）
+// タスクと投稿の札は合わせて 3 行まで。多い日は「ほか n 件」でその日の週の表示へ（4.39）。
+// 各週の行の上に、ロードマップのタスクと週の目標の帯を出す（bands は週の行の順）
 export function MonthGrid({ days, base, bands, today }: { days: MonthDay[]; base: string; bands: (WeekBand | undefined)[]; today: string }) {
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-surface">

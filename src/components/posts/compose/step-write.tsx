@@ -146,14 +146,14 @@ export function ComposeStepWrite({ c, steps = false }: { c: Composer; steps?: bo
   );
 }
 
-// ロードマップのやることから作るときの手がかり（4.23）。題と説明は本文に入れず、「本文に入れる」で手がかりとして入れられる
+// ロードマップのタスクから作るときの手がかり（4.23）。題と説明は本文に入れず、「本文に入れる」で手がかりとして入れられる
 function RoadmapItemHint({ item, onInsert }: { item: { title: string; detail: string }; onInsert: () => void }) {
   return (
     <div className="flex flex-col gap-1 rounded-md border border-line bg-surface2 px-4 py-3 text-[13px] leading-[1.7]">
       <p className="flex items-center gap-1.5 text-muted">
-        「<Term k="roadmap">ロードマップ</Term>」で決めたやることから
-        <HelpTip label="ロードマップのやること">
-          この投稿は、下のやることのためにつくります。送ると、「ロードマップ」でこのやることが 1 回進みます。たとえば「今週 3 本投稿する」なら、3 本のうち 1 本です。
+        「<Term k="roadmap">ロードマップ</Term>」で決めたタスクから
+        <HelpTip label="ロードマップのタスク">
+          この投稿は、下のタスクのためにつくります。送ると、「ロードマップ」でこのタスクが 1 回進みます。たとえば「今週 3 本投稿する」なら、3 本のうち 1 本です。
         </HelpTip>
       </p>
       <p className="text-[15px] font-bold">{item.title}</p>

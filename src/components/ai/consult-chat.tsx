@@ -61,7 +61,7 @@ const KIND_LABEL: Record<ActionKind | ProposalKind, ReactNode> = {
       目標（<Term k="kgi" />）と週の目標
     </>
   ),
-  roadmap_items: "ロードマップのやること",
+  roadmap_items: "ロードマップのタスク",
   post_draft: "投稿の下書き",
 };
 
@@ -83,7 +83,7 @@ export function ConsultChat({
   messages: ConsultMessage[];
   // ロードマップの「AI と作る」などから来たときの相談
   initialTopic: ConsultTopic | null;
-  // 振り返りのやることから来たときの、そのやること（相談を終えたら済みにする）
+  // 振り返りのタスクから来たときの、そのタスク（相談を終えたら済みにする）
   initialItemId?: string | null;
   // 目標の振り返り（概要の帯から）の、その目標。本人の active で期限が来た・届いたかは、送るときにサーバーが確かめる
   initialGoalId?: string | null;
@@ -191,7 +191,7 @@ export function ConsultChat({
       {messages.length === 0 && !waiting && (
         <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface px-6 py-5 max-sm:px-4">
           <p className="text-[14px] leading-[1.8]">
-            運用の悩みを相談できます。AI は、アカウントの方針・最近の投稿と数字・目標と週ごとのやることを見ます。そのうえで、これからやることの案を出します。「これにする」を押した案だけを追加します。追加する先は、アカウントの方針や、目標と週ごとのやることです。
+            運用の悩みを相談できます。AI は、アカウントの方針・最近の投稿と数字・目標と週ごとのタスクを見ます。そのうえで、案を 2〜3 個出します。「これにする」を押した案だけを追加します。追加する先は、アカウントの方針や、目標と週ごとのタスクです。
           </p>
           <div className="flex flex-wrap gap-2">
             {TOPIC_BUTTONS.map((t) => (

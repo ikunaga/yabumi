@@ -4,8 +4,8 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { setItemStatus } from "@/lib/roadmap/actions";
 
-// 概要の「今週のやること」から、数字で数えないやること（プロフィールに置く・振り返るなど、yabumi の外で済ませるもの）を完了にする。
-// 押すと帯は次のやることを先頭にする（setItemStatus が概要を作り直す）。取り消しはロードマップの画面のチェックで。
+// 概要の「今週のタスク」から、数字で数えないタスク（プロフィールに置く・振り返るなど、yabumi の外で済ませるもの）を完了にする。
+// 押すと帯は次のタスクを先頭にする（setItemStatus が概要を作り直す）。取り消しはロードマップの画面のチェックで。
 // 2026-11-12 PMO の通しテスト: 帯から済みにする手段がなく、ロードマップのチェックに気づかないと「済んでいるのに反映されない」になった
 export function MarkDoneButton({ projectId, itemId, title, variant = "button" }: { projectId: string; itemId: string; title: string; variant?: "button" | "link" }) {
   const [pending, startTransition] = useTransition();

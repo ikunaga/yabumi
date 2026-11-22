@@ -1,4 +1,4 @@
-// カレンダーに出すロードマップのやること（F06・F10。docs/architecture.md の 4.23）: 進み具合の文、予定日を過ぎたもの
+// カレンダーに出すロードマップのタスク（F06・F10。docs/architecture.md の 4.23）: 進み具合の文、予定日を過ぎたもの
 import { describe, expect, it } from "vitest";
 import { toCalendarTodo } from "@/lib/calendar/roadmap-view";
 import { overdueItems, type RoadmapItem } from "@/lib/roadmap/load";
@@ -20,7 +20,7 @@ const base: RoadmapItem = {
   posts: { published: 1, scheduled: 1, linkedPublished: 0, linkedScheduled: 0 },
 };
 
-describe("やることの進み具合", () => {
+describe("タスクの進み具合", () => {
   it("投稿した回数は DB で数えたもの（結びついた投稿を含む）を使う", () => {
     // daily には週の外の結びついた投稿が入らないので、DB の数を優先する
     expect(itemProgress(base, [{ day: "2026-10-12", posts: 5, link_clicks: 0, postsBySns: { instagram: 0 } }])).toEqual({ actual: 1, target: 2 });
@@ -37,7 +37,7 @@ describe("やることの進み具合", () => {
   });
 });
 
-describe("予定日を過ぎたやること", () => {
+describe("予定日を過ぎたタスク", () => {
   const today = "2026-10-15";
   it("済んでいない・予定日が今日より前・ここから予約も送信もしていないもの", () => {
     const items: RoadmapItem[] = [
@@ -51,7 +51,7 @@ describe("予定日を過ぎたやること", () => {
     expect(overdueItems(items, today).map((i) => i.id)).toEqual(["late"]);
     expect(toCalendarTodo(items[0], [], today).overdue).toBe(true);
     expect(toCalendarTodo(items[4], [], today).overdue).toBe(false);
-    // 投稿しないやること（振り返りなど）は、投稿をつくっていなくても「過ぎた」にしない（4.42）
+    // 投稿しないタスク（振り返りなど）は、投稿をつくっていなくても「過ぎた」にしない（4.42）
     const review: RoadmapItem = { ...base, id: "review", kind: "review", kpi: null, target: null, sns: null, plannedOn: "2026-10-13" };
     expect(overdueItems([review], today)).toEqual([]);
     expect(toCalendarTodo(review, [], today).overdue).toBe(false);

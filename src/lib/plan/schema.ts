@@ -263,7 +263,7 @@ export function isSectionDone<K extends SectionKey>(key: K, v: SectionValue<K>):
 
 // 設計の段階を「済み」とするのに要るセクション。投稿を書くのに欠かせない 3 つ。
 // あなたらしさ・コンセプト（2026-11-03 に足した）は入れない。入れると、もう設計を終えた人が「済んでいない」に戻り、
-// 「いまやること」が 1 段目に戻って伴走も止まるため（2026-11-03 PM の決定。docs/architecture.md の 4.50）。
+// 「いまのタスク」が 1 段目に戻って伴走も止まるため（2026-11-03 PM の決定。docs/architecture.md の 4.50）。
 // コンセプトは「おすすめ」として未記入の並びの先頭に出し、4 段階が済んだあとに概要の小さな帯で促す
 export const REQUIRED_FOR_DONE: SectionKey[] = ["goal", "audience", "pillars"];
 // 済みの判定には入れないが、先に書くことをすすめるセクション

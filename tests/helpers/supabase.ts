@@ -44,7 +44,7 @@ export function anonClient(): TestClient {
   return createClient<Database>(url, publishableKey, { auth: { persistSession: false }, global: { fetch: fetchRetrying502 } });
 }
 
-// RLS を通らないサーバー用のクライアント。OAuth の受け口がやることの代わりに使う
+// RLS を通らないサーバー用のクライアント。OAuth の受け口がタスクの代わりに使う
 export function adminClient(): TestClient {
   return createClient<Database>(url, secretKey, { auth: { persistSession: false }, global: { fetch: fetchRetrying502 } });
 }
@@ -111,7 +111,7 @@ export async function deleteUser(userId: string) {
   await admin.auth.admin.deleteUser(userId);
 }
 
-// やることの行を、goal_id を省いて足す（DB のトリガー roadmap_items_check_goal が、いまの目標に入れる）。
+// タスクの行を、goal_id を省いて足す（DB のトリガー roadmap_items_check_goal が、いまの目標に入れる）。
 // goal_id は not null（20261107110000）なので生成した型では必須になるが、省いてよいことをテストで確かめるために型だけ外す
 export function goalLess<T>(rows: T): never {
   return rows as never;

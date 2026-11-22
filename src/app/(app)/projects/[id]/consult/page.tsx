@@ -53,7 +53,7 @@ export default async function ConsultListPage(props: PageProps<"/projects/[id]/c
       <PageHeader
         title="AI と相談"
         sub={`これまでの相談 ${threads.length} 件`}
-        help="運用の悩みを相談できます。AI は、アカウントの方針・最近の投稿と数字・目標と週ごとのやることを見ます。そのうえで、案を 2〜3 個出します。選んだ案だけを、アカウントの方針や、目標と週ごとのやることに追加します。"
+        help="運用の悩みを相談できます。AI は、アカウントの方針・最近の投稿と数字・目標と週ごとのタスクを見ます。そのうえで、案を 2〜3 個出します。選んだ案だけを、アカウントの方針や、目標と週ごとのタスクに追加します。"
         actions={
           blocked ? (
             <Button type="button" disabled>
@@ -66,7 +66,7 @@ export default async function ConsultListPage(props: PageProps<"/projects/[id]/c
       />
       <AiQuotaBand state={quota} />
       <ConsultClosedBanner projectId={id} done={sp.done} items={sp.items} reviewed={sp.reviewed} />
-      {sp.done === "thread_deleted" && <SuccessBanner>相談を削除しました。採用した案は残っています。アカウントの方針・目標と週ごとのやること・投稿の下書きです。</SuccessBanner>}
+      {sp.done === "thread_deleted" && <SuccessBanner>相談を削除しました。採用した案は残っています。アカウントの方針・目標と週ごとのタスク・投稿の下書きです。</SuccessBanner>}
 
       <Columns
         main={

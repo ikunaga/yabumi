@@ -5,22 +5,22 @@ import { effectiveStatus, itemProgress, type DailyTotal, type ItemState } from "
 import { todoAction, type TodoAction } from "@/lib/roadmap/todo-kind";
 import { SNS } from "@/lib/sns";
 
-// カレンダーに出すロードマップのやることの形と、画面に出す文（F06・F10。docs/architecture.md の 4.23）。サーバーと画面の両方から読む
+// カレンダーに出すロードマップのタスクの形と、画面に出す文（F06・F10。docs/architecture.md の 4.23）。サーバーと画面の両方から読む
 
-// 画面に渡すやること（クライアントの部品にそのまま渡す）
+// 画面に渡すタスク（クライアントの部品にそのまま渡す）
 export type CalendarTodo = {
   id: string;
   title: string;
   detail: string;
   weekStart: string;
   plannedOn: string | null;
-  // 読むときの状態（数字で目標に届いたまだのやることは achieved。schema.ts の effectiveStatus）
+  // 読むときの状態（数字で目標に届いたまだのタスクは achieved。schema.ts の effectiveStatus）
   status: ItemState;
-  // 「Instagram 0 / 1」のような進み具合。自動で数えられない数字・数字のないやることは null
+  // 「Instagram 0 / 1」のような進み具合。自動で数えられない数字・数字のないタスクは null
   progress: string | null;
-  // やることから作った投稿（「投稿 送信済み 1・予約 1」）。なければ null
+  // タスクから作った投稿（「投稿 送信済み 1・予約 1」）。なければ null
   linked: string | null;
-  // 予定日を過ぎたのに、まだ投稿をつくっていない（投稿するやることだけ）
+  // 予定日を過ぎたのに、まだ投稿をつくっていない（投稿するタスクだけ）
   overdue: boolean;
   // 押したときの行き先とボタンの名前（種類ごと。4.42）
   action: TodoAction;

@@ -1,4 +1,4 @@
-// SNS アカウントの保存・解除・削除（OAuth の受け口と Meta からの通知がやること）
+// SNS アカウントの保存・解除・削除（OAuth の受け口と Meta からの通知がタスク）
 import { randomBytes, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { decryptToken } from "@/lib/crypto/token-cipher";

@@ -237,9 +237,9 @@ export function ActionsCard({ actions, thisWeek, projectId }: { actions: GoalKpi
 
 const STATUS_TONE = { achieved: "success", expired: "neutral", replaced: "neutral" } as const;
 
-// これまでの目標（閉じた目標を新しい順に。開くとその目標のやること）
+// これまでの目標（閉じた目標を新しい順に。開くとその目標のタスク）
 export function PastGoals({ past, items, productType, renderItems }: { past: Goal[]; items: RoadmapItem[]; productType: string | null; renderItems: (items: RoadmapItem[]) => ReactNode }) {
-  // KGI を決めていなかった期間は、やることがあるときだけ出す
+  // KGI を決めていなかった期間は、タスクがあるときだけ出す
   const shown = past.filter((g) => g.metric !== null || items.some((i) => i.goalId === g.id));
   if (shown.length === 0) return null;
   return (
@@ -269,7 +269,7 @@ export function PastGoals({ past, items, productType, renderItems }: { past: Goa
                 </summary>
                 <div className="px-6 pb-3 max-sm:px-4">
                   {g.metric && <p className="text-[13px] text-muted">{metricLabel({ metric: g.metric, action: g.action, sns: g.sns }, productType)}</p>}
-                  {own.length ? <ul>{renderItems(own)}</ul> : <p className="py-2 text-[14px] text-muted">この目標のやることはありません。</p>}
+                  {own.length ? <ul>{renderItems(own)}</ul> : <p className="py-2 text-[14px] text-muted">この目標のタスクはありません。</p>}
                 </div>
               </DismissableDetails>
             </li>

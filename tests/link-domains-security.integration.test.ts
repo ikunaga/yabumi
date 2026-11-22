@@ -67,8 +67,10 @@ describe("L1: yabumi が付けたのではないドメインは外さない", ()
     expect(await getLinkDomain(admin, who.projectId)).toBeNull();
     expect((await admin.from("link_domain_removals").select("domain").eq("domain", domain)).data).toEqual([]);
     expect(await inVercel(domain)).toBe(true);
-    // 枠を取る前に断るので、行は一度も作られない（同時に「使うのをやめる」を送られても、消す行がなく、外す列に積まれない）
-    expect((await admin.from("link_domain_attempts").select("id", { count: "exact", head: true }).eq("owner_id", who.ownerId)).count).toBe(0);
+    // 枠を取る前に断るので、行は一度も作られない（同時に「使うのをやめる」を送られても、消す行がなく、外す列に積まれない）。
+    // Vercel に確かめた 1 回は、1 日の回数に数える
+    expect(await getLinkDomain(admin, who.projectId)).toBeNull();
+    expect((await admin.from("link_domain_attempts").select("id", { count: "exact", head: true }).eq("owner_id", who.ownerId)).count).toBe(1);
     await Promise.all([addLinkDomain(admin, { ...who, domain }, deps()), removeLinkDomain(admin, who, deps())]);
     expect((await admin.from("link_domain_removals").select("domain").eq("domain", domain)).data).toEqual([]);
     expect(await inVercel(domain)).toBe(true);
@@ -98,6 +100,30 @@ describe("L1: yabumi が付けたのではないドメインは外さない", ()
     expect(await inVercel(domain)).toBe(true);
     await removeLinkDomain(admin, who, deps());
     expect(await inVercel(domain)).toBe(false);
+  });
+});
+
+describe("Vercel に確かめる回数（2026-11-22 自動のセキュリティレビューの指摘）", () => {
+  it("付いているドメインを何度送っても、Vercel に聞くのは 1 日の回数（5 回）まで。6 回目からは聞かずに断る", async () => {
+    const who = await owner();
+    const domain = newDomain();
+    await control("/__control/vercel-domain", { domain, attached: true });
+    await fetch(`${server.url}/__control/reset`, { method: "POST" });
+    for (let i = 0; i < 5; i++) expect(await addLinkDomain(admin, { ...who, domain }, deps())).toMatchObject({ ok: false, error: expect.stringContaining(IN_USE) });
+    expect(await addLinkDomain(admin, { ...who, domain }, deps())).toMatchObject({ ok: false, error: expect.stringContaining("1 日に 5 回まで") });
+    expect((await calls())["GET /v9/projects/:p/domains/:d"]).toBe(5);
+  });
+
+  it("もう 1 つ持っている人・ほかの人が使っているドメインは、Vercel に聞かずに断る。追加できたときは 1 回だけ数える", async () => {
+    const who = await owner();
+    const first = newDomain();
+    expect(await addLinkDomain(admin, { ...who, domain: first }, deps())).toEqual({ ok: true });
+    expect((await admin.from("link_domain_attempts").select("id", { count: "exact", head: true }).eq("owner_id", who.ownerId)).count).toBe(1);
+    const other = await owner();
+    await fetch(`${server.url}/__control/reset`, { method: "POST" });
+    expect(await addLinkDomain(admin, { ...who, domain: newDomain() }, deps())).toMatchObject({ ok: false, error: expect.stringContaining("1 人 1 つ") });
+    expect(await addLinkDomain(admin, { ...other, domain: first }, deps())).toMatchObject({ ok: false, error: expect.stringContaining("ほかの人が使っている") });
+    expect((await calls())["GET /v9/projects/:p/domains/:d"] ?? 0).toBe(0);
   });
 });
 

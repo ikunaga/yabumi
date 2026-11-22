@@ -122,6 +122,25 @@ async function discardClaim(admin: Admin, input: { ownerId: string; projectId: s
   if (dequeueError) throw dequeueError;
 }
 
+// claim_link_domain と同じ決まりのうち、DB だけで見られるもの（Vercel を呼ぶ前に断る）。断るときはその理由、通れば null。
+// 本当の判定は claim_link_domain がロックの中で行う（ここは先に断るためだけ）
+async function precheckClaim(admin: Admin, ownerId: string, projectId: string, domain: string): Promise<string | null> {
+  const dayAgo = new Date(Date.now() - 86_400_000).toISOString();
+  const [project, mine, used, removing, attempts] = await Promise.all([
+    admin.from("projects").select("id", { count: "exact", head: true }).eq("id", projectId).eq("owner_id", ownerId),
+    admin.from("link_domains").select("id", { count: "exact", head: true }).or(`owner_id.eq.${ownerId},project_id.eq.${projectId}`),
+    admin.from("link_domains").select("id", { count: "exact", head: true }).eq("domain", domain),
+    admin.from("link_domain_removals").select("domain", { count: "exact", head: true }).eq("domain", domain),
+    admin.from("link_domain_attempts").select("id", { count: "exact", head: true }).eq("owner_id", ownerId).gt("created_at", dayAgo),
+  ]);
+  for (const r of [project, mine, used, removing, attempts]) if (r.error) throw r.error;
+  if (!project.count) return "not_found";
+  if (mine.count) return "already";
+  if (used.count || removing.count) return "taken";
+  if ((attempts.count ?? 0) >= LINK_DOMAIN_DAILY_ATTEMPTS) return "daily";
+  return null;
+}
+
 // Vercel のプロジェクトにもう付いているか（404 なら付いていない）。ほかの失敗は投げる
 async function attachedInVercel(vercel: VercelDomains, domain: string): Promise<boolean> {
   try {
@@ -143,9 +162,16 @@ export async function addLinkDomain(admin: Admin, input: { ownerId: string; proj
   // 外す途中のドメインがあれば、先に Vercel から外す（枠を空ける）
   await drainLinkDomainRemovals(admin, deps).catch((e) => console.error("[link-domain] 外す途中のドメインを片付けられませんでした", e instanceof Error ? e.message : e));
 
-  // Vercel のプロジェクトにもう付いているドメイン（運営者が手で付けたもの・ほかの利用者のもの）は、枠を取る前に断る。
-  // 枠を取ってから確かめると、その間に利用者が「使うのをやめる」を同時に送ったとき、行を消すトリガーが運営者のドメインを外す列に積めてしまう
-  // （セキュリティの確認 L1。2026-11-22 自動のセキュリティレビューの指摘で、確かめるのを枠を取る前に移した）
+  // Vercel を呼ぶ前に、DB だけで断れるものを断る（すでに持っている・ほかの人が使っている・1 日の回数）。
+  // そのうえで、Vercel に付いているかを確かめる 1 回を、1 日の回数として先に記録する。記録しないと、付いているドメインを何度も送って
+  // 運営者の Vercel のトークンを回数の上限なしに使わせてしまう（2026-11-22 自動のセキュリティレビューの指摘。マイグレーションは足さない）
+  const pre = await precheckClaim(admin, input.ownerId, input.projectId, domain);
+  if (pre) return { ok: false, error: CLAIM_ERRORS[pre] ?? "ドメインを追加できませんでした。" };
+  const { data: reserved, error: reserveError } = await admin.from("link_domain_attempts").insert({ owner_id: input.ownerId, domain }).select("id").single();
+  if (reserveError) throw reserveError;
+
+  // Vercel のプロジェクトにもう付いているドメイン（運営者が手で付けたものなど）は、枠を取る前に断る。
+  // 枠を取ってから確かめると、その間に利用者が「使うのをやめる」を同時に送ったとき、行を消すトリガーが運営者のドメインを外す列に積めてしまう（L1）
   let attached: boolean;
   try {
     attached = await attachedInVercel(deps.vercel, domain);
@@ -153,24 +179,22 @@ export async function addLinkDomain(admin: Admin, input: { ownerId: string; proj
     console.error("[link-domain] Vercel にドメインがあるかを確かめられませんでした", e instanceof Error ? e.message : e);
     return { ok: false, error: "いまドメインを追加できませんでした。時間をおいてもう一度お試しください。" };
   }
-  if (attached) {
-    // yabumi の利用者が使っている・外す途中のドメインなら、いままでどおり「ほかの人が使っている」と返す
-    const [{ count: used }, { count: removing }] = await Promise.all([
-      admin.from("link_domains").select("id", { count: "exact", head: true }).eq("domain", domain),
-      admin.from("link_domain_removals").select("domain", { count: "exact", head: true }).eq("domain", domain),
-    ]);
-    return { ok: false, error: (used ?? 0) + (removing ?? 0) > 0 ? CLAIM_ERRORS.taken : IN_USE_ELSEWHERE };
-  }
+  if (attached) return { ok: false, error: IN_USE_ELSEWHERE };
 
   const { data: claim, error } = await admin.rpc("claim_link_domain", {
     p_owner: input.ownerId,
     p_project: input.projectId,
     p_domain: domain,
     p_token: newOwnershipToken(),
-    p_daily: LINK_DOMAIN_DAILY_ATTEMPTS,
+    // 先に記録した確かめの 1 回は、この追加と同じ 1 回なので、ここでは 1 つ多く数えてよい（記録は枠を取れたら消す。claim が記録を入れる）
+    p_daily: LINK_DOMAIN_DAILY_ATTEMPTS + 1,
     p_total: limit,
   });
   if (error) throw error;
+  if (claim === "ok") {
+    const { error: unreserveError } = await admin.from("link_domain_attempts").delete().eq("id", reserved.id);
+    if (unreserveError) throw unreserveError;
+  }
   if (claim !== "ok") {
     if (claim === "limit") await notifyNearLimit(admin, limit, deps, true);
     return { ok: false, error: CLAIM_ERRORS[claim] ?? "ドメインを追加できませんでした。" };

@@ -2,6 +2,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { loadCalendarStats } from "@/lib/calendar/stats";
 import { countUnsentDrafts } from "@/lib/posts/drafts";
+import { listDrafts } from "@/lib/posts/queries";
 import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
 
 vi.mock("server-only", () => ({}));
@@ -19,8 +20,8 @@ let aliceId: string;
 let bobId: string;
 let projectId: string;
 
-async function post(status: "draft" | "scheduled", targets: ("pending" | "published" | "failed")[]) {
-  const { data, error } = await admin.from("posts").insert({ owner_id: aliceId, project_id: projectId, body: "本文", status, planned_at: status === "scheduled" ? "2099-01-01T00:00:00Z" : null }).select("id").single();
+async function post(status: "draft" | "scheduled", targets: ("pending" | "published" | "failed" | "awaiting_approval" | "publishing")[], body = "本文") {
+  const { data, error } = await admin.from("posts").insert({ owner_id: aliceId, project_id: projectId, body, status, planned_at: status === "scheduled" ? "2099-01-01T00:00:00Z" : null }).select("id").single();
   if (error) throw error;
   const sns = ["x", "threads", "instagram"];
   if (targets.length) {
@@ -38,6 +39,8 @@ beforeAll(async () => {
   await post("draft", ["published", "pending"]); // 今すぐ送った（一部）
   await post("draft", ["failed"]); // 今すぐ送って失敗
   await post("scheduled", ["pending"]); // 予約
+  await post("draft", ["awaiting_approval", "pending"], "自動投稿が下書きに回した投稿"); // X が確認待ちのまま下書きに回った（2026-11-23 本番）
+  await post("draft", ["publishing"]); // 今すぐ送っている途中
 });
 
 afterAll(async () => {
@@ -47,8 +50,14 @@ afterAll(async () => {
 
 describe("下書きの数", () => {
   it("まだどこにも送っていない下書きだけを数える（概要とカレンダーで同じ）", async () => {
-    expect(await countUnsentDrafts(alice, projectId)).toBe(2);
-    expect((await loadCalendarStats(projectId, "2099-01", alice)).drafts).toBe(2);
+    // 送り先なし・送り先を選んだ下書き・確認待ちのまま下書きに回った投稿の 3 つ。今すぐ送った（途中・一部・失敗）と予約は入れない
+    expect(await countUnsentDrafts(alice, projectId)).toBe(3);
+    expect((await loadCalendarStats(projectId, "2099-01", alice)).drafts).toBe(3);
+  });
+  it("下書きの一覧にも、確認待ちのまま下書きに回った投稿が出る（数と同じ決め方）", async () => {
+    const rows = await listDrafts(projectId, alice);
+    expect(rows).toHaveLength(3);
+    expect(rows.map((r) => r.body)).toContain("自動投稿が下書きに回した投稿");
   });
   it("他人の下書きは数えない", async () => {
     expect(await countUnsentDrafts(bob, projectId)).toBe(0);

@@ -2,21 +2,26 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 
 // 下書き（まだどこにも送っていない投稿）の決め方と、一覧の 1 行の題（2026-11-13 PMO2 の確かめ: 保存した下書きへたどる入口がなかった）。
-// 下書き = 予約していない（status が draft）で、送り先がどれもまだ（pending）のもの。今すぐ送った投稿は draft のまま送られるので、
+// 下書き = 予約していない（status が draft）で、送り先がどれもまだ送り始めていない（pending・awaiting_approval）もの。今すぐ送った投稿は draft のまま送られるので、
 // 送り先の状態も見る（概要の「下書き n 件」・カレンダーの「下書き」・下書きの一覧・投稿をつくるの「下書きから続ける」で同じ）
 
 type Db = SupabaseClient<Database>;
 
+// まだ送り始めていない配信先の状態。pending（送る前）と awaiting_approval（確認して送る SNS の、確認待ち）。
+// 自動投稿が下書きに回した投稿は、X などが awaiting_approval のまま残るので、これも「まだ送っていない」に入れる
+// （前は pending だけを見ていて、下書きの数にも一覧にも入らなかった。2026-11-23 本番）
+export const UNSENT_TARGET_STATUSES = ["pending", "awaiting_approval"] as const;
+
 export function isUnsentDraft(p: { status: string; targetStatuses: readonly string[] }): boolean {
-  return p.status === "draft" && p.targetStatuses.every((s) => s === "pending");
+  return p.status === "draft" && p.targetStatuses.every((s) => (UNSENT_TARGET_STATUSES as readonly string[]).includes(s));
 }
 
-// 下書きの数（行を読まずに DB で数える。draft の投稿の数から、送り先が 1 つでも pending でないものを引く）
+// 下書きの数（行を読まずに DB で数える。draft の投稿の数から、送り始めた配信先〈pending・awaiting_approval 以外〉が 1 つでもあるものを引く）
 export async function countUnsentDrafts(db: Db, projectId: string): Promise<number> {
   const head = { count: "exact", head: true } as const;
   const [all, sent] = await Promise.all([
     db.from("posts").select("id", head).eq("project_id", projectId).eq("status", "draft"),
-    db.from("posts").select("id, post_targets!inner(id)", head).eq("project_id", projectId).eq("status", "draft").neq("post_targets.status", "pending"),
+    db.from("posts").select("id, post_targets!inner(id)", head).eq("project_id", projectId).eq("status", "draft").not("post_targets.status", "in", `(${UNSENT_TARGET_STATUSES.join(",")})`),
   ]);
   if (all.error) throw all.error;
   if (sent.error) throw sent.error;

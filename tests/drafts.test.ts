@@ -9,6 +9,10 @@ describe("下書き（まだどこにも送っていない）", () => {
     expect(isUnsentDraft({ status: "draft", targetStatuses: ["pending", "published"] })).toBe(false);
     expect(isUnsentDraft({ status: "draft", targetStatuses: ["failed"] })).toBe(false);
     expect(isUnsentDraft({ status: "scheduled", targetStatuses: ["pending"] })).toBe(false);
+    // 確認して送る SNS の確認待ち（自動投稿が下書きに回した投稿の X など）は、まだ送っていない。送り始めたもの（送っている途中）は入れない（2026-11-23）
+    expect(isUnsentDraft({ status: "draft", targetStatuses: ["awaiting_approval", "pending"] })).toBe(true);
+    expect(isUnsentDraft({ status: "draft", targetStatuses: ["publishing", "pending"] })).toBe(false);
+    expect(isUnsentDraft({ status: "draft", targetStatuses: ["preparing"] })).toBe(false);
   });
 });
 

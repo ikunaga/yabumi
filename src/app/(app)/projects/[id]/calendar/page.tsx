@@ -5,7 +5,9 @@ import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { MonthGrid } from "@/components/calendar/month-grid";
 import { MonthMobile } from "@/components/calendar/month-mobile";
-import type { MonthDay } from "@/components/calendar/month-types";
+import { PLANNED_CARD, PLANNED_TEXT, type MonthDay } from "@/components/calendar/month-types";
+import { AutoPostStoppedBanner } from "@/components/auto-post/stopped-banner";
+import { showAutoPostStopped } from "@/lib/auto-post/job-enabled";
 import { TodoButton, WeekBandView } from "@/components/calendar/roadmap-band";
 import { CalendarViewSwitch } from "@/components/calendar/view-switch";
 import { loadCalendarRoadmap, type CalendarTodo, type MilestoneNote } from "@/lib/calendar/roadmap";
@@ -94,6 +96,7 @@ export default async function CalendarPage(props: PageProps<"/projects/[id]/cale
         switcher={<CalendarViewSwitch current="week" weekHref={`${base}/calendar?view=week&week=${days[0]}`} monthHref={monthHref} />}
         label={rangeLabel(days)}
         milestones={milestones}
+        hasPlanned={planned.length > 0}
         nav={[
           { href: `${base}/calendar?view=week&week=${addDays(days[0], -7)}`, label: "← 前の週" },
           ...(isThisWeek ? [] : [{ href: `${base}/calendar?view=week`, label: "今週" }]),
@@ -103,6 +106,7 @@ export default async function CalendarPage(props: PageProps<"/projects/[id]/cale
       />
 
       {done && <SuccessBanner>{done}</SuccessBanner>}
+      {showAutoPostStopped({ enabledEnv: process.env.AUTO_POST_ENABLED, hasPlanned: planned.length > 0 }) && <AutoPostStoppedBanner />}
       {/* 予約したあとの「ひとこと」（4.47。1 日 1 回まで） */}
       {done === DONE.scheduled && <LearningTip trigger="post_scheduled" />}
 
@@ -164,8 +168,22 @@ export default async function CalendarPage(props: PageProps<"/projects/[id]/cale
   );
 }
 
-// 見出しの行: 見出し・週と月の切り替え・期間・前後への移動・凡例
-function Header({ switcher, label, milestones, nav, navLabel }: { switcher: ReactNode; label: string; milestones: MilestoneNote[]; nav: { href: string; label: string }[]; navLabel: string }) {
+// 見出しの行: 見出し・週と月の切り替え・期間・前後への移動・凡例（自動でつくって送る投稿は、その期間にあるときだけ）
+function Header({
+  switcher,
+  label,
+  milestones,
+  nav,
+  navLabel,
+  hasPlanned,
+}: {
+  switcher: ReactNode;
+  label: string;
+  milestones: MilestoneNote[];
+  nav: { href: string; label: string }[];
+  navLabel: string;
+  hasPlanned: boolean;
+}) {
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
       <h1 className="text-[26px] font-bold max-sm:text-[22px]">カレンダー</h1>
@@ -184,7 +202,7 @@ function Header({ switcher, label, milestones, nav, navLabel }: { switcher: Reac
           </Link>
         ))}
       </nav>
-      <Legend />
+      <Legend hasPlanned={hasPlanned} />
     </div>
   );
 }
@@ -236,7 +254,7 @@ async function loadAutoRuns(projectId: string, fromIso: string, toIso: string): 
   });
 }
 
-function Legend() {
+function Legend({ hasPlanned }: { hasPlanned: boolean }) {
   return (
     <div className="ml-auto flex gap-4 text-[13px] text-muted max-md:hidden">
       <span className="font-bold text-success">✓ 送信済み</span>
@@ -245,6 +263,14 @@ function Legend() {
         <span aria-hidden className="h-3 w-4 rounded-sm border border-dashed border-input" />
         下書き
       </span>
+      {hasPlanned && (
+        <span className="inline-flex items-center gap-1.5">
+          <span aria-hidden className={`grid h-3 w-4 place-items-center rounded-sm text-[10px] leading-none font-bold ${PLANNED_TEXT} ${PLANNED_CARD}`}>
+            ↻
+          </span>
+          自動でつくって送る投稿
+        </span>
+      )}
     </div>
   );
 }
@@ -320,13 +346,14 @@ async function MonthView({ projectId, productType, base, ym, today, done }: { pr
       auto: Boolean(p.autoRunId),
     });
   }
-  // 作る前の自動の回（点線の札）。DB の日ごとの数（投稿）には入らないので、その日の数に足す
+  // 作る前の自動の回（情報の色の点線の札・↻ の印）。DB の日ごとの数（投稿）には入らないので、その日の数に足す
   const plannedCount = new Map<string, number>();
-  for (const c of plannedAutoChips(autoRuns, base)) {
+  const planned = plannedAutoChips(autoRuns, base);
+  for (const c of planned) {
     const d = toYmd(new Date(c.dueAt));
     const list = items.get(d);
     if (!list) continue;
-    list.push({ id: c.id, href: c.href, time: formatTime(c.dueAt), sns: c.sns.map((k) => SNS[k].label).join(" / "), snsKeys: c.sns, title: c.title, status: "draft", warning: null, auto: true, statusLabel: c.label });
+    list.push({ id: c.id, href: c.href, time: formatTime(c.dueAt), sns: c.sns.map((k) => SNS[k].label).join(" / "), snsKeys: c.sns, title: c.title, status: "planned", warning: null, auto: true, statusLabel: c.label });
     plannedCount.set(d, (plannedCount.get(d) ?? 0) + 1);
   }
   const days: MonthDay[] = grid.map((d) => {
@@ -346,6 +373,7 @@ async function MonthView({ projectId, productType, base, ym, today, done }: { pr
         switcher={<CalendarViewSwitch current="month" weekHref={weekHref} monthHref={monthLink(ym)} />}
         label={`${ym.slice(0, 4)} 年 ${month} 月`}
         milestones={milestones}
+        hasPlanned={plannedCount.size > 0}
         nav={[
           { href: monthLink(addMonths(ym, -1)), label: "← 前の月" },
           ...(isThisMonth ? [] : [{ href: monthLink(ymOf(today)), label: "今月" }]),
@@ -355,6 +383,7 @@ async function MonthView({ projectId, productType, base, ym, today, done }: { pr
       />
 
       {done && <SuccessBanner>{done}</SuccessBanner>}
+      {showAutoPostStopped({ enabledEnv: process.env.AUTO_POST_ENABLED, hasPlanned: planned.length > 0 }) && <AutoPostStoppedBanner />}
       {/* 予約したあとの「ひとこと」（4.47。1 日 1 回まで） */}
       {done === DONE.scheduled && <LearningTip trigger="post_scheduled" />}
 
@@ -405,29 +434,30 @@ function MobilePostCard({ post, href, extraWarning, highlight }: { post: PostRow
   );
 }
 
-// 作る前の自動の回（スマホの週の表示）。下書きと同じ点線の枠で、押すと回し方の画面へ
+// 作る前の自動の回（スマホの週の表示）。情報の色の点線の枠（下書きの灰色の点線とは別）で、押すと回し方の画面へ
 function MobilePlannedCard({ chip }: { chip: PlannedAutoChip }) {
   return (
-    <Link href={chip.href} className="flex flex-col gap-1.5 rounded-md border border-dashed border-input bg-surface px-3.5 py-3 text-muted hover:no-underline">
+    <Link href={chip.href} className={`flex flex-col gap-1.5 rounded-md px-3.5 py-3 hover:no-underline ${PLANNED_CARD}`}>
       <span className="flex items-center gap-1.5 text-[13px]">
         <span className="num text-faint">{formatTime(chip.dueAt)}</span>
         {chip.sns.map((s) => (
           <SnsMark key={s} sns={s} />
         ))}
+        <span className={`ml-auto text-sm whitespace-nowrap ${PLANNED_TEXT}`}>{chip.label}</span>
       </span>
       <span className="text-[15px]">
-        <AutoMark show />
-        {chip.label} {chip.title}
+        <AutoMark show planned />
+        {chip.title}
       </span>
     </Link>
   );
 }
 
-function AutoMark({ show }: { show: boolean }) {
+function AutoMark({ show, planned = false }: { show: boolean; planned?: boolean }) {
   if (!show) return null;
   return (
     <>
-      <span aria-hidden className="mr-1 text-primary">
+      <span aria-hidden className={`mr-1 ${planned ? PLANNED_TEXT : "text-primary"}`}>
         ↻
       </span>
       <span className="sr-only">自動投稿・</span>

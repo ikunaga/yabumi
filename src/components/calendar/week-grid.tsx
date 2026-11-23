@@ -11,7 +11,7 @@ import { SnsLabel } from "./sns-label";
 const BASE_HOURS = [9, 12, 18, 21];
 
 // PC の週の表示: 時刻 × 曜日のマス目に、SNS の色の札を置く（見本 C）。空いているマスを押すと、その日の投稿をつくる。
-// planned は作る前の自動の回（点線の札）。hrefOf は投稿の札の行き先（自動の回の確かめ待ちは確かめ待ちの画面へ）
+// planned は作る前の自動の回（情報の色の点線の札）。hrefOf は投稿の札の行き先（自動の回の確かめ待ちは確かめ待ちの画面へ）
 export function WeekGrid({
   days,
   today,
@@ -105,7 +105,7 @@ export function WeekGrid({
                 })}
                 {autoList.map((c) => {
                   const time = formatTime(c.dueAt);
-                  return <SnsLabel key={c.id} href={c.href} sns={c.sns} status="draft" time={time.endsWith(":00") ? undefined : time} title={c.title} statusLabel={c.label} auto />;
+                  return <SnsLabel key={c.id} href={c.href} sns={c.sns} status="planned" time={time.endsWith(":00") ? undefined : time} title={c.title} statusLabel={c.label} auto />;
                 })}
               </div>
             );

@@ -126,8 +126,9 @@ export async function listUndatedDrafts(projectId: string) {
 // 下書きの一覧（まだどこにも送っていない下書き。直した日の新しい順。src/lib/posts/drafts.ts の決め方）
 export const DRAFTS_LIMIT = 200;
 export type DraftRow = { id: string; body: string; plannedAt: string | null; updatedAt: string; sns: SnsKey[]; overrides: (string | null)[]; titles: (string | null)[]; images: number };
-export async function listDrafts(projectId: string): Promise<DraftRow[]> {
-  const supabase = await createClient();
+// client: テストから利用者の権限のクライアントを渡す（ふだんは cookie から作る）
+export async function listDrafts(projectId: string, client?: Awaited<ReturnType<typeof createClient>>): Promise<DraftRow[]> {
+  const supabase = client ?? (await createClient());
   const { data, error } = await supabase
     .from("posts")
     .select("id, body, planned_at, updated_at, status, post_targets(sns, status, title, body_override), media_files(count)")

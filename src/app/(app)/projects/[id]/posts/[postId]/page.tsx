@@ -189,7 +189,7 @@ export default async function EditPostPage(props: PageProps<"/projects/[id]/post
       {runRow?.status === "held" && post.status === "draft" && (
         <p role="status" className="mb-3 rounded-lg border border-border bg-surface px-4 py-3 text-sm leading-[1.7]">
           <b className="mr-1.5 text-signal">● 要確認</b>
-          <b>{formatShort(runRow.due_at)} に送る自動投稿を、下書きで止めています。</b>
+          <b>この投稿は、まだ予約されていません。予約しないと、{formatShort(runRow.due_at)} に送りません。</b>
           <span className="block text-muted">{heldReasonText(runRow.reason as AutoRunReason | null, runRow.reason_detail)}</span>
         </p>
       )}

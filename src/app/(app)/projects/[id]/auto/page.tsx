@@ -119,7 +119,7 @@ export default async function AutoListPage(props: PageProps<"/projects/[id]/auto
                     {u.status === "held" && u.postStatus === "draft" && (
                       <p className="text-sm">
                         <b className="mr-1.5 text-signal">● 要確認</b>
-                        下書きで止まっています。<span className="text-muted">{heldReasonText(u.reason, u.reasonDetail)}</span>
+                        まだ予約されていません。このままだと送りません。<span className="text-muted">{heldReasonText(u.reason, u.reasonDetail)}</span>
                       </p>
                     )}
                     <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
@@ -130,7 +130,7 @@ export default async function AutoListPage(props: PageProps<"/projects/[id]/auto
                     </p>
                   </div>
                   <Link href={u.postId ? `/projects/${project.id}/posts/${u.postId}` : `${base}/${u.planId}`} className="text-sm font-bold">
-                    投稿を見る →
+                    {u.status === "held" && u.postStatus === "draft" ? "投稿を開く →" : "投稿を見る →"}
                   </Link>
                 </li>
               ))}

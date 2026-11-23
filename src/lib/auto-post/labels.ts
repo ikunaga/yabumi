@@ -131,15 +131,25 @@ export function autoImageLabel(image: AutoImage | null): string {
   return `AI がつくる（${image.style === "photo" ? "写真のように" : "イラストで"}・${size}）${head}`;
 }
 
-// 下書きに回した回（held）の理由と、利用者がすること（ホームの帯・自動投稿の「これからの投稿」・投稿の画面。2026-11-23 オーナーの了承）。
-// 送る前の確認で引っかかったときは、何に引っかかったか（reason_detail）を 60 字まで添える
-const CHECK_REASONS: AutoRunReason[] = ["check_failed", "similar", "made_up", "avoid", "too_long"];
+// 下書きに回した回（held）の理由と、利用者がすること（ホームの帯・自動投稿の「これからの投稿」・投稿の画面。2026-11-23 オーナーの了承。
+// 文は ja-copy-reviewer の指摘で書き直した）。送る前の確認の理由（reason_detail）があれば、1 文として添える
+const HELD_LEAD: Partial<Record<AutoRunReason, string>> = {
+  check_failed: "送る前の確認で、注意が出ました。",
+  similar: "前の投稿と似ています。",
+  made_up: "事実と違うかもしれない言葉があります。",
+  avoid: "アカウントの方針の「やらないこと」に当たります。",
+  too_long: "文が長すぎて、送れない SNS があります。",
+};
+const HELD_TAIL: Partial<Record<AutoRunReason, string>> = {
+  made_up: "正しいか確認してから、予約してください。",
+  too_long: "短く編集してから、予約してください。",
+};
 export function heldReasonText(reason: AutoRunReason | null | undefined, detail?: string | null): string {
-  if (reason === "image_failed") return "画像を添えられませんでした。画像を添えるか、文を編集してから予約してください。";
-  if (reason && CHECK_REASONS.includes(reason)) {
-    const d = detail?.trim() ? `「${[...detail.trim()].slice(0, 60).join("")}」` : "";
-    return `${RUN_REASON_TEXT[reason]}。${d}中身を確認し、編集してから予約してください。`;
+  if (reason === "image_failed") return "この投稿に、画像を付けられませんでした。画像を追加してから、予約してください。画像なしでよければ、文を確認して予約してください。";
+  const lead = reason ? HELD_LEAD[reason] : undefined;
+  if (reason && lead) {
+    const d = detail?.trim() ? `${[...detail.trim().replace(/[。.]+$/, "")].slice(0, 80).join("")}。` : "";
+    return `${lead}${d}${HELD_TAIL[reason] ?? "文を編集してから、予約してください。"}`;
   }
-  return "中身を確認してから予約してください。";
+  return "この投稿は、送る前に確認が必要です。中身を見てから、予約してください。";
 }
-

@@ -29,7 +29,10 @@ export function nextRunLabel(iso: string, now: Date): string {
 export function overviewAutoBand(plans: AutoPlan[], upcoming: UpcomingAutoRun[], review: number, now: Date = new Date()): OverviewAutoBand | null {
   if (plans.length === 0) return null;
   const activeIds = new Set(plans.filter((p) => p.status === "active").map((p) => p.id));
-  const runs = upcoming.filter((r) => activeIds.has(r.planId) && new Date(r.dueAt) > now && !["held", "skipped", "canceled"].includes(r.status));
+  // 下書きに回った回は「次は」に出さない。ただし、利用者が下書きを編集して予約し直した回（回は held のまま、投稿は scheduled）は出す
+  const runs = upcoming.filter(
+    (r) => activeIds.has(r.planId) && new Date(r.dueAt) > now && !["skipped", "canceled"].includes(r.status) && (r.status !== "held" || r.postStatus === "scheduled"),
+  );
   const first = runs.reduce<string | null>((min, r) => (min === null || r.dueAt < min ? r.dueAt : min), null);
   let next: OverviewAutoBand["next"] = null;
   if (first) {

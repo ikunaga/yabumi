@@ -51,7 +51,7 @@ export function AutoPostBand({ projectId, band }: { projectId: string; band: Ove
             <li key={`${r.planId}-${r.label}`} className="flex flex-wrap items-baseline gap-x-2">
               <b className="text-signal">● 要確認</b>
               <span>
-                <span className="num">{r.label}</span> の自動投稿は、下書きで止まっています。
+                <span className="num">{r.label}</span> の自動投稿は、まだ予約されていません。このままだと送りません。
               </span>
               <span className="text-muted">{r.reason}</span>
               <Link href={r.postId ? `/projects/${projectId}/posts/${r.postId}` : `${base}/${r.planId}`} className="font-bold text-fg underline">

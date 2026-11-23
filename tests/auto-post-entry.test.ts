@@ -75,7 +75,7 @@ describe("概要の帯", () => {
       [plan({}), plan({ id: "plan-c", status: "paused" })],
       [
         run({ dueAt: "2026-11-16T12:00:00Z", status: "held", postId: "post-h", postStatus: "draft", reason: "image_failed" }),
-        run({ dueAt: "2026-11-17T12:00:00Z", status: "held", postId: "post-m", postStatus: "draft", reason: "made_up", reasonDetail: "創業 100 年" }),
+        run({ dueAt: "2026-11-17T12:00:00Z", status: "held", postId: "post-m", postStatus: "draft", reason: "made_up", reasonDetail: "創業 100 年は材料にありません。" }),
         run({ dueAt: "2026-11-18T12:00:00Z", status: "held", postId: "post-s", postStatus: "scheduled", reason: "image_failed" }),
         run({ dueAt: "2026-11-16T02:00:00Z", status: "held", postId: "post-p", postStatus: "draft", reason: "image_failed" }),
         run({ planId: "plan-c", dueAt: "2026-11-16T12:00:00Z", status: "held", postId: "post-c", postStatus: "draft" }),
@@ -83,10 +83,11 @@ describe("概要の帯", () => {
       0,
       NOW,
     );
-    expect(band?.next).toBeNull();
+    // 予約し直した held の回（投稿は scheduled）は「次は」に出す
+    expect(band?.next).toEqual({ label: "11/18 21:00", sns: ["threads"] });
     expect(band?.heldRuns).toEqual([
-      { label: "今日 21:00", postId: "post-h", planId: "plan-a", reason: "画像を添えられませんでした。画像を添えるか、文を編集してから予約してください。" },
-      { label: "明日 21:00", postId: "post-m", planId: "plan-a", reason: "事実か確認したいところがあります。「創業 100 年」中身を確認し、編集してから予約してください。" },
+      { label: "今日 21:00", postId: "post-h", planId: "plan-a", reason: "この投稿に、画像を付けられませんでした。画像を追加してから、予約してください。画像なしでよければ、文を確認して予約してください。" },
+      { label: "明日 21:00", postId: "post-m", planId: "plan-a", reason: "事実と違うかもしれない言葉があります。創業 100 年は材料にありません。正しいか確認してから、予約してください。" },
     ]);
   });
 

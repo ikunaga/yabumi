@@ -515,7 +515,40 @@ describe("状態の見直しと知らせ", () => {
     push.mockClear();
     await notifyMade(admin, deps(), new Date(), scopeOpts());
     expect(push).not.toHaveBeenCalled();
+    // オフにしている人は、知らせたことにする（次のジョブで試し続けない）
+    expect((await admin.from("auto_runs").select("notified_at").eq("id", run).single()).data!.notified_at).not.toBeNull();
     await admin.from("notification_prefs").delete().eq("user_id", aliceId);
+  });
+
+  it("届ける端末が 1 台もないときは知らせたことにせず、端末が登録されたら 1 回だけ届く。送る時刻を過ぎた回は、いまさら送らない（2026-11-23 本番）", async () => {
+    const p = await project();
+    await note(p, "端末のテスト");
+    const id = await plan(p);
+    await admin.from("auto_plans").update({ first_review: false }).eq("id", id);
+    const run = await dueRun(id, p, 1.5, true);
+    await makeDueRuns(admin, deps(), new Date(), scopeOpts());
+    const notifiedAt = async () => (await admin.from("auto_runs").select("notified_at").eq("id", run).single()).data!.notified_at;
+    // 端末がない（sendPush は 0 台に届けて返る）
+    const noDevice = vi.fn(async () => ({ sent: 0, removed: 0, failed: 0 }));
+    expect(await notifyMade(admin, { ...deps(), push: noDevice }, new Date(), scopeOpts())).toBe(0);
+    expect(noDevice).toHaveBeenCalledTimes(1);
+    expect(await notifiedAt()).toBeNull();
+    // 次のジョブでまた試す（まだ端末がない）
+    await notifyMade(admin, { ...deps(), push: noDevice }, new Date(), scopeOpts());
+    expect(noDevice).toHaveBeenCalledTimes(2);
+    expect(await notifiedAt()).toBeNull();
+    // 端末が登録されたら 1 回だけ届き、そのあとは送らない
+    push.mockClear();
+    expect(await notifyMade(admin, deps(), new Date(), scopeOpts())).toBe(1);
+    expect(await notifyMade(admin, deps(), new Date(), scopeOpts())).toBe(0);
+    expect(push).toHaveBeenCalledTimes(1);
+    expect(await notifiedAt()).not.toBeNull();
+    // 送る時刻を過ぎてから端末が登録されても、古い知らせは送らない（知らせたことにする）
+    await admin.from("auto_runs").update({ notified_at: null }).eq("id", run);
+    push.mockClear();
+    expect(await notifyMade(admin, deps(), new Date(Date.now() + 3 * HOUR), scopeOpts())).toBe(0);
+    expect(push).not.toHaveBeenCalled();
+    expect(await notifiedAt()).not.toBeNull();
   });
 
   it("ジョブの 1 回（runAutoPostJob）は、絞った利用者の中で一通り動く", async () => {

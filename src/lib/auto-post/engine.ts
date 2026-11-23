@@ -590,12 +590,16 @@ async function pushAllowed(admin: Db, userId: string): Promise<boolean> {
   return data?.auto_post_push ?? true;
 }
 
-async function notify(admin: Db, deps: EngineDeps, userId: string, msg: PushMessage) {
+// 返り値: sent（1 台以上に届けた）/ off（お知らせの設定で止めている）/ none（届ける端末がない・鍵がない）/ error（送れなかった）
+type NotifyOutcome = "sent" | "off" | "none" | "error";
+async function notify(admin: Db, deps: EngineDeps, userId: string, msg: PushMessage): Promise<NotifyOutcome> {
   try {
-    if (!(await pushAllowed(admin, userId))) return;
-    await (deps.push ?? ((a, u, m) => sendPush(a, u, m)))(admin, userId, msg);
+    if (!(await pushAllowed(admin, userId))) return "off";
+    const r = (await (deps.push ?? ((a, u, m) => sendPush(a, u, m)))(admin, userId, msg)) as { sent?: number; failed?: number } | undefined;
+    return (r?.sent ?? 0) > 0 ? "sent" : (r?.failed ?? 0) > 0 ? "error" : "none";
   } catch (e) {
     console.error("[auto-post] 知らせを送れませんでした", e instanceof Error ? e.message : e);
+    return "error";
   }
 }
 
@@ -630,12 +634,22 @@ export async function notifyMade(admin: Db, deps: EngineDeps, now: Date, opts: E
   if (error) throw error;
   const byOwner = new Map<string, NotifyRow[]>();
   for (const r of data as NotifyRow[]) byOwner.set(r.owner_id, [...(byOwner.get(r.owner_id) ?? []), r]);
-  for (const [owner, rows] of byOwner) {
+  let sent = 0;
+  for (const [owner, all] of byOwner) {
+    // 送る時刻を過ぎた回は、いまさら知らせない（届けずに知らせたことにする。端末をあとで登録した人に、古い知らせをまとめて送らない）
+    const stale = all.filter((r) => new Date(r.due_at).getTime() <= now.getTime());
+    if (stale.length) await admin.from("auto_runs").update({ notified_at: now.toISOString() }).in("id", stale.map((r) => r.id));
+    const rows = all.filter((r) => new Date(r.due_at).getTime() > now.getTime());
+    if (!rows.length) continue;
     const msg = generatedMessage(rows);
-    await notify(admin, deps, owner, { ...msg, url: `/projects/${rows[0].project_id}/auto`, tag: `auto-made:${owner}` });
+    const outcome = await notify(admin, deps, owner, { ...msg, url: `/projects/${rows[0].project_id}/auto`, tag: `auto-made:${owner}` });
+    // 1 台も届けられなかった（端末がない・送れなかった）ときは、知らせたことにしない。次のジョブでまた試し、端末が登録されたら 1 回だけ届く
+    // （前は端末が 0 台でも notified_at を入れ、送ったつもりになっていた。2026-11-23 本番）。お知らせを止めている人は、知らせたことにする
+    if (outcome === "none" || outcome === "error") continue;
     await admin.from("auto_runs").update({ notified_at: now.toISOString() }).in("id", rows.map((r) => r.id));
+    if (outcome === "sent") sent++;
   }
-  return byOwner.size;
+  return sent;
 }
 
 // 確かめ待ちのまま、送る時刻の 2 時間前になった回をもう一度知らせる（1 回だけ）

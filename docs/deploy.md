@@ -830,3 +830,14 @@ yabumi 運営 YuXport Labs
 | 34-4 | PM | `supabase db push --dry-run` で 20261121180000_format_variables だけが出ることを確かめてから `supabase db push` | まだ |
 | 34-5 | PM | 当てたあと: フォーマットの画面で連想映画クイズを開き、変数の欄に「映画（どこにも出ない・重ならない）」「キーワード」が出ること。自動投稿の一覧で、要確認の回し方がないこと（34-2 で 1 件以上なら、そのぶん要確認になっていること） | まだ |
 
+
+## 35. 自動投稿の知らせのメール（2026-11-23、feat/auto-post-mail。docs/design/auto-post.md の 2.7）
+
+メールを送るのは、環境変数 `AUTO_POST_MAIL` が `on` のときだけ（既定は送らない。ローカルの .env.local にも入れない）。送らない間は、お知らせの設定にもメールの選択を出さない。規約の変更（docs/legal.md の「案: 自動投稿の知らせをメールでも送る」。②）の施行までは入れない。
+
+| # | だれが | やること | 状態 |
+|---|---|---|---|
+| 35-1 | PM | マイグレーション 20261123120000_auto_post_mail を本番に当てる（notification_prefs.auto_post_email・notification_log の種類と project_id。今の行は変わらない）。当てただけではメールは送らない | まだ |
+| 35-2 | PM・オーナー | 規約の文の了承と施行日を決め、/privacy と LEGAL_VERSIONS を変える（docs/legal.md の案の表の 4 か所） | まだ |
+| 35-3 | オーナー | **施行日を過ぎてから**、Vercel の Production に `AUTO_POST_MAIL=on` を足して Redeploy（Preview には入れない）。止めるときは値を消して Redeploy | まだ |
+| 35-4 | PM | 入れたあと: お知らせの設定の「自動投稿の通知」に「メール」が出ること。次のジョブのあと、Vercel のログに `[user-mail]` の失敗が出ていないこと（中身は見ない） | まだ |

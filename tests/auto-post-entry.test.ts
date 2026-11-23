@@ -66,7 +66,28 @@ describe("概要の帯", () => {
       2,
       NOW,
     );
-    expect(band).toEqual({ active: 2, paused: 1, next: { label: "明日 09:00", sns: ["x", "threads"] }, review: 2, stopped: [] });
+    // 下書きに回した回は、投稿がまだ下書きのときだけ要確認に出す（postStatus がないので、ここでは出さない）
+    expect(band).toEqual({ active: 2, paused: 1, next: { label: "明日 09:00", sns: ["x", "threads"] }, review: 2, stopped: [], heldRuns: [] });
+  });
+
+  it("送る時刻の前に下書きに回った回は、時刻と理由つきで要確認に出す。予約し直した・過ぎた・止めた回し方の回は出さない（2026-11-23）", () => {
+    const band = overviewAutoBand(
+      [plan({}), plan({ id: "plan-c", status: "paused" })],
+      [
+        run({ dueAt: "2026-11-16T12:00:00Z", status: "held", postId: "post-h", postStatus: "draft", reason: "image_failed" }),
+        run({ dueAt: "2026-11-17T12:00:00Z", status: "held", postId: "post-m", postStatus: "draft", reason: "made_up", reasonDetail: "創業 100 年" }),
+        run({ dueAt: "2026-11-18T12:00:00Z", status: "held", postId: "post-s", postStatus: "scheduled", reason: "image_failed" }),
+        run({ dueAt: "2026-11-16T02:00:00Z", status: "held", postId: "post-p", postStatus: "draft", reason: "image_failed" }),
+        run({ planId: "plan-c", dueAt: "2026-11-16T12:00:00Z", status: "held", postId: "post-c", postStatus: "draft" }),
+      ],
+      0,
+      NOW,
+    );
+    expect(band?.next).toBeNull();
+    expect(band?.heldRuns).toEqual([
+      { label: "今日 21:00", postId: "post-h", planId: "plan-a", reason: "画像を添えられませんでした。画像を添えるか、文を編集してから予約してください。" },
+      { label: "明日 21:00", postId: "post-m", planId: "plan-a", reason: "事実か確認したいところがあります。「創業 100 年」中身を確認し、編集してから予約してください。" },
+    ]);
   });
 
   it("今日の回は「今日 18:00」、それより先は日付", () => {

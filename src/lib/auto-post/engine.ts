@@ -233,6 +233,8 @@ export type Draft =
 async function withImage(admin: Db, deps: EngineDeps, plan: AutoPlan & { ownerId: string }, draft: Extract<Draft, { ok: true }>, sns: SnsKey[]): Promise<Extract<Draft, { ok: true }>> {
   if (!plan.image || draft.hold) return draft;
   const r = await makeAutoImage(admin, deps.image, { plan, texts: draft.texts, sns, material: draft.material, headline: draft.headline });
+  // 画像をつくれなかった理由をあとで追えるように残す（理由は yabumi の決まった文だけ。鍵・本文・絵の説明は出さない。2026-11-23）
+  if (!r.ok) console.error("[auto-post] 自動投稿の画像をつくれませんでした", { planId: plan.id, detail: r.detail });
   return r.ok ? { ...draft, image: r.image } : { ...draft, hold: { kind: "image_failed", detail: r.detail } };
 }
 
@@ -307,7 +309,9 @@ export async function draftRun(
     for (const [id, t] of short) texts[id as SnsKey] = t;
   }
 
-  const checkArgs = { allowedUrls: material.allowedUrls, recent: args.recent.bySns, tags: fixedTags, skipSimilar: !!material.series?.fixedBody };
+  // 【】は、利用者の文（シリーズはフォーマットの文をそのまま使うので、その文。ほかは材料）にもともとあるものは数えない
+  const bracketSource = material.fixedTexts ? Object.values(material.fixedTexts).join("\n") : material.text;
+  const checkArgs = { allowedUrls: material.allowedUrls, recent: args.recent.bySns, tags: fixedTags, skipSimilar: !!material.series?.fixedBody, bracketSource };
   hold ??= plainIssues(texts, checkArgs)[0] ?? null;
   if (!hold) {
     // AI っぽさチェック（自動の投稿の枠。用途 auto_post_check）
@@ -437,6 +441,7 @@ async function placeDraft(
   if (error) throw error;
   // 画像は配信先を作る前に添える（確かめて送る SNS の指紋に画像が入る。添えられなければ、その回は下書きに回す）
   if (draft.image && !(await attachImage(admin, plan.ownerId, post.id, draft.image)) && status !== "held") {
+    console.error("[auto-post] 自動投稿の画像を投稿に添えられませんでした", { runId: run.id, postId: post.id });
     hold = { kind: "image_failed", detail: "画像を投稿に添えられませんでした" };
     status = "held";
     await admin.from("posts").update({ status: "draft" }).eq("id", post.id);

@@ -130,3 +130,16 @@ export function autoImageLabel(image: AutoImage | null): string {
   const size = { auto: "送り先に合わせる", portrait: "縦 4:5", square: "正方形 1:1", landscape: "横 16:9" }[image.size];
   return `AI がつくる（${image.style === "photo" ? "写真のように" : "イラストで"}・${size}）${head}`;
 }
+
+// 下書きに回した回（held）の理由と、利用者がすること（ホームの帯・自動投稿の「これからの投稿」・投稿の画面。2026-11-23 オーナーの了承）。
+// 送る前の確認で引っかかったときは、何に引っかかったか（reason_detail）を 60 字まで添える
+const CHECK_REASONS: AutoRunReason[] = ["check_failed", "similar", "made_up", "avoid", "too_long"];
+export function heldReasonText(reason: AutoRunReason | null | undefined, detail?: string | null): string {
+  if (reason === "image_failed") return "画像を添えられませんでした。画像を添えるか、文を編集してから予約してください。";
+  if (reason && CHECK_REASONS.includes(reason)) {
+    const d = detail?.trim() ? `「${[...detail.trim()].slice(0, 60).join("")}」` : "";
+    return `${RUN_REASON_TEXT[reason]}。${d}中身を確認し、編集してから予約してください。`;
+  }
+  return "中身を確認してから予約してください。";
+}
+

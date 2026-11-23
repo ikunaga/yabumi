@@ -5,7 +5,7 @@ import { callFormatRound } from "@/lib/ai/anthropic";
 import type { PlanData } from "@/lib/plan/schema";
 import { listRounds } from "@/lib/post-formats/rounds";
 import { X_FIXED_BODY, aiVars, fixedBodySeries, isSeries, readPlanVars, roundTitle, ROUNDS_FOR_AI, seriesForPlan, undecidedPlanVars, usedRoundKeys, varModesChanged } from "@/lib/post-formats/series";
-import { fillFormat, formatTagsFor } from "@/lib/post-formats/schema";
+import { fillFormat, formatTagsFor, unfilledSlots } from "@/lib/post-formats/schema";
 import { getFormat } from "@/lib/post-formats/store";
 import type { SnsKey } from "@/lib/sns";
 import type { Database } from "@/lib/supabase/database.types";
@@ -195,6 +195,10 @@ async function pickSeries(admin: Db, plan: AutoPlan & { ownerId: string }, planD
   // 変数の中身は、広く知られた作品・ものごとの一般的な事実だけ（format-series.md の 4.）。「確かめてほしいところ」の数は記録だけ残し、送る前は AI っぽさチェックに任せる
   if (!p) return { none: true, reason: "cannot_write", detail: "前と重ならない次の投稿の案を出せませんでした" };
   const values = { ...fixed, ...p.values };
+  // 言葉の入らない変数があれば、本文に【名前】が残る（書き加えるところ）。黙って送らずに、書けなかった回にする
+  // （本文の【】は、フォーマットの飾りとして利用者が書いたものもあるので、checks.ts では数えない。2026-11-23）
+  const unfilled = unfilledSlots(format.body, values);
+  if (unfilled.length) return { none: true, reason: "cannot_write", detail: `フォーマットの変数 ${unfilled.map((n) => `{${n}}`).join("・")} に言葉が入りませんでした` };
   const text = fillFormat(format.body, values);
   const sns = Object.keys(plan.targets) as SnsKey[];
   const title = roundTitle(series, values) || Object.values(p.values).join("・");

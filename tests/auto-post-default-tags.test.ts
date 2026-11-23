@@ -18,7 +18,7 @@ describe("自動の投稿の本文とは別に付くタグ", () => {
 
   it("利用者が決めたタグは目安より多くても止めない。AI が本文に足したタグで目安を超えたら止める", () => {
     expect(plainIssues({ threads: "朝の話" }, { ...base, tags: { threads: ["a", "b"] } })).toEqual([]);
-    expect(plainIssues({ x: "朝の話 #c" }, { ...base, tags: { x: ["a", "b"] } }).map((i) => i.detail)).toContain("x のハッシュタグが多すぎます");
+    expect(plainIssues({ x: "朝の話 #c" }, { ...base, tags: { x: ["a", "b"] } }).map((i) => i.detail)).toContain("X のハッシュタグが多すぎます");
   });
 
   it("本文にもあるタグは行に付けないので、2 回数えない", () => {
@@ -43,5 +43,21 @@ describe("自動の投稿の本文とは別に付くタグ", () => {
     expect(req).toContain("本文の後ろに別に付くタグ");
     expect(req).toContain("X: #パン屋");
     expect(JSON.stringify(buildAutoPostRequest({ context: "", material: "メモ", instructions: [], recentBodies: [], dueAt: new Date() }).messages)).not.toContain("別に付くタグ");
+  });
+});
+
+// 【】の見分け（2026-11-23 本番: シリーズのフォーマットの飾りの【…】を「書き加えるところ」と誤って止め、その日の投稿が下書きに回った）
+describe("書き加えるところ（【】）", () => {
+  const base2 = { allowedUrls: [], recent: {} };
+  it("利用者の文（材料・シリーズのフォーマットの文）にもともとある【…】は数えない", () => {
+    const quiz = "連想映画クイズ🎬\n【記憶を消す手術・別れた恋人・凍った川の上・髪の色が変わる彼女・モントーク】\nこの画像から連想される映画は？";
+    expect(plainIssues({ x: quiz, threads: quiz }, { ...base2, bracketSource: quiz })).toEqual([]);
+    expect(plainIssues({ threads: "【新メニュー】かぼちゃのパンを始めました" }, { ...base2, bracketSource: "メモ: 【新メニュー】かぼちゃのパン" })).toEqual([]);
+  });
+  it("AI が残した【】（材料にないもの・閉じていないもの）は、いままでどおり止める。理由の SNS は表示の名前", () => {
+    expect(plainIssues({ x: "【店名】で焼きました" }, { ...base2, bracketSource: "かぼちゃのパン" })).toEqual([{ kind: "made_up", detail: "X に、あなたが書き加えるところ（【】）が残っています" }]);
+    expect(plainIssues({ threads: "【新メニュー】と【値段】" }, { ...base2, bracketSource: "【新メニュー】" }).map((i) => i.kind)).toEqual(["made_up"]);
+    expect(plainIssues({ threads: "焼きました】" }, { ...base2, bracketSource: "焼きました】" }).map((i) => i.kind)).toEqual(["made_up"]);
+    expect(plainIssues({ threads: "【店名】" }, base2).map((i) => i.kind)).toEqual(["made_up"]);
   });
 });

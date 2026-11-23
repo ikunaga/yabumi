@@ -159,3 +159,18 @@ describe("フォーマットの変数が変わったら、要確認で止める"
     expect(await planOf(planId)).toMatchObject({ status: "stopped", stop_reason: "format_changed" });
   });
 });
+
+describe("フォーマットの飾りの【】（2026-11-23 本番の誤検知）", () => {
+  it("フォーマットの文にもともとある【…】は書き加えるところとして止めず、予約する", async () => {
+    const body = "連想映画クイズ🎬\n【{キーワード}】\nこの 5 つから連想する映画は？";
+    const formatId = await addFormat(alice, projectId, { name: "【】のクイズ", body, series: { vars: [{ name: "キーワード", mode: "ai", instruction: "言葉を 5 つ", unique: false }] } });
+    const planId = (await savePlan(formatId, {})).data!;
+    await admin.from("auto_plans").update({ first_review: false }).eq("id", planId);
+    const run = await dueRun(planId);
+    await makeDueRuns(admin, deps(), new Date(), scopeOpts());
+    const r = await runOf(run);
+    expect(r).toMatchObject({ status: "scheduled", reason: null });
+    const post = (await admin.from("posts").select("body").eq("id", r.post_id!).single()).data!;
+    expect(post.body).toContain("【（偽の AI）キーワード");
+  });
+});

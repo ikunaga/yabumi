@@ -9,7 +9,7 @@ import { Card, EmptyState } from "@/components/ui/card";
 import { SuccessBanner } from "@/components/ui/feedback";
 import { SnsTag } from "@/components/ui/marks";
 import { PageHeader } from "@/components/ui/page-header";
-import { KIND_LABELS } from "@/lib/auto-post/labels";
+import { KIND_LABELS, heldReasonText } from "@/lib/auto-post/labels";
 import { getAutoPostHold, listAutoPlans, listAutoReviewItems, listUpcomingAutoRuns } from "@/lib/auto-post/queries";
 import { MAX_AUTO_PLANS } from "@/lib/auto-post/schema";
 import type { SnsKey } from "@/lib/sns";
@@ -115,6 +115,13 @@ export default async function AutoListPage(props: PageProps<"/projects/[id]/auto
                 <li key={u.runId} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3">
                   <div className="flex min-w-0 flex-col gap-0.5">
                     <p className="num text-[15px] font-bold">{dueText(u.dueAt)}</p>
+                    {/* 下書きに回った回は、送らずに止まっていることと理由を出す（2026-11-23 オーナーの了承） */}
+                    {u.status === "held" && u.postStatus === "draft" && (
+                      <p className="text-sm">
+                        <b className="mr-1.5 text-signal">● 要確認</b>
+                        下書きで止まっています。<span className="text-muted">{heldReasonText(u.reason, u.reasonDetail)}</span>
+                      </p>
+                    )}
                     <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
                       <span>{u.planName}</span>
                       {u.sns.map((s) => (

@@ -1,7 +1,7 @@
 import { slotLabel } from "@/lib/overview/numbers";
 import { SNS_KEYS, type SnsKey } from "@/lib/sns";
 import { addDays, formatTime, toYmd } from "@/lib/time";
-import { STOP_REASON_TEXT } from "./labels";
+import { STOP_REASON_TEXT, heldReasonText } from "./labels";
 import type { AutoPlan, UpcomingAutoRun } from "./types";
 
 // 自動の投稿の入口（docs/design/auto-post.md の 1.2）。概要の 1 行の帯を、DB に触れずに決める
@@ -13,6 +13,8 @@ export type OverviewAutoBand = {
   review: number; // 確認待ち
   stopped: { id: string; name: string; reason: string }[]; // yabumi が止めた回し方（要確認）
   held?: boolean; // 運営者が、利用者ごとに自動投稿を止めている（要確認。概要が auto_post_holds から足す）
+  // 送る時刻の前に、下書きに回った回（要確認。「今日 21:00 の自動投稿は、下書きで止まっています」→ その投稿。2026-11-23 オーナーの了承）
+  heldRuns: { label: string; postId: string | null; planId: string; reason: string }[];
 };
 
 // 帯に出す次の回は、14 日先まで（listUpcomingAutoRuns に渡す範囲）
@@ -41,6 +43,9 @@ export function overviewAutoBand(plans: AutoPlan[], upcoming: UpcomingAutoRun[],
     paused: plans.filter((p) => p.status === "paused").length,
     next,
     review,
+    heldRuns: upcoming
+      .filter((r) => activeIds.has(r.planId) && new Date(r.dueAt) > now && r.status === "held" && r.postStatus === "draft")
+      .map((r) => ({ label: nextRunLabel(r.dueAt, now), postId: r.postId, planId: r.planId, reason: heldReasonText(r.reason, r.reasonDetail) })),
     stopped: plans
       .filter((p) => p.status === "stopped")
       .map((p) => ({ id: p.id, name: p.name, reason: p.stopReason ? STOP_REASON_TEXT[p.stopReason] : "止まりました" })),

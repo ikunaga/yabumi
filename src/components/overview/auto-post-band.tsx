@@ -44,6 +44,23 @@ export function AutoPostBand({ projectId, band }: { projectId: string; band: Ove
           </ButtonLink>
         </span>
       </div>
+      {/* 送る時刻の前に下書きに回った回: 時刻と理由を出し、その投稿へ（「次は」は下書きの回を除くので、ここで知らせる） */}
+      {band.heldRuns.length > 0 && !band.held && (
+        <ul className="flex flex-col gap-1 text-sm">
+          {band.heldRuns.map((r) => (
+            <li key={`${r.planId}-${r.label}`} className="flex flex-wrap items-baseline gap-x-2">
+              <b className="text-signal">● 要確認</b>
+              <span>
+                <span className="num">{r.label}</span> の自動投稿は、下書きで止まっています。
+              </span>
+              <span className="text-muted">{r.reason}</span>
+              <Link href={r.postId ? `/projects/${projectId}/posts/${r.postId}` : `${base}/${r.planId}`} className="font-bold text-fg underline">
+                投稿を開く →
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
       {band.stopped.length > 0 && (
         <ul className="flex flex-col gap-1 text-sm">
           {band.stopped.map((p) => (

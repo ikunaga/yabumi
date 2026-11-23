@@ -1,6 +1,6 @@
 import { applyFix, type AiCheckResult } from "@/lib/ai/ai-check";
 import { overLimit } from "@/lib/ai/shorten";
-import { displayLength, type SnsKey } from "@/lib/sns";
+import { SNS, displayLength, type SnsKey } from "@/lib/sns";
 import { extractHashtags, HASHTAG_RULES, splitTagsByText, withHashtags } from "@/lib/sns/hashtags";
 import type { AutoRunReason } from "./types";
 
@@ -97,26 +97,40 @@ export function foreignLinks(text: string, allowed: readonly string[]): string[]
 // tags: 本文とは別に付くタグ（シリーズのフォーマット・いつものタグ）。字数とタグの数は、送る文（本文＋空行＋タグの行。本文にもあるタグは行に付けない）で数える。
 // 重なりは本文だけで比べる（毎回同じタグの行で「似すぎ」にならないように。前の投稿の本文もタグなし）
 // skipSimilar: 本文が毎回同じシリーズ（重なりは答えと空欄の言葉で見ているので、本文が同じことを理由にしない）
+// bracketSource: 利用者が書いた・決めた文（材料・シリーズのフォーマットの文）。そこにもともとある【…】は、書き加えるところとして数えない
+// （シリーズのクイズのヒントの飾り「【記憶を消す手術・…】」を誤って止めていた。2026-11-23 本番。書き加えるところが残っているかは、
+// シリーズでは材料を作るときに変数の言葉が全部入ったかで見ている。materials.ts の pickSeries）
 export function plainIssues(
   texts: Texts,
-  opts: { allowedUrls: readonly string[]; recent: Partial<Record<SnsKey, string[]>>; tags?: Partial<Record<SnsKey, string[]>>; skipSimilar?: boolean },
+  opts: { allowedUrls: readonly string[]; recent: Partial<Record<SnsKey, string[]>>; tags?: Partial<Record<SnsKey, string[]>>; skipSimilar?: boolean; bracketSource?: string },
 ): Issue[] {
   const issues: Issue[] = [];
+  const allowed = new Set(bracketSegments(opts.bracketSource ?? ""));
   for (const [k, body] of Object.entries(texts) as [SnsKey, string][]) {
+    const name = SNS[k]?.label ?? k;
     if (!body.trim()) {
-      issues.push({ kind: "cannot_write", detail: `${k} の文がありません` });
+      issues.push({ kind: "cannot_write", detail: `${name} の文がありません` });
       continue;
     }
     const keep = splitTagsByText(body, opts.tags?.[k] ?? []).keep;
     const sent = withHashtags(body, keep);
-    if (overLimit(k, sent) > 0) issues.push({ kind: "too_long", detail: `${k} の字数の上限を超えています` });
-    if (/[【】]/.test(body)) issues.push({ kind: "made_up", detail: `${k} に、あなたが書き加えるところ（【】）が残っています` });
-    if (foreignLinks(body, opts.allowedUrls).length) issues.push({ kind: "check_failed", detail: `${k} に、リンク先として登録していない URL があります` });
+    if (overLimit(k, sent) > 0) issues.push({ kind: "too_long", detail: `${name} の字数の上限を超えています` });
+    if (hasAddedBrackets(body, allowed)) issues.push({ kind: "made_up", detail: `${name} に、あなたが書き加えるところ（【】）が残っています` });
+    if (foreignLinks(body, opts.allowedUrls).length) issues.push({ kind: "check_failed", detail: `${name} に、リンク先として登録していない URL があります` });
     // 利用者が決めたタグ（keep）は、目安より多くても止めない（投稿をつくると同じく目安の注意だけ）。AI が本文に足した分で目安を超えたら止める
-    if (extractHashtags(sent).length > Math.max(HASHTAG_RULES[k].max, keep.length)) issues.push({ kind: "check_failed", detail: `${k} のハッシュタグが多すぎます` });
-    if (!opts.skipSimilar && maxSimilarity(body, opts.recent[k] ?? []) >= thresholdOf(k)) issues.push({ kind: "similar", detail: `${k} の文が、前の送信済みの投稿と似ています` });
+    if (extractHashtags(sent).length > Math.max(HASHTAG_RULES[k].max, keep.length)) issues.push({ kind: "check_failed", detail: `${name} のハッシュタグが多すぎます` });
+    if (!opts.skipSimilar && maxSimilarity(body, opts.recent[k] ?? []) >= thresholdOf(k)) issues.push({ kind: "similar", detail: `${name} の文が、前の送信済みの投稿と似ています` });
   }
   return issues;
+}
+
+// 【…】のまとまり（入れ子と改行はまたがない）
+const BRACKET_SEGMENT = /【[^【】\n]*】/g;
+export const bracketSegments = (text: string) => text.match(BRACKET_SEGMENT) ?? [];
+
+// 利用者の文にもともとある【…】を除いても、【 か 】が残るか（AI が書き加えさせる前提で残した印）
+export function hasAddedBrackets(body: string, allowed: ReadonlySet<string>): boolean {
+  return /[【】]/.test(body.replace(BRACKET_SEGMENT, (seg) => (allowed.has(seg) ? "" : seg)));
 }
 
 // ===== AI っぽさチェックの結果の扱い（A2 の ②） =====

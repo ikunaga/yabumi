@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Button, NotReadyButton } from "@/components/ui/button";
 import { ErrorBanner, SuccessBanner } from "@/components/ui/feedback";
@@ -15,7 +16,8 @@ import { AndroidSteps, detectInstallEnv, IphoneSteps, TooOld } from "@/component
 type Env =
   | { kind: "loading" }
   // iPhone・iPad の Safari など（ホーム画面に追加した yabumi からでないと受け取れない）
-  | { kind: "ios-browser"; tooOld: boolean }
+  // browser: Safari 以外（Chrome など）のときは、Safari で開いて追加するよう案内する
+  | { kind: "ios-browser"; tooOld: boolean; browser: "safari" | "chrome" | "other" }
   | { kind: "ios-too-old" }
   | { kind: "unsupported" }
   | { kind: "ready"; ios: boolean; android: boolean };
@@ -26,10 +28,17 @@ function detectEnv(): Exclude<Env, { kind: "loading" }> {
   const ios = platform === "ios";
   const android = platform === "android";
   const supported = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
-  if (ios && !standalone) return { kind: "ios-browser", tooOld };
+  if (ios && !standalone) return { kind: "ios-browser", tooOld, browser: iosBrowser(navigator.userAgent) };
   if (ios && tooOld) return { kind: "ios-too-old" };
   if (!supported) return { kind: "unsupported" };
   return { kind: "ready", ios, android };
+}
+
+// iPhone・iPad で開いているブラウザ。Chrome は CriOS、Firefox は FxiOS、Edge は EdgiOS を UA に持つ
+function iosBrowser(ua: string): "safari" | "chrome" | "other" {
+  if (/CriOS\//.test(ua)) return "chrome";
+  if (/FxiOS\/|EdgiOS\/|OPiOS\/|OPT\/|GSA\//.test(ua)) return "other";
+  return "safari";
 }
 
 // VAPID の公開鍵（base64url）を、ブラウザが受け取る形に
@@ -183,8 +192,30 @@ export function PushSettings() {
 
       {env.kind === "ios-browser" && (
         <div className="flex flex-col gap-2 rounded-md border border-line bg-surface2 p-4">
-          <p className="font-bold">iPhone・iPad では、スマホのホーム画面に追加すると通知を受け取れます</p>
-          {env.tooOld ? <TooOld /> : <IphoneSteps withPush />}
+          {/* ブラウザで開くとボタンが出ないので、まずそれを伝える（2026-11-23 オーナーが「どこ」と迷った） */}
+          {env.tooOld ? (
+            <>
+              <p className="font-bold">iOS を更新すると、通知を受け取れるようになります。</p>
+              <TooOld />
+              <p>更新したら、この画面を開き直してください。</p>
+            </>
+          ) : (
+            <>
+              <p className="font-bold">
+                {env.browser === "safari" ? "Safari で開いたままでは、通知を受け取れません。" : env.browser === "chrome" ? "Chrome で開いたままでは、通知を受け取れません。" : "いま開いているアプリでは、通知を受け取れません。"}
+              </p>
+              <p>スマホのホーム画面に yabumi を追加すると、受け取れます。</p>
+              {env.browser === "safari" ? (
+                <p>次の手順で、スマホのホーム画面に追加してください。</p>
+              ) : (
+                <p>
+                  {env.browser === "chrome" ? "Safari で yabumi を開き直してください。" : "いま開いているアプリではなく、Safari で yabumi を開いてください。"}
+                  アドレスバーの文字をコピーし、Safari に貼り付けます。そのあと、次の手順で追加します。
+                </p>
+              )}
+              <IphoneSteps withPush />
+            </>
+          )}
         </div>
       )}
       {env.kind === "ios-too-old" && <TooOld />}
@@ -242,34 +273,43 @@ export function PushSettings() {
         </div>
       )}
 
-      <DisclosureBox label="スマホのホーム画面に追加する手順を表示">
-        <div className="flex flex-col gap-4">
-          {/* iPhone の Safari で開いているときは、上のカードに同じ手順が出ているので、ここには出さない（確認役の指摘） */}
-          {env.kind !== "ios-browser" && (
+      {/* iPhone・iPad のブラウザで開いているときは、上のカードに手順が出ている。Android の手順だけが畳まれて残り二重に見えるので、出さない（2026-11-23） */}
+      {env.kind !== "ios-browser" && (
+        <DisclosureBox label="スマホのホーム画面に追加する手順を表示">
+          <div className="flex flex-col gap-4">
             <div>
               <p className="font-bold">iPhone・iPad</p>
               <p>iOS 16.4 以降で、通知を受け取れます。</p>
               <IphoneSteps withPush />
             </div>
-          )}
-          <div>
-            <p className="font-bold">Android</p>
-            <p>Chrome なら、スマホのホーム画面に追加しなくても通知を受け取れます。アプリのように開きたいときは、次の手順で追加します。</p>
-            <AndroidSteps />
-            <p className="mt-1">追加してもしなくても、この画面で「この端末で通知を受け取る」を押します。</p>
+            <div>
+              <p className="font-bold">Android</p>
+              <p>Chrome なら、スマホのホーム画面に追加しなくても通知を受け取れます。アプリのように開きたいときは、次の手順で追加します。</p>
+              <AndroidSteps />
+              <p className="mt-1">追加してもしなくても、この画面で「この端末で通知を受け取る」を押します。</p>
+            </div>
           </div>
-        </div>
-      </DisclosureBox>
+        </DisclosureBox>
+      )}
 
       <DisclosureBox label="届かないときの確認のしかたを表示">
         <ul className="flex list-disc flex-col gap-1 pl-5">
           <li>「おやすみモード」や「集中モード」がオンだと、通知が出ないことがあります</li>
-          <li>iPhone・iPad では、スマホのホーム画面の yabumi から登録します。Safari で開いた画面からは登録できません</li>
+          <li>iPhone・iPad では、スマホのホーム画面の yabumi から登録します。Safari や Chrome で開いた画面からは登録できません</li>
           <li>iPhone は「設定」→「通知」→「yabumi」で確認できます。Android とパソコンは、ブラウザの通知の設定を見てください</li>
           <li>ブラウザのデータを消すと、登録も消えます。もう一度「この端末で通知を受け取る」を押してください</li>
           <li>ログアウトすると、その端末には届かなくなります。ほかの人に、あなたへの通知が見えないようにするためです。ログインし直したら、「この端末で通知を受け取る」をもう一度押してください</li>
         </ul>
       </DisclosureBox>
+
+      {/* iPhone・iPad のブラウザで開いているときは、上に同じ手順が出ているので、案内のページへのリンクは出さない（2026-11-23） */}
+      {env.kind !== "ios-browser" && (
+        <p>
+          <Link href="/settings/add-to-home" className="font-semibold text-primary hover:underline">
+            スマホのホーム画面に追加する手順を見る →
+          </Link>
+        </p>
+      )}
     </div>
   );
 }

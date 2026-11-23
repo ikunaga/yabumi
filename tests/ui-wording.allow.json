@@ -1374,12 +1374,6 @@
    "paren"
   ]
  },
- "src/components/settings/auto-post-prefs-form.tsx": {
-  "受け取る 文を作ったとき（1 日 1 通にまとめます）・確認待ちになったとき・止まったときに、スマホに送ります": [
-   "long",
-   "paren"
-  ]
- },
  "src/components/settings/comment-prefs-form.tsx": {
   "受け取る 新しいコメントがあった日の 19:00 に、1 日 1 回、件数だけをスマホに送ります": [
    "long"

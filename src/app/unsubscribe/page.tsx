@@ -12,6 +12,10 @@ export const metadata: Metadata = { title: "お知らせのメールを止める
 export default async function UnsubscribePage(props: PageProps<"/unsubscribe">) {
   const sp = await props.searchParams;
   const token = typeof sp.t === "string" ? sp.t : "";
+  // k=auto は自動投稿の知らせのメール（src/lib/auto-post/mail.ts）。止めるのはその種類のメールだけ
+  const auto = sp.k === "auto";
+  const what = auto ? "自動投稿のメール" : "投稿のペースを知らせるメール";
+  const detail = auto ? "確認が要るとき・下書きに残したとき・止まったときのメールです。" : "遅れそうなときと、毎週の振り返りのメールです。";
   const settings = (
     <Link href="/settings/notifications" className="font-semibold text-fg underline">
       お知らせの設定
@@ -20,9 +24,11 @@ export default async function UnsubscribePage(props: PageProps<"/unsubscribe">) 
   return (
     <PublicFrame>
       {sp.done === "1" ? (
-        <PublicCard title="お知らせのメールを止めました">
-          <p>投稿のペースを知らせるメールは、もう届きません。遅れそうなときと、毎週の振り返りのメールです。</p>
-          <p className="text-muted">スマホの通知と、yabumi の画面に出るお知らせはそのままです。また受け取りたくなったら、ログインして{settings}から戻せます。</p>
+        <PublicCard title={auto ? "自動投稿のメールを止めました" : "お知らせのメールを止めました"}>
+          <p>
+            {what}は、もう届きません。{detail}
+          </p>
+          <p className="text-muted">スマホの通知と、yabumi の画面に出るお知らせはそのままです。また受け取るときは、ログインして「{settings}」で戻せます。</p>
         </PublicCard>
       ) : sp.done === "0" || !token ? (
         <PublicCard title="リンクが正しくないか、古くなっています">
@@ -31,8 +37,11 @@ export default async function UnsubscribePage(props: PageProps<"/unsubscribe">) 
       ) : (
         <form action={unsubscribeAction} className="flex w-full justify-center">
           <input type="hidden" name="t" value={token} />
-          <PublicCard title="yabumi のお知らせのメールを止める" actions={<SubmitButton variant="primary" pendingText="止めています…">メールを止める</SubmitButton>}>
-            <p>投稿のペースを知らせるメールを止めます。遅れそうなときと、毎週の振り返りのメールです。</p>
+          {auto && <input type="hidden" name="k" value="auto" />}
+          <PublicCard title={auto ? "自動投稿のメールを止める" : "yabumi のお知らせのメールを止める"} actions={<SubmitButton variant="primary" pendingText="止めています…">{auto ? "自動投稿のメールを止める" : "メールを止める"}</SubmitButton>}>
+            <p>
+              {what}を止めます。{detail}
+            </p>
             <p className="text-muted">スマホの通知と、yabumi の画面に出るお知らせはそのままです。</p>
           </PublicCard>
         </form>

@@ -21,6 +21,7 @@ import { headlineSettingsSchema } from "@/lib/media/edit-schema";
 import { dueTimes } from "./schedule";
 import type { AutoPlan, AutoRunReason, AutoRunStatus, AutoStopReason } from "./types";
 import { STOP_REASON_TEXT } from "./labels";
+import { autoPostMailEnabled, mailAutoNotices, type AutoMailDeps } from "./mail";
 import { heldUserIds, HOLD_PUSH, isAutoPostHeld, RELEASE_PUSH } from "./holds";
 import { attachImage, makeAutoImage, type AutoImageDeps, type MadeImage } from "./image";
 import { callPhotoIdeas } from "@/lib/ai/anthropic";
@@ -54,12 +55,14 @@ export type EngineDeps = {
   now?: () => Date;
   // 自動の回の画像（docs/design/auto-sample-image.md の 2.）。ないとき（鍵がない）は、画像を選んだ回し方の回を下書きに回す
   image?: AutoImageDeps;
+  // 自動投稿の知らせのメール（mail.ts）。テストで送り先・宛先を差し替える
+  mail?: AutoMailDeps;
 } & MaterialDeps;
 
 // ownerIds: 結合テストで、テストの利用者だけを扱う（共有のローカル DB のほかの人の行に触らない）。ジョブは渡さない
 export type EngineOpts = { ownerIds?: string[]; limit?: number };
 
-export type JobSummary = { added: number; expired: number; made: Partial<Record<AutoRunStatus, number>>; stopped: number; notified: number; reminded: number; holdNotices: number };
+export type JobSummary = { added: number; expired: number; made: Partial<Record<AutoRunStatus, number>>; stopped: number; notified: number; reminded: number; holdNotices: number; mailed: number };
 
 const jstHm = (d: Date) => {
   const j = new Date(d.getTime() + 9 * 3_600_000);
@@ -978,7 +981,15 @@ export async function runAutoPostJob(admin: Db, deps: EngineDeps, opts: EngineOp
   const notified = await notifyMade(admin, deps, now, opts);
   const reminded = await remindApprovals(admin, deps, now, opts);
   const holdNotices = await notifyHolds(admin, deps, now, opts);
+  // メールはスマホの通知とは別に選ぶ（通知を送ったかどうかに関わらず、まだメールで送っていない知らせを 1 人 1 通にまとめる）。失敗してもジョブは止めない
+  // 規約の変更の施行までは送らない（AUTO_POST_MAIL=on のときだけ）
+  let mailed = 0;
+  try {
+    if (autoPostMailEnabled()) mailed = (await mailAutoNotices(admin, now, deps.mail, opts)).sent;
+  } catch (e) {
+    console.error("[auto-post] 知らせのメールを送れませんでした", e instanceof Error ? e.message : e);
+  }
   await purgeSamples(admin, now, opts);
-  return { added, expired, made, stopped, notified, reminded, holdNotices };
+  return { added, expired, made, stopped, notified, reminded, holdNotices, mailed };
 }
 

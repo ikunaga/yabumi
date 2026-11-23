@@ -1416,7 +1416,7 @@ export type Database = {
           id: number
           kind: string
           period_key: string
-          project_id: string
+          project_id: string | null
           user_id: string
         }
         Insert: {
@@ -1425,7 +1425,7 @@ export type Database = {
           id?: never
           kind: string
           period_key: string
-          project_id: string
+          project_id?: string | null
           user_id: string
         }
         Update: {
@@ -1434,7 +1434,7 @@ export type Database = {
           id?: never
           kind?: string
           period_key?: string
-          project_id?: string
+          project_id?: string | null
           user_id?: string
         }
         Relationships: [
@@ -1449,6 +1449,7 @@ export type Database = {
       }
       notification_prefs: {
         Row: {
+          auto_post_email: boolean
           auto_post_push: boolean
           behind_weekday: number
           comment_push: string
@@ -1463,6 +1464,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          auto_post_email?: boolean
           auto_post_push?: boolean
           behind_weekday?: number
           comment_push?: string
@@ -1477,6 +1479,7 @@ export type Database = {
           user_id?: string
         }
         Update: {
+          auto_post_email?: boolean
           auto_post_push?: boolean
           behind_weekday?: number
           comment_push?: string

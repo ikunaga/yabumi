@@ -89,13 +89,21 @@ export async function listUpcomingAutoRuns(projectId: string, from: Date, until:
   if (plans.error) throw new Error(`auto_plans: ${plans.error.message}`);
   if (runs.error) throw new Error(`auto_runs: ${runs.error.message}`);
   const known = new Map((runs.data as RunRow[]).map((r) => [`${r.plan_id}|${new Date(r.due_at).getTime()}`, toRun(r)]));
+  // 下書きに回った回は、投稿がまだ下書きかを見る（予約し直したら要確認を出さない）
+  const heldPostIds = (runs.data as RunRow[]).filter((r) => r.status === "held" && r.post_id).map((r) => r.post_id!);
+  const postStatus = new Map<string, string>();
+  if (heldPostIds.length) {
+    const { data: ps, error: psError } = await client.from("posts").select("id, status").in("id", heldPostIds);
+    if (psError) throw new Error(`posts: ${psError.message}`);
+    for (const p of ps ?? []) postStatus.set(p.id, p.status);
+  }
   const out: UpcomingAutoRun[] = [];
   for (const plan of (plans.data as PlanRow[]).map(toPlan)) {
     const sns = Object.keys(plan.targets) as SnsKey[];
     for (const at of dueTimes(plan.schedule, from, until)) {
       const run = known.get(`${plan.id}|${at.getTime()}`);
       if (run && ["canceled", "skipped"].includes(run.status)) continue;
-      out.push({ runId: run?.id ?? "", planId: plan.id, planName: plan.name, dueAt: at.toISOString(), status: run?.status ?? "waiting", postId: run?.postId ?? null, sns });
+      out.push({ runId: run?.id ?? "", planId: plan.id, planName: plan.name, dueAt: at.toISOString(), status: run?.status ?? "waiting", postId: run?.postId ?? null, sns, reason: run?.reason ?? null, reasonDetail: run?.reasonDetail ?? null, postStatus: run?.postId ? (postStatus.get(run.postId) ?? null) : null });
     }
   }
   return out.sort((a, b) => a.dueAt.localeCompare(b.dueAt));

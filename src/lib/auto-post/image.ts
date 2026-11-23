@@ -44,8 +44,17 @@ async function context(admin: Db, plan: AutoPlan & { ownerId: string }, sns: Sns
 // Claude に場面を 1 つ書いてもらう（自動の投稿の AI の枠）
 async function writeScene(admin: Db, deps: AutoImageDeps, ownerId: string, request: ReturnType<typeof buildPhotoIdeasRequest>): Promise<string | null> {
   const b = await withAiBudget(admin, { userId: ownerId, purpose: "auto_post_scene", call: "photo_ideas" }, request, deps.callScene);
-  if (!b.ok) return null;
-  const ideas = b.result.stopReason === "end_turn" ? normalizePhotoIdeas(b.result.output) : null;
+  // 書けなかった理由を種類だけ残す（AI の枠・止まり方・案がない。中身は出さない。2026-11-23）
+  if (!b.ok) {
+    console.error("[auto-post] 画像の場面を書けませんでした", { why: "ai_budget" });
+    return null;
+  }
+  if (b.result.stopReason !== "end_turn") {
+    console.error("[auto-post] 画像の場面を書けませんでした", { why: "stop_reason", stopReason: b.result.stopReason });
+    return null;
+  }
+  const ideas = normalizePhotoIdeas(b.result.output);
+  if (!ideas?.[0]?.scene) console.error("[auto-post] 画像の場面を書けませんでした", { why: "no_ideas" });
   return ideas?.[0]?.scene ?? null;
 }
 
@@ -142,7 +151,10 @@ async function overlayHeadline(admin: Db, ownerId: string, photo: AutoPhoto, tex
 
 // 候補の置き場所から読み、AI で作ったことの印（XMP）を入れて、添えた画像の置き場所に上げる
 async function uploadMarked(admin: Db, ownerId: string, from: string, source: AiSource): Promise<{ path: string; size: number } | null> {
-  if (!from.startsWith(`${ownerId}/gen/`) || !from.endsWith(".jpg")) return null;
+  if (!from.startsWith(`${ownerId}/gen/`) || !from.endsWith(".jpg")) {
+    console.error("[auto-post] 候補の画像の置き場所が違います", { why: "bad_path" });
+    return null;
+  }
   try {
     const { data: blob, error } = await admin.storage.from(MEDIA_BUCKET).download(from);
     if (error || !blob) throw error ?? new Error("download");
@@ -161,9 +173,16 @@ async function uploadMarked(admin: Db, ownerId: string, from: string, source: Ai
 // /privacy「AI で作った画像には、画像の中に AI で作ったことの印を入れます」）。見出しを重ねた画像は、重ねる前の写真を「元の画像」として残す
 // （source_of でその画像を指し、投稿には添えない。4.68 の形。印は写真が generated、見出しを重ねたものが composite）
 export async function attachImage(admin: Db, ownerId: string, postId: string, image: MadeImage): Promise<boolean> {
-  const { count } = await admin.from("media_files").select("id", { count: "exact", head: true }).eq("post_id", postId).eq("kind", "image");
-  const { data: used } = await admin.rpc("media_usage_bytes", { p_owner_id: ownerId });
-  if ((count ?? 0) >= MAX_IMAGES_PER_POST) return false;
+  // 添えられなかったときは、どの段かを残す（種類だけ。鍵・本文・画像の中身は出さない。2026-11-23）
+  const fail = (why: string, extra?: string) => {
+    console.error("[auto-post] 画像を添えられませんでした", { postId, why, ...(extra ? { error: extra } : {}) });
+    return false;
+  };
+  const { count, error: countError } = await admin.from("media_files").select("id", { count: "exact", head: true }).eq("post_id", postId).eq("kind", "image");
+  if (countError) return fail("count_images", countError.message);
+  const { data: used, error: usedError } = await admin.rpc("media_usage_bytes", { p_owner_id: ownerId });
+  if (usedError) return fail("usage_bytes", usedError.message);
+  if ((count ?? 0) >= MAX_IMAGES_PER_POST) return fail("max_images");
   const uploaded: string[] = [];
   const undo = async () => {
     if (uploaded.length) await admin.storage.from(MEDIA_BUCKET).remove(uploaded);
@@ -173,12 +192,12 @@ export async function attachImage(admin: Db, ownerId: string, postId: string, im
   let adding = 0;
   if (image.base && image.headline) {
     const b = await uploadMarked(admin, ownerId, image.base.path, "generated");
-    if (!b) return false;
+    if (!b) return fail("upload_base");
     uploaded.push(b.path);
     adding += b.size;
     if (Number(used ?? 0) + adding > USER_QUOTA_BYTES) {
       await undo();
-      return false;
+      return fail("quota");
     }
     const { data, error } = await admin
       .from("media_files")
@@ -196,14 +215,14 @@ export async function attachImage(admin: Db, ownerId: string, postId: string, im
   if (!f) {
     if (source) await admin.from("media_files").delete().eq("id", source.id);
     await undo();
-    return false;
+    return fail("upload");
   }
   uploaded.push(f.path);
   adding += f.size;
   if (Number(used ?? 0) + adding > USER_QUOTA_BYTES) {
     if (source) await admin.from("media_files").delete().eq("id", source.id);
     await undo();
-    return false;
+    return fail("quota");
   }
   const { data: row, error } = await admin
     .from("media_files")

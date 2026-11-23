@@ -171,6 +171,11 @@ export type UpcomingAutoRun = {
   status: AutoRunStatus;
   postId: string | null;
   sns: SnsKey[];
+  // 下書きに回した・飛ばした理由（作った回だけ。held のときに「● 要確認」と一緒に出す）
+  reason?: AutoRunReason | null;
+  reasonDetail?: string | null;
+  // held の回の投稿の状態（利用者が下書きを編集して予約し直したら draft でなくなる。そのときは要確認を出さない）
+  postStatus?: string | null;
 };
 
 // お知らせ・季節の予定

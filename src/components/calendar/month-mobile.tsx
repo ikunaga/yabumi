@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import { StatusMark } from "@/components/ui/marks";
-import type { PostDisplayStatus } from "@/components/posts/post-chip";
 import type { WeekBand } from "@/lib/calendar/roadmap-view";
-import { MARK, type MonthDay } from "./month-types";
+import { MARK, PLANNED_CARD, PLANNED_TEXT, type CalendarStatus, type MonthDay } from "./month-types";
 import { TodoButton, WeekBandView } from "./roadmap-band";
 
 const WEEKDAYS = ["月", "火", "水", "木", "金", "土", "日"];
@@ -72,7 +71,7 @@ export function MonthMobile({ days, base, initial, bands, today }: { days: Month
             タスク
           </span>
         )}
-        {(["scheduled", "posted", "draft", ...(days.some((c) => c.items.some((it) => it.status === "failed")) ? (["failed"] as const) : [])] as const).map((s) => (
+        {legendStatuses(days).map((s) => (
           <span key={s} className="inline-flex items-center gap-1">
             <Dot status={s} />
             {MARK[s].label}
@@ -94,21 +93,25 @@ export function MonthMobile({ days, base, initial, bands, today }: { days: Month
           <TodoButton key={t.id} todo={t} base={base} variant="list" />
         ))}
         {day.items.map((it) => (
-          <Link key={it.id} href={it.href} className="flex flex-col gap-1.5 rounded-lg border border-border bg-surface px-3.5 py-3 hover:no-underline">
+          <Link
+            key={it.id}
+            href={it.href}
+            className={`flex flex-col gap-1.5 rounded-lg px-3.5 py-3 hover:no-underline ${it.status === "planned" ? PLANNED_CARD : "border border-border bg-surface"}`}
+          >
             <span className="flex justify-between gap-2 text-xs">
               <span className="text-muted">
                 {it.time} ・ {it.sns}
               </span>
-              <StatusMark status={it.status} />
+              {it.status === "planned" ? <span className={`text-sm whitespace-nowrap ${PLANNED_TEXT}`}>{MARK.planned.label}</span> : <StatusMark status={it.status} />}
             </span>
             <span className="text-[14px]">
               {it.auto && (
-                <span aria-hidden className="mr-1 text-primary">
+                <span aria-hidden className={`mr-1 ${it.status === "planned" ? PLANNED_TEXT : "text-primary"}`}>
                   ↻
                 </span>
               )}
               {it.auto && <span className="sr-only">自動投稿・</span>}
-              {it.statusLabel && `${it.statusLabel} `}
+              {it.status !== "planned" && it.statusLabel && `${it.statusLabel} `}
               {it.title}
             </span>
             {it.warning && <span className="text-xs font-semibold text-signal">{it.warning}</span>}
@@ -130,8 +133,15 @@ export function MonthMobile({ days, base, initial, bands, today }: { days: Month
   );
 }
 
-// 印の点。失敗は、ダークで予約の点と色が近いので、点ではなく「!」で出す
-function Dot({ status }: { status: PostDisplayStatus }) {
+// 凡例に出す印。失敗と自動でつくって送る投稿は、その月にあるときだけ
+function legendStatuses(days: MonthDay[]): CalendarStatus[] {
+  const has = (s: CalendarStatus) => days.some((c) => c.items.some((it) => it.status === s));
+  return ["scheduled", "posted", "draft", ...(has("failed") ? (["failed"] as const) : []), ...(has("planned") ? (["planned"] as const) : [])];
+}
+
+// 印の点。失敗は、ダークで予約の点と色が近いので、点ではなく「!」で出す。自動でつくって送る投稿は情報の色の「↻」（予約の点と紛れないよう、字で出す）
+function Dot({ status }: { status: CalendarStatus }) {
   if (status === "failed") return <span className="text-[10px] leading-none font-bold text-danger">!</span>;
+  if (status === "planned") return <span className={`text-[10px] leading-none font-bold ${PLANNED_TEXT}`}>↻</span>;
   return <span className={`size-1.5 rounded-full ${MARK[status].dot}`} />;
 }

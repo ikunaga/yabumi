@@ -91,8 +91,8 @@ describe("カレンダーの自動の回", () => {
       base,
     );
     expect(chips).toEqual([
-      { id: "plan-a|2026-11-17T00:00:00Z", planId: "plan-a", dueAt: "2026-11-17T00:00:00Z", href: "/projects/p1/auto/plan-a", title: "ネタ帳から", label: "自動（作る前）", sns: ["threads"] },
-      { id: "r2", planId: "plan-a", dueAt: "2026-11-20T10:00:00Z", href: "/projects/p1/auto/plan-a", title: "ネタ帳から", label: "自動（作る前）", sns: ["threads"] },
+      { id: "plan-a|2026-11-17T00:00:00Z", planId: "plan-a", dueAt: "2026-11-17T00:00:00Z", href: "/projects/p1/auto/plan-a", title: "ネタ帳から", label: "自動でつくって送る投稿", sns: ["threads"] },
+      { id: "r2", planId: "plan-a", dueAt: "2026-11-20T10:00:00Z", href: "/projects/p1/auto/plan-a", title: "ネタ帳から", label: "自動でつくって送る投稿", sns: ["threads"] },
     ]);
   });
 

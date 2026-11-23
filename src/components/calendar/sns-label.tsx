@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { SNS_COLOR } from "@/components/ui/marks";
 import { SNS, type SnsKey } from "@/lib/sns";
-import type { PostDisplayStatus } from "@/components/posts/post-chip";
+import { PLANNED_CARD, PLANNED_TEXT, type CalendarStatus } from "./month-types";
 
 // カレンダーの札の薄い地（SNS の色。見本 C）。Tailwind はクラス名をそのまま探すので、組み立てずに書き並べる
 export const SNS_TINT: Record<SnsKey, string> = {
@@ -15,15 +15,16 @@ export const SNS_TINT: Record<SnsKey, string> = {
   substack: "bg-sns-substack/12",
 };
 
-const STATUS: Record<PostDisplayStatus, { mark: string; className: string; label: string }> = {
+const STATUS: Record<CalendarStatus, { mark: string; className: string; label: string }> = {
   scheduled: { mark: "", className: "", label: "予約" },
   posted: { mark: "✓", className: "text-success", label: "送信済み" },
   failed: { mark: "!", className: "text-danger", label: "失敗あり" },
   draft: { mark: "", className: "", label: "下書き" },
+  planned: { mark: "", className: "", label: "自動でつくって送る投稿" },
 };
 
 // 1 件の投稿の札: SNS の色の点（送り先の数だけ）・時刻・題。地は最初の SNS の色を薄く。下書きは点線の枠で色を付けない。
-// auto: 自動の回（docs/design/auto-post.md の 1.6）。藍の「↻」を付ける。作る前の回は下書きと同じ点線の枠で、題を「自動（作る前） 回し方の名前」にする
+// auto: 自動の回（docs/design/auto-post.md の 1.6）。藍の「↻」を付ける。作る前の回（planned）は情報の色の点線の枠で、題は回し方の名前（下書きの灰色の点線とは別の見え方）
 export function SnsLabel({
   href,
   sns,
@@ -36,16 +37,17 @@ export function SnsLabel({
 }: {
   href: string;
   sns: SnsKey[];
-  status: PostDisplayStatus;
+  status: CalendarStatus;
   time?: string;
   title: string;
   dim?: boolean;
   auto?: boolean;
-  // 状態の言葉を差し替える（作る前の自動の回は「自動（作る前）」）
+  // 状態の言葉を差し替える
   statusLabel?: string;
 }) {
   const s = { ...STATUS[status], label: statusLabel ?? STATUS[status].label };
-  const look = status === "draft" || sns.length === 0 ? "border border-dashed border-input text-muted" : `${SNS_TINT[sns[0]]} text-fg`;
+  const look =
+    status === "planned" ? `${PLANNED_CARD} text-fg` : status === "draft" || sns.length === 0 ? "border border-dashed border-input text-muted" : `${SNS_TINT[sns[0]]} text-fg`;
   return (
     <Link
       href={href}
@@ -63,7 +65,7 @@ export function SnsLabel({
         </span>
       )}
       {auto && (
-        <span aria-hidden className="shrink-0 text-primary">
+        <span aria-hidden className={`shrink-0 ${status === "planned" ? PLANNED_TEXT : "text-primary"}`}>
           ↻
         </span>
       )}

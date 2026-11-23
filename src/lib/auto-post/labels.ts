@@ -82,7 +82,7 @@ export const EXPIRED_TARGET_LABEL = "確認できなかったので送りませ�
 // - scheduled: 予約（ふつうの札に ↻）
 // - expired: 確かめないまま送る時刻を過ぎた（! 失敗。error_message に長い文、短くは EXPIRED_TARGET_LABEL）
 export const CALENDAR_CHIP = {
-  before: "↻ 自動（作る前）",
+  before: "↻ 自動でつくって送る投稿",
   awaiting: "↻ 確認待ち",
   scheduled: "↻",
   expired: "! 失敗",

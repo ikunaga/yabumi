@@ -228,15 +228,28 @@ export type Draft =
   | { ok: true; texts: Texts; tags: Partial<Record<SnsKey, string[]>>; material: Material; ref: Record<string, unknown>; hold: Issue | null; image?: MadeImage; headline?: string }
   | { ok: false; reason: AutoRunReason; detail: string; ref?: Record<string, unknown> };
 
-// 画像を選んだ回し方なら、文のあとに画像を 1 枚つくる（確かめで引っかかった回はつくらない。費用をかけない）。
+// 画像を選んだ回し方なら、文のあとに画像を 1 枚つくる（確かめで引っかかった回もつくる。2026-11-23 から）。
 // つくれなければ、その回は下書きに回す（画像が前提の文が、画像なしで出ないように。Q5 の i）
 async function withImage(admin: Db, deps: EngineDeps, plan: AutoPlan & { ownerId: string }, draft: Extract<Draft, { ok: true }>, sns: SnsKey[]): Promise<Extract<Draft, { ok: true }>> {
-  if (!plan.image || draft.hold) return draft;
+  // 確認で下書きに回る回（hold）にも画像をつくる。利用者が下書きを直して予約するときに、画像と Instagram の送り先がそろっているように
+  // （2026-11-23 オーナーの決定。前は hold の回は画像をつくらず、Instagram が送り先から落ち、「この画像から…」の本文だけが残った）。
+  // 画像の費用は止まった回にもかかる（1 枚 約 5〜8 円）。AI の画像の上限（reserve_ai_images）はいままでどおり効く
+  if (!plan.image) return draft;
   const r = await makeAutoImage(admin, deps.image, { plan, texts: draft.texts, sns, material: draft.material, headline: draft.headline });
   // 画像をつくれなかった理由をあとで追えるように残す（理由は yabumi の決まった文だけ。鍵・本文・絵の説明は出さない。2026-11-23）
   if (!r.ok) console.error("[auto-post] 自動投稿の画像をつくれませんでした", { planId: plan.id, detail: r.detail });
-  return r.ok ? { ...draft, image: r.image } : { ...draft, hold: { kind: "image_failed", detail: r.detail } };
+  if (r.ok) return { ...draft, image: r.image };
+  return { ...draft, hold: withImageFailure(draft.hold, r.detail) };
 }
+
+// 画像を付けられなかったことを、下書きに回す理由にする。ほかの理由（確認で止めた）がもうあれば、その理由を先にして、
+// 画像のことは理由の文の続きに足す（理由は 1 つしか持てない。中身の確認のほうが、利用者がまず見ること）
+export function withImageFailure(hold: Issue | null, detail: string): Issue {
+  if (!hold) return { kind: "image_failed", detail };
+  const base = hold.detail.trim().replace(/[。.]+$/, "");
+  return { ...hold, detail: `${base ? `${base}。` : ""}${IMAGE_ALSO_FAILED}`.slice(0, 200) };
+}
+export const IMAGE_ALSO_FAILED = "画像も付けられませんでした";
 
 // 材料を選び、文を作り、チェックする（見本と回の作成で同じ道）。投稿は作らない
 export async function draftRun(
@@ -440,11 +453,11 @@ async function placeDraft(
     .single();
   if (error) throw error;
   // 画像は配信先を作る前に添える（確かめて送る SNS の指紋に画像が入る。添えられなければ、その回は下書きに回す）
-  if (draft.image && !(await attachImage(admin, plan.ownerId, post.id, draft.image)) && status !== "held") {
+  if (draft.image && !(await attachImage(admin, plan.ownerId, post.id, draft.image))) {
     console.error("[auto-post] 自動投稿の画像を投稿に添えられませんでした", { runId: run.id, postId: post.id });
-    hold = { kind: "image_failed", detail: "画像を投稿に添えられませんでした" };
+    hold = withImageFailure(hold, "画像を投稿に添えられませんでした");
+    if (status !== "held") await admin.from("posts").update({ status: "draft" }).eq("id", post.id);
     status = "held";
-    await admin.from("posts").update({ status: "draft" }).eq("id", post.id);
   }
   const targets = sns.map((s) => ({
     post_id: post.id,

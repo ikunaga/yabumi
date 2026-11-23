@@ -262,6 +262,52 @@ describe("自動の回に画像を添える", () => {
     expect((await planOf(id)).status).toBe("active");
   });
 
+  // 2026-11-23 オーナーの決定: 確認で止まった回にも画像をつくる（利用者が下書きを直して予約するとき、画像と Instagram がそろっているように）
+  const madeUp: CallCheck = vi.fn(async () => ({
+    output: { summary: "確かめて", findings: [{ sns: "threads", kind: "made_up", quote: "焙煎", why: "材料にない話があります", fix: "" }] },
+    stopReason: "end_turn",
+    model: "claude-opus-5-5",
+    usage: { inputTokens: 10, cacheWriteTokens: 0, cacheReadTokens: 0, outputTokens: 5 },
+  }));
+  const heldRun = async () => {
+    await notice();
+    const p = await project();
+    await note(p, "メモ");
+    const id = await plan(p);
+    await admin.from("auto_plans").update({ first_review: false }).eq("id", id);
+    const r = await dueRun(id, p);
+    await makeDueRuns(admin, { ...deps(), callCheck: madeUp }, new Date(), { ownerIds: [aliceId] });
+    const run = (await admin.from("auto_runs").select("status, reason, reason_detail, post_id").eq("id", r).single()).data!;
+    const targets = (await admin.from("post_targets").select("sns").eq("post_id", run.post_id!)).data!.map((t) => t.sns).sort();
+    const images = (await admin.from("media_files").select("id", { count: "exact", head: true }).eq("post_id", run.post_id!).eq("kind", "image")).count;
+    return { run, targets, images };
+  };
+
+  it("確認で止まった回にも画像をつくって添え、Instagram を送り先に残す（理由は確認のまま）", async () => {
+    const { run, targets, images } = await heldRun();
+    expect(run).toMatchObject({ status: "held", reason: "made_up", reason_detail: "材料にない話があります" });
+    expect(images).toBe(1);
+    expect(targets).toEqual(["instagram", "threads"]);
+    expect(generate).toHaveBeenCalledTimes(1);
+  });
+
+  it("確認で止まった回で画像もつくれなかったら、理由は確認のまま、画像のことを続けて書く。Instagram は外す", async () => {
+    imageFails = true;
+    const { run, targets, images } = await heldRun();
+    expect(run).toMatchObject({ status: "held", reason: "made_up", reason_detail: "材料にない話があります。画像も付けられませんでした" });
+    expect(images).toBe(0);
+    expect(targets).toEqual(["threads"]);
+  });
+
+  it("確認で止まった回の画像も、自動の分の月の上限（31 枚）に数え、使い切っていればつくらない", async () => {
+    for (let i = 0; i < 7; i++) expect((await reserveImages(aliceId, 4, { p_auto: true })).data?.[0]?.status).toBe("ok");
+    expect((await reserveImages(aliceId, 3, { p_auto: true })).data?.[0]?.status).toBe("ok");
+    const { run } = await heldRun();
+    expect(run).toMatchObject({ status: "held", reason: "made_up" });
+    expect(run.reason_detail).toContain("画像も付けられませんでした");
+    expect(generate).not.toHaveBeenCalled();
+  });
+
   it("AI の画像の注意を読んだ印がなければ、画像をつくらずに下書きに回す", async () => {
     await notice();
     const p = await project();

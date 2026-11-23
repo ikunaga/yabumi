@@ -23,7 +23,8 @@ describe("自動の回の画像と見出しの版", () => {
     expect(historyProblems()).toEqual([]);
     // 1 日 1 版で、施行済みの 2026-11-20 の版の次
     expect(LEGAL_VERSIONS.filter((r) => r.version === VERSION)).toHaveLength(1);
-    expect(LEGAL_VERSIONS.at(-2)!.version).toBe("2026-11-20");
+    // あとの版（2026-11-23 など）が足されても崩れないよう、この版のすぐ前を見る
+    expect(LEGAL_VERSIONS[LEGAL_VERSIONS.findIndex((r) => r.version === VERSION) - 1].version).toBe("2026-11-20");
   });
 
   it("プライバシーポリシーに、画像の設定・使い道・Anthropic と Google に送るもの・SNS に送る AI の印を書いた", () => {

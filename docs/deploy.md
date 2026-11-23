@@ -838,6 +838,6 @@ yabumi 運営 YuXport Labs
 | # | だれが | やること | 状態 |
 |---|---|---|---|
 | 35-1 | PM | マイグレーション 20261123120000_auto_post_mail を本番に当てる（notification_prefs.auto_post_email・notification_log の種類と project_id。今の行は変わらない）。当てただけではメールは送らない | まだ |
-| 35-2 | PM・オーナー | 規約の文の了承と施行日を決め、/privacy と LEGAL_VERSIONS を変える（docs/legal.md の案の表の 4 か所） | まだ |
+| 35-2 | PM・オーナー | 規約の文の了承と施行日を決め、/privacy と LEGAL_VERSIONS を変える（docs/legal.md の案の表の 4 か所） | 済（2026-11-23 オーナーが了承。版は 2026-11-23・noticeWaived。legal/auto-post-mail） |
 | 35-3 | オーナー | **施行日を過ぎてから**、Vercel の Production に `AUTO_POST_MAIL=on` を足して Redeploy（Preview には入れない）。止めるときは値を消して Redeploy | まだ |
 | 35-4 | PM | 入れたあと: お知らせの設定の「自動投稿の通知」に「メール」が出ること。次のジョブのあと、Vercel のログに `[user-mail]` の失敗が出ていないこと（中身は見ない） | まだ |

@@ -22,6 +22,9 @@ import { dueTimes } from "./schedule";
 import type { AutoPlan, AutoRunReason, AutoRunStatus, AutoStopReason } from "./types";
 import { STOP_REASON_TEXT } from "./labels";
 import { autoPostMailEnabled, mailAutoNotices, type AutoMailDeps } from "./mail";
+import { TIMEOUT_DETAIL } from "./labels";
+import { settleStaleReservations } from "@/lib/ai/budget";
+import { notifyOperatorWithin, type OperatorNotifyDeps } from "@/lib/notify/operator";
 import { heldUserIds, HOLD_PUSH, isAutoPostHeld, RELEASE_PUSH } from "./holds";
 import { attachImage, makeAutoImage, type AutoImageDeps, type MadeImage } from "./image";
 import { callPhotoIdeas } from "@/lib/ai/anthropic";
@@ -57,10 +60,13 @@ export type EngineDeps = {
   image?: AutoImageDeps;
   // 自動投稿の知らせのメール（mail.ts）。テストで送り先・宛先を差し替える
   mail?: AutoMailDeps;
+  // 運営者への知らせ（回を作れなかったとき）。テストで送り先を差し替える
+  operator?: OperatorNotifyDeps;
 } & MaterialDeps;
 
 // ownerIds: 結合テストで、テストの利用者だけを扱う（共有のローカル DB のほかの人の行に触らない）。ジョブは渡さない
-export type EngineOpts = { ownerIds?: string[]; limit?: number };
+// deadline: この時刻（ミリ秒）をこえたら、新しい回を取り出さない（関数の時間の上限の前に終えて、途中で打ち切られないように）
+export type EngineOpts = { ownerIds?: string[]; limit?: number; deadline?: number };
 
 export type JobSummary = { added: number; expired: number; made: Partial<Record<AutoRunStatus, number>>; stopped: number; notified: number; reminded: number; holdNotices: number; mailed: number };
 
@@ -137,7 +143,7 @@ export async function settleApprovals(admin: Db, now: Date, opts: EngineOpts = {
 // 材料を選ぶときに見る前の回。書けなかった回（skipped・cannot_write）も、選んだ材料を記録に残しているので数える（同じ材料を選び続けない）
 const PAST_STATUSES: AutoRunStatus[] = ["generating", "scheduled", "review", "held", "skipped"];
 
-type ClaimedRun = { id: string; plan_id: string; owner_id: string; project_id: string; due_at: string };
+type ClaimedRun = { id: string; plan_id: string; owner_id: string; project_id: string; due_at: string; attempts?: number };
 
 async function finish(admin: Db, runId: string, patch: { status: AutoRunStatus; reason?: AutoRunReason | null; detail?: string | null; postId?: string | null; ref?: Record<string, unknown> }) {
   const { error } = await admin
@@ -487,21 +493,110 @@ async function placeDraft(
   return status;
 }
 
-export async function makeDueRuns(admin: Db, deps: EngineDeps, now: Date, opts: EngineOpts = {}): Promise<Partial<Record<AutoRunStatus, number>>> {
-  const { data: runs, error } = await admin.rpc("claim_due_auto_runs", { p_limit: opts.limit ?? 5, ...(opts.ownerIds ? { p_owner_ids: opts.ownerIds } : {}) });
+// 例外を、回の理由（reason_detail）に残せる短い文にする。種類（エラーの名前・コード）と文の頭だけ。
+// 鍵・トークン・メールアドレス・URL・長い英数字の並びは伏せる（本文や個人の情報を残さない。200 字まで）
+export function errorDetail(e: unknown): string {
+  const err = e as { name?: unknown; code?: unknown; status?: unknown; message?: unknown } | null;
+  const kind = [typeof err?.name === "string" && err.name !== "Error" ? err.name : null, err?.code != null ? `code ${String(err.code)}` : null, err?.status != null ? `status ${String(err.status)}` : null]
+    .filter(Boolean)
+    .join(" ");
+  const raw = typeof err?.message === "string" ? err.message : typeof e === "string" ? e : "";
+  const message = raw
+    .replace(/https?:\/\/\S+/g, "<url>")
+    .replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "<email>")
+    .replace(/\b(sk|pk|rk|key|token)[-_][\w-]{8,}/gi, "<key>")
+    .replace(/[A-Za-z0-9_-]{32,}/g, "<id>")
+    .replace(/\s+/g, " ")
+    .trim();
+  return [...`例外${kind ? `（${kind}）` : ""}: ${message || "理由なし"}`].slice(0, 200).join("");
+}
+
+// 1 つの回を作るのは 3 回まで（claim_due_auto_runs が取るたびに attempts を 1 ふやす。DB の 3 回と同じ）
+export const RUN_ATTEMPTS_MAX = 3;
+// 作っている途中で関数が打ち切られたまま、取り直されなかった回（generating のまま 10 分。claim_due_auto_runs と同じ）
+const STUCK_AFTER_MS = 10 * 60_000;
+// 送る時刻の、この時間より前なら、失敗した回を次のジョブでやり直す（ジョブは 10 分ごと）
+const RETRY_BEFORE_DUE_MS = 30 * 60_000;
+// やり直すまでの間（次のジョブで取る。ジョブは 10 分ごと）
+const RETRY_AFTER_MS = 5 * 60_000;
+export { TIMEOUT_DETAIL, settleStaleReservations };
+
+// 回を作れなかった（やり直しても駄目だった）: 飛ばした回にして理由を残し、利用者（スマホの通知。メールはジョブのまとめで送る）と運営者に知らせる。
+// 前は理由を残さず、知らせもしなかった（2026-11-24 本番。黙って飛ばした）
+async function failRun(admin: Db, deps: EngineDeps, run: ClaimedRun, detail: string) {
+  await removeLeftoverPost(admin, run.id);
+  await finish(admin, run.id, { status: "skipped", reason: "error", detail });
+  const at = jstHm(new Date(run.due_at));
+  await notify(admin, deps, run.owner_id, { title: "自動投稿を作れませんでした", body: `${at} に送る投稿を作れませんでした。次の投稿はいつもどおり作ります`, url: `/projects/${run.project_id}/auto`, tag: `auto-failed:${run.id}` });
+  // 運営者には、回の id と理由の種類だけ（本文・利用者の情報は入れない）。同じ回は 1 日に 1 回
+  await notifyOperatorWithin(
+    admin,
+    `auto_run_failed:${run.id}`,
+    "1 day",
+    // ui-wording-ignore: 運営者あてのメール（利用者には見えない。表の vercel も「運営者あての文は使ってよい」）
+    { subject: "自動投稿の回を作れませんでした", text: [`auto_runs.id: ${run.id}`, `auto_plans.id: ${run.plan_id}`, `理由: ${detail}`, "Vercel のログ [auto-post] と auto_runs の行を見てください。"].join("\n") },
+    deps.operator,
+  ).catch((e) => console.error("[auto-post] 運営者に知らせられませんでした", e instanceof Error ? e.message : e));
+}
+
+// 打ち切られた前の試みで、途中まで作った投稿が残っていれば消す（やり直しで同じ回の投稿が 2 つできないように。まだどこにも送っていないものだけ）
+async function removeLeftoverPost(admin: Db, runId: string) {
+  const { data } = await admin.from("posts").select("id, post_targets(status)").eq("auto_run_id", runId);
+  const ids = (data ?? []).filter((p) => (p.post_targets ?? []).every((t) => t.status === "pending" || t.status === "awaiting_approval")).map((p) => p.id);
+  if (ids.length) await admin.from("posts").delete().in("id", ids);
+}
+
+// 作っている途中で打ち切られたまま 3 回取られた回を、claim_due_auto_runs より先に、理由を残して片付ける（claim の中の片付けは理由を残さない）
+async function failStuckRuns(admin: Db, deps: EngineDeps, now: Date, opts: EngineOpts): Promise<number> {
+  const { data, error } = await scope(
+    admin
+      .from("auto_runs")
+      .select("id, plan_id, owner_id, project_id, due_at, attempts")
+      .eq("status", "generating")
+      .lt("locked_at", new Date(now.getTime() - STUCK_AFTER_MS).toISOString())
+      .gte("attempts", RUN_ATTEMPTS_MAX),
+    opts,
+  );
   if (error) throw error;
+  for (const r of data ?? []) await failRun(admin, deps, r, TIMEOUT_DETAIL);
+  return data?.length ?? 0;
+}
+
+export async function makeDueRuns(admin: Db, deps: EngineDeps, now: Date, opts: EngineOpts = {}): Promise<Partial<Record<AutoRunStatus, number>>> {
   const made: Partial<Record<AutoRunStatus, number>> = {};
-  // 送る時刻の早い回から作る。claim_due_auto_runs は送る時刻の順に選ぶが、update ... returning の返す順は決まっていない。
-  // 同じ日の回が上限（1 日に SNS ごとに 2 本）を超えるとき、どの回を飛ばすかが返す順で変わっていた（2026-11-21。テストが時々落ちた原因）
-  const ordered = [...(runs ?? [])].sort((a, b) => Date.parse(a.due_at) - Date.parse(b.due_at));
-  for (const run of ordered) {
+  const failed = await failStuckRuns(admin, deps, now, opts);
+  if (failed) made.skipped = failed;
+  // 1 つずつ取り出して作る。時間の見張り（deadline）をこえたら、新しい回は取らない（2026-11-24。前はまとめて 5 回分を取り、関数の 60 秒で打ち切られていた）。
+  // 送る時刻の早い回から取る（claim_due_auto_runs は送る時刻の順に選ぶ）
+  const limit = opts.limit ?? 5;
+  for (let i = 0; i < limit; i++) {
+    if (opts.deadline !== undefined && Date.now() > opts.deadline) break;
+    const { data: runs, error } = await admin.rpc("claim_due_auto_runs", { p_limit: 1, ...(opts.ownerIds ? { p_owner_ids: opts.ownerIds } : {}) });
+    if (error) throw error;
+    const run = runs?.[0];
+    if (!run) break;
     let status: AutoRunStatus;
     try {
+      // 前の試みが打ち切られて、途中まで作った投稿が残っていれば消してから作る
+      if ((run.attempts ?? 1) > 1) await removeLeftoverPost(admin, run.id);
       status = await processRun(admin, deps, run, now);
     } catch (e) {
       console.error("[auto-post] 回を作れませんでした", run.id, e instanceof Error ? e.message : e);
-      await finish(admin, run.id, { status: "skipped", reason: "error" }).catch(() => undefined);
-      status = "skipped";
+      // 理由の種類と短い文を残す（Vercel のログは 1 時間で消えるので、あとで追えるように。2026-11-24 本番）
+      const detail = errorDetail(e);
+      if ((run.attempts ?? RUN_ATTEMPTS_MAX) < RUN_ATTEMPTS_MAX && new Date(run.due_at).getTime() - now.getTime() > RETRY_BEFORE_DUE_MS) {
+        // 送る時刻まで間があれば、すぐ飛ばさずに次のジョブでやり直す（理由は残しておく）。
+        // 作る時刻を少しあとにして、同じジョブの中ですぐ取り直さない（取り直すたびに attempts が 1 ふえるため）
+        await removeLeftoverPost(admin, run.id).catch(() => undefined);
+        await admin
+          .from("auto_runs")
+          .update({ status: "waiting", locked_at: null, reason_detail: detail, generate_at: new Date(now.getTime() + RETRY_AFTER_MS).toISOString(), updated_at: new Date().toISOString() })
+          .eq("id", run.id);
+        status = "waiting";
+      } else {
+        await failRun(admin, deps, run, detail).catch(() => undefined);
+        status = "skipped";
+      }
     }
     made[status] = (made[status] ?? 0) + 1;
   }
@@ -990,6 +1085,7 @@ export async function runAutoPostJob(admin: Db, deps: EngineDeps, opts: EngineOp
     console.error("[auto-post] 知らせのメールを送れませんでした", e instanceof Error ? e.message : e);
   }
   await purgeSamples(admin, now, opts);
+  await settleStaleReservations(admin, now, opts.ownerIds).catch((e) => console.error("[auto-post] 古い予約を片付けられませんでした", e instanceof Error ? e.message : e));
   return { added, expired, made, stopped, notified, reminded, holdNotices, mailed };
 }
 

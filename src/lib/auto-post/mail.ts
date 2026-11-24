@@ -22,7 +22,8 @@ export function autoPostMailEnabled(env: NodeJS.ProcessEnv = process.env): boole
   return env.AUTO_POST_MAIL === "on";
 }
 
-export type AutoMailKind = "auto_held" | "auto_review" | "auto_remind" | "auto_stop" | "auto_hold" | "auto_release";
+// auto_failed: 回を作れなかった（やり直しても駄目で飛ばした。2026-11-24 から）
+export type AutoMailKind = "auto_held" | "auto_review" | "auto_remind" | "auto_stop" | "auto_hold" | "auto_release" | "auto_failed";
 export type AutoNotice = {
   kind: AutoMailKind;
   ownerId: string;
@@ -76,6 +77,8 @@ export function noticeLine(n: AutoNotice): string {
       return `・「${n.planName}」${at} の ${to} の投稿は、送らずに下書きに残しました。送るときは、確認して予約し直してください。`;
     case "auto_stop":
       return `・「${n.planName}」: ${[n.reason, n.next].filter(Boolean).join("。")}`;
+    case "auto_failed":
+      return `・「${n.planName}」${at} の ${to} の投稿は、作れませんでした。次の投稿はいつもどおり作ります。`;
     case "auto_hold":
       return HOLD_MAIL.join("");
     case "auto_release":
@@ -87,6 +90,7 @@ const SECTIONS: { title: string; kinds: AutoMailKind[] }[] = [
   { title: "止まっている自動投稿", kinds: ["auto_stop"] },
   { title: "確認が要る投稿", kinds: ["auto_review", "auto_remind"] },
   { title: "下書きに残した投稿", kinds: ["auto_held"] },
+  { title: "作れなかった投稿", kinds: ["auto_failed"] },
 ];
 
 export type MailContext = { appUrl: string; unsubscribeToken: string };
@@ -122,6 +126,8 @@ export function autoMail(notices: AutoNotice[], c: MailContext): { subject: stri
         ? "yabumi: 自動投稿の確認をお願いします"
         : has("auto_held")
           ? "yabumi: 自動投稿を送らずに下書きに残しました"
+          : has("auto_failed")
+            ? "yabumi: 自動投稿を作れませんでした"
           : "yabumi: 自動投稿をまた使えるようになりました";
   const lines = ["自動投稿についてのお知らせです。"];
   // 運営者が止めた・解除した（プロジェクトに結びつかない）
@@ -181,6 +187,14 @@ export async function collectAutoNotices(admin: Db, now: Date, opts: Scope = {})
   const { data: made, error: e1 } = await scoped(admin.from("auto_runs").select(RUN_SELECT).in("status", ["held", "review"]).gt("due_at", iso).not("post_id", "is", null), opts);
   if (e1) throw e1;
   for (const r of made as unknown as RunRow[]) out.push(runNotice(r, r.status === "held" ? "auto_held" : "auto_review", planSns(r)));
+
+  // 作れなかった回（やり直しても駄目で飛ばした。engine.ts の failRun）。ジョブが止まっていたあとに古いものをまとめて送らないよう、3 日まで
+  const { data: failed, error: e5 } = await scoped(
+    admin.from("auto_runs").select(RUN_SELECT).eq("status", "skipped").eq("reason", "error").gt("updated_at", new Date(now.getTime() - RECENT_MS).toISOString()),
+    opts,
+  );
+  if (e5) throw e5;
+  for (const r of failed as unknown as RunRow[]) out.push(runNotice(r, "auto_failed", planSns(r)));
 
   // 確認待ちのまま、送る時刻の 2 時間前になった回（1 回目の確認待ち、または送り先のどれかが確認待ち）。運営者が止めている人には促さない
   const { data: soon, error: e2 } = await scoped(

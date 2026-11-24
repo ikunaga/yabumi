@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { setAutoPlanInstructions } from "@/lib/auto-post/actions";
-import type { AutoPlan } from "@/lib/auto-post/types";
+import { materialsForInput, type AutoPlan } from "@/lib/auto-post/types";
 import { SampleCard } from "./sample-card";
 
 // 回し方の画面の見本（docs/design/auto-sample-image.md の 1.1）。始めたあとでも、見本を見ながら書き方の指示を直せる。
@@ -18,7 +18,7 @@ export function PlanSample({ plan }: { plan: AutoPlan }) {
         id: plan.id,
         name: plan.name,
         kind: plan.kind,
-        materials: plan.materials,
+        materials: materialsForInput(plan.materials),
         targets: plan.targets,
         xLink: plan.xLink,
         schedule: plan.schedule,

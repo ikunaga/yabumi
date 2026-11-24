@@ -53,6 +53,14 @@ export type AutoMaterials = {
 // - source: format（シリーズのフォーマットの画像の設定。絵の説明・場面のつくり方・写真かイラスト・縦横はフォーマットのものを使う）/ ai（本文から AI が場面を書く）
 // - style・size: source が ai のときに使う（format のときはフォーマットの値を写して持つ）。商品の紹介はイラストだけ
 // - headline: none / format / ai（見出しを重ねる。段取り ④）
+// 保存・見本に送る材料（サーバーが決める format_var_modes は送らない。読み込んだ回し方の materials には入っているので、送り返す前に外す。
+// 2026-11-24 本番で、編集して保存すると「Unrecognized key: "format_var_modes"」で断られた）
+export function materialsForInput(m: AutoMaterials): AutoMaterials {
+  const { format_var_modes: _serverOnly, ...rest } = m;
+  void _serverOnly;
+  return rest;
+}
+
 export type AutoImageSource = "format" | "ai";
 export type AutoImageSize = "auto" | "portrait" | "square" | "landscape";
 // look: 見出しの見た目（色・いつもの色・書体・置き方。画面の「文字を入れる」と同じ。見出しを重ねるときだけ。なければ既定の見た目）

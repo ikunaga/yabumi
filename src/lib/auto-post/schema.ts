@@ -60,6 +60,11 @@ export const materialsSchema = z
         ]),
       )
       .optional(),
+    // 保存したときの変数の作り方は、サーバー（save_auto_plan）が決める。送られてきても受け取らずに捨てる（古い画面が送り返しても、保存を断らない）
+    format_var_modes: z
+      .unknown()
+      .optional()
+      .transform(() => undefined),
   })
   .strict();
 

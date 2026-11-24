@@ -45,6 +45,16 @@ const HINT_TEXT: Record<string, string> = {
   auto_plan_format_changed: "フォーマットの変数が変わったので止めています。「編集」で変数の決め方を選び直して、保存してください。",
 };
 
+// 入力の確かめに通らなかったときの画面の文。schema に書いた日本語の文だけを出し、zod の既定の英語の文（知らないキー・型の違いなど）は
+// 決まった文にして、詳しいことはログにだけ残す（2026-11-24 本番で「Unrecognized key: "format_var_modes"」がそのまま出た）
+const JA = /[\u3040-\u30ff\u4e00-\u9fff]/;
+function issueText(error: z.ZodError, where: string): string {
+  const issue = error.issues[0];
+  if (issue && JA.test(issue.message)) return issue.message;
+  console.warn("[auto-post] 入力の確かめに通りませんでした", where, error.issues.map((i) => ({ code: i.code, path: i.path.join("."), message: i.message })));
+  return BAD;
+}
+
 type DbError = { code?: string; hint?: string | null; message: string };
 
 function errorText(e: DbError, notFound: string): string {
@@ -71,7 +81,7 @@ const NO_TARGET = "確認する投稿が見つかりません。画面を読み�
 export async function saveAutoPlan(projectId: string, input: AutoPlanInput): Promise<AutoResult<{ id: string; sampleNote?: string; firstDueAt?: string }>> {
   if (!uuid.safeParse(projectId).success) return { ok: false, error: BAD };
   const p = autoPlanInputSchema.safeParse(input);
-  if (!p.success) return { ok: false, error: p.error.issues[0]?.message ?? BAD };
+  if (!p.success) return { ok: false, error: issueText(p.error, "saveAutoPlan") };
   const db = await signedIn();
   if (!db) return SIGN_IN;
   const v = { ...p.data, image: await imageForFormat(db, projectId, p.data) };
@@ -133,7 +143,7 @@ async function imageForFormat(db: Db, projectId: string, v: AutoPlanInput): Prom
 export async function setAutoPlanInstructions(planId: string, instructions: string[]): Promise<AutoResult<string[]>> {
   if (!uuid.safeParse(planId).success) return { ok: false, error: BAD };
   const p = instructionsSchema.safeParse(instructions);
-  if (!p.success) return { ok: false, error: p.error.issues[0]?.message ?? BAD };
+  if (!p.success) return { ok: false, error: issueText(p.error, "setAutoPlanInstructions") };
   const db = await signedIn();
   if (!db) return SIGN_IN;
   const { data, error } = await db.rpc("set_auto_plan_instructions", { p_plan_id: planId, p_instructions: p.data });
@@ -237,10 +247,10 @@ export async function loadAutoTargetPreviews(postId: string) {
 export async function makeAutoSample(projectId: string, input: Omit<AutoPlanInput, "consent">, opts: { oneTime?: string; fromSampleId?: string } = {}): Promise<AutoResult<AutoSample>> {
   if (!uuid.safeParse(projectId).success) return { ok: false, error: BAD };
   const oneTime = opts.oneTime?.trim() ? instructionSchema.safeParse(opts.oneTime) : null;
-  if (oneTime && !oneTime.success) return { ok: false, error: oneTime.error.issues[0]?.message ?? BAD };
+  if (oneTime && !oneTime.success) return { ok: false, error: issueText(oneTime.error, "makeAutoSample.oneTime") };
   if (opts.fromSampleId !== undefined && !uuid.safeParse(opts.fromSampleId).success) return { ok: false, error: BAD };
   const p = autoPlanInputSchema.safeParse({ ...input, consent: true });
-  if (!p.success) return { ok: false, error: p.error.issues[0]?.message ?? BAD };
+  if (!p.success) return { ok: false, error: issueText(p.error, "makeAutoSample") };
   const db = await createClient();
   const { data: claims } = await db.auth.getClaims();
   const userId = claims?.claims?.sub;
@@ -335,7 +345,7 @@ export async function listEvents(projectId: string): Promise<AutoResult<ProjectE
 export async function saveEvent(projectId: string, input: { id?: string; onDate: string; body: string }): Promise<AutoResult<ProjectEvent>> {
   if (!uuid.safeParse(projectId).success || (input.id !== undefined && !uuid.safeParse(input.id).success)) return { ok: false, error: BAD };
   const p = eventInputSchema.safeParse(input);
-  if (!p.success) return { ok: false, error: p.error.issues[0]?.message ?? BAD };
+  if (!p.success) return { ok: false, error: issueText(p.error, "saveEvent") };
   const db = await signedIn();
   if (!db) return SIGN_IN;
   const q = input.id

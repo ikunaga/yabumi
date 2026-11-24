@@ -67,7 +67,7 @@ export function ImagePicker(p: {
   if (!p.photo.enabled) {
     return (
       <Card className="px-6 py-5 max-sm:px-4 max-sm:py-4">
-        <p className="text-sm text-muted">画像を自動でつくる機能は準備中です（ネタ帳の写真つきのメモは、写真を添えます）。</p>
+        <p className="text-sm text-muted">画像を自動でつくる機能は、まだ使えません。写真つきのメモからつくった投稿には、その写真を添えます。</p>
       </Card>
     );
   }

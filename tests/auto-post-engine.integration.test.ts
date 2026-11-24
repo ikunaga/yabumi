@@ -11,6 +11,7 @@ import { addUpcomingRuns, draftRun, EXPIRED_MESSAGE, makeDueRuns, makeSample, no
 import { saveConnectedAccount } from "@/lib/sns/accounts";
 import type { SnsAdapter } from "@/lib/sns/adapters/types";
 import { publishDueTargets } from "@/lib/sns/publisher";
+import { dueManualPostIds } from "@/lib/posts/overdue";
 import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
 
 const admin = adminClient();
@@ -135,6 +136,48 @@ describe("これからの回を足す", () => {
     const r = (await admin.from("auto_runs").select("due_at, generate_at").eq("plan_id", id).limit(1).single()).data!;
     expect(new Date(r.due_at).getTime() - new Date(r.generate_at).getTime()).toBe(24 * HOUR);
     await admin.from("auto_runs").delete().in("plan_id", [id, paused]);
+  });
+});
+
+describe("手動で投稿する SNS（note・Substack）", () => {
+  it("つながずに by_hand で選べ、下書きの文を置く。送信ジョブは送らず、時刻が来たら「手動で投稿する番です」に出る", async () => {
+    const p = await project();
+    await note(p, "週末だけのあんバターを始めました");
+    // note・Substack はつないでいない（project() がつなぐのは Threads・X だけ）
+    const id = await plan(p, { p_targets: { threads: "auto", note: "by_hand", substack: "by_hand" } });
+    await admin.from("auto_plans").update({ first_review: false }).eq("id", id);
+    const run = await dueRun(id, p);
+    expect(await makeDueRuns(admin, deps(), new Date(), scopeOpts())).toEqual({ scheduled: 1 });
+    const r = await runOf(run);
+    expect(r.status).toBe("scheduled");
+    const ts = (await admin.from("post_targets").select("sns, status, social_account_id, error_message").eq("post_id", r.post_id!)).data!;
+    const by = Object.fromEntries(ts.map((t) => [t.sns, t]));
+    expect(Object.keys(by).sort()).toEqual(["note", "substack", "threads"]);
+    for (const s of ["note", "substack"]) expect(by[s]).toMatchObject({ status: "pending", social_account_id: null, error_message: null });
+
+    // 送信ジョブは Threads だけを送り、note・Substack は取り出さない
+    const adapter: SnsAdapter = { sns: "threads", publishText: vi.fn(async () => ({ externalPostId: "m2", url: null })), deletePost: vi.fn() };
+    const out = await publishDueTargets(admin, { adapters: { threads: adapter }, key, loadImages: async () => [] }, { postId: r.post_id! });
+    expect(out.map((o) => o.sns)).toEqual(["threads"]);
+    const after = Object.fromEntries((await admin.from("post_targets").select("sns, status").eq("post_id", r.post_id!)).data!.map((t) => [t.sns, t.status]));
+    expect(after).toMatchObject({ note: "pending", substack: "pending" });
+
+    // 送る時刻の前は出ず、来たら概要の「手動で投稿する番です」に出る
+    const due = new Date((await admin.from("posts").select("planned_at").eq("id", r.post_id!).single()).data!.planned_at!);
+    expect(await dueManualPostIds(admin, p, new Date(due.getTime() - 60_000))).not.toContain(r.post_id);
+    expect(await dueManualPostIds(admin, p, new Date(due.getTime() + 60_000))).toContain(r.post_id);
+  });
+
+  it("送り先が note だけでも、つながりが切れた扱いにせず作る", async () => {
+    const p = await project();
+    await note(p, "note だけの回");
+    const id = await plan(p, { p_targets: { note: "by_hand" } });
+    await admin.from("auto_plans").update({ first_review: false }).eq("id", id);
+    const run = await dueRun(id, p);
+    await makeDueRuns(admin, deps(), new Date(), scopeOpts());
+    const r = await runOf(run);
+    expect(r.status).toBe("scheduled");
+    expect((await admin.from("post_targets").select("sns, status").eq("post_id", r.post_id!)).data).toEqual([{ sns: "note", status: "pending" }]);
   });
 });
 

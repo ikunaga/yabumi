@@ -14,7 +14,7 @@ import { DisclosureBox } from "@/components/ui/disclosure";
 import { SnsTag } from "@/components/ui/marks";
 import { Steps } from "@/components/ui/steps";
 import { saveAutoPlan } from "@/lib/auto-post/actions";
-import { isReviewOnlySns, KIND_LABELS, kindSummary, TARGET_MODE_LABELS } from "@/lib/auto-post/labels";
+import { isReviewOnlySns, KIND_LABELS, kindSummary, manualSnsNote, TARGET_MODE_LABELS } from "@/lib/auto-post/labels";
 import { firstNewDueTime, runsPerMonth } from "@/lib/auto-post/schedule";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { formatShort } from "@/lib/time";
@@ -39,7 +39,7 @@ import type { SeriesFormatCard } from "@/lib/auto-post/ui-queries";
 import type { TimeTrends } from "@/lib/metrics/time-bands";
 import { X_FIXED_BODY, aiVars, handVars, seriesForPlan, type PlanVars } from "@/lib/post-formats/series";
 import { PlanVarsFields, planVarsReady } from "./plan-vars";
-import { SNS, type SnsKey } from "@/lib/sns";
+import { SNS, isManualSns, type SnsKey } from "@/lib/sns";
 import { scheduleText } from "./format";
 import { choiceKey, kindCards, KindPicker, type KindChoice, type WinnersCard } from "./kind-picker";
 import { ReviewFlow, ReviewReason, StageCSns } from "./review-why";
@@ -301,15 +301,17 @@ export function PlanWizard(p: Props) {
             <div className="flex items-center gap-2">
               <h2 className="text-[18px] font-bold max-sm:text-[16px]">送る SNS</h2>
               <HelpTip label="送り方の違い">
-                「自動で送る」は、作った文をあなたが見なくても、決めた時刻に送ります。「確認して送る」は、作ったら通知するので、中身を見て「送る」を押したものだけ送ります。X・TikTok・YouTube
-                は各社の決まりで「確認して送る」だけです（理由は SNS ごとの「?」）。note・Substack は送る仕組みがないので、下書きに置き、コピーして貼ります。
+                「自動で送る」は、作った文をあなたが見なくても、決めた時刻に送ります。「確認して送る」は、作ったら通知します。中身を見て「送る」を押したものだけ送ります。X・TikTok・YouTube
+                は、各社の決まりで「確認して送る」だけです。理由は、SNS ごとの「?」に書いてあります。yabumi から note・Substack には送れません。yabumi の下書きに入った文をコピーして、貼ってください。
               </HelpTip>
             </div>
             <ul className="flex flex-col divide-y divide-border">
               {AUTO_SNS_STAGE_A.map((s) => {
                 const blocked = s === "x" && fixedBody;
                 const on = !!targets[s];
-                const connected = p.connected.includes(s);
+                // note・Substack は手動で投稿する SNS（つながない）。下書きに置くだけなので、つなぐ・URL の登録なしで選べる
+                const manual = isManualSns(s);
+                const connected = manual || p.connected.includes(s);
                 return (
                   <li key={s} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 py-3 first:pt-0 last:pb-0">
                     <label className={`flex items-center gap-2.5 ${connected && !blocked ? "cursor-pointer" : "text-muted"}`}>
@@ -330,11 +332,12 @@ export function PlanWizard(p: Props) {
                     </label>
                     {!connected ? (
                       <Link href={`/projects/${p.projectId}/edit`} className="text-sm text-muted underline">
-                        つないでいません
+                        つなぐ
                       </Link>
                     ) : (
                       <ModePicker sns={s} value={targets[s] ?? TARGET_MODES[s][0]} disabled={!on} onChange={(m) => setTargets({ ...targets, [s]: m })} />
                     )}
+                    {manual && <p className="w-full text-xs text-muted">{manualSnsNote(SNS[s].label)}</p>}
                     {s === "instagram" && on && (
                       <p className="w-full text-xs text-muted">
                         {image
@@ -365,7 +368,7 @@ export function PlanWizard(p: Props) {
                 </div>
               </fieldset>
             )}
-            {p.connected.length === 0 && <p className="text-sm text-muted">SNS をつなぐと選べます。</p>}
+            {p.connected.length === 0 && <p className="text-sm text-muted">note・Substack のほかは、SNS をつなぐと選べます。</p>}
           </Card>
           {kind && (
             <ImagePicker

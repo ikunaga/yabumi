@@ -601,11 +601,12 @@ function SaveNotice({
 }) {
   const from = firstNew ? formatShort(firstNew.toISOString()) : null;
   const dates = made.map((m) => formatShort(m.dueAt));
-  const which = dates.length <= 2 ? dates.join(" と ") : `${dates[0]} など ${dates.length} 件`;
+  // 投稿の数は「本」（CLAUDE.md の呼び方。2026-11-24 PM の指摘）
+  const which = dates.length <= 2 ? `${dates.join(" と ")} の投稿` : `${dates[0]} など ${dates.length} 本の投稿`;
   return (
     <ConfirmDialog
       open={open}
-      title={made.length ? `${which} の投稿は、変える前の設定で送ります` : "次の投稿から、新しい設定でつくります"}
+      title={made.length ? `${which}は、変える前の設定で送ります` : "次の投稿から、新しい設定でつくります"}
       confirmLabel="保存する"
       cancelLabel="編集に戻る"
       tone="primary"
@@ -615,7 +616,7 @@ function SaveNotice({
       {made.length ? (
         <div className="flex flex-col gap-2">
           <p>
-            {made.length > 1 ? `この ${made.length} 件は、もうできています。` : "この投稿は、もうできています。"}
+            {made.length > 1 ? `この ${made.length} 本は、もうできています。` : "この投稿は、もうできています。"}
             {from ? `新しい設定になるのは、${from} の投稿からです。` : ""}
           </p>
           <p>できている投稿の中身を変えたいときは、その投稿を開いて編集します。新しいタブで開くので、この画面の編集は消えません。</p>

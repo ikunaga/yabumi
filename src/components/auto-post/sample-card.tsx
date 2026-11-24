@@ -124,7 +124,7 @@ export function SampleCard(p: Props) {
             </HelpTip>
           </div>
           <p className="text-sm text-muted">設定どおりに 1 本つくって見せます。SNS には送りません。</p>
-          {wantsImage && <p className="num text-sm text-muted">画像も 1 枚、一緒につくります。1 件 約 {SAMPLE_WITH_IMAGE_YEN} 円です。</p>}
+          {wantsImage && <p className="num text-sm text-muted">画像も 1 枚、一緒につくります。画像とあわせて、1 本 約 {SAMPLE_WITH_IMAGE_YEN} 円です。</p>}
         </div>
         <Button type="button" variant="secondary" disabled={sampling} onClick={() => make()}>
           {sampling ? "つくっています…" : sample ? "もう一度つくる" : "テストで 1 本つくる"}

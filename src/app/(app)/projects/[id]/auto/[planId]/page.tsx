@@ -94,10 +94,10 @@ export default async function AutoPlanPage(props: PageProps<"/projects/[id]/auto
         <Metric label="送信済み" value={sentRuns.length} unit="本" className="max-sm:px-3" />
         <Metric label={
             <>
-              <span className="max-sm:hidden">下書きに残した</span>
+              <span className="max-sm:hidden">下書きのまま</span>
               <span className="sm:hidden">下書き</span>
             </>
-          } value={heldCount} unit="件" className="max-sm:px-3" />
+          } value={heldCount} unit="本" className="max-sm:px-3" />
         <Metric
           label={
             <>

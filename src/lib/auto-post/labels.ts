@@ -111,9 +111,15 @@ export const REVIEW_REASON_DETAIL: Record<ReviewOnlySns, string> = {
 export const REVIEW_FLOW = "送る 24 時間前に通知します。中身を見て「送る」を押した投稿だけ、決めた時刻に送ります。";
 
 // 段階 A で自動の投稿の送り先に選べない SNS の理由（TikTok・YouTube。docs/design/auto-post.md の A6・2.9 の段階 C）
-export const STAGE_C_SNS_SHORT = "送るたびに同意が要る SNS なので、自動投稿ではまだ選べません（準備中）";
+export const STAGE_C_SNS_SHORT = "TikTok と YouTube は、自動投稿ではまだ選べません。「投稿をつくる」から、1 本ずつ送ってください。";
+
+// 自動投稿の送り先の、手動で投稿する SNS（note・Substack）の行に添える文。送る仕組みがないので、yabumi の下書きに置くだけ
+// （時刻が来たら、ホームの「手動で投稿する番です」に出る。src/lib/posts/overdue.ts の dueManualPostIds）
+export function manualSnsNote(label: string): string {
+  return `yabumi から ${label} には送りません。決めた時刻に、AI がつくった文が yabumi の下書きに入ります。ホームに知らせが出たら、文をコピーして ${label} に貼ってください。`;
+}
 export const STAGE_C_SNS_DETAIL =
-  "TikTok・YouTube は、どちらも決まりで、送るたびにあなたがはっきり同意してから送ることになっているので、「自動で送る」にはできません。自動投稿では「確認して送る」（作った下書きを通知から開き、投稿の画面の同意の欄で確認して送る）にする予定ですが、どちらも画像や動画が要るので、画像を自動で添えられるようになってから選べるようにします。それまでは、投稿をつくるの画面から送ってください。";
+  "TikTok と YouTube は、送るたびにあなたの同意が要ります。そのため、決めた時刻に自動で送れません。どちらも、画像か動画が要ります。画像を自動で付けられるようになったら、「確認して送る」で選べるようにします。それまでは、「投稿をつくる」から送ってください。";
 
 export function isReviewOnlySns(sns: string): sns is ReviewOnlySns {
   return (REVIEW_ONLY_SNS as readonly string[]).includes(sns);

@@ -17,7 +17,7 @@ export async function draftImageText(projectId: string, text: unknown, sns: unkn
   const t = z.string().max(MAX_BRIEF_CHARS * 2).safeParse(text);
   const s = snsListSchema.safeParse(sns);
   if (!z.uuid().safeParse(projectId).success || !t.success || !s.success) return { error: "入力の形式が正しくありません。" };
-  if (!aiConfigured()) return { error: "AI はまだ準備中です。" };
+  if (!aiConfigured()) return { error: "AI は、まだ使えません。" };
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;

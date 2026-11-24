@@ -61,7 +61,7 @@ export async function photoPanelState(): Promise<{ state?: PhotoPanelState; erro
 }
 
 export async function acknowledgePhoto(): Promise<{ error?: string }> {
-  if (!photoConfigured()) return { error: "AI の画像はまだ準備中です。" };
+  if (!photoConfigured()) return { error: "AI で画像をつくる機能は、まだ使えません。" };
   const { userId } = await currentUser();
   if (!userId) return { error: "ログインし直してください。" };
   try {
@@ -101,7 +101,7 @@ export async function draftPhotoIdeas(projectId: string, text: unknown, sns: unk
   const t = z.string().max(10000).safeParse(text);
   const s = snsListSchema.safeParse(sns);
   if (!z.uuid().safeParse(projectId).success || !t.success || !s.success) return { error: "入力の形式が正しくありません。" };
-  if (!aiConfigured() || !photoConfigured()) return { error: "AI の画像はまだ準備中です。" };
+  if (!aiConfigured() || !photoConfigured()) return { error: "AI で画像をつくる機能は、まだ使えません。" };
   const { supabase, userId } = await currentUser();
   if (!userId) return { error: "ログインし直してください。" };
   try {
@@ -118,7 +118,7 @@ export async function draftPhotoIdeas(projectId: string, text: unknown, sns: unk
 export async function draftFormatPhotoScene(projectId: string, formatId: string, values: unknown, sns: unknown = []): Promise<{ scene?: string; error?: string }> {
   const s = snsListSchema.safeParse(sns);
   if (!z.uuid().safeParse(projectId).success || !z.uuid().safeParse(formatId).success || !s.success) return { error: "入力の形式が正しくありません。" };
-  if (!aiConfigured() || !photoConfigured()) return { error: "AI の画像はまだ準備中です。" };
+  if (!aiConfigured() || !photoConfigured()) return { error: "AI で画像をつくる機能は、まだ使えません。" };
   const { supabase, userId } = await currentUser();
   if (!userId) return { error: "ログインし直してください。" };
   try {
@@ -143,7 +143,7 @@ export type GeneratePhotosResult = { jobId?: string; candidates?: PhotoCandidate
 export async function generatePhotos(input: unknown): Promise<GeneratePhotosResult> {
   const parsed = generateInput.safeParse(input);
   if (!parsed.success) return { error: "入力の形式が正しくありません。" };
-  if (!photoConfigured()) return { error: "AI の画像はまだ準備中です。" };
+  if (!photoConfigured()) return { error: "AI で画像をつくる機能は、まだ使えません。" };
   const { supabase, userId } = await currentUser();
   if (!userId) return { error: "ログインし直してください。" };
   try {

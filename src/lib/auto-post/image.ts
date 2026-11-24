@@ -82,7 +82,7 @@ export async function makeAutoImage(
 ): Promise<ImageOutcome> {
   const img = args.plan.image;
   if (!img) return { ok: false, detail: "画像の設定がありません" };
-  if (!deps) return { ok: false, detail: "AI の画像は準備中です" };
+  if (!deps) return { ok: false, detail: "AI で画像をつくる機能は、まだ使えません。" };
   const ctx = await context(admin, args.plan, args.sns);
   if (!ctx) return { ok: false, detail: "プロジェクトが見つかりません" };
 

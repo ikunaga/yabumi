@@ -77,7 +77,7 @@ export default async function ProjectsPage(props: PageProps<"/projects">) {
                     <span className="truncate text-[20px] font-bold hover:underline">{p.name}</span>
                     <span className="line-clamp-2 text-[14px] leading-[1.7] text-muted">{p.description || "説明はまだありません"}</span>
                     <dl className="mt-auto grid grid-cols-[6.5rem_1fr] items-center gap-x-3 gap-y-2 pt-2 text-[14px]">
-                      <dt className="text-faint">つないだ SNS</dt>
+                      <dt className="text-faint">投稿する SNS</dt>
                       <dd className="flex flex-wrap gap-1">{sns.length ? sns.map((k) => <SnsMark key={k} sns={k} />) : <span className="text-faint">なし</span>}</dd>
                       {isAppProject(p) ? (
                         <>

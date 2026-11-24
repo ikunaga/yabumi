@@ -37,7 +37,7 @@ import {
   type PostFormat,
   type PostFormatInput,
 } from "@/lib/post-formats/schema";
-import type { SnsKey } from "@/lib/sns";
+import { isManualSns, type SnsKey } from "@/lib/sns";
 import { MAX_TARGET_HASHTAGS, hashtagLine, normalizeHashtag, parseHashtagInput } from "@/lib/sns/hashtags";
 import { FormatImageFields } from "@/components/posts/format-image-fields";
 import { Choice } from "@/components/posts/maker-parts";
@@ -507,9 +507,9 @@ export function FormatTagsFields({
   const allTags = parseHashtagInput(tags.all ?? "").tags.map((t) => t.toLowerCase());
   const candidates = planHashtags.map(normalizeHashtag).filter((t) => t && !allTags.includes(t.toLowerCase()));
   // つないだ SNS を先に出し、つないでいない SNS は「そのほかの SNS」に畳む（PMO の確かめ。フォーマットはプロジェクトのものなので、あとでつなぐ SNS の分も持てる）。
-  // つないだ SNS がなければ、すべて出す
+  // 手動で投稿の SNS（note・Substack）は、つながなくても使うので上に出す（2026-11-24 オーナーの指示の横展開）。つないだ SNS がなければ、すべて出す
   const perSns = FORMAT_HASHTAG_KEYS.filter((k): k is SnsKey => k !== "all");
-  const shown = connected.length ? perSns.filter((k) => connected.includes(k)) : perSns;
+  const shown = connected.length ? perSns.filter((k) => connected.includes(k) || isManualSns(k)) : perSns;
   const rest = perSns.filter((k) => !shown.includes(k));
   const field = (k: SnsKey) => (
     <label key={k} className="flex min-w-0 flex-col gap-1">

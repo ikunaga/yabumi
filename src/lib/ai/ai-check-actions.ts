@@ -18,7 +18,7 @@ export type AiCheckActionResult = { error?: string; result?: AiCheckResult };
 export async function checkPostTexts(projectId: string, texts: unknown): Promise<AiCheckActionResult> {
   const t = textsSchema.safeParse(texts);
   if (!z.uuid().safeParse(projectId).success || !t.success) return { error: "入力の形式が正しくありません。" };
-  if (!aiConfigured()) return { error: "AI はまだ準備中です。" };
+  if (!aiConfigured()) return { error: "AI は、まだ使えません。" };
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;

@@ -262,7 +262,7 @@ export async function makeAutoSample(projectId: string, input: Omit<AutoPlanInpu
   if (await myAutoPostHold(db)) return { ok: false, error: HOLD_REFUSED };
   const admin = createAdminClient();
   const deps = engineDeps(admin);
-  if (!deps) return { ok: false, error: "テストでつくる機能は準備中です。" };
+  if (!deps) return { ok: false, error: "「テストで 1 本つくる」は、まだ使えません。" };
   const v = p.data;
   const plan: AutoPlan = {
     id: v.id ?? "",

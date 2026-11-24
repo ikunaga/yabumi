@@ -187,15 +187,7 @@
    "paren"
   ]
  },
- "src/app/(app)/projects/[id]/consult/page.tsx": {
-  "AI との相談は準備中です。ロードマップは手で決められます。": [
-   "junbichu"
-  ]
- },
  "src/app/(app)/projects/[id]/github/page.tsx": {
-  "GitHub をつなぐ機能は準備中です。": [
-   "junbichu"
-  ],
   "組織（Organization）の管理者の承認待ちです。承認されたら「GitHub をつなぎ直す」を押してください。": [
    "paren"
   ],
@@ -441,11 +433,6 @@
    "paren"
   ]
  },
- "src/app/api/ai/tidy-draft/route.ts": {
-  "AI はまだ準備中です。": [
-   "junbichu"
-  ]
- },
  "src/app/page.tsx": {
   "生活の中で思いついたことや、あったことを、どの画面からでも「＋ メモ」でさっと残せます。あとで AI が、メモから投稿の案を出します（アプリや Web のサービスなら GitHub の更新からも）。": [
    "long",
@@ -474,9 +461,6 @@
   "アプリを宣伝するときは、App Store・Google Play・RevenueCat の数字を取り込み、投稿の効果と並べて見られます。": [
    "long"
   ],
-  "準備中": [
-   "junbichu"
-  ],
   "note・Substack（文面を用意）": [
    "paren"
   ],
@@ -487,11 +471,6 @@
   "預かったデータは、yabumi の機能のためだけに使い、広告に使ったり売ったりしません。データは自分で消せて、退会するとすぐに消えます。AI との会話は最後のやり取りから 1 年で自動で消します。": [
    "azukaru",
    "long"
-  ],
-  "X・Threads・Instagram（プロアカウント）・Facebook ページに、yabumi から投稿・予約できます。note・Substack は文面を用意して、手動で投稿する形です。TikTok・YouTube は準備中です。": [
-   "junbichu",
-   "long",
-   "paren"
   ],
   "いまは 10 人ほどで試していただいていて、申し込みの順にご案内します（時期は決まっていません。お断りすることもあります）。申し込みは、確認のメールのリンクからいつでも取り消せます。": [
    "long",
@@ -1386,11 +1365,6 @@
    "paren"
   ]
  },
- "src/lib/ai/ai-check-actions.ts": {
-  "AI はまだ準備中です。": [
-   "junbichu"
-  ]
- },
  "src/lib/ai/ai-check.ts": {
   "# 利用者が書いた事実（この中にあることは made_up にしない）⏎<facts>⏎{…}⏎</facts>": [
    "paren"
@@ -1426,11 +1400,6 @@
   ],
   "今月の AI の利用が上限に達しました。来月 1 日にまた使えます。{…}": [
    "matatsukae"
-  ]
- },
- "src/lib/ai/consult-actions.ts": {
-  "AI はまだ準備中です。": [
-   "junbichu"
   ]
  },
  "src/lib/ai/consult-goals.ts": {
@@ -1596,19 +1565,9 @@
    "paren"
   ]
  },
- "src/lib/ai/image-brief-actions.ts": {
-  "AI はまだ準備中です。": [
-   "junbichu"
-  ]
- },
  "src/lib/ai/image-brief.ts": {
   "本文が長すぎます（{…} 字まで）。": [
    "paren"
-  ]
- },
- "src/lib/ai/photo-actions.ts": {
-  "AI の画像はまだ準備中です。": [
-   "junbichu"
   ]
  },
  "src/lib/ai/photo-gen.ts": {
@@ -1682,22 +1641,9 @@
    "paren"
   ]
  },
- "src/lib/ai/post-format-actions.ts": {
-  "AI はまだ準備中です。": [
-   "junbichu"
-  ]
- },
  "src/lib/ai/post-format-ai.ts": {
   "何の投稿の型をつくるかを選んでください。": [
    "kata"
-  ]
- },
- "src/lib/ai/post-ideas-actions.ts": {
-  "GitHub をつなぐ機能は準備中です。": [
-   "junbichu"
-  ],
-  "AI はまだ準備中です。": [
-   "junbichu"
   ]
  },
  "src/lib/ai/post-ideas.ts": {
@@ -2020,11 +1966,6 @@
    "paren"
   ]
  },
- "src/lib/ai/voice-memo-actions.ts": {
-  "AI はまだ準備中です。": [
-   "junbichu"
-  ]
- },
  "src/lib/ai/voice-memo.ts": {
   "自分で書いた送信済みの投稿が {…} 本たまると、書き方を読み取れます（いま {…} 本）。": [
    "paren"
@@ -2039,9 +1980,6 @@
   ],
   "AI の画像を使うには、先に AI の画像の注意を読んで「わかりました」を押してください。": [
    "long"
-  ],
-  "テストでつくる機能は準備中です。": [
-   "junbichu"
   ],
   "今月の自動投稿の AI の枠を使い切りました。": [
    "waku"
@@ -2096,9 +2034,6 @@
   ]
  },
  "src/lib/auto-post/image.ts": {
-  "AI の画像は準備中です": [
-   "junbichu"
-  ],
   "画像の場面を書く本文がありません": [
    "bamen"
   ],
@@ -2281,14 +2216,8 @@
   ]
  },
  "src/lib/github/actions.ts": {
-  "GitHub をつなぐ機能は準備中です。": [
-   "junbichu"
-  ],
   "そのリポジトリは読めません。GitHub の設定で、yabumi に読ませるリポジトリに入っているか確認してください。": [
    "long"
-  ],
-  "AI はまだ準備中です。": [
-   "junbichu"
   ]
  },
  "src/lib/github/api.ts": {
@@ -2514,11 +2443,6 @@
    "long"
   ],
   "お礼（値引きや品物）と引きかえに投稿してもらうときは、「#PR」などで宣伝だとわかるように書いてもらいます。宣伝であることを隠すと、頼んだ側（お店やアプリの作り手）が景品表示法の違反になります（ステルスマーケティングの規制。2023 年 10 月から）。": [
-   "long",
-   "paren"
-  ],
-  "オーガニック投稿は、お金を払わずにふつうに投稿すること。広告は、お金を払って、まだフォローしていない人にも投稿を見せてもらうことです。yabumi はいま、オーガニック投稿を続けるのを助ける道具です（広告を出す機能は準備中）。": [
-   "junbichu",
    "long",
    "paren"
   ],
@@ -2895,10 +2819,6 @@
   ]
  },
  "src/lib/sns/adapters/tiktok.ts": {
-  "TikTok には写真が要ります。投稿に写真を添えてから送ってください（動画は準備中です）。": [
-   "junbichu",
-   "paren"
-  ],
   "TikTok の配信先がわかりません。": [
    "haishinsaki"
   ],
@@ -3006,19 +2926,6 @@
   "Threads は本文のあとに画像が横に並び、横にめくって見ます。本文の 1 つ目のハッシュタグはトピックになって名前の横に出て、本文では # が外れます。2 つ目からはタグにならず、文字のまま出ます。": [
    "long"
   ],
-  "TikTok の写真の投稿は、写真が先に出て、めくって見ます。説明は 2 行ほどで折りたたまれます（動画は準備中）。": [
-   "junbichu",
-   "paren"
-  ],
-  "YouTube は動画の下の説明が 3 行ほどで折りたたまれます（動画の添付は準備中）。": [
-   "junbichu",
-   "long",
-   "paren"
-  ],
-  "動画が必要（準備中）": [
-   "junbichu",
-   "paren"
-  ],
   "Substack はタイトルと本文の記事（メールでも届きます）になります。画像は投稿の画面で手で添えます。": [
    "paren"
   ],
@@ -3027,18 +2934,12 @@
   ]
  },
  "src/lib/sns/publisher.ts": {
-  "{…} への送信はまだ準備中です。": [
-   "junbichu"
-  ],
   "{…} 側の準備（画像・動画の処理）に時間がかかっています。最初から送り直します。": [
    "paren"
   ],
   "今月の {…} の自動投稿の上限（1 人 ${…}）に達しました。来月まで自動では送りません。送信の結果から、手動で投稿して記録できます。": [
    "kiroku",
    "paren"
-  ],
-  "{…} の取り消しはまだ準備中です。": [
-   "junbichu"
   ]
  },
  "src/lib/sns/threads/api.ts": {
@@ -3111,11 +3012,6 @@
    "renkei"
   ]
  },
- "src/lib/sns/x/search-actions.ts": {
-  "yabumi の中で探すのは準備中です。": [
-   "junbichu"
-  ]
- },
  "src/lib/sns/x/search.ts": {
   "登録して 7 日までは月 1 回です（{…} から月 3 回）": [
    "paren"
@@ -3125,9 +3021,6 @@
   ],
   "登録して 7 日までの方が探せる今月の分は、いっぱいになりました（{…} から探せます）": [
    "paren"
-  ],
-  "yabumi の中で探すのは準備中です": [
-   "junbichu"
   ]
  },
  "src/lib/sns/x/send-rules.ts": {
@@ -3179,9 +3072,6 @@
   ]
  },
  "src/lib/stores/google.ts": {
-  "Google Play をつなぐ機能は準備中です。": [
-   "junbichu"
-  ],
   "yabumi （yabumi）が Google Play の一括レポートを読むためのアカウント": [
    "long",
    "paren"

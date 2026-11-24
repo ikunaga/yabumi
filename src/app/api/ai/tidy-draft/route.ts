@@ -60,7 +60,7 @@ export async function POST(req: Request) {
   }
   const t = inputSchema.safeParse(body);
   if (!t.success) return reply({ error: "入力の形式が正しくありません。" }, 400);
-  if (!aiConfigured()) return reply({ error: "AI はまだ準備中です。" });
+  if (!aiConfigured()) return reply({ error: "AI は、まだ使えません。" });
   try {
     const r = await runTidyDraft(
       supabase,

@@ -34,7 +34,7 @@ export async function sendConsultMessage(projectId: string, threadId: string | n
     input = { kind: "start", topic: parsed.data.topic, ...(parsed.data.itemId ? { itemId: parsed.data.itemId } : {}), ...(parsed.data.goalId ? { goalId: parsed.data.goalId } : {}) };
   } else input = parsed.data;
 
-  if (!aiConfigured()) return { ok: false, threadId, message: "AI はまだ準備中です。" };
+  if (!aiConfigured()) return { ok: false, threadId, message: "AI は、まだ使えません。" };
 
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();

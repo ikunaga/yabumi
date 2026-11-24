@@ -178,7 +178,7 @@ describe("回を作れなかったとき", () => {
     }
     await makeDueRuns(admin, failing(), new Date(), { ownerIds: [aliceId] });
     expect(await runOf(run)).toMatchObject({ status: "skipped", reason: "error", reason_detail: "例外: 偽の AI が落ちた", attempts: RUN_ATTEMPTS_MAX });
-    expect(push).toHaveBeenCalledWith(expect.anything(), aliceId, expect.objectContaining({ title: "自動投稿を作れませんでした", body: expect.stringContaining("次の投稿はいつもどおり作ります") }));
+    expect(push).toHaveBeenCalledWith(expect.anything(), aliceId, expect.objectContaining({ title: "自動投稿を 1 本、送れませんでした", body: expect.stringContaining("作れなかったので送りません") }));
     expect(operatorFetch).toHaveBeenCalled();
     // メールのまとめにも入る（作れなかった回）
     const notices = await collectAutoNotices(admin, new Date(), { ownerIds: [aliceId] });
@@ -192,7 +192,7 @@ describe("回を作れなかったとき", () => {
     push.mockClear();
     await makeDueRuns(admin, deps(), new Date(), { ownerIds: [aliceId], limit: 0 });
     expect(await runOf(run)).toMatchObject({ status: "skipped", reason: "error", reason_detail: TIMEOUT_DETAIL });
-    expect(push).toHaveBeenCalledWith(expect.anything(), aliceId, expect.objectContaining({ title: "自動投稿を作れませんでした", body: expect.stringContaining("次の投稿はいつもどおり作ります") }));
+    expect(push).toHaveBeenCalledWith(expect.anything(), aliceId, expect.objectContaining({ title: "自動投稿を 1 本、送れませんでした", body: expect.stringContaining("作れなかったので送りません") }));
   });
 
   it("打ち切られた前の試みで途中まで作った投稿は、取り直したときに消してから作る（同じ回の投稿を 2 つ作らない）", async () => {

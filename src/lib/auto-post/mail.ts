@@ -78,7 +78,7 @@ export function noticeLine(n: AutoNotice): string {
     case "auto_stop":
       return `・「${n.planName}」: ${[n.reason, n.next].filter(Boolean).join("。")}`;
     case "auto_failed":
-      return `・「${n.planName}」${at} の ${to} の投稿は、作れませんでした。次の投稿はいつもどおり作ります。`;
+      return `・「${n.planName}」${at} の投稿は、作れませんでした。${to} には送っていません。次の投稿は、いつもどおり送ります。`;
     case "auto_hold":
       return HOLD_MAIL.join("");
     case "auto_release":
@@ -127,7 +127,7 @@ export function autoMail(notices: AutoNotice[], c: MailContext): { subject: stri
         : has("auto_held")
           ? "yabumi: 自動投稿を送らずに下書きに残しました"
           : has("auto_failed")
-            ? "yabumi: 自動投稿を作れませんでした"
+            ? "yabumi: 自動投稿を 1 本、送れませんでした"
           : "yabumi: 自動投稿をまた使えるようになりました";
   const lines = ["自動投稿についてのお知らせです。"];
   // 運営者が止めた・解除した（プロジェクトに結びつかない）

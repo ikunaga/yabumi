@@ -527,7 +527,7 @@ async function failRun(admin: Db, deps: EngineDeps, run: ClaimedRun, detail: str
   await removeLeftoverPost(admin, run.id);
   await finish(admin, run.id, { status: "skipped", reason: "error", detail });
   const at = jstHm(new Date(run.due_at));
-  await notify(admin, deps, run.owner_id, { title: "自動投稿を作れませんでした", body: `${at} に送る投稿を作れませんでした。次の投稿はいつもどおり作ります`, url: `/projects/${run.project_id}/auto`, tag: `auto-failed:${run.id}` });
+  await notify(admin, deps, run.owner_id, { title: "自動投稿を 1 本、送れませんでした", body: `${at} の投稿は、作れなかったので送りません。次の投稿は、いつもどおり送ります`, url: `/projects/${run.project_id}/auto`, tag: `auto-failed:${run.id}` });
   // 運営者には、回の id と理由の種類だけ（本文・利用者の情報は入れない）。同じ回は 1 日に 1 回
   await notifyOperatorWithin(
     admin,

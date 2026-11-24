@@ -158,6 +158,9 @@ export function heldReasonText(reason: AutoRunReason | null | undefined, detail?
 // （例外の種類など）なので、画面にはそのまま出さない。時間内に作り終えられなかったときだけ、そのことを書く
 export const TIMEOUT_DETAIL = "時間内に作り終えられませんでした。3 回試しました";
 export function errorRunText(detail: string | null | undefined): string {
-  return detail === TIMEOUT_DETAIL ? "時間内に作り終えられませんでした。次の投稿は、いつもどおり作ります。" : "次の投稿は、いつもどおり作ります。";
+  // ja-copy-reviewer の指摘（2026-11-24）: この 1 本は送らないことと、利用者は何もしなくてよいこと（次はいつもどおり送る）を書く
+  return detail === TIMEOUT_DETAIL
+    ? "作るのに時間がかかりすぎて、作り終えられませんでした。この投稿は送っていません。次の投稿は、いつもどおり送ります。"
+    : "この投稿は作れなかったので、送っていません。次の投稿は、いつもどおり送ります。";
 }
 

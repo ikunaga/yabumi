@@ -251,9 +251,7 @@ function RunReason({ run }: { run: AutoRun }) {
   // 作れなかった回: 理由の文（例外の種類など）は運営者が原因を追うためのものなので出さず、利用者向けの続きの文を出す（2026-11-24）
   if (run.reason === "error")
     return (
-      <p className="text-[14px] text-muted">
-        {RUN_REASON_TEXT.error}。{errorRunText(detail)}
-      </p>
+      <p className="text-[14px] text-muted">{errorRunText(detail)}</p>
     );
   if (detail && [...detail].length > DETAIL_INLINE_MAX)
     return (

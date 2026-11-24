@@ -396,7 +396,8 @@ export function FormatEditor({
 
   // スマホは 名前〜本文 → 変数 → ほかの欄の順。PC は左に名前〜本文とほかの欄、右に変数（2026-11-21 オーナーが了承した案）
   return (
-    <div className="grid gap-x-5 gap-y-2.5 [grid-template-areas:'top'_'vars'_'rest'] lg:grid-cols-2 lg:grid-rows-[auto_1fr] lg:[grid-template-areas:'top_vars'_'rest_vars']">
+    // 列は grid-cols-1（minmax(0,1fr)）。列を決めないと auto になり、長い 1 行（AI への指示など）で列が画面より広がり、スマホで右にはみ出す（2026-11-24 オーナーが「こわれてる」）
+    <div className="grid grid-cols-1 gap-x-5 gap-y-2.5 [grid-template-areas:'top'_'vars'_'rest'] lg:grid-cols-2 lg:grid-rows-[auto_1fr] lg:[grid-template-areas:'top_vars'_'rest_vars']">
       <div className="flex flex-col gap-2.5 [grid-area:top]">
       <label className="flex flex-col gap-1">
         <span className="text-xs font-bold">名前</span>
@@ -417,7 +418,8 @@ export function FormatEditor({
           rows={4}
           onChange={(e) => set("body", e.target.value)}
           placeholder={"例: 【新メニュー】{何が}\n{いつから}から、{いくら}でお出しします。"}
-          className="py-2 text-sm"
+          // スマホの幅では本文の行が増えて、4 行の高さだと下が切れる。中身に合わせて伸ばす（2026-11-24）
+          className="min-h-[7.5rem] py-2 text-sm [field-sizing:content]"
         />
         {series.vars.length === 0 && <span className="text-xs text-muted">本文に {"{商品}"} のように書くと、そこが投稿ごとに変わる変数になります</span>}
       </label>

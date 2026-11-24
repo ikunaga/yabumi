@@ -21,7 +21,7 @@ import { SubmitButton } from "@/components/ui/submit-button";
 export const metadata: Metadata = { title: "GitHub をつなぐ" };
 
 const ERRORS: Record<string, string> = {
-  not_configured: "GitHub をつなぐ機能は準備中です。",
+  not_configured: "GitHub をつなぐ機能は、まだ使えません。",
   state: "つなぐときの確認に失敗しました。もう一度「GitHub をつなぐ」から始めてください。",
   denied: "GitHub の画面でキャンセルされたため、つなぎませんでした。",
   pending_approval: "組織（Organization）の管理者の承認待ちです。承認されたら「GitHub をつなぎ直す」を押してください。",

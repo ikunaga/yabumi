@@ -242,7 +242,7 @@ async function publishOne(admin: Admin, t: ClaimedTarget, deps: PublisherDeps): 
 
   const adapter = isSnsKey(t.sns) ? deps.adapters[t.sns] : undefined;
   const label = isSnsKey(t.sns) ? SNS[t.sns].label : t.sns;
-  if (!adapter) return fail(`${label} への送信はまだ準備中です。`);
+  if (!adapter) return fail(`${label} への送信は、まだ使えません。`);
   if (!t.social_account_id || !t.account_external_id) return fail(`${label} のアカウントがつながっていません。${RECONNECT}`);
   if (t.account_status !== "active") return fail(`${label} とのつながりが切れています。${RECONNECT}`);
 
@@ -448,7 +448,7 @@ export async function deletePublishedTarget(admin: Admin, targetId: string, deps
   const label = isSnsKey(t.sns) ? SNS[t.sns].label : t.sns;
   const adapter = isSnsKey(t.sns) ? deps.adapters[t.sns] : undefined;
   if (t.status !== "published" || !t.external_post_id) throw new SnsPublishError("permanent", "まだ投稿していないので、取り消せません。");
-  if (!adapter) throw new SnsPublishError("permanent", `${label} の取り消しはまだ準備中です。`);
+  if (!adapter) throw new SnsPublishError("permanent", `${label} に出した投稿を取り消す機能は、まだ使えません。`);
   const acc = t.social_accounts as unknown as { external_id: string; status: string } | null;
   if (!t.social_account_id || !acc || acc.status !== "active") {
     throw new SnsPublishError("auth", `${label} とのつながりが切れています。${RECONNECT}`);

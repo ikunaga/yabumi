@@ -31,7 +31,7 @@ describe("App-L5: 整えるに渡す穴の言葉は 16 個まで", () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://127.0.0.1:9");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "dummy");
     vi.stubEnv("SUPABASE_SECRET_KEY", "dummy");
-    // AI の鍵がないので、形が合っても AI には届かない（「AI はまだ準備中です」）
+    // AI の鍵がないので、形が合っても AI には届かない（「AI は、まだ使えません」）
     vi.stubEnv("ANTHROPIC_API_KEY", "");
     const { POST } = await import("@/app/api/ai/tidy-draft/route");
     const body = JSON.stringify({ projectId: crypto.randomUUID(), text: "", sns: ["x"], format: { id: crypto.randomUUID(), values } });
@@ -42,6 +42,6 @@ describe("App-L5: 整えるに渡す穴の言葉は 16 個まで", () => {
     expect((await post(values(17))).status).toBe(400);
     const ok = await post(values(16));
     expect(ok.status).toBe(200);
-    expect(await ok.json()).toEqual({ error: "AI はまだ準備中です。" });
+    expect(await ok.json()).toEqual({ error: "AI は、まだ使えません。" });
   });
 });

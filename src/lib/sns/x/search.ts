@@ -167,6 +167,6 @@ export function xSearchQuotaText(q: XSearchQuota): string {
     case "new_global_limit":
       return q.resetsOn ? `登録して 7 日までの方が探せる今月の分は、いっぱいになりました（${md(q.resetsOn)} から探せます）` : "登録して 7 日までの方が探せる今月の分は、いっぱいになりました";
     case "not_ready":
-      return "yabumi の中で探すのは準備中です";
+      return "X の人気の投稿を yabumi で探す機能は、まだ使えません";
   }
 }

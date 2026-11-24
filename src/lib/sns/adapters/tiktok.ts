@@ -36,7 +36,7 @@ export function createTikTokAdapter(deps: TikTokAdapterDeps): SnsAdapter {
     sns: "tiktok",
 
     async publishText() {
-      throw new SnsPublishError("permanent", "TikTok には写真が要ります。投稿に写真を添えてから送ってください（動画は準備中です）。");
+      throw new SnsPublishError("permanent", "TikTok には写真が要ります。投稿に写真を添えてから送ってください。動画は、まだ送れません。");
     },
 
     async deletePost() {
@@ -61,7 +61,7 @@ export function createTikTokAdapter(deps: TikTokAdapterDeps): SnsAdapter {
 
     async startPublish(account, text, images: PublishImage[], target?: PublishTarget): Promise<PrepareState> {
       if (!target) throw new SnsPublishError("permanent", "TikTok の配信先がわかりません。");
-      if (images.length === 0) throw new SnsPublishError("permanent", "TikTok には写真が要ります。投稿に写真を添えてから送ってください（動画は準備中です）。");
+      if (images.length === 0) throw new SnsPublishError("permanent", "TikTok には写真が要ります。投稿に写真を添えてから送ってください。動画は、まだ送れません。");
       if (images.length > TIKTOK_MAX_PHOTOS) throw new SnsPublishError("permanent", `TikTok に添えられる写真は ${TIKTOK_MAX_PHOTOS} 枚までです。`);
       const ctx = await deps.loadTarget(target.id);
       if (!ctx) throw new SnsPublishError("permanent", "TikTok の配信先が見つかりません。");

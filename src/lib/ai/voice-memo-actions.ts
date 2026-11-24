@@ -25,7 +25,7 @@ export async function listVoiceMaterial(projectId: string): Promise<{ error?: st
 export async function draftVoiceMemo(projectId: string, exclude: unknown = []): Promise<{ error?: string; draft?: VoiceMemoDraft; sourceCount?: number }> {
   const ex = z.array(z.uuid()).max(200).safeParse(exclude);
   if (!z.uuid().safeParse(projectId).success || !ex.success) return { error: "入力の形式が正しくありません。" };
-  if (!aiConfigured()) return { error: "AI はまだ準備中です。" };
+  if (!aiConfigured()) return { error: "AI は、まだ使えません。" };
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;

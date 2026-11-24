@@ -11,7 +11,7 @@ const NOT_READY: XSearchQuota = { remaining: 0, limit: 0, reason: "not_ready", r
 // X の人気の投稿を探す（4.52。押すたびに 1 回数える）。結果は返すだけで保存しない
 export async function searchXBuzz(projectId: string, rawWord: unknown): Promise<XSearchResult> {
   if (!z.uuid().safeParse(projectId).success) return { ok: false, message: "入力の形式が正しくありません。", quota: NOT_READY };
-  if (!xSearchConfigured()) return { ok: false, message: "yabumi の中で探すのは準備中です。", quota: NOT_READY };
+  if (!xSearchConfigured()) return { ok: false, message: "X の人気の投稿を yabumi で探す機能は、まだ使えません。", quota: NOT_READY };
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;

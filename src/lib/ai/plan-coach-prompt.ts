@@ -182,7 +182,7 @@ export function coachContextMessage(ctx: CoachContext): string {
     `yabumi で扱う SNS: ${Object.values(SNS)
       .filter((s) => s.delivery === "auto")
       .map((s) => s.label)
-      .join("、")}（自動で送る。いま送信できるのは Threads・X・Instagram・Facebook ページ。TikTok・YouTube は準備中）、${Object.values(SNS)
+      .join("、")}（自動で送る。いま送信できるのは Threads・X・Instagram・Facebook ページ。TikTok・YouTube はまだ使えない）、${Object.values(SNS)
       .filter((s) => s.delivery === "manual")
       .map((s) => s.label)
       .join("、")}（手動で投稿する）`,

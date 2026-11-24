@@ -107,7 +107,7 @@ export function ComposeStepTargets({ c }: { c: Composer }) {
         )}
         {connected.length === 0 && mode !== "all_sent" && (
           <p className="text-[13px] text-muted">
-            まだ SNS をつないでいません。下書きは保存できます。{" "}
+            Instagram や X に yabumi から送るには、先に SNS をつなぎます。{" "}
             <Link href={connectHref} className="font-semibold text-fg underline">
               先に SNS をつなぐ →
             </Link>

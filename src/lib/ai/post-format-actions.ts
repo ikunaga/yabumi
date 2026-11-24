@@ -11,7 +11,7 @@ import { runPostFormatDraft, type FormatProposal } from "./post-format-ai";
 // 投稿のフォーマットを AI とつくる（docs/design/post-formats.md の 3）。案は保存しない（利用者が選んで直して「保存する」）
 export async function draftPostFormats(projectId: string, ask: { kind?: unknown; must?: unknown; refine?: unknown }): Promise<{ error?: string; proposals?: FormatProposal[] }> {
   if (!z.uuid().safeParse(projectId).success || !ask || typeof ask !== "object") return { error: "入力の形式が正しくありません。" };
-  if (!aiConfigured()) return { error: "AI はまだ準備中です。" };
+  if (!aiConfigured()) return { error: "AI は、まだ使えません。" };
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;
@@ -28,7 +28,7 @@ export async function draftPostFormats(projectId: string, ask: { kind?: unknown;
 // シリーズの次の回の案（docs/design/format-series.md の 3）。案は保存しない（選んで「本文に入れる」と、シリーズの記録に残る）
 export async function draftFormatRound(projectId: string, formatId: string, wish: unknown, fixed?: unknown): Promise<{ error?: string; proposals?: RoundProposal[]; left?: number; dropped?: number; empty?: boolean }> {
   if (!z.uuid().safeParse(projectId).success || !z.uuid().safeParse(formatId).success) return { error: "入力の形式が正しくありません。" };
-  if (!aiConfigured()) return { error: "AI はまだ準備中です。" };
+  if (!aiConfigured()) return { error: "AI は、まだ使えません。" };
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;
@@ -49,7 +49,7 @@ export async function draftFormatsFromPosts(
   postIds: unknown,
 ): Promise<{ error?: string; fit?: FromPostsFit; fitReason?: string; proposals?: FromPostsProposal[] }> {
   if (!z.uuid().safeParse(projectId).success) return { error: "入力の形式が正しくありません。" };
-  if (!aiConfigured()) return { error: "AI はまだ準備中です。" };
+  if (!aiConfigured()) return { error: "AI は、まだ使えません。" };
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;

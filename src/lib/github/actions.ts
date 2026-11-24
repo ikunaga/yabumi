@@ -33,7 +33,7 @@ export async function connectRepo(projectId: string, installationId: number, rep
   if (!z.uuid().safeParse(projectId).success || !Number.isSafeInteger(installationId) || !Number.isSafeInteger(repoId)) {
     return { error: "入力の形式が正しくありません。" };
   }
-  if (!githubConfigured()) return { error: "GitHub をつなぐ機能は準備中です。" };
+  if (!githubConfigured()) return { error: "GitHub をつなぐ機能は、まだ使えません。" };
   const { supabase, userId } = await currentUser();
   if (!userId) return { error: "ログインし直してください。" };
   const notDev = await devProjectError(supabase, projectId);
@@ -79,8 +79,8 @@ export type DraftActionResult = { error?: string; draft?: AppDescriptionDraft; d
 // リポジトリを読んで、AI がアプリの紹介文を下書きする（保存はしない。採用したときだけ保存する）
 export async function draftDescription(projectId: string): Promise<DraftActionResult> {
   if (!z.uuid().safeParse(projectId).success) return { error: "入力の形式が正しくありません。" };
-  if (!githubConfigured()) return { error: "GitHub をつなぐ機能は準備中です。" };
-  if (!aiConfigured()) return { error: "AI はまだ準備中です。" };
+  if (!githubConfigured()) return { error: "GitHub をつなぐ機能は、まだ使えません。" };
+  if (!aiConfigured()) return { error: "AI は、まだ使えません。" };
   const { supabase, userId } = await currentUser();
   if (!userId) return { error: "ログインし直してください。" };
   const notDev = await devProjectError(supabase, projectId);
@@ -111,7 +111,7 @@ export async function refineDescription(projectId: string, draft: unknown, answe
   const d = appDescriptionSchema.safeParse(draft);
   const a = answersSchema.safeParse(answers);
   if (!d.success || !a.success) return { error: "入力の形式が正しくありません。" };
-  if (!aiConfigured()) return { error: "AI はまだ準備中です。" };
+  if (!aiConfigured()) return { error: "AI は、まだ使えません。" };
   const { supabase, userId } = await currentUser();
   if (!userId) return { error: "ログインし直してください。" };
   const notDev = await devProjectError(supabase, projectId);

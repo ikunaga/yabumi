@@ -78,7 +78,7 @@ const moreFeatures = [
 const sns: { group: string; items: SnsKey[]; ready: boolean }[] = [
   { group: "yabumi から自動で投稿", items: ["x", "threads", "instagram", "facebook"], ready: true },
   { group: "文面を用意して手動で投稿", items: ["note", "substack"], ready: true },
-  { group: "準備中", items: ["tiktok", "youtube"], ready: false },
+  { group: "まだ使えません", items: ["tiktok", "youtube"], ready: false },
 ];
 
 // 最初の画面の下の数字（見本 A の上の 4 つの形）。どれも、いまの yabumi の決まりそのまま
@@ -112,7 +112,7 @@ const faqs: { q: string; a: ReactNode }[] = [
   },
   {
     q: "どの SNS に対応していますか？",
-    a: "X・Threads・Instagram（プロアカウント）・Facebook ページに、yabumi から投稿・予約できます。note・Substack は文面を用意して、手動で投稿する形です。TikTok・YouTube は準備中です。",
+    a: "X と Threads に、yabumi から投稿・予約できます。Instagram のプロアカウントと Facebook ページにもできます。note・Substack は、yabumi で文をつくれます。投稿は、手動でします。TikTok・YouTube は、まだ使えません。",
   },
   {
     q: "招待はいつ届きますか？",

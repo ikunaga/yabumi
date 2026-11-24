@@ -12,7 +12,7 @@ import { DisclosureBox } from "@/components/ui/disclosure";
 import { SuccessBanner } from "@/components/ui/feedback";
 import { SnsTag } from "@/components/ui/marks";
 import { Metric } from "@/components/ui/metric";
-import { autoImageLabel, EXPIRED_TARGET_LABEL, kindSummary, RUN_REASON_TEXT, RUN_STATUS_LABELS, TARGET_MODE_LABELS } from "@/lib/auto-post/labels";
+import { autoImageLabel, errorRunText, EXPIRED_TARGET_LABEL, kindSummary, RUN_REASON_TEXT, RUN_STATUS_LABELS, TARGET_MODE_LABELS } from "@/lib/auto-post/labels";
 import { getAutoPlan, getAutoPostHold, listAutoRuns, listUpcomingAutoRuns } from "@/lib/auto-post/queries";
 import type { AutoImage, AutoRun } from "@/lib/auto-post/types";
 import { formatsBackHref } from "@/lib/post-formats/back";
@@ -248,6 +248,13 @@ function RunReason({ run }: { run: AutoRun }) {
   if (!run.reason) return null;
   const detail = run.reasonDetail?.trim() || null;
   if (run.reason === "user_skipped" && detail) return <p className="text-[14px] text-muted">{detail}</p>;
+  // 作れなかった回: 理由の文（例外の種類など）は運営者が原因を追うためのものなので出さず、利用者向けの続きの文を出す（2026-11-24）
+  if (run.reason === "error")
+    return (
+      <p className="text-[14px] text-muted">
+        {RUN_REASON_TEXT.error}。{errorRunText(detail)}
+      </p>
+    );
   if (detail && [...detail].length > DETAIL_INLINE_MAX)
     return (
       <div className="flex flex-col gap-0.5 text-[14px] text-muted">

@@ -153,3 +153,11 @@ export function heldReasonText(reason: AutoRunReason | null | undefined, detail?
   }
   return "この投稿は、送る前に確認が必要です。中身を見てから、予約してください。";
 }
+
+// 回を作れなかった（reason = error）ときの、利用者向けの続きの文（2026-11-24）。reason_detail は運営者が原因を追うための文
+// （例外の種類など）なので、画面にはそのまま出さない。時間内に作り終えられなかったときだけ、そのことを書く
+export const TIMEOUT_DETAIL = "時間内に作り終えられませんでした。3 回試しました";
+export function errorRunText(detail: string | null | undefined): string {
+  return detail === TIMEOUT_DETAIL ? "時間内に作り終えられませんでした。次の投稿は、いつもどおり作ります。" : "次の投稿は、いつもどおり作ります。";
+}
+

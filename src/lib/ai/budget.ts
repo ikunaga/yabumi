@@ -313,3 +313,18 @@ export async function linkAiUsage(admin: Db, usageIds: string[], threadId: strin
   const { error } = await admin.from("ai_usage").update({ thread_id: threadId }).in("id", usageIds);
   if (error) console.error("[ai-budget] 記録を会話に結びつけられませんでした", error.message);
 }
+
+// 古い予約（AI の文・画像）を片付ける。関数が途中で打ち切られると、AI を呼ぶ前に入れた予約（reserved）が精算されずに残る
+// （2026-11-24 本番で、打ち切られた 3 回分）。AI はたぶん呼ばれて費用もかかっているので、見込みの額のまま「使った」として数え続け、
+// 予約のままにしない（model を abandoned にして、あとで見分けられるようにする）。予算を守る側に倒す。1 回の関数は 300 秒までなので、30 分たったものだけ
+export const STALE_RESERVATION_MS = 30 * 60_000;
+// ownerIds: テストで、テストの利用者の行だけを扱う
+export async function settleStaleReservations(admin: SupabaseClient<Database>, now: Date, ownerIds?: string[]): Promise<{ text: number; images: number }> {
+  const before = new Date(now.getTime() - STALE_RESERVATION_MS).toISOString();
+  const { data: text, error: e1 } = await (ownerIds ? admin.from("ai_usage").update({ status: "done", model: "abandoned" }).eq("status", "reserved").lt("created_at", before).in("owner_id", ownerIds) : admin.from("ai_usage").update({ status: "done", model: "abandoned" }).eq("status", "reserved").lt("created_at", before)).select("id");
+  if (e1) throw e1;
+  const { data: images, error: e2 } = await (ownerIds ? admin.from("ai_image_jobs").update({ status: "done", model: "abandoned" }).eq("status", "reserved").lt("created_at", before).in("owner_id", ownerIds) : admin.from("ai_image_jobs").update({ status: "done", model: "abandoned" }).eq("status", "reserved").lt("created_at", before)).select("id");
+  if (e2) throw e2;
+  if (text?.length || images?.length) console.error("[ai-budget] 精算されなかった AI の予約を片付けました", { text: text?.length ?? 0, images: images?.length ?? 0 });
+  return { text: text?.length ?? 0, images: images?.length ?? 0 };
+}

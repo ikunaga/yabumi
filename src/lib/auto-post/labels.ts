@@ -56,7 +56,8 @@ export const RUN_REASON_TEXT: Record<AutoRunReason, string> = {
   disconnected: "SNS のつながりが切れています",
   error: "うまく作れませんでした",
   user_skipped: "飛ばしました",
-  plan_paused: "止めました",
+  // 回し方を止めていた間（利用者が止めた・yabumi が止めた）の回。誰がなぜ止めたかは、回し方の画面の上に出す（2026-11-25）
+  plan_paused: "自動投稿が止まっていた間の投稿なので、つくられていません",
   operator_hold: "yabumi の運営が止めました",
   image_failed: "画像をつくれませんでした",
   format_changed: "フォーマットの変数が変わったので、この投稿はつくりませんでした",

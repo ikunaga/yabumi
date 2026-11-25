@@ -1,6 +1,6 @@
 import { isSnsKey } from "@/lib/sns";
 import { autoImageLookSchema } from "./schema";
-import type { AutoImage, AutoImageLook, AutoKind, AutoMaterials, AutoPlan, AutoRun, AutoRunReason, AutoRunStatus, AutoSchedule, AutoStopReason, AutoTargets } from "./types";
+import type { AutoImage, AutoImageLook, AutoKind, AutoMaterials, AutoPlan, AutoRun, AutoRunReason, AutoRunStatus, AutoSchedule, AutoStopReason, AutoTargets, AutoRunCaution } from "./types";
 
 // DB の行を型にする（読み取り〈queries.ts〉とジョブ〈engine.ts〉で共通）
 
@@ -67,7 +67,16 @@ export function toPlan(r: PlanRow): AutoPlan {
   };
 }
 
-export type RunRow = { id: string; plan_id: string; due_at: string; generate_at: string; status: string; post_id: string | null; reason: string | null; reason_detail: string | null };
+export type RunRow = { id: string; plan_id: string; due_at: string; generate_at: string; status: string; post_id: string | null; reason: string | null; reason_detail: string | null; material_ref?: unknown };
+
+// material_ref.cautions（engine.ts が書く）を読む。形が違うものは捨てる
+function readCautions(ref: unknown): AutoRunCaution[] {
+  const list = ref && typeof ref === "object" ? (ref as { cautions?: unknown }).cautions : null;
+  if (!Array.isArray(list)) return [];
+  return list.flatMap((c) =>
+    c && typeof c === "object" && (c.kind === "avoid" || c.kind === "made_up") && typeof c.quote === "string" && typeof c.why === "string" ? [{ kind: c.kind, quote: c.quote, why: c.why } as AutoRunCaution] : [],
+  );
+}
 
 export function toRun(r: RunRow): AutoRun {
   return {
@@ -79,6 +88,7 @@ export function toRun(r: RunRow): AutoRun {
     postId: r.post_id,
     reason: r.reason as AutoRunReason | null,
     reasonDetail: r.reason_detail,
+    cautions: readCautions(r.material_ref),
   };
 }
 

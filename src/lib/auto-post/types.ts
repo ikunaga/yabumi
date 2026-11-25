@@ -142,7 +142,11 @@ export type AutoRun = {
   postId: string | null;
   reason: AutoRunReason | null;
   reasonDetail: string | null;
+  // 送る前の確認の弱い指摘（止めずに送った。2026-11-25）
+  cautions?: AutoRunCaution[];
 };
+
+export type AutoRunCaution = { kind: "avoid" | "made_up"; quote: string; why: string };
 
 // 確かめる画面に出す、配信先ごとの送る中身（DB の auto_target_previews）。fingerprint は承認のときにそのまま返す
 export type AutoTargetPreview = {

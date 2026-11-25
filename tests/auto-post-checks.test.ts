@@ -1,7 +1,7 @@
 // 自動の回の送る前のチェックと、知らせの文（docs/design/auto-post.md の 2.5・2.7。src/lib/auto-post/checks.ts・engine.ts）
 import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
-import { applyAiCheck, foreignLinks, jaccard, maxSimilarity, plainIssues, thresholdOf, trigrams, urlAllowed } from "@/lib/auto-post/checks";
+import { applyAiCheck, avoidPhrases, foreignLinks, isCautionFinding, isHardFinding, jaccard, maxSimilarity, plainIssues, thresholdOf, trigrams, urlAllowed } from "@/lib/auto-post/checks";
 import { generatedMessage } from "@/lib/auto-post/engine";
 
 describe("重なり（3-gram の Jaccard）", () => {
@@ -127,6 +127,30 @@ describe("AI っぽさチェックの結果の扱い（A2 の ②）", () => {
   it("事実か確かめて（made_up）・やらないこと（avoid）は直さずに下書きへ", () => {
     expect(applyAiCheck(texts, { summary: "", findings: [{ sns: "x", kind: "made_up", quote: "冬", why: "本当ですか", fix: "" }] }).hold?.kind).toBe("made_up");
     expect(applyAiCheck(texts, { summary: "", findings: [{ sns: "x", kind: "avoid", quote: "冬", why: "やらないこと", fix: "" }] }).hold?.kind).toBe("avoid");
+  });
+
+  it("弱い指摘（certain: false か、理由にぼかしの言葉）は止めずに、直しも当てない（2026-11-25 本番）", () => {
+    const weak = { sns: "x" as const, kind: "avoid" as const, quote: "冬", why: "ネタバレをしないに近いかもしれません", fix: "" };
+    const r = applyAiCheck(texts, { summary: "", findings: [weak] }, { avoid: "ネタバレをしない" });
+    expect(r).toEqual({ texts, hold: null, fixed: 0 });
+    expect(isCautionFinding(weak, { avoid: "ネタバレをしない" })).toBe(true);
+    expect(isHardFinding({ ...weak, why: "やらないことに当たります", certain: false })).toBe(false);
+    expect(isHardFinding({ ...weak, why: "やらないことに当たります" })).toBe(true);
+  });
+
+  it("弱い avoid でも、やらないことの言葉そのものが入っていれば止める", () => {
+    expect(avoidPhrases("ネタバレをしない。値引きの話、他店の悪口は書かない")).toEqual(["ネタバレ", "値引き", "他店の悪口"]);
+    const f = { kind: "avoid" as const, quote: "今日だけ値引きします", why: "近いかもしれません", certain: false };
+    expect(isHardFinding(f, { avoid: "ネタバレをしない。値引きの話" })).toBe(true);
+    expect(isHardFinding({ ...f, quote: "今日だけお得です" }, { avoid: "ネタバレをしない。値引きの話" })).toBe(false);
+  });
+
+  it("made_up: シリーズのときだけ弱い指摘を止めない。商売の事実（数字・値段・人や店の名前・誰かの声）が入れば止める", () => {
+    const f = { kind: "made_up" as const, quote: "監督のデビュー作", why: "本当か確かめてください。違うかもしれません", certain: false };
+    expect(isHardFinding(f, { series: true })).toBe(false);
+    expect(isHardFinding(f)).toBe(true);
+    for (const quote of ["100 円引き", "創業 3 年", "田中さんが", "「おいしい」と言ってくれました"]) expect(isHardFinding({ ...f, quote }, { series: true })).toBe(true);
+    expect(isHardFinding({ ...f, why: "本当ですか", certain: true }, { series: true })).toBe(true);
   });
 
   it("当てられない直しがあれば下書きへ", () => {

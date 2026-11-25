@@ -1,4 +1,4 @@
-import { applyFix, type AiCheckResult } from "@/lib/ai/ai-check";
+import { applyFix, type AiCheckFinding, type AiCheckResult } from "@/lib/ai/ai-check";
 import { overLimit } from "@/lib/ai/shorten";
 import { SNS, displayLength, type SnsKey } from "@/lib/sns";
 import { extractHashtags, HASHTAG_RULES, splitTagsByText, withHashtags } from "@/lib/sns/hashtags";
@@ -137,15 +137,40 @@ export function hasAddedBrackets(body: string, allowed: ReadonlySet<string>): bo
 // 事実か確かめて（made_up）・やらないこと（avoid）は直さずに下書きへ。それ以外（決まり文句・誇張〈あおり・効き目の約束を含む〉・口調・タグ・そのほか）は、
 // 指摘の直しを当てる。当てられない直しは、下書きへ（人が見ないで出すので、直せないものは出さない）
 
-// 止める指摘（直さずに下書き・確かめ待ちへ）
-export const isHardFinding = (f: Pick<AiCheckResult["findings"][number], "kind">) => f.kind === "made_up" || f.kind === "avoid";
+// 止める指摘（直さずに下書き・確かめ待ちへ）。2026-11-25 本番: 「ネタバレをしないに近いかもしれません」の avoid で止まり、オーナーがそのまま送った。
+// 弱い指摘（AI がはっきりとは言えない〈certain: false〉か、理由にぼかしの言葉がある）は止めずに送り、回に「注意」として残す。ただし、
+// - avoid: 指摘したところに、アカウント設計の「やらないこと」の言葉そのものが入っていれば止める
+// - made_up: シリーズ（作品などの話）のときだけ弱い指摘を止めない。商売の事実（数字・値段・日付・人や店の名前・誰かの声）が入っていれば止める
+type Finding = Pick<AiCheckFinding, "kind" | "quote" | "why" | "certain">;
+export type HardContext = { avoid?: string; series?: boolean };
+const HEDGE = /かもしれ|可能性|近い|おそれ|恐れ|ように見え|気がし|でしょう/;
+export const isWeakFinding = (f: Pick<Finding, "why" | "certain">) => f.certain === false || HEDGE.test(f.why);
+const BUSINESS_FACT = /[0-9０-９〇一二三四五六七八九十百千万]|円|％|%|割|曜|さん|様|店|「/;
+// 「やらないこと」の文を、言葉のまとまりに分ける（「ネタバレをしない。値引きの話」→ ネタバレ・値引き）
+export function avoidPhrases(avoid: string): string[] {
+  const out = new Set<string>();
+  for (const part of avoid.split(/[\n、。,，・/／;；:：\s「」『』()（）]+/)) {
+    let p = part.trim();
+    for (let i = 0; i < 3; i++) p = p.replace(/(を|は|の|に|で|が)?(しない|書かない|言わない|出さない|使わない|載せない|入れない|話|こと|投稿|禁止|NG|ダメ|だめ|避ける|やめる)$/, "").trim();
+    if ([...p].length >= 2) out.add(p);
+  }
+  return [...out];
+}
+export function isHardFinding(f: Finding, ctx: HardContext = {}): boolean {
+  if (f.kind === "avoid") return !isWeakFinding(f) || avoidPhrases(ctx.avoid ?? "").some((p) => f.quote.includes(p));
+  if (f.kind === "made_up") return !ctx.series || !isWeakFinding(f) || BUSINESS_FACT.test(f.quote);
+  return false;
+}
+// 止めずに送った弱い指摘（事実か確かめて・やらないこと）。直しは当てず（利用者がわざと入れた言葉のことが多い）、注意として残す
+export const isCautionFinding = (f: Finding, ctx: HardContext = {}) => (f.kind === "avoid" || f.kind === "made_up") && !isHardFinding(f, ctx);
 
-export function applyAiCheck(texts: Texts, result: AiCheckResult): { texts: Texts; hold: Issue | null; fixed: number } {
-  const hard = result.findings.find(isHardFinding);
+export function applyAiCheck(texts: Texts, result: AiCheckResult, ctx: HardContext = {}): { texts: Texts; hold: Issue | null; fixed: number } {
+  const hard = result.findings.find((f) => isHardFinding(f, ctx));
   if (hard) return { texts, hold: { kind: hard.kind === "made_up" ? "made_up" : "avoid", detail: hard.why.slice(0, 200) }, fixed: 0 };
   const out: Texts = { ...texts };
   let fixed = 0;
   for (const f of result.findings) {
+    if (isCautionFinding(f, ctx)) continue;
     // 同じ文面の SNS はまとめて確かめているので、同じ文の SNS すべてに当てる
     const source = texts[f.sns];
     let hit = false;

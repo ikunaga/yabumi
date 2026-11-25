@@ -17,7 +17,7 @@ type Db = Awaited<ReturnType<typeof createClient>>;
 
 const PLAN_COLUMNS =
   "id, project_id, name, kind, materials, targets, x_link, schedule, instructions, image, lead_hours, first_review, status, stop_reason, fail_streak, consented_at, created_at, updated_at";
-const RUN_COLUMNS = "id, plan_id, due_at, generate_at, status, post_id, reason, reason_detail";
+const RUN_COLUMNS = "id, plan_id, due_at, generate_at, status, post_id, reason, reason_detail, material_ref";
 
 async function db(): Promise<Db> {
   return createClient();

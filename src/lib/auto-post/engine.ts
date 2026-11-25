@@ -13,7 +13,7 @@ import { splitTagsByText, withHashtags } from "@/lib/sns/hashtags";
 import type { Database } from "@/lib/supabase/database.types";
 import { autoPostGenerator, fakeAiMode, type AutoPostGenerator } from "./ai";
 import { callAiCheck, callShortenDrafts } from "@/lib/ai/anthropic";
-import { applyAiCheck, isHardFinding, plainIssues, tagReserve, type Issue, type Texts } from "./checks";
+import { applyAiCheck, isCautionFinding, isHardFinding, plainIssues, tagReserve, type Issue, type Texts } from "./checks";
 export { tagReserve } from "./checks";
 import { isNoMaterial, pickMaterial, type Material, type MaterialDeps, type PastRef, type ProjectRow } from "./materials";
 import { readAutoImage, toPlan } from "./plan-row";
@@ -358,10 +358,16 @@ export async function draftRun(
     else {
       // シリーズの本文（fixedTexts）は利用者が決めたフォーマットの文なので、書き換えの案は当てない（数だけ記録する）。
       // 止める指摘（事実か確かめて・やらないこと）はいままでどおり hold にする（2026-11-20 オーナーの本番の不具合: 「答えはコメントで！」が「答えはリプで。」に変わった）
-      const applied = material.fixedTexts ? { ...applyAiCheck(texts, { ...result, findings: result.findings.filter(isHardFinding) }), fixed: 0 } : applyAiCheck(texts, result);
+      // 弱い指摘（はっきりとは言えない事実の確認・やらないこと）は止めずに、注意として回に残す（2026-11-25）
+      const hardCtx = { avoid: loaded.planData.pillars.avoid, series: args.plan.kind === "series" };
+      const applied = material.fixedTexts
+        ? { ...applyAiCheck(texts, { ...result, findings: result.findings.filter((f) => isHardFinding(f, hardCtx)) }, hardCtx), fixed: 0 }
+        : applyAiCheck(texts, result, hardCtx);
       hold = applied.hold;
+      const cautions = result.findings.filter((f) => isCautionFinding(f, hardCtx));
+      if (!hold && cautions.length) ref.cautions = cautions.slice(0, 3).map((f) => ({ kind: f.kind, quote: f.quote.slice(0, 100), why: f.why.slice(0, 200) }));
       if (material.fixedTexts) {
-        const soft = result.findings.filter((f) => !isHardFinding(f)).length;
+        const soft = result.findings.filter((f) => !isHardFinding(f, hardCtx) && !isCautionFinding(f, hardCtx)).length;
         if (!hold && soft) ref.suggested = soft;
       } else if (!hold && applied.fixed) {
         texts = applied.texts;

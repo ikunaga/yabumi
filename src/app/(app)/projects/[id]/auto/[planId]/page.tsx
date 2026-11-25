@@ -40,11 +40,15 @@ export default async function AutoPlanPage(props: PageProps<"/projects/[id]/auto
     plan.kind === "series" && plan.materials.format_id ? loadSeriesFormatImage(project.id, plan.materials.format_id) : Promise.resolve(null),
   ]);
   const results = await loadRunResults(runs.flatMap((r) => (r.postId ? [r.postId] : [])));
+  // 止まっている・止めている回し方の、まだ来ていない取り消した回（一覧には並べず、1 行にまとめる）
+  const pausedFuture = plan.status === "active" ? [] : runs.filter((r) => r.status === "canceled" && r.reason === "plan_paused" && new Date(r.dueAt) > now && !r.postId);
+  const shownRuns = runs.filter((r) => !pausedFuture.includes(r));
   const next = upcoming.find((u) => u.planId === plan.id) ?? null;
 
   const past = runs.filter((r) => new Date(r.dueAt) <= now || ["held", "skipped", "canceled"].includes(r.status));
   const sentRuns = past.filter((r) => r.postId && (results.get(r.postId) ?? []).some((t) => t.status === "published"));
-  const heldCount = runs.filter((r) => r.status === "held").length;
+  // 下書きのままの回（確認して送った回は送信済みに数え、ここには入れない。2026-11-25）
+  const heldCount = runs.filter((r) => r.status === "held" && !(r.postId && (results.get(r.postId) ?? []).some((t) => t.status === "published"))).length;
   const views = sentRuns.flatMap((r) => (results.get(r.postId!) ?? []).map((t) => t.views)).filter((v): v is number => v !== null);
   const avgViews = views.length ? Math.round(views.reduce((a, b) => a + b, 0) / sentRuns.length) : null;
   const sns = Object.keys(plan.targets) as SnsKey[];
@@ -113,11 +117,17 @@ export default async function AutoPlanPage(props: PageProps<"/projects/[id]/auto
 
       <Card className="overflow-hidden">
         <CardHeader title="これからの投稿と送信済みの投稿" />
-        {runs.length === 0 ? (
+        {/* 止まっている・止めている間の、まだ来ていない回（取り消した回）は 1 行にまとめる（前は 13 行の「送るのをやめた・止めました」が並んだ。2026-11-25） */}
+        {pausedFuture.length > 0 && (
+          <p className="border-t border-border px-6 py-3.5 text-[14px] text-muted max-sm:px-4">
+            {plan.status === "stopped" && plan.stopReason ? "自動投稿は止まっています。止まっている間、" : "自動投稿を止めているので、"}このあとの <span className="num">{pausedFuture.length}</span> 本はつくられません。「再開する」を押すと、そのあとの投稿から、またつくられます。
+          </p>
+        )}
+        {shownRuns.length === 0 && pausedFuture.length === 0 ? (
           <EmptyState description={next ? `1 回目の投稿は ${formatShort(next.dueAt)} です。送る 24 時間前に作ります。` : "まだ投稿はありません。"} />
         ) : (
           <ul className="divide-y divide-border border-t border-border">
-            {runs.map((r) => (
+            {shownRuns.map((r) => (
               <RunRow key={r.id} run={r} results={r.postId ? (results.get(r.postId) ?? []) : []} projectId={project.id} />
             ))}
           </ul>
@@ -216,7 +226,7 @@ function RunRow({ run, results, projectId }: { run: AutoRun; results: RunTargetR
           <span className="num text-[15px] font-bold">{formatShort(run.dueAt)}</span>
           <Badge tone={tone}>{label}</Badge>
         </p>
-        <RunReason run={run} />
+        <RunReason run={run} sent={published.length > 0} />
         {expired.map((t) => (
           <p key={t.sns} className="flex flex-wrap items-center gap-x-1.5 text-[14px] text-muted">
             <SnsTag sns={t.sns} />
@@ -244,7 +254,9 @@ function RunRow({ run, results, projectId }: { run: AutoRun; results: RunTargetR
 // 回の理由（reason の文と reason_detail）。確かめずに時刻を過ぎた最初の回は reason が user_skipped でも利用者が飛ばしたのではないので、reason_detail だけを出す。
 // reason_detail が長いとき（AI の枠の上限の文など）は、reason の文だけを出して、くわしくは畳む
 const DETAIL_INLINE_MAX = 40;
-function RunReason({ run }: { run: AutoRun }) {
+// sent: 送信済み。下書きに回した回を利用者が確認して送ったときは、止めた理由ではなく、そのことを出す（2026-11-25）
+function RunReason({ run, sent = false }: { run: AutoRun; sent?: boolean }) {
+  if (sent && run.status === "held") return <p className="text-[14px] text-muted">送る前の確認で注意が出たので、下書きに残りました。そのあと、確認して送りました。</p>;
   if (!run.reason) return null;
   const detail = run.reasonDetail?.trim() || null;
   if (run.reason === "user_skipped" && detail) return <p className="text-[14px] text-muted">{detail}</p>;

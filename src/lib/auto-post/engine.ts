@@ -620,12 +620,16 @@ async function runOutcomes(admin: Db, planId: string, now: Date): Promise<Outcom
     .limit(5);
   if (error) throw error;
   return data.map((r) => {
-    // 画像をつくれなかった回は、続けての失敗に数えない（画像の AI の障害で回し方が止まらないように）
-    if (r.status === "held") return r.reason === "image_failed" ? "neutral" : "bad";
     if (r.status === "skipped") return r.reason === "no_material" ? "no_material" : r.reason === "disconnected" ? "disconnected" : "neutral";
+    // 画像をつくれなかった回は、続けての失敗に数えない（画像の AI の障害で回し方が止まらないように）
+    if (r.status === "held" && r.reason === "image_failed") return "neutral";
+    // 送る時刻の前は、まだわからない（下書きに回した回も、利用者が確認して送るかもしれない）
     if (new Date(r.due_at).getTime() > now.getTime() - SETTLE_AFTER_MS) return "pending";
     const ts = ((r.posts as { post_targets: { status: string }[] } | null)?.post_targets ?? []).map((t) => t.status);
+    // 下書きに回した回（held）は、送る時刻を過ぎて、利用者が確認して送っていれば成功、送らないまま時刻を過ぎたら失敗に数える
+    // （前は held を作った時点で失敗に数え、利用者が確認して送った回まで「続けて送れなかった」にしていた。2026-11-25 本番で回し方が止まった）
     if (ts.includes("published")) return "good";
+    if (r.status === "held") return ts.some((s) => s === "publishing" || s === "preparing") ? "pending" : "bad";
     if (ts.length && ts.every((s) => s === "failed")) return "bad";
     return "neutral";
   });

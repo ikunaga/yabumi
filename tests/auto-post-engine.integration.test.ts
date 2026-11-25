@@ -502,28 +502,51 @@ describe("送る時刻を過ぎた確かめ待ち・送り直し", () => {
 });
 
 describe("状態の見直しと知らせ", () => {
-  it("2 回続けて下書きに回したら止め、まだ送っていない予約を下書きに戻し、知らせる", async () => {
+  it("下書きに回した回を、送らないまま送る時刻を 2 回続けて過ぎたら止め、まだ送っていない予約を下書きに戻し、知らせる", async () => {
     const p = await project();
     for (const b of ["held 1", "held 2", "next"]) await note(p, b);
     const id = await plan(p);
     await admin.from("auto_plans").update({ first_review: false }).eq("id", id);
     findings = [{ sns: "threads", kind: "made_up", quote: "の話", why: "本当ですか", fix: "" }];
-    await dueRun(id, p, 20);
+    await dueRun(id, p, 20, true);
     await makeDueRuns(admin, deps(), new Date(), scopeOpts());
+    // 送る時刻の前は、下書きに回した回もまだ数えない（利用者が確認して送るかもしれない。2026-11-25 本番）
     await reviewPlans(admin, deps(), new Date(), scopeOpts());
+    expect((await admin.from("auto_plans").select("status, fail_streak").eq("id", id).single()).data).toEqual({ status: "active", fail_streak: 0 });
+    // 送らないまま時刻を過ぎたら、1 回目の失敗
+    await reviewPlans(admin, deps(), new Date(Date.now() + 21 * HOUR), scopeOpts());
     expect((await admin.from("auto_plans").select("status, fail_streak").eq("id", id).single()).data).toEqual({ status: "active", fail_streak: 1 });
-    await dueRun(id, p, 30);
+    await dueRun(id, p, 30, true);
     await makeDueRuns(admin, deps(), new Date(), scopeOpts());
     findings = [];
-    const next = await dueRun(id, p, 40);
+    const next = await dueRun(id, p, 40, true);
     await makeDueRuns(admin, deps(), new Date(), scopeOpts());
-    // いちばん新しい回は予約できたが、送る前なので数えない。その前の 2 回が続けて下書き
+    // いちばん新しい回は予約できたが、送る前なので数えない。その前の 2 回が、送らないまま時刻を過ぎた下書き
     push.mockClear();
-    await reviewPlans(admin, deps(), new Date(), scopeOpts());
+    await reviewPlans(admin, deps(), new Date(Date.now() + 31 * HOUR), scopeOpts());
     expect((await admin.from("auto_plans").select("status, stop_reason").eq("id", id).single()).data).toEqual({ status: "stopped", stop_reason: "fail_streak" });
     expect((await runOf(next)).status).toBe("canceled");
     expect((await admin.from("posts").select("status").eq("id", (await runOf(next)).post_id!).single()).data!.status).toBe("draft");
     expect(push).toHaveBeenCalledWith(expect.anything(), aliceId, expect.objectContaining({ title: "自動投稿を止めました" }));
+  });
+
+  it("下書きに回した回でも、利用者が確認して送っていれば失敗に数えない。時間切れ（reason error）も数えない（2026-11-25 本番で止まった）", async () => {
+    const p = await project();
+    for (const b of ["held a", "held b"]) await note(p, b);
+    const id = await plan(p);
+    await admin.from("auto_plans").update({ first_review: false }).eq("id", id);
+    findings = [{ sns: "threads", kind: "avoid", quote: "の話", why: "やらないことに近いかもしれません", fix: "" }];
+    const a = await dueRun(id, p, 20, true);
+    const b = await dueRun(id, p, 30, true);
+    await makeDueRuns(admin, deps(), new Date(), scopeOpts());
+    findings = [];
+    // 2 回とも下書きに回ったが、利用者が確認して送った
+    for (const r of [a, b]) await admin.from("post_targets").update({ status: "published", published_at: new Date().toISOString() }).eq("post_id", (await runOf(r)).post_id!);
+    // 時間切れで飛ばした回も 1 つ
+    const c = await dueRun(id, p, 32, true);
+    await admin.from("auto_runs").update({ status: "skipped", reason: "error", reason_detail: "時間内に作り終えられませんでした。3 回試しました", generate_at: new Date().toISOString() }).eq("id", c);
+    await reviewPlans(admin, deps(), new Date(Date.now() + 33 * HOUR), scopeOpts());
+    expect((await admin.from("auto_plans").select("status, fail_streak").eq("id", id).single()).data).toEqual({ status: "active", fail_streak: 0 });
   });
 
   it("材料切れが 3 回続いたら止める", async () => {

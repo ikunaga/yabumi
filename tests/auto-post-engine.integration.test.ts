@@ -34,7 +34,7 @@ const generator: AutoPostGenerator = vi.fn(async (input) => {
   return { ok: true as const, texts: Object.fromEntries(input.sns.map((s: string) => [s, `${input.materialLabel.replace(/^メモ: /, "")}の話 ${n} ${"いろはにほへとちりぬるを".slice(n % 5)}`])), pillar: "お店の日々", concern: "none" };
 });
 // 偽の AI っぽさチェック: findings を差し替えられる
-let findings: { sns: string; kind: string; quote: string; why: string; fix: string }[] = [];
+let findings: { sns: string; kind: string; quote: string; why: string; fix: string; certain?: boolean }[] = [];
 const callCheck: CallCheck = vi.fn(async () => ({ output: { summary: "よい", findings }, stopReason: "end_turn", model: "claude-opus-5-5", usage: { inputTokens: 100, cacheWriteTokens: 0, cacheReadTokens: 0, outputTokens: 50 } }));
 const push = vi.fn(async () => ({ sent: 1, removed: 0, failed: 0 }));
 const deps = (): EngineDeps => ({ generator, callCheck, push });
@@ -535,7 +535,7 @@ describe("状態の見直しと知らせ", () => {
     for (const b of ["held a", "held b"]) await note(p, b);
     const id = await plan(p);
     await admin.from("auto_plans").update({ first_review: false }).eq("id", id);
-    findings = [{ sns: "threads", kind: "avoid", quote: "の話", why: "やらないことに近いかもしれません", fix: "" }];
+    findings = [{ sns: "threads", kind: "avoid", quote: "の話", why: "やらないことに当たります", fix: "" }];
     const a = await dueRun(id, p, 20, true);
     const b = await dueRun(id, p, 30, true);
     await makeDueRuns(admin, deps(), new Date(), scopeOpts());
@@ -582,6 +582,25 @@ describe("状態の見直しと知らせ", () => {
     await admin.from("auto_plans").update({ resumed_at: later.toISOString() }).eq("id", id);
     await reviewPlans(admin, deps(), later, scopeOpts());
     expect((await planRow()).status).toBe("active");
+  });
+
+  it("やらないことの弱い指摘（本番の「ネタバレに近いかもしれません」）は止めずに予約し、注意として残す。やらないことの言葉そのものが入れば止める（2026-11-25）", async () => {
+    const p = await project();
+    for (const b of ["終盤の大事な場面の話", "ネタバレの話"]) await note(p, b);
+    await admin.from("account_plans").upsert({ project_id: p, owner_id: aliceId, data: { pillars: { items: [], tone: "", avoid: "ネタバレをしない。値引きの話" } } as never });
+    const id = await plan(p);
+    await admin.from("auto_plans").update({ first_review: false }).eq("id", id);
+    findings = [{ sns: "threads", kind: "avoid", quote: "大事な場面", why: "作品の終盤につながる言葉なので、ネタバレをしないに近いかもしれません", fix: "", certain: false }];
+    const weak = await dueRun(id, p, 20);
+    await makeDueRuns(admin, deps(), new Date(), scopeOpts());
+    const w = (await admin.from("auto_runs").select("status, reason, material_ref").eq("id", weak).single()).data!;
+    expect(w.status).toBe("scheduled");
+    expect((w.material_ref as { cautions?: unknown[] }).cautions).toEqual([{ kind: "avoid", quote: "大事な場面", why: findings[0].why }]);
+    // AI がはっきりとは言わなくても、指摘したところに「ネタバレ」が入っていれば止める
+    findings = [{ sns: "threads", kind: "avoid", quote: "ネタバレ", why: "やらないことに近いかもしれません", fix: "", certain: false }];
+    const word = await dueRun(id, p, 20);
+    await makeDueRuns(admin, deps(), new Date(), scopeOpts());
+    expect((await admin.from("auto_runs").select("status, reason").eq("id", word).single()).data).toEqual({ status: "held", reason: "avoid" });
   });
 
   it("材料切れが 3 回続いたら止める", async () => {

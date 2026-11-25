@@ -48,12 +48,14 @@ export const aiCheckSchema = z.object({
         quote: z.string().describe("その文面から、直したいところをそのまま抜き出した部分（1 文以内。書き換えない）"),
         why: z.string().describe("なぜよくないか。読む人にどう見えるかを、素人にもわかる言葉で 1〜2 文。です・ます で書く（例: 値引きの話をしています）"),
         fix: z.string().describe("quote と置き換える文。消すほうがよければ空文字"),
+        certain: z.boolean().describe("はっきり当たると言えるなら true。当たるかもしれない、近い、くらいなら false"),
       }),
     )
     .describe(`指摘。大事なものから ${MAX_FINDINGS} つまで。直すところがなければ空`),
 });
 
-export type AiCheckFinding = { sns: SnsKey; kind: FindingKind; quote: string; why: string; fix: string };
+// certain: AI がはっきり当たると言えるか（2026-11-25。前の返事・テストの返事にはないので、ないときは true として扱う）
+export type AiCheckFinding = { sns: SnsKey; kind: FindingKind; quote: string; why: string; fix: string; certain?: boolean };
 export type AiCheckResult = { summary: string; findings: AiCheckFinding[] };
 export type CheckText = { sns: SnsKey; text: string };
 
@@ -77,6 +79,8 @@ export const AI_CHECK_SYSTEM = `あなたは「yabumi」の中で、宣伝した
   - タグがないことは指摘しない
 - tone（口調）: アカウント設計の口調と合っていない（です・ます調とくだけた口調が混ざる、決めた口調と違う）
 - avoid（やらないこと）: アカウント設計の「やらないこと」にはっきり当たる。当たるかもしれない、くらいのときは出さない
+- 指摘ごとの certain: はっきり当たると言えるなら true、当たるかもしれない・近い、くらいなら false にする
+- avoid の why は、1 文目でその言葉が読む人にどう見えるか、2 文目で「アカウントの方針」の「やらないこと」で決めたどれに当たるかを書く（例:「大事な場面」は、作品の終わりのほうを思わせる言葉です。「アカウントの方針」で決めた「ネタバレをしない」に当たるかもしれません）
 - other: AI が書いたように見える不自然さ。下の「日本語の書き方」に反するもの（「〜ですよね！」「〜しませんか？」の呼びかけの多用、感嘆符や飾りの記号（✨ 👉 など）の多さ、体言止めの連続、同じ語尾の連続、1 文ごとの改行、箇条書きの羅列、文末の「。」のばらつき（題名の行・言葉を並べた行・問いかけの行（？で終わる行や、？のあとに短い案内が続く行）・タグの行は文として数えない。「。」のない行があっても、それだけで指摘しない）、カタカナ語や英語の直訳のような言い回し、主語のない一般論）。ただし利用者が自分で書いた文の癖は、読みにくくなければ指摘しない
 
 # 利用者がわざと入れた言葉（重要）
@@ -154,7 +158,12 @@ const cap = (s: string, n: number) => {
 
 // 返事を検証する。quote が文面にないもの（言い換えてしまったもの）と、頼んでいない SNS の指摘は捨てる
 export function normalizeAiCheck(raw: unknown, texts: CheckText[]): AiCheckResult | null {
-  const parsed = aiCheckSchema.safeParse(raw);
+  // certain がない返事は、はっきり当たるものとして読む（止める側に倒す）
+  const withCertain =
+    raw && typeof raw === "object" && Array.isArray((raw as { findings?: unknown }).findings)
+      ? { ...raw, findings: (raw as { findings: unknown[] }).findings.map((f) => (f && typeof f === "object" && !("certain" in f) ? { ...f, certain: true } : f)) }
+      : raw;
+  const parsed = aiCheckSchema.safeParse(withCertain);
   if (!parsed.success) return null;
   const findings: AiCheckFinding[] = [];
   for (const f of parsed.data.findings) {
@@ -164,7 +173,7 @@ export function normalizeAiCheck(raw: unknown, texts: CheckText[]): AiCheckResul
     if (!target) continue;
     // 同じところへの同じ種類の指摘は 1 つに（種類が違えば残す。先に当てた直しで文面が変われば、あとのものは画面で「当てられませんでした」になる）
     if (findings.some((x) => x.sns === target.sns && x.quote === quote && x.kind === f.kind)) continue;
-    findings.push({ sns: target.sns, kind: f.kind, quote, why: cap(f.why, 300), fix: cap(f.fix, 1000) });
+    findings.push({ sns: target.sns, kind: f.kind, quote, why: cap(f.why, 300), fix: cap(f.fix, 1000), certain: f.certain });
     if (findings.length >= MAX_FINDINGS) break;
   }
   return { summary: cap(parsed.data.summary, 300), findings };

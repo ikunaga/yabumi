@@ -67,7 +67,10 @@ export default async function AutoPlanPage(props: PageProps<"/projects/[id]/auto
               {plan.name}
               <PlanStatusMark plan={plan} held={hold !== null} />
             </h1>
-            <p className="num text-[15px] text-faint">{hold && plan.status === "active" ? "新しい投稿はつくられません" : next ? `次は ${formatShort(next.dueAt)}` : plan.status === "active" ? "次の投稿はまだありません" : "止めています"}</p>
+            {/* 止めている・止まったことは、上の状態の印で伝えているので、ここには出さない（2026-11-25） */}
+            {plan.status === "active" && (
+              <p className="num text-[15px] text-faint">{hold ? "新しい投稿はつくられません" : next ? `次は ${formatShort(next.dueAt)}` : "次の投稿はまだありません"}</p>
+            )}
           </div>
           <PlanControls projectId={project.id} planId={plan.id} status={plan.status} nextLabel={next && !hold ? formatShort(next.dueAt) : null} held={hold !== null} formatChanged={plan.stopReason === "format_changed"} />
         </div>
@@ -227,6 +230,7 @@ function RunRow({ run, results, projectId }: { run: AutoRun; results: RunTargetR
           <Badge tone={tone}>{label}</Badge>
         </p>
         <RunReason run={run} sent={published.length > 0} />
+        <RunCautions run={run} sent={published.length > 0} />
         {expired.map((t) => (
           <p key={t.sns} className="flex flex-wrap items-center gap-x-1.5 text-[14px] text-muted">
             <SnsTag sns={t.sns} />
@@ -248,6 +252,29 @@ function RunRow({ run, results, projectId }: { run: AutoRun; results: RunTargetR
         )}
       </div>
     </li>
+  );
+}
+
+// 送る前の確認で出たが、止めずに送った弱い指摘（2026-11-25）。印は朱、くわしくは畳む
+function RunCautions({ run, sent }: { run: AutoRun; sent: boolean }) {
+  const list = run.cautions ?? [];
+  if (!list.length || run.status === "held") return null;
+  return (
+    <div className="flex flex-col gap-0.5 text-[14px] text-muted">
+      <p>
+        <span className="font-bold text-signal">注意</span> 送る前に AI が文を読み、気になる点が <span className="num">{list.length}</span> つありました。大きな問題ではないので、{sent ? "そのまま送りました。" : "予約どおり送ります。"}
+      </p>
+      <DisclosureBox label="気になる点を見る" size="sm">
+        <ul className="flex flex-col gap-1">
+          {list.map((c, i) => (
+            <li key={i}>
+              {/* 理由の文に抜き出しが入っていれば、2 回出さない */}
+              {c.why.includes(c.quote) ? c.why : `「${c.quote}」: ${c.why}`}
+            </li>
+          ))}
+        </ul>
+      </DisclosureBox>
+    </div>
   );
 }
 

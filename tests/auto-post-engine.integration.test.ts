@@ -7,7 +7,7 @@ vi.mock("server-only", () => ({}));
 import type { CallCheck } from "@/lib/ai/ai-check";
 import { setAiBudgetTestScope } from "@/lib/ai/budget";
 import type { AutoPostGenerator } from "@/lib/auto-post/ai";
-import { addUpcomingRuns, draftRun, EXPIRED_MESSAGE, makeDueRuns, makeSample, notifyMade, remindApprovals, reviewPlans, runAutoPostJob, settleApprovals, tagReserve, type EngineDeps } from "@/lib/auto-post/engine";
+import { addUpcomingRuns, draftRun, EXPIRED_MESSAGE, makeDueRuns, makeSample, notifyMade, notifyStops, remindApprovals, reviewPlans, runAutoPostJob, settleApprovals, tagReserve, type EngineDeps } from "@/lib/auto-post/engine";
 import { saveConnectedAccount } from "@/lib/sns/accounts";
 import type { SnsAdapter } from "@/lib/sns/adapters/types";
 import { publishDueTargets } from "@/lib/sns/publisher";
@@ -547,6 +547,41 @@ describe("状態の見直しと知らせ", () => {
     await admin.from("auto_runs").update({ status: "skipped", reason: "error", reason_detail: "時間内に作り終えられませんでした。3 回試しました", generate_at: new Date().toISOString() }).eq("id", c);
     await reviewPlans(admin, deps(), new Date(Date.now() + 33 * HOUR), scopeOpts());
     expect((await admin.from("auto_plans").select("status, fail_streak").eq("id", id).single()).data).toEqual({ status: "active", fail_streak: 0 });
+  });
+
+  it("再開したら、再開より前の回では止め直さない。止めた知らせは、届かなければ記録を空のままにして次のジョブで送り直し、届いたら 1 回だけ（2026-11-25 本番）", async () => {
+    const p = await project();
+    for (const b of ["held x", "held y"]) await note(p, b);
+    const id = await plan(p);
+    await admin.from("auto_plans").update({ first_review: false }).eq("id", id);
+    findings = [{ sns: "threads", kind: "made_up", quote: "の話", why: "本当ですか", fix: "" }];
+    await dueRun(id, p, 20, true);
+    await dueRun(id, p, 30, true);
+    await makeDueRuns(admin, deps(), new Date(), scopeOpts());
+    findings = [];
+    const later = new Date(Date.now() + 31 * HOUR);
+    // 端末がない: 止めるが、知らせたことにしない
+    const noDevice = vi.fn(async () => ({ sent: 0, removed: 0, failed: 0 }));
+    await reviewPlans(admin, { ...deps(), push: noDevice }, later, scopeOpts());
+    const planRow = async () => (await admin.from("auto_plans").select("status, stop_reason, stop_notified_at, resumed_at").eq("id", id).single()).data!;
+    expect(await planRow()).toMatchObject({ status: "stopped", stop_reason: "fail_streak", stop_notified_at: null });
+    // 次のジョブで送り直す。端末が登録されたら届いて記録し、そのあとは送らない
+    await notifyStops(admin, { ...deps(), push: noDevice }, later, scopeOpts());
+    expect(noDevice).toHaveBeenCalledTimes(2);
+    push.mockClear();
+    expect(await notifyStops(admin, deps(), later, scopeOpts())).toBe(1);
+    expect(await notifyStops(admin, deps(), later, scopeOpts())).toBe(0);
+    expect(push).toHaveBeenCalledTimes(1);
+    expect((await planRow()).stop_notified_at).not.toBeNull();
+    // 再開すると、再開した時刻が入り、知らせの記録は消える。同じ履歴（再開より前の 2 回）では止め直さない
+    expect((await alice.rpc("set_auto_plan_status", { p_project_id: p, p_plan_id: id, p_status: "active" })).error).toBeNull();
+    const resumed = await planRow();
+    expect(resumed).toMatchObject({ status: "active", stop_reason: null, stop_notified_at: null });
+    expect(resumed.resumed_at).not.toBeNull();
+    // テストは時刻を先に進めているので、再開した時刻も進めた時刻（2 回の送る時刻のあと）に合わせる
+    await admin.from("auto_plans").update({ resumed_at: later.toISOString() }).eq("id", id);
+    await reviewPlans(admin, deps(), later, scopeOpts());
+    expect((await planRow()).status).toBe("active");
   });
 
   it("材料切れが 3 回続いたら止める", async () => {

@@ -609,15 +609,16 @@ export async function makeDueRuns(admin: Db, deps: EngineDeps, now: Date, opts: 
 
 type Outcome = "good" | "bad" | "no_material" | "disconnected" | "neutral" | "pending";
 
-async function runOutcomes(admin: Db, planId: string, now: Date): Promise<Outcome[]> {
-  const { data, error } = await admin
+// resumedAt: 再開した時刻。これより前に送る回は数えない（再開のあと、止めたときと同じ履歴から止め直さないように。2026-11-25 本番）
+async function runOutcomes(admin: Db, planId: string, now: Date, resumedAt?: string | null): Promise<Outcome[]> {
+  let query = admin
     .from("auto_runs")
     .select("status, reason, due_at, posts!auto_runs_post_id_fkey(post_targets(status))")
     .eq("plan_id", planId)
     .in("status", ["scheduled", "held", "skipped"])
-    .lte("generate_at", now.toISOString())
-    .order("due_at", { ascending: false })
-    .limit(5);
+    .lte("generate_at", now.toISOString());
+  if (resumedAt) query = query.gt("due_at", resumedAt);
+  const { data, error } = await query.order("due_at", { ascending: false }).limit(5);
   if (error) throw error;
   return data.map((r) => {
     if (r.status === "skipped") return r.reason === "no_material" ? "no_material" : r.reason === "disconnected" ? "disconnected" : "neutral";
@@ -646,11 +647,11 @@ function streak(outcomes: Outcome[], kind: Outcome): number {
 }
 
 export async function reviewPlans(admin: Db, deps: EngineDeps, now: Date, opts: EngineOpts = {}): Promise<number> {
-  const { data: plans, error } = await scope(admin.from("auto_plans").select("id, owner_id, project_id, name, fail_streak").eq("status", "active"), opts);
+  const { data: plans, error } = await scope(admin.from("auto_plans").select("id, owner_id, project_id, name, fail_streak, resumed_at").eq("status", "active"), opts);
   if (error) throw error;
   let stopped = 0;
   for (const p of plans) {
-    const outcomes = await runOutcomes(admin, p.id, now);
+    const outcomes = await runOutcomes(admin, p.id, now, p.resumed_at);
     const bad = streak(outcomes, "bad");
     const reason: AutoStopReason | null =
       bad >= FAIL_STREAK_STOP ? "fail_streak" : streak(outcomes, "no_material") >= MATERIALS_OUT_STOP ? "materials_out" : outcomes.find((o) => o !== "pending" && o !== "neutral") === "disconnected" ? "disconnected" : null;
@@ -667,9 +668,40 @@ export async function reviewPlans(admin: Db, deps: EngineDeps, now: Date, opts: 
     if (!changed?.length) continue;
     stopped++;
     await stopUnsent(admin, p.id, now);
-    await notify(admin, deps, p.owner_id, { title: "自動投稿を止めました", body: `「${p.name}」: ${STOP_REASON_TEXT[reason]}`, url: `/projects/${p.project_id}/auto`, tag: `auto-stop:${p.id}` });
+    await notifyStop(admin, deps, { id: p.id, ownerId: p.owner_id, projectId: p.project_id, name: p.name }, reason, now);
   }
   return stopped;
+}
+
+// yabumi が止めたことを知らせる。届けたら（端末に届いた・お知らせを止めている）stop_notified_at を入れ、届かなければ空のまま、
+// 次のジョブ（notifyStops）でまた知らせる（2026-11-25 本番: 端末がないと届かず、記録も残らなかった）
+async function notifyStop(admin: Db, deps: EngineDeps, plan: { id: string; ownerId: string; projectId: string; name: string }, reason: AutoStopReason, now: Date) {
+  const outcome = await notify(admin, deps, plan.ownerId, { title: "自動投稿を止めました", body: `「${plan.name}」: ${STOP_REASON_TEXT[reason]}`, url: `/projects/${plan.projectId}/auto`, tag: `auto-stop:${plan.id}` });
+  if (outcome === "sent" || outcome === "off") await admin.from("auto_plans").update({ stop_notified_at: now.toISOString() }).eq("id", plan.id).eq("status", "stopped");
+  return outcome;
+}
+
+// 止めた知らせがまだ届いていない回し方に、もう一度知らせる（止めてから 3 日まで。運営者が止めたものは別の知らせ〈notifyHolds〉）
+const STOP_NOTICE_RETRY_MS = 3 * 86_400_000;
+export async function notifyStops(admin: Db, deps: EngineDeps, now: Date, opts: EngineOpts = {}): Promise<number> {
+  const { data, error } = await scope(
+    admin
+      .from("auto_plans")
+      .select("id, owner_id, project_id, name, stop_reason")
+      .eq("status", "stopped")
+      .is("stop_notified_at", null)
+      .not("stop_reason", "is", null)
+      .neq("stop_reason", "operator")
+      .gt("updated_at", new Date(now.getTime() - STOP_NOTICE_RETRY_MS).toISOString()),
+    opts,
+  );
+  if (error) throw error;
+  let sent = 0;
+  for (const p of data ?? []) {
+    const outcome = await notifyStop(admin, deps, { id: p.id, ownerId: p.owner_id, projectId: p.project_id, name: p.name }, p.stop_reason as AutoStopReason, now);
+    if (outcome === "sent") sent++;
+  }
+  return sent;
 }
 
 // 回し方を止めて知らせる（まだ作っていない回を取り消す。いまの回は呼ぶ側で取り消す）
@@ -682,7 +714,7 @@ async function stopPlan(admin: Db, deps: EngineDeps, plan: AutoPlan & { ownerId:
     .select("id");
   if (!changed?.length) return;
   await stopUnsent(admin, plan.id, now);
-  await notify(admin, deps, plan.ownerId, { title: "自動投稿を止めました", body: `「${plan.name}」: ${STOP_REASON_TEXT[reason]}`, url: `/projects/${plan.projectId}/auto`, tag: `auto-stop:${plan.id}` });
+  await notifyStop(admin, deps, { id: plan.id, ownerId: plan.ownerId, projectId: plan.projectId, name: plan.name }, reason, now);
 }
 
 // 止めた回し方の、まだ作っていない回を止め、作り終えてまだ何も送っていない投稿を下書きに戻す
@@ -1077,6 +1109,8 @@ export async function runAutoPostJob(admin: Db, deps: EngineDeps, opts: EngineOp
   const expired = await settleApprovals(admin, now, opts);
   const made = await makeDueRuns(admin, deps, now, opts);
   const stopped = await reviewPlans(admin, deps, now, opts);
+  // 止めた知らせが届かなかった回し方に、もう一度知らせる
+  await notifyStops(admin, deps, now, opts).catch((e) => console.error("[auto-post] 止めた知らせを送り直せませんでした", e instanceof Error ? e.message : e));
   const notified = await notifyMade(admin, deps, now, opts);
   const reminded = await remindApprovals(admin, deps, now, opts);
   const holdNotices = await notifyHolds(admin, deps, now, opts);

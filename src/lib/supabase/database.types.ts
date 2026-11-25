@@ -428,8 +428,10 @@ export type Database = {
           name: string
           owner_id: string
           project_id: string
+          resumed_at: string | null
           schedule: Json
           status: string
+          stop_notified_at: string | null
           stop_reason: string | null
           targets: Json
           tone: string
@@ -451,8 +453,10 @@ export type Database = {
           name: string
           owner_id: string
           project_id: string
+          resumed_at?: string | null
           schedule: Json
           status?: string
+          stop_notified_at?: string | null
           stop_reason?: string | null
           targets: Json
           tone?: string
@@ -474,8 +478,10 @@ export type Database = {
           name?: string
           owner_id?: string
           project_id?: string
+          resumed_at?: string | null
           schedule?: Json
           status?: string
+          stop_notified_at?: string | null
           stop_reason?: string | null
           targets?: Json
           tone?: string

@@ -5,7 +5,7 @@ import { formatSlots } from "@/lib/post-formats/schema";
 import { isSnsKey, type SnsKey } from "@/lib/sns";
 import { metricsState, type MetricsState } from "./metrics-state";
 import { createClient } from "@/lib/supabase/server";
-import { EXPIRED_MESSAGE } from "./engine";
+import { isExpiredTarget } from "./remind";
 
 // 自動の投稿の画面（実装担当3）だけが使う読み取り。core の queries.ts とは分けた（ジョブの担当と同じファイルを触らないように）。
 // どれも利用者の権限で読む（RLS で本人のものだけ）
@@ -55,7 +55,7 @@ export async function loadRunResults(postIds: string[]): Promise<Map<string, Run
       views,
       metrics: metricsState(t.sns, t.published_at, views, now),
       // 確かめないまま送る時刻を過ぎた配信先（engine の settleApprovals が failed にする）
-      expired: t.status === "failed" && t.error_message === EXPIRED_MESSAGE,
+      expired: isExpiredTarget(t),
     });
     out.set(t.post_id, list);
   }

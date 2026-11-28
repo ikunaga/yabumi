@@ -3716,6 +3716,10 @@ export type Database = {
         }
         Returns: string
       }
+      send_expired_auto_target: {
+        Args: { p_fingerprint: string; p_target_id: string }
+        Returns: undefined
+      }
       set_auto_plan_instructions: {
         Args: { p_instructions: Json; p_plan_id: string }
         Returns: Json

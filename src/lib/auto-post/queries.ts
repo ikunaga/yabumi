@@ -6,6 +6,8 @@ import { signedVideoUrl } from "@/lib/media/video-store";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { myAutoPostHold } from "./holds";
+import { EXPIRED_SEND_WINDOW_MS, isExpiredTarget } from "./remind";
+import { isReviewOnlySns } from "./labels";
 import { dueTimes } from "./schedule";
 import { toPlan, toRun, type PlanRow, type RunRow } from "./plan-row";
 import { NO_MEDIA, type ReviewMedia } from "./review-media";
@@ -180,6 +182,47 @@ export async function listAutoReviewItems(projectId: string, { media = true }: {
 // 確かめ待ちの数（一覧の上と概要の帯）
 export async function countAutoReviewItems(projectId: string): Promise<number> {
   return (await listAutoReviewItems(projectId, { media: false })).length;
+}
+
+// 確認できないまま送る時刻を過ぎた回（過ぎてから 24 時間まで。確認の画面の「時刻を過ぎた投稿」）。
+// 配信先は、過ぎた印（EXPIRED_MESSAGE）の付いた failed のものだけを出す
+export async function listExpiredAutoItems(projectId: string, now = new Date()): Promise<AutoReviewItem[]> {
+  const client = await db();
+  const { data, error } = await client
+    .from("auto_runs")
+    .select(`${RUN_COLUMNS}, auto_plans(name), posts!auto_runs_post_id_fkey(post_targets(id, status, error_message))`)
+    .eq("project_id", projectId)
+    .gt("due_at", new Date(now.getTime() - EXPIRED_SEND_WINDOW_MS).toISOString())
+    .lte("due_at", now.toISOString())
+    .not("post_id", "is", null)
+    .order("due_at", { ascending: false });
+  if (error) throw new Error(`auto_runs: ${error.message}`);
+  type Row = RunRow & { auto_plans: { name: string } | null; posts: { post_targets: { id: string; status: string; error_message: string | null }[] } | null };
+  const items: AutoReviewItem[] = [];
+  for (const r of data as unknown as Row[]) {
+    const late = new Set((r.posts?.post_targets ?? []).filter((t) => isExpiredTarget(t)).map((t) => t.id));
+    if (!late.size) continue;
+    const targets = (await loadTargetPreviews(client, r.post_id!)).filter((t) => late.has(t.targetId));
+    if (!targets.length) continue;
+    items.push({ kind: "expired", runId: r.id, planId: r.plan_id, planName: r.auto_plans?.name ?? "", postId: r.post_id!, dueAt: r.due_at, targets, media: await loadReviewMedia(client, r.post_id!) });
+  }
+  return items;
+}
+
+// 通知のリンクで開いた回が、確認待ち・過ぎた投稿のどちらにもないとき、いまどうなっているか（確認済み・送信済み・送らなかった）
+// too_late: 確認しないまま送る時刻を過ぎ、24 時間もたった / closed: 送らないことにした（この SNS には送らない・取り消した）
+export async function autoRunReviewState(runId: string): Promise<{ dueAt: string; upcoming: boolean; postId: string | null; state: "confirmed" | "sent" | "too_late" | "closed" } | null> {
+  const client = await db();
+  const { data, error } = await client.from("auto_runs").select("due_at, status, post_id, posts!auto_runs_post_id_fkey(post_targets(sns, status, error_message))").eq("id", runId).maybeSingle();
+  if (error) throw new Error(`auto_runs: ${error.message}`);
+  if (!data) return null;
+  const targets = ((data.posts as { post_targets: { sns: string; status: string; error_message: string | null }[] } | null)?.post_targets ?? []).filter((t) => isReviewOnlySns(t.sns));
+  // upcoming: 送る時刻の前（確認済みなら、その時刻に送る）
+  const base = { dueAt: data.due_at, upcoming: new Date(data.due_at).getTime() > Date.now(), postId: data.post_id };
+  if (targets.some((t) => t.status === "published")) return { ...base, state: "sent" };
+  if (targets.some((t) => t.status === "pending" || t.status === "publishing" || t.status === "preparing")) return { ...base, state: "confirmed" };
+  if (targets.some((t) => isExpiredTarget(t))) return { ...base, state: "too_late" };
+  return { ...base, state: "closed" };
 }
 
 // お知らせ・季節の予定（日付の順）

@@ -19,7 +19,9 @@ let bobId: string;
 let projectId: string;
 
 const HOUR = 3_600_000;
-const later = (h: number) => new Date(Date.now() + h * HOUR).toISOString();
+// 「いま」は、あすの日本時間 15:00 に固定する（リマインドは夜中〈22:00〜8:00〉に送らないので、テストを動かす時刻に左右されないように）
+const NOW = new Date(`${new Date(Date.now() + 9 * HOUR + 86_400_000).toISOString().slice(0, 10)}T15:00:00+09:00`);
+const later = (h: number) => new Date(NOW.getTime() + h * HOUR).toISOString();
 const sent: { to: string[]; subject: string; text: string; headers?: Record<string, string> }[] = [];
 let status = 200;
 const fakeFetch = vi.fn(async (_url: unknown, init?: RequestInit) => {
@@ -27,7 +29,7 @@ const fakeFetch = vi.fn(async (_url: unknown, init?: RequestInit) => {
   return new Response("{}", { status });
 });
 const deps = { mail: { apiKey: "test-key", fetch: fakeFetch as unknown as typeof fetch }, appUrl: "https://yabumi.example" };
-const run = () => mailAutoNotices(admin, new Date(), deps, { ownerIds: [aliceId] });
+const run = (now = NOW) => mailAutoNotices(admin, now, deps, { ownerIds: [aliceId] });
 
 async function newPlan(name = "毎朝のパン"): Promise<string> {
   const { data, error } = await alice.rpc("save_auto_plan", {
@@ -103,7 +105,7 @@ afterAll(async () => {
 });
 
 describe("まとめて送る・二重に送らない", () => {
-  it("下書き・1 回目の確認待ち・2 時間前の確認待ち・止めた回し方を 1 通にまとめる。投稿の本文は入れない。2 回目は送らない", async () => {
+  it("下書き・1 回目の確認待ち・送る前の確認待ち・止めた回し方を 1 通にまとめる。投稿の本文は入れない。2 回目は送らない", async () => {
     const plan = await newPlan();
     await runWithPost(plan, { status: "held", dueAt: later(30), targets: [["threads", "pending"]] });
     await runWithPost(plan, { status: "review", dueAt: later(26), targets: [["threads", "pending"], ["x", "awaiting_approval"]] });
@@ -124,7 +126,7 @@ describe("まとめて送る・二重に送らない", () => {
     expect(m.text).toMatch(/・「毎朝のパン」.* に X に送る投稿を、まだ確認していません。/);
     expect(m.text).toMatch(/・「毎朝のパン」.* の投稿は、送らずに下書きに残しました。/);
     expect(m.text.match(/まだ確認していません/g)).toHaveLength(1);
-    expect(m.text).toContain(`確認する: https://yabumi.example/projects/${projectId}/auto`);
+    expect(m.text).toContain(`確認する: https://yabumi.example/projects/${projectId}/auto/review?run=`);
     expect(m.text).not.toContain(BODY);
     expect(m.headers?.["List-Unsubscribe"]).toMatch(/&k=auto>$/);
     expect((await logs()).map((l) => l.kind).sort()).toEqual(["auto_held", "auto_remind", "auto_review", "auto_stop"]);

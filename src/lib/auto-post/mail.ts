@@ -5,11 +5,13 @@ import { sendUserMail, type UserMailDeps, type UserMailResult } from "@/lib/noti
 import { SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
 import type { Database } from "@/lib/supabase/database.types";
 import { STOP_REASON_TEXT } from "./labels";
+import { EXPIRED_SEND_WINDOW_MS, isExpiredTarget, isQuietHour, remindDecision, REMIND_LOOKAHEAD_MS } from "./remind";
 import type { AutoStopReason } from "./types";
 
 // 自動投稿の大事な知らせのメール（2026-11-23 オーナーの指示「メールでも送れるようにして」。PM が案を了承。docs/design/auto-post.md の 2.7）。
 // スマホの通知とは別に選び、ジョブの 1 回ごとに 1 人 1 通にまとめる。送るのは次のものだけ（「予約しました」だけの知らせは送らない。多すぎるため）:
-// - held: 下書きに残した回 / review: 1 回目の確認待ちの回 / remind: 確認待ちのまま送る時刻の 2 時間前になった回
+// - held: 下書きに残した回 / review: 1 回目の確認待ちの回 / remind: 確認待ちのまま送る時刻が近づいた回（時刻は remind.ts。夜中は送らない）
+// - expired: 確認できないまま送る時刻を過ぎた「確認して送る」SNS（過ぎてから 24 時間は、確認の画面から今すぐ送れる。2026-11-28）
 // - stop: yabumi が回し方を止めた（利用者が自分で止めたときは送らない）/ hold・release: 運営者が自動投稿を止めた・解除した
 // 中身は、プロジェクトと回し方の名前・送る日時・SNS の名前・止まった理由・画面へのリンクだけ（投稿の本文は入れない。docs/legal.md の ② の案）。
 // 同じ知らせは notification_log（channel = email）で 1 回だけ。送れなかったら記録を消し、次のジョブでまた送る（送る時刻を過ぎた回は送らない）。
@@ -23,7 +25,7 @@ export function autoPostMailEnabled(env: NodeJS.ProcessEnv = process.env): boole
 }
 
 // auto_failed: 回を作れなかった（やり直しても駄目で飛ばした。2026-11-24 から）
-export type AutoMailKind = "auto_held" | "auto_review" | "auto_remind" | "auto_stop" | "auto_hold" | "auto_release" | "auto_failed";
+export type AutoMailKind = "auto_held" | "auto_review" | "auto_remind" | "auto_stop" | "auto_hold" | "auto_release" | "auto_failed" | "auto_expired";
 export type AutoNotice = {
   kind: AutoMailKind;
   ownerId: string;
@@ -41,8 +43,6 @@ export type AutoNotice = {
   runId?: string;
 };
 
-// 確かめ待ちのまま、送る時刻の何時間前に知らせるか（engine.ts の remindApprovals と同じ）
-export const MAIL_REMIND_BEFORE_MS = 2 * 3_600_000;
 // 止めた・運営者の知らせを、何日前のものまで送るか（ジョブが止まっていたあとに、古い知らせをまとめて送らない）
 const RECENT_MS = 3 * 86_400_000;
 
@@ -77,6 +77,8 @@ export function noticeLine(n: AutoNotice): string {
       return `・「${n.planName}」${at} の ${to} の投稿は、送らずに下書きに残しました。送るときは、確認して予約し直してください。`;
     case "auto_stop":
       return `・「${n.planName}」: ${[n.reason, n.next].filter(Boolean).join("。")}`;
+    case "auto_expired":
+      return `・「${n.planName}」${at} の ${to} の投稿は、送っていません。確認しないまま、送る時刻を過ぎました。${n.dueAt ? jstDateTime(new Date(n.dueAt.getTime() + EXPIRED_SEND_WINDOW_MS)) : ""} までなら、今すぐ送れます。`;
     case "auto_failed":
       return `・「${n.planName}」${at} の投稿は、作れませんでした。${to} には送っていません。次の投稿は、いつもどおり送ります。`;
     case "auto_hold":
@@ -88,7 +90,7 @@ export function noticeLine(n: AutoNotice): string {
 
 const SECTIONS: { title: string; kinds: AutoMailKind[] }[] = [
   { title: "止まっている自動投稿", kinds: ["auto_stop"] },
-  { title: "確認が要る投稿", kinds: ["auto_review", "auto_remind"] },
+  { title: "確認が要る投稿", kinds: ["auto_review", "auto_remind", "auto_expired"] },
   { title: "下書きに残した投稿", kinds: ["auto_held"] },
   { title: "作れなかった投稿", kinds: ["auto_failed"] },
 ];
@@ -116,13 +118,15 @@ export function autoUnsubscribeHeaders(c: MailContext): Record<string, string> {
   };
 }
 
+const REVIEW_KINDS: AutoMailKind[] = ["auto_review", "auto_remind", "auto_expired"];
+
 // 1 人に 1 通の件名と本文（テストで中身を確かめる）。件名は、中の 1 番重い知らせで決める
 export function autoMail(notices: AutoNotice[], c: MailContext): { subject: string; text: string } {
   const has = (k: AutoMailKind) => notices.some((n) => n.kind === k);
   const subject =
     has("auto_hold") || has("auto_stop")
       ? "yabumi: 自動投稿が止まっています"
-      : has("auto_review") || has("auto_remind")
+      : has("auto_review") || has("auto_remind") || has("auto_expired")
         ? "yabumi: 自動投稿の確認をお願いします"
         : has("auto_held")
           ? "yabumi: 自動投稿を送らずに下書きに残しました"
@@ -141,9 +145,11 @@ export function autoMail(notices: AutoNotice[], c: MailContext): { subject: stri
     for (const s of SECTIONS) {
       const items = mine.filter((n) => s.kinds.includes(n.kind));
       if (!items.length) continue;
-      lines.push(s.title, ...items.map(noticeLine));
+      lines.push(s.title);
+      // 確認が要る知らせには、その回の確認の画面へのリンクを付ける（ログインしていなければ、ログインしたあとここに戻る）
+      for (const n of items) lines.push(noticeLine(n), ...(REVIEW_KINDS.includes(n.kind) && n.runId ? [`  確認する: ${c.appUrl}/projects/${p}/auto/review?run=${n.runId}`] : []));
     }
-    lines.push(`確認する: ${c.appUrl}/projects/${p}/auto`);
+    lines.push(`自動投稿を開く: ${c.appUrl}/projects/${p}/auto`);
   }
   lines.push("", autoMailFooter(c));
   return { subject, text: lines.join("\n") };
@@ -157,7 +163,8 @@ type RunRow = {
   status: string;
   auto_plans: { name: string; targets: unknown } | null;
   projects: { name: string } | null;
-  posts: { post_targets: { sns: string; status: string }[] } | null;
+  notified_at?: string | null;
+  posts: { post_targets: { sns: string; status: string; error_message?: string | null }[] } | null;
 };
 type Scope = { ownerIds?: string[] };
 const scoped = <Q extends { in: (col: string, v: string[]) => Q }>(q: Q, opts: Scope, col = "owner_id"): Q => (opts.ownerIds ? q.in(col, opts.ownerIds) : q);
@@ -165,7 +172,8 @@ const planSns = (r: RunRow): SnsKey[] => {
   const t = r.auto_plans?.targets;
   return t && typeof t === "object" ? (Object.keys(t) as SnsKey[]) : (r.posts?.post_targets ?? []).map((x) => x.sns as SnsKey);
 };
-const RUN_SELECT = "id, owner_id, project_id, due_at, status, auto_plans!auto_runs_plan_id_fkey(name, targets), projects(name), posts!auto_runs_post_id_fkey(post_targets(sns, status))";
+const RUN_SELECT =
+  "id, owner_id, project_id, due_at, status, notified_at, auto_plans!auto_runs_plan_id_fkey(name, targets), projects(name), posts!auto_runs_post_id_fkey(post_targets(sns, status, error_message))";
 
 // まだメールで送っていないかは、送るときに notification_log で確かめる（ここは候補を集めるだけ）
 export async function collectAutoNotices(admin: Db, now: Date, opts: Scope = {}): Promise<AutoNotice[]> {
@@ -196,14 +204,14 @@ export async function collectAutoNotices(admin: Db, now: Date, opts: Scope = {})
   if (e5) throw e5;
   for (const r of failed as unknown as RunRow[]) out.push(runNotice(r, "auto_failed", planSns(r)));
 
-  // 確認待ちのまま、送る時刻の 2 時間前になった回（1 回目の確認待ち、または送り先のどれかが確認待ち）。運営者が止めている人には促さない
+  // 確認待ちのまま、送る時刻が近づいた回（1 回目の確認待ち、または送り先のどれかが確認待ち。時刻は remind.ts）。運営者が止めている人には促さない
   const { data: soon, error: e2 } = await scoped(
     admin
       .from("auto_runs")
       .select(RUN_SELECT)
       .in("status", ["scheduled", "review"])
       .gt("due_at", iso)
-      .lte("due_at", new Date(now.getTime() + MAIL_REMIND_BEFORE_MS).toISOString()),
+      .lte("due_at", new Date(now.getTime() + REMIND_LOOKAHEAD_MS).toISOString()),
     opts,
   );
   if (e2) throw e2;
@@ -215,7 +223,27 @@ export async function collectAutoNotices(admin: Db, now: Date, opts: Scope = {})
     if (held.has(r.owner_id)) continue;
     const waiting = (r.posts?.post_targets ?? []).filter((t) => t.status === "awaiting_approval").map((t) => t.sns as SnsKey);
     if (r.status !== "review" && !waiting.length) continue;
+    if (remindDecision(r, now) !== "send") continue;
     out.push(runNotice(r, "auto_remind", r.status === "review" ? planSns(r) : waiting));
+  }
+
+  // 確認できないまま送る時刻を過ぎた「確認して送る」SNS（過ぎてから 24 時間まで。夜中は送らない）
+  if (!isQuietHour(now)) {
+    const { data: late, error: e6 } = await scoped(
+      admin
+        .from("auto_runs")
+        .select(RUN_SELECT)
+        .gt("due_at", new Date(now.getTime() - EXPIRED_SEND_WINDOW_MS).toISOString())
+        .lte("due_at", iso)
+        .not("post_id", "is", null),
+      opts,
+    );
+    if (e6) throw e6;
+    for (const r of late as unknown as RunRow[]) {
+      if (held.has(r.owner_id)) continue;
+      const sns = (r.posts?.post_targets ?? []).filter((t) => isExpiredTarget(t)).map((t) => t.sns as SnsKey);
+      if (sns.length) out.push(runNotice(r, "auto_expired", sns));
+    }
   }
 
   // yabumi が止めた回し方（止めた理由が入っているもの。利用者が自分で止めたときは stop_reason が空）

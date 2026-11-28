@@ -14,6 +14,7 @@ import { splitTagsByText, withHashtags } from "@/lib/sns/hashtags";
 import type { Database } from "@/lib/supabase/database.types";
 import { autoPostGenerator, fakeAiMode, type AutoPostGenerator } from "./ai";
 import { callAiCheck, callShortenDrafts } from "@/lib/ai/anthropic";
+import { EXPIRED_MESSAGE, EXPIRED_SEND_WINDOW_MS, isExpiredTarget, isQuietHour, remindDecision, REMIND_LOOKAHEAD_MS } from "./remind";
 import { applyAiCheck, formatFixedParts, inFixedParts, isCautionFinding, isHardFinding, plainIssues, tagReserve, type Issue, type Texts } from "./checks";
 export { tagReserve } from "./checks";
 import { isNoMaterial, pickMaterial, type Material, type MaterialDeps, type PastRef, type ProjectRow } from "./materials";
@@ -46,10 +47,10 @@ export const RECENT_FOR_AI = 10;
 export const DAILY_PER_SNS = 2; // 1 人の自動の回は、1 日に SNS ごとに 2 本まで（2.7）
 export const FAIL_STREAK_STOP = 2;
 export const MATERIALS_OUT_STOP = 3;
-export const REMIND_BEFORE_MS = 2 * 3_600_000;
 // 送る時刻のあと、結果を見るまで待つ（送信ジョブの 3 回のやり直し〈1 分・5 分〉と、準備中の公開が済むまで）
 export const SETTLE_AFTER_MS = 15 * 60_000;
-export const EXPIRED_MESSAGE = "確認できないまま送る時刻を過ぎたので、送りませんでした。送るときは、日時を直して確認してください。";
+// 確認できないまま送る時刻を過ぎた配信先の印（文は remind.ts。DB の send_expired_auto_target もこの文で見分ける）
+export { EXPIRED_MESSAGE } from "./remind";
 export const REVIEW_EXPIRED_DETAIL = "1 回目の投稿を確認しないまま、送る時刻を過ぎました";
 
 export type EngineDeps = {
@@ -820,36 +821,95 @@ export async function notifyMade(admin: Db, deps: EngineDeps, now: Date, opts: E
   return sent;
 }
 
-// 確かめ待ちのまま、送る時刻の 2 時間前になった回をもう一度知らせる（1 回だけ）
+// 確かめ待ちのまま、送る時刻が近づいた回をもう一度知らせる（1 回だけ。時刻の決まりは remind.ts）。
+// 端末に届いた（お知らせを止めている人も）ときだけ reminded_at を入れる。届かなければ、送る時刻の前まで次のジョブでまた送る
+// （前は届かなくても入れていた。2026-11-28）。リンクは、その回の確認の画面
 export async function remindApprovals(admin: Db, deps: EngineDeps, now: Date, opts: EngineOpts = {}): Promise<number> {
   const { data, error } = await scope(
     admin
       .from("auto_runs")
-      .select("id, owner_id, project_id, due_at, status, posts!auto_runs_post_id_fkey(post_targets(sns, status))")
+      .select("id, owner_id, project_id, due_at, status, notified_at, posts!auto_runs_post_id_fkey(post_targets(sns, status))")
       .is("reminded_at", null)
       .in("status", ["scheduled", "review"])
       .gt("due_at", now.toISOString())
-      .lte("due_at", new Date(now.getTime() + REMIND_BEFORE_MS).toISOString()),
+      .lte("due_at", new Date(now.getTime() + REMIND_LOOKAHEAD_MS).toISOString()),
     opts,
   );
   if (error) throw error;
   // 運営者が止めている人には、承認を促さない（承認は断られる）
-  const rows = data as NotifyRow[];
+  const rows = data as (NotifyRow & { notified_at: string | null })[];
   const held = rows.length ? await heldUserIds(admin, [...new Set(rows.map((r) => r.owner_id))]) : new Set<string>();
   let n = 0;
   for (const r of rows) {
     if (held.has(r.owner_id)) continue;
     const waiting = (r.posts?.post_targets ?? []).filter((t) => t.status === "awaiting_approval").map((t) => t.sns as SnsKey);
     if (r.status !== "review" && !waiting.length) continue;
+    const decision = remindDecision(r, now);
+    if (decision === "wait") continue;
+    if (decision === "skip") {
+      await admin.from("auto_runs").update({ reminded_at: now.toISOString() }).eq("id", r.id);
+      continue;
+    }
     const at = jstHm(new Date(r.due_at));
-    await notify(admin, deps, r.owner_id, {
+    const outcome = await notify(admin, deps, r.owner_id, {
       title: "自動投稿が確認待ちです",
-      body: r.status === "review" ? `${at} に送る 1 回目の投稿を、まだ確認していません` : `${at} に ${labels(waiting)} に送る投稿を、まだ確認していません`,
-      url: `/projects/${r.project_id}/auto`,
+      body:
+        r.status === "review"
+          ? `${at} に送る 1 回目の投稿を、まだ確認していません。確認しないと送りません`
+          : `${at} に ${labels(waiting)} に送る投稿を、まだ確認していません。確認しないと送りません`,
+      url: reviewHref(r.project_id, r.id),
       tag: `auto-remind:${r.id}`,
     });
+    if (outcome === "none" || outcome === "error") continue;
     await admin.from("auto_runs").update({ reminded_at: now.toISOString() }).eq("id", r.id);
-    n++;
+    if (outcome === "sent") n++;
+  }
+  return n;
+}
+
+// 確認の画面の、その回へのリンク（ログインしていなければ、ログインしたあとここに戻る。proxy の next）
+export const reviewHref = (projectId: string, runId: string) => `/projects/${projectId}/auto/review?run=${runId}`;
+
+// 確認できないまま送る時刻を過ぎた「確認して送る」SNS を、1 回だけ知らせる（過ぎてから 24 時間は、確認の画面から今すぐ送れる）。
+// 二重に送らないよう notification_log（channel = push）に先に書き、届かなければ消して次のジョブでまた送る。夜中は鳴らさない
+export async function notifyExpired(admin: Db, deps: EngineDeps, now: Date, opts: EngineOpts = {}): Promise<number> {
+  if (isQuietHour(now)) return 0;
+  const { data, error } = await scope(
+    admin
+      .from("auto_runs")
+      .select("id, owner_id, project_id, due_at, posts!auto_runs_post_id_fkey(post_targets(id, sns, status, error_message))")
+      .gt("due_at", new Date(now.getTime() - EXPIRED_SEND_WINDOW_MS).toISOString())
+      .lte("due_at", now.toISOString())
+      .not("post_id", "is", null),
+    opts,
+  );
+  if (error) throw error;
+  type Row = { id: string; owner_id: string; project_id: string; due_at: string; posts: { post_targets: { id: string; sns: string; status: string; error_message: string | null }[] } | null };
+  const rows = (data as unknown as Row[]).flatMap((r) => {
+    const late = (r.posts?.post_targets ?? []).filter((t) => isExpiredTarget(t));
+    return late.length ? [{ ...r, late }] : [];
+  });
+  const held = rows.length ? await heldUserIds(admin, [...new Set(rows.map((r) => r.owner_id))]) : new Set<string>();
+  let n = 0;
+  for (const r of rows) {
+    if (held.has(r.owner_id)) continue;
+    const { data: claimed } = await admin
+      .from("notification_log")
+      .upsert({ user_id: r.owner_id, project_id: r.project_id, kind: "auto_expired", period_key: r.id, channel: "push" }, { onConflict: "user_id,project_id,kind,period_key,channel", ignoreDuplicates: true })
+      .select("id");
+    if (!claimed?.length) continue;
+    const sns = r.late.map((t) => t.sns as SnsKey);
+    const outcome = await notify(admin, deps, r.owner_id, {
+      title: `${labels(sns)} への投稿を送っていません`,
+      body: `${jstHm(new Date(r.due_at))} の投稿は、確認しないまま時刻を過ぎました。${jstHm(new Date(new Date(r.due_at).getTime() + EXPIRED_SEND_WINDOW_MS))} までなら、今すぐ送れます`,
+      url: reviewHref(r.project_id, r.id),
+      tag: `auto-expired:${r.id}`,
+    });
+    if (outcome === "none" || outcome === "error") {
+      await admin.from("notification_log").delete().eq("id", claimed[0].id);
+      continue;
+    }
+    if (outcome === "sent") n++;
   }
   return n;
 }
@@ -1134,6 +1194,7 @@ export async function runAutoPostJob(admin: Db, deps: EngineDeps, opts: EngineOp
   await notifyStops(admin, deps, now, opts).catch((e) => console.error("[auto-post] 止めた知らせを送り直せませんでした", e instanceof Error ? e.message : e));
   const notified = await notifyMade(admin, deps, now, opts);
   const reminded = await remindApprovals(admin, deps, now, opts);
+  await notifyExpired(admin, deps, now, opts).catch((e) => console.error("[auto-post] 送れなかった知らせを送れませんでした", e instanceof Error ? e.message : e));
   const holdNotices = await notifyHolds(admin, deps, now, opts);
   // メールはスマホの通知とは別に選ぶ（通知を送ったかどうかに関わらず、まだメールで送っていない知らせを 1 人 1 通にまとめる）。失敗してもジョブは止めない
   // 規約の変更の施行までは送らない（AUTO_POST_MAIL=on のときだけ）

@@ -204,3 +204,40 @@ describe("読めないものが溜まっても、後ろの読めるものに手�
     expect(x.post).not.toHaveBeenCalled();
   });
 });
+
+// 時刻を進めて読むので、ほかのテストの配信先も読み直す。合計を見るテストに響かないよう、いちばん後ろに置く
+describe("最初の 7 日の読み直し（2026-11-28）", () => {
+  it("最初の 7 日は毎朝読み直す。1 日目に 0 が返っても、次の日に増えた値が最新になる（2026-11-28 本番）", async () => {
+    const t = await publishedTarget("threads", withScope, daysAgo(1.2));
+    let views = 0;
+    const threads: InsightsFetcher = { post: vi.fn(async () => ({ views, likes: views ? 2 : 0 })), account: vi.fn(async () => ({ followers: 50 })) };
+    const run = (at: Date) => runSnsMetricsImport(admin, { fetchers: { threads }, key, ownerId: aliceId, insightsEnv: "threads", now: () => at });
+    await run(NOW);
+    // 同じ日のうちは読み直さない
+    await run(new Date(NOW.getTime() + 3_600_000));
+    views = 120;
+    await run(new Date(NOW.getTime() + 86_400_000));
+    const { data } = await alice.from("post_metrics").select("day_index, values").eq("post_target_id", t.targetId).order("day_index");
+    expect(data).toEqual([
+      { day_index: 1, values: { views: 0, likes: 0 } },
+      { day_index: 2, values: { views: 120, likes: 2 } },
+    ]);
+    // 画面（numbers.ts など）は day_index がいちばん大きい行を使うので、120 が出る。あとのテストの合計に入らないよう消す
+    await admin.from("posts").delete().eq("id", t.postId);
+  });
+
+  it("読む日を何日か逃しても、1 回の呼び出しで 1 つの配信先は 1 回だけ、いちばん新しい日の分を読む", async () => {
+    const t = await publishedTarget("threads", withScope, daysAgo(4.5));
+    const threads = fakeFetcher(40);
+    await runSnsMetricsImport(admin, { fetchers: { threads }, key, ownerId: aliceId, insightsEnv: "threads", now: () => NOW });
+    const { data } = await alice.from("post_metrics").select("day_index").eq("post_target_id", t.targetId);
+    expect(data).toEqual([{ day_index: 4 }]);
+    await admin.from("posts").delete().eq("id", t.postId);
+  });
+
+  it("時期の関数は、利用者と匿名からは呼べない（ジョブだけ）", async () => {
+    const args = { p_insights: { threads: "threads_manage_insights" }, p_now: NOW.toISOString() };
+    expect((await alice.rpc("due_post_metric_targets", args)).error?.code).toBe("42501");
+    expect((await anonClient().rpc("due_post_metric_targets", args)).error?.code).toBe("42501");
+  });
+});

@@ -6,6 +6,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { isProcessing, RESULT_POLL_MAX, RESULT_POLL_MS } from "@/lib/posts/send-mode";
 import { Button, buttonClass } from "@/components/ui/button";
+import { CopyButton } from "@/components/ui/copy-button";
 import { deleteFromSns, markManualPosted, markRemovedOnSns } from "@/lib/posts/send-actions";
 import { SNS, SNS_KEYS, isManualSns, type SnsKey } from "@/lib/sns";
 import { formatShort } from "@/lib/time";
@@ -338,7 +339,6 @@ function ManualSteps({
   quote?: boolean;
 }) {
   const [url, setUrl] = useState("");
-  const [copied, setCopied] = useState<"title" | "body" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const label = SNS[sns].label;
@@ -349,14 +349,8 @@ function ManualSteps({
   const youtube = sns === "youtube";
   const n = (i: number) => (tiktok || youtube ? i + 1 : i);
 
-  async function copy(kind: "title" | "body", text: string) {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(kind);
-      setTimeout(() => setCopied(null), 2000);
-    } catch {
-      setError("コピーできませんでした。本文を選んでコピーしてください。");
-    }
+  function copyFailed() {
+    setError("コピーできませんでした。本文を選んでコピーしてください。");
   }
 
   return (
@@ -405,13 +399,9 @@ function ManualSteps({
         <li className="flex flex-wrap items-center gap-2">
           <span className="text-muted">{n(1)}.</span>
           {m.title && (
-            <Button type="button" variant="secondary" size="sm" onClick={() => copy("title", m.title!)}>
-              {copied === "title" ? "コピーしました" : "タイトルをコピー"}
-            </Button>
+            <CopyButton text={m.title} label="タイトルをコピー" onError={copyFailed} />
           )}
-          <Button type="button" variant="secondary" size="sm" onClick={() => copy("body", m.text)}>
-            {copied === "body" ? "コピーしました" : "本文をコピー"}
-          </Button>
+          <CopyButton text={m.text} label="本文をコピー" onError={copyFailed} />
         </li>
         {tiktok ? (
           // 長い 1 文なので、番号と文を 1 つの文にして折り返す（ほかの番号と同じ形。スマホで番号だけが別の行にならないように）

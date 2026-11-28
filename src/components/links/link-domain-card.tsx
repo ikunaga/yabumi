@@ -41,20 +41,23 @@ type Props = {
   profileLinks: { sns: string; url: string }[];
 };
 
-const CHECK_MESSAGE: Record<string, { tone: "wait" | "fix" | "ok"; text: string }> = {
-  dns_missing: { tone: "wait", text: "追加した行が、まだ見えません。見えるまで、数分〜数時間かかることがあります。まだ追加していなければ、上の表の行を追加してください。少しおいてから、もう一度「確認する」を押してください。" },
+// tone: fix は直すことがはっきりしているとき、check は入れたものを見てほしいとき（まだ入っていないか、見えるまで待つか、どちらもあり得る）、wait は待てばよいとき。
+// 見出しと本文が食い違わないように分ける（2026-11-28 ja-copy-reviewer の指摘）
+const CHECK_HEAD = { fix: "直してください: ", check: "見てください: ", wait: "このまま待ってください: " } as const;
+const CHECK_MESSAGE: Record<string, { tone: keyof typeof CHECK_HEAD; text: string }> = {
+  dns_missing: { tone: "check", text: "追加した行が、まだ見えません。見えるまで、数分〜数時間かかることがあります。まだ追加していなければ、上の行を追加してください。少しおいてから、もう一度「確認する」を押してください。" },
   wrong_value: {
     tone: "fix",
     text: "DNS の値が違います。上の表と同じになっているか確認してください。種類が A か CNAME で、名前が同じ古い行があれば、削除してください。",
   },
   proxied: { tone: "fix", text: "Cloudflare の Proxy がオンになっています。オレンジの雲の印です。その行の雲を押して灰色の DNS only にしてから、保存してください。" },
-  owner_txt_missing: { tone: "fix", text: "あなたのドメインだと確認する、2 行目の TXT がまだ見えません。追加したばかりなら、数分おいてからもう一度「確認する」を押してください。" },
+  owner_txt_missing: { tone: "check", text: "2 行目の TXT が、まだ見えません。名前と値が、上の 2 行目と同じか見てください。追加したばかりなら、数分おいてからもう一度「確認する」を押してください。" },
   txt_missing: { tone: "fix", text: "3 行目の TXT が、まだ見えません。3 行目も追加してください。" },
   cert_pending: {
     tone: "wait",
     text: "行は確認できました。いま、リンクを安全に開けるように準備しています。数分〜1 時間ほどかかります。少しおいてから、もう一度「確認する」を押してください。",
   },
-  error: { tone: "fix", text: "いま確認できませんでした。時間をおいてもう一度お試しください。" },
+  error: { tone: "wait", text: "いま確認できませんでした。時間をおいてもう一度お試しください。" },
 };
 
 export function LinkDomainCard({ projectId, ready, domain, defaultHost, profileLinks }: Props) {
@@ -185,8 +188,13 @@ function records(domain: LinkDomainView): DnsRecord[] {
     { type: "CNAME", name: dnsRecordName(domain.domain, apex), value: domain.cnameTarget, why: "yabumi につなぐため" },
     { type: "TXT", name: dnsRecordName(ownershipRecordName(domain.domain), apex), value: ownershipRecordValue(domain.ownershipToken), why: "あなたのドメインだと確認するため" },
   ];
-  if (domain.txtValue) list.push({ type: "TXT", name: dnsRecordName(domain.txtName || `_vercel.${apex}`, apex), value: domain.txtValue, why: "yabumi が使っているサービスの確認のため" });
+  if (domain.txtValue) list.push({ type: "TXT", name: dnsRecordName(thirdRecordName(domain), apex), value: domain.txtValue, why: "yabumi が使っているサービスの確認のため" });
   return list;
+}
+
+// 3 行目（Vercel の確認の TXT）の、ドメインまでの名前
+function thirdRecordName(domain: LinkDomainView): string {
+  return domain.txtName || `_vercel.${apexOf(domain.domain)}`;
 }
 
 function RecordTable({ domain }: { domain: LinkDomainView }) {
@@ -214,94 +222,143 @@ function RecordTable({ domain }: { domain: LinkDomainView }) {
       ))}
       <p className="text-xs leading-[1.7] text-muted">
         「名前」の欄に、ドメインまですべて入れる形のサービスもあります。そのときは、1 行目は <code>{domain.domain}</code>、2 行目は{" "}
-        <code>{ownershipRecordName(domain.domain)}</code> と入れてください。TTL という欄があれば、「自動」のままでかまいません。
+        <code>{ownershipRecordName(domain.domain)}</code>
+        {domain.txtValue && (
+          <>
+            、3 行目は <code>{thirdRecordName(domain)}</code>
+          </>
+        )}{" "}
+        と入れてください。保存したら、一覧の名前を見てください。末尾に <code>{apexOf(domain.domain)}</code> が 2 回付いていたら、編集して短い形にしてください。TTL
+        という欄があれば、「自動」のままでかまいません。
       </p>
     </div>
   );
 }
 
-// よく使う DNS のサービスごとの手順（画面の名前は、サービスの側で変わることがある。2026-10 時点）
-const PROVIDERS: { key: string; label: string; steps: (r: { name: string; value: string; fqdn: string }) => ReactNode[] }[] = [
+// よく使う DNS のサービスごとの手順（画面の名前は、サービスの側で変わることがある。2026-10 時点）。
+// TXT の行も番号つきの段に入れる（2026-11-28 オーナーの指摘「TXT の入れ方が手順にない」）。
+// 名前の欄にサブドメインの部分だけを入れることを公式のヘルプで確かめたのは Cloudflare とお名前.com（2026-11-28）。
+// ほかは確かめられないので、TXT の段は「そのほか」と同じく 2 つの形を出し、1 行目と同じ形にするよう書く（ja-copy-reviewer の指摘）
+type StepRecord = { row: number; name: string; value: string; fqdn: string };
+type StepInput = { cname: StepRecord; txts: StepRecord[] };
+
+// 名前の形を確かめられていないサービスの TXT の段。欄の名前はそのサービスの 1 行目の段と同じにし、保存の段まで書く
+function txtSteps(t: StepRecord, f: { cnameStep: number; open: ReactNode; name: string; type: string; value: string; save: ReactNode }): ReactNode[] {
+  return [
+    f.open,
+    <>
+      {f.name}に <b>{t.name}</b>、{f.type}は <b>TXT</b>、{f.value}に <b className="break-all">{t.value}</b> を入れる。上の {t.row} 行目です。{f.cnameStep}. でドメインまで入れたときは、{f.name}を{" "}
+      <b className="break-all">{t.fqdn}</b> にする
+    </>,
+    f.save,
+  ];
+}
+
+const PROVIDERS: { key: string; label: string; steps: (r: StepInput) => ReactNode[] }[] = [
   {
     key: "cloudflare",
     label: "Cloudflare",
-    steps: (r) => [
+    steps: ({ cname, txts }) => [
       <>Cloudflare にログインし、ドメインを選んで、左の「DNS」→「Records」を開く</>,
       <>「Add record」を押す</>,
       <>
-        Type は <b>CNAME</b>、Name に <b>{r.name}</b>、Target に <b className="break-all">{r.value}</b> を入れる
+        Type は <b>CNAME</b>、Name に <b>{cname.name}</b>、Target に <b className="break-all">{cname.value}</b> を入れる
       </>,
       <>
         <b className="text-danger">Proxy status を押して、灰色の雲の DNS only にする。</b>オレンジの雲の Proxied のままだと、つながりません
       </>,
       <>「Save」を押す</>,
+      ...txts.flatMap((t) => [
+        <>もう一度「Add record」を押す</>,
+        <>
+          Type は <b>TXT</b>、Name に <b>{t.name}</b>、Content に <b className="break-all">{t.value}</b> を入れる。上の {t.row} 行目です。TXT では Proxy status を押さなくてかまいません
+        </>,
+        <>「Save」を押す</>,
+      ]),
     ],
   },
   {
     key: "onamae",
     label: "お名前.com",
-    steps: (r) => [
+    steps: ({ cname, txts }) => [
       <>お名前.com Navi にログインし、「ネームサーバーの設定」→「DNS 設定/転送設定」を開く</>,
       <>ドメインを選んで「次へ」、「DNS レコード設定を利用する」の「設定する」を押す</>,
       <>
-        ホスト名に <b>{r.name}</b>、TYPE は <b>CNAME</b>、VALUE に <b className="break-all">{r.value}</b> を入れて「追加」を押す
+        ホスト名に <b>{cname.name}</b>、TYPE は <b>CNAME</b>、VALUE に <b className="break-all">{cname.value}</b> を入れて「追加」を押す
       </>,
+      ...txts.map((t) => (
+        <>
+          同じ画面で、ホスト名に <b>{t.name}</b>、TYPE は <b>TXT</b> にする。VALUE に <b className="break-all">{t.value}</b> を入れて「追加」を押す。上の {t.row} 行目です
+        </>
+      )),
       <>下の「確認画面へ進む」を押し、「設定する」を押す。うまくいかないときは、ホームページを作った人に聞いてください</>,
     ],
   },
   {
     key: "muumuu",
     label: "ムームードメイン",
-    steps: (r) => [
+    steps: ({ cname, txts }) => [
       <>コントロールパネルにログインし、「ドメイン管理」→「ムームー DNS」を開く</>,
       <>ドメインの「変更」を押し、「カスタム設定」を開く</>,
       <>
-        サブドメインに <b>{r.name}</b>、種別は <b>CNAME</b>、内容に <b className="break-all">{r.value}</b> を入れる
+        サブドメインに <b>{cname.name}</b>、種別は <b>CNAME</b>、内容に <b className="break-all">{cname.value}</b> を入れる
       </>,
       <>「セットアップ情報変更」を押す</>,
+      ...txts.flatMap((t) => txtSteps(t, { cnameStep: 3, open: <>もう一度「カスタム設定」を開く</>, name: "サブドメイン", type: "種別", value: "内容", save: <>「セットアップ情報変更」を押す</> })),
     ],
   },
   {
     key: "squarespace",
     label: "Squarespace・旧 Google Domains",
-    steps: (r) => [
+    steps: ({ cname, txts }) => [
       <>Squarespace にログインし、「Domains」→ ドメインを選んで「DNS」→「DNS Settings」を開く</>,
       <>「Custom records」の「Add record」を押す</>,
       <>
-        Host に <b>{r.name}</b>、Type は <b>CNAME</b>、Data に <b className="break-all">{r.value}</b> を入れる
+        Host に <b>{cname.name}</b>、Type は <b>CNAME</b>、Data に <b className="break-all">{cname.value}</b> を入れる
       </>,
       <>「Save」を押す</>,
+      ...txts.flatMap((t) => txtSteps(t, { cnameStep: 3, open: <>もう一度「Add record」を押す</>, name: "Host ", type: "Type ", value: "Data ", save: <>「Save」を押す</> })),
     ],
   },
   {
     key: "xserver",
     label: "Xserver",
-    steps: (r) => [
+    steps: ({ cname, txts }) => [
       <>サーバーパネルか、Xserver アカウントのドメインの管理にログインし、「DNS レコード設定」を開く</>,
       <>ドメインを選び、「DNS レコード追加」のタブを開く</>,
       <>
-        ホスト名に <b>{r.name}</b>、種別は <b>CNAME</b>、内容に <b className="break-all">{r.value}</b> を入れる
+        ホスト名に <b>{cname.name}</b>、種別は <b>CNAME</b>、内容に <b className="break-all">{cname.value}</b> を入れる
       </>,
       <>「確認画面へ進む」→「追加する」を押す</>,
+      ...txts.flatMap((t) => txtSteps(t, { cnameStep: 3, open: <>もう一度「DNS レコード追加」のタブを開く</>, name: "ホスト名", type: "種別", value: "内容", save: <>「確認画面へ進む」→「追加する」を押す</> })),
     ],
   },
   {
     key: "other",
     label: "そのほか",
-    steps: (r) => [
+    steps: ({ cname, txts }) => [
       <>ドメインを買ったサービスか、DNS を任せているサービスの管理画面で、「DNS」「DNS レコード」「ゾーン」などの画面を開く</>,
       <>
-        種類は <b>CNAME</b>、名前に <b>{r.name}</b> か <b>{r.fqdn}</b>、値に <b className="break-all">{r.value}</b> を入れて追加する。名前は「ホスト」、値は「向け先」「内容」「Target」と書かれていることもあります
+        種類は <b>CNAME</b>、名前に <b>{cname.name}</b> か <b>{cname.fqdn}</b>、値に <b className="break-all">{cname.value}</b> を入れて保存する。名前は「ホスト」、値は「向け先」「内容」「Target」と書かれていることもあります
       </>,
+      ...txts.flatMap((t) => txtSteps(t, { cnameStep: 2, open: <>もう一度、行を追加する</>, name: "名前", type: "種類", value: "値", save: <>保存する</> })),
       <>どこで設定するかわからないときは、そのサービスのヘルプで「CNAME 設定」と探すと見つかります</>,
     ],
   },
 ];
 
+// 上の行を、手順に入れる形にする（名前はサブドメインの部分と、ドメインまでの全部の 2 つ）
+function stepInput(domain: LinkDomainView): StepInput {
+  const rows = records(domain);
+  const full = [domain.domain, ownershipRecordName(domain.domain), thirdRecordName(domain)];
+  const list = rows.map((r, i) => ({ row: i + 1, name: r.name, value: r.value, fqdn: full[i] }));
+  return { cname: list[0], txts: list.slice(1) };
+}
+
 function DnsStep({ projectId, domain, defaultHost }: { projectId: string; domain: LinkDomainView; defaultHost: string }) {
   const [provider, setProvider] = useState("cloudflare");
   const [state, action, pending] = useActionState<LinkDomainActionState, FormData>(guardAction(checkLinkDomainAction.bind(null, projectId), (m) => ({ error: m })), {});
-  const cname = records(domain)[0];
+  const input = stepInput(domain);
   const current = PROVIDERS.find((p) => p.key === provider) ?? PROVIDERS[0];
   const message = CHECK_MESSAGE[domain.lastCheck];
   // また押せるまでの秒。最後に確認した時刻（サーバーの行）と、続けて押して断られたときの時刻の、遅いほうから数える
@@ -355,13 +412,10 @@ function DnsStep({ projectId, domain, defaultHost }: { projectId: string; domain
           ))}
         </div>
         <ol role="tabpanel" className="flex list-decimal flex-col gap-1.5 rounded-md border border-border px-4 py-3 pl-9 text-sm leading-[1.7]">
-          {current.steps({ name: cname.name, value: cname.value, fqdn: domain.domain }).map((s, i) => (
+          {current.steps(input).map((s, i) => (
             <li key={i}>{s}</li>
           ))}
         </ol>
-        <p className="text-sm leading-[1.7]">
-          <b>1 行目を保存したら、もう一度追加します。</b>種類を TXT にして、表の 2 行目を入れます。{domain.txtValue ? "3 行目も同じです。" : ""}
-        </p>
         <p className="text-xs leading-[1.7] text-muted">画面の名前は、サービスの側で変わることがあります。</p>
       </div>
 
@@ -370,7 +424,7 @@ function DnsStep({ projectId, domain, defaultHost }: { projectId: string; domain
         {state.error && <ErrorBanner>{state.error}</ErrorBanner>}
         {message && !state.error && (
           <p className={`rounded-md border px-4 py-3 text-sm leading-[1.7] ${message.tone === "fix" ? "border-danger text-fg" : "border-border text-fg"}`} role="status">
-            <b className={message.tone === "fix" ? "text-danger" : "text-primary"}>{message.tone === "fix" ? "直してください: " : "このまま待ってください: "}</b>
+            <b className={message.tone === "fix" ? "text-danger" : "text-primary"}>{CHECK_HEAD[message.tone]}</b>
             {message.text}
           </p>
         )}

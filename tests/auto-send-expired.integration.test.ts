@@ -145,7 +145,7 @@ describe("過ぎたことの知らせ", () => {
     expect(sent).toHaveLength(1);
     expect(sent[0].subject).toBe("yabumi: 自動投稿の確認をお願いします");
     expect(sent[0].text).toMatch(/・「連想映画クイズ」.* の X の投稿は、送っていません。確認しないまま、送る時刻を過ぎました。.* までなら、今すぐ送れます。/);
-    expect(sent[0].text).toContain(`  確認する: https://yabumi.example/projects/${projectId}/auto/review?run=${r.runId}`);
+    expect(sent[0].text).toContain(`  投稿を見て送る: https://yabumi.example/projects/${projectId}/auto/review?run=${r.runId}`);
     // 今すぐ送ったあとは、もう知らせない
     await send(alice, r.targetId, r.fp);
     await admin.from("notification_log").delete().eq("user_id", aliceId);

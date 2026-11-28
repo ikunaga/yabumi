@@ -16,7 +16,7 @@ import { autoImageLabel, errorRunText, EXPIRED_TARGET_LABEL, kindSummary, RUN_RE
 import { getAutoPlan, getAutoPostHold, listAutoRuns, listUpcomingAutoRuns } from "@/lib/auto-post/queries";
 import type { AutoImage, AutoRun } from "@/lib/auto-post/types";
 import { formatsBackHref } from "@/lib/post-formats/back";
-import type { SnsKey } from "@/lib/sns";
+import { SNS, type SnsKey } from "@/lib/sns";
 import { loadRunResults, loadSeriesFormatImage, type RunTargetResult } from "@/lib/auto-post/ui-queries";
 import { getProject } from "@/lib/projects/queries";
 import { formatShort, formatTime, toYmd } from "@/lib/time";
@@ -49,8 +49,12 @@ export default async function AutoPlanPage(props: PageProps<"/projects/[id]/auto
   const sentRuns = past.filter((r) => r.postId && (results.get(r.postId) ?? []).some((t) => t.status === "published"));
   // 下書きのままの回（確認して送った回は送信済みに数え、ここには入れない。2026-11-25）
   const heldCount = runs.filter((r) => r.status === "held" && !(r.postId && (results.get(r.postId) ?? []).some((t) => t.status === "published"))).length;
-  const views = sentRuns.flatMap((r) => (results.get(r.postId!) ?? []).map((t) => t.views)).filter((v): v is number => v !== null);
-  const avgViews = views.length ? Math.round(views.reduce((a, b) => a + b, 0) / sentRuns.length) : null;
+  // 1 本の平均: 見られた数が入った投稿だけで割る（前は数字がまだない投稿まで数に入れていた。2026-11-28）
+  const postViews = sentRuns
+    .map((r) => (results.get(r.postId!) ?? []).map((t) => t.views).filter((v): v is number => v !== null))
+    .filter((v) => v.length)
+    .map((v) => v.reduce((a, b) => a + b, 0));
+  const avgViews = postViews.length ? Math.round(postViews.reduce((a, b) => a + b, 0) / postViews.length) : null;
   const sns = Object.keys(plan.targets) as SnsKey[];
   const base = `/projects/${project.id}`;
   const reviewSns = sns.filter((s) => plan.targets[s] === "review");
@@ -216,6 +220,20 @@ function PlanImage({ projectId, planId, image, format }: { projectId: string; pl
   );
 }
 
+const monthDay = (iso: string) => {
+  const [, m, d] = toYmd(new Date(iso)).split("-");
+  return `${Number(m)}/${Number(d)}`;
+};
+
+// 配信先ごとの見られた数。数字がないときは、なぜないかを文で出す（前は「—」で、送っていないように読めた。2026-11-28）
+function MetricsText({ result }: { result: RunTargetResult }) {
+  const m = result.metrics;
+  if (m.state === "has") return <>見られた数 {result.views}</>;
+  if (m.state === "off") return <>見られた数は出ません。{SNS[result.sns].label} のアプリで見てください</>;
+  if (m.state === "waiting") return <>見られた数は {monthDay(m.firstRead)} の朝に出ます</>;
+  return <>{SNS[result.sns].label} から見られた数を受け取れませんでした</>;
+}
+
 function RunRow({ run, results, projectId }: { run: AutoRun; results: RunTargetResult[]; projectId: string }) {
   const published = results.filter((t) => t.status === "published");
   const failed = results.some((t) => t.status === "failed");
@@ -242,7 +260,7 @@ function RunRow({ run, results, projectId }: { run: AutoRun; results: RunTargetR
         {published.map((t) => (
           <span key={t.sns} className="num inline-flex items-center gap-1 text-sm text-muted">
             <SnsTag sns={t.sns} />
-            {t.views ?? "—"}
+            <MetricsText result={t} />
           </span>
         ))}
         {run.postId && (

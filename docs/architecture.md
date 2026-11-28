@@ -1222,7 +1222,7 @@ Facebook ページ（graph.facebook.com）:
 |---|---|
 | 権限 | 数字を読む権限（threads_manage_insights、instagram_business_manage_insights、read_insights）は、Meta のアプリで先に足してから、環境変数 `SNS_INSIGHTS`（例 `threads,instagram,facebook`）で有効にする。有効なら、つなぐときに求め、social_account_tokens.scopes に記録する（src/lib/sns/insights/scopes.ts）。権限なしでつないだアカウントは読まず、指標の画面に「つなぎ直しが要ります」 |
 | 読み方 | src/lib/sns/insights/index.ts（送信の部品とは別）。名前を SNS をまたいでそろえる: views、reach、likes、replies、reposts、quotes、shares、saves、clicks、followers。Threads は /{media}/insights と /{user}/threads_insights の followers_count、Instagram は /{media}/insights（impressions は使わない）と /me の followers_count、Facebook は post_media_view・post_total_media_view_unique・post_reactions_by_type_total（合計）・post_clicks とページの followers_count（appsecret_proof つき） |
-| 時期 | 投稿は送ってから 1・3・7・30 日目（Instagram は数字が最大 48 時間遅れるので 2・4・8・31 日目）。3 日を過ぎたその日の分はあきらめる。アカウントのフォロワー数は日本時間で 1 日 1 回（直近 90 日に送ったアカウントだけ）。DB の due_post_metric_targets・due_account_metric_accounts（service_role だけ）が選ぶ |
+| 時期 | 投稿は送ってから最初の 7 日は毎朝（1〜7 日目）と 30 日目、Instagram は 1〜8 日目と 31 日目に読む（2026-11-28 に変えた。前は 1・3・7・30 日目〈Instagram は 2・4・8・31〉で、1 日目に 0 が返ると 3 日目まで 0 のままだった。1 日目は送ってから 24 時間たってから）。X は費用がかかるので、いままでどおり 1・3・7・30 日目。1 回の呼び出しで、1 つの配信先は読める日のうちいちばん新しい日の分を 1 回だけ読む。画面と集計は day_index がいちばん大きい行を使うので、毎日の行が最新の値になる。3 日を過ぎたその日の分はあきらめる。アカウントのフォロワー数は日本時間で 1 日 1 回（直近 90 日に送ったアカウントだけ）。DB の due_post_metric_targets・due_account_metric_accounts（service_role だけ）が選ぶ |
 | 保存 | `post_metrics`（配信先 × 何日目。数字の JSON）、`account_metrics`（アカウント × 日）。利用者は自分のものを読めるだけ |
 | ジョブ | /api/jobs/import-sns-metrics（pg_cron が毎日 5:00〜5:50 に 6 回）。1 回 40 秒まで。権限がないと言われたら、そのアカウントの残りはその回は読まない |
 | 指標 | 「投稿の閲覧数」（SNS の数字 + note・Substack で手で入れた数字。直近 7 日・その前の 7 日に送った投稿のいちばん新しい数字の合計）、「フォロワーの増え方」（つないだアカウントのいちばん新しい数と 7 日前の数）、「よく見られた投稿」（30 日）。DB の sns_weekly_totals・top_posts_by_views |
@@ -1310,7 +1310,7 @@ Facebook ページ（graph.facebook.com）:
 
 | ジョブ | いつ | 何を |
 |---|---|---|
-| 指標の取り込み | 毎日 5:00（日本時間）から、10 分おきに 6 回 | 送信から 30 日以内の配信先を、決まった日（1・3・7・30 日目。Instagram は 48 時間遅れるので 2・4・8・31 日目）に読む。アカウントの数字（フォロワーなど）は Meta の SNS は毎日、X は週 1。1 回の呼び出しで 20 人分まで（Vercel の 60 秒に収める）。残りは次の回 |
+| 指標の取り込み | 毎日 5:00（日本時間）から、10 分おきに 6 回 | 送信から 30 日以内の配信先を、決まった日（最初の 7 日は毎朝と 30 日目。Instagram は 1〜8 日目と 31 日目。X は 1・3・7・30 日目）に読む。Meta の API は無料。1 人が毎日 2 つの SNS に 1 本ずつ送ると、1 日に読むのは 16 回ほどで、Meta の呼び出しの上限〈アカウントごとに 24 時間で数千回〉より十分少ない。1 回 40 秒・1 件 1 秒ほどなら、朝の 6 回で 240 件ほど読める。アカウントの数字（フォロワーなど）は Meta の SNS は毎日、X は週 1。1 回の呼び出しで 20 人分まで（Vercel の 60 秒に収める）。残りは次の回 |
 | ストアと課金 | 毎日 3:00（日本時間）、10 分おきに 3 回 | App Store は前日分、Google Play は直近 7 日分を読み直して日付で上書き（遅れて届くため）。RevenueCat は前日の日ごとの売上と、概要 |
 | 短縮リンクの集計 | 毎日 2:00 | 前日のクリックを日ごとにまとめ、90 日を過ぎた 1 クリックの行を消す |
 | 改善の振り返り（F08 の入口） | 週 1（月曜 7:00）か、画面で押したとき | 下 |

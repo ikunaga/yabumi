@@ -3,6 +3,7 @@ import { imageSpecText, readFormatImage } from "@/lib/post-formats/image";
 import { cleanSeries, fixedBodySeries, isSeries, type FormatSeries } from "@/lib/post-formats/series";
 import { formatSlots } from "@/lib/post-formats/schema";
 import { isSnsKey, type SnsKey } from "@/lib/sns";
+import { metricsState, type MetricsState } from "./metrics-state";
 import { createClient } from "@/lib/supabase/server";
 import { EXPIRED_MESSAGE } from "./engine";
 
@@ -15,6 +16,9 @@ export type RunTargetResult = {
   url: string | null;
   views: number | null;
   expired: boolean;
+  // 数字の状態（views が null のときに何を出すか。2026-11-28）: off = この SNS の数字は読んでいない、
+  // waiting = まだ読む日が来ていない（firstRead は最初に読む朝の日付）、missing = 読む日は来たが、まだ入っていない
+  metrics: MetricsState;
 };
 
 // 回の投稿ごとの、SNS ごとの送った結果と表示回数（回し方の画面の回の一覧と「平均の表示」）
@@ -22,7 +26,7 @@ export async function loadRunResults(postIds: string[]): Promise<Map<string, Run
   const out = new Map<string, RunTargetResult[]>();
   if (!postIds.length) return out;
   const db = await createClient();
-  const { data: targets, error } = await db.from("post_targets").select("id, post_id, sns, status, external_url, error_message").in("post_id", postIds);
+  const { data: targets, error } = await db.from("post_targets").select("id, post_id, sns, status, external_url, error_message, published_at").in("post_id", postIds);
   if (error) throw new Error(`post_targets: ${error.message}`);
   const ids = targets.map((t) => t.id);
   const latest = new Map<string, { day: number; views: number | null }>();
@@ -39,14 +43,17 @@ export async function loadRunResults(postIds: string[]): Promise<Map<string, Run
       });
     }
   }
+  const now = new Date();
   for (const t of targets) {
     if (!isSnsKey(t.sns)) continue;
+    const views = latest.get(t.id)?.views ?? null;
     const list = out.get(t.post_id) ?? [];
     list.push({
       sns: t.sns,
       status: t.status,
       url: t.external_url,
-      views: latest.get(t.id)?.views ?? null,
+      views,
+      metrics: metricsState(t.sns, t.published_at, views, now),
       // 確かめないまま送る時刻を過ぎた配信先（engine の settleApprovals が failed にする）
       expired: t.status === "failed" && t.error_message === EXPIRED_MESSAGE,
     });

@@ -10,22 +10,8 @@ import { SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
 
 // 短縮リンクの画面の、コピーのボタンと入力の欄（docs/architecture.md の 4.22）
 
-export function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      type="button"
-      onClick={async () => {
-        await navigator.clipboard.writeText(text);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      }}
-      className="shrink-0 text-sm font-semibold text-primary hover:underline"
-    >
-      {copied ? "コピーしました" : "コピー"}
-    </button>
-  );
-}
+// コピーのボタンは ui の部品に移した（ほかの画面からの import のため、ここからも出す）
+export { CopyButton } from "@/components/ui/copy-button";
 
 type Destination = { label: string; url: string };
 

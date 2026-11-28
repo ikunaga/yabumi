@@ -147,7 +147,9 @@ export function autoMail(notices: AutoNotice[], c: MailContext): { subject: stri
       if (!items.length) continue;
       lines.push(s.title);
       // 確認が要る知らせには、その回の確認の画面へのリンクを付ける（ログインしていなければ、ログインしたあとここに戻る）
-      for (const n of items) lines.push(noticeLine(n), ...(REVIEW_KINDS.includes(n.kind) && n.runId ? [`  確認する: ${c.appUrl}/projects/${p}/auto/review?run=${n.runId}`] : []));
+      // 送る時刻を過ぎた行は、押した先で中身を見て「今すぐ送る」を押すので「投稿を見て送る」（押しただけでは送らない。2026-11-28 PM の指摘）
+      for (const n of items)
+        lines.push(noticeLine(n), ...(REVIEW_KINDS.includes(n.kind) && n.runId ? [`  ${n.kind === "auto_expired" ? "投稿を見て送る" : "確認する"}: ${c.appUrl}/projects/${p}/auto/review?run=${n.runId}`] : []));
     }
     lines.push(`自動投稿を開く: ${c.appUrl}/projects/${p}/auto`);
   }

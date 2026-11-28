@@ -66,6 +66,13 @@ describe("autoMail", () => {
     expect(m.text).toContain("■ 教室\n下書きに残した投稿\n・「季節」11月24日 火曜 9:00 の X・Threads の投稿は、送らずに下書きに残しました。送るときは、確認して予約し直してください。\n自動投稿を開く: https://yabumi.example/projects/p2/auto");
   });
 
+  it("送る時刻を過ぎた行のリンクは「投稿を見て送る」。確認待ちの行は「確認する」", () => {
+    const m = autoMail([run("auto_remind", { runId: "r3", key: "r3", sns: ["x"] }), run("auto_expired", { runId: "r4", key: "r4", sns: ["x"] })], c);
+    expect(m.text).toContain("  確認する: https://yabumi.example/projects/p1/auto/review?run=r3");
+    expect(m.text).toContain("  投稿を見て送る: https://yabumi.example/projects/p1/auto/review?run=r4");
+    expect(m.text).not.toContain("確認する: https://yabumi.example/projects/p1/auto/review?run=r4");
+  });
+
   it("運営者が止めた・解除した: 決まった文だけ（理由は入れない）。件名", () => {
     const hold = { kind: "auto_hold" as const, ownerId: "u", projectId: null, projectName: "", key: "h1", planName: "" };
     const held = autoMail([hold], c);

@@ -14,7 +14,7 @@ import { splitTagsByText, withHashtags } from "@/lib/sns/hashtags";
 import type { Database } from "@/lib/supabase/database.types";
 import { autoPostGenerator, fakeAiMode, type AutoPostGenerator } from "./ai";
 import { callAiCheck, callShortenDrafts } from "@/lib/ai/anthropic";
-import { applyAiCheck, isCautionFinding, isHardFinding, plainIssues, tagReserve, type Issue, type Texts } from "./checks";
+import { applyAiCheck, formatFixedParts, inFixedParts, isCautionFinding, isHardFinding, plainIssues, tagReserve, type Issue, type Texts } from "./checks";
 export { tagReserve } from "./checks";
 import { isNoMaterial, pickMaterial, type Material, type MaterialDeps, type PastRef, type ProjectRow } from "./materials";
 import { readAutoImage, toPlan } from "./plan-row";
@@ -31,6 +31,7 @@ import { attachImage, makeAutoImage, type AutoImageDeps, type MadeImage } from "
 import { callPhotoIdeas } from "@/lib/ai/anthropic";
 import { generateWithGemini, photoConfigured, type GenerateImage } from "@/lib/ai/gemini-image";
 import { photoModel } from "@/lib/ai/photo";
+import { getFormat } from "@/lib/post-formats/store";
 
 // 自動の投稿のジョブ（docs/design/auto-post.md の 2.3・2.7）。サーバーの権限（admin）で動くので、読むものは必ず持ち主とプロジェクトで絞る。
 // 1 回の流れ: ① 14 日先までの回を足す → ② 送る時刻を過ぎた確かめ待ちを失敗にする・最初の回の確かめの後始末 → ③ 作る時刻が来た回を作る →
@@ -338,6 +339,9 @@ export async function draftRun(
   hold ??= plainIssues(texts, checkArgs)[0] ?? null;
   if (!hold) {
     // AI っぽさチェック（自動の投稿の枠。用途 auto_post_check）
+    // シリーズは、フォーマットの毎回同じ文を「利用者が決めた文」として渡し、その中の指摘は数えない（2026-11-28 通しの検証）
+    const seriesFormat = material.series ? await getFormat(admin, args.plan.projectId, material.series.formatId) : null;
+    const fixedParts = seriesFormat ? formatFixedParts(seriesFormat.body) : [];
     const checkTexts: CheckText[] = dedupeTexts((Object.entries(texts) as [SnsKey, string][]).map(([sns, text]) => ({ sns, text })));
     const request = buildAiCheckRequest(
       {
@@ -347,14 +351,17 @@ export async function draftRun(
         sns: args.sns,
         voice: loaded.ctx.voice,
         // 利用者が書いた事実（プロジェクトの説明・届けたい相手・この回の材料）。ここにあることは「事実か確かめて」にしない
-        facts: { description: loaded.ctx.project.description, audience: loaded.ctx.project.targetAudience, material: material.text },
+        facts: { description: loaded.ctx.project.description, audience: loaded.ctx.project.targetAudience, material: material.text, ...(fixedParts.length ? { fixed: fixedParts.join("\n") } : {}) },
       },
       checkTexts,
     );
     const b = await withAiBudget(admin, { userId: args.plan.ownerId, purpose: "auto_post_check", call: "ai_check" }, request, deps.callCheck);
     // 確かめられないものは送らない
     if (!b.ok) return { ok: false, reason: "ai_limit", detail: b.message };
-    const result = b.result.stopReason === "end_turn" ? normalizeAiCheck(b.result.output, checkTexts) : null;
+    const checked = b.result.stopReason === "end_turn" ? normalizeAiCheck(b.result.output, checkTexts) : null;
+    const ignored = checked && fixedParts.length ? checked.findings.filter((f) => inFixedParts(f.quote, fixedParts)).length : 0;
+    if (ignored) ref.fixed_text_findings = ignored;
+    const result = checked && ignored ? { ...checked, findings: checked.findings.filter((f) => !inFixedParts(f.quote, fixedParts)) } : checked;
     if (!result) hold = { kind: "check_failed", detail: "送る前の確認が、うまくいきませんでした" };
     else {
       // シリーズの本文（fixedTexts）は利用者が決めたフォーマットの文なので、書き換えの案は当てない（数だけ記録する）。

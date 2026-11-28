@@ -1,10 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { buildFormatRoundRequest, normalizeRoundProposals, type RoundProposal } from "@/lib/ai/format-round-ai";
+import type { RoundProposal } from "@/lib/ai/format-round-ai";
+import { proposeRound, SERIES_ROUND_BUDGET_MS, SeriesRoundFailed } from "./series-round";
 import { budgeted } from "@/lib/ai/budget";
-import { callFormatRound } from "@/lib/ai/anthropic";
+import { callAutoSeriesRound, type callFormatRound } from "@/lib/ai/anthropic";
 import type { PlanData } from "@/lib/plan/schema";
 import { listRounds } from "@/lib/post-formats/rounds";
-import { X_FIXED_BODY, aiVars, fixedBodySeries, isSeries, readPlanVars, roundTitle, ROUNDS_FOR_AI, seriesForPlan, undecidedPlanVars, usedRoundKeys, varModesChanged } from "@/lib/post-formats/series";
+import { X_FIXED_BODY, aiVars, fixedBodySeries, isSeries, readPlanVars, roundTitle, seriesForPlan, undecidedPlanVars, usedRoundKeys, varModesChanged } from "@/lib/post-formats/series";
 import { fillFormat, formatTagsFor, unfilledSlots } from "@/lib/post-formats/schema";
 import { getFormat } from "@/lib/post-formats/store";
 import type { SnsKey } from "@/lib/sns";
@@ -176,21 +177,32 @@ async function pickSeries(admin: Db, plan: AutoPlan & { ownerId: string }, planD
   } else {
     const call = budgeted(
       admin,
-      purpose === "auto_post_sample" ? { userId: plan.ownerId, purpose: "auto_post_sample", call: "post_format_round" } : { userId: plan.ownerId, purpose: "auto_post", call: "post_format_round" },
-      deps.callFormatRound ?? callFormatRound,
+      purpose === "auto_post_sample" ? { userId: plan.ownerId, purpose: "auto_post_sample", call: "auto_series_round" } : { userId: plan.ownerId, purpose: "auto_post", call: "auto_series_round" },
+      deps.callFormatRound ?? callAutoSeriesRound,
     );
-    const r = await call(
-      buildFormatRoundRequest({
+    // 使える案が出るまで、決めた回数と時間の内で作り直す（2026-11-28。前は 1 回で諦めて回を飛ばしていた）
+    const r = await proposeRound(
+      {
         project: { name: project.name, description: project.description, targetAudience: project.target_audience, productType: project.product_type },
         plan: planData,
         format: planFormat,
-        past: rounds.slice(0, ROUNDS_FOR_AI),
-        wish: "",
+        rounds,
         fixed,
-      }),
+        used,
+      },
+      call,
+      { now: deps.now, budgetMs: deps.seriesUntil !== undefined ? Math.min(SERIES_ROUND_BUDGET_MS, deps.seriesUntil - (deps.now ?? Date.now)()) : undefined },
     );
-    const proposals = r.stopReason === "end_turn" ? normalizeRoundProposals(r.output, planFormat, used, fixed) : null;
-    p = proposals?.[0];
+    const log = { planId: plan.id, formatId: format.id, ok: r.ok, attempts: r.attempts.length, detail: r.attempts.map((a) => ({ stop: a.stop, model: a.model, dropped: a.dropped, ms: a.ms, error: a.error })) };
+    if (!r.ok) {
+      console.error("[auto-post] シリーズの次の投稿の案を出せませんでした", JSON.stringify(log));
+      // 本番の回は、飛ばさずに投げる。ジョブが「作れなかった回」にして、送る時刻まで間があれば次のジョブ（5〜10 分後）でやり直す（engine.ts の makeDueRuns）。
+      // 見本は、その場で理由を返す
+      if (purpose === "auto_post") throw new SeriesRoundFailed(r.detail);
+      return { none: true, reason: "cannot_write", detail: r.detail };
+    }
+    if (r.attempts.length > 1) console.warn("[auto-post] シリーズの案を作り直しました", JSON.stringify(log));
+    p = r.proposal;
   }
   // 変数の中身は、広く知られた作品・ものごとの一般的な事実だけ（format-series.md の 4.）。「確かめてほしいところ」の数は記録だけ残し、送る前は AI っぽさチェックに任せる
   if (!p) return { none: true, reason: "cannot_write", detail: "前と重ならない次の投稿の案を出せませんでした" };
@@ -216,7 +228,9 @@ async function pickSeries(admin: Db, plan: AutoPlan & { ownerId: string }, planD
 // default_hashtags: プロジェクトの「いつものタグ」（20261117100000。どの使い道の回にも付ける）
 export type ProjectRow = { name: string; description: string | null; target_audience: string | null; product_type: string | null; default_hashtags?: unknown };
 // fakeSeries: 偽の AI のとき、シリーズの空欄を偽の言葉で埋める（本物の AI を呼ばない）
-export type MaterialDeps = { callFormatRound?: typeof callFormatRound; fakeSeries?: boolean };
+// now: シリーズの作り直しの時間を測る時計（テストで差し替える）
+// seriesUntil: シリーズの案の作り直しを、この時刻（ミリ秒）までにする（ジョブの関数の時間の上限から決める。engine.ts の makeDueRuns）
+export type MaterialDeps = { callFormatRound?: typeof callFormatRound; fakeSeries?: boolean; now?: () => number; seriesUntil?: number };
 // 材料を選ぶときの AI の用途（本番の回は auto_post、見本は auto_post_sample。2026-11-21 のセキュリティ確認の M1）
 export type MaterialPurpose = "auto_post" | "auto_post_sample";
 

@@ -120,6 +120,23 @@ describe("見本の 1 日 5 回（auto_sample_runs）", () => {
     expect(purposes).toEqual(["auto_post_check", "auto_post_sample"]);
   });
 
+  it("シリーズの次の回の案は、1 回目が拒否でも作り直して作る。3 回とも駄目なら理由を残して作らない（2026-11-28）", async () => {
+    const ok = { output: { proposals: [{ values: [{ name: "豆", text: "グアテマラ" }], checks: [] }] }, stopReason: "end_turn", model: "claude-opus-5-5", usage: { inputTokens: 100, cacheWriteTokens: 0, cacheReadTokens: 0, outputTokens: 50 } };
+    const refusal = { ...ok, output: null, stopReason: "refusal" };
+    const retried = vi.fn<CallFormatRound>().mockResolvedValueOnce(refusal).mockResolvedValueOnce(ok);
+    const r = await sample(undefined, { generator, callCheck, callFormatRound: retried });
+    expect(r, JSON.stringify(r)).toMatchObject({ ok: true, texts: { threads: "今日の一杯☕\nグアテマラ" } });
+    expect(retried).toHaveBeenCalledTimes(2);
+    // 作り直しの 1 回も、AI を呼んだので数える（見本の枠）
+    expect((await admin.from("ai_usage").select("purpose").eq("owner_id", aliceId).eq("purpose", "auto_post_sample")).data).toHaveLength(2);
+
+    const never = vi.fn<CallFormatRound>(async () => refusal);
+    const bad = await sample(undefined, { generator, callCheck, callFormatRound: never });
+    expect(never).toHaveBeenCalledTimes(3);
+    expect(bad).toMatchObject({ ok: false, reason: "cannot_write" });
+    expect((bad as { detail: string }).detail).toContain("3 回: refusal opus-5-5");
+  });
+
   it("運営者が自動投稿を止めている人は、数えずに断る", async () => {
     // 回し方は止める前に作っておく（止めている間は保存もできない）
     const plan = await seriesPlan();

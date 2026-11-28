@@ -89,9 +89,9 @@ const PURPOSE_CALLS: Record<string, AiCall[]> = {
   voice_memo: ["voice_memo"],
   post_format: ["post_format", "format_from_posts"],
   post_format_round: ["post_format_round"],
-  auto_post: ["auto_post", "shorten"],
+  auto_post: ["auto_post", "shorten", "auto_series_round"],
   auto_post_check: ["ai_check"],
-  auto_post_sample: ["auto_post", "shorten"],
+  auto_post_sample: ["auto_post", "shorten", "auto_series_round"],
   auto_post_scene: ["photo_ideas"],
 };
 const SCHEMAS: Record<AiCall, z.ZodType> = {
@@ -109,6 +109,7 @@ const SCHEMAS: Record<AiCall, z.ZodType> = {
   post_format: postFormatProposalsSchema,
   format_from_posts: formatFromPostsSchema,
   post_format_round: roundProposalsSchema,
+  auto_series_round: roundProposalsSchema,
   auto_post: autoPostDraftSchema,
 };
 
@@ -227,7 +228,7 @@ describe("count_tokens で数えた見込み", () => {
 
   it("anthropic.ts の呼び出しには、どれも数える関数が付いている", () => {
     const exported = Object.entries(calls).filter(([k, v]) => /^call[A-Z]/.test(k) && typeof v === "function");
-    expect(exported.length).toBe(15);
+    expect(exported.length).toBe(16);
     for (const [k, v] of exported) expect(tokenCounterOf(v as never), k).toBeTypeOf("function");
   });
 });

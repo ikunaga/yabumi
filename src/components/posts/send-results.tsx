@@ -217,7 +217,7 @@ function ResultRow({ sns, r, projectId, postId, video }: { sns: SnsKey; r: Targe
           </span>
         )}
       </div>
-      {(r.status === "failed" || r.status === "pending") && r.errorMessage && <p className="text-muted">{r.errorMessage}</p>}
+      {(r.status === "failed" || r.status === "pending") && r.errorMessage && <p className="text-muted wrap-anywhere">{r.errorMessage}</p>}
       {r.status === "failed" && !r.byHand && <p className="text-xs text-muted">直してから「今すぐ送る」か「予約」で送り直せます。</p>}
       {r.status === "published" && (
         <RemovedOnSns label={label} onConfirm={() => markRemovedOnSns(projectId, postId, r.id)} />

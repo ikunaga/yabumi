@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/chip";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ErrorBanner } from "@/components/ui/feedback";
 import { SnsTag } from "@/components/ui/marks";
-import { approveAutoTarget, declineAutoTarget, reviewAutoRun } from "@/lib/auto-post/actions";
+import { approveAutoTarget, declineAutoTarget, reviewAutoRun, sendExpiredAutoTarget } from "@/lib/auto-post/actions";
 import { mediaForSns, type ReviewMedia } from "@/lib/auto-post/review-media";
 import type { AutoReviewItem, AutoTargetPreview } from "@/lib/auto-post/types";
 import { formatDuration } from "@/lib/media/video-rules";
@@ -17,8 +17,10 @@ import { SNS, type SnsKey } from "@/lib/sns";
 
 // 確かめ待ちの 1 回（docs/design/auto-post.md の 1.6、src/lib/auto-post/README.md の「確かめる」）。
 // 送る中身（題・本文・画像と画像の説明・動画）を SNS ごとにそのまま見せる（X の開発者ポリシー「Show exactly what will be published」）。
-// first_review: 回ごとに「送る」「直す」「この回は送らない」。approval: 確かめ待ちの SNS ごとに「送る」「直す」「この SNS には送らない」
-export function ReviewCard({ projectId, item, dueLabel }: { projectId: string; item: AutoReviewItem; dueLabel: string }) {
+// first_review: 回ごとに「送る」「直す」「この回は送らない」。approval: 確かめ待ちの SNS ごとに「送る」「直す」「この SNS には送らない」。
+// expired: 確認できないまま時刻を過ぎた SNS ごとに「今すぐ送る」「編集」（過ぎてから 24 時間まで。deadlineLabel はその時刻。2026-11-28）。
+// highlight: 通知のリンクで開いた回（枠を藍にする）
+export function ReviewCard({ projectId, item, dueLabel, deadlineLabel, highlight = false }: { projectId: string; item: AutoReviewItem; dueLabel: string; deadlineLabel?: string; highlight?: boolean }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<"skip" | { decline: AutoTargetPreview } | null>(null);
@@ -33,11 +35,12 @@ export function ReviewCard({ projectId, item, dueLabel }: { projectId: string; i
     });
 
   const first = item.kind === "first_review";
+  if (item.kind === "expired") return <ExpiredCard projectId={projectId} item={item} dueLabel={dueLabel} deadlineLabel={deadlineLabel ?? ""} highlight={highlight} />;
   const waiting = item.targets.filter((t) => t.status === "awaiting_approval");
   const others = item.targets.filter((t) => t.status !== "awaiting_approval");
 
   return (
-    <Card className="flex flex-col gap-4 px-6 py-5 max-sm:px-4 max-sm:py-4">
+    <Card className={`flex flex-col gap-4 px-6 py-5 max-sm:px-4 max-sm:py-4 ${highlight ? "outline-2 outline-primary" : ""}`}>
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
         <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <span className="text-[17px] font-bold">{item.planName}</span>
@@ -133,6 +136,60 @@ export function ReviewCard({ projectId, item, dueLabel }: { projectId: string; i
       >
         <p>この投稿の送り先から外します。ほかの SNS は予約のまま送ります。</p>
       </ConfirmDialog>
+    </Card>
+  );
+}
+
+// 確認できないまま、送る時刻を過ぎた回。本文と画像を見て「今すぐ送る」を押すと、すぐに送る（押したあとは、この画面から消える）
+function ExpiredCard({ projectId, item, dueLabel, deadlineLabel, highlight }: { projectId: string; item: AutoReviewItem; dueLabel: string; deadlineLabel: string; highlight: boolean }) {
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const postHref = `/projects/${projectId}/posts/${item.postId}`;
+  return (
+    <Card className={`flex flex-col gap-4 px-6 py-5 max-sm:px-4 max-sm:py-4 ${highlight ? "outline-2 outline-primary" : ""}`}>
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="text-[17px] font-bold">{item.planName}</span>
+          <Badge tone="signal">送る時刻を過ぎた</Badge>
+        </p>
+        <p className="num text-sm text-muted">{dueLabel} に送る予定でした</p>
+      </div>
+      {error && <ErrorBanner>{error}</ErrorBanner>}
+      {item.targets.map((t) => (
+        <div key={t.targetId} className="flex flex-col gap-2 rounded-md border border-border px-4 py-3">
+          <span className="inline-flex flex-wrap items-center gap-2">
+            <SnsTag sns={t.sns} />
+            <span className="text-sm text-muted">確認しないまま送る時刻を過ぎたので、送っていません</span>
+          </span>
+          {t.title && <p className="text-[15px] font-bold whitespace-pre-wrap">{t.title}</p>}
+          <p className="text-[15px] leading-[1.8] break-words whitespace-pre-wrap">{t.body}</p>
+          <TargetMedia sns={t.sns} media={item.media} />
+          <div className="flex flex-wrap justify-end gap-2 max-sm:grid max-sm:grid-cols-2">
+            <Button
+              type="button"
+              size="sm"
+              disabled={pending}
+              onClick={() =>
+                start(async () => {
+                  setError(null);
+                  const r = await sendExpiredAutoTarget(t.targetId, t.fingerprint);
+                  if (!r.ok) setError(r.error ?? null);
+                  router.refresh();
+                })
+              }
+            >
+              {pending ? "送っています…" : "今すぐ送る"}
+            </Button>
+            <ButtonLink href={postHref} variant="secondary" size="sm">
+              編集
+            </ButtonLink>
+          </div>
+          <p className="num text-xs text-muted">
+            {deadlineLabel} までなら、{SNS[t.sns].label} に送れます。「今すぐ送る」を押すと、1 分ほどで送ります。
+          </p>
+        </div>
+      ))}
     </Card>
   );
 }

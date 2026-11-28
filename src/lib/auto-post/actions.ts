@@ -32,6 +32,8 @@ const HINT_TEXT: Record<string, string> = {
   project_events_limit: "予定は 1 つのプロジェクトに 50 件までです。終わった予定を消してください。",
   approval_expired: "送る時刻を過ぎたので、送れません。投稿の画面で日時を直してから予約してください。",
   content_changed: "確認したあとに文が変わりました。もう一度確認してください。",
+  // 過ぎてから 24 時間を過ぎた（20261129100000_auto_send_expired）
+  expired_window_over: "送る時刻から 24 時間を過ぎたので、ここからは送れません。送るときは、「編集」を押して、日時を変えてから予約してください。",
   auto_plan_operator_stop: `yabumi の運営が、この自動投稿を止めています。再開・編集・削除はできません。くわしくは ${orPending(LEGAL.contact)} にお問い合わせください。`,
   // 運営者が利用者ごとに止めている（20261118100000_auto_post_holds）
   auto_post_hold: HOLD_REFUSED,
@@ -217,6 +219,15 @@ export async function approveAutoTarget(targetId: string, fp: string): Promise<A
   const db = await signedIn();
   if (!db) return SIGN_IN;
   const { error } = await db.rpc("approve_auto_target", { p_target_id: targetId, p_fingerprint: fp });
+  return error ? { ok: false, error: errorText(error, NO_TARGET) } : { ok: true, data: undefined };
+}
+
+// 確認できないまま送る時刻を過ぎた配信先を、今すぐ送る（過ぎてから 24 時間まで。見た中身の指紋と同じときだけ。DB の send_expired_auto_target）
+export async function sendExpiredAutoTarget(targetId: string, fp: string): Promise<AutoResult> {
+  if (!uuid.safeParse(targetId).success || !fingerprint.safeParse(fp).success) return { ok: false, error: BAD };
+  const db = await signedIn();
+  if (!db) return SIGN_IN;
+  const { error } = await db.rpc("send_expired_auto_target", { p_target_id: targetId, p_fingerprint: fp });
   return error ? { ok: false, error: errorText(error, NO_TARGET) } : { ok: true, data: undefined };
 }
 

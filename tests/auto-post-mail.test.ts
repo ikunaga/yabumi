@@ -29,7 +29,8 @@ describe("autoMail", () => {
     const m = autoMail([run("auto_review")], c);
     expect(m.subject).toBe("yabumi: 自動投稿の確認をお願いします");
     expect(m.text).toContain("■ パン屋\n確認が要る投稿\n・「毎朝のパン」11月24日 火曜 9:00 に X・Threads に送る 1 回目の投稿です。確認するまで送りません。");
-    expect(m.text).toContain("確認する: https://yabumi.example/projects/p1/auto");
+    expect(m.text).toContain("確認する: https://yabumi.example/projects/p1/auto/review?run=r1");
+    expect(m.text).toContain("自動投稿を開く: https://yabumi.example/projects/p1/auto");
     expect(m.text).toContain(`自動投稿のメールを止める: https://yabumi.example/unsubscribe?t=${c.unsubscribeToken}&k=auto`);
     expect(m.text).toContain("メールの受け取り方を変える: https://yabumi.example/settings/notifications");
     expect(m.text).toMatch(/送信者: yabumi/);
@@ -48,7 +49,7 @@ describe("autoMail", () => {
       c,
     );
     expect(m.subject).toBe("yabumi: 自動投稿が止まっています");
-    const p1 = m.text.slice(m.text.indexOf("■ パン屋"), m.text.indexOf("/projects/p1/auto") + "/projects/p1/auto".length);
+    const p1 = m.text.slice(m.text.indexOf("■ パン屋"), m.text.indexOf("自動投稿を開く: https://yabumi.example/projects/p1/auto") + "自動投稿を開く: https://yabumi.example/projects/p1/auto".length);
     expect(p1).toBe(
       [
         "■ パン屋",
@@ -56,11 +57,13 @@ describe("autoMail", () => {
         "・「毎朝のパン」: SNS のつながりが切れています。SNS をつなぎ直してから、再開してください。",
         "確認が要る投稿",
         "・「毎朝のパン」11月24日 火曜 9:00 に X・Threads に送る 1 回目の投稿です。確認するまで送りません。",
+        "  確認する: https://yabumi.example/projects/p1/auto/review?run=r1",
         "・「毎朝のパン」11月24日 火曜 9:00 に X に送る投稿を、まだ確認していません。確認するまで送りません。",
-        "確認する: https://yabumi.example/projects/p1/auto",
+        "  確認する: https://yabumi.example/projects/p1/auto/review?run=r3",
+        "自動投稿を開く: https://yabumi.example/projects/p1/auto",
       ].join("\n"),
     );
-    expect(m.text).toContain("■ 教室\n下書きに残した投稿\n・「季節」11月24日 火曜 9:00 の X・Threads の投稿は、送らずに下書きに残しました。送るときは、確認して予約し直してください。\n確認する: https://yabumi.example/projects/p2/auto");
+    expect(m.text).toContain("■ 教室\n下書きに残した投稿\n・「季節」11月24日 火曜 9:00 の X・Threads の投稿は、送らずに下書きに残しました。送るときは、確認して予約し直してください。\n自動投稿を開く: https://yabumi.example/projects/p2/auto");
   });
 
   it("運営者が止めた・解除した: 決まった文だけ（理由は入れない）。件名", () => {

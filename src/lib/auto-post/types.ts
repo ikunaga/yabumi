@@ -163,7 +163,8 @@ export type AutoTargetPreview = {
 // - first_review: 最初の回の確かめ（A3）。reviewAutoRun で、送る（中の確かめ待ちの SNS もまとめて承認）か送らないかを決める
 // - approval: 確かめて送る SNS（X など）の承認待ち。approveAutoTarget・declineAutoTarget で SNS ごとに決める
 export type AutoReviewItem = {
-  kind: "first_review" | "approval";
+  // expired: 確認できないまま送る時刻を過ぎた（過ぎてから 24 時間は、今すぐ送れる。2026-11-28）
+  kind: "first_review" | "approval" | "expired";
   runId: string;
   planId: string;
   planName: string;

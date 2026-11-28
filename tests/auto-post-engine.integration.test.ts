@@ -612,7 +612,7 @@ describe("状態の見直しと知らせ", () => {
     expect((await admin.from("auto_plans").select("stop_reason").eq("id", id).single()).data!.stop_reason).toBe("materials_out");
   });
 
-  it("作った回は 1 人 1 通にまとめて知らせ（本文は入れない）、2 回目は送らない。確かめ待ちは 2 時間前にもう一度", async () => {
+  it("作った回は 1 人 1 通にまとめて知らせ（本文は入れない）、2 回目は送らない。確かめ待ちは送る時刻の前にもう一度（時刻の決まりは remind.test）", async () => {
     const p = await project();
     await note(p, "知らせのテスト。この本文は通知に出ない");
     const id = await plan(p);
@@ -626,8 +626,23 @@ describe("状態の見直しと知らせ", () => {
     expect(msg.body).not.toContain("知らせのテスト");
     expect(msg.url).toBe(`/projects/${p}/auto`);
     expect(await notifyMade(admin, deps(), new Date(), scopeOpts())).toBe(0);
-    expect(await remindApprovals(admin, deps(), new Date(), scopeOpts())).toBe(1);
+    // 作った知らせのすぐあと（1 時間たたない）は、リマインドを鳴らさない
     expect(await remindApprovals(admin, deps(), new Date(), scopeOpts())).toBe(0);
+    // 送る時刻を、あすの日本時間 18:00 にし、15:00（3 時間前）に見る。作った知らせは前の日
+    const due = new Date(`${new Date(Date.now() + 9 * HOUR + 86_400_000).toISOString().slice(0, 10)}T18:00:00+09:00`);
+    const at = new Date(due.getTime() - 3 * HOUR);
+    await admin.from("auto_runs").update({ due_at: due.toISOString(), notified_at: new Date(due.getTime() - 24 * HOUR).toISOString(), reminded_at: null }).eq("id", run);
+    push.mockClear();
+    expect(await remindApprovals(admin, deps(), new Date(at.getTime() - 60_000), scopeOpts())).toBe(0);
+    // 端末に届かなかったら、送ったことにしない。次のジョブでまた送る（2026-11-28）
+    const noDevice = vi.fn(async () => ({ sent: 0, removed: 0, failed: 0 }));
+    expect(await remindApprovals(admin, { ...deps(), push: noDevice }, at, scopeOpts())).toBe(0);
+    expect(noDevice).toHaveBeenCalledTimes(1);
+    expect((await admin.from("auto_runs").select("reminded_at").eq("id", run).single()).data!.reminded_at).toBeNull();
+    expect(await remindApprovals(admin, deps(), new Date(at.getTime() + 10 * 60_000), scopeOpts())).toBe(1);
+    // リンクは、その回の確認の画面
+    expect(((push.mock.calls[0] as unknown[])[2] as { url: string }).url).toBe(`/projects/${p}/auto/review?run=${run}`);
+    expect(await remindApprovals(admin, deps(), new Date(at.getTime() + 20 * 60_000), scopeOpts())).toBe(0);
     expect((await runOf(run)).status).toBe("scheduled");
     // 通知の設定でオフにした人には送らない
     await admin.from("notification_prefs").upsert({ user_id: aliceId, auto_post_push: false });

@@ -31,12 +31,14 @@ export const SERVER_FONT_DIR = path.join(process.cwd(), "src", "server-fonts");
 
 let registered = false;
 
-// 1 回だけ登録する（同じ関数の中で何度描いても、読み込みは最初の 1 回）
+// 1 回だけ登録する（同じ関数の中で何度描いても、読み込みは最初の 1 回）。
+// dir は引数で変わるので、ビルドの静的な解析からは外す（外さないと、プロジェクト全体が関数に入る。
+// 書体のファイルは next.config.ts の outputFileTracingIncludes で入れている）
 export function registerServerFonts(dir: string = SERVER_FONT_DIR): void {
   if (registered) return;
   for (const [key, files] of Object.entries(FILES) as [FontKey, string[]][]) {
     for (const f of files) {
-      if (!GlobalFonts.registerFromPath(path.join(dir, f), family(key))) throw new Error(`書体を読み込めませんでした（${f}）`);
+      if (!GlobalFonts.registerFromPath(path.join(/* turbopackIgnore: true */ dir, f), family(key))) throw new Error(`書体を読み込めませんでした（${f}）`);
     }
   }
   registered = true;

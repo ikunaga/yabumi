@@ -9,6 +9,8 @@ import type { CallCheck } from "@/lib/ai/ai-check";
 import { setAiBudgetTestScope } from "@/lib/ai/budget";
 import type { AutoPostGenerator } from "@/lib/auto-post/ai";
 import { makeDueRuns, type EngineDeps } from "@/lib/auto-post/engine";
+import type { CallFormatRound } from "@/lib/ai/format-round-ai";
+import { ROUND_FAILED_TEXT } from "@/lib/auto-post/series-round";
 import { addFormat, updateFormat } from "@/lib/post-formats/store";
 import { saveConnectedAccount } from "@/lib/sns/accounts";
 import { adminClient, deleteUser, signUpNewUser, type TestClient } from "./helpers/supabase";
@@ -118,6 +120,38 @@ describe("自動の回（偽の AI）", () => {
     await makeDueRuns(admin, deps(), new Date(), scopeOpts());
     const round = (await admin.from("post_format_rounds").select("values").eq("post_id", (await runOf(run)).post_id!).single()).data!;
     expect(round.values).toMatchObject({ 答え方: expect.stringContaining("（偽の AI）答え方") });
+  });
+});
+
+describe("本物の AI の返事が使えないとき（2026-11-28 本番で回が飛ばされた）", () => {
+  const usage = { inputTokens: 100, cacheWriteTokens: 0, cacheReadTokens: 0, outputTokens: 50 };
+  const real = (call: CallFormatRound): EngineDeps => ({ generator, callCheck, push, callFormatRound: call });
+  const good = { output: { proposals: [{ values: [{ name: "映画", text: "インセプション" }, { name: "キーワード", text: "夢・こま・階層・雪山・列車" }], checks: [] }] }, stopReason: "end_turn", model: "claude-opus-5-5", usage };
+
+  it("1 回目が別のモデルに回って読めなくても、作り直して予約する", async () => {
+    const formatId = await addFormat(alice, projectId, { name: "連想映画クイズ 5", body: BODY, series: SERIES });
+    const planId = (await savePlan(formatId, { format_vars: { 答え方: { value: "リプ" } } })).data!;
+    await admin.from("auto_plans").update({ first_review: false }).eq("id", planId);
+    const run = await dueRun(planId);
+    const call = vi.fn<CallFormatRound>().mockResolvedValueOnce({ ...good, output: null, model: "claude-sonnet-5-5", stopReason: "max_tokens" }).mockResolvedValueOnce(good);
+    expect(await makeDueRuns(admin, real(call), new Date(), scopeOpts())).toEqual({ scheduled: 1 });
+    expect(call).toHaveBeenCalledTimes(2);
+    const round = (await admin.from("post_format_rounds").select("values").eq("post_id", (await runOf(run)).post_id!).single()).data!;
+    expect(round.values).toMatchObject({ 映画: "インセプション" });
+  });
+
+  it("3 回とも駄目なら、飛ばさずに次のジョブでやり直す回にし、理由（回数・止まった理由・モデル）を残す", async () => {
+    const formatId = await addFormat(alice, projectId, { name: "連想映画クイズ 6", body: BODY, series: SERIES });
+    const planId = (await savePlan(formatId, { format_vars: { 答え方: { value: "リプ" } } })).data!;
+    await admin.from("auto_plans").update({ first_review: false }).eq("id", planId);
+    const run = await dueRun(planId);
+    const call = vi.fn<CallFormatRound>(async () => ({ ...good, output: null, stopReason: "refusal" }));
+    expect(await makeDueRuns(admin, real(call), new Date(), scopeOpts())).toEqual({ waiting: 1 });
+    expect(call).toHaveBeenCalledTimes(3);
+    const row = (await admin.from("auto_runs").select("status, reason_detail, post_id").eq("id", run).single()).data!;
+    expect(row.status).toBe("waiting");
+    expect(row.post_id).toBeNull();
+    expect(row.reason_detail).toMatch(new RegExp(`^${ROUND_FAILED_TEXT}3 回: refusal opus-5-5 \\d+ 秒 / refusal`));
   });
 });
 

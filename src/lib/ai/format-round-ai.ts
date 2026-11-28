@@ -16,6 +16,7 @@ import {
   isSeries,
   roundKeys,
   roundLine,
+  roundTitle,
   usedRoundKeys,
   varPlaces,
   type FormatRound,
@@ -91,6 +92,8 @@ export function buildFormatRoundRequest(input: {
   past: Pick<FormatRound, "values">[];
   wish: string;
   fixed?: Record<string, string>;
+  // 作り直すとき（自動投稿で、前の返事の案が使えなかった）: 使えなかった案と理由。series-round.ts の retryNote
+  retry?: string;
 }): { system: BetaTextBlockParam[]; messages: BetaMessageParam[] } {
   const type = productTypeOf(input.project.productType);
   const { series, body } = input.format;
@@ -115,6 +118,7 @@ export function buildFormatRoundRequest(input: {
       ? `# もう出した回（新しい順に ${input.past.length} 回。重ならないようにする変数は重ねない）\n<past>\n${input.past.map((r) => `- ${escapeData(roundLine(r))}`).join("\n")}\n</past>`
       : "# もう出した回\nまだありません",
     input.wish ? `# 今回の希望\n<wish>${escapeData(input.wish)}</wish>` : "",
+    input.retry ? `# 前の返事で使えなかったもの（作り直し）\n${escapeData(input.retry)}` : "",
     `次の回の案を ${ROUND_PROPOSALS} つ出してください。`,
   ].filter(Boolean);
   return { system: [{ type: "text", text: FORMAT_ROUND_SYSTEM }], messages: [{ role: "user", content: [{ type: "text", text: lines.join("\n\n") }] }] };
@@ -129,15 +133,22 @@ export function expectedWordCount(instruction: string): number | null {
   return m ? Number(m[1]) : null;
 }
 
-// 返事を確かめて、使える案だけを残す: AI の変数をすべて埋めている・言葉の数の指示があれば「・」で区切った数が合う・
-// 重ならない目印（roundKeys）がもう出した回（used。記録の全件）とも案どうしでも重ならない。1 つも残らなければ null
-export function normalizeRoundProposals(raw: unknown, format: Pick<PostFormat, "series">, used: Set<string>, fixed: Record<string, string> = {}): RoundProposal[] | null {
+// 案を捨てた理由。schema: 返事の形が違う / missing: AI の変数が足りない / count: 言葉の数が指示と違う /
+// dup_past: もう出した回と重なる / dup_self: 同じ返事の中の案どうしで重なる
+export type RoundDropReason = "schema" | "missing" | "count" | "dup_past" | "dup_self";
+// 捨てた案 1 つ。title は見分けるための言葉（重ならない変数の言葉。作り直しで AI に伝える）、got・want は言葉の数
+export type RoundDrop = { reason: RoundDropReason; title: string; varName?: string; got?: number; want?: number };
+
+// 返事を確かめて、使える案と、捨てた案の理由を返す: AI の変数をすべて埋めている・言葉の数の指示があれば「・」で区切った数が合う・
+// 重ならない目印（roundKeys）がもう出した回（used。記録の全件）とも案どうしでも重ならない
+export function screenRoundProposals(raw: unknown, format: Pick<PostFormat, "series">, used: Set<string>, fixed: Record<string, string> = {}): { proposals: RoundProposal[]; dropped: RoundDrop[] } {
   const p = roundProposalsSchema.safeParse(raw);
-  if (!p.success) return null;
+  if (!p.success) return { proposals: [], dropped: [{ reason: "schema", title: "" }] };
   const ai = aiVars(format.series);
   const names = ai.map((v) => v.name);
   const seen = new Set(used);
   const out: RoundProposal[] = [];
+  const dropped: RoundDrop[] = [];
   for (const x of p.data.proposals) {
     const values: Record<string, string> = {};
     for (const s of x.values) {
@@ -145,20 +156,42 @@ export function normalizeRoundProposals(raw: unknown, format: Pick<PostFormat, "
       const text = line(s.text, 200);
       if (names.includes(name) && text && !(name in values)) values[name] = text;
     }
-    if (names.some((n) => !(n in values))) continue;
+    const title = line(roundTitle(format.series, values) || Object.values(values).join("・"), 40);
+    const missing = names.find((n) => !(n in values));
+    if (missing) {
+      dropped.push({ reason: "missing", title, varName: missing });
+      continue;
+    }
     // 言葉の中の「・」で数がずれた案（「スペース・レンジャー」で 6 つに見える）は捨てる
-    if (ai.some((v) => {
+    const bad = ai.find((v) => {
       const want = expectedWordCount(v.instruction);
       return want !== null && values[v.name].split("・").filter((w) => w.trim()).length !== want;
-    })) continue;
+    });
+    if (bad) {
+      dropped.push({ reason: "count", title, varName: bad.name, got: values[bad.name].split("・").filter((w) => w.trim()).length, want: expectedWordCount(bad.instruction)! });
+      continue;
+    }
     const keys = roundKeys(format.series, { ...fixed, ...values });
-    if (!keys.length || keys.some((k) => seen.has(k))) continue;
+    if (!keys.length || keys.some((k) => used.has(k))) {
+      dropped.push({ reason: "dup_past", title });
+      continue;
+    }
+    if (keys.some((k) => seen.has(k))) {
+      dropped.push({ reason: "dup_self", title });
+      continue;
+    }
     for (const k of keys) seen.add(k);
     const checks = x.checks.map((c) => line(c, 80)).filter(Boolean).slice(0, 3);
     out.push({ values, checks });
     if (out.length >= ROUND_PROPOSALS) break;
   }
-  return out.length ? out : null;
+  return { proposals: out, dropped };
+}
+
+// 使える案だけ（1 つも残らなければ null）
+export function normalizeRoundProposals(raw: unknown, format: Pick<PostFormat, "series">, used: Set<string>, fixed: Record<string, string> = {}): RoundProposal[] | null {
+  const { proposals } = screenRoundProposals(raw, format, used, fixed);
+  return proposals.length ? proposals : null;
 }
 
 type Db = SupabaseClient<Database>;

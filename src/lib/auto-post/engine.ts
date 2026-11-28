@@ -9,6 +9,7 @@ import { normalizePlan, type PlanData } from "@/lib/plan/schema";
 import { loadVoiceContext } from "@/lib/plan/voice";
 import { sendPush, type PushMessage } from "@/lib/push/send";
 import { isManualSns, SNS, SNS_KEYS, type SnsKey } from "@/lib/sns";
+import { SeriesRoundFailed } from "./series-round";
 import { splitTagsByText, withHashtags } from "@/lib/sns/hashtags";
 import type { Database } from "@/lib/supabase/database.types";
 import { autoPostGenerator, fakeAiMode, type AutoPostGenerator } from "./ai";
@@ -502,6 +503,8 @@ async function placeDraft(
 // 例外を、回の理由（reason_detail）に残せる短い文にする。種類（エラーの名前・コード）と文の頭だけ。
 // 鍵・トークン・メールアドレス・URL・長い英数字の並びは伏せる（本文や個人の情報を残さない。200 字まで）
 export function errorDetail(e: unknown): string {
+  // シリーズの案を作り直しても出せなかった: 試した回数・止まった理由などの文をそのまま残す（本文は入っていない。series-round.ts の attemptsDetail）
+  if (e instanceof SeriesRoundFailed) return [...e.message].slice(0, 200).join("");
   const err = e as { name?: unknown; code?: unknown; status?: unknown; message?: unknown } | null;
   const kind = [typeof err?.name === "string" && err.name !== "Error" ? err.name : null, err?.code != null ? `code ${String(err.code)}` : null, err?.status != null ? `status ${String(err.status)}` : null]
     .filter(Boolean)
@@ -519,6 +522,10 @@ export function errorDetail(e: unknown): string {
 
 // 1 つの回を作るのは 3 回まで（claim_due_auto_runs が取るたびに attempts を 1 ふやす。DB の 3 回と同じ）
 export const RUN_ATTEMPTS_MAX = 3;
+// ジョブの時間: deadline（route の 200 秒）のあと、関数が打ち切られる（maxDuration 300 秒）までの間。
+// シリーズの案のあとの、AI っぽさチェック・画像の場面・画像の AI に残しておく時間（2026-11-28。series-round.ts）
+export const JOB_HARD_STOP_AFTER_DEADLINE_MS = 100_000;
+export const AFTER_SERIES_RESERVE_MS = 45_000;
 // 作っている途中で関数が打ち切られたまま、取り直されなかった回（generating のまま 10 分。claim_due_auto_runs と同じ）
 const STUCK_AFTER_MS = 10 * 60_000;
 // 送る時刻の、この時間より前なら、失敗した回を次のジョブでやり直す（ジョブは 10 分ごと）
@@ -585,7 +592,8 @@ export async function makeDueRuns(admin: Db, deps: EngineDeps, now: Date, opts: 
     try {
       // 前の試みが打ち切られて、途中まで作った投稿が残っていれば消してから作る
       if ((run.attempts ?? 1) > 1) await removeLeftoverPost(admin, run.id);
-      status = await processRun(admin, deps, run, now);
+      // シリーズの案の作り直しは、関数の打ち切り（deadline の 100 秒後）より、確かめと画像の時間（45 秒）ぶん前までにする
+      status = await processRun(admin, opts.deadline !== undefined ? { ...deps, seriesUntil: opts.deadline + JOB_HARD_STOP_AFTER_DEADLINE_MS - AFTER_SERIES_RESERVE_MS } : deps, run, now);
     } catch (e) {
       console.error("[auto-post] 回を作れませんでした", run.id, e instanceof Error ? e.message : e);
       // 理由の種類と短い文を残す（Vercel のログは 1 時間で消えるので、あとで追えるように。2026-11-24 本番）

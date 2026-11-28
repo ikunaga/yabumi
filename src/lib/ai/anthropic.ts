@@ -185,6 +185,8 @@ export const callVoiceMemo: CallVoiceMemo = structuredCaller(voiceMemoSchema, AI
 export const callPostFormat: CallPostFormat = structuredCaller(postFormatProposalsSchema, AI_MAX_TOKENS.post_format, "medium");
 // シリーズの次の回の案（docs/design/format-series.md の 3）。作品の要素を選ぶので effort は medium
 export const callFormatRound: CallFormatRound = structuredCaller(roundProposalsSchema, AI_MAX_TOKENS.post_format_round, "medium");
+// 自動投稿のシリーズの次の回の案（max_tokens だけ多め。AI_MAX_TOKENS.auto_series_round）
+export const callAutoSeriesRound: CallFormatRound = structuredCaller(roundProposalsSchema, AI_MAX_TOKENS.auto_series_round, "medium");
 // 伸びた投稿からフォーマットの案（docs/design/winning-posts.md の 4.1）。型にできるか・AI が毎回埋められるかの判断が要るので effort は medium
 export const callFormatFromPosts: CallFormatFromPosts = structuredCaller(formatFromPostsSchema, AI_MAX_TOKENS.format_from_posts, "medium");
 

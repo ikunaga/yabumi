@@ -37,6 +37,9 @@ export const AI_MAX_TOKENS = {
   format_from_posts: 3000,
   // シリーズの次の回の案（docs/design/format-series.md の 3）
   post_format_round: 2500,
+  // 自動投稿のシリーズの次の回の案（中身は post_format_round と同じ。src/lib/auto-post/series-round.ts）。思考も含むので、過去の回が多いときに
+  // 途中で切れないよう多めにする（2026-11-28）。用途は auto_post・auto_post_sample で、DB の下限（0.13）はこれより小さいので、DB は変えない
+  auto_series_round: 4000,
   // 自動の投稿の文を作る（docs/design/auto-post.md の 2.4。DB の reserve_ai_usage の auto_post の下限 0.13 と合う値）。
   // チェックは AI っぽさチェック（ai_check）の呼び出しを、用途 auto_post_check で使う
   auto_post: 3200,

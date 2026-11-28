@@ -164,6 +164,21 @@ export function isHardFinding(f: Finding, ctx: HardContext = {}): boolean {
 // 止めずに送った弱い指摘（事実か確かめて・やらないこと）。直しは当てず（利用者がわざと入れた言葉のことが多い）、注意として残す
 export const isCautionFinding = (f: Finding, ctx: HardContext = {}) => (f.kind === "avoid" || f.kind === "made_up") && !isHardFinding(f, ctx);
 
+// シリーズのフォーマットの、毎回同じ文（変数を除いた部分）。行ごとに分け、2 字未満は捨てる。
+// 確認の AI に「利用者が決めた文」として渡し、引用がこの中にすっかり入る指摘は数えない（2026-11-28 通しの検証。毎回「？と！が続く」の指摘が出た）
+export function formatFixedParts(body: string): string[] {
+  return body
+    .split(/\{[^{}]+\}/)
+    .flatMap((s) => s.split("\n"))
+    .map((s) => s.trim())
+    .filter((s) => [...s].length >= 2);
+}
+// 指摘の引用が、毎回同じ文の中にすっかり入っているか（変数の言葉をまたぐ引用は入らない）
+export function inFixedParts(quote: string, parts: readonly string[]): boolean {
+  const lines = quote.split("\n").map((l) => l.trim()).filter(Boolean);
+  return lines.length > 0 && lines.every((l) => parts.some((p) => p.includes(l)));
+}
+
 export function applyAiCheck(texts: Texts, result: AiCheckResult, ctx: HardContext = {}): { texts: Texts; hold: Issue | null; fixed: number } {
   const hard = result.findings.find((f) => isHardFinding(f, ctx));
   if (hard) return { texts, hold: { kind: hard.kind === "made_up" ? "made_up" : "avoid", detail: hard.why.slice(0, 200) }, fixed: 0 };

@@ -85,7 +85,7 @@ function Connected({ s, remove }: { s: CredentialStatus; remove: () => Promise<v
         <span className="text-muted">{s.hint}</span>
         <span className="num ml-2 text-faint">{s.lastImportedDay ? `${s.lastImportedDay} の分まで取り込みました` : "まだ取り込んでいません"}</span>
       </p>
-      {s.status === "error" && s.lastError && <p className="text-danger">{s.lastError}</p>}
+      {s.status === "error" && s.lastError && <p className="text-danger wrap-anywhere">{s.lastError}</p>}
       <RemoveForm action={remove} label="外す" note="保存したキーを消します。取り込んだ数字は残ります。" />
     </div>
   );

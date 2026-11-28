@@ -156,7 +156,8 @@ export function AttentionStrip({
                       {postTitle(p.body, 30)}
                     </Link>
                     {f && (
-                      <span className="ml-2 text-muted">
+                      // SNS のエラーの文には、途中で切れない長い文字の列（URL や ID）が入ることがある。スマホで右にはみ出さないよう、どこでも折り返す（2026-11-28）
+                      <span className="ml-2 text-muted wrap-anywhere">
                         {SNS[f.sns].label}: {f.error_message ?? "理由はわかりません"}
                       </span>
                     )}

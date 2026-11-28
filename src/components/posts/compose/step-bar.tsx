@@ -39,11 +39,14 @@ export function ComposeStepBar({ c }: { c: Composer }) {
   const imagesNext = composeStep === 3 ? imagesStepNext({ hasMedia: images.length > 0 || video !== null, needImage: need("needs_image"), needVideo: need("needs_video") }) : null;
   const primary = imagesNext?.label ?? (composeStep === 4 && !hasLink ? "リンクなしで次へ" : `${nextLabel}へ進む`);
   const noteId = useId();
+  // ② で送り先が 0 のときは「あとで選ぶ」が並び、スマホの幅に 1 行で収まらない（2026-11-28 PM の指示）。
+  // スマホのときだけ 2 段にする: 1 段目に「← 戻る」と「あとで選ぶ」、2 段目に次へのボタンを横いっぱいに。PC は 1 行のまま
+  const later = composeStep === 2 && chosen.length === 0;
   return (
     <div
       className={`flex flex-col gap-1 max-sm:fixed max-sm:inset-x-0 max-sm:bottom-[calc(var(--tabbar-h,64px)+env(safe-area-inset-bottom))] max-sm:z-10 max-sm:border-t max-sm:border-border max-sm:bg-surface max-sm:px-4 max-sm:py-2.5 ${keyboard ? "max-sm:hidden" : ""}`}
     >
-      <div className="flex items-center gap-3">
+      <div className={`flex items-center gap-3 ${later ? "max-sm:flex-wrap max-sm:gap-y-2" : ""}`}>
         {prev ? (
           <Button type="button" variant="text" onClick={() => goStep(prev)} disabled={pending}>
             ← 戻る
@@ -52,9 +55,9 @@ export function ComposeStepBar({ c }: { c: Composer }) {
           <span />
         )}
         {next && (
-          <span className="ml-auto flex items-center gap-2">
-            {composeStep === 2 && chosen.length === 0 && (
-              <Button type="button" variant="text" size="sm" onClick={() => goStep(next)} disabled={pending}>
+          <span className={`ml-auto flex items-center gap-2 ${later ? "max-sm:contents" : ""}`}>
+            {later && (
+              <Button type="button" variant="text" size="sm" className="max-sm:ml-auto" onClick={() => goStep(next)} disabled={pending}>
                 あとで選ぶ
               </Button>
             )}
@@ -64,6 +67,7 @@ export function ComposeStepBar({ c }: { c: Composer }) {
               onClick={() => goStep(next)}
               disabled={pending || !nextOk}
               aria-describedby={reason ? reasonId : imagesNext?.note ? noteId : undefined}
+              className={later ? "max-sm:w-full" : undefined}
             >
               {primary} →
             </Button>
